@@ -1,18 +1,23 @@
 # Frozen shrink-only baseline for the zero-producer lint (WP01, FR-001/SC-001).
 #
-# THIS IS NOT AN ALLOWLIST. An allowlist entry is permanently excused. A baseline
-# entry is DEBT: it has a named owner, a required structural fix, and a test
-# (`test_a_baseline_entry_does_not_survive_its_owner`) that fails the moment the
-# owner completes with the entry still here. `ALLOWLIST` stays `frozenset()`.
+# THIS IS NOT AN ALLOWLIST. A baseline entry is DEBT: every row carries a
+# structural disposition that clears it. There is no permanent exemption.
 #
 # Ratchet semantics (charter Burn-down Policy §a, `frozen-baseline-shrink-only-ratchet`):
 #   - a finding NOT in this file  -> FAILS the gate
 #   - a baseline entry no longer found -> WARNS, and the entry should be deleted
+# The file's size is registered as `test_no_inert_schema_slots.baseline_entries`
+# in `tests/architectural/_baselines.yaml` and may only go down.
+#
+# Row shape is exactly `name`, `declared_at`, `disposition`, `note`. The parser
+# (`load_baseline` in `_inert_slots.py`) refuses any other key, including the
+# retired `owner`, `provisional`, top-level `mission` and the retired
+# `code_only_suppressions` section (mission
+# ratchet-baseline-census-gate-remediation-01M3EW3Z, #3026/#3962).
 #
 # Why a baseline at all: SC-001 asked for a zero-entry allowlist, but the lint's
-# first run on the shipped tree returned 41 findings whose owners run AFTER this
-# work package (WP05) or in a later mission (Mission D / I9). The dependency is
-# inverted; the criterion was written against a tree that turned out not to be
+# first run on the shipped tree returned 41 findings whose fixes run in later
+# work. The criterion was written against a tree that turned out not to be
 # clean. Operator ruling, doctrine-silence-guards-01KYFV7Q.
 #
 # `disposition` vocabulary is exactly three values. There is deliberately no
@@ -21,58 +26,30 @@
 #   delete-the-declaration  nothing should fill this; the declaration is the defect
 #   fix-the-lint-definition a false positive; the CHECKER changes, never the baseline
 #
-# `provisional: true` marks an entry whose disposition has NOT been adjudicated.
-# WP01 recorded the evidence but did not decide, so a provisional guess cannot
-# harden into the record. An entry with a named owner may NOT be provisional --
-# that owner's disposition is theirs to decide and record;
-# `test_baseline_entries_are_well_formed` pins it.
-#
-# `unassigned` is CAPPED and shrink-only (`MAX_UNASSIGNED_ENTRIES`). It is the one
-# owner value the anti-weasel test can never fire for, so without a cap it is a
-# legal row that never fires, never expires and never requires adjudication --
-# i.e. a way to satisfy the growth rule without doing the work. The cap may only
-# go down. Every named owner must also RESOLVE to a real WP or mission in the
-# event log (`test_every_named_owner_resolves`): `WP42`, `wp05` and `mission:typo`
-# would otherwise read as "never complete" exactly like `unassigned`.
-#
 # KNOWN UNDER-COUNT (still true after the src/doctrine scope fix): the lint matches
 # slot names globally, with no namespacing, so a slot is still masked by an
 # unrelated same-named producer *inside* src/charter/offering/. The error direction is
-# always false-NEGATIVE, so the true debt is >= 59.
+# always false-NEGATIVE, so the true debt is higher than this file's size.
 #
-# The scope fix is why this file grew 41 -> 59. `_code_producers` used to harvest
-# all of src/ (12,742 names vs 807 now). Among the names that scan added were
-# `aliases` -- the field SC-001 exists to guard, which the gate therefore did NOT
-# guard -- and `overrides`, which hid half of the FR-028 pair.
-#
-# WP05/T024 cleared its 8 entries (the `enhances`/`overrides` pair across
-# paradigm|procedure|styleguide|tactic.schema.yaml): FR-028 retired both fields
-# and each `models.py` raises on them via `@model_validator`, so the schemas
-# advertising them as valid properties documented a shape the loader rejects.
-# `scripts/generate_schemas.py` now emits the reconciled shape and the four
-# schemas no longer declare either property. 59 -> 51. The entries-still-found
-# floors in `_inert_slots.py` are derived from this file's live size, so their
-# drop needed no edit of their own.
-#
-# PR #3134 added `structural_targets` to occurrence-map.schema.yaml, which the
-# gate flagged as a new inert slot -- the same false-positive class as the
-# already-baselined `from`/`moves`/`to` on that schema (occurrence maps are
-# per-mission planning artifacts under kitty-specs/, structurally outside the
-# src-only producer scope this checker walks; no property of that schema was
-# ever going to be assessable here). Rather than add a fourth baseline row,
-# `_inert_slots.py` now excludes `occurrence-map.schema.yaml` from the schema
-# walk at the source (`_NON_DOCTRINE_SCHEMAS`), which also retires the
-# already-baselined `from`/`moves`/`to` rows below -- they are DELETED here
-# rather than left to warn, because `test_the_scan_actually_sees_the_shipped_tree`
-# is a concrete floor requiring every schema-declared baseline entry to still
-# be found; a scan that structurally cannot ever find them again must not
-# leave them in the file. 51 -> 48 entries, `unassigned` 23 -> 20; the mirrored
-# `baseline_entries` / `unassigned_entries` counters in
-# `tests/architectural/_baselines.yaml` are updated in the same change, per
-# that file's own registration-gate requirement.
-
-# WP owners without a `mission:` prefix are work packages of this mission.
-mission: doctrine-silence-guards-01KYFV7Q
+# Burn-down history:
+# - The scope fix grew this file 41 -> 59. `_code_producers` used to harvest
+#   all of src/ (12,742 names vs 807 now). Among the names that scan added were
+#   `aliases` -- the field SC-001 exists to guard, which the gate therefore did
+#   NOT guard -- and `overrides`, which hid half of the FR-028 pair.
+# - WP05/T024 (doctrine-silence-guards) cleared 8 entries (the
+#   `enhances`/`overrides` pair across paradigm|procedure|styleguide|tactic
+#   schemas): FR-028 retired both fields and the schemas no longer declare
+#   them. 59 -> 51.
+# - PR #3134 excluded `occurrence-map.schema.yaml` from the schema walk
+#   (`_NON_DOCTRINE_SCHEMAS`): occurrence maps are per-mission planning
+#   artifacts outside the src-only producer scope, a checker-scope false
+#   positive. Its `from`/`moves`/`to` rows were deleted. 51 -> 48.
+# - PR #3234 retired `toolguide-references` (-1), dead-port-disposition-01M1TZVN
+#   retired the ten-row `orchestration` family (-10), and #3831/#4088 added
+#   `path_conventions` (+1). 48 -> 38.
+# - ratchet-baseline-census-gate-remediation-01M3EW3Z WP05 deleted the stale
+#   `styleguide-references` and `model` rows on agent-profile.schema.yaml,
+#   which the live scan no longer reports. 38 -> 36.
 
 entries:
 
@@ -84,133 +61,107 @@ entries:
   # the whole kind is scheduled debt rather than a mistake.
   - name: accessed_on
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: accessed_on
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: adaptation
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: adaptation
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: adaptation_notes
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: adaptation_notes
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: attribution_reason
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: attribution_reason
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: external_references
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: external_references
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: extraction_action
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: extraction_action
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: publisher
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: publisher
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: resulting_artifacts
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: resulting_artifacts
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: source_references
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: source_references
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: target_concepts
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: target_concepts
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
-  # Surfaced by the src/doctrine producer scope fix; same kind, same owner.
+  # Surfaced by the src/doctrine producer scope fix; same kind.
   - name: classification
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: classification
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: note
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: note
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: reference
     declared_at: src/charter/offering/import_candidates/models.py
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
   - name: reference
     declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    owner: mission:foundational-values-creed-band-01KYFV8N
     disposition: wire-the-producer
     note: Whole import-candidate kind ships with zero instances under src/.
 
@@ -222,39 +173,27 @@ entries:
   # the shipped catalog -- possibly intentional, but intentional-and-inert.
   - name: freshness_policy
     declared_at: src/charter/offering/model_task_routing/models.py
-    owner: unassigned
     disposition: wire-the-producer
-    provisional: true
     note: Read by loader.py; present in the shipped catalog only as a comment.
   - name: freshness_policy
     declared_at: src/charter/offering/schemas/model-to-task_type.schema.yaml
-    owner: unassigned
     disposition: wire-the-producer
-    provisional: true
     note: Read by loader.py; present in the shipped catalog only as a comment.
   - name: max_catalog_age_hours
     declared_at: src/charter/offering/model_task_routing/models.py
-    owner: unassigned
     disposition: wire-the-producer
-    provisional: true
     note: Read by loader.py; present in the shipped catalog only as a comment.
   - name: max_catalog_age_hours
     declared_at: src/charter/offering/schemas/model-to-task_type.schema.yaml
-    owner: unassigned
     disposition: wire-the-producer
-    provisional: true
     note: Read by loader.py; present in the shipped catalog only as a comment.
   - name: pricing_source_url
     declared_at: src/charter/offering/model_task_routing/models.py
-    owner: unassigned
     disposition: wire-the-producer
-    provisional: true
     note: Declared on ModelCost; no shipped catalog entry carries it.
   - name: pricing_source_url
     declared_at: src/charter/offering/schemas/model-to-task_type.schema.yaml
-    owner: unassigned
     disposition: wire-the-producer
-    provisional: true
     note: Declared on ModelCost; no shipped catalog entry carries it.
 
   # agent-profile aliases that no shipped profile authors. Mapped in both
@@ -264,22 +203,8 @@ entries:
   # profile.py / schema_models.py, not a models.py.
   - name: avatar-image
     declared_at: src/charter/offering/schemas/agent-profile.schema.yaml
-    owner: unassigned
     disposition: delete-the-declaration
-    provisional: true
     note: No shipped agent profile authors this key.
-  - name: styleguide-references
-    declared_at: src/charter/offering/schemas/agent-profile.schema.yaml
-    owner: unassigned
-    disposition: delete-the-declaration
-    provisional: true
-    note: No shipped agent profile authors this key.
-  - name: model
-    declared_at: src/charter/offering/schemas/agent-profile.schema.yaml
-    owner: unassigned
-    disposition: delete-the-declaration
-    provisional: true
-    note: No shipped agent profile authors this key (0 of 18 carry `model:`).
 
   # Sits directly next to mission B2's `aliases` -- the field this lint exists
   # to guard. The only shipped pack, built-in/spec-kitty-core.glossary-pack.yaml,
@@ -290,21 +215,15 @@ entries:
   # glossary_packs/models.py says so in its own docstring: the `aliases` /
   # `banned_synonyms` fields "are carried and round-tripped for Mission B
   # forward-compat but are inert (unwired) in Mission A".
-  #
-  # OWNER NEEDED: these belong to mission B2, whose slug does not exist in
-  # kitty-specs/ yet, so a `mission:` owner here would not resolve. Route them the
-  # moment B2 is created -- until then the anti-weasel gate cannot fire for the
-  # two fields this work package exists to guard.
+  # These belong to mission B2.
   - name: aliases
     declared_at: src/charter/offering/glossary_packs/models.py
-    owner: mission:drg-edge-migration-extractor-retirement-01KYFV8C
     disposition: wire-the-producer
     note: >-
       Declared inert by its own module docstring, pending mission B2. SC-001 names
       this field explicitly.
   - name: banned_synonyms
     declared_at: src/charter/offering/glossary_packs/models.py
-    owner: mission:drg-edge-migration-extractor-retirement-01KYFV8C
     disposition: wire-the-producer
     note: Enforcement field; the one shipped glossary pack does not author it.
 
@@ -318,171 +237,8 @@ entries:
   # so no src/ author of this key lands in this PR.
   - name: path_conventions
     declared_at: src/charter/offering/missions/models.py
-    owner: mission:mission-type-canonical-source-01M302V9
     disposition: wire-the-producer
     note: >-
       Additive charter doctrine slot with no authoring producer yet; WP04/WP05
       of this mission (the wiring that would have filled it) were canceled and
       deferred to #2652.
-
-# ---------------------------------------------------------------------------
-# CODE-ONLY SUPPRESSIONS
-#
-# A different record for a different problem. The `entries:` above are findings
-# the gate DOES report and someone owes work on. These are slots the gate does
-# NOT report, solely because code under src/charter/offering/ names them -- the one
-# suppression route that had no accounting until review fabricated a suppression
-# with a single dead line and took the module from 1 failed to 26 passed.
-#
-# The producer rule itself is unchanged, deliberately. Review's mutation used a
-# dict literal; confirming it found that a bare binding and a keyword argument
-# work identically, and any rule of the form "which AST node counts as a write"
-# is satisfiable by writing that node. So the fix is not a narrower rule, it is
-# the removal of the silence: this computed set must MATCH this record exactly.
-#
-# Ratchet semantics -- BOTH directions fail, unlike the baseline above:
-#   - a suppression not recorded here     -> FAILS (that is the hole)
-#   - a recorded row no longer computed   -> FAILS (delete the row; the same
-#     signal also catches a collapsed walk, which would otherwise empty the
-#     computed set and let every absence assertion in the module pass)
-#
-# `verdict` vocabulary is exactly three values, and only the first is a claim
-# that the code write is real:
-#   genuine-producer     the code really does place a value in this slot
-#   name-collision       an unrelated same-named symbol; the slot IS inert and
-#                        this row is masking a real finding
-#   reader-not-producer  the code contact reads or maps the key rather than
-#                        filling it. The module's central asymmetry ("a reader
-#                        is not a producer") is defeated by the kwarg and
-#                        dict-key rules, which cannot tell `f(x=obj.x)` or a
-#                        loader's key map from a write. Also masking.
-#
-# The latter two are DEBT and are capped shrink-only (MAX_MASKING_SUPPRESSIONS).
-# That cap is what gives this record teeth rather than merely making the route
-# visible: at its current population a NEW code-only suppression can only be
-# admitted as `genuine-producer` -- a positive claim, in a diff, next to the
-# code being claimed, and re-derived from the AST by `code_producer_writes`.
-#
-# `producer` cites ONE file that writes the name; several rows have more (see
-# `field_path`, six identical jsonschema error-path locals). The citation is
-# verified, not exhaustive -- `test_every_recorded_code_producer_actually_writes_the_slot`
-# re-parses that file and fails if the claim is false, closing for this record
-# the same gap `test_every_named_owner_resolves` closes for baseline owners.
-#
-# THE HEADLINE, because it should not need re-deriving: 14 of these 15 rows are
-# masking. The code-producer path suppresses one genuine production and fourteen
-# coincidences. It was never the load-bearing producer form in a doctrine layer
-# -- authored artefacts are -- and this record is the measurement that says so.
-code_only_suppressions:
-  - name: action_sequence
-    declared_at: src/charter/offering/missions/models.py
-    producer: src/charter/offering/missions/mission_type_repository.py
-    verdict: genuine-producer
-    note: >-
-      `payload["action_sequence"] = projected_sequence or raw.get("action_sequence")`
-      -- a store into the payload the mission-type model is built from, in the
-      same domain as the slot. The one real code producer in this record.
-
-  - name: directive
-    declared_at: src/charter/offering/import_candidates/models.py
-    producer: src/charter/offering/artifact_kinds.py
-    verdict: name-collision
-    note: >-
-      Suppressed by the `_PLURALS` / `_PATTERNS` dict keys, which are ArtifactKind
-      tokens ("directive" -> "directives", "*.directive.yaml"). The slot is a field
-      of an import candidate. Different domain, same six letters; no artefact
-      authors the field.
-  - name: directive
-    declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    producer: src/charter/offering/artifact_kinds.py
-    verdict: name-collision
-    note: Schema twin of the `import_candidates/models.py` row above.
-
-  - name: effort
-    declared_at: src/charter/offering/schemas/agent-profile.schema.yaml
-    producer: src/charter/offering/model_task_routing/evaluator.py
-    verdict: reader-not-producer
-    note: >-
-      `RoutingCandidate(effort=profile.effort)` READS the profile field and
-      forwards it under the same label; the write lands in RoutingCandidate, not
-      in a profile. The clearest case of the kwarg rule inverting this module's own
-      reader/writer asymmetry. No shipped profile authors `effort`.
-
-  - name: extends
-    declared_at: src/charter/offering/missions/models.py
-    producer: src/charter/offering/drg/merge.py
-    verdict: name-collision
-    note: >-
-      Suppressed by an `_RELATION_ALIASES` key -- a DRG relation alias token, not
-      the mission model's field.
-
-  # NOTE: a `field_path` row keyed to occurrence-map.schema.yaml used to sit
-  # here (verdict: name-collision -- masking; see `_NON_DOCTRINE_SCHEMAS` in
-  # `_inert_slots.py`). It is gone, not merely cleared: `_inert_slots.py` now
-  # excludes the whole occurrence-map schema from `_schema_slots`, so
-  # `field_path` is never scanned as a slot at all any more and the row would
-  # be UNRESOLVABLE (`code_only_drift`'s `stale` half, which hard-fails,
-  # unlike the baseline's own no-longer-found rows above which only warn --
-  # see `test_the_code_only_suppressions_match_the_frozen_record`). Deleting
-  # it also drops the computed masking count 14 -> 13, so
-  # `MAX_MASKING_SUPPRESSIONS` was tightened 14 -> 13 (shrink-only) in
-  # `_inert_slots.py` and re-registered as `masking_suppressions: 13` in
-  # `_baselines.yaml` to keep the ratchet mirror exact.
-
-  - name: lines
-    declared_at: src/charter/offering/import_candidates/models.py
-    producer: packs/built-in/assets/docs_structural_lint.py
-    verdict: name-collision
-    note: >-
-      `lines = text.splitlines()`, plus two more bare bindings elsewhere. Nothing
-      to do with the import-candidate field.
-  - name: lines
-    declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    producer: packs/built-in/assets/docs_structural_lint.py
-    verdict: name-collision
-    note: Schema twin of the `import_candidates/models.py` row above.
-
-  - name: paradigm
-    declared_at: src/charter/offering/import_candidates/models.py
-    producer: src/charter/offering/artifact_kinds.py
-    verdict: name-collision
-    note: ArtifactKind token in `_PLURALS` / `_PATTERNS`; see the `directive` row.
-  - name: paradigm
-    declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    producer: src/charter/offering/artifact_kinds.py
-    verdict: name-collision
-    note: Schema twin of the `import_candidates/models.py` row above.
-
-  - name: recommended_model_tier
-    declared_at: src/charter/offering/missions/models.py
-    producer: src/charter/offering/missions/mission_step_repository.py
-    verdict: reader-not-producer
-    note: >-
-      A key of `_STEP_YAML_TO_MODEL`, the loader's step.yaml -> model READ map
-      ("if src_key in raw"). The reader is wired at both ends and no step.yaml
-      authors the key, which is exactly the shape this gate exists to report.
-  - name: recommended_model_tier
-    declared_at: src/charter/offering/schemas/mission.schema.yaml
-    producer: src/charter/offering/missions/mission_step_repository.py
-    verdict: reader-not-producer
-    note: Schema twin of the `missions/models.py` row above.
-
-  - name: role
-    declared_at: src/charter/offering/schemas/agent-profile.schema.yaml
-    producer: src/charter/offering/agent_profiles/capabilities.py
-    verdict: name-collision
-    note: >-
-      `RoleCapabilities(role=Role.IMPLEMENTER)` x8 -- a field of a capability
-      lookup dataclass, not of an agent profile. Profiles author `roles` (plural);
-      the singular schema property is unauthored.
-
-  - name: tactic
-    declared_at: src/charter/offering/import_candidates/models.py
-    producer: src/charter/offering/artifact_kinds.py
-    verdict: name-collision
-    note: ArtifactKind token in `_PLURALS` / `_PATTERNS`; see the `directive` row.
-  - name: tactic
-    declared_at: src/charter/offering/schemas/import-candidate.schema.yaml
-    producer: src/charter/offering/artifact_kinds.py
-    verdict: name-collision
-    note: Schema twin of the `import_candidates/models.py` row above.

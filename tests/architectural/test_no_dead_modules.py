@@ -101,8 +101,11 @@ _SKIP_FILENAME_PREFIXES: tuple[str, ...] = ("_compat",)
 # Allowlist of modules whose lack of static src/ callers is documented and
 # intentional. The allowlist is split into per-category frozensets so the
 # ratchet-baseline meta-test (`tests/architectural/test_ratchet_baselines.py`)
-# can track Cat-7 (grandfathered orphans) separately from the auto-discovery
-# categories. See Slice F FR-112 for the refactor rationale.
+# can size-ratchet categories 2-7 individually (Cat-7, grandfathered orphans,
+# separately from the rest). Category 1 (auto-discovered migrations) and the
+# dispatched/auto-discovered categories 8-9 carry no `_baselines.yaml` leaf:
+# each is the single authority for its own membership. See Slice F FR-112 for
+# the refactor rationale.
 #
 # THIS ALLOWLIST IS A RATCHET. When an entry gains a real caller, remove
 # it from this set -- the test enforces shrinkage. When a new orphan
@@ -607,9 +610,9 @@ _CATEGORY_9_AUTO_DISCOVERED_DOCTOR_SIBLINGS: frozenset[str] = frozenset(
 
 # Aggregate of every per-category set. The existing
 # `test_no_new_dead_modules_under_src` check below treats this as the
-# effective allowlist; the per-category frozensets above are the surface
+# effective allowlist; the category 2-7 frozensets above are the surface
 # inspected by the ratchet-baseline meta-test
-# (tests/architectural/test_ratchet_baselines.py).
+# (tests/architectural/test_ratchet_baselines.py `_SIZE_RATCHETS`).
 _ALLOWLIST: frozenset[str] = (
     _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS
     | _CATEGORY_2_BUILD_SCHEMA_GENERATORS

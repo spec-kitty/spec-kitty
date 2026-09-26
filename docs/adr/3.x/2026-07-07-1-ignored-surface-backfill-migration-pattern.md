@@ -111,8 +111,10 @@ When adding a `GitClass.IGNORED` surface to `state/contract.py`:
 - [ ] **Migration tests**: cover `apply()`, `detect()`, equivalence variants,
   idempotency, dry-run, end-to-end via `MigrationRunner`, and the worktree
   composition path (`include_worktrees=True`).
-- [ ] **Ratchet baseline**: bump `category_1_auto_discovered_migrations` in
-  `tests/architectural/_baselines.yaml` and update the justification comment.
+- [ ] **Ratchet baseline**: (superseded 2026-09, mission
+  ratchet-baseline-census-gate-remediation-01M3EW3Z: the `category_1` baseline
+  leaf was retired; adding the migration to `_CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS`
+  is sufficient)
 - [ ] **Dead-module allowlist**: add the new migration to the allowlist in
   `tests/architectural/test_no_dead_modules.py`.
 - [ ] **Repo .gitignore**: add the entry to the repo root `.gitignore` under the

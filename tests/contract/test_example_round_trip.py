@@ -581,10 +581,12 @@ def _discover_skip_marked_blocks() -> frozenset[str]:
 _DISCOVERED: list[tuple[str, str, str, str, str | None]] = _discover_examples()
 _ALL_CASES: list[tuple[str, str, str, str, str | None]] = _DISCOVERED + _INLINE_NEGATIVE_FIXTURES
 
-# Ratcheted set of permanently-non-executable (``# round-trip: skip:``) blocks in
-# non-legacy contracts. Introspected by ``tests.architectural.test_ratchet_baselines``
-# against ``_baselines.yaml::test_example_round_trip.skip_marker_blocks`` so skip
-# growth is explicit (see ``_discover_skip_marked_blocks``).
+# Set of permanently-non-executable (``# round-trip: skip:``) blocks in
+# non-legacy contracts (see ``_discover_skip_marked_blocks``). It carries no count
+# baseline: the enforcer is the per-block ``_SKIP_MARKER_RE`` gate (a block with
+# neither frontmatter nor a reasoned skip marker becomes a failing
+# ``MISSING_FRONTMATTER`` case), and this set exists for the
+# ``test_skip_marked_blocks_invariants`` self-test.
 _SKIP_MARKED_BLOCKS: frozenset[str] = _discover_skip_marked_blocks()
 
 # ---------------------------------------------------------------------------
@@ -798,11 +800,12 @@ def test_legacy_collection_nudges_and_does_not_fail_when_untagged(
 
 
 def test_skip_marked_blocks_invariants() -> None:
-    """The ratcheted skip set holds only non-legacy, genuinely skip-marked blocks.
+    """The skip set holds only non-legacy, genuinely skip-marked blocks.
 
     Guards the two promises of ``_discover_skip_marked_blocks`` without pinning a
-    hardcoded count (the baseline in ``_baselines.yaml`` owns the count). It stays
-    green when a future PR legitimately adds a marker and bumps the baseline.
+    count: each new skip is reviewed through its own mandatory
+    ``# round-trip: skip: <reason>`` line, enforced per block by ``_SKIP_MARKER_RE``.
+    It stays green when a future PR legitimately adds a reasoned marker.
     """
     assert isinstance(_SKIP_MARKED_BLOCKS, frozenset)
     for label in _SKIP_MARKED_BLOCKS:

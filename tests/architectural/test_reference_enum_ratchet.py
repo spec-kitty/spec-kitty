@@ -188,8 +188,7 @@ _BASELINE: dict[str, frozenset[str]] = {
 #: allowlist is governed by a baseline in ``tests/architectural/_baselines.yaml``".
 #: :data:`_BASELINE` is mutable and shrink-only, so it is registered there
 #: (``test_reference_enum_ratchet.baseline_members``) rather than left a bare
-#: module literal a future PR can widen in one line -- the same reasoning that
-#: registered ``test_no_inert_schema_slots.unassigned_entries``.
+#: module literal a future PR can widen in one line.
 #:
 #: Derived, never re-typed: :func:`TestRatchetTargetsAreWellFormed.
 #: test_the_registered_member_slots_match_the_baseline` pins the two together, so
