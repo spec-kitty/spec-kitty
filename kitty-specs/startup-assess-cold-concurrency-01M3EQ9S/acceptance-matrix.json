@@ -1,0 +1,99 @@
+{
+  "mission_slug": "startup-assess-cold-concurrency-01M3EQ9S",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_startup_torn_read_escalation.py::test_ensure_converges_when_unlocked_assessment_tears[runtime,commands,skills] (red on base a20797b6da, green at lane tip); live A/B pre-PR squad: base 30/288 crash, lane 0/288",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:41.830062+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_build_serialized.py T007.13 assessment-layer falsifier (skills batch + runtime; include()==1; exact sentinel lock lists) + single call-site swap in the 3 owners",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:44.529619+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_build_serialized.py TornReadError identity + incomplete() code tests (asset_torn_read / asset_source_drift / global_assets_unavailable)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:46.714565+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_build_serialized.py tear-under-lock terminal, held-lock terminal (incl. split-anchor TestSplitAnchorNeverNests), source-role refused with 0 locks; tests/runtime/test_startup_torn_read_escalation.py source-drift test",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:48.901756+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_startup_torn_read_escalation.py CLI tests through _run_app_with_error_hook (text: one Error: line, no Traceback; --json: whole-stdout JSON, empty stderr); owner-named reason; path in text, JSON path null (accepted deviation, FR-005 amended)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:51.100335+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_startup_torn_read_escalation.py red-first commit a20797b6da RED for all 3 owners with 'Asset changed during preparation'; leaf node_state/machine_file_lock injection only; mutation probe (extra unlocked retry) turns it red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:53.326599+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_build_serialized.py primitive contract P1-P6 unit tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:55.528193+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_startup_torn_read_escalation.py caplog on owner logger (bootstrap/agent_commands/agent_skills): one INFO wait line, no 'Error'",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:57.713561+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "Tracker text drafted in tracer-approach.md; PR body 'Closes #3998, Closes #4017'; #4885 cross-reference comment posted by orchestrator at PR open",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T14:55:59.932581+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#3048": {
+      "evidence_ref": "Out of scope (C-006): agent install fan-out",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3998": {
+      "evidence_ref": "WP01 approved (cycle 2): lane-a a20797b6da..6b005a1c71; red-first test red on base for all 3 owners, green at tip",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4017": {
+      "evidence_ref": "Fixed by PR #4174 (d4c50ac1f3 + landing commits); nightly run 36215053547 passed 20/20 params of test_installed_cli_keeps_two_owned_worktrees_isolated; closed via this mission PR",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4174": {
+      "evidence_ref": "PR reference (precedent fix for #4017), no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4207": {
+      "evidence_ref": "Out of scope (C-006): e2e lane placement ruling",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4516": {
+      "evidence_ref": "Out of scope (C-006): config caching",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4703": {
+      "evidence_ref": "Context: Windows lock-read safety preserved (C-009), no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4885": {
+      "evidence_ref": "Context only: decision on the reassess gate stays with #4885 (C-004); cross-reference comment posted at PR time",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4916": {
+      "evidence_ref": "Pre-existing baseline reds tracked there (skills installer tests red on base), not this mission's work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
