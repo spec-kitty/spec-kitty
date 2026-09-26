@@ -1,0 +1,45 @@
+## cascade-org-inert-01M07E9P  (136 lines)
+  kitty-specs/cascade-org-inert-01M07E9P/tracer-approach.md
+  kitty-specs/cascade-org-inert-01M07E9P/tracer-design-decisions.md
+  kitty-specs/cascade-org-inert-01M07E9P/tracer-tooling-friction.md
+## modular-per-package-ci-01M025GV  (81 lines)
+  kitty-specs/modular-per-package-ci-01M025GV/tracers/design-decisions.md
+## bare-prose-requirements-uncounted-01KZYV3C  (91 lines)
+  kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/tracer-approach.md
+  kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/tracer-design-decisions.md
+  kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/tracer-tooling-friction.md
+## org-pack-authoring-diagnostics-01KZY463  (735 lines)
+  kitty-specs/org-pack-authoring-diagnostics-01KZY463/tracer-approach.md
+  kitty-specs/org-pack-authoring-diagnostics-01KZY463/tracer-design-decisions.md
+  kitty-specs/org-pack-authoring-diagnostics-01KZY463/tracer-tooling-friction.md
+## mission-type-guard-registry-01KZY2FG  (972 lines)
+  kitty-specs/mission-type-guard-registry-01KZY2FG/tracer-approach.md
+  kitty-specs/mission-type-guard-registry-01KZY2FG/tracer-design-decisions.md
+  kitty-specs/mission-type-guard-registry-01KZY2FG/tracer-tooling-friction.md
+## org-activation-scan-dirs-01KZY1PT  (510 lines)
+  kitty-specs/org-activation-scan-dirs-01KZY1PT/tracer-approach.md
+  kitty-specs/org-activation-scan-dirs-01KZY1PT/tracer-design-decisions.md
+  kitty-specs/org-activation-scan-dirs-01KZY1PT/tracer-tooling-friction.md
+## up-mission-type-seam-01KZY1JB  (847 lines)
+  kitty-specs/up-mission-type-seam-01KZY1JB/tracer-approach.md
+  kitty-specs/up-mission-type-seam-01KZY1JB/tracer-design-decisions.md
+  kitty-specs/up-mission-type-seam-01KZY1JB/tracer-tooling-friction.md
+## ci-scoping-gate-reliability-01KZP80D  (111 lines)
+  kitty-specs/ci-scoping-gate-reliability-01KZP80D/tracer-approach.md
+  kitty-specs/ci-scoping-gate-reliability-01KZP80D/tracer-design-decisions.md
+  kitty-specs/ci-scoping-gate-reliability-01KZP80D/tracer-squad-findings.md
+  kitty-specs/ci-scoping-gate-reliability-01KZP80D/tracer-tooling-friction.md
+## assertive-test-suite-sanitation-01KZME3P  (37 lines)
+  kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-approach.md
+  kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-design-decisions.md
+  kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-tooling-friction.md
+## verdict-seam-boundary-hardening-01KZG179  (79 lines)
+  kitty-specs/verdict-seam-boundary-hardening-01KZG179/tracers/approach.md
+  kitty-specs/verdict-seam-boundary-hardening-01KZG179/tracers/design-decisions.md
+  kitty-specs/verdict-seam-boundary-hardening-01KZG179/tracers/tooling-friction.md
+## tracker-egress-refusal-3108-01KYWF1R  (867 lines)
+  kitty-specs/tracker-egress-refusal-3108-01KYWF1R/tracer-evidence-base.md
+  kitty-specs/tracker-egress-refusal-3108-01KYWF1R/tracer-squad-findings.md
+## egress-refusal-consolidation-3110-01KYW895  (3138 lines)
+  kitty-specs/egress-refusal-consolidation-3110-01KYW895/tracer-evidence-base.md
+  kitty-specs/egress-refusal-consolidation-3110-01KYW895/tracer-squad-findings.md

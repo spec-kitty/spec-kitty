@@ -1,0 +1,94 @@
+## doctrine-built-in-seam-consolidation-01KYW3TX  (12 lines)
+  kitty-specs/doctrine-built-in-seam-consolidation-01KYW3TX/tracers/arch-ratchet.md
+  kitty-specs/doctrine-built-in-seam-consolidation-01KYW3TX/tracers/reader-inventory.md
+  kitty-specs/doctrine-built-in-seam-consolidation-01KYW3TX/tracers/seam-authority.md
+## doctrine-delivery-activation-01KYQVQK  (94 lines)
+  kitty-specs/doctrine-delivery-activation-01KYQVQK/tracer-approach.md
+  kitty-specs/doctrine-delivery-activation-01KYQVQK/tracer-design-decisions.md
+  kitty-specs/doctrine-delivery-activation-01KYQVQK/tracer-tooling-friction.md
+## write-side-seam-matrix-tracer-01KYP3MH  (104 lines)
+  kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/tasks/WP10-tracer-writer.md
+  kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/tasks/WP10-tracer-writer/baseline-tests.json
+## journal-project-consent-3030-01KYKWQS  (1421 lines)
+  kitty-specs/journal-project-consent-3030-01KYKWQS/tracer-approach.md
+  kitty-specs/journal-project-consent-3030-01KYKWQS/tracer-design-decisions.md
+  kitty-specs/journal-project-consent-3030-01KYKWQS/tracer-tooling-friction.md
+## lifecycle-gate-execution-context-01KY72GQ  (288 lines)
+  kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tracers/approach.md
+  kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tracers/design-decisions.md
+  kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tracers/nfr005-baseline.md
+  kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tracers/tooling-friction.md
+## synthesized-drg-stale-refresh-01KXN8KZ  (391 lines)
+  kitty-specs/synthesized-drg-stale-refresh-01KXN8KZ/tracer-approach.md
+  kitty-specs/synthesized-drg-stale-refresh-01KXN8KZ/tracer-design-decisions.md
+  kitty-specs/synthesized-drg-stale-refresh-01KXN8KZ/tracer-tooling-friction.md
+## test-suite-friction-remediation-01KXDKBX  (133 lines)
+  kitty-specs/test-suite-friction-remediation-01KXDKBX/tracer-approach.md
+  kitty-specs/test-suite-friction-remediation-01KXDKBX/tracer-design-decisions.md
+  kitty-specs/test-suite-friction-remediation-01KXDKBX/tracer-tooling-friction.md
+## coord-shadows-arm-closeout-01KXAST2  (60 lines)
+  kitty-specs/coord-shadows-arm-closeout-01KXAST2/tracers/claim-liveness.md
+  kitty-specs/coord-shadows-arm-closeout-01KXAST2/tracers/emit-class-closure.md
+  kitty-specs/coord-shadows-arm-closeout-01KXAST2/tracers/subtask-row-canon.md
+## relocation-hardened-dead-code-scanners-01KX958P  (61 lines)
+  kitty-specs/relocation-hardened-dead-code-scanners-01KX958P/tracers/live-collision-classifier.md
+  kitty-specs/relocation-hardened-dead-code-scanners-01KX958P/tracers/relocation-key.md
+  kitty-specs/relocation-hardened-dead-code-scanners-01KX958P/tracers/warning-remediation.md
+## content-address-ratchet-allowlists-01KX8M4D  (62 lines)
+  kitty-specs/content-address-ratchet-allowlists-01KX8M4D/tracers/descriptor-mechanism.md
+  kitty-specs/content-address-ratchet-allowlists-01KX8M4D/tracers/standing-metaguard.md
+  kitty-specs/content-address-ratchet-allowlists-01KX8M4D/tracers/ws2-relocation-key.md
+## coord-authority-trio-degod-01KX7094  (281 lines)
+  kitty-specs/coord-authority-trio-degod-01KX7094/tracers/acceptance.md
+  kitty-specs/coord-authority-trio-degod-01KX7094/tracers/implement.md
+  kitty-specs/coord-authority-trio-degod-01KX7094/tracers/workflow.md
+## doctrine-template-asset-kinds-01KX2YQ7  (136 lines)
+  kitty-specs/doctrine-template-asset-kinds-01KX2YQ7/tracer-approach.md
+  kitty-specs/doctrine-template-asset-kinds-01KX2YQ7/tracer-design-decisions.md
+  kitty-specs/doctrine-template-asset-kinds-01KX2YQ7/tracer-tooling-friction.md
+## mission-resolver-port-01KX1C05  (184 lines)
+  kitty-specs/mission-resolver-port-01KX1C05/tracer-approach.md
+  kitty-specs/mission-resolver-port-01KX1C05/tracer-design-decisions.md
+  kitty-specs/mission-resolver-port-01KX1C05/tracer-tooling-friction.md
+## coord-primary-partition-lock-01KWZ46V  (49 lines)
+  kitty-specs/coord-primary-partition-lock-01KWZ46V/tracer-approach.md
+  kitty-specs/coord-primary-partition-lock-01KWZ46V/tracer-design-decisions.md
+  kitty-specs/coord-primary-partition-lock-01KWZ46V/tracer-tooling-friction.md
+## census-freshness-loc-insensitive-01KWVD6Y  (78 lines)
+  kitty-specs/census-freshness-loc-insensitive-01KWVD6Y/tracer-approach.md
+  kitty-specs/census-freshness-loc-insensitive-01KWVD6Y/tracer-design-decisions.md
+  kitty-specs/census-freshness-loc-insensitive-01KWVD6Y/tracer-tooling-friction.md
+## relocate-saas-sync-flag-to-core-01KWQ3RV  (58 lines)
+  kitty-specs/relocate-saas-sync-flag-to-core-01KWQ3RV/tracers/approach.md
+  kitty-specs/relocate-saas-sync-flag-to-core-01KWQ3RV/tracers/design-decisions.md
+  kitty-specs/relocate-saas-sync-flag-to-core-01KWQ3RV/tracers/tooling-friction.md
+## refactor-stable-gate-substrate-01KWK3FY  (104 lines)
+  kitty-specs/refactor-stable-gate-substrate-01KWK3FY/tracers/approach.md
+  kitty-specs/refactor-stable-gate-substrate-01KWK3FY/tracers/design-decisions.md
+  kitty-specs/refactor-stable-gate-substrate-01KWK3FY/tracers/tooling-friction.md
+## tasks-py-degod-wave2-01KWH9EQ  (213 lines)
+  kitty-specs/tasks-py-degod-wave2-01KWH9EQ/tracers/approach.md
+  kitty-specs/tasks-py-degod-wave2-01KWH9EQ/tracers/design-decisions.md
+  kitty-specs/tasks-py-degod-wave2-01KWH9EQ/tracers/tooling-friction.md
+## tasks-py-degod-01KWF08S  (116 lines)
+  kitty-specs/tasks-py-degod-01KWF08S/tracers/approach.md
+  kitty-specs/tasks-py-degod-01KWF08S/tracers/design-decisions.md
+  kitty-specs/tasks-py-degod-01KWF08S/tracers/tooling-friction.md
+## doctrine-catfooding-2196-01KWE16N  (219 lines)
+  kitty-specs/doctrine-catfooding-2196-01KWE16N/tasks/WP04-mission-tracer-files.md
+## reliability-papercut-sweep-01KWD0V5  (199 lines)
+  kitty-specs/reliability-papercut-sweep-01KWD0V5/tracers/approach.md
+  kitty-specs/reliability-papercut-sweep-01KWD0V5/tracers/design-decisions.md
+  kitty-specs/reliability-papercut-sweep-01KWD0V5/tracers/tooling-friction.md
+## sync-strict-json-auth-01KWA6KN  (21 lines)
+  kitty-specs/sync-strict-json-auth-01KWA6KN/tracers/approach.md
+  kitty-specs/sync-strict-json-auth-01KWA6KN/tracers/design-decisions.md
+  kitty-specs/sync-strict-json-auth-01KWA6KN/tracers/tooling-friction.md
+## common-docs-structural-move-01KW3SBK  (176 lines)
+  kitty-specs/common-docs-structural-move-01KW3SBK/tracers/approach.md
+  kitty-specs/common-docs-structural-move-01KW3SBK/tracers/design-decisions.md
+  kitty-specs/common-docs-structural-move-01KW3SBK/tracers/tooling-friction.md
+## common-docs-consolidation-01KW3Q6M  (54 lines)
+  kitty-specs/common-docs-consolidation-01KW3Q6M/tracers/approach.md
+  kitty-specs/common-docs-consolidation-01KW3Q6M/tracers/design-decisions.md
+  kitty-specs/common-docs-consolidation-01KW3Q6M/tracers/tooling-friction.md
