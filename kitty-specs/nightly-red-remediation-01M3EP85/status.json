@@ -1,7 +1,7 @@
 {
-  "event_count": 25,
-  "last_event_id": "01M3ESSF1QGSJZRX21RGGM1AKF",
-  "materialized_at": "2026-09-26T12:07:11.671972+00:00",
+  "event_count": 26,
+  "last_event_id": "01M3ESTFSNDENASFF8PRKNMYKQ",
+  "materialized_at": "2026-09-26T12:07:45.205538+00:00",
   "mission_number": "",
   "mission_slug": "nightly-red-remediation-01M3EP85",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 1,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -56,14 +56,17 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M3ESSF1QGSJZRX21RGGM1AKF",
-      "last_transition_at": "2026-09-26T12:07:11.671972+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M3ESTFSNDENASFF8PRKNMYKQ",
+      "last_transition_at": "2026-09-26T12:07:45.205538+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Re-pinned test_merge_lane_planning_data_loss.py: A materialize coord worktree (#4959) + canonical case-preserved mid8; B stub reconciliation claim for MagicMock manifest (#5001, per 26be43c804); C2 lanes manifest mission_id=None (LanesManifest invariant). 7 red -> 13/13 green. No product change."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 16970,
-      "shell_pid_created_at": "1790423909.91",
+      "role": "reviewer",
+      "shell_pid": 27606,
+      "shell_pid_created_at": "1790424461.08",
       "subtasks": {
         "T005": "done",
         "T006": "done",
