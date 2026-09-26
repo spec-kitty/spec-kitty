@@ -1811,6 +1811,87 @@ def test_squash_passes_disjoint_hunk_two_lane_merge_resolution(tmp_path: Path) -
     assert result.is_pass, result.divergence.describe() if result.divergence else result.refusal_reason
 
 
+def test_squash_fails_closed_when_carrier_lane_tip_smuggles_second_parent_hunk_into_two_lane_path(
+    tmp_path: Path,
+) -> None:
+    """Data-loss guard (#5124 landing fold — closes a reopened #4977 carrier-lane
+    threat). A ``LaneContribution.lane_commit`` is a raw lane TIP and CAN be a
+    merge commit; ``three_way_merge_blob`` feeds it that commit's FULL tree, not
+    just its first-parent authorship. If a contributing lane's tip is a merge
+    commit whose resulting tree, for the shared path, is CONTENT-IDENTICAL to
+    its (smuggling) second parent — a "trivial" content resolution git's own
+    ``--name-only`` diff omits from the merge commit's OWN change list, so
+    ``_final_authored_walk`` never revisits that path there and instead records
+    the lane's OLDER, still-clean pre-merge blob as authored — the merge tip's
+    ACTUAL tree nonetheless carries the smuggled hunk. Pre-guard, the simulation
+    still fed that merge tip's FULL tree as one of its two inputs, reproduced
+    the smuggled hunk, matched the target, and attributed it — the smuggled
+    content SHIPPED even though it was never in ``authored_blobs``. This is the
+    exact two-lane intersection of the existing single-lane
+    ``_plant_carrier_smuggled_commit`` tests (smuggled content on a DISTINCT
+    path) and ``test_squash_passes_disjoint_hunk_two_lane_merge_resolution``
+    (two lanes, one shared path, no merge commit): two approved lanes edit
+    DISJOINT lines of one shared path, and one of them ALSO smuggles a third,
+    unrelated (NOT-approved) lane's disjoint-line edit into that SAME path via
+    a merge tip.
+
+    The guard requires each contribution's own tip-tree blob at *path* to equal
+    its recorded first-parent-authored blob before trusting the simulation; a
+    mismatch here (the merge tip's tree carries the smuggled line, the recorded
+    authored blob does not) refuses to simulate, so the path stays
+    unattributable -> FAIL. Pre-guard this test is RED (the smuggled content is
+    attributed and the gate wrongly PASSes)."""
+    lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"))
+    repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    a_sha = _edit_shared_line(repo, lane_a, "src/shared.py", 0, "line 1 EDITED BY LANE A\n")
+    b_edit_sha = _edit_shared_line(repo, lane_b, "src/shared.py", 9, "line 10 EDITED BY LANE B\n")
+    clean_b_blob = git_probes.blob_id_at(repo, b_edit_sha, "src/shared.py")
+
+    # An unrelated, NOT-approved lane smuggles a disjoint-line edit into lane-b
+    # via lane-b's TIP merge commit (mirrors ``_plant_carrier_smuggled_commit``'s
+    # #4977 carrier mechanism, but on the SAME shared path, not a distinct one).
+    # Branched from lane-b's OWN edit (not the shared coord base) so the merge's
+    # resulting tree for this path is content-identical to the smuggling side —
+    # a "trivial" resolution ``git show --name-only`` omits from M's own diff,
+    # which is exactly why ``_final_authored_walk`` records the OLDER, clean
+    # ``b_edit_sha`` blob as lane-b's authored content while ``lane_commit``
+    # (the raw tip) is the merge commit M whose actual tree carries the smuggle.
+    _git(repo, "branch", "lane-removed", b_edit_sha)
+    _edit_shared_line(repo, "lane-removed", "src/shared.py", 4, "SMUGGLED-REMOVED\n")
+    _git(repo, "checkout", "-q", lane_b)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "lane-removed")
+    merge_sha = _rev(repo, lane_b)
+    _git(repo, "branch", "-qD", "lane-removed")
+    _git(repo, "checkout", "-q", _TARGET)
+    _git(repo, "merge", "-q", "--no-edit", lane_a)
+    _git(repo, "merge", "-q", "--no-edit", lane_b)
+    target_blob = git_probes.blob_id_at(repo, _TARGET, "src/shared.py")
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
+    assert "src/shared.py" in claim.multi_lane_paths
+    contributions = claim.multi_lane_paths["src/shared.py"]
+    by_lane = {c.lane_id: c for c in contributions}
+    contrib_a, contrib_b = by_lane["lane-a"], by_lane["lane-b"]
+    assert contrib_a.lane_commit == a_sha
+    # lane-b's recorded TIP is the merge commit (the hole this guard closes);
+    # its OWN recorded authored blob correctly stays the clean, pre-merge blob.
+    assert contrib_b.lane_commit == merge_sha
+    assert contrib_b.authored_blob == clean_b_blob
+    # The merge commit's FULL tree carries the smuggled hunk -- diverges from
+    # the lane's own authored blob, which is exactly what the guard detects.
+    assert git_probes.blob_id_at(repo, merge_sha, "src/shared.py") != clean_b_blob
+
+    squash_claim = replace(claim, verify_reachability=False)
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
+    assert result.status is VerifyStatus.FAIL, (
+        f"expected the smuggled hunk to stay unattributable, got {result.status}: {result.divergence.describe() if result.divergence else result.refusal_reason}"
+    )
+    assert result.divergence is not None
+    assert any(path == "src/shared.py" and blob == target_blob for path, blob in result.divergence.unattributable_blobs), result.divergence.unattributable_blobs
+
+
 def test_squash_fails_closed_when_path_touched_by_more_than_two_approved_lanes(tmp_path: Path) -> None:
     """A5: a path touched by THREE approved lanes' clean, disjoint edits still
     FAILs closed — 2-way ``merge-tree`` folding is nondeterministic for N>2
@@ -1873,7 +1954,12 @@ def test_squash_fails_closed_on_binary_conflict_between_two_lanes(tmp_path: Path
         authored_blobs=frozenset({("unrelated.py", "0" * 40)}),
         window_base=window_base,
         manifest_wp_ids=frozenset({"WP01", "WP02"}),
-        multi_lane_paths={"asset.bin": (LaneContribution("lane-a", a_sha), LaneContribution("lane-b", b_sha))},
+        multi_lane_paths={
+            "asset.bin": (
+                LaneContribution("lane-a", a_sha, git_probes.blob_id_at(repo, a_sha, "asset.bin")),
+                LaneContribution("lane-b", b_sha, git_probes.blob_id_at(repo, b_sha, "asset.bin")),
+            )
+        },
     )
     result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
     assert result.status is VerifyStatus.FAIL
@@ -1899,7 +1985,7 @@ def test_squash_fails_closed_when_lane_commit_ref_is_unresolvable(tmp_path: Path
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
     assert "src/shared.py" in claim.multi_lane_paths  # the map WOULD support the simulation
     contribs = claim.multi_lane_paths["src/shared.py"]
-    corrupted = {"src/shared.py": (LaneContribution(contribs[0].lane_id, "deadbeef" * 5), contribs[1])}
+    corrupted = {"src/shared.py": (LaneContribution(contribs[0].lane_id, "deadbeef" * 5, contribs[0].authored_blob), contribs[1])}
     squash_claim = replace(claim, verify_reachability=False, multi_lane_paths=corrupted)
     result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
     assert not result.is_pass
@@ -1984,7 +2070,7 @@ def test_squash_three_way_merge_resolution_is_unattributable(tmp_path: Path) -> 
         # than short-circuiting on the pre-widening "absent from authored_blobs"
         # check alone — the residual this pin documents is the CONFLICT case,
         # not merely "the map is empty".
-        multi_lane_paths={"src/shared.py": (LaneContribution("WP01", a_sha), LaneContribution("WP02", b_sha))},
+        multi_lane_paths={"src/shared.py": (LaneContribution("WP01", a_sha, alpha_blob), LaneContribution("WP02", b_sha, beta_blob))},
     )
     result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
     # Desired (not yet achievable): a genuine resolution is not "removed content".
