@@ -443,4 +443,12 @@ test_mutation_ownership_routing:
   # op is the empty-only `root.rmdir()` on the manifest-owned branch (raises on a
   # non-empty dir), a genuinely-safe empty-only-rmdir exemplar in the same class
   # already rationalized above.
-  destructive_op_allowlist: 56
+  # justification (56 -> 61, mission asset-preservation-migrate-fetch / #4961 #4960 #4989):
+  # the FR-005 fix routes runtime/migrate.py's shared-asset removal through the ownership
+  # guard (its one remaining raw op is an empty-only `Path.rmdir` after the routed removal)
+  # and adds doctrine/sources/git_source.py to the census as scanned-not-routed — its 4
+  # raw `shutil.rmtree` sites are all ephemeral cleanup of the `.tmp-<uuid>` clone or the
+  # `.old-<uuid>` move-aside backup THIS fetch created, never the operator's target_dir,
+  # each individually rationalized in the allowlist (same ephemeral-temp/empty-only-rmdir
+  # classes already rationalized above).
+  destructive_op_allowlist: 61
