@@ -26,6 +26,8 @@
       href: how-to/cutover-guard.md
     - name: Create a doctrine artifact
       href: how-to/create-a-doctrine-artifact.md
+    - name: Add an exemption to an architectural gate
+      href: how-to/add-architectural-gate-exemption.md
 - name: Reference
   href: reference/index.md
   items:

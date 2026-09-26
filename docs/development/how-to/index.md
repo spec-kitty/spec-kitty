@@ -2,7 +2,7 @@
 title: How-to (contributor & maintainer tasks)
 description: Task-oriented runbooks for contributors and maintainers — landing PRs, pre-review gates, cross-package overrides, the issue tracker, contract pinning, and authoring doctrine.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-09-26'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/index.md
@@ -21,6 +21,7 @@ Spec Kitty. Each page is scoped to one job you can pick up and finish.
 - [Contract pinning workflow](contract-pinning.md) — pinning the `spec-kitty-events` envelope contract in tests.
 - [Cut-over guard: fail-closed pre-merge gate](cutover-guard.md) — what `spec-kitty cutover-guard` checks, how it is wired into CI, and how to register it as a required status check.
 - [Create a doctrine artifact](create-a-doctrine-artifact.md) — author a new doctrine artifact end to end, including the loose-contract asset kind.
+- [Add an exemption to an architectural gate](add-architectural-gate-exemption.md) — exempt a site by content (descriptor or `CensusKey`), never by line number.
 
 ## See also
 
