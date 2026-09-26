@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "combined-tree (lanes a\u2013e merged on 7dac8bab): tests/ci 505 passed incl. tests/ci/test_nightly_overrun_fail_closed.py (8/10 fail against pre-WP05 workflow, reviewer-verified) (WP05 08dea33c); contract contracts/nightly-fail-closed.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T12:53:13.067205+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
