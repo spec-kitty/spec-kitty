@@ -967,11 +967,16 @@ def test_collect_feature_summary_encoding_error(feature_repo: Path, mission_slug
 
 def test_normalize_feature_encoding(feature_repo: Path, mission_slug: str) -> None:
     plan_path = feature_repo / "kitty-specs" / mission_slug / "plan.md"
-    data = plan_path.read_bytes() + b"\x92"
-    plan_path.write_bytes(data)
+    # A realistic-length, confidently cp1252-detectable payload (#4968): a
+    # bare single appended byte among otherwise-tiny ASCII text is genuinely
+    # ambiguous to the canonical detector (too little context to disambiguate
+    # a codepage) and is correctly refused rather than repaired.
+    text = "Plan content.\n" * 8 + "Owner: José Peña, São Paulo. “freeze” — don’t ship.\n"
+    plan_path.write_bytes(text.encode("cp1252"))
 
     cleaned = acc.normalize_feature_encoding(feature_repo, mission_slug)
     assert plan_path in cleaned
+    assert plan_path.read_bytes() == text.encode("utf-8")
     # Should now be readable as UTF-8 without errors.
     plan_path.read_text(encoding="utf-8")
     summary = acc.collect_feature_summary(feature_repo, mission_slug)

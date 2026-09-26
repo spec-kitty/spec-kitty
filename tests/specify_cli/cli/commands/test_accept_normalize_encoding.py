@@ -61,6 +61,14 @@ _MISSION_BRANCH = f"kitty/mission-{_SLUG}"
 # to ``plan.md`` makes the strict acceptance read raise ``ArtifactEncodingError``.
 _CP1252_SMART_QUOTE = b"\x92"
 
+# A realistic-length cp1252 payload (accented Latin-1 characters + smart
+# punctuation, padded with plain-ASCII body lines) the canonical detector
+# (``charter.encoding_recovery.recover``, #4968 WP01/WP03) can confidently
+# settle on cp1252 for -- a bare single appended byte among otherwise-tiny
+# ASCII text is genuinely ambiguous (too little context to disambiguate a
+# codepage) and is correctly refused rather than repaired.
+_CP1252_PLAN_TEXT = "# plan.md\n" + "Done.\n" * 8 + "Owner: José Peña, São Paulo. “freeze” — don’t ship.\n"
+
 
 def _git(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -169,9 +177,14 @@ def _create_accept_ready_feature(repo_root: Path) -> Path:
 
 
 def _corrupt_plan_encoding(feature_dir: Path) -> Path:
-    """Append a Windows-1252 byte to ``plan.md`` so the strict read raises."""
+    """Rewrite ``plan.md`` as cp1252-encoded text so the strict read raises.
+
+    Uses :data:`_CP1252_PLAN_TEXT` (realistic-length, confidently
+    cp1252-detectable) rather than a single appended byte -- see its
+    docstring for why (#4968).
+    """
     plan_path = feature_dir / "plan.md"
-    plan_path.write_bytes(plan_path.read_bytes() + _CP1252_SMART_QUOTE)
+    plan_path.write_bytes(_CP1252_PLAN_TEXT.encode("cp1252"))
     return plan_path
 
 
@@ -259,9 +272,9 @@ def test_normalize_encoding_repairs_artifact_with_flag(
     # ArtifactEncodingError surfaced (it was repaired, not raised through).
     assert exc_info.value.exit_code == 0, "repair path should let acceptance proceed"
 
-    # The artifact was rewritten to valid UTF-8 (the cp1252 byte is gone).
+    # The artifact was rewritten to valid, byte-exact UTF-8.
     plan_path.read_text(encoding="utf-8")  # must not raise
-    assert _CP1252_SMART_QUOTE not in plan_path.read_bytes()
+    assert plan_path.read_bytes() == _CP1252_PLAN_TEXT.encode("utf-8")
 
     # The repaired path was reported to the operator.
     output = buf.getvalue()
@@ -290,7 +303,7 @@ def test_default_off_leaves_bytes_untouched(
         _run_accept(normalize_encoding=False, monkeypatch=monkeypatch)
 
     assert plan_path.read_bytes() == before, "default-off accept must not rewrite bytes"
-    assert _CP1252_SMART_QUOTE in plan_path.read_bytes()
+    assert plan_path.read_bytes() == _CP1252_PLAN_TEXT.encode("cp1252")
 
 
 def test_without_flag_clean_exit_referencing_flag(

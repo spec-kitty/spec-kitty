@@ -10,7 +10,9 @@ from dataclasses import dataclass, field
 from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
+from charter.encoding_recovery import recover as _recover_encoding
 from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.owned_mission import effective_root_kwargs
@@ -786,22 +788,24 @@ def _missing_artifacts(feature_dir: Path, mission: Mission | None) -> tuple[list
     return missing_required, missing_optional
 
 
-# Unicode smart-punctuation -> ASCII equivalents, applied by
-# :func:`_recover_normalized_text`.
-_ENCODING_NORMALIZE_MAP = {
-    "‘": "'",  # Left single quotation mark -> apostrophe
-    "’": "'",  # Right single quotation mark -> apostrophe
-    "‚": "'",  # Single low-9 quotation mark -> apostrophe
-    "“": '"',  # Left double quotation mark -> straight quote
-    "”": '"',  # Right double quotation mark -> straight quote
-    "„": '"',  # Double low-9 quotation mark -> straight quote
-    "—": "--",  # Em dash -> double hyphen
-    "–": "-",  # En dash -> hyphen
-    "…": "...",  # Horizontal ellipsis -> three dots
-    " ": " ",  # Non-breaking space -> regular space
-    "•": "*",  # Bullet -> asterisk
-    "·": "*",  # Middle dot -> asterisk
-}
+#: Suffix for the original-bytes backup written before an in-place encoding
+#: repair (#4968). Mirrors ``cli/commands/migrate/backfill_provenance.py``'s
+#: ``_CorpusWriteTransaction`` naming convention.
+_ENCODING_BACKUP_SUFFIX = ".bak"
+
+
+@dataclass(frozen=True)
+class _RecoveredArtifactText:
+    """A confidently-recovered, non-trivial encoding repair for one artifact.
+
+    Returned only when the artifact was NOT already valid UTF-8 and the
+    canonical detector reached a non-``ambiguous`` verdict — carries the
+    honest ``source_encoding``/``confidence`` the caller reports (#4968 FR-005).
+    """
+
+    text: str
+    source_encoding: str
+    confidence: float
 
 
 def _gather_primary_encoding_candidates(feature_dir: Path) -> list[Path]:
@@ -816,41 +820,68 @@ def _gather_primary_encoding_candidates(feature_dir: Path) -> list[Path]:
     return result
 
 
-def _recover_normalized_text(data: bytes) -> str | None:
-    """Decode legacy-encoded bytes to UTF-8 text with ASCII character mapping.
+def _recover_normalized_text(data: bytes) -> _RecoveredArtifactText | None:
+    """Recover legacy-encoded bytes to UTF-8 text via the canonical detector.
 
-    Returns ``None`` when ``data`` is already valid UTF-8 (nothing to rewrite);
-    otherwise the recovered + normalized text. Tries cp1252 then latin-1, falls
-    back to a lossy UTF-8 replace, strips a leading BOM, and maps Unicode
-    smart-punctuation to ASCII via :data:`_ENCODING_NORMALIZE_MAP`.
+    Delegates whole-file encoding recovery to
+    :func:`charter.encoding_recovery.recover` (WP01) — the SAME chokepoint the
+    charter read path and ``migrate charter-encoding`` use
+    (``contracts/detector-contract.md``). Returns ``None`` in two cases,
+    identically (no rewrite either way):
+
+    - ``data`` is already valid UTF-8 (nothing to repair), or
+    - the detector cannot confidently settle on a codepage (``ambiguous``).
+
+    An ambiguous artifact is left completely untouched — never silently
+    "Normalized" into mojibake — so a subsequent strict UTF-8 read of the
+    SAME unchanged bytes raises :class:`ArtifactEncodingError` again,
+    surfacing a blocking verdict to the caller (#4968). This retires the
+    former cp1252-then-latin-1-then-``utf-8``-``errors="replace"`` fallback
+    chain, which never refused and could silently corrupt content (either via
+    lossy ``U+FFFD`` replacement or, for a strictly-decodable cp1252 file,
+    via the ASCII smart-punctuation substitution this function no longer
+    performs at all).
     """
-    try:
-        data.decode("utf-8")
+    result = _recover_encoding(data, unsafe=False)
+    if result.ambiguous or result.text is None or not result.normalization_applied:
         return None
-    except UnicodeDecodeError:
-        pass
+    return _RecoveredArtifactText(
+        text=result.text,
+        source_encoding=result.source_encoding or "unknown",
+        confidence=result.confidence,
+    )
 
-    text: str | None = None
-    for encoding in ("cp1252", "latin-1"):
-        try:
-            text = data.decode(encoding)
-            break
-        except UnicodeDecodeError:
-            continue
-    if text is None:
-        text = data.decode("utf-8", errors="replace")
 
-    text = text.lstrip("﻿")  # strip UTF-8 BOM if present
-    for unicode_char, ascii_replacement in _ENCODING_NORMALIZE_MAP.items():
-        text = text.replace(unicode_char, ascii_replacement)
-    return text
+def _write_recovered_artifact(path: Path, text: str) -> Path:
+    """Back up the original bytes, then atomically rewrite ``path`` as UTF-8.
+
+    Mirrors the safe temp-file + ``Path.replace`` swap idiom
+    ``cli/commands/migrate/backfill_provenance.py``'s
+    ``_CorpusWriteTransaction.write`` uses: the ORIGINAL bytes are preserved
+    verbatim at ``<name>.bak`` (sibling file, same directory) BEFORE the
+    in-place rewrite, so a repaired artifact is never a one-way trip (#4968 —
+    the prior ``normalize_feature_encoding`` overwrote in place with no
+    backup at all).
+    """
+    original_bytes = path.read_bytes()
+    backup_path = path.with_name(f"{path.name}{_ENCODING_BACKUP_SUFFIX}")
+    backup_path.write_bytes(original_bytes)
+
+    tmp_path = path.with_name(f"{path.name}.tmp-{uuid4().hex}")
+    tmp_path.write_text(text, encoding="utf-8")
+    tmp_path.replace(path)
+    return backup_path
 
 
 def normalize_feature_encoding(repo_root: Path, feature: str, *, effective_root: Path | None = None) -> list[Path]:
-    """Normalize file encoding from Windows-1252 to UTF-8 with ASCII character mapping.
+    """Recover mission-artifact encoding to UTF-8 via the canonical detector.
 
-    Converts Windows-1252 encoded files to UTF-8, replacing Unicode smart quotes
-    and special characters with ASCII equivalents for maximum compatibility.
+    Every rewritten artifact is backed up (original bytes, ``<name>.bak``)
+    before its in-place UTF-8 rewrite, and the honest detected codepage +
+    confidence + backup path are logged (FR-005 "honest output" — #4968).
+    An artifact the detector cannot confidently settle (``ambiguous``) is
+    left completely untouched: no rewrite, no backup, so the caller's
+    (unchanged) next strict-UTF-8 read still refuses it.
     """
     # Every artifact this normalizer touches — the planning docs in
     # ``PRIMARY_ARTIFACT_FILES`` plus the ``tasks/`` (WORK_PACKAGE_TASK),
@@ -874,10 +905,17 @@ def normalize_feature_encoding(repo_root: Path, feature: str, *, effective_root:
         if path in seen or not path.exists():
             continue
         seen.add(path)
-        text = _recover_normalized_text(path.read_bytes())
-        if text is None:
+        recovered = _recover_normalized_text(path.read_bytes())
+        if recovered is None:
             continue
-        path.write_text(text, encoding="utf-8")
+        backup_path = _write_recovered_artifact(path, recovered.text)
+        logger.info(
+            "Normalized artifact encoding: %s (detected %s, confidence %.2f, backup %s)",
+            path,
+            recovered.source_encoding,
+            recovered.confidence,
+            backup_path,
+        )
         rewritten.append(path)
     return rewritten
 

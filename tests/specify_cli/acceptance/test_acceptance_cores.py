@@ -596,28 +596,49 @@ class TestEvaluateAcceptanceMatrix:
 
 
 class TestRecoverNormalizedText:
-    """F1 campsite (#2464 squad): the encoding-recovery decision extracted from
-    ``normalize_feature_encoding`` into a pure ``bytes -> str | None`` core."""
+    """F1 campsite (#2464 squad); rewired onto the canonical
+    ``charter.encoding_recovery.recover`` detector (#4968, WP03). The former
+    cp1252-then-latin-1-then-``utf-8``-``errors="replace"`` fallback chain --
+    which never refused and, for a strictly-decodable cp1252 file, silently
+    flattened smart punctuation to ASCII instead of round-tripping byte-exact
+    -- is retired. ``_recover_normalized_text`` now returns ``None`` for BOTH
+    "nothing to repair" (already UTF-8) and "cannot confidently repair"
+    (ambiguous) -- never a lossy guess -- and otherwise a
+    ``_RecoveredArtifactText`` carrying the honest detected codepage and
+    confidence alongside the recovered text."""
 
     def test_valid_utf8_returns_none(self) -> None:
         assert _recover_normalized_text(b"already clean\n") is None
 
-    def test_cp1252_smart_punctuation_is_mapped_to_ascii(self) -> None:
-        # Right single quote (’), em dash (—), ellipsis (…) in cp1252.
-        data = "it’s — done…".encode("cp1252")
-        assert _recover_normalized_text(data) == "it's -- done..."
+    def test_cp1252_sentinel_recovers_byte_exact_with_honest_confidence(self) -> None:
+        # José Peña, São Paulo + curly quotes/em dash: all cp1252-representable,
+        # so recovery must round-trip byte-exact -- no ASCII substitution.
+        sentinel = "Owner: José Peña, São Paulo. “freeze” — don’t ship.\n"
+        result = _recover_normalized_text(sentinel.encode("cp1252"))
+        assert result is not None
+        assert result.text == sentinel
+        assert result.source_encoding == "cp1252"
+        # detector-contract.md guarantee #3: a tie-broken single-byte pick
+        # must never claim a bare 1.0.
+        assert 0.0 < result.confidence < 1.0
 
-    def test_utf8_bom_file_is_already_valid_and_skipped(self) -> None:
-        # A leading UTF-8 BOM is itself valid UTF-8, so such a file needs no
-        # recovery -- the decoder returns None (skip) before the defensive
-        # BOM-lstrip, which only guards the legacy-decode fallback path.
+    def test_utf8_bom_is_recovered_with_bom_stripped(self) -> None:
+        # A leading UTF-8 BOM decodes as valid UTF-8, but the canonical
+        # detector treats it as a normalization case (BOM stripped,
+        # confidence 1.0) rather than a no-op skip.
         data = "﻿heading".encode()
-        assert _recover_normalized_text(data) is None
+        result = _recover_normalized_text(data)
+        assert result is not None
+        assert result.text == "heading"
+        assert result.source_encoding == "utf-8-sig"
+        assert result.confidence == 1.0
 
-    def test_undecodable_bytes_fall_back_to_lossy_replace(self) -> None:
-        # 0x81 is undefined in cp1252 -> latin-1 decodes it, no crash.
-        result = _recover_normalized_text(b"plain \x81 tail")
-        assert result is not None and "plain" in result and "tail" in result
+    def test_undecodable_bytes_refuse_as_ambiguous(self) -> None:
+        # The five byte values Windows-1252 leaves undefined: no single-byte
+        # codepage candidate strictly decodes these, so the detector cannot
+        # confidently settle -- refuse (None), never a lossy guess.
+        ambiguous = bytes(sorted({0x81, 0x8D, 0x8F, 0x90, 0x9D}))
+        assert _recover_normalized_text(ambiguous) is None
 
 
 class TestGatherPrimaryEncodingCandidates:
