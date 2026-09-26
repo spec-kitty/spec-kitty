@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests.architectural._ast_scan import UnparseableSourceError
 from tests.architectural._ratchet_keys import (
     CompositeKey,
     ContentDescriptor,
@@ -287,10 +288,10 @@ def test_candidate_lines_empty_when_substring_does_not_match() -> None:
     assert lines == []
 
 
-def test_candidate_lines_returns_empty_on_syntax_error() -> None:
-    lines = _candidate_lines("def broken(:\n    pass", "broken", "pass")
-
-    assert lines == []
+def test_candidate_lines_fails_closed_on_syntax_error() -> None:
+    """#5139: an unparseable source raises, naming it -- never an empty candidate list."""
+    with pytest.raises(UnparseableSourceError, match="broken_mod.py"):
+        _candidate_lines("def broken(:\n    pass", "broken", "pass", display="broken_mod.py")
 
 
 def test_select_occurrence_defaults_to_first_when_unset() -> None:

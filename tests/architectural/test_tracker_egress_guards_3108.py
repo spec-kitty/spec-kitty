@@ -139,6 +139,7 @@ from specify_cli.tracker.egress_verdict import (
     _LEGAL_CHANNEL2_VALUES,
     tracker_egress_verdict,
 )
+from tests.architectural._ast_scan import parse_file
 
 #: Without a module-level marker this file is selected by **zero** CI gates, so every guard below
 #: would be invisible on a push to ``main`` -- a falsity guard that cannot turn the branch red is
@@ -302,7 +303,7 @@ class CallFindings:
         return "\n".join(f"    {call}" for call in sorted(map(str, self.calls))) or "    (none)"
 
 
-def _parse_path(path_str: str) -> ast.Module | None:
+def _parse_path(path_str: str) -> ast.Module:
     """Parse one file. **Deliberately not cached** -- each tree is released after it is visited.
 
     An earlier revision cached this with ``@cache`` to save one re-walk of ``src/``. Measured, that
@@ -312,12 +313,10 @@ def _parse_path(path_str: str) -> ast.Module | None:
     tree without retaining). On a 4-vCPU ``-n auto`` runner that is not a saving, it is an OOM
     risk. **Findings are cached instead** (see :func:`_calls_in_tree` and
     :func:`_patch_sites_in_tree`): they are a few hundred bytes each, and they are what the guards
-    actually reuse.
+    actually reuse. An unreadable or unparseable file fails closed (#5139) rather than dropping out
+    of the census.
     """
-    try:
-        return ast.parse(Path(path_str).read_text(encoding="utf-8"), filename=path_str)
-    except (SyntaxError, UnicodeDecodeError):
-        return None
+    return parse_file(Path(path_str))
 
 
 def analyze_calls_in_source(source: str, target: str, *, module: str = "<synthetic>") -> CallFindings:
@@ -338,8 +337,6 @@ def _calls_in_tree(root_str: str, target: str) -> CallFindings:
     scanned = 0
     for path in sorted(root.rglob("*.py")):
         tree = _parse_path(str(path))
-        if tree is None:
-            continue
         scanned += 1
         collector = _CallCollector(str(path.relative_to(root)), target)
         collector.visit(tree)
@@ -1845,8 +1842,6 @@ def _patch_sites_in_tree(root_str: str, target: str) -> PatchFindings:
     scanned = 0
     for path in sorted(root.rglob("*.py")):
         tree = _parse_path(str(path))
-        if tree is None:
-            continue
         scanned += 1
         f, n = _collect_patch_sites(tree, str(path.relative_to(root)), target)
         fixed |= f

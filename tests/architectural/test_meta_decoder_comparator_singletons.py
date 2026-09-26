@@ -32,6 +32,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = pytest.mark.architectural
 
 # --------------------------------------------------------------------------- #
@@ -149,10 +151,7 @@ def scan_comparator_defs(src_root: Path) -> list[_Located]:
     repo_root = src_root.parent
     for path in _iter_source_files(src_root):
         rel = _rel(path, repo_root)
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except SyntaxError:  # pragma: no cover - defensive
-            continue
+        tree = parse_file(path, display=rel)
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _references_field_set(node):
                 found.append(_Located(rel, node.name, node.lineno))
@@ -165,10 +164,7 @@ def scan_field_set_declarations(src_root: Path) -> list[_Located]:
     repo_root = src_root.parent
     for path in _iter_source_files(src_root):
         rel = _rel(path, repo_root)
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except SyntaxError:  # pragma: no cover - defensive
-            continue
+        tree = parse_file(path, display=rel)
         for node in ast.walk(tree):
             _value, targets = _assign_targets(node)
             for tgt in targets:
@@ -189,10 +185,7 @@ def scan_inline_field_literals(src_root: Path) -> list[_Located]:
     repo_root = src_root.parent
     for path in _iter_source_files(src_root):
         rel = _rel(path, repo_root)
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except SyntaxError:  # pragma: no cover - defensive
-            continue
+        tree = parse_file(path, display=rel)
         found.extend(_scan_tree_for_inline_literals(tree, rel))
     return found
 

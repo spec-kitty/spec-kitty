@@ -88,6 +88,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import read_and_parse
 from tests.architectural._sole_door_scan import (
     SRC_ROOT,
     iter_source_files,
@@ -157,11 +158,7 @@ def scan_file_resolver_imports(path: Path, rel_path: str) -> list[ResolverImport
     imports in this codebase actually use. Relative imports (``level > 0``) are
     skipped: they can never name the absolute ``charter.offering.resolver`` module.
     """
-    source = path.read_text(encoding="utf-8")
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return []
+    source, tree = read_and_parse(path, display=rel_path)
 
     qualnames = _qualname_map(tree)
     lines = source.splitlines()

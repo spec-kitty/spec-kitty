@@ -147,6 +147,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_source, read_source
 from tests.architectural._placement_whole_tree_scan import rel_path as _placement_rel_path
 from tests.architectural._placement_whole_tree_scan import scan_scope as _whole_tree_scan_scope
 from tests.architectural._ratchet_keys import (
@@ -367,10 +368,7 @@ def _scan_read_bypass(source: str, path: Path) -> list[_Finding]:
     :func:`_import_alias_map`), so an ``import ... as _alias`` rename cannot
     hide a call site from this walk.
     """
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return []
+    tree = parse_source(source, display=str(path))
     aliases = _import_alias_map(tree)
     findings: list[_Finding] = []
     for node in ast.walk(tree):
@@ -382,7 +380,7 @@ def _scan_read_bypass(source: str, path: Path) -> list[_Finding]:
 
 
 def _scan_read_bypass_module(path: Path) -> list[_Finding]:
-    return _scan_read_bypass(path.read_text(encoding="utf-8"), path)
+    return _scan_read_bypass(read_source(path), path)
 
 
 # ---------------------------------------------------------------------------

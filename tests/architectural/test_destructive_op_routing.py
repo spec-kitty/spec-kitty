@@ -121,8 +121,6 @@ def _classify_argv(tokens: list[str | None]) -> str | None:
 def _find_destructive_literals(path: Path) -> list[tuple[int, str]]:
     """``(lineno, pattern)`` for every destructive-command argv literal in *path*."""
     tree = parse(path)
-    if tree is None:
-        return []
     consts = module_string_constants(tree)
     hits: list[tuple[int, str]] = []
     for node in _ast.walk(tree):
@@ -376,8 +374,6 @@ def _status_porcelain_hits(path: Path) -> list[tuple[int, str]]:
     (a different subcommand, listing worktrees rather than checking
     dirtiness), tagged with its enclosing function/method's qualname."""
     tree = parse(path)
-    if tree is None:
-        return []
     consts = module_string_constants(tree)
     hits: list[tuple[int, str]] = []
     for node in _ast.walk(tree):

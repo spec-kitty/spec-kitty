@@ -8,6 +8,8 @@ from ruamel.yaml import YAML
 
 import pytest
 
+from tests.architectural._ast_scan import UnparseableSourceError, parse_file
+
 # ``docs_scoped``: reads ``docs/migrations/shim-registry.yaml`` as its expected
 # set, so a docs-only PR editing that registry could newly-red it — it MUST run
 # on the arch pole's docs-only trim.
@@ -22,10 +24,7 @@ def _scan_deprecated_modules(src_root: Path) -> set[str]:
     """Walk src_root for .py files that carry __deprecated__ = True (assignment or annotation)."""
     found: set[str] = set()
     for py_file in src_root.rglob("*.py"):
-        try:
-            tree = ast.parse(py_file.read_text(encoding="utf-8"))
-        except SyntaxError:
-            continue
+        tree = parse_file(py_file)
         for node in ast.walk(tree):
             if _is_deprecated_assignment(node):
                 found.add(str(py_file))
@@ -101,8 +100,8 @@ class TestShimScanner:
         found = _scan_deprecated_modules(tmp_path)
         assert not found
 
-    def test_scanner_handles_syntax_error_gracefully(self, tmp_path: Path) -> None:
+    def test_scanner_fails_closed_on_syntax_error(self, tmp_path: Path) -> None:
         bad_file = tmp_path / "broken.py"
         bad_file.write_text("def (: pass\n")
-        found = _scan_deprecated_modules(tmp_path)
-        assert not found
+        with pytest.raises(UnparseableSourceError, match="broken.py"):
+            _scan_deprecated_modules(tmp_path)

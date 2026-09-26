@@ -77,6 +77,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
 from tests.architectural._sole_door_scan import (
     SRC_ROOT,
     _own_scope_statements,
@@ -257,11 +258,7 @@ def _qualname_via_scope_chain(scope_chain: list[ast.AST]) -> str:
 
 
 def _scan_file(path: Path, rel: str) -> list[MissionsRootHardcodeSite]:
-    source = path.read_text(encoding="utf-8")
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return []
+    tree = parse_file(path, display=rel)
     parents = parent_map(tree)
     dunder_file_rebinds_by_scope = {id(scope): _dunder_file_rebinds_for_scope(scope) for scope in _scope_nodes(tree)}
 

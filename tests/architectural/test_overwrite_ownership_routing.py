@@ -213,8 +213,6 @@ def _reference_op(
 def _find_overwrite_ops(path: Path) -> list[tuple[int, str]]:
     """``(lineno, op)`` for every raw overwrite literal the classifier maps in *path*."""
     tree = parse(path)
-    if tree is None:
-        return []
     module_aliases = import_alias_map(tree)
     from_imports = from_import_map(tree)
     hits: list[tuple[int, str]] = []
@@ -230,8 +228,6 @@ def _unhandled_reference_ops(path: Path) -> list[tuple[int, str]]:
     """Overwrite-shaped calls (reference vocabulary) the classifier does NOT
     map — i.e. would silently evade the census (e.g. a future ``shutil.copytree``)."""
     tree = parse(path)
-    if tree is None:
-        return []
     module_aliases = import_alias_map(tree)
     from_imports = from_import_map(tree)
     unhandled: list[tuple[int, str]] = []
@@ -323,7 +319,7 @@ def _live_routed_modules() -> set[str]:
     routed: set[str] = set()
     for py_file in _overwrite_module_set():
         tree = parse(py_file)
-        if tree is not None and _calls_guard_destructive_overwrite(tree):
+        if _calls_guard_destructive_overwrite(tree):
             routed.add(py_file.relative_to(SPECIFY_CLI_ROOT).as_posix())
     return routed
 
@@ -425,7 +421,6 @@ def test_each_routed_module_routes_and_is_allowlist_clean() -> None:
     preservation is proven by the #4921/#4926 behavioural tests, not here."""
     research_tree = parse(_RESEARCH_PY)
     brief_tree = parse(_MISSION_BRIEF_PY)
-    assert research_tree is not None and brief_tree is not None
     assert _calls_guard_destructive_overwrite(research_tree), "research.py must call guard_destructive_overwrite(...)"
     assert _calls_guard_destructive_overwrite(brief_tree), "mission_brief.py must call guard_destructive_overwrite(...)"
 
@@ -613,7 +608,6 @@ def test_enclosing_qualname_is_available_for_diagnostics() -> None:
     """The shared qualname helper resolves a censused op's enclosing function —
     used when a failure needs to name where an overwrite literal lives."""
     tree = parse(_BRIEF_WRITER_PY)
-    assert tree is not None
     hits = _find_overwrite_ops(_BRIEF_WRITER_PY)
     assert hits, "brief_writer.py should carry at least one allowlisted overwrite literal"
     lineno = hits[0][0]

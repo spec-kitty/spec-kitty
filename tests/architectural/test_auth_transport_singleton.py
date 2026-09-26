@@ -35,6 +35,8 @@ from typing import TypeGuard
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -100,16 +102,9 @@ def _is_httpx_constructor_call(node: ast.AST) -> TypeGuard[ast.Call]:
 
 def _find_violations(path: Path) -> list[tuple[int, str]]:
     """Return a list of ``(lineno, snippet)`` for every forbidden call in *path*."""
-    try:
-        source = path.read_text(encoding="utf-8")
-    except OSError:
-        return []
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        # Production sources should always parse; if they don't, that's
-        # a louder problem than this rule.
-        return []
+    # Fails closed (#5139): an unreadable/unparseable source is a gate failure,
+    # never a silent "no violations".
+    tree = parse_file(path)
 
     violations: list[tuple[int, str]] = []
     for node in ast.walk(tree):

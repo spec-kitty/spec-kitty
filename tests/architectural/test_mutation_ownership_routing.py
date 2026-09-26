@@ -232,8 +232,6 @@ def _classify_op(
 def _find_destructive_ops(path: Path) -> list[tuple[int, str]]:
     """``(lineno, op)`` for every raw destructive literal the classifier maps in *path*."""
     tree = parse(path)
-    if tree is None:
-        return []
     module_aliases = import_alias_map(tree)
     from_imports = from_import_map(tree)
     hits: list[tuple[int, str]] = []
@@ -550,7 +548,7 @@ def _live_routed_modules() -> set[str]:
     routed: set[str] = set()
     for py_file in _module_set():
         tree = parse(py_file)
-        if tree is not None and _calls_guard_destructive_removal(tree):
+        if _calls_guard_destructive_removal(tree):
             routed.add(py_file.relative_to(SPECIFY_CLI_ROOT).as_posix())
     return routed
 
@@ -613,7 +611,6 @@ def _git_source_removal_targets() -> dict[int, str | None]:
     never ``target_dir``.
     """
     tree = parse(_GIT_SOURCE_PY)
-    assert tree is not None, "git_source.py must parse for the never-allowlist guard"
     module_aliases = import_alias_map(tree)
     from_imports = from_import_map(tree)
     targets: dict[int, str | None] = {}
@@ -672,8 +669,6 @@ def _unhandled_reference_ops(path: Path) -> list[tuple[int, str]]:
     """Destructive-shaped calls (reference vocabulary) the classifier does NOT
     map — i.e. would silently evade the census (e.g. a future ``os.removedirs``)."""
     tree = parse(path)
-    if tree is None:
-        return []
     module_aliases = import_alias_map(tree)
     from_imports = from_import_map(tree)
     unhandled: list[tuple[int, str]] = []
@@ -880,7 +875,6 @@ def test_enclosing_qualname_is_available_for_diagnostics() -> None:
     """The shared qualname helper resolves a censused op's enclosing function —
     used when a failure needs to name where an unrouted literal lives."""
     tree = parse(_INIT_PY)
-    assert tree is not None
     hits = _find_destructive_ops(_INIT_PY)
     assert hits, "init.py should carry at least one allowlisted destructive literal"
     lineno = hits[0][0]

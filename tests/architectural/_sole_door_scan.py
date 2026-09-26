@@ -52,6 +52,7 @@ import importlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from tests.architectural._ast_scan import parse_source, read_source
 from tests.architectural._ratchet_keys import (
     CompositeKey,
     ContentDescriptor,
@@ -453,12 +454,11 @@ def scan_file_constructions(
     identities are comparable (Gate 2 needs exactly that for
     ``charter.offering.service.DoctrineService`` vs ``charter.activation.resolver.DoctrineService``).
 
-    Returns ``None`` when the file cannot be parsed at all, or when a cheap
-    substring pre-check (below) proves it holds no possible match — every
-    caller already treats both as "nothing here" (see e.g.
+    Returns ``None`` when a cheap substring pre-check (below) proves the file
+    holds no possible match — every caller treats that as "nothing here" (see e.g.
     ``scan_file_raw_sites``'s ``if scan is None: return [], ScanResult([], [])``).
     """
-    source = path.read_text(encoding="utf-8")
+    source = read_source(path, display=rel_path)
     # Perf pre-filter (landing-fold gate hardening, 2026-08): every route that
     # can produce a match — an ``import``/``from``-import of the name, a
     # ``getattr``/local-rebind of an already-imported name, or a file-local
@@ -472,10 +472,8 @@ def scan_file_constructions(
     # name, measured against this landing pass's widened scan.
     if not any(name in source for name in candidate_names):
         return None
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return None
+    # A file that cannot be parsed fails closed (#5139) — never "nothing here".
+    tree = parse_source(source, display=rel_path)
 
     parents, scopes, calls = _index_file(tree)
     # Perf: compute each scope's own-statement walk exactly once and hand the

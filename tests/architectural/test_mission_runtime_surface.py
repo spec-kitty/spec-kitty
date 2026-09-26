@@ -35,6 +35,8 @@ import pytest
 from pytestarch import EvaluableArchitecture, Rule
 from pytestarch.eval_structure.exceptions import ImpossibleMatch
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -264,14 +266,7 @@ def scan_for_internal_imports(files: list[pathlib.Path]) -> list[str]:
     """
     violations: list[str] = []
     for py_file in files:
-        try:
-            source = py_file.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        try:
-            tree = ast.parse(source, filename=str(py_file))
-        except SyntaxError:
-            continue
+        tree = parse_file(py_file)
         type_checking_linenos = _collect_type_checking_linenos(tree)
         for node in ast.walk(tree):
             if not isinstance(node, (ast.Import, ast.ImportFrom)):

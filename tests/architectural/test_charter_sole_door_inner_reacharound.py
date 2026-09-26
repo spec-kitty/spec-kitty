@@ -83,6 +83,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
 from tests.architectural._sole_door_scan import REPO_ROOT, _Bindings, _lookup_module
 
 pytestmark = pytest.mark.architectural
@@ -266,10 +267,7 @@ def _find_inner_reacharounds(path: Path) -> list[tuple[int, str | None]]:
     -- used only to make the violation message name the one accessor that
     fits (landing-fold gate hardening).
     """
-    try:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-    except (SyntaxError, UnicodeDecodeError):
-        return []
+    tree = parse_file(path)
 
     aliases = _collect_import_aliases(tree)
     tainted = _tainted_names(tree, aliases)

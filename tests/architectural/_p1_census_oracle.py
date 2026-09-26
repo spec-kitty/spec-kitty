@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from specify_cli.ast_analysis.imports import module_of_import_from
+from tests.architectural._ast_scan import parse_file
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CENSUS_PATH = Path(__file__).resolve().parent / "p1_census" / "census.json"
@@ -199,10 +200,7 @@ def static_importer_count(
     """
     count = 0
     for path in _iter_python_files(root, roots):
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except (SyntaxError, OSError):
-            continue
+        tree = parse_file(path)
         if _file_imports_surface(tree, surface, _containing_pkg(path, root)):
             count += 1
     return count
@@ -273,10 +271,7 @@ def dynamic_reach_signals(
     prefix = surface + "."
     signals: list[str] = []
     for path in _iter_python_files(root, roots):
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except (SyntaxError, OSError):
-            continue
+        tree = parse_file(path)
         for node in ast.walk(tree):
             target = _string_dispatch_target(node)
             if target is not None and (target == surface or target.startswith(prefix)):

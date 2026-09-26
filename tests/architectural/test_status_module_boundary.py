@@ -81,6 +81,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -242,14 +244,7 @@ def scan_for_bypass_imports(
     for py_file in files:
         if py_file in exempt_files:
             continue
-        try:
-            source = py_file.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        try:
-            tree = ast.parse(source, filename=str(py_file))
-        except SyntaxError:
-            continue
+        tree = parse_file(py_file)
         # Collect all if-TYPE_CHECKING node ranges to exclude them
         type_checking_linenos: set[int] = _collect_type_checking_linenos(tree)
         for node in ast.walk(tree):

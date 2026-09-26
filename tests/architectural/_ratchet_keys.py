@@ -61,7 +61,6 @@ the plan's "reuse/relocate, do not fork a third key-builder" instruction.
 
 from __future__ import annotations
 
-import ast
 from typing import NamedTuple
 
 from specify_cli.contracts.anchoring import _build_qualname_map as build_qualname_map
@@ -71,6 +70,7 @@ from specify_cli.contracts.anchoring import (
     composite_key_from_file,
     enclosing_qualname,
 )
+from tests.architectural._ast_scan import parse_source
 
 __all__ = [
     "code_tokens_by_line",
@@ -159,18 +159,19 @@ def _qualname_for_line(qualname_map: dict[tuple[int, int], str], lineno: int) ->
     return qn
 
 
-def _candidate_lines(source: str, qualname: str, token_substring: str) -> list[int]:
+def _candidate_lines(
+    source: str, qualname: str, token_substring: str, *, display: str = "<descriptor source>"
+) -> list[int]:
     """Return line numbers (1-based, file order) inside ``qualname`` whose
     normalized token line contains ``token_substring``.
 
     Builds the AST + qualname map exactly once (GAP-2), then scans
     :func:`code_tokens_by_line`'s NORMALIZED output — never raw source, per the
-    descriptor-resolver contract's authoring rule.
+    descriptor-resolver contract's authoring rule. Unparseable ``source`` fails
+    closed (``UnparseableSourceError`` naming ``display``, #5139) instead of
+    reading as zero candidates.
     """
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return []
+    tree = parse_source(source, display=display)
     qualname_map = build_qualname_map(tree)
     tokens = code_tokens_by_line(source)
     return [
@@ -227,7 +228,9 @@ def resolve_descriptor(source: str, descriptor: ContentDescriptor) -> CompositeK
     (with no ``occurrence``) >1 — never silently picks the first (D-1). See
     ``descriptor-resolver.md`` for the full contract.
     """
-    candidates = _candidate_lines(source, descriptor.qualname, descriptor.token_substring)
+    candidates = _candidate_lines(
+        source, descriptor.qualname, descriptor.token_substring, display=descriptor.rel_path
+    )
     _assert_exactly_one(candidates, descriptor)
     lineno = candidates[_select_occurrence(candidates, descriptor.occurrence)]
     qualname, token_line = composite_key(source, lineno)
@@ -264,5 +267,7 @@ def assert_descriptor_unique_within_qualname(source: str, descriptor: ContentDes
     Equivalent to calling :func:`resolve_descriptor` and discarding the result,
     but named for its standalone import-time-assertion purpose.
     """
-    candidates = _candidate_lines(source, descriptor.qualname, descriptor.token_substring)
+    candidates = _candidate_lines(
+        source, descriptor.qualname, descriptor.token_substring, display=descriptor.rel_path
+    )
     _assert_exactly_one(candidates, descriptor)

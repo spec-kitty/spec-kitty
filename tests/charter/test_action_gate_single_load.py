@@ -32,6 +32,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from tests.architectural._ast_scan import parse_file
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -176,10 +177,7 @@ class TestBootstrapActionsSingleDefinitionSite:
         definitions: list[str] = []
 
         for pyfile in charter_src.rglob("*.py"):
-            try:
-                tree = ast.parse(pyfile.read_text(encoding="utf-8"), filename=str(pyfile))
-            except (SyntaxError, UnicodeDecodeError):
-                continue
+            tree = parse_file(pyfile)
             for node in ast.walk(tree):
                 # `BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({...})` is an
                 # `AnnAssign` (annotated assignment), not a plain `Assign` --

@@ -102,6 +102,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.architectural._ast_scan import read_and_parse
 from tests.architectural._ratchet_keys import code_tokens_by_line
 
 pytestmark = pytest.mark.architectural
@@ -350,11 +351,7 @@ class CharterPathSite:
 
 
 def _scan_file(path: Path, rel: str) -> list[CharterPathSite]:
-    source = path.read_text(encoding="utf-8")
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return []
+    source, tree = read_and_parse(path, display=rel)
     parents = _parent_map(tree)
     token_map = code_tokens_by_line(source)
     charter_bundle_names = _charter_bundle_name_bindings(tree)

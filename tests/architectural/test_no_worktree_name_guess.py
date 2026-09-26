@@ -75,6 +75,7 @@ from typing import TypeGuard
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
 from tests.architectural._ratchet_keys import composite_key
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
@@ -363,10 +364,7 @@ def _is_bare_mid8_dir_compose(node: ast.JoinedStr) -> bool:
 
 def _scan_file(path: Path) -> dict[int, str]:
     """Return ``{lineno: idiom-label}`` for every forbidden idiom in ``path``."""
-    try:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-    except SyntaxError:
-        return {}
+    tree = parse_file(path)
 
     fstring_names = _collect_fstring_bound_names(tree)
     mid8_suffix_names = _collect_mid8_suffix_names(tree)
@@ -674,10 +672,7 @@ def _scan_shortid_file(path: Path) -> dict[int, str]:
         (the failover-bypass rule, T019): consumers must call ``resolve_mid8``,
         not the unguarded private slice primitive.
     """
-    try:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-    except SyntaxError:
-        return {}
+    tree = parse_file(path)
 
     violations: dict[int, str] = {}
     for node in ast.walk(tree):
