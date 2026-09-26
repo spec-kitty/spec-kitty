@@ -17,3 +17,6 @@
 # type-narrowing reason and are tracked PERMANENTLY in the sibling
 # os-detect-ban-mypy-narrowing.txt instead -- not left un-gated, and not
 # smuggled back into this WP-owned, expected-to-reach-zero file.
+#
+# Entry form, should a site ever be re-seeded (DIR-041; never <path>:<line>):
+#   <repo-relative path>::<qualname>::<token_substring>[::<occurrence>]

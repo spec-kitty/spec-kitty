@@ -31,10 +31,8 @@
 # as `msvcrt`/`fcntl` stay platform-exclusive stdlib modules with
 # platform-gated stubs, these two call sites cannot be routed without
 # reintroducing the mypy regression above.
-# WP04 (cross-os-primitive-unification): line-number drift fix -- these two
-# entries had gone stale (:217/:229) after an unrelated upstream shift in
-# kernel/locks.py; corrected to the current lines.
-# local-write-safety (#4756): the O_NOFOLLOW hoist in open_fd/force_release
-# shifted these two dispatches by one line (:221/:233 -> :222/:234); re-pinned.
-src/kernel/locks.py:222
-src/kernel/locks.py:234
+#
+# One content descriptor per line (DIR-041):
+#   <repo-relative path>::<qualname>::<token_substring>[::<occurrence>]
+src/kernel/locks.py::_os_lock::if sys . platform ==
+src/kernel/locks.py::_os_unlock::if sys . platform ==

@@ -26,13 +26,18 @@ read under lock" that would misfire on the door's own diagnostics.
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterable
+import re
+from collections import Counter
+from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
 from tests.architectural import _lock_gate_scan as scan
+from tests.architectural._content_identity import partition_findings, render_descriptor_line, resolve_allowlist
 from tests.architectural._lock_ban_exemptions import load_lock_ban_exemptions
+from tests.architectural._ratchet_keys import CompositeKey, ContentDescriptor, composite_key
 
 pytestmark = [pytest.mark.architectural]
 
@@ -79,43 +84,91 @@ def test_door_contains_the_concrete_floor() -> None:
     assert "fcntl.flock(" in door_source, "the door must retain its POSIX-side fcntl.flock() call"
 
 
+class _LockFinding(NamedTuple):
+    """One raw-lock finding: its content identity plus its current line."""
+
+    key: CompositeKey
+    lineno: int
+
+
+#: The door's repo-relative path, fixed at import (before any test monkeypatches ``scan.REPO_ROOT``).
+_DOOR_RELPATH = scan.relpath(scan.DOOR_FILE)
+
+
+def _scanned_sources() -> dict[str, str]:
+    """``{repo-relative path: source}`` for every scanned file."""
+    return {scan.relpath(path): path.read_text(encoding="utf-8") for path in scan.iter_python_files()}
+
+
+def _source_under_repo(relpath: str) -> str:
+    return (scan.REPO_ROOT / relpath).read_text(encoding="utf-8")
+
+
+def _lock_findings(sources: Mapping[str, str]) -> list[_LockFinding]:
+    """Every raw-lock finding outside the door, keyed by ``(relpath, qualname, token_line)``."""
+    findings: list[_LockFinding] = []
+    for relpath, source in sorted(sources.items()):
+        if relpath == _DOOR_RELPATH:
+            continue
+        for lineno in scan.find_lock_ban_violations(ast.parse(source)):
+            findings.append(_LockFinding((relpath, *composite_key(source, lineno)), lineno))
+    return findings
+
+
+def _split_lock_findings(sources: Mapping[str, str], allowed: Counter[CompositeKey]) -> tuple[list[_LockFinding], Counter[CompositeKey]]:
+    """Split the findings in *sources* into ``(unexpected, unused)`` via :func:`partition_findings` (multiset)."""
+    return partition_findings(((finding.key, finding) for finding in _lock_findings(sources)), allowed)
+
+
+def _content_line_for(finding: _LockFinding) -> str:
+    """The exemption line that would suppress *finding* (its full normalized token line as the substring)."""
+    relpath, qualname, token_line = finding.key
+    return render_descriptor_line(ContentDescriptor(relpath, qualname, token_line, None, ""))
+
+
 def test_no_banned_raw_lock_usage_outside_the_door() -> None:
     """FR-010: no raw msvcrt/fcntl/filelock import or call outside kernel/locks.py.
+
+    Findings are matched against the exemption descriptors by content identity
+    ``(relpath, qualname, token_line)`` through
+    :func:`tests.architectural._content_identity.partition_findings`.
 
     Non-vacuity (C-009): ``test_stale_exemption_removal_reds_the_gate`` below
     proves this assertion is load-bearing by removing a planted exemption
     entry and observing the same collection-and-filter logic go red on the
     now-unexempted call site.
     """
-    scanned = scan.iter_python_files()
-    exemptions = load_lock_ban_exemptions()
-    door = scan.relpath(scan.DOOR_FILE)
+    allowed, _errors = resolve_allowlist(load_lock_ban_exemptions(), _source_under_repo)
+    unexpected, _unused = _split_lock_findings(_scanned_sources(), allowed)
 
-    violations = [(relpath, lineno) for relpath, lineno in collect_violations(scanned) if relpath != door and (relpath, lineno) not in exemptions]
-
-    assert violations == [], (
+    assert unexpected == [], (
         "Raw lock primitives (`import msvcrt`/`fcntl`/`filelock`, "
         "`msvcrt.locking(...)`, `fcntl.flock/lockf(...)`, `FileLock(...)`) "
-        f"are banned outside {door} (the single door, FR-010). Route through "
+        f"are banned outside {_DOOR_RELPATH} (the single door, FR-010). Route through "
         "kernel.locks (MachineFileLock / SyncMachineFileLock / "
-        "machine_file_lock), or add `<path>:<line>` to the owning WP's "
-        "tests/architectural/_exemptions/lock-ban-<owner>.txt if this is a "
-        "currently-tracked, not-yet-remediated site.\nViolations:\n" + "\n".join(f"  {relpath}:{lineno}" for relpath, lineno in violations)
+        "machine_file_lock), or, if this is a currently-tracked, "
+        "not-yet-remediated site, add the content line shown "
+        "(`<path>::<qualname>::<token_substring>`) to the owning WP's "
+        "tests/architectural/_exemptions/lock-ban-<owner>.txt."
+        "\nViolations:\n" + "\n".join(f"  {finding.key[0]}:{finding.lineno}  ->  {_content_line_for(finding)}" for finding in unexpected)
     )
 
 
 def test_every_exemption_entry_is_a_real_violation() -> None:
-    """Anti-staleness: every exemption entry must correspond to an actual violation today."""
-    scanned = scan.iter_python_files()
-    live_sites = set(collect_violations(scanned))
+    """Anti-staleness (FR-007): every exemption descriptor must suppress a live violation today."""
     exemptions = load_lock_ban_exemptions()
+    allowed, errors = resolve_allowlist(exemptions, _source_under_repo)
+    _unexpected, unused = _split_lock_findings(_scanned_sources(), allowed)
+    checked = len(errors) + sum(allowed.values())
 
-    stale = exemptions - live_sites
+    stale = [f"  {render_descriptor_line(descriptor)} ({descriptor.rationale}): {reason}" for descriptor, reason in errors]
+    stale += [f"  {key[0]} [{key[1]}] {key[2]!r} suppresses no live violation" for key in sorted(unused)]
     assert not stale, (
         "The following tests/architectural/_exemptions/lock-ban-*.txt "
         "entries no longer correspond to a real violation -- delete them "
-        "(the site is already clean):\n" + "\n".join(f"  {path}:{line}" for path, line in sorted(stale))
+        "(the site is already clean):\n" + "\n".join(stale)
     )
+    assert checked == len(exemptions)
 
 
 def test_stale_exemption_removal_reds_the_gate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -123,13 +176,14 @@ def test_stale_exemption_removal_reds_the_gate(tmp_path: Path, monkeypatch: pyte
 
     Plants a SYNTHETIC ``import fcntl`` in an unexempted ``tmp_path`` file,
     runs it through the REAL detector (``collect_violations``), then proves
-    the exemption mechanism is load-bearing via the exact same
-    collection-and-filter logic ``test_no_banned_raw_lock_usage_outside_the_door``
-    runs. ``scan.REPO_ROOT`` is monkeypatched to ``tmp_path`` for the
-    duration of the ``scan.relpath`` call, so the planted file -- which must
-    physically live under ``tmp_path``, never the real scanned tree -- still
-    resolves through the SAME ``relpath`` function the real gate uses. No
-    write ever touches the real repo tree or a committed exemption file.
+    the exemption mechanism is load-bearing: a content-form exemption line,
+    parsed by the real loader and resolved against the planted source,
+    suppresses the finding; emptying the exemption file reds it again.
+    ``scan.REPO_ROOT`` is monkeypatched to ``tmp_path`` so the planted file --
+    which must physically live under ``tmp_path``, never the real scanned tree
+    -- still resolves through the SAME ``relpath`` function the real gate
+    uses. No write ever touches the real repo tree or a committed exemption
+    file.
     """
     module = tmp_path / "offender.py"
     module.write_text("import fcntl\n", encoding="utf-8")
@@ -137,30 +191,33 @@ def test_stale_exemption_removal_reds_the_gate(tmp_path: Path, monkeypatch: pyte
 
     all_violations = collect_violations([module])
     assert all_violations == [("offender.py", 1)], "the planted violation must be detected by the real detector"
-    sample_relpath, sample_lineno = all_violations[0]
+    sources = {"offender.py": module.read_text(encoding="utf-8")}
 
     isolated_dir = tmp_path / "_exemptions"
     isolated_dir.mkdir()
-    (isolated_dir / "lock-ban-isolated.txt").write_text(f"{sample_relpath}:{sample_lineno}\n", encoding="utf-8")
+    (isolated_dir / "lock-ban-isolated.txt").write_text("offender.py::<module>::import fcntl\n", encoding="utf-8")
 
-    def _fake_iter_exemption_lines() -> list[str]:
-        lines: list[str] = []
+    def _fake_iter_exemption_entries() -> list[tuple[str, str]]:
+        entries: list[tuple[str, str]] = []
         for path in sorted(isolated_dir.glob("lock-ban-*.txt")):
-            lines.extend(line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
-        return lines
+            entries.extend((path.name, line.strip()) for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+        return entries
 
     import tests.architectural._lock_ban_exemptions as exemptions_module
 
-    monkeypatch.setattr(exemptions_module, "_iter_exemption_lines", _fake_iter_exemption_lines)
-    exempted_here = exemptions_module.load_lock_ban_exemptions()
-    assert (sample_relpath, sample_lineno) in exempted_here
-    with_exemption = [v for v in all_violations if v not in exempted_here]
-    assert (sample_relpath, sample_lineno) not in with_exemption
+    monkeypatch.setattr(exemptions_module, "_iter_exemption_entries", _fake_iter_exemption_entries)
+
+    def _unexpected_with_current_exemptions() -> list[_LockFinding]:
+        allowed, errors = resolve_allowlist(exemptions_module.load_lock_ban_exemptions(), _source_under_repo)
+        assert errors == []
+        return _split_lock_findings(sources, allowed)[0]
+
+    assert _unexpected_with_current_exemptions() == [], "the content-form exemption must suppress the planted finding"
 
     isolated_dir.joinpath("lock-ban-isolated.txt").write_text("", encoding="utf-8")
-    without_exemption = [v for v in all_violations if v not in exemptions_module.load_lock_ban_exemptions()]
+    without_exemption = _unexpected_with_current_exemptions()
 
-    assert (sample_relpath, sample_lineno) in without_exemption
+    assert [(finding.key[0], finding.lineno) for finding in without_exemption] == [("offender.py", 1)]
 
 
 def test_planted_import_msvcrt_fires(tmp_path: Path) -> None:
@@ -239,7 +296,7 @@ def test_door_file_itself_is_exempt_by_construction() -> None:
     # The door earns its exemption by BEING the door, never by an entry in an
     # exemption file -- confirm no such entry exists, so a future edit cannot
     # silently swap the mechanism for a weaker one.
-    assert not any(path == door_relpath for path, _ in exemptions)
+    assert not any(descriptor.rel_path == door_relpath for descriptor in exemptions)
 
 
 def test_door_sidecar_record_read_is_never_a_banned_shape() -> None:
@@ -294,3 +351,13 @@ def test_unrelated_filelock_named_callable_is_a_disclosed_over_fire(tmp_path: Pa
     module.write_text("def FileLock(*a):\n    return None\n\n\nFileLock('x')\n", encoding="utf-8")
 
     assert _violations_for_file(module) == [5]
+
+
+def test_lock_ban_loader_rejects_line_pinned_entry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-OP-6: a ``path:line`` exemption line is refused with a ``ValueError`` naming it."""
+    import tests.architectural._lock_ban_exemptions as exemptions_module
+
+    monkeypatch.setattr(exemptions_module, "_iter_exemption_entries", lambda: [("lock-ban-x.txt", "src/x.py:12")])
+
+    with pytest.raises(ValueError, match=re.escape("src/x.py:12")):
+        exemptions_module.load_lock_ban_exemptions()

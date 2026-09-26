@@ -20,3 +20,6 @@
 # left untouched -- the OS-detection gate's own over-fire boundary
 # (test_os_detection_ban.py) only bans the `==` form; `!=` was never seeded
 # here and routing it would only be churn, not a gate shrink.
+#
+# Entry form, should a site ever be re-seeded (DIR-041; never <path>:<line>):
+#   <repo-relative path>::<qualname>::<token_substring>[::<occurrence>]

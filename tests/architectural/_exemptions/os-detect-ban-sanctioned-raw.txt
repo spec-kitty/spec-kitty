@@ -16,13 +16,11 @@
 # os-detect-ban-mypy-narrowing.txt, since they are not import guards and
 # this file's own policy above says not to mix the two shapes here.)
 #
-# WP04 (cross-os-primitive-unification): line-number drift fix -- this entry
-# had gone stale at :91 after an unrelated upstream shift in kernel/locks.py;
-# corrected to the current line. Also, tracker/credentials.py's and
-# runtime/bootstrap.py's own module-scope import guards (formerly :19 and
-# :69) were REMOVED here, not routed: WP04 migrated both modules' locking
-# entirely onto kernel.locks.machine_file_lock, so neither module imports
-# msvcrt/fcntl at all any more -- there is no guard left to allowlist.
-# local-write-safety (#4756): the O_NOFOLLOW hoist shifted this import guard
-# by one line (:95 -> :96); re-pinned.
-src/kernel/locks.py:96
+# tracker/credentials.py's and runtime/bootstrap.py's own module-scope
+# import guards were REMOVED here, not routed: WP04 migrated both modules'
+# locking entirely onto kernel.locks.machine_file_lock, so neither module
+# imports msvcrt/fcntl at all any more -- there is no guard left to allowlist.
+#
+# One content descriptor per line (DIR-041):
+#   <repo-relative path>::<qualname>::<token_substring>[::<occurrence>]
+src/kernel/locks.py::<module>::if sys . platform ==

@@ -20,3 +20,6 @@
 # cold-install/owner-lock coordination was migrated onto
 # kernel.locks.machine_file_lock in the same WP04 landing, without ever
 # having a raw call of its own to allowlist here.
+#
+# Entry form, should a site ever be seeded (DIR-041; never <path>:<line>):
+#   <repo-relative path>::<qualname>::<token_substring>[::<occurrence>]

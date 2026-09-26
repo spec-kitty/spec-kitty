@@ -1,15 +1,19 @@
 # OS-detection ban gate (FR-012) -- deferred outside this mission's WP scope.
 #
+# One content descriptor per line (DIR-041):
+#   <repo-relative path>::<qualname>::<token_substring>[::<occurrence>]
+# rendered by tests.architectural._content_identity.render_descriptor_line.
+# Line numbers are not part of an entry: a descriptor survives line drift and
+# fails the gate once the site it names is gone.
+#
 # specify_cli/__init__.py: deferred with the argv-parsing work (NG-01,
 # version-bump coupling) -- allowlisted, not routed, per WP01's task file.
-# NOTE (#2899 landing): the second site moved 479 -> 518 when the global CLI
-# error-presentation hook (main()) was added above it; the deferred `sys.platform
-# == "win32"` UTF-8-reconfigure check (issue #66) itself is unchanged, still
-# routed nowhere. Line-keyed exemption, so the entry is re-pinned to the new line.
-src/specify_cli/__init__.py:353
-src/specify_cli/__init__.py:521
+# The second site is the `sys.platform == "win32"` UTF-8-reconfigure check
+# inside main() (issue #66), still routed nowhere.
+src/specify_cli/__init__.py::ensure_executable_scripts::if os . name ==
+src/specify_cli/__init__.py::main::if sys . platform ==
 #
-# paths/windows_paths.py:128 (`sys.platform.startswith("win")` inside
+# paths/windows_paths.py (`sys.platform.startswith("win")` inside
 # `_current_platform()`): a CENSUS GAP discovered while landing WP01 -- this
 # routable site is not named in any WP01-05 task file's owned_files and is
 # not claimed by WP03/WP04 either. Seeded fail-closed here rather than
@@ -17,7 +21,5 @@ src/specify_cli/__init__.py:521
 # ungated (would make the gate vacuous for this site). Tracked as follow-up
 # #4727 to assign an owner and route it (it is a 3-way win32/darwin/linux
 # normalizer, so it needs the kernel seam extended, not a boolean route-through).
-# local-write-safety (#4721/#4812): edits above this site in windows_paths.py
-# shifted it (:128 -> :163, via the landing folds that touched this module);
-# re-pinned. Still deferred to #4727, still routed nowhere.
-src/specify_cli/paths/windows_paths.py:163
+# #4727's exit: remove this descriptor line once the site is routed.
+src/specify_cli/paths/windows_paths.py::_current_platform::sys . platform . startswith (

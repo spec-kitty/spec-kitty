@@ -23,18 +23,34 @@ landed by this same WP -- T001). Every other occurrence is either routed
 through it or named in a per-owner exemption file under
 ``tests/architectural/_exemptions/os-detect-ban-*.txt`` (unioned by
 ``tests.architectural._os_detection_exemptions.load_os_detection_exemptions``).
+Each exemption line is a content descriptor
+(``<path>::<qualname>::<token_substring>[::<occurrence>]``), resolved and
+matched through ``tests.architectural._content_identity`` -- never a
+``<path>:<line>`` pin, which the loader refuses.
 """
 
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterable
+import functools
+import re
+from collections import Counter
+from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
 from tests.architectural import _os_detection_scan as scan
+from tests.architectural._content_identity import (
+    partition_findings,
+    render_descriptor_line,
+    resolve_allowlist,
+    with_blank_line_at_top,
+    with_probe_above_statement,
+)
 from tests.architectural._os_detection_exemptions import load_os_detection_exemptions
+from tests.architectural._ratchet_keys import CompositeKey, ContentDescriptor, composite_key
 
 pytestmark = [pytest.mark.architectural]
 
@@ -80,41 +96,51 @@ def test_door_file_contains_the_concrete_check() -> None:
 def test_no_banned_os_detection_outside_the_door() -> None:
     """FR-012/SC-002: no banned Windows-detection idiom outside kernel/paths.py.
 
+    Findings are matched against the exemption descriptors by content identity
+    ``(relpath, qualname, token_line)`` through
+    :func:`tests.architectural._content_identity.partition_findings`
+    (multiset: one descriptor suppresses at most one finding).
+
     Non-vacuity (C-009): ``test_stale_exemption_removal_reds_the_gate`` below
     proves this assertion is load-bearing by removing a planted exemption
     entry and observing the same collection-and-filter logic go red on the
     now-unexempted call site.
     """
-    scanned = scan.iter_python_files()
-    exemptions = load_os_detection_exemptions()
+    unexpected, _suppressed, _unused = _split_os_findings(_scanned_sources(), _resolved_os_allowlist()[0])
     door = scan.relpath(scan.DOOR_FILE)
 
-    violations = [(relpath, lineno) for relpath, lineno in collect_violations(scanned) if relpath != door and (relpath, lineno) not in exemptions]
-
-    assert violations == [], (
+    assert unexpected == [], (
         'Raw Windows-detection checks (`os.name == "nt"` / '
         '`sys.platform == "win32"` / `platform.system() == "Windows"` / '
         '`sys.platform.startswith("win")`) are banned outside '
         f"{door} (the single door, FR-012). Route through "
-        "`from kernel.paths import is_windows` and call `is_windows()`, or "
-        "add `<path>:<line>` to the owning WP's "
-        "tests/architectural/_exemptions/os-detect-ban-<owner>.txt if this "
-        "is a currently-tracked, not-yet-remediated site.\nViolations:\n" + "\n".join(f"  {relpath}:{lineno}" for relpath, lineno in violations)
+        "`from kernel.paths import is_windows` and call `is_windows()`, or, "
+        "if this is a currently-tracked, not-yet-remediated site, add the "
+        "content line shown (`<path>::<qualname>::<token_substring>`) to the "
+        "owning WP's tests/architectural/_exemptions/os-detect-ban-<owner>.txt."
+        "\nViolations:\n" + "\n".join(f"  {finding.key[0]}:{finding.lineno}  ->  {_content_line_for(finding)}" for finding in unexpected)
     )
 
 
 def test_every_exemption_entry_is_a_real_violation() -> None:
-    """Anti-staleness: every exemption entry must correspond to an actual violation today."""
-    scanned = scan.iter_python_files()
-    live_sites = set(collect_violations(scanned))
-    exemptions = load_os_detection_exemptions()
+    """Anti-staleness (FR-007): every exemption descriptor must suppress a live violation today.
 
-    stale = exemptions - live_sites
+    A descriptor that no longer resolves to exactly one site, or resolves to a
+    site holding no banned idiom, is stale -- delete its line.
+    """
+    exemptions = load_os_detection_exemptions()
+    allowed, errors = _resolved_os_allowlist()
+    _unexpected, _suppressed, unused = _split_os_findings(_scanned_sources(), allowed)
+    checked = len(errors) + sum(allowed.values())
+
+    stale = [f"  {render_descriptor_line(descriptor)} ({descriptor.rationale}): {reason}" for descriptor, reason in errors]
+    stale += [f"  {key[0]} [{key[1]}] {key[2]!r} suppresses no live violation" for key in sorted(unused)]
     assert not stale, (
         "The following tests/architectural/_exemptions/os-detect-ban-*.txt "
         "entries no longer correspond to a real violation -- delete them "
-        "(the site is already clean):\n" + "\n".join(f"  {path}:{line}" for path, line in sorted(stale))
+        "(the site is already clean):\n" + "\n".join(stale)
     )
+    assert checked == len(exemptions) >= _OS_EXEMPTION_FLOOR
 
 
 def test_stale_exemption_removal_reds_the_gate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -123,10 +149,10 @@ def test_stale_exemption_removal_reds_the_gate(tmp_path: Path, monkeypatch: pyte
     Plants a SYNTHETIC ``sys.platform == "win32"`` check in an unexempted
     ``tmp_path`` file, runs it through the REAL detector
     (``collect_violations``), then proves the exemption mechanism is
-    load-bearing via the exact same collection-and-filter logic
-    ``test_no_banned_os_detection_outside_the_door`` runs. ``scan.REPO_ROOT``
-    is monkeypatched to ``tmp_path`` for the duration of the ``scan.relpath``
-    call, so the planted file -- which must physically live under
+    load-bearing: a content-form exemption line, parsed by the real loader and
+    resolved against the planted source, suppresses the finding; emptying the
+    exemption file reds it again. ``scan.REPO_ROOT`` is monkeypatched to
+    ``tmp_path`` so the planted file -- which must physically live under
     ``tmp_path``, never the real scanned tree -- still resolves through the
     SAME ``relpath`` function the real gate uses. No write ever touches the
     real repo tree or a committed exemption file.
@@ -137,30 +163,33 @@ def test_stale_exemption_removal_reds_the_gate(tmp_path: Path, monkeypatch: pyte
 
     all_violations = collect_violations([module])
     assert all_violations == [("offender.py", 3)], "the planted violation must be detected by the real detector"
-    sample_relpath, sample_lineno = all_violations[0]
+    sources = {"offender.py": module.read_text(encoding="utf-8")}
 
     isolated_dir = tmp_path / "_exemptions"
     isolated_dir.mkdir()
-    (isolated_dir / "os-detect-ban-isolated.txt").write_text(f"{sample_relpath}:{sample_lineno}\n", encoding="utf-8")
+    (isolated_dir / "os-detect-ban-isolated.txt").write_text("offender.py::<module>::if sys . platform ==\n", encoding="utf-8")
 
-    def _fake_iter_exemption_lines() -> list[str]:
-        lines: list[str] = []
+    def _fake_iter_exemption_entries() -> list[tuple[str, str]]:
+        entries: list[tuple[str, str]] = []
         for path in sorted(isolated_dir.glob("os-detect-ban-*.txt")):
-            lines.extend(line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
-        return lines
+            entries.extend((path.name, line.strip()) for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+        return entries
 
     import tests.architectural._os_detection_exemptions as exemptions_module
 
-    monkeypatch.setattr(exemptions_module, "_iter_exemption_lines", _fake_iter_exemption_lines)
-    exempted_here = exemptions_module.load_os_detection_exemptions()
-    assert (sample_relpath, sample_lineno) in exempted_here
-    with_exemption = [v for v in all_violations if v not in exempted_here]
-    assert (sample_relpath, sample_lineno) not in with_exemption
+    monkeypatch.setattr(exemptions_module, "_iter_exemption_entries", _fake_iter_exemption_entries)
+
+    def _unexpected_with_current_exemptions() -> list[_OsFinding]:
+        allowed, errors = resolve_allowlist(exemptions_module.load_os_detection_exemptions(), lambda rel: (scan.REPO_ROOT / rel).read_text(encoding="utf-8"))
+        assert errors == []
+        return _split_os_findings(sources, allowed)[0]
+
+    assert _unexpected_with_current_exemptions() == [], "the content-form exemption must suppress the planted finding"
 
     isolated_dir.joinpath("os-detect-ban-isolated.txt").write_text("", encoding="utf-8")
-    without_exemption = [v for v in all_violations if v not in exemptions_module.load_os_detection_exemptions()]
+    without_exemption = _unexpected_with_current_exemptions()
 
-    assert (sample_relpath, sample_lineno) in without_exemption
+    assert [(finding.key[0], finding.lineno) for finding in without_exemption] == [("offender.py", 3)]
 
 
 def test_planted_os_name_nt_fires(tmp_path: Path) -> None:
@@ -215,7 +244,7 @@ def test_door_file_itself_is_exempt_by_construction() -> None:
     # test_no_banned_os_detection_outside_the_door's `relpath != door` guard),
     # never by an entry in an exemption file -- confirm no such entry exists,
     # so a future edit cannot silently swap the mechanism for a weaker one.
-    assert not any(path == door_relpath for path, _ in exemptions)
+    assert not any(descriptor.rel_path == door_relpath for descriptor in exemptions)
 
 
 def test_negated_comparison_is_not_banned(tmp_path: Path) -> None:
@@ -265,3 +294,179 @@ def test_platform_system_call_with_args_does_not_fire(tmp_path: Path) -> None:
     module.write_text('import platform\n\nplatform.system(True) == "Windows"\n', encoding="utf-8")
 
     assert _violations_for_file(module) == []
+
+
+# ---------------------------------------------------------------------------
+# Line-drift tolerance (NFR-001) and the loader's sanctioned shape
+# ---------------------------------------------------------------------------
+
+
+#: The door's repo-relative path, fixed at import (before any test monkeypatches ``scan.REPO_ROOT``).
+_DOOR_RELPATH = scan.relpath(scan.DOOR_FILE)
+
+
+class _OsFinding(NamedTuple):
+    """One banned-idiom finding: its content identity plus its current line."""
+
+    key: CompositeKey
+    lineno: int
+
+
+@functools.cache
+def _violation_lines(source: str) -> tuple[int, ...]:
+    """Banned-idiom lines in *source*, parsed once per distinct text."""
+    return tuple(scan.find_os_detection_violations(ast.parse(source)))
+
+
+def _scanned_sources() -> dict[str, str]:
+    """``{repo-relative path: source}`` for every scanned file."""
+    return {scan.relpath(path): path.read_text(encoding="utf-8") for path in scan.iter_python_files()}
+
+
+def _os_findings(sources: Mapping[str, str]) -> list[_OsFinding]:
+    """Every banned-idiom finding outside the door, keyed by ``(relpath, qualname, token_line)``."""
+    findings: list[_OsFinding] = []
+    for relpath, source in sorted(sources.items()):
+        if relpath == _DOOR_RELPATH:
+            continue
+        for lineno in _violation_lines(source):
+            findings.append(_OsFinding((relpath, *composite_key(source, lineno)), lineno))
+    return findings
+
+
+def _source_under_repo(relpath: str) -> str:
+    return (scan.REPO_ROOT / relpath).read_text(encoding="utf-8")
+
+
+@functools.cache
+def _resolved_os_allowlist() -> tuple[Counter[CompositeKey], list[tuple[ContentDescriptor, str]]]:
+    """The exemption descriptors resolved against the real tree (standing gate + stale test)."""
+    return resolve_allowlist(load_os_detection_exemptions(), _source_under_repo)
+
+
+def _resolve_from(sources: Mapping[str, str]) -> tuple[Counter[CompositeKey], list[tuple[ContentDescriptor, str]]]:
+    """Resolve the exemption descriptors against *sources* (possibly mutated), not the disk."""
+    return resolve_allowlist(load_os_detection_exemptions(), sources.__getitem__)
+
+
+def _split_os_findings(sources: Mapping[str, str], allowed: Counter[CompositeKey]) -> tuple[list[_OsFinding], list[_OsFinding], Counter[CompositeKey]]:
+    """Split the findings in *sources* into ``(unexpected, suppressed, unused)`` via :func:`partition_findings`."""
+    findings = _os_findings(sources)
+    unexpected, unused = partition_findings(((finding.key, finding) for finding in findings), allowed)
+    reported = set(unexpected)
+    return unexpected, [finding for finding in findings if finding not in reported], unused
+
+
+def _os_detection_partition(sources: Mapping[str, str]) -> tuple[Counter[CompositeKey], Counter[CompositeKey]]:
+    """The gate's detection path as content identities (line numbers dropped).
+
+    The descriptors are resolved from the SAME *sources* mapping the scan
+    reads, so a drift mutation that stops a descriptor resolving shows up as a
+    changed partition rather than being masked by the cached real-tree result.
+    """
+    unexpected, suppressed, _unused = _split_os_findings(sources, _resolve_from(sources)[0])
+    return Counter(f.key for f in unexpected), Counter(f.key for f in suppressed)
+
+
+def _content_line_for(finding: _OsFinding) -> str:
+    """The exemption line that would suppress *finding* (its full normalized token line as the substring)."""
+    relpath, qualname, token_line = finding.key
+    return render_descriptor_line(ContentDescriptor(relpath, qualname, token_line, None, ""))
+
+
+#: The distinct files the os-detect exemptions name -- the drift test's parameters.
+def _exemptions_for_collection() -> frozenset[ContentDescriptor]:
+    """The exemptions, or none if a row is malformed.
+
+    Keeps a malformed row from turning into a module-wide collection error:
+    the gate, the stale test and ``test_os_detection_exemption_files_hold_no_line_pin``
+    still call the real loader and report the row by file name, and the floor
+    test reds on the emptied parameter set.
+    """
+    try:
+        return load_os_detection_exemptions()
+    except ValueError:
+        return frozenset()
+
+
+_DRIFT_FILES: tuple[str, ...] = tuple(sorted({descriptor.rel_path for descriptor in _exemptions_for_collection()}))
+
+#: Floor on ``_DRIFT_FILES`` so the drift proof cannot pass over a shrunken set.
+_DRIFT_FILES_FLOOR = 3
+
+#: The six content-addressed os-detect sites (SC-001); floor for the stale and no-line-pin tests.
+_OS_EXEMPTION_FLOOR = 6
+
+
+def _exemption_count_for(relpath: str) -> int:
+    return sum(1 for descriptor in load_os_detection_exemptions() if descriptor.rel_path == relpath)
+
+
+def _count_for(keys: Counter[CompositeKey], relpath: str) -> int:
+    return sum(count for key, count in keys.items() if key[0] == relpath)
+
+
+def _probe_every_site(source: str, linenos: list[int]) -> str:
+    """Insert a drift probe above each site's statement, bottom-up so lines stay valid."""
+    for lineno in sorted(set(linenos), reverse=True):
+        source = with_probe_above_statement(source, lineno)
+    return source
+
+
+def test_os_detection_drift_files_meet_floor() -> None:
+    """NFR-002: the drift parameter set is non-trivial and every file in it is live."""
+    assert len(_DRIFT_FILES) >= _DRIFT_FILES_FLOOR
+    _, suppressed = _os_detection_partition(_scanned_sources())
+    empty = [relpath for relpath in _DRIFT_FILES if _count_for(suppressed, relpath) < 1]
+    assert not empty, f"Drift files with no suppressed finding on the unmutated tree: {empty}"
+
+
+@pytest.mark.parametrize("relpath", _DRIFT_FILES)
+def test_os_detection_exemptions_survive_line_drift(relpath: str) -> None:
+    """NFR-001: line drift above or around the exempted sites changes nothing the gate sees.
+
+    Two mutations of *relpath*, each rescanned: (i) a blank line at the top of
+    the file, (ii) a ``# drift-probe`` / ``pass`` pair above every exempted
+    site's statement. The ``(unexpected, suppressed)`` identities must be
+    unchanged and the per-file suppressed count must equal the per-file
+    exemption count.
+    """
+    sources = _scanned_sources()
+    baseline = _os_detection_partition(sources)
+    expected = _exemption_count_for(relpath)
+    assert _count_for(baseline[1], relpath) == expected, f"{relpath}: {_count_for(baseline[1], relpath)} suppressed finding(s) unmutated, expected {expected}"
+
+    site_lines = [f.lineno for f in _split_os_findings(sources, _resolve_from(sources)[0])[1] if f.key[0] == relpath]
+    mutations = {
+        "blank line at top": with_blank_line_at_top(sources[relpath]),
+        "probe above each site": _probe_every_site(sources[relpath], site_lines),
+    }
+    for label, mutated_source in mutations.items():
+        mutated = dict(sources)
+        mutated[relpath] = mutated_source
+        assert _resolve_from(mutated)[1] == [], f"{relpath} ({label}): an exemption descriptor stopped resolving"
+        drifted = _os_detection_partition(mutated)
+        assert drifted == baseline, f"{relpath} ({label}): drift changed the gate's partition.\nbefore: {baseline}\nafter:  {drifted}"
+        assert _count_for(drifted[1], relpath) == expected
+
+
+def test_os_detection_loader_rejects_line_pinned_entry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-OP-6: a ``path:line`` exemption line is refused with a ``ValueError`` naming it."""
+    import tests.architectural._os_detection_exemptions as exemptions_module
+
+    monkeypatch.setattr(exemptions_module, "_iter_exemption_entries", lambda: [("os-detect-ban-x.txt", "src/x.py:12")])
+
+    with pytest.raises(ValueError, match=re.escape("src/x.py:12")):
+        exemptions_module.load_os_detection_exemptions()
+
+
+def test_os_detection_exemption_files_hold_no_line_pin() -> None:
+    """Guard: the real ``os-detect-ban-*.txt`` files parse as exactly the six content descriptors.
+
+    The loader refuses a ``path:line`` row (see
+    ``test_os_detection_loader_rejects_line_pinned_entry``), so a line pin
+    creeping back into any committed file reds this test with the file named.
+    """
+    exemptions = load_os_detection_exemptions()
+
+    assert len(exemptions) == _OS_EXEMPTION_FLOOR, sorted(render_descriptor_line(descriptor) for descriptor in exemptions)

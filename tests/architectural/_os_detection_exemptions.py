@@ -10,8 +10,19 @@ prefix vocabulary. The clock gate's own loader ignores these files (no line
 in them starts with ``IMPORT:``/``CALL:``), so the two coexist without
 interference.
 
-Each file is one line per violation: ``<repo-relative path>:<line>``. Blank
-lines and ``#``-prefixed comments are ignored.
+Each file is one line per exempted site, in the content-addressed form
+rendered by :func:`tests.architectural._content_identity.render_descriptor_line`::
+
+    <repo-relative path>::<qualname>::<token_substring>[::<occurrence>]
+
+(e.g. ``src/kernel/locks.py::_os_lock::if sys . platform ==``). The line is a
+:class:`~tests.architectural._ratchet_keys.ContentDescriptor`: it resolves to
+exactly one finding by enclosing qualname and normalized-token substring, so
+it survives line drift, and a stale line fails the gate (FR-007). The owning
+file's name becomes the descriptor's ``rationale``, so per-owner semantics
+survive the union. A ``<path>:<line>`` pin is refused with a ``ValueError``
+naming the file and the line (DIR-041). Blank lines and ``#``-prefixed
+comments are ignored.
 
 Four files exist at WP01 landing time (contracts/safe-delete-and-os-seam.md
 Sec C):
@@ -36,27 +47,31 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.architectural._content_identity import parse_descriptor_line
+from tests.architectural._ratchet_keys import ContentDescriptor
+
 _EXEMPTIONS_DIR = Path(__file__).resolve().parent / "_exemptions"
 _GLOB_PATTERN = "os-detect-ban-*.txt"
 
 
-def _iter_exemption_lines() -> list[str]:
-    lines: list[str] = []
+def _iter_exemption_entries() -> list[tuple[str, str]]:
+    """``(owning file name, entry line)`` for every non-blank, non-comment line."""
+    entries: list[tuple[str, str]] = []
     for path in sorted(_EXEMPTIONS_DIR.glob(_GLOB_PATTERN)):
         for raw_line in path.read_text(encoding="utf-8").splitlines():
             stripped = raw_line.strip()
             if not stripped or stripped.startswith("#"):
                 continue
-            lines.append(stripped)
-    return lines
+            entries.append((path.name, stripped))
+    return entries
 
 
-def load_os_detection_exemptions() -> frozenset[tuple[str, int]]:
-    """Every ``(repo-relative path, line)`` pair exempted from the OS-detection ban."""
-    exemptions: set[tuple[str, int]] = set()
-    for line in _iter_exemption_lines():
-        path_part, _, lineno_part = line.rpartition(":")
-        if not path_part:
-            continue
-        exemptions.add((path_part, int(lineno_part)))
+def load_os_detection_exemptions() -> frozenset[ContentDescriptor]:
+    """Every content descriptor exempted from the OS-detection ban (rationale = owning file)."""
+    exemptions: set[ContentDescriptor] = set()
+    for filename, line in _iter_exemption_entries():
+        try:
+            exemptions.add(parse_descriptor_line(line, rationale=filename))
+        except ValueError as exc:
+            raise ValueError(f"{filename}: {exc}") from exc
     return frozenset(exemptions)

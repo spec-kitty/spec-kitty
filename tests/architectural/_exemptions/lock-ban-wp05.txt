@@ -17,3 +17,6 @@
 # from spec-kitty's dependencies outright (no `test` extra, no group). It
 # still resolves in uv.lock only transitively, via the pip-audit dev tool's
 # `cachecontrol[filecache]` extra -- nothing in spec-kitty imports it.
+#
+# Entry form, should a site ever be seeded (DIR-041; never <path>:<line>):
+#   <repo-relative path>::<qualname>::<token_substring>[::<occurrence>]

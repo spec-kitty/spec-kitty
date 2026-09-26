@@ -47,14 +47,35 @@ boundary (e.g. "kernel/ must not import specify_cli") is never flagged. This
 gate does not prove the absence of runtime coupling by other indirection
 (``__import__``, environment-variable-supplied strings, etc.) -- those are
 out of scope here by construction, same as the charter gate this mirrors.
+
+Exemptions are content-addressed (DIR-041): ``_PRE_EXISTING_EXEMPTIONS`` holds
+:class:`~tests.architectural._ratchet_keys.ContentDescriptor` values resolved
+and matched through :mod:`tests.architectural._content_identity` (the single
+matching authority), keyed by ``(rel_path, qualname, token_line)``. Line drift
+above or around an exempted site changes nothing the gate sees
+(``test_kernel_exemptions_survive_line_drift``); a descriptor that stops
+resolving, or resolves to a site with no live finding, fails
+``test_pre_existing_exemption_is_still_a_real_violation`` (FR-007).
 """
 
 from __future__ import annotations
 
 import ast
+import functools
+from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
+
+from tests.architectural._content_identity import (
+    partition_findings,
+    resolve_allowlist,
+    with_blank_line_at_top,
+    with_probe_above_statement,
+)
+from tests.architectural._ratchet_keys import CompositeKey, ContentDescriptor, composite_key
 
 pytestmark = pytest.mark.architectural
 
@@ -88,47 +109,46 @@ _FORBIDDEN_STRINGS = frozenset(
 #: ``"charter"`` string node, but is exactly as much of a violation).
 _FORBIDDEN_IMPORT_ROOTS = frozenset({"charter", "specify_cli"})
 
+_ISSUE_3206_EXIT = "Follow-up #3206 exit: delete this descriptor once the schemas are relocated out of charter or the root is injected from above kernel."
+
 #: Pre-existing violations this gate discovers but that are OUT OF SCOPE for
-#: FR-004 (mission doctrine-consumer-surface-missions-extraction-01KZ6G6H,
-#: WP04 -- owned_files: src/kernel/paths.py, and the (since-relocated)
-#: doctrine pack-paths / missions-repository modules, now
-#: src/charter/offering/pack_paths.py, src/charter/offering/missions/repository.py).
+#: FR-004 (mission doctrine-consumer-surface-missions-extraction-01KZ6G6H).
 #: ``schema_utils.py`` was promoted to kernel by an unrelated, already-merged
 #: mission (charter-mediated-doctrine-selection-01KRTZCA, WP07); its
-#: ``_resolve_schema_path`` helper names "charter" at BOTH exempted sites
-#: below -- this gate's segment-aware ``ast.Constant`` matcher (``value ==
-#: root or value.startswith(root + ".")``) catches both:
-#:
-#: * line 88 -- ``files("charter.offering.schemas")``, the installed-wheel resource
-#:   lookup. A dotted-module-path string literal (the string-literal
-#:   equivalent of ``import charter.offering.schemas``) -- exactly the shape an
-#:   exact-equality match cannot see, since ``"charter.offering.schemas" !=
-#:   "charter"``.
-#: * line 97 -- the dev-checkout fallback path segment
-#:   (``Path(__file__).resolve().parent.parent / "charter" / "offering" / "schemas"``),
-#:   an exact ``"charter"`` literal on the first path segment.
-#:
-#: Retargeted (charter-code-topology-01M152G1, S5) from the pre-S2a lines
-#: (88, 96) that named the retired ``"doctrine"`` literal: the S2a relocation
-#: (``src/doctrine`` -> ``src/charter/offering``) rewrote both sites in place,
-#: which shifted the dev-checkout fallback onto line 97 (three chained path
-#: segments -- ``"charter"``, ``"offering"``, ``"schemas"`` -- instead of the
-#: original two) and changed the resource string from ``"charter.offering.schemas"``
-#: to ``"charter.offering.schemas"``. Both sites are still the SAME real,
-#: disclosed, pre-existing coupling: a kernel schema-loading utility loads
-#: charter-owned schema files, and full decoupling (relocating the schemas
-#: themselves out of ``charter``, or injecting the resolved root from a
-#: caller above kernel) is a deferred design decision -- NOT resolved by this
-#: gate. Exempted here (not silently fixed, not hidden by weakening the gate)
-#: so the gate stays non-vacuous for *new* violations. Full decoupling is
-#: tracked as Follow-up: #3206 (retire these two exemptions once the schemas
-#: are relocated or the root is injected); do not widen this set for any file
-#: this WP or a future one actually owns.
-_PRE_EXISTING_EXEMPTIONS = frozenset(
-    {
-        ("kernel/schema_utils.py", 88),
-        ("kernel/schema_utils.py", 97),
-    }
+#: ``_resolve_schema_path`` helper names ``"charter"`` at two sites. Each is a
+#: :class:`~tests.architectural._ratchet_keys.ContentDescriptor` (DIR-041
+#: content anchoring): ``rel_path`` is src-relative, the form
+#: :func:`collect_forbidden_vocabulary` reports, and the descriptor resolves
+#: to exactly one finding by ``(qualname, token_substring)``, so the entry
+#: survives line drift and a stale entry fails the gate instead of silently
+#: re-blessing whatever lands on its old line. Matching is
+#: :func:`tests.architectural._content_identity.partition_findings` (multiset).
+#: Retire both by deleting the descriptors (#3206); never widen this tuple for
+#: a file a later WP owns.
+_PRE_EXISTING_EXEMPTIONS: tuple[ContentDescriptor, ...] = (
+    ContentDescriptor(
+        rel_path="kernel/schema_utils.py",
+        qualname="_resolve_schema_path",
+        token_substring="files (",
+        occurrence=None,
+        rationale=(
+            'files("charter.offering.schemas") -- the installed-wheel resource lookup. A dotted-module-path '
+            "string literal (the string-literal equivalent of import charter.offering.schemas), which the "
+            "gate's segment-aware matcher catches. A kernel schema-loading utility loads charter-owned schema "
+            "files: a real, disclosed, pre-existing coupling; full decoupling is a deferred design decision. " + _ISSUE_3206_EXIT
+        ),
+    ),
+    ContentDescriptor(
+        rel_path="kernel/schema_utils.py",
+        qualname="_resolve_schema_path",
+        token_substring="parent . parent / / /",
+        occurrence=None,
+        rationale=(
+            'Path(__file__).resolve().parent.parent / "charter" / "offering" / "schemas" -- the dev-checkout '
+            'fallback, an exact "charter" literal on the first path segment. Same pre-existing coupling as the '
+            "installed-wheel lookup above. " + _ISSUE_3206_EXIT
+        ),
+    ),
 )
 
 
@@ -174,12 +194,11 @@ def _module_root(name: str) -> str:
     return name.split(".", 1)[0]
 
 
-def _scan_file(path: Path, relative_to: Path) -> list[tuple[str, int, str]]:
-    """Return ``(relative_path, lineno, detail)`` violations found in a single file."""
+def _scan_source(source: str, rel: str) -> list[tuple[str, int, str]]:
+    """Return ``(rel, lineno, detail)`` violations found in one module's *source*."""
     found: list[tuple[str, int, str]] = []
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    tree = ast.parse(source)
     docstring_ids = _docstring_nodes(tree)
-    rel = str(path.relative_to(relative_to))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -194,6 +213,11 @@ def _scan_file(path: Path, relative_to: Path) -> list[tuple[str, int, str]]:
             if isinstance(node.value, str) and _matches_forbidden_vocabulary(node.value):
                 found.append((rel, node.lineno, f"string literal {node.value!r}"))
     return found
+
+
+def _scan_file(path: Path, relative_to: Path) -> list[tuple[str, int, str]]:
+    """Return ``(relative_path, lineno, detail)`` violations found in a single file."""
+    return _scan_source(path.read_text(encoding="utf-8"), str(path.relative_to(relative_to)))
 
 
 def collect_forbidden_vocabulary(root: Path, *, relative_to: Path | None = None) -> list[tuple[str, int, str]]:
@@ -224,12 +248,13 @@ def test_kernel_holds_no_doctrine_or_specify_cli_vocabulary() -> None:
     proof that the string-literal leg is real (mirrors the charter gate's own
     NFR-004-style self-mutation discipline).
 
-    ``_PRE_EXISTING_EXEMPTIONS`` filters out exactly one already-tracked,
-    out-of-scope pre-existing site (see its own docstring) -- any *other*
-    violation, including a new one at a different line of the same file,
-    still reds this gate.
+    Each ``_PRE_EXISTING_EXEMPTIONS`` descriptor suppresses at most one
+    finding, matched by content identity ``(rel_path, qualname, token_line)``
+    rather than by line number -- any *other* violation, including a new one
+    elsewhere in the same function, still reds this gate.
     """
-    violations = [(rel, lineno, detail) for rel, lineno, detail in collect_forbidden_vocabulary(_KERNEL_ROOT) if (rel, lineno) not in _PRE_EXISTING_EXEMPTIONS]
+    unexpected, _suppressed, _unused = _split_kernel_findings(_kernel_sources(), _resolved_kernel_allowlist()[0])
+    violations = [(finding.key[0], finding.lineno, finding.detail) for finding in unexpected]
 
     assert violations == [], (
         "src/kernel/** must hold no doctrine-/specify_cli-identifying string or "
@@ -242,21 +267,22 @@ def test_kernel_holds_no_doctrine_or_specify_cli_vocabulary() -> None:
 
 
 def test_pre_existing_exemption_is_still_a_real_violation() -> None:
-    """Anti-vacuity for the exemption itself: it must exempt a REAL finding.
+    """Anti-vacuity for the exemption itself: every descriptor must suppress a REAL finding.
 
-    Guards against ``_PRE_EXISTING_EXEMPTIONS`` silently becoming a no-op
-    (e.g. if the exempted line ever moves or the violation is fixed) without
-    anyone noticing -- if that happens, this test fails as a prompt to shrink
-    the exemption set, not the other way around.
+    FR-007 (hand-curated policy): a descriptor that no longer resolves to
+    exactly one site, or resolves to a site that holds no live finding, fails
+    this test -- delete the descriptor (the #3206 exit) rather than leave a
+    stale, vacuous entry.
     """
-    unfiltered = collect_forbidden_vocabulary(_KERNEL_ROOT)
-    exempted_sites = {(rel, lineno) for rel, lineno, _detail in unfiltered}
+    allowed, errors = _resolved_kernel_allowlist()
+    _unexpected, _suppressed, unused = _split_kernel_findings(_kernel_sources(), allowed)
+    checked = len(errors) + sum(allowed.values())
 
-    assert exempted_sites >= _PRE_EXISTING_EXEMPTIONS, (
-        "Every entry in _PRE_EXISTING_EXEMPTIONS must correspond to an actual "
-        "violation collect_forbidden_vocabulary() finds today; shrink the "
-        "exemption set instead of leaving a stale, vacuous entry."
+    assert errors == [], "Kernel exemption descriptors that no longer resolve:\n" + "\n".join(
+        f"  {descriptor.rel_path}::{descriptor.qualname}: {reason}" for descriptor, reason in errors
     )
+    assert unused == Counter(), f"Kernel exemption descriptors that suppress no live finding: {sorted(unused)}"
+    assert checked == len(_PRE_EXISTING_EXEMPTIONS) >= _KERNEL_EXEMPTION_FLOOR
 
 
 def test_walker_catches_in_function_call_argument(tmp_path: Path) -> None:
@@ -305,3 +331,125 @@ def test_walker_ignores_docstrings_and_prose(tmp_path: Path) -> None:
     )
 
     assert collect_forbidden_vocabulary(tmp_path, relative_to=tmp_path) == []
+
+
+# ---------------------------------------------------------------------------
+# Line-drift tolerance (NFR-001): the exemptions must survive line drift
+# ---------------------------------------------------------------------------
+
+
+class _KernelFinding(NamedTuple):
+    """One kernel vocabulary finding: its content identity plus its current line."""
+
+    key: CompositeKey
+    lineno: int
+    detail: str
+
+
+def _kernel_sources() -> dict[str, str]:
+    """``{src-relative path: source}`` for every module under ``src/kernel/``."""
+    return {str(path.relative_to(_SRC)): path.read_text(encoding="utf-8") for path in sorted(_KERNEL_ROOT.rglob("*.py")) if "__pycache__" not in path.parts}
+
+
+def _kernel_findings(sources: Mapping[str, str]) -> list[_KernelFinding]:
+    """Every vocabulary finding in *sources*, keyed by ``(rel, qualname, token_line)``."""
+    findings: list[_KernelFinding] = []
+    for rel, source in sorted(sources.items()):
+        for _rel, lineno, detail in _scan_source(source, rel):
+            findings.append(_KernelFinding((rel, *composite_key(source, lineno)), lineno, detail))
+    return findings
+
+
+def _source_under_src(rel: str) -> str:
+    return (_SRC / rel).read_text(encoding="utf-8")
+
+
+@functools.cache
+def _resolved_kernel_allowlist() -> tuple[Counter[CompositeKey], list[tuple[ContentDescriptor, str]]]:
+    """``_PRE_EXISTING_EXEMPTIONS`` resolved against the real tree (standing gate + stale test)."""
+    return resolve_allowlist(_PRE_EXISTING_EXEMPTIONS, _source_under_src)
+
+
+def _resolve_from(sources: Mapping[str, str]) -> tuple[Counter[CompositeKey], list[tuple[ContentDescriptor, str]]]:
+    """Resolve ``_PRE_EXISTING_EXEMPTIONS`` against *sources* (possibly mutated), not the disk."""
+    return resolve_allowlist(_PRE_EXISTING_EXEMPTIONS, sources.__getitem__)
+
+
+def _split_kernel_findings(sources: Mapping[str, str], allowed: Counter[CompositeKey]) -> tuple[list[_KernelFinding], list[_KernelFinding], Counter[CompositeKey]]:
+    """Split the findings in *sources* into ``(unexpected, suppressed, unused)`` via :func:`partition_findings`."""
+    findings = _kernel_findings(sources)
+    unexpected, unused = partition_findings(((finding.key, finding) for finding in findings), allowed)
+    reported = set(unexpected)
+    return unexpected, [finding for finding in findings if finding not in reported], unused
+
+
+def _kernel_partition(sources: Mapping[str, str]) -> tuple[Counter[tuple[CompositeKey, str]], Counter[tuple[CompositeKey, str]]]:
+    """The gate's detection path as content identities (line numbers dropped).
+
+    The descriptors are resolved from the SAME *sources* mapping the scan
+    reads, so a drift mutation that stops a descriptor resolving shows up as a
+    changed partition rather than being masked by the cached real-tree result.
+    """
+    unexpected, suppressed, _unused = _split_kernel_findings(sources, _resolve_from(sources)[0])
+    return Counter((f.key, f.detail) for f in unexpected), Counter((f.key, f.detail) for f in suppressed)
+
+
+#: The distinct files the kernel exemptions name -- the drift test's parameters.
+_DRIFT_FILES: tuple[str, ...] = tuple(sorted({descriptor.rel_path for descriptor in _PRE_EXISTING_EXEMPTIONS}))
+
+#: Floor on ``_DRIFT_FILES`` so the drift proof cannot pass over a shrunken set.
+_DRIFT_FILES_FLOOR = 1
+
+#: Floor on the exemption count so the stale test cannot pass over an emptied tuple.
+_KERNEL_EXEMPTION_FLOOR = 2
+
+
+def _exemption_count_for(rel: str) -> int:
+    return sum(1 for descriptor in _PRE_EXISTING_EXEMPTIONS if descriptor.rel_path == rel)
+
+
+def _count_for(identities: Counter[tuple[CompositeKey, str]], rel: str) -> int:
+    return sum(count for (key, _detail), count in identities.items() if key[0] == rel)
+
+
+def _probe_every_site(source: str, linenos: list[int]) -> str:
+    """Insert a drift probe above each site's statement, bottom-up so lines stay valid."""
+    for lineno in sorted(set(linenos), reverse=True):
+        source = with_probe_above_statement(source, lineno)
+    return source
+
+
+def test_kernel_drift_files_meet_floor() -> None:
+    """NFR-002: the drift parameter set is non-trivial and every file in it is live."""
+    assert len(_DRIFT_FILES) >= _DRIFT_FILES_FLOOR
+    _, suppressed = _kernel_partition(_kernel_sources())
+    empty = [rel for rel in _DRIFT_FILES if _count_for(suppressed, rel) < 1]
+    assert not empty, f"Drift files with no suppressed finding on the unmutated tree: {empty}"
+
+
+@pytest.mark.parametrize("rel", _DRIFT_FILES)
+def test_kernel_exemptions_survive_line_drift(rel: str) -> None:
+    """NFR-001: line drift above or around the exempted sites changes nothing the gate sees.
+
+    Two mutations of *rel*, each rescanned: (i) a blank line at the top of the
+    file, (ii) a ``# drift-probe`` / ``pass`` pair above every exempted site's
+    statement. The ``(unexpected, suppressed)`` identities must be unchanged
+    and the per-file suppressed count must equal the per-file exemption count.
+    """
+    sources = _kernel_sources()
+    baseline = _kernel_partition(sources)
+    expected = _exemption_count_for(rel)
+    assert _count_for(baseline[1], rel) == expected, f"{rel}: {_count_for(baseline[1], rel)} suppressed finding(s) unmutated, expected {expected}"
+
+    site_lines = [f.lineno for f in _split_kernel_findings(sources, _resolve_from(sources)[0])[1] if f.key[0] == rel]
+    mutations = {
+        "blank line at top": with_blank_line_at_top(sources[rel]),
+        "probe above each site": _probe_every_site(sources[rel], site_lines),
+    }
+    for label, mutated_source in mutations.items():
+        mutated = dict(sources)
+        mutated[rel] = mutated_source
+        assert _resolve_from(mutated)[1] == [], f"{rel} ({label}): an exemption descriptor stopped resolving"
+        drifted = _kernel_partition(mutated)
+        assert drifted == baseline, f"{rel} ({label}): drift changed the gate's partition.\nbefore: {baseline}\nafter:  {drifted}"
+        assert _count_for(drifted[1], rel) == expected
