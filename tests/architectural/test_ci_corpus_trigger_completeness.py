@@ -156,6 +156,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/doctrine/missions/test_prompt_emptiness.py",
         "tests/doctrine/missions/test_referential_integrity.py",
         "tests/doctrine/styleguides/test_drupal_styleguide_presence.py",
+        "tests/doctrine/test_acceptance_criteria_non_vacuity_wiring.py",
         "tests/doctrine/test_built_in_location_authority.py",
         "tests/doctrine/test_debugger_debbie_artifacts.py",
         "tests/doctrine/test_directive_consistency.py",
