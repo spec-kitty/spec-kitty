@@ -132,19 +132,31 @@ missing any of those fields.
 
 ## Common exception cases (non-exhaustive)
 
-### Case A: e2e harness cannot resolve a sibling `spec-kitty` checkout
+### Case A: e2e harness cannot resolve a sibling `spec-kitty` checkout (`contract_drift_caught.py`)
 
-Every scenario shares the `spec_kitty_repo` fixture
-(`scenarios/conftest.py`), which requires a resolvable sibling
-`spec-kitty` checkout — via an explicit `SPEC_KITTY_REPO` override,
-the `SK_E2E_REARCH_ROOT`-aware resolver, or a plain sibling-directory
-layout. This is a required prerequisite, not an optional one: an
-unresolvable checkout fails the fixture (`pytest.fail(...)`) rather
-than skipping the scenario, so a missing prerequisite cannot silently
-degrade into skipped (green) coverage. If the reviewer's machine
-genuinely lacks a resolvable sibling checkout, the operator files
-`mission-exception.md` naming the specific scenario and the exact
-`pytest.fail` text, and follows the schema above.
+Of the three surviving floor scenarios, only `contract_drift_caught.py`'s
+`test_contract_drift_caught` takes the `spec_kitty_repo` fixture
+(`scenarios/conftest.py`) as a parameter. The fixture requires a
+resolvable sibling `spec-kitty` checkout — via an explicit
+`SPEC_KITTY_REPO` override or the `SK_E2E_REARCH_ROOT`-aware resolver.
+This is a required prerequisite, not an optional one: an unresolvable
+checkout fails the fixture (`pytest.fail(...)`) rather than skipping
+the scenario. If the reviewer's machine genuinely lacks a resolvable
+sibling checkout, the operator files `mission-exception.md` naming
+`contract_drift_caught.py` and the exact `pytest.fail` text, and
+follows the schema above.
+
+### Case A2: `uninitialized_repo_fail_loud.py` skips when the `spec-kitty` CLI is unavailable
+
+`uninitialized_repo_fail_loud.py` does not use the `spec_kitty_repo`
+fixture. Its `test_uninitialized_repo_fails_loud` is decorated with
+`@pytest.mark.skipif(not spec_kitty_cli_available(), ...)`: when no
+`spec-kitty` binary resolves, the test is SKIPPED (not failed), with a
+reason that directs the operator to set `SK_E2E_SPEC_KITTY_BIN` or
+`SK_E2E_SPEC_KITTY_REPO`, or to file `mission-exception.md` per this
+doc. No exception artifact is required for this skip — it is already
+a non-blocking, self-documenting environmental gap; file one only if
+the skip itself needs to be tracked as a follow-up.
 
 ### Case B: e2e harness has a hard dependency this machine cannot satisfy
 
