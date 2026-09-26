@@ -21,7 +21,6 @@ tests do not reach:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -38,6 +37,7 @@ from kernel.errors import KittyInternalConsistencyError
 
 
 pytestmark = [pytest.mark.unit]
+
 
 def test_load_charter_bytes_utf8_succeeds() -> None:
     """Inline UTF-8 bytes load cleanly with confidence=1.0 and no
@@ -159,34 +159,21 @@ def test_ambiguous_diagnostic_body_names_file_and_remediation(
     assert "Remediation" in body or "--unsafe" in body or "iconv" in body
 
 
-@dataclass
-class _FakeCharsetCandidate:
-    encoding: str
-    chaos: float
-    text: str = "decoded text"
+def test_ambiguous_diagnostic_body_lists_detector_candidates() -> None:
+    """Candidate rows include encoding names and derived confidence values.
 
-    def __str__(self) -> str:
-        return self.text
+    WP02 rationale (out-of-map edit): ``_build_ambiguous_body`` no longer
+    re-runs ``charset_normalizer.from_bytes`` itself -- the detector
+    contract (guarantee #2, "single pass") requires it to consume the
+    ``candidates`` tuple already collected by the single
+    ``charter.encoding_recovery.recover`` call. This test was updated from
+    monkeypatching ``charset_normalizer.from_bytes`` (which the function no
+    longer calls) to passing a ``candidates`` tuple directly, matching the
+    new signature.
+    """
+    candidates = (("cp1252", 0.58), ("iso8859_1", 0.67))
 
-
-class _FakeCharsetResults(list[_FakeCharsetCandidate]):
-    def best(self) -> _FakeCharsetCandidate | None:
-        return self[0] if self else None
-
-
-def test_ambiguous_diagnostic_body_lists_detector_candidates(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Candidate rows include encoding names and derived confidence values."""
-    candidates = _FakeCharsetResults(
-        [
-            _FakeCharsetCandidate("cp1252", 0.42),
-            _FakeCharsetCandidate("iso8859_1", 0.33),
-        ]
-    )
-    monkeypatch.setattr("charset_normalizer.from_bytes", lambda _data: candidates)
-
-    body = _io._build_ambiguous_body(b"\x80", source_path=None)
+    body = _io._build_ambiguous_body(candidates, source_path=None)
 
     assert "<inline bytes>" in body
     assert "cp1252 (confidence 0.58)" in body
@@ -223,6 +210,38 @@ def test_write_provenance_failure_is_non_fatal(
     _io._write_provenance(content, bypass_used=False)
 
     assert "Failed to write encoding provenance" in caplog.text
+
+
+def test_low_confidence_provenance_record_round_trips_as_plain_float(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tie-broken, honest confidence well below the RETIRED 0.85 threshold
+    round-trips through the provenance JSONL as an ordinary float.
+
+    C-006 / cli-behaviour-contract.md: the provenance record carries the
+    honest confidence, and no reader anywhere -- ``backfill_provenance`` or
+    otherwise -- gates on ``confidence >= 0.85``. That threshold was the
+    pre-WP01 chokepoint's own (now-removed) acceptance gate; it must not
+    reappear as a *reader*-side assertion.
+    """
+    provenance_file = tmp_path / "provenance.jsonl"
+    monkeypatch.setattr(_io, "_route_provenance_path", lambda _source_path: provenance_file)
+
+    content = CharterContent(
+        text="name: hello\n",
+        source_encoding="cp1252",
+        confidence=0.42,  # deliberately < 0.85: an honest, tie-broken pick
+        source_path=tmp_path / "charter.yaml",
+        normalization_applied=True,
+    )
+
+    _io._write_provenance(content, bypass_used=False)
+
+    records = [json.loads(line) for line in provenance_file.read_text(encoding="utf-8").splitlines() if line]
+    assert len(records) == 1
+    assert records[0]["confidence"] == 0.42
+    assert isinstance(records[0]["confidence"], float)
 
 
 def test_resolve_mission_id_reads_meta_json(tmp_path: Path) -> None:

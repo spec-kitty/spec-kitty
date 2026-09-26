@@ -28,7 +28,15 @@ _UTF8_BYTES = _UTF8_TEXT.encode("utf-8")
 
 # A byte sequence that is NOT valid UTF-8 but is valid cp1252.
 # 0x80–0x9F are windows-1252 printable characters, invalid in strict UTF-8.
-_CP1252_TEXT = "Caf\xe9 – résumé"  # 0xe9 = é in cp1252/latin-1
+#
+# WP02 note: this must be long/varied enough for charset_normalizer to
+# actually offer cp1252 as a tied candidate (the canonical detector's
+# cp1252 tie-break only fires when cp1252 IS in the tied set -- a short
+# fixture like a bare "Café" often has charset_normalizer omit cp1252 from
+# its ranking entirely, which is exactly the upstream bug WP01 built the
+# tie-break detector to route around). This is the mission's canonical
+# SENTINEL fixture (data-model.md), proven to tie cp1252 reliably.
+_CP1252_TEXT = "# Team Charter\n\n" + "Tests must pass before merge.\n" * 10 + "We don’t ship on Fridays — the “freeze” rule. Owner: José Peña, São Paulo.\n"
 _CP1252_BYTES = _CP1252_TEXT.encode("cp1252")
 
 # UTF-8 BOM prefix + UTF-8 content.
@@ -43,9 +51,9 @@ _BOM_BYTES = _BOM_PREFIX + _UTF8_BYTES
 # producing a UnicodeDecodeError for UTF-8 AND low-confidence from c-n.
 # We use a known-bad Latin-1/cp1252 mixed sequence here.
 _AMBIGUOUS_BYTES = (
-    b"\xff\xfe" +  # UTF-16-LE BOM — but then continued as cp1252 content
-    b"\x00" * 30 +  # null bytes that confuse the detector
-    b"\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89"  # cp1252 control region
+    b"\xff\xfe"  # UTF-16-LE BOM — but then continued as cp1252 content
+    + b"\x00" * 30  # null bytes that confuse the detector
+    + b"\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89"  # cp1252 control region
     b"\x00\x00\x00\x00\x00"
     b"\xef\xbf\xbd\x00\xff"  # UTF-8 replacement char embedded, then invalid byte
 )
@@ -77,6 +85,7 @@ def test_pure_utf8_ingest_records_provenance_without_normalization(tmp_path: Pat
 
     # Patch provenance routing to write into tmp_path so tests don't pollute CWD.
     import charter.activation._io as _io_mod
+
     original_route = _io_mod._route_provenance_path
 
     def _patched_route(source_path: Path | None) -> Path:
@@ -115,6 +124,7 @@ def test_cp1252_ingest_normalizes_and_records_provenance(tmp_path: Path) -> None
     charter_file.write_bytes(_CP1252_BYTES)
 
     import charter.activation._io as _io_mod
+
     original_route = _io_mod._route_provenance_path
 
     def _patched_route(source_path: Path | None) -> Path:
@@ -128,11 +138,13 @@ def test_cp1252_ingest_normalizes_and_records_provenance(tmp_path: Path) -> None
 
     assert isinstance(content, CharterContent)
     assert content.normalization_applied is True
-    # The decoded text should round-trip: é is present in the output.
-    assert "é" in content.text or "Caf" in content.text
-    # charset-normalizer should detect a Latin/cp1252-family encoding.
-    assert content.source_encoding != "utf-8"
-    assert content.confidence > 0.0
+    # The decoded text must round-trip byte-exactly (detector-contract.md
+    # guarantee #4: cp1252 tie-break round-trips SENTINEL exactly).
+    assert content.text == _CP1252_TEXT
+    assert content.source_encoding == "cp1252"
+    # A tie-broken single-byte pick must report an honest LOWERED
+    # confidence, never a bare 1.0 (detector-contract.md guarantee #3).
+    assert 0.0 < content.confidence < 1.0
 
     records = _read_provenance(tmp_path / "provenance.jsonl")
     assert len(records) == 1
@@ -151,6 +163,7 @@ def test_bom_sniff_recognized(tmp_path: Path) -> None:
     charter_file.write_bytes(_BOM_BYTES)
 
     import charter.activation._io as _io_mod
+
     original_route = _io_mod._route_provenance_path
 
     def _patched_route(source_path: Path | None) -> Path:
@@ -191,25 +204,25 @@ def test_ambiguous_content_raises_without_unsafe(tmp_path: Path) -> None:
     - Its code is CharterEncodingDiagnostic.AMBIGUOUS.
     - The error body contains the ERROR: prefix.
     - No provenance record is written (failure path is not audit-worthy).
+
+    WP02 tightening (out-of-map edit): the pre-WP02 chokepoint used
+    charset_normalizer's raw ``.best()`` pick gated by a (now-retired) >=0.85
+    confidence threshold, so this fixture's outcome depended on
+    charset_normalizer internals and the test hedged both directions via
+    ``except AssertionError: return``. Under the canonical tie-break
+    detector (WP01), this exact fixture is deterministic: it contains an
+    undefined cp1252 byte (0x81) and charset_normalizer returns zero
+    candidates for it, so it is unconditionally ambiguous. The hedge is
+    removed.
     """
-    # Build a byte sequence that:
-    # 1. Is NOT valid strict UTF-8.
-    # 2. Has no BOM.
-    # 3. Will produce low-confidence from charset-normalizer (or fall through to fail).
-    #
-    # Strategy: single cp1252 byte that is not valid UTF-8.  charset-normalizer
-    # may succeed with high confidence on a single cp1252 byte, so we keep
-    # the test outcome conditional — the AMBIGUOUS raise only fires when
-    # charset-normalizer returns a candidate with confidence < 0.85 OR when
-    # it returns no candidate.  If charset-normalizer succeeds, the test
-    # checks the success path instead (this is documented behaviour per the
-    # WP06 risk note).
-    #
-    # To reliably trigger the AMBIGUOUS path, use a mix of Latin-1 bytes
-    # around null bytes that typically confuse the detector below threshold.
+    # A mix of Latin-1/cp1252 control-region bytes around null bytes,
+    # including 0x81 (a cp1252-undefined byte -- the "0x81 fixture"
+    # ambiguity class per charter.encoding_recovery's module docs), that
+    # charset_normalizer cannot resolve to any candidate.
     ambiguous = b"\x80" + b"\x00" * 10 + b"\x81" + b"\x00" * 10 + b"\x9f" + b"\x00" * 5
 
     import charter.activation._io as _io_mod
+
     original_route = _io_mod._route_provenance_path
     provenance_file = tmp_path / "provenance.jsonl"
 
@@ -220,11 +233,6 @@ def test_ambiguous_content_raises_without_unsafe(tmp_path: Path) -> None:
     try:
         with pytest.raises(CharterEncodingError) as exc_info:
             load_charter_bytes(ambiguous, origin="test:ambiguous", unsafe=False)
-    except AssertionError:
-        # charset-normalizer succeeded above threshold — this is acceptable.
-        # Verify the success path instead.
-        _io_mod._route_provenance_path = original_route
-        return
     finally:
         _io_mod._route_provenance_path = original_route
 

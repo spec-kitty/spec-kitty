@@ -2,11 +2,20 @@
 
 Detects source encoding, records provenance, normalizes to UTF-8.
 
-Detection order:
-  1. BOM sniff (UTF-8-SIG, UTF-16-LE, UTF-16-BE).
-  2. Strict UTF-8 decode.
-  3. charset-normalizer with confidence >= 0.85.
-  4. Fail with CHARTER_ENCODING_AMBIGUOUS (or bypass via --unsafe).
+Detection is delegated wholesale to the canonical, pure detector
+(``charter.encoding_recovery.recover``, WP01) per
+``contracts/detector-contract.md``:
+  1. BOM sniff (UTF-8-SIG, UTF-16-LE, UTF-16-BE) -- confidence 1.0.
+  2. Strict UTF-8 decode -- confidence 1.0.
+  3. Single-pass ``charset_normalizer`` tie-break (cp1252 preferred when
+     tied and strict-decodable; otherwise the sole clear winner).
+  4. Fail-closed: ``ambiguous=True`` (raised here as
+     CHARTER_ENCODING_AMBIGUOUS) unless ``unsafe=True``, in which case the
+     bypass decodes losslessly via the cp1252 tie-break path.
+
+This module never calls ``charset_normalizer`` directly; it owns
+provenance writing and the CHARTER_ENCODING_AMBIGUOUS fail-closed contract
+around the detector's pure result.
 
 See: src/charter/activation/ERROR_CODES.md
 Implements: FR-016, FR-017, FR-018, FR-019, FR-020, FR-021, FR-022
@@ -20,9 +29,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import ulid as _ulid_mod
-from charset_normalizer import from_bytes
 from kernel.clock import now_utc_iso
 from kernel.errors import KittyInternalConsistencyError
+
+from charter.encoding_recovery import recover as _recover_encoding
 
 from ._diagnostics import CharterEncodingDiagnostic
 
@@ -34,7 +44,6 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_CONFIDENCE_THRESHOLD = 0.85
 _SPECS_DIR_NAME = "kitty-specs"
 
 # Actor label written to provenance records.
@@ -66,6 +75,7 @@ class CharterContent:
     confidence: float
     source_path: Path | None
     normalization_applied: bool
+
 
 class CharterEncodingError(KittyInternalConsistencyError):
     """Raised when encoding detection fails and unsafe=False.
@@ -152,119 +162,51 @@ def _load_inner(
 ) -> CharterContent:
     """Core detection pipeline shared by both public functions.
 
-    Detection order follows the contract in
-    ``contracts/charter-io-chokepoint.md``:
-      1. BOM sniff
-      2. Strict UTF-8
-      3. charset-normalizer >= 0.85 confidence
-      4. Fail (or unsafe bypass)
+    Delegates the entire detection algorithm (BOM sniff, strict UTF-8,
+    single-pass cp1252 tie-break, unsafe lossless bypass) to
+    :func:`charter.encoding_recovery.recover` -- see
+    ``contracts/detector-contract.md``. This function owns only the
+    adapter shape (building ``CharterContent``), the fail-closed
+    ``CHARTER_ENCODING_AMBIGUOUS`` raise, and provenance writing.
     """
-    # Step 1: BOM sniff.
-    if data.startswith(b"\xef\xbb\xbf"):
-        # UTF-8 BOM
-        text = data[3:].decode("utf-8")
-        content = CharterContent(
-            text=text,
-            source_encoding="utf-8-sig",
-            confidence=1.0,
-            source_path=source_path,
-            normalization_applied=True,
-        )
-        _write_provenance(content, bypass_used=False)
-        return content
-    if data.startswith(b"\xff\xfe"):
-        # UTF-16-LE BOM
-        text = data[2:].decode("utf-16-le")
-        content = CharterContent(
-            text=text,
-            source_encoding="utf-16-le",
-            confidence=1.0,
-            source_path=source_path,
-            normalization_applied=True,
-        )
-        _write_provenance(content, bypass_used=False)
-        return content
-    if data.startswith(b"\xfe\xff"):
-        # UTF-16-BE BOM
-        text = data[2:].decode("utf-16-be")
-        content = CharterContent(
-            text=text,
-            source_encoding="utf-16-be",
-            confidence=1.0,
-            source_path=source_path,
-            normalization_applied=True,
-        )
-        _write_provenance(content, bypass_used=False)
-        return content
+    result = _recover_encoding(data, unsafe=unsafe)
 
-    # Step 2: Strict UTF-8.
-    try:
-        text = data.decode("utf-8")
-        content = CharterContent(
-            text=text,
-            source_encoding="utf-8",
-            confidence=1.0,
-            source_path=source_path,
-            normalization_applied=False,
+    if result.ambiguous:
+        raise CharterEncodingError(
+            CharterEncodingDiagnostic.AMBIGUOUS,
+            _build_ambiguous_body(result.candidates, source_path),
         )
-        _write_provenance(content, bypass_used=False)
-        return content
-    except UnicodeDecodeError:
-        pass
 
-    # Step 3: charset-normalizer.
-    results = from_bytes(data)
-    best = results.best()
-    if best is not None:
-        confidence = 1.0 - best.chaos
-        if confidence >= _CONFIDENCE_THRESHOLD or unsafe:
-            text = str(best)
-            content = CharterContent(
-                text=text,
-                source_encoding=best.encoding,
-                confidence=confidence,
-                source_path=source_path,
-                normalization_applied=True,
-            )
-            _write_provenance(content, bypass_used=unsafe)
-            return content
+    # Contract: only an ambiguous result has text/source_encoding=None, and
+    # that case is always handled by the early raise above.
+    assert result.text is not None
+    assert result.source_encoding is not None
 
-        # Confidence below threshold and unsafe=False: fall through to fail.
-
-    # Step 4: Fail (or unsafe bypass with cp1252 fallback when no detector
-    # candidate exists). If a best candidate exists under unsafe=True, Step 3
-    # already returned it.
-    if unsafe:
-        content = CharterContent(
-            text=data.decode("cp1252", errors="replace"),
-            source_encoding="cp1252",
-            confidence=0.0,
-            source_path=source_path,
-            normalization_applied=True,
-        )
-        _write_provenance(content, bypass_used=True)
-        return content
-
-    raise CharterEncodingError(
-        CharterEncodingDiagnostic.AMBIGUOUS,
-        _build_ambiguous_body(data, source_path),
+    content = CharterContent(
+        text=result.text,
+        source_encoding=result.source_encoding,
+        confidence=result.confidence,
+        source_path=source_path,
+        normalization_applied=result.normalization_applied,
     )
+    _write_provenance(content, bypass_used=result.bypass_used)
+    return content
 
 
 def _build_ambiguous_body(
-    data: bytes,
+    candidates: tuple[tuple[str, float], ...],
     source_path: Path | None,
 ) -> str:
-    """Build the operator-facing diagnostic body for CHARTER_ENCODING_AMBIGUOUS."""
-    from charset_normalizer import from_bytes as _from_bytes  # local import to avoid re-import cost
+    """Build the operator-facing diagnostic body for CHARTER_ENCODING_AMBIGUOUS.
 
-    results = _from_bytes(data)
+    Consumes the ``candidates`` already collected by the single
+    ``charset_normalizer.from_bytes`` pass inside
+    :func:`charter.encoding_recovery.recover` -- this function never
+    re-runs detection (contract guarantee #2, "single pass").
+    """
     file_label = str(source_path) if source_path is not None else "<inline bytes>"
 
-    candidates_lines: list[str] = []
-    for result in results:
-        conf = 1.0 - result.chaos
-        candidates_lines.append(f"    - {result.encoding} (confidence {conf:.2f})")
+    candidates_lines: list[str] = [f"    - {encoding} (confidence {confidence:.2f})" for encoding, confidence in candidates]
     if not candidates_lines:
         candidates_lines.append("    (no candidates detected)")
 
@@ -275,7 +217,7 @@ def _build_ambiguous_body(
         f"  Detected candidates:\n"
         f"{candidates_str}\n"
         f"  Mixed-content signal: the byte sequence cannot be decoded as strict UTF-8\n"
-        f"  and no single encoding achieved >= {_CONFIDENCE_THRESHOLD:.0%} confidence.\n"
+        f"  and no encoding could be selected via the cp1252 tie-break contract.\n"
         f"\n"
         f"  Remediation options:\n"
         f"    1. Open the file in a UTF-8-aware editor and re-save.\n"

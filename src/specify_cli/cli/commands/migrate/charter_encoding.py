@@ -3,11 +3,15 @@
 ``spec-kitty migrate charter-encoding`` walks every existing mission's charter
 content (``kitty-specs/*/charter/*.{yaml,md,txt}`` and
 ``.kittify/charter/*.{yaml,md,txt}``), detects the encoding of each file via
-the WP06 chokepoint (``charter.activation._io.load_charter_file``), and either:
+the canonical chokepoint (``charter.activation._io.load_charter_file``, which
+itself delegates to ``charter.encoding_recovery.recover``), and either:
 
 - Skips the file (already pure UTF-8; idempotency pre-check passes).
-- Normalizes the file to UTF-8 in-place with a provenance record.
+- Normalizes the file to UTF-8 in-place with a provenance record, backing up
+  the exact original bytes to a ``<name>.bak`` sibling first.
 - Surfaces the file as ambiguous (exits non-zero; manual repair required).
+- Refuses a file whose ``.bak`` sibling already exists (backup collision;
+  exits non-zero; never silently overwrites an existing backup).
 
 Implements: FR-026, FR-027, NFR-006 (idempotency).
 
@@ -20,16 +24,21 @@ Interactive mode (default):   prompt before each non-UTF-8 file.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.utils import safe_is_dir
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import typer
+
 from specify_cli.cli.console import console as _console
 from specify_cli.cli.console import err_console as _err_console
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.utils import safe_is_dir
 
+if TYPE_CHECKING:
+    from charter.activation._io import CharterContent
 
 # ---------------------------------------------------------------------------
 # Corpus patterns (FR-026 / research.md R-9)
@@ -39,6 +48,11 @@ _MISSION_CHARTER_GLOB = "kitty-specs/*/charter/*.{yaml,md,txt}"
 _GLOBAL_CHARTER_GLOB = ".kittify/charter/*.{yaml,md,txt}"
 
 _CHARTER_EXTENSIONS = (".yaml", ".md", ".txt")
+
+#: Backup sibling suffix (data-model.md "Backup artifact"). Never silently
+#: overwritten -- a pre-existing backup blocks normalization of that file
+#: (see :class:`_BackupCollisionError`).
+_BACKUP_SUFFIX = ".bak"
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +65,9 @@ class _FileRecord:
     """Per-file result produced by the corpus scan."""
 
     path: Path
-    action: str  # "already-utf8" | "normalized" | "ambiguous" | "dry-run-would-normalize"
+    # "already-utf8" | "normalized" | "ambiguous" | "backup_collision"
+    # | "dry-run-would-normalize" | "dry-run-would-collide"
+    action: str
     encoding: str | None = None
     confidence: float | None = None
     diagnostic_body: str | None = None
@@ -65,12 +81,15 @@ class _ScanSummary:
     already_utf8: list[Path] = field(default_factory=list)
     normalized: list[_FileRecord] = field(default_factory=list)
     ambiguous: list[_FileRecord] = field(default_factory=list)
+    collisions: list[_FileRecord] = field(default_factory=list)
     dry_run: bool = False
 
     @property
     def result(self) -> str:
         if self.ambiguous:
             return "ambiguous_present"
+        if self.collisions:
+            return "backup_collision_present"
         return "success"
 
 
@@ -126,54 +145,44 @@ def _collect_charter_files(project_root: Path) -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
-# Core scan logic
+# Backup + atomic in-place rewrite (data-model.md "Backup artifact")
 # ---------------------------------------------------------------------------
 
 
-def _scan_file(path: Path, *, dry_run: bool) -> _FileRecord:
-    """Scan a single charter file via the WP06 chokepoint.
+class _BackupCollisionError(Exception):
+    """Raised when a ``.bak`` sibling already exists for a file about to be
+    normalized.
 
-    Idempotency rule (NFR-006): if the file is already pure UTF-8, return an
-    ``already-utf8`` record immediately WITHOUT invoking ``load_charter_file``.
-    This prevents writing a new provenance record on every re-run.
-
-    For non-UTF-8 files the chokepoint is invoked exactly once.  On success
-    the file is rewritten as UTF-8 in-place (unless ``dry_run``).
+    Collision behaviour is defined: the existing backup is NEVER silently
+    overwritten. The caller must surface this as a refusal, leaving both the
+    stale backup and the (still non-UTF-8) original file untouched.
     """
-    # NFR-006 idempotency pre-check — cheap byte-level gate.
-    if _is_pure_utf8(path):
-        return _FileRecord(path=path, action="already-utf8")
 
-    # Delegate to the WP06 chokepoint for detection + provenance.
-    from charter.activation._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
 
-    try:
-        content = load_charter_file(path, unsafe=False)
-    except CharterEncodingError as exc:
-        return _FileRecord(
-            path=path,
-            action="ambiguous",
-            diagnostic_body=exc.body,
-        )
+def _backup_path_for(path: Path) -> Path:
+    return path.with_name(path.name + _BACKUP_SUFFIX)
 
-    # Chokepoint succeeded — content is now valid UTF-8 text.
-    if dry_run:
-        return _FileRecord(
-            path=path,
-            action="dry-run-would-normalize",
-            encoding=content.source_encoding,
-            confidence=content.confidence,
-        )
 
-    # Write normalized UTF-8 back to disk (provenance already written by chokepoint).
-    path.write_text(content.text, encoding="utf-8")
+def _write_normalized_with_backup(path: Path, content: str, original_bytes: bytes) -> None:
+    """Back up ``original_bytes`` to ``<path>.bak``, then atomically replace
+    ``path`` with ``content`` (UTF-8).
 
-    return _FileRecord(
-        path=path,
-        action="normalized",
-        encoding=content.source_encoding,
-        confidence=content.confidence,
-    )
+    Mirrors the temp-file + ``Path.replace`` rename-based swap idiom used by
+    ``backfill_provenance.py::_CorpusWriteTransaction.write`` -- the backup
+    is written to disk (rather than kept only in memory) so operators can
+    recover the exact original bytes after the fact.
+
+    Raises:
+        _BackupCollisionError: a ``.bak`` sibling already exists.
+    """
+    backup_path = _backup_path_for(path)
+    if backup_path.exists():
+        raise _BackupCollisionError(str(backup_path))
+
+    tmp_path = path.with_name(f"{path.name}.tmp-{uuid4().hex}")
+    tmp_path.write_text(content, encoding="utf-8")
+    backup_path.write_bytes(original_bytes)
+    tmp_path.replace(path)
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +206,110 @@ def _prompt_for_file(record_path: Path, detected: str, confidence: float) -> str
 # ---------------------------------------------------------------------------
 
 
+def _detect_or_record_ambiguous(path: Path, summary: _ScanSummary) -> CharterContent | None:
+    """Run the chokepoint; on ambiguity, record + report and return ``None``.
+
+    Isolated from the main loop to keep ``run_charter_encoding_migration``'s
+    cyclomatic complexity within the repository ceiling (15).
+    """
+    from charter.activation._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
+
+    try:
+        content = load_charter_file(path, unsafe=False)
+    except CharterEncodingError as exc:
+        record = _FileRecord(path=path, action="ambiguous", diagnostic_body=exc.body)
+        summary.ambiguous.append(record)
+        # Always route to stderr (visible in both human and JSON modes).
+        _err_console.print(f"[red]AMBIGUOUS:[/red] {path}")
+        _err_console.print(f"  {exc.body.splitlines()[0] if exc.body else ''}")
+        return None
+    return content
+
+
+def _record_dry_run_verdict(
+    path: Path,
+    content: CharterContent,
+    *,
+    collision: bool,
+    json_output: bool,
+    summary: _ScanSummary,
+) -> None:
+    """Record the dry-run verdict for one file.
+
+    Per ``contracts/cli-behaviour-contract.md``: dry-run reports the
+    IDENTICAL detected page, honest confidence, and accept/refuse verdict
+    (including a would-be backup collision) that the real run would
+    produce -- no separate preview decode.
+    """
+    detected, confidence = content.source_encoding, content.confidence
+    if collision:
+        record = _FileRecord(
+            path=path,
+            action="dry-run-would-collide",
+            encoding=detected,
+            confidence=confidence,
+        )
+        summary.collisions.append(record)
+        if not json_output:
+            _console.print(f"[red]would refuse (backup collision)[/red] {path} -> {_backup_path_for(path)}")
+        return
+
+    record = _FileRecord(
+        path=path,
+        action="dry-run-would-normalize",
+        encoding=detected,
+        confidence=confidence,
+    )
+    summary.normalized.append(record)
+    if not json_output:
+        _console.print(f"[yellow]would normalize[/yellow] {path} ({detected}, confidence {confidence:.2f})")
+
+
+def _record_backup_collision(path: Path, content: CharterContent, summary: _ScanSummary) -> None:
+    """Refuse to normalize ``path``: an existing ``.bak`` sibling would be
+    silently overwritten (data-model.md "Backup artifact" collision rule)."""
+    backup_path = _backup_path_for(path)
+    record = _FileRecord(
+        path=path,
+        action="backup_collision",
+        encoding=content.source_encoding,
+        confidence=content.confidence,
+        diagnostic_body=(
+            f"Refusing to normalize {path}: a backup already exists at {backup_path} "
+            "and would be silently overwritten. Remove or rename the existing "
+            "backup, then re-run."
+        ),
+    )
+    summary.collisions.append(record)
+    _err_console.print(f"[red]BACKUP COLLISION:[/red] {path}")
+    _err_console.print(f"  a backup already exists: {backup_path}")
+
+
+def _apply_normalization(
+    path: Path,
+    content: CharterContent,
+    summary: _ScanSummary,
+    *,
+    json_output: bool,
+) -> None:
+    """Back up the original bytes and rewrite ``path`` as UTF-8 in-place.
+
+    Provenance for the detection itself was already written by the
+    chokepoint as a side effect of :func:`_detect_or_record_ambiguous`.
+    """
+    original_bytes = path.read_bytes()
+    _write_normalized_with_backup(path, content.text, original_bytes)
+    record = _FileRecord(
+        path=path,
+        action="normalized",
+        encoding=content.source_encoding,
+        confidence=content.confidence,
+    )
+    summary.normalized.append(record)
+    if not json_output:
+        _console.print(f"  [green]normalized[/green] {path} ({content.source_encoding} → utf-8, confidence {content.confidence:.2f})")
+
+
 def run_charter_encoding_migration(
     *,
     project_root: Path,
@@ -207,7 +320,7 @@ def run_charter_encoding_migration(
     """Execute the charter-encoding migration.
 
     Returns the intended process exit code (0 = success, non-zero = ambiguous
-    files present or error).  The caller (typer command) calls
+    or backup-collision files present).  The caller (typer command) calls
     ``raise typer.Exit(code)`` after this function returns.
 
     When ``json_output=True`` all human-readable progress messages are
@@ -227,45 +340,23 @@ def run_charter_encoding_migration(
             summary.already_utf8.append(path)
             continue
 
-        # File needs attention — run through the chokepoint.
-        from charter.activation._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
-
-        try:
-            content = load_charter_file(path, unsafe=False)
-        except CharterEncodingError as exc:
-            record = _FileRecord(
-                path=path,
-                action="ambiguous",
-                diagnostic_body=exc.body,
-            )
-            summary.ambiguous.append(record)
-            # Always route to stderr (visible in both human and JSON modes).
-            _err_console.print(f"[red]AMBIGUOUS:[/red] {path}")
-            _err_console.print(f"  {exc.body.splitlines()[0] if exc.body else ''}")
+        content = _detect_or_record_ambiguous(path, summary)
+        if content is None:
             continue
 
-        # File is non-UTF-8 but the chokepoint could decode it.
-        detected = content.source_encoding
-        confidence = content.confidence
+        collision = _backup_path_for(path).exists()
 
         if dry_run:
-            if not json_output:
-                _console.print(
-                    f"[yellow]would normalize[/yellow] {path} "
-                    f"({detected}, confidence {confidence:.2f})"
-                )
-            record = _FileRecord(
-                path=path,
-                action="dry-run-would-normalize",
-                encoding=detected,
-                confidence=confidence,
-            )
-            summary.normalized.append(record)
+            _record_dry_run_verdict(path, content, collision=collision, json_output=json_output, summary=summary)
+            continue
+
+        if collision:
+            _record_backup_collision(path, content, summary)
             continue
 
         if not yes_all and not yes:
             # Interactive mode: ask operator.
-            response = _prompt_for_file(path, detected, confidence)
+            response = _prompt_for_file(path, content.source_encoding, content.confidence)
             if response == "a":
                 yes_all = True
             elif response != "y":
@@ -274,21 +365,7 @@ def run_charter_encoding_migration(
                 summary.already_utf8.append(path)  # treat as skipped / already-handled
                 continue
 
-        # Apply normalization: rewrite UTF-8 to disk.
-        # (Chokepoint has already written provenance record as a side effect of the try block above.)
-        path.write_text(content.text, encoding="utf-8")
-        record = _FileRecord(
-            path=path,
-            action="normalized",
-            encoding=detected,
-            confidence=confidence,
-        )
-        summary.normalized.append(record)
-        if not json_output:
-            _console.print(
-                f"  [green]normalized[/green] {path} "
-                f"({detected} → utf-8, confidence {confidence:.2f})"
-            )
+        _apply_normalization(path, content, summary, json_output=json_output)
 
     # Emit summary: JSON to stdout (machine-readable), or human text to console.
     if json_output:
@@ -296,8 +373,9 @@ def run_charter_encoding_migration(
     else:
         _emit_human_summary(summary)
 
-    # Exit non-zero if any ambiguous files remain (FR-027, --yes CI contract).
-    return 1 if summary.ambiguous else 0
+    # Exit non-zero if any ambiguous or backup-collision files remain
+    # (FR-027, --yes CI contract).
+    return 1 if (summary.ambiguous or summary.collisions) else 0
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +404,13 @@ def _emit_json_summary(summary: _ScanSummary) -> None:
             }
             for r in summary.ambiguous
         ],
+        "backup_collisions": [
+            {
+                "path": str(r.path),
+                "diagnostic_body": r.diagnostic_body,
+            }
+            for r in summary.collisions
+        ],
         "dry_run": summary.dry_run,
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
@@ -337,20 +422,22 @@ def _emit_human_summary(summary: _ScanSummary) -> None:
     _console.print(f"\n{prefix}[bold]charter-encoding migration summary[/bold]")
     _console.print(f"  Files inspected  : {summary.files_inspected}")
     _console.print(f"  Already UTF-8    : {len(summary.already_utf8)}")
-    _console.print(
-        f"  Normalized       : {len(summary.normalized)}"
-        + (" (would normalize)" if summary.dry_run else "")
-    )
+    _console.print(f"  Normalized       : {len(summary.normalized)}" + (" (would normalize)" if summary.dry_run else ""))
     if summary.ambiguous:
-        _console.print(
-            f"  [red]Ambiguous        : {len(summary.ambiguous)} (manual repair required)[/red]"
-        )
+        _console.print(f"  [red]Ambiguous        : {len(summary.ambiguous)} (manual repair required)[/red]")
         for rec in summary.ambiguous:
             _console.print(f"    [red]{rec.path}[/red]")
     else:
         _console.print("  [green]Ambiguous        : 0[/green]")
 
+    if summary.collisions:
+        _console.print(f"  [red]Backup collisions: {len(summary.collisions)} (manual repair required)[/red]")
+        for rec in summary.collisions:
+            _console.print(f"    [red]{rec.path}[/red]")
+    else:
+        _console.print("  [green]Backup collisions: 0[/green]")
+
     if summary.dry_run:
         _console.print("\n[dim]Dry run — no files were modified.[/dim]")
-    elif not summary.ambiguous:
+    elif not summary.ambiguous and not summary.collisions:
         _console.print("\n[green]Done.[/green] Charter corpus is UTF-8 compliant.")
