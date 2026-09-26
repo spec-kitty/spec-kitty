@@ -204,14 +204,11 @@
         "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
         "src/specify_cli/cli/commands/mission_type.py",
         "src/specify_cli/coordination/status_transition.py",
-        "src/specify_cli/core/vcs/detection.py",
         "src/specify_cli/lanes/implement_support.py",
         "src/specify_cli/lanes/merge.py",
         "src/specify_cli/lanes/worktree_allocator.py",
         "src/specify_cli/orchestrator_api/commands.py",
         "src/specify_cli/workspace/context.py",
-        "tests/architectural/_baselines.yaml",
-        "tests/architectural/test_no_worktree_name_guess.py",
         "tests/core/test_branch_naming_human_slug.py",
         "tests/integration/test_colliding_mission_flow.py",
         "tests/integration/test_coord_read_residuals_proof.py",
@@ -239,10 +236,36 @@
         "lane-c",
         "lane-d",
         "lane-e",
-        "lane-f",
-        "lane-j"
+        "lane-f"
       ],
       "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/vcs/detection.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_no_worktree_name_guess.py",
+        "tests/architectural/test_ratchet_baselines.py",
+        "tests/specify_cli/lanes/test_lane_naming_gate_sites.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e",
+        "lane-g",
+        "lane-j"
+      ],
+      "parallel_group": 4
     },
     {
       "lane_id": "lane-h",
@@ -268,13 +291,13 @@
         "workspace"
       ],
       "depends_on_lanes": [
-        "lane-g"
+        "lane-k"
       ],
-      "parallel_group": 4
+      "parallel_group": 5
     }
   ],
-  "computed_at": "2026-09-26T13:34:04.228640+00:00",
+  "computed_at": "2026-09-26T13:54:15.055194+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "8e81d0f6433611859f7ccfb91a86262f794a5b10"
+  "planning_commit_sha": "8900c2cb5fab2a2dbc10d1b70211a7157341b482"
 }

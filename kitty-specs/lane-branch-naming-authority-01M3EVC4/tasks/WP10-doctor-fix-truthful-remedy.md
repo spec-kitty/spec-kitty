@@ -114,7 +114,7 @@ Success means:
   - ADJ-6: all emitters are folded in.
 - **tasks.md**: the WP09/WP10 split and the ownership table.
   - WP10 is the single owner of `_coordination_doctor.py`.
-  - The FR-008 one-line lane-dir matcher in `_check_lane_sparse_checkout_drift` is done **later by WP07** as a documented out-of-map edit. **Do not touch** `_check_lane_sparse_checkout_drift`.
+  - The FR-008 one-line lane-dir matcher in `_check_lane_sparse_checkout_drift` is done **later by WP11** as a documented out-of-map edit. **Do not touch** `_check_lane_sparse_checkout_drift`.
   - Do **not** edit `coordination/surface_resolver.py` (WP09).
 - **Layer direction**: `runtime` and `mission_runtime` edits are **string-only**. Add no import from `specify_cli` in those packages; the shrink-only outbound ledgers in `tests/architectural/test_layer_rules.py` must not grow (C-003).
 - **Complexity**: `_apply_coordination_fixes` is a small dispatcher, `run_coordination_health` must stay ≤ 15, and do not touch `_fix_one_mission_coord_staleness` (CC11) or `resolve_status_surface_with_anchor` (CC12) (D5).
@@ -131,20 +131,27 @@ Success means:
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T037 – Red-first remedy round-trip test
+### Subtask T037 – Red-first remedy round-trip test, parametrized over every unmaterialized emitter
 
 - **File**: `tests/specify_cli/cli/commands/test_coordination_remedy_5113.py` (new). Markers: `integration`, `git_repo`.
-- **Fixture**: a real fresh coordination Mission, via the helpers WP09 used from `tests/integration/test_placement_partition_golden_path.py` (`_init_git_repo`, `_create_mission(..., MissionTopology.COORD)`). Branch present, worktree absent.
-- **Tests**:
-  1. `test_unmaterialized_error_remedy_materializes`:
-     - Trigger a real `CoordinationWorktreeUnmaterialized`, for example a coordination-partition read on the fresh Mission, the same way `tests/mission_runtime/test_coord_read_seam.py::test_unmaterialized_coord_read_raises_instead_of_empty_primary` does.
-     - Extract the backticked `spec-kitty …` command from `exc.next_step` with a regex. Assert it is `doctor coordination --mission <slug> --fix`.
-     - Run it through `typer.testing.CliRunner` against the real doctor app, then assert the coordination worktree exists (`CoordinationWorkspace.worktree_path(...)`).
-     - **Red on HEAD before this WP**: the fixer does not exist, so the worktree is still absent after the command.
-  2. `test_doctor_fix_is_idempotent`: run the fix twice. The second run is a no-op and exits 0.
-  3. `test_doctor_fix_remote_only_does_not_materialize`: with the branch deleted locally and only present on `refs/remotes/origin/…`, the fixer leaves no worktree and reports a warning finding naming the fetch-and-checkout step. It does not crash.
-  4. `test_missing_worktree_finding_leads_with_doctor_command`: `run_coordination_health` without `--fix` returns the `COORDINATION_WORKTREE_MISSING` finding. Its `next_step` starts with the doctor command, and `extra` has `mission_slug`, `mid8` and `recovery_args`.
-- **Validation**: red run recorded.
+- **Fixture**: a real fresh coordination Mission, via the helpers WP09 used from `tests/integration/test_placement_partition_golden_path.py` (`_init_git_repo`, `_create_mission(..., MissionTopology.COORD)`). Branch present, worktree absent. A **fresh Mission per parametrized case**.
+- **Parametrization (the round trip)**: `test_unmaterialized_remedy_round_trip[emitter]` runs over **every emitter classified as *unmaterialized*** by T040/T041. Write the classification first (T040/T041 "classify" steps), then fill the parameter list from it; an emitter classified *deleted/never-created only* or *husk/EMPTY* is **not** a case, and its classification evidence goes in the Activity Log instead. For each case:
+  1. Trigger the emitter **through its real entry point** on the fresh Mission (never by calling the private message builder or reading the constant):
+     - `surface_resolver` (`CoordinationWorktreeUnmaterialized.next_step`, WP09's text): a coordination-partition read, the way `tests/mission_runtime/test_coord_read_seam.py::test_unmaterialized_coord_read_raises_instead_of_empty_primary` does.
+     - doctor missing-worktree finding (T039 text): `spec-kitty doctor coordination --mission <slug>` without `--fix`, via `CliRunner`, reading the finding's `next_step` from `--json` output.
+     - `runtime_bridge` (`_resolve_wp_board_action`'s unmaterialized arm): through the public next/board query path that `tests/runtime/test_bridge_parity.py` uses for its unmaterialized pin (≈L1772), reading `blocked_reason`.
+     - `write_target_degrade` (`assert_coord_write_materialized`): through the terminus write entry point its existing tests use, on the arm(s) classified in T040.
+     - `implement_cores` / `implement` / `mission_record_analysis`: only if T041 classifies them as reachable in the unmaterialized state; then through `spec-kitty agent action implement` / `record-analysis` on the fresh Mission.
+  2. Extract the backticked `spec-kitty …` command from the emitted text with one shared regex, and assert it is `spec-kitty doctor coordination --mission <slug> --fix` with the real slug substituted (no `<mission>` placeholder in any case; see T040).
+  3. Run it through `typer.testing.CliRunner` against the real CLI app.
+  4. Assert the coordination worktree exists (`CoordinationWorkspace.worktree_path(...)`; do not compose it).
+  - **`write_target_degrade` remote-only arm**: the remedy is an ordered list of steps, not one command. Build the case with a bare `origin` remote holding the coordination branch and **no** local branch. Extract every step from the text in order (`git fetch`, `git branch <coord> origin/<coord>`, then the doctor command), run them in that order (git steps via `subprocess.run(..., cwd=repo_root, check=True)`, the doctor step via `CliRunner`), and assert the worktree exists.
+  - **Red on HEAD before this WP**: every case fails (the named command is `doctor workspaces --fix`, which cannot create a worktree, or the doctor has no fixer). Record the red run.
+- **Other tests** in the same file:
+  1. `test_doctor_fix_is_idempotent`: run the fix twice. The second run is a no-op and exits 0.
+  2. `test_doctor_fix_remote_only_does_not_materialize`: with the branch deleted locally and only present on `refs/remotes/origin/…`, the fixer leaves no worktree and reports a warning finding naming the fetch-and-checkout step. It does not crash.
+  3. `test_missing_worktree_finding_leads_with_doctor_command`: `run_coordination_health` without `--fix` returns the `COORDINATION_WORKTREE_MISSING` finding. Its `next_step` starts with the doctor command, and `extra` has `mission_slug`, `mid8` and `recovery_args`.
+- **Validation**: red run recorded; the parameter list equals the set of emitters classified *unmaterialized* in the Activity Log.
 
 ### Subtask T038 – `_apply_missing_worktree_fix` + finding extras + dispatch
 
@@ -187,10 +194,12 @@ Success means:
 
 - **`src/runtime/next/runtime_bridge.py`**:
   - `_COORD_UNMATERIALIZED_RECOVERY = "spec-kitty doctor workspaces --fix"` is used as CT-4's runnable recovery for the coord-read fail-closed floor. Read its call sites and confirm they fire only for the unmaterialized state.
-  - The command needs the Mission slug. If the constant is used where `mission_slug` is in scope, change it to a small formatter, `_coord_unmaterialized_recovery(mission_slug) -> str` returning `f"spec-kitty doctor coordination --mission {mission_slug} --fix"`.
+  - **Decision (read at HEAD `8900c2cb`)**: the constant has exactly one use, `_resolve_wp_board_action(*, mission_slug: str, repo_root: Path)` (≈L3075), where `mission_slug` **is** a parameter. So the slug is always in scope: replace the constant with `_coord_unmaterialized_recovery(mission_slug: str) -> str` returning `f"spec-kitty doctor coordination --mission {mission_slug} --fix"`, next to `_inspect_board_recovery_command(mission_slug)` (same shape). No `<mission>` placeholder, and never a fallback to `doctor workspaces --fix`. If a new use appears without a slug in scope, thread the slug to it; a placeholder is only acceptable where no caller can supply the slug, and that must be recorded.
+  - **Split the except arm**: today one `except (CoordinationWorktreeUnmaterialized, CoordinationBranchDeleted)` gives both states the "Materialize it" text. Only `CoordinationWorktreeUnmaterialized` is the unmaterialized state. Give `CoordinationBranchDeleted` its own arm that surfaces the exception's own `next_step` (the deleted-branch remedy already in `surface_resolver.py`, which names `doctor coordination --fix` / flatten) instead of "Materialize it". Keep `_resolve_wp_board_action` ≤ its current CC + 1.
   - Pin: `tests/runtime/test_bridge_parity.py` (≈L1772: `"spec-kitty doctor workspaces --fix" in board.blocked_reason`). Re-pin it to the new command, and keep the `"unmaterializ"` assertion.
 - **`src/mission_runtime/write_target_degrade.py`**:
-  - This is the **remote-only** refusal: the coordination branch is not a local head. `doctor coordination --fix` alone would refuse, because a remote-only branch is never auto-materialized.
+  - Classify **both** arms that reach the `ActionContextError(_COORD_WRITE_UNMATERIALIZED_CODE, …)` raise in `assert_coord_write_materialized`: (a) the coordination branch is not a local head (remote-only / fresh clone), and (b) a local head that already carries committed content (the "STALE head" fall-through in the comment just above the raise). Today the message claims (a) for both. If (b) reaches the raise, give it its own truthful text (branch present, worktree absent → `spec-kitty doctor coordination --mission {mission_slug} --fix`) and add it as a separate T037 case.
+  - Arm (a) is the **remote-only** refusal. `doctor coordination --fix` alone would refuse, because a remote-only branch is never auto-materialized.
   - Truthful text: "…Materialize the coordination surface first: `git fetch`, create the local branch (`git branch {coord_branch} origin/{coord_branch}`), then run `spec-kitty doctor coordination --mission {mission_slug} --fix`; or check out {coord_branch!r} locally before retrying."
   - Grep its tests (`grep -rn "_COORD_WRITE_UNMATERIALIZED_CODE\|doctor workspaces" tests/mission_runtime tests/runtime`) and update the pins. If a pin lives in a file not owned by this WP, record an out-of-map test edit with a rationale.
 - **String-only edits.** No new imports from `specify_cli` into `runtime` or `mission_runtime`.
@@ -207,6 +216,8 @@ Success means:
 
   Record the classification evidence (call path and state) in the Activity Log for each site.
 - **Constants**: if the same remedy fragment appears ≥ 3 times in one module, hoist it (S1192). Across modules, do not create a shared constant in a new place (no new module); keep each site's text local.
+- **Known duplication, follow-up only**: the `PlacementResolutionRequired` remedy string is duplicated verbatim between `implement_cores.py::_resolve_claim_commit_target` (≈L703) and `implement.py::_commit_planning_artifacts_transaction` (≈L1088). Keep both local and identical in this WP (no new shared module). Add a line to tasks.md-style follow-ups in your Activity Log ("dedupe the PlacementResolutionRequired remedy between implement_cores.py and implement.py") so the orchestrator files it at close-out.
+- **Slug scope**: `_resolve_claim_commit_target(placement_ref)` has no `mission_slug` today. If T041 names the doctor command there, thread `mission_slug` as a keyword-only parameter (mirroring `_require_record_analysis_placement(placement_ref, *, mission_slug)`) and update its callers and the pin in `test_implement_placement_routing.py`; do not emit a `<mission>` placeholder.
 - **Pins**:
   - `tests/specify_cli/cli/commands/test_implement_placement_routing.py` (≈L68);
   - `tests/specify_cli/cli/commands/agent/test_record_analysis_placement.py` (≈L48).
@@ -222,7 +233,7 @@ Success means:
 
 ## Test Strategy
 
-- **Red-first**: T037 test 1 fails before T038 (the command runs, but the worktree stays absent); test 4 fails before T039.
+- **Red-first**: every `test_unmaterialized_remedy_round_trip` case fails before T038–T041 (the named command runs, but the worktree stays absent); `test_missing_worktree_finding_leads_with_doctor_command` fails before T039.
 - **Real git**: real `create_mission_core`, the real doctor CLI via `CliRunner`, and real worktrees.
 - **Commands**:
 
@@ -248,10 +259,12 @@ FILES="src/specify_cli/cli/commands/_coordination_doctor.py src/specify_cli/cli/
 ## Definition of Done
 
 - [ ] `doctor coordination --mission <slug> --fix` materializes a missing coordination worktree. It is idempotent, refuses remote-only, and warns instead of crashing.
-- [ ] The round trip from the error text to the command to the worktree is proven by a test.
+- [ ] The round trip from the error text to the command to the worktree is proven by `test_unmaterialized_remedy_round_trip`, parametrized over **every** emitter classified *unmaterialized* (each triggered through its real entry point on a fresh coordination Mission); the remote-only `write_target_degrade` steps are run in order and end with the worktree present.
+- [ ] `runtime_bridge` names the command with the real slug (no placeholder), and `CoordinationBranchDeleted` no longer gets the "Materialize it" text.
+- [ ] The `implement_cores.py` / `implement.py` remedy duplication is logged as a follow-up (no new shared module).
 - [ ] Every unmaterialized-state emitter names a command that works. The husk/EMPTY text is unchanged, and "flatten" is never offered for an unmaterialized branch.
 - [ ] No new `runtime` / `mission_runtime` → `specify_cli` imports.
-- [ ] `_check_lane_sparse_checkout_drift` is untouched (WP07 owns that line).
+- [ ] `_check_lane_sparse_checkout_drift` is untouched (WP11 owns that line).
 - [ ] Gates are clean; `make test-fast` is green.
 
 ## Risks & Mitigations

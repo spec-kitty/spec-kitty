@@ -137,8 +137,11 @@ Success means:
   1. `test_open_materializes_and_returns_id`: exit 0; the JSON payload has `decision_id`; `.worktrees/<slug>-<mid8>-coord` exists (get the path from `CoordinationWorkspace.worktree_path(...)`, do not compose it); `decision list --json` contains the id. **Red on HEAD** (traceback plus partial files).
   2. `test_resolve_materializes`: open, then `git worktree remove` the coord worktree to return to UNMATERIALIZED, then `decision resolve` exits 0 with status `resolved`.
   3. `test_materialization_failure_is_byte_identical[open|resolve]`. Create a *real* failure by writing `.worktrees` as a **regular file**: `resolve`'s `mkdir` then raises `FileExistsError`, while the probe still reads UNMATERIALIZED.
-     - Snapshot every file under `kitty-specs/<slug>/`, bytes plus the sorted file list, before and after.
-     - Assert equality: no `decisions/` dir and no `index.json.lock`.
+     - Snapshot, before and after:
+       - every file under `kitty-specs/<slug>/`, bytes plus the sorted file list;
+       - `git rev-parse <coord_branch>` (the coordination branch tip; take the branch name from `meta.json` / `CoordinationWorkspace`, do not compose it);
+       - `git worktree list --porcelain` (full text).
+     - Assert all three are equal: no `decisions/` dir, no `index.json.lock`, no coordination-branch commit, and no worktree registration (not even a half-registered one).
      - Assert exit 1, JSON `code == "COORDINATION_WORKTREE_UNMATERIALIZED"`, and no `Traceback` in the output.
      - For `resolve`, first open successfully on a materialized coordination surface, then remove the worktree and plant the obstacle.
   4. `test_remote_only_branch_refuses_before_write`: `git update-ref refs/remotes/origin/<b> <b>`, then `git branch -D <b>`. The same byte-identity and JSON assertions as test 3.
@@ -186,7 +189,7 @@ Success means:
 - **Check** every other caller routes through these two functions (`grep -rn "open_decision\|_terminal_command\|resolve_decision\|defer_decision\|cancel_decision" src`): the specify/plan/charter interviews, widen, and `orchestrator_api/commands.py`. Do not edit those files. The orchestrator API already maps `StatusReadPathNotFound`; verify it with a test run.
 - **Validation**:
   - [ ] T024 tests 1–4 are green.
-  - [ ] `open_decision` and `_terminal_command` complexity is unchanged or +1.
+  - [ ] Complexity (C901, measured at HEAD `8900c2cb`): `open_decision` is CC8 and `_terminal_command` CC3. Each must stay **≤ 15 and ≤ its current value + 1** (so `open_decision` ≤ 9, `_terminal_command` ≤ 4). On overflow, extract a helper (for example `_materialize_before_ledger_write(...)`) rather than inline more branching.
 
 ### Subtask T027 – Structured CLI error handler
 
@@ -194,8 +197,8 @@ Success means:
 - **Steps**:
   1. Add `_handle_status_read_path_error(exc: StatusReadPathNotFound) -> None` next to `_handle_action_context_error`. It emits `{"error": str(exc), "code": exc.error_code, "next_step": getattr(exc, "next_step", None)}` as sorted JSON to stderr, matching the existing handlers' stream and shape, and then raises `typer.Exit(1)`.
   2. Add `except StatusReadPathNotFound as exc: _handle_status_read_path_error(exc); return` to `cmd_open`, `cmd_resolve`, `cmd_defer` and `cmd_cancel`, **after** the more specific excepts. `CoordinationWorktreeUnmaterialized` subclasses `StatusReadPathNotFound`.
-  3. Watch complexity: each `cmd_*` gains one `except` branch. If a `cmd_*` would exceed CC 10, extract the shared except chain into a small wrapper (campsite, D5).
-  4. `tests/architectural/test_cli_error_surface_seam.py` governs CLI error surfaces. Run it; if it asks for registration, follow its pattern. Its baseline is registered in `_baselines.yaml` under `test_cli_error_surface_seam`. Growing that baseline needs a justification comment. **Prefer a shape that does not grow it.** If growth is unavoidable, stop and report, because `_baselines.yaml` is owned by WP07.
+  3. Watch complexity: each `cmd_*` gains one `except` branch. At HEAD `8900c2cb`, `cmd_open` is CC9 and `cmd_resolve` CC4. Each `cmd_*` must stay **≤ 15 and ≤ its current value + 1** (`cmd_open` ≤ 10). On overflow, extract the shared except chain into a small helper or wrapper (campsite, D5); do not suppress C901.
+  4. `tests/architectural/test_cli_error_surface_seam.py` governs CLI error surfaces. Run it; if it asks for registration, follow its pattern. Its baseline is registered in `_baselines.yaml` under `test_cli_error_surface_seam`. Growing that baseline needs a justification comment. **Prefer a shape that does not grow it.** If growth is unavoidable, stop and report, because `_baselines.yaml` is owned by WP11.
 - **Test**: T024 tests 3–4 assert the JSON shape and the absence of a traceback.
 
 ### Subtask T028 – Rewrite the unmaterialized-coordination remedy; update pins
@@ -203,7 +206,8 @@ Success means:
 - **File**: `src/specify_cli/coordination/surface_resolver.py`, `CoordinationWorktreeUnmaterialized.__init__` → `self.next_step`.
 - **New text** (adjust the wording, keep the substance):
   > The coordination branch {coordination_branch!r} declared in meta.json exists in git, but its coordination worktree has not been materialized yet. Coordination writes such as `spec-kitty agent decision open` materialize it on demand; to materialize it now, run `spec-kitty doctor coordination --mission {mission_slug} --fix`. Keep the `coordination_branch` key in meta.json as-is — the branch is not lost, only not yet checked out.
-- It must contain "materializ" and must not contain "flatten". Also update the module docstring line near the top that mentions `doctor workspaces --fix` for this state, but only where it describes UNMATERIALIZED, not the husk.
+- It must contain "materializ" and must not contain "flatten".
+- **Exactly one `doctor workspaces --fix` occurrence in `surface_resolver.py` changes**: the one in `CoordinationWorktreeUnmaterialized.__init__`'s `next_step` (HEAD ≈L329). The other four stay byte-identical, because they describe the husk/EMPTY state (#1890, PD-10): the module docstring (≈L24, EMPTY coord root on `LANES_WITH_COORD`), the comment above `_COORD_EMPTY_FALLBACK_WARNING` (≈L123), `_COORD_EMPTY_FALLBACK_WARNING` itself (≈L133), and the comment at ≈L1178. After T028, `grep -c "doctor workspaces --fix" src/specify_cli/coordination/surface_resolver.py` is 4 (HEAD: 5).
 - **Do not change** `_COORD_EMPTY_FALLBACK_WARNING` or the EMPTY warning at ≈L1178. Those are husk and EMPTY recovery (#1890).
 - **Pins to update** (all owned by WP09):
   - `tests/mission_runtime/test_coord_read_seam.py` (≈L177: "materializ" stays);

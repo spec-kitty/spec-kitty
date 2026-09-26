@@ -85,7 +85,7 @@ Success means:
 
 1. `merge/reconciliation.py::_lane_branch_for` returns the lane's **created** branch. That is the name composed from `(LanesManifest.mission_slug, lane_id)` alone, and never from `mission_id`.
 2. Every claim consumer uses that one helper: `_collect_approved_shas`, `_collect_excluded` and `_collect_authored`. This covers approved-commit attribution, the canceled-lane exclusion and the authored-blob spine.
-3. `build_approved_wp_set` refuses by name when an approved, non-planning, non-canceled lane's created branch does not exist in git. The refusal text looks like `approved lane lane-a: created branch 'kitty/mission-057-foo-lane-a' does not exist …`. An empty commit set that later surfaces as the generic refusal is no longer possible (US1 AS3).
+3. `build_approved_wp_set` refuses by name when an approved, non-planning, non-canceled lane's created branch does not exist in git. This existence check is the **only** new strict arm (PD-5); probe-error tolerance is unchanged (see T004). The refusal text looks like `approved lane lane-a: created branch 'kitty/mission-057-foo-lane-a' does not exist …`. An empty commit set that later surfaces as the generic refusal is no longer possible (US1 AS3).
 4. A shared, real-allocator **divergent-shape fixture** (`tests/merge/_divergent_shapes.py`) exists and is reused by WP02 and WP03.
 5. Red-first tests prove the claim now attributes commits for all 4 divergent shapes, and for canceled plus survivor (US1 AS1–AS3). Each test fails on HEAD first.
 
@@ -134,15 +134,20 @@ Success means:
   1. Build a tmp git repo with a target branch (`main`). Configure `user.name` and `user.email` locally. Follow the existing real-git merge fixtures in `tests/merge/test_reconciliation.py` and `tests/integration/test_merge_lane_planning_data_loss.py`, and reuse their helpers where they exist (canonical sources).
   2. Write `kitty-specs/<slug>/meta.json` and `lanes.json` for each shape. Each `LanesManifest` records `mission_slug`, `mission_id`, `mission_branch`, `target_branch` and lanes with `wp_ids`.
      - Write `lanes.json` through the canonical writer (`lanes/persistence.write_lanes_json`), not raw JSON.
-     - Always **record `mission_branch`** (PD-14). Set it to the branch today's first finalize would have produced, and let the allocator create it.
+     - Always **record `mission_branch`** (PD-14), as the per-shape literal in step 6. Let the allocator create the branch.
   3. Create each lane by calling `allocate_lane_worktree(repo_root, mission_slug, wp_id, lanes_manifest)` (`lanes/worktree_allocator.py`). Keep the returned `(worktree_path, branch)` in the fixture result.
   4. Make at least one commit per approved lane inside its worktree, touching a WP-owned path, so the claim has commits to attribute.
   5. Emit status events so the snapshot marks WPs `approved` or `canceled`. Use the canonical emitter (`specify_cli.status.emit.emit_status_transition`) through the legal lane path (planned → claimed → in_progress → for_review → in_review → approved). Do not hand-write JSONL.
-  6. Expose a frozen dataclass, for example `DivergentMission(repo_root, feature_dir, slug, mission_id, manifest, lanes: dict[str, tuple[Path, str]])`, plus one builder per shape:
-     - `shape_backfilled_legacy()`: slug `057-foo`, with a valid ULID whose mid8 is **not** in the slug.
-     - `shape_mismatched_mid8()`: slug `foo-01KV6510`, with an identity whose mid8 differs (for example a ULID starting `01M3AAAA`).
-     - `shape_invalid_identity_long()`: `mission_id="not-a-valid-ulid"` (≥ 8 characters, not Crockford).
-     - `shape_invalid_identity_short()`: `mission_id="abc"` (< 8 characters).
+  6. Expose a frozen dataclass, for example `DivergentMission(repo_root, feature_dir, slug, mission_id, manifest, lanes: dict[str, tuple[Path, str]])`, plus one builder per shape. Every value below is a **literal** in the fixture: the fixture never calls `mission_branch_name(..., mission_id=<invalid>)` and never composes a name with code under test. (The `mission_branch` literals were computed once at HEAD `8900c2cb` from what today's first finalize writes; shape d's finalize raises, so it records the legacy form.)
+
+     | Builder | `slug` | `mission_id` | recorded `mission_branch` |
+     |---|---|---|---|
+     | `shape_backfilled_legacy()` | `"057-foo"` | `"01KNXQS9ATWWFXS3K5ZJ9E5008"` (valid ULID; mid8 not in the slug) | `"kitty/mission-foo-01KNXQS9"` |
+     | `shape_mismatched_mid8()` | `"foo-01KV6510"` | `"01M3AAAAB6XQ7Z2K4M9N0P1R3S"` (valid ULID; mid8 differs) | `"kitty/mission-foo-01KV6510-01M3AAAA"` |
+     | `shape_invalid_identity_long()` | `"057-foo"` | `"not-a-valid-ulid"` (≥ 8 characters, not Crockford) | `"kitty/mission-foo-not-a-va"` |
+     | `shape_invalid_identity_short()` | `"057-foo"` | `"abc"` (< 8 characters) | `"kitty/mission-057-foo"` |
+
+     The lane branches and worktrees still come **only** from the allocator's return value (for these shapes the allocator creates `kitty/mission-057-foo-lane-a` / `kitty/mission-foo-01KV6510-lane-a`; do not assert on them as literals in the fixture, record what it returned).
   7. Add variant knobs:
      - `with_canceled_lane=True`: two lanes; lane-a approved, lane-b canceled.
      - `delete_created_branch_of="lane-a"`: remove that lane's worktree (`git worktree remove`) and branch (`git branch -D`) **after** the approved commit, to reproduce US1 AS3.
@@ -191,7 +196,7 @@ Success means:
      - the lane is not fully canceled;
      - `lanes/_git.branch_exists(repo_root, branch)` is False.
   2. In `build_approved_wp_set`, after the snapshot is materialized and before the collectors run, call the helper. If it returns entries, return an `ApprovedWpCommitSet` with `surface_resolved=True` and `refusal="approved lane <id>: created branch '<branch>' does not exist in git; the lane's work cannot be attributed. …"`, plus `manifest_wp_ids`, `mission_slug` and `planning_prefix`, mirroring the existing refusal construction. Join multiple lanes deterministically, sorted by lane id.
-  3. Strict vs tolerant probes. `_lane_tip_commits` and `_lane_first_parent_spine` swallow `GitProbeError` → `[]`. Keep that tolerance **only** for the canceled axis (`_collect_excluded`). For approved lanes whose branch passed the existence check, a `GitProbeError` must become a named refusal. Implement this with a keyword-only `tolerate: bool = True` parameter, or a strict sibling helper, whichever keeps each function ≤ CC 5. Surface it by having `build_approved_wp_set` catch a small private exception and translate it into the refusal. Do not let a raw traceback escape.
+  3. **Probe tolerance stays exactly as it is.** The strict arm is ONLY the created-branch existence check in step 1 (PD-5, orchestrator-adjudicated; this supersedes the plan's "tolerant only on the canceled axis" clause). Do **not** change the `GitProbeError` → `[]` tolerance of `_lane_tip_commits` or `_lane_first_parent_spine`, on any axis. That tolerance is #5001 FOLD-3 scoping, pinned by `tests/merge/test_reconciliation.py::test_build_claim_tolerates_unresolvable_lane_probe`, which must stay **green and unmodified** (no diff hunk inside that function).
   4. Keep `build_approved_wp_set` ≤ CC 5 (it is CC2 now). If needed, extract `_refusal_claim(lanes_manifest, planning_prefix, message)`.
 - **Edge cases**:
   - A canceled lane with no branch: never a refusal (US1 AS2).
@@ -210,8 +215,10 @@ Success means:
     - it pins the defect → re-express it as a created-name assertion;
     - it pins something still true → keep the behaviour and drop only the identity.
   - Record each such decision in the Activity Log.
+  - Do not edit `test_build_claim_tolerates_unresolvable_lane_probe`. If a shared helper it calls (for example `_build_mission`) is migrated, that test must still pass unchanged.
 - **Validation**:
   - [ ] The alias-aware AST scan (below) reports 0 identity-passing lane-naming calls in the file.
+  - [ ] `test_build_claim_tolerates_unresolvable_lane_probe` has no diff and is green.
   - [ ] Every test in the file passes.
 
 ```python
@@ -230,7 +237,7 @@ print(hits)
 
 ### Subtask T006 – Quality gates and blast radius
 
-- Observe (do not edit) `tests/integration/test_merge_lane_planning_data_loss.py::TestPlanningArtifactReachesTarget`. It is red on HEAD (2 failed: "no approved lane resolved any commits"). Record whether it is green after WP01 alone. WP03 owns the "green unedited" assertion.
+- Assert (do not edit) `tests/integration/test_merge_lane_planning_data_loss.py::TestPlanningArtifactReachesTarget`. It is red on HEAD (2 failed: "no approved lane resolved any commits") and must be **green after WP01 alone** (verified by the post-tasks squad: the claim fix is sufficient). Record the run. WP03 re-asserts it later as a regression guard.
 - Run the commands in the Test Strategy. Record the exact commands and pass/fail counts in the Activity Log.
 
 ## Test Strategy
@@ -257,7 +264,7 @@ make test-fast
 .venv/bin/mypy src/specify_cli/merge/reconciliation.py tests/merge/_divergent_shapes.py tests/merge/test_reconciliation_divergent.py
 ```
 
-- Diff coverage on changed lines must be ≥ 90% (NFR-004). Every new helper branch needs a test: missing branch, canceled, planning, and the strict probe error.
+- Diff coverage on changed lines must be ≥ 90% (NFR-004). Every new helper branch needs a test: missing branch, canceled, planning.
 
 ## Definition of Done
 
@@ -265,12 +272,14 @@ make test-fast
 - [ ] Red-first evidence recorded (the run on HEAD fails, the run after passes).
 - [ ] 4/4 shapes attribute commits at claim level, canceled plus survivor passes, and a missing created branch produces a named refusal.
 - [ ] 0 identity-passing lane-naming calls in owned files.
+- [ ] `TestPlanningArtifactReachesTarget` is green with its class unedited.
+- [ ] `test_build_claim_tolerates_unresolvable_lane_probe` is green and unmodified; probe tolerance unchanged.
 - [ ] ruff, ruff format, mypy and C901 are clean on touched files, with no new suppressions.
 - [ ] `make test-fast` and `tests/merge/` are green, with baseline-red failures classified per CLAUDE.md.
 
 ## Risks & Mitigations
 
-- **Over-strict refusal**: gate it on approved, non-planning, non-canceled lanes only, and cover each exemption with a test.
+- **Over-strict refusal**: gate it on approved, non-planning, non-canceled lanes only, and cover each exemption with a test. Never widen strictness to probe errors (FOLD-3).
 - **Shape (d) may crash inside the allocator at HEAD**: that is a finding. Report it; do not work around it.
 - **Fixture drift into composing names**: reviewers grep the fixture for `mission_id=` inside naming calls and for f-strings with `-lane-`.
 

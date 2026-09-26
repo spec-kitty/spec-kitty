@@ -126,6 +126,7 @@ This WP clears the lanes-subsystem consumers that diverge today, or that carry a
 - **Assertions**:
   - After sync, `git -C <lane worktree> rev-parse --abbrev-ref HEAD` equals the allocator-created branch (red on HEAD: the decoy is attached).
   - A second test: a worktree whose `HEAD` is detached or on another branch, with the created branch absent. Sync raises `LaneAutoRebaseSyncError` naming the created branch; it never falls back to `HEAD` (red on HEAD).
+  - A third test, **invalid identity < 8 characters, no decoy**: `lanes.json` records `mission_id="abc"` (a literal), the lane is created by the allocator, and no decoy branch exists. On HEAD the probe's identity-form candidate calls the naming code with that identity and **crashes** (`ValueError` from `_mid8`: "mission_id must be at least 8 characters…"). After T008, sync attaches the allocator-created branch and never raises `ValueError`. Record the HEAD traceback as the red evidence.
 - Mark with the markers used by `tests/integration/test_lane_lifecycle_sync.py` (for example `git_repo`).
 - **Validation**: red run recorded in the Activity Log.
 
@@ -142,7 +143,7 @@ This WP clears the lanes-subsystem consumers that diverge today, or that carry a
      Use `lanes_manifest.mission_slug` (PD-2). It equals `mission_slug` for every real caller; assert that in a comment only if it is true.
      Before adding the `noqa`, check whether a module-level import is cycle-free. If it is, prefer it and drop the `noqa`; suppressions need justification.
   3. Remove the now-unused `lane_branch_name` / `_worktree_path` imports if nothing else uses them.
-  4. Error path — **do NOT change it in this WP.** The `CorruptLanesError` branch builds `lane_worktree_path=repo_root / WORKTREES_DIRNAME / f"{mission_slug}-unknown"`. That line is a content-pinned carve-out in the existing gate `tests/architectural/test_no_worktree_name_guess.py` (`_ALLOWED_SITES_FILES` + `_NAME_COMPOSE_BASELINE_RAW_MATCHES = 5`). Changing it here would turn that gate's staleness guard RED in this lane, and the gate file is owned by WP07. WP07 removes the placeholder and shrinks the allow-list in one commit (tasks.md ownership table). Keep the line byte-identical, and make sure your edits above it do not change its enclosing function's qualname.
+  4. Error path — **do NOT change it in this WP.** The `CorruptLanesError` branch builds `lane_worktree_path=repo_root / WORKTREES_DIRNAME / f"{mission_slug}-unknown"`. That line is a content-pinned carve-out in the existing gate `tests/architectural/test_no_worktree_name_guess.py` (`_ALLOWED_SITES_FILES` + `_NAME_COMPOSE_BASELINE_RAW_MATCHES = 5`). Changing it here would turn that gate's staleness guard RED in this lane, and the gate file is owned by WP11. WP11 removes the placeholder and shrinks the allow-list in one commit (tasks.md ownership table). Keep the line byte-identical, and make sure your edits above it do not change its enclosing function's qualname.
   5. If the worktree is missing and the created branch does not exist, `git worktree add` fails, and the existing `LaneAutoRebaseSyncError` path already reports it. Keep that path and make sure the message names `lane_branch`.
 - **Validation**:
   - [ ] T007 is green.
@@ -216,7 +217,7 @@ make test-fast
 
 ## Definition of Done
 
-- [ ] `_resolve_lane_branch` and `_git_ref_exists` are deleted and there is no HEAD fallback. The `-unknown` error-path placeholder is intentionally left for WP07.
+- [ ] `_resolve_lane_branch` and `_git_ref_exists` are deleted and there is no HEAD fallback. The `-unknown` error-path placeholder is intentionally left for WP11.
 - [ ] Acceptance finds divergent-shape lane roots.
 - [ ] `recovery.py` worktree lookups go through `predict_lane_worktree`. The enumeration is untouched.
 - [ ] An invalid identity raises `BranchIdentityUnresolved` in `_resolve_mission_branch`.

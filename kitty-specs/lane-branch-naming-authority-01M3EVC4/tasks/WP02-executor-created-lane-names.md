@@ -102,13 +102,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Plan**:
   - PD-2 (manifest slug), PD-4 (H5 scope), PD-14 (upgrade resume → refusal, pinned in WP03).
   - Complexity Tracking: `_phase_cleanup_worktrees_and_branches` goes from CC10 to about 4 via extraction; `_enforce_resume_anchor_integrity` goes from CC5 to about 6.
+  - **Headroom rule**: `_run_lane_based_merge` is **CC14** at HEAD `8900c2cb` (one below the ceiling). Every function you touch in `executor.py`, and `_run_lane_based_merge` in particular, must stay **≤ 15 and ≤ its current value + 1**. If a change would push it over, extract a helper (for example move the new preflight/resume call into an existing phase function) instead of adding a branch; never suppress C901.
 - **Research Part A**:
   - §3 "FR-004" (`_capture_pre_interrupt_lane_tips`, CC4).
   - §3 "FR-005" (H5 details).
   - §3 "FR-006" table rows `executor.py:2966` preflight, `:2756` cleanup, `:2782`, `:2794`, `:654`.
   - §6 tidy-first extractions.
 - **tasks.md deviation 5**: H5 is here (single owner of `executor.py`). **Deviation 2**: `worktree_path` / `worktree_dir_name` require `mission_id` at HEAD, so route through `predict_lane_worktree` (no identity parameter) and leave WP07 nothing to edit in this file.
-- **FR-012 constraint**: in `tests/integration/test_merge_lane_planning_data_loss.py` you may migrate `TestRetentionConstraintSurvivesCleanup` (its `worktree_path(..., mission_id=_RETENTION_MISSION_ID, ...)` calls, ≈L1518, L1631, L1729). You must **not edit `TestPlanningArtifactReachesTarget`**; it has to go green with its fixture unedited (WP03 asserts that).
+- **FR-012 constraint**: in `tests/integration/test_merge_lane_planning_data_loss.py` you may migrate `TestRetentionConstraintSurvivesCleanup` (its `worktree_path(..., mission_id=_RETENTION_MISSION_ID, ...)` calls, ≈L1518, L1631, L1729). You must **not edit `TestPlanningArtifactReachesTarget`**; it has to go green with its fixture unedited (WP01 asserts that; WP03 re-asserts it).
 - **Reuse** WP01's `tests/merge/_divergent_shapes.py` fixture (real allocator). Do not fork it. If you need a knob it lacks (for example `with_planning_lane`), add it as a small documented out-of-map edit, or ask for it.
 
 **Implementation command**: `spec-kitty agent action implement WP02 --agent <name>`. It depends on WP01.
@@ -179,7 +180,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              console.print("\n[red]Error:[/red] cannot resume this merge: the persisted pre-interrupt lane-tip record has no anchor for lane branch(es) " + ", ".join(repr(b) for b in missing) + " (the record is empty, partial, or was written by an older release under a different name). Resuming without an anchor would disarm the resume guard. Run `spec-kitty merge --abort` and start the merge fresh.")
              raise typer.Exit(1)
      ```
-     Hoist the remedy phrase "Run `spec-kitty merge --abort` and start the merge fresh." into a module constant: it now appears ≥ 3 times in the function (S1192).
+     **REQUIRED (S1192)**: hoist the literal `"spec-kitty merge --abort"` into a module constant (for example `_MERGE_ABORT_COMMAND = "spec-kitty merge --abort"`). At HEAD it already appears 3 times in `executor.py` (≈L1339, ≈L2030, ≈L2040), and H5 adds a fourth. Route **every** occurrence, old and new, through the constant (via f-string interpolation), and do the same for the phrase "Run `spec-kitty merge --abort` and start the merge fresh." if it repeats. After the change, `grep -c '"spec-kitty merge --abort"' src/specify_cli/merge/executor.py` is 1 (the constant definition). Keep the rendered text of the existing messages byte-identical; their tests must not need re-pinning.
   3. Update the docstring with an **H5** bullet.
 - **Complexity**: `_enforce_resume_anchor_integrity` stays ≤ 8.
 
@@ -215,7 +216,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 ### Subtask T036 – Migrate owned tests, quality gates, blast radius
 
-- `tests/integration/test_merge_lane_planning_data_loss.py`: migrate **only** `TestRetentionConstraintSurvivesCleanup`'s identity-keyed `worktree_path` calls to `predict_lane_worktree`, or to the allocator output of the lanes the fixture created. `git diff` must show **no** change inside `class TestPlanningArtifactReachesTarget`. Observe and record whether that class is green now; WP03 asserts it.
+- `tests/integration/test_merge_lane_planning_data_loss.py`: migrate **only** `TestRetentionConstraintSurvivesCleanup`'s identity-keyed `worktree_path` calls to `predict_lane_worktree`, or to the allocator output of the lanes the fixture created. `git diff` must show **no** change inside `class TestPlanningArtifactReachesTarget`. Observe and record that the class is still green (WP01 made it green); a red run here is a regression you introduced.
 - `tests/merge/test_executor_terminus_integrity.py`: done in T031/T033.
 - Run the Test Strategy commands and record the exact commands plus counts.
 
@@ -252,6 +253,8 @@ make test-fast
 - [ ] The preflight catches a dirty divergent worktree. Cleanup leaves no orphans, and retention is honoured.
 - [ ] The tidy-first extraction was committed separately, with no behaviour change.
 - [ ] `TestPlanningArtifactReachesTarget` is untouched.
+- [ ] `"spec-kitty merge --abort"` lives in one module constant; every message uses it (S1192).
+- [ ] `_run_lane_based_merge` stays ≤ 15 (current CC14, so at most +1); every other touched function is ≤ its current CC + 1 and ≤ 15.
 - [ ] Gates are clean; `tests/merge/` and `make test-fast` are green.
 
 ## Risks & Mitigations

@@ -95,7 +95,7 @@ Success means:
    - `parse_lane_worktree_dir(dir_name: str) -> tuple[str, str] | None` returns `(slug, lane_id)` via a right-anchored `-(lane-[a-z]+)$`.
    - `lane_id_for_worktree_dir(dir_name: str, mission_slug: str) -> str | None` recognizes a directory by **recomposition**: it returns `lane_id` iff `worktree_dir_name(mission_slug, mission_id=None, lane_id=lane_id) == dir_name`.
 3. `is_lane_branch` accepts the plain-legacy grammar (`kitty/mission-foo-lane-a`, which creation produces for a bare slug). As a consequence, `is_mission_branch("kitty/mission-foo-lane-a")` flips to `False`, which is correct.
-4. Five of the seven FR-008 match sites route through the authority (the other two are WP07's, see below):
+4. Five of the seven FR-008 match sites route through the authority (the other two are WP11's, see below):
    - `git/sparse_checkout.py` (`_ManagedLanePolicy.matches_path`, plus the hand-rolled compose in `expected_branch_for`);
    - `status/doctor.py::check_orphan_workspaces`;
    - `live_work/bindings.py` (`_WORKTREE_DIR_RE`);
@@ -105,8 +105,8 @@ Success means:
 
 **Not in this WP** (see the tasks.md ownership table):
 
-- `cli/commands/_coordination_doctor.py::_check_lane_sparse_checkout_drift`: that file is owned by WP10 (#5113), and WP07 performs the one-line matcher swap. Do not edit `_coordination_doctor.py`.
-- `core/vcs/detection.py::_get_locked_vcs_from_feature`: its `parse_mission_slug_from_branch(f"kitty/mission-{worktree_name}")` round trip is a **content-pinned carve-out** in the existing gate `tests/architectural/test_no_worktree_name_guess.py` (`_NAME_COMPOSE_BASELINE_RAW_MATCHES = 5`). Changing it here would turn that gate's staleness guard RED in this lane, and the gate is owned by WP07. WP07 owns `detection.py`, and switches it to your `parse_lane_worktree_dir` while shrinking the allow-list in the same commit. Do not edit `detection.py`.
+- `cli/commands/_coordination_doctor.py::_check_lane_sparse_checkout_drift`: that file is owned by WP10 (#5113), and WP11 performs the one-line matcher swap. Do not edit `_coordination_doctor.py`.
+- `core/vcs/detection.py::_get_locked_vcs_from_feature`: its `parse_mission_slug_from_branch(f"kitty/mission-{worktree_name}")` round trip is a **content-pinned carve-out** in the existing gate `tests/architectural/test_no_worktree_name_guess.py` (`_NAME_COMPOSE_BASELINE_RAW_MATCHES = 5`). Changing it here would turn that gate's staleness guard RED in this lane, and the gate is owned by WP11. WP11 owns `detection.py`, and switches it to your `parse_lane_worktree_dir` while shrinking the allow-list in the same commit. Do not edit `detection.py`.
 
 **Additive only**: do **not** remove `mission_id` from `lane_branch_name`, `worktree_dir_name` or `worktree_path`. That is WP07's atomic cutover. At HEAD `worktree_dir_name` requires the `mission_id` keyword, so the new parsers call it with `mission_id=None`; WP07 drops that keyword later.
 
@@ -165,12 +165,14 @@ Success means:
   4. `is_lane_branch`: add `or _PLAIN_LEGACY_LANE_RE.match(branch_name) is not None`. Check the callers (`grep -rn "is_lane_branch\|is_mission_branch" src`) and note in the Activity Log any caller whose behaviour changes for `kitty/mission-<slug>-lane-x`.
   5. Add both parsers to `__all__`.
 - **Tests** (`tests/specify_cli/lanes/test_lane_naming_parsers.py`, new):
-  - Parametrize over the three grammars, each composed via `worktree_dir_name(slug, mission_id=None, lane_id=…)` so the round trip is by construction:
-    - legacy `057-foo`;
-    - plain `foo`;
-    - mid8 `foo-01KV6510`;
-    - the NNN-plus-mid8 slug `057-foo-01KV6510` (dir verbatim `057-foo-01KV6510-lane-a`).
-  - Negative cases: `foo` (no lane), `foo-lane-` (empty), `foo-lane-A` (uppercase), `foobar-lane-a` vs slug `foo` → `None`.
+  - Every input is a **literal directory-name string**; never compose an input with `worktree_dir_name` or any other code under test. Parametrize `parse_lane_worktree_dir` over (input → expected):
+    - legacy `"057-foo-lane-a"` → `("057-foo", "lane-a")`;
+    - plain `"foo-lane-a"` → `("foo", "lane-a")`;
+    - mid8 `"foo-01KV6510-lane-a"` → `("foo-01KV6510", "lane-a")`;
+    - NNN-plus-mid8 `"057-foo-01KV6510-lane-a"` → `("057-foo-01KV6510", "lane-a")`;
+    - multi-letter `"foo-lane-aa"` → `("foo", "lane-aa")`.
+  - `lane_id_for_worktree_dir` over literal `(dir, slug)` pairs: `("057-foo-lane-a", "057-foo")` → `"lane-a"`; `("foo-01KV6510-lane-b", "foo-01KV6510")` → `"lane-b"`; `("057-foobar-lane-a", "057-foo")` → `None`.
+  - Negative literals → `None`: `"foo"` (no lane), `"foo-lane-"` (empty), `"foo-lane-A"` (uppercase), `"foo-lane-1"` (digit), and `"foobar-lane-a"` with slug `"foo"`.
   - `is_lane_branch("kitty/mission-foo-lane-a")` → True; `is_mission_branch(...)` → False.
 - **Validation**: all parser tests are green; the functions are CC ≤ 3.
 
@@ -224,12 +226,14 @@ Success means:
   - Delete `_LANE_BRANCH_RE` (`^kitty/mission-.+-lane-[a-z]$`).
   - `is_implementation_branch(branch_name)` returns `is_lane_branch(branch_name)`.
   - Only this body changes; the CC14 `validate_staged_files` is **not** touched.
-  - Tests: plain-legacy `kitty/mission-foo-lane-a` → True; multi-letter lane → True; `kitty/mission-foo` → False.
+  - Tests (literal branch strings):
+    - **Red-first case**: multi-letter lane ids, for example `kitty/mission-057-foo-lane-aa` and `kitty/mission-foo-01KV6510-lane-ab` → True. On HEAD `_LANE_BRANCH_RE` ends in `lane-[a-z]$`, so these are False (red).
+    - Regression guards (already green on HEAD; they must stay green): plain-legacy `kitty/mission-foo-lane-a` → True; `kitty/mission-foo` → False; `main` → False.
 - **`merge/resolve.py::_extract_mission_slug`**:
   - The trailing `re.match(r"^(\d{3}-[a-z0-9][a-z0-9-]*?)(?:-(?:lane-[a-z]))?$", branch_name)` is redundant after `parse_mission_slug_from_branch` for `kitty/mission-…` names. It also accepts **bare** `NNN-slug` branch names (no `kitty/mission-` prefix).
   - Before deleting it, grep callers and check whether any path passes a bare `NNN-slug` string. If one does, route it through the authority. For example, parse `f"kitty/mission-{name}"` only if that is a documented contract; better, reuse `parse_lane_worktree_dir` / `strip_numeric_prefix`. Do not add a new hand-rolled regex.
   - Record the evidence either way. Tests: the known branch shapes return the same slug as today.
-- **`core/vcs/detection.py`**: not in this WP (WP07). Your `parse_lane_worktree_dir` must support its need, so add a parser test for `057-foo-01KV6510-lane-a` → `("057-foo-01KV6510", "lane-a")`.
+- **`core/vcs/detection.py`**: not in this WP (WP11). Your `parse_lane_worktree_dir` must support its need, so add a parser test for `057-foo-01KV6510-lane-a` → `("057-foo-01KV6510", "lane-a")`.
 
 ### Subtask T019 – Site regression tests, quality gates and blast radius
 
@@ -253,7 +257,7 @@ Success means:
 .venv/bin/python -m pytest tests/lanes/test_branch_naming_seam.py tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py tests/core/test_branch_naming_human_slug.py -q   # must stay green, unedited
 .venv/bin/python -m pytest tests/specify_cli/lanes/ tests/lanes/ tests/status/test_doctor.py tests/specify_cli/live_work/ tests/merge/ -q
 .venv/bin/python -m pytest $(grep -rl "sparse_checkout\|commit_guard\|is_implementation_branch\|live_work.bindings\|resolve_bindings\|_extract_mission_slug\|is_lane_branch\|is_mission_branch" tests --include=*.py | tr '\n' ' ') -q
-.venv/bin/python -m pytest tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_no_dead_symbols.py -q   # observe; WP07 owns the gate
+.venv/bin/python -m pytest tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_no_dead_symbols.py -q   # observe; WP11 owns the gate
 make test-fast
 ```
 
@@ -272,7 +276,7 @@ FILES="src/specify_cli/lanes/branch_naming.py src/specify_cli/git/sparse_checkou
 - [ ] `_LANE_ID_RE` is the only lane-id grammar in the module, and every lane regex is built from it.
 - [ ] Both parsers are public, in `__all__`, and tested over the three grammars plus negatives.
 - [ ] `is_lane_branch` accepts plain-legacy.
-- [ ] 5 of the 7 FR-008 match sites are routed (`_coordination_doctor` and `vcs/detection` are WP07's). The hand-rolled compose in `sparse_checkout.py` is gone.
+- [ ] 5 of the 7 FR-008 match sites are routed (`_coordination_doctor` and `vcs/detection` are WP11's). The hand-rolled compose in `sparse_checkout.py` is gone.
 - [ ] Each behaviour change has a named test. The naming golden suites are green and unedited.
 - [ ] ruff, format, mypy and C901 are clean; `make test-fast` is green.
 
@@ -281,7 +285,7 @@ FILES="src/specify_cli/lanes/branch_naming.py src/specify_cli/git/sparse_checkou
 - **Group-index drift in the rebuilt regexes**: parity tests over the existing seam suites.
 - **`is_mission_branch` flip for plain-legacy lane branches**: audit the callers and log the outcome.
 - **Bare-slug inputs to `_extract_mission_slug`**: evidence-first before deleting the regex.
-- **Existing gate interaction**: observe only; WP07 updates it.
+- **Existing gate interaction**: observe only; WP11 updates it.
 
 ## Review Guidance
 

@@ -86,7 +86,7 @@ This WP is the **proof** that #5108 is closed for the operator. It also closes t
 2. **SC-002 / US1 AS5**: after each successful merge, 0 created lane branches or worktrees are orphaned, and the retention policy (`retain_branches` / `retain_worktrees`) keeps exactly the created names.
 3. **PD-14 upgrade pin (FR-005, US2 AS2)**: a merge interrupted under the old code has persisted a tip record keyed under the identity-form branch name. On `--resume` it refuses and names `spec-kitty merge --abort`. Canceled-only and planning-only Missions are exempt, end to end (US2 AS3).
 4. **PD-13 (FR-011)**: two fallbacks in `merge/preflight.py` must prefer the recorded `lanes.json` `mission_branch` when one is available: `target_branch_sync_remediation` (the `source_branch = mission_branch or mission_branch_name_required(...)` line) and `_check_mission_branch` (`expected_branch or resolve_branch_name(...)`). When they must recompose from an invalid identity, they refuse with the typed `BranchIdentityUnresolved`, never a `ValueError` traceback.
-5. **FR-012**: `tests/integration/test_merge_lane_planning_data_loss.py::TestPlanningArtifactReachesTarget` (red on HEAD: 2 failed) goes **green without editing its fixture**.
+5. **FR-012 regression guard**: `tests/integration/test_merge_lane_planning_data_loss.py::TestPlanningArtifactReachesTarget` (red on HEAD: 2 failed) was turned green by WP01 alone. This WP **re-asserts** it green, with its class unedited, after WP02 and WP04 landed.
 
 ## Context & Constraints
 
@@ -98,9 +98,9 @@ This WP is the **proof** that #5108 is closed for the operator. It also closes t
 - **Research Part A**: §4 lists `merge/preflight.py:123`, `:165` as independent composers. §8 Risk 4.
 - **tasks.md deviations 5 and 6**: H5 lives in WP02 (`executor.py`), and the recovery fallback in WP04 (`lanes/recovery.py`). This WP owns neither file. It exercises them end to end.
 - **Dependencies**:
-  - WP01: the claim, and the `_divergent_shapes` fixture you reuse.
-  - WP02: the executor stages and H5.
-  - WP04: the lifecycle and acceptance consumers, and recovery.
+  - WP01: the claim, and the `_divergent_shapes` fixture you reuse. WP01 alone already turns `TestPlanningArtifactReachesTarget` green (verified post-tasks); this WP only re-asserts it.
+  - WP02: the executor stages and H5, needed by the end-to-end merges (T043–T045).
+  - WP04: the lifecycle and acceptance consumers, and recovery, needed by the end-to-end merges.
 - **Residual failures**: if the end-to-end run surfaces a remaining non-naming failure in a file owned by an upstream WP (for example `executor.py` or `reconciliation.py`), fix it as a **documented out-of-map edit**. Those WPs are complete and their files are quiescent. Add a one-line rationale in the Activity Log and a regression test in your owned test file. If the fix is larger than a few lines, stop and report to the orchestrator.
 
 **Implementation command**: `spec-kitty agent action implement WP03 --agent <name>`. It depends on WP01, WP02 and WP04.
@@ -125,10 +125,13 @@ This WP is the **proof** that #5108 is closed for the operator. It also closes t
   - The command exits 0 with no `Traceback` in the output, and nothing like "no approved lane resolved any commits" or "Reconciliation refused".
   - Every approved lane's commit SHA, taken from the fixture's recorded allocator output, is reachable from the target: `git merge-base --is-ancestor <sha> <target>`, or content-equivalent for squash. Use the default strategy and assert blob presence for squash.
   - Add a canceled-lane-plus-survivor variant for one shape (US1 AS2).
-- **Red-first**:
-  - Run this test on the **merge-base of this mission**, before WP01, WP02 and WP04, for example via `git stash` or by running against `upstream` with `PYTHONPATH`, per CLAUDE.md "baseline-red gotcha".
-  - Record that it is red (refused or crashing) there.
-  - If that is impractical inside the lane worktree, record the WP01 claim-level red run as the proxy and state it explicitly.
+- **Red-first (SC-001 red run, MANDATORY; no proxy)**:
+  1. `MB=$(git merge-base HEAD claude/charter-load-mission-q9ajcz)`; if your lane base differs, use the mission's planning commit before WP01's first commit. Record the SHA.
+  2. `git worktree add --detach /tmp/wp03-mb-$MB $MB` (outside `.worktrees/`, detached, so it creates no lane branch).
+  3. From your lane worktree, run the new test file against the old source: `PYTHONPATH=/tmp/wp03-mb-$MB/src .venv/bin/python -m pytest tests/merge/test_merge_divergent_end_to_end.py -q -p no:cacheprovider`. The test file and the `_divergent_shapes` fixture come from your lane; the product code comes from the merge-base. Confirm with `python -c "import specify_cli, sys; print(specify_cli.__file__)"` under the same `PYTHONPATH` that the old tree is imported.
+  4. Record the red output (counts plus one representative refusal or traceback per shape) in this WP's Activity Log as evidence.
+  5. `git worktree remove --force /tmp/wp03-mb-$MB`.
+  - If the fixture itself cannot import against the merge-base (for example it needs an API a WP added), make the fixture import-compatible with both trees, or put the old-tree-incompatible part behind the test, and re-run. Do **not** substitute the WP01 claim-level red run; if the red run stays impossible, STOP and report to the orchestrator.
 
 ### Subtask T044 – Orphan and retention assertions (SC-002)
 
@@ -167,8 +170,8 @@ This WP is the **proof** that #5108 is closed for the operator. It also closes t
 
 ### Subtask T047 – Planning-artifact class green unedited, triage, quality gates
 
-- Run `tests/integration/test_merge_lane_planning_data_loss.py::TestPlanningArtifactReachesTarget`. It **must** be green. `git diff <mission base> -- tests/integration/test_merge_lane_planning_data_loss.py` must show no change inside that class (WP02 may have edited another class).
-- If it is still red:
+- Re-assert `tests/integration/test_merge_lane_planning_data_loss.py::TestPlanningArtifactReachesTarget`. It **must** be green; WP01 already made it green. `git diff <mission base> -- tests/integration/test_merge_lane_planning_data_loss.py` must show no change inside that class (WP02 may have edited another class).
+- If it is red here, that is a **regression** introduced after WP01 (most likely by WP02 or WP04):
   - Diagnose it to the root cause (DIRECTIVE_052).
   - If the cause lies in `reconciliation.py` or `executor.py`, apply the out-of-map rule from Context & Constraints.
   - Never edit the class.
@@ -176,7 +179,7 @@ This WP is the **proof** that #5108 is closed for the operator. It also closes t
 
 ## Test Strategy
 
-- **Red-first**: T043/T045/T046 tests are demonstrated red on the pre-mission code, or via the documented proxy.
+- **Red-first**: T043 is demonstrated red on the mission merge-base via the mandatory `git worktree add` + `PYTHONPATH` run (no proxy). T045/T046 tests are demonstrated red on the pre-change code the same way, or on HEAD where the prompt says so.
 - **Real git + real allocator**: every name comes from the allocator output. Old-form keys are literals.
 - **Commands**:
 
@@ -199,6 +202,7 @@ make test-fast
 
 ## Definition of Done
 
+- [ ] SC-001 red run against the merge-base recorded in the Activity Log (SHA, command, red output).
 - [ ] 4/4 divergent shapes merge end to end (SC-001), with 0 orphans and retention honoured (SC-002).
 - [ ] The old-form tip record refuses on resume and names `--abort`. The exemptions hold (SC-005).
 - [ ] The preflight fallbacks prefer the recorded branch, and an invalid identity yields a typed refusal.

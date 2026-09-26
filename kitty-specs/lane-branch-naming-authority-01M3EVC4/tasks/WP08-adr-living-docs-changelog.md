@@ -2,7 +2,7 @@
 work_package_id: WP08
 title: ADR, living docs, CHANGELOG
 dependencies:
-- WP07
+- WP11
 requirement_refs:
 - FR-001
 - FR-002
@@ -94,7 +94,7 @@ Living Documentation Sync (DIRECTIVE_037) and Decision Documentation (DIRECTIVE_
    - the FR-005 upgrade behaviour (a resume from an older release refuses; the remedy is `merge --abort` plus a fresh merge);
    - the tension with the pre-3.2.x legacy retirement (C-007, see #2463), recorded and not decided.
 
-   Its file name uses the `-2` suffix because `2026-09-26-1-ci-coverage-honesty.md` already exists (tasks.md deviation 4). WP07's gate docstring already cites this path.
+   Its file name uses the `-2` suffix because `2026-09-26-1-ci-coverage-honesty.md` already exists (tasks.md deviation 4). WP11's gate docstring already cites this path.
 2. **Architecture docs**:
    - `docs/architecture/execution-lanes.md` §Naming: today it says lanes are `kitty/mission-<human-slug>-<mid8>-lane-a`. Rewrite it to "mid8 appears in a lane name only when the Mission slug embeds it; lane names never derive from the identity".
    - `docs/architecture/git-worktrees.md`: the "Naming note (mission 083+)" and the examples.
@@ -117,9 +117,9 @@ Living Documentation Sync (DIRECTIVE_037) and Decision Documentation (DIRECTIVE_
 - **Research**: the ADJ-1..7 table (adjudications worth citing in the ADR), and Part A §1.3 (alternatives).
 - **Charter**: Common Docs standard (DIRECTIVE_042: in-file frontmatter with `title`, `description`, `doc_status`/`status`, `updated`/`date`, following the neighbouring ADRs), audience-oriented writing (DIRECTIVE_047), and the terminology canon (**Mission**, never "feature"). Run `tests/architectural/test_no_legacy_terminology.py`.
 - **Execution mode**: `code_change`, because `CHANGELOG.md`, `CLAUDE.md` and `AGENTS.md` are outside `kitty-specs/` and `docs/`. The finalizer may warn that this WP owns no `src/`/`tests/` path; that warning is expected.
-- **Source of truth**: describe what WP01–WP07, WP09 and WP10 actually shipped. Read the merged code and the WP Activity Logs. Do not transcribe the plan.
+- **Source of truth**: describe what WP01–WP07 and WP09–WP11 actually shipped. Read the merged code and the WP Activity Logs. Do not transcribe the plan.
 
-**Implementation command**: `spec-kitty agent action implement WP08 --agent <name>`. It depends on WP07.
+**Implementation command**: `spec-kitty agent action implement WP08 --agent <name>`. It depends on WP11 (and, through it, on WP07).
 
 ## Branch Strategy
 
@@ -202,7 +202,7 @@ make test-fast
 
 ## Definition of Done
 
-- [ ] The ADR exists, with frontmatter, options, decision, consequences and residuals, and the WP07 gate docstring link resolves to it.
+- [ ] The ADR exists, with frontmatter, options, decision, consequences and residuals, and the WP11 gate docstring link resolves to it.
 - [ ] The architecture and migration docs describe the shipped naming. No doc claims that lanes derive from the identity.
 - [ ] `CLAUDE.md` and `AGENTS.md` are updated identically.
 - [ ] The CHANGELOG has Changed, Fixed and the upgrade note.
