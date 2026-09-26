@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "combined-tree (lanes a\u2013e merged on 7dac8bab): TestPlanningArtifactReachesTarget x2 pass with mission_id=None, gate unstubbed (WP02 d22bff5e)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T12:52:39.821341+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
