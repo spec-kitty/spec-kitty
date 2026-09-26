@@ -157,10 +157,17 @@ def _flatten(live: dict[str, list[tuple[int, str]]]) -> set[str]:
 # ---------------------------------------------------------------------------
 _ALLOWLIST: dict[str, str] = {
     # --- reset --hard (5) --------------------------------------------------
-    "src/specify_cli/doctrine/sources/git_source.py:98:reset_hard": (
-        "doctrine pack CLONE dir (not repo_root) -- git_source.py owns its own "
-        "fetch+reset consistency story for a throwaway doctrine-pack clone, "
-        "unrelated to the operator checkout the guard protects."
+    "src/specify_cli/doctrine/sources/git_source.py:163:reset_hard": (
+        "guarded reset (#4989): _update runs `git reset --hard` on the persistent "
+        "pack clone ONLY after _local_changes_refusal has fail-closed refused when "
+        "the working tree holds uncommitted local changes OR carries local commits "
+        "ahead of the reset target -- so this reset can never silently discard "
+        "hand-authored pack content; the target itself is resolved by ref type "
+        "(_resolve_reset_target) rather than blanket origin/<ref>. Re-pinned from "
+        ":98 (WP03, mission asset-preservation-migrate-fetch): the old entry's "
+        "line and its 'throwaway doctrine-pack clone' rationale were both false "
+        "after WP02 rewrote _update -- the clone is persistent (.git preserved "
+        "across fetches) and the reset is now dirty/ahead-guarded, not unguarded."
     ),
     "src/specify_cli/merge/git_probes.py:232:reset_hard": (
         "guarded by WP03/T011 (#4752): refuses via assert_checkout_on_target "
