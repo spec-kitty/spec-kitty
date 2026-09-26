@@ -32,16 +32,56 @@ with no such import has no mechanism to raise this particular
 unrelated hazard exposure (real file/network side effects from a script's actual
 ``--help``-agnostic logic) without covering any more of the defect class. Only
 MODULE-level imports count: the failure happens at import time, before ``main()``
-(or any other function) is ever called, so an import nested inside a function or
-class body -- which only executes if that function is later called, which
-``--help`` never does -- cannot exhibit this defect under this harness and is
-correctly excluded from the scan. A guard-protected import (``if <repo root not
-on sys.path>: sys.path.insert(...)`` immediately followed by
-``from scripts.x import y``) is still scanned: it is a sibling MODULE-level
-statement that runs unconditionally at import time, same as every guarded import
-in this repository's own fixed scripts (``fleet_verdict.py``,
-``stale_running_sweep.py``, ``wait_for_artifacts.py``, ``glossary_linker.py``,
-``plantuml_render.py``, ``seo_verify.py`` at the time this scoping was added).
+(or any other function) is ever called. "Module level" means every statement that
+executes unconditionally as the module runs top to bottom -- not just a bare
+top-level statement, but also one nested inside an ``if``/``try``/``except``/
+``else``/``finally``/``with``/``for``/``while``/``match`` block, however deep,
+because none of those defer execution the way a function body does
+(op-rereview-001: the earlier version of this scan recursed only into ``ast.If``,
+so a ``try: from scripts.ci.x import y`` / ``except ImportError:`` guard -- a real
+alternative to the ``if``-guard style this repo uses today -- was silently
+invisible to the scan). An import nested inside a ``def``/``async def`` function
+body, or inside a ``lambda``, is correctly excluded: that body only executes if
+and when the function is later called, which ``--help`` never does. ``class``
+bodies are a deliberate middle case: unlike a function body, a ``class``
+statement's body runs immediately -- at module-import time -- while building the
+class object, so a module-level ``class Foo: from scripts.ci import bar`` is
+exposed to the exact same ``ModuleNotFoundError`` as a bare or ``if``-guarded
+import. This scan therefore DOES recurse into ``ClassDef`` bodies (see
+``_nested_module_level_stmt_lists``) even though it treats ``FunctionDef``/
+``AsyncFunctionDef`` as opaque; a ``ClassDef`` nested inside another ``ClassDef``
+is then covered too, for free, since walking the outer body naturally reaches it.
+A guard-protected import (``if <repo root not on sys.path>:
+sys.path.insert(...)`` immediately followed by ``from scripts.x import y``) is
+still scanned: it is a sibling MODULE-level statement that runs unconditionally
+at import time, same as every guarded import in this repository's own fixed
+scripts (``fleet_verdict.py``, ``stale_running_sweep.py``,
+``wait_for_artifacts.py``, ``glossary_linker.py``, ``plantuml_render.py``,
+``seo_verify.py`` at the time this scoping was added).
+
+The workflow-invoked candidate list is derived by parsing each workflow's YAML
+(``jobs.<job>.steps[].run``) with ``yaml.safe_load`` and scanning only those
+``run:`` shell-block strings for the bare-script pattern -- never the workflow
+file's raw text (op-rereview-002: a raw full-text scan also matches the pattern
+inside an ordinary ``#``-comment line that is not inside any ``run:`` block at
+all, e.g. a stale reference left behind after a script move/rename or a
+descriptive comment mentioning a script by name). Parsing the YAML properly was
+chosen over hardening the regex to skip ``#``-prefixed lines because walking the
+parsed document to the actual ``run:`` strings is exact regardless of comment
+placement, indentation, or block-scalar style, where a comment-stripping regex
+would only ever approximate the same thing (and would still need to avoid
+stripping a ``#`` that is legitimately inside quoted shell text). A workflow that
+references a ``scripts/*.py`` path which does not exist on disk (a rename, a
+moved file, a typo) is itself a real CI defect, not something to drop silently --
+but that check must not run at collection time, inside the
+``@pytest.mark.parametrize(...)`` call below, where an uncaught
+``FileNotFoundError`` would fail collection of this ENTIRE file with a confusing
+traceback instead of a clean, targeted assertion (op-rereview-002).
+``_imports_scripts_package`` therefore treats a missing path as simply
+not-provably-exposed (returns ``False``, never raises) at collection time, and
+``test_workflow_invoked_scripts_resolve_to_real_files`` below asserts, at
+ordinary test-execution time, that every derived path actually exists --
+naming the offending path(s) if not.
 
 The only assertion on the filtered set is the precise defect-class floor: no
 ``ModuleNotFoundError: No module named 'scripts'`` at import time. It does not
@@ -100,6 +140,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 # Spawns a real subprocess per parametrized script (~dozens of ms to low seconds
 # each; one case measured 5.83s) -- legitimately slow, subprocess-fanning tests,
@@ -116,19 +157,39 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _WORKFLOWS_DIR = _REPO_ROOT / ".github" / "workflows"
 
 # Matches a bare `python3 scripts/ci/foo.py` / `python scripts/docs/bar.py` style
-# invocation anywhere in a workflow's `run:` shell text -- including mid-pipeline
-# (`| python3 scripts/ci/foo.py`) and behind an explicit interpreter path
-# (`.venv/bin/python scripts/ci/foo.py`) -- while excluding `python3 -m
+# invocation anywhere in a workflow step's `run:` shell text -- including
+# mid-pipeline (`| python3 scripts/ci/foo.py`) and behind an explicit interpreter
+# path (`.venv/bin/python scripts/ci/foo.py`) -- while excluding `python3 -m
 # scripts.ci.foo`, which already runs with the repo root on `sys.path[0]` and is
 # not exposed to this defect class.
 _BARE_SCRIPT_INVOCATION = re.compile(r"(?<![\w.-])python3?\s+(?!-m\b)(scripts/[\w/]+\.py)\b")
 
 
+def _workflow_run_blocks(workflow_path: Path) -> list[str]:
+    """Every job step's ``run:`` shell-block text in ``workflow_path``, from a real
+    YAML parse -- never the file's raw text. See the module docstring
+    (op-rereview-002) for why: a raw full-text regex scan also matches inside an
+    ordinary ``#``-comment that sits outside every ``run:`` block."""
+    document = yaml.safe_load(workflow_path.read_text(encoding="utf-8")) or {}
+    jobs = document.get("jobs") or {}
+    blocks: list[str] = []
+    for job in jobs.values():
+        if not isinstance(job, dict):
+            continue
+        for step in job.get("steps") or []:
+            run = step.get("run") if isinstance(step, dict) else None
+            if isinstance(run, str):
+                blocks.append(run)
+    return blocks
+
+
 def _workflow_invoked_scripts() -> list[str]:
-    """Every distinct ``scripts/...py`` path any workflow runs as a bare script."""
+    """Every distinct ``scripts/...py`` path any workflow runs as a bare script,
+    matched only inside actual ``run:`` shell text (op-rereview-002)."""
     found: set[str] = set()
     for workflow in sorted(_WORKFLOWS_DIR.glob("*.yml")):
-        found.update(_BARE_SCRIPT_INVOCATION.findall(workflow.read_text(encoding="utf-8")))
+        for run_block in _workflow_run_blocks(workflow):
+            found.update(_BARE_SCRIPT_INVOCATION.findall(run_block))
     return sorted(found)
 
 
@@ -145,22 +206,66 @@ def _is_scripts_module(name: str) -> bool:
     return name == "scripts" or name.startswith("scripts.")
 
 
+def _nested_module_level_stmt_lists(stmt: ast.stmt) -> list[list[ast.stmt]]:
+    """Every statement list nested directly inside ``stmt`` that still runs
+    unconditionally at module-load time whenever ``stmt`` itself does -- i.e.
+    every branch of every compound statement EXCEPT the ones that defer
+    execution until later (``FunctionDef``/``AsyncFunctionDef`` bodies, which
+    only run when called; see the module docstring, op-rereview-001).
+
+    ``ast.ClassDef`` bodies ARE included on purpose: unlike a function body, a
+    class body executes immediately when the ``class`` statement itself runs
+    (that is how the class's attributes and methods get bound), so a
+    module-level ``class Foo: from scripts.ci import bar`` is exposed to the
+    exact same ``ModuleNotFoundError`` as an import inside an ``if``/``try``/
+    ``with`` block. ``ast.Lambda`` is deliberately absent from this table: its
+    body is a single expression, which can never itself be an
+    ``Import``/``ImportFrom`` statement, so there is nothing to recurse into.
+    """
+    if isinstance(stmt, (ast.Try, ast.TryStar)):
+        return [stmt.body, stmt.orelse, stmt.finalbody, *(handler.body for handler in stmt.handlers)]
+    if isinstance(stmt, ast.Match):
+        return [case.body for case in stmt.cases]
+    if isinstance(stmt, (ast.If, ast.For, ast.AsyncFor, ast.While)):
+        return [stmt.body, stmt.orelse]
+    if isinstance(stmt, (ast.With, ast.AsyncWith, ast.ClassDef)):
+        return [stmt.body]
+    return []
+
+
 def _has_module_level_scripts_import(stmts: list[ast.stmt]) -> bool:
     """True if a MODULE-level statement in ``stmts`` imports ``scripts`` or a
     ``scripts.*`` submodule. See the module docstring for why only module-level
-    imports (including ones nested in a top-level ``if`` guard) count."""
+    imports count -- including ones nested arbitrarily deep inside ``if``,
+    ``try``/``except``/``else``/``finally``, ``with``, ``for``, ``while``,
+    ``match``, or ``class`` bodies, but never inside a ``def``/``async def``
+    body (op-rereview-001)."""
     for stmt in stmts:
         if any(_is_scripts_module(name) for name in _imported_module_names(stmt)):
             return True
-        if isinstance(stmt, ast.If) and _has_module_level_scripts_import(stmt.body + stmt.orelse):
-            return True
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue  # only executes when called, never at module-load time
+        for nested_stmts in _nested_module_level_stmt_lists(stmt):
+            if _has_module_level_scripts_import(nested_stmts):
+                return True
     return False
 
 
 def _imports_scripts_package(script_path: Path) -> bool:
     """True if ``script_path`` can raise ``ModuleNotFoundError: No module named
     'scripts'`` -- i.e. its own source imports ``scripts``/``scripts.*`` at
-    module level."""
+    module level.
+
+    A missing ``script_path`` returns ``False`` rather than raising: this
+    function is called from inside a ``@pytest.mark.parametrize(...)`` call at
+    COLLECTION time (op-rereview-002), where an uncaught ``FileNotFoundError``
+    would fail collection of the whole test file with a confusing traceback
+    instead of a clean, targeted assertion. A workflow referencing a
+    nonexistent script is a real defect and IS still caught -- just at ordinary
+    test-execution time, by ``test_workflow_invoked_scripts_resolve_to_real_files``.
+    """
+    if not script_path.exists():
+        return False
     tree = ast.parse(script_path.read_text(encoding="utf-8"), filename=str(script_path))
     return _has_module_level_scripts_import(tree.body)
 
@@ -183,6 +288,56 @@ def test_workflow_invoked_scripts_is_a_non_vacuous_floor() -> None:
     filtered = _scripts_exposed_to_bare_script_import_defect()
     assert "scripts/ci/fleet_verdict.py" in filtered
     assert "scripts/ci/stale_running_sweep.py" in filtered
+
+
+def test_workflow_invoked_scripts_resolve_to_real_files() -> None:
+    """A workflow invoking a ``scripts/*.py`` path that does not exist on disk is
+    itself a real CI defect (a rename, a moved file, a typo) -- fail with a
+    clear, targeted assertion naming the missing path(s) rather than let
+    collection crash opaquely (op-rereview-002; see ``_imports_scripts_package``
+    for why this check cannot live at collection time)."""
+    missing = [script for script in _workflow_invoked_scripts() if not (_REPO_ROOT / script).exists()]
+    assert not missing, f"workflow(s) invoke script path(s) that do not exist on disk: {sorted(missing)}"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param("if True:\n    import scripts.ci.foo\n", True, id="if-guard"),
+        pytest.param(
+            "try:\n    from scripts.ci import foo\nexcept ImportError:\n    foo = None\n",
+            True,
+            id="try-except-importerror",
+        ),
+        pytest.param(
+            "import contextlib\nwith contextlib.suppress(ImportError):\n    import scripts.ci.foo\n",
+            True,
+            id="with-block",
+        ),
+        pytest.param("def f():\n    import scripts.ci.foo\n", False, id="function-body-excluded"),
+        pytest.param("import os\nimport sys\n", False, id="no-import"),
+        pytest.param(
+            "try:\n    pass\nexcept ValueError:\n    pass\nelse:\n    import scripts.ci.foo\n",
+            True,
+            id="try-else",
+        ),
+        pytest.param("try:\n    pass\nfinally:\n    import scripts.ci.foo\n", True, id="try-finally"),
+        pytest.param("class Foo:\n    import scripts.ci.foo\n", True, id="class-body-included"),
+        pytest.param(
+            "match 1:\n    case 1:\n        import scripts.ci.foo\n    case _:\n        pass\n",
+            True,
+            id="match-case",
+        ),
+        pytest.param("async def f():\n    import scripts.ci.foo\n", False, id="async-function-body-excluded"),
+    ],
+)
+def test_has_module_level_scripts_import_filter(source: str, expected: bool) -> None:
+    """Pure-logic coverage of the AST recursion itself (op-rereview-001) -- feeds
+    synthetic source strings straight to the helper, no subprocess and no
+    filesystem beyond an in-memory ``ast.parse``."""
+    tree = ast.parse(source)
+    assert _has_module_level_scripts_import(tree.body) is expected
 
 
 @pytest.mark.parametrize("script", _scripts_exposed_to_bare_script_import_defect(), ids=lambda s: s)
