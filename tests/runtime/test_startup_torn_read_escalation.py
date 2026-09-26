@@ -458,19 +458,19 @@ class TestStartupAssetErrorNextStepHint:
     (auth/secure_storage/file_fallback.py)."""
 
     def test_torn_read_hint_names_a_possibly_different_version_peer(self) -> None:
-        diagnostics = (Diagnostic("asset_torn_read", "runtime_bootstrap", "error", "Asset changed during preparation: /tmp/x"),)
+        diagnostics = (Diagnostic("asset_torn_read", "runtime_bootstrap", "error", "Asset changed during preparation: /srv/x"),)
         error = asset_preparation.startup_asset_error("runtime_bootstrap", diagnostics)
         assert "possibly a different version" in str(error)
         assert "writing the same Spec Kitty home" in str(error)
 
     def test_source_drift_hint_mentions_the_installed_package_changing(self) -> None:
-        diagnostics = (Diagnostic("asset_source_drift", "runtime_bootstrap", "error", "Asset changed during preparation: /tmp/x"),)
+        diagnostics = (Diagnostic("asset_source_drift", "runtime_bootstrap", "error", "Asset changed during preparation: /srv/x"),)
         error = asset_preparation.startup_asset_error("runtime_bootstrap", diagnostics)
         assert "installed package's assets changed" in str(error)
         assert "writing the same Spec Kitty home" not in str(error)
 
     def test_generic_failure_hint_points_at_doctor(self) -> None:
-        diagnostics = (Diagnostic("global_assets_unavailable", "runtime_bootstrap", "error", "Required package assets unavailable: /tmp/x"),)
+        diagnostics = (Diagnostic("global_assets_unavailable", "runtime_bootstrap", "error", "Required package assets unavailable: /srv/x"),)
         error = asset_preparation.startup_asset_error("runtime_bootstrap", diagnostics)
         assert "spec-kitty doctor" in str(error)
         assert "writing the same Spec Kitty home" not in str(error)
