@@ -120,10 +120,10 @@ def _torn(
     role: ObservationRole = "destination_probe",
 ) -> TornReadError:
     return TornReadError(
-        path=Path("/tmp/owner-assets.json"),
+        path=Path("/srv/spec-kitty/owner-assets.json"),
         role=role,
-        lock_paths=lock_paths or (Path("/tmp/owner.lock"),),
-        anchor=anchor or Path("/tmp"),
+        lock_paths=lock_paths or (Path("/srv/spec-kitty/owner.lock"),),
+        anchor=anchor or Path("/srv/spec-kitty"),
     )
 
 
@@ -579,14 +579,14 @@ class TestStartupAssetErrorConstruction:
         from kernel.errors import GuardedReadError
 
         error = asset_preparation.startup_asset_error(
-            "runtime_bootstrap", (Diagnostic("asset_torn_read", "runtime_bootstrap", "error", "Asset changed during preparation: /tmp/x"),)
+            "runtime_bootstrap", (Diagnostic("asset_torn_read", "runtime_bootstrap", "error", "Asset changed during preparation: /srv/x"),)
         )
         assert isinstance(error, RuntimeError)
         assert isinstance(error, GuardedReadError)
         assert isinstance(error, StartupAssetError)
 
     def test_path_is_none_and_code_is_first_diagnostic(self) -> None:
-        diagnostics = (Diagnostic("asset_torn_read", "runtime_bootstrap", "error", "Asset changed during preparation: /tmp/x"),)
+        diagnostics = (Diagnostic("asset_torn_read", "runtime_bootstrap", "error", "Asset changed during preparation: /srv/x"),)
         error = asset_preparation.startup_asset_error("runtime_bootstrap", diagnostics)
         assert error.path is None
         assert error.code == "asset_torn_read"
