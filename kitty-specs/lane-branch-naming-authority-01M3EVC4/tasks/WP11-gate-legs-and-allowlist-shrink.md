@@ -184,9 +184,9 @@ WP07 made it impossible to request a lane-naming form. This WP makes the class *
   - a def-use ref-qualifier negative: `["git", "rev-parse", f"refs/heads/{branch}"]` with `branch` a parameter is **green**.
 - Also assert **green** for a benign module that uses only authority calls. Follow the existing `test_*_self_test_*` functions in the file.
 
-### Subtask T055 – Full architectural suite, quality gates, blast radius
+### Subtask T055 – Targeted architectural gates, quality gates, blast radius
 
-- Run `tests/architectural/` **in full**; this is a cross-cutting change.
+- Operator instruction (2026-09-26): do **NOT** run the full `tests/architectural/` suite. Run only the architectural test files this WP touches or that pin the touched sites: `tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_ratchet_baselines.py tests/architectural/test_lane_allocation_single_seam.py tests/architectural/test_no_legacy_terminology.py` (plus any other `tests/architectural/` file that references a file you changed — find them with `grep -rl <module> tests/architectural/`).
 - Run `pytest tests/architectural/test_no_legacy_terminology.py` (the charter pre-push rule for prose).
 - Record the exact commands plus counts, and the final gate numbers (signature 0; compose outside the authority 0; allow-lists compose 1, match 5, def-use 1; existing raw matches 3).
 
@@ -198,7 +198,7 @@ WP07 made it impossible to request a lane-naming form. This WP makes the class *
 ```bash
 .venv/bin/python -m pytest tests/specify_cli/lanes/test_lane_naming_gate_sites.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_ratchet_baselines.py -q
 .venv/bin/python -m pytest tests/specify_cli/cli/commands/test_doctor_coordination.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/integration/test_lane_lifecycle_sync.py tests/git_ops/test_detection.py -q
-.venv/bin/python -m pytest tests/architectural/ -q
+.venv/bin/python -m pytest tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_ratchet_baselines.py tests/architectural/test_lane_allocation_single_seam.py tests/architectural/test_no_legacy_terminology.py -q
 make test-fast
 ```
 
@@ -220,7 +220,7 @@ FILES="src/specify_cli/core/vcs/detection.py src/specify_cli/cli/commands/_coord
 - [ ] The extended gate has four legs, a self-test that is red on every injected form, a rewritten rationale, and no sibling gate file.
 - [ ] **Allow-list sizes in `_baselines.yaml` equal this prompt's numbers (compose 1, match 5, def-use 1; signature 0). Any additional entry ⇒ STOP and report to the orchestrator; do not add it.**
 - [ ] `test_ratchet_baselines.py` enforces the three new baselines.
-- [ ] `tests/architectural/` is green in full; `make test-fast` is green.
+- [ ] The targeted architectural tests above are green; `make test-fast` is green.
 - [ ] Out-of-map edits are listed in the Activity Log with a one-line rationale each.
 
 ## Risks & Mitigations

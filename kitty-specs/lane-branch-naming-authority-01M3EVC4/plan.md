@@ -31,7 +31,7 @@ Lane branches and worktrees are **created** from the Mission slug + lane id only
 | Canonical sources (DIRECTIVE_044) | ✅ Reuse `CoordinationWorkspace.resolve`, `_coordination_doctor` fixer dispatch, `_ratchet_keys.composite_key`. |
 | Campsite / tidy-first (DIRECTIVE_025) | ✅ Behaviour-preserving extractions precede functional change inside each WP (see Complexity Tracking). |
 | Terminology canon | ✅ Mission (never feature) in new code/prose; terminology guard run before push. |
-| Test policy | ✅ Per-WP targeted suites + owning subsystem dirs + `make test-fast`; `tests/architectural/` in full for WP06 (new gate). |
+| Test policy | ✅ Per-WP targeted suites + owning subsystem dirs + `make test-fast`; targeted architectural gate files only (operator instruction: never the full `tests/architectural/` suite). |
 
 No violations requiring justification.
 

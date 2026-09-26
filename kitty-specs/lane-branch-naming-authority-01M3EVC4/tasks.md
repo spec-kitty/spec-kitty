@@ -38,7 +38,7 @@
 7. **The `lanes/branch_naming.py` module docstring (PD-15) is updated in WP07** as part of the signature edit. WP08 owns only `docs/`, `CHANGELOG.md`, `CLAUDE.md` and `AGENTS.md`.
 8. **WP07 split into WP07 + WP11** (post-tasks squad, orchestrator-adjudicated).
    - **WP07** (T048–T051) is the atomic signature removal in `lanes/branch_naming.py`, every residual caller in src and tests, and the golden re-pins, in **one commit**. It runs the existing `tests/architectural/test_no_worktree_name_guess.py` **unchanged** and green. Its out-of-map clause is an explicit file table (computed at HEAD `8900c2cb`: 14 src files incl. `branch_naming.py`, 19 test files); any scan hit outside it ⇒ STOP and report.
-   - **WP11** (T052–T055, IDs kept) is the gate-pinned sites (`core/vcs/detection.py`, the `_coordination_doctor.py` drift matcher, the `lifecycle_sync.py` `-unknown` placeholder), the existing allow-list shrink, the four new gate legs, the self-test and the full `tests/architectural/` run. Its allow-lists are capped numerically in its prompt (compose 1, match 5, def-use 1); any extra entry ⇒ STOP.
+   - **WP11** (T052–T055, IDs kept) is the gate-pinned sites (`core/vcs/detection.py`, the `_coordination_doctor.py` drift matcher, the `lifecycle_sync.py` `-unknown` placeholder), the existing allow-list shrink, the four new gate legs, the self-test and the targeted architectural gate run (operator: never the full `tests/architectural/` suite). Its allow-lists are capped numerically in its prompt (compose 1, match 5, def-use 1); any extra entry ⇒ STOP.
    - WP07 no longer depends on WP10 (the drift matcher moved to WP11). WP08 now depends on WP11.
 
 ## Ownership-collision resolutions (every file has exactly one owner in `owned_files`)
@@ -336,7 +336,7 @@ T051 Migrate residual test call sites (AST re-count to 0) (WP07)
 - Route the gate-pinned sites: `core/vcs/detection.py` → `parse_lane_worktree_dir`, the `_coordination_doctor.py` drift matcher → `lane_id_for_worktree_dir` (out-of-map), and remove the `lifecycle_sync.py` `-unknown` placeholder (out-of-map). Shrink the existing allow-list in the same commit.
 - Extend `test_no_worktree_name_guess.py` with the signature, compose, match and def-use legs, plus a self-test (FR-009, PD-11).
 - Register the new allow-lists in `_baselines.yaml` and wire them into `test_ratchet_baselines.py`. The caps are fixed in the prompt: compose **1** (`_next_free_lane_id`), match **5** (the plan Gate Baseline sites), def-use **1** (`surface_resolver.py::_coord_mid8`). Any extra entry ⇒ STOP and report.
-- Run `tests/architectural/` in full.
+- Run only the targeted architectural tests covering touched files (operator instruction: never the full `tests/architectural/` suite).
 
 **Independent Test**:
 - The gate is green at 0 compose sites outside the authority, with allow-list sizes equal to the caps.
@@ -350,7 +350,7 @@ T051 Migrate residual test call sites (AST re-count to 0) (WP07)
 T052 Gate-pinned sites: `core/vcs/detection.py` → `parse_lane_worktree_dir`; `_coordination_doctor.py` drift matcher → `lane_id_for_worktree_dir` (out-of-map); `lifecycle_sync.py` `-unknown` placeholder removed (out-of-map); shrink the existing allow-list (WP11)
 T053 Extend `test_no_worktree_name_guess.py`: signature, compose, match and def-use legs; capped allow-lists in `_baselines.yaml` + `test_ratchet_baselines.py`; docstring rationale rewritten (WP11)
 T054 Gate self-test: injected literal / renamed-variable / `"-".join` / `%`-`.format` / constant-held forms all red (WP11)
-T055 Full `tests/architectural/` + quality gates + blast radius (WP11)
+T055 Targeted architectural gates + quality gates + blast radius (WP11)
 
 ### Dependencies
 
