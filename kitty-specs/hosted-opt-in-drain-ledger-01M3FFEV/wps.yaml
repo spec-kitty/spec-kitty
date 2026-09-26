@@ -1,0 +1,120 @@
+work_packages:
+  - id: WP01
+    title: "Posture core: drain + ledger posture reader, personal writer, test harness fixtures"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/core/hosted_posture.py"
+      - "src/specify_cli/core/toml_table.py"
+      - "src/specify_cli/zeitgeist_client/moments.py"
+      - "tests/specify_cli/core/test_hosted_posture.py"
+      - "tests/specify_cli/core/test_toml_table.py"
+      - "tests/zeitgeist_client/conftest.py"
+      - "tests/status/conftest.py"
+      - "tests/specify_cli/live_work/conftest.py"
+    requirement_refs: [FR-001, FR-002, FR-003, FR-008, C-002, C-003]
+    plan_concern_refs: [IC-01]
+    subtasks: [T001, T002, T003, T004, T005]
+  - id: WP02
+    title: "Relay edges: offer DRAIN_DISABLED, stream/history gates, drill, relay CLI and MCP guidance"
+    dependencies: [WP01]
+    owned_files:
+      - "src/specify_cli/zeitgeist_client/transport.py"
+      - "src/specify_cli/zeitgeist_client/filtered_stream.py"
+      - "src/specify_cli/zeitgeist_client/history.py"
+      - "src/specify_cli/zeitgeist_client/operability.py"
+      - "src/specify_cli/zeitgeist_client/mcp_stdio.py"
+      - "src/specify_cli/cli/commands/zeitgeist.py"
+      - "tests/zeitgeist_client/test_drain_relay_edges.py"
+      - "tests/cli/commands/test_zeitgeist_drain_guidance.py"
+    requirement_refs: [FR-004, FR-005, FR-006, NFR-003, C-005]
+    plan_concern_refs: [IC-02, IC-06]
+    subtasks: [T006, T007, T008, T009, T010]
+  - id: WP03
+    title: "Capability + fan-out: gateway method gates, resolve_* pre-cache check, adapters, runtime producer, live-work, routes"
+    dependencies: [WP01]
+    owned_files:
+      - "src/specify_cli/zeitgeist_client/resolution.py"
+      - "src/specify_cli/status/adapters.py"
+      - "src/specify_cli/events/runtime_moments.py"
+      - "src/specify_cli/live_work/**"
+      - "src/specify_cli/retrospective/lifecycle_events.py"
+      - "src/specify_cli/cli/commands/routes.py"
+      - "src/specify_cli/cli/commands/live_work.py"
+      - "tests/zeitgeist_client/test_drain_capability.py"
+      - "tests/status/test_drain_fanout.py"
+    requirement_refs: [FR-004, FR-006, NFR-001, NFR-003, C-004, C-005]
+    plan_concern_refs: [IC-02]
+    subtasks: [T011, T012, T013, T014, T015, T016]
+  - id: WP04
+    title: "Non-vacuous drain arch gate + NFR-001/NFR-004 posture matrix integration walk"
+    dependencies: [WP02, WP03, WP05]
+    owned_files:
+      - "tests/architectural/test_hosted_drain_gate.py"
+      - "tests/architectural/test_egress_consent_boundary.py"
+      - "tests/integration/test_hosted_posture_matrix.py"
+    requirement_refs: [NFR-001, NFR-002, NFR-004, FR-010]
+    plan_concern_refs: [IC-03]
+    subtasks: [T017, T018, T019, T020]
+  - id: WP05
+    title: "Ledger: single derived-view writer, execution-state projection refresh, hook sites, ledger-floor guard"
+    dependencies: [WP01]
+    owned_files:
+      - "src/specify_cli/status/views.py"
+      - "src/specify_cli/status/progress.py"
+      - "src/specify_cli/status/lifecycle.py"
+      - "src/specify_cli/status/emit.py"
+      - "src/specify_cli/coordination/status_transition.py"
+      - "tests/status/test_execution_projection.py"
+      - "tests/architectural/test_ledger_floor.py"
+    requirement_refs: [FR-008, FR-009, FR-010, NFR-004]
+    plan_concern_refs: [IC-04]
+    subtasks: [T021, T022, T023, T024, T025]
+  - id: WP06
+    title: "Endpoint opt-in: no packaged fallback in resolver, explicit vs automatic caller split"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/auth/config.py"
+      - "src/specify_cli/auth/server_target.py"
+      - "src/specify_cli/auth/flows/**"
+      - "src/specify_cli/auth/token_manager.py"
+      - "src/specify_cli/auth/http/transport.py"
+      - "src/specify_cli/cli/commands/_auth_saas_target.py"
+      - "src/specify_cli/cli/commands/_auth_login.py"
+      - "src/specify_cli/cli/commands/_auth_logout.py"
+      - "src/specify_cli/cli/commands/_auth_doctor.py"
+      - "src/specify_cli/saas_client/auth.py"
+      - "src/specify_cli/tracker/saas_client.py"
+      - "src/specify_cli/tracker/saas_readiness.py"
+      - "src/specify_cli/tracker/egress_verdict.py"
+      - "tests/auth/**"
+      - "tests/cli/commands/test_auth_*.py"
+      - "tests/cli/test_auth_saas_target_cleanup.py"
+    requirement_refs: [FR-011, FR-012, C-006]
+    plan_concern_refs: [IC-05]
+    subtasks: [T026, T027, T028, T029, T030]
+  - id: WP07
+    title: "Migration opt-in (retired target delete + D-6 session backfill) and remaining default-URL test re-pins"
+    dependencies: [WP06]
+    owned_files:
+      - "src/specify_cli/upgrade/migrations/m_4_0_0_retired_hosted_target.py"
+      - "tests/specify_cli/upgrade/migrations/test_retired_hosted_target.py"
+      - "tests/tracker/test_server_target_fail_closed.py"
+      - "tests/specify_cli/saas_client/**"
+      - "tests/integration/test_spec_kitty_home_cli.py"
+    requirement_refs: [FR-013, FR-011]
+    plan_concern_refs: [IC-05]
+    subtasks: [T031, T032, T033]
+  - id: WP08
+    title: "Operator surface (moments drain), ADR, docs, changelog"
+    dependencies: [WP02, WP03, WP05, WP07]
+    owned_files:
+      - "src/specify_cli/cli/commands/moments.py"
+      - "tests/cli/commands/test_moments_drain.py"
+      - "docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md"
+      - "docs/api/configuration.md"
+      - "docs/api/environment-variables.md"
+      - "docs/context/team-kitty.md"
+      - "docs/changelog/CHANGELOG.md"
+    requirement_refs: [FR-007, FR-014, FR-015]
+    plan_concern_refs: [IC-06, IC-07]
+    subtasks: [T034, T035, T036, T037]
