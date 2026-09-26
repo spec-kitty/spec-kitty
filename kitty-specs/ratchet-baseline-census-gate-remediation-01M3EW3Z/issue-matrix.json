@@ -97,7 +97,7 @@
       "wp": "WP13"
     },
     "#3011": {
-      "evidence_ref": "Converter retirement (FR-008/FR-009, DM-01M3EW4J8E)",
+      "evidence_ref": "converter/inventory/audit entry point retired; scanner kept in tests/architectural/_surface_resolution_scan.py; commit 1122cfd1 (series 343bea78..1122cfd1)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,7 +105,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP07"
     },
     "#3026": {
