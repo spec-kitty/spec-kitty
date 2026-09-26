@@ -130,6 +130,15 @@ def run_escalation(
         )
         return f"created escalation issue #{int(created['number'])} for {suite_key!r}"
 
+    if conclusion != CONCLUSION_SUCCESS:
+        # Defense-in-depth (FIND-3, #5034): the CLI's argparse `choices`
+        # already rejects anything but "success"/"failure", but this function
+        # is also called directly (tests, any future caller with a looser
+        # contract). Without this guard, a stray "cancelled"/"skipped"/""
+        # would silently fall through to the close-on-green path below and
+        # close a standing P0 for a suite that never actually passed.
+        raise ValueError(f"unknown nightly suite conclusion {conclusion!r}; expected {CONCLUSION_SUCCESS!r} or {CONCLUSION_FAILURE!r}")
+
     # conclusion == success
     if existing is not None:
         number = int(existing["number"])

@@ -130,6 +130,34 @@ def test_success_with_no_open_issue_is_a_noop() -> None:
     assert "nothing to do" in summary
 
 
+# ---------------------------------------------------------------------------
+# defense-in-depth: an unknown conclusion must never silently close a P0
+# (FIND-3, #5034)
+# ---------------------------------------------------------------------------
+def test_run_escalation_raises_on_unknown_conclusion_instead_of_closing() -> None:
+    """A conclusion that is neither "success" nor "failure" must RAISE, not
+    fall through to the close-on-green path. The CLI's argparse `choices`
+    already blocks this at the command line, but `run_escalation` is called
+    directly by tests (and any future caller with a looser contract), so the
+    function must be self-defending -- a stray "cancelled"/"skipped"/"" must
+    never silently close a standing P0 for a suite that never passed.
+    """
+    client = FakeClient(existing={"number": 99, "body": mod.escalation_marker("integration")})
+    with pytest.raises(ValueError, match="unknown nightly suite conclusion"):
+        mod.run_escalation(client, suite_key="integration", conclusion="cancelled")
+
+    # The pre-existing open issue must NOT have been closed (or even
+    # commented on) as a side effect of the rejected call.
+    assert _call_names(client) == ["find"]
+
+
+def test_run_escalation_closes_only_on_the_explicit_success_constant() -> None:
+    client = FakeClient(existing={"number": 5, "body": mod.escalation_marker("integration")})
+    summary = mod.run_escalation(client, suite_key="integration", conclusion=mod.CONCLUSION_SUCCESS)
+    assert _call_names(client) == ["find", "comment", "close"]
+    assert "closed" in summary
+
+
 def test_run_url_absent_falls_back_to_a_placeholder_never_crashes() -> None:
     client = FakeClient(existing=None)
     mod.run_escalation(client, suite_key="integration", conclusion="failure", run_url=None)
