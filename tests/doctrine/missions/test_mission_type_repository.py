@@ -906,8 +906,8 @@ class TestLayeredMissionTypesUnreadableDirectoryLoudFail:
     def test_unreadable_org_layer_directory_raises_naming_the_directory(
         self, tmp_path: Path
     ) -> None:
-        if os.geteuid() == 0:
-            pytest.skip("root bypasses directory permission bits; chmod 000 is a no-op")
+        if os.name != "posix" or os.geteuid() == 0:
+            pytest.skip("chmod-based unreadability needs POSIX and a non-root user")
 
         org_root = tmp_path / "org"
         mt_dir = org_root / "mission_types"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -340,7 +341,7 @@ def test_verify_enhanced_feature_detection_emits_canonical_mission_fields(tmp_pa
         encoding="utf-8",
     )
 
-    console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
+    console = Console(file=open(os.devnull, "w"))  # noqa: SIM115
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(stdout="main\n", returncode=0)
         payload = run_enhanced_verify(
