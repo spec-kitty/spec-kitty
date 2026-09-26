@@ -8,7 +8,7 @@ These guidelines govern the quality and correctness standards for work package i
 
 - After running `spec-kitty implement WP##`, change into the worktree directory shown in the output.
 - ALL file operations (Read, Write, Edit) must target files inside the worktree workspace.
-- NEVER write deliverable files to the main repository — this causes review failures and merge conflicts.
+- NEVER write deliverable files to the repository root checkout — this causes review failures and merge conflicts.
 
 ---
 

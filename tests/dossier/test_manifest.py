@@ -26,6 +26,7 @@ from specify_cli.dossier.manifest import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 class TestArtifactClassEnum:
     """Test ArtifactClassEnum values and usage."""
 
@@ -40,9 +41,7 @@ class TestArtifactClassEnum:
 
     def test_enum_has_six_values(self):
         """Verify exactly 6 artifact classes."""
-        assert frozenset(m.name for m in ArtifactClassEnum) == frozenset(
-            {"INPUT", "WORKFLOW", "OUTPUT", "EVIDENCE", "POLICY", "RUNTIME"}
-        )
+        assert frozenset(m.name for m in ArtifactClassEnum) == frozenset({"INPUT", "WORKFLOW", "OUTPUT", "EVIDENCE", "POLICY", "RUNTIME"})
 
 
 class TestExpectedArtifactSpec:
@@ -469,14 +468,7 @@ class TestManifestYAMLFormat:
 
     def test_from_yaml_file_software_dev(self):
         """Load software-dev manifest through the canonical loader."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "packs"
-            / "built-in"
-            / "missions"
-            / "software-dev"
-            / "expected-artifacts.yaml"
-        )
+        yaml_path = Path(__file__).parent.parent.parent / "packs" / "built-in" / "missions" / "software-dev" / "expected-artifacts.yaml"
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
         manifest = ManifestRegistry.load_manifest("software-dev")
         assert manifest is not None
@@ -484,14 +476,7 @@ class TestManifestYAMLFormat:
 
     def test_from_yaml_file_research(self):
         """Load research manifest through the canonical loader."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "packs"
-            / "built-in"
-            / "missions"
-            / "research"
-            / "expected-artifacts.yaml"
-        )
+        yaml_path = Path(__file__).parent.parent.parent / "packs" / "built-in" / "missions" / "research" / "expected-artifacts.yaml"
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
         manifest = ManifestRegistry.load_manifest("research")
         assert manifest is not None
@@ -499,14 +484,7 @@ class TestManifestYAMLFormat:
 
     def test_from_yaml_file_documentation(self):
         """Load documentation manifest through the canonical loader."""
-        yaml_path = (
-            Path(__file__).parent.parent.parent
-            / "packs"
-            / "built-in"
-            / "missions"
-            / "documentation"
-            / "expected-artifacts.yaml"
-        )
+        yaml_path = Path(__file__).parent.parent.parent / "packs" / "built-in" / "missions" / "documentation" / "expected-artifacts.yaml"
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
         manifest = ManifestRegistry.load_manifest("documentation")
         assert manifest is not None
@@ -709,13 +687,9 @@ class TestManifestRegistryOrgTier:
         assert after is not None
         assert len(after.required_always) == before_count + 1
         assert after.manifest_version == "org-1"
-        assert any(
-            spec.artifact_key == "policy.org-required" for spec in after.required_always
-        )
+        assert any(spec.artifact_key == "policy.org-required" for spec in after.required_always)
 
-    def test_no_repo_root_is_byte_identical_to_pre_wp_behavior(
-        self, tmp_path: Path
-    ) -> None:
+    def test_no_repo_root_is_byte_identical_to_pre_wp_behavior(self, tmp_path: Path) -> None:
         """SC-005 Given #2: `load_manifest(mission_type)` with no `repo_root`
         (and with `repo_root=None` explicitly) produces output identical to
         pre-this-WP behavior -- proving the new optional parameter did not
@@ -724,17 +698,13 @@ class TestManifestRegistryOrgTier:
         """
         no_arg_result = ManifestRegistry.load_manifest("software-dev")
         ManifestRegistry.clear_cache()
-        explicit_none_result = ManifestRegistry.load_manifest(
-            "software-dev", repo_root=None
-        )
+        explicit_none_result = ManifestRegistry.load_manifest("software-dev", repo_root=None)
 
         assert no_arg_result is not None
         assert explicit_none_result is not None
         assert no_arg_result.model_dump() == explicit_none_result.model_dump()
 
-    def test_cache_key_does_not_shadow_across_different_repo_roots(
-        self, tmp_path: Path
-    ) -> None:
+    def test_cache_key_does_not_shadow_across_different_repo_roots(self, tmp_path: Path) -> None:
         """Cache-key regression (T023's fix): two different `repo_root`s
         resolving the SAME mission_type in the same process must not
         silently share a cached result -- this is exactly the defect this
@@ -772,9 +742,7 @@ class TestManifestRegistryOrgTier:
         assert result_b.manifest_version != "project-a-org"
         assert result_b.manifest_version == "1"
 
-    def test_cache_key_preserves_declaration_order_for_same_root_set(
-        self, tmp_path: Path
-    ) -> None:
+    def test_cache_key_preserves_declaration_order_for_same_root_set(self, tmp_path: Path) -> None:
         """Same SET of org roots, declared in different order across two
         `repo_root`s, must not collide on one cache key. Per NFR-003 /
         C-4 ("last-EXISTING-match wins"), reversing declaration order
@@ -827,9 +795,7 @@ class TestManifestRegistryOrgTier:
         # project_yx declared [y, x] -> last-match-wins is x.
         assert result_yx.manifest_version == "x-wins"
 
-    def test_org_file_failing_schema_validation_raises_manifest_schema_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_org_file_failing_schema_validation_raises_manifest_schema_error(self, tmp_path: Path) -> None:
         """paula rank-2: a parseable org YAML mapping that fails
         `ExpectedArtifactManifest` schema validation (e.g. missing the
         required `mission_type` field) must fail as loudly as a
@@ -890,6 +856,7 @@ class TestManifestRegistryOrgTier:
         # just as surely as the old count-plus-isinstance-poke sequence did.
         assert list(ManifestRegistry._cache.keys()) == [("software-dev", ())]
 
+
 class TestSchemaHardeningAndLoudFailure:
     """WP01 (IC-01): FR-009 schema hardening + FR-016 loud-failure propagation.
 
@@ -902,6 +869,7 @@ class TestSchemaHardeningAndLoudFailure:
     """
 
     _TYPO_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "expected_artifacts_typo.yaml"
+
     def test_expected_artifact_spec_rejects_extra_keyword(self):
         """A typo'd keyword argument to ExpectedArtifactSpec raises ValidationError."""
         with pytest.raises(ValidationError):
@@ -982,9 +950,7 @@ class TestSchemaHardeningAndLoudFailure:
         assert exc_info.value.origin == "test-fixture"
         assert isinstance(exc_info.value.__cause__, ValidationError)
 
-    def test_load_manifest_validation_error_names_the_manifest_file(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_load_manifest_validation_error_names_the_manifest_file(self, monkeypatch: pytest.MonkeyPatch):
         """#3542-A: the raised `ManifestSchemaError` must name *which*
         expected-artifacts.yaml was schema-invalid, not just the offending
         key.
@@ -1024,8 +990,7 @@ class TestSchemaHardeningAndLoudFailure:
         # read -- names both the origin file and the underlying key.
         formatted = str(exc_info.value)
         assert distinctive_origin in formatted, (
-            "ManifestSchemaError's str() must name the offending manifest "
-            "file so an org author can find and fix the typo; got: " + formatted
+            "ManifestSchemaError's str() must name the offending manifest file so an org author can find and fix the typo; got: " + formatted
         )
         assert "required_alwyas" in formatted
 
@@ -1054,9 +1019,7 @@ class TestManifestReconciliation:
         manifest = ManifestRegistry.load_manifest("research")
         assert manifest is not None
         specs = ManifestRegistry.get_required_artifacts(manifest, "gathering")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in specs] == [
             ("evidence.source-register", ArtifactClassEnum.EVIDENCE, "source-register.csv", True),
         ]
 
@@ -1071,16 +1034,12 @@ class TestManifestReconciliation:
         # Pins the whole collection -- exactly gap-analysis.md; a stray
         # plan.md or tasks.md entry (the reconciled-away requirements) fails
         # this equality even though it wouldn't have failed a bare `any(...)`.
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in audit_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in audit_specs] == [
             ("evidence.gap-analysis", ArtifactClassEnum.EVIDENCE, "gap-analysis.md", True),
         ]
 
         design_specs = ManifestRegistry.get_required_artifacts(manifest, "design")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in design_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in design_specs] == [
             ("workflow.plan.documentation", ArtifactClassEnum.WORKFLOW, "plan.md", True),
         ]
 
@@ -1092,16 +1051,12 @@ class TestManifestReconciliation:
         assert manifest is not None
 
         validate_specs = ManifestRegistry.get_required_artifacts(manifest, "validate")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in validate_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in validate_specs] == [
             ("evidence.audit-report", ArtifactClassEnum.EVIDENCE, "audit-report.md", True),
         ]
 
         publish_specs = ManifestRegistry.get_required_artifacts(manifest, "publish")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in publish_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in publish_specs] == [
             ("output.release.main", ArtifactClassEnum.OUTPUT, "release.md", True),
         ]
 
@@ -1114,9 +1069,7 @@ class TestManifestReconciliation:
         manifest = ManifestRegistry.load_manifest("software-dev")
         assert manifest is not None
         specs = ManifestRegistry.get_required_artifacts(manifest, "plan")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in specs] == [
             ("output.plan.main", ArtifactClassEnum.OUTPUT, "plan.md", True),
         ]
 
@@ -1131,23 +1084,17 @@ class TestManifestReconciliation:
         assert manifest is not None
 
         outline_specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_outline")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in outline_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in outline_specs] == [
             ("output.tasks.list", ArtifactClassEnum.OUTPUT, "tasks.md", True),
         ]
 
         packages_specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_packages")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in packages_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in packages_specs] == [
             ("output.tasks.per_wp", ArtifactClassEnum.OUTPUT, "tasks/WP*.md", True),
         ]
 
         finalize_specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_finalize")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in finalize_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in finalize_specs] == [
             ("output.tasks.per_wp", ArtifactClassEnum.OUTPUT, "tasks/WP*.md", True),
         ]
 
@@ -1178,14 +1125,7 @@ class TestPlanManifest:
     guard branch enforces it.
     """
 
-    _PLAN_MANIFEST_PATH = (
-        Path(__file__).parent.parent.parent
-        / "packs"
-        / "built-in"
-        / "missions"
-        / "plan"
-        / "expected-artifacts.yaml"
-    )
+    _PLAN_MANIFEST_PATH = Path(__file__).parent.parent.parent / "packs" / "built-in" / "missions" / "plan" / "expected-artifacts.yaml"
 
     def setup_method(self):
         """Clear cache before each test."""
@@ -1218,23 +1158,17 @@ class TestPlanManifest:
         ]
 
         goals_specs = ManifestRegistry.get_required_artifacts(manifest, "goals")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in goals_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in goals_specs] == [
             ("output.goals.main", ArtifactClassEnum.OUTPUT, "goals.md", True),
         ]
 
         research_specs = ManifestRegistry.get_required_artifacts(manifest, "research")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in research_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in research_specs] == [
             ("evidence.research", ArtifactClassEnum.EVIDENCE, "research.md", True),
         ]
 
         draft_specs = ManifestRegistry.get_required_artifacts(manifest, "draft")
-        assert [
-            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in draft_specs
-        ] == [
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in draft_specs] == [
             ("output.plan.main", ArtifactClassEnum.OUTPUT, "plan.md", True),
         ]
 
@@ -1272,8 +1206,8 @@ class TestPlanManifest:
 
 
 class TestOverrideMirrorDeprecation:
-    """WP04 (IC-04): mark the three dead
-    `.kittify/overrides/missions/{research,documentation,software-dev}/expected-artifacts.yaml`
+    """WP04 (IC-04): mark the two dead
+    `.kittify/overrides/missions/{research,documentation}/expected-artifacts.yaml`
     mirror files as explicitly deprecated/inert via a header comment, rather
     than refreshing their content to parity with WP02/WP03's reconciled
     `packs/built-in/missions/` copies -- per
@@ -1288,17 +1222,22 @@ class TestOverrideMirrorDeprecation:
     module that DOES implement the `.kittify/overrides/missions/{mission}/...`
     tier -- only wires that tier for `templates/`, `command-templates/`, and
     `mission.yaml`, never for `expected-artifacts.yaml`. So no reader anywhere
-    in this repository ever opens these three override files.
+    in this repository ever opens these two override files.
+
+    The `software-dev` mirror entry was removed by a later operator
+    decision: rather than leave the software-dev override permanently
+    header-only/inert, the operator chose to delete
+    `.kittify/overrides/missions/software-dev/expected-artifacts.yaml`
+    outright as part of a full software-dev override resync. The
+    research/documentation mirrors are untouched and keep the Decision 4
+    mark-deprecated treatment.
     """
 
-    _OVERRIDE_ROOT = (
-        Path(__file__).parent.parent.parent / ".kittify" / "overrides" / "missions"
-    )
+    _OVERRIDE_ROOT = Path(__file__).parent.parent.parent / ".kittify" / "overrides" / "missions"
 
     _MIRROR_FILES = {
         "research": _OVERRIDE_ROOT / "research" / "expected-artifacts.yaml",
         "documentation": _OVERRIDE_ROOT / "documentation" / "expected-artifacts.yaml",
-        "software-dev": _OVERRIDE_ROOT / "software-dev" / "expected-artifacts.yaml",
     }
 
     # Full body-content fingerprints as they existed before WP04's
@@ -1471,66 +1410,6 @@ class TestOverrideMirrorDeprecation:
                 },
             ],
         },
-        "software-dev": {
-            "schema_version": "1.0",
-            "mission_type": "software-dev",
-            "manifest_version": "1",
-            "required_always": [],
-            "required_by_step": {
-                "discovery": [],
-                "specify": [
-                    {
-                        "artifact_key": "input.spec.main",
-                        "artifact_class": "input",
-                        "path_pattern": "spec.md",
-                        "blocking": True,
-                    },
-                ],
-                "plan": [
-                    {
-                        "artifact_key": "output.plan.main",
-                        "artifact_class": "output",
-                        "path_pattern": "plan.md",
-                        "blocking": True,
-                    },
-                    {
-                        "artifact_key": "output.tasks.list",
-                        "artifact_class": "output",
-                        "path_pattern": "tasks.md",
-                        "blocking": True,
-                    },
-                ],
-                "implement": [],
-                "review": [],
-                "done": [],
-            },
-            "optional_always": [
-                {
-                    "artifact_key": "evidence.research",
-                    "artifact_class": "evidence",
-                    "path_pattern": "research.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.gap-analysis",
-                    "artifact_class": "evidence",
-                    "path_pattern": "gap-analysis.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.quickstart",
-                    "artifact_class": "evidence",
-                    "path_pattern": "quickstart.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.data-model",
-                    "artifact_class": "evidence",
-                    "path_pattern": "data-model.md",
-                    "blocking": False,
-                },
-            ],
-        },
     }
 
     def test_override_mirror_files_carry_deprecation_header(self):
@@ -1553,20 +1432,14 @@ class TestOverrideMirrorDeprecation:
             lower_text = raw_text.lower()
 
             # Recognizable deprecated/inert marker.
-            assert "deprecated" in lower_text or "inert" in lower_text, (
-                f"{path} header must state the file is deprecated/inert"
-            )
+            assert "deprecated" in lower_text or "inert" in lower_text, f"{path} header must state the file is deprecated/inert"
             # Specific-mechanism language, not a vague "deprecated" alone:
             # names the actual resolver method that never reads this file.
             assert "_expected_artifacts_path" in raw_text, (
-                f"{path} header must name the specific resolver mechanism "
-                "(_expected_artifacts_path()) that never consults this override tier"
+                f"{path} header must name the specific resolver mechanism (_expected_artifacts_path()) that never consults this override tier"
             )
             # Points at the canonical, actually-consumed copy.
-            assert "packs/built-in/missions" in raw_text, (
-                f"{path} header must point at the canonical, consumed copy "
-                "under packs/built-in/missions/"
-            )
+            assert "packs/built-in/missions" in raw_text, f"{path} header must point at the canonical, consumed copy under packs/built-in/missions/"
 
             # Body content unchanged: parse and compare the WHOLE document
             # against the committed expected value below -- every key and

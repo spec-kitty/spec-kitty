@@ -1,6 +1,6 @@
 # Plan Action — Governance Guidelines
 
-These guidelines govern the quality and correctness standards for implementation planning work in the software-dev mission. They were extracted from the command template and are injected at runtime via the constitution context bootstrap.
+These guidelines govern the quality and correctness standards for implementation planning work in the software-dev mission. They were extracted from the command template and are injected at runtime via the charter context bootstrap.
 
 ---
 
@@ -12,11 +12,11 @@ These guidelines govern the quality and correctness standards for implementation
 
 ---
 
-## Constitution Compliance
+## Charter Compliance
 
-- If a constitution exists, fill the Constitution Check section from it and challenge any conflicts directly with the user.
-- If no constitution exists, mark the Constitution Check section as skipped.
-- Re-evaluate Constitution Check after Phase 1 design and resolve new gaps before reporting completion.
+- If a charter exists, fill the Charter Check section from it and challenge any conflicts directly with the user.
+- If no charter exists, mark the Charter Check section as skipped.
+- Re-evaluate Charter Check after Phase 1 design and resolve new gaps before reporting completion.
 
 ---
 

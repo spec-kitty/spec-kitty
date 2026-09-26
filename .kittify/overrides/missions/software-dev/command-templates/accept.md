@@ -1,23 +1,29 @@
 ---
-description: Validate mission readiness and guide final acceptance steps.
+description: Validate an approved mission before merge
 ---
-
 # /spec-kitty.accept - Validate Mission Readiness
 
-**Version**: 0.11.0+
-**Purpose**: Validate all work packages are complete and mission is ready to merge.
+**Version**: 0.12.0+
 
-## 📍 WORKING DIRECTORY: Run from MAIN repository
+## Purpose
 
-**IMPORTANT**: Accept runs from the primary repository checkout root, NOT from a WP worktree.
+Validate that every work package is complete and the mission is ready to merge.
+This step runs the acceptance gate, surfaces any blocking diagnostics, and only
+clears the path to merge once the gate passes.
+
+---
+
+## 📍 WORKING DIRECTORY: Run from the repository root checkout
+
+**IMPORTANT**: Acceptance runs from the repository root checkout, NOT
+from a work-package worktree.
 
 ```bash
-# If you're in a worktree, return to main first:
+# If you are inside a worktree, return to the repository root checkout first:
 cd $(git rev-parse --show-toplevel)
-
-# Then run accept:
-spec-kitty accept
 ```
+
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -27,49 +33,88 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Discovery (mandatory)
+## Steps
 
-Before running the acceptance workflow, gather the following:
+### 1. Record Acceptance Evidence (Zero Hand-Edited JSON)
 
-1. **Mission slug** (e.g., `005-awesome-thing`). If omitted, detect automatically.
-2. **Acceptance mode**:
-   - `pr` when the mission will merge via hosted pull request.
-   - `local` when the mission will merge locally without a PR.
-   - `checklist` to run the readiness checklist without committing or producing merge instructions.
-3. **Validation commands executed** (tests/builds). Collect each command verbatim; omit if none.
-4. **Acceptance actor** (optional, defaults to the current agent name).
+Before running the gate, record every acceptance-criterion verdict — and
+register/execute any negative invariant — through the deterministic
+`acceptance-verdict` command. **Never hand-edit `acceptance-matrix.json`.**
 
-Ask one focused question per item and confirm the summary before continuing. End the discovery turn with `WAITING_FOR_ACCEPTANCE_INPUT` until all answers are provided.
+```bash
+# Record one criterion's verdict:
+spec-kitty agent mission acceptance-verdict --mission <handle> \
+  --criterion <criterion-id> --result pass \
+  --verification-method automated_test --actor <you> --evidence <ref>
 
-## Execution Plan
+# Register AND execute a negative invariant (something that must NOT hold),
+# when the mission's acceptance-matrix.json declares one:
+spec-kitty agent mission acceptance-verdict --mission <handle> \
+  --negative-invariant <invariant-id> \
+  --description "<what must NOT hold>" \
+  --verification-method grep_absence \
+  --verification-command "<pattern that must be absent>"
+```
 
-1. Compile the acceptance options into an argument list:
-   - Always include `--actor "__AGENT__"`.
-   - Append `--mission "<slug>"` when the user supplied a slug.
-   - Append `--mode <mode>` (`pr`, `local`, or `checklist`).
-   - Append `--test "<command>"` for each validation command provided.
-2. Run `spec-kitty agent mission-run accept` (the CLI wrapper) with the assembled arguments **and** `--json`.
-3. Parse the JSON response. It contains:
-   - `summary.ok` (boolean) and other readiness details.
-   - `summary.outstanding` categories when issues remain.
-   - `instructions` (merge steps) and `cleanup_instructions`.
-   - `notes` (e.g., acceptance commit hash).
-4. Present the outcome:
-   - If `summary.ok` is `false`, list each outstanding category with bullet points and advise the user to resolve them before retrying acceptance.
-   - If `summary.ok` is `true`, display:
-     - Acceptance timestamp, actor, and (if present) acceptance commit hash.
-     - Merge instructions and cleanup instructions as ordered steps.
-     - Validation commands executed (if any).
-5. When the mode is `checklist`, make it clear no commits or merge instructions were produced.
+Repeat the criterion form for every row in `acceptance-matrix.json` until
+each one is `pass` or `fail` (no `pending` rows left unintentionally). Each
+invocation reports the recomputed `overall_verdict` — use it to confirm the
+matrix is converging before moving on.
 
-## Output Requirements
+### 2. Run the Acceptance Gate
 
-- Summaries must be in plain text (no tables). Use short bullet lists for instructions.
-- Surface outstanding issues before any congratulations or success messages.
-- If the JSON payload includes warnings, surface them under an explicit **Warnings** section.
-- Never fabricate results; only report what the JSON contains.
+Run the acceptance command from the repository root:
 
-## Error Handling
+```bash
+spec-kitty accept --mission <handle>
+```
 
-- If the command fails or returns invalid JSON, report the failure and request user guidance (do not retry automatically).
-- When outstanding issues exist, do **not** attempt to force acceptance—return the checklist and prompt the user to fix the blockers.
+This validates that all work packages are `approved` or `done`, checks the
+readiness gates (including the acceptance matrix recorded in step 1), and
+reports what (if anything) still blocks merge.
+
+### 3. Inspect Acceptance Diagnostics
+
+Read the command output carefully:
+
+- If the gate **passes**, the output confirms the mission is ready to merge and
+  prints the merge instructions.
+- If the gate **fails**, the output lists each outstanding category (for
+  example: WPs not yet approved, failing checks, or unresolved review
+  feedback — including any malformed acceptance-matrix entry, named by item
+  and reason). Treat every outstanding item as a blocker. Use
+  `spec-kitty accept --mission <handle> --diagnose` for a read-only diagnostic
+  pass that reports blockers without writing anything.
+
+### 4. Resolve Any Gate Failures
+
+For each blocker reported:
+
+- Route the affected work package back through implement/review as needed.
+- Re-run the relevant tests or checks until they pass.
+- If a criterion or negative invariant still needs recording, go back to
+  step 1 — through `acceptance-verdict`, never by hand-editing the JSON.
+- Re-run `spec-kitty accept --mission <handle>` and confirm the gate is now
+  clean. Do **not** force acceptance past an unresolved blocker.
+
+### 5. Proceed to Merge
+
+Only after the acceptance gate passes:
+
+```bash
+spec-kitty merge --mission <handle>
+```
+
+Follow the merge instructions printed by the acceptance command (and any
+cleanup steps it lists).
+
+## Output
+
+After completing this step:
+
+- The acceptance gate has passed for `<handle>`.
+- All blocking diagnostics have been resolved (or none were present).
+- Merge instructions have been surfaced to the operator.
+
+**Next step**: `spec-kitty next --agent <name>` will advance to merge, or run
+`spec-kitty merge --mission <handle>` directly.

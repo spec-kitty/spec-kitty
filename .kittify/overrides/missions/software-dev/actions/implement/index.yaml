@@ -1,18 +1,45 @@
 action: implement
 directives:
+  - 001-architectural-integrity-standard
+  - 010-specification-fidelity-requirement
   - 024-locality-of-change
   - 025-boy-scout-rule
   - 028-search-tool-discipline
   - 029-agent-commit-signing-policy
   - 030-test-and-typecheck-quality-gate
+  - 034-test-first-development
+  - 036-black-box-integration-testing
+  - 037-living-documentation-sync
+  - 046-readable-consistent-prs
+  - 051-supply-chain-install-safety
 tactics:
   - acceptance-test-first
   - tdd-red-green-refactor
+  - black-box-integration-testing
+  - boring-code-review
   - change-apply-smallest-viable-diff
+  - dependency-hygiene
+  - focused-function-complexity-check
+  - function-over-form-testing
+  - generated-code-stewardship
+  - input-validation-fail-fast
   - autonomous-operation-protocol
   - quality-gate-verification
+  - secure-design-checklist
   - stopping-conditions
+  - test-boundaries-by-responsibility
+  - testing-select-appropriate-level
+  - supply-chain-install-safety
+paradigms:
+  - execution-lanes
+  - shared-branch-ci
+  - git-flow
+  - trunk-based
 styleguides: []
 toolguides:
   - efficient-local-tooling
-procedures: []
+procedures:
+  - disciplined-defect-diagnosis
+  - legacy-codebase-triage
+  - refactoring
+  - test-first-bug-fixing

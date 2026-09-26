@@ -62,7 +62,7 @@ mcp_tools:
 # Agent personality/instructions
 agent_context: |
   You are a software development agent following TDD practices.
-  Your constitution enforces Library-First, CLI Interface, and Test-First principles.
+  Your charter enforces Library-First, CLI Interface, and Test-First principles.
   You work in structured phases: research → design → implement → test → review.
 
   Key practices:

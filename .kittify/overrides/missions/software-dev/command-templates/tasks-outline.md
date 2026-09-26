@@ -95,6 +95,20 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 - Record metadata: priority, success criteria, risks, dependencies, included subtasks, and requirement references
 - Every WP must include a `requirement_refs` list referencing IDs from `spec.md` (FR/NFR/C)
 
+### 4a. Cite plan concern refs for each WP
+
+For each work package, record which implementation concern(s) from `plan.md` it
+addresses by populating `plan_concern_refs` in `wps.yaml`.
+
+- If the WP covers exactly one concern: `plan_concern_refs: [IC-01]`
+- If the WP spans multiple concerns: `plan_concern_refs: [IC-01, IC-03]`
+- If the WP is cross-cutting infrastructure with no specific concern (e.g. a test
+  harness setup WP), set `cross_cutting: true` and leave `plan_concern_refs` empty.
+
+A WP missing both `plan_concern_refs` and `cross_cutting: true` will trigger a
+warning from `finalize-tasks`. Every WP should cite at least one IC-## ref or
+declare itself cross-cutting.
+
 ### 5. Write `wps.yaml`
 
 Write to `feature_dir/wps.yaml` following the schema below. This is the **single
@@ -114,6 +128,8 @@ work_packages:
     requirement_refs:
       - FR-001
       - FR-002
+    plan_concern_refs:
+      - IC-01
     subtasks:
       - T001
       - T002
@@ -128,6 +144,9 @@ work_packages:
       - "src/myapp/api/**"
     requirement_refs:
       - FR-003
+    plan_concern_refs:
+      - IC-02
+      - IC-03
     subtasks:
       - T004
       - T005
@@ -142,6 +161,8 @@ work_packages:
     requirement_refs:
       - FR-004
       - NFR-001
+    plan_concern_refs:
+      - IC-04
     subtasks:
       - T006
       - T007
@@ -153,12 +174,19 @@ work_packages:
 - `id`: Work package identifier (`WP01`, `WP02`, …)
 - `title`: Short human-readable name
 - `dependencies`: List of WP IDs this WP depends on. `[]` = explicitly no deps (authoritative); if the key is **absent**, `tasks-packages` may fill it based on analysis.
-- `owned_files`: Glob patterns for files this WP touches — no two WPs may overlap.
+- `owned_files`: Glob patterns for files this WP touches — no two WPs may overlap. A `code_change` WP must NOT list any `kitty-specs/` path here (see the staged ownership rule below).
 - `requirement_refs`: Requirement IDs from `spec.md` (FR/NFR/C) addressed by this WP.
+- `plan_concern_refs`: Implementation concern IDs from `plan.md` (IC-##) addressed by this WP. Use `cross_cutting: true` instead if the WP is shared infrastructure with no specific concern.
+- `cross_cutting`: Set to `true` for infrastructure WPs that span all concerns and have no specific IC-## ref.
 - `subtasks`: Ordered list of subtask IDs included in this WP.
 - `prompt_file`: Relative path (from `feature_dir`) to the WP prompt file — set by `tasks-packages` in the next step.
 
 **IMPORTANT**: Leave `prompt_file` as `null` or omit it — `tasks-packages` fills this field.
+
+**Staged ownership rule**:
+- A `code_change` WP must NOT list any `kitty-specs/` path in `owned_files` — `finalize-tasks --validate-only` rejects it with `INVALID_WP_OWNED_FILES_KITTY_SPECS`.
+- The only exemption is a `planning_artifact` WP whose **every** `owned_files` entry is confined to `kitty-specs/` or `docs/`. A planning WP that also owns a `src/`, `tests/`, or any other non-planning path is not exempt and is rejected the same way.
+- Per-WP design notes, plan-marker edits, and other `kitty-specs/` deliverables belong in their own separate confined `planning_artifact` WP. Split a mixed WP into a planning WP plus a code WP rather than mixing the two ownership kinds.
 
 ### 6. Analyze Dependencies
 

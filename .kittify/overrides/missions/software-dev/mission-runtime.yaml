@@ -1,23 +1,34 @@
+# DEPRECATED (since #503 / phase 6 wp6.2): this template is no longer the
+# authoritative source for action dispatch on the built-in software-dev
+# mission. The live runtime path is now driven by mission step contracts
+# under packs/built-in/missions/built_in_step_contracts/ via
+# StepContractExecutor + ProfileInvocationExecutor composition. This file
+# is retained as a transitional reference and may be removed in a future
+# slice. Do not extend it.
+#
 # =============================================================================
-# Runtime DAG-based Mission Template (v2.1.0)
+# Runtime Planning Template (v2.2.0)
 # =============================================================================
 #
-# Transitional template alongside the mission.yaml configuration.
-# Used by spec-kitty next when bridging to spec-kitty-runtime.
+# Transitional planning template alongside the mission.yaml configuration.
+# Used by spec-kitty next for run-state planning only. The CLI-internal
+# runtime owns DAG planning; the retired spec-kitty-runtime PyPI package is
+# no longer involved. The live action dispatch for
+# specify/plan/tasks/implement/review is handled by StepContractExecutor
+# composition in runtime.next.runtime_bridge.
 #
-# The runtime engine uses DAG-based step planning instead of state transitions.
+# The runtime engine uses DAG-based step planning instead of action execution.
 # WP-level iteration within "implement" and "review" steps is managed by the
 # CLI bridge layer, not the runtime.
 #
-# v2.1.0: Split monolithic "tasks" step into 3 atomic steps:
-#   tasks_outline  → Create tasks.md breakdown document
-#   tasks_packages → Generate individual WP prompt files
-#   tasks_finalize → Validate dependencies and finalize metadata
+# v2.2.0: Collapse the public tasks action back to a single "tasks" planning
+# step. The outline/packages/finalize substructure now lives inside
+# packs/built-in/missions/built_in_step_contracts/tasks.step-contract.yaml.
 
 mission:
   key: software-dev
   name: Software Dev Kitty
-  version: "2.1.0"
+  version: "2.2.0"
 
 steps:
   - id: discovery
@@ -39,28 +50,16 @@ steps:
     prompt_template: plan.md
     description: Design technical architecture
 
-  - id: tasks_outline
-    title: Task Outline
+  - id: tasks
+    title: Tasks
     depends_on: [plan]
     agent-profile: planner-priti
-    prompt_template: tasks-outline.md
-    description: Create task breakdown document (tasks.md)
-
-  - id: tasks_packages
-    title: Work Package Creation
-    depends_on: [tasks_outline]
-    prompt_template: tasks-packages.md
-    description: Generate individual WP prompt files (tasks/WP*.md)
-
-  - id: tasks_finalize
-    title: Task Finalization
-    depends_on: [tasks_packages]
-    prompt_template: tasks-finalize.md
-    description: Validate dependencies and finalize WP metadata
+    prompt_template: tasks.md
+    description: Create task breakdown, work package prompts, and finalized dependencies
 
   - id: implement
     title: Implementation
-    depends_on: [tasks_finalize]
+    depends_on: [tasks]
     agent-profile: implementer-ivan
     prompt_template: implement.md
     description: Execute implementation
