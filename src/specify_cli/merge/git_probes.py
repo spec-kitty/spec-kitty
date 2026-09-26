@@ -576,6 +576,86 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
+# ---------------------------------------------------------------------------
+# Merge-resolution-aware Seam A attribution probes (terminus-merge-resolution-
+# attribution / #5051-adjacent). ``git merge-tree --write-tree`` (git>=2.38)
+# derives the common ancestor of the two lane commits itself (never a caller-
+# supplied guess) and honors ``.gitattributes``, faithfully modeling the
+# resolution a real squash of those two lanes would have produced (Seam A
+# Decision 1, ``research.md``).
+# ---------------------------------------------------------------------------
+
+_GIT_VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
+_MERGE_TREE_WRITE_TREE_MIN_VERSION: tuple[int, int] = (2, 38)
+
+
+def merge_tree_write_tree_available(repo_root: Path) -> bool:
+    """Return True iff the installed git supports ``git merge-tree --write-tree`` (git>=2.38).
+
+    Probed via ``git --version`` rather than by invoking the flag itself, so a
+    caller can gate the (more expensive, per-path) :func:`three_way_merge_blob`
+    call without paying for a doomed invocation on old git. A failing
+    ``git --version``, or output that does not contain a recognizable
+    ``X.Y[.Z]`` version, is treated as unavailable — fail-closed: the caller
+    then leaves the path unattributable rather than attempting an unsupported
+    flag (Decision 3, ``research.md`` — old-git users keep today's false-FAIL
+    until they upgrade; no unsound raw-``merge-file`` fallback).
+    """
+    ret, out, _err = run_command(["git", "--version"], capture=True, check_return=False, cwd=repo_root)
+    if ret != 0:
+        return False
+    match = _GIT_VERSION_PATTERN.search(out or "")
+    if not match:
+        return False
+    version = (int(match.group(1)), int(match.group(2)))
+    return version >= _MERGE_TREE_WRITE_TREE_MIN_VERSION
+
+
+def three_way_merge_blob(repo_root: Path, lane_a_commit: str, lane_b_commit: str, path: str) -> str | None:
+    """Simulate the 2-way merge of two lane commits; return *path*'s resulting blob id.
+
+    Uses ``git merge-tree --write-tree <lane_a_commit> <lane_b_commit>``
+    (git>=2.38 — gate with :func:`merge_tree_write_tree_available` first): git
+    derives the common ancestor itself and honors ``.gitattributes``. The ONLY
+    inputs are the two lane commits (and the ancestor git derives from them) —
+    no third input (e.g. a canceled/removed hunk) can ever be smuggled into the
+    simulation, so a target blob equal to this result is, by construction,
+    legitimate approved-lane content.
+
+    * Exit code 0 — a clean merge. The new tree's oid is printed on stdout's
+      first line; this reads *path*'s blob id from that tree
+      (:func:`blob_id_at`). A path absent from the clean-merged tree (e.g. both
+      sides deleted it) is treated as unattributable — returns ``None``.
+    * Exit code 1 — a genuine merge conflict (including a binary-file
+      conflict). The tree is still written (with higher-stage conflict info),
+      but the resolution is NOT a deterministic function of the two parents —
+      :func:`is_legitimate_three_way_resolution`'s caller must fail closed, so
+      this returns ``None`` without inspecting the conflicted tree.
+    * Any OTHER exit code is an unexpected git failure (an unresolvable commit
+      ref, a corrupt object store, …) and raises :class:`GitProbeError` so the
+      caller REFUSEs rather than silently treating it as either a clean merge
+      or a conflict.
+    """
+    ret, out, err = run_command(
+        ["git", "merge-tree", "--write-tree", lane_a_commit, lane_b_commit],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret not in (0, 1):
+        raise GitProbeError(f"git merge-tree --write-tree {lane_a_commit} {lane_b_commit} failed (exit {ret}): {(err or '').strip()}")
+    if ret == 1:
+        return None  # genuine conflict — not a deterministic resolution
+    lines = (out or "").splitlines()
+    tree_oid = lines[0].strip() if lines else ""
+    if not tree_oid:
+        raise GitProbeError(f"git merge-tree --write-tree {lane_a_commit} {lane_b_commit} reported a clean merge but printed no tree id")
+    try:
+        return blob_id_at(repo_root, tree_oid, path)
+    except GitProbeError:
+        return None  # path absent (or otherwise unreadable) in the clean-merged tree
+
+
 def lane_integrated_by_tree_or_ancestry(repo_root: Path, lane_branch: str, mission_branch: str) -> bool:
     """Return True when ``lane_branch``'s payload has already landed on ``mission_branch``.
 
@@ -761,4 +841,6 @@ __all__ = [
     "changed_paths_of",
     "lane_integrated_by_tree_or_ancestry",
     "driver_replay_expected_bytes",
+    "merge_tree_write_tree_available",
+    "three_way_merge_blob",
 ]
