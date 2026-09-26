@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-26T11:23:52.642784Z",
+      "decision_id": "01M3EQA4Y29V8G5K7CB54QFX49",
+      "final_answer": "Close via this PR (Closes #4017 + nightly evidence)",
+      "input_key": "issue_4017_disposition",
+      "mission_id": "01M3EQ9S6VXRCP9WWMWDWDWZSG",
+      "mission_slug": "startup-assess-cold-concurrency-01M3EQ9S",
+      "opened_by": "cli",
+      "options": [
+        "Close via this PR (Closes #4017 + nightly evidence)",
+        "Closeout row + evidence comment only; operator closes",
+        "Out of scope (not-applicable row)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should this mission treat #4017 (already fixed by PR #4174, but its bold 'Closes' never linked it)?",
+      "rationale": null,
+      "resolved_at": "2026-09-26T11:25:28.731824Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.issue-4017-disposition",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3EQ9S6VXRCP9WWMWDWDWZSG",
+  "version": 1
+}

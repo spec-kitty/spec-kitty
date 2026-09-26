@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "mission_slug": "startup-assess-cold-concurrency-01M3EQ9S",
+  "mission_id": "01M3EQ9S6VXRCP9WWMWDWDWZSG",
+  "mission_branch": "kitty/mission-startup-assess-cold-concurrency-01M3EQ9S",
+  "target_branch": "issue-3998-startup-assess-cold-concurrency",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/runtime/agent_commands.py",
+        "src/specify_cli/runtime/agent_skills.py",
+        "src/specify_cli/runtime/asset_preparation.py",
+        "src/specify_cli/runtime/bootstrap.py",
+        "tests/runtime/test_build_serialized.py",
+        "tests/runtime/test_startup_torn_read_escalation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "kitty-specs/startup-assess-cold-concurrency-01M3EQ9S/evidence-fresh-home-repro.md",
+        "kitty-specs/startup-assess-cold-concurrency-01M3EQ9S/tracer-approach.md",
+        "kitty-specs/startup-assess-cold-concurrency-01M3EQ9S/tracer-design-decisions.md",
+        "kitty-specs/startup-assess-cold-concurrency-01M3EQ9S/tracer-tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-26T11:41:16.153633+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "87838d091c8c274832c12069bb6de2e3edeb9600"
+}
