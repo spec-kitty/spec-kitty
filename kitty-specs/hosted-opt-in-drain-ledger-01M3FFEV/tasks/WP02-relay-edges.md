@@ -1,24 +1,43 @@
 ---
-work_package_id: "WP02"
-title: "Relay edges: offer DRAIN_DISABLED, stream/history gates, drill, relay CLI and MCP guidance"
-dependencies: ["WP01"]
-requirement_refs: ["FR-004", "FR-005", "FR-006", "NFR-003", "C-005"]
-subtasks: ["T006", "T007", "T008", "T009", "T010"]
+work_package_id: WP02
+title: 'Relay edges: offer DRAIN_DISABLED, stream/history gates, drill, relay CLI and MCP guidance'
+dependencies:
+- WP01
+requirement_refs:
+- FR-004
+- FR-005
+- FR-006
+- NFR-003
+- C-005
+planning_base_branch: claude/spec-kitty-mission-impl-8u6zmc
+merge_target_branch: claude/spec-kitty-mission-impl-8u6zmc
+branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-mission-impl-8u6zmc. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc unless the human explicitly redirects the landing branch.
+subtasks:
+- T006
+- T007
+- T008
+- T009
+- T010
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/zeitgeist_client/
+create_intent:
+- tests/zeitgeist_client/test_drain_relay_edges.py
+- tests/cli/commands/test_zeitgeist_drain_guidance.py
+execution_mode: code_change
+model: claude-sonnet-5
 owned_files:
-  - "src/specify_cli/zeitgeist_client/transport.py"
-  - "src/specify_cli/zeitgeist_client/filtered_stream.py"
-  - "src/specify_cli/zeitgeist_client/history.py"
-  - "src/specify_cli/zeitgeist_client/operability.py"
-  - "src/specify_cli/zeitgeist_client/mcp_stdio.py"
-  - "src/specify_cli/cli/commands/zeitgeist.py"
-  - "tests/zeitgeist_client/test_drain_relay_edges.py"
-  - "tests/cli/commands/test_zeitgeist_drain_guidance.py"
-authoritative_surface: "src/specify_cli/zeitgeist_client/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5"
+- src/specify_cli/zeitgeist_client/transport.py
+- src/specify_cli/zeitgeist_client/filtered_stream.py
+- src/specify_cli/zeitgeist_client/history.py
+- src/specify_cli/zeitgeist_client/operability.py
+- src/specify_cli/zeitgeist_client/mcp_stdio.py
+- src/specify_cli/cli/commands/zeitgeist.py
+- tests/zeitgeist_client/test_drain_relay_edges.py
+- tests/cli/commands/test_zeitgeist_drain_guidance.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP02: Relay edges — offer DRAIN_DISABLED, stream/history gates, drill, relay CLI and MCP guidance

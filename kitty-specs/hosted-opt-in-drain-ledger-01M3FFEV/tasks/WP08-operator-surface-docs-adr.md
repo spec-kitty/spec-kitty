@@ -1,23 +1,42 @@
 ---
-work_package_id: "WP08"
-title: "Operator surface (moments drain), ADR, docs, changelog"
-dependencies: ["WP02", "WP03", "WP05", "WP07"]
-requirement_refs: ["FR-007", "FR-014", "FR-015"]
-subtasks: ["T034", "T035", "T036", "T037"]
+work_package_id: WP08
+title: Operator surface (moments drain), ADR, docs, changelog
+dependencies:
+- WP02
+- WP03
+- WP05
+- WP07
+requirement_refs:
+- FR-007
+- FR-014
+- FR-015
+planning_base_branch: claude/spec-kitty-mission-impl-8u6zmc
+merge_target_branch: claude/spec-kitty-mission-impl-8u6zmc
+branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-mission-impl-8u6zmc. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc unless the human explicitly redirects the landing branch.
+subtasks:
+- T034
+- T035
+- T036
+- T037
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/cli/commands/moments.py
+create_intent:
+- tests/cli/commands/test_moments_drain.py
+- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+execution_mode: code_change
+model: claude-sonnet-5
 owned_files:
-  - "src/specify_cli/cli/commands/moments.py"
-  - "tests/cli/commands/test_moments_drain.py"
-  - "docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md"
-  - "docs/api/configuration.md"
-  - "docs/api/environment-variables.md"
-  - "docs/context/team-kitty.md"
-  - "docs/changelog/CHANGELOG.md"
-authoritative_surface: "src/specify_cli/cli/commands/moments.py"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5"
+- src/specify_cli/cli/commands/moments.py
+- tests/cli/commands/test_moments_drain.py
+- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+- docs/api/configuration.md
+- docs/api/environment-variables.md
+- docs/context/team-kitty.md
+- docs/changelog/CHANGELOG.md
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP08: Operator surface (moments drain), ADR, docs, changelog

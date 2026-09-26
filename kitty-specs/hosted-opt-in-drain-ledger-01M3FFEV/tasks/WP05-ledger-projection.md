@@ -1,23 +1,41 @@
 ---
-work_package_id: "WP05"
-title: "Ledger: single derived-view writer, execution-state projection refresh, hook sites, ledger-floor guard"
-dependencies: ["WP01"]
-requirement_refs: ["FR-008", "FR-009", "FR-010", "NFR-004"]
-subtasks: ["T021", "T022", "T023", "T024", "T025"]
+work_package_id: WP05
+title: 'Ledger: single derived-view writer, execution-state projection refresh, hook sites, ledger-floor guard'
+dependencies:
+- WP01
+requirement_refs:
+- FR-008
+- FR-009
+- FR-010
+- NFR-004
+planning_base_branch: claude/spec-kitty-mission-impl-8u6zmc
+merge_target_branch: claude/spec-kitty-mission-impl-8u6zmc
+branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-mission-impl-8u6zmc. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc unless the human explicitly redirects the landing branch.
+subtasks:
+- T021
+- T022
+- T023
+- T024
+- T025
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/status/
+create_intent:
+- tests/status/test_execution_projection.py
+- tests/architectural/test_ledger_floor.py
+execution_mode: code_change
+model: claude-sonnet-5
 owned_files:
-  - "src/specify_cli/status/views.py"
-  - "src/specify_cli/status/progress.py"
-  - "src/specify_cli/status/lifecycle.py"
-  - "src/specify_cli/status/emit.py"
-  - "src/specify_cli/coordination/status_transition.py"
-  - "tests/status/test_execution_projection.py"
-  - "tests/architectural/test_ledger_floor.py"
-authoritative_surface: "src/specify_cli/status/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5"
+- src/specify_cli/status/views.py
+- src/specify_cli/status/progress.py
+- src/specify_cli/status/lifecycle.py
+- src/specify_cli/status/emit.py
+- src/specify_cli/coordination/status_transition.py
+- tests/status/test_execution_projection.py
+- tests/architectural/test_ledger_floor.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP05 — Ledger: single derived-view writer, execution-state projection refresh, hook sites, ledger-floor guard

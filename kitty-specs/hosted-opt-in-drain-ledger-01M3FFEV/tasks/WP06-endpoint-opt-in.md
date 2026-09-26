@@ -1,32 +1,46 @@
 ---
-work_package_id: "WP06"
-title: "Endpoint opt-in: no packaged fallback in resolver, explicit vs automatic caller split"
+work_package_id: WP06
+title: 'Endpoint opt-in: no packaged fallback in resolver, explicit vs automatic caller split'
 dependencies: []
-requirement_refs: [FR-011, FR-012, C-006]
-subtasks: [T026, T027, T028, T029, T030]
+requirement_refs:
+- FR-011
+- FR-012
+- C-006
+planning_base_branch: claude/spec-kitty-mission-impl-8u6zmc
+merge_target_branch: claude/spec-kitty-mission-impl-8u6zmc
+branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-mission-impl-8u6zmc. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc unless the human explicitly redirects the landing branch.
+subtasks:
+- T026
+- T027
+- T028
+- T029
+- T030
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/auth/
+create_intent: []
+execution_mode: code_change
+model: claude-sonnet-5
 owned_files:
-  - "src/specify_cli/auth/config.py"
-  - "src/specify_cli/auth/server_target.py"
-  - "src/specify_cli/auth/flows/**"
-  - "src/specify_cli/auth/token_manager.py"
-  - "src/specify_cli/auth/http/transport.py"
-  - "src/specify_cli/cli/commands/_auth_saas_target.py"
-  - "src/specify_cli/cli/commands/_auth_login.py"
-  - "src/specify_cli/cli/commands/_auth_logout.py"
-  - "src/specify_cli/cli/commands/_auth_doctor.py"
-  - "src/specify_cli/saas_client/auth.py"
-  - "src/specify_cli/tracker/saas_client.py"
-  - "src/specify_cli/tracker/saas_readiness.py"
-  - "src/specify_cli/tracker/egress_verdict.py"
-  - "tests/auth/**"
-  - "tests/cli/commands/test_auth_*.py"
-  - "tests/cli/test_auth_saas_target_cleanup.py"
-authoritative_surface: "src/specify_cli/auth/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5"
+- src/specify_cli/auth/config.py
+- src/specify_cli/auth/server_target.py
+- src/specify_cli/auth/flows/**
+- src/specify_cli/auth/token_manager.py
+- src/specify_cli/auth/http/transport.py
+- src/specify_cli/cli/commands/_auth_saas_target.py
+- src/specify_cli/cli/commands/_auth_login.py
+- src/specify_cli/cli/commands/_auth_logout.py
+- src/specify_cli/cli/commands/_auth_doctor.py
+- src/specify_cli/saas_client/auth.py
+- src/specify_cli/tracker/saas_client.py
+- src/specify_cli/tracker/saas_readiness.py
+- src/specify_cli/tracker/egress_verdict.py
+- tests/auth/**
+- tests/cli/commands/test_auth_*.py
+- tests/cli/test_auth_saas_target_cleanup.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP06: Endpoint opt-in — no packaged fallback in resolver, explicit vs automatic caller split

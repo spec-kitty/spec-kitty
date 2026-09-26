@@ -1,24 +1,46 @@
 ---
-work_package_id: "WP01"
-title: "Posture core: drain + ledger posture reader, personal writer, test harness fixtures"
+work_package_id: WP01
+title: 'Posture core: drain + ledger posture reader, personal writer, test harness fixtures'
 dependencies: []
-requirement_refs: ["FR-001", "FR-002", "FR-003", "FR-008", "C-002", "C-003"]
-subtasks: ["T001", "T002", "T003", "T004", "T005"]
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-008
+- C-002
+- C-003
+planning_base_branch: claude/spec-kitty-mission-impl-8u6zmc
+merge_target_branch: claude/spec-kitty-mission-impl-8u6zmc
+branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-mission-impl-8u6zmc. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc unless the human explicitly redirects the landing branch.
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/core/
+create_intent:
+- src/specify_cli/core/hosted_posture.py
+- src/specify_cli/core/toml_table.py
+- tests/specify_cli/core/test_hosted_posture.py
+- tests/specify_cli/core/test_toml_table.py
+- tests/specify_cli/live_work/conftest.py
+execution_mode: code_change
+model: claude-sonnet-5
 owned_files:
-  - "src/specify_cli/core/hosted_posture.py"
-  - "src/specify_cli/core/toml_table.py"
-  - "src/specify_cli/zeitgeist_client/moments.py"
-  - "tests/specify_cli/core/test_hosted_posture.py"
-  - "tests/specify_cli/core/test_toml_table.py"
-  - "tests/zeitgeist_client/conftest.py"
-  - "tests/status/conftest.py"
-  - "tests/specify_cli/live_work/conftest.py"
-authoritative_surface: "src/specify_cli/core/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5"
+- src/specify_cli/core/hosted_posture.py
+- src/specify_cli/core/toml_table.py
+- src/specify_cli/zeitgeist_client/moments.py
+- tests/specify_cli/core/test_hosted_posture.py
+- tests/specify_cli/core/test_toml_table.py
+- tests/zeitgeist_client/conftest.py
+- tests/status/conftest.py
+- tests/specify_cli/live_work/conftest.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP01 — Posture core: drain + ledger posture reader, personal writer, test harness fixtures

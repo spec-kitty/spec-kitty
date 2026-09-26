@@ -1,23 +1,37 @@
 ---
-work_package_id: "WP07"
-title: "Migration opt-in (retired target delete + D-6 session backfill) and remaining default-URL test re-pins"
-dependencies: [WP06]
-requirement_refs: [FR-013, FR-011]
-subtasks: [T031, T032, T033]
+work_package_id: WP07
+title: Migration opt-in (retired target delete + D-6 session backfill) and remaining default-URL test re-pins
+dependencies:
+- WP06
+requirement_refs:
+- FR-013
+- FR-011
+planning_base_branch: claude/spec-kitty-mission-impl-8u6zmc
+merge_target_branch: claude/spec-kitty-mission-impl-8u6zmc
+branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-mission-impl-8u6zmc. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc unless the human explicitly redirects the landing branch.
+subtasks:
+- T031
+- T032
+- T033
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/upgrade/migrations/
+create_intent:
+- src/specify_cli/upgrade/migrations/m_4_0_0rc5_hosted_endpoint_session_backfill.py
+- tests/specify_cli/upgrade/migrations/test_hosted_endpoint_session_backfill.py
+execution_mode: code_change
+model: claude-sonnet-5
 owned_files:
-  - "src/specify_cli/upgrade/migrations/m_4_0_0_retired_hosted_target.py"
-  - "src/specify_cli/upgrade/migrations/m_4_0_0rc5_hosted_endpoint_session_backfill.py"
-  - "tests/specify_cli/upgrade/migrations/test_hosted_endpoint_session_backfill.py"
-  - "tests/specify_cli/upgrade/migrations/test_retired_hosted_target.py"
-  - "tests/tracker/test_server_target_fail_closed.py"
-  - "tests/specify_cli/saas_client/**"
-  - "tests/integration/test_spec_kitty_home_cli.py"
-authoritative_surface: "src/specify_cli/upgrade/migrations/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5"
+- src/specify_cli/upgrade/migrations/m_4_0_0_retired_hosted_target.py
+- src/specify_cli/upgrade/migrations/m_4_0_0rc5_hosted_endpoint_session_backfill.py
+- tests/specify_cli/upgrade/migrations/test_hosted_endpoint_session_backfill.py
+- tests/specify_cli/upgrade/migrations/test_retired_hosted_target.py
+- tests/tracker/test_server_target_fail_closed.py
+- tests/specify_cli/saas_client/**
+- tests/integration/test_spec_kitty_home_cli.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP07 — Migration opt-in (retired target delete + D-6 session backfill) and remaining default-URL test re-pins

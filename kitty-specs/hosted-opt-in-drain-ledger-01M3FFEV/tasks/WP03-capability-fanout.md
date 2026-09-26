@@ -1,35 +1,50 @@
 ---
-work_package_id: "WP03"
-title: "Capability + fan-out: gateway method gates, resolve_* pre-cache check, adapters, runtime producer, live-work, routes"
-dependencies: ["WP01"]
-requirement_refs: ["FR-004", "FR-006", "NFR-001", "NFR-003", "C-004", "C-005"]
-subtasks: ["T011", "T012", "T013", "T014", "T015", "T016"]
-owned_files:
-  - "src/specify_cli/zeitgeist_client/resolution.py"
-  - "src/specify_cli/status/adapters.py"
-  - "src/specify_cli/events/runtime_moments.py"
-  - "src/specify_cli/live_work/**"
-  - "src/specify_cli/retrospective/lifecycle_events.py"
-  - "src/specify_cli/cli/commands/routes.py"
-  - "src/specify_cli/cli/commands/live_work.py"
-  - "tests/zeitgeist_client/test_drain_capability.py"
-  - "tests/status/test_drain_fanout.py"
-authoritative_surface: "src/specify_cli/zeitgeist_client/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5"
-planning_base_branch: "claude/spec-kitty-mission-impl-8u6zmc"
-merge_target_branch: "claude/spec-kitty-mission-impl-8u6zmc"
-branch_strategy: "Planning artifacts were generated on claude/spec-kitty-mission-impl-8u6zmc; completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc."
-phase: "Phase 1 - Capability + fan-out"
-assignee: ""
-shell_pid: ""
+work_package_id: WP03
+title: 'Capability + fan-out: gateway method gates, resolve_* pre-cache check, adapters, runtime producer, live-work, routes'
+dependencies:
+- WP01
+requirement_refs:
+- FR-004
+- FR-006
+- NFR-001
+- NFR-003
+- C-004
+- C-005
+planning_base_branch: claude/spec-kitty-mission-impl-8u6zmc
+merge_target_branch: claude/spec-kitty-mission-impl-8u6zmc
+branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-mission-impl-8u6zmc. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc unless the human explicitly redirects the landing branch.
+subtasks:
+- T011
+- T012
+- T013
+- T014
+- T015
+- T016
+phase: Phase 1 - Capability + fan-out
 history:
-  - timestamp: "2026-09-26T00:00:00Z"
-    agent: "system"
-    action: "Prompt generated via /spec-kitty.tasks-packages"
+- timestamp: '2026-09-26T00:00:00Z'
+  agent: system
+  action: Prompt generated via /spec-kitty.tasks-packages
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/zeitgeist_client/
+create_intent:
+- tests/zeitgeist_client/test_drain_capability.py
+- tests/status/test_drain_fanout.py
+execution_mode: code_change
+model: claude-sonnet-5
+owned_files:
+- src/specify_cli/zeitgeist_client/resolution.py
+- src/specify_cli/status/adapters.py
+- src/specify_cli/events/runtime_moments.py
+- src/specify_cli/live_work/**
+- src/specify_cli/retrospective/lifecycle_events.py
+- src/specify_cli/cli/commands/routes.py
+- src/specify_cli/cli/commands/live_work.py
+- tests/zeitgeist_client/test_drain_capability.py
+- tests/status/test_drain_fanout.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP03 – Capability + fan-out: gateway method gates, resolve_* pre-cache check, adapters, runtime producer, live-work, routes

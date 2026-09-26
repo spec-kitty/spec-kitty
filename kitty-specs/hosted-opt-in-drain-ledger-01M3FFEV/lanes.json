@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "mission_slug": "hosted-opt-in-drain-ledger-01M3FFEV",
+  "mission_id": "01M3FFEVWV4BX10QS238E0D28K",
+  "mission_branch": "kitty/mission-hosted-opt-in-drain-ledger-01M3FFEV",
+  "target_branch": "claude/spec-kitty-mission-impl-8u6zmc",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/hosted_posture.py",
+        "src/specify_cli/core/toml_table.py",
+        "src/specify_cli/zeitgeist_client/moments.py",
+        "tests/specify_cli/core/test_hosted_posture.py",
+        "tests/specify_cli/core/test_toml_table.py",
+        "tests/specify_cli/live_work/conftest.py",
+        "tests/status/conftest.py",
+        "tests/zeitgeist_client/conftest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/config.py",
+        "src/specify_cli/auth/flows/**",
+        "src/specify_cli/auth/http/transport.py",
+        "src/specify_cli/auth/server_target.py",
+        "src/specify_cli/auth/token_manager.py",
+        "src/specify_cli/cli/commands/_auth_doctor.py",
+        "src/specify_cli/cli/commands/_auth_login.py",
+        "src/specify_cli/cli/commands/_auth_logout.py",
+        "src/specify_cli/cli/commands/_auth_saas_target.py",
+        "src/specify_cli/saas_client/auth.py",
+        "src/specify_cli/tracker/egress_verdict.py",
+        "src/specify_cli/tracker/saas_client.py",
+        "src/specify_cli/tracker/saas_readiness.py",
+        "tests/auth/**",
+        "tests/cli/commands/test_auth_*.py",
+        "tests/cli/test_auth_saas_target_cleanup.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/zeitgeist.py",
+        "src/specify_cli/zeitgeist_client/filtered_stream.py",
+        "src/specify_cli/zeitgeist_client/history.py",
+        "src/specify_cli/zeitgeist_client/mcp_stdio.py",
+        "src/specify_cli/zeitgeist_client/operability.py",
+        "src/specify_cli/zeitgeist_client/transport.py",
+        "tests/cli/commands/test_zeitgeist_drain_guidance.py",
+        "tests/zeitgeist_client/test_drain_relay_edges.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/live_work.py",
+        "src/specify_cli/cli/commands/routes.py",
+        "src/specify_cli/events/runtime_moments.py",
+        "src/specify_cli/live_work/**",
+        "src/specify_cli/retrospective/lifecycle_events.py",
+        "src/specify_cli/status/adapters.py",
+        "src/specify_cli/zeitgeist_client/resolution.py",
+        "tests/status/test_drain_fanout.py",
+        "tests/zeitgeist_client/test_drain_capability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/lifecycle.py",
+        "src/specify_cli/status/progress.py",
+        "src/specify_cli/status/views.py",
+        "tests/architectural/test_ledger_floor.py",
+        "tests/status/test_execution_projection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_4_0_0_retired_hosted_target.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc5_hosted_endpoint_session_backfill.py",
+        "tests/integration/test_spec_kitty_home_cli.py",
+        "tests/specify_cli/saas_client/**",
+        "tests/specify_cli/upgrade/migrations/test_hosted_endpoint_session_backfill.py",
+        "tests/specify_cli/upgrade/migrations/test_retired_hosted_target.py",
+        "tests/tracker/test_server_target_fail_closed.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/architectural/test_hosted_drain_gate.py",
+        "tests/integration/test_hosted_posture_matrix.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md",
+        "docs/api/configuration.md",
+        "docs/api/environment-variables.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/team-kitty.md",
+        "src/specify_cli/cli/commands/moments.py",
+        "tests/cli/commands/test_moments_drain.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-e",
+        "lane-g"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-26T18:56:44.576024+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b0e9a0e41874e4ffff3a906b04bb4bb8d8aa274f"
+}

@@ -1,19 +1,38 @@
 ---
-work_package_id: "WP04"
-title: "Non-vacuous drain arch gate + NFR-001/NFR-004 posture matrix integration walk"
-dependencies: [WP02, WP03, WP05]
-requirement_refs: [NFR-001, NFR-002, NFR-004, FR-010]
-subtasks: [T017, T018, T019, T020]
+work_package_id: WP04
+title: Non-vacuous drain arch gate + NFR-001/NFR-004 posture matrix integration walk
+dependencies:
+- WP02
+- WP03
+- WP05
+requirement_refs:
+- NFR-001
+- NFR-002
+- NFR-004
+- FR-010
+planning_base_branch: claude/spec-kitty-mission-impl-8u6zmc
+merge_target_branch: claude/spec-kitty-mission-impl-8u6zmc
+branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-mission-impl-8u6zmc. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-mission-impl-8u6zmc unless the human explicitly redirects the landing branch.
+subtasks:
+- T017
+- T018
+- T019
+- T020
+history: []
+agent_profile: python-pedro
+authoritative_surface: tests/
+create_intent:
+- tests/architectural/test_hosted_drain_gate.py
+- tests/integration/test_hosted_posture_matrix.py
+execution_mode: code_change
+model: claude-opus-5-5
 owned_files:
-  - "tests/architectural/test_hosted_drain_gate.py"
-  - "tests/architectural/test_egress_consent_boundary.py"
-  - "tests/integration/test_hosted_posture_matrix.py"
-authoritative_surface: "tests/"
-execution_mode: "code_change"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-opus-5-5"
+- tests/architectural/test_hosted_drain_gate.py
+- tests/architectural/test_egress_consent_boundary.py
+- tests/integration/test_hosted_posture_matrix.py
+role: implementer
+tags: []
+tracker_refs: []
 ---
 
 # WP04: Non-vacuous drain arch gate + NFR-001/NFR-004 posture matrix integration walk
