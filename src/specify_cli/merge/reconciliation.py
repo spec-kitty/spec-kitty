@@ -1100,14 +1100,21 @@ def _final_authored_walk(repo_root: Path, first_parent_shas: list[str]) -> tuple
     each content path is authored by exactly ONE approved lane, so "the FINAL
     first-parent blob per (lane, path), unioned across approved lanes" and "the
     final blob per path, full stop" coincide — there is no path two approved
-    lanes both touch to disambiguate between. If a future topology ever allowed
-    two approved lanes to modify the SAME path, this axis would false-FAIL
-    whenever their independently-resolved final blobs differ from the squash's
-    (correctly merged/rebased) resolution — see
-    ``test_squash_three_way_merge_resolution_is_unattributable`` (pinned
-    ``xfail(strict=True)``). That is the SAFE direction (refuse/rollback a
-    legitimate merge, never ship unattributed content), but it means this
-    assumption must be revisited before write-scope disjointness is relaxed.
+    lanes both touch to disambiguate between. When two approved lanes DO modify
+    the SAME path (the invariant violated in practice), this axis alone would
+    false-FAIL whenever their independently-resolved final blobs differ from the
+    squash's (correctly merged/rebased) resolution. That gap is now partly
+    closed downstream: for a path authored by EXACTLY TWO approved lanes,
+    :func:`is_legitimate_three_way_resolution` (terminus-merge-resolution-
+    attribution / #5051-adjacent) attributes the CLEAN ``git merge-tree``
+    resolution as a second chance — so only the genuine same-line-CONFLICT
+    sub-case still stays unattributable, pinned as
+    ``test_squash_three_way_merge_resolution_is_unattributable`` (strict
+    ``xfail``, tracked in #5051). Both remain the SAFE direction (refuse/rollback
+    a legitimate merge, never ship unattributed content); the sustainable fix is
+    still upstream — restore write-scope disjointness at lane-slicing time (or
+    register content-path merge drivers) rather than widen this recognizer
+    toward an N-way merge simulator.
     """
     seen_paths: set[str] = set()
     blobs: set[tuple[str, str]] = set()
