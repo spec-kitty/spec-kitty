@@ -238,8 +238,8 @@ class DestroyedLaneError(StructuredError):
 _DESTROYED_LANE_TRIGGER_STATES = frozenset({"in_progress", "blocked", "for_review", "in_review"})
 
 
-def _canonical_wp_lane_value(repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
-    """Return the canonical WP lane value from the COORD status surface, or ``None``.
+def _canonical_wp_lane_value(repo_root: Path, mission_slug: str, wp_id: str) -> str:
+    """Return the canonical WP lane value from the COORD status surface.
 
     #4889 T004: reads via ``placement_seam(...).read_dir(STATUS_STATE)`` (the
     coord-aware seam, already imported at module scope) rather than
@@ -247,31 +247,41 @@ def _canonical_wp_lane_value(repo_root: Path, mission_slug: str, wp_id: str) -> 
     coord-topology mission the latter reads the sparse-excluded PRIMARY tree
     and silently no-ops (never seeing the real event log), which would mean
     this guard never fires on the create-time-default coord topology (#2514).
-    ``None`` when no event log has been bootstrapped yet (WP never finalized)
-    or the WP is absent from the reduced snapshot -- never a trigger.
+
+    Deliberately does NOT catch ``CanonicalStatusNotFoundError`` (raised when
+    the event log has never been bootstrapped, or the resolved status surface
+    has no event log at all) or ``StatusReadPathNotFound`` / its
+    ``CoordinationBranchDeleted`` / ``CoordinationWorktreeUnmaterialized``
+    subclasses (raised when the coord status surface itself cannot be
+    resolved) -- both propagate to the sole caller,
+    ``_refuse_if_lane_destroyed``, which alone knows whether a persisted
+    ``WorkspaceContext`` makes an unreadable surface a "never finalized"
+    no-op or a fail-closed husk (landing-pass follow-up to #4889).
     """
-    from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane
+    from specify_cli.status import get_wp_lane
 
     status_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
-    try:
-        lane = get_wp_lane(status_dir, wp_id)
-    except CanonicalStatusNotFoundError:
-        return None
-    return str(lane.value)
+    return str(get_wp_lane(status_dir, wp_id).value)
 
 
-def _lane_tip_reachable_from_target(
+def _lane_base_reachable_from_target(
     repo_root: Path,
     context: WorkspaceContext,
     target_branch: str,
 ) -> bool:
-    """Return True when the persisted lane tip is an ancestor of ``target_branch``.
+    """Return True when the lane's persisted creation base is an ancestor of ``target_branch``.
 
-    #4889 FR-009 / contract "re-open after merge": ``context.base_commit`` is
-    the only SHA the persisted :class:`WorkspaceContext` carries. When it is
-    already reachable from ``target_branch`` the mission has since absorbed
-    that lineage (e.g. a real, non-squash merge landed it) and the guard must
-    NOT fire -- a lane re-opened in that state is not stranding anything, and
+    Renamed from ``_lane_tip_reachable_from_target`` (landing-pass follow-up
+    to #4889): ``context.base_commit`` is the lane's creation BASE -- the
+    commit the lane branch was forked from -- not its work tip; no lane tip
+    SHA is persisted anywhere. It is used here as a documented PROXY for that
+    tip (closing the "base reachable but trailing lane commits are not" gap
+    is a separate follow-up).
+
+    #4889 FR-009 / contract "re-open after merge": when the base is already
+    reachable from ``target_branch`` the mission has since absorbed that
+    lineage (e.g. a real, non-squash merge landed it) and the guard must NOT
+    fire -- a lane re-opened in that state is not stranding anything, and
     refusing would be a false positive (NFR-001). A missing ``base_commit``
     fails closed (treated as unreachable, never silently waved through).
     """
@@ -299,22 +309,44 @@ def _refuse_if_lane_destroyed(
     Called only once neither the lane branch nor its worktree exists (the
     REUSE / CRASH_RECOVERY gates above already ruled those two out), so this
     is purely the decision table's last row: CTX present, STATE non-terminal,
-    tip unreachable from target (see ``../data-model.md#4889-destroyed-lane-
+    base unreachable from target (see ``../data-model.md#4889-destroyed-lane-
     decision-table``). A genuinely fresh lane (no persisted context -- FR-001)
-    or a lane whose tip already landed on the target branch (FR-009 resume)
+    or a lane whose base already landed on the target branch (FR-009 resume)
     are both no-ops here, falling through to the normal FRESH route.
+
+    Landing-pass follow-up to #4889 (the destroyed-lane-guard husk fail-open):
+    a persisted ``WorkspaceContext`` proves this lane was allocated AFTER
+    ``finalize-tasks``, which bootstraps the canonical event log together
+    with it -- so once CTX is confirmed present, an unreadable status surface
+    is NEVER "never finalized". It is a de-materialized/unreachable coord
+    husk (``CoordState.EMPTY`` degrading to a PRIMARY checkout with no event
+    log, #4959/#4966) or an unresolved coordination surface
+    (``CoordinationBranchDeleted`` / ``CoordinationWorktreeUnmaterialized``).
+    The prior code flattened both to ``None`` inside
+    ``_canonical_wp_lane_value`` and treated the flattened ``None`` as a
+    legitimate non-trigger state, silently falling through to the FRESH route
+    and re-cutting an empty lane over the WP's real, committed work -- the
+    exact #4889 P0, reachable from inside the very coord topology the
+    original fix claimed to fully close. Fail closed instead: worst case is a
+    recoverable "materialize the coord worktree" refusal, never data loss.
     """
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.status import CanonicalStatusNotFoundError
     from specify_cli.workspace.context import find_context_for_wp
 
     context = find_context_for_wp(repo_root, mission_slug, wp_id)
     if context is None:
         return
 
-    state = _canonical_wp_lane_value(repo_root, mission_slug, wp_id)
+    try:
+        state = _canonical_wp_lane_value(repo_root, mission_slug, wp_id)
+    except (CanonicalStatusNotFoundError, StatusReadPathNotFound):
+        raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch) from None
+
     if state not in _DESTROYED_LANE_TRIGGER_STATES:
         return
 
-    if _lane_tip_reachable_from_target(repo_root, context, target_branch):
+    if _lane_base_reachable_from_target(repo_root, context, target_branch):
         return
 
     raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch)

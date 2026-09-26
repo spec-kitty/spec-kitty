@@ -483,6 +483,108 @@ class TestControlArmsPreserved:
         assert result_path.exists()
 
 
+class TestHuskCoordSurfaceFailsClosed:
+    """#4889 landing-pass follow-up: a de-materialized coord husk must fail
+    CLOSED, never silently no-op into a re-cut.
+
+    Pre-fix, ``_canonical_wp_lane_value`` caught ``CanonicalStatusNotFoundError``
+    and flattened it to ``None``, and ``_refuse_if_lane_destroyed`` treated any
+    ``state not in _DESTROYED_LANE_TRIGGER_STATES`` (``None`` included) as a
+    legitimate no-op. When BOTH the lane worktree/branch AND the coordination
+    worktree's mission subdir are gone (``CoordState.EMPTY`` -- the coord
+    worktree root still exists, but its ``kitty-specs/<slug>`` mission dir
+    does not, #1716/FR-006), ``resolve_artifact_surface`` sanctionedly
+    degrades ``read_dir(STATUS_STATE)`` to the PRIMARY checkout, whose
+    ``kitty-specs/<slug>`` dir has no event log (it is only ever populated in
+    the coord worktree's copy). That flattening silently waved the guard
+    through even though a persisted :class:`WorkspaceContext` proves the lane
+    WAS finalized -- the exact #4889 P0 stranding, reachable from inside the
+    coord topology the mission claims to fully close.
+    """
+
+    def test_husk_coord_surface_fails_closed_not_silent_recut(self, tmp_path: Path, request: pytest.FixtureRequest) -> None:
+        ids = _ids(request.node.name)
+        repo, manifest, worktree_path, branch, context = _build_destroyed_lane_fixture(tmp_path, ids)
+
+        # De-materialize just the coord worktree's mission subdir (->
+        # CoordState.EMPTY: coord root exists, its kitty-specs/<slug> dir does
+        # not) so ``resolve_artifact_surface`` sanctionedly degrades
+        # ``read_dir(STATUS_STATE)`` to the PRIMARY checkout -- a husk from
+        # this guard's perspective because CTX proves finalization already
+        # happened.
+        coord_feature = coord_feature_dir(repo, ids.mission_slug, ids.mid8)
+        coord_root = coord_feature.parent.parent
+        assert coord_root.exists()
+        assert coord_feature.exists()
+        import shutil
+
+        shutil.rmtree(coord_feature)
+        assert coord_root.exists()
+        assert not coord_feature.exists()
+
+        # Confirm the degrade actually lands on PRIMARY with no event log --
+        # otherwise this fixture would not exercise the husk condition.
+        primary_dir = repo / "kitty-specs" / ids.mission_slug
+        status_dir = placement_seam(repo, ids.mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+        assert status_dir == primary_dir
+        assert not (primary_dir / "status.events.jsonl").exists()
+
+        with pytest.raises(DestroyedLaneError) as exc_info:
+            allocate_lane_worktree(
+                repo_root=repo,
+                mission_slug=ids.mission_slug,
+                wp_id=WP_ID,
+                lanes_manifest=manifest,
+            )
+
+        err = exc_info.value
+        assert err.error_code == "DESTROYED_LANE"
+        assert err.branch_name == branch
+        assert err.wp_id == WP_ID
+        assert err.lane_id == LANE_ID
+
+        # No silent re-cut: the destroyed lane path is never recreated.
+        assert not worktree_path.exists()
+        assert not branch_exists(repo, branch)
+
+    def test_unmaterialized_coord_surface_fails_closed_as_destroyed_lane(self, tmp_path: Path, request: pytest.FixtureRequest) -> None:
+        """A fully de-materialized coord worktree (branch intact) must raise
+        the structured ``DestroyedLaneError``, not an uncaught
+        ``CoordinationWorktreeUnmaterialized``/``StatusReadPathNotFound``.
+
+        ``CoordState.UNMATERIALIZED`` (#4959/#4966) already makes
+        ``resolve_artifact_surface`` raise rather than silently degrade, so
+        this arm was never the silent-recut data-loss vector -- but a
+        persisted :class:`WorkspaceContext` still means the guard should
+        translate it into the SAME structured, actionable refusal instead of
+        leaking an unrelated coordination-surface exception type out of the
+        lane allocator.
+        """
+        ids = _ids(request.node.name)
+        repo, manifest, worktree_path, branch, context = _build_destroyed_lane_fixture(tmp_path, ids)
+
+        coord_root = CoordinationWorkspace.worktree_path(repo, ids.mission_slug, ids.mid8)
+        assert coord_root.exists()
+        _git(repo, "worktree", "remove", "--force", str(coord_root))
+        assert not coord_root.exists()
+
+        with pytest.raises(DestroyedLaneError) as exc_info:
+            allocate_lane_worktree(
+                repo_root=repo,
+                mission_slug=ids.mission_slug,
+                wp_id=WP_ID,
+                lanes_manifest=manifest,
+            )
+
+        err = exc_info.value
+        assert err.error_code == "DESTROYED_LANE"
+        assert err.branch_name == branch
+        assert err.wp_id == WP_ID
+        assert err.lane_id == LANE_ID
+        assert not worktree_path.exists()
+        assert not branch_exists(repo, branch)
+
+
 class TestCanonicalStatusReadsCoordSurface:
     """T004: the guard must read status via the COORD surface, never a
     hand-rolled ``materialize(repo_root/"kitty-specs"/slug)`` PRIMARY read
