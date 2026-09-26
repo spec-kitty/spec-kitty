@@ -30,7 +30,8 @@
       "last_transition_at": "2026-09-26T11:31:43.783024+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Re-pinned 6 stale integration fixtures: coord unmaterialized fail-closed (2fd7eabf01/#4959) x2, arbiter fixture writes lanes.json (788db8ffb4/#4758) + negative guard cell, retrospect smoke causal rework (events#69). 95 passed on the 4 files; ruff clean."
+        "Re-pinned 6 stale integration fixtures: coord unmaterialized fail-closed (2fd7eabf01/#4959) x2, arbiter fixture writes lanes.json (788db8ffb4/#4758) + negative guard cell, retrospect smoke causal rework (events#69). 95 passed on the 4 files; ruff clean.",
+        "Review passed: T001/T002 assert CoordinationWorktreeUnmaterialized + error_code (ADR 2026-09-24-2); Guard4 residual (resolve_feature_dir_for_mission returns PRIMARY) pinned+documented in docstring - orchestrator to record in mission tracer notes; T003 negative cell mutation-verified (guard disabled -> DID NOT RAISE); T004 rework causal :10->:11-:14->:20 approval from in_review. 95 passed; ruff check/format clean; no src changes, no skip/xfail. Formatting-only churn in test_review_durability_matrix.py (~580 lines) and test_surface_translation_seam.py required by DoD format gate (base files were unformatted) - PR must call it out. Anti-pattern checklist 1-8 PASS/N/A; owned files not shared with other WPs."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
