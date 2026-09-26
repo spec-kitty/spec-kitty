@@ -29,6 +29,7 @@ from specify_cli.coordination.commit_router import commit_for_mission
 from specify_cli.core.atomic import atomic_write
 from specify_cli.git.commit_helpers import preflight_commit
 from specify_cli.git.protection_policy import ProtectionPolicy
+from specify_cli.status import git_operation_in_progress
 
 
 def _git(root: Path, *args: str) -> bytes:
@@ -107,11 +108,13 @@ def _working(root: Path, report: str) -> dict[str, tuple[str, int]]:
 
 
 def _require_idle(root: Path) -> None:
-    for name in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply", "sequencer", "index.lock"):
-        raw = _git(root, "rev-parse", "--git-path", name).decode().strip()
-        path = Path(raw)
-        if (path if path.is_absolute() else root / path).exists():
-            raise ValueError(f"Active Git operation: {name}")
+    # Consume the canonical git-op detector (status.views) rather than
+    # re-enumerating markers here, so one vocabulary governs both the
+    # status-materialization guard and this transaction guard. ``sequencer``
+    # (multi-commit cherry-pick/revert/rebase) was folded into that canonical
+    # set so no coverage is lost by the consolidation.
+    if git_operation_in_progress(root):
+        raise ValueError("Active Git operation in progress")
 
 
 def _matching_qualified_report(root: Path, report: Path, rendered: str) -> str | None:
