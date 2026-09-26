@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from specify_cli.cli.commands.agent.tasks_mapping_core import MappingRequest, plan_mapping
 from specify_cli.requirement_mapping import (
     classify_stale_refs,
     compute_coverage,
@@ -22,13 +23,12 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 class TestValidateRefs:
     """Test ref validation against spec IDs."""
 
     def test_all_valid(self):
-        valid, unknown = validate_refs(
-            ["FR-001", "NFR-002"], {"FR-001", "NFR-002", "FR-003"}
-        )
+        valid, unknown = validate_refs(["FR-001", "NFR-002"], {"FR-001", "NFR-002", "FR-003"})
         assert valid == ["FR-001", "NFR-002"]
         assert unknown == []
 
@@ -67,9 +67,7 @@ class TestClassifyStaleRefs:
             {"WP02": ["FR-003a", "FR-999"]},
             malformed=["FR-003A"],
         )
-        assert reasons == {
-            "WP02": {"malformed": ["FR-003a"], "unknown_spec_id": ["FR-999"]}
-        }
+        assert reasons == {"WP02": {"malformed": ["FR-003a"], "unknown_spec_id": ["FR-999"]}}
 
     def test_unfilled_placeholder_is_malformed(self):
         # An unfilled <FR-XXX> template placeholder is classified malformed, not unknown.
@@ -286,12 +284,7 @@ class TestFindUndeclaredRequirementCitations:
         The heading-scoped check still catches the "Functional Requirements"
         section that opens with plain, undeclared prose.
         """
-        content = (
-            "## Non-Functional Requirements\n\n"
-            "- **NFR-001**: Some constraint.\n\n"
-            "## Functional Requirements\n\n"
-            "FR-001 must hold. FR-002 too.\n"
-        )
+        content = "## Non-Functional Requirements\n\n- **NFR-001**: Some constraint.\n\n## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n"
         warnings = find_undeclared_requirement_citations(content)
         assert len(warnings) == 1
         assert "FR-001" in warnings[0]
@@ -349,12 +342,7 @@ class TestFindBareProseRequirementIds:
         must produce NO candidate for that row -- the per-line skip rule
         that keeps this predicate from repeating #3395's rejected ~6%
         false-positive rate."""
-        content = (
-            "### Functional Requirements\n\n"
-            "| ID | Requirement |\n"
-            "|----|-------------|\n"
-            "| FR-001 | See FR-999 for related context. |\n"
-        )
+        content = "### Functional Requirements\n\n| ID | Requirement |\n|----|-------------|\n| FR-001 | See FR-999 for related context. |\n"
         assert find_bare_prose_requirement_ids(content) == []
 
     def test_story5_fault_injection_surfaces_explicit_failure_not_silent_clean(self, monkeypatch):
@@ -432,8 +420,7 @@ class TestReadAllWpRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            "requirement_refs:\n  - FR-001\n  - FR-002\n---\n\n# WP01\n",
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - FR-002\n---\n\n# WP01\n',
             encoding="utf-8",
         )
         (tasks_dir / "WP02-test.md").write_text(
@@ -456,8 +443,7 @@ class TestReadAllWpRawRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            "requirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n",
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n',
             encoding="utf-8",
         )
 
@@ -469,8 +455,7 @@ class TestReadAllWpRawRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            "requirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n",
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n',
             encoding="utf-8",
         )
 
@@ -482,8 +467,7 @@ class TestReadAllWpRawRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            'requirement_refs: "FR-002, FR-003"\n---\n\n# WP01\n',
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs: "FR-002, FR-003"\n---\n\n# WP01\n',
             encoding="utf-8",
         )
 
@@ -495,15 +479,147 @@ class TestReadAllWpRawRequirementRefs:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()
         (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            "requirement_refs:\n  - FR-001\n  - 42\n---\n\n# WP01\n",
+            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - 42\n---\n\n# WP01\n',
             encoding="utf-8",
         )
 
         result = read_all_wp_raw_requirement_refs(tasks_dir)
         assert "FR-001" in result["WP01"]
-        non_string_tokens = [
-            token for token in result["WP01"] if token.startswith("<NON_STRING:")
-        ]
+        non_string_tokens = [token for token in result["WP01"] if token.startswith("<NON_STRING:")]
         assert len(non_string_tokens) == 1
         assert "42" in non_string_tokens[0]
+
+
+class TestDeliveryLabelledRequirementRows:
+    """A trailing ``Delivery`` / ``No-op passable?`` column pair must never
+    change which requirement ids are declared, nor the functional set the
+    production requirement-coverage path computes (the label sits in
+    trailing columns only, never in/before the id cell -- the id-parser
+    patterns themselves are not widened).
+
+    Every "this row is not declared" assertion here is paired with a
+    same-fixture "this row IS declared" positive control (the correctly
+    labelled FR-001 row), per the ``acceptance-criteria-non-vacuity``
+    doctrine tactic (referenced here by id only -- the rule definition
+    stays in that one tactic).
+    """
+
+    # One fixture: a correctly labelled row (FR-001) and a mis-placed-label
+    # row whose label sits INSIDE the id cell (FR-002) -- the exact
+    # placement violation this rule forbids. Same fixture, same table, so
+    # the "not declared" result for FR-002 is proven against a positive
+    # control (FR-001, declared) rather than in isolation.
+    _SPEC_LABELLED = """## Requirements
+
+### Functional Requirements
+
+| ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
+|----|-------|------------|----------|--------|----------|-----------------|
+| FR-001 | Title | story | High | Open | [build] | no |
+| FR-002 [ratchet] | Title | story | High | Open | | |
+"""
+
+    # The labelled fixture's twin: the same correctly-labelled row with the
+    # two trailing columns removed entirely (the pre-Delivery-column shape). The
+    # mis-placed-label row has no twin counterpart -- its id was never
+    # declared regardless of the trailing columns' presence, so "labelled
+    # rows only, excluding the mis-placed one" means comparing FR-001 alone.
+    _SPEC_TWIN = """## Requirements
+
+### Functional Requirements
+
+| ID | Title | User Story | Priority | Status |
+|----|-------|------------|----------|--------|
+| FR-001 | Title | story | High | Open |
+"""
+
+    # A trailing label column that CITES another declared id (a `[folded]`
+    # row naming the row it is satisfied by) -- distinct from the mis-placed
+    # case above: the id cell itself is untouched, only the Delivery column
+    # carries the citation.
+    # The bare-prose line (FR-099) is the positive control: it proves the
+    # detector run against THIS fixture can still find a genuinely
+    # undeclared id, so the citation row's "not found" result below is not
+    # merely a collapsed, always-empty detector.
+    _SPEC_CITING_LABEL = """## Requirements
+
+### Functional Requirements
+
+| ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
+|----|-------|------------|----------|--------|----------|-----------------|
+| FR-001 | Title | story | High | Open | [build] | no |
+| FR-010 | Title | story | High | Open | [folded] (FR-001) | no |
+
+FR-099 must hold.
+"""
+
+    def test_mis_placed_label_row_is_not_declared(self) -> None:
+        """Positive control: FR-001 (same fixture) IS declared; FR-002 is not."""
+        parsed = parse_requirement_ids_from_spec_md(self._SPEC_LABELLED)
+        assert "FR-001" in parsed["functional"]
+        assert "FR-002" not in parsed["functional"]
+        assert "FR-002" not in parsed["all"]
+
+    def test_labelled_and_twin_yield_identical_functional_sets(self) -> None:
+        labelled = parse_requirement_ids_from_spec_md(self._SPEC_LABELLED)
+        twin = parse_requirement_ids_from_spec_md(self._SPEC_TWIN)
+        assert labelled["functional"] == twin["functional"] == ["FR-001"]
+
+    def test_labelled_and_twin_give_same_unmapped_set_through_production_path(self) -> None:
+        """Drive the SAME pure decision core ``map-requirements`` calls
+        (``plan_mapping`` -> ``compute_coverage``), not a re-implementation.
+        """
+        labelled_ids = parse_requirement_ids_from_spec_md(self._SPEC_LABELLED)
+        twin_ids = parse_requirement_ids_from_spec_md(self._SPEC_TWIN)
+
+        # Same WP refs on both sides -- and nothing is mapped, so FR-001 (the
+        # only functional id either fixture declares) must show up as
+        # unmapped on BOTH sides. An empty ``existing_all_refs`` also means
+        # this assertion cannot pass vacuously the way a fully-mapped one
+        # would if a declaration silently dropped: dropping FR-001's
+        # declaration on either side would flip its ``unmapped_fr`` to
+        # ``[]``, a real, observable difference.
+        existing_all_refs: dict[str, list[str]] = {"WP01": []}
+
+        labelled_plan = plan_mapping(
+            MappingRequest(
+                spec_all_ids=frozenset(labelled_ids["all"]),
+                spec_functional_ids=frozenset(labelled_ids["functional"]),
+                new_mappings={},
+                existing_all_refs=existing_all_refs,
+                tasks_md_refs={},
+                mode="wp_refs",
+                replace=False,
+            )
+        )
+        twin_plan = plan_mapping(
+            MappingRequest(
+                spec_all_ids=frozenset(twin_ids["all"]),
+                spec_functional_ids=frozenset(twin_ids["functional"]),
+                new_mappings={},
+                existing_all_refs=existing_all_refs,
+                tasks_md_refs={},
+                mode="wp_refs",
+                replace=False,
+            )
+        )
+
+        # The exact-set equality above already proves the mis-placed-label
+        # row (FR-002) is undeclared on the labelled side -- it never even
+        # reaches the coverage projection, it is neither mapped nor
+        # unmapped, it simply does not exist.
+        assert labelled_plan.unmapped_fr == twin_plan.unmapped_fr == ["FR-001"]
+
+    def test_trailing_label_citation_does_not_create_bare_prose_finding(self) -> None:
+        """A `[folded] (FR-001)` citation inside a properly declared row's
+        trailing Delivery column must not be mistaken for a bare-prose,
+        undeclared requirement id -- proven on the SAME fixture as a
+        positive control: the fixture's genuinely bare-prose `FR-099` line
+        IS reported, so the citation's absence is not a vacuous, always-
+        empty result.
+        """
+        result = find_bare_prose_requirement_ids(self._SPEC_CITING_LABEL)
+        assert len(result) == 1
+        candidate = result[0]
+        assert candidate.ids == ["FR-099"]
+        assert "FR-001" not in candidate.ids

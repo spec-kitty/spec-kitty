@@ -1,0 +1,111 @@
+schema_version: "1.0"
+id: acceptance-criteria-non-vacuity
+name: Acceptance Criteria Non-Vacuity
+purpose: >
+  Prove that each acceptance criterion, and the test that stands in for it,
+  could actually fail. A criterion a no-op change would satisfy proves
+  nothing about the delivered behavior; a refusal or absence probe that
+  could not have seen the thing it asserts is missing proves nothing about
+  the production path. This tactic is the single canonical definition of the
+  delivery labels, the no-op-passable mark, and the three rules that keep
+  acceptance criteria and their tests non-vacuous.
+steps:
+  - title: Label every criterion
+    description: >
+      Tag each functional requirement and success criterion with a delivery
+      label: [build] (new behavior), [ratchet] (existing behavior pinned
+      against regression), or [folded] (satisfied by another item -- name
+      the satisfying item so folding cannot hide a gap).
+    examples:
+      - "FR-003 labelled [ratchet]: pins the requirement-id parser's existing behavior against regression, not new behavior."
+  - title: Ask "no-op passable?"
+    description: >
+      For each labelled criterion, ask whether a do-nothing change would
+      already satisfy it. If yes, either reword the criterion so a no-op
+      cannot pass it, or name a positive control that proves the check is
+      non-vacuous.
+    examples:
+      - "A [ratchet] row marked no-op passable: yes must name the control it is paired with, e.g. 'yes -- paired with the mis-placed-label row on the same fixture'."
+  - title: Pair refusal or absence assertions with a same-fixture positive control
+    description: >
+      A test that asserts something is absent, rejected, or unchanged proves
+      nothing unless a companion assertion on the same fixture proves the
+      probe can observe the thing when it is present. Build both assertions
+      from one shared fixture so the positive case and the negative case
+      cannot silently drift apart.
+    examples:
+      - "A parser test asserting a mis-placed id is NOT declared also asserts a correctly placed id in the same source text IS declared -- one fixture, two assertions, proving the probe discriminates on placement rather than always returning 'not declared'."
+  - title: Prove compound fixes half by half
+    description: >
+      When a fix is made of several independent changes, revert each part in
+      turn and confirm the test goes red each time. A test that stays green
+      after reverting half the fix is only exercising the other half.
+    references:
+      - name: Mutation Testing Workflow
+        type: tactic
+        id: mutation-testing-workflow
+        when: Verifying that a compound fix's test suite actually depends on every independent part of the fix.
+  - title: Exercise the production path, not only a helper
+    description: >
+      Non-vacuity tests must call the real production entry point (the CLI
+      command, the public function the runtime actually invokes) rather than
+      only a lower-level helper that the production path happens to use. A
+      helper-only test can stay green while the production wiring that calls
+      it is missing or broken.
+    examples:
+      - "Render the built-in review prompt through the same render_command_template() the CLI uses, and resolve a named id through the same charter-context include function `spec-kitty charter context --include` calls -- not a hand-built string check."
+failure_modes:
+  - "Blind probe: a refusal/absence assertion with no positive control on the same fixture, so it cannot distinguish 'the thing is absent' from 'the probe cannot see anything'."
+  - "Half-fix still green: a compound fix whose test suite stays green after reverting one of its independent parts, because no assertion depends on that part alone."
+  - "Helper-only non-vacuity: a test that calls an internal helper instead of the production entry point, so it cannot detect a wiring gap between the two."
+  - "Label placed in the requirement-id cell: the label silently undeclares the requirement from the id parser instead of being a harmless trailing annotation."
+notes: >
+  Canonical legend (the only place these terms are defined; other surfaces
+  reference this tactic rather than restating the legend):
+
+  Delivery labels -- [build]: new behavior delivered by this criterion.
+  [ratchet]: existing behavior pinned against regression (no new behavior).
+  [folded]: satisfied by another item; name that item so folding cannot hide
+  a gap.
+
+  No-op passable? -- yes/no per criterion. `yes` means a do-nothing change
+  would already satisfy the criterion's check, so it must be reworded, or
+  paired with a named positive control that proves the check is non-vacuous
+  despite being no-op passable by design (for example, a [ratchet] row
+  guarded by a companion assertion on the same fixture).
+
+  Related doctrine (named here for a reader's convenience): the
+  architectural-gate-non-vacuity tactic applies these same non-vacuity rules
+  to structural allowlists/gates instead of acceptance tests;
+  delete-the-assertion-not-the-test covers the sibling case of a probe that
+  is vacuous because its assertion is too weak, not because it lacks a
+  positive control; and acceptance-test-first is the baseline ATDD discipline
+  this tactic's rules keep honest.
+references:
+  - name: Mutation Testing Workflow
+    type: tactic
+    id: mutation-testing-workflow
+    when: Proving a compound fix's test suite depends on every independent part of the fix.
+  # Deliberately no graph-edge reference to architectural-gate-non-vacuity,
+  # acceptance-test-first, or delete-the-assertion-not-the-test here -- all
+  # three are named in prose instead (see the "Related doctrine" paragraph
+  # in `notes:` above, which the DRG extractor ignores, so this adds no edge
+  # and no cycle):
+  #
+  # - acceptance-test-first already carries a forward step-level reference to
+  #   this tactic, and delete-the-assertion-not-the-test already references
+  #   acceptance-test-first -- a back-reference to either from here would
+  #   close a cycle in the tactic cross-reference graph
+  #   (tests/doctrine/test_directive_consistency.py::
+  #   test_tactic_reference_graph_has_no_cycles requires a DAG).
+  # - architectural-gate-non-vacuity: that tactic --suggests--> directive:
+  #   DIRECTIVE_043, which sits in a densely-connected part of the DRG
+  #   (adversarial-squad-cadence -> brownfield-onboarding ->
+  #   DIRECTIVE_041/034 -> the whole ATDD-adjacent tactic cluster). Adding
+  #   that one edge, combined with the required acceptance-test-first
+  #   back-reference, bridged two previously-separate graph regions and moved
+  #   every governance-bearing mission type's ``--cascade all`` total by
+  #   dozens of unrelated tactics (measured: documentation 40->122) -- a
+  #   blast radius this tactic's own scope never asked for. The gate-level
+  #   tactic is still discoverable from here by name; it just does not
+  #   become a graph-reachable "suggested" artifact of this one.

@@ -1,6 +1,6 @@
 # Specify Action — Governance Guidelines
 
-These guidelines govern the quality and authorship standards for mission specification work in the software-dev mission. They were extracted from the command template and are injected at runtime via the constitution context bootstrap.
+These guidelines govern the quality and authorship standards for mission specification work in the software-dev mission. They were extracted from the command template and are injected at runtime via the charter context bootstrap.
 
 ---
 

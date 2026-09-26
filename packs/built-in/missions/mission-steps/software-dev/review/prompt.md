@@ -231,6 +231,24 @@ item blocks approval.
    documented fail-loud rationale. A bare `raise` in a request handler, worker,
    or CLI path that can fire on a transient race is a fragility risk.
 
+### 4b. Criterion Non-Vacuity Check
+
+Load `spec-kitty charter context --include tactic:acceptance-criteria-non-vacuity`
+and apply its three rules. State PASS / FAIL / N/A for each:
+
+1. **Same-fixture positive control**: every refusal/absence assertion in this
+   WP's tests is paired with a companion assertion, on the same fixture, that
+   proves the probe can observe the thing it says is missing.
+2. **Half-by-half proof for compound fixes**: for any fix made of several
+   independent changes, reverting each part in turn turns a test red; no part
+   is unexercised.
+3. **Production-path non-vacuity**: non-vacuity tests call the production
+   entry point (the CLI command, the public function actually invoked), not
+   only a helper.
+
+Additionally: every FR row in this WP's `requirement_refs` marked *no-op
+passable? yes* names a control that exists in the diff.
+
 ---
 
 ## Bulk Edit Compliance (if applicable)

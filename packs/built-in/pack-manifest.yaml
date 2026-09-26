@@ -665,7 +665,12 @@ constituents:
   kind: styleguide
   path: styleguides/tiered-standards.styleguide.yaml
   provenance_path:
-- content_hash: dec1d809b81f7568bce3969b889bc94feeadc4ee793816f629528e55df3d8f79
+- content_hash: aa2bce8aca537fc06ee5664e93443bf16257882a4979b16279d90ea829d12ddd
+  id: acceptance-criteria-non-vacuity
+  kind: tactic
+  path: tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml
+  provenance_path:
+- content_hash: 31d4263e6e9c1fc17143feadd0ec8ee3e1cf3ed00dc09ee4bbdf65499f4c3b48
   id: acceptance-test-first
   kind: tactic
   path: tactics/testing/acceptance-test-first.tactic.yaml
@@ -710,7 +715,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/architecture-diagram-review-checklist.tactic.yaml
   provenance_path:
-- content_hash: 309cbf2e65675997aa96fac715fc22ac8548787737832dd7f7e129b6b64cf9c2
+- content_hash: 78d2a25b3f1ceb2e4ac1c8dce9708a3b277833fae913828a1bff1ce2d9f8338a
   id: atdd-adversarial-acceptance
   kind: tactic
   path: tactics/testing/atdd-adversarial-acceptance.tactic.yaml
@@ -1380,7 +1385,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 8917f9c754cbf6446b1543faf9c859b5d8603c4b0e343e8eb46202c8f28bade2
+manifest_hash: ca74655f853f2c33f02f2936c7dcf058de4c328363b1b5538cb48e5560819e8d
 schema_version: '1'
 source_type: built-in
 source_url:

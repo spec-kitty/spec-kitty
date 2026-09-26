@@ -1,11 +1,21 @@
 action: review
 directives:
+  - 003-decision-documentation-requirement
   - 010-specification-fidelity-requirement
+  - 037-living-documentation-sync
   - 030-test-and-typecheck-quality-gate
+  - 046-readable-consistent-prs
+  - 051-supply-chain-install-safety
 tactics:
+  - usage-examples-sync
   - review-intent-and-risk-first
   - quality-gate-verification
   - stopping-conditions
+  - supply-chain-install-safety
+  - acceptance-criteria-non-vacuity
+  # Listed explicitly so graph calibration cannot drop it from review.
+  - boring-code-review
 styleguides: []
 toolguides: []
-procedures: []
+procedures:
+  - mission-wrap-up-sequence

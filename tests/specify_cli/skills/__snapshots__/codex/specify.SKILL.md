@@ -716,6 +716,7 @@ Given that feature description, do this:
     - Fill User Scenarios & Testing section (ERROR if no clear user flow can be determined)
     - If terminology precision matters, fill the optional Domain Language section with canonical terms and ambiguous synonyms to avoid
     - Generate separated requirement tables: Functional (`FR-###`), Non-Functional (`NFR-###`), and Constraints (`C-###`)
+    - Label every Functional Requirement row with a trailing `Delivery` value and a trailing `No-op passable?` mark (summary of tactic `acceptance-criteria-non-vacuity`: `[build]` new behaviour / `[ratchet]` pins existing behaviour / `[folded]` satisfied by another row; `yes`/`no` — `yes` means a do-nothing change would pass the row's check, so reword it or name a same-fixture positive control). Place both as trailing columns only — never inside or before the ID cell, never inline on an FR bullet/heading. Full label definitions and the non-vacuity rules live in tactic `acceptance-criteria-non-vacuity` (fetch: `spec-kitty charter context --include tactic:acceptance-criteria-non-vacuity`) — do not redefine them here.
     - Ensure each requirement entry has a status value and testable wording
     - Capture rules or invariants that shape acceptance scenarios, edge cases, permissions, or lifecycle boundaries
     - Define Success Criteria (measurable, technology-agnostic outcomes)
@@ -749,6 +750,7 @@ Given that feature description, do this:
       - [ ] IDs are unique across FR-###, NFR-###, and C-### entries
       - [ ] All requirement rows include a non-empty Status value
       - [ ] Non-functional requirements include measurable thresholds
+      - [ ] Every FR row and success criterion carries a delivery label and no-op mark
       - [ ] Success criteria are measurable
       - [ ] Success criteria are technology-agnostic (no implementation details)
       - [ ] All acceptance scenarios are defined
@@ -855,6 +857,7 @@ Success criteria must be:
 2. **Technology-agnostic**: No mention of frameworks, languages, databases, or tools
 3. **User-focused**: Describe outcomes from user/business perspective, not system internals
 4. **Verifiable**: Can be tested/validated without knowing implementation details
+5. **Labelled**: Append a trailing delivery-label + no-op suffix to every criterion — `— [build/ratchet/folded] · no-op passable: [yes/no]` — the same label set and no-op mark used on the Functional Requirements table (defined once, in tactic `acceptance-criteria-non-vacuity`; see the Requirements section guidance above).
 
 **Good examples**:
 

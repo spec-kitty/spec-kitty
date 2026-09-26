@@ -12,6 +12,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from rich.markup import escape
+
 from charter.bundle import CHARTER_YAML
 from charter.versioning import check_bundle_compatibility, get_bundle_schema_version
 
@@ -124,7 +126,11 @@ def _emit_error(console: Any, *, json_output: bool, message: str, unexpected: bo
         return
 
     label = "Unexpected error" if unexpected else "Error"
-    console.print(f"[red]{label}:[/red] {message}")
+    # Escape the message so Rich does not eat bracketed tokens in it (e.g. a
+    # doctrine selector like ``[build]`` or ``tactic:<id>`` echoed in an error).
+    # The ``[red]…[/red]`` label is intentional markup and stays literal; only
+    # the data-derived ``message`` is escaped (sibling of the #5061 body fix).
+    console.print(f"[red]{label}:[/red] {escape(message)}")
 
 
 def _assert_bundle_compatible(charter_dir: Path) -> None:

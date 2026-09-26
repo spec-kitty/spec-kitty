@@ -17,6 +17,7 @@ description: "Work package task list template for mission implementation"
 
 - **[P]** indicates the subtask can proceed in parallel (different files/components).
 - Include precise file paths or modules.
+- Subtasks are **reference rows**, not checkboxes: record completion with `spec-kitty agent tasks mark-status <Txxx> --status done`. The reduced event-log snapshot is the sole subtask-completion authority — there is no `- [ ]` box to tick.
 
 ## Path Conventions
 
@@ -38,9 +39,9 @@ description: "Work package task list template for mission implementation"
 
 ### Included Subtasks
 
-- [ ] T001 Create project structure per implementation plan
-- [ ] T002 Initialize [language] project with [framework] dependencies
-- [ ] T003 [P] Configure linting and formatting tools
+T001 Create project structure per implementation plan
+T002 Initialize [language] project with [framework] dependencies
+T003 [P] Configure linting and formatting tools
 
 ### Implementation Notes
 
@@ -69,12 +70,12 @@ description: "Work package task list template for mission implementation"
 
 ### Included Subtasks
 
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities shared across stories
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+T004 Setup database schema and migrations framework
+T005 [P] Implement authentication/authorization framework
+T006 [P] Setup API routing and middleware structure
+T007 Create base models/entities shared across stories
+T008 Configure error handling and logging infrastructure
+T009 Setup environment configuration management
 
 ### Implementation Notes
 
@@ -103,14 +104,14 @@ description: "Work package task list template for mission implementation"
 
 ### Included Subtasks
 
-- [ ] T010 [P] Contract test for [endpoint] in `tests/contract/test_[name].py`
-- [ ] T011 [P] Integration test for [journey] in `tests/integration/test_[name].py`
-- [ ] T012 [P] Create [Entity1] model in `src/models/[entity1].py`
-- [ ] T013 [P] Create [Entity2] model in `src/models/[entity2].py`
-- [ ] T014 Implement [Service] in `src/services/[service].py` (depends on T012, T013)
-- [ ] T015 Implement [endpoint/feature] in `src/[location]/[file].py`
-- [ ] T016 Add validation and error handling
-- [ ] T017 Add story-specific logging and metrics
+T010 [P] Contract test for [endpoint] in `tests/contract/test_[name].py`
+T011 [P] Integration test for [journey] in `tests/integration/test_[name].py`
+T012 [P] Create [Entity1] model in `src/models/[entity1].py`
+T013 [P] Create [Entity2] model in `src/models/[entity2].py`
+T014 Implement [Service] in `src/services/[service].py` (depends on T012, T013)
+T015 Implement [endpoint/feature] in `src/[location]/[file].py`
+T016 Add validation and error handling
+T017 Add story-specific logging and metrics
 
 ### Implementation Notes
 
@@ -137,13 +138,16 @@ description: "Work package task list template for mission implementation"
 **Prompt**: `/tasks/WP0N-polish-and-cross-cutting.md`
 **Requirement Refs**: FR-003, NFR-003, C-002
 
-### Included Subtasks
+### Candidate Subtasks
 
-- [ ] T0XX Documentation updates in `docs/`
-- [ ] T0XX Code cleanup and refactoring
-- [ ] T0XX Performance optimization across stories
-- [ ] T0XX Security hardening
-- [ ] T0XX Validate quickstart.md scenario
+Assign real `T###` identifiers during task finalization, then record completion
+with `spec-kitty agent tasks mark-status <T###> --status done`:
+
+- Documentation updates in `docs/`
+- Code cleanup and refactoring
+- Performance optimization across stories
+- Security hardening
+- Validate the `quickstart.md` scenario
 
 ### Implementation Notes
 

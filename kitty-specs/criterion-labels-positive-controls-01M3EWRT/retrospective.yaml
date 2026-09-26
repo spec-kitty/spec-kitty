@@ -1,0 +1,165 @@
+schema_version: 1
+mission_id: 01M3EWRTE3RHW8NAV3JCGBGF0F
+mission_slug: criterion-labels-positive-controls-01M3EWRT
+mission_number: 204
+friendly_name: Criterion delivery labels and positive-control review doctrine (#5061)
+mission_type: software-dev
+target_branch: claude/research-squad-remediation-mission-fvdk93
+created_at: '2026-09-26T17:01:09.247016+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-26T17:01:09.247016+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-007
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-015
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-006
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-014
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-001
+  category: process
+  summary: WP01 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-009
+  details: WP WP01 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-003
+  category: process
+  summary: WP01 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-011
+  details: WP WP01 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP02 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-010
+  details: WP WP02 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-004
+  category: process
+  summary: WP02 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-012
+  details: WP WP02 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-013
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/tasks/WP01-non-vacuity-tactic-and-review-wiring.md
+- id: e-006
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/tasks/WP02-spec-template-delivery-labels.md
+- id: e-007
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/tasks/WP03-kittify-overrides-resync.md
+- id: e-008
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/status.events.jsonl
+- id: e-009
+  kind: event_range
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/status.events.jsonl
+  range: 01M3F1ZZHCYCMXJ9CWKQZHPY71
+- id: e-010
+  kind: event_range
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/status.events.jsonl
+  range: 01M3F0PJHJR9J5BM4Q6RGREG2G
+- id: e-011
+  kind: event_range
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/status.events.jsonl
+  range: 01M3F1ZZHCYCMXJ9CWKQZHPY71..01M3F4N2YFSWYCE4YRY1NGQ92Q
+- id: e-012
+  kind: event_range
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/status.events.jsonl
+  range: 01M3F0PJHJR9J5BM4Q6RGREG2G..01M3F1YE3DK9NYQ0CH17G48JZZ
+- id: e-013
+  kind: event_range
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/status.events.jsonl
+  range: 01M3F7AVE2NPRT8CTSVKGEPY70
+- id: e-014
+  kind: event_range
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/status.events.jsonl
+  range: implementation_cycles
+- id: e-015
+  kind: file
+  path: kitty-specs/criterion-labels-positive-controls-01M3EWRT/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

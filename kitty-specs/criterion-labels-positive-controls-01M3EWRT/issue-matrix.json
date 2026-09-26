@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#3394": {
+      "evidence_ref": "Cited as context in research.md (first-id-per-line parser break is load-bearing); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4891": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5061": {
+      "evidence_ref": "Branch claude/research-squad-remediation-mission-fvdk93 commits 0634b79dc (tactic+review wiring), 8930889ef (spec-template labels), bef97537a (overrides); acceptance matrix 10/10 pass",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#5068": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5107": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

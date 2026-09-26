@@ -1,6 +1,6 @@
 # Implement Action — Governance Guidelines
 
-These guidelines govern the quality and correctness standards for work package implementation in the software-dev mission. They are injected at runtime via the constitution context bootstrap.
+These guidelines govern the quality and correctness standards for work package implementation in the software-dev mission. They are injected at runtime via the charter context bootstrap.
 
 ---
 
