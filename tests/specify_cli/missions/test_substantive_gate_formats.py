@@ -727,8 +727,11 @@ _SPEC_TEMPLATE_PATH = _REPO_ROOT / "packs" / "built-in" / "missions" / "software
 
 
 class TestSpecTemplateDeliveryLabels:
-    """Reads the LIVE built-in template (not the ``.kittify/overrides`` copy --
-    that copy is WP03's concern) directly off disk (repo-root relative)."""
+    """Reads the LIVE built-in template directly off disk (repo-root relative).
+
+    The ``.kittify/overrides`` copy is guarded separately by
+    ``tests/cross_cutting/test_kittify_override_parity.py``.
+    """
 
     def _template_text(self) -> str:
         return _SPEC_TEMPLATE_PATH.read_text(encoding="utf-8")
