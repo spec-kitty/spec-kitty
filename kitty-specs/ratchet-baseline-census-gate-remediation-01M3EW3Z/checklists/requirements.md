@@ -45,3 +45,4 @@
    whether line-keyed YAML census *data* files are migrated or listed in the enumerated
    exemption list (Edge Cases, FR-003).
 3. Validation iteration 1: all items pass.
+4. Revision 2 (post-spec squad: priti, renata, debbie): folded 2 critical + ~12 high findings (bounded exemption list, enforcing-leaf definition, per-site counting, census collisions, os-detect pins, #3962 fold, C-005-safe predicate, stale-entry split). Re-validated: all items pass.
