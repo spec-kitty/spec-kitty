@@ -214,6 +214,8 @@ FILES="src/specify_cli/core/vcs/detection.py src/specify_cli/cli/commands/_coord
 
 ## Definition of Done
 
+- [ ] NFR-004: diff coverage on this WP's changed lines ≥ 90% (e.g. `.venv/bin/python -m pytest <targeted tests> --cov=<touched modules> --cov-report=xml` then `diff-cover coverage.xml --compare-branch=<lane base> --fail-under=90`; record the number in the handoff note).
+
 - [ ] `detection.py` and `_coordination_doctor.py` use the parsers, and the `-unknown` placeholder is gone; the existing allow-list is 3 entries and `_NAME_COMPOSE_BASELINE_RAW_MATCHES = 3`, in the same commit.
 - [ ] The extended gate has four legs, a self-test that is red on every injected form, a rewritten rationale, and no sibling gate file.
 - [ ] **Allow-list sizes in `_baselines.yaml` equal this prompt's numbers (compose 1, match 5, def-use 1; signature 0). Any additional entry ⇒ STOP and report to the orchestrator; do not add it.**

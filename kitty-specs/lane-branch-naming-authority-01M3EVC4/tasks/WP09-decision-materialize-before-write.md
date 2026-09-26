@@ -246,6 +246,8 @@ FILES="src/specify_cli/coordination/surface_resolver.py src/specify_cli/decision
 
 ## Definition of Done
 
+- [ ] NFR-004: diff coverage on this WP's changed lines ≥ 90% (e.g. `.venv/bin/python -m pytest <targeted tests> --cov=<touched modules> --cov-report=xml` then `diff-cover coverage.xml --compare-branch=<lane base> --fail-under=90`; record the number in the handoff note).
+
 - [ ] A fresh coordination Mission can open, resolve, defer and cancel Decision Moments. The worktree is materialized once.
 - [ ] A materialization failure or a remote-only branch leaves `kitty-specs/<slug>/` byte-identical, emits structured JSON, and shows no traceback.
 - [ ] List, verify and dry-run never materialize.

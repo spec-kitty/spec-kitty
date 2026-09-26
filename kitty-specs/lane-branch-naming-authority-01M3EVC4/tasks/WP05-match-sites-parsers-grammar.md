@@ -273,6 +273,8 @@ FILES="src/specify_cli/lanes/branch_naming.py src/specify_cli/git/sparse_checkou
 
 ## Definition of Done
 
+- [ ] NFR-004: diff coverage on this WP's changed lines ≥ 90% (e.g. `.venv/bin/python -m pytest <targeted tests> --cov=<touched modules> --cov-report=xml` then `diff-cover coverage.xml --compare-branch=<lane base> --fail-under=90`; record the number in the handoff note).
+
 - [ ] `_LANE_ID_RE` is the only lane-id grammar in the module, and every lane regex is built from it.
 - [ ] Both parsers are public, in `__all__`, and tested over the three grammars plus negatives.
 - [ ] `is_lane_branch` accepts plain-legacy.

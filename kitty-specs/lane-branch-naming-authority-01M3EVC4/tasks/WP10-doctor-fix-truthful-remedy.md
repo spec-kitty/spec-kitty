@@ -258,6 +258,8 @@ FILES="src/specify_cli/cli/commands/_coordination_doctor.py src/specify_cli/cli/
 
 ## Definition of Done
 
+- [ ] NFR-004: diff coverage on this WP's changed lines ≥ 90% (e.g. `.venv/bin/python -m pytest <targeted tests> --cov=<touched modules> --cov-report=xml` then `diff-cover coverage.xml --compare-branch=<lane base> --fail-under=90`; record the number in the handoff note).
+
 - [ ] `doctor coordination --mission <slug> --fix` materializes a missing coordination worktree. It is idempotent, refuses remote-only, and warns instead of crashing.
 - [ ] The round trip from the error text to the command to the worktree is proven by `test_unmaterialized_remedy_round_trip`, parametrized over **every** emitter classified *unmaterialized* (each triggered through its real entry point on a fresh coordination Mission); the remote-only `write_target_degrade` steps are run in order and end with the worktree present.
 - [ ] `runtime_bridge` names the command with the real slug (no placeholder), and `CoordinationBranchDeleted` no longer gets the "Materialize it" text.

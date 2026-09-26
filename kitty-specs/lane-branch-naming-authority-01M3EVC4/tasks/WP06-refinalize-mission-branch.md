@@ -201,6 +201,10 @@ make test-fast
 
 ## Definition of Done
 
+- [ ] U1 (analysis finding): a Mission whose manifest identity is invalid (< 8 characters) must not surface a raw `ValueError` from the untouched `compute_lanes` (`lanes/compute.py`, which calls `mission_branch_name(..., mission_id=…)`) on first finalize or re-finalize. In `compute_and_write_lanes` catch that `ValueError` at the `compute_lanes` call and raise a typed, operator-legible refusal (reuse an existing lanes error type, e.g. `LaneComputationError`, naming the invalid identity and the remedy `spec-kitty migrate backfill-identity`); do not edit `compute_lanes`. Red-first test: finalize with a 7-character identity raises the typed error (HEAD: bare `ValueError`).
+
+- [ ] NFR-004: diff coverage on this WP's changed lines ≥ 90% (e.g. `.venv/bin/python -m pytest <targeted tests> --cov=<touched modules> --cov-report=xml` then `diff-cover coverage.xml --compare-branch=<lane base> --fail-under=90`; record the number in the handoff note).
+
 - [ ] Re-finalize keeps `mission_branch` byte-identical, and the first finalize is unchanged (SC-007).
 - [ ] `MissionStatus.save` prefers the recorded branch and raises a typed refusal for an invalid identity.
 - [ ] `compute_lanes` is untouched (`git diff` shows no change in `lanes/compute.py`).

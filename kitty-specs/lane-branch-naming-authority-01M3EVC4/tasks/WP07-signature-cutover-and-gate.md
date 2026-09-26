@@ -266,6 +266,8 @@ FILES="src/specify_cli/lanes/branch_naming.py src/specify_cli/lanes/worktree_all
 
 ## Definition of Done
 
+- [ ] NFR-004: diff coverage on this WP's changed lines ≥ 90% (e.g. `.venv/bin/python -m pytest <targeted tests> --cov=<touched modules> --cov-report=xml` then `diff-cover coverage.xml --compare-branch=<lane base> --fail-under=90`; record the number in the handoff note).
+
 - [ ] The three lane functions have no `mission_id`. The bodies are byte-identical to the former `None` path.
 - [ ] 0 lane-naming calls with `mission_id` in `src/` and `tests/` (AST scan), with no edit outside the explicit table.
 - [ ] Signature removal, residual callers and golden re-pins are in **one commit**.

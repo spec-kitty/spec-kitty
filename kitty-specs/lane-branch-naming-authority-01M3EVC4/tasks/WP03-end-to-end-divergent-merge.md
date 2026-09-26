@@ -202,6 +202,8 @@ make test-fast
 
 ## Definition of Done
 
+- [ ] NFR-004: diff coverage on this WP's changed lines ≥ 90% (e.g. `.venv/bin/python -m pytest <targeted tests> --cov=<touched modules> --cov-report=xml` then `diff-cover coverage.xml --compare-branch=<lane base> --fail-under=90`; record the number in the handoff note).
+
 - [ ] SC-001 red run against the merge-base recorded in the Activity Log (SHA, command, red output).
 - [ ] 4/4 divergent shapes merge end to end (SC-001), with 0 orphans and retention honoured (SC-002).
 - [ ] The old-form tip record refuses on resume and names `--abort`. The exemptions hold (SC-005).

@@ -247,6 +247,8 @@ make test-fast
 
 ## Definition of Done
 
+- [ ] NFR-004: diff coverage on this WP's changed lines ≥ 90% (e.g. `.venv/bin/python -m pytest <targeted tests> --cov=<touched modules> --cov-report=xml` then `diff-cover coverage.xml --compare-branch=<lane base> --fail-under=90`; record the number in the handoff note).
+
 - [ ] Every executor lane-name use goes through `_created_lane_branch` / `_created_lane_worktree`.
 - [ ] Tips are keyed by the created name; canceled lanes are skipped.
 - [ ] H5 refuses an empty, partial or old-form record, with every exemption covered.
