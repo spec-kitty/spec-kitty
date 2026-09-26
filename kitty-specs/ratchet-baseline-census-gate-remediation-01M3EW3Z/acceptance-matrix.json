@@ -1,0 +1,209 @@
+{
+  "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 targeted arch set (arch_list.txt + clock_import/no_follow_symlinks/no_dead_symbols) from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 887 passed, 1 skipped; test_ratchet_positional_anchor_ban.py::test_architectural_python_universe_is_nonempty, test_ct7_raw_tuple_in_non_substrate_file_is_flagged, test_widened_python_arm_flags_planted_site green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:54:32.993310+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 targeted arch set (arch_list.txt + clock_import/no_follow_symlinks/no_dead_symbols) from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 887 passed, 1 skipped; positional_anchor_ban test_widened_text_arm_flags_planted_call_line, test_arm_disable_{file_line_tuple,embedded_line_key,text_line_anchor} + non_vacuity plants green; predicate lives in the ban test module",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:54:40.554574+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 targeted arch set (arch_list.txt + clock_import/no_follow_symlinks/no_dead_symbols) from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 887 passed, 1 skipped; _POSITIONAL_ANCHOR_EXEMPTIONS = frozenset() (test_ratchet_positional_anchor_ban.py:888); test_positional_anchor_exemptions_are_exact + _are_pinned_empty green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:54:48.408785+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 targeted arch set (arch_list.txt + clock_import/no_follow_symlinks/no_dead_symbols) from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 887 passed, 1 skipped; test_built_in_location_authority.py test_join_allowlist_entries_each_suppress_a_live_join, test_join_allowlist_survives_line_drift, test_new_join_at_formerly_pinned_line_is_caught green; grep kernel/paths.py:88 / home.py 79 pins: 0 hits",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:54:56.049458+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 targeted arch set (arch_list.txt + clock_import/no_follow_symlinks/no_dead_symbols) from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 887 passed, 1 skipped; test_kernel_no_doctrine_import.py test_pre_existing_exemption_is_still_a_real_violation, test_kernel_exemptions_survive_line_drift, test_kernel_drift_files_meet_floor green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:55:04.061250+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "script",
+      "evidence": "python kitty-specs/<mission>/research/census_rekey_equivalence.py --base 2fd2dcc5 --head-root .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: EQUIVALENCE OK 80/80 sites (22+56+2), bijection, rationale hashes equal; --self-test: all 3 corruptions detected; census-rekey-map.csv 80 rows",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:55:11.350360+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 targeted arch set (arch_list.txt + clock_import/no_follow_symlinks/no_dead_symbols) from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 887 passed, 1 skipped; hand-curated: test_join_allowlist_entries_each_suppress_a_live_join, test_pre_existing_exemption_is_still_a_real_violation, os_detection test_stale_exemption_removal_reds_the_gate green; census: test_destructive_op_routing.py:392 warnings.warn on stale (no fail)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:55:19.070697+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "script",
+      "evidence": "git ls-files tests/architectural/surface_resolution_audit -> empty (rekey_inventory.py, inventory.md, audit.py, RULESET.md removed); scanner kept at tests/architectural/_surface_resolution_scan.py; test_single_mission_surface_resolver.py green in pytest -n2 targeted arch set (arch_list.txt + clock_import/no_follow_symlinks/no_dead_symbols) from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 887 passed, 1 skipped",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:55:26.311035+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "script",
+      "evidence": "grep -rn 'surface_resolution_audit|rekey_inventory|resolution_gate_allowlist' src tests docs pyproject.toml: only immutable historical records (.kittify/evidence, docs/reports/test-sanitation/*01KZME3P dispositions, docs/plans research note citing an earlier-deleted test); pyproject exclusions removed (-17 lines)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:55:33.746081+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "grep MAX_UNASSIGNED_ENTRIES|MAX_MASKING_SUPPRESSIONS|owner_exists|owner_is_complete|unassigned_entries|masking_suppressions over src tests docs: 0 hits; test_no_inert_schema_slots.py (incl test_load_baseline_rejects_retired_keys) 6 passed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:55:41.086667+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest tests/architectural/test_ratchet_baselines.py test_no_inert_schema_slots.py: 45 passed incl test_every_baseline_leaf_is_enforced_by_a_size_ratchet, test_leaf_drift_detects_planted_unenforced_leaf, test_lowering_an_enforced_leaf_below_live_fails; grep category_1|skip_marker_blocks _baselines.yaml: 0",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:55:48.797626+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "script",
+      "evidence": "git ls-files: resolution_gate_allowlist.yaml and write_candidate_classification.yaml deleted; grep resolution_gate_allowlist in src/tests/docs: 0 live refs (src/specify_cli/status/aggregate.py comment updated, AST-equal to base)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:55:56.720938+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 charter/contract/next/review/runtime/status touched files from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 472 passed, 10 skipped (pre-existing contract skips); tests/next/test_internal_runtime_parity.py floor 16 + test_rich_typer_ban_fails_on_missing_or_empty_target + _flags_planted_import; tests/contract/test_next_no_unknown_state.py floor 31 + planted placeholder test green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:56:04.589444+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 charter/contract/next/review/runtime/status touched files from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 472 passed, 10 skipped (pre-existing contract skips); tests/status/test_parity.py deleted; determinism/transition-matrix checks relocated to tests/status/test_reducer.py and test_transitions.py (green)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:56:12.337285+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 charter/contract/next/review/runtime/status touched files from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 472 passed, 10 skipped (pre-existing contract skips); tests/charter/test_context_parity.py replaced by test_context_bootstrap_markers.py (on-disk fixture, setenv knobs, no private-function patching; only patch() strings are planted-detector inputs) green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:56:19.521488+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "missing_seams/_apply_xfail/xfail_reason: 0 hits in kept suites; test_wp09_hook_landmine_* removed; status TestPhaseCap tombstone gone with test_parity.py. DEVIATION: docs_cli_reference test_retired_check_residual_option_is_absent KEPT per NFR-006 (survivor proof failed), follow-up #5149 open, recorded in parity-verdicts.md:107",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:56:26.959027+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest -n2 charter/contract/next/review/runtime/status touched files from .worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-l: 472 passed, 10 skipped (pre-existing contract skips); tests/runtime/test_next_board_authority.py holds P0 tests with oracle-coupling self-scan (test_board_authority_tests_never_set_up_the_oracle_fixture) green, max call 11s; oracle remains in test_bridge_parity.py (580s setup), C-002 respected",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:56:34.155025+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "script",
+      "evidence": "python kitty-specs/<mission>/research/parity_catalog_check.py: 45/45 OK, n/a churn rows 0 (research/parity-verdicts.md)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:56:41.815733+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "GitHub issue_read spec-kitty/spec-kitty #5116 (oracle after #2633), #5117 (model suppression), #5118 (S8997 routing), #5145 (descriptor matchers, FR-019d): all exist, open; plus #5149",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:56:49.204909+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "spec-kitty agent status doctor --mission <mission>: Healthy; coord issue-matrix.json 23 rows all terminal (5 fixed, 2 deferred-with-followup, 16 n/a); #2972 deferred-with-followup #5118 campsite-only (diff confined to mission files), #3962 fixed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-26T22:56:56.323051+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
