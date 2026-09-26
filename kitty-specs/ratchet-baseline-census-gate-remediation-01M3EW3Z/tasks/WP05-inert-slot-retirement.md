@@ -326,3 +326,4 @@ cd - && git worktree remove --force /tmp/wp05-base   # --force: the test file wa
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+- 2026-09-26T17:05:32Z – claude – shell_pid=14790 – Implementation complete (commits e86a715b RED, 4668c259, 09d505f0, 81dcb7d5; T027-T031 done). move-task to for_review refused only because primary checkout has uncommitted kitty-specs/.../research/wp09_mutation_matrix.py (WP09's in-flight artefact, not WP05's); not committed or forced by WP05.

@@ -284,3 +284,4 @@ It must fail with failures naming `src/kernel/paths.py` 88 and `src/specify_cli/
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+- 2026-09-26T17:05:19Z – claude – shell_pid=12521 – Implementation complete (HEAD 63771648); move-task for_review blocked only by uncommitted kitty-specs/.../research/wp09_mutation_matrix.py in the primary checkout (WP09's file, not WP02's). Not committed/forced by WP02; orchestrator to resolve and move.
