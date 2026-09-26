@@ -132,6 +132,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#3251": {
+      "evidence_ref": "Context-only citation (related/coordinated or historical); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#3285": {
       "evidence_ref": "<link or commit>",
       "fr": null,
