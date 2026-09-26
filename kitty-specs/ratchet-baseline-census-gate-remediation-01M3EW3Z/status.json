@@ -1,7 +1,7 @@
 {
-  "event_count": 64,
-  "last_event_id": "01M3FFRP5SMMKJMWD793GRASSY",
-  "materialized_at": "2026-09-26T18:31:14.873285+00:00",
+  "event_count": 65,
+  "last_event_id": "01M3FGC5JM5D95M3GX5Q71AMNT",
+  "materialized_at": "2026-09-26T18:41:53.236200+00:00",
   "mission_number": "",
   "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
   "mission_type": "",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 2,
+    "for_review": 1,
+    "in_progress": 1,
     "in_review": 3,
     "planned": 1
   },
@@ -90,14 +90,21 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M3FCYH2N71J99QZE3JYF1V0D",
-      "last_transition_at": "2026-09-26T17:42:00.493382+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M3FGC5JM5D95M3GX5Q71AMNT",
+      "last_transition_at": "2026-09-26T18:41:53.236200+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3897,
-      "shell_pid_created_at": "1790444444.63"
+      "shell_pid_created_at": "1790444444.63",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
     },
     "WP04": {
       "actor": "claude",
