@@ -251,6 +251,16 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/git/sparse_checkout.py", "_load_managed_lane_policies"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/recovery.py", "_mission_id_from_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/worktree_allocator.py", "_read_coordination_branch"): (1, "silent-by-contract"),
+    # #5135: the #4474 / FR-011 primary-tree fallback for the mission_number
+    # bake was added without joining this ledger. It mirrors the mission-branch
+    # write (`_write_mission_number_to_branch`, below) in tolerating a
+    # malformed meta.json: it reads as None and is surfaced through
+    # `_surface_unbaked_mission_number` (operator-visible "re-run merge
+    # --resume" line + logger warning), never raised -- the bake is
+    # best-effort bookkeeping that runs after the lanes have already landed,
+    # so a fail-closed raise would abort a merge that has nothing left to
+    # protect. silent-by-contract is the correct accounting, not a reroute.
+    ("src/specify_cli/merge/ordering.py", "_bake_mission_number_on_primary_tree"): (1, "silent-by-contract"),
     ("src/specify_cli/merge/ordering.py", "_compute_next_mission_number_or_none"): (1, "silent-by-contract"),
     ("src/specify_cli/merge/ordering.py", "_write_mission_number_to_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),
