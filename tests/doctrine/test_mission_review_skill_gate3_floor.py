@@ -58,10 +58,30 @@ def test_gate3_heading_does_not_cite_retired_fr_040(skill_text: str) -> None:
     )
 
 
+def _gate_command_surfaces(skill_text: str) -> str:
+    """Return only the surfaces where a Gate 1 / Gate 3 flag pin would matter:
+    the ```bash fences under the "### Gate 1" and "### Gate 3" headings (the
+    commands a reviewer actually runs), and the `- Command:` lines in the
+    Gate Results report template. Prose elsewhere in the skill -- e.g. a
+    future, legitimate explanation of the flag's still-live #3980 opt-out
+    meaning -- is out of scope for this regression guard.
+    """
+    surfaces: list[str] = []
+    for heading_prefix in ("### Gate 1:", "### Gate 3:"):
+        heading_idx = skill_text.index(heading_prefix)
+        fence_start = skill_text.index("```bash", heading_idx)
+        fence_end = skill_text.index("```", fence_start + len("```bash"))
+        surfaces.append(skill_text[fence_start:fence_end])
+    surfaces.extend(re.findall(r"^- Command:.*$", skill_text, re.MULTILINE))
+    return "\n".join(surfaces)
+
+
 def test_gate_commands_do_not_pin_retired_saas_sync_flag(skill_text: str) -> None:
-    assert re.search(r"SPEC_KITTY_ENABLE_SAAS_SYNC\s*=\s*[01]\b", skill_text) is None, (
+    surfaces = _gate_command_surfaces(skill_text)
+    assert re.search(r"SPEC_KITTY_ENABLE_SAAS_SYNC\s*=\s*[01]\b", surfaces) is None, (
         "Regression: the mission-review skill must not pin SPEC_KITTY_ENABLE_SAAS_SYNC on "
-        "gate commands -- the pin has no verified effect on Gate 1 (tests/contract/ already "
-        "forces the flag via tests/conftest.py) or Gate 3 (none of the surviving E2E "
-        "scenarios read the outer shell's value). See spec-kitty#5003."
+        "gate commands (the Gate 1 / Gate 3 ```bash fences or the Gate Results `- Command:` "
+        "lines) -- the pin has no verified effect on Gate 1 (tests/contract/ already forces "
+        "the flag via tests/conftest.py) or Gate 3 (none of the surviving E2E scenarios read "
+        "the outer shell's value). See spec-kitty#5003."
     )
