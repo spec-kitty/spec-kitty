@@ -193,6 +193,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("apply_spdd_blocks_for_project", "charter.offering.spdd_reasons"),
     ],
     "charter.pack_paths": [
+        ("PackRootNotFound", "charter.offering.pack_paths"),
         ("built_in_dir", "charter.offering.pack_paths"),
         ("built_in_root", "charter.offering.pack_paths"),
     ],

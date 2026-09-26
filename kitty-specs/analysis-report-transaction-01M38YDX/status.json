@@ -1,0 +1,50 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M3948Q2G8BXWB4VE7V989KDJ",
+  "materialized_at": "2026-09-24T07:14:50.576428+00:00",
+  "mission_number": "",
+  "mission_slug": "analysis-report-transaction-01M38YDX",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "codex",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3948Q2G8BXWB4VE7V989KDJ",
+      "last_transition_at": "2026-09-24T07:14:50.576428+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation and qualification complete; independent review cleared source f5c35e71a; PR5017 records evidence and baseline limitations.",
+        "Independent replay_contract_review cleared implementation except P2 unchanged outcome; root independently cleared P2 correction f5c35e71ad4b46fa4170040189c92b91ac585193. Final CLI negative controls passed; 203 owning tests passed and 2 skipped. Four separately documented fast-suite baseline failures remain."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "review-cycle://analysis-report-transaction-01M38YDX/WP01-safe-report-transaction/review-cycle-1.md",
+        "reviewer": "root-agent",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    }
+  }
+}

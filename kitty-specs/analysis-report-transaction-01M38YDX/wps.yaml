@@ -1,0 +1,17 @@
+work_packages:
+  - id: WP01
+    title: Safe report-only transaction
+    dependencies: []
+    owned_files:
+      - src/specify_cli/analysis_report.py
+      - src/specify_cli/analysis_inputs.py
+      - src/specify_cli/cli/commands/agent/mission_record_analysis.py
+      - src/specify_cli/git/report_transaction.py
+      - tests/specify_cli/cli/commands/agent/test_analysis_report_transaction.py
+      - tests/specify_cli/test_analysis_inputs.py
+      - tests/git/test_report_transaction.py
+      - docs/development/analysis-report-transactions.md
+    requirement_refs: [FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, NFR-001, NFR-002, NFR-003, C-001, C-002, C-003]
+    cross_cutting: true
+    subtasks: [T001, T002, T003, T004]
+    prompt_file: tasks/WP01-safe-report-transaction.md

@@ -1,0 +1,79 @@
+{
+  "mission_slug": "analysis-report-transaction-01M38YDX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Explicit opt-in preserves default guard",
+      "proof_type": "automated_test",
+      "evidence": "test_default_still_refuses_unrelated_work; test_report_only_preserves_unrelated_partial_staging; source f5c35e71ad4b46fa4170040189c92b91ac585193; final CLI 26 passed, owning report/Git suite 203 passed 2 skipped; /tmp/spec-kitty-recorder-qualification.log",
+      "pass_fail": "pass",
+      "verified_by": "codex (test execution); root-agent (independent review)",
+      "verified_at": "2026-09-24T07:17:39.607240+00:00",
+      "notes": "Scoped implementation evidence; four separately documented fast-suite baseline failures remain. Composite lifecycle qualification is separate and pending."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Preserve exact unrelated state",
+      "proof_type": "automated_test",
+      "evidence": "test_report_only_preserves_unrelated_partial_staging; test_race_before_commit_preserves_concurrent_state; source f5c35e71ad4b46fa4170040189c92b91ac585193; final CLI 26 passed, owning report/Git suite 203 passed 2 skipped; /tmp/spec-kitty-recorder-qualification.log",
+      "pass_fail": "pass",
+      "verified_by": "codex (test execution); root-agent (independent review)",
+      "verified_at": "2026-09-24T07:17:39.607247+00:00",
+      "notes": "Scoped implementation evidence; four separately documented fast-suite baseline failures remain. Composite lifecycle qualification is separate and pending."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Reject dirty material authority before mutation",
+      "proof_type": "automated_test",
+      "evidence": "test_dirty_material_input_refuses_before_write; test_global_template_requires_committed_project_override; tests/specify_cli/test_analysis_inputs.py; source f5c35e71ad4b46fa4170040189c92b91ac585193; final CLI 26 passed, owning report/Git suite 203 passed 2 skipped; /tmp/spec-kitty-recorder-qualification.log",
+      "pass_fail": "pass",
+      "verified_by": "codex (test execution); root-agent (independent review)",
+      "verified_at": "2026-09-24T07:17:39.607250+00:00",
+      "notes": "Scoped implementation evidence; four separately documented fast-suite baseline failures remain. Composite lifecycle qualification is separate and pending."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Refuse unsafe branches and detect observed races",
+      "proof_type": "automated_test",
+      "evidence": "test_unsafe_state_refuses_without_report_write; test_post_commit_head_only_race_is_unqualified; test_post_commit_index_race_cannot_unlock_analysis; source f5c35e71ad4b46fa4170040189c92b91ac585193; final CLI 26 passed, owning report/Git suite 203 passed 2 skipped; /tmp/spec-kitty-recorder-qualification.log",
+      "pass_fail": "pass",
+      "verified_by": "codex (test execution); root-agent (independent review)",
+      "verified_at": "2026-09-24T07:17:39.607252+00:00",
+      "notes": "Scoped implementation evidence; four separately documented fast-suite baseline failures remain. Composite lifecycle qualification is separate and pending."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Report truthful success, no-op and failure outcomes",
+      "proof_type": "automated_test",
+      "evidence": "test_failed_commit_never_reports_success; test_repeated_qualified_analysis_is_unchanged; test_unchanged_requires_same_semantics_and_existing_qualification; source f5c35e71ad4b46fa4170040189c92b91ac585193; final CLI 26 passed, owning report/Git suite 203 passed 2 skipped; /tmp/spec-kitty-recorder-qualification.log",
+      "pass_fail": "pass",
+      "verified_by": "codex (test execution); root-agent (independent review)",
+      "verified_at": "2026-09-24T07:17:39.607254+00:00",
+      "notes": "Scoped implementation evidence; four separately documented fast-suite baseline failures remain. Composite lifecycle qualification is separate and pending."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Invalidate changed material and unqualified receipts",
+      "proof_type": "automated_test",
+      "evidence": "test_material_change_invalidates_qualified_report; test_missing_receipt_never_qualifies_copied_report; test_wp_runtime_fields_do_not_change_definition_hash; source f5c35e71ad4b46fa4170040189c92b91ac585193; final CLI 26 passed, owning report/Git suite 203 passed 2 skipped; /tmp/spec-kitty-recorder-qualification.log",
+      "pass_fail": "pass",
+      "verified_by": "codex (test execution); root-agent (independent review)",
+      "verified_at": "2026-09-24T07:17:39.607255+00:00",
+      "notes": "Scoped implementation evidence; four separately documented fast-suite baseline failures remain. Composite lifecycle qualification is separate and pending."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Retain canonical PRIMARY placement",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_record_analysis_coord_worktree.py::test_record_analysis_writes_to_primary_when_coord_lacks_spec; test_record_analysis_placement.py; independent source review f5c35e71a; source f5c35e71ad4b46fa4170040189c92b91ac585193; final CLI 26 passed, owning report/Git suite 203 passed 2 skipped; /tmp/spec-kitty-recorder-qualification.log",
+      "pass_fail": "pass",
+      "verified_by": "codex (test execution); root-agent (independent review)",
+      "verified_at": "2026-09-24T07:17:39.607256+00:00",
+      "notes": "Scoped implementation evidence; four separately documented fast-suite baseline failures remain. Composite lifecycle qualification is separate and pending."
+    }
+  ],
+  "negative_invariants": []
+}

@@ -37,6 +37,7 @@ _GIT_OP_MARKERS: tuple[str, ...] = (
     "MERGE_HEAD",  # merge in progress (conflicted or otherwise)
     "CHERRY_PICK_HEAD",  # cherry-pick in progress
     "REVERT_HEAD",  # revert in progress (same hazard class as cherry-pick)
+    "sequencer",  # multi-commit cherry-pick/revert/rebase sequence in progress
     "index.lock",  # index is being mutated by another git process
 )
 

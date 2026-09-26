@@ -1,0 +1,31 @@
+{
+  "accept_commit": "8dbc84f7695229c5d77ec1600c505cadc87f2821",
+  "acceptance_history": [
+    {
+      "accept_commit": "8dbc84f7695229c5d77ec1600c505cadc87f2821",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-24T07:17:52.964870+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "98500becd6c4cee04dea4549fe3d8f90dae5fab6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-24T07:17:52.964870+00:00",
+  "accepted_by": "codex",
+  "accepted_from_commit": "98500becd6c4cee04dea4549fe3d8f90dae5fab6",
+  "created_at": "2026-09-24T05:32:49.803940+00:00",
+  "flattened": false,
+  "friendly_name": "Safe analysis report transactions",
+  "mid8": "01M38YDX",
+  "mission_id": "01M38YDXPADJA9431Z5A3KMBCV",
+  "mission_number": null,
+  "mission_slug": "analysis-report-transaction-01M38YDX",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Enable an explicit report-only transaction on the authoritative planning checkout. Preserve unrelated staged and unstaged work, reject dirty material inputs and unsafe branch state, and report commit failures honestly. Keep the default broad dirty-tree guard and canonical artifact placement.",
+  "purpose_tldr": "Record trustworthy analysis without disturbing unrelated work.",
+  "slug": "analysis-report-transaction-01M38YDX",
+  "status_phase": "1",
+  "target_branch": "fix/analysis-report-transaction",
+  "topology": "single_branch"
+}

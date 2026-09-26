@@ -129,7 +129,9 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--owned-checkout",
         }
     ),
-    "record-analysis": frozenset({"--mission", "--input-file", "--agent", "--json"}),
+    # Explicit opt-in added by analysis-report-transaction-01M38YDX; the
+    # default broad dirty-tree guard remains the contract below.
+    "record-analysis": frozenset({"--mission", "--input-file", "--agent", "--json", "--report-only"}),
     "setup-plan": frozenset({"--mission", "--json"}),
     # `--merge-commit` added for the #4231 PR-merge baseline recording passthrough (2026-09-13);
     # `--target-branch` added in the same issue's fix round for the PR-base-branch landing check (2026-09-14);
@@ -320,6 +322,13 @@ def test_record_analysis_input_file_default_is_stdin_sentinel() -> None:
     sub = _resolve_subcommand("record-analysis")
     option = next(p for p in sub.params if isinstance(p, click.Option) and "--input-file" in p.opts)
     assert option.default == _RECORD_ANALYSIS_INPUT_FILE_DEFAULT
+
+
+def test_record_analysis_report_only_requires_explicit_opt_in() -> None:
+    """The transaction option never silently changes the default dirty guard."""
+    sub = _resolve_subcommand("record-analysis")
+    option = next(p for p in sub.params if isinstance(p, click.Option) and "--report-only" in p.opts)
+    assert option.default is False
 
 
 def test_create_mission_flag_is_hidden_deprecation() -> None:
