@@ -28,11 +28,11 @@ Used by: destructive-op (22), overwrite (2) (WP04), mutation (56) (WP05).
 | `qualname` | str | `_ratchet_keys.enclosing_qualname(source, lineno)` (the census helper's own algorithm is deleted, C-004) |
 | `token_line` | str | from `composite_key` |
 | `op` | str | census operation label |
-| `occurrence` | int ≥ 0 | ordinal among live findings sharing `(rel, qualname, token_line, op)`, ordered by source line |
+| `op_ordinal` | int ≥ 0 | ordinal among live findings sharing `(rel, qualname, token_line, op)`, ordered by source line |
 
 **Invariants**
-- Allowlist literal form: `CensusKey(rel=..., qualname=..., token_line=..., op=..., occurrence=...): "rationale"`.
-- A second identical op in an exempted function yields `occurrence + 1` → unexpected → **fail**.
+- Allowlist literal form: `CensusKey(rel=..., qualname=..., token_line=..., op=..., op_ordinal=...): "rationale"`.
+- A second identical op in an exempted function yields `op_ordinal + 1` → unexpected → **fail**.
 - Changed arguments → new `token_line` → unexpected (**fail**) + old key stale (**warn**).
 - **Stale = warn** (documented census contract, unchanged).
 - `len(test_mutation_ownership_routing._ALLOWLIST) == 56` (`destructive_op_allowlist`) is unchanged.

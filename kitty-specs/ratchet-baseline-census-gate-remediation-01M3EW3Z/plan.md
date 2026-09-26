@@ -21,13 +21,15 @@ The operator instructed an end-to-end autonomous run ("drive mission e2e"), so p
 
 | ID | Decision | Rationale |
 |----|----------|-----------|
-| D-OP-1 | Census identity = composite key + op + occurrence ordinal | Only 3/80 need occurrence > 0; rejects both widening and arg drift (§C1) |
+| D-OP-1 | Census identity = composite key + op + `op_ordinal` (renamed from `occurrence` to avoid clashing with `ContentDescriptor.occurrence`) | Only 3/80 need occurrence > 0; rejects both widening and arg drift (§C1) |
 | D-OP-2 | Remove `category_1` and `skip_marker_blocks` leaves rather than enforce them | Neither is a size ceiling; `category_1`'s equality pin shows the "toll drain" never worked (§D3) |
 | D-OP-3 | Comment-only `src/` edits allowed under C-005 with AST-equality proof | Needed for SC-003 (`status/aggregate.py:543`); behaviour provably unchanged |
 | D-OP-4 | Deletion-only WPs prove red-first by tracer evidence + a green surviving test, never tombstones | C-001 as amended; avoids the class #3285 removed |
 | D-OP-5 | FR-015 proceeds via `SPEC_KITTY_PACKS_ROOT` mirror fixture | Prototyped with zero private patches; defer only if Windows-symlink or cache-order checks fail |
 | D-OP-6 | The text-file arm makes `path:line` exemption shapes unusable at zero entries (clock, lock-ban) | Intended: those gates are shrink-only at zero |
 | D-OP-7 | Interim 94 per-site exemptions in WP01, pinned empty in WP12 | Lets the ban land green and the migrations run in parallel; the interim state never reaches `main` because the mission ships as one PR |
+| D-OP-9 | `_content_identity.py` is the single matching authority (one entry suppresses at most one finding, path always part of the key); census `diff_against_allowlist` adopts it in WP04; other matchers follow up | Paula post-plan: it would otherwise be the 8th matcher (DIRECTIVE_044) |
+| D-OP-10 | Mirror packs fixture is always copied, never symlinked | Copy costs 0.05 s; Windows safety (Debbie post-plan) |
 | D-OP-8 | Stale policy split: hand-curated allowlists fail, census allowlists warn | Epic "no re-pin toll on unrelated changes" (post-spec divergence adjudicated) |
 
 ## Technical Context
@@ -40,7 +42,7 @@ The operator instructed an end-to-end autonomous run ("drive mission e2e"), so p
 **Project Type**: single (test infrastructure inside the existing repo)
 **Performance Goals**: widened ban < 10 s over `tests/architectural/` (prototype 1.4 s); bridge P0 module < 60 s (oracle ~389 s untouched)
 **Constraints**: C-001 red-first (amended), C-002 oracle untouched, C-004 one identity mechanism, C-005 no `src/` behaviour change, complexity ≤ 15, zero new suppressions
-**Scale/Scope**: 12 WPs; ~94 line-pinned entries migrated; 45 parity modules cataloged; estimated +1.7k / −3.3k lines
+**Scale/Scope**: 13 WPs; ~94 line-pinned entries migrated; 45 parity modules cataloged; estimated +1.7k / −3.3k lines
 
 ## Charter Check
 
@@ -106,48 +108,56 @@ pyproject.toml (format-exclude lines)       # WP07 then WP09
 
 ## Parallel Work Analysis
 
-### Dependency Graph
+### Dependency Graph (revision 2, post-plan squad folded)
 
 ```mermaid
 graph LR
-  WP01 --> WP12
-  WP02 --> WP03 --> WP12
-  WP02 --> WP04 --> WP05 --> WP12
-  WP06 --> WP12
-  WP07 --> WP09 --> WP12
-  WP08 --> WP12
-  WP10 --> WP12
-  WP11 --> WP12
+  WP01 --> WP13
+  WP02 --> WP03 --> WP13
+  WP02 --> WP04 --> WP13
+  WP05 --> WP06 --> WP13
+  WP07 --> WP13
+  WP08 --> WP13
+  WP09 --> WP13
+  WP10 --> WP13
+  WP11 --> WP13
+  WP12 --> WP13
 ```
 
-Critical path: WP02 → WP04 → WP05 → WP12.
+Critical path: WP02 → WP04 → WP13.
 
-### Work packages (from research §G2)
+### Work packages
 
 | WP | Title | FRs | Deps | Size | Red-first acceptance test |
 |----|-------|-----|------|------|---------------------------|
-| WP01 | Widen positional-anchor ban + interim per-site exemptions | FR-001, FR-002, FR-003 (interim), NFR-002, NFR-004 | — | M | widened arms report 94 findings on base; 4 inverted tests |
-| WP02 | Content-identity helper + join allowlist migration | FR-004, FR-007, NFR-001, NFR-003 | — | S | `test_join_allowlist_entries_each_suppress_a_live_join` (RED: 2 dead) + drift test |
-| WP03 | Kernel + os-detect exemption migration | FR-005, FR-007, NFR-001 | WP02 | S | kernel + os-detect drift tests |
-| WP04 | Census substrate + destructive + overwrite re-key | FR-006 (24 keys), C-004, NFR-001 | WP02 | M | census drift tests + `test_second_identical_op_in_exempted_function_fails` |
-| WP05 | Mutation census re-key | FR-006 (56 keys) | WP04 | M | mutation drift test; equivalence 80/80 |
-| WP06 | Baseline leaf enforcement + inert-slot retirement (#3962) | FR-010, FR-011, NFR-003 | FR-019(b) issue filed | M | `test_every_baseline_leaf_is_enforced_by_a_size_ratchet` (RED: 4 leaves) + lower-below-live mutations |
-| WP07 | Surface-resolution converter retirement | FR-008, FR-009 | — | S | D-OP-4: `audit.py` exit 1 evidence; survivor green |
-| WP08 | Runtime-parity ban + parity residue | FR-013, FR-016 | — | S/M | `test_rich_typer_ban_inspects_live_runtime_package` (RED: 0 files) |
-| WP09 | Status parity retirement and relocation | FR-014, NFR-006 | WP07 | M | relocated invariants driven RED by recorded mutations |
-| WP10 | Context parity conversion | FR-015 | — | M | `test_context_markers_use_no_private_patch_targets` (RED: 4 targets) |
-| WP11 | Bridge parity split | FR-017, C-002, NFR-004 | — | M | `test_board_authority_module_does_not_import_the_oracle` + node-ID set equality |
-| WP12 | Closeout: empty exemptions, retire orphan data, verdicts, follow-ups, matrix | FR-003 (final), FR-012, FR-018, FR-019, FR-020 | all | S | `test_positional_anchor_exemptions_are_pinned_empty` (RED: 94 rows) |
+| WP01 | Widen positional-anchor ban + interim per-site exemptions | FR-001, FR-002, FR-003 (interim), NFR-002, NFR-004 | — | M | widened arms report 94 findings on base (one exemption row per line); 4 inverted tests |
+| WP02 | Content-identity matching authority + join allowlist | FR-004, FR-007, NFR-001, NFR-003 | — | S | `test_join_allowlist_entries_each_suppress_a_live_join` (RED: 2 dead) + drift test (15 files) |
+| WP03 | Kernel + os-detect exemptions; retarget lock-ban/clock loaders | FR-005, FR-007, NFR-001 | WP02 | S | kernel + os-detect drift tests; `path:line` loader shape rejected |
+| WP04 | Census re-key (all 80) on `_content_identity` + composite key | FR-006, C-004, NFR-001 | WP02 | L (split commits: helper → destructive+overwrite → mutation) | census drift tests (15/21/2 files) + `test_second_identical_op_in_exempted_function_fails`; equivalence 80/80 |
+| WP05 | Inert-slot retirement (#3026, #3962) | FR-010 | — (#5117 filed) | M | D-OP-4: uncalled symbols + stale rows evidence; baseline 38→36; survivor suite green |
+| WP06 | Baseline leaf enforcement | FR-011, NFR-003 | WP05 | M | `test_every_baseline_leaf_is_enforced_by_a_size_ratchet` (RED: 4 leaves) + lower-below-live mutations; hand-kept key lists derived |
+| WP07 | Surface-resolution converter retirement | FR-008, FR-009 | — | S | D-OP-4: `audit.py` exit 1 evidence; survivor green; path-qualified token search 0 |
+| WP08 | Runtime-parity bans + parity residue + `test_next_no_unknown_state` | FR-013, FR-016 | — | S/M | `test_rich_typer_ban_inspects_live_runtime_package` (RED: 0 files) + planted violation |
+| WP09 | Status parity retirement | FR-014, NFR-006 | — | M | D-OP-4 for duplicates (matrix tests already enforced in `test_transitions.py`); relocated determinism tests; L407/L660 dispositions |
+| WP10 | Context parity conversion | FR-015 | — | M | `test_context_markers_use_no_src_patch_targets` (RED: 6 patch sites + 2 private calls); copy mirror, no symlinks |
+| WP11 | Bridge parity split | FR-017, C-002, NFR-004 | — | M (separate move/format/rename commits) | `test_board_authority_module_does_not_import_the_oracle` + node-ID set equality (16; oracle keeps 8) |
+| WP12 | Parity verdict catalog | FR-018, NFR-006 | — | S (planning_artifact) | catalog covers all 45 swept modules |
+| WP13 | Closeout: pin exemptions empty, retire orphan gate data, format-exclude removals, follow-ups, matrix | FR-003 (final), FR-012, FR-019(d), FR-020 | all | M | `test_positional_anchor_exemptions_are_pinned_empty` (RED: 94 rows) |
 
 ### Coordination points (shared hotspots)
 
 | Hotspot | Owners | Resolution |
 |---------|--------|------------|
-| `test_ratchet_positional_anchor_ban.py` | WP01, WP12 | WP12 depends on WP01 |
-| `pyproject.toml` format-exclude | WP07, WP09 | WP09 depends on WP07 |
-| `_destructive_op_census.py` | WP04 | WP05 depends on WP04 |
-| `_content_identity.py` | WP02 | WP03, WP04 depend on WP02 |
-| `_baselines.yaml`, `test_ratchet_baselines.py` | WP06 only | census WPs must not touch them (`destructive_op_allowlist: 56` preserved) |
+| `test_ratchet_positional_anchor_ban.py` | WP01, WP13 | WP13 depends on WP01 (sequenced out-of-map edit) |
+| `pyproject.toml` format-exclude | WP07, WP09 (deletions), WP13 (rewritten files) | Deletion WPs remove their own exclude lines (hunks ~1,600 lines apart); WPs that rewrite an excluded file leave the line and do not run `ruff format` on it; WP13 formats those files and removes their lines in one commit |
+| `_destructive_op_census.py` + all three census gates | WP04 only | merged WP (the `enclosing_qualname` signature change would otherwise break another lane) |
+| `_content_identity.py` | WP02 | matching authority; WP03, WP04 depend on WP02; remaining hand-rolled matchers → follow-up (FR-019d) |
+| `_baselines.yaml` | WP06 (owner); WP05 edits its three inert leaves as a sequenced out-of-map edit | WP06 depends on WP05 |
+
+### External coordination
+
+- **#4506** (repo-wide reformat, re-claimed 2026-09-22): conflicts with five WPs if it lands mid-mission; the operator should sequence it relative to this PR.
+- **#4727** owns an os-detect exemption that WP03 migrates; **#3206** kernel exemptions (FR-005); **#2633** gates the oracle (#5116); **#2560, #5061, #5068, #1979** adjacent, no action.
 
 ### Integration tests
 
