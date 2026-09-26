@@ -14,6 +14,9 @@ requirement_refs:
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-ratchet-baseline-census-gate-remediation-01M3EW3Z
+base_commit: 443dd2d27dc8c706a2b1d5f91822b311515b8776
+created_at: '2026-09-26T15:09:10.635613+00:00'
 subtasks:
 - T027
 - T028
