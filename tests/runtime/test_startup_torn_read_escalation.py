@@ -51,7 +51,7 @@ import specify_cli.runtime.bootstrap as bootstrap
 from specify_cli.runtime.asset_preparation import StartupAssetError
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.skills.registry import SkillRegistry
-from specify_cli.tool_surface.operations import FileState
+from specify_cli.tool_surface.operations import Diagnostic, FileState
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -451,24 +451,35 @@ class TestGenuineFailureRefusedWithoutWaiting:
 
 
 class TestStartupAssetErrorNextStepHint:
-    """FR-005/US3.1-3.3 (fold 8): the next-step hint depends on the
-    diagnostic code -- a torn read or source drift both suggest a
-    concurrency/installation-timing cause; a generic failure (US3.3) keeps
-    today's content, with no fabricated concurrency explanation."""
+    """FR-005/US3.1-3.3 (fold 8, revised per the pre-PR squad's F1): the
+    next-step hint depends on the diagnostic code, and is NEVER destructive
+    -- it must never suggest removing/deleting the Spec Kitty home, which
+    (on Windows) also holds a user's saved auth credentials
+    (auth/secure_storage/file_fallback.py)."""
 
-    def test_torn_read_hint_mentions_a_concurrent_install(self) -> None:
-        diagnostics = (asset_preparation.Diagnostic("asset_torn_read", "runtime_bootstrap", "error", "Asset changed during preparation: /tmp/x"),)
+    def test_torn_read_hint_names_a_possibly_different_version_peer(self) -> None:
+        diagnostics = (Diagnostic("asset_torn_read", "runtime_bootstrap", "error", "Asset changed during preparation: /tmp/x"),)
         error = asset_preparation.startup_asset_error("runtime_bootstrap", diagnostics)
-        assert "another spec-kitty process may still be installing" in str(error)
+        assert "possibly a different version" in str(error)
+        assert "writing the same Spec Kitty home" in str(error)
 
     def test_source_drift_hint_mentions_the_installed_package_changing(self) -> None:
-        diagnostics = (asset_preparation.Diagnostic("asset_source_drift", "runtime_bootstrap", "error", "Asset changed during preparation: /tmp/x"),)
+        diagnostics = (Diagnostic("asset_source_drift", "runtime_bootstrap", "error", "Asset changed during preparation: /tmp/x"),)
         error = asset_preparation.startup_asset_error("runtime_bootstrap", diagnostics)
         assert "installed package's assets changed" in str(error)
-        assert "another spec-kitty process may still be installing" not in str(error)
+        assert "writing the same Spec Kitty home" not in str(error)
 
-    def test_generic_failure_hint_has_no_fabricated_concurrency_language(self) -> None:
-        diagnostics = (asset_preparation.Diagnostic("global_assets_unavailable", "runtime_bootstrap", "error", "Required package assets unavailable: /tmp/x"),)
+    def test_generic_failure_hint_points_at_doctor(self) -> None:
+        diagnostics = (Diagnostic("global_assets_unavailable", "runtime_bootstrap", "error", "Required package assets unavailable: /tmp/x"),)
         error = asset_preparation.startup_asset_error("runtime_bootstrap", diagnostics)
-        assert "another spec-kitty process may still be installing" not in str(error)
+        assert "spec-kitty doctor" in str(error)
+        assert "writing the same Spec Kitty home" not in str(error)
         assert "installed package's assets changed" not in str(error)
+
+    @pytest.mark.parametrize("code", ["asset_torn_read", "asset_source_drift", "global_assets_unavailable", "some_unforeseen_future_code"])
+    def test_no_hint_ever_suggests_deleting_anything(self, code: str) -> None:
+        diagnostics = (Diagnostic(code, "runtime_bootstrap", "error", "x"),)
+        error = asset_preparation.startup_asset_error("runtime_bootstrap", diagnostics)
+        lowered = str(error).lower()
+        assert "remove" not in lowered
+        assert "delete" not in lowered

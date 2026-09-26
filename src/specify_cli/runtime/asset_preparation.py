@@ -541,18 +541,32 @@ class StartupAssetError(GuardedReadError, RuntimeError):
 
 def _startup_asset_error_hint(code: str) -> str:
     """The actionable next step depends on WHY startup preparation could not
-    complete (FR-005/US3.1-3.3). A torn read or source drift both point at a
-    concurrency/installation-timing cause worth naming explicitly; any other
-    failure (US3.3: content "same as today") gets no fabricated concurrency
-    explanation, only a generic re-run hint.
+    complete (FR-005/US3.1-3.3), and must NEVER suggest a destructive "fix"
+    that could wipe unrelated state living in the SAME Spec Kitty home: on
+    Windows ``get_kittify_home()`` resolves to the unified runtime root
+    (``specify_cli.paths.get_runtime_root()``), which ALSO holds auth
+    credentials (``auth/secure_storage/file_fallback.py`` stores them at
+    ``get_runtime_root().base / "auth"``) -- deleting "the partially-written
+    home" can delete a user's saved auth alongside it.
+
+    - ``asset_torn_read``: a torn read that recurs under the serialization
+      point means a DIFFERENT writer is racing this same home -- unlocked,
+      or a different CLI version's peer, never a crashed one (a crashed
+      peer's partial write is already absorbed by the locked reassess
+      itself, so this case is never "go delete something").
+    - ``asset_source_drift``: the installed package changed mid-run;
+      reinstalling is a safe, non-destructive fix.
+    - anything else (US3.3, content "same as today"): re-running resolves a
+      genuinely transient failure, but a PERMANENT one (a lock path that is
+      a directory or a dangling symlink, the home itself being a plain
+      file, ...) needs a real diagnostic, not a blind retry loop or
+      operator-authored deletion advice.
     """
     if code == "asset_torn_read":
-        return (
-            "another spec-kitty process may still be installing -- re-run the command, and if it persists remove the partially-written Spec Kitty home and re-run"
-        )
+        return "another spec-kitty process (possibly a different version) is writing the same Spec Kitty home -- let it finish or stop it, then re-run the command"
     if code == "asset_source_drift":
         return "the installed package's assets changed while this command was running -- re-run the command, and if it persists reinstall spec-kitty"
-    return "re-run the command"
+    return "re-run the command; if it persists, run `spec-kitty doctor --help` to find the right diagnostic"
 
 
 def startup_asset_error(owner_key: str, diagnostics: tuple[Diagnostic, ...]) -> StartupAssetError:
@@ -580,10 +594,21 @@ def _is_terminal_torn_read(exc: TornReadError) -> bool:
     """A torn read never escalates (stays terminal) when it is source-role
     (C-001: source drift is never tolerated), or when this process already
     holds ANY serialization point at all (C-005, stronger than a subset
-    check): every owner's cold-install sentinel is the SAME shared,
-    non-reentrant file, so a nested escalation could self-deadlock on it,
-    and batch paths take owner locks in sorted order, so a cross-owner
-    escalation also risks lock-order inversion.
+    check).
+
+    Serialization points never nest, and "terminal when held" is the
+    conservative rule that covers both of the following, without this call
+    site needing to know which one applies:
+
+    - Owners whose anchors COINCIDE (the default layout, where every
+      configured agent's directory sits under the same HOME) share the
+      IDENTICAL non-reentrant cold-install sentinel -- a nested escalation
+      there would self-deadlock on it.
+    - Owners whose anchors DIFFER (e.g. ``XDG_CONFIG_HOME`` pointed outside
+      HOME gives the commands owner's ``commonpath(...)`` a different
+      result, hence a different :func:`_cold_install_sentinel` key from the
+      runtime owner's) still risk lock-order inversion if nesting were
+      allowed, since batch paths take owner locks in sorted order.
     """
     return exc.role == "source_read" or bool(_HELD_LOCKS.get())
 
