@@ -37,7 +37,7 @@ Used by: destructive-op (22), overwrite (2) (WP04), mutation (56) (WP05).
 - **Stale = warn** (documented census contract, unchanged).
 - `len(test_mutation_ownership_routing._ALLOWLIST) == 56` (`destructive_op_allowlist`) is unchanged.
 
-**Equivalence artefact** `census-rekey-map.csv`: `gate, old_key, rel, qualname, token_line, op, occurrence, rationale_sha256`, 80 rows; `research/census_rekey_equivalence.py --base <sha>` proves old site set == new site set, bijection, and rationale hashes equal.
+**Equivalence artefact** `census-rekey-map.csv`: `gate, old_key, rel, qualname, token_line, op, op_ordinal, rationale_sha256`, 80 rows; `research/census_rekey_equivalence.py --base <sha> --head-root <lane-worktree>` proves old site set == new site set, bijection, and rationale hashes equal; `--self-test` proves the script detects a flipped `op_ordinal`, a dropped key and a swapped rationale.
 
 ## Positional-anchor exemption row (interim)
 

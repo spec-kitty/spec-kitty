@@ -5,6 +5,8 @@ dependencies: []
 requirement_refs:
 - FR-008
 - FR-009
+- NFR-005
+- NFR-006
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
@@ -19,6 +21,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/_surface_resolution_scan.py
 create_intent:
@@ -141,12 +146,18 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
      ```
   4. Run the **path-qualified** token search and record the base count. It is > 0: `test_single_mission_surface_resolver.py`, `_ratchet_keys.py`, `test_no_worktree_name_guess.py`, `untrusted_path_audit/inventory.md:76`, `pyproject.toml:954-955`.
      ```bash
-     grep -rn -I -E 'surface_resolution_audit|rekey_inventory|write_candidate_classification' . \
+     grep -rn -I -E --exclude-dir={.venv,.mypy_cache,.pytest_cache,.ruff_cache} 'surface_resolution_audit|rekey_inventory|write_candidate_classification' . \
        | grep -v -E '^\./(kitty-specs|docs/reports|docs/archive|\.kittify/evidence|docs/plans/engineering-notes|\.worktrees|\.git)/|CHANGELOG' \
        | grep -v '^\./tests/architectural/surface_resolution_audit/'
      ```
+     `--exclude-dir` matters: all four caches have 0 hits today, but mypy writes `.mypy_cache/**/surface_resolution_audit/audit.data.json` whenever it checks the old module, which would be a false hit. `docs/plans/engineering-notes/` is excluded because it holds dated, `doc_status: closeout` research notes (immutable historical snapshots, not live docs under SC-003); its one hit today is `research-notes-csf-2670.md:29`, which names the long-deleted `test_surface_resolution_audit.py` gate as history. Record that justification in the tracer.
      Do **not** use the bare tokens `_parse_inventory_rows`, `audited-surfaces` or `inventory.md`. They have permanent, legitimate hits in the sibling `untrusted_path_audit/` and `tool_artifact_enrolment/` surfaces (`untrusted_path_audit/audit.py:407,640`, `test_untrusted_path_containment.py:31,72,150,240`, `tool_artifact_enrolment/test_enrolment_inventory.py:147,236`).
-  5. `pytest tests/architectural/test_single_mission_surface_resolver.py -q`: 8 passed (the survivor baseline).
+  5. `pytest tests/architectural/test_single_mission_surface_resolver.py -q`: 8 passed (the survivor baseline). Pin the base node-ID set as an artefact from a real base checkout, not from your lane:
+     ```bash
+     git worktree add /tmp/wp07-base 3717c7ea
+     (cd /tmp/wp07-base && PYTHONPATH=$PWD/src <lane>/.venv/bin/python -m pytest --collect-only -q tests/architectural/test_single_mission_surface_resolver.py) > <scratch>/wp07-base-nodeids.txt
+     git worktree remove /tmp/wp07-base
+     ```
   6. Record steps 1-5:
      ```bash
      spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z \
@@ -159,7 +170,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
 - **Purpose**: Keep the live scanner as a normal module. Remove every inventory, converter and CLI path from it.
 - **Steps**:
   1. `git mv tests/architectural/surface_resolution_audit/audit.py tests/architectural/_surface_resolution_scan.py`, then commit the pure move alone if practical so `git log --follow` and blame stay clean.
-  2. **Fix the root computation.** `_REPO_ROOT = _THIS.parents[3]` (audit.py L65) must become `parents[2]` at the new depth. Everything else derives from it (`_SRC_ROOT`, `SRC_SPECIFY_CLI`, `SRC_MISSION_RUNTIME`, `_rel`). A wrong root silently scans nothing, and the survivor's row floor (15) would catch that as a red.
+  2. **Fix the root computation.** `_REPO_ROOT = _THIS.parents[3]` (audit.py L66) must become `parents[2]` at the new depth. Everything else derives from it (`_SRC_ROOT`, `SRC_SPECIFY_CLI`, `SRC_MISSION_RUNTIME`, `_rel`). A wrong root silently scans nothing, and the survivor's row floor (15) would catch that as a red.
   3. **Keep** exactly the surface the survivor uses (`test_single_mission_surface_resolver.py:174-182` and its `_PATCHED_ROOT_NAMES` monkeypatches at about L660-664):
      - the roots: `_REPO_ROOT`, `_SRC_ROOT`, `SRC_SPECIFY_CLI`, `SRC_MISSION_RUNTIME`;
      - `_normalize_token`, `_composite_from_file`;
@@ -170,10 +181,10 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
      Before deleting anything, grep the survivor for `_audit_mod.` and `getattr(self._audit_mod` to confirm this list against live code.
   4. **Delete**:
      - the shebang and the "Run directly" docstring section;
-     - `INVENTORY_PATH` (L69);
+     - `INVENTORY_PATH` (L70);
      - the `sys.path` bootstrap and `# noqa: E402` (L71-88), and the now-unused `import sys`;
      - the local `CompositeKey = tuple[str, str, str]` (L91): import it from `tests.architectural._ratchet_keys` alongside `composite_key_from_file`;
-     - `KNOWN_CANDIDATE_FILES` (about L471-481);
+     - `KNOWN_CANDIDATE_FILES` (L479; used only by `main()` at L777);
      - `VALID_DISPOSITIONS`;
      - `_unwrap`, `_collect_table`, `_parse_inventory_rows`, `_parse_selection_rows`, `_composite_from_locator`, `_inventory_composites`, `check_undercount`, `check_overcount`, `_fail`, `_resolution_checks`, `_selection_checks`, `main`, and the `if __name__` block (L519-808).
   5. **Rewrite the module docstring**. It no longer mentions running the file, `inventory.md`, `RULESET.md` or "the recorded converter". Fold in the load-bearing parts of `RULESET.md`: the seed set, the sink predicate, and the known false-negative classes. Keep the disposition vocabulary **only** if `ResolutionRow` still carries a disposition field that the survivor reads; otherwise drop it. `_normalize_token`'s docstring loses its "inventory table" and "recorded converter" rationale. Keep the `|`→`¦` normalisation only if the survivor's composite comparison needs it (it compares `_composite_from_file` output), and say why in one line.
@@ -215,7 +226,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
      - the failure message at L508: "Run ``python tests/architectural/surface_resolution_audit/audit.py``…" becomes "call ``_surface_resolution_scan.discover_rows()``…";
      - the messages at L528-529 ("the SRC_ROOT in audit.py…", "the audit.py import failed silently") must name the new module.
   5. `.venv/bin/ruff format tests/architectural/test_single_mission_surface_resolver.py` (not excluded), then run `ruff check` and `mypy` on it.
-- **Validation**: `pytest tests/architectural/test_single_mission_surface_resolver.py -q` gives **8 passed** (same count as T038). Also run `--collect-only -q` and diff the node IDs against the base: they must be identical.
+- **Validation**: `pytest tests/architectural/test_single_mission_surface_resolver.py -q` gives **8 passed** (same count as T038). Also run `--collect-only -q` in the lane and `diff` it against `<scratch>/wp07-base-nodeids.txt` from T038 step 5 (a real `3717c7ea` worktree): they must be identical. Paste the empty diff into the Activity Log.
 
 ### Subtask T042 – Remaining FR-009 references, token search, validation
 
@@ -227,8 +238,12 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
      - Because `_ratchet_keys.py` is the shared substrate, run the full `tests/architectural/`.
   2. `tests/architectural/test_no_worktree_name_guess.py:155`: drop "``surface_resolution_audit/inventory.md`` /" from the comment list, keeping the other two citations. Comment only.
   3. `tests/architectural/untrusted_path_audit/inventory.md:76`: in the **rationale cell only** (the 7th column), replace the clause "see `tests/architectural/surface_resolution_audit/inventory.md` for the sibling WP01-census row covering the same leaf" with a pointer to the live survivor (`tests/architectural/test_single_mission_surface_resolver.py`), or drop the clause. Do not touch the `file:line`, qualname, token, source, sink or disposition cells: `test_untrusted_path_containment.py` parses this table. Run that test file afterwards.
-  4. Re-run the T038 step-4 path-qualified search. It must return **0** lines. Record the before and after counts in the tracer.
+  4. Re-run the T038 step-4 path-qualified search (with the same `--exclude-dir` set). It must return **0** lines. Record the before and after counts in the tracer.
   5. Behavioural checks (Renata MEDIUM): `grep -n "__main__\|open(.*['\"]w\|write_text" tests/architectural/_surface_resolution_scan.py` returns nothing. Every top-level public name left in the module has at least one importer outside it (grep each name).
+  6. **Issue matrix (last step)**: #3011 is seeded `in-mission` against WP07, and WP07 fixes the whole issue (FR-008 + FR-009). WP13's FR-012 retirement of `resolution_gate_allowlist.yaml` is the same defect class, not part of #3011. After your last commit:
+     ```bash
+     spec-kitty agent issue-verdict --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --issue "#3011" --verdict fixed --actor <you> --wp WP07 --evidence-ref "converter/inventory/audit entry point retired; scanner kept in tests/architectural/_surface_resolution_scan.py; commit <sha>"
+     ```
 - **Files**: `tests/architectural/_ratchet_keys.py`, `tests/architectural/test_no_worktree_name_guess.py`, `tests/architectural/untrusted_path_audit/inventory.md`.
 
 ## Test Strategy
@@ -268,12 +283,24 @@ Non-fakeable checks (from `research/postspec-renata.md` MEDIUM SC-003/FR-008/FR-
    - No module under `tests/architectural/` defines `__main__`, and none writes an inventory file.
    - None of the deleted helpers (`_parse_inventory_rows`, `check_undercount`, `check_overcount`, `_inventory_composites`, `main`) survives under a new name. Check with `git diff -M --stat` and read the kept module.
 2. **Provenance.** `git log --follow tests/architectural/_surface_resolution_scan.py` reaches the original `audit.py` history.
-3. **Survivor unchanged in strength.** The same 8 node IDs as on base, all green, and the row floor assertion is still present.
+3. **Survivor unchanged in strength.** The same 8 node IDs as on base (diffed against a `git worktree add <tmp> 3717c7ea` collection, not a lane-side list), all green, and the row floor assertion is still present.
 4. **Red-first evidenced.** The tracer shows, captured on base before the deleting commits: `audit.py` exit 1, `--check` STALE, and the base token count.
 5. **No tombstones.** No test asserts that the directory or a symbol is absent.
 6. **Dangling reference fixed.** `untrusted_path_audit/inventory.md:76` no longer cites the retired inventory, and `test_untrusted_path_containment.py` is green.
 7. **pyproject hunk** is exactly the two L954-955 deletions, with no other pyproject line touched.
 8. `mypy`, `ruff check` and `ruff format --check` are clean on the new module and the survivor.
+9. The #3011 issue-matrix row reads `fixed` with a commit SHA.
+
+**Reviewer RED reproduction** (deletion-only WP, D-OP-4: the RED is the base-side evidence, re-run on a clean base checkout):
+
+```bash
+git worktree add /tmp/wp07-base 3717c7ea && cd /tmp/wp07-base
+PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python tests/architectural/surface_resolution_audit/audit.py; echo "exit=$?"   # expect exit=1, 8 missing + 8 ghost rows
+PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python tests/architectural/surface_resolution_audit/rekey_inventory.py --check   # expect "inventory.md is STALE"
+cd - && git worktree remove /tmp/wp07-base
+```
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-008, FR-009, NFR-005, NFR-006 (the survivor keeps its 8 nodes), C-001, C-005; contributes to SC-003 and SC-006 (#3011 row).
 
 ## Activity Log
 

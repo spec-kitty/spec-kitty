@@ -5,7 +5,10 @@ dependencies:
 - WP05
 requirement_refs:
 - FR-011
+- NFR-002
 - NFR-003
+- NFR-005
+- NFR-006
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
@@ -21,6 +24,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/test_ratchet_baselines.py
 create_intent: []
@@ -241,7 +247,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP06`). Never 
      - deep-copy `_load_baselines()`;
      - set `copy[row.section][row.leaf] = live - 1`, where `live = len(_import_module_attr(row.module, row.attr))`;
      - `monkeypatch.setattr(<this module>, "_load_baselines", lambda: copy)`;
-     - `pytest.raises(AssertionError, match=re.escape(row.attr))` around `test_growing_an_allowlist_above_baseline_fails()`.
+     - `with pytest.raises(AssertionError) as excinfo:` around `test_growing_an_allowlist_above_baseline_fails()`, then assert that the **same failure line** contains both `f"{row.section}.{row.leaf}"` and `row.attr` (e.g. `any(f"{row.section}.{row.leaf}" in ln and row.attr in ln for ln in str(excinfo.value).splitlines())`). Matching `row.attr` alone is satisfied when a row reads a different leaf whose failure line prints the same attr.
 
      For the two live-0 rows, `known_ungated_files` (egress) and `category_3_external_cli_entrypoints` (live 0, YAML 2), `live - 1 == -1` and the growth arm still fails (0 > -1). State that in a comment rather than special-casing it (Debbie LOW). This proves each row reads **its** leaf: a row wired to the wrong leaf would not red.
   2. Write `test_size_ratchet_table_meets_floor`:
@@ -254,7 +260,20 @@ Implementers commit in their lane worktree (`spec-kitty implement WP06`). Never 
 
      Assert `_leaf_drift` returns exactly those as unenforced. Removing an enforced leaf from the copy makes it appear in `missing`. Use the **same** `_leaf_drift` the production test calls.
   4. Load-bearing proof: monkeypatching `_enforced_leaves` to return the YAML's own leaf set turns the planted test green. That shows the derivation, not a tautology, is what fails it. Record this as a one-off mutation in the tracer, not as a committed test.
-  5. Shrink-only proof for NFR-003: `git diff <planning-base> -- tests/architectural/_baselines.yaml | grep '^+ *[a-z_0-9]*: [0-9]'` must show no increased value. Record the leaf counts (23 on the planning base → 21 after WP05 → 19 after this WP).
+  5. Shrink-only proof for NFR-003, mechanical rather than a grep read by eye. Flatten base and head YAML leaves and compare every common leaf:
+     ```bash
+     .venv/bin/python - <<'PY'
+     import subprocess, yaml
+     def leaves(d, p=""):
+         for k, v in d.items():
+             yield from (leaves(v, f"{p}{k}.") if isinstance(v, dict) else [(f"{p}{k}", v)])
+     base = dict(leaves(yaml.safe_load(subprocess.check_output(["git", "show", "3717c7ea:tests/architectural/_baselines.yaml"]))))
+     head = dict(leaves(yaml.safe_load(open("tests/architectural/_baselines.yaml"))))
+     bad = {k: (base[k], head[k]) for k in base.keys() & head.keys() if isinstance(head[k], int) and head[k] > base[k]}
+     print(len(base), "->", len(head), "leaves; increased:", bad); assert not bad
+     PY
+     ```
+     Paste the output into the tracer and PR. Expected leaf counts: 23 on the planning base → 21 after WP05 → 19 after this WP.
   6. Record the green-side evidence with `spec-kitty agent tracer-append`.
 - **Files**: `tests/architectural/test_ratchet_baselines.py`.
 - **Parallel?**: No. It is last.
@@ -291,7 +310,7 @@ make test-fast
 
 Non-fakeable checks (from `research/postspec-renata.md` [CRITICAL] FR-011):
 
-1. **Enforcement is derived, not listed.** `_enforced_leaves()` is computed from `_SIZE_RATCHETS`, and both comparison arms iterate `_SIZE_RATCHETS` (verify by reading them). There must be no separate hand list of allowed nested keys anywhere in the module.
+1. **Enforcement is derived, not listed.** `_enforced_leaves()` is computed from `_SIZE_RATCHETS`, and both comparison arms iterate `_SIZE_RATCHETS` (verify by reading them). There must be no separate hand list of allowed nested keys anywhere in the module. **No row points at a dummy attr**: for each row, `grep -n <attr> <row's module file>` shows the attr consumed inside the owning gate's test function, not merely defined.
 2. **Red-first for the intended reason.** The T032 commit precedes the implementation commits. Its recorded failure names exactly the 2 lane leaves, and the planning-base run of `_leaf_drift` names exactly the 4.
 3. **Each row reads its own leaf.** `pytest tests/architectural/test_ratchet_baselines.py -k lowering -v` shows 19 passing ids. Reviewer spot-mutation: swap two rows' `leaf` values and at least two ids go red.
 4. **Planted leaf fails.** A tmp edit adding `foo: 1` under any section reds `test_every_baseline_leaf_is_enforced_by_a_size_ratchet` with `section.foo` named.
@@ -302,6 +321,20 @@ Non-fakeable checks (from `research/postspec-renata.md` [CRITICAL] FR-011):
 6. **Shrink-only.** No `_baselines.yaml` value increased. The final shape is 19 leaves in 12 sections.
 7. **No `src/` or `pyproject.toml` diff.** The ADR edit is a single dated supersession bullet.
 8. `mypy` and `ruff check` are clean on the changed Python files.
+9. The lowering test asserts `section.leaf` and `attr` on the same failure line; the NFR-003 shrink-only script output is in the tracer.
+
+**Reviewer RED reproduction** (mechanical; run in the lane worktree; `<lane-base>` is the lane's base commit, e.g. `git merge-base HEAD claude/spec-kitty-remediation-wfje22`):
+
+```bash
+RED=$(git log --reverse --format=%H <lane-base>..HEAD | head -1)
+git stash -u; git checkout "$RED"
+.venv/bin/python -m pytest tests/architectural/test_ratchet_baselines.py::test_every_baseline_leaf_is_enforced_by_a_size_ratchet -q
+git checkout -; git stash pop
+```
+
+It must fail with a failure naming exactly `test_no_dead_modules.category_1_auto_discovered_migrations` and `test_example_round_trip.skip_marker_blocks` (on a lane base that includes WP05). An `ImportError`, `NameError` or collection error is not a valid RED.
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-011, NFR-002 (floor + planted-leaf self-mutation), NFR-003, NFR-005, NFR-006 (retired leaves and tests name survivors), C-001, C-005; delivers SC-004.
 
 ## Activity Log
 

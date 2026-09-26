@@ -6,7 +6,10 @@ dependencies:
 requirement_refs:
 - C-004
 - FR-006
+- FR-007
 - NFR-001
+- NFR-002
+- NFR-003
 - NFR-005
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
@@ -27,6 +30,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/_destructive_op_census.py
 create_intent: []
@@ -91,7 +97,8 @@ Done means:
 1. `CensusKey(rel, qualname, token_line, op, op_ordinal)` (plan D-OP-1; `op_ordinal` is the 0-based ordinal among live findings sharing `(rel, qualname, token_line, op)`, ordered by line) replaces every string key. `(qualname, token_line)` comes from `_ratchet_keys.composite_key(source, lineno)`. Exactly 3 of the 80 need `op_ordinal=1`.
 2. The census helper's own tree-based `enclosing_qualname` is deleted; `_ratchet_keys.enclosing_qualname(source, lineno)` is the only qualname algorithm (C-004).
 3. `diff_against_allowlist` delegates to `_content_identity.partition_findings` (D-OP-9: one matcher, two stale policies). Census stale policy stays **WARN** (D-OP-8, the documented "legitimate cleanup must never be blocked" contract).
-4. Drift tolerance (NFR-001): `test_destructive_census_survives_line_drift` (15 files), `test_overwrite_census_survives_line_drift` (2 files), `test_mutation_census_survives_line_drift` (21 files); file sets derived from the allowlists with the count asserted equal to the derived set (never hard-coded; Debbie corrected research's 17/23 to 15/21). RED on the planning base, GREEN at the end.
+4. Drift tolerance (NFR-001): `test_destructive_census_survives_line_drift` (15 files), `test_overwrite_census_survives_line_drift` (2 files), `test_mutation_census_survives_line_drift` (21 files), each parametrized over a module constant `_DRIFT_FILES = tuple(sorted({k.rel for k in _ALLOWLIST}))` (on base: the path prefix of each string key). A companion per gate asserts `len(_DRIFT_FILES) >=` 15 / 2 / 21 (Debbie corrected research's 17/23 to 15/21), never "parameter set == set derived from the allowlist" (a set compared with itself). RED on the planning base, GREEN at the end.
+4a. Census non-vacuity (NFR-002, adapted to the warn-on-stale policy): each drift case also asserts the file's `suppressed` count is identical between the unmutated and mutated runs, and `>= 1` on the unmutated run for every file that has no stale key. Each census gate additionally asserts a **files-scanned floor** (the finder's scanned-file count on the planning base, pinned as a literal) and `len(suppressed) >= 1`. An exact `suppressed == len(_ALLOWLIST)` floor is deliberately **not** used: it would fail on legitimate source cleanup and contradict D-OP-8 / FR-007's census half.
 5. Non-widening proofs (Renata HIGH): a second identical op in an exempted function FAILS; a changed argument on an exempted op FAILS and warns stale.
 6. Equivalence proof: the exempted site set on the planning base (`3717c7ea`) equals the set blessed by the new keys at WP head, as a bijection with identical rationale hashes, **80/80**, recorded in the PR and tracer.
 7. `len(test_mutation_ownership_routing._ALLOWLIST) == 56` still holds; `_ALLOWLIST` stays a sized mapping (it feeds `destructive_op_allowlist: 56` in `_baselines.yaml` via `test_ratchet_baselines.py:464-467 / 626-629`).
@@ -104,7 +111,7 @@ Done means:
 - **Formatting**: none of the four owned files is format-excluded; all must pass `ruff format --check`.
 - **Mission artefacts (out-of-map, not in `owned_files`)**: `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/census-rekey-map.csv` and `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py`. A `code_change` WP may not own `kitty-specs/` paths, so write them on the mission's planning surface (the primary partition, from the repository-root checkout), not in the lane commits. The research script is excluded from ruff by `ruff.toml` `extend-exclude = ["kitty-specs/*/research/**"]` and is **not** a committed test (a test would have to hold the 80 old line keys, which the widened ban forbids). A prototype exists only in the planning session's scratchpad (`squad/census-rekey-map.csv`, `squad/census_rekey.py`); regenerate from live code rather than depending on it.
 - **WP01 interaction**: WP01's interim rows for the 80 census strings become finding-less after this WP and only warn. Do not edit the ban file. Your `CensusKey(...)` literals must not trip the widened ban: `op_ordinal=` is not a line keyword, `rel="src/…py"` has no `:<int>`, and `lineno` must never appear in an allowlist literal.
-- **Known, accepted weakness** (record in the tracer): tokens strip strings, so 8 of the 22 destructive keys have argv-only token lines such as `[ , , ] ,`; an argument swap inside the same op is blessed silently. Deleting an earlier same-key op shifts ordinals so a rationale can re-attach to its twin; both were exempted anyway and census stays warn-on-stale.
+- **Known, accepted weakness** (record in the tracer): tokens strip strings, so 7 of the 22 destructive keys have punctuation-only (argv-only) token lines (`[ , , ] ,` ×5, `[ , , , ] ,` ×2; Debbie probe); an argument swap inside the same op is blessed silently. Deleting an earlier same-key op shifts ordinals so a rationale can re-attach to its twin; both were exempted anyway and census stays warn-on-stale.
 - **C-006**: commit in your lane; never push or merge.
 
 ## Branch Strategy
@@ -134,8 +141,8 @@ T020 (artefact tooling) and T025 (equivalence proof) produce mission artefacts o
 - **Purpose**: C-001. Show, through each gate's own detection and matching path, that line-keyed census allowlists do not survive drift; pin the non-widening behaviour before the re-key so it provably survives it.
 - **Steps**:
   1. In each gate module, extract a behaviour-preserving seam `_census_partition(sources: Mapping[str, str]) -> tuple[set[K], set[K]]` returning `(unexpected, suppressed)` using today's `_flatten` + `diff_against_allowlist`. It runs the gate's **real** finder on each source: the finders take a `Path` (`_find_destructive_literals`, L121-133; `_find_destructive_ops`, mutation L202-215; `_find_overwrite_ops`, overwrite L213-226), so write each (possibly mutated) source to a `tmp_path` copy and key the hits with the **original** repo-relative path.
-  2. Add `test_destructive_census_survives_line_drift`, `test_overwrite_census_survives_line_drift` and `test_mutation_census_survives_line_drift`, each parametrized over the distinct files referenced by the gate's `_ALLOWLIST` (derived; add a companion test asserting the parameter set equals the derived set). For each file: mutation (i) a blank line at the top; mutation (ii) a probe statement above every exempted site in that file. Assert `(unexpected, suppressed)` for the mutated tree equals the unmutated run. RED on base for every file (line keys shift). Use WP02's `with_blank_line_at_top` / `with_probe_above_statement`.
-  3. Add, per gate where the op family allows it, `test_second_identical_op_in_exempted_function_fails` (duplicate an exempted op statement in memory inside its function → the seam reports it as unexpected) and `test_changed_argument_on_exempted_op_fails` (edit an exempted op's arguments in memory so its **token line** changes, e.g. add a name argument or an extra non-string element; changing only a string literal does not change tokens because `composite_key` strips strings → the new site is unexpected and the old entry appears in the stale set). Be precise about their base state (#5068: red for the intended reason): the second-identical-op test is **green on base** (a new line already yields a new line key) and must stay green after the re-key, so it is the non-widening guard; the changed-argument test is **RED on base** (a line key silently keeps blessing a changed argument on the same line) and turns green with the re-key, so it is a second red driver. State this in each docstring.
+  2. Add `test_destructive_census_survives_line_drift`, `test_overwrite_census_survives_line_drift` and `test_mutation_census_survives_line_drift`, each parametrized over the module constant `_DRIFT_FILES` (Objective 4), plus the companion floor test (`len(_DRIFT_FILES) >=` 15 / 2 / 21) and the Objective 4a non-vacuity assertions. For each file: mutation (i) a blank line at the top; mutation (ii) a probe statement above every exempted site in that file. Assert `(unexpected, suppressed)` for the mutated tree equals the unmutated run, and the per-file `suppressed` count is unchanged and non-zero. RED on base for every file (line keys shift). Use WP02's `with_blank_line_at_top` / `with_probe_above_statement`.
+  3. Add, **in all three gates**, `test_second_identical_op_in_exempted_function_fails` (duplicate an exempted op statement in memory inside its function → the seam reports it as unexpected) and `test_changed_argument_on_exempted_op_fails` (edit an exempted op's arguments in memory so its **token line** changes, e.g. add a name argument or an extra non-string element; changing only a string literal does not change tokens because `composite_key` strips strings → the new site is unexpected and the old entry appears in the stale set). Be precise about their base state (#5068: red for the intended reason): the second-identical-op test is **green on base** (a new line already yields a new line key) and must stay green after the re-key, so it is the non-widening guard; the changed-argument test is **RED on base** (a line key silently keeps blessing a changed argument on the same line) and turns green with the re-key, so it is a second red driver. State this in each docstring. If one op family truly cannot express a token-changing argument edit, record the reason per gate in the tracer; the reviewer must accept it explicitly. "Where the op family allows it" is not a blanket exemption.
   4. Run the drift and changed-argument tests, capture the RED failure text, record it: `spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --category approach --actor <you> --entry "WP04 RED: ..."`. Commit alone.
 - **Files**: the three gate modules.
 - **Notes**: the gate test functions themselves (`test_destructive_commands_only_at_allowlisted_or_guard_sites` L259-279, `test_every_destructive_literal_is_allowlisted` mutation L505-523, `test_every_overwrite_literal_is_allowlisted` overwrite L338-354) must call the seam, so the drift test and the gate share one path.
@@ -165,11 +172,13 @@ T020 (artefact tooling) and T025 (equivalence proof) produce mission artefacts o
 - **Purpose**: FR-006 requires an old→new mapping proving the exempted site set is identical; generating the 80 literals by hand is error-prone.
 - **Steps**:
   1. Write `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py` (runs from the repo root with `.venv/bin/python`; stdlib + repo imports only). Modes:
-     - `--emit-map`: for each gate, read the **base** `_ALLOWLIST` via `git show <base>:<gate file>` and `ast.literal_eval` of the dict node; for each old key `rel:lineno:op`, read the live source, compute `census_keys` over the gate's live hits, find the new key whose lineno equals the old lineno and whose op matches; write `census-rekey-map.csv` with columns `gate, old_key, rel, qualname, token_line, op, op_ordinal, rationale_sha256` (80 rows; `rationale_sha256` is SHA-256 of the rationale text). data-model.md names the ordinal column `occurrence`; use `op_ordinal` per plan D-OP-1 and note the rename in the CSV header comment or tracer.
+     - `--emit-map`: for each gate, read the **base** `_ALLOWLIST` via `git show <base>:<gate file>` and `ast.literal_eval` of the dict node; for each old key `rel:lineno:op`, read the live source, compute `census_keys` over the gate's live hits, find the new key whose lineno equals the old lineno and whose op matches; write `census-rekey-map.csv` with columns `gate, old_key, rel, qualname, token_line, op, op_ordinal, rationale_sha256` (80 rows; `rationale_sha256` is SHA-256 of the rationale text). The ordinal column is `op_ordinal` (plan D-OP-1; data-model.md now uses the same name).
      - `--emit-literals <gate>`: print the new `_ALLOWLIST` literal for that gate in keyword form `CensusKey(rel="…", qualname="…", token_line="…", op="…", op_ordinal=0): "<rationale verbatim>",` preserving the original section comments' grouping and order.
-     - `--base <sha>` (default `3717c7ea`): the equivalence check of T025.
+     - `--base <sha>` (default `3717c7ea`) `--head-root <lane-worktree-abs-path>`: the equivalence check of T025. `--head-root` is **required** for the check; the script inserts it at the front of `sys.path` before importing the gate modules, so it always imports the migrated gates from the lane, never the unmigrated gates of the checkout it runs from.
+     - `--self-test`: runs the equivalence check three more times on in-memory corruptions of the new keys (flip one key's `op_ordinal`; drop one key; swap one rationale) and exits non-zero unless **each** corruption is detected. Its output goes into the PR, proving the script can fail.
   2. Generate the CSV. Sanity-check: 80 rows; per-gate 22 / 56 / 2; exactly 3 rows with `op_ordinal=1` (destructive `src/specify_cli/lanes/merge.py::_merge_branch_into` `merge_abort`; mutation `src/specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py::FixMemoryStructureMigration.apply` `Path.unlink` ×2); 0 duplicate `CensusKey`s; distinct `rel` per gate 15 / 21 / 2.
 - **Files**: the two mission artefacts only (written on the planning surface, not in the lane).
+- **Who commits them, and when**: you (the WP04 implementer) commit the script and the CSV in the repository-root checkout, on the planning branch `claude/spec-kitty-remediation-wfje22` (the primary partition), **before** moving WP04 to `for_review`. Record that commit SHA in the Activity Log. WP13 T074 re-runs the script at the consolidated head, so it must exist on the planning branch.
 - **Parallel?**: Can start after T018 exists locally.
 
 ### Subtask T021 – Re-key the destructive-op gate: 22 keys (commit 3, part A)
@@ -222,9 +231,9 @@ T020 (artefact tooling) and T025 (equivalence proof) produce mission artefacts o
 
 - **Purpose**: FR-006's "exempted site set identical before and after", Renata HIGH (no laundering of coincidental blessings).
 - **Steps**:
-  1. Run `.venv/bin/python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py --base 3717c7ea` at your lane head. It must: (a) load the old `_ALLOWLIST`s via `git show 3717c7ea:<file>` and compute the old site set `{(gate, rel, lineno, op)}`; (b) import the new gate modules, resolve every `CensusKey` through `census_keys` over live source to `(rel, lineno)`; (c) assert the two site sets are equal, the old→new mapping is a bijection, and `rationale_sha256` matches per site; (d) print per-gate counts (22 / 56 / 2 = 80) and exit non-zero on any mismatch.
+  1. From the repository-root checkout, run `.venv/bin/python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py --base 3717c7ea --head-root <lane-worktree-abs-path>`, then the same command with `--self-test`. It must: (a) load the old `_ALLOWLIST`s via `git show 3717c7ea:<file>` and compute the old site set `{(gate, rel, lineno, op)}`; (b) import the new gate modules, resolve every `CensusKey` through `census_keys` over live source to `(rel, lineno)`; (c) assert the two site sets are equal, the old→new mapping is a bijection, and `rationale_sha256` matches per site; (d) print per-gate counts (22 / 56 / 2 = 80) and exit non-zero on any mismatch.
   2. Confirm `git diff 3717c7ea -- src/` is empty (C-005 makes `(rel, lineno)` a valid shared identity).
-  3. Paste the command and output into the PR and record it with `spec-kitty agent tracer-append ... --category design-decisions`, together with the accepted weakness from "Context & Constraints" and the D-OP-8 warn-on-stale ruling.
+  3. Paste both commands and their output into the PR and record it with `spec-kitty agent tracer-append ... --category design-decisions`, together with the accepted weakness from "Context & Constraints" and the D-OP-8 warn-on-stale ruling.
 - **Files**: mission artefacts only.
 
 ### Subtask T026 – Validation and quality gates
@@ -243,7 +252,8 @@ Tests are required.
 ```bash
 .venv/bin/python -m pytest tests/architectural/test_destructive_op_routing.py tests/architectural/test_overwrite_ownership_routing.py tests/architectural/test_mutation_ownership_routing.py tests/architectural/test_ratchet_baselines.py tests/architectural/test_content_identity.py -q
 .venv/bin/python -m pytest tests/architectural/ -n auto --dist loadfile -q      # shared helper: full architectural run
-.venv/bin/python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py --base 3717c7ea
+.venv/bin/python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py --base 3717c7ea --head-root "$PWD"            # run from the lane worktree root
+.venv/bin/python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py --base 3717c7ea --head-root "$PWD" --self-test
 make test-fast
 uv run --frozen ruff check tests/architectural/_destructive_op_census.py tests/architectural/test_destructive_op_routing.py tests/architectural/test_overwrite_ownership_routing.py tests/architectural/test_mutation_ownership_routing.py
 uv run --frozen ruff format --check tests/architectural/_destructive_op_census.py tests/architectural/test_destructive_op_routing.py tests/architectural/test_overwrite_ownership_routing.py tests/architectural/test_mutation_ownership_routing.py
@@ -267,7 +277,9 @@ Pre-existing failure rule: classify any red that is also red on the planning bas
 Non-fakeable checks (from `research/postspec-renata.md`):
 
 - Commit 1 contains only the RED drift tests (plus behaviour-preserving seam extraction) and the non-widening guards; its failure text shows the drift mismatches for 15 / 2 / 21 files and the changed-argument blessing.
-- Drift tests derive their file set from the allowlist and assert the count; they use both mutations and compare full `(unexpected, suppressed)` sets through the gate's real finder and partition.
+- Drift tests are parametrized over `_DRIFT_FILES`; companions assert `len(_DRIFT_FILES) >=` 15 / 2 / 21; per-file suppressed counts are unchanged and non-zero; each gate has a pinned files-scanned floor and `len(suppressed) >= 1`. Both mutations are used and the full `(unexpected, suppressed)` sets are compared through the gate's real finder and partition.
+- The changed-argument test exists in all three gates, or the tracer records a per-gate reason that you accept explicitly.
+- The script and CSV are committed on the planning branch (SHA in the Activity Log); the `--self-test` output shows all three corruptions detected.
 - The second-identical-op test exists in every gate and passes before and after the re-key; the changed-argument test is RED at commit 1 and GREEN at the end.
 - The equivalence script output shows 80/80, a bijection and equal rationale hashes against `3717c7ea`; `src/` is unchanged.
 - `_destructive_op_census.py` has no qualname algorithm of its own; `enclosing_qualname` is the `_ratchet_keys` re-export; no tree-accepting shim remains.
@@ -276,6 +288,19 @@ Non-fakeable checks (from `research/postspec-renata.md`):
 - The mutation `_ALLOWLIST` has 56 entries; `_baselines.yaml` and `test_ratchet_baselines.py` are untouched.
 - The drop-one-entry and planted-op non-vacuity tests in all three gates still pass.
 - ruff check, ruff format --check and mypy are clean on the four files; the full `tests/architectural/` run is recorded.
+
+**Reviewer RED reproduction** (mechanical; run in the lane worktree; `<lane-base>` is the lane's base commit, e.g. `git merge-base HEAD claude/spec-kitty-remediation-wfje22`):
+
+```bash
+RED=$(git log --reverse --format=%H <lane-base>..HEAD | head -1)
+git stash -u; git checkout "$RED"
+.venv/bin/python -m pytest tests/architectural/test_destructive_op_routing.py tests/architectural/test_overwrite_ownership_routing.py tests/architectural/test_mutation_ownership_routing.py -q -k "line_drift or changed_argument"
+git checkout -; git stash pop
+```
+
+It must fail with drift-set mismatches for the 15 / 2 / 21 files and a changed-argument site reported as suppressed instead of unexpected. An `ImportError`, `NameError` or collection error is not a valid RED.
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-006, FR-007 (census warn-on-stale half), NFR-001, NFR-002 (census floors), NFR-003, NFR-005, C-001, C-004, C-005; contributes to SC-001 and SC-002.
 
 ## Activity Log
 

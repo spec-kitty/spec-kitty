@@ -5,6 +5,9 @@ dependencies: []
 requirement_refs:
 - FR-013
 - FR-016
+- NFR-002
+- NFR-005
+- NFR-006
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
@@ -20,6 +23,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/next/test_internal_runtime_parity.py
 create_intent: []
@@ -154,12 +160,12 @@ Implementers commit in their lane worktree (`spec-kitty implement WP08`). Never 
      - Add the pure helper `_rich_typer_import_offenders(root: Path) -> tuple[int, list[str]]`, returning `(files_inspected, offenders)`. It raises `AssertionError` (or returns a sentinel the tests assert on) when `root` is not a directory or holds 0 `.py` files. It walks `ast.Import` names and `ast.ImportFrom.module` for a top-level segment in `{"rich", "typer"}`, so it catches `import os, typer`, `from rich.console import X` and `import rich.prompt`.
      - Add three tests:
        - `test_rich_typer_ban_inspects_live_runtime_package` asserts `files_inspected >= 16` for `_RUNTIME_PACKAGE`;
-       - `test_rich_typer_ban_fails_on_missing_or_empty_target(tmp_path)` covers a missing dir and an empty dir, and both fail;
+       - `test_rich_typer_ban_fails_on_missing_or_empty_target(tmp_path, kind)`, **parametrized** over `kind in ("missing", "empty")` (2 node IDs), where both fail;
        - `test_rich_typer_ban_flags_planted_import(tmp_path)` writes `mod.py` containing `import os, typer` and a second file with `from rich.console import Console`, and asserts both offenders are named.
   2. In `tests/contract/test_next_no_unknown_state.py`:
      - Hoist the current target at L40 into `_RUNTIME_SOURCE_ROOT` with its value unchanged (`src/specify_cli/next`).
      - Extract `_placeholder_offenders(root) -> tuple[int, list[tuple[Path, int]]]`, which fails on a missing or empty target.
-     - Add `test_runtime_placeholder_scan_inspects_live_source` asserting `files_inspected >= 31`.
+     - Add `test_runtime_placeholder_scan_inspects_live_source` asserting `files_inspected >= 31`, as a **module-level** function (not inside `TestNoLegacyQueryPlaceholderInTemplates`). T046's planted test is module-level too.
   3. Run both floor tests on the lane base. They fail with "0 files inspected" (or "missing target"). **That is the RED.** The missing, empty and planted tests pass already, because they exercise the helper on `tmp_path`.
   4. Commit this alone ("test(WP08): RED ..."). Record the verbatim RED output:
      ```bash
@@ -188,7 +194,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP08`). Never 
      - Run the survivor and record its node ID and result.
   2. Delete `test_public_surface_matches_contract` (L142-158) and `test_submodule_surface_matches_contract` (L161-169). These are positive-shape pins, and the second pins the private `engine._read_snapshot`.
      - **NFR-006 reason**: `__all__`/`hasattr` equality pins shape. The behaviour is covered by `test_internalized_runtime_matches_upstream_snapshot`, which replays through `start_mission_run`/`next_step`/`provide_decision_answer` via `tests/fixtures/runtime_parity/_capture_baselines.py`.
-     - **Mutation proof** (recorded, not committed): rename `engine._read_snapshot` in a scratch copy, or monkeypatch `delattr`. Only the retired pin reds, while the golden stays green. That demonstrates it pinned shape, not behaviour.
+     - **Mutation proof** (recorded, not committed): in a scratch copy of the tree, do a **behaviour-preserving rename** of `engine._read_snapshot` (`src/runtime/next/_internal_runtime/engine.py:130`) **and all three internal call sites** (`engine.py:280`, `:541`, `:814`). Only `test_submodule_surface_matches_contract` reds, while the golden stays green. That demonstrates it pinned shape, not behaviour. Do **not** use `monkeypatch.delattr` / `del engine._read_snapshot`: the internal callers then raise, and all 4 golden nodes ERROR (Pedro probe). Note that `tests/runtime/test_bridge_parity.py:294` and `:969` also import `_read_snapshot` (WP11's scope), so the scratch rename reds those too; that is expected and unrelated to this retirement.
   3. Rewrite the module docstring (L1-12). The file holds a **characterization golden** of the internalized runtime, captured from upstream `spec_kitty_runtime` 0.4.x, plus the rich/typer layer ban. Drop "WP01 acceptance gate" and "independence is the entire point of WP01".
   4. Record all three retirements in one tracer entry. Give per test: verdict (retire), discriminator (duplicate ban / positive shape), survivor or reason, and the mutation result. WP12 lifts these into the FR-018 catalog.
 - **Files**: `tests/next/test_internal_runtime_parity.py`.
@@ -201,7 +207,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP08`). Never 
   1. Retarget `_RUNTIME_SOURCE_ROOT` to `_REPO_ROOT / "src" / "runtime" / "next"`. That is 31 `.py` files on base, including `_internal_runtime/`. The placeholder emitter family (`runtime_bridge.py`, `decision.py`, `prompt_builder.py`) lives there.
   2. Rewrite `test_placeholder_is_absent_from_runtime_source` (L39-53) to use `_placeholder_offenders(_RUNTIME_SOURCE_ROOT)` with the floor. Keep its name and its offender message.
   3. Add `test_runtime_placeholder_scan_flags_planted_placeholder(tmp_path)`. It writes a `.py` file containing the `_PLACEHOLDER` literal and asserts the helper names `(path, line)`. Add a clean file as the negative control.
-  4. Leave the other test classes unchanged. `TestRuntimeBridgeBlockedReasonIsConcrete` already reads the real `src/runtime/next/runtime_bridge.py`.
+  4. Leave the other test classes unchanged. Inside `TestNoLegacyQueryPlaceholderInTemplates`, only `test_placeholder_is_absent_from_runtime_source` changes; its sibling `test_placeholder_is_absent_from_command_templates` stays untouched. `TestRuntimeBridgeBlockedReasonIsConcrete` already reads the real `src/runtime/next/runtime_bridge.py`.
   5. Record the scope-drift observation on `TestNoLegacyQueryPlaceholderInTemplates` (see Context) in the tracer as a follow-up candidate.
 - **Files**: `tests/contract/test_next_no_unknown_state.py`.
 - **Validation**: `pytest tests/contract/test_next_no_unknown_state.py -q`. All green, and the T043 floor test is green with 31 files.
@@ -210,7 +216,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP08`). Never 
 
 - **Purpose**: Remove dead strict-xfail machinery and stale narrative, and prove the kept matrix can still fail.
 - **Steps**:
-  1. Delete `_apply_xfail` (L578-597) and parametrize `test_entry_points_agree_per_cell` (L600) directly over the matrix. Keep the ids by building `pytest.param(topology, slug, mid8, id=test_id)` inline, so node IDs stay identical: compare `--collect-only -q` before and after, and record the diff (expected empty).
+  1. Delete `_apply_xfail` (L578-597) and parametrize `test_entry_points_agree_per_cell` (L600) directly over the matrix. Extract its body into `_check_cell(topology, slug, mid8, entry_points)`, which step 6 reuses. Keep the ids by building `pytest.param(topology, slug, mid8, id=test_id)` inline, so node IDs stay identical: compare `--collect-only -q` before and after, and record the diff (expected empty).
   2. Drop the `xfail_reason` column from `_MATRIX` (L488-575). All 14 rows carry `None` on base, and the type becomes `list[tuple[str, str, str, str]]`. Delete the explanatory comment for that column (L488-490).
   3. Delete the stale RED/GREEN cell table and the strict-xfail narrative in the module docstring (L8, L36-108; re-locate by content). Keep a short statement of what the matrix proves.
   4. Delete the drained "WP06 documented out-of-scope divergence reasons (the T026 allowlist)" and "WP05 … drains the last three RED" comment block (L436-486). Nothing remains RED.
@@ -218,7 +224,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP08`). Never 
   6. Add `test_equivalence_detects_planted_divergence(tmp_path, monkeypatch)`:
      - build a coord-topology cell with the module's own `_build_topology`;
      - monkeypatch one leg of `_entry_points` so that for this cell it returns the **primary** feature dir while the others return the coordination dir, by wrapping `_entry_points` and replacing one closure;
-     - drive the same comparison loop the matrix test uses, calling `_assert_equivalent`, and assert `pytest.raises(AssertionError)`.
+     - drive the comparison through a helper `_check_cell(topology, slug, mid8, entry_points)` that you **extract** from `test_entry_points_agree_per_cell` in step 1 and that both tests call. Assert `pytest.raises(AssertionError)` around `_check_cell`. Never copy the loop into the planted test.
 
      This is a planted-violation control through the **real** comparison. It is green on base, because it strengthens the suite; the WP's genuine RED comes from T043.
 - **Files**: `tests/missions/test_surface_resolution_equivalence.py` (format-excluded; do not reformat).
@@ -232,8 +238,8 @@ Implementers commit in their lane worktree (`spec-kitty implement WP08`). Never 
      - Delete the module-docstring "xfail → convergence-WP map (IC-08 / T003)" section and the xfail narrative around it (about L105-160). Keep the "Live parity coverage" description, updated so it does not say "non-xfail".
      - Delete the stale ATDD-first xfail comment block (about L1392-1416). 0 `pytest.mark.xfail` remain on base.
      - Remove the scattered "xfail removed" breadcrumb comments only where they sit in blocks you already edit.
-     - In `test_no_feature_dir_anchored_status_event_reads` (L2160-2209), delete the `missing_seams` arm (L2195-2200). It is a positive name pin: renaming a seam reds it with no behaviour change. Keep the negative ban, meaning the forbidden-read hits and the "seam no longer calls `resolve_status_surface`" check.
-     - **NFR-006 mutation**: record that renaming an exempt seam in a scratch copy reds only the removed arm, while re-introducing a `feature_dir`-anchored `read_events()` still reds the kept ban.
+     - In `test_no_feature_dir_anchored_status_event_reads` (L2160-2209), delete the `missing_seams` arm (L2195-2200). **Disposition: retire (redundant within the test)**. It is not a lone name pin: the kept ban already reds when a seam is renamed or deleted, because the exempt seams (`_resolve_events_path`, `_canonical_events_dir`) contain the fallback reads and are exempted by name, so a renamed seam's reads surface as forbidden hits (Pedro probe: with the arm removed, renaming both seams still reds via `gate.py:218` and `agent_retrospect.py:264`). Keep the negative ban, meaning the forbidden-read hits and the "seam no longer calls `resolve_status_surface`" check.
+     - **NFR-006 mutation**: record that, with the arm removed, renaming both exempt seams in a scratch copy still reds the kept ban (naming `gate.py:218` and `agent_retrospect.py:264`), and that re-introducing a `feature_dir`-anchored `read_events()` also reds it. If your probe disagrees, keep the arm and record why.
   2. `tests/review/test_transition_gate_parity.py`: delete `test_wp09_hook_landmine_disposition_is_documented_accurately` (L280-304).
      - **Reason**: it asserts on this module's own docstring and on a marker's absence, which is the self-referential docstring test named in the grounding.
      - Confirm the module docstring no longer claims a pending xfail (L28-29 already says "no `xfail` marker"), so removing the guard loses no invariant.
@@ -241,6 +247,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP08`). Never 
      - **Reason**: a retired-name tombstone (`--check-residual`) costing about 72 s.
      - **Survivor**: `test_visible_paths_match_reference` (L154) and `test_deprecated_paths_classified` (L181) keep help/reference parity.
      - Record the `--durations` delta in the PR.
+     - **Survivor proof** (one-off, recorded in the tracer): re-add `--check-residual` as a **visible** option in a scratch copy and confirm a named survivor (e.g. `test_visible_paths_match_reference`) reds. If no survivor reds, keep the tombstone and record why.
   4. Append one tracer entry listing every FR-016 removal with its reason or survivor and mutation evidence.
   5. Run the full validation below.
 - **Files**: `tests/architectural/test_execution_context_parity.py`, `tests/review/test_transition_gate_parity.py`, `tests/architectural/test_docs_cli_reference_parity.py` (all format-excluded; do not reformat).
@@ -259,12 +266,15 @@ make test-fast
   tests/missions/test_surface_resolution_equivalence.py tests/architectural/test_execution_context_parity.py \
   tests/review/test_transition_gate_parity.py tests/architectural/test_docs_cli_reference_parity.py
 .venv/bin/mypy tests/next/test_internal_runtime_parity.py tests/contract/test_next_no_unknown_state.py \
-  tests/missions/test_surface_resolution_equivalence.py
+  tests/missions/test_surface_resolution_equivalence.py tests/architectural/test_execution_context_parity.py \
+  tests/review/test_transition_gate_parity.py tests/architectural/test_docs_cli_reference_parity.py
 ```
+
+- **mypy bar**: NFR-005 covers all six changed files, but the base is not clean (e.g. `tests/next/test_internal_runtime_parity.py` has 6 pre-existing `type-arg` errors around L72-73). Run the same mypy command on the planning base, record both counts, and require **0 new errors** at head. Fixing the pre-existing ones is allowed as campsite work in blocks you already edit, never by suppression.
 
 - Collect-only node-ID diffs:
   - `test_surface_resolution_equivalence.py`: identical plus 1 new;
-  - `test_internal_runtime_parity.py`: minus 3 retired, plus 4 new;
+  - `test_internal_runtime_parity.py` (8 nodes on base): minus 3 retired, plus 4 new (`inspects_live_runtime_package`, `fails_on_missing_or_empty_target[missing]`, `[empty]`, `flags_planted_import`) = 9;
   - `test_next_no_unknown_state.py`: plus 2.
 
   Put these in the PR.
@@ -288,9 +298,25 @@ Non-fakeable checks (from `research/postspec-renata.md` [HIGH] NFR-002, [MEDIUM]
 3. **Concrete floors.** `>= 16` and `>= 31`, never `>= 1` or `assert files`. A missing or empty target fails.
 4. **AST, not line prefix.** Reviewer spot-check: `import os, typer` in a tmp package is flagged.
 5. **Retirements carry evidence.** Each retired test has either a named surviving node ID (spec_kitty_runtime → `test_shared_package_boundary.py::test_production_never_imports_retired_runtime_package`; `--check-residual` → the reference-parity tests) or a cited reason plus a mutation showing it could not fail or pinned only shape. There are 0 retirements without one (NFR-006).
-6. **Scope discipline.** The rich/typer ban is still scoped to `_internal_runtime`, so `runtime_bridge_retrospective.py:158` is not flagged. `TestNoLegacyQueryPlaceholderInTemplates` is untouched, and its drift is recorded as a follow-up.
-7. **Planted divergence** reds `_assert_equivalent` through the real comparison loop.
-8. There is no `pyproject.toml` or `src/` diff, and `ruff check` and `mypy` are clean on the changed files.
+6. **Scope discipline.** The rich/typer ban is still scoped to `_internal_runtime`, so `runtime_bridge_retrospective.py:158` is not flagged. In `TestNoLegacyQueryPlaceholderInTemplates` only `test_placeholder_is_absent_from_runtime_source` changed; `test_placeholder_is_absent_from_command_templates` is untouched, and its drift is recorded as a follow-up.
+7. **Planted divergence** reds `_assert_equivalent` through the extracted `_check_cell`, the same helper the matrix test calls.
+8. There is no `pyproject.toml` or `src/` diff. `ruff check` is clean and mypy shows 0 new errors on all six changed files (base and head counts recorded).
+9. The `_read_snapshot` mutation proof used a behaviour-preserving rename (not `delattr`); the `missing_seams` retirement cites the redundancy probe.
+
+**Reviewer RED reproduction** (mechanical; run in the lane worktree; `<lane-base>` is the lane's base commit, e.g. `git merge-base HEAD claude/spec-kitty-remediation-wfje22`):
+
+```bash
+RED=$(git log --reverse --format=%H <lane-base>..HEAD | head -1)
+git stash -u; git checkout "$RED"
+.venv/bin/python -m pytest tests/next/test_internal_runtime_parity.py::test_rich_typer_ban_inspects_live_runtime_package tests/contract/test_next_no_unknown_state.py::test_runtime_placeholder_scan_inspects_live_source -q
+git checkout -; git stash pop
+```
+
+It must fail with "0 files inspected" or "missing target" for both floor tests. An `ImportError`, `NameError` or collection error is not a valid RED.
+
+**Issue matrix**: #2631 is seeded `in-mission` against WP08, but WP08 fixes only part of it (WP09–WP12 own the rest, and the oracle retirement is deferred to #5116). Leave the row `in-mission`; WP13 T073 finalizes it.
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-013, FR-016, NFR-002 (floors + planted violations), NFR-005, NFR-006 (every retirement names a survivor or a mutation), C-001, C-005; contributes to SC-005.
 
 ## Activity Log
 

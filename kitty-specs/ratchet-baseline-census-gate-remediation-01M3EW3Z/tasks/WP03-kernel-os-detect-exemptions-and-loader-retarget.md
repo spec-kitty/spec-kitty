@@ -7,6 +7,9 @@ requirement_refs:
 - FR-005
 - FR-007
 - NFR-001
+- NFR-002
+- NFR-003
+- NFR-005
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
@@ -21,6 +24,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/_os_detection_exemptions.py
 create_intent: []
@@ -86,7 +92,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 1. **Kernel gate (FR-005)**: `_PRE_EXISTING_EXEMPTIONS` in `test_kernel_no_doctrine_import.py` (two `("kernel/schema_utils.py", 88/97)` tuples) becomes two `ContentDescriptor`s matched through `_content_identity.partition_findings`; stale entries fail (FR-007).
 2. **os-detect gate (FR-007, SC-001)**: the 6 `path:line` rows in `_exemptions/os-detect-ban-{deferred,mypy-narrowing,sanctioned-raw}.txt` become content lines `<rel>::<qualname>::<token_substring>[::<occurrence>]`, parsed by WP02's `parse_descriptor_line`; the gate partitions by composite key; stale entries fail.
 3. **Loader retarget (D-OP-6, Paula post-plan Q4)**: the lock-ban loader (`_lock_ban_exemptions.py`) and the clock `CALL:` loader (`_exemptions/__init__.py`) stop teaching and accepting the `path:line` shape. Both parse the same content form (clock: `CALL:<rel>::<qualname>::<token_substring>[::<occurrence>]`); both stay at **0 entries**; a `path:line` line is rejected with a named error.
-4. **Drift tolerance (NFR-001)**: `test_kernel_exemptions_survive_line_drift` (1 file) and `test_os_detection_exemptions_survive_line_drift` (3 files), each parametrized over the files its exemptions reference (count asserted equal to the derived set), prove `(unexpected, suppressed)` sets are identical under both drift mutations.
+4. **Drift tolerance (NFR-001)**: `test_kernel_exemptions_survive_line_drift` (1 file) and `test_os_detection_exemptions_survive_line_drift` (3 files), each parametrized over a module constant `_DRIFT_FILES = tuple(sorted({d.rel_path for d in <exemptions>}))`, prove `(unexpected, suppressed)` sets are identical **and non-empty** under both drift mutations: the unmutated per-file `suppressed` count equals the number of exemptions with that `rel_path`, and the mutated run has the same count. Descriptors are resolved from the mutated mapping (`resolve_allowlist(..., source_for=mutated.__getitem__)`), never the cached accessor. A companion test per gate asserts `len(_DRIFT_FILES) >=` 1 (kernel) / 3 (os-detect) and ≥ 1 suppressed finding per file on the unmutated tree. Never assert "parameter set == set derived from the allowlist": that compares a set with itself.
 5. All of the above are RED on the planning base in the first lane commit and GREEN at the end.
 
 ## Context & Constraints
@@ -131,8 +137,8 @@ Commit plan: **commit 1 = T012 alone (RED)**; commit 2 = T013; commit 3 = T014; 
 
 - **Purpose**: C-001. Show on the planning base that the kernel and os-detect exemptions do not survive line drift and that the three loaders accept the banned `path:line` shape.
 - **Steps**:
-  1. **Kernel drift**: refactor `_scan_file(path, relative_to)` (L177-196) into `_scan_source(source, rel) -> list[tuple[str, int, str]]` plus a thin path wrapper (behaviour-preserving test-code extraction; allowed in the RED commit). Add a seam `_kernel_partition(sources: Mapping[str, str])` returning `(unexpected, suppressed)` with the **current** `(rel, lineno) not in _PRE_EXISTING_EXEMPTIONS` matching. Add `test_kernel_exemptions_survive_line_drift`, parametrized over the files referenced by the exemptions (derived; count asserted), applying a blank line at the top of the file in memory and asserting both sets are identical. RED on base.
-  2. **os-detect drift**: add a seam `_os_detection_partition(sources)` in `test_os_detection_ban.py` with the current `(relpath, lineno) not in exemptions` matching, running the real `scan.find_os_detection_violations(ast.parse(source))` per file. Add `test_os_detection_exemptions_survive_line_drift` over the 3 referenced files (derived; count asserted). RED on base.
+  1. **Kernel drift**: refactor `_scan_file(path, relative_to)` (L177-196) into `_scan_source(source, rel) -> list[tuple[str, int, str]]` plus a thin path wrapper (behaviour-preserving test-code extraction; allowed in the RED commit). Add a seam `_kernel_partition(sources: Mapping[str, str])` returning `(unexpected, suppressed)` with the **current** `(rel, lineno) not in _PRE_EXISTING_EXEMPTIONS` matching. Add `test_kernel_exemptions_survive_line_drift`, parametrized over `_DRIFT_FILES` (plus the companion floor test from Objective 4), applying a blank line at the top of the file in memory and asserting both sets are identical and that the per-file `suppressed` count equals the per-file exemption count on both runs. RED on base.
+  2. **os-detect drift**: add a seam `_os_detection_partition(sources)` in `test_os_detection_ban.py` with the current `(relpath, lineno) not in exemptions` matching, running the real `scan.find_os_detection_violations(ast.parse(source))` per file. Add `test_os_detection_exemptions_survive_line_drift` over `_DRIFT_FILES` (3 files; companion floor test as in Objective 4; same non-emptiness count). RED on base.
   3. **Loader shape rejection**: add `test_os_detection_loader_rejects_line_pinned_entry`, `test_lock_ban_loader_rejects_line_pinned_entry` and `test_clock_call_loader_rejects_line_pinned_entry`. Each monkeypatches the module's `_iter_exemption_lines` to return one `path:line` line (`src/x.py:12`; clock: `CALL:src/x.py:12`) and asserts the loader raises `ValueError` naming the line. RED on base (the loaders accept it).
   4. Run them, capture the failure text, record it with `spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --category approach --actor <you> --entry "WP03 RED: ..."`, commit alone.
 - **Files**: `test_kernel_no_doctrine_import.py`, `test_os_detection_ban.py`, `test_lock_primitive_ban.py`, `test_clock_call_ban.py`.
@@ -143,9 +149,9 @@ Commit plan: **commit 1 = T012 alone (RED)**; commit 2 = T013; commit 3 = T014; 
 - **Purpose**: FR-005, FR-007 (fail on stale).
 - **Steps**:
   1. Replace `_PRE_EXISTING_EXEMPTIONS` (L127-132) with `tuple[ContentDescriptor, ...]` holding the two kernel descriptors from the table. Move the #3206 rationale from the comment block above it (L91-126) into each descriptor's `rationale`, and state the #3206 exit: "delete these two descriptors".
-  2. Findings become `((rel, *composite_key(source, lineno)), (rel, lineno, detail))`. `test_kernel_holds_no_doctrine_or_specify_cli_vocabulary` (L217-241) uses `partition_findings` with the lazily resolved allowlist (`functools.cache`d accessor over `resolve_allowlist(..., source_for=lambda rel: (_SRC / rel).read_text(...))`).
+  2. Findings become `((rel, *composite_key(source, lineno)), (rel, lineno, detail))`. The seam `_kernel_partition(sources)` resolves the descriptors from the **same** `sources` mapping it scans (`source_for=sources.__getitem__`), so the drift test exercises resolution drift; the `functools.cache`d accessor serves only the standing gate and the stale test over the real tree. `test_kernel_holds_no_doctrine_or_specify_cli_vocabulary` (L217-241) uses `partition_findings` with the lazily resolved allowlist (`functools.cache`d accessor over `resolve_allowlist(..., source_for=lambda rel: (_SRC / rel).read_text(...))`).
   3. Invert, do not delete, `test_pre_existing_exemption_is_still_a_real_violation` (L244-259): keep its name; it now asserts no resolution error, `unused == Counter()`, and `checked == len(_PRE_EXISTING_EXEMPTIONS) >= 2`.
-  4. Switch the drift test to `with_blank_line_at_top` and add `with_probe_above_statement` at both exempted sites.
+  4. Switch the drift test to `with_blank_line_at_top` and add `with_probe_above_statement` at both exempted sites. Keep the non-emptiness count and the companion floor (`len(_DRIFT_FILES) >= 1`).
   5. Update the module docstring and the gate's docstring ("filters out exactly one already-tracked … site", L226-230) to describe descriptor identity.
 - **Files**: `tests/architectural/test_kernel_no_doctrine_import.py`.
 - **Validation**: `test_walker_catches_in_function_call_argument` and `test_walker_ignores_docstrings_and_prose` stay green unchanged.
@@ -154,12 +160,13 @@ Commit plan: **commit 1 = T012 alone (RED)**; commit 2 = T013; commit 3 = T014; 
 
 - **Purpose**: SC-001 (text files) and FR-007 for the os-detect gate.
 - **Steps**:
-  1. `_os_detection_exemptions.py`: `load_os_detection_exemptions() -> frozenset[ContentDescriptor]` built with `parse_descriptor_line(line, rationale=<source filename>)` so per-owner-file semantics survive. `_iter_exemption_lines` must return `(filename, line)` pairs (or equivalent) so the rationale is the file. A `path:line` line raises `ValueError` naming file and line (via the parser). If this changes `_iter_exemption_lines`' return shape, update only the monkeypatch plumbing of T012's rejection test and of `test_stale_exemption_removal_reds_the_gate`; their assertions must not change. Rewrite the module docstring's "`<repo-relative path>:<line>`" paragraph (L13-14) to the content form.
+  1. `_os_detection_exemptions.py`: `load_os_detection_exemptions() -> frozenset[ContentDescriptor]` built with `parse_descriptor_line(line, rationale=<source filename>)` so per-owner-file semantics survive. To carry the filename, prefer a **new** iterator (e.g. `_iter_exemption_entries() -> list[tuple[str, str]]`) and keep `_iter_exemption_lines() -> list[str]` as is; the monkeypatches in `test_os_detection_ban.py:146-154` (owned) then keep working. A `path:line` line raises `ValueError` naming file and line (via the parser). If this changes `_iter_exemption_lines`' return shape, update only the monkeypatch plumbing of T012's rejection test and of `test_stale_exemption_removal_reds_the_gate`; their assertions must not change. Rewrite the module docstring's "`<repo-relative path>:<line>`" paragraph (L13-14) to the content form.
   2. Rewrite the three `.txt` files: replace the 6 `path:line` rows with the 6 content lines from the table (use `render_descriptor_line` to produce them). Delete the re-pin archaeology comments (the "re-pinned", "line-number drift fix" and ":128 -> :163" notes); keep each file's policy header (why the sites are deferred / permanent) and the #4727 reference. `os-detect-ban-wp03.txt` and `os-detect-ban-wp04.txt` stay empty of entries; update any header text that teaches the `path:line` shape.
-  3. `test_os_detection_ban.py`: build keyed findings `((relpath, *composite_key(source, lineno)), (relpath, lineno))` (read each scanned file's source once), partition against the resolved exemptions. `test_no_banned_os_detection_outside_the_door` (L80-103) keeps the door skip; its failure message (L96-101) now prints, for each violation, the exact content line to add (`render_descriptor_line` of a descriptor built from the finding's composite key) instead of `<path>:<line>`.
+  3. `test_os_detection_ban.py`: the seam `_os_detection_partition(sources)` resolves the descriptors from the same `sources` mapping it scans (`source_for=sources.__getitem__`). Build keyed findings `((relpath, *composite_key(source, lineno)), (relpath, lineno))` (read each scanned file's source once), partition against the resolved exemptions. `test_no_banned_os_detection_outside_the_door` (L80-103) keeps the door skip; its failure message (L96-101) now prints, for each violation, the exact content line to add (`render_descriptor_line` of a descriptor built from the finding's composite key) instead of `<path>:<line>`.
   4. `test_every_exemption_entry_is_a_real_violation` (L106-117) stays fail-on-stale using resolution errors plus `unused`, and asserts `checked == len(exemptions) >= 6`.
   5. Invert `test_stale_exemption_removal_reds_the_gate` (L120-163): keep both directions, but write the planted exemption in the content shape (`offender.py::<module>::if sys . platform ==`) and resolve it against the planted source under the monkeypatched `scan.REPO_ROOT`.
-  6. Switch the drift test to WP02's mutators; add the probe mutation at all 6 sites.
+  6. Switch the drift test to WP02's mutators; add the probe mutation at all 6 sites. Keep the non-emptiness count and the companion floor (`len(_DRIFT_FILES) >= 3`).
+  7. **Guard against a `path:line` row returning** (committed): `test_os_detection_exemption_files_hold_no_line_pin` runs the real loader over the real `os-detect-ban-*.txt` files and asserts it returns exactly 6 descriptors with no `ValueError`. The loader's rejection of `path:line` (T012 step 3) makes this the committed guard. Do not import WP01's `_scan_text_source` here: WP01 may not be on your lane base, and the ban file is not yours.
 - **Files**: `_os_detection_exemptions.py`, `_exemptions/os-detect-ban-*.txt`, `test_os_detection_ban.py`.
 - **Validation**: the planted-idiom tests (L166-267) stay green unchanged; the WP01 ban's text arm reports no line pin in any `os-detect-ban-*.txt`.
 
@@ -169,7 +176,7 @@ Commit plan: **commit 1 = T012 alone (RED)**; commit 2 = T013; commit 3 = T014; 
 - **Steps**:
   1. `_lock_ban_exemptions.py`: same change as T014 step 1 (`frozenset[ContentDescriptor]` via `parse_descriptor_line`; rationale = filename; `path:line` rejected). Update its docstring (L12-13). Update the `lock-ban-wp04.txt` / `lock-ban-wp05.txt` headers only where they teach the line shape; they stay empty of entries.
   2. `test_lock_primitive_ban.py`: `test_no_banned_raw_lock_usage_outside_the_door` (L82-104) and `test_every_exemption_entry_is_a_real_violation` (L107-118) partition by composite key like T014; the failure message prints the content line to add. Invert `test_stale_exemption_removal_reds_the_gate` (L121-163) to the content shape.
-  3. `_exemptions/__init__.py` (clock): keep `IMPORT:<path>` (file granularity, no line). `load_call_exemptions() -> frozenset[ContentDescriptor]` parses `CALL:<rel>::<qualname>::<token_substring>[::<occurrence>]` via `parse_descriptor_line` after stripping the prefix; a `CALL:<path>:<line>` line raises `ValueError`. Update the docstring (L14-26) to the content shape and explain why (call-site granularity is preserved by content identity, and it survives line drift).
+  3. `_exemptions/__init__.py` (clock): keep `IMPORT:<path>` (file granularity, no line). **The shape `_iter_exemption_lines() -> list[str]` is frozen**: the unowned `tests/architectural/test_clock_import_ban.py:155-163` monkeypatches it with a `list[str]` fake and then calls `load_import_exemptions()`. Do not change its return type. If `load_call_exemptions()` needs the filename as rationale, add a separate iterator (e.g. `_iter_exemption_entries()`) used only by the `CALL:` loader, or use a fixed rationale. `load_call_exemptions() -> frozenset[ContentDescriptor]` parses `CALL:<rel>::<qualname>::<token_substring>[::<occurrence>]` via `parse_descriptor_line` after stripping the prefix; a `CALL:<path>:<line>` line raises `ValueError`. Update the docstring (L14-26) to the content shape and explain why (call-site granularity is preserved by content identity, and it survives line drift).
   4. `test_clock_call_ban.py`: `test_no_banned_wall_clock_call_outside_the_door` (L81-109) and `test_every_call_exemption_entry_is_a_real_violation` (L112-123) partition by `(relpath, *composite_key(source, violation.line))`; the failure message (L101-103) teaches `CALL:<rel>::<qualname>::<token_substring>`. Invert `test_stale_exemption_removal_reds_the_gate` (L126-184) to write a `CALL:offender.py::<module>::datetime . now (` line.
   5. Confirm `test_clock_import_ban.py` (not owned) still passes unchanged; if it cannot, stop and report rather than editing it.
 - **Files**: `_lock_ban_exemptions.py`, `_exemptions/lock-ban-*.txt`, `test_lock_primitive_ban.py`, `_exemptions/__init__.py`, `test_clock_call_ban.py`.
@@ -217,12 +224,27 @@ Non-fakeable checks (from `research/postspec-renata.md`):
 
 - The first lane commit contains only the RED tests (plus behaviour-preserving seam extraction) and fails for the intended reasons (drift mismatch; loader accepts `path:line`).
 - Stale detection requires "suppresses a live finding" and asserts `checked == len(...) >=` 2 (kernel) / 6 (os-detect).
-- Drift tests are parametrized over a derived file set with the count asserted, use both mutations, and compare the full `(unexpected, suppressed)` sets.
+- Drift tests are parametrized over `_DRIFT_FILES` module constants; companions assert `len(_DRIFT_FILES) >=` 1 / 3 plus ≥ 1 suppressed finding per file (not a set compared with itself). Each drift case uses both mutations, compares the full `(unexpected, suppressed)` sets, asserts the per-file suppressed count equals the per-file exemption count, and resolves descriptors from the mutated mapping.
+- The clock `_iter_exemption_lines() -> list[str]` signature is unchanged; `test_clock_import_ban.py` passes unedited.
+- `test_os_detection_exemption_files_hold_no_line_pin` exists.
 - `test_pre_existing_exemption_is_still_a_real_violation` and the three `test_stale_exemption_removal_reds_the_gate` tests keep their names (inverted, not deleted).
 - No loader or `.txt` file still documents or accepts the `path:line` shape; the widened WP01 ban (if on base) reports 0 line pins in your files.
 - Only `_content_identity` is used for parsing, rendering and partitioning; no local copy.
 - Format-excluded files were not reformatted; `test_clock_import_ban.py`, `src/`, `pyproject.toml` and the ban file are untouched.
 - ruff check, ruff format --check (non-excluded files) and mypy are clean.
+
+**Reviewer RED reproduction** (mechanical; run in the lane worktree; `<lane-base>` is the lane's base commit, e.g. `git merge-base HEAD claude/spec-kitty-remediation-wfje22`):
+
+```bash
+RED=$(git log --reverse --format=%H <lane-base>..HEAD | head -1)
+git stash -u; git checkout "$RED"
+.venv/bin/python -m pytest tests/architectural/test_kernel_no_doctrine_import.py tests/architectural/test_os_detection_ban.py tests/architectural/test_lock_primitive_ban.py tests/architectural/test_clock_call_ban.py -q -k "line_drift or rejects_line_pinned"
+git checkout -; git stash pop
+```
+
+It must fail with drift-set mismatches (kernel, os-detect) plus `DID NOT RAISE <class 'ValueError'>` ×3 (os-detect, lock-ban and clock loaders). An `ImportError`, `NameError` or collection error is not a valid RED.
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-005, FR-007 (hand-curated half), NFR-001, NFR-002 (drift non-emptiness floors), NFR-003, NFR-005, C-001, C-005; contributes to SC-001 (the 6 text-file pins) and SC-002.
 
 ## Activity Log
 

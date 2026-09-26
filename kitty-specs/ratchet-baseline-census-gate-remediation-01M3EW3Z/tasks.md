@@ -38,12 +38,12 @@
 | T017 | Red-first census drift tests and non-widening guards | WP04 | |
 | T018 | Unify the qualname algorithm; add `CensusKey` and `census_keys` | WP04 | |
 | T019 | Delegate the census partitioner to `_content_identity` | WP04 | |
-| T020 | Re-key/equivalence script and `census-rekey-map.csv` | WP04 | [P] |
+| T020 | Re-key/equivalence script (`--head-root`, `--self-test`) and `census-rekey-map.csv`, committed on the planning branch | WP04 | [P] |
 | T021 | Re-key the destructive-op gate (22) | WP04 | |
 | T022 | Re-key the overwrite gate (2) | WP04 | |
 | T023 | Re-key the mutation gate (56) | WP04 | |
 | T024 | Non-widening, ordinal and diagnostics proofs | WP04 | |
-| T025 | 80/80 equivalence proof | WP04 | |
+| T025 | 80/80 equivalence proof plus self-test output | WP04 | |
 | T026 | Full architectural run and quality gates | WP04 | |
 | T027 | Record D-OP-4 red-first evidence on base (0 callers, stale-row warning, #5117 reproduction) | WP05 | [P] |
 | T028 | Delete dead machinery in `_inert_slots.py` | WP05 | |
@@ -67,17 +67,17 @@
 | T046 | Retarget `test_next_no_unknown_state` runtime scan + planted placeholder | WP08 | |
 | T047 | FR-016 residue in surface-resolution equivalence + planted divergence | WP08 | |
 | T048 | FR-016 residue in three parity suites; validation | WP08 | |
-| T049 | Mutation matrix M1–M10 and disposition evidence (tracer) | WP09 | |
+| T049 | Reproducible mutation matrix M1–M10 (`research/wp09_mutation_matrix.py`) and disposition evidence (tracer) | WP09 | |
 | T050 | Relocate unique determinism tests into test_reducer.py; retire duplicates (incl. L407/L660) | WP09 | [P] |
 | T051 | Transition-matrix dispositions (duplicates retired; lane↔enum relocated only if no survivor) | WP09 | [P] |
 | T052 | Delete tests/status/test_parity.py and its pyproject exclude line | WP09 | |
 | T053 | NFR-006 tracer record and blast-radius validation | WP09 | |
-| T054 | Red-first src-coupling AST scan (8 offenders on base) and self-mutation test | WP10 | |
+| T054 | Red-first src-coupling AST scan (exact 10-entry offender list on base) and self-mutation test | WP10 | |
 | T055 | Copied SPEC_KITTY_PACKS_ROOT mirror and on-disk fixture profile | WP10 | |
 | T056 | Convert marker tests; pack-root and control assertions; cache-order check | WP10 | |
 | T057 | Rename to test_context_bootstrap_markers.py; update references (AST proof for src comment) | WP10 | |
 | T058 | Blast radius, tracer, deferral record | WP10 | |
-| T059 | Base node-ID capture and red-first oracle-independence guard | WP11 | |
+| T059 | Base node-ID capture and red-first oracle-independence guards (expected-name set, `--setup-plan` check) | WP11 | |
 | T060 | Verbatim move of helper closure into _next_mission_scaffold.py | WP11 | |
 | T061 | Verbatim move of 15 P0/fail-closed test functions | WP11 | |
 | T062 | Format commit, then public-name rename commit | WP11 | |
@@ -91,7 +91,7 @@
 | T070 | Retire resolution_gate_allowlist.yaml and update references (FR-012) | WP13 | |
 | T071 | Format-exclude drain for AST-changed excluded files | WP13 | |
 | T072 | FR-019(d) and out-of-scope follow-up issues; verify #5116–#5118 | WP13 | [P] |
-| T073 | Issue-matrix rows via spec-kitty agent issue-verdict | WP13 | [P] |
+| T073 | Finalize the pre-seeded in-mission issue-matrix rows to terminal verdicts via spec-kitty agent issue-verdict | WP13 | [P] |
 | T074 | Final integration sweep | WP13 | |
 | T075 | SC-001..SC-006 verification and tracer assess | WP13 | |
 
@@ -181,12 +181,12 @@ T016 Validation, tracer (#3206, #4727, D-OP-6, residual no-follow loader), quali
 T017 Red-first census drift tests and non-widening guards through extracted gate seams (WP04)
 T018 Delete the census `enclosing_qualname`, re-export the canonical one, add `parse_with_source`, `CensusKey`, `census_keys`; fix all callers in the same commit (WP04)
 T019 Delegate `diff_against_allowlist` / `drop_one_entry` generically to `_content_identity.partition_findings` (WP04)
-T020 Write the re-key/equivalence script and generate `census-rekey-map.csv` (mission artefacts, planning surface) (WP04)
+T020 Write the re-key/equivalence script (`--head-root`, `--self-test`) and generate `census-rekey-map.csv`; commit both on the planning branch before review (WP04)
 T021 Re-key the destructive-op gate (22 keys) (WP04)
 T022 Re-key the overwrite gate (2 keys) (WP04)
 T023 Re-key the mutation gate (56 keys), including the research.py prefix guard and literal re-builder (WP04)
 T024 Non-widening, ordinal and diagnostics proofs; baseline coupling check (WP04)
-T025 Run the 80/80 equivalence proof and record it in PR and tracer (WP04)
+T025 Run the 80/80 equivalence proof and its self-test; record both in PR and tracer (WP04)
 T026 Full `tests/architectural/` run, blast radius, quality gates, campsite (WP04)
 
 **Implementation sketch**: four lane commits (RED → helper → destructive+overwrite → mutation). Allowlist literals are generated in keyword form with rationales copied verbatim. CSV and equivalence script are mission artefacts written outside the lane (code_change WPs cannot own `kitty-specs/`).
@@ -363,7 +363,7 @@ The five transition-matrix tests are presumed duplicates of `test_transitions.py
 **Independent test**: `pytest tests/status/ tests/architectural/test_no_retired_subsystems.py` is green after deletion. The recorded mutation matrix M1–M10 reds each named survivor or relocated test. Red-first follows D-OP-4 (tracer evidence, no tombstones).
 
 **Subtasks**
-T049 Mutation matrix M1–M10 on the planning base; record the disposition evidence via tracer-append (WP09)
+T049 Reproducible mutation matrix M1–M10 (`research/wp09_mutation_matrix.py`, committed on the planning branch); record its verbatim output via tracer-append (WP09)
 T050 Relocate `test_sorted_keys_in_json_output` and the realistic-log fixture plus 2 tests into `test_reducer.py`; retire the determinism duplicates, including dispositions for L407 and L660 (WP09)
 T051 Transition-matrix dispositions: retire as duplicates with named survivors; relocate the lane↔enum checks into `TestConstants` only if M5/M6 find no survivor (WP09)
 T052 `git rm tests/status/test_parity.py` and remove its pyproject exclude line in the same commit; retire the backport/phase scaffold with cited survivors (WP09)
@@ -379,7 +379,7 @@ T053 NFR-006 tracer record and blast-radius validation, including the full `test
 
 **Summary**: Convert `tests/charter/test_context_parity.py` from patching `src/` internals to a copied `SPEC_KITTY_PACKS_ROOT` packs mirror, with an empty `directives/` and an on-disk fixture profile, driven through the public entry points. Then rename it to `test_context_bootstrap_markers.py` (FR-015, D-OP-5, D-OP-10).
 **Priority**: P2 (US3).
-**Independent test**: `test_context_markers_use_no_src_patch_targets`. It is RED on base with 8 offenders (6 `patch(` sites plus 2 private calls) and GREEN with 0. The four behavioural markers hold, and a control shows a real directives mirror changes the miss cause.
+**Independent test**: `test_context_markers_use_no_src_patch_targets`. It is RED on base with exactly 10 entries (6 `patch(` sites, 2 private imports, 2 private calls) and GREEN with 0. The four behavioural markers hold, and a control shows a real directives mirror changes the miss cause.
 
 **Subtasks**
 T054 Red-first AST scan `_src_coupling_offenders`, forbidding all first-party patch targets and private calls, plus a planted self-mutation test (WP10)
@@ -401,7 +401,7 @@ T058 Blast radius, tracer record, and the deferral decision record (WP10)
 **Independent test**: `test_board_authority_module_does_not_import_the_oracle` is RED on base (fewer than 15 test functions) and GREEN after the move. Node-ID set equality (`func[param]`) holds: 16 in the new module, 8 in the oracle. `--setup-plan` shows no `ledger_results`, and the module runs in under 60 s (recorded, not asserted).
 
 **Subtasks**
-T059 Capture the base node-ID sets; add the red-first guard module with `_oracle_coupling_offenders` and a planted self-mutation test (WP11)
+T059 Capture the base node-ID sets; add the red-first guard module with `_oracle_coupling_offenders`, an expected-name-set floor, a `--setup-plan` oracle-fixture check and a planted self-mutation test (WP11)
 T060 Verbatim move of the helper closure into `_next_mission_scaffold.py` (hoisting the imports drops 2 `noqa: E402`); the oracle re-imports from it (WP11)
 T061 Verbatim move of the 15 test functions and `_assert_reason_has_runnable_recovery_command` (same "move" commit as T060) (WP11)
 T062 Commit 2: `ruff format` the new modules; commit 3: rename helpers to public names and update call sites (WP11)
@@ -438,7 +438,7 @@ T067 Tracer pointer entry, and a reconciliation section handed to WP13 (WP12)
 - retiring `tests/architectural/resolution_gate_allowlist.yaml` and its references, including a D-OP-3 comment-only edit to `src/specify_cli/status/aggregate.py:543` (FR-012);
 - `ruff format`ting every format-excluded file this mission rewrote and removing their exclude lines in one commit;
 - filing the FR-019(d) follow-up for the remaining hand-rolled matchers and verifying #5116/#5117/#5118;
-- adding issue-matrix rows via `spec-kitty agent issue-verdict` for #2631, #2972, #3011, #3026, #3962 and #5085 (FR-020, SC-006);
+- finalizing the pre-seeded in-mission issue-matrix rows (#5085, #2631, #2972, #5104, and any an owning WP left open) to terminal verdicts via `spec-kitty agent issue-verdict` (FR-020, SC-006);
 - the final full sweep.
 
 **Priority**: P1 (it gates the mission PR).
@@ -450,7 +450,7 @@ T069 Empty the exemption set; flip row-without-finding from warn to fail, with a
 T070 FR-012: delete `resolution_gate_allowlist.yaml`, add a `_YAML_ALLOWLISTS` floor, update prose/docs/`aggregate.py` comment with an AST proof, run the orphan-data audit (WP13)
 T071 Format-exclude drain: format each AST-changed excluded file and remove its line, in one formatter-only commit (WP13)
 T072 File the FR-019(d) follow-up plus the plan's out-of-scope follow-ups; verify #5116/#5117/#5118 (WP13)
-T073 Issue-matrix rows via `spec-kitty agent issue-verdict`; close referenced-but-missing gaps; record the FR-020 campsite (WP13)
+T073 Finalize the pre-seeded in-mission issue-matrix rows to terminal verdicts via `spec-kitty agent issue-verdict`; close referenced-but-missing gaps; record the FR-020 campsite (WP13)
 T074 Final integration sweep (full `tests/architectural/`, `make test-fast`, integration list, equivalence script) (WP13)
 T075 SC-001..SC-006 verification, WP12 catalog reconciliation via the tracer, tracer assess step (WP13)
 

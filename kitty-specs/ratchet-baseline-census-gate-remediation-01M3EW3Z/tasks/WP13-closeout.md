@@ -16,11 +16,16 @@ dependencies:
 - WP12
 requirement_refs:
 - C-003
+- C-005
 - C-006
 - FR-003
 - FR-012
 - FR-019
 - FR-020
+- NFR-002
+- NFR-003
+- NFR-004
+- NFR-005
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
@@ -38,6 +43,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/
 create_intent: []
@@ -100,7 +108,7 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
 2. **FR-012.** `tests/architectural/resolution_gate_allowlist.yaml`, whose consuming gate `test_resolution_authority_gates.py` no longer exists, is deleted. It is removed from the ban's `_YAML_ALLOWLISTS`, and every live reference is updated. That includes the `src/` comment at `src/specify_cli/status/aggregate.py:543`, which is changed under D-OP-3 with an AST-equality proof.
 3. **Format-exclude drain.** Every format-excluded file that this mission **rewrote** (a non-comment AST change against the planning base) is `ruff format`ted, and its `[tool.ruff.format].exclude` line is removed. This happens in one dedicated commit.
 4. **FR-019(d).** A follow-up issue is filed for the remaining hand-rolled content-descriptor matchers. The existence of #5116, #5117 and #5118 is verified (SC-006), and the plan's out-of-scope follow-ups are filed.
-5. **FR-020 / SC-006.** Issue-matrix rows exist, via the canonical `spec-kitty agent issue-verdict` surface, for #2631, #2972, #3011, #3026, #3962 and #5085. No referenced-but-missing row remains.
+5. **FR-020 / SC-006.** The orchestrator seeded all 23 gating issue-matrix rows before implementation. Every row is now **terminal**: the in-mission rows that owning WPs did not already close (#5085, #2631, #2972, #5104, plus any the owners left open) are finalized via the canonical `spec-kitty agent issue-verdict` surface, with evidence. No `in-mission` row and no referenced-but-missing row remains.
 6. **Final sweep.** The full `tests/architectural/`, `make test-fast`, the integration list and the census equivalence script are all green. Every SC-001..SC-006 item is verified and recorded.
 
 ## Context & Constraints
@@ -114,7 +122,7 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
   - `research/postspec-renata.md` (CRITICAL on FR-003).
 - **Sequenced out-of-map edits.** WP13 depends on every other WP, so it may edit their files in the following cases only:
   - `tests/architectural/test_ratchet_positional_anchor_ban.py` (owned by WP01) for T068–T070;
-  - `pyproject.toml` exclude lines, plus formatter-only rewrites of the files that WP01, WP05, WP06, WP08, WP09 and WP11 rewrote, for T071.
+  - `pyproject.toml` exclude lines, plus formatter-only rewrites of the files that WP01, WP03, WP05, WP06, WP08, WP09 and WP11 rewrote, for T071.
   Make **no behavioural edits** to another WP's tests.
 - **Line numbers.** WP01–WP12 have rewritten many of the files cited here. Anchor on **symbols and content**, not the planning-base line numbers given in parentheses.
 - **C-005 / D-OP-3.** The only `src/` edit is the comment in `aggregate.py`. Prove it with `ast.dump` equality between the planning base and the new version.
@@ -158,7 +166,13 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
   2. In WP01's exactness check (expected name `test_positional_anchor_exemptions_are_exact`), change the "row whose site no longer produces a finding" branch from a warning to an assertion failure. Keep the "finding without a row" failure unchanged.
   3. Add a self-mutation test that exercises the flipped branch through the **same** partition function the standing gate uses. Monkeypatch `_POSITIONAL_ANCHOR_EXEMPTIONS` to hold one synthetic row whose site does not exist, and assert that the exactness check raises and names that row (NFR-002).
   4. Run `.venv/bin/python -m pytest tests/architectural/test_ratchet_positional_anchor_ban.py -q --durations=0`. It must be green. Record the ban's wall time for NFR-004 (< 10 s target; do not assert it).
-  5. Check NFR-003 per-site counting: the in-scope per-site exemption total has fallen by ≥ 2, from the dead join entries (WP02). Record the before and after totals in the tracer.
+  5. Check NFR-003 per-site counting **with a script**, not by eye. In your scratchpad, write a throwaway script that sums the exempted **sites** per list, at base (from a `git worktree add <tmp> 3717c7ea` checkout: `len()` of each container) and at head (the number of **resolved** descriptors / `CensusKey`s / rows):
+     - the join allowlist (6 → 4);
+     - the kernel exemptions (2 → 2);
+     - the os-detect exemption lines (6 → 6);
+     - the three census allowlists (80 → 80);
+     - the inert-slot baseline (38 → 36).
+     It prints both totals (expected 132 → 128) and exits non-zero unless head ≤ base − 2. Paste the output into the tracer. Also re-run WP06's shrink-only `_baselines.yaml` leaf comparison (WP06 T037 step 5) at the consolidated head and paste that output too.
 - **Files**: the ban module.
 
 ### Subtask T070 – FR-012: retire `resolution_gate_allowlist.yaml` and its references
@@ -176,9 +190,9 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
      - add a floor `assert len(_YAML_ALLOWLISTS) >= 1` to `test_non_vacuity_real_compliant_yamls_stay_green`;
      - update that test's docstring ("The 2 real … YAMLs") and `test_no_int_field_ban_in_ratchet_allowlist_yaml`'s docstring ("the two ratchet allow-list YAMLs").
   5. Prose references. Say what the sites **are** now, not what the file was:
-     - `tests/architectural/test_no_read_side_bypass.py`: the comment block near the `resolve_retrospective_home` descriptor (base L867) and the `MissionStatus._find_meta_path` rationale string (base L906). Point at the machine-checked `ContentDescriptor` entries in this same table as the authority. The file is format-excluded (base L1009); this is a comment/string edit, so leave it excluded.
+     - `tests/architectural/test_no_read_side_bypass.py`: the comment block near the `resolve_retrospective_home` descriptor (base L867) and the `MissionStatus._find_meta_path` rationale string (base L906). Point at the machine-checked `ContentDescriptor` entries in this same table as the authority. The file is format-excluded (base L1009). The `rationale=` edit changes a string constant, which is an AST change even with docstrings stripped, so T071 formats this file and drops its exclude line.
      - `tests/architectural/test_inline_meta_read_gate.py:14`: the "modeled on `test_resolution_authority_gates.py` + `resolution_gate_allowlist.yaml`" sentence. Describe the three mechanics directly and drop the dead pointers.
-     - `docs/development/reference/read-side-seam-classification.md:529`: change it to past tense ("a retired allow-list, removed by mission `ratchet-baseline-census-gate-remediation-01M3EW3Z`"), or rewrite it to cite `test_no_read_side_bypass.py`'s descriptor table.
+     - `docs/development/reference/read-side-seam-classification.md:529`: **rewrite** it to cite `test_no_read_side_bypass.py`'s descriptor table. Do not use a past-tense mention of the retired file: it would keep the `resolution_gate_allowlist` token and fail the SC-003 search in T075.
      - `src/specify_cli/status/aggregate.py:543` (comment only): replace the pointer with "the machine-checked sanction in `tests/architectural/test_no_read_side_bypass.py`".
   6. **D-OP-3 proof**: `git show <base>:src/specify_cli/status/aggregate.py` → `ast.dump` equals `ast.dump` of the new file. Paste "AST equal" plus the command into the tracer and the PR notes.
   7. The remaining `test_resolution_authority_gates.py` references (docs, ADR, `_review_cycle_reconcile_doctor.py:240`) predate this mission and are **out of scope**. They go into the T072 follow-up list.
@@ -194,9 +208,9 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
      git diff --name-only 3717c7ea...HEAD -- '*.py' | while read f; do
        [ -f "$f" ] && grep -qF "\"$f\"," pyproject.toml && echo "$f"; done
      ```
-  2. For each candidate, compare `ast.dump(ast.parse(...))` of the base version (`git show 3717c7ea:<f>`) with the working copy.
-     - **AST differs** (code rewritten): run `uv run --frozen ruff format <f>` and delete its exclude line.
-     - **AST equal** (comment/docstring-only touch): leave it excluded. #4506 owns those.
+  2. For each candidate, compare the **docstring-stripped** AST of the base version (`git show 3717c7ea:<f>`) with the working copy. Plain `ast.dump` equality is not enough: it includes docstrings, so a docstring-only edit would compare as different. Strip the leading `Expr(Constant(str))` from every module, class and function body before `ast.dump`. Write this as a small helper in your scratchpad, and unit-check it on one docstring-only pair.
+     - **Stripped AST differs** (code, or a non-docstring string constant, changed): run `uv run --frozen ruff format <f>` and delete its exclude line.
+     - **Stripped AST equal** (comment/docstring-only touch): leave it excluded. #4506 owns those. Examples: WP07's `_ratchet_keys.py` module-docstring rewrite, and WP10's `test_context_leaf_seams.py:6` / `test_context_render_seams.py:7` module docstrings.
   3. Expected result: re-derive it rather than trusting this table.
 
      | file (base pyproject line) | touched by | expected |
@@ -211,8 +225,11 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
      | `tests/architectural/test_docs_cli_reference_parity.py` (970) | WP08 | format + remove |
      | `tests/contract/test_next_no_unknown_state.py` (1286) | WP08 | format + remove |
      | `tests/runtime/test_bridge_parity.py` (1909) | WP11 | format + remove |
+     | `tests/architectural/_exemptions/__init__.py` (938) | WP03 | format + remove |
+     | `tests/architectural/test_clock_call_ban.py` (964) | WP03 | format + remove |
+     | `tests/architectural/test_no_read_side_bypass.py` (1009) | WP13 (T070 `rationale=` string) | format + remove |
      | `tests/status/test_reducer.py` (2555), `tests/status/test_transitions.py` (2562) | WP09 | format + remove if AST differs |
-     | `_ratchet_keys.py` (948), `test_no_worktree_name_guess.py` (1013), `test_reference_enum_ratchet.py` (1022), `test_example_round_trip.py` (1278), `test_context_leaf_seams.py` (1161), `test_context_render_seams.py` (1166), `test_no_read_side_bypass.py` (1009) | comment-only | stay excluded |
+     | `_ratchet_keys.py` (948), `test_no_worktree_name_guess.py` (1013), `test_reference_enum_ratchet.py` (1022), `test_example_round_trip.py` (1278), `test_context_leaf_seams.py` (1161), `test_context_render_seams.py` (1166) | comment/docstring-only | stay excluded (stripped AST equal) |
      | `surface_resolution_audit/*` (954-955), `tests/status/test_parity.py` (2553) | WP07, WP09 | already removed by their deleting WPs; verify |
 
   4. After formatting, run each formatted file's own tests, because formatting must not change behaviour. Commit **only** the formatter output plus the pyproject line removals: `style(WP13): ruff-format files rewritten by this mission; drop their format-exclude lines`. `git diff -w --stat` should show almost no non-whitespace changes.
@@ -241,23 +258,26 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
   4. Record every issue number with `spec-kitty agent tracer-append --category design-decisions`.
 - **Files**: none (tracker plus tracer).
 
-### Subtask T073 – Issue-matrix rows via the canonical surface
+### Subtask T073 – Finalize the issue-matrix rows via the canonical surface
 
-- **Purpose**: FR-020 and SC-006. Every child of #5104, plus #3962, has a verdict, and no gating reference is left without a row (`docs/development/reference/issue-matrix-verdicts.md`).
+- **Purpose**: FR-020 and SC-006. The orchestrator **already seeded all 23 gating rows** before implementation, so WP01–WP12 could reach `approved`. 7 rows are `in-mission`: #2631 (WP08), #2972 (WP13), #3011 (WP07), #3026 (WP05), #3962 (WP05), #5085 (WP01) and #5104 (WP13). The other 16 are `not-applicable`. Owning WPs set their own row to `fixed` only when they fixed the whole issue: WP05 closes #3026 and #3962, and WP07 closes #3011. This subtask **finalizes** every row still `in-mission` to a terminal verdict with evidence (`docs/development/reference/issue-matrix-verdicts.md`). It does not create rows, and it never hand-edits `issue-matrix.json`.
 - **Steps**:
-  1. Record one verdict per issue with `spec-kitty agent issue-verdict --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --issue "#NNNN" --verdict <v> --actor <you> --wp <WPxx> --evidence-ref "<text>"`. Proposed verdicts follow; adjust only with evidence, and ask the operator if you are unsure:
+  1. List the current rows and their verdicts with `spec-kitty agent status doctor --mission ratchet-baseline-census-gate-remediation-01M3EW3Z`. The `move-task --to approved` blocker message names any unresolved row. Confirm that #3026, #3962 and #3011 are `fixed` with a commit SHA in the evidence. If an owner left one `in-mission`, finalize it here with that WP's evidence.
+  2. Finalize the remaining rows with `spec-kitty agent issue-verdict --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --issue "#NNNN" --verdict <v> --actor <you> --wp <WPxx> --evidence-ref "<text>"`. The proposed verdicts follow. Adjust one only with evidence, and ask the operator if you are unsure:
 
      | issue | verdict | wp | evidence-ref |
      |---|---|---|---|
-     | #5085 | `fixed` | WP13 | "widened positional-anchor ban (WP01) + content-identity migrations WP02–WP05; exemptions pinned empty (WP13)" |
-     | #3011 | `fixed` | WP07 | "converter/inventory/audit entry point retired; scanner kept in `_surface_resolution_scan.py`" |
-     | #3026 | `fixed` | WP05 | "dead inert-slot caps/predicates retired (DM-01M3EW4PB6); non-enforcing baseline leaves refused (WP06)" |
-     | #3962 | `fixed` | WP05 | "same deletion as #3026" |
-     | #2631 | `deferred-with-followup` | WP12 | "Follow-up: #5116 (oracle retirement after #2633); verdict catalog research/parity-verdicts.md; net-negatives remediated WP08–WP11" |
-     | #2972 | `deferred-with-followup` | WP13 | "Follow-up: #5118 (S8997 routing); campsite-only per C-003 on touched files" |
+     | #5085 | `fixed` | WP01 | "widened positional-anchor ban (WP01); content-identity migrations WP02–WP04; exemptions pinned empty (WP13); commits <sha…>" |
+     | #2631 | `fixed` | WP08 | "45/45 verdicts in research/parity-verdicts.md (WP12); net-negatives remediated WP08–WP11; oracle retirement out of scope, Follow-up: #5116" |
+     | #2972 | `deferred-with-followup` | WP13 | "Follow-up: #5118 (S8997 routing); census is 'do not mission' (C-003); campsite-only on touched files" |
+     | #5104 | `fixed` | WP13 | "children: #5085/#3011/#3026/#2631 fixed, #2972 deferred per its own disposition (Follow-up: #5118); #3962 folded; follow-ups #5116 #5117 #5118 <FR-019(d) #>" |
 
-     `deferred-with-followup` requires a `#NNN` or `Follow-up:` token in `--evidence-ref`.
-  2. Close gaps. Other `#NNNN` references in the mission artifacts (for example #3206, #4506, #2633, #2560, #4727, #1842) may classify as gating. Use the `approved`-transition blocker or `status doctor` output to list referenced-but-missing rows, and give each a truthful verdict, typically `not-applicable` for context-only references. Repeat until none remain.
+     Rules for choosing a verdict:
+     - Use `fixed` only when the whole issue is fixed.
+     - If a mission-owned part did not land, use `deferred-with-followup` with a `#NNN` or `Follow-up:` token in `--evidence-ref`. Two examples: WP10 deferred FR-015 under its C-005 clause (then #2631 is deferred with that follow-up), or an owner could not close its own row.
+     - #2972 stays `deferred-with-followup`, because the census is by design not fixed in this mission. Marking it `fixed` would be false.
+     - Whether the epic #5104 counts as `fixed` with one child deferred by design is an operator call; ask if unsure.
+  3. Close gaps. If implementation added a new `#NNNN` reference to a mission artefact (spec/plan/research/tasks), for example a follow-up number from T072, the gate now needs a row for it. Give it its truthful verdict, typically `not-applicable` for a context-only reference. Repeat step 1 until no row is `in-mission` and none is missing.
   3. FR-020 campsite record: collect the Sonar findings each WP cleaned in its touched test files from the WP Activity Logs, and summarise them in a tracer entry. The count may be zero; say so explicitly.
   4. Post a short tracker comment on #2972 and #2631 naming this mission and its verdicts (SO #8).
 - **Files**: none (the CLI writes the matrix; tracer via CLI).
@@ -277,11 +297,12 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
      - `surface_resolution_audit`, `rekey_inventory`, `write_candidate_classification`, `resolution_gate_allowlist`;
      - `MAX_UNASSIGNED_ENTRIES`, `MAX_MASKING_SUPPRESSIONS`, `owner_exists`, `owner_is_complete`, `unresolved_by_completed_owners`, `find_code_only_suppressions`, `code_only_drift`, `load_code_only_record`, `code_producer_writes`;
      - `unassigned_entries`, `masking_suppressions`, `_imports_ratchet_substrate`;
-     - `tests/status/test_parity.py`, `test_context_parity`.
-     Expect 0 hits. Explain any residual hit, or file it.
+     - `tests/status/test_parity.py`, `test_context_parity`;
+     - WP06's retirements: `category_1_auto_discovered_migrations`, `skip_marker_blocks`, `_GRANDFATHERED_UNREGISTERED_KEYS`, `_emit_skip_marker_delta`, `_category_baseline`.
+     Expect 0 hits. The one allowed, explained residual is the dated ADR supersession bullet WP06 adds, which names the retired leaves by design; allow-list it by file and quote it in the tracer. Explain any other residual hit, or file it. Run the search with `--exclude-dir={.venv,.mypy_cache,.pytest_cache,.ruff_cache}`.
   4. **SC-004**: `test_every_baseline_leaf_is_enforced_by_a_size_ratchet` is green.
   5. **SC-005**: `python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/parity_catalog_check.py` prints `45/45 OK`. Reconcile the 8 WP-owned catalog rows against the landed code (WP10 delivered or deferred; WP11 16/8 nodes). Record the confirmation via the tracer, because this WP may not edit `kitty-specs/`.
-  6. **SC-006**: the 6 matrix rows and the FR-019 issues (a–d) exist.
+  6. **SC-006**: all 23 matrix rows are terminal, including rows for the 5 children of #5104 plus #3962; the FR-019 issues (a–d) exist.
   7. Tracer assess step (the `mission-tracer-files` procedure): review all three tracer files and file any unresolved tooling-friction items.
 - **Validation**: each SC has a tracer line with its evidence.
 
@@ -292,7 +313,8 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
 .venv/bin/python -m pytest tests/architectural/test_ruff_format_exclude_ratchet.py tests/architectural/test_ruff_format_enforcement.py -q
 # integration list (plan)
 .venv/bin/python -m pytest tests/architectural/test_destructive_op_routing.py tests/architectural/test_overwrite_ownership_routing.py tests/architectural/test_mutation_ownership_routing.py tests/architectural/test_ratchet_baselines.py -q
-.venv/bin/python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py --base 3717c7ea
+.venv/bin/python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py --base 3717c7ea --head-root "$PWD"
+.venv/bin/python kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/census_rekey_equivalence.py --base 3717c7ea --head-root "$PWD" --self-test
 .venv/bin/python -m pytest tests/next/ tests/status/ tests/charter/ tests/runtime/test_next_board_authority.py -q
 # final (cross-cutting: pyproject.toml, shared ban module)
 .venv/bin/python -m pytest tests/architectural/ -n auto --dist loadfile -q
@@ -321,8 +343,24 @@ Non-fakeable checks (from `research/postspec-renata.md`: CRITICAL on FR-003, MED
 - The warn → fail flip has a self-mutation test that goes through the real exactness check.
 - `resolution_gate_allowlist.yaml` is gone. `_YAML_ALLOWLISTS` has a floor. The AST-equality proof for `aggregate.py` is recorded. The SC-003 token search result is attached.
 - The T071 commit is formatter-only (`git diff -w` is near-empty). Every removed exclude line belongs to an AST-changed file, and no comment-only file was reformatted.
-- Matrix rows exist for all 6 issues, with the evidence-token rule satisfied, and no referenced-but-missing rows remain.
-- The full `tests/architectural/` and `make test-fast` counts are recorded, and the equivalence script output is attached.
+- All 23 matrix rows are terminal (no `in-mission` left), the evidence-token rule is satisfied, and no referenced-but-missing row remains. #2972 is `deferred-with-followup` (Follow-up: #5118), not falsely `fixed`.
+- The T071 drain uses the docstring-stripped AST rule, and the table includes WP03's two files and `test_no_read_side_bypass.py`.
+- The NFR-003 per-site script output (expected 132 → 128) and the re-run WP06 shrink-only comparison are in the tracer.
+- `read-side-seam-classification.md` was rewritten, not put in the past tense; the SC-003 search includes WP06's retired tokens.
+- The full `tests/architectural/` and `make test-fast` counts are recorded, and the equivalence script output (plus `--self-test`) is attached.
+
+**Reviewer RED reproduction** (mechanical; run in the lane worktree; `<lane-base>` is the lane's base commit, e.g. `git merge-base HEAD claude/spec-kitty-remediation-wfje22`):
+
+```bash
+RED=$(git log --reverse --format=%H <lane-base>..HEAD | head -1)
+git stash -u; git checkout "$RED"
+.venv/bin/python -m pytest tests/architectural/test_ratchet_positional_anchor_ban.py::test_positional_anchor_exemptions_are_pinned_empty -q
+git checkout -; git stash pop
+```
+
+It must fail with the 94 remaining rows grouped by `(relpath, symbol)` (6 join, 2 kernel, 22 destructive, 56 mutation, 2 overwrite, 3+2+1 os-detect text). An `ImportError`, `NameError` or collection error is not a valid RED.
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-003 (final), FR-012, FR-019, FR-020, NFR-002 (warn→fail self-mutation, `_YAML_ALLOWLISTS` floor), NFR-003 (per-site script), NFR-004 (ban wall time recorded), NFR-005, C-003, C-005 (D-OP-3 AST proof), C-006; verifies SC-001 through SC-006.
 
 ## Activity Log
 

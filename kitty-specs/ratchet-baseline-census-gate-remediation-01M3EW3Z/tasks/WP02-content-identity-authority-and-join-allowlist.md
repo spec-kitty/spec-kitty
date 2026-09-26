@@ -3,11 +3,14 @@ work_package_id: WP02
 title: Content-identity matching authority + join allowlist
 dependencies: []
 requirement_refs:
+- C-001
 - C-004
 - FR-004
 - FR-007
 - NFR-001
+- NFR-002
 - NFR-003
+- NFR-005
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
@@ -22,6 +25,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/_content_identity.py
 create_intent:
@@ -83,7 +89,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 1. A new test helper `tests/architectural/_content_identity.py` is the single matching authority for content-keyed allowlists (plan D-OP-9): resolve descriptors, partition findings as a **multiset** (one entry suppresses at most one finding, `rel_path` always part of the key), two drift mutators, and one render/parse pair for the text serialisation of a descriptor. WP03 and WP04 depend on it.
 2. `_KNOWN_JOIN_ALLOWLIST` (6 `(Path, int)` entries in `test_built_in_location_authority.py`) becomes `_KNOWN_JOIN_SITES: tuple[ContentDescriptor, ...]` with **4** entries; the 2 dead entries (`src/kernel/paths.py:88`, `src/specify_cli/runtime/home.py:79`) are deleted (FR-004; NFR-003: per-site exemption total −2).
 3. Stale entries fail (FR-007, hand-curated policy): `test_join_allowlist_entries_each_suppress_a_live_join` is RED on the planning base naming exactly the 2 dead entries, GREEN at the end.
-4. Drift tolerance (NFR-001): `test_join_allowlist_survives_line_drift` is parametrized over **every distinct file the allowlist references** (3 after migration, derived, with the parameter count asserted equal to that derived set, never hard-coded) and proves the `(unexpected, suppressed)` identity sets are identical under both mutations.
+4. Drift tolerance (NFR-001): `test_join_allowlist_survives_line_drift` is parametrized over a module constant `_DRIFT_FILES = tuple(sorted({d.rel_path for d in _KNOWN_JOIN_SITES}))` (3 after migration) and proves the `(unexpected, suppressed)` identity sets are identical under both mutations **and non-empty**: on the unmutated run `suppressed` for that file has exactly as many entries as the allowlist has descriptors with that `rel_path`, and the mutated run has the same count. A companion test asserts `len(_DRIFT_FILES) >= 3` and that every file in `_DRIFT_FILES` has ≥ 1 suppressed finding on the unmutated tree (never "parameter set == set derived from the allowlist", which compares a set with itself).
 5. `test_new_join_at_formerly_pinned_line_is_caught`: a new `root / "built-in"` join planted in memory into `src/kernel/paths.py` at the formerly pinned line is reported.
 
 ## Context & Constraints
@@ -117,10 +123,11 @@ Commit plan: **commit 1 = T007 alone (RED)**; commit 2 = T008; commit 3 = T009 +
 - **Steps**:
   1. In `test_built_in_location_authority.py`, extract a pure seam from `test_no_builtin_path_joins_outside_pack_paths_authority` (L377-408), behaviour-preserving: `_join_partition(sources: Mapping[Path, str]) -> tuple[set[...], set[...]]` returning `(unexpected, suppressed)` for the current `(rel, lineno) in _KNOWN_JOIN_ALLOWLIST` matching, using `_find_builtin_joins(ast.parse(source))` (L342-370). The gate test calls the seam; nothing else changes. This extraction is test code and may ride in the RED commit; it must not change matching.
   2. Add `test_join_allowlist_entries_each_suppress_a_live_join`: for every allowlist entry, assert it suppresses a live finding; the message names each stale entry. On base this is RED naming `src/kernel/paths.py` (88) and `src/specify_cli/runtime/home.py` (79).
-  3. Add `test_join_allowlist_survives_line_drift`, parametrized over the distinct files referenced by the allowlist, with an extra test asserting the parameter set equals the derived file set. For each file: prepend one blank line to that file's source in memory, recompute `(unexpected, suppressed)` through the seam, and assert both sets are identical to the unmutated run (not merely "still green"). On base this is RED for every file (line keys shift). In this commit use an inline blank-line mutation; T009 switches it to the shared mutators and adds the probe mutation.
-  4. Run the two tests, capture the RED failure text, record it: `spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --category approach --actor <you> --entry "WP02 RED: ..."`. Commit these tests alone.
+  3. Add `test_join_allowlist_survives_line_drift`, parametrized over a module constant `_DRIFT_FILES` (the distinct files referenced by the allowlist), plus the companion `test_join_drift_files_meet_floor` asserting `len(_DRIFT_FILES) >= 3` and that every file in `_DRIFT_FILES` has ≥ 1 suppressed finding on the unmutated tree. For each file: prepend one blank line to that file's source in memory, recompute `(unexpected, suppressed)` through the seam, and assert both sets are identical to the unmutated run (not merely "still green"). Also assert non-emptiness: on the unmutated run the file's `suppressed` count equals the number of allowlist entries whose `rel_path` is that file, and the mutated run has the same count (two empty sets compare equal, so identity alone is fakeable by a dead finder or seam). On base this is RED for the **3 live files** (line keys shift). The 2 dead-entry files (`src/kernel/paths.py`, `src/specify_cli/runtime/home.py`) contain no join, so their drift parameters fail only on the non-emptiness count; the stale test is what names them. In this commit use an inline blank-line mutation; T009 switches it to the shared mutators and adds the probe mutation.
+  4. Also add `test_new_join_at_formerly_pinned_line_is_caught` (specified in T010.1) in this commit. It is RED on base because the `(src/kernel/paths.py, 88)` pin suppresses the planted join.
+  5. Run the three tests, capture the RED failure text, record it: `spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --category approach --actor <you> --entry "WP02 RED: ..."`. Commit these tests alone.
 - **Files**: `tests/architectural/test_built_in_location_authority.py`.
-- **Validation**: the pre-existing gate test and the two negative-bite tests (L411, L450) stay green in this commit; only the two new tests are red.
+- **Validation**: the pre-existing gate test and the two negative-bite tests (L411, L450) stay green in this commit; only the new tests are red.
 
 ### Subtask T008 – Create `_content_identity.py` and its unit tests (commit 2)
 
@@ -150,7 +157,7 @@ Commit plan: **commit 1 = T007 alone (RED)**; commit 2 = T008; commit 3 = T009 +
      `partition_findings` is generic in the key type `K` (a `TypeVar` bound to `Hashable`) so WP04's `CensusKey` (count-1 keys) reuses it. `unexpected` preserves finding order; `unused` is `allowed` minus what was consumed.
   2. `render_descriptor_line` / `parse_descriptor_line` implement the text form `<repo-rel path>::<qualname>::<token_substring>[::<occurrence>]` (research §B4). Parse with `split("::", 3)`; token substrings may contain `:` (e.g. `if sys . platform == :`) but never `::`. Reject (raise `ValueError` naming the line) anything that does not have 3 or 4 fields, an empty field, or a non-int occurrence. `parse(render(d))` round-trips. WP03 uses this pair for the os-detect, lock-ban and clock loaders (Paula LOW: one serialiser, not three).
   3. Docstring: state that this module is **the** partition/resolve authority for content-keyed allowlists; explain multiset semantics with the `neutrality/lint.py` 379/380 example; state the two stale policies are caller policies (hand-curated fails, census warns — D-OP-8); list the known non-adopters named in "Context & Constraints" with their paths; state why unit tests live in `tests/architectural/test_content_identity.py` rather than `tests/unit/test_descriptor_resolver.py` (architectural-marker collection next to its consumers; the resolver's own tests stay where they are).
-  4. Create `tests/architectural/test_content_identity.py` (`pytestmark = [pytest.mark.architectural]`, matching sibling modules) with focused tests for every branch: multiset partition (two identical findings, one allowed → one unexpected); cross-file keys never cross-bless (same qualname/token in two `rel_path`s); `unused` reports an entry that matched nothing; `resolve_allowlist` reports 0-candidate and >1-candidate descriptors as errors instead of raising; `with_blank_line_at_top` shifts lines by 1 and keeps `composite_key` equal; `with_probe_above_statement` inside a multi-line call and inside a nested function keeps the source parseable and the composite key of the site unchanged; render/parse round-trip, `::`-free tokens containing `:`, and each rejection path (including a `path:12` line).
+  4. Create `tests/architectural/test_content_identity.py` (`pytestmark = [pytest.mark.architectural]`, matching sibling modules) with focused tests for every branch: multiset partition (two identical findings, one allowed → one unexpected); cross-file keys never cross-bless (same qualname/token in two `rel_path`s); `unused` reports an entry that matched nothing; `resolve_allowlist` reports 0-candidate and >1-candidate descriptors as errors instead of raising; `with_blank_line_at_top` shifts lines by 1 and keeps `composite_key` equal; `with_probe_above_statement` inside a multi-line call, inside a nested function, **on an `elif` line** and **on a decorated `def`'s decorator line** keeps the source parseable and the composite key of the site unchanged (inserting at `col_offset` above an `elif` or a decorator breaks syntax unless the helper climbs to the enclosing `if` / decorated statement; decide and test it); render/parse round-trip, `::`-free tokens containing `:`, and each rejection path (including a `path:12` line).
 - **Files**: `tests/architectural/_content_identity.py`, `tests/architectural/test_content_identity.py` (both new).
 - **Parallel?**: Can be written in parallel with T007, but commit after it.
 - **Notes**: Keep each function ≤ complexity 15; `mypy --strict` must pass (generic `Counter[K]`, `TypeVar`s).
@@ -170,7 +177,7 @@ Commit plan: **commit 1 = T007 alone (RED)**; commit 2 = T008; commit 3 = T009 +
 
   2. Collapse the FRESHENED / RE-PINNED comment archaeology (L143-262) into each descriptor's `rationale` (keep the substance: org-tier legacy nested-pack join; caller-supplied root scanned in tests; the tests that pin each behaviour). Delete the entries for `src/kernel/paths.py:88` and `src/specify_cli/runtime/home.py:79` (no live join; `kernel/paths.py:88` is `if is_windows():`).
   3. Add a `functools.cache`d accessor that calls `resolve_allowlist(_KNOWN_JOIN_SITES, source_for)` where `source_for` reads `_REPO_ROOT / rel`.
-  4. Rewrite the seam from T007: findings are `((rel_posix, *composite_key(source, lineno)), lineno)` for each `lineno` in `_find_builtin_joins(tree)`; call `partition_findings(findings, allowed)`. The gate fails on `unexpected` (print `rel:lineno` plus the token line so the author can write a descriptor); `test_join_allowlist_entries_each_suppress_a_live_join` fails on resolution errors or a non-empty `unused`, and asserts `checked == len(_KNOWN_JOIN_SITES) >= 4`.
+  4. Rewrite the seam from T007 so it resolves the allowlist from **the same `sources` mapping it scans**: `_join_partition(sources)` calls `resolve_allowlist(_KNOWN_JOIN_SITES, source_for=lambda rel: sources[_REPO_ROOT / rel])` (or an equivalent `__getitem__` over the mapping), never the cached accessor. The cached accessor serves only the standing gate and the stale test over the real tree; the drift test passes its mutated mapping and so exercises resolution drift (a descriptor that stops resolving, or resolves twice, after the mutation). Findings are `((rel_posix, *composite_key(source, lineno)), lineno)` for each `lineno` in `_find_builtin_joins(tree)`; call `partition_findings(findings, allowed)`. The gate fails on `unexpected` (print `rel:lineno` plus the token line so the author can write a descriptor); `test_join_allowlist_entries_each_suppress_a_live_join` fails on resolution errors or a non-empty `unused`, and asserts `checked == len(_KNOWN_JOIN_SITES) >= 4`.
   5. Switch the drift test to `with_blank_line_at_top` and add mutation (ii): `with_probe_above_statement(source, lineno)` at every exempted site (re-resolving the site line from the descriptor on the unmutated source). Both mutations must leave `(unexpected, suppressed)` identical.
 - **Files**: `tests/architectural/test_built_in_location_authority.py`.
 - **Validation**: all tests in the file green; the drift parameter set is the 3 files `kind_vocabulary.py`, `neutrality/lint.py`, `template/manager.py`, derived from `_KNOWN_JOIN_SITES`.
@@ -179,7 +186,7 @@ Commit plan: **commit 1 = T007 alone (RED)**; commit 2 = T008; commit 3 = T009 +
 
 - **Purpose**: Renata LOW / FR-004 AS: a dead line pin must never re-bless a new violation, and the module docstring must stop documenting line identity.
 - **Steps**:
-  1. Add `test_new_join_at_formerly_pinned_line_is_caught`: read `src/kernel/paths.py`, insert `    _probe = Path("root") / "built-in"` immediately above line 88 **in memory** (line 88 is `if is_windows():` inside `get_kittify_home`, indent 4, so the plant lands at the formerly pinned line inside that function), run the seam over the real sources with that one file replaced, and assert the planted site is in `unexpected`.
+  1. (Written in the RED commit, T007 step 4; it turns GREEN here.) `test_new_join_at_formerly_pinned_line_is_caught`: read `src/kernel/paths.py`, insert `    _probe = Path("root") / "built-in"` immediately above line 88 **in memory** (line 88 is `if is_windows():` inside `get_kittify_home`, indent 4, so the plant lands at the formerly pinned line inside that function), run the seam over the real sources with that one file replaced, and assert the planted site is in `unexpected`.
   2. Add a multiset proof on real data: duplicate the allowlisted `neutrality/lint.py` join statement in memory (so two findings share its composite key) and assert exactly one is suppressed and one is unexpected.
   3. Rewrite the module docstring passage at L107-110 ("Each site below is allowlisted by exact ``(file, lineno)``…") and the "Known pre-existing exemption" section (L42 onward) to describe descriptor identity, multiset matching and fail-on-stale.
 - **Files**: `tests/architectural/test_built_in_location_authority.py`.
@@ -224,12 +231,26 @@ Non-fakeable checks (from `research/postspec-renata.md`):
 
 - The first lane commit contains only the two acceptance tests (plus the behaviour-preserving seam extraction) and is RED naming exactly the two dead entries and the drift failures.
 - Stale detection requires "suppresses a live finding", not merely "resolves"; it asserts `checked == len(_KNOWN_JOIN_SITES) >= 4`.
-- The drift test's parameter count is asserted equal to a set derived from the allowlist (no hard-coded 3); it uses both mutations and compares the full `(unexpected, suppressed)` sets.
+- The drift test is parametrized over the module constant `_DRIFT_FILES`; the companion asserts `len(_DRIFT_FILES) >= 3` plus ≥ 1 suppressed finding per file (not a set compared with itself). Each drift case uses both mutations, compares the full `(unexpected, suppressed)` sets, asserts the per-file suppressed count equals the per-file descriptor count, and resolves descriptors from the mutated mapping.
 - `partition_findings` is a Counter-based multiset and keys always include `rel_path`; the cross-file and duplicate-key unit tests exist.
 - `test_new_join_at_formerly_pinned_line_is_caught` plants at `src/kernel/paths.py` old line 88 and asserts the gate reports it.
 - `_content_identity.py` declares `__all__`, imports nothing but the stdlib and `_ratchet_keys`, and its docstring lists the non-adopters.
 - No edit to `_ratchet_keys.py`, `_sole_door_scan.py`, the ban file, `pyproject.toml` or `src/`.
 - ruff check, ruff format --check and mypy are clean on all three files.
+- `with_probe_above_statement` has unit tests for the `elif` and decorator cases.
+
+**Reviewer RED reproduction** (mechanical; run in the lane worktree; `<lane-base>` is the lane's base commit, e.g. `git merge-base HEAD claude/spec-kitty-remediation-wfje22`):
+
+```bash
+RED=$(git log --reverse --format=%H <lane-base>..HEAD | head -1)
+git stash -u; git checkout "$RED"
+.venv/bin/python -m pytest tests/architectural/test_built_in_location_authority.py -q -k "suppress_a_live_join or survives_line_drift or drift_files_meet_floor or formerly_pinned_line"
+git checkout -; git stash pop
+```
+
+It must fail with failures naming `src/kernel/paths.py` 88 and `src/specify_cli/runtime/home.py` 79 (stale test), drift-set mismatches for the 3 live files, and the planted join at old L88 not reported. An `ImportError`, `NameError` or collection error is not a valid RED.
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-004, FR-007 (hand-curated half), NFR-001, NFR-002 (drift non-emptiness floor), NFR-003 (−2 sites), NFR-005, C-001, C-004, C-005; contributes to SC-001 and SC-002.
 
 ## Activity Log
 

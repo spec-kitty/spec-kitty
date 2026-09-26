@@ -5,6 +5,9 @@ dependencies: []
 requirement_refs:
 - C-005
 - FR-015
+- NFR-002
+- NFR-005
+- NFR-006
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
@@ -19,6 +22,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/charter/test_context_bootstrap_markers.py
 create_intent:
@@ -135,19 +141,30 @@ Commit in your lane worktree. Never push and never merge.
      - an `ImportFrom` from a first-party package that imports a `_`-prefixed name;
      - a `Call` to a `_`-prefixed name that was imported from a first-party package.
      Keep it at complexity ≤ 15 by splitting it into `_patch_offenders` and `_private_import_offenders` helpers.
+     Entry format (fixed, so the RED can be checked against an exact list): `"patch:<dotted target>"`, `"private-import:<module>.<name>"`, `"private-call:<name>"`. There is one entry per `ImportFrom` of a `_` name **and** one per call of it; no deduplication.
   2. Add `test_context_markers_use_no_src_patch_targets`:
      - read `Path(__file__)`;
      - assert non-vacuity: at least 6 `def test_` functions, and at least 1 call to `build_charter_context`;
      - assert `_src_coupling_offenders(source) == []`, with a message listing the offenders.
-  3. Add a self-mutation test, `test_src_coupling_scan_flags_planted_offenders`. Feed the **same helper** a planted source string that contains `patch("charter.activation.catalog.built_in_dir")`, `monkeypatch.setattr(mod, "x", 1)` with `mod` imported from `charter`, and `from charter.activation.profile_resolution import _reset_agent_profile_cache`. Assert all three are flagged. Also feed it a negative source containing `monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", ...)`, and assert it yields `[]`.
-  4. Run the module on the planning base. `test_context_markers_use_no_src_patch_targets` must fail and list **8 offenders**:
-     - the 4 patches in `TestBootstrapCorpusParity._render`;
-     - the 2 patches in `test_first_load_marker`;
-     - the 2 `_reset_agent_profile_cache` import+call pairs.
+  3. Add a self-mutation test, `test_src_coupling_scan_flags_planted_offenders`. Feed the **same helper** a planted source string that contains `patch("charter.activation.catalog.built_in_dir")`, `monkeypatch.setattr(mod, "x", 1)` with `mod` imported from `charter`, and `from charter.activation.profile_resolution import _reset_agent_profile_cache`, plus the alias case `from unittest import mock as m` followed by `m.patch("charter.x")`. Assert all four are flagged. Also feed it a negative source containing `monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", ...)`, and assert it yields `[]`.
+  4. Run the module on the planning base. `test_context_markers_use_no_src_patch_targets` must fail and list exactly these **10 entries** (sorted; duplicates are real, because the same target is patched in two tests):
+     ```text
+     patch:charter.activation.catalog.built_in_dir
+     patch:charter.activation.catalog.resolve_doctrine_root
+     patch:charter.activation.catalog.resolve_doctrine_root
+     patch:charter.activation.profile_resolution._activation_aware_profile_map
+     patch:charter.activation.profile_resolution._activation_aware_profile_map
+     patch:charter.offering.directives.repository.built_in_dir
+     private-call:_reset_agent_profile_cache
+     private-call:_reset_agent_profile_cache
+     private-import:charter.activation.profile_resolution._reset_agent_profile_cache
+     private-import:charter.activation.profile_resolution._reset_agent_profile_cache
+     ```
+     That is the 4 patches in `TestBootstrapCorpusParity._render` plus the 2 in `test_first_load_marker` (6), and 2 imports plus 2 calls of `_reset_agent_profile_cache` (4). An earlier draft said "8 offenders" by counting each import+call pair once; the helper spec emits them separately, so 10 is correct. Do not tune the dedup to hit a number: compare against this exact list.
      Copy the failure text into the Activity Log (#5068: "red for the intended reason").
   5. Commit **only** these tests: `test(WP10): red-first src-coupling scan for context markers`.
 - **Files**: `tests/charter/test_context_parity.py`.
-- **Validation**: the planted test is green, the offender test is RED with 8 entries, and the other tests are unchanged and green.
+- **Validation**: the planted test is green, the offender test is RED with exactly the 10 listed entries, and the other tests are unchanged and green.
 
 ### Subtask T055 – `_mirror_packs` fixture and the on-disk fixture profile
 
@@ -222,7 +239,7 @@ Commit in your lane worktree. Never push and never merge.
 - **Steps**:
   1. Run the Test Strategy commands and record the counts.
   2. Append a tracer entry with `spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --category design-decisions --actor <you>`. It records:
-     - RED 8 → GREEN 0 offenders;
+     - RED 10 → GREEN 0 offenders (the exact list from T054 step 4);
      - copy mirror, no symlinks (D-OP-10);
      - the control test result;
      - the cache-order check in both orders;
@@ -251,18 +268,32 @@ uv run --frozen mypy tests/charter/test_context_bootstrap_markers.py
 - **Process-wide caches leak between tests.** `builtin_mission_type_ids()` is `functools.cache`d but benign, because the missions are copied unchanged. The profile map is keyed by `repo_root`. Verify with the two-order run in T056.
 - **The mirror goes stale against a future pack layout change.** The mirror copies whatever `packs/built-in` holds at run time, so it is self-updating. Only `directives/` and the fixture profile are synthetic.
 - **#3251 flips to fail-closed later.** A valid mirror is unaffected, and the pack-root assertion stays true.
-- **The scan is fooled by an alias** (`from unittest import mock as m; m.patch(...)`). Resolve the callee's final attribute name `patch`/`setattr` regardless of the base, and plant an alias case in the self-mutation test.
+- **The scan is fooled by an alias** (`from unittest import mock as m; m.patch(...)`). Resolve the callee's final attribute name `patch`/`setattr` regardless of the base. The alias case is part of the committed planted set (T054 step 3).
 
 ## Review Guidance
 
 Non-fakeable checks (from `research/postspec-renata.md`, FR-015 MEDIUM, and Debbie's post-plan HIGH):
 
-- The RED evidence shows **8** offenders (6 patch sites + 2 private calls), not 4. The predicate covers **all** first-party patch targets, including the non-underscore `charter.activation.catalog.built_in_dir`, `charter.activation.catalog.resolve_doctrine_root` and `charter.offering.directives.repository.built_in_dir`.
+- The RED evidence shows exactly the **10** entries listed in T054 step 4 (6 patch sites + 2 private imports + 2 private calls), not 4 and not a tuned 8. The predicate covers **all** first-party patch targets, including the non-underscore `charter.activation.catalog.built_in_dir`, `charter.activation.catalog.resolve_doctrine_root` and `charter.offering.directives.repository.built_in_dir`.
 - The self-mutation test calls the same `_src_coupling_offenders` function that the real check uses.
 - The four marker assertions are unchanged, compared with a diff against base.
 - The control test demonstrates that mutating the fixture changes the outcome. The pack root is asserted to be under `tmp_path`.
 - There is no `symlink_to` anywhere, and no `src/` behaviour diff (the AST-equality output is recorded).
 - Old path references: 0 live hits.
+- The committed planted set includes the `mock as m` alias case.
+
+**Reviewer RED reproduction** (mechanical; run in the lane worktree; `<lane-base>` is the lane's base commit, e.g. `git merge-base HEAD claude/spec-kitty-remediation-wfje22`):
+
+```bash
+RED=$(git log --reverse --format=%H <lane-base>..HEAD | head -1)
+git stash -u; git checkout "$RED"
+.venv/bin/python -m pytest tests/charter/test_context_parity.py -q -k no_src_patch_targets
+git checkout -; git stash pop
+```
+
+It must fail with an assertion listing exactly the 10 entries of T054 step 4 (the RED commit precedes the file rename, so use the old path). An `ImportError`, `NameError` or collection error is not a valid RED.
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-015, NFR-002 (non-vacuity floor + planted offenders), NFR-005, NFR-006 (private-patch coupling replaced, invariants kept), C-001, C-005; contributes to SC-005.
 
 ## Activity Log
 

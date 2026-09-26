@@ -4,11 +4,13 @@ title: Widen positional-anchor ban + interim per-site exemptions
 dependencies: []
 requirement_refs:
 - C-001
+- C-005
 - FR-001
 - FR-002
 - FR-003
 - NFR-002
 - NFR-004
+- NFR-005
 planning_base_branch: claude/spec-kitty-remediation-wfje22
 merge_target_branch: claude/spec-kitty-remediation-wfje22
 branch_strategy: Planning artifacts for this mission were generated on claude/spec-kitty-remediation-wfje22. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/spec-kitty-remediation-wfje22 unless the human explicitly redirects the landing branch.
@@ -24,6 +26,9 @@ history:
 - at: '2026-09-26T15:00:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-09-26T17:00:00Z'
+  actor: planner-priti
+  action: Folded post-tasks squad findings
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/test_ratchet_positional_anchor_ban.py
 create_intent: []
@@ -126,7 +131,7 @@ Commit plan (C-001):
   2. **Widen the path element.** Add `_is_pathish_element(node) -> bool` that accepts: a path-ish string literal (reuse `_is_pathish_string_literal`, L532-545); a call to `Path`, `PurePath`, `PurePosixPath` or `PureWindowsPath` (resolve Name or Attribute callee through the existing `_call_func_name`, L190) whose first argument is itself path-ish; a `/` `ast.BinOp` with any path-ish leaf (walk both sides).
   3. **Widen the tuple shape.** Replace `_is_raw_file_line_tuple` (L548-556) with `_is_file_line_tuple(node)`: an `ast.Tuple` with ≥ 2 elements, `_is_pathish_element(elts[0])`, and any later element a bare int literal with `type(value) is int` (excludes `bool`). This covers `(path, int)`, `(Path(...), int)` and `(path, qualname, int)`. Rewrite the finding detail (L583-584) to use `ast.unparse(node)` instead of assuming both elements are `ast.Constant`.
   4. **Embedded-key arm.** Add `_EMBEDDED_LINE_KEY_RE = re.compile(r"^(?:[A-Z]+:)?[^\s:]+\.[A-Za-z0-9]+:\d+(?::\S*)?$")` and `_seed_embedded_line_key_violations(tree, source_lines, relpath)`: flag every `str` constant inside a seed container that **whole-matches** the regex. Whole-string anchoring plus `\S` keep prose evidence green. Keep the old `is_file_line_anchor` arm (`_seed_string_line_anchor_violations`, L329-349); it is cheap and pins registry-predicate parity. Deduplicate so one site is reported once (both arms can hit the same constant) — report per site, not per arm.
-  5. **Keyword-record arm.** Flag an `ast.Call` inside a seed container carrying a keyword in `{"line", "lineno", "line_no", "file_line", "fileline"}` bound to a bare int literal (mirrors `FORBIDDEN_POSITIONAL_FIELDS` in `src/specify_cli/contracts/anchoring.py`). `occurrence=` and `op_ordinal=` are deliberately **not** in the set (the FR-014 carve-out; WP04's `CensusKey` uses `op_ordinal`).
+  5. **Keyword-record arm.** Flag an `ast.Call` inside a seed container carrying a keyword in `{"line", "lineno", "line_no", "file_line", "fileline"}` bound to a bare int literal (mirrors `FORBIDDEN_POSITIONAL_FIELDS` in `src/specify_cli/contracts/anchoring.py` **minus `file`**, `anchoring.py:285-287`: `file` is not an int-bound field). `occurrence=` and `op_ordinal=` are deliberately **not** in the set (the FR-014 carve-out; WP04's `CensusKey` uses `op_ordinal`).
   6. **Class-body seeds.** Extend `_module_level_seed_containers` (L279-298) and `_module_level_named_seed_containers` (L367-387) to also walk each top-level `ast.ClassDef.body`, so a class-attribute allowlist cannot evade the ban. Function-local containers stay out of scope.
   7. **Site identity on findings.** Extend `LineSinkViolation` (L164-173) with `symbol: str` (the seed container's bound name, or the `.txt` filename for text findings) and `site: str` (`ast.unparse(node)` for Python, the stripped line for text). `lineno` stays diagnostic only. Every arm must populate both; use `_module_level_named_seed_containers` to recover the symbol.
   8. **Wire it.** `_scan_python_source` (L595-607) composes all Python arms (call-arg sink, old string arm, embedded-key arm, laundering arm, file-line tuple arm, keyword arm).
@@ -165,7 +170,7 @@ Commit plan (C-001):
   1. With commit 1 in place, run `.venv/bin/python -m pytest tests/architectural/test_ratchet_positional_anchor_ban.py -q -k "no_int_line_sink_in_architectural_python_seeds or no_positional_anchor_in_architectural_text_files"`. Capture the failure text. Confirm the per-symbol breakdown: `test_built_in_location_authority.py::_KNOWN_JOIN_ALLOWLIST` 6, `test_kernel_no_doctrine_import.py::_PRE_EXISTING_EXEMPTIONS` 2, `test_destructive_op_routing.py::_ALLOWLIST` 22, `test_mutation_ownership_routing.py::_ALLOWLIST` 56, `test_overwrite_ownership_routing.py::_ALLOWLIST` 2, `os-detect-ban-deferred.txt` 3, `os-detect-ban-mypy-narrowing.txt` 2, `os-detect-ban-sanctioned-raw.txt` 1 = **94**. Any other hit is either a real miss by the research (stop and report) or a false positive (fix the predicate, never exempt it). Record the breakdown with `spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z --category approach --actor <you> --entry "WP01 RED: ..."` (#5068: red for the intended reason). Commit 1 now.
   2. Add `_POSITIONAL_ANCHOR_EXEMPTIONS: frozenset[tuple[str, str, str, str]]` holding rows `(relpath, symbol_or_txt_filename, site, reason)`, exactly one row per flagged site. `site` is `ast.unparse(node)` for Python (for a census key that is the quoted string, e.g. `"'src/specify_cli/doctrine/sources/git_source.py:98:reset_hard'"`) or the stripped line for text.
   3. **One line per row, stable sort** (Priti post-plan): hoist short module constants for relpaths and reasons (e.g. `_BY_WP02 = "#5085 interim: migrated by WP02"`, `_BY_WP03`, `_BY_WP04`) so every row fits in 164 chars and no literal repeats ≥ 3 times (Sonar S1192). Reasons: join → WP02; kernel and os-detect → WP03; destructive, mutation, overwrite → WP04. Generate the rows from the RED output with a throwaway script in your scratchpad; never hand-type 94 sites.
-  4. Filter both standing gates through the rows by `(relpath, symbol, site)` identity. `lineno` never participates.
+  4. Filter both standing gates through the rows by `(relpath, symbol, site)` identity. `lineno` never participates. Filtering and exactness use a **multiset**: build `collections.Counter` over the findings' `(relpath, symbol, site)` and over the rows' `(relpath, symbol, site)`; one row suppresses exactly one finding. Two textually identical sites in one symbol therefore need two rows (a set would collapse them and silently re-open per-symbol exemption). Add a negative fixture: two identical finding tuples and one row → exactly one finding stays unexpected.
   5. Add `test_positional_anchor_exemptions_are_exact`: compute all live findings (Python + text) **without** the filter; (a) any finding with no row → FAIL naming it; (b) any row with no live finding → `warnings.warn(...)` naming it (interim policy; WP13 flips this to fail and pins the set empty). Also assert every row has a non-empty reason and that rows are unique.
 - **Files**: ban module only.
 - **Validation**: the two standing gates and the exactness test pass; deleting any one row turns the standing gate red naming that site (do this manually once and note it in the Activity Log; do not commit it).
@@ -174,8 +179,8 @@ Commit plan (C-001):
 
 - **Purpose**: A ban that scans nothing, or whose arm is not wired into the real scan path, must go red. Renata HIGH: fixture-only tests and `>= 1` floors are fakeable.
 - **Steps**:
-  1. Replace `len(files) > 50` in `test_architectural_python_universe_is_nonempty` (L668-674) with `>= 262` (263 on the planning base; WP07 retires `rekey_inventory.py`). Add `test_architectural_text_universe_meets_floor`: text files `>= 20` and exemption-file entry lines inspected `>= 6` (the six os-detect rows survive as content lines after WP03).
-  2. Add one arm-disable proof per new or widened arm (file-line tuple, embedded-key, keyword-record, class-body walk, text): plant the arm's fixture, assert it is flagged through `_scan_python_source` / `_scan_text_source`; then `monkeypatch.setattr` that arm's predicate (e.g. `_is_file_line_tuple`, `_EMBEDDED_LINE_KEY_RE` via a never-matching pattern, the keyword predicate, the class-body walker) to an always-false variant and assert the same planted fixture now yields 0. This proves the production scan path uses the arm.
+  1. Replace `len(files) > 50` in `test_architectural_python_universe_is_nonempty` (L668-674) with `>= 262` (263 on the planning base; WP07 retires `rekey_inventory.py`). Add `test_architectural_text_universe_meets_floor`: text files `>= 20` and exemption-file entry lines inspected **across `os-detect-ban-*.txt`** `>= 6` (the six os-detect rows survive as content lines after WP03). Count only lines from those three files, not all 20 `.txt` files, or the floor is trivially met.
+  2. Add one arm-disable proof per new or widened arm (file-line tuple, embedded-key, keyword-record, class-body walk, text): plant the arm's fixture, assert it is flagged through `_scan_python_source` / `_scan_text_source`; then `monkeypatch.setattr` that arm's predicate (e.g. `_is_file_line_tuple`, `_EMBEDDED_LINE_KEY_RE` via a never-matching pattern, the keyword predicate, the class-body walker) to an always-false variant and assert the same planted fixture now yields **exactly 0** findings. This proves the production scan path uses the arm. Arms overlap (e.g. the embedded-key arm and the kept `is_file_line_anchor` arm both hit `"src/x.py:12"`), so each arm-disable proof must use a fixture that **only that arm** catches; record in each test's docstring which planted fixtures ≥ 2 arms catch. Never weaken the assertion to "count decreased".
   3. Add a floor to `test_non_vacuity_real_compliant_yamls_stay_green` (L1137): `assert len(_YAML_ALLOWLISTS) >= 1` (WP13 will drop `resolution_gate_allowlist.yaml`, leaving one).
 - **Files**: ban module only.
 - **Parallel?**: No.
@@ -235,6 +240,22 @@ Non-fakeable checks (from `research/postspec-renata.md`):
 - `git diff` shows no new `# diagnostic-locator` marker, no change under `src/`, no edit to any gate module other than the ban file, no `pyproject.toml` change.
 - mypy and ruff check pass on the file; the file was not reformatted.
 - The PR records the `--durations=0` figure.
+- The exemption filter is a `Counter` multiset (the two-identical-tuples negative fixture exists), and every arm-disable proof asserts exactly 0 on an arm-exclusive fixture.
+
+**Reviewer RED reproduction** (mechanical; run in the lane worktree; `<lane-base>` is the lane's base commit, e.g. `git merge-base HEAD claude/spec-kitty-remediation-wfje22`):
+
+```bash
+RED=$(git log --reverse --format=%H <lane-base>..HEAD | head -1)
+git stash -u; git checkout "$RED"
+.venv/bin/python -m pytest tests/architectural/test_ratchet_positional_anchor_ban.py -q -k "no_int_line_sink_in_architectural_python_seeds or no_positional_anchor_in_architectural_text_files"
+git checkout -; git stash pop
+```
+
+It must fail with the per-symbol breakdown 6 / 2 / 22 / 56 / 2 / 3 / 2 / 1 (join / kernel / destructive / mutation / overwrite / os-detect deferred / mypy-narrowing / sanctioned-raw). An `ImportError`, `NameError` or collection error is not a valid RED.
+
+**Issue matrix**: #5085 is seeded `in-mission` against WP01, but WP01 does not fix it alone (WP02–WP04 migrate, WP13 pins the list empty). Leave the row `in-mission`; WP13 T073 finalizes it.
+
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-001, FR-002, FR-003 (interim), NFR-002, NFR-004, NFR-005, C-001, C-005; contributes to SC-001.
 
 ## Activity Log
 
