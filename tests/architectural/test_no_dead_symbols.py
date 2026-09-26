@@ -750,9 +750,14 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.runtime::ResolutionTier -- REMOVED (#3831/#4088 landing): same
         # loader fix as specify_cli.runtime.resolver::ResolutionTier above -- the
         # re-export now has a real src/ caller too.
+        # specify_cli.runtime::classify_asset -- body-hash re-pinned 2026-09-26 (#4961):
+        # classify_asset's body was refactored to route shared-counterpart resolution
+        # through _resolve_shared_counterpart + the ownership guard. Still a re-export
+        # with no src/ caller (tests import it directly from runtime.migrate), so it
+        # stays hand-allowlisted exactly as on main -- only the pinned hash moves.
         SymbolKey(
             "classify_asset", "4c0ca6c39f4ac992dc93f2eabd525739ce05774519b897b083b76dc54fb4ae3c", source_module="specify_cli.runtime"
-        ),  # specify_cli.runtime::classify_asset (body-hash re-pinned 2026-09-26, #4961: classify_asset body refactored to route shared-counterpart resolution through _resolve_shared_counterpart + the #4961 ownership guard; still a re-export with no src/ caller, so it stays hand-allowlisted)
+        ),  # specify_cli.runtime::classify_asset
         SymbolKey(
             "SkillRegistry", "c01cd024b561b9115a36d3487195aac21d78bd7262a02d993702e4346c51c16b", source_module="specify_cli.shims"
         ),  # specify_cli.shims::SkillRegistry
