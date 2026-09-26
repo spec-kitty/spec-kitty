@@ -3,7 +3,7 @@
 **Inputs**: Design documents from `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/` (spec.md, plan.md rev 2, research.md, data-model.md, quickstart.md, research/*)
 **Prerequisites**: plan.md (rev 2, 13 WPs), spec.md (rev 2 + errata)
 
-**Tests**: Required. Every WP lands a failing-first acceptance test as its first commit (C-001), including deletion-heavy WP05 and WP07. The one exception is WP09 (operator-approved charter exception, plan D-OP-4 / Complexity Tracking), whose evidence substitute is the committed mutation script `research/wp09_mutation_matrix.py`. C-001, C-005, C-006 and NFR-005 bind every WP.
+**Tests**: Required. Every WP lands a failing-first acceptance test as its first commit (C-001), including deletion-heavy WP05. The two exceptions are the deletion-only WP07 and WP09 (operator-approved charter exceptions, plan D-OP-4 / Complexity Tracking; WP07 by Decision Moment DM-01M3F3T1G2RYW7P0ZVWQS41GEZ). WP09's evidence substitute is the committed mutation script `research/wp09_mutation_matrix.py`; WP07's is tracer-recorded base evidence (`audit.py` exit 1, `rekey_inventory.py --check` STALE) with a reviewer reproduction block, plus the survivor 8/8 GREEN. C-001, C-005, C-006 and NFR-005 bind every WP.
 
 **Organization**: Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Subtasks are **reference rows**, not checkboxes: record completion with `spec-kitty agent tasks mark-status <Txxx> --status done`.
 
@@ -56,8 +56,8 @@
 | T035 | Remove `category_1` leaf + machinery; survivor proof; ADR bullet | WP06 | |
 | T036 | Remove `skip_marker_blocks` leaf + machinery; round-trip comments | WP06 | |
 | T037 | Lower-below-live mutations, planted-leaf self-mutation, floors | WP06 | |
-| T038 | RED first: survivor re-imports `_surface_resolution_scan`; base evidence (audit exit 1, STALE, token count) | WP07 | [P] |
-| T039 | `git mv` audit.py → `_surface_resolution_scan.py`, strip, pyproject L954 | WP07 | |
+| T038 | Charter-exception evidence: tracer-record base audit exit 1 (8+8), `--check` STALE, token count; survivor baseline 8/8 | WP07 | [P] |
+| T039 | `git mv` audit.py → `_surface_resolution_scan.py`, strip, survivor import switch, pyproject L954 | WP07 | |
 | T040 | Delete remaining `surface_resolution_audit/` files, pyproject L955 | WP07 | |
 | T041 | Rewire survivor `test_single_mission_surface_resolver.py` | WP07 | |
 | T042 | FR-009 reference edits, path-qualified token search 0, validation | WP07 | |
@@ -283,18 +283,19 @@ T037 Lower-below-live mutation tests (19), planted-leaf self-mutation, table flo
   - Remove its own two pyproject format-exclude lines.
 - **Priority**: P1 (US2, #3011 is P1).
 - **Independent test**:
-  - The survivor `test_single_mission_surface_resolver.py`, re-pointed at `_surface_resolution_scan`, is RED on base and ends with the same 8 node IDs, all green.
+  - Charter exception (plan D-OP-4, DM-01M3F3T1G2RYW7P0ZVWQS41GEZ): the tracer records the base defect (`audit.py` exit 1 with 8 missing + 8 ghost rows; `rekey_inventory.py --check` STALE), and the reviewer re-runs it from the prompt's reproduction block.
+  - The survivor `test_single_mission_surface_resolver.py`, re-pointed at `_surface_resolution_scan`, keeps the same 8 node IDs as base, all green.
   - The path-qualified token search (`surface_resolution_audit|rekey_inventory|write_candidate_classification`) finds hits on base and 0 after.
   - `test_untrusted_path_containment.py` stays green.
 
 **Subtasks**
-T038 RED first: re-point the survivor at `_surface_resolution_scan` (`ModuleNotFoundError` on base); base evidence (audit exit 1, `--check` STALE, base token count, survivor 8/8) (WP07)
-T039 `git mv` audit.py → `_surface_resolution_scan.py`, strip to scanner, fix root depth, drop bootstrap/noqa, pyproject L954 (WP07)
+T038 Charter-exception evidence via `spec-kitty agent tracer-append`: base audit exit 1 (8 missing + 8 ghost), `--check` STALE, base token count, survivor 8/8 baseline; no import-error RED commit (WP07)
+T039 `git mv` audit.py → `_surface_resolution_scan.py`, strip to scanner, fix root depth, drop bootstrap/noqa, re-point the survivor's import in the same commit, pyproject L954 (WP07)
 T040 Delete rekey_inventory.py, inventory.md, RULESET.md, audited-surfaces.md, write_candidate_classification.yaml; pyproject L955 (WP07)
-T041 Finish the survivor rewire (import committed in T038); fix its docstrings, floor comment and failure messages (WP07)
+T041 Finish the survivor rewire (import switch committed with T039); fix its docstrings, floor comment and failure messages (WP07)
 T042 FR-009 references (`_ratchet_keys.py`, `test_no_worktree_name_guess.py:155`, `untrusted_path_audit/inventory.md:76`), token search 0, validation (WP07)
 
-**Implementation sketch**: record evidence and commit the RED survivor re-import, then do move + strip + pyproject line as the green step, then delete the remaining files with their pyproject line, then the reference edits and the final search.
+**Implementation sketch**: record the charter-exception evidence in the tracer, then do move + strip + survivor import switch + pyproject line in one commit (survivor stays green), then delete the remaining files with their pyproject line, then the reference edits and the final search.
 
 **Dependencies**: none.
 

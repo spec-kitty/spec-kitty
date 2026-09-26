@@ -439,6 +439,9 @@ After this WP, `_baselines.yaml` has **19 leaves**, and `_REQUIRED_TOP_LEVEL_KEY
 - `_ratchet_keys.py:49,124` docstrings (doc-only, but this is the shared substrate, so run the full `tests/architectural/`).
 - `test_no_worktree_name_guess.py:155` comment.
 - Not needed, correcting a post-spec claim: `untrusted_path_audit/inventory.md:76` and `:210` and `test_untrusted_path_containment.py:240` refer to the **sibling** `untrusted_path_audit/` directory's own files.
+
+> Superseded by plan.md rev 2 — see plan WP table and D-OP-4.
+
 - **Red-first for this pure-deletion WP (a C-001 gap).** No committed gate detects the defect: its gate was deleted by #3285. Tombstone tests are forbidden. The evidence is therefore non-committed and goes in the WP tracer:
   - on base, `python audit.py` exits 1 (8+8);
   - on base, `rekey_inventory.py --check` reports STALE;
@@ -543,6 +546,9 @@ Specifics:
 - `tests/review/test_transition_gate_parity.py`: delete `test_wp09_hook_landmine_disposition_is_documented_accurately` (L280), a test of its own docstring.
 - `tests/architectural/test_docs_cli_reference_parity.py`: delete `test_retired_check_residual_option_is_absent` (L205-213), a retired-name tombstone costing about 72 s.
 - **Format note.** All four files are format-excluded (pyproject L1798, L977, L1899, L970). Edits must keep them "still genuinely reformats".
+
+> Superseded by plan.md rev 2 — see plan WP table and D-OP-4.
+
 - **Red-first:** the planted-divergence test only strengthens a suite, so it is green on base. For a pure-deletion WP use the E2 pattern: tracer evidence, including the mutation showing each retired test could not fail, or names shape.
   - Fold FR-016 into the FR-013 WP, whose converted ban provides a genuine red.
 
@@ -578,6 +584,8 @@ Specifics:
 ---
 
 ## G. WP slicing
+
+> Superseded by plan.md rev 2 — see plan WP table and D-OP-4.
 
 ### G1. Shared hotspots and how they are sequenced
 | hotspot | touched by | resolution |
@@ -618,6 +626,9 @@ Specifics:
 WP12 joins all lanes. Critical path: WP02 → WP04 → WP05 → WP12.
 
 ### G3. Blast-radius commands per WP (plus `make test-fast` for every WP, and `ruff check` / `ruff format --check .` / `mypy <changed>`)
+
+> Superseded by plan.md rev 2 — see plan WP table and D-OP-4.
+
 - **WP01:** `pytest tests/architectural/test_ratchet_positional_anchor_ban.py tests/architectural/test_trio_seam_only.py tests/specify_cli/contracts/ -q --durations=0`
 - **WP02:** `pytest tests/architectural/test_content_identity.py tests/architectural/test_built_in_location_authority.py tests/doctrine/test_built_in_location_authority.py -q`
 - **WP03:** `pytest tests/architectural/test_kernel_no_doctrine_import.py tests/architectural/test_os_detection_ban.py tests/architectural/test_lock*ban*.py -q`
@@ -656,7 +667,7 @@ WP12 joins all lanes. Critical path: WP02 → WP04 → WP05 → WP12.
 - **D-OP-1 (census key).** `CensusKey` = composite key + op + `op_ordinal` (renamed from `occurrence` in plan rev 2 to avoid clashing with `ContentDescriptor.occurrence`). Only 3/80 entries need `op_ordinal=1`.
 - **D-OP-2 (`category_1` and `skip_marker_blocks`).** Remove them, not enforce them. `category_1`'s equality pin shows the earlier toll drain was illusory.
 - **D-OP-3 (comment-only `src/` edits under C-005, for SC-003).** Recommend allowing them, with AST-equality proof.
-- **D-OP-4 (C-001 for deletion-only WPs).** *Superseded by plan rev 2 / analysis D1:* WP05 and WP07 open with honest failing-first tests; only WP09 carries an operator-approved ATDD-First exception (plan Complexity Tracking), evidenced by a committed mutation script. No tombstones.
+- **D-OP-4 (C-001 for deletion-only WPs).** *Superseded by plan rev 2 / analysis D1:* WP05 opens with an honest failing-first test; the deletion-only WP07 and WP09 carry operator-approved ATDD-First exceptions (plan Complexity Tracking; WP07 by DM-01M3F3T1G2RYW7P0ZVWQS41GEZ), evidenced by tracer base evidence plus a reviewer reproduction (WP07) and a committed mutation script (WP09). No tombstones.
 - **D-OP-5 (FR-015).** Feasible; defer only if the Windows or cache-order checks fail.
 - **D-OP-6 (the text arm makes the clock and lock-ban `CALL:`/`path:line` exemption shapes unusable at 0 entries).** Intended: those gates are shrink-only at zero.
 - **Follow-ups beyond FR-019:**

@@ -24,7 +24,7 @@ The operator instructed an end-to-end autonomous run ("drive mission e2e"), so p
 | D-OP-1 | Census identity = composite key + op + `op_ordinal` (renamed from `occurrence` to avoid clashing with `ContentDescriptor.occurrence`) | Only 3/80 need occurrence > 0; rejects both widening and arg drift (§C1) |
 | D-OP-2 | Remove `category_1` and `skip_marker_blocks` leaves rather than enforce them | Neither is a size ceiling; `category_1`'s equality pin shows the "toll drain" never worked (§D3) |
 | D-OP-3 | Comment-only `src/` edits allowed under C-005 with AST-equality proof | Needed for SC-003 (`status/aggregate.py:543`); behaviour provably unchanged |
-| D-OP-4 | WP09 alone runs under a recorded charter exception to ATDD-First (C-011): its red-first evidence substitute is the committed, reviewer-re-runnable mutation script `research/wp09_mutation_matrix.py`, proving every invariant of `tests/status/test_parity.py` is caught by a surviving (or relocated) test. WP05 and WP07 get no exception: each lands an honest failing-first test as its first commit (WP05 `test_load_baseline_rejects_retired_keys`, WP07 the survivor re-importing `_surface_resolution_scan`). Tombstone tests are never used | Operator-approved (stijn-dejongh, 2026-09-26, analysis finding D1); see Complexity Tracking. Avoids the class #3285 removed |
+| D-OP-4 | WP07 and WP09, the two deletion-only WPs, run under a recorded charter exception to ATDD-First (C-011). WP09's evidence substitute is the committed, reviewer-re-runnable mutation script `research/wp09_mutation_matrix.py`, proving every invariant of `tests/status/test_parity.py` is caught by a surviving or relocated test. WP07's evidence substitute is the base defect recorded via `spec-kitty agent tracer-append` (`audit.py` exit 1, 8 missing + 8 ghost rows; `rekey_inventory.py --check` STALE), a reviewer-re-runnable reproduction block, and the survivor `test_single_mission_surface_resolver.py` (8 tests) GREEN from `_surface_resolution_scan` (the earlier import-error RED is withdrawn: it proved only that a module name is new). WP05 gets no exception: it lands the honest failing-first `test_load_baseline_rejects_retired_keys`. Tombstone tests are never used | Operator-approved (stijn-dejongh): WP09 on 2026-09-26 (analysis finding D1); extended to WP07 by Decision Moment DM-01M3F3T1G2RYW7P0ZVWQS41GEZ, resolved 2026-09-26. See Complexity Tracking. Avoids the class #3285 removed |
 | D-OP-5 | FR-015 proceeds via `SPEC_KITTY_PACKS_ROOT` mirror fixture | Prototyped with zero private patches; defer only if Windows-symlink or cache-order checks fail |
 | D-OP-6 | The text-file arm makes `path:line` exemption shapes unusable at zero entries (clock, lock-ban) | Intended: those gates are shrink-only at zero |
 | D-OP-7 | Interim 94 per-site exemptions in WP01, pinned empty in WP13 | Lets the ban land green and the migrations run in parallel; the interim state never reaches `main` because the mission ships as one PR |
@@ -41,7 +41,7 @@ The operator instructed an end-to-end autonomous run ("drive mission e2e"), so p
 **Target Platform**: CI Linux + Windows CI lane (`ci-windows.yml`) for WP10 symlink behaviour
 **Project Type**: single (test infrastructure inside the existing repo)
 **Performance Goals**: widened ban < 10 s over `tests/architectural/` (prototype 1.4 s); bridge P0 module < 60 s (oracle ~389 s untouched)
-**Constraints**: C-001 red-first (one recorded exception: WP09), C-002 oracle untouched, C-004 one identity mechanism, C-005 no `src/` behaviour change, complexity ≤ 15, zero new suppressions
+**Constraints**: C-001 red-first (two recorded exceptions: WP07, WP09), C-002 oracle untouched, C-004 one identity mechanism, C-005 no `src/` behaviour change, complexity ≤ 15, zero new suppressions
 **Scale/Scope**: 13 WPs; ~94 line-pinned entries migrated; 45 parity modules cataloged; estimated +1.7k / −3.3k lines
 
 ## Charter Check
@@ -51,7 +51,7 @@ The operator instructed an end-to-end autonomous run ("drive mission e2e"), so p
 | Charter rule | Status | Evidence |
 |--------------|--------|----------|
 | Single canonical authority (DIRECTIVE_044) | PASS | C-004 deletes the census helper's second qualname algorithm; one comparison table for baselines (§D2) |
-| ATDD-first (C-011) | PASS with 1 recorded exception (WP09, operator-approved, see Complexity Tracking) | Every other WP names a RED-on-base acceptance test (table below), including deletion-heavy WP05 and WP07 |
+| ATDD-first (C-011) | PASS with 2 recorded exceptions (WP07, WP09) | Both operator-approved (DM-01M3F3T1G2RYW7P0ZVWQS41GEZ for WP07; analysis finding D1 for WP09; see Complexity Tracking). Every other WP names a RED-on-base acceptance test (table below), including deletion-heavy WP05 |
 | Architectural gate discipline (SO #5, DIRECTIVE_043) | PASS | NFR-002 floors + real-path self-mutation per ban; shrink-only baselines (NFR-003) |
 | Test remediation discipline (SO #4, DIRECTIVE_041) | PASS | Parity verdicts per discriminator; NFR-006 requires a surviving test or mutation proof per retirement |
 | Campsite cleaning (SO #2) | PASS | #2972 findings cleaned only in touched test files (FR-020) |
@@ -60,7 +60,7 @@ The operator instructed an end-to-end autonomous run ("drive mission e2e"), so p
 | Git workflow (DIRECTIVE_045/046) | PASS | Topic branch, one PR to `main`, compressed history, operator merges |
 | Pre-existing failure reporting | WATCH | Any base-red test encountered is classified and, if pre-existing, filed as an issue before continuing |
 
-Post-design re-check: PASS, with the one operator-approved ATDD exception for WP09 recorded in Complexity Tracking.
+Post-design re-check: PASS, with the two operator-approved ATDD exceptions (WP07, WP09) recorded in Complexity Tracking.
 
 **Mission-global constraints.** C-001 (ATDD red-first), C-005 (no production behaviour change), C-006 (branch and publication) and NFR-005 (quality gates) bind **every** WP, whether or not a WP's `requirement_refs` lists them.
 
@@ -139,7 +139,7 @@ Critical path: WP02 → WP04 → WP13.
 | WP04 | Census re-key (all 80) on `_content_identity` + composite key | FR-006, C-004, NFR-001 | WP02 | L (split commits: helper → destructive+overwrite → mutation) | census drift tests (15/21/2 files) + `test_second_identical_op_in_exempted_function_fails`; equivalence 80/80 |
 | WP05 | Inert-slot retirement (#3026, #3962) | FR-010 | — (#5117 filed) | M | `test_load_baseline_rejects_retired_keys` (RED: base parser accepts `owner:`/`provisional:`/`mission:`/`code_only_suppressions:`); baseline 38→36; survivor suite green |
 | WP06 | Baseline leaf enforcement | FR-011, NFR-003 | WP05 | M | `test_every_baseline_leaf_is_enforced_by_a_size_ratchet` (RED: 4 leaves) + lower-below-live mutations; hand-kept key lists derived |
-| WP07 | Surface-resolution converter retirement | FR-008, FR-009 | — | S | survivor `test_single_mission_surface_resolver.py` rewired to import `_surface_resolution_scan` (RED: `ModuleNotFoundError` on base); `audit.py` exit 1 as supporting evidence; path-qualified token search 0 |
+| WP07 | Surface-resolution converter retirement | FR-008, FR-009 | — | S | Charter exception (D-OP-4, DM-01M3F3T1G2RYW7P0ZVWQS41GEZ): tracer-recorded base evidence (`audit.py` exit 1, 8 missing + 8 ghost; `rekey_inventory.py --check` STALE) with a reviewer reproduction block; survivor `test_single_mission_surface_resolver.py` 8/8 GREEN from `_surface_resolution_scan`; path-qualified token search 0 |
 | WP08 | Runtime-parity bans + parity residue + `test_next_no_unknown_state` | FR-013, FR-016 | — | S/M | `test_rich_typer_ban_inspects_live_runtime_package` (RED: 0 files) + planted violation |
 | WP09 | Status parity retirement | FR-014, NFR-006 | — | M | Charter exception (D-OP-4, Complexity Tracking): committed mutation script `research/wp09_mutation_matrix.py` M1–M10 reds a surviving or relocated test for every invariant; L407/L660 dispositions |
 | WP10 | Context parity conversion | FR-015 | — | M | `test_context_markers_use_no_src_patch_targets` (RED: 6 patch sites + 2 private calls); copy mirror, no symlinks |
@@ -170,7 +170,8 @@ After lane consolidation: full `tests/architectural/` (`-n auto --dist loadfile`
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|--------------------------------------|
-| ATDD-First (charter C-011, spec C-001) for WP09 only. Operator-approved exception (stijn-dejongh, 2026-09-26, analysis finding D1). Evidence substitute: the committed, reviewer-re-runnable mutation script `research/wp09_mutation_matrix.py` (M1–M10), proving every invariant of `tests/status/test_parity.py` is caught by a surviving or relocated test | WP09 is a pure deletion of duplicated invariants. Every test it keeps or relocates is already GREEN on base, so no honest RED-on-base acceptance test exists | A tombstone or base-green "failing-first" test would be fake (the class #3285 removed). Dropping WP09 would leave a known 740-line scaffold of retired-subsystem tests in place |
+| ATDD-First (charter C-011, spec C-001) for WP09. Operator-approved exception (stijn-dejongh, 2026-09-26, analysis finding D1). Evidence substitute: the committed, reviewer-re-runnable mutation script `research/wp09_mutation_matrix.py` (M1–M10), proving every invariant of `tests/status/test_parity.py` is caught by a surviving or relocated test | WP09 is a pure deletion of duplicated invariants. Every test it keeps or relocates is already GREEN on base, so no honest RED-on-base acceptance test exists | A tombstone or base-green "failing-first" test would be fake (the class #3285 removed). Dropping WP09 would leave a known 740-line scaffold of retired-subsystem tests in place |
+| ATDD-First (charter C-011, spec C-001) for WP07. Operator-approved exception, Decision Moment DM-01M3F3T1G2RYW7P0ZVWQS41GEZ (resolved 2026-09-26). Evidence substitute: base defect recorded via `spec-kitty agent tracer-append` (`audit.py` exit 1, 8 missing + 8 ghost rows; `rekey_inventory.py --check` STALE), a reviewer-re-runnable reproduction block (planning-base checkout, exact commands, expected output), and the survivor `test_single_mission_surface_resolver.py` (8 tests) GREEN from `_surface_resolution_scan` | WP07 is a pure deletion. #3285 deleted the gate that detected the defect, and the survivor is GREEN on base, so no honest RED-on-base acceptance test exists | The earlier import-error RED (`ModuleNotFoundError` for the new module name) proves only that a file was renamed, not the defect; a tombstone test is the class #3285 removed |
 
 ## Follow-ups outside this mission (tracked, not in scope)
 

@@ -49,6 +49,9 @@ history:
 - at: '2026-09-26T18:00:00Z'
   actor: planner-priti
   action: Analysis remediation (D1, I1-I8, A1, C1, D2)
+- at: '2026-09-26T19:00:00Z'
+  actor: planner-priti
+  action: Analysis re-run remediation N1-N4
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/
 create_intent: []
@@ -182,7 +185,7 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
 
 - **Purpose**: Its consuming gate was deleted, so its caps (`canonicalizer_baseline: 3`, `coord_authority_baseline: 3`) enforce nothing, which is the #3026 defect class.
 - **Steps**:
-  1. **Retirement evidence** (tracer, not a tombstone test; WP13's failing-first test is T068's `test_positional_anchor_exemptions_are_pinned_empty`, and D-OP-4's exception covers WP09 only):
+  1. **Retirement evidence** (tracer, not a tombstone test; WP13's failing-first test is T068's `test_positional_anchor_exemptions_are_pinned_empty`, and D-OP-4's exceptions cover only the deletion-only WP07 and WP09, not WP13):
      - `grep -rn "resolution_gate_allowlist" tests src scripts --include=*.py` shows only prose readers and the ban's YAML arm. There is no `yaml.safe_load` consumer apart from the ban scanning it.
      - `tests/architectural/test_resolution_authority_gates.py` is absent.
   2. Orphan audit: for every other data file under `tests/architectural/` (`*.yaml`, `*.txt`, `census/*.yaml`, `_exemptions/*.txt`), confirm it has at least one real loader. Record the list in the tracer. If a further orphan is found, **do not** expand scope silently: record it and add it to the FR-019(d) follow-up in T072.

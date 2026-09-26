@@ -3,6 +3,8 @@ work_package_id: WP07
 title: Surface-resolution converter retirement
 dependencies: []
 requirement_refs:
+- C-001
+- C-006
 - FR-008
 - FR-009
 - NFR-005
@@ -27,6 +29,9 @@ history:
 - at: '2026-09-26T18:00:00Z'
   actor: planner-priti
   action: Analysis remediation (D1, I1-I8, A1, C1, D2)
+- at: '2026-09-26T19:00:00Z'
+  actor: planner-priti
+  action: Analysis re-run remediation N1-N4
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/_surface_resolution_scan.py
 create_intent:
@@ -105,13 +110,13 @@ Done means all of the following hold:
 - **Mission artefacts**: `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/`. Read:
   - `spec.md`: FR-008, FR-009, US2-AS1/AS2, SC-003, C-001;
   - `plan.md` rev 2: the WP07 row, the Charter Check ATDD row, and the pyproject Coordination point;
-  - `research.md` §E1-E2: the kept and deleted symbol lists;
+  - `research.md` §E1-E2: structure only (the kept and deleted symbol lists); red-first follows plan D-OP-4, not §E2's superseded red-first note;
   - `research/grounding-3011.md`;
   - `research/postplan-debbie.md` [HIGH]. This finding overrides research erratum 3: `untrusted_path_audit/inventory.md:76` **does** cite `tests/architectural/surface_resolution_audit/inventory.md`, and the original token regex has permanent sibling hits, so the search must be path-qualified;
   - `research/postplan-paula.md` [LOW]: import `CompositeKey` from `_ratchet_keys`.
-- **Charter**: `.kittify/charter/charter.md`. Relevant rules: SO #4 (red-first; no tombstones), SO #6 (canonical sources: no improvised converter), and SO #7 (git discipline: `git mv` preserves provenance).
+- **Charter**: `.kittify/charter/charter.md`. Relevant rules: SO #4 (red-first, satisfied here through the recorded charter exception; no tombstones), SO #6 (canonical sources: no improvised converter), and SO #7 (git discipline: `git mv` preserves provenance).
 - **Governance applied while authoring this prompt**: profile `planner-priti`; `charter context --action tasks` (DIRECTIVE_003, 041, 044, RECONCILE_CHANGE_SCOPE_TENSIONS).
-- **C-001 (no exception for this WP)**: #3285 deleted the gate that would detect this defect (`test_surface_resolution_audit.py`), but an honest failing-first test still exists. Your **first commit** re-points the survivor `test_single_mission_surface_resolver.py` at the kept module (`from tests.architectural import _surface_resolution_scan as _scan`). On the planning base that module does not exist, so the survivor is RED with `ModuleNotFoundError: No module named 'tests.architectural._surface_resolution_scan'`; T039's move turns it GREEN with the same 8 node IDs. The base-side tracer evidence (audit exit 1, `--check` STALE, token count) supports the retirement but is not the red-first test. **No tombstone tests** ("directory absent", "symbol absent"). Only WP09 carries a charter exception (plan Complexity Tracking).
+- **C-001 (charter exception for this WP)**: WP07 is a deletion-only WP. #3285 deleted the gate that would detect this defect (`test_surface_resolution_audit.py`), and the survivor `test_single_mission_surface_resolver.py` is GREEN on base, so no honest RED-on-base acceptance test exists (an import-error RED would only prove a module name is new). The operator therefore extended the ATDD-First (charter C-011) exception to WP07 (Decision Moment DM-01M3F3T1G2RYW7P0ZVWQS41GEZ, resolved 2026-09-26; plan D-OP-4 and Complexity Tracking). The **evidence substitute** is: (a) the base-side defect evidence recorded with `spec-kitty agent tracer-append` (`audit.py` exit 1 with 8 missing + 8 ghost rows; `rekey_inventory.py --check` reports STALE); (b) the reviewer-re-runnable reproduction block under Review Guidance; (c) the survivor `test_single_mission_surface_resolver.py` (8 tests) GREEN from `_surface_resolution_scan` after the move. **No tombstone tests** ("directory absent", "symbol absent"). WP05 is not covered by this exception and keeps its honest RED test.
 - **C-005**: no `src/` edits.
 - **pyproject.toml (sequenced out-of-map edit, not in `owned_files`)**: per the plan's Coordination points, deletion WPs remove their own exclude lines. This WP edits only L954-955 (its own two entries). Remove each entry in the **same commit** that moves or deletes its file. Otherwise `test_ruff_format_exclude_ratchet.py::test_every_exclude_entry_exists_on_disk` and `test_ruff_format_enforcement.py::test_formatter_debt_exclude_only_names_live_files` go red on that commit. WP09 removes a different hunk (~1,600 lines away) and WP13 removes others, so touch no other pyproject line.
 - **Format-excluded files you edit, comment and docstring only (do not reformat)**:
@@ -136,10 +141,10 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T038 – RED first: re-point the survivor at `_surface_resolution_scan`, and record base evidence
+### Subtask T038 – Charter-exception evidence: record the base defect, pin the survivor baseline
 
-- **Purpose**: Land the failing-first acceptance test (C-001), and show the trap exists before removing it. The defect is live: the converter would rewrite adjudicated rows, and the audit no longer matches the tree.
-- **Steps** (steps 1-5 before any edit, in the lane worktree; step 7 is the first commit):
+- **Purpose**: Record the evidence substitute of this WP's charter exception (C-001 / charter C-011, DM-01M3F3T1G2RYW7P0ZVWQS41GEZ, plan D-OP-4) before any edit: the trap exists and the defect is live (the converter would rewrite adjudicated rows, and the audit no longer matches the tree). There is no failing-first commit in this WP.
+- **Steps** (all before any edit, in the lane worktree):
   1. `.venv/bin/python tests/architectural/surface_resolution_audit/audit.py; echo "exit=$?"`. Expected: `exit=1` (8 missing and 8 ghost rows). Capture the first failure lines verbatim.
   2. `.venv/bin/python tests/architectural/surface_resolution_audit/rekey_inventory.py --check`. Expected output: `inventory.md is STALE — re-run without --check to freshen.` That is the destructive instruction #3011 is about. **Do not** run it without `--check`.
   3. Show that nothing runs `--check` and no committed gate imports the inventory:
@@ -161,13 +166,14 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
      (cd /tmp/wp07-base && PYTHONPATH=$PWD/src <lane>/.venv/bin/python -m pytest --collect-only -q tests/architectural/test_single_mission_surface_resolver.py) > <scratch>/wp07-base-nodeids.txt
      git worktree remove /tmp/wp07-base
      ```
-  6. Record steps 1-5:
+  6. Record steps 1-5 with the tracer (this is the charter-exception evidence; paste the verbatim `audit.py` failure lines and the STALE line):
      ```bash
      spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z \
-       --category design-decisions --actor claude --entry "WP07 base evidence: ..."
+       --category design-decisions --actor claude \
+       --entry "WP07 charter-exception evidence (DM-01M3F3T1G2RYW7P0ZVWQS41GEZ): base audit.py exit=1 (8 missing + 8 ghost rows); rekey_inventory.py --check STALE; path-qualified token count N; survivor 8 passed"
      ```
-  7. **Failing-first commit.** Apply T041 steps 1-3 only (replace the `importlib` block with `from tests.architectural import _surface_resolution_scan as _scan`, rename `_audit_mod`/`audit_mod` to `_scan`/`scan_mod`, drop the now-unused imports). Do not move `audit.py` yet. Run `.venv/bin/python -m pytest tests/architectural/test_single_mission_surface_resolver.py -q`: it must be RED with `ModuleNotFoundError` for `tests.architectural._surface_resolution_scan`, and for no other reason. Paste the failure text into the Activity Log (#5068), then commit alone: `test(WP07): point surface-resolver survivor at _surface_resolution_scan (red-first, C-001)`.
-- **Files**: `tests/architectural/test_single_mission_surface_resolver.py` (step 7 only).
+  7. Do **not** land an import-error "red" commit: the operator decision replaced it with this evidence. The survivor stays GREEN throughout; it switches to `_surface_resolution_scan` in the same commit as T039's move.
+- **Files**: none edited (evidence only).
 
 ### Subtask T039 – Move and strip `audit.py` into `_surface_resolution_scan.py`
 
@@ -194,9 +200,9 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
   5. **Rewrite the module docstring**. It no longer mentions running the file, `inventory.md`, `RULESET.md` or "the recorded converter". Fold in the load-bearing parts of `RULESET.md`: the seed set, the sink predicate, and the known false-negative classes. Keep the disposition vocabulary **only** if `ResolutionRow` still carries a disposition field that the survivor reads; otherwise drop it. `_normalize_token`'s docstring loses its "inventory table" and "recorded converter" rationale. Keep the `|`→`¦` normalisation only if the survivor's composite comparison needs it (it compares `_composite_from_file` output), and say why in one line.
   6. Campsite, optional and in-file only: the `ALLOWLISTED_SELECTION_CALLSITES` comment prescribes `<rel_path>:<line>` keys. The dict is empty, and the widened positional-anchor ban (WP01) refuses `path:line` string keys. Reword it to say that any future entry must be content-identified.
   7. `.venv/bin/ruff format tests/architectural/_surface_resolution_scan.py`, then `ruff check` and `mypy` on it.
-  8. In the **same commit** as the move, delete the pyproject exclude line `"tests/architectural/surface_resolution_audit/audit.py",` (L954).
-- **Files**: `tests/architectural/_surface_resolution_scan.py` (new path), `pyproject.toml` (L954 only).
-- **Parallel?**: No. T039 is the commit that turns T038's RED survivor GREEN: move the file, fix the root depth, run the survivor (8 passed), and commit.
+  8. In the **same commit** as the move, apply T041 steps 1-3 and delete the pyproject exclude line `"tests/architectural/surface_resolution_audit/audit.py",` (L954).
+- **Files**: `tests/architectural/_surface_resolution_scan.py` (new path), `tests/architectural/test_single_mission_surface_resolver.py` (import switch, T041 steps 1-3), `pyproject.toml` (L954 only).
+- **Parallel?**: No. The move breaks the survivor's `importlib` path load, so T041 steps 1-3 (the survivor's import switch) land in the **same commit** as the move: move the file, fix the root depth, re-point the survivor, run it (8 passed, GREEN from `_surface_resolution_scan`), and commit.
 
 ### Subtask T040 – Delete the rest of the directory
 
@@ -219,9 +225,9 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
 
 ### Subtask T041 – Rewire the survivor `test_single_mission_surface_resolver.py`
 
-- **Purpose**: The one live consumer imports the scanner normally and stops pointing agents at retired artefacts. Steps 1-3 were already committed as T038's failing-first commit; verify them and do steps 4-5 here.
+- **Purpose**: The one live consumer imports the scanner normally and stops pointing agents at retired artefacts. Steps 1-3 land in T039's move commit (so the survivor never goes red); do steps 4-5 here.
 - **Steps**:
-  1. (Done in T038 step 7.) Replace the `importlib` loading block (L159-175: `_AUDIT_PATH`, the `exists` assert, `_AUDIT_MOD_NAME = "_surface_resolution_audit_wp01"`, `spec_from_file_location`, the `sys.modules` insert, `exec_module`) with `from tests.architectural import _surface_resolution_scan as _scan`. Point `discover_rows`, `discover_selection_callsites`, `_KITTY_SPECS_NAMES` and `_ALLOWLISTED_SELECTION_CALLSITES` at `_scan`.
+  1. (Committed with T039's move.) Replace the `importlib` loading block (L159-175: `_AUDIT_PATH`, the `exists` assert, `_AUDIT_MOD_NAME = "_surface_resolution_audit_wp01"`, `spec_from_file_location`, the `sys.modules` insert, `exec_module`) with `from tests.architectural import _surface_resolution_scan as _scan`. Point `discover_rows`, `discover_selection_callsites`, `_KITTY_SPECS_NAMES` and `_ALLOWLISTED_SELECTION_CALLSITES` at `_scan`.
   2. Rename the `_audit_mod` references and `audit_mod` parameters to `_scan` / `scan_mod` in `_IsolatedSourceMutation` and its siblings (about L563-700, L748, L852, L951). Monkeypatching the module attributes keeps working unchanged. Where the comments say "dynamically `importlib`-loaded module, and mypy cannot statically…" (about L657-659, L725), update them. Plain attribute access now type-checks, but keep `getattr`/`setattr` if the loop over `_PATCHED_ROOT_NAMES` needs it.
   3. Drop the imports that become unused (`importlib.util`; `sys` and `ModuleType` if unused). `ruff check` must stay clean.
   4. Fix the prose:
@@ -252,7 +258,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP07`). Never 
 
 ## Test Strategy
 
-Tests are required. The survivor, re-pointed at `_surface_resolution_scan` in T038's first commit, is the committed failing-first acceptance test. Record exact commands and pass/fail counts.
+Tests are required. WP07 runs under the operator-approved ATDD-First exception (DM-01M3F3T1G2RYW7P0ZVWQS41GEZ, plan D-OP-4): the evidence substitute is T038's tracer record plus the reviewer reproduction block, and the committed acceptance test is the survivor `test_single_mission_surface_resolver.py` (8 tests) GREEN from `_surface_resolution_scan`. Record exact commands and pass/fail counts.
 
 ```bash
 .venv/bin/python -m pytest tests/architectural/test_single_mission_surface_resolver.py \
@@ -288,25 +294,25 @@ Non-fakeable checks (from `research/postspec-renata.md` MEDIUM SC-003/FR-008/FR-
    - None of the deleted helpers (`_parse_inventory_rows`, `check_undercount`, `check_overcount`, `_inventory_composites`, `main`) survives under a new name. Check with `git diff -M --stat` and read the kept module.
 2. **Provenance.** `git log --follow tests/architectural/_surface_resolution_scan.py` reaches the original `audit.py` history.
 3. **Survivor unchanged in strength.** The same 8 node IDs as on base (diffed against a `git worktree add <tmp> 3717c7ea` collection, not a lane-side list), all green, and the row floor assertion is still present.
-4. **Red-first is a real test.** The first lane commit changes only the survivor's import (plus renames) and is RED with `ModuleNotFoundError` for `_surface_resolution_scan`; the next commit (the move) turns it GREEN. The tracer also carries the base evidence: `audit.py` exit 1, `--check` STALE, and the base token count.
+4. **Charter-exception evidence is real and re-runnable** (DM-01M3F3T1G2RYW7P0ZVWQS41GEZ, plan D-OP-4). The tracer carries the base evidence (`audit.py` exit 1 with 8 missing + 8 ghost rows, `--check` STALE, the base token count), and your own run of the reproduction block below matches it. No import-error "red" commit exists; the survivor is GREEN in every lane commit.
 5. **No tombstones.** No test asserts that the directory or a symbol is absent.
 6. **Dangling reference fixed.** `untrusted_path_audit/inventory.md:76` no longer cites the retired inventory, and `test_untrusted_path_containment.py` is green.
 7. **pyproject hunk** is exactly the two L954-955 deletions, with no other pyproject line touched.
 8. `mypy`, `ruff check` and `ruff format --check` are clean on the new module and the survivor.
 9. The #3011 issue-matrix row reads `fixed` with a commit SHA.
 
-**Reviewer RED reproduction** (the RED is the first lane commit's survivor, run against the planning base; the base-side audit evidence is re-run alongside):
+**Reviewer reproduction** (charter-exception evidence substitute; run it yourself against a clean planning-base checkout and compare with the tracer, then run the survivor on the lane head):
 
 ```bash
 git worktree add /tmp/wp07-base 3717c7ea && cd /tmp/wp07-base
-git show <first-lane-commit>:tests/architectural/test_single_mission_surface_resolver.py > tests/architectural/test_single_mission_surface_resolver.py
-PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python -m pytest tests/architectural/test_single_mission_surface_resolver.py -q   # expect ModuleNotFoundError: tests.architectural._surface_resolution_scan
-PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python tests/architectural/surface_resolution_audit/audit.py; echo "exit=$?"   # expect exit=1, 8 missing + 8 ghost rows
-PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python tests/architectural/surface_resolution_audit/rekey_inventory.py --check   # expect "inventory.md is STALE"
-cd - && git worktree remove --force /tmp/wp07-base   # --force: the survivor file was overwritten
+PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python tests/architectural/surface_resolution_audit/audit.py; echo "exit=$?"   # expect exit=1: 8 missing + 8 ghost rows
+PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python tests/architectural/surface_resolution_audit/rekey_inventory.py --check   # expect "inventory.md is STALE — re-run without --check to freshen."
+cd - && git worktree remove /tmp/wp07-base
+# survivor on the lane head: GREEN from _surface_resolution_scan, same 8 node IDs as base
+cd <lane-worktree> && .venv/bin/python -m pytest tests/architectural/test_single_mission_surface_resolver.py -q   # expect 8 passed
 ```
 
-**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-008, FR-009, NFR-005, NFR-006 (the survivor keeps its 8 nodes), C-001 (failing-first survivor re-import, no exception), C-005, C-006; contributes to SC-003 and SC-006 (#3011 row).
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-008, FR-009, NFR-005, NFR-006 (the survivor keeps its 8 nodes), C-001 (operator-approved charter exception, DM-01M3F3T1G2RYW7P0ZVWQS41GEZ; evidence substitute: tracer base evidence + reviewer reproduction + survivor 8/8 green), C-005, C-006; contributes to SC-003 and SC-006 (#3011 row).
 
 ## Activity Log
 

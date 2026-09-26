@@ -3,7 +3,9 @@ work_package_id: WP05
 title: 'Inert-slot retirement (#3026, #3962)'
 dependencies: []
 requirement_refs:
+- C-001
 - C-005
+- C-006
 - FR-010
 - NFR-002
 - NFR-003
