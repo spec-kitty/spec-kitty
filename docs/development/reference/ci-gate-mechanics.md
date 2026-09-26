@@ -2,7 +2,7 @@
 title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — testing and marker gates, the architectural battery, docs-freshness registration, and accept-to-merge close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-09-20'
+updated: '2026-09-26'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -214,6 +214,25 @@ gate, not by a per-WP subset run:
 Fix both by **removing** the now-dead entries (this only shrinks the list, so no
 ceiling bump is needed). Remove entries only for files your branch actually
 formats or deletes.
+
+### A scanner that swallows a parse failure reds the parse fail-closed gate
+
+`tests/architectural/test_scanner_parse_fail_closed.py` scans every module under
+`tests/` for a construct that can swallow a failure to parse source: an
+`except` catching `SyntaxError` (or a subclass) that does not always re-raise,
+a bare, `Exception`, `BaseException`, `AssertionError` or aliased handler around
+a parse call, `contextlib.suppress(...)` around one, or `finally: return`. A
+scanner that skips a file it cannot parse drops it from its census, so the gate
+it feeds passes over code it never read.
+
+It trips on harmless-looking code too — for example
+`try: parse_file(p) except AssertionError: continue`. Repro:
+`pytest tests/architectural/test_scanner_parse_fail_closed.py`. Fix it by
+reading and parsing through `tests/architectural/_ast_scan.py`
+(`read_and_parse` / `parse_file` / `parse_source` / `read_source`, which fail
+closed naming the file). Only when the input is *deliberately* allowed to be
+unparseable, add a rationale row to its `_ALLOWED_SWALLOWS` ledger; the ledger
+is checked for exact equality, so remove the row when the handler goes.
 
 ### Router path filters are the tail of a guarded SSOT chain
 
