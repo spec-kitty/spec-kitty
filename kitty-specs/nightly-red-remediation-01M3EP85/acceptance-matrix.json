@@ -2,7 +2,7 @@
   "mission_slug": "nightly-red-remediation-01M3EP85",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -108,10 +108,10 @@
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "combined-tree (lanes a\u2013e merged on 7dac8bab): SPEC_KITTY_RUN_PERFORMANCE=1 test_doctor_ops performance tests passed 3/3; scaling ratio ~1.4 vs bound 3 (WP05 08dea33c)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T12:53:18.963252+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
