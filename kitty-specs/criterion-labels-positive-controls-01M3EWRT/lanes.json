@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "mission_slug": "criterion-labels-positive-controls-01M3EWRT",
+  "mission_id": "01M3EWRTE3RHW8NAV3JCGBGF0F",
+  "mission_branch": "kitty/mission-criterion-labels-positive-controls-01M3EWRT",
+  "target_branch": "claude/research-squad-remediation-mission-fvdk93",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/*.graph.yaml",
+        "packs/built-in/missions/mission-steps/software-dev/review/prompt.md",
+        "packs/built-in/missions/software-dev/actions/review/index.yaml",
+        "packs/built-in/pack-manifest.yaml",
+        "packs/built-in/tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml",
+        "packs/built-in/tactics/testing/acceptance-test-first.tactic.yaml",
+        "packs/built-in/tactics/testing/atdd-adversarial-acceptance.tactic.yaml",
+        "tests/doctrine/drg/test_reachability.py",
+        "tests/doctrine/missions/test_action_indexes.py",
+        "tests/doctrine/test_acceptance_criteria_non_vacuity_wiring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md",
+        "packs/built-in/missions/software-dev/templates/spec-template.md",
+        "tests/specify_cli/missions/test_substantive_gate_formats.py",
+        "tests/specify_cli/regression/_twelve_agent_baseline/**",
+        "tests/specify_cli/skills/__snapshots__/**",
+        "tests/specify_cli/test_requirement_mapping.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".kittify/overrides/missions/software-dev/**",
+        "packs/built-in/missions/software-dev/actions/implement/guidelines.md",
+        "packs/built-in/missions/software-dev/actions/review/guidelines.md",
+        "tests/cross_cutting/test_kittify_override_parity.py",
+        "tests/dossier/test_manifest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-26T15:19:34.264251+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a09b26128108c48a5198ff8b8fb18cc5d915c4db"
+}

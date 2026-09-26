@@ -1,0 +1,109 @@
+{
+  "mission_slug": "criterion-labels-positive-controls-01M3EWRT",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/missions/test_substantive_gate_formats.py::TestSpecTemplateDeliveryLabels (columns/placeholders/legend/FR-EXAMPLE present; red on template revert); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:07.712747+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/missions/test_substantive_gate_formats.py::TestSpecTemplateDeliveryLabels (every SC bullet carries the suffix); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:06:56.139946+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_mapping.py::TestDeliveryLabelledRequirementRows (same-fixture mis-placed row; plan_mapping unmapped==[FR-001] labelled vs twin); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:02.106896+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/missions/test_substantive_gate_formats.py (live scaffold non-substantive + Title/Story control; declared-id set frozen); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:25.809754+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_acceptance_criteria_non_vacuity_wiring.py (schema-valid tactic; rules + label legend present); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:32.439398+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_acceptance_criteria_non_vacuity_wiring.py (direct scope edge review->tactic, depth1/2; specify control); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:13.504011+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_acceptance_criteria_non_vacuity_wiring.py (built-in review prompt names id+fetch; CliRunner charter context prints [build]/[ratchet]/[folded]); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:19.740384+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_acceptance_criteria_non_vacuity_wiring.py (sibling step references; no rule-text copy, same-fixture matcher control); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:38.547901+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/regression/test_twelve_agent_parity.py + skills snapshots (specify prompt guidance); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:44.390511+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/test_kittify_override_parity.py (26 counterparts byte-identical; orphans; expected-artifacts absent); lane-c run 587 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-26T16:07:50.222425+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
