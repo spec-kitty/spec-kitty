@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-lane-branch-naming-authority-01M3EVC4",
+  "created_at": "2026-09-26T12:34:52.921681+00:00",
+  "flattened": false,
+  "friendly_name": "Lane Branch Naming Authority",
+  "mid8": "01M3EVC4",
+  "mission_id": "01M3EVC459SNRPXV6B3DX8TKHV",
+  "mission_number": null,
+  "mission_slug": "lane-branch-naming-authority-01M3EVC4",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Lane branch names are derived two ways during merge (with and without the mission identity), so a legacy mission whose identity was backfilled can have spec-kitty merge refuse a legitimate merge with no operator remedy (#5108). This mission converges lane naming on the single authority that creates the branches, threads it through every merge stage, and closes the defect class with an enforced gate.",
+  "purpose_tldr": "Make every merge stage agree on a lane's branch name so legitimate merges of legacy missions stop being refused.",
+  "slug": "lane-branch-naming-authority-01M3EVC4",
+  "target_branch": "claude/charter-load-mission-q9ajcz",
+  "topology": "coord"
+}
