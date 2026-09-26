@@ -2203,8 +2203,8 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
     ``_phase_commit_and_assert`` and cleanup. On FAIL/REFUSE it refuses (non-zero
     exit) with recovery guidance and tears down NOTHING and mutates NOTHING; on
     PASS it continues to cleanup. The success message is scoped to
-    **approved-WP commit reachability** (NOT verdict integrity — #4990 out of
-    scope, FR-013).
+    **approved-WP commit reachability** (NOT verdict integrity — #4941 out of
+    scope, FR-013; #4990 closed the rejection-after-approval case).
     """
     # NFR-005: this executor path is the ``merge`` terminus entry point; routing
     # it through the allowlist proves the gate is reached (a 7th, unrouted path

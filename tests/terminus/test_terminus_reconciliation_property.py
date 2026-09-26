@@ -19,7 +19,9 @@ companion seams land the Terminus Reconciliation Gate. The clean-merge half
 proving the harness is not vacuous.
 
 Scope (contract / FR-013): the success claim is scoped to **approved-WP commit
-reachability** only — NOT verdict integrity (#4990 is out of scope).
+reachability** only — NOT verdict integrity (the residual LWW-reducer ordering
+bug is tracked by #4941; #4990 closed the rejection-after-approval case, and
+is out of scope for this mission either way).
 """
 
 from __future__ import annotations

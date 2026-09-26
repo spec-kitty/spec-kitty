@@ -36,8 +36,9 @@ Claim integrity (D3+, non-negotiable):
   (fail-closed, #5001 FOLD-3).
 
 Scope note (FR-013): the PASS result is scoped to **approved-WP commit
-reachability** only, NOT verdict integrity — #4990 (the LWW reducer) is out of
-scope for this mission and stays named-open in the docs.
+reachability** only, NOT verdict integrity — the residual LWW-reducer
+wall-clock ordering bug (#4941; #4990 closed the rejection-after-approval
+case) is out of scope for this mission and stays named-open in the docs.
 """
 
 from __future__ import annotations
