@@ -215,9 +215,16 @@ def _route_shared_removal(
     default; the two are content-indistinguishable) is unprovable and is
     PRESERVED in place (``backup_parent=None``), never deleted (#4961).
 
-    The default version-marker branch of ``CanonicalContentProver`` is inert
-    here: no ``.kittify/`` shared asset ships that command marker, so ownership
-    is decided solely by the byte-match to the counterpart.
+    Ownership here is decided SOLELY by the byte-match to the counterpart:
+    ``check_marker=False`` disables ``CanonicalContentProver``'s version-marker
+    branch (#5050). Without it, a *differing* operator file that merely embeds
+    the ``<!-- spec-kitty-command-version:`` literal (e.g. a hand-authored
+    ``command-templates`` file pasting a generated command's marker line) would
+    be proven "owned" via the marker and DELETED — silently destroying a
+    customisation, the exact data-loss class this fix exists to close and a
+    direct violation of the "differing files are preserved, never deleted"
+    invariant. Byte-identity is the only correct ownership signal for a shared
+    source asset (a template, not a rendered command).
 
     Returns ``True`` when the guard proved ownership (identical -> removed),
     ``False`` when the file was preserved (differs).
@@ -226,7 +233,7 @@ def _route_shared_removal(
     verdict = guard_destructive_removal(
         path,
         project_dir,
-        prover=CanonicalContentProver(canonical=_counterpart_bytes(counterpart)),
+        prover=CanonicalContentProver(canonical=_counterpart_bytes(counterpart), check_marker=False),
         backup_parent=None,
         dry_run=dry_run,
     )

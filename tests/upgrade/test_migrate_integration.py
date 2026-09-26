@@ -937,6 +937,51 @@ class TestExecuteMigrationSuperseded:
         # No overrides created
         assert not (kittify / "overrides").exists()
 
+    @pytest.mark.regression
+    def test_superseded_marker_bearing_file_is_preserved_not_deleted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A DIFFERING shared asset that embeds the version-marker literal is preserved (#5050).
+
+        Regression for the marker-branch escape hatch: ``CanonicalContentProver``
+        checks the version marker before the byte-match and would return
+        ``owned=True`` for any file merely containing the marker literal — so a
+        customised (differing) ``templates/`` file that pastes a generated
+        command's ``<!-- spec-kitty-command-version: -->`` line was DELETED,
+        silently destroying operator content and violating the "differing files
+        are preserved, never deleted" invariant. The removal site now uses
+        ``check_marker=False`` (byte-identity is the only ownership signal for a
+        shared source asset), so the file must survive.
+
+        RED before the fix (guard proves owned via the marker → file removed);
+        GREEN after (differs from counterpart → unprovable → preserved).
+        """
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_root))
+
+        global_home = tmp_path / "global"
+        _setup_global(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        # A customised template that DIFFERS from the shipped counterpart AND
+        # embeds the version-marker literal (the exact escape-hatch trigger).
+        marker_bearing = "# my customised spec template\n<!-- spec-kitty-command-version: 9.9 -->\nEXTRA USER CONTENT\n"
+        project = tmp_path / "project"
+        kittify = _setup_project_kittify(
+            project,
+            customized_files={"templates/spec.md": marker_bearing},
+            project_specific_files={"config.yaml": "keep me"},
+        )
+
+        report = execute_migration(project, dry_run=False)
+
+        # The differing marker-bearing file is preserved in place with content intact.
+        assert (kittify / "templates" / "spec.md").exists()
+        assert (kittify / "templates" / "spec.md").read_text() == marker_bearing
+        assert (kittify / "templates" / "spec.md") in report.superseded
+        assert (kittify / "templates" / "spec.md") not in report.removed
+
     def test_genuine_customization_still_moved_to_overrides(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
