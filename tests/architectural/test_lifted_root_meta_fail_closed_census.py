@@ -67,13 +67,15 @@ def _qualname_by_line(tree: ast.Module) -> dict[int, str]:
 def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
     found: Counter[tuple[str, str]] = Counter()
     for path in sorted(src_root.rglob("*.py")):
+        rel = path.relative_to(src_root.parent).as_posix()
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (OSError, SyntaxError):  # pragma: no cover - unreadable source
-            continue
+        except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+            # Fail closed (#4362): a skipped file would drop its call sites
+            # from the census and let the gate pass over unread code.
+            raise AssertionError(f"load_meta census cannot read {rel}: {exc}") from exc
         bindings = _local_bindings(tree)
         quals = _qualname_by_line(tree)
-        rel = path.relative_to(src_root.parent).as_posix()
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
@@ -171,3 +173,19 @@ def test_no_unaccounted_load_meta_call_sites() -> None:
         "future reader re-added at the same place):\n"
         + "\n".join(f"  {rel}::{qual}  accounted={exp}, live={live.get((rel, qual), 0)}" for (rel, qual), exp in sorted(stale.items()))
     )
+
+
+@pytest.mark.parametrize("broken", [b"def broken(:\n", b"\xff\xfe x = 1\n"], ids=["syntax-error", "undecodable"])
+def test_scanner_fails_closed_on_unparseable_source(tmp_path: Path, broken: bytes) -> None:
+    """#4362: an unparseable ``src/**/*.py`` must RED the scan, never be skipped.
+
+    A silently-dropped file would take its call sites out of the census and
+    let the gate pass over code it never read.
+    """
+    pkg = tmp_path / "src" / "pkg"
+    pkg.mkdir(parents=True)
+    (pkg / "ok.py").write_text("x = 1\n", encoding="utf-8")
+    (pkg / "broken.py").write_bytes(broken)
+
+    with pytest.raises(AssertionError, match=r"src/pkg/broken\.py"):
+        scan_load_meta_call_sites(tmp_path / "src")

@@ -463,11 +463,13 @@ def scan_inline_meta_reads(src_root: Path) -> list[InlineMetaReadSite]:
 
 
 def _scan_file_for_inline_meta_reads(path: Path, rel: str) -> list[InlineMetaReadSite]:
-    source = path.read_text(encoding="utf-8")
     try:
+        source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return []
+    except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+        # Fail closed (#4362): a skipped file would drop its inline reads from
+        # the census and let the gate pass over unread code.
+        raise AssertionError(f"inline meta-read scanner cannot read {rel}: {exc}") from exc
     parents = _parent_map(tree)
     bindings = _collect_json_import_bindings(tree)
     token_map = code_tokens_by_line(source)
@@ -1131,3 +1133,19 @@ def test_gate_runs_under_fast_tier_budget() -> None:
     scan_inline_meta_reads(SRC_ROOT)
     elapsed = time.monotonic() - start
     assert elapsed < 30.0, f"inline meta-read scans took {elapsed:.2f}s (>30s budget)"
+
+
+@pytest.mark.parametrize("broken", [b"def broken(:\n", b"\xff\xfe x = 1\n"], ids=["syntax-error", "undecodable"])
+def test_scanner_fails_closed_on_unparseable_source(tmp_path: Path, broken: bytes) -> None:
+    """#4362: an unparseable ``src/**/*.py`` must RED the scan, never be skipped.
+
+    A silently-dropped file would take its call sites out of the census and
+    let the gate pass over code it never read.
+    """
+    pkg = tmp_path / "src" / "pkg"
+    pkg.mkdir(parents=True)
+    (pkg / "ok.py").write_text("x = 1\n", encoding="utf-8")
+    (pkg / "broken.py").write_bytes(broken)
+
+    with pytest.raises(AssertionError, match=r"src/pkg/broken\.py"):
+        scan_inline_meta_reads(tmp_path / "src")

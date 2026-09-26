@@ -137,20 +137,20 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
     """
     found: Counter[tuple[str, str]] = Counter()
     for path in sorted(src_root.rglob("*.py")):
+        rel = path.relative_to(src_root.parent).as_posix()
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (OSError, SyntaxError):  # pragma: no cover - unreadable source
-            continue
+        except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+            # Fail closed (#4362): a skipped file would drop its call sites
+            # from the census and let the gate pass over unread code.
+            raise AssertionError(f"load_meta census cannot read {rel}: {exc}") from exc
         bindings = _local_bindings(tree)
         quals = _qualname_by_line(tree)
-        rel = path.relative_to(src_root.parent).as_posix()
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
             func = node.func
-            is_call = (isinstance(func, ast.Name) and func.id in bindings) or (
-                isinstance(func, ast.Attribute) and func.attr == _TARGET
-            )
+            is_call = (isinstance(func, ast.Name) and func.id in bindings) or (isinstance(func, ast.Attribute) and func.attr == _TARGET)
             if is_call:
                 found[(rel, quals.get(node.lineno, "<module>"))] += 1
     return found
@@ -343,7 +343,7 @@ _WP09_OWNED_FILES: frozenset[str] = frozenset(
 _ROUTE_HINT = (
     "Route it through `specify_cli.core.paths.load_meta_fail_closed` (FR-007), "
     "or -- if the site is deliberately silent about corruption -- keep "
-    "`load_meta(..., on_malformed=\"none\"/\"empty\")` and add a "
+    '`load_meta(..., on_malformed="none"/"empty")` and add a '
     "`silent-by-contract` row to _ACCOUNTED_SITES explaining why."
 )
 
@@ -370,24 +370,14 @@ def test_no_unaccounted_load_meta_call_sites() -> None:
         + f"\n\n{_ROUTE_HINT}"
     )
 
-    grew = {
-        key: (live[key], expected)
-        for key, (expected, _reason) in _ACCOUNTED_SITES.items()
-        if live.get(key, 0) > expected
-    }
+    grew = {key: (live[key], expected) for key, (expected, _reason) in _ACCOUNTED_SITES.items() if live.get(key, 0) > expected}
     assert not grew, (
         "EXTRA `load_meta` call(s) added inside an already-accounted function:\n"
-        + "\n".join(
-            f"  {rel}::{qual}  live={got} accounted={exp}" for (rel, qual), (got, exp) in sorted(grew.items())
-        )
+        + "\n".join(f"  {rel}::{qual}  live={got} accounted={exp}" for (rel, qual), (got, exp) in sorted(grew.items()))
         + f"\n\n{_ROUTE_HINT}"
     )
 
-    stale = {
-        key: expected
-        for key, (expected, _reason) in _ACCOUNTED_SITES.items()
-        if live.get(key, 0) < expected
-    }
+    stale = {key: expected for key, (expected, _reason) in _ACCOUNTED_SITES.items() if live.get(key, 0) < expected}
     assert not stale, (
         "STALE _ACCOUNTED_SITES row(s): the live scan no longer finds these.\n"
         "If you just ROUTED the site, delete its row (a stale row would mask a "
@@ -402,8 +392,7 @@ def test_wp09_owned_files_retain_only_silent_sites() -> None:
     offenders = sorted(
         f"  {rel}::{qual} ({_ACCOUNTED_SITES.get((rel, qual), (0, 'UNACCOUNTED'))[1]})"
         for (rel, qual) in live
-        if rel in _WP09_OWNED_FILES
-        and _ACCOUNTED_SITES.get((rel, qual), (0, "UNACCOUNTED"))[1] != "silent-by-contract"
+        if rel in _WP09_OWNED_FILES and _ACCOUNTED_SITES.get((rel, qual), (0, "UNACCOUNTED"))[1] != "silent-by-contract"
     )
     assert not offenders, "WP09-owned files still hold non-silent `load_meta` sites:\n" + "\n".join(offenders)
 
@@ -640,9 +629,7 @@ def _reader_ids() -> list[str]:
     ("scenario", "payload"),
     [("corrupt-json", _CORRUPT_META), ("non-dict-json", _NON_DICT_META)],
 )
-def test_routed_reader_fails_closed(
-    tmp_path: Path, reader: RoutedReader, scenario: str, payload: str
-) -> None:
+def test_routed_reader_fails_closed(tmp_path: Path, reader: RoutedReader, scenario: str, payload: str) -> None:
     """NFR-003: a routed reader answers typed-or-sentinel — never raw ValueError.
 
     Each case invokes the REAL product function at a routed census site (not a
@@ -654,10 +641,7 @@ def test_routed_reader_fails_closed(
     try:
         result = reader.invoke(feature_dir)
     except MissionMetaReadError:
-        assert reader.outcome == _RAISES_TYPED, (
-            f"{reader.label} ({scenario}) raised MissionMetaReadError but its "
-            f"declared contract is {reader.outcome!r}"
-        )
+        assert reader.outcome == _RAISES_TYPED, f"{reader.label} ({scenario}) raised MissionMetaReadError but its declared contract is {reader.outcome!r}"
         return
     except ValueError as exc:  # noqa: TRY302 - the assertion IS the point
         # MissionMetaReadError is a RuntimeError, so it never lands here. A raw
@@ -668,24 +652,31 @@ def test_routed_reader_fails_closed(
             f"MissionMetaReadError (or its own typed domain error), never ValueError."
         )
     except BaseException as exc:  # noqa: BLE001 - classify anything else explicitly
-        assert reader.outcome == _RAISES_DOMAIN and reader.domain_exc is not None, (
-            f"{reader.label} ({scenario}) raised unexpected {type(exc).__name__}: {exc}"
-        )
+        assert reader.outcome == _RAISES_DOMAIN and reader.domain_exc is not None, f"{reader.label} ({scenario}) raised unexpected {type(exc).__name__}: {exc}"
         assert isinstance(exc, reader.domain_exc), (
-            f"{reader.label} ({scenario}) raised {type(exc).__name__}, "
-            f"expected the declared domain error {reader.domain_exc.__name__}"
+            f"{reader.label} ({scenario}) raised {type(exc).__name__}, expected the declared domain error {reader.domain_exc.__name__}"
         )
-        assert not isinstance(exc, ValueError), (
-            f"NFR-003 VIOLATION: {reader.label} ({scenario}) domain error "
-            f"{type(exc).__name__} subclasses ValueError"
-        )
+        assert not isinstance(exc, ValueError), f"NFR-003 VIOLATION: {reader.label} ({scenario}) domain error {type(exc).__name__} subclasses ValueError"
         return
     else:
         assert reader.outcome == _RETURNS, (
-            f"{reader.label} ({scenario}) returned {result!r} but its declared "
-            f"contract is {reader.outcome!r} (it should have raised)"
+            f"{reader.label} ({scenario}) returned {result!r} but its declared contract is {reader.outcome!r} (it should have raised)"
         )
         if reader.expected is not None or reader.label.endswith("_resolve_mission_from_feature"):
-            assert result == reader.expected, (
-                f"{reader.label} ({scenario}) returned {result!r}, expected {reader.expected!r}"
-            )
+            assert result == reader.expected, f"{reader.label} ({scenario}) returned {result!r}, expected {reader.expected!r}"
+
+
+@pytest.mark.parametrize("broken", [b"def broken(:\n", b"\xff\xfe x = 1\n"], ids=["syntax-error", "undecodable"])
+def test_scanner_fails_closed_on_unparseable_source(tmp_path: Path, broken: bytes) -> None:
+    """#4362: an unparseable ``src/**/*.py`` must RED the scan, never be skipped.
+
+    A silently-dropped file would take its call sites out of the census and
+    let the gate pass over code it never read.
+    """
+    pkg = tmp_path / "src" / "pkg"
+    pkg.mkdir(parents=True)
+    (pkg / "ok.py").write_text("x = 1\n", encoding="utf-8")
+    (pkg / "broken.py").write_bytes(broken)
+
+    with pytest.raises(AssertionError, match=r"src/pkg/broken\.py"):
+        scan_load_meta_call_sites(tmp_path / "src")

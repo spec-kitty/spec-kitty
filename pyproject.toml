@@ -2450,7 +2450,6 @@ exclude = [
     "tests/specify_cli/test_logging_bootstrap.py",
     "tests/specify_cli/test_meta_fail_closed_batch_a.py",
     "tests/specify_cli/test_meta_fail_closed_degradation_paths.py",
-    "tests/specify_cli/test_meta_fail_closed_full_census_contract.py",
     "tests/specify_cli/test_meta_read_permission_denied_regression.py",
     "tests/specify_cli/test_mid8_direct_routing.py",
     "tests/specify_cli/test_mission_brief_missing_vs_corrupt.py",
