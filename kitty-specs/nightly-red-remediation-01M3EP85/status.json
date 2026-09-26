@@ -1,7 +1,7 @@
 {
-  "event_count": 28,
-  "last_event_id": "01M3ESWCES3BNCQV2F8RKET5EE",
-  "materialized_at": "2026-09-26T12:08:47.321708+00:00",
+  "event_count": 29,
+  "last_event_id": "01M3ESWPV08CM489PCF0QDCWZ6",
+  "materialized_at": "2026-09-26T12:08:57.952834+00:00",
   "mission_number": "",
   "mission_slug": "nightly-red-remediation-01M3EP85",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -61,7 +61,8 @@
       "last_transition_at": "2026-09-26T12:08:47.321708+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Re-pinned test_merge_lane_planning_data_loss.py: A materialize coord worktree (#4959) + canonical case-preserved mid8; B stub reconciliation claim for MagicMock manifest (#5001, per 26be43c804); C2 lanes manifest mission_id=None (LanesManifest invariant). 7 red -> 13/13 green. No product change."
+        "Re-pinned test_merge_lane_planning_data_loss.py: A materialize coord worktree (#4959) + canonical case-preserved mid8; B stub reconciliation claim for MagicMock manifest (#5001, per 26be43c804); C2 lanes manifest mission_id=None (LanesManifest invariant). 7 red -> 13/13 green. No product change.",
+        "Review passed: 13/13 in test_merge_lane_planning_data_loss.py. T005 coord worktree materialized via local helper mirroring 42adce94, in all 4 retention tests, assertions untouched. mid8 .lower() removal is correct, fixture bug: resolve_mid8 returns mission_id[:8] case-preserved, _MID8_RE is uppercase Crockford, no src path lowercases mid8. T006 stubs only in wp_order test, appended last, cites 26be43c804. T007 mission_id=None, gate unstubbed. ruff check clean; file is in [tool.ruff.format].exclude (pyproject:1640, shrink-only ratchet) so whole-repo format check stays green. Anti-pattern checklist 1-8 PASS/N/A. Test-only diff, only owned file."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -116,17 +117,17 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M3ESVGSXKECJEDKCDFK0VMDC",
-      "last_transition_at": "2026-09-26T12:08:19.005079+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M3ESWPV08CM489PCF0QDCWZ6",
+      "last_transition_at": "2026-09-26T12:08:57.952834+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Re-pinned 12 red merge-path integration tests (+ perf resume budget): cause B/C1 stub _capture_reconciliation_claim + _phase_reconcile_before_teardown per 26be43c804 (#5001/#4982; appended last in test_merge_resume._patches); cause C3 seeds WP01 approved via real status emit (#4764). 6 files: 23 passed/1 perf-skipped; perf 1 passed (<1s vs 30s). Test-only, no skip/xfail."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 16970,
-      "shell_pid_created_at": "1790423909.91",
+      "role": "reviewer",
+      "shell_pid": 32529,
+      "shell_pid_created_at": "1790424533.89",
       "subtasks": {
         "T012": "done",
         "T013": "done",
