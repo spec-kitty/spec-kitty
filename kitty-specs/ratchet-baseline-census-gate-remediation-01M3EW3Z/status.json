@@ -1,7 +1,7 @@
 {
-  "event_count": 30,
-  "last_event_id": "01M3F78MCE771RDCK7W3TYTB57",
-  "materialized_at": "2026-09-26T16:02:40.142943+00:00",
+  "event_count": 32,
+  "last_event_id": "01M3F7B28W1WTTD4EKE28Z5SM1",
+  "materialized_at": "2026-09-26T16:03:59.900053+00:00",
   "mission_number": "",
   "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 4,
+    "in_progress": 5,
     "in_review": 1,
-    "planned": 7
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -131,11 +131,15 @@
       "shell_pid_created_at": "1790438227.42"
     },
     "WP09": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M3F12E4EQ8J0CGN93ZQG75WA",
-      "last_transition_at": "2026-09-26T14:14:25.678872+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M3F7B28W1WTTD4EKE28Z5SM1",
+      "last_transition_at": "2026-09-26T16:03:59.900053+00:00",
+      "shell_pid": 9264,
+      "shell_pid_created_at": "1790438590.35"
     },
     "WP10": {
       "actor": "finalize-tasks",
@@ -156,7 +160,8 @@
       "last_transition_at": "2026-09-26T16:02:40.142943+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "RED dd6c44b7 (guard: 15 names missing; setup-plan 0/16 planned). Commits: move 1fc09315 (verbatim, color-moved pure; E402 noqa x2 removed), format 1c3e6334, rename 466660ca, refs 0855a532. Node sets vs real 3717c7ea checkout: board-authority 16=16, oracle 8=8, diffs empty. _bridge_oracle.py diff empty; ledger_results + 8 oracle tests byte-identical (ast). setup-plan grep ledger_results=0. board-authority 19 passed (132s contended; NFR-004 recorded not asserted). Oracle suite bridge_parity+decide_next+tests/next: 617 passed 1 skipped. test-fast: 2305 passed, 4 failed pre-existing (red on lane base 8f9eb8a9: test_agent_commands freshness OSError, 3x test_charter_json_error_contract). ruff check/format 0; mypy 0 in owned files (pre-existing tests/lane_test_utils.py:82 no-any-return)."
+        "RED dd6c44b7 (guard: 15 names missing; setup-plan 0/16 planned). Commits: move 1fc09315 (verbatim, color-moved pure; E402 noqa x2 removed), format 1c3e6334, rename 466660ca, refs 0855a532. Node sets vs real 3717c7ea checkout: board-authority 16=16, oracle 8=8, diffs empty. _bridge_oracle.py diff empty; ledger_results + 8 oracle tests byte-identical (ast). setup-plan grep ledger_results=0. board-authority 19 passed (132s contended; NFR-004 recorded not asserted). Oracle suite bridge_parity+decide_next+tests/next: 617 passed 1 skipped. test-fast: 2305 passed, 4 failed pre-existing (red on lane base 8f9eb8a9: test_agent_commands freshness OSError, 3x test_charter_json_error_contract). ruff check/format 0; mypy 0 in owned files (pre-existing tests/lane_test_utils.py:82 no-any-return).",
+        "reviewer-renata: APPROVED. Base 3717c7ea collected independently (24 nodes): head new module = 16 base func[param] IDs (guards excl.), oracle = 8, both diffs empty. RED dd6c44b7 reproduced: 2 failed (15 names missing; 0 planned by --setup-plan), 1 passed, no ImportError. Move commit 1fc09315 verbatim (all 27 moved defs AST-identical to base). _bridge_oracle.py diff empty; ledger_results + 8 oracle tests byte-identical; _build_* diffs are call-site renames only. No unused imports/stragglers; ruff check/format clean; mypy 0 in owned files (21 pre-existing followed-import errors, same on base); no suppressions added; scope = 5 mapped files. Non-blocking: recorded duration 132s (contended box) exceeds the <60s NFR-004 target; recorded not asserted per WP, so re-measure on an idle box at mission review."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
