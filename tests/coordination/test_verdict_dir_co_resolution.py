@@ -42,6 +42,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from tests.architectural._ast_scan import parse_source
 from tests.integration.coord_topology_fixture import (  # noqa: F401
     CoordTopologyContext,
     FlatTopologyContext,
@@ -231,10 +232,7 @@ def _positional_arity_violations(tree: ast.AST, *, source_label: str) -> list[st
 
 
 def _check_source(text: str, *, source_label: str) -> list[str]:
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return []
+    tree = parse_source(text, display=source_label)
     return _kind_keyword_violations(tree, source_label=source_label) + _positional_arity_violations(
         tree, source_label=source_label
     )

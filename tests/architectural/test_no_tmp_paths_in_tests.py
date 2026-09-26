@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from tests.architectural._ast_scan import read_source
 
 pytestmark = pytest.mark.architectural
 
@@ -28,10 +29,7 @@ def scan_file_for_tmp_literal(path: Path) -> list[int]:
     """Return 1-based lines containing the forbidden shared-temp literal."""
     if not path.is_file():
         return []
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except (UnicodeDecodeError, OSError):
-        return []
+    lines = read_source(path).splitlines()
     return [line for line, text in enumerate(lines, start=1) if _TMP_LITERAL in text]
 
 
@@ -84,10 +82,7 @@ def test_no_evasion_roots_in_live_test_corpus() -> None:
     assert files, "evasion scan collected zero Python files"
     violations: list[tuple[str, str, int]] = []
     for path in files:
-        try:
-            lines = path.read_text(encoding="utf-8").splitlines()
-        except (UnicodeDecodeError, OSError):
-            continue
+        lines = read_source(path).splitlines()
         for lineno, line in enumerate(lines, start=1):
             literal = _line_has_evasion_root_literal(line)
             if literal is not None:

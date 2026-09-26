@@ -55,6 +55,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_source, read_source
 from tests.architectural._placement_whole_tree_scan import (
     BOUNDARY_SANCTIONED_MODULES,
     BOUNDARY_SANCTIONED_PREFIXES,
@@ -693,10 +694,7 @@ def _scan_checkout_grammar(source: str, path: Path) -> list[_CheckoutGrammarFind
     facade's OWN definition body (``safe_commit``/``write_meta``) from
     scanning -- a definition is not a call site.
     """
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return []
+    tree = parse_source(source, display=str(path))
     parents = _checkout_grammar_parent_map(tree)
     findings: list[_CheckoutGrammarFinding] = []
     for node in ast.walk(tree):
@@ -721,7 +719,7 @@ def _scan_checkout_grammar(source: str, path: Path) -> list[_CheckoutGrammarFind
 
 
 def _scan_checkout_grammar_module(path: Path) -> list[_CheckoutGrammarFinding]:
-    return _scan_checkout_grammar(path.read_text(encoding="utf-8"), path)
+    return _scan_checkout_grammar(read_source(path), path)
 
 
 #: Tracked-VISIBLE content-descriptor allow-list (squad H-1/H-4/L-2,

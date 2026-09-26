@@ -37,6 +37,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from tests.architectural._ast_scan import parse_source
 
 pytestmark = pytest.mark.architectural
 
@@ -148,10 +149,7 @@ class _FlattenFinding:
 
 
 def _scan_source_for_full_flatten(source: str, path: Path) -> list[_FlattenFinding]:
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return []
+    tree = parse_source(source, display=str(path))
     findings: list[_FlattenFinding] = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _is_full_three_mutation_flatten(

@@ -59,6 +59,7 @@ import hashlib
 from dataclasses import dataclass
 
 from specify_cli.contracts.anchoring import code_tokens_by_line
+from tests.architectural._ast_scan import parse_source
 
 __all__ = [
     "ModuleQualifiedSymbolIdentity",
@@ -162,11 +163,11 @@ def _hash_token_span(source: str, span: tuple[int, int]) -> str:
 
 def body_hash_for_definition(source: str, bare_name: str) -> str | None:
     """Return the normalized body-hash for ``bare_name``'s definition site in
-    ``source``, or ``None`` if no definition/re-export binding is found."""
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return None
+    ``source``, or ``None`` if no definition/re-export binding is found.
+
+    Unparseable ``source`` fails closed (``UnparseableSourceError``, #5139).
+    """
+    tree = parse_source(source, display="<symbol-identity source>")
     span = definition_span(tree, bare_name)
     if span is None:
         return None

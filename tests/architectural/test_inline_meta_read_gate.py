@@ -43,6 +43,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.architectural._ast_scan import parse_file
 from tests.architectural._ratchet_keys import code_tokens_by_line
 
 pytestmark = pytest.mark.architectural
@@ -569,11 +570,7 @@ def _count_kernel_l1_meta_decoders(src_root: Path) -> int:
     l1_path = src_root.parent / _FR010_KERNEL_L1_REL
     if not l1_path.exists():
         return 0
-    source = l1_path.read_text(encoding="utf-8")
-    try:
-        tree = ast.parse(source, filename=str(l1_path))
-    except SyntaxError:  # pragma: no cover - kernel L1 is always parseable
-        return 0
+    tree = parse_file(l1_path, display=_FR010_KERNEL_L1_REL)
     bindings = _collect_json_import_bindings(tree)
     return sum(
         1 for node in ast.walk(tree) if isinstance(node, ast.Call) and node.args and (_is_json_loads_call(node, bindings) or _is_json_load_call(node, bindings))

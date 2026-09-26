@@ -88,6 +88,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_source, read_source
+
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -218,13 +220,11 @@ def scan_python_source(
     the whole file, which would also light up docstrings/comments): a
     ``patch(...)`` call's target string (dotted form), and a string element
     of any ``list``/``tuple``/``set`` display (path form -- the allowlist
-    census shape). A syntactically invalid source yields ``[]``: a broken
-    file is another gate's problem, not this one's.
+    census shape). A syntactically invalid source fails closed
+    (:class:`~tests.architectural._ast_scan.UnparseableSourceError`, #5139):
+    a file the gate cannot parse is a file it never checked.
     """
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return []
+    tree = parse_source(source, display=relpath)
     found: list[StaleReference] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and _is_patch_call(node):
@@ -273,10 +273,7 @@ def collect_python_stale_references(
             relpath = _relpath(path, repo_root=repo_root)
             if _is_archived(relpath):
                 continue
-            try:
-                text = path.read_text(encoding="utf-8")
-            except (UnicodeDecodeError, OSError):
-                continue
+            text = read_source(path, display=relpath)
             # Cheap pre-filter: any match requires this literal substring
             # somewhere in the file, so files without it never pay for an
             # ast.parse (NFR-002 -- keeps this gate comfortably sub-5s).

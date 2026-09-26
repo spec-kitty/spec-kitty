@@ -190,6 +190,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -371,14 +373,7 @@ def _classify(node: ast.Call) -> SinkKind | None:
 
 def _find_sinks(path: Path, root: Path) -> list[SinkSite]:
     """Every sink call in *path*, with ``relpath`` taken relative to *root*."""
-    try:
-        source = path.read_text(encoding="utf-8")
-    except OSError:  # pragma: no cover - defensive
-        return []
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:  # pragma: no cover - a louder problem than this rule
-        return []
+    tree = parse_file(path)
 
     relpath = path.relative_to(root).as_posix()
     sites: list[SinkSite] = []
@@ -1213,14 +1208,7 @@ def _find_fr015_candidates(path: Path, root: Path) -> list[SinkSite]:
     tracking that ``_find_sinks`` does not do, specifically so the FR-015
     false-positive count is measurable without restructuring the real gate.
     """
-    try:
-        source = path.read_text(encoding="utf-8")
-    except OSError:  # pragma: no cover - defensive
-        return []
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:  # pragma: no cover - a louder problem than this rule
-        return []
+    tree = parse_file(path)
 
     relpath = path.relative_to(root).as_posix()
     sites: list[SinkSite] = []
@@ -1919,14 +1907,7 @@ def _references_symbol(path: Path, symbol: str) -> bool:
     immune to the explanatory comments the forbidden modules carry (see the
     module-level note above); a text-matching gate would not be.
     """
-    try:
-        source = path.read_text(encoding="utf-8")
-    except OSError:
-        return False
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:  # pragma: no cover - a louder problem than this rule
-        return False
+    tree = parse_file(path)
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and node.id == symbol:
             return True
@@ -1946,10 +1927,7 @@ def _imports_issuer_target_decision(path: Path) -> bool:
     PLC0415``), so this walks the whole tree rather than only top-level
     statements.
     """
-    try:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    except (OSError, SyntaxError):  # pragma: no cover - a louder problem than this rule
-        return False
+    tree = parse_file(path)
     for node in ast.walk(tree):
         if not isinstance(node, ast.ImportFrom) or node.module is None:
             continue

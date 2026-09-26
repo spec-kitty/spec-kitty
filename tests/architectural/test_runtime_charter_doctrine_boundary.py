@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file, read_source
 from tests.architectural.test_doctrine_census import (
     EXEMPT_MANAGEMENT_SURFACE,
     _doctrine_paths,
@@ -62,10 +63,7 @@ def test_runtime_has_no_direct_doctrine_imports() -> None:
     for path in _iter_runtime_python_files():
         if _is_exempt_subpackage(path):
             continue
-        try:
-            source = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
+        source = read_source(path)
         if _has_module_level_doctrine_import(source):
             violators.append(_rel_to_repo(path))
 
@@ -228,14 +226,7 @@ class _LazyDoctrineVisitor(ast.NodeVisitor):
 
 def _file_lazy_doctrine_paths(path: Path) -> set[str]:
     """Exact lazy (nested, non-TYPE_CHECKING) doctrine import modules in a file."""
-    try:
-        source = path.read_text(encoding="utf-8")
-    except OSError:
-        return set()
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return set()
+    tree = parse_file(path)
     visitor = _LazyDoctrineVisitor()
     visitor.visit(tree)
     return visitor.paths
@@ -337,10 +328,7 @@ def _source_side_laundering() -> dict[str, frozenset[str]]:
     """Map each management-surface module → the doctrine symbols it launders."""
     result: dict[str, frozenset[str]] = {}
     for path in sorted(_EXEMPT_SUBPACKAGE.rglob("*.py")):
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except (OSError, SyntaxError):
-            continue
+        tree = parse_file(path)
         laundered = _laundered_symbols(tree)
         if laundered:
             result[_rel_to_repo(path)] = frozenset(laundered)

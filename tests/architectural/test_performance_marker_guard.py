@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING
 import pytest
 import yaml
 
+from tests.architectural._ast_scan import UnparseableSourceError, read_and_parse
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -258,13 +260,15 @@ def _is_exempt_from_the_test_tree_walk(path: Path) -> bool:
 
 
 def _iter_performance_marked_test_sources(root: Path) -> Iterable[tuple[Path, str]]:
-    """Yield ``(path, source)`` for every real, parseable ``test_*.py`` under ``root``.
+    """Yield ``(path, source)`` for every real ``test_*.py`` under ``root``.
 
     Bounded and non-flaky by construction: a plain ``rglob("test_*.py")``
-    glob (no recursive AST traversal beyond ``ast.parse`` per file), a
-    ``try/except`` around read + parse so one unreadable or syntactically
-    broken file never aborts the whole walk, and an explicit, reviewed
-    exemption list. This is purely ADDITIVE plumbing -- it never changes the
+    glob (no recursive AST traversal beyond ``ast.parse`` per file) and an
+    explicit, reviewed exemption list. A file that cannot be read, decoded,
+    or parsed fails the walk closed
+    (:class:`~tests.architectural._ast_scan.UnparseableSourceError`, #5139)
+    rather than silently dropping out of the census -- pytest collection only
+    covers the files a given run collects, so it is no substitute. This is purely ADDITIVE plumbing -- it never changes the
     pure ``find_functional_assertions_under_performance_marker(source)``
     contract callers (including ``test_timing_coverage_invariant.py``)
     depend on; callers still pass it source text themselves.
@@ -272,11 +276,7 @@ def _iter_performance_marked_test_sources(root: Path) -> Iterable[tuple[Path, st
     for path in sorted(root.rglob("test_*.py")):
         if _is_exempt_from_the_test_tree_walk(path):
             continue
-        try:
-            source = path.read_text(encoding="utf-8")
-            ast.parse(source)
-        except (SyntaxError, UnicodeDecodeError, OSError):
-            continue
+        source, _tree = read_and_parse(path)
         yield path, source
 
 
@@ -302,12 +302,13 @@ def test_iter_performance_marked_test_sources_catches_a_planted_real_mismark(tmp
     assert violations, "the additive real-tree walk must flag a planted real mismark"
 
 
-def test_iter_performance_marked_test_sources_skips_unparseable_files(tmp_path: Path) -> None:
-    """Bounded walk: a syntax error in one file does not abort the whole scan."""
+def test_iter_performance_marked_test_sources_fails_closed_on_unparseable_files(tmp_path: Path) -> None:
+    """Fail-closed walk (#5139): a syntax error names the file instead of vanishing from the scan."""
     fake_tree = tmp_path / "tests"
     fake_tree.mkdir()
     (fake_tree / "test_broken_syntax.py").write_text("def broken(:\n", encoding="utf-8")
-    assert list(_iter_performance_marked_test_sources(fake_tree)) == []
+    with pytest.raises(UnparseableSourceError, match="test_broken_syntax.py"):
+        list(_iter_performance_marked_test_sources(fake_tree))
 
 
 def test_iter_performance_marked_test_sources_only_visits_test_files(tmp_path: Path) -> None:

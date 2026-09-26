@@ -50,6 +50,8 @@ from unittest.mock import patch
 import pytest
 import yaml
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = [pytest.mark.architectural]
 
 
@@ -301,10 +303,7 @@ def reached_doctrine_paths() -> dict[str, set[str]]:
     for path in sorted(p for root in _SCAN_ROOTS for p in root.rglob("*.py")):
         if _is_exempt(path):
             continue
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except (OSError, SyntaxError):
-            continue
+        tree = parse_file(path)
         visitor = _ReachVisitor()
         for child in tree.body:
             visitor.visit(child)

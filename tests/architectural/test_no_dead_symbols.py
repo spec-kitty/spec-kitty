@@ -107,6 +107,7 @@ from specify_cli.ast_analysis.imports import (
     extract_static_all as _extract_all_literal,
     module_of_import_from as _resolve_import_from,
 )
+from tests.architectural._ast_scan import read_and_parse
 from tests.architectural._symbol_key import (
     CorpusModule,
     Location,
@@ -3139,11 +3140,7 @@ def _walk_modules() -> tuple[
     path_to_tree: dict[Path, ast.Module] = {}
     corpus: dict[str, CorpusModule] = {}
     for path in _iter_src_python_files():
-        source = path.read_text(encoding="utf-8")
-        try:
-            tree = ast.parse(source)
-        except SyntaxError:  # pragma: no cover - defensive
-            continue
+        source, tree = read_and_parse(path)
         dotted = _module_dotted(path)
         path_to_dotted[path] = dotted
         path_to_tree[path] = tree

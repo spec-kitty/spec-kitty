@@ -83,6 +83,7 @@ INVENTORY_PATH = _THIS.parent / "inventory.md"
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from tests.architectural._ast_scan import parse_file  # noqa: E402 — after sys.path bootstrap
 from tests.architectural._ratchet_keys import (  # noqa: E402 — after sys.path bootstrap
     composite_key_from_file,
 )
@@ -355,11 +356,8 @@ def _find_raw_bypasses(tree: ast.AST, rel_path: str) -> list[ResolutionRow]:
 def _audit_file(path: Path) -> list[ResolutionRow]:
     """Audit one source file; return discovered resolution callsites."""
     rel = _rel(path)
-    try:
-        source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source, filename=str(path))
-    except (SyntaxError, OSError):
-        return []
+    # Fails closed on an unreadable/unparseable file (#5139) — never a silent [].
+    tree = parse_file(path)
 
     rows: list[ResolutionRow] = []
     # Track blessed resolver calls only within the canonical seam source files.
@@ -462,10 +460,7 @@ def discover_selection_callsites() -> list[SelectionRow]:
         for path in sorted(src_root.rglob("*.py")):
             if "__pycache__" in path.parts:
                 continue
-            try:
-                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            except (SyntaxError, OSError):
-                continue
+            tree = parse_file(path)
             rows.extend(_find_selection_calls(tree, _rel(path)))
     rows.sort(key=lambda r: (r.rel_path, r.line))
     return rows

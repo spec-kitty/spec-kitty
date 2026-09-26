@@ -68,6 +68,7 @@ from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
 from spec_kitty_events.diary import _RUNTIME_SLOTS
 from specify_cli.status.store import append_event
 from specify_cli.task_utils import WorkPackage
+from tests.architectural._ast_scan import parse_file
 
 pytestmark = pytest.mark.architectural
 
@@ -490,10 +491,7 @@ def _derive_reader_authority_modules(root: Path) -> set[str]:
     site; a NEW one of any class auto-joins."""
     derived: set[str] = set()
     for path in _iter_root_modules(root):
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except SyntaxError:
-            continue
+        tree = parse_file(path)
         if (
             _reads_dynamic_field_via_extract_scalar(tree)
             or _reads_dynamic_field_via_attribute_access(tree)
@@ -546,10 +544,7 @@ def test_no_reader_authority_gate_remains() -> None:
     root = _repo_root()
     discovered: set[str] = set()
     for path in _iter_root_modules(root):
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except SyntaxError:
-            continue
+        tree = parse_file(path)
         discovered |= _referenced_authority_gates(tree)
 
     assert discovered == set(), (

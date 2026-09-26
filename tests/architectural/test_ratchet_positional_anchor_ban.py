@@ -93,6 +93,7 @@ from specify_cli.contracts.anchoring import (
     has_diagnostic_locator_marker,
     is_file_line_anchor,
 )
+from tests.architectural._ast_scan import parse_source, read_source
 
 # FR-006: `fast` marks this sub-second gate for the fast tier; `architectural`
 # is retained as the gate's home marker. Dual-marking adds a home.
@@ -594,10 +595,7 @@ def _raw_file_line_tuple_seed_violations(
 
 def _scan_python_source(source: str, relpath: str) -> list[LineSinkViolation]:
     """Parse ``source`` once and run all Python sink-shape walkers over it."""
-    try:
-        tree = ast.parse(source, filename=relpath)
-    except SyntaxError:
-        return []
+    tree = parse_source(source, display=relpath)
     source_lines = source.splitlines()
     return (
         _call_arg_line_sink_violations(tree, source_lines, relpath)
@@ -609,7 +607,7 @@ def _scan_python_source(source: str, relpath: str) -> list[LineSinkViolation]:
 
 def _scan_python_file(path: Path) -> list[LineSinkViolation]:
     relpath = path.relative_to(_REPO_ROOT).as_posix()
-    return _scan_python_source(path.read_text(encoding="utf-8"), relpath)
+    return _scan_python_source(read_source(path, display=relpath), relpath)
 
 
 def _iter_architectural_python_files() -> list[Path]:

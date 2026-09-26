@@ -78,6 +78,7 @@ import pytest
 from specify_cli.ast_analysis.imports import (
     module_of_import_from as _resolve_import_from,
 )
+from tests.architectural._ast_scan import parse_file
 
 
 pytestmark = [pytest.mark.architectural]
@@ -804,15 +805,11 @@ def test_no_new_dead_modules_under_src() -> None:
 
     # Build the import index over ALL src files (including __init__/__main__,
     # since they perform package-level imports that legitimately wire
-    # submodules) but excluding files we can't parse.
+    # submodules). A file that cannot be read or parsed fails closed (#5139):
+    # skipping it would drop its imports and fabricate orphans.
     file_imports: list[tuple[Path, list[tuple[str, str, tuple[str, ...] | None]]]] = []
     for path in _iter_src_python_files():
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except (SyntaxError, OSError):
-            # A parse failure is a different defect; skip rather than
-            # mask the no-dead-modules signal.
-            continue
+        tree = parse_file(path)
         containing_pkg = _package_of(path)
         file_imports.append((path, _collect_import_targets(tree, containing_pkg)))
 

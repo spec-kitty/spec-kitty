@@ -28,6 +28,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TypeVar
 
+from tests.architectural._ast_scan import parse_file
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / "src"
 SPECIFY_CLI_ROOT = SRC_ROOT / "specify_cli"
@@ -45,12 +47,9 @@ def iter_py_files(root: Path) -> list[Path]:
     return sorted(p for p in root.rglob("*.py") if "__pycache__" not in p.parts)
 
 
-def parse(path: Path) -> _ast.Module | None:
-    """Parse *path*; ``None`` on a read/decode/syntax failure (never raises)."""
-    try:
-        return _ast.parse(path.read_text(encoding="utf-8"))
-    except (SyntaxError, UnicodeDecodeError, OSError):
-        return None
+def parse(path: Path) -> _ast.Module:
+    """Parse *path*; fails closed (``UnparseableSourceError``) on a read/decode/syntax failure (#5139)."""
+    return parse_file(path)
 
 
 def module_string_constants(tree: _ast.Module) -> dict[str, str]:

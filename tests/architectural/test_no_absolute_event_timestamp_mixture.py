@@ -131,6 +131,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = pytest.mark.architectural
 
 # ---------------------------------------------------------------------------
@@ -348,10 +350,7 @@ def _derive_mixtures(root: Path) -> frozenset[MixturePair]:
     pairs: set[MixturePair] = set()
     for path in sorted((root / "tests").rglob("*.py")):
         relpath = path.relative_to(root).as_posix()
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (OSError, SyntaxError):
-            continue
+        tree = parse_file(path, display=relpath)
         local_helpers = _local_helper_defs(tree)
         for qualname, func_node in _iter_test_functions(tree):
             has_hardcoded, has_now = _classify_test_function(func_node, local_helpers)

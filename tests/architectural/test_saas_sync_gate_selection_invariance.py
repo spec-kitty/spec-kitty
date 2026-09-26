@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = [pytest.mark.architectural, pytest.mark.unit]
 
 _FLAG = "SPEC_KITTY_ENABLE_SAAS_SYNC"
@@ -63,10 +65,7 @@ def _module_level_flag_writers() -> list[str]:
     for path in _TESTS_ROOT.rglob("*.py"):
         if path.relative_to(_TESTS_ROOT) in _ALLOWED_RELPATHS:
             continue
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (OSError, SyntaxError):
-            continue
+        tree = parse_file(path)
         for node in tree.body:  # module scope only — nested (in-test) writes are fine
             if _statement_writes_flag(node):
                 offenders.append(str(path.relative_to(_TESTS_ROOT)))
