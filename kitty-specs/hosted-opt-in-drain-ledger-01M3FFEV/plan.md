@@ -222,3 +222,15 @@ WP04 endpoint opt-in (independent)
 
 - Integration test (WP02): a full 9-lane walk plus a decision round-trip with every edge
   instrumented, across {ledger on/off} × {drain on/off} (NFR-001/NFR-004).
+
+## Implementation Concern Map
+
+| IC | Concern | Plan section | Requirements |
+|---|---|---|---|
+| IC-01 | Drain + ledger posture reader, writer, `DrainDisabled` | D1 | FR-001, FR-002, FR-003, FR-008, C-003 |
+| IC-02 | Drain enforcement at network edges + fan-out/producer early exits | D2 | FR-004, FR-005, FR-006, NFR-001, NFR-003, C-004, C-005 |
+| IC-03 | Non-vacuous architectural drain gate + FSM-integrity matrix | D2, Coordination Points | NFR-002, NFR-004 |
+| IC-04 | Execution-state projection refresh (write-free) + ledger floor guard | D3 | FR-009, FR-010 |
+| IC-05 | Endpoint opt-in (resolver, callers, migration) | D4 | FR-011, FR-012, FR-013 |
+| IC-06 | Operator surface (moments drain CLI, zeitgeist/MCP guidance) | D5 | FR-007, FR-005 |
+| IC-07 | ADR + docs + changelog | D5 | FR-014, FR-015 |
