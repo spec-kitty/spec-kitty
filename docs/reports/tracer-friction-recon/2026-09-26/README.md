@@ -526,7 +526,7 @@ Several premises were narrowed during triage, where part of the claim was alread
 - **#5081** (Zeitgeist approval drop): lowered to P2. The drop is real on `agent status emit --review-result-json` and the orchestrator-api transition. `move-task` always attaches evidence, and the local log stays correct.
 - **#3143**: kept at P1.
 
-**Homed.** The tracker guide treats a source-based grouping as a catch-all root, so the temporary epic #5059 did not stay the parent. Each issue was re-parented under an existing functional epic, 21 in all, listed below. #5059 was then turned into a closed, reference-only meta-tracker.
+**Homed.** The tracker guide treats a source-based grouping as a catch-all root, so the temporary epic #5059 did not stay the parent. Each issue was re-parented under an existing functional epic, 21 in all, listed below. #1931 was at GitHub's 100-sub-issue cap, so #5082 went under #1795 and #5086 under #3260, which is itself a child of #1931. #5059 was then turned into a closed, reference-only meta-tracker.
 
 **Close candidates and duplicates.**
 
@@ -567,11 +567,11 @@ Several premises were narrowed during triage, where part of the claim was alread
 | #5079 | A-34 | Bug | P3 | status:ready | #1676 |
 | #5080 | B-13 | Bug | P2 | needs-info | #1795 |
 | #5081 | B-26 | Bug | P2 | status:ready | #3890 |
-| #5082 | E-24 | Task | P2 | status:ready | #1931 |
+| #5082 | E-24 | Task | P2 | status:ready | #1795 |
 | #5083 | D-19 | Bug | P2 | status:ready | #3891 |
 | #5084 | D-34 | Task | P3 | status:ready | #1928 |
 | #5085 | D-01 | Bug | P3 | status:ready | #1931 |
-| #5086 | D-05 | Task | P3 | status:ready | #1931 |
+| #5086 | D-05 | Task | P3 | status:ready | #3260 |
 | #5087 | E-07 | Bug | P3 | needs-info | #4514 |
 | #5088 | C-22 | Bug | P3 | status:ready | #1932 |
 | #5089 | D-27 | Bug | P2 | status:ready | #2519 |
