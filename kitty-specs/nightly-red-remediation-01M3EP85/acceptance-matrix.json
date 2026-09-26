@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "combined-tree (lanes a\u2013e merged on 7dac8bab): checkout-safety fixtures seed WP01 approved; both tests pass (WP04 6c7e4dce)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T12:52:45.227983+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
