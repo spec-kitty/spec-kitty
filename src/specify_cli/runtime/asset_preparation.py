@@ -539,22 +539,37 @@ class StartupAssetError(GuardedReadError, RuntimeError):
         self.code = code
 
 
+def _startup_asset_error_hint(code: str) -> str:
+    """The actionable next step depends on WHY startup preparation could not
+    complete (FR-005/US3.1-3.3). A torn read or source drift both point at a
+    concurrency/installation-timing cause worth naming explicitly; any other
+    failure (US3.3: content "same as today") gets no fabricated concurrency
+    explanation, only a generic re-run hint.
+    """
+    if code == "asset_torn_read":
+        return (
+            "another spec-kitty process may still be installing -- re-run the command, and if it persists remove the partially-written Spec Kitty home and re-run"
+        )
+    if code == "asset_source_drift":
+        return "the installed package's assets changed while this command was running -- re-run the command, and if it persists reinstall spec-kitty"
+    return "re-run the command"
+
+
 def startup_asset_error(owner_key: str, diagnostics: tuple[Diagnostic, ...]) -> StartupAssetError:
     """Build the terminal ``StartupAssetError`` for one owner's diagnostics.
 
-    ``reason`` names the owner and joins every diagnostic message with a next
-    step (FR-005/US3.1). ``path`` is always ``None`` here: this call site only
-    ever sees ``assessment.diagnostics`` (plain message strings, never a
-    carried typed exception), and ``Diagnostic`` itself has no path field --
-    guessing one out of message text would be exactly the message-parsing
-    research D-3 rules out, so it stays unset rather than fabricated. ``code``
-    is the first diagnostic's code.
+    ``reason`` names the owner, joins every diagnostic message, and appends a
+    next-step hint that depends on the FIRST diagnostic's code (FR-005/
+    US3.1-3.3) -- see :func:`_startup_asset_error_hint`. ``path`` is always
+    ``None`` here: this call site only ever sees ``assessment.diagnostics``
+    (plain message strings, never a carried typed exception), and
+    ``Diagnostic`` itself has no path field -- guessing one out of message
+    text would be exactly the message-parsing research D-3 rules out, so it
+    stays unset rather than fabricated. ``code`` is the first diagnostic's
+    code.
     """
-    reason = (
-        f"{owner_key}: " + "; ".join(d.message for d in diagnostics) + "; another spec-kitty process may still be installing -- re-run the command, "
-        "and if it persists remove the partially-written Spec Kitty home and re-run"
-    )
     code = diagnostics[0].code if diagnostics else "global_assets_unavailable"
+    reason = f"{owner_key}: " + "; ".join(d.message for d in diagnostics) + "; " + _startup_asset_error_hint(code)
     return StartupAssetError(reason, path=None, code=code)
 
 
