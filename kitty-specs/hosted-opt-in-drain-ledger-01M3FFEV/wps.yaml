@@ -97,6 +97,8 @@ work_packages:
     dependencies: [WP06]
     owned_files:
       - "src/specify_cli/upgrade/migrations/m_4_0_0_retired_hosted_target.py"
+      - "src/specify_cli/upgrade/migrations/m_4_0_0rc5_hosted_endpoint_session_backfill.py"
+      - "tests/specify_cli/upgrade/migrations/test_hosted_endpoint_session_backfill.py"
       - "tests/specify_cli/upgrade/migrations/test_retired_hosted_target.py"
       - "tests/tracker/test_server_target_fail_closed.py"
       - "tests/specify_cli/saas_client/**"
