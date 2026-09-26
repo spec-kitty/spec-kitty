@@ -1239,7 +1239,6 @@ def _collect_authored(
 __all__ = [
     "ApprovedWpCommitSet",
     "Divergence",
-    "LaneContribution",
     "MergeOutcomeVerifier",
     "TERMINUS_ENTRY_POINTS",
     "UnroutedTerminusPathError",
@@ -1248,7 +1247,6 @@ __all__ = [
     "build_approved_wp_set",
     "clear_post_fix_marker",
     "detect_legacy_in_flight_state",
-    "is_legitimate_three_way_resolution",
     "route_terminus",
     "write_post_fix_marker",
 ]
