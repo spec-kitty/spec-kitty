@@ -1,7 +1,7 @@
 {
-  "event_count": 39,
-  "last_event_id": "01M3FAZNZW57EXD7D7ET2A06KW",
-  "materialized_at": "2026-09-26T17:07:41.180201+00:00",
+  "event_count": 40,
+  "last_event_id": "01M3FB0WTKM4VQ4W5XKF4QP293",
+  "materialized_at": "2026-09-26T17:08:20.947871+00:00",
   "mission_number": "",
   "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 1,
     "in_progress": 3,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 5
   },
   "work_packages": {
@@ -94,21 +94,21 @@
     "WP05": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "python-pedro",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M3FAZ2WMKFCE2Z3MGK14D2D4",
-      "last_transition_at": "2026-09-26T17:07:21.620087+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M3FB0WTKM4VQ4W5XKF4QP293",
+      "last_transition_at": "2026-09-26T17:08:20.947871+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review (orchestrator move; implementer handoff blocked by unrelated dirty file + lane planning-artifact drift, both cleared)."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 14790,
-      "shell_pid_created_at": "1790435264.13",
+      "role": "reviewer",
+      "shell_pid": 21011,
+      "shell_pid_created_at": "1790442452.84",
       "subtasks": {
         "T027": "done",
         "T028": "done",
