@@ -51,187 +51,187 @@ Legend: (o/c, fit) = open/closed, exact/partial/adjacent.
 
 ### C-01 — PARTIAL
 Lane worktrees have no lane-scoped interpreter; the shared editable .pth points at the PRIMARY (or another lane/clone) src, so bare python/pytest/mypy silently test the wrong code (false greens) unless PYTHONPATH=<lane>/src is prepended; WP prompts/doctrine snippets and fixtures assume a local .venv/bin/*.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-blast-radius.md:3`; `kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-blast-radius.md:24`; `kitty-specs/reconcile-flake-family-01M34HR7/tracer-tooling-friction.md:89`; `kitty-specs/verdict-matrix-rmw-preservation-01M32M9G/tracer-tooling-friction.md:35`
 - Tracer-cited: #3115
 - Gap / note: #2803 frames it as 'lane .venv missing pytest'; the tracers show most lanes have NO venv at all, WP prompt/doctrine snippets and the tests/upgrade preview_support fixture hard-code <worktree>/.venv/bin/*, and nothing fails loud when specify_cli is imported from outside the lane (import-origin guard).
 
 ### C-02 — PARTIAL
 Several spec-kitty installs coexist (uv-tool/pyenv global shim, sibling-clone editable, checkout .venv); PATH resolves a different version than the checkout, so shell-outs, record-analysis and finalize-tasks behave per a stale CLI (e.g. SK-20 charter.md vs charter.yaml hash).
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/verdict-matrix-rmw-preservation-01M32M9G/tracer-tooling-friction.md:15`; `kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/tooling-friction.md:8`; `kitty-specs/next-committed-state-authority-01M1CA8W/tracer-tooling-friction.md:9`; `kitty-specs/next-committed-state-authority-01M1CA8W/tracer-tooling-friction.md:14`
 - Tracer-cited: SK-04, SK-06, SK-20
 - Gap / note: No issue covers the core hazard that mission-lifecycle commands (record-analysis, finalize-tasks, next) and test shell-outs run whichever spec-kitty is first on PATH instead of the checkout's pinned CLI, nor a hard refusal when the running CLI version != the project's pyproject version in a dogfood checkout.
 
 ### C-03 — PARTIAL
 The shared .venv drifts from uv.lock (typer 0.26.8 vs 0.24.2, click/rich skew, missing coverage module, interrupted installs), producing false reds that missions record as 'pre-existing' (e.g. 34 phantom failures across three design phases).
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/reconcile-flake-family-01M34HR7/tracer-tooling-friction.md:104`; `kitty-specs/reconcile-flake-family-01M34HR7/tracer-tooling-friction.md:119`; `kitty-specs/up-mission-type-seam-01KZY1JB/tracer-tooling-friction.md:344`; `kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-tooling-friction.md:13`
 - Gap / note: No check at pytest session start (or in make test-fast) that the active environment matches uv.lock; the CLAUDE.md 'stale-venv false reds' gotcha is prose-only.
 
 ### C-04 — UNCOVERED
 Dev tooling is split across optional extras: a bare 'uv sync' installs neither test nor lint; mypy lives only in the lint extra; tests shell out to 'python -m ruff'/'python -m mypy' and fail with ModuleNotFoundError; radon is invoked by WP validation steps but not installed.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md:29`; `kitty-specs/reconcile-flake-family-01M34HR7/tracer-tooling-friction.md:85`; `kitty-specs/finalize-repin-orphaned-planning-commit-01M31TAT/tracer-tooling-friction.md:5`; `kitty-specs/cascade-org-inert-01M07E9P/tracer-tooling-friction.md:6`
 - Gap / note: Searched titles for extras/uv sync/radon/'No module named mypy' and semantic search on venv/extras; no issue covers the extras split or tests that depend on lint-extra tools.
 
 ### C-05 — COVERED
 Nested/unpinned 'uv run' (in two tests, scripts/docs/build_cli_reference.py and make test-fast) re-syncs or downgrades the hand-built venv mid-run and costs ~75s per invocation; 'uv run --no-sync' silently creates an empty venv when UV_PROJECT_ENVIRONMENT is missing.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-blast-radius.md:53`; `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md:729`; `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-design-decisions.md:291`; `kitty-specs/event-push-watch-channel-01M1K6W2/tracer-tooling-friction.md:8`
 - Tracer-cited: #4866, #4922, #3284
 - Gap / note: Minor residue not named in either issue: scripts/docs/build_cli_reference.py capture_help() hard-codes ('uv','run','spec-kitty'); 'uv run --no-sync' empty-venv behaviour untested.
 
 ### C-06 — COVERED
 The session-scoped isolated test_venv fixture pays a ~25-80s pip install -e per worktree (dominating short red-first runs and the golden-path budget) and, under xdist, one worker holds the build lock while siblings time out.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-approach.md:191`; `kitty-specs/event-push-watch-channel-01M1K6W2/tracer-tooling-friction.md:171`; `kitty-specs/accept-path-remediation-honesty-01M0TWZP/tracer-tooling-friction.md:203`; `kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-tooling-friction.md:5`
 - Tracer-cited: #4213, #4211, #3283
 
 ### C-07 — COVERED
 Fixed per-invocation CLI cost (global agent-command render of 13x8 templates, eager imports) inflates every shell-out, wall-clock budgets and the golden-path NFR.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-design-decisions.md:376`; `kitty-specs/next-committed-state-authority-01M1CA8W/tracer-approach.md:28`; `kitty-specs/egress-refusal-consolidation-3110-01KYW895/tracer-evidence-base.md:61`; `kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tracers/nfr005-baseline.md:27`
 - Tracer-cited: #4213, #4211, #4417, #4409, #3780, #3825
 - Gap / note: The per-call render cost itself was addressed by the freshness stamp now in src/specify_cli/runtime/agent_commands.py (_read_freshness_stamp); residual cost is tracked by #4517.
 
 ### C-08 — PARTIAL
 Full tests/architectural and heavy seam suites (tests/runtime ~10 min, tests/specify_cli ~10.5 min, 37k-node collection ~100s) exceed agent session/wall-clock budgets, so agents and reviewers cannot run them locally and push to CI to find out.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/tracer-tooling-friction.md:475`; `kitty-specs/modular-per-package-ci-01M025GV/tracers/design-decisions.md:47`; `kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-tooling-friction.md:6`; `kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-design-decisions.md:9`
 - Tracer-cited: #3283
 - Gap / note: No issue owns a bounded-time local path for tests/architectural (parallel-safe sharding, a documented 'make test-arch' target with -n auto --dist loadfile, or a changed-file-scoped selection).
 
 ### C-09 — CLOSED-ONLY
 No default per-test timeout: pytest.ini addopts lacks --timeout, so loop-driving tests hang instead of failing (pytest-timeout installed but unused outside the stress/timing passes).
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/egress-refusal-consolidation-3110-01KYW895/tracer-evidence-base.md:87`; `kitty-specs/journal-project-consent-3030-01KYKWQS/tracer-tooling-friction.md:394`
 - Tracer-cited: #3115
 - Gap / note: Residual after #3143's close: ordinary local runs and the per-PR module-tests matrix still have no per-test timeout (verified at HEAD).
 
 ### C-10 — PARTIAL
 Concurrent pytest sessions on one host interfere: shared auto-numbered /tmp/pytest-of-<user> basetemp eviction (~66 FileNotFoundErrors), daemon tests pgrep/port-scan and reap each other, collection walks a tree other agents mutate, subprocess tests import live source edited mid-run, CPU contention breaks wall-clock budgets.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md:244`; `kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/tracer-tooling-friction.md:351`; `kitty-specs/up-mission-type-seam-01KZY1JB/tracer-tooling-friction.md:649`; `kitty-specs/journal-project-consent-3030-01KYKWQS/tracer-tooling-friction.md:80`
 - Tracer-cited: #3283, #1071
 - Gap / note: No issue makes local pytest concurrency-safe across worktrees (per-session basetemp root, no machine-global process/port reaping, no scanning of other agents' scratch dirs).
 
 ### C-11 — CLOSED-ONLY
 Test-isolation leaks: process-global fixture state (tests/status _SEED_COUNTER, reset_adapters() emptying the resolver registry, shared asyncio loop), pipelines defaulting repo_root to Path.cwd() writing real .kittify artifacts, ambient context-state.json, cwd-in-worktree guards firing on the test process, gitignored generated files, ULID-window identity-collision flake.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/charter-catalog-coherence-01M2XQQF/tracer-tooling-friction.md:40`; `kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/tooling-friction.md:25`; `kitty-specs/event-push-watch-channel-01M1K6W2/tracer-tooling-friction.md:153`; `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md:195`
 - Gap / note: Residual instances are live at HEAD: tests/status/conftest.py:86 _SEED_COUNTER global; src/specify_cli/invocation/adapters.py:144 reset_adapters(); no open issue lists them.
 
 ### C-12 — PARTIAL
 Vacuous / wrong-reason green tests: suites mock the gated seam (_build_engine), autouse conftest fixtures inject consent the test did not arrange (guarded by filename tokens), arming env gates abort before the path under test, tests pin attributes production never sets, count-based acceptance is blind to predicate widening.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-red-first.md:30`; `kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/tracer-design-decisions.md:143`; `kitty-specs/tracker-egress-refusal-3108-01KYWF1R/tracer-squad-findings.md:31`; `kitty-specs/tracker-egress-refusal-3108-01KYWF1R/tracer-squad-findings.md:50`
 - Gap / note: tests/sync (the filename-token consent guard) was deleted with the sync transport, but tests/specify_cli/saas_client/conftest.py still carries a directory-level autouse premise fixture; no issue asks for an audit of autouse premise-fabricating fixtures or a positive-control requirement for refusal tests.
 
 ### C-13 — PARTIAL
 Patch-target coupling blocks refactors: from-import by-value rebinding makes patches inert after moves, ~900 legacy @patch seams force adapter subclasses/re-export facades, source-inspection tests pin literal text/except-clause shape, identity asserts pin module location.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/up-mission-type-seam-01KZY1JB/tracer-tooling-friction.md:566`; `kitty-specs/tracker-egress-refusal-3108-01KYWF1R/tracer-evidence-base.md:468`; `kitty-specs/egress-refusal-consolidation-3110-01KYW895/tracer-squad-findings.md:2087`; `kitty-specs/coord-authority-trio-degod-01KX7094/tracers/acceptance.md:14`
 - Tracer-cited: #2308
 - Gap / note: No repo-wide issue for the patch-location/source-text-inspection coupling class or for a sanctioned seam (constructor DI / seam factory) replacing module-attribute monkeypatching.
 
 ### C-14 — UNCOVERED
 Mutation evidence rots silently: mutation plugins go obsolete when patched symbols move (3 of 5 inert, TypeErrors counted as kills), the CI mutation job is disabled, and guard predicates live inline in test bodies so they cannot be mutated.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-tooling-friction.md:8`; `kitty-specs/egress-refusal-consolidation-3110-01KYW895/tracer-squad-findings.md:2141`; `kitty-specs/journal-project-consent-3030-01KYKWQS/tracer-tooling-friction.md:203`
 - Gap / note: Searched titles for mutation/mutant and a semantic query on vacuous tests/mutation; nothing covers plugin self-verification or re-enabling a CI mutation lane.
 
 ### C-15 — COVERED
 Architectural marker/gate runs are vacuous under a dotted checkout path (.worktrees/): a green run inside an execution worktree scans nothing.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/test-suite-friction-remediation-01KXDKBX/tracer-tooling-friction.md:10`; `kitty-specs/mission-resolver-port-01KX1C05/tracer-tooling-friction.md:9`
 
 ### C-16 — PARTIAL
 Baseline-red churn: every mission re-measures pre-existing reds (100-1700s runs, off-by-one narratives, ambiguous 'fast/unit' selector giving 1666/325 vs 1621/380) because there is no canonical, machine-readable known-red ledger keyed to a main commit.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-design-decisions.md:876`; `kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/tooling-friction.md:27`; `kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-design-decisions.md:200`; `kitty-specs/design-phase-orchestrator-api-01M1HE6M/tracer-tooling-friction.md:27`
 - Tracer-cited: #4916, #4669, #4986, #3284, #2782, #2182
 - Gap / note: Reds are tracked one issue at a time; nothing gives missions a single queryable 'known red at <sha>' set (nightly-produced) nor pins the literal fast-tier selector missions must quote.
 
 ### C-17 — UNCOVERED
 Quarantined tests run nowhere: since ci-quality.yml's quarantine job was retired (planning#57) no workflow runs -m quarantine, so quarantined tests rot invisibly (31 fail on CI vs 16 locally; a relocated literal-presence test broke 4/6 assertions while dark).
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/refactor-stable-gate-substrate-01KWK3FY/tracers/design-decisions.md:56`; `kitty-specs/refactor-stable-gate-substrate-01KWK3FY/tracers/tooling-friction.md:16`; `kitty-specs/tasks-py-degod-wave2-01KWH9EQ/tracers/tooling-friction.md:33`
 - Tracer-cited: #2308, #2057, #2059
 - Gap / note: Verified at HEAD: grep for 'quarantine' in .github/workflows/*.yml returns nothing, and tests/architectural/test_quarantine_marker.py documents that the non-blocking-job check was removed. Semantic search on quarantine rot found no open issue.
 
 ### C-18 — PARTIAL
 Marker/tier taxonomy traps: function-level markers stack on module pytestmark (a git_repo test under a fast module is mis-tiered), a second file-path-keyed shard authority (_next_shard_map), stale marker-registry references, warnings.warn used as a reporting channel polluting output.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-tooling-friction.md:157`; `kitty-specs/event-push-watch-channel-01M1K6W2/tracer-tooling-friction.md:129`; `kitty-specs/design-phase-orchestrator-api-01M1HE6M/tracer-tooling-friction.md:107`; `kitty-specs/relocation-hardened-dead-code-scanners-01KX958P/tracers/warning-remediation.md:7`
 - Tracer-cited: #3241
 - Gap / note: Marker stacking (module fast + function git_repo both apply) is not guarded anywhere; no issue for warnings-as-reporting noise.
 
 ### C-19 — COVERED
 Pre-review regression gate uses a fixed, non-tunable 300s budget (CAPTURE_BASELINE_TIMEOUT_SECONDS) over a scope whose subset alone takes ~634s, blocking for_review on broad WPs even when tests pass.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md:441`; `kitty-specs/verdict-seam-boundary-hardening-01KZG179/tracers/tooling-friction.md:14`
 - Tracer-cited: #3980
 
 ### C-20 — PARTIAL
 Breaks surface only on CI: blast-radius tests outside make test-fast dirs, golden-help/contract fixtures and doc-freshness/terminology gates in CI-only shards, sibling tests in untouched dirs asserting retired behaviour, shared fixtures/contract artifacts (upstream_contract.json, charter_preflight _fixtures.py) outside owned_files — one discovery per ~15-min CI round.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-design-decisions.md:218`; `kitty-specs/finalize-repin-orphaned-planning-commit-01M31TAT/tracer-tooling-friction.md:6`; `kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/tooling-friction.md:30`; `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md:384`
 - Tracer-cited: #3281, #3826, #3396, #2732, #2263, #1931
 - Gap / note: make ci-parity only PREVIEWS the selected gates/shards; there is no local command that executes the CI selection for a diff, so the drip persists.
 
 ### C-21 — COVERED
 CI routing blind spots produce false greens: trigger allowlists omitting data paths, dorny group vs on.paths two-layer structure, brace-expansion mismatch, packages routed by name not construction site, suites stopping when a module is added to only one group, path-filtered workflows without push:main backstop.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/ci-scoping-gate-reliability-01KZP80D/tracer-tooling-friction.md:7`; `kitty-specs/ci-scoping-gate-reliability-01KZP80D/tracer-tooling-friction.md:9`; `kitty-specs/ci-scoping-gate-reliability-01KZP80D/tracer-squad-findings.md:7`; `kitty-specs/ci-scoping-gate-reliability-01KZP80D/tracer-squad-findings.md:17`
 - Tracer-cited: #3008, #3147, #3265, #3127, #2034
 - Gap / note: Most tracer evidence predates the #3995 router/module-registry rewrite; the class is owned by #4708.
 
 ### C-22 — CLOSED-ONLY
 Tool-generated lifecycle commits fail commitlint: 'Add scaffold for mission <slug>' (core/mission_creation.py:1009) escapes the ignore regex (which only allows meta|spec|tasks|plan), and type-enum lacks tasks/analyze - each mission needs PR-prep fixups.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md:8`; `kitty-specs/reconcile-flake-family-01M34HR7/tracer-tooling-friction.md:131`; `kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-approach.md:329`; `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md:69`
 - Tracer-cited: #3678
 - Gap / note: Residual verified at HEAD: commitlint.config.cjs ignores[0] = /^(Add|Update) (meta|spec|tasks|plan) for (feature|mission) / does not match 'Add scaffold for mission ...'. Also the ignore still accepts the prohibited 'feature' term.
 
 ### C-23 — UNCOVERED
 Charter-mandated quality checks are absent or vacuous in live CI: no workflow invokes mypy, the commit-msg job only runs 'git log ... || true' (commitlint never runs), markdownlint is '|| true', no bandit/pip-audit job, mutation job disabled.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-approach.md:94`; `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-approach.md:184`; `kitty-specs/reconcile-flake-family-01M34HR7/tracer-approach.md:31`
 - Gap / note: Verified at HEAD 4fb54f3f: 'grep mypy .github/workflows/*.yml' = 0 hits; ci-router.yml:399 commit-msg = 'git log --format=%s ... || true'; :407 markdownlint '|| true'. Semantic search 'mypy not run in CI' returned only closed per-error issues.
 
 ### C-24 — PARTIAL
 CI workflow changes cannot be validated by their own PR: workflow_run-triggered workflows execute main's copy, ci-nightly is schedule/dispatch-only, stacked PRs on mission branches don't trigger CI, so acceptance is a post-merge observation window.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-design-decisions.md:20`; `kitty-specs/reconcile-flake-family-01M34HR7/tracer-design-decisions.md:92`; `kitty-specs/egress-refusal-consolidation-3110-01KYW895/tracer-squad-findings.md:2382`
 - Gap / note: #1271 demands real-runner proof but gives no mechanism for workflow_run/schedule-only workflows (which always run main's copy) or for mission-branch stacked PRs that CI ignores; no actionlint/static check over changed workflow files.
 
 ### C-25 — CLOSED-ONLY
 Shard-duration weights silently fall back to uniform when the committed duration list length disagrees with collection (producer/consumer marker mismatch); nightly wall-clock long poles vary ~2x with CI variance; renamed job consumers unverified.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-tooling-friction.md:541`; `kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-approach.md:224`; `kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-approach.md:272`; `kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-tooling-friction.md:593`
 - Tracer-cited: #4864
 - Gap / note: Residual verified at HEAD: scripts/ci/capture_shard_timings.py docstring still states the consumer 'falls back to uniform weights ... That fallback is silent and no gate notices it'; tracer recommendation (length-agreement check) not tracked.
 
 ### C-26 — PARTIAL
 CI-model guard tooling friction: architectural CI-model guards key off inline caller steps and break when a job moves into a reusable workflow; derived ci_topology_census.json/_gate_coverage.py are merged textually; gate-coverage probes are invalid without real collection; scoped baseline runs produce no JUnit artifact.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/modular-per-package-ci-01M025GV/tracers/design-decisions.md:10`; `kitty-specs/modular-per-package-ci-01M025GV/tracers/design-decisions.md:57`; `kitty-specs/modular-per-package-ci-01M025GV/tracers/design-decisions.md:75`; `kitty-specs/modular-per-package-ci-01M025GV/tracers/design-decisions.md:72`
 - Gap / note: Derived CI artifacts committed and merged textually (census/_gate_coverage regenerated on both sides) has no issue.
 
 ### C-27 — PARTIAL
 Coverage gate gives little signal outside a narrow allowlist: diff-cover >=90% binds only CRITICAL_PATHS (validators/, acceptance/, cli/ excluded), earlier single-star globs dropped nested files, '--cov=<path>' silently collects zero, no --cov-fail-under anywhere.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/event-push-watch-channel-01M1K6W2/tracer-tooling-friction.md:47`; `kitty-specs/custom-mission-type-second-class-citizens-01M1FQXD/tracer-design-decisions.md:311`; `kitty-specs/accept-path-remediation-honesty-01M0TWZP/tracer-approach.md:43`; `kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/tracer-design-decisions.md:132`
 - Gap / note: Glob defect fixed at HEAD (scripts/ci/aggregate_source.py uses git pathspecs). Remaining: CRITICAL_PATHS scope decision (src/specify_cli/cli, acceptance, validators) is not tracked.
 
 ### C-28 — COVERED
 mypy results depend on invocation scope: follow_imports=skip for specify_cli.*/charter.* makes single-file runs report no-any-return that batch runs call redundant-cast; per-module quarantine overrides fail verbatim moves; stale .mypy_cache under-reports.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-blast-radius.md:96`; `kitty-specs/reconcile-flake-family-01M34HR7/tracer-tooling-friction.md:95`; `kitty-specs/event-push-watch-channel-01M1K6W2/tracer-tooling-friction.md:191`; `kitty-specs/up-mission-type-seam-01KZY1JB/tracer-tooling-friction.md:688`
 - Tracer-cited: #3719
 
 ### C-29 — PARTIAL
 Formatter/lint friction: ruff format on a touched file drags in pre-existing whole-file drift; local ruff != pinned; TID251 bans hashlib with no sanctioned digest helper (inline noqa everywhere); timestamp literal duplicated 18x; noqa kept for test-imported privates; CLAUDE.md __init__ version-bump rule ambiguous for nested packages.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md:826`; `kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/tooling-friction.md:15`; `kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/tooling-friction.md:19`; `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md:841`
 - Gap / note: No issue for a sanctioned file-digest helper under TID251, the duplicated ISO timestamp format constant, or clarifying the __init__.py version-bump rule.
 
 ### C-30 — COVERED
 Interpreter divergence is invisible: locals run 3.14 while CI runs 3.11/3.12 (Path.exists on EACCES raises vs returns False), 3.13 dir_fd teardown errors also reproduce on 3.12, isolation-sensitive 3.13 failures.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md:664`; `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-design-decisions.md:88`; `kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-design-decisions.md:277`; `kitty-specs/egress-refusal-consolidation-3110-01KYW895/tracer-evidence-base.md:66`
 - Tracer-cited: #3189
 
 ### C-31 — COVERED
 Windows-only defects are verified on Linux via mocks (is_windows seam, simulated follow_symlinks rejection, no-op chmod helpers) - risk of passing for the wrong reason; a real Windows run is needed (e.g. #4925 deferred).
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/windows-upgrade-mode-fidelity-01M35C25/tracer-tooling-friction.md:6`; `kitty-specs/windows-upgrade-mode-fidelity-01M35C25/tracer-approach.md:5`; `kitty-specs/windows-upgrade-mode-fidelity-01M35C25/tracer-design-decisions.md:21`; `kitty-specs/windows-upgrade-mode-fidelity-01M35C25/tracer-design-decisions.md:16`
 - Tracer-cited: #4925, #4923, #4714
 - Gap / note: Small doctrine gap: the mock-fidelity rules (patch kernel.paths.is_windows not os.name; crash repros must raise on follow_symlinks=False) are not written down in testing docs.
 
 ### C-32 — CLOSED-ONLY
 Sync-residue env vars (SPEC_KITTY_ENABLE_SAAS_SYNC, SAAS_SYNC) inherited into agent sessions triggered sync attempts/lock contention and armed gates that made refusal tests vacuous.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/charter-authority-flip-01M14RB3/tracer-tooling-friction.md:3`; `kitty-specs/durable-concurrent-review-cycle-records-01M0QRX7/tracers/tooling-friction.md:12`
 - Gap / note: Behaviour is obsolete (sync transport deleted Aug 2026); SPEC_KITTY_ENABLE_SAAS_SYNC still appears in 11 src files as residue. No new issue needed beyond existing residue sweeps.
 
 ### C-33 — CLOSED-ONLY
 upgrade minted last_upgraded_at on bookkeeping-only bumps at the single per-worktree mint site (runner.py) with three callers.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-root-cause.md:6`
 - Tracer-cited: #4972
 
 ### C-34 — UNCOVERED
 Red-first anchor mechanics: characterization tests that encode the bug must be inverted, companion tests can be vacuously red/green, RED shape choice (AttributeError vs ImportError) matters to avoid breaking collection, staged schema bumps avoid accidental RED, fixtures must fail for the intended reason.
-- Evidence: k; i; t; y
+- Evidence: `kitty-specs/accept-fail-closed-missing-lanes-01M3CC1V/tracer-approach.md:9`; `kitty-specs/event-push-watch-channel-01M1K6W2/tracer-tooling-friction.md:34`; `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md:287`; `kitty-specs/charter-activate-empty-action-sequence-01M0STSX/tracer-design-decisions.md:102`
 - Tracer-cited: #4891
 - Gap / note: Title grep for red-first/ATDD/characterization found only #5047 (fixture-specific). Charter ATDD-first section exists but has no 'red for the intended reason' checklist.
 
