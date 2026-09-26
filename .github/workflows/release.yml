@@ -35,7 +35,7 @@ jobs:
   # then fail. Operator prerequisite: create that secret.
   nightly-gate:
     name: Release nightly gate (green nightly for the release SHA)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       actions: write
@@ -61,7 +61,7 @@ jobs:
 
   build-release:
     needs: [nightly-gate]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -269,7 +269,7 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: build-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       id-token: write
@@ -335,7 +335,7 @@ jobs:
     name: Verify PyPI exact install
     needs: publish-pypi
     if: ${{ always() && needs.publish-pypi.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:

@@ -28,7 +28,7 @@ permissions:
 jobs:
   prepare-candidate-metadata:
     name: Prepare candidate package metadata
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - uses: actions/checkout@v6
@@ -45,7 +45,7 @@ jobs:
 
   verify-drift:
     name: Verify shared package drift
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     needs: [prepare-candidate-metadata]
     steps:

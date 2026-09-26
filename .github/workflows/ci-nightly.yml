@@ -94,7 +94,7 @@ jobs:
   # WP's own evidence base is a single dispatch.
   performance:
     name: Performance suite (nightly-only, #3595)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     # `issues: write` is for the nightly red -> deduped-P0 escalation step
     # (scripts/ci/nightly_escalation.py, FR-007) below; the workflow-level
@@ -205,7 +205,7 @@ jobs:
   # UI-touching heavy/e2e test headless.
   e2e:
     name: Heavy e2e suite (nightly-only, #3595)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     # `issues: write` for the FR-007 escalation step below.
     permissions:
@@ -279,7 +279,7 @@ jobs:
   # to `performance` alone; 0 failures/errors). 4m44s is comfortably inside
   # the 90-minute Stage A ceiling, so the bounded widen-retry ladder (90 ->
   # 150 -> 300, each step under GitHub Actions' documented 6-hour/360-minute
-  # per-job ceiling for hosted `ubuntu-latest` runners) was never triggered.
+  # per-job ceiling for hosted `ubuntu-24.04` runners) was never triggered.
   # Stage B timeout-minutes below = ceil(4m44s x ~1.5 headroom), the SAME
   # method used for `performance`/`e2e` above, rounded to a clean number:
   # 284s x 1.5 = 426s = ~7.1min -> 10. Honesty caveat (plan.md requires this
@@ -294,7 +294,7 @@ jobs:
   # ci-windows.yml.
   stress:
     name: Stress suite (nightly-only, #3595)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # DO NOT set SPEC_KITTY_RUN_PERFORMANCE on this job. This 10-minute
     # budget assumes the ~20 performance-marked tests stay skipped here (they
     # are the single-owner responsibility of the `performance` job above).
@@ -365,7 +365,7 @@ jobs:
   # ---------------------------------------------------------------------------
   interpreter-matrix:
     name: "Interpreter matrix (Python ${{ matrix.python-version }}, nightly-only, FR-021)"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     # `issues: write` for the FR-007 escalation step below.
     permissions:
@@ -478,7 +478,7 @@ jobs:
   # ---------------------------------------------------------------------------
   generate-full-matrix:
     name: Generate full module-shard matrix (nightly-only)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.build.outputs.matrix }}
     steps:
@@ -562,7 +562,7 @@ jobs:
   # recorded 69.2m fully-serial; a `-n auto --dist loadfile` run of the same
   # 1582-test corpus measured ~2m wall on a 32-core host (=> ~64m serial,
   # consistent with the tier's figure) and projects to ~15-20m on a 4-core
-  # ubuntu-latest runner -- comfortably inside the 45m timeout below, so no
+  # ubuntu-24.04 runner -- comfortably inside the 45m timeout below, so no
   # cross-job sharding is needed. `--dist loadfile` keeps each file on one
   # worker (file-scoped fixtures / collection semantics); per-worker HOME
   # isolation (WP04, conftest) keeps parallel workers off the real
@@ -571,7 +571,7 @@ jobs:
   # ---------------------------------------------------------------------------
   integration-next:
     name: Integration + next suite (nightly-only, #4729)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     # `issues: write` for the FR-007 escalation step below.
     permissions:
@@ -650,7 +650,7 @@ jobs:
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [performance, e2e, stress, interpreter-matrix, integration-next, full-module-matrix]
     if: always()
     steps:

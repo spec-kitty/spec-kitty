@@ -52,7 +52,7 @@ jobs:
   # post-merge safety net that replaces the old push-always-full-scope.
   # ---------------------------------------------------------------------------
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       merge: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.merge }}
       auth: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.auth }}
@@ -273,7 +273,7 @@ jobs:
   # ---------------------------------------------------------------------------
   prose-scan:
     name: prose-only PR scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       prose_only: ${{ steps.scan.outputs.prose_only }}
@@ -373,7 +373,7 @@ jobs:
   # ===========================================================================
   ruff:
     name: ruff (lint + format)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -390,7 +390,7 @@ jobs:
 
   commit-msg:
     name: commit message lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -400,7 +400,7 @@ jobs:
 
   markdownlint:
     name: markdownlint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -408,7 +408,7 @@ jobs:
 
   uv-lock:
     name: uv lock --check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -419,7 +419,7 @@ jobs:
 
   import-linter:
     name: import boundaries (TID251)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -434,7 +434,7 @@ jobs:
 
   regen-check:
     name: regen --check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -453,7 +453,7 @@ jobs:
   # ---------------------------------------------------------------------------
   terminology:
     name: terminology guard (fast, always-on)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -466,7 +466,7 @@ jobs:
 
   layer-rules:
     name: layer rules / import direction (fast, always-on)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -488,7 +488,7 @@ jobs:
   # terminology/layer-rules) so it is not executed twice on a code PR.
   archive-freeze:
     name: archive freeze (fast, always-on)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -509,7 +509,7 @@ jobs:
   # ---------------------------------------------------------------------------
   architectural-heavy:
     name: architectural battery (heavy, code-scoped)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [changes, prose-scan]
     if: >-
@@ -565,7 +565,7 @@ jobs:
   # ===========================================================================
   tests-merge:
     name: tests (merge)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [changes, prose-scan]
     if: ${{ needs.changes.outputs.merge == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
@@ -580,7 +580,7 @@ jobs:
 
   tests-status:
     name: tests (status)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [changes, prose-scan]
     if: ${{ needs.changes.outputs.status == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
@@ -595,7 +595,7 @@ jobs:
 
   tests-cli:
     name: tests (cli)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # #4207: ceiling creep — this shard has run 14.3-15.2m against a 15m
     # ceiling for four days (a coin flip that finally tripped on 2026-09-10).
     # 25m covers the observed ceiling plus headroom.
@@ -618,7 +618,7 @@ jobs:
   # ---------------------------------------------------------------------------
   tests-docs:
     name: tests (docs)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [changes, prose-scan]
     if: ${{ needs.changes.outputs.docs == 'true' || needs.prose-scan.outputs.prose_only == 'true' }}
@@ -633,7 +633,7 @@ jobs:
 
   tests-corpus:
     name: tests (corpus)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [changes]
     if: ${{ needs.changes.outputs.corpus == 'true' }}
@@ -665,7 +665,7 @@ jobs:
 
   tests-e2e:
     name: tests (e2e)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # #4207: 25m, not 35m — with the 20-iteration worktree-concurrency
     # saturation test moved to the nightly performance lane the shard
     # returns to ~8m; a 35m ceiling would only buy burn per push against
@@ -689,7 +689,7 @@ jobs:
   # ---------------------------------------------------------------------------
   router-gate:
     name: router gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     # actions:read is needed to read each dependency's real conclusion from the
     # Actions jobs API (#4208): the `needs` context cannot carry `timed_out`.

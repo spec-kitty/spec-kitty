@@ -63,7 +63,7 @@ def test_reduced_ci_quality_uses_stock_runners_live() -> None:
     workflow = _load_workflow()
     text = _CI_QUALITY.read_text(encoding="utf-8")
 
-    assert {job["runs-on"] for job in workflow["jobs"].values()} == {"ubuntu-latest"}
+    assert {job["runs-on"] for job in workflow["jobs"].values()} == {"ubuntu-24.04"}
     assert "blacksmith" not in text.lower()
     assert "runner-group" not in text.lower()
 
