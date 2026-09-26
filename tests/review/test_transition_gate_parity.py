@@ -70,10 +70,7 @@ _FIXTURES_DIR = Path(__file__).parent / "fixtures" / "parity"
 
 
 def _load_fixtures() -> list[tuple[str, dict[str, Any]]]:
-    cases = [
-        (path.name, json.loads(path.read_text(encoding="utf-8")))
-        for path in sorted(_FIXTURES_DIR.glob("*.json"))
-    ]
+    cases = [(path.name, json.loads(path.read_text(encoding="utf-8"))) for path in sorted(_FIXTURES_DIR.glob("*.json"))]
     assert cases, f"no parity fixtures found under {_FIXTURES_DIR}"
     return cases
 
@@ -84,9 +81,7 @@ _CASES = [case for _, case in _FIXTURES]
 
 
 def _failures(items: list[dict[str, str]]) -> tuple[BaselineFailure, ...]:
-    return tuple(
-        BaselineFailure(test=i["test"], error=i["error"], file=i["file"]) for i in items
-    )
+    return tuple(BaselineFailure(test=i["test"], error=i["error"], file=i["file"]) for i in items)
 
 
 def _rebuild_verdict(data: dict[str, Any]) -> GateVerdict:
@@ -150,9 +145,7 @@ def test_oracle_covers_a_non_empty_shard_group_scope() -> None:
     reconstruction could silently drop ``matched_shard_groups`` and the oracle
     would never notice. Removing the shard fixture re-opens that gap and this
     test fails."""
-    shard_carrying = [
-        case for case in _CASES if case["verdict"]["scope"]["matched_shard_groups"]
-    ]
+    shard_carrying = [case for case in _CASES if case["verdict"]["scope"]["matched_shard_groups"]]
     assert shard_carrying, "parity oracle lost its non-empty matched_shard_groups coverage"
     for case in shard_carrying:
         assert case["expected"]["metadata"]["affected_shard_count"] >= 1
@@ -173,23 +166,13 @@ def test_override_nonempty_golden_drives_a_non_empty_scope() -> None:
     ``run_state`` -- i.e. the real head run actually executed, not the
     empty-scope short-circuit.
     """
-    override_cases = [
-        case for name, case in zip(_IDS, _CASES, strict=True)
-        if name.startswith("override_nonempty__")
-    ]
-    assert override_cases, (
-        "no override_nonempty__* fixtures found -- T003 must capture at "
-        "least one non-empty FR-004 override-tier golden"
-    )
+    override_cases = [case for name, case in zip(_IDS, _CASES, strict=True) if name.startswith("override_nonempty__")]
+    assert override_cases, "no override_nonempty__* fixtures found -- T003 must capture at least one non-empty FR-004 override-tier golden"
     for case in override_cases:
         scope = case["verdict"]["scope"]
-        assert scope["test_targets"], (
-            "override_nonempty golden captured an EMPTY scope (vacuous, "
-            "B-vacuous): run_scoped_tests_at_head never executed"
-        )
+        assert scope["test_targets"], "override_nonempty golden captured an EMPTY scope (vacuous, B-vacuous): run_scoped_tests_at_head never executed"
         assert case["verdict"]["run_state"] == "completed", (
-            "override_nonempty golden's run_state is not 'completed' -- the "
-            "override scope short-circuited instead of driving a real head run"
+            "override_nonempty golden's run_state is not 'completed' -- the override scope short-circuited instead of driving a real head run"
         )
 
 
@@ -251,12 +234,8 @@ def _drive_through_hook(case: dict[str, Any]) -> dict[str, Any]:
 
     ctx = SimpleNamespace(changed_files=("src/example.py",))
     bindings: list[Any] = [_FixtureBinding()]
-    verdicts = tmt._mt_dispatch_transition_gates(
-        bindings, ctx, handler_lookup=_handler_lookup
-    )
-    effect = tmt._mt_translate_gate_verdicts(
-        verdicts, block_enabled=block_enabled, force=force
-    )
+    verdicts = tmt._mt_dispatch_transition_gates(bindings, ctx, handler_lookup=_handler_lookup)
+    effect = tmt._mt_translate_gate_verdicts(verdicts, block_enabled=block_enabled, force=force)
     console = effect.console_lines[0] if effect.console_lines else ""
     return {
         "outcome": effect.representative.outcome.value,
@@ -275,30 +254,3 @@ def test_through_the_inverted_hook_reproduces_base(case: dict[str, Any]) -> None
     assert actual["metadata"] == expected["metadata"]
     assert actual["console"] == expected["console"]
     assert actual["exit_code"] == expected["exit_code"]
-
-
-def test_wp09_hook_landmine_disposition_is_documented_accurately() -> None:
-    """WP06 (T028/T029, FR-015 fix-before-wiring): re-validate this module's
-    xfail(strict=True) landmine claim.
-
-    Re-validated on the current tree: WP09 already landed
-    ``_mt_run_transition_gates`` and
-    :func:`test_through_the_inverted_hook_reproduces_base` carries no active
-    xfail marker -- it XPASSes plainly (confirmed: all parametrized cases
-    pass, run in isolation). The module docstring's "RED until WP09" /
-    "expected-fail (``xfail(strict=True)``)" language describes a state that
-    no longer holds; this guard fails if that stale claim survives alongside
-    an absent marker, so the module cannot silently keep documenting a
-    landmine that WP09 already retired.
-    """
-    marks = getattr(test_through_the_inverted_hook_reproduces_base, "pytestmark", [])
-    assert not any(m.name == "xfail" for m in marks), (
-        "WP09 landed _mt_run_transition_gates; this test should carry no "
-        "active xfail marker"
-    )
-    assert "xfail(strict=True)" not in (__doc__ or ""), (
-        "module docstring still claims a pending xfail(strict=True) landmine "
-        "for test_through_the_inverted_hook_reproduces_base, but WP09 "
-        "already landed and no active marker exists -- update the docstring "
-        "instead of leaving stale landmine language"
-    )

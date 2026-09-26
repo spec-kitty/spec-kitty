@@ -3,7 +3,7 @@
 Each seam module is imported from its NEW home (not re-exported through
 ``charter.activation.context``) so these tests pin the seam itself, independent of the
 FR-009 preserved-surface re-export. Complements
-``tests/charter/test_context_parity.py`` (which proves the composed
+``tests/charter/test_context_bootstrap_markers.py`` (which proves the composed
 end-to-end behaviour is unchanged) by exercising each moved unit directly.
 """
 

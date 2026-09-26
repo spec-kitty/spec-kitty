@@ -16,6 +16,44 @@ pytestmark = pytest.mark.fast
 _PLACEHOLDER = "[QUERY - no result provided]"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _TEMPLATES_ROOT = _REPO_ROOT / "src" / "specify_cli" / "missions"
+_RUNTIME_SOURCE_ROOT = _REPO_ROOT / "src" / "runtime" / "next"
+# Planning-base count of ``.py`` files under ``_RUNTIME_SOURCE_ROOT`` (NFR-002
+# floor). A deliberate shrink of the runtime tree is a one-line edit here.
+_RUNTIME_SOURCE_FILE_FLOOR = 31
+
+
+def _placeholder_offenders(root: Path) -> tuple[int, list[tuple[Path, int]]]:
+    """Return ``(files_inspected, [(path, line)])`` for placeholder hits under ``root``.
+
+    Fails loudly on a missing or empty target: a scan that inspects nothing
+    must never pass (SC-005).
+    """
+    assert root.is_dir(), f"placeholder scan: missing target {root} (0 files inspected)"
+    files = sorted(root.rglob("*.py"))
+    assert files, f"placeholder scan: empty target {root} (0 files inspected)"
+    offenders: list[tuple[Path, int]] = []
+    for path in files:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        offenders.extend((path, idx) for idx, line in enumerate(lines, start=1) if _PLACEHOLDER in line)
+    return len(files), offenders
+
+
+def test_runtime_placeholder_scan_inspects_live_source() -> None:
+    """The placeholder scan targets the live runtime tree, not a vanished path."""
+    files_inspected, _ = _placeholder_offenders(_RUNTIME_SOURCE_ROOT)
+    assert files_inspected >= _RUNTIME_SOURCE_FILE_FLOOR, (
+        f"placeholder scan inspected {files_inspected} files under {_RUNTIME_SOURCE_ROOT}; expected >= {_RUNTIME_SOURCE_FILE_FLOOR}"
+    )
+
+
+def test_runtime_placeholder_scan_flags_planted_placeholder(tmp_path: Path) -> None:
+    """A planted placeholder is named ``(path, line)`` by the helper the ban calls."""
+    planted = tmp_path / "emitter.py"
+    planted.write_text(f"x = 1\nmsg = {_PLACEHOLDER!r}\n", encoding="utf-8")
+    (tmp_path / "clean.py").write_text("msg = 'query result'\n", encoding="utf-8")
+    files_inspected, offenders = _placeholder_offenders(tmp_path)
+    assert files_inspected == 2
+    assert offenders == [(planted, 2)]
 
 
 class TestNoLegacyQueryPlaceholderInTemplates:
@@ -32,25 +70,14 @@ class TestNoLegacyQueryPlaceholderInTemplates:
                 continue
             if _PLACEHOLDER in text:
                 offenders.append(path)
-        assert not offenders, (
-            f"Found legacy placeholder '{_PLACEHOLDER}' in shipped templates: {offenders}"
-        )
+        assert not offenders, f"Found legacy placeholder '{_PLACEHOLDER}' in shipped templates: {offenders}"
 
     def test_placeholder_is_absent_from_runtime_source(self) -> None:
-        runtime_root = _REPO_ROOT / "src" / "specify_cli" / "next"
-        offenders: list[tuple[Path, int]] = []
-        for path in runtime_root.rglob("*.py"):
-            try:
-                lines = path.read_text(encoding="utf-8").splitlines()
-            except OSError:
-                continue
-            for idx, line in enumerate(lines, start=1):
-                if _PLACEHOLDER in line:
-                    offenders.append((path, idx))
-        assert not offenders, (
-            "Runtime source must not emit the legacy placeholder. Offenders: "
-            f"{offenders}"
+        files_inspected, offenders = _placeholder_offenders(_RUNTIME_SOURCE_ROOT)
+        assert files_inspected >= _RUNTIME_SOURCE_FILE_FLOOR, (
+            f"placeholder scan inspected {files_inspected} files under {_RUNTIME_SOURCE_ROOT}; expected >= {_RUNTIME_SOURCE_FILE_FLOOR}"
         )
+        assert not offenders, f"Runtime source must not emit the legacy placeholder. Offenders: {offenders}"
 
 
 class TestQueryModeDoesNotReturnUnknownForValidMission:
@@ -81,9 +108,7 @@ class TestQueryModeDoesNotReturnUnknownForValidMission:
         rendered = repr(payload)
         assert _PLACEHOLDER not in rendered
 
-    def test_query_decision_for_missing_feature_dir_is_structured(
-        self, tmp_path: Path
-    ) -> None:
+    def test_query_decision_for_missing_feature_dir_is_structured(self, tmp_path: Path) -> None:
         """A missing feature dir raises MissionNotFoundError (FR-004 / WP03).
 
         After WP03, ``query_current_state`` raises ``MissionNotFoundError``
@@ -121,13 +146,9 @@ class TestRuntimeBridgeBlockedReasonIsConcrete:
         We grep for the legacy placeholder in the function body — it is a
         regression guard for future edits.
         """
-        runtime_bridge_path = (
-            _REPO_ROOT / "src" / "runtime" / "next" / "runtime_bridge.py"
-        )
+        runtime_bridge_path = _REPO_ROOT / "src" / "runtime" / "next" / "runtime_bridge.py"
         text = runtime_bridge_path.read_text(encoding="utf-8")
         # Acceptable: "no result provided" appearing inside human-readable
         # query mode banner. We forbid only the bracket form that historically
         # leaked into prompt files.
-        assert _PLACEHOLDER not in text, (
-            f"runtime_bridge.py must not emit the legacy placeholder {_PLACEHOLDER}"
-        )
+        assert _PLACEHOLDER not in text, f"runtime_bridge.py must not emit the legacy placeholder {_PLACEHOLDER}"

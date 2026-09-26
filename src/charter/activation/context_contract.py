@@ -65,7 +65,7 @@ CONTEXT_SCHEMA_VERSION = "1.3.0"
 #: ``"catalog_fallback+project_local"``). It is *distinct* from the per-entry
 #: ``all_directives[].source`` (artifact origin ``project``/``builtin``/``org``):
 #: "which branch resolved the set" vs. "where did this one directive come from".
-#: * ``tests/charter/test_context_parity.py`` --
+#: * ``tests/charter/test_context_bootstrap_markers.py`` --
 #:   ``TestJsonEntryPointParity::test_json_entry_point_is_valid_bootstrap_payload``
 #:   (the structural guard on a bootstrap-mode payload), which asserts the
 #:   presence of the array-valued governance keys. (This replaced a frozen

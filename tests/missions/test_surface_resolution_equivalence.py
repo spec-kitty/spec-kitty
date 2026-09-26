@@ -4,9 +4,9 @@ This module feeds the **same** ``(topology, handle)`` matrix to EVERY
 mission-surface resolution entry point and asserts each entry point returns an
 **identical resolved directory** OR an **identical typed error** (same class AND
 same ``error_code``). It is the gate that protects the C-004 strangler: no
-duplicate resolver may be deleted (WP06/WP07) until the relevant matrix cells
-are green — and the strict-xfail markers below turn any *premature* green
-(a delete-before-equivalence) into a suite failure.
+duplicate resolver may be deleted while any matrix cell diverges. Every cell
+agrees today; ``test_equivalence_detects_planted_divergence`` proves the
+comparison still fails when one entry point diverges.
 
 Entry points compared (read each before asserting over it):
 
@@ -21,10 +21,12 @@ Entry points compared (read each before asserting over it):
 * ``status.aggregate.MissionStatus.load`` (``.read_dir`` / ``_resolve_read_dir``)
 * ``mission_runtime.resolution`` boundary (ambiguous-handle translation probe)
 
-the module-private ``_compose_primary_feature_dir`` leaf is the FR-009 divergence companion to
-``resolve_mission_read_path``; the ``coord-fresh|bare-slug`` cell is exactly the
-``<slug>-<mid8>`` divergence column (the resolver is mid8-blind for a bare slug
-while the surface/aggregate prefer the coord worktree).
+The module-private ``_compose_primary_feature_dir`` leaf is the FR-009 companion to
+``resolve_mission_read_path``; the ``coord-*|bare-slug`` cells pin that a bare slug
+derives its mid8 and reaches the same coord worktree the surface/aggregate prefer.
+
+What the matrix proves: for every ``(topology, handle)`` cell, all entry points
+resolve the same directory or raise the same typed error.
 
 Assertion discipline (a too-lenient assertion VOIDS the whole gate):
 
@@ -32,79 +34,8 @@ Assertion discipline (a too-lenient assertion VOIDS the whole gate):
           "both non-None" / truthiness.
 * errors: ``type(exc_a) is type(exc_b) and exc_a.error_code == exc_b.error_code``
           — same class AND same code, NOT "both raise something".
-* No ``pytest.skip(...)`` anywhere in the module — a skip would hide a
-  divergence. Initially-RED cells use ``@pytest.mark.xfail(strict=True, ...)``.
-
-Cell → closing-WP map (the docstring authority WP06's DoD greps against):
-
-============================  ====================  ======================================
-Cell (topology | handle)      Today                 Closing WP / FR
-============================  ====================  ======================================
-no-coord | bare-slug          GREEN (agree, dir)    — (already equivalent)
-no-coord | <slug>-<mid8>      GREEN (agree, dir)    — (already equivalent)
-no-coord create→first-write   GREEN (agree, dir)    — (primary authoritative; WP04 T016)
-coord-fresh | bare-slug       RED  (resolver mid8-  WP03 / FR-009 (unify the mid8-composing
-                              blind → primary; sur-  ``<slug>-<mid8>`` read path)
-                              face/agg → coord)
-coord-fresh | <slug>-<mid8>   GREEN (agree, coord)  — (already equivalent)
-coord-behind | bare-slug      RED  (folds into       WP03 / FR-009 (coord-behind folds into
-                              coord-fresh/bare:       coord-fresh; same mid8-blind bare-slug
-                              resolver mid8-blind →   divergence — unify the read path)
-                              primary; surface/agg
-                              → coord)
-coord-behind | <slug>-<mid8>  GREEN (agree, coord —  — (folds into coord-fresh; already
-                              folds into coord-fresh) equivalent — live-probed 2026-06-19)
-coord-empty | bare-slug       GREEN (WP04 Option B:  — (drained by WP04 / FR-003; all legs
-                              all → primary +        agree on primary; read_path is mid8-
-                              loud warning)          blind for the bare slug → primary)
-coord-empty | <slug>-<mid8>   RED  (surface+agg →    WP05 / FR-004 (read-path fold under
-                              primary; read_path →   require_exists=True closes the last
-                              SRPNF fail-closed)      leg — see the xfail reason)
-coord-deleted | bare-slug     RED  (resolver →      WP06 / FR-006 + FR-005 (coord-deleted
-                              primary; surface →     hard-fail; typed-error convergence)
-                              CoordinationBranch-
-                              Deleted; agg → Coord-
-                              AuthorityUnavailable)
-coord-deleted | <slug>-<mid8> RED  (same as above)  WP06 / FR-006 + FR-005
-ambiguous-mid8                GREEN (agree, MISSION  — (already equivalent across resolver,
-                              _AMBIGUOUS_SELECTOR)   surface, aggregate)
-ambiguous-mid8 @ runtime      GREEN (WP05 landed:    — (closed by WP05/FR-005; xfail drained at
-boundary                      ActionContextError,    the WP06 collapse, 2026-06-20)
-                              MISSION_AMBIGUOUS_
-                              SELECTOR preserved)
-============================  ====================  ======================================
-
-NOTE (2026-06-21): the "Closing WP / FR" column above records the ORIGINAL plan
-(prior-mission WP06 framing). The authoritative, current per-cell disposition is
-the ``_XFAIL_*_OUT_OF_SCOPE`` constants plus the "WP04 coord-empty Option B"
-paragraph below.
-
-WP04 coord-empty Option B (01KVN754, 2026-06-21): WP04 applied the operator-
-decided Option B in the canonical surface — a materialized-but-empty coordination
-worktree no longer raises; ``resolve_status_surface_with_anchor`` returns the
-PRIMARY checkout and emits a loud ``logging.WARNING``. The aggregate inherits
-primary with no code change. This drains ``coord-empty/bare`` (all three legs
-agree on primary: the bare-slug read_path leg is mid8-blind, so it also resolves
-primary). ``coord-empty/slug-mid8`` does NOT fully drain in WP04: the read_path
-leg (``resolve_handle_to_read_path``, ``require_exists=True``) derives mid8,
-probes the EMPTY coord worktree, and STILL fails closed with
-``StatusReadPathNotFound`` (the #1718 stale-surface guard in WP01-owned
-``missions/_read_path_resolver.py`` — WP01 deliberately forwards
-``require_exists`` so that raise is load-bearing). That cell carries
-``_XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE`` and closes in WP05 when the read-path
-leg adopts the same ``probe_coord_state`` fold under ``require_exists=True``.
-
-The remaining RED cells are **documented out-of-scope strict-xfails**, NOT a
-blanket drain — see ``_XFAIL_COORD_EMPTY_SEAM_OUT_OF_SCOPE`` (the coord-empty/
-slug-mid8 read-path leg, above; closes in WP05) and
-``_XFAIL_COORD_DELETED_SEAM_OUT_OF_SCOPE`` (the coord-deleted/slug-mid8 multi-way
-divergence: read_path → primary directory, surface → ``CoordinationBranchDeleted``,
-aggregate → ``CoordAuthorityUnavailable``; closes in WP05). The
-``coord-*/bare`` aggregate cells carry
-``_XFAIL_BARE_AGGREGATE_COORD_AUTHORITY_OUT_OF_SCOPE`` (only ``coord-deleted/bare``
-still references it after WP04; WP05 deletes the shared constant last). Each
-remaining ``xfail`` names exactly why the collapse does not close it and where it
-must close — the allowlist + rationale is the auditable record.
+* No ``pytest.skip(...)`` / ``xfail`` anywhere in the matrix — a skip would
+  hide a divergence.
 """
 
 from __future__ import annotations
@@ -232,15 +163,11 @@ def _assert_equivalent(left: Outcome, right: Outcome, *, lhs: str, rhs: str) -> 
     * one dir + one error → an unconditional divergence (the gate fires).
     """
     if left.is_dir and right.is_dir:
-        assert left.directory == right.directory, (
-            f"{lhs} resolved {left.directory} but {rhs} resolved {right.directory} "
-            "— directory divergence (C-004 gate)"
-        )
+        assert left.directory == right.directory, f"{lhs} resolved {left.directory} but {rhs} resolved {right.directory} — directory divergence (C-004 gate)"
         return
     if not left.is_dir and not right.is_dir:
         assert left.error_type is right.error_type and left.error_code == right.error_code, (
-            f"{lhs} raised {left.error_type}/{left.error_code} but {rhs} raised "
-            f"{right.error_type}/{right.error_code} — typed-error divergence (C-004 gate)"
+            f"{lhs} raised {left.error_type}/{left.error_code} but {rhs} raised {right.error_type}/{right.error_code} — typed-error divergence (C-004 gate)"
         )
         return
     raise AssertionError(
@@ -351,9 +278,7 @@ def _build_topology(repo_root: Path, *, topology: str, slug: str) -> None:
             topology=MissionTopology.SINGLE_BRANCH.value,
             flattened=True,
         )
-        (composed_primary / "status.events.jsonl").write_text(
-            '{"wp_id":"WP01","to_lane":"approved"}\n', encoding="utf-8"
-        )
+        (composed_primary / "status.events.jsonl").write_text('{"wp_id":"WP01","to_lane":"approved"}\n', encoding="utf-8")
         # Stale husk: a REAL registered ``-coord`` worktree carrying its OWN
         # ``meta.json`` (EVERY ``git worktree add`` checkout has one) + a DIVERGENT
         # (planned) status. The husk's meta is the detail that fires the surface
@@ -368,9 +293,7 @@ def _build_topology(repo_root: Path, *, topology: str, slug: str) -> None:
         husk = coord_root / "kitty-specs" / SLUG_WITH_MID8
         husk.mkdir(parents=True, exist_ok=True)
         _write_meta(husk, mission_id=MISSION_ID)
-        (husk / "status.events.jsonl").write_text(
-            '{"wp_id":"WP01","to_lane":"planned"}\n', encoding="utf-8"
-        )
+        (husk / "status.events.jsonl").write_text('{"wp_id":"WP01","to_lane":"planned"}\n', encoding="utf-8")
         return
 
     coord_slug = _coord_dir_slug(slug)
@@ -413,14 +336,8 @@ def _entry_points(repo_root: Path, slug: str, mid8: str) -> dict[str, Callable[[
     PRIMARY for a flattened-stale-coord mission rather than diverging on the husk.
     """
     return {
-        "resolve_mission_read_path": lambda: resolve_handle_to_read_path(
-            repo_root, slug, require_exists=True
-        ),
-        "resolve_status_surface_with_anchor": lambda: (
-            resolve_status_surface_with_anchor(
-                repo_root, slug, _stored_topology(repo_root, slug)
-            ).read_dir
-        ),
+        "resolve_mission_read_path": lambda: resolve_handle_to_read_path(repo_root, slug, require_exists=True),
+        "resolve_status_surface_with_anchor": lambda: resolve_status_surface_with_anchor(repo_root, slug, _stored_topology(repo_root, slug)).read_dir,
         "MissionStatus.load": lambda: MissionStatus.load(repo_root, slug).read_dir,
     }
 
@@ -433,190 +350,87 @@ def _observe_all(repo_root: Path, slug: str, mid8: str) -> dict[str, Outcome]:
 # T005 / T007 — the (topology × handle) matrix
 # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# WP06 documented out-of-scope divergence reasons (the T026 allowlist).
-# ---------------------------------------------------------------------------
-#
-# WP06 collapsed the surface resolver to the sole selection authority, migrated
-# the #1900 status_transition predicates, and implemented the FR-006 coord-empty
-# two-path hard-fail. Two divergence classes remain RED and are EXPLICITLY
-# out of WP06's owned scope (`coordination/surface_resolver.py`,
-# `coordination/status_transition.py`) — they are documented strict-xfails, NOT a
-# blanket ``rg xfail → 0`` drain. Each names exactly why the collapse does not
-# close it and where it must close.
-#
-# (1) ``resolve_mission_read_path`` is mid8-BLIND for a bare slug: it derives
-#     mid8 from the slug (empty for a bare slug), so it cannot reach the coord
-#     surface a bare ``--mission <slug>`` names. Closing this needs the #2046
-#     ``resolve_declared_mid8`` / ``_mid8_from_primary_meta`` cascade *inside
-#     read_path* (read primary meta → derive mid8). That is OUT OF SCOPE (spec
-#     #2046): the surface already derives mid8 via its own cascade, but read_path
-#     CANNOT simply route through the surface — read_path's #1718 create-window
-#     contract (``test_read_path_resolver_transitional``: declared-but-
-#     unmaterialized coord → PRIMARY) differs from the surface's (composed coord
-#     path), so a blind re-route would regress #1718. Affects the bare-slug
-#     coord-* cells.
-#
-# (2) The aggregate keeps its ``CoordAuthorityUnavailable`` single-seam contract
-#     (WP04/FR-015–FR-023): ``MissionStatus.load`` translates the surface's
-#     fail-closed signal to ONE boundary exception for EVERY handle form — a
-#     contract separately tested in 3 non-owned files
-#     (``test_aggregate_surface_resolution``,
-#     ``test_mission_status_aggregate``, ``test_handle_equivalence_matrix``),
-#     exported as public API, and caught by the ``agent status`` CLI. The matrix
-#     compares ``type(a) is type(b)`` (an assertion WP06 may not weaken — only
-#     xfail markers are editable here), so the aggregate's distinct type cannot
-#     converge without regressing WP04's boundary or editing the gate body. OUT
-#     OF SCOPE for WP06; tracked for a follow-on that owns the aggregate seam.
-#     Affects the slug-mid8 coord-empty/coord-deleted cells (where read_path +
-#     surface already agree on the error_code and ONLY the aggregate diverges).
-#
-# FR-006 (the coord-empty two-path message) IS delivered by WP06 in the surface
-# (``CoordinationWorktreeEmpty``) and mutation-verified in
-# ``tests/coordination/test_surface_resolver_collapse.py`` — independent of this
-# matrix's type-identity gate.
-# WP05 (01KVN754, 2026-06-21) — the final convergence drains the last three RED
-# cells to 13/0 (terminal). The coord-empty/slug-mid8 read-path leg adopts WP01's
-# ``probe_coord_state`` under ``require_exists=True`` (returns PRIMARY for EMPTY,
-# matching the surface's Option B), and BOTH coord-deleted cells converge on
-# ``CoordinationBranchDeleted`` / ``COORDINATION_BRANCH_DELETED`` across read_path,
-# surface, AND aggregate (the aggregate now propagates the deleted-branch type
-# verbatim via a more-specific ``except`` ahead of the SRPNF re-wrap). The three
-# ``_XFAIL_*_OUT_OF_SCOPE`` constants that documented those divergences are deleted
-# with their cells — no RED cell remains, so no out-of-scope allowlist is needed.
-
-# (test_id, topology, slug, mid8, xfail_reason | None). ``xfail_reason is None``
-# means the cell is expected GREEN today (all entry points agree); a non-None
-# reason marks an initially-RED divergence and names the WP/FR that closes it.
-_MATRIX: list[tuple[str, str, str, str, str | None]] = [
-    ("no-coord/bare", "no-coord", MISSION_SLUG, "", None),
-    ("no-coord/slug-mid8", "no-coord", SLUG_WITH_MID8, MID8, None),
-    ("coord-fresh/bare", "coord-fresh", MISSION_SLUG, "", None),
-    ("coord-fresh/slug-mid8", "coord-fresh", SLUG_WITH_MID8, MID8, None),
-    ("coord-behind/bare", "coord-behind", MISSION_SLUG, "", None),
-    ("coord-behind/slug-mid8", "coord-behind", SLUG_WITH_MID8, MID8, None),
-    (
-        "coord-empty/bare",
-        "coord-empty",
-        MISSION_SLUG,
-        "",
-        # WP04 (Option B, 01KVN754): coord-empty no longer hard-fails — the surface
-        # returns PRIMARY + a loud warning, the aggregate inherits PRIMARY (no code
-        # change), and the bare-slug read_path leg is mid8-blind so it ALSO resolves
-        # PRIMARY. All three legs now agree on the primary dir → the cell is GREEN.
-        None,
-    ),
-    (
-        "coord-empty/slug-mid8",
-        "coord-empty",
-        SLUG_WITH_MID8,
-        MID8,
-        # WP05 (T022): the read-path leg adopts WP01's ``probe_coord_state`` under
-        # ``require_exists=True`` and returns PRIMARY for the EMPTY state — matching
-        # the surface's Option B primary fallback and the aggregate's inherited
-        # primary. All three legs now agree on the primary dir → GREEN.
-        None,
-    ),
-    (
-        "coord-deleted/bare",
-        "coord-deleted",
-        MISSION_SLUG,
-        "",
-        # WP05 (T022/T023): the read-path leg derives mid8 from the primary meta and
-        # hard-fails ``CoordinationBranchDeleted``; the aggregate now propagates the
-        # same type verbatim (more-specific ``except`` ahead of the SRPNF re-wrap).
-        # All three legs converge on ``COORDINATION_BRANCH_DELETED`` → GREEN.
-        None,
-    ),
-    (
-        "coord-deleted/slug-mid8",
-        "coord-deleted",
-        SLUG_WITH_MID8,
-        MID8,
-        # WP05 (T022/T023): same convergence as coord-deleted/bare — read_path,
-        # surface, and aggregate all raise ``CoordinationBranchDeleted`` /
-        # ``COORDINATION_BRANCH_DELETED``. GREEN.
-        None,
-    ),
+# (test_id, topology, slug, mid8). Every cell is expected GREEN: all entry
+# points agree on the resolved dir or on the typed error.
+_MATRIX: list[tuple[str, str, str, str]] = [
+    ("no-coord/bare", "no-coord", MISSION_SLUG, ""),
+    ("no-coord/slug-mid8", "no-coord", SLUG_WITH_MID8, MID8),
+    ("coord-fresh/bare", "coord-fresh", MISSION_SLUG, ""),
+    ("coord-fresh/slug-mid8", "coord-fresh", SLUG_WITH_MID8, MID8),
+    ("coord-behind/bare", "coord-behind", MISSION_SLUG, ""),
+    ("coord-behind/slug-mid8", "coord-behind", SLUG_WITH_MID8, MID8),
+    ("coord-empty/bare", "coord-empty", MISSION_SLUG, ""),
+    ("coord-empty/slug-mid8", "coord-empty", SLUG_WITH_MID8, MID8),
+    ("coord-deleted/bare", "coord-deleted", MISSION_SLUG, ""),
+    ("coord-deleted/slug-mid8", "coord-deleted", SLUG_WITH_MID8, MID8),
     # WP04 (T023, FR-005/#2062 read leg) — the flattened-stale-coord topology ×
     # EVERY handle form. The mission was flattened mid-flight (stored
     # ``topology: single_branch``, NO ``coordination_branch``) but a stale ``-coord``
     # husk lingers on disk. The stored topology drives all three read legs
     # (read_path, surface, aggregate) to the PRIMARY dir regardless of the husk —
-    # the structural #2062 read-leg close. GREEN (not xfail) once T020/T021 land.
-    (
-        "flattened-stale-coord/slug-mid8",
-        "flattened-stale-coord",
-        SLUG_WITH_MID8,
-        MID8,
-        None,
-    ),
-    (
-        "flattened-stale-coord/bare-mid8",
-        "flattened-stale-coord",
-        MID8,
-        MID8,
-        None,
-    ),
-    (
-        "flattened-stale-coord/full-ulid",
-        "flattened-stale-coord",
-        MISSION_ID,
-        MID8,
-        None,
-    ),
-    (
-        "flattened-stale-coord/bare-human-slug",
-        "flattened-stale-coord",
-        MISSION_SLUG,
-        "",
-        None,
-    ),
+    # the structural #2062 read-leg close.
+    ("flattened-stale-coord/slug-mid8", "flattened-stale-coord", SLUG_WITH_MID8, MID8),
+    ("flattened-stale-coord/bare-mid8", "flattened-stale-coord", MID8, MID8),
+    ("flattened-stale-coord/full-ulid", "flattened-stale-coord", MISSION_ID, MID8),
+    ("flattened-stale-coord/bare-human-slug", "flattened-stale-coord", MISSION_SLUG, ""),
 ]
 
 
-def _apply_xfail(
-    params: list[tuple[str, str, str, str, str | None]],
-) -> list[object]:
-    """Wrap each matrix row in ``pytest.param`` with strict-xfail on RED cells.
-
-    ``strict=True`` is mandatory: a cell marked xfail that *unexpectedly passes*
-    (XPASS) FAILS the suite — catching a premature green / a delete-before-
-    equivalence regression (the gate's whole point).
-    """
-    cases: list[object] = []
-    for test_id, topology, slug, mid8, xfail_reason in params:
-        marks = (
-            (pytest.mark.xfail(strict=True, reason=xfail_reason),)
-            if xfail_reason is not None
-            else ()
-        )
-        cases.append(
-            pytest.param(topology, slug, mid8, id=test_id, marks=marks)
-        )
-    return cases
+_EntryPointFactory = Callable[[Path, str, str], dict[str, Callable[[], Path]]]
+_CANONICAL_ENTRY_POINT = "resolve_status_surface_with_anchor"
 
 
-@pytest.mark.parametrize(("topology", "slug", "mid8"), _apply_xfail(_MATRIX))
-def test_entry_points_agree_per_cell(
-    tmp_path: Path, topology: str, slug: str, mid8: str
+def _check_cell(
+    repo_root: Path,
+    topology: str,
+    slug: str,
+    mid8: str,
+    entry_points: _EntryPointFactory,
 ) -> None:
+    """Build one matrix cell and assert every entry point agrees with the canonical one.
+
+    Pairwise against the surface resolver (the canonical selection authority per
+    data-model.md), so a single divergent entry point fails the cell.
+    """
+    _build_topology(repo_root, topology=topology, slug=slug)
+    outcomes = {name: _observe(fn) for name, fn in entry_points(repo_root, slug, mid8).items()}
+    canonical = outcomes[_CANONICAL_ENTRY_POINT]
+    for name, observed in outcomes.items():
+        if name == _CANONICAL_ENTRY_POINT:
+            continue
+        _assert_equivalent(canonical, observed, lhs=_CANONICAL_ENTRY_POINT, rhs=name)
+
+
+@pytest.mark.parametrize(
+    ("topology", "slug", "mid8"),
+    [pytest.param(topology, slug, mid8, id=test_id) for test_id, topology, slug, mid8 in _MATRIX],
+)
+def test_entry_points_agree_per_cell(tmp_path: Path, topology: str, slug: str, mid8: str) -> None:
     """T006: every entry point agrees on the dir OR the typed error for the cell.
 
     Asserts the exact gate shapes via :func:`_assert_equivalent`: dir equality is
     ``Path.resolve()`` equality; error equality is identical class AND identical
-    ``error_code``. Pairwise against the surface resolver (the canonical selection
-    authority per data-model.md), so a single divergent entry point fails the cell.
+    ``error_code``.
     """
-    _build_topology(tmp_path, topology=topology, slug=slug)
-    outcomes = _observe_all(tmp_path, slug, mid8)
+    _check_cell(tmp_path, topology, slug, mid8, _entry_points)
 
-    canonical_name = "resolve_status_surface_with_anchor"
-    canonical = outcomes[canonical_name]
-    for name, observed in outcomes.items():
-        if name == canonical_name:
-            continue
-        _assert_equivalent(canonical, observed, lhs=canonical_name, rhs=name)
+
+def test_equivalence_detects_planted_divergence(tmp_path: Path) -> None:
+    """Planted-violation control: one diverging leg fails the real cell comparison.
+
+    In a ``coord-fresh`` cell every entry point resolves the coordination dir. One
+    leg is rewired to return the PRIMARY feature dir instead; ``_check_cell`` (the
+    helper the matrix test calls) must then raise.
+    """
+    primary_dir = tmp_path / "kitty-specs" / SLUG_WITH_MID8
+
+    def diverging_entry_points(repo_root: Path, slug: str, mid8: str) -> dict[str, Callable[[], Path]]:
+        legs = _entry_points(repo_root, slug, mid8)
+        legs["MissionStatus.load"] = lambda: primary_dir
+        return legs
+
+    with pytest.raises(AssertionError, match="directory divergence"):
+        _check_cell(tmp_path, "coord-fresh", SLUG_WITH_MID8, MID8, diverging_entry_points)
 
 
 # ---------------------------------------------------------------------------
@@ -644,9 +458,7 @@ def test_ambiguous_mid8_handle_agrees(tmp_path: Path) -> None:
     canonical_name = "resolve_status_surface_with_anchor"
     canonical = outcomes[canonical_name]
     # The handle is genuinely ambiguous: the canonical authority MUST error.
-    assert not canonical.is_dir, (
-        "ambiguous mid8 must not resolve to a directory (FR-008 no silent first-match)"
-    )
+    assert not canonical.is_dir, "ambiguous mid8 must not resolve to a directory (FR-008 no silent first-match)"
     assert canonical.error_code == "MISSION_AMBIGUOUS_SELECTOR"
     for name, observed in outcomes.items():
         if name == canonical_name:
@@ -675,9 +487,7 @@ def test_create_first_write_window_resolves_primary(tmp_path: Path) -> None:
     canonical_name = "resolve_status_surface_with_anchor"
     canonical = outcomes[canonical_name]
     expected_primary = (tmp_path / "kitty-specs" / SLUG_WITH_MID8).resolve()
-    assert canonical.directory == expected_primary, (
-        "create→first-write window must resolve to the primary checkout (WP04 T016)"
-    )
+    assert canonical.directory == expected_primary, "create→first-write window must resolve to the primary checkout (WP04 T016)"
     for name, observed in outcomes.items():
         if name == canonical_name:
             continue
@@ -730,14 +540,8 @@ def test_pure_stored_topology_projects_surface_placement(
         MissionTopology.LANES_WITH_COORD: True,
     }
 
-    coordination_branch = (
-        COORD_BRANCH
-        if topology in (MissionTopology.COORD, MissionTopology.LANES_WITH_COORD)
-        else None
-    )
-    identity = IdentityFragment.derive(
-        mission_id=MISSION_ID, mission_slug=MISSION_SLUG
-    )
+    coordination_branch = COORD_BRANCH if topology in (MissionTopology.COORD, MissionTopology.LANES_WITH_COORD) else None
+    identity = IdentityFragment.derive(mission_id=MISSION_ID, mission_slug=MISSION_SLUG)
     branch_ref = BranchRefFragment(
         target_branch="feat/single-surface",
         coordination_branch=coordination_branch,
@@ -759,10 +563,7 @@ def test_pure_stored_topology_projects_surface_placement(
     # coordination, SINGLE_BRANCH/LANES → PRIMARY. Asserted via the topology
     # predicate, NOT a deleted per-ref enum.
     coord_cells = (MissionTopology.COORD, MissionTopology.LANES_WITH_COORD)
-    assert (
-        routes_through_coordination(topology)
-        is expected_routes_coord_by_topology[topology]
-    )
+    assert routes_through_coordination(topology) is expected_routes_coord_by_topology[topology]
     # PRIMARY (flattened) cells share the target ref; coord cells route the coord ref.
     if topology in coord_cells:
         assert routes_through_coordination(topology) is True
@@ -815,10 +616,8 @@ def test_runtime_boundary_translates_ambiguous_selector(tmp_path: Path) -> None:
 #     catch (both legs could agree on the *wrong* surface). Complementary to T001,
 #     never a replacement — keep BOTH.
 #
-#   * T002 — NFR-002 live RED repro: an un-backfilled flattened mission with a
-#     stale coord husk resolves PRIMARY. RED on current code (the husk leaks, the
-#     #2062 bug surviving on the ``topology is None`` legacy arm); xfail(strict)
-#     until WP06 drains the legacy consults-coord-husk arm.
+#   * T002 — NFR-002 repro: an un-backfilled flattened mission with a stale
+#     coord husk resolves PRIMARY (the #2062 legacy arm was drained by WP06).
 
 # T001 transient axis: the orthogonal provenance/declaration variations that MUST
 # NOT change the derived topology. Each entry is a meta-fields patch applied on top
@@ -894,10 +693,7 @@ def _build_unbackfilled_mission(
 
 @pytest.mark.parametrize(
     ("topology", "has_coord", "has_lanes"),
-    [
-        pytest.param(t, c, lanes, id=t.value)
-        for (t, c, lanes) in _TOPOLOGY_AXIS
-    ],
+    [pytest.param(t, c, lanes, id=t.value) for (t, c, lanes) in _TOPOLOGY_AXIS],
 )
 @pytest.mark.parametrize(
     "transient",
@@ -924,23 +720,18 @@ def test_classify_on_read_equals_backfill_then_read(
     """
     # Leg A — classify-on-read: read the un-backfilled meta directly (no write).
     classify_dir = tmp_path / "kitty-specs" / "classify"
-    _build_unbackfilled_mission(
-        classify_dir, has_coord=has_coord, has_lanes=has_lanes, transient=transient
-    )
+    _build_unbackfilled_mission(classify_dir, has_coord=has_coord, has_lanes=has_lanes, transient=transient)
     classify_on_read = read_topology(classify_dir)
 
     # Leg B — backfill-then-read: persist via the production migration, then read.
     backfill_dir = tmp_path / "kitty-specs" / "backfill"
-    _build_unbackfilled_mission(
-        backfill_dir, has_coord=has_coord, has_lanes=has_lanes, transient=transient
-    )
+    _build_unbackfilled_mission(backfill_dir, has_coord=has_coord, has_lanes=has_lanes, transient=transient)
     result = backfill_mission_topology(backfill_dir)
     backfill_then_read = read_topology(backfill_dir)
 
     # The two legs converge (differential equivalence) ...
     assert classify_on_read is backfill_then_read, (
-        f"classify-on-read derived {classify_on_read} but backfill-then-read "
-        f"derived {backfill_then_read} — the classify arm is NOT behaviour-neutral"
+        f"classify-on-read derived {classify_on_read} but backfill-then-read derived {backfill_then_read} — the classify arm is NOT behaviour-neutral"
     )
     # ... AND both equal the expected cell (the absolute anchor, not pure leg-equality:
     # leg-vs-leg equality alone would pass even if BOTH derived the wrong topology).
@@ -982,14 +773,11 @@ def test_absolute_surface_placement_by_topology() -> None:
     assert set(expected_routes_through_coord) == set(MissionTopology)
 
     for topology, routes in expected_routes_through_coord.items():
-        assert routes_through_coordination(topology) is routes, (
-            f"{topology.value} expected routes_through_coordination={routes} "
-            "— surface-placement mapping mutant"
-        )
+        assert routes_through_coordination(topology) is routes, f"{topology.value} expected routes_through_coordination={routes} — surface-placement mapping mutant"
 
 
 # ---------------------------------------------------------------------------
-# T002 — NFR-002 live RED repro (xfail strict, drains in WP06)
+# T002 — NFR-002 repro (un-backfilled flattened mission resolves PRIMARY)
 # ---------------------------------------------------------------------------
 
 
@@ -1007,17 +795,13 @@ def _build_unbackfilled_flattened_with_husk(repo_root: Path) -> tuple[Path, Path
     primary = repo_root / "kitty-specs" / SLUG_WITH_MID8
     # NO ``topology`` key — the un-backfilled flattened shape (FR-005 / NFR-002).
     _write_meta(primary, mission_id=MISSION_ID, flattened=True)
-    (primary / "status.events.jsonl").write_text(
-        '{"wp_id":"WP01","to_lane":"approved"}\n', encoding="utf-8"
-    )
+    (primary / "status.events.jsonl").write_text('{"wp_id":"WP01","to_lane":"approved"}\n', encoding="utf-8")
     coord_root = repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord"
     _git(repo_root, "worktree", "add", "-q", "-b", COORD_BRANCH, str(coord_root))
     husk = coord_root / "kitty-specs" / SLUG_WITH_MID8
     husk.mkdir(parents=True, exist_ok=True)
     _write_meta(husk, mission_id=MISSION_ID)
-    (husk / "status.events.jsonl").write_text(
-        '{"wp_id":"WP01","to_lane":"planned"}\n', encoding="utf-8"
-    )
+    (husk / "status.events.jsonl").write_text('{"wp_id":"WP01","to_lane":"planned"}\n', encoding="utf-8")
     return primary, husk
 
 
@@ -1037,9 +821,7 @@ def test_unbackfilled_flattened_resolves_primary_not_husk(tmp_path: Path) -> Non
     OBSERVABLE resolved surface (the returned dir), never the internal call graph.
     """
     primary, husk = _build_unbackfilled_flattened_with_husk(tmp_path)
-    resolved = resolve_handle_to_read_path(
-        tmp_path, SLUG_WITH_MID8, require_exists=True
-    ).resolve()
+    resolved = resolve_handle_to_read_path(tmp_path, SLUG_WITH_MID8, require_exists=True).resolve()
 
     # Negative control: prove the husk is genuinely a DIFFERENT, present directory —
     # otherwise "resolves primary" could pass vacuously if the husk never existed.
@@ -1068,14 +850,9 @@ def test_unbackfilled_flattened_repro_resolves_primary_after_wp06(
     """
     primary, husk = _build_unbackfilled_flattened_with_husk(tmp_path)
     try:
-        resolved = resolve_handle_to_read_path(
-            tmp_path, SLUG_WITH_MID8, require_exists=True
-        ).resolve()
+        resolved = resolve_handle_to_read_path(tmp_path, SLUG_WITH_MID8, require_exists=True).resolve()
     except StatusReadPathNotFound:  # pragma: no cover — defensive: not the fixed arm
-        pytest.fail(
-            "expected the un-backfilled flattened repro to resolve PRIMARY after "
-            "WP06's boundary absorption, but it raised StatusReadPathNotFound"
-        )
+        pytest.fail("expected the un-backfilled flattened repro to resolve PRIMARY after WP06's boundary absorption, but it raised StatusReadPathNotFound")
     # Negative control: the husk is a different, present dir (non-vacuous).
     assert husk.resolve().exists()
     assert husk.resolve() != primary.resolve()
@@ -1112,10 +889,7 @@ def _primary_kind() -> MissionArtifactKind:
     loudly here rather than silently routing the test onto the STATUS leg.
     """
     kind = MissionArtifactKind.SPEC
-    assert is_primary_artifact_kind(kind), (
-        "SPEC must be a PRIMARY-partition kind to exercise the PRIMARY leg of "
-        "resolve_planning_read_dir (the #2136 bug leg)"
-    )
+    assert is_primary_artifact_kind(kind), "SPEC must be a PRIMARY-partition kind to exercise the PRIMARY leg of resolve_planning_read_dir (the #2136 bug leg)"
     return kind
 
 
@@ -1162,18 +936,11 @@ def test_primary_read_seam_handle_equivalence(tmp_path: Path) -> None:
     bare_slug = resolve_planning_read_dir(tmp_path, MISSION_SLUG, kind=kind).resolve()
 
     # Absolute anchor: the composed handle resolves the real on-disk canonical dir.
-    assert composed == expected, (
-        f"composed handle resolved {composed}, expected the canonical PRIMARY dir "
-        f"{expected}"
-    )
+    assert composed == expected, f"composed handle resolved {composed}, expected the canonical PRIMARY dir {expected}"
     # Equivalence: the bare forms fold to the SAME canonical dir (FR-011 / #2136).
-    assert bare_mid8 == expected, (
-        f"bare mid8 {MID8!r} resolved {bare_mid8} but must fold to the canonical "
-        f"PRIMARY dir {expected} (handle-safe read seam — #2136)"
-    )
+    assert bare_mid8 == expected, f"bare mid8 {MID8!r} resolved {bare_mid8} but must fold to the canonical PRIMARY dir {expected} (handle-safe read seam — #2136)"
     assert bare_slug == expected, (
-        f"bare slug {MISSION_SLUG!r} resolved {bare_slug} but must fold to the "
-        f"canonical PRIMARY dir {expected} (handle-safe read seam — #2136)"
+        f"bare slug {MISSION_SLUG!r} resolved {bare_slug} but must fold to the canonical PRIMARY dir {expected} (handle-safe read seam — #2136)"
     )
 
 

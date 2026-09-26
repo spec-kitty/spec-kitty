@@ -266,7 +266,7 @@ def test_query_blocks_synthetic_canceled_wp(tmp_path: Path) -> None:
 # derive the SAME lane->step->action mapping as
 # _finalized_task_board_override_step / query mode, over the identical lane
 # fixtures already pinned above. Distinct from the NFR-002 negative
-# single-authority test in tests/runtime/test_bridge_parity.py::
+# single-authority test in tests/runtime/test_next_board_authority.py::
 # test_no_advancing_path_emits_unauthorized_step -- both are required.
 # ===========================================================================
 

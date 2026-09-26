@@ -46,7 +46,7 @@ _DECORATION_KEYS = frozenset({"references", "delivery"})
 
 
 def _write_charter_fixture(tmp_path: Path) -> None:
-    """A minimal, activation-provisioned charter repo (mirrors test_context_parity)."""
+    """A minimal, activation-provisioned charter repo (mirrors test_context_bootstrap_markers)."""
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")

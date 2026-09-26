@@ -10,17 +10,24 @@ against realistic on-disk mission repos.
 ## Snapshots are built programmatically, not stored on disk
 
 There are no committed golden repos here. Each fixture's frozen snapshot is
-**built fresh in a temp dir** by a `_build_*` function in `test_bridge_parity.py`
-using the `scaffold_software_dev` / `scaffold_research` / `scaffold_documentation`
-helpers (real `git init`, `kitty-specs/<slug>/meta.json`, `tasks/WP*.md`, a
-canonical `status.events.jsonl` seed, and — where the scenario needs an advanced
-run — a REAL engine walk via `advance_to_step`, never a stub). The `ledger_results`
+**built fresh in a temp dir** by a `_build_*` function, which stays in the oracle
+module `test_bridge_parity.py`. The builders use the shared real-mission
+scaffolds (`scaffold_software_dev`, `advance_to_step` and the git / WP-seeding
+helpers), which live in `tests/runtime/_next_mission_scaffold.py`, plus the
+oracle-local `scaffold_research` / `scaffold_documentation` helpers (real
+`git init`, `kitty-specs/<slug>/meta.json`, `tasks/WP*.md`, a canonical
+`status.events.jsonl` seed, and — where the scenario needs an advanced run — a
+REAL engine walk via `advance_to_step`, never a stub). The `ledger_results`
 module fixture then `copytree`s each snapshot **twice** into independent per-run
 roots and drives the owning entry once per copy, so masking soundness and
 determinism are proven together.
 
 To regenerate / inspect a scenario, call its `_build_*` function with a `tmp_path`
 and read the returned `(snapshot_dir, drive_kwargs)`.
+
+The board-authority P0 tests (#4980 / #4975) live in
+`tests/runtime/test_next_board_authority.py`; they reuse the same scaffold module
+but never import the oracle or set up the `ledger_results` fixture.
 
 ## Per-entry sub-ledgers
 

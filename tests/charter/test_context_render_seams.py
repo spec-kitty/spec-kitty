@@ -3,9 +3,9 @@
 ``selection_block``, ``activation_block``, ``bootstrap_text``, and
 ``compact_governance``.
 
-These tests are narrower than the byte-parity fixture
-(``tests/charter/test_context_parity.py``, which pins the composed OUTPUT):
-this module pins two things the parity fixture cannot see by construction:
+These tests are narrower than the bootstrap-marker fixture
+(``tests/charter/test_context_bootstrap_markers.py``, which pins the composed OUTPUT):
+this module pins two things the marker fixture cannot see by construction:
 
 1. **Standalone importability** — each new seam module must be importable as
    the FIRST charter import in a fresh interpreter, without raising, proving
