@@ -56,8 +56,6 @@ _PAYLOAD_KEY_SUCCESS = "success"
 _PAYLOAD_KEY_ERROR = "error"
 
 
-
-
 def _emit_record_analysis_error(message: str, *, json_output: bool) -> None:
     """Emit a record-analysis error to JSON or console (S3776/S1192 campsite).
 
@@ -119,16 +117,12 @@ def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -
     from mission_runtime import ActionContextError as _ActionContextError, placement_seam
 
     try:
-        return placement_seam(repo_root, feature_dir.name).write_target(
-            MissionArtifactKind.ANALYSIS_REPORT
-        )
+        return placement_seam(repo_root, feature_dir.name).write_target(MissionArtifactKind.ANALYSIS_REPORT)
     except _ActionContextError:
         return None
 
 
-def _require_record_analysis_placement(
-    placement_ref: CommitTarget | None, *, mission_slug: str
-) -> CommitTarget:
+def _require_record_analysis_placement(placement_ref: CommitTarget | None, *, mission_slug: str) -> CommitTarget:
     """Fail closed when record-analysis cannot resolve canonical placement (T013 / D11).
 
     A small, pure extraction (Sonar-testable) consumed by :func:`record_analysis`
@@ -189,16 +183,8 @@ def _enforce_analysis_report_write_preflight(
     # (never a per-ref ``.kind``). ``mission_slug`` is required to resolve the
     # stored topology; absent it, the residue filter is skipped (no slug ⇒ no
     # mission topology to route on) and the preflight gates on the full dirty set.
-    if (
-        placement_ref is not None
-        and mission_slug is not None
-        and routes_through_coordination(resolve_topology(repo_root, mission_slug))
-    ):
-        dirty_paths = [
-            path
-            for path in dirty_paths
-            if not is_coord_residue_churn(path, mission_slug=mission_slug)
-        ]
+    if placement_ref is not None and mission_slug is not None and routes_through_coordination(resolve_topology(repo_root, mission_slug)):
+        dirty_paths = [path for path in dirty_paths if not is_coord_residue_churn(path, mission_slug=mission_slug)]
     if dirty_paths:
         payload = {
             _PAYLOAD_KEY_SUCCESS: False,
@@ -236,6 +222,9 @@ def record_analysis(
         typer.Option("--agent", help="Agent name that produced the analysis report"),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    report_only: Annotated[
+        bool, typer.Option("--report-only", help="Commit only the report while preserving unrelated work; require clean material inputs")
+    ] = False,
 ) -> None:
     """Persist `/spec-kitty.analyze` output as `analysis-report.md`."""
     try:
@@ -278,15 +267,14 @@ def record_analysis(
         # silently letting the preflight run with a conservative, un-filtered
         # dirty set (see ``_require_record_analysis_placement``).
         placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir)
-        placement_ref = _require_record_analysis_placement(
-            placement_ref, mission_slug=feature_dir.name
-        )
-        _enforce_analysis_report_write_preflight(
-            cwd_repo_root,
-            json_output=json_output,
-            placement_ref=placement_ref,
-            mission_slug=feature_dir.name,
-        )
+        placement_ref = _require_record_analysis_placement(placement_ref, mission_slug=feature_dir.name)
+        if not report_only:
+            _enforce_analysis_report_write_preflight(
+                cwd_repo_root,
+                json_output=json_output,
+                placement_ref=placement_ref,
+                mission_slug=feature_dir.name,
+            )
 
         body = sys.stdin.read() if input_file == "-" else Path(input_file).read_text(encoding="utf-8")
         if not body.strip():
@@ -324,9 +312,25 @@ def record_analysis(
         from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
         from mission_runtime import placement_seam
 
-        write_feature_dir = placement_seam(repo_root, feature_dir.name).read_dir(
-            _kind_for_artifact("spec")
-        )
+        write_feature_dir = placement_seam(repo_root, feature_dir.name).read_dir(_kind_for_artifact("spec"))
+
+        if report_only:
+            from specify_cli.git.report_transaction import record_report_transaction
+
+            payload = record_report_transaction(
+                repo_root=repo_root,
+                feature_dir=write_feature_dir,
+                body=body,
+                analyzer_agent=analyzer_agent,
+                target_branch=get_feature_target_branch(repo_root, feature_dir.name),
+            )
+            if json_output:
+                _emit_json(payload)
+            else:
+                console.print(payload)
+            if not payload["success"]:
+                raise typer.Exit(1)
+            return
 
         result = write_analysis_report(
             feature_dir=write_feature_dir,
@@ -350,9 +354,7 @@ def record_analysis(
         # ``Exception``-direct refusal, deliberately outside this tuple), which
         # this record-analysis path is out of scope for. Best-effort semantics
         # for genuine commit failures (e.g. a protected target ref) are preserved.
-        with contextlib.suppress(
-            subprocess.CalledProcessError, OSError, RuntimeError, ValueError
-        ):
+        with contextlib.suppress(subprocess.CalledProcessError, OSError, RuntimeError, ValueError):
             from specify_cli.coordination.commit_router import commit_for_mission
             from specify_cli.git.protection_policy import ProtectionPolicy
 
