@@ -26,6 +26,13 @@ are a non-optional floor — no flag in this mission can stop them being written
 | D-2 | What does the ledger flag gate? | **Option (c)**: automatic refresh of the gitignored, derived local execution-state projection after each lane transition. It never gates the lane ledger, its commit, the committed status snapshot, the decision ledger, the runtime run journal, or invocation records. |
 | D-3 | Behaviour with no configured hosted endpoint | Explicit hosted commands stop with setup guidance naming the environment variable and the config key; automatic paths stay silent and send nothing. |
 | D-4 | Rename the retired-vocabulary endpoint key `[sync].server_url`? | **No** — keep it; the rename is a separate follow-up. |
+| D-5 | Which user-global file holds the personal activation? | The **runtime-root** `config.toml` (`~/.spec-kitty/config.toml` on POSIX, `SPEC_KITTY_HOME`-overridable) — the same file as `[sync].server_url`; table `[hosted]`, key `drain`. |
+
+**Post-spec squad resolutions (2026-09-26, agent-decided defaults, recorded in `traces/design-decisions.md`):**
+- R-1 (M1): no environment variable can *enable* drain in either scope; environment variables may only narrow it. A per-repo `.kittify/config.toml` never carries the personal activation.
+- R-2 (M2): `.kittify/saas-auth.json` (with its own token) and a `SPEC_KITTY_SAAS_URL` value sourced from a `.kitty.env` file both count as *explicit operator configuration* of the endpoint; neither can enable drain.
+- R-3 (M3): drain gates **all** relay traffic, including operator-typed relay commands (`zeitgeist send/reply/outbox approve`); auth commands (`auth login/logout/status/whoami/doctor`) and the tracker are gated only by endpoint configuration, not by drain.
+- R-4 (migration): machines where the earlier migration already wrote `team.spec-kitty.ai` keep it — it is now an explicit value in their config; drain stays off by default, so no automatic traffic results.
 
 ## Domain Language
 
@@ -131,8 +138,12 @@ run `auth login`/`auth status`; assert a guidance error (no traceback) and no ne
 - Drain value is present but non-boolean ⇒ off + warning (never truthiness-coerced).
 - Drain toggled between two commands in one shell ⇒ the new value applies on the next command
   (the value is read per invocation, not frozen at import).
-- Existing kill switch `SPEC_KITTY_NO_MOMENT_HANDLERS` set while drain on ⇒ the kill switch still
-  wins (it only ever narrows).
+- Existing narrowers (`SPEC_KITTY_NO_MOMENT_HANDLERS`, `SPEC_KITTY_SYNC_DISABLE`, `[moments] agents = "off"`)
+  set while drain is on ⇒ they still win (they only ever narrow); drain is evaluated per call at the
+  network edge, not frozen at import.
+- A committed `.kitty.env` sets any drain-looking environment variable ⇒ ignored (R-1).
+- The shared runtime-root `config.toml` is unparseable ⇒ drain off (with one warning) and the endpoint
+  treated as unconfigured — both readers apply the same rule.
 - Ledger flag unparseable/non-boolean ⇒ default (on) + warning; lane state unaffected either way.
 - Hosted endpoint configured but drain off ⇒ explicit commands (login, tracker) work; automatic
   drain paths stay silent.
@@ -144,17 +155,17 @@ run `auth login`/`auth status`; assert a guidance error (no traceback) and no ne
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
 | FR-001 | Repository drain key | As an operator, I want a boolean `hosted.drain` key in `.kittify/config.yaml` (default off/absent) so that a repository can declare it permits live drain. | High | Approved |
-| FR-002 | Personal drain activation | As a developer, I want a boolean drain activation in my user-global Spec Kitty config (default off) so that no committed file can switch live drain on for me without my consent. | High | Approved |
+| FR-002 | Personal drain activation | As a developer, I want a boolean `[hosted] drain` activation in my runtime-root `config.toml` (default off), read only from that file — never from an environment variable or any repository file — so that no committed content can switch live drain on for me without my consent. | High | Approved |
 | FR-003 | Effective drain = both | As an operator, I want drain to be effective only when FR-001 and FR-002 are both on, so that either party can keep data on the machine. | High | Approved |
-| FR-004 | Drain gates every automatic hosted egress | As an operator, I want drain-off to stop every automatic outbound hosted interaction — status/lifecycle/resolved-binding/runtime moments, decision live-frame, presence and focus frames, relay capability resolution and minting (including use of a cached credential), live-work publishing — before any network or credential access, so that nothing leaves the machine. | High | Approved |
-| FR-005 | Drain gates live subscriptions | As an operator, I want the live stream/watch/history commands and their MCP equivalents to refuse with guidance when drain is off, so that no live subscription is established. | High | Approved |
+| FR-004 | Drain gates every automatic hosted egress | As an operator, I want drain-off to stop every automatic outbound hosted interaction — status/lifecycle/resolved-binding/runtime moments, decision live-frame, presence and focus frames, relay capability resolution and minting (including use of a cached credential), live-work publishing (including the retrospective live-work frames and the harness-invoked live-work hook), operator-typed relay sends and MCP relay tools — before any network or credential access, so that nothing leaves the machine. | High | Approved |
+| FR-005 | Drain gates live subscriptions | As an operator, I want the live `zeitgeist status/watch/activity/read/inbox` commands, history, and their MCP equivalents to refuse with guidance when drain is off, so that no live subscription is established. | High | Approved |
 | FR-006 | Drain off never degrades local work | As a developer, I want every local command to exit exactly as it would without hosted features when drain is off, so that the frozen server never blocks my mission. | High | Approved |
 | FR-007 | Drain status visible | As a developer, I want a command that reports the effective drain state and which file decided each scope, plus a way to set my personal activation, so that I can see and change my posture without editing files by hand. | Medium | Approved |
 | FR-008 | Ledger key | As an operator, I want a boolean `ledger.projection` key in `.kittify/config.yaml` (default on) so that I control automatic production of the local execution-state projection. | Medium | Approved |
-| FR-009 | Projection refresh on transition | As a developer, I want the derived execution-state projection refreshed after each successful lane transition when the ledger flag is on, so that the local dashboard always reads fresh state without the network. | Medium | Approved |
+| FR-009 | Projection refresh on transition | As a developer, I want the derived execution-state projection refreshed after each durably persisted lane transition when the ledger flag is on — built from a write-free snapshot, written atomically only under the repository-root `.kittify/derived/<mission>/`, never touching the tracked status snapshot, and skipped during a git operation — so that the local dashboard always reads fresh state without the network. | Medium | Approved |
 | FR-010 | Ledger floor | As an operator, I want the ledger flag to never affect the lane ledger, its commit, the committed status snapshot, the decision ledger, the runtime run journal or invocation records, so that lane state and the permanent record are intact under every setting. | High | Approved |
 | FR-011 | No packaged hosted endpoint | As an operator, I want the hosted endpoint to resolve only from `SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url`, with no built-in live address, so that a fresh install targets no hosted server. | High | Approved |
-| FR-012 | Guidance when unconfigured | As a developer, I want explicit hosted commands (login, status, doctor, tracker, routes, decision widen) to stop with setup guidance when no endpoint is configured — never a traceback — and automatic paths to stay silent. | High | Approved |
+| FR-012 | Guidance when unconfigured | As a developer, I want every explicit command that resolves the hosted endpoint (auth login/logout/status/whoami/doctor, tracker, routes, decision widen, relay commands) to stop with setup guidance when no endpoint is configured — never a traceback — and automatic paths to stay silent. | High | Approved |
 | FR-013 | Retired-target migration opt-in | As an operator upgrading a machine configured for the retired `app.spec-kitty.ai`, I want the migration to drop that stale value and tell me to configure an endpoint, rather than rewriting it to a live address. | Medium | Approved |
 | FR-014 | Decision record | As a maintainer, I want an ADR recording the reversal of #3980 D-5 (packaged default) and the two-scope drain consent model, so that the policy change is governed rather than silent. | High | Approved |
 | FR-015 | Documentation | As an operator, I want the configuration reference, environment-variable reference and the Team Kitty context page updated to the opt-in model, so that docs mirror shipped behaviour. | Medium | Approved |
@@ -164,9 +175,9 @@ run `auth login`/`auth status`; assert a guidance error (no traceback) and no ne
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Zero egress by default | With no drain configuration and no endpoint configured, a full lane walk (9 lanes) plus one decision round-trip makes **0** outbound hosted requests (asserted by instrumenting every hosted network edge). | Privacy | High | Approved |
-| NFR-002 | Gate is non-vacuous | An architectural test proves every hosted network edge sits behind the drain gate (concrete floor ≥ the 4 known edges; a self-mutation check shows removing a gate call turns the test red; allowlist shrink-only). | Reliability | High | Approved |
-| NFR-003 | No latency cost | Drain-off adds no measurable wall-clock to a lane transition (gate check < 5 ms; no network timeouts are waited on). | Performance | Medium | Approved |
-| NFR-004 | Lane FSM integrity | Across all 4 combinations of {ledger on/off} × {drain on/off}, lane-ledger bytes, status-ref commit count and the reduced snapshot are identical. | Reliability | High | Approved |
+| NFR-002 | Gate is non-vacuous | An architectural test proves every hosted network edge sits behind the drain gate (concrete floor = relay opener used by the control POST, stream GET ×2 and history GET, plus the capability-gateway HTTP client; a self-mutation check shows removing a gate call turns the test red; allowlist shrink-only). | Reliability | High | Approved |
+| NFR-003 | No latency cost | With drain off, a lane transition performs 0 network attempts and 0 credential-store/keyring reads (asserted with mocks), and the gate reads at most 2 config files. | Performance | Medium | Approved |
+| NFR-004 | Lane FSM integrity | Across all 4 combinations of {ledger on/off} × {drain on/off}, lane-ledger bytes, tracked status-snapshot bytes, status-ref commit count and the reduced snapshot are identical (exercised on a flat mission and on a coordination-topology mission). | Reliability | High | Approved |
 | NFR-005 | Coverage | New and changed code reaches ≥ 90% diff coverage; ruff, ruff format and mypy report 0 issues on touched files. | Quality | High | Approved |
 
 ### Constraints
@@ -198,7 +209,7 @@ run `auth login`/`auth status`; assert a guidance error (no traceback) and no ne
 
 ## Assumptions
 
-- The user-global config is `config.toml` under the Spec Kitty home (the same home `[moments]` uses); the drain activation lives in a new `[hosted]` table there.
+- The personal activation lives in the runtime-root `config.toml` (D-5), not in `~/.kittify/config.toml` where `[moments]` lives on POSIX; the guidance output prints the resolved absolute path.
 - `.kittify/derived/` stays gitignored; the projection uses the existing derived-views writers, fed by a write-free snapshot.
 - #4311's bounded retry is not yet on main; C-005 is satisfied by construction because the gate sits at the network edge.
 
