@@ -12,6 +12,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -23,7 +24,15 @@ from typing import Any, TypeAlias, cast
 
 import yaml
 
-from scripts.ci.reconcile_retry import retry_with_backoff
+# Actions runs this trusted-checkout script before installing the package, and
+# ``scripts.ci`` resolves as a namespace package only with the repo root on the
+# path. Resolve from the script, never the caller's cwd (mirrors the guard in
+# ``scripts/ci/stale_running_sweep.py``).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.ci.reconcile_retry import retry_with_backoff  # noqa: E402  (import after the path guard above)
 
 PR_WORKFLOWS = frozenset(
     {
