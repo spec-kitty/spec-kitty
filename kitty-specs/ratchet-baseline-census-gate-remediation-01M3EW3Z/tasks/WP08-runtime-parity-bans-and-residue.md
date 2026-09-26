@@ -350,3 +350,4 @@ It must fail with "0 files inspected" or "missing target" for both floor tests. 
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+- 2026-09-26T17:07:42Z – claude – shell_pid=416 – Blocked on move-task for_review: lane-branch kitty-specs guard flags tasks/WP02-*.md and tasks/WP05-*.md, inherited via lane-setup merges 816dd9e8/87d0e94a (not WP08 commits; d61d05ba/e034ecf9 touch only tests/). Implementation complete and committed; T043-T048 marked done. Orchestrator decision needed: canonical cleanup (git restore --source claude/spec-kitty-remediation-wfje22 -- kitty-specs/ + commit) or --force.
