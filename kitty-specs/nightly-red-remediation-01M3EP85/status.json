@@ -1,7 +1,7 @@
 {
-  "event_count": 3,
-  "last_event_id": "01M3EPPE32JHH7S87HYZGFCREC",
-  "materialized_at": "2026-09-26T11:13:06.658324+00:00",
+  "event_count": 4,
+  "last_event_id": "01M3EPPG6T57NRVECXE67CFRTJ",
+  "materialized_at": "2026-09-26T11:13:08.826670+00:00",
   "mission_number": "",
   "mission_slug": "nightly-red-remediation-01M3EP85",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 3
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -38,6 +38,13 @@
       "lane": "planned",
       "last_event_id": "01M3EPPE32JHH7S87HYZGFCREC",
       "last_transition_at": "2026-09-26T11:13:06.658324+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3EPPG6T57NRVECXE67CFRTJ",
+      "last_transition_at": "2026-09-26T11:13:08.826670+00:00"
     }
   }
 }
