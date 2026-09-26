@@ -78,7 +78,7 @@ def _recompute(cls: str, extra: str, drop: str = "") -> str:
         from specify_cli.status.models import Lane as _Lane
         _orig = _ws.{cls}.allowed_targets
         def _mut(self):
-            return frozenset((_orig(self) - {{{drop}}}) | {{{extra}}})
+            return frozenset((_orig(self) - frozenset([{drop}])) | {{{extra}}})
         _ws.{cls}.allowed_targets = _mut
         import specify_cli.status.transitions as _tr
         import specify_cli.status as _pkg
@@ -412,7 +412,9 @@ def _row(mutation: Mutation, res: RunResult) -> tuple[str, list[str]]:
             lines.append(f"    GREEN!  {node}")
             missing.append(node)
     present = [n for n in mutation.expected if n in res.collected]
-    if not present:
+    if not res.collected:
+        verdict = "INVALID (no test ran: plugin/collection failure)"
+    elif not present:
         verdict = "NO-EXPECTED-NODE-PRESENT"
     elif missing:
         verdict = "MISSING"
