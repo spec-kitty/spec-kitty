@@ -756,10 +756,10 @@ def _apply_command_assessment(assessment: OwnerAssessment, *, rebuild: Callable[
     via the shared ``asset_preparation.apply_with_reassess`` helper (#4174
     landing-pass) -- see its docstring for the full mechanism.
     """
-    from specify_cli.runtime.asset_preparation import apply_with_reassess
+    from specify_cli.runtime.asset_preparation import apply_with_reassess, startup_asset_error
 
     if not assessment.complete:
-        raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
+        raise startup_asset_error(assessment.owner_key, assessment.diagnostics)
     if not assessment.effects:
         return
     result = apply_with_reassess(
@@ -770,7 +770,7 @@ def _apply_command_assessment(assessment: OwnerAssessment, *, rebuild: Callable[
         logger=logger,
     )
     if result.outcome not in {"applied", "skipped"}:
-        raise RuntimeError("; ".join(d.message for d in result.diagnostics))
+        raise startup_asset_error(result.owner_key, result.diagnostics)
 
 
 def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) -> None:
