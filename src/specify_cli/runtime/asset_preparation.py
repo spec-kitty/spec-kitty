@@ -889,6 +889,46 @@ def _cold_install_sentinel(anchor: Path) -> Path:
 
 
 @contextmanager
+def _serialize_owner(lock_paths: tuple[Path, ...], anchor: Path) -> Iterator[None]:
+    """Acquire one owner's serialization point: the single authority shared by
+    ``recheck_assets`` and ``build_serialized`` (FR-002/C-008).
+
+    Takes the cold-install sentinel when any of *lock_paths* is absent, plus
+    every existing lock path, then records the set in ``_HELD_LOCKS`` for the
+    duration of the ``with`` block. Any other lock choice would be a second,
+    parallel authority that could drift from what the locked recheck takes --
+    see ``research.md`` D-2.
+
+    WP04: both the cold-install serialization and the per-owner-lock
+    acquisition below route through ``kernel.locks.machine_file_lock`` (the
+    canonical primitive, G1-G7) rather than a raw ``msvcrt``/``fcntl`` call.
+    Neither this process's OS-lock acquisition NOR the cold-install
+    serialization branches on platform any more (the primitive absorbs that
+    internally) -- see ``_cold_install_sentinel``'s docstring for why the
+    former POSIX-directory-flock shape is retired in favour of one uniform
+    dedicated sentinel file for every platform.
+    """
+    with ExitStack() as stack:
+        cold = any(not path.exists() for path in lock_paths)
+        if cold:
+            # A cold install has no owner lock file to acquire yet (apply's
+            # own exclusive create is the final arbiter); serialize cold
+            # installers of the SAME anchor on a dedicated machine-temp
+            # sentinel instead -- never the anchor directory itself, which
+            # the canonical primitive cannot lock (G1: a dedicated regular
+            # lock-only path).
+            stack.enter_context(machine_file_lock(_cold_install_sentinel(anchor), blocking=True))
+        for path in lock_paths:
+            if path.exists():
+                stack.enter_context(machine_file_lock(path, blocking=True))
+        token = _HELD_LOCKS.set(_HELD_LOCKS.get() | set(lock_paths))
+        try:
+            yield
+        finally:
+            _HELD_LOCKS.reset(token)
+
+
+@contextmanager
 def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ...]]:
     """Hold an existing owner lock without truncation throughout recheck/apply.
 
@@ -915,14 +955,10 @@ def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ..
     -- a true SOURCE-read drift (never tolerated, FR-003/C-002) still refuses
     once the under-lock recheck runs.
 
-    WP04: both the cold-install serialization and the per-owner-lock
-    acquisition below route through ``kernel.locks.machine_file_lock`` (the
-    canonical primitive, G1-G7) rather than a raw ``msvcrt``/``fcntl`` call.
-    Neither this process's OS-lock acquisition NOR the cold-install
-    serialization branches on platform any more (the primitive absorbs that
-    internally) -- see ``_cold_install_sentinel``'s docstring for why the
-    former POSIX-directory-flock shape is retired in favour of one uniform
-    dedicated sentinel file for every platform.
+    The actual lock set is acquired through ``_serialize_owner`` -- the single
+    serialization authority also used by ``build_serialized``'s escalation
+    (FR-002/C-008), so an owner's locked recheck and its torn-read escalation
+    can never choose a different lock set for the same assessment.
     """
     diagnostics = check_assets(assessment)
     prepared = assessment.prepared
@@ -932,24 +968,8 @@ def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ..
     if set(prepared.lock_paths) <= _HELD_LOCKS.get():
         yield diagnostics
         return
-    with ExitStack() as stack:
-        cold = any(not path.exists() for path in prepared.lock_paths)
-        if cold:
-            # A cold install has no owner lock file to acquire yet (apply's
-            # own exclusive create is the final arbiter); serialize cold
-            # installers of the SAME anchor on a dedicated machine-temp
-            # sentinel instead -- never the anchor directory itself, which
-            # the canonical primitive cannot lock (G1: a dedicated regular
-            # lock-only path).
-            stack.enter_context(machine_file_lock(_cold_install_sentinel(prepared.anchor), blocking=True))
-        for path in prepared.lock_paths:
-            if path.exists():
-                stack.enter_context(machine_file_lock(path, blocking=True))
-        token = _HELD_LOCKS.set(_HELD_LOCKS.get() | set(prepared.lock_paths))
-        try:
-            yield check_assets(assessment)
-        finally:
-            _HELD_LOCKS.reset(token)
+    with _serialize_owner(prepared.lock_paths, prepared.anchor):
+        yield check_assets(assessment)
 
 
 def apply_with_reassess(
