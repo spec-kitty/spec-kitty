@@ -9173,11 +9173,12 @@ pages:
     abstract: "Operator migration guide for the cross-repo E2E gate, active since the stability-and-hygiene-hardening mission (2026-04-26): how the gate works and what operators do."
     anchors:
     - {slug: "what-the-gate-is", text: "What the gate is", level: 2}
-    - {slug: "the-four-floor-scenarios", text: "The four floor scenarios", level: 2}
+    - {slug: "the-three-floor-scenarios", text: "The three floor scenarios", level: 2}
     - {slug: "how-to-run-the-gate", text: "How to run the gate", level: 2}
     - {slug: "exception-path-mission-exception-md", text: "Exception path: `mission-exception.md`", level: 2}
     - {slug: "common-exception-cases-non-exhaustive", text: "Common exception cases (non-exhaustive)", level: 2}
-    - {slug: "case-a-dev-saas-endpoint-is-down-or-unreachable", text: "Case A: dev SaaS endpoint is down or unreachable", level: 3}
+    - {slug: "case-a-e2e-harness-cannot-resolve-a-sibling-spec-kitty-checkout-contract-drift-caught-py", text: "Case A: e2e harness cannot resolve a sibling `spec-kitty` checkout (`contract_drift_caught.py`)", level: 3}
+    - {slug: "case-a2-uninitialized-repo-fail-loud-py-skips-when-the-spec-kitty-cli-is-unavailable", text: "Case A2: `uninitialized_repo_fail_loud.py` skips when the `spec-kitty` CLI is unavailable", level: 3}
     - {slug: "case-b-e2e-harness-has-a-hard-dependency-this-machine-cannot-satisfy", text: "Case B: e2e harness has a hard dependency this machine cannot satisfy", level: 3}
     - {slug: "case-c-scenario-blocker-that-is-genuinely-a-follow-up-issue", text: "Case C: scenario blocker that is genuinely a follow-up issue", level: 3}
     - {slug: "what-is-not-allowed", text: "What is NOT allowed", level: 2}

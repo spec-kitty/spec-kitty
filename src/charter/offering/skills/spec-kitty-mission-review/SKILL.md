@@ -526,17 +526,20 @@ ADR `docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`), mission review
 runs four hard gates in order. A FAIL on any gate produces a FAIL verdict
 in Step 9 unless the operator-exception path documented below is used.
 
-The gate commands below pin `SPEC_KITTY_ENABLE_SAAS_SYNC=1` explicitly so
-they never depend on ambient flag state — hosted mode is on by default
-(#3980 launch defaults; `=0` is the opt-out), and the pin confirms it. The
-flag is the tracker-hosted rollout gate; it does not restore the removed
-standalone sync transport.
+The CLI-to-SaaS sync transport these gates once exercised (the old daemon,
+offline queue, and `SPEC_KITTY_ENABLE_SAAS_SYNC` floor scenario) was retired
+in The Convergence — see
+`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`
+and [`docs/context/team-kitty.md`](../../../../../docs/context/team-kitty.md).
+Do not pin `SPEC_KITTY_ENABLE_SAAS_SYNC` on the gate commands below: Gate 1's
+`tests/contract/` suite does not read this flag at all, and none of Gate 3's
+surviving E2E scenarios read the outer shell's value for it either.
 
 ### Gate 1: Contract tests (FR-023)
 
 ```bash
 cd <spec-kitty-repo>
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> tests/contract/ -v
+<test-runner> tests/contract/ -v
 ```
 
 Non-zero exit ⇒ **HARD FAIL**. There is no exception path for contract
@@ -557,22 +560,25 @@ package-boundary violations are code defects by construction.
 
 Record the result under `## Gate Results — Architectural`.
 
-### Gate 3: Cross-repo E2E (FR-038, FR-039, FR-040, FR-041, C-010)
+### Gate 3: Cross-repo E2E (FR-038, FR-039, FR-041, C-010)
 
 ```bash
 cd <spec-kitty-end-to-end-testing-repo>
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> scenarios/ -v
+<test-runner> scenarios/ -v
 ```
 
 Non-zero exit ⇒ **HARD FAIL** unless an operator-exception artifact
 exists at `kitty-specs/<slug>/mission-exception.md` and matches the
 required schema (see below).
 
-The four floor scenarios are:
+The three floor scenarios are the current supported cross-repo floor
+(`EXPERIMENTAL-spec-kitty-end-to-end-testing`, `scenarios/`). The retired
+fourth scenario, `saas_sync_enabled.py` (FR-040), was deleted with the sync
+transport (commit `e59564b`, e2e issue #4) and is not part of the floor —
+see spec-kitty#4949:
 
 - `dependent_wp_planning_lane.py` — FR-001, FR-005, FR-038
 - `uninitialized_repo_fail_loud.py` — FR-032, FR-039
-- `saas_sync_enabled.py` — FR-040
 - `contract_drift_caught.py` — FR-041
 
 Future missions touching cross-repo behavior MUST add scenarios that
@@ -645,7 +651,7 @@ traceback that is not network-related). Operator exceptions are for
 environmental blockers, not for deferred bugs.
 
 Full operator runbook for the exception path:
-[`docs/migrations/cross-repo-e2e-gate.md`](../../../../docs/migrations/cross-repo-e2e-gate.md).
+[`docs/migrations/cross-repo-e2e-gate.md`](../../../../../docs/migrations/cross-repo-e2e-gate.md).
 
 ### Recording the gate results
 
@@ -682,7 +688,7 @@ must be able to understand each finding from the report alone.
 ## Gate Results
 
 ### Gate 1 — Contract tests
-- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> tests/contract/ -v`
+- Command: `<test-runner> tests/contract/ -v`
 - Exit code: <0 | non-zero>
 - Result: PASS | FAIL
 - Notes: <failing test names if any>
@@ -694,7 +700,7 @@ must be able to understand each finding from the report alone.
 - Notes: ...
 
 ### Gate 3 — Cross-repo E2E
-- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> spec-kitty-end-to-end-testing/scenarios/ -v`
+- Command: `<test-runner> spec-kitty-end-to-end-testing/scenarios/ -v`
 - Exit code: <0 | non-zero>
 - Result: PASS | FAIL | EXCEPTION (with link to `kitty-specs/<slug>/mission-exception.md`)
 - Notes: <failing scenarios; if EXCEPTION, quote the operator narrative>

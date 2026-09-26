@@ -45,7 +45,7 @@ matrix has a row with an empty verdict or a verdict outside the
 allowed set (`fixed`, `verified-already-fixed`,
 `deferred-with-followup`).
 
-## The four floor scenarios
+## The three floor scenarios
 
 The e2e repo at `spec-kitty-end-to-end-testing/scenarios/` ships at
 least these scenarios. Future missions add more on top.
@@ -54,16 +54,18 @@ least these scenarios. Future missions add more on top.
 |------|-------------|----------------|
 | `dependent_wp_planning_lane.py` | FR-001, FR-005, FR-038 | A mission with sequential dependent WPs plus a planning-lane WP merges with no silent omission of approved commits. |
 | `uninitialized_repo_fail_loud.py` | FR-032, FR-039 | `spec-kitty specify`/`plan`/`tasks` in a non-Spec-Kitty directory exit non-zero with `SPEC_KITTY_REPO_NOT_INITIALIZED` and write zero files into a sibling initialized repo. |
-| `saas_sync_enabled.py` | FR-040 | A full mission run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` against a configured dev SaaS endpoint produces sync emits at the endpoint, OR records a structured "endpoint unreachable" outcome that triggers the operator-exception path. |
 | `contract_drift_caught.py` | FR-041 | Staging a fake `spec-kitty-events` candidate that drops a required envelope field causes `pytest tests/contract/` to exit non-zero with a missing-field diagnostic. |
+
+A fourth scenario, `saas_sync_enabled.py` (FR-040), was retired along with
+the CLI-to-SaaS sync transport it exercised (commit `e59564b` in
+`EXPERIMENTAL-spec-kitty-end-to-end-testing`) and is not part of the floor
+— see spec-kitty#4949.
 
 ## How to run the gate
 
 From the spec-kitty repo:
 
 ```bash
-export SPEC_KITTY_ENABLE_SAAS_SYNC=1
-
 # 0. TeamSpace mission-state gate
 spec-kitty doctor mission-state --audit --fail-on teamspace-blocker
 
@@ -101,28 +103,28 @@ under `kitty-specs/<slug>/`:
 
 **Operator**: <human name and email>
 **Date**: <ISO date>
-**Failing scenario**: `spec-kitty-end-to-end-testing/scenarios/saas_sync_enabled.py::test_full_mission_with_sync`
-**Failing assertion**: `assert endpoint_health.reachable, "dev SaaS endpoint must be reachable"`
+**Failing scenario**: `spec-kitty-end-to-end-testing/scenarios/<scenario_module>.py::<test_name>`
+**Failing assertion**: `<the specific assertion or pytest.fail message that failed>`
 
 ## Why the failure is environmental, not a code defect
 
-[Operator narrative. Example: "The dev SaaS endpoint at
-https://dev.spec-kitty.example was unreachable from this machine
-during review. `curl -fsS <endpoint>/health` exits non-zero. This is
-infra, not code."]
+[Operator narrative. Example: "The e2e harness's `spec_kitty_repo`
+fixture (`scenarios/conftest.py`) could not resolve a sibling
+`spec-kitty` checkout on this machine — no `SPEC_KITTY_REPO` override,
+no `SK_E2E_REARCH_ROOT`-derived sibling. This is an environment-setup
+gap, not a code defect."]
 
 ## Reproduction command
 
 ```bash
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 \
-  pytest spec-kitty-end-to-end-testing/scenarios/saas_sync_enabled.py -v
+pytest spec-kitty-end-to-end-testing/scenarios/<scenario_module>.py -v
 ```
 
 ## Follow-up
 
 [Either a follow-up issue link, e.g. "Tracked as
-spec-kitty/spec-kitty#NNN" OR a written commitment to retry against
-the endpoint within a documented window.]
+spec-kitty/spec-kitty#NNN" OR a written commitment to retry once the
+environment gap is resolved.]
 ```
 
 The mission-review skill rejects an exception artifact that is
@@ -130,14 +132,29 @@ missing any of those fields.
 
 ## Common exception cases (non-exhaustive)
 
-### Case A: dev SaaS endpoint is down or unreachable
+### Case A: e2e harness cannot resolve a sibling `spec-kitty` checkout (`contract_drift_caught.py`)
 
-The `saas_sync_enabled.py` scenario detects this with an explicit
-health-check assertion (`expected_endpoint_health` flag). If the
-endpoint is unreachable, the scenario records a structured
-"unavailable" outcome rather than silently passing. The operator
-files `mission-exception.md` referencing the specific scenario and
+Of the three surviving floor scenarios, only `contract_drift_caught.py`'s
+`test_contract_drift_caught` takes the `spec_kitty_repo` fixture
+(`scenarios/conftest.py`) as a parameter. The fixture requires a
+resolvable sibling `spec-kitty` checkout — via an explicit
+`SPEC_KITTY_REPO` override or the `SK_E2E_REARCH_ROOT`-aware resolver.
+This is a required prerequisite, not an optional one: an unresolvable
+checkout fails the fixture (`pytest.fail(...)`) rather than skipping
+the scenario. If the reviewer's machine genuinely lacks a resolvable
+sibling checkout, the operator files `mission-exception.md` naming
+`contract_drift_caught.py` and the exact `pytest.fail` text, and
 follows the schema above.
+
+### Case A2: `uninitialized_repo_fail_loud.py` skips when the `spec-kitty` CLI is unavailable
+
+`uninitialized_repo_fail_loud.py` does not use the `spec_kitty_repo`
+fixture. Its `test_uninitialized_repo_fails_loud` is decorated with
+`@pytest.mark.skipif(not spec_kitty_cli_available(), ...)`: when no
+`spec-kitty` binary resolves, the test is SKIPPED (not failed), with a
+reason that directs the operator to set `SK_E2E_SPEC_KITTY_BIN` or
+`SK_E2E_SPEC_KITTY_REPO`, or to file `mission-exception.md` per this
+doc.
 
 ### Case B: e2e harness has a hard dependency this machine cannot satisfy
 
@@ -172,7 +189,7 @@ blockers*, not for deferred bugs.
   [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
 - Skill source (the enforcement code path):
   [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
-- Mission spec (FR-038, FR-039, FR-040, FR-041, NFR-006, C-010):
+- Mission spec (FR-038, FR-039, FR-040 *(retired, #4949)*, FR-041, NFR-006, C-010):
   [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md)
 - Issue matrix (the row-coverage gate input):
   [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md)
