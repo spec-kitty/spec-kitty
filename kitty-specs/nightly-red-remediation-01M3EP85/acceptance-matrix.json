@@ -88,10 +88,10 @@
       "criterion_id": "FR-009",
       "description": "Verify FR-009 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/merge/test_nightly_remediation_merge_defects.py: gates-fail then re-run proceeds; declined confirm leaves no state; resume state kept; pre-fix resume still refused; abort clears marker. Red-first on base: 2 fresh-stop tests failed (WP03 843593074f)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T12:53:07.338796+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
