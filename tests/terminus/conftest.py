@@ -19,7 +19,7 @@ import json
 import os
 import subprocess
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -544,6 +544,169 @@ def build_coord_mission_mixed_lane(
     # -- materialize the coordination worktree (production topology) -------
     CoordinationWorkspace.resolve(repo, slug, mid8)
     return mission
+
+
+def build_coord_mission_shared_file(
+    tmp_path: Path,
+    *,
+    wps: Sequence[str],
+    edits: Mapping[str, tuple[int, str]],
+    target_branch: str = "main",
+    mid8: str = "01M5051A",
+    shared_path: str = "src/pkg/shared.py",
+    initial_lines: Sequence[str] | None = None,
+) -> CoordMission:
+    """A squash-capable coord mission whose approved lanes ALL edit ONE shared
+    file at DISJOINT hunks (terminus-merge-resolution-attribution / #5051-
+    adjacent, WP01 T004).
+
+    ``build_coord_mission`` gives every WP its OWN write-scope file, and
+    ``build_coord_mission_mixed_lane`` supports only ``--strategy merge`` and
+    cannot tolerate a lane-branch mutation after construction (it
+    de-materializes the coordination worktree -- project memory
+    ``terminus-mixed-lane-fixture-repro-friction``). This is an ADDITIVE new
+    builder, not a mutation of either: every lane branch commits its edit
+    INLINE, during construction, and the coordination worktree is materialized
+    exactly ONCE at the very end -- mirroring ``build_coord_mission_mixed_lane``'s
+    "build it all, then resolve once" shape. WP02 (Seam B) reuses this builder.
+
+    ``edits`` maps each WP id to ``(line_index, replacement_line)`` -- the
+    caller picks DISJOINT indices so the lanes' own diffs never overlap and the
+    aggregate squash resolves cleanly via ``git``'s own 3-way merge machinery.
+    """
+    mid8 = mid8.upper()
+    mission_id = (mid8 + "0" * 26)[:26]
+    slug = f"terminus-{mid8}"
+    repo = tmp_path / "repo"
+    home = tmp_path / "home"
+    home.mkdir(parents=True, exist_ok=True)
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    coord_branch = CoordinationWorkspace.branch_name(slug, mid8)
+    mission = CoordMission(
+        repo=repo,
+        home=home,
+        feature_dir=repo / "kitty-specs" / slug,
+        slug=slug,
+        mission_id=mission_id,
+        mid8=mid8,
+        coord_branch=coord_branch,
+        target_branch=target_branch,
+    )
+
+    # -- base repo, seeded with the shared file --------------------------------
+    repo.mkdir(parents=True, exist_ok=True)
+    _run(["git", "init", "-qb", target_branch, str(repo)])
+    _git(repo, "config", "user.email", "test@test.com")
+    _git(repo, "config", "user.name", "Terminus Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("init\n", encoding="utf-8")
+    lines = list(initial_lines or (f"line {i}\n" for i in range(1, 11)))
+    shared_file = repo / shared_path
+    shared_file.parent.mkdir(parents=True, exist_ok=True)
+    shared_file.write_text("".join(lines), encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "init")
+
+    # -- planning artifacts: one lane per WP, ALL declaring shared_path --------
+    (mission.feature_dir / "tasks").mkdir(parents=True)
+    _write_meta(mission)
+    lanes = [
+        ExecutionLane(
+            lane_id=f"lane-{chr(ord('a') + idx)}",
+            wp_ids=(wp_id,),
+            write_scope=(shared_path,),
+            predicted_surfaces=("code",),
+            depends_on_lanes=(),
+            parallel_group=0,
+        )
+        for idx, wp_id in enumerate(wps)
+    ]
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=slug,
+        mission_id=mission_id,
+        mission_branch=coord_branch,
+        target_branch=target_branch,
+        lanes=lanes,
+        computed_at=_now_iso(),
+        computed_from="terminus-shared-file-fixture",
+    )
+    write_lanes_json(mission.feature_dir, manifest)
+    events: list[dict[str, object]] = []
+    for wp_id in wps:
+        _write_wp_file(mission, wp_id)
+        events.extend(_approve_events(mission, wp_id))
+    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text(
+        "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", f"chore({slug}): bootstrap shared-file coord mission")
+
+    # -- coordination branch at the bootstrap tip ------------------------------
+    _git(repo, "branch", coord_branch)
+
+    # -- one lane branch per WP, each committing its OWN disjoint-hunk edit ----
+    for idx, wp_id in enumerate(wps):
+        lane_id = f"lane-{chr(ord('a') + idx)}"
+        lane_branch = f"kitty/mission-{slug}-{lane_id}"
+        _git(repo, "branch", lane_branch, coord_branch)
+        _git(repo, "checkout", "-q", lane_branch)
+        line_index, replacement = edits[wp_id]
+        edited = shared_file.read_text(encoding="utf-8").splitlines(keepends=True)
+        edited[line_index] = replacement
+        shared_file.write_text("".join(edited), encoding="utf-8")
+        _git(repo, "add", shared_path)
+        _git(repo, "commit", "-qm", f"feat({slug}): {wp_id} edits {shared_path}@{line_index}")
+        _git(repo, "checkout", "-q", target_branch)
+        mission.lane_branches[wp_id] = lane_branch
+
+    # -- materialize the coordination worktree ONCE (production topology) -----
+    CoordinationWorkspace.resolve(repo, slug, mid8)
+    return mission
+
+
+def fold_lanes_into_mission_branch(mission: CoordMission, wp_ids: Sequence[str]) -> None:
+    """Fold every WP's lane branch into the MISSION branch itself -- never into
+    each other's OWN branch (terminus-merge-resolution-attribution / #5051-
+    adjacent, WP01 T004 real-CLI repro).
+
+    ``spec-kitty merge``'s lane-based fold (``lanes/merge.py::
+    consolidate_lane_into_mission``) processes lanes SEQUENTIALLY and refuses
+    (``lanes/stale_check.py``) a later lane whose OWN branch overlaps a file
+    the mission branch already advanced on, UNLESS that lane's branch first
+    incorporates the mission branch -- which would fold the earlier lane's
+    content INTO the later lane's own first-parent spine, contaminating
+    ``ApprovedWpCommitSet.authored_blobs`` (a lane's "own" final blob would then
+    already equal the combined result, masking the very false-FAIL this WP
+    fixes). Folding directly into the MISSION branch instead -- a real, clean
+    ``git merge`` this helper performs itself, never touching a lane branch --
+    keeps each lane's own spine PURE while still advancing the branch
+    ``_phase_merge_lanes``'s ancestry check (``lane_integrated_by_tree_or_
+    ancestry``) reads, so a SUBSEQUENT ``spec-kitty merge --resume`` finds
+    every lane already integrated and skips re-folding (no stale check ever
+    runs). Call this AFTER a real, failed first ``spec-kitty merge`` attempt
+    (whose stale-lane abort persists ``pre_mutation_coord_sha`` -- the
+    coordination tip AT TRANSACTION START -- to
+    ``.kittify/merge-state.json``), so the resumed run's reconciliation claim
+    is anchored to that persisted base rather than re-deriving a live
+    checkpoint that would, by resume time, already reflect this fold.
+
+    Operates inside the materialized COORDINATION WORKTREE
+    (``.worktrees/<slug>-<mid8>-coord``), never the main repo checkout: the
+    coordination branch is checked out THERE (production topology,
+    :func:`~specify_cli.coordination.workspace.CoordinationWorkspace.resolve`),
+    and git refuses a second checkout of a branch already checked out
+    elsewhere.
+    """
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    coord_worktree = CoordinationWorkspace.worktree_path(mission.repo, mission.slug, mission.mid8)
+    for wp_id in wp_ids:
+        _git(coord_worktree, "merge", "-q", "--no-edit", mission.lane_branches[wp_id])
 
 
 def plant_canceled_commit(

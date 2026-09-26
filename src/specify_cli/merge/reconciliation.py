@@ -51,7 +51,7 @@ from pathlib import Path
 
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import lane_branch_name
-from specify_cli.lanes.models import LanesManifest
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.merge.git_probes import (
     GitProbeError,
     blob_id_at,
@@ -59,9 +59,11 @@ from specify_cli.merge.git_probes import (
     changed_paths_of,
     commits_in_range,
     first_parent_commits_in_range,
+    merge_tree_write_tree_available,
     patch_id_of,
     patch_ids_in_range,
     sha_reachable_from,
+    three_way_merge_blob,
 )
 from specify_cli.merge.workspace import get_merge_runtime_dir
 
@@ -242,6 +244,24 @@ class VerifyResult:
 
 
 @dataclass(frozen=True)
+class LaneContribution:
+    """One approved lane's contribution to a multi-lane-authored content path.
+
+    ``terminus-merge-resolution-attribution`` / FR-009. ``lane_commit`` is a raw
+    SHA — the newest commit on the lane's own first-parent spine — never a
+    branch name, so it stays resolvable via git's object store for the lifetime
+    of the merge transaction even after a lane branch ref is deleted at
+    teardown. Used ONLY to supply
+    :func:`~specify_cli.merge.git_probes.three_way_merge_blob`'s two merge
+    inputs; blob-identity attribution itself continues to come from
+    :attr:`ApprovedWpCommitSet.authored_blobs`, never from here.
+    """
+
+    lane_id: str
+    lane_commit: str
+
+
+@dataclass(frozen=True)
 class ApprovedWpCommitSet:
     """The claim the verifier trusts — derived once per terminus transaction.
 
@@ -306,6 +326,24 @@ class ApprovedWpCommitSet:
     # every ``D`` path as unattributable unless it is bookkeeping, preserving
     # pre-#5022 behavior for any claim that never populates it.
     authored_deletions: frozenset[str] = frozenset()
+    # Merge-resolution-aware Seam A attribution (terminus-merge-resolution-
+    # attribution / #5051-adjacent, FR-009). For each content path authored by
+    # EXACTLY TWO approved lanes (a path outside the disjoint-write-scope
+    # invariant `_final_authored_walk` documents), the two contributing lanes'
+    # identities + their still-resolvable pre-squash lane commit SHAs.
+    # Populated in the SAME first-parent spine walk that builds
+    # ``authored_blobs`` (:func:`_collect_authored` / :func:`_final_authored_walk`)
+    # — never a second walk. Absent (no key) for a single-lane path (the
+    # existing ``authored_blobs`` fast path already attributes those) and for a
+    # path touched by three-or-more approved lanes (2-way `merge-tree` folding
+    # is order-dependent/nondeterministic for N>2 — Decision 2, ``research.md``
+    # — so those stay fail-closed, never simulated). Supplies
+    # ``is_legitimate_three_way_resolution``'s two merge inputs; it never itself
+    # supplies blob identity — that authority stays with ``authored_blobs``.
+    # Populated by ``_collect_authored`` only in the production claim builder; a
+    # hand-built claim leaves it empty and the merge-resolution recognizer never
+    # fires, preserving pre-widening behavior byte-for-byte.
+    multi_lane_paths: Mapping[str, tuple[LaneContribution, LaneContribution]] = field(default_factory=dict)
     mission_slug: str | None = None
     # Repo-relative posix path of the mission's planning/status directory
     # (``kitty-specs/<slug>``). A window commit that touches ONLY paths under this
@@ -607,6 +645,18 @@ class MergeOutcomeVerifier:
         first-parent spine ends by deleting it); otherwise it is a canceled/removed
         WP's deletion that rode a carrier lane onto the target and is unattributable.
         Bounded by the squash diff size (NFR-003).
+
+        An Added/Modified path whose blob is NOT in ``authored_blobs`` (a single
+        approved lane's own final content) gets one more, strictly fail-closed
+        chance: :func:`is_legitimate_three_way_resolution` (terminus-merge-
+        resolution-attribution / #5051-adjacent, FR-002/003) — a path authored by
+        EXACTLY TWO approved lanes whose target blob equals the deterministic
+        ``git merge-tree`` resolution of those two lanes' own contributions is a
+        genuine merge resolution, not removed content, and is attributed too.
+        Every other shape (>2 lanes, a single-lane mismatch, binary, a
+        conflicting resolution, git<2.38) stays unattributable — this second
+        chance never attributes vacuously; see that function's docstring for the
+        full fail-closed ordering.
         """
         unattributable_blobs: list[tuple[str, str]] = []
         unattributable_deletions: list[str] = []
@@ -618,8 +668,11 @@ class MergeOutcomeVerifier:
                     unattributable_deletions.append(path)
                 continue
             blob = blob_id_at(self._repo, target_ref, path)  # raises → REFUSE (F1)
-            if (path, blob) not in claim.authored_blobs:
-                unattributable_blobs.append((path, blob))
+            if (path, blob) in claim.authored_blobs:
+                continue
+            if is_legitimate_three_way_resolution(self._repo, claim, path, blob):
+                continue
+            unattributable_blobs.append((path, blob))
         return unattributable_blobs, unattributable_deletions
 
     def _commit_is_content(self, sha: str, claim: ApprovedWpCommitSet) -> bool:
@@ -709,6 +762,51 @@ class MergeOutcomeVerifier:
         if normalized == KITTIFY_DIR or normalized.startswith(KITTIFY_DIR + "/"):
             return True
         return bool(_KITTY_OPS_ROOT_RECORD.match(normalized))
+
+
+def is_legitimate_three_way_resolution(
+    repo_root: Path,
+    claim: ApprovedWpCommitSet,
+    path: str,
+    target_blob: str,
+) -> bool:
+    """True iff *target_blob* is the deterministic 2-way merge of *path*'s two
+    approved-lane contributions (Seam A merge-resolution recognizer,
+    terminus-merge-resolution-attribution / #5051-adjacent, FR-002/FR-003).
+
+    Called ONLY as :meth:`MergeOutcomeVerifier._unattributable_content_squash`'s
+    second chance, after the ``authored_blobs`` single-lane fast path has already
+    missed — every guard below fires strictly ABOVE any attribution (F1
+    corollary), so this never attributes vacuously:
+
+    1. *path* absent from :attr:`ApprovedWpCommitSet.multi_lane_paths` (not
+       authored by exactly two approved lanes: zero, one, or three-or-more) →
+       ``False`` — the simulation never even runs (Decision 2, ``research.md``:
+       2-way ``merge-tree`` folding is order-dependent/nondeterministic for N>2).
+    2. The installed git does not support ``git merge-tree --write-tree`` (git<
+       2.38, :func:`~specify_cli.merge.git_probes.merge_tree_write_tree_available`)
+       → ``False`` (Decision 3: fail-closed fallback, no unsound raw-``merge-
+       file`` substitute).
+    3. Otherwise, simulate the 2-way merge of the two lanes' OWN commits
+       (:func:`~specify_cli.merge.git_probes.three_way_merge_blob` — the ONLY
+       inputs are those two commits; git derives their common ancestor, so no
+       third input, e.g. a canceled/removed hunk, can ever be smuggled in) and
+       compare its result for *path* to *target_blob*. A conflicting resolution,
+       a binary conflict, or an absent result path all come back as ``None``
+       from the simulation and compare unequal → ``False``.
+
+    This is the PER-SEAM recognizer (research open-item 3): it is intentionally
+    NOT physically shared with Seam B's presence-under-union check — blob-merge
+    and block-presence are conceptually and mechanically distinct questions.
+    """
+    contributions = claim.multi_lane_paths.get(path)
+    if contributions is None:
+        return False
+    if not merge_tree_write_tree_available(repo_root):
+        return False
+    lane_a, lane_b = contributions
+    resolved_blob = three_way_merge_blob(repo_root, lane_a.lane_commit, lane_b.lane_commit, path)
+    return resolved_blob == target_blob
 
 
 def route_terminus(entry_point: str) -> None:
@@ -811,7 +909,9 @@ def build_approved_wp_set(
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
-    authored_shas, authored_patch_ids, authored_blobs, authored_deletions = _collect_authored(repo_root, lanes_manifest, work_packages, coord_base_ref)
+    authored_shas, authored_patch_ids, authored_blobs, authored_deletions, multi_lane_paths = _collect_authored(
+        repo_root, lanes_manifest, work_packages, coord_base_ref
+    )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
         lanes_manifest,
@@ -832,6 +932,7 @@ def build_approved_wp_set(
         authored_patch_ids=authored_patch_ids,
         authored_blobs=authored_blobs,
         authored_deletions=authored_deletions,
+        multi_lane_paths=multi_lane_paths,
         mission_slug=lanes_manifest.mission_slug,
         planning_prefix=planning_prefix,
     )
@@ -1052,13 +1153,40 @@ def _final_authored_deletions(repo_root: Path, first_parent_shas: list[str]) -> 
     return deletions
 
 
+def _record_lane_path_contribution(
+    path_contributions: dict[str, list[LaneContribution]],
+    lane: ExecutionLane,
+    lane_blobs: set[tuple[str, str]],
+    first_parent: list[str],
+) -> None:
+    """Record *lane*'s contribution to every path in its own FINAL blob set.
+
+    Extracted from :func:`_collect_authored` (Sonar complexity ceiling): a lane
+    with no first-parent commits or no final blobs contributes nothing (there is
+    no still-resolvable lane commit to record). ``first_parent[0]`` (newest) is
+    the lane's own tip on its first-parent spine — a raw SHA, always resolvable
+    for the lifetime of the transaction even after a branch ref is deleted.
+    """
+    if not lane_blobs or not first_parent:
+        return
+    contribution = LaneContribution(lane_id=lane.lane_id, lane_commit=first_parent[0])
+    for path, _blob in lane_blobs:
+        path_contributions.setdefault(path, []).append(contribution)
+
+
 def _collect_authored(
     repo_root: Path,
     lanes_manifest: LanesManifest,
     work_packages: Mapping[str, Mapping[str, object]],
     coord_base_ref: str,
-) -> tuple[frozenset[str], frozenset[str], frozenset[tuple[str, str]], frozenset[str]]:
-    """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions.
+) -> tuple[
+    frozenset[str],
+    frozenset[str],
+    frozenset[tuple[str, str]],
+    frozenset[str],
+    Mapping[str, tuple[LaneContribution, LaneContribution]],
+]:
+    """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
     The authorship claim the closed-world content checks attribute against. A lane
     contributes its authorship only when at least one of its WPs is approved/done (a
@@ -1074,11 +1202,22 @@ def _collect_authored(
     first-parent-DELETED path per lane, unioned across approved lanes — the
     squash deletion-attribution axis's authority for a legitimate approved
     deletion.
+
+    ``multi_lane_paths`` (terminus-merge-resolution-attribution / FR-009) is
+    derived in this SAME per-lane walk — never a second one: for each approved
+    lane, every path in that lane's own ``lane_blobs`` (its FINAL first-parent
+    blob set, :func:`_final_authored_walk`) records one :class:`LaneContribution`
+    (:func:`_record_lane_path_contribution`). A path collected from EXACTLY two
+    lanes becomes a ``multi_lane_paths`` entry; a path from one lane (the common
+    case under the disjoint-write-scope invariant) or from three-or-more lanes is
+    absent — the merge-resolution recognizer only ever runs for the exactly-two
+    case (Decision 2, ``research.md``).
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
     blobs: set[tuple[str, str]] = set()
     deletions: set[str] = set()
+    path_contributions: dict[str, list[LaneContribution]] = {}
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
@@ -1092,12 +1231,15 @@ def _collect_authored(
         lane_blobs, lane_deletions = _final_authored_walk(repo_root, first_parent)
         blobs |= lane_blobs
         deletions |= lane_deletions
-    return frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions)
+        _record_lane_path_contribution(path_contributions, lane, lane_blobs, first_parent)
+    multi_lane_paths = {path: (contributions[0], contributions[1]) for path, contributions in path_contributions.items() if len(contributions) == 2}
+    return frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions), multi_lane_paths
 
 
 __all__ = [
     "ApprovedWpCommitSet",
     "Divergence",
+    "LaneContribution",
     "MergeOutcomeVerifier",
     "TERMINUS_ENTRY_POINTS",
     "UnroutedTerminusPathError",
@@ -1106,6 +1248,7 @@ __all__ = [
     "build_approved_wp_set",
     "clear_post_fix_marker",
     "detect_legacy_in_flight_state",
+    "is_legitimate_three_way_resolution",
     "route_terminus",
     "write_post_fix_marker",
 ]
