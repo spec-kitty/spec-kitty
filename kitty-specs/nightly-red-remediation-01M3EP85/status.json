@@ -67,11 +67,16 @@
     "WP05": {
       "actor": "claude",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "in_progress",
       "last_event_id": "01M3EPSZZHFW3P866FMQWW7KJH",
       "last_transition_at": "2026-09-26T11:15:03.280506+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 4616,
       "shell_pid_created_at": "1790421273.32"
     }
