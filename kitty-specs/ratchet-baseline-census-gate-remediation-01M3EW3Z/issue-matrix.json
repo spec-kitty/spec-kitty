@@ -241,7 +241,7 @@
       "wp": "WP13"
     },
     "#5116": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Follow-up issue filed by this mission (FR-019); tracked independently",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -249,7 +249,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5117": {
