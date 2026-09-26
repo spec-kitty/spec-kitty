@@ -18,3 +18,4 @@
 - 2026-09-26 — Resume with an empty persisted lane-tip record refuses fail-closed naming `merge --abort` (operator), mirroring the coord-base anchor handling.
 - 2026-09-26 — Gate reach is compose + match (operator): hand-rolled lane-name matchers route through the naming module's parsers.
 - 2026-09-26 — #5113 folded (operator); #5023's full dual-partition resolution stays out of scope.
+- 2026-09-26 — FR-003 strict arm limited to created-branch existence; the GitProbeError tolerance on approved lanes stays (#5001 FOLD-3, pinned by test_build_claim_tolerates_unresolvable_lane_probe) — the squad caught a prompt that would have silently flipped it.
