@@ -1,20 +1,20 @@
 {
-  "event_count": 27,
-  "last_event_id": "01M3ESVGSXKECJEDKCDFK0VMDC",
-  "materialized_at": "2026-09-26T12:08:19.005079+00:00",
+  "event_count": 28,
+  "last_event_id": "01M3ESWCES3BNCQV2F8RKET5EE",
+  "materialized_at": "2026-09-26T12:08:47.321708+00:00",
   "mission_number": "",
   "mission_slug": "nightly-red-remediation-01M3EP85",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 3,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -56,14 +56,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M3ESTFSNDENASFF8PRKNMYKQ",
-      "last_transition_at": "2026-09-26T12:07:45.205538+00:00",
+      "lane": "approved",
+      "last_event_id": "01M3ESWCES3BNCQV2F8RKET5EE",
+      "last_transition_at": "2026-09-26T12:08:47.321708+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Re-pinned test_merge_lane_planning_data_loss.py: A materialize coord worktree (#4959) + canonical case-preserved mid8; B stub reconciliation claim for MagicMock manifest (#5001, per 26be43c804); C2 lanes manifest mission_id=None (LanesManifest invariant). 7 red -> 13/13 green. No product change."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260926",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 27606,
       "shell_pid_created_at": "1790424461.08",
@@ -115,6 +120,9 @@
       "last_event_id": "01M3ESVGSXKECJEDKCDFK0VMDC",
       "last_transition_at": "2026-09-26T12:08:19.005079+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Re-pinned 12 red merge-path integration tests (+ perf resume budget): cause B/C1 stub _capture_reconciliation_claim + _phase_reconcile_before_teardown per 26be43c804 (#5001/#4982; appended last in test_merge_resume._patches); cause C3 seeds WP01 approved via real status emit (#4764). 6 files: 23 passed/1 perf-skipped; perf 1 passed (<1s vs 30s). Test-only, no skip/xfail."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 16970,
