@@ -1,0 +1,115 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: op
+lens_group: review
+mission: op-5000-fleet-verdict-import-fix
+findings:
+  - id: op-review-001
+    lens: test-side-effect-hazard
+    severity: 3
+    title: "Regression guard leaves real repo-root artifacts behind via reconcile_shards.py --help"
+    evidence:
+      - code: "tests/ci/test_workflow_script_import_guard.py:89-96"
+      - code: "scripts/ci/reconcile_shards.py:47-49"
+      - code: "scripts/ci/reconcile_shards.py:248"
+      - code: ".github/workflows/ci-aggregate.yml:262,269"
+    claim: >
+      test_workflow_invoked_script_survives_bare_run_without_module_not_found
+      runs every derived script with `--help`, cwd=repo root, no other
+      isolation. `scripts/ci/reconcile_shards.py` has no argparse/`--help`
+      handling (confirmed: `main()` ignores argv and runs its real logic
+      unconditionally), and its defaults (`DEFAULT_AGGREGATE_ROOT =
+      Path("out/aggregate")`, relative) resolve against the test's cwd. Running
+      this one parametrized case actually executes
+      `resolved_dir.mkdir(parents=True, exist_ok=True)` at
+      `<repo_root>/out/aggregate/coverage/` before crashing on a missing
+      registry file. Reproduced directly: `rm -rf out && PYTHONPATH=
+      .venv/bin/python scripts/ci/reconcile_shards.py --help` leaves
+      `out/aggregate/coverage/` on disk with exit code 1. `out/` is
+      `.gitignore`d (line 196), so `git status --porcelain` (with or without
+      `-uno`) stays clean and the hazard is invisible to the usual
+      tree-cleanliness check. `out/aggregate/{current,previous,coverage}` is
+      also the exact directory contract `ci-aggregate.yml`'s own "Reconcile
+      shard artefacts" step uses (lines 205, 248, 262, 269, 344). On an
+      ephemeral GitHub Actions runner this is harmless (fresh checkout per
+      job, never shared with the real ci-aggregate.yml run), but on a
+      persistent local/dev checkout — exactly the kind AGENTS.md's test policy
+      assumes contributors use — running `pytest tests/ci` after a local
+      `out/aggregate/{current,previous}` already holds real downloaded
+      artefacts would silently consume/overwrite `out/aggregate/coverage/*`
+      as a side effect of this regression test, with no signal that it
+      happened. The test's own docstring (lines 24-35) discloses that
+      `reconcile_shards.py` "always runs its real logic" and deliberately
+      does not assert exit 0, but does not disclose that the real logic
+      writes into the live repo tree rather than a hermetic location.
+    remediation: >
+      Either pass explicit `aggregate_root`/paths that point into a
+      pytest `tmp_path` when invoking `reconcile_shards.py` (would require
+      argparse support the script doesn't have today), or run this one
+      script's subprocess with `cwd=tmp_path` instead of `_REPO_ROOT` (its
+      import-guard defect is cwd-independent, so a relative-path repro still
+      exercises the guard), or document the disk-write explicitly in the
+      docstring and add a fixture that clears `out/aggregate/` before/after
+      the parametrized run so local re-runs can't accumulate/consume stale
+      real artefacts.
+
+  - id: op-review-002
+    lens: charter-compliance-markers
+    severity: 2
+    title: "New test carries `fast` while performing exactly the subprocess work that marker's own definition excludes"
+    evidence:
+      - code: "pytest.ini:33"
+      - code: "tests/ci/test_workflow_script_import_guard.py:55"
+      - code: "tests/ci/test_workflow_script_import_guard.py:86-98"
+    claim: >
+      `pytest.ini:33` defines `fast` as "pure-logic tests with no
+      subprocess/git overhead (sub-second per test)". The new file's
+      `pytestmark = pytest.mark.fast` (line 55) covers 24 parametrized cases
+      that each spawn a real `subprocess.run` (lines 89-96); one case alone
+      measured 5.83s. This contradicts the marker's documented contract
+      (directive 032, Conceptual Alignment: marker vocabulary is part of the
+      project's terminology surface). The repo previously had a gate for
+      exactly this class of violation
+      (`tests/architectural/test_pytest_marker_correctness.py::test_fast_marker_must_not_apply_to_subprocess_users`,
+      "Rule 2"), but it was deliberately deleted in commit `177e06269`
+      ("assertively sanitize low-signal suite cruft", #3285) — so nothing in
+      current CI catches this. It also isn't novel to this PR: the file's own
+      cited precedent, `tests/ci/test_wait_for_artifacts.py` (#4932), already
+      does the identical thing (`pytest.mark.fast` + a `--help` subprocess
+      guard). `tests/ci` is not in `FAST_TIER_DIRS`
+      (`tests/unit tests/status tests/cli tests/specify_cli/runtime`), so the
+      mislabel doesn't cause a wrong `make test-fast` selection either way —
+      the per-PR `ci` module row in `.github/ci-module-registry.yml:382`
+      selects the whole `tests/ci` directory regardless of marker.
+    remediation: >
+      Swap `pytest.mark.fast` for a marker that doesn't claim
+      "no subprocess" (e.g. `integration`, matching
+      `test_sonarcloud_branch_review.py`'s own precedent and rationale
+      comment at that file's lines 26-29), or narrow the file's markers to
+      cover only the pure-logic `test_workflow_invoked_scripts_is_a_non_vacuous_floor`
+      test. Not blocking given precedent and the retired gate, but worth a
+      follow-up sweep across `tests/ci/test_wait_for_artifacts.py` too.
+
+  - id: op-review-003
+    lens: diff-cover-relevance
+    severity: 1
+    title: "The fix's own new lines in fleet_verdict.py are structurally invisible to the diff-cover gate"
+    evidence:
+      - code: "scripts/ci/fleet_verdict.py:24-32"
+      - code: ".github/workflows/module-tests.yml:296-303"
+    claim: >
+      `module-tests.yml`'s coverage-target derivation walks only
+      `src/` top-level packages (lines 296-303: `src = pathlib.Path("src")`);
+      `scripts/` is never a `--cov` target for any shard. The new sys.path
+      guard in `fleet_verdict.py` (lines 24-32) is therefore never measured
+      by any coverage report, so the PR's diff-cover ≥90% gate carries zero
+      signal for the actual fix — correctness here rests entirely on the new
+      `tests/ci` regression test, not on the coverage gate. This is a
+      pre-existing, repository-wide property of every `scripts/ci/*.py`
+      change (not something this PR introduced or could reasonably fix under
+      Locality of Change / directive 024), so it is informational only.
+    remediation: >
+      No action needed for this PR. If the gap is ever worth closing, it's a
+      separate, repo-wide mission (measuring `scripts/` under coverage), not
+      a scope addition here.

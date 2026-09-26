@@ -1,0 +1,84 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: op
+lens_group: re-review
+mission: op-5000-fleet-verdict-import-fix
+findings:
+  - id: op-rereview-001
+    lens: test-scaffolding-as-design-smell
+    severity: 3
+    title: "AST recursion only descends into `ast.If`, so a try/except-guarded scripts.* import would be silently excluded from the executed set"
+    evidence:
+      - code: "tests/ci/test_workflow_script_import_guard.py:148-157"
+      - code: "tests/ci/test_workflow_script_import_guard.py:20-44"
+    claim: >
+      `_has_module_level_scripts_import` (lines 148-157) recurses only into
+      `ast.If.body`/`orelse` (line 155: `isinstance(stmt, ast.If)`). A
+      module-level `try: from scripts.ci.x import y \n except ImportError: ...`
+      -- a common alternative style to the `if <repo root not on sys.path>:`
+      guard this repo currently uses everywhere -- executes its `try` body
+      unconditionally at import time, exactly like an `if` body, and is
+      exposed to the identical `ModuleNotFoundError: No module named
+      'scripts'` defect this test exists to catch. Because the recursion does
+      not visit `ast.Try` (or `ast.With`, e.g. `with
+      contextlib.suppress(ImportError):`), such a script would be silently
+      dropped from `_scripts_exposed_to_bare_script_import_defect()`'s
+      filtered set and never parametrized -- i.e. never actually run under
+      this guard -- while the module docstring (lines 20-44) claims the test
+      "closes the defect class by construction" and explicitly frames
+      "conditionally" imported scripts.* usage as covered ("importing scripts.*
+      inside a function, conditionally, or via a sibling module" is exactly
+      the miss the dispatching reviewer asked about). No script in the repo
+      today uses this pattern (all six audited scripts use the `if`-guard
+      form), so nothing is broken right now, but the completeness claim is
+      overstated and a future script copying a try/except import-guard
+      pattern would regress invisibly: CI would stay green with zero coverage
+      of that script's own `ModuleNotFoundError` exposure.
+    remediation: >
+      Extend `_has_module_level_scripts_import`'s recursion to `ast.Try`
+      (`body`, `orelse`, each handler's `body`, `finalbody`) and `ast.With`
+      the same way it already handles `ast.If`, or narrow the docstring's
+      "by construction" claim to state explicitly that only `if`-guarded
+      conditional imports are covered.
+
+  - id: op-rereview-002
+    lens: test-side-effect-hazard
+    severity: 2
+    title: "Unguarded ast.parse/read_text in the parametrize call site can turn one bad workflow-comment match into a whole-file collection error"
+    evidence:
+      - code: "tests/ci/test_workflow_script_import_guard.py:124"
+      - code: "tests/ci/test_workflow_script_import_guard.py:160-171"
+      - code: "tests/ci/test_workflow_script_import_guard.py:188"
+    claim: >
+      `_workflow_invoked_scripts()` derives its candidate list with a raw
+      regex over each workflow file's full text (line 124), with no
+      YAML-aware parsing and no stripping of `#`-comments or string literals
+      first -- it only requires that `python3? <path>.py` appear anywhere,
+      including inside a comment. `_imports_scripts_package` (lines 160-165)
+      then does an unguarded `script_path.read_text()` + `ast.parse()` against
+      every candidate, and `_scripts_exposed_to_bare_script_import_defect()`
+      (line 171) is called directly inside the `@pytest.mark.parametrize(...)`
+      decorator (line 188) -- i.e. at collection time, outside any test body.
+      A future workflow comment that happens to mention a concrete
+      `scripts/*.py` path that no longer exists (a rename, a moved file, a
+      typo) would raise an uncaught `FileNotFoundError` while pytest is
+      collecting this module, failing collection of the ENTIRE file -- not
+      just one parametrized case -- and silently removing every case in it,
+      including the `fleet_verdict.py` regression guard this PR exists to
+      add, from that run's results. (Today's only comment that looks similar,
+      `docs-pages.yml:90`'s `python3 scripts/docs/*.py`, uses a glob and does
+      not match the `[\w/]+\.py` character class, so there is no live
+      instance of this today.) A collection error is not silent in the sense
+      of passing green -- pytest reports it and the run goes red -- but it
+      surfaces as a confusing `FileNotFoundError` traceback rather than the
+      clean, targeted assertion failure the rest of this test is designed to
+      produce, and a shard that treats collection errors differently from
+      test failures (e.g. any summarizer keyed on assertion text) could
+      misclassify it.
+    remediation: >
+      Either anchor the regex to skip lines whose first non-whitespace
+      character is `#`, or wrap `_imports_scripts_package`'s body in a
+      `try/except FileNotFoundError` that reports the offending workflow
+      match explicitly (e.g. via a dedicated floor-test assertion) instead of
+      letting parametrize-time collection fail opaquely.
