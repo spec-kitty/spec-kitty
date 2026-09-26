@@ -15,32 +15,48 @@ This test closes the defect class by construction (DIRECTIVE_043) rather than
 pinning one script: it derives the list of scripts every ``.github/workflows/*.yml``
 file invokes as a bare script (``python``/``python3 <path>``, excluding ``-m``
 module invocations, which already have the repo root on ``sys.path`` via the
-interpreter's own module-mode bootstrap and are not exposed to this defect) and
-runs each one exactly as CI invokes it -- ``[sys.executable, <absolute script
-path>, "--help"]``, ``PYTHONPATH`` stripped from the environment -- so a future
-script that copies the same unguarded ``from scripts.`` import is caught here
-too, not just at the next red push. ``cwd`` is deliberately NOT the repo root;
-see "Subprocess isolation" below.
+interpreter's own module-mode bootstrap and are not exposed to this defect).
 
-The only assertion is the precise defect-class floor: no
-``ModuleNotFoundError: No module named 'scripts'`` at import time. It deliberately
-does NOT assert a blanket exit 0 for ``--help`` across the whole set: at least one
-workflow-invoked script (``reconcile_shards.py``) has no argparse ``--help``
-handling and always runs its real logic (which needs files ``--help`` does not
-provide), and this repository's own contributor test policy (AGENTS.md's
-"stale-venv false reds") notes that an optional dependency such as ``coverage``
-(consumed by ``validate_diff_coverage.py``) can be legitimately absent from a
-given dev venv without that being a defect in the script's import wiring. Neither
-condition has anything to do with the ``scripts.`` package resolving; both are
-allowed to leave a non-zero exit code, so long as it is not this one bare-script
-``ModuleNotFoundError``.
+Scoping the executed set to the defect class (DIRECTIVE_043): a bare script run
+can only raise ``ModuleNotFoundError: No module named 'scripts'`` if the script's
+OWN source imports ``scripts`` or a ``scripts.*`` submodule -- that is the only
+statement shape that resolves the ``scripts`` package name at all. A script that
+never imports ``scripts.*`` cannot possibly exhibit this defect, under any cwd or
+argument, so the derived workflow-invoked list is narrowed with an ``ast`` parse
+of each script's own source (``_imports_scripts_package`` /
+``_scripts_exposed_to_bare_script_import_defect`` below) down to exactly the
+scripts that contain a module-level ``Import``/``ImportFrom`` naming ``scripts``
+or ``scripts.*``. Excluding the rest is not "skipping to get a pass" -- a script
+with no such import has no mechanism to raise this particular
+``ModuleNotFoundError``, so running it under this guard would only ever add
+unrelated hazard exposure (real file/network side effects from a script's actual
+``--help``-agnostic logic) without covering any more of the defect class. Only
+MODULE-level imports count: the failure happens at import time, before ``main()``
+(or any other function) is ever called, so an import nested inside a function or
+class body -- which only executes if that function is later called, which
+``--help`` never does -- cannot exhibit this defect under this harness and is
+correctly excluded from the scan. A guard-protected import (``if <repo root not
+on sys.path>: sys.path.insert(...)`` immediately followed by
+``from scripts.x import y``) is still scanned: it is a sibling MODULE-level
+statement that runs unconditionally at import time, same as every guarded import
+in this repository's own fixed scripts (``fleet_verdict.py``,
+``stale_running_sweep.py``, ``wait_for_artifacts.py``, ``glossary_linker.py``,
+``plantuml_render.py``, ``seo_verify.py`` at the time this scoping was added).
+
+The only assertion on the filtered set is the precise defect-class floor: no
+``ModuleNotFoundError: No module named 'scripts'`` at import time. It does not
+assert a blanket exit 0 for ``--help`` -- an argparse-based script's ``--help``
+always exits via ``SystemExit(0)`` before reaching any real logic, but a script
+without argparse handling (audited case by case below) may treat ``--help`` as
+ordinary input and still return 0 through its own control flow; neither shape
+raises this ``ModuleNotFoundError``, which is all this test asserts.
 
 Mirrors the equivalent guard in ``tests/ci/test_wait_for_artifacts.py``
 (``test_script_runs_as_a_bare_subprocess_without_import_error``, #4932) which
 first established this exact repro shape (bare-script subprocess, ``PYTHONPATH``
 stripped, no ``ModuleNotFoundError``) for one script; this test generalizes it to
-every workflow-invoked script mechanically, rather than hand-adding one regression
-test per future script.
+every workflow-invoked script that can exhibit the defect, rather than
+hand-adding one regression test per future script.
 
 Subprocess isolation (op-review-001): each subprocess below runs with ``cwd`` set
 to the test's own ``tmp_path`` and is invoked by the script's ABSOLUTE path, never
@@ -48,42 +64,35 @@ a repo-root-relative one. This still exercises the exact defect class -- the
 ``ModuleNotFoundError`` comes from ``sys.path[0]``, which a bare script run always
 seeds from the script's OWN directory (``Path(sys.argv[0]).resolve().parent``),
 never from the process cwd -- while denying every script a real repo-root cwd to
-write into. Concretely, this closes the hazard ``reconcile_shards.py`` has: it
-carries no argparse/``--help`` handling and unconditionally runs
-``resolved_dir.mkdir(parents=True, exist_ok=True)`` against its cwd-relative
-default (``out/aggregate/coverage/``) before failing on a missing registry file --
-previously this created a real, ``.gitignore``d ``out/aggregate/coverage/`` under
-the repo root on every test run, invisible to ``git status`` and colliding with
-``ci-aggregate.yml``'s own identical path contract on a persistent dev checkout.
-With ``cwd=tmp_path`` that same relative default resolves harmlessly inside the
-test's disposable directory instead.
+write into.
 
-Every other workflow-invoked script that lacks ``--help`` handling was audited for
-the same class of hazard (cwd-relative writes or network calls) at the time this
-isolation was added:
-- ``scripts/ci/router_gate.py`` only reads ``sys.stdin`` (empty under pytest's
-  captured stdin) and writes nothing.
-- ``scripts/docs/plantuml_render.py`` treats ``--help`` as a literal, nonexistent
-  ``site_dir`` positional and globs zero files under it; it writes nothing.
-- ``scripts/release/extract_changelog.py`` only reads a cwd-relative
-  ``CHANGELOG.md`` (absent under ``tmp_path``, so it exits 1 without writing).
-- ``scripts/docs/generate_kitty_specs_docs.py`` is a DIFFERENT hazard shape this
-  cwd change cannot neutralize: its output directory (``DEST``) is resolved from
-  ``Path(__file__).resolve().parents[2]`` -- the script's own real repo-root
-  location, not the process cwd -- so it unconditionally
-  ``shutil.rmtree()``-and-regenerates the real (``.gitignore``d, but
-  reproducible-from-tracked-source) ``docs/kitty-specs/`` on every run regardless
-  of ``cwd``. Reported as a follow-up (out of locality-of-change scope for this
-  fix, same as op-review-003): a future mission should give it argparse
-  ``--help`` handling or an overridable output root, mirroring
-  ``reconcile_shards.py``'s own remediation options.
-Every argparse-based script in the parametrized set (the rest of the list) exits
-via argparse's own ``--help`` handling before reaching any file or network I/O, so
-none of them are exposed to either hazard shape.
+Every script in the ``scripts.*``-import-filtered set was individually audited
+for side effects under ``<abs path> --help`` with ``cwd=tmp_path`` (writes outside
+``tmp_path``, including ``__file__``-anchored paths, and network access):
+- ``fleet_verdict.py``, ``stale_running_sweep.py``, ``glossary_linker.py``, and
+  ``seo_verify.py`` are all argparse-based; ``--help`` is handled by argparse's
+  own built-in action, which prints usage and exits via ``SystemExit(0)`` before
+  any of the script's real logic (file I/O, network) runs.
+- ``wait_for_artifacts.py`` has no argument parsing at all -- ``main()`` reads
+  ``os.environ["SOURCE_RUN_ID"]`` unconditionally first and ignores ``argv``
+  entirely, so ``--help`` is inert. In this test's subprocess environment those
+  env vars are unset, so the read raises ``KeyError``, caught by the function's
+  own documented always-exit-0 handler (``except Exception`` -> prints one
+  ``::error::`` line -> ``return 0``), before either of the module's later env
+  reads or its ``GitHub`` API client is ever constructed.
+- ``plantuml_render.py`` also has no argparse handling: ``main()`` takes
+  ``args[0]`` (here the literal string ``"--help"``) as a relative ``site_dir``.
+  ``Path("--help").rglob("*.html")`` under ``cwd=tmp_path`` resolves to a
+  non-existent directory and yields zero matches (``pathlib`` does not raise for
+  a missing ``rglob`` root), so ``process_site`` writes nothing and never invokes
+  its PlantUML/network seam, which only runs per matched page.
+Every one of the six was additionally verified empirically (no new files outside
+its own ``tmp_path``, no non-empty stderr, exit 0) when this scoping was added.
 """
 
 from __future__ import annotations
 
+import ast
 import os
 import re
 import subprocess
@@ -123,16 +132,60 @@ def _workflow_invoked_scripts() -> list[str]:
     return sorted(found)
 
 
+def _imported_module_names(stmt: ast.stmt) -> list[str]:
+    """Every module name a single ``Import``/``ImportFrom`` statement binds."""
+    if isinstance(stmt, ast.Import):
+        return [alias.name for alias in stmt.names]
+    if isinstance(stmt, ast.ImportFrom) and stmt.module:
+        return [stmt.module]
+    return []
+
+
+def _is_scripts_module(name: str) -> bool:
+    return name == "scripts" or name.startswith("scripts.")
+
+
+def _has_module_level_scripts_import(stmts: list[ast.stmt]) -> bool:
+    """True if a MODULE-level statement in ``stmts`` imports ``scripts`` or a
+    ``scripts.*`` submodule. See the module docstring for why only module-level
+    imports (including ones nested in a top-level ``if`` guard) count."""
+    for stmt in stmts:
+        if any(_is_scripts_module(name) for name in _imported_module_names(stmt)):
+            return True
+        if isinstance(stmt, ast.If) and _has_module_level_scripts_import(stmt.body + stmt.orelse):
+            return True
+    return False
+
+
+def _imports_scripts_package(script_path: Path) -> bool:
+    """True if ``script_path`` can raise ``ModuleNotFoundError: No module named
+    'scripts'`` -- i.e. its own source imports ``scripts``/``scripts.*`` at
+    module level."""
+    tree = ast.parse(script_path.read_text(encoding="utf-8"), filename=str(script_path))
+    return _has_module_level_scripts_import(tree.body)
+
+
+def _scripts_exposed_to_bare_script_import_defect() -> list[str]:
+    """Narrow the workflow-invoked set to the actual defect class: only scripts
+    whose own source can raise the ``scripts`` package ``ModuleNotFoundError``."""
+    return [script for script in _workflow_invoked_scripts() if _imports_scripts_package(_REPO_ROOT / script)]
+
+
 def test_workflow_invoked_scripts_is_a_non_vacuous_floor() -> None:
-    """The derived script list must actually cover the regressed script (and its
-    already-fixed sibling), or the parametrized guard below would pass vacuously."""
+    """Both the raw derived list and its scripts.*-import-filtered subset must
+    actually cover the regressed script (and its already-fixed sibling), or the
+    parametrized guard below would pass vacuously."""
     scripts = _workflow_invoked_scripts()
     assert "scripts/ci/fleet_verdict.py" in scripts
     assert "scripts/ci/stale_running_sweep.py" in scripts
     assert "scripts/ci/fleet_main.py" not in scripts, "fleet_main.py is invoked via `-m`, not as a bare script"
 
+    filtered = _scripts_exposed_to_bare_script_import_defect()
+    assert "scripts/ci/fleet_verdict.py" in filtered
+    assert "scripts/ci/stale_running_sweep.py" in filtered
 
-@pytest.mark.parametrize("script", _workflow_invoked_scripts(), ids=lambda s: s)
+
+@pytest.mark.parametrize("script", _scripts_exposed_to_bare_script_import_defect(), ids=lambda s: s)
 def test_workflow_invoked_script_survives_bare_run_without_module_not_found(script: str, tmp_path: Path) -> None:
     env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
     proc = subprocess.run(
