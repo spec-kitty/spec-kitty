@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "analysis-report-transaction-01M38YDX",
+  "mission_id": "01M38YDXPADJA9431Z5A3KMBCV",
+  "mission_branch": "kitty/mission-analysis-report-transaction-01M38YDX",
+  "target_branch": "fix/analysis-report-transaction",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/analysis-report-transactions.md",
+        "src/specify_cli/analysis_inputs.py",
+        "src/specify_cli/analysis_report.py",
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py",
+        "src/specify_cli/git/report_transaction.py",
+        "tests/git/test_report_transaction.py",
+        "tests/specify_cli/cli/commands/agent/test_analysis_report_transaction.py",
+        "tests/specify_cli/test_analysis_inputs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-24T07:08:36.520819+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c0554b5b399710ef8b408011a174fed45f2a51ba"
+}

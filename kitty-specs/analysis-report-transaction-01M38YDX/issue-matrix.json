@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#4888": {
+      "evidence_ref": "Issue https://github.com/spec-kitty/spec-kitty/issues/4888 read: stash/pop loses unrelated partial staging. Existing src/specify_cli/git/commit_helpers.py::_commit_only_named_paths uses git commit --only without stash. Specific real-Git regression tests/specify_cli/cli/commands/agent/test_analysis_report_transaction.py::test_report_only_preserves_unrelated_partial_staging verifies unchanged staged blob/flags, unstaged bytes, untracked bytes, and report-only commit; passed in final 26-test CLI suite at 2ef705956. No claim that recorder mission retested historical upgrade exit handling. PR https://github.com/spec-kitty/spec-kitty/pull/5017",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "Existing canonical commit dependency only; this mission does not revalidate historical upgrade caller behavior",
+      "source_file": null,
+      "title": "Preserve unrelated staging through canonical commit",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
