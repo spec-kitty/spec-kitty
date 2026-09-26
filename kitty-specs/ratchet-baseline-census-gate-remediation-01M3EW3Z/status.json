@@ -1,7 +1,7 @@
 {
-  "event_count": 37,
-  "last_event_id": "01M3FAWZJTE393GZJNFVG52NFN",
-  "materialized_at": "2026-09-26T17:06:12.698623+00:00",
+  "event_count": 38,
+  "last_event_id": "01M3FAZ2WMKFCE2Z3MGK14D2D4",
+  "materialized_at": "2026-09-26T17:07:21.620087+00:00",
   "mission_number": "",
   "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
   "mission_type": "",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
-    "in_progress": 4,
+    "for_review": 3,
+    "in_progress": 3,
     "in_review": 0,
     "planned": 5
   },
@@ -98,9 +98,9 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M3F46QXPWXXY8N8FFHTN0HCX",
-      "last_transition_at": "2026-09-26T15:09:12.502063+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M3FAZ2WMKFCE2Z3MGK14D2D4",
+      "last_transition_at": "2026-09-26T17:07:21.620087+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
@@ -132,6 +132,9 @@
       "last_event_id": "01M3FAWZJTE393GZJNFVG52NFN",
       "last_transition_at": "2026-09-26T17:06:12.698623+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "WP07 (#3011) under ATDD-First exception DM-01M3F3T1G2RYW7P0ZVWQS41GEZ: no RED commit; base evidence recorded in tracer (audit.py exit=1 8 missing+8 ghost; rekey --check STALE; token count 11). Commits 343bea78 (git mv + root depth + format + survivor package import + pyproject L954), 87d1d03d (strip), 6887a622 (delete dir + L955), 1122cfd1 (prose/refs). Token search 11->0; survivor 8 passed, node-ID diff vs real 3717c7ea worktree empty; targeted arch set 33 passed + substitute arch set (positional-anchor ban, ratchet baselines, read-side bypass, legacy terminology) 205 passed; full tests/architectural NOT run per operator override (CI owns it). test-fast: 2305 passed, 4 failed = known pre-existing #4873 x3 + #5126. ruff check/format --check/mypy exit 0 on scan + survivor. Deviations: dropped _normalize_token (served only the retired markdown table); privatized 4 seed-set constants with no outside reader. Finding: survivor documents a _MIN_DISCOVERED_ROWS floor but no such constant/assertion exists on base or lane. #3011 verdict fixed."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 28716,
@@ -158,7 +161,15 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 416,
-      "shell_pid_created_at": "1790438227.42"
+      "shell_pid_created_at": "1790438227.42",
+      "subtasks": {
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T048": "done"
+      }
     },
     "WP09": {
       "actor": "claude",
