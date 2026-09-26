@@ -16,39 +16,9 @@
 # in test_inline_meta_read_gate.py to the new honest census — never leave a
 # routed-away entry in place (the staleness twin-guard would catch it, but the
 # ceiling floor should also shrink to reflect the real drain).
-inline_meta_read_baseline: 7
+inline_meta_read_baseline: 2
 
 inline_meta_read:
-- file: src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py
-  qualname: ResearchCSVSchemaCheckMigration.detect
-  line: 56
-  token: "meta = json . load ( f )"
-  rationale: "Migration-scoped detection read of a pre-3.0 meta.json snapshot for research-mission schema-mismatch detection. Migrations must tolerate legacy/malformed meta.json shapes the canonical mission_metadata.load_meta reader is entitled to reject going forward, so this intentionally reads the raw file rather than routing through the canonical authority. Deferred pending a migration-scoped reader contract."
-  issue: "https://github.com/Priivacy-ai/spec-kitty/issues/2477"
-- file: src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py
-  qualname: ResearchCSVSchemaCheckMigration.apply
-  line: 113
-  token: "meta = json . load ( f )"
-  rationale: "Same migration-scoped rationale as :56 (detect) — apply() re-reads meta.json to re-confirm the research mission type before the CSV-schema fix is applied."
-  issue: "https://github.com/Priivacy-ai/spec-kitty/issues/2477"
-- file: src/specify_cli/upgrade/migrations/m_0_13_5_add_commit_workflow_to_templates.py
-  qualname: AddCommitWorkflowToTemplatesMigration.apply
-  line: 73
-  token: "meta = json . loads ( meta_file . read_text ( encoding = ) )"
-  rationale: "Migration reads project .kittify/meta.json (project-level metadata, not a mission feature_dir) to detect commit-workflow template staging — outside load_meta's feature_dir contract entirely. Deferred pending a migration-scoped / project-level reader."
-  issue: "https://github.com/Priivacy-ai/spec-kitty/issues/2478"
-- file: src/specify_cli/upgrade/migrations/m_0_13_8_target_branch.py
-  qualname: TargetBranchMigration.detect
-  line: 48
-  token: "meta = json . loads ( meta_file . read_text ( encoding = ) )"
-  rationale: "Migration-scoped detection read of a legacy meta.json shape (pre-target_branch field). Intentionally bypasses load_meta so it can inspect the exact pre-migration content shape the canonical reader may treat as malformed going forward."
-  issue: "https://github.com/Priivacy-ai/spec-kitty/issues/2479"
-- file: src/specify_cli/upgrade/migrations/m_0_13_8_target_branch.py
-  qualname: TargetBranchMigration.apply
-  line: 86
-  token: "meta = json . loads ( meta_file . read_text ( encoding = ) )"
-  rationale: "Same migration-scoped rationale as :48 (detect) — apply() re-reads meta.json to patch in the missing target_branch field on the legacy shape."
-  issue: "https://github.com/Priivacy-ai/spec-kitty/issues/2479"
 - file: src/charter/activation/_io.py
   qualname: _resolve_mission_id
   line: 380

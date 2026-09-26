@@ -9,7 +9,6 @@ Fixes GitHub Issue #72 for existing projects.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 try:
@@ -17,6 +16,7 @@ try:
 except ImportError:
     from importlib_resources import files  # type: ignore
 
+from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.runtime.generated_writer import write_generated_file
 
 from ..registry import MigrationRegistry
@@ -54,8 +54,7 @@ class AddCommitWorkflowToTemplatesMigration(BaseMigration):
         """Always returns False — command templates removed in WP10."""
         return (
             False,
-            "Command templates were removed in WP10 (canonical context architecture). "
-            "Shim generation replaces template-based commands.",
+            "Command templates were removed in WP10 (canonical context architecture). Shim generation replaces template-based commands.",
         )
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
@@ -72,7 +71,14 @@ class AddCommitWorkflowToTemplatesMigration(BaseMigration):
             missions_to_update = ["software-dev", "documentation"]
         else:
             try:
-                meta = json.loads(meta_file.read_text(encoding="utf-8"))
+                # Canonical fail-closed reader (#2478) over the project-level
+                # .kittify/ dir; a malformed meta.json raises MissionMetaReadError,
+                # caught below as the historical "warn and fall back" arm. (The
+                # runner never reaches apply() since WP10 -- detect() is False and
+                # can_apply() refuses -- so this only keeps direct calls honest.)
+                meta = load_meta_fail_closed(meta_file.parent)
+                if meta is None:  # vanished after exists(): same fallback as before
+                    raise FileNotFoundError(meta_file)
                 current_mission = meta.get("mission_name", "software-dev")
                 missions_to_update = [current_mission]
             except Exception as e:

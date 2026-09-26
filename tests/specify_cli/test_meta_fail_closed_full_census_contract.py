@@ -301,6 +301,16 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/status/emit.py", "_load_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/status/emit.py", "_read_status_phase"): (1, "silent-by-contract"),
     ("src/specify_cli/task_utils/support.py", "load_meta"): (1, "authority"),
+    # #2477 / #2479: the historical 0.13.0 / 0.13.8 migrations' inline
+    # json.load(s) reads were routed onto the canonical reader. Their detect()
+    # scans (and the 0.13.0 apply() mission-type probe) have always skipped a
+    # malformed legacy meta.json -- a frozen migration replaying over old
+    # projects must not abort on one corrupt mission -- so they take the
+    # silent arm. The 0.13.8 apply() write path and the 0.13.5 project-level
+    # read route through load_meta_fail_closed instead (no row).
+    ("src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py", "ResearchCSVSchemaCheckMigration.apply"): (1, "silent-by-contract"),
+    ("src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py", "ResearchCSVSchemaCheckMigration.detect"): (1, "silent-by-contract"),
+    ("src/specify_cli/upgrade/migrations/m_0_13_8_target_branch.py", "TargetBranchMigration.detect"): (1, "silent-by-contract"),
     ("src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py", "_mission_needs_cutover"): (1, "silent-by-contract"),
 }
 

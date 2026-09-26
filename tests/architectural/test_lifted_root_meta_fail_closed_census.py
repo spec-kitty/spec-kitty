@@ -131,6 +131,11 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/status/emit.py", "_load_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/status/emit.py", "_read_status_phase"): (1, "silent-by-contract"),
     ("src/specify_cli/task_utils/support.py", "load_meta"): (1, "authority"),
+    # #2477/#2479: routed historical-migration detect()/probe reads skip a
+    # malformed legacy meta.json -- mirror rows (see source ledger).
+    ("src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py", "ResearchCSVSchemaCheckMigration.apply"): (1, "silent-by-contract"),
+    ("src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py", "ResearchCSVSchemaCheckMigration.detect"): (1, "silent-by-contract"),
+    ("src/specify_cli/upgrade/migrations/m_0_13_8_target_branch.py", "TargetBranchMigration.detect"): (1, "silent-by-contract"),
     ("src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py", "_mission_needs_cutover"): (1, "silent-by-contract"),
 }
 

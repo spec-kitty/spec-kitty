@@ -19,10 +19,26 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+from specify_cli.mission_metadata import load_meta
 from specify_cli.upgrade.feature_meta import infer_target_branch
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+
+
+def _is_io_failure(exc: BaseException) -> bool:
+    """True when a meta.json read error was caused by an I/O failure, not bad content.
+
+    Keeps the pre-#2479 split: an unreadable file was reported as "Failed to
+    update", a malformed one as "Malformed JSON".
+    """
+    cause = exc.__cause__
+    while cause is not None:
+        if isinstance(cause, OSError):
+            return True
+        cause = cause.__cause__
+    return False
 
 
 @MigrationRegistry.register
@@ -44,14 +60,12 @@ class TargetBranchMigration(BaseMigration):
             if not meta_file.exists():
                 continue
 
-            try:
-                meta = json.loads(meta_file.read_text(encoding="utf-8"))
-                if "target_branch" not in meta:
-                    # At least one feature missing target_branch
-                    return True
-            except (json.JSONDecodeError, OSError):
-                # Skip malformed files
-                continue
+            # Canonical reader (#2479): a malformed meta.json (syntax error,
+            # undecodable bytes, non-object top level) reads as None and is skipped.
+            meta = load_meta(feature_dir, on_malformed="none")
+            if meta is not None and "target_branch" not in meta:
+                # At least one feature missing target_branch
+                return True
 
         return False
 
@@ -83,7 +97,11 @@ class TargetBranchMigration(BaseMigration):
                 continue
 
             try:
-                meta = json.loads(meta_file.read_text(encoding="utf-8"))
+                # Canonical fail-closed reader (#2479): a malformed meta.json raises
+                # MissionMetaReadError, reported per mission below.
+                meta = load_meta_fail_closed(feature_dir)
+                if meta is None:  # vanished between the exists() check and the read
+                    continue
 
                 # Skip if already has target_branch
                 if "target_branch" in meta:
@@ -91,9 +109,7 @@ class TargetBranchMigration(BaseMigration):
 
                 target_branch = infer_target_branch(feature_dir, project_path)
                 if target_branch != "main":
-                    warnings.append(
-                        f"{feature_dir.name} auto-detected target_branch={target_branch}"
-                    )
+                    warnings.append(f"{feature_dir.name} auto-detected target_branch={target_branch}")
 
                 # Add target_branch field
                 meta["target_branch"] = target_branch
@@ -108,8 +124,9 @@ class TargetBranchMigration(BaseMigration):
                     )
                     changes.append(f"Added target_branch={target_branch} to {feature_dir.name}")
 
-            except json.JSONDecodeError as e:
-                errors.append(f"Malformed JSON in {feature_dir.name}/meta.json: {e}")
+            except MissionMetaReadError as e:
+                label = "Failed to update" if _is_io_failure(e) else "Malformed JSON in"
+                errors.append(f"{label} {feature_dir.name}/meta.json: {e}")
             except OSError as e:
                 errors.append(f"Failed to update {feature_dir.name}/meta.json: {e}")
 

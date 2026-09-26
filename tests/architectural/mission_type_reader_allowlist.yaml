@@ -99,7 +99,7 @@ domain_exempt_notes:
   - path: src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py
     issue: "#3598 / census completeness"
     rationale: >-
-      Lines 57 and 114 read `meta.get("mission") != "research"` — a legacy `mission`
+      Lines 56 and 113 read `meta.get("mission") != "research"` — a legacy `mission`
       field read inside a FROZEN migration that, by design, inspects pre-migration
       meta.json (which predates the canonical `mission_type` field) to decide whether
       a legacy research mission needs the CSV schema check. Reading the legacy field

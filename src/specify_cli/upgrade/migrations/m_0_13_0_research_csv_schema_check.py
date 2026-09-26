@@ -9,7 +9,6 @@ No auto-fix is applied - users are given tips to manually migrate with LLM help.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from ..registry import MigrationRegistry
@@ -18,6 +17,7 @@ from specify_cli.validators.research import (
     EVIDENCE_REQUIRED_COLUMNS,
     SOURCE_REGISTER_REQUIRED_COLUMNS,
 )
+from specify_cli.mission_metadata import load_meta
 from specify_cli.validators.csv_schema import validate_csv_schema
 
 
@@ -51,13 +51,13 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
             if not meta_json.exists():
                 continue
 
-            try:
-                with meta_json.open() as f:
-                    meta = json.load(f)
-                    if meta.get("mission") != "research":
-                        continue
+            # Canonical reader (#2477): a malformed meta.json reads as None and is skipped.
+            meta = load_meta(feature_dir, on_malformed="none")
+            if meta is None or meta.get("mission") != "research":
+                continue
 
-                # Check CSVs
+            # Check CSVs
+            try:
                 evidence_log = feature_dir / "research" / "evidence-log.csv"
                 source_register = feature_dir / "research" / "source-register.csv"
 
@@ -107,13 +107,10 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
             if not meta_json.exists():
                 continue
 
-            # Check if research mission
-            try:
-                with meta_json.open() as f:
-                    meta = json.load(f)
-                    if meta.get("mission") != "research":
-                        continue
-            except Exception:  # noqa: S112
+            # Check if research mission. Canonical reader (#2477): a malformed
+            # meta.json reads as None and is skipped.
+            meta = load_meta(feature_dir, on_malformed="none")
+            if meta is None or meta.get("mission") != "research":
                 continue
 
             # Validate evidence-log.csv

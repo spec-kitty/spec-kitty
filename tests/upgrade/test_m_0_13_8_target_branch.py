@@ -11,6 +11,7 @@ from specify_cli.upgrade.migrations.m_0_13_8_target_branch import TargetBranchMi
 
 pytestmark = pytest.mark.fast
 
+
 @pytest.fixture
 def repo_with_features(tmp_path: Path) -> Path:
     """Create a test repository with multiple features."""
@@ -151,12 +152,8 @@ def test_apply_uses_primary_branch_as_default(
 
     assert result.success is True
 
-    meta_020 = json.loads(
-        (repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json").read_text()
-    )
-    meta_024 = json.loads(
-        (repo_with_features / "kitty-specs" / "024-another-feature" / "meta.json").read_text()
-    )
+    meta_020 = json.loads((repo_with_features / "kitty-specs" / "020-legacy-feature" / "meta.json").read_text())
+    meta_024 = json.loads((repo_with_features / "kitty-specs" / "024-another-feature" / "meta.json").read_text())
 
     assert meta_020["target_branch"] == "2.x"
     assert meta_024["target_branch"] == "2.x"
@@ -264,3 +261,65 @@ def test_migration_metadata():
     assert migration.migration_id == "0.13.8_target_branch"
     assert migration.description == "Add target_branch field to feature metadata"
     assert migration.target_version == "0.13.8"
+
+
+# --- #2479: meta.json reads routed onto the canonical load_meta reader ------
+#
+# The detect()/apply() reads now go through ``mission_metadata.load_meta``, so
+# the malformed set is the canonical one (JSON syntax error, undecodable bytes,
+# non-object top level). These pin the behaviour at the edges where the old
+# inline ``json.loads`` diverged from it.
+
+
+def _legacy_feature(repo_root: Path, raw: bytes) -> Path:
+    feature_dir = repo_root / "kitty-specs" / "020-legacy"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_bytes(raw)
+    return feature_dir
+
+
+@pytest.mark.parametrize("raw", [b"[1, 2]", b'"scalar"'], ids=["array", "scalar"])
+def test_detect_skips_non_object_meta(tmp_path: Path, raw: bytes) -> None:
+    """A non-object meta.json is malformed: detect() skips it rather than flagging it."""
+    _legacy_feature(tmp_path, raw)
+
+    assert TargetBranchMigration().detect(tmp_path) is False
+
+
+def test_detect_skips_undecodable_meta(tmp_path: Path) -> None:
+    """Non-UTF-8 bytes are malformed: detect() skips them instead of crashing."""
+    _legacy_feature(tmp_path, b"\xff\xfe{")
+
+    assert TargetBranchMigration().detect(tmp_path) is False
+
+
+def test_apply_records_error_for_non_object_meta(tmp_path: Path) -> None:
+    """A non-object meta.json is reported per mission instead of crashing apply()."""
+    feature_dir = _legacy_feature(tmp_path, b"[1, 2]")
+
+    result = TargetBranchMigration().apply(tmp_path, dry_run=False)
+
+    assert result.success is False
+    assert len(result.errors) == 1
+    assert result.errors[0].startswith(f"Malformed JSON in {feature_dir.name}/meta.json:")
+    assert (feature_dir / "meta.json").read_bytes() == b"[1, 2]"
+
+
+def test_apply_reports_unreadable_meta_as_failed_update(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An I/O failure reading meta.json keeps the pre-routing "Failed to update" label."""
+    feature_dir = _legacy_feature(tmp_path, b'{"slug": "020-legacy"}')
+    meta_path = feature_dir / "meta.json"
+    real_read_text = Path.read_text
+
+    def _read_text(self: Path, encoding: str | None = None, errors: str | None = None) -> str:
+        if self == meta_path:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_read_text(self, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", _read_text)
+
+    result = TargetBranchMigration().apply(tmp_path, dry_run=False)
+
+    assert result.success is False
+    assert len(result.errors) == 1
+    assert result.errors[0].startswith(f"Failed to update {feature_dir.name}/meta.json:")

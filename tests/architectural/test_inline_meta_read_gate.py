@@ -67,19 +67,22 @@ META_PATH_VAR_NAMES: frozenset[str] = frozenset({"meta_path", "meta_file", "meta
 # ``<= huge`` / ``>= 0`` placeholders (NFR-002 rejects vacuous bounds).
 #
 # WP16 (mission read-surface-ssot-closeout-01KWZV91): post Thread-B drain
-# (WP05/06/07 + WP12-15), the live inline-read census is exactly the 5 known
-# deferred files (7 call sites) allow-listed below — 3 migrations that must
-# tolerate legacy/malformed meta.json shapes the canonical reader would reject,
-# plus 2 ``src/charter/`` sites that would otherwise introduce a cross-package
-# dependency on ``specify_cli.mission_metadata`` (Shared Package Boundary ADR).
-INLINE_META_READ_FLOOR = 7
+# (WP05/06/07 + WP12-15), the live inline-read census was the 5 known deferred
+# files (7 call sites). #2477/#2478/#2479 then routed the 3 historical
+# migrations' 5 reads onto the canonical reader, leaving exactly the 2
+# ``src/charter/`` sites allow-listed below — they would otherwise introduce a
+# cross-package dependency on ``specify_cli.mission_metadata`` (Shared Package
+# Boundary ADR; #2480).
+INLINE_META_READ_FLOOR = 2
 
 # This is a CEILING-type ratchet (fewer inline reads is progress, unlike the
 # canonicalizer's growth-oriented floor) so the margin bounds the gap the OTHER
 # direction: the floor may not be pinned more than MARGIN calls ABOVE the live
 # count (which would mask a future regression that grows the count back toward
-# it). At INLINE_META_READ_FLOOR == live == 7 today, the gap is 0.
-FLOOR_MARGIN = 2
+# it). At INLINE_META_READ_FLOOR == live == 2 today, the gap is 0. The margin
+# was 2 at a floor of 7; at a floor of 2 it must be 1 so an empty scan (live 0)
+# still reds on the margin alone.
+FLOOR_MARGIN = 1
 
 
 # --------------------------------------------------------------------------- #
