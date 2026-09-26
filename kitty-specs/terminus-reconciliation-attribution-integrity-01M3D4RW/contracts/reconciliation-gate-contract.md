@@ -31,7 +31,7 @@ Executable contract for the four facets. Each row is a real-CLI scenario a red-f
 
 | # | Scenario | Before (bug) | After (contract) | Facet |
 |---|----------|--------------|------------------|-------|
-| P1 | Clean single-approved-lane squash; a coord-partition bookkeeping path the target legitimately does not carry | REFUSE ("projected coordination bookkeeping content did not land"); `--resume` dead-ends on `TARGET_BRANCH_CONTENT_CONFLICT` | **PASS**; `--resume` completes | #5038 |
+| P1 | Clean single-approved-lane squash; a coord-partition bookkeeping path the target legitimately does not carry | REFUSE ("projected coordination bookkeeping content did not land"); `--resume` dead-ends on `TARGET_BRANCH_CONTENT_CONFLICT` | **Deferred → #5038** — ships as `xfail(strict=True)`, NOT green-washed. The clean-single-lane trigger did not reproduce (WP02 T009); the only reproducer is the 3-way coord-partition divergence, which converges with X1. FR-007 recorded Deferred → #5038. | #5038 |
 | P2 | Approved content path genuinely failed to land on target | REFUSE | **REFUSE** (unchanged — divergence detection preserved) | #5038 (guard) |
 
 ## Out of scope — kept honest
