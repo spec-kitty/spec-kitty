@@ -256,6 +256,15 @@ class TestOrchestratorApiCallerIndependence:
         assert branch in envelope["data"]["reason"]
         assert "reflog" in envelope["data"]["reason"] or "fsck" in envelope["data"]["reason"]
 
+        # #4889 landing: DestroyedLaneError's structured to_dict() payload reaches
+        # the orchestrator boundary (not only str(exc)), so an automated caller can
+        # branch on the nested error_code and act on the structured fields rather
+        # than substring-matching the message.
+        assert envelope["data"]["error_code"] == "DESTROYED_LANE"
+        assert envelope["data"]["branch_name"] == branch
+        assert envelope["data"]["wp_id"] == WP_ID
+        assert "next_step" in envelope["data"]
+
         # No side effects: no new lane worktree/branch materialized.
         assert not worktree_path.exists()
         assert not branch_exists(repo, branch)

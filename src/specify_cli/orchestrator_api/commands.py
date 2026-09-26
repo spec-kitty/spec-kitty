@@ -1385,13 +1385,17 @@ def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, missi
         UnhonorableBaseError,
         RuntimeError,
     ) as exc:
-        # NFR-004: UnhonorableBaseError carries a machine-readable error_code
-        # (and route/wp_id/base) via to_dict() — merge it into the data
-        # payload so a caller can branch on data["error_code"] ==
-        # "UNHONORABLE_BASE" rather than substring-matching the message. The
-        # top-level envelope error_code stays "LANE_ALLOCATION_FAILED" (the
-        # generic allocation-failure surface); to_dict() is a no-op {} for
-        # the other exception types in this tuple, which lack it.
+        # NFR-004: a StructuredError refusal (UnhonorableBaseError,
+        # DestroyedLaneError) carries a machine-readable error_code (and
+        # route/wp_id/base, or lane_id/branch_name/next_step) via to_dict() —
+        # merge it into the data payload so a caller can branch on
+        # data["error_code"] == "UNHONORABLE_BASE" / "DESTROYED_LANE" rather
+        # than substring-matching the message (#4889: the destroyed-lane P0
+        # exists to protect this orchestrator caller, so its structured fields
+        # must reach it, not just str(exc)). The top-level envelope error_code
+        # stays "LANE_ALLOCATION_FAILED" (the generic allocation-failure
+        # surface). The plain-RuntimeError members of this tuple lack to_dict(),
+        # so `hasattr` leaves their payload untouched.
         _fail(
             cmd,
             "LANE_ALLOCATION_FAILED",
@@ -1404,7 +1408,7 @@ def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, missi
                 **_mission_identity_payload(mission_dir),
                 "wp_id": wp,
                 "reason": str(exc),
-                **(exc.to_dict() if isinstance(exc, UnhonorableBaseError) else {}),
+                **(exc.to_dict() if hasattr(exc, "to_dict") else {}),
             },
         )
 
