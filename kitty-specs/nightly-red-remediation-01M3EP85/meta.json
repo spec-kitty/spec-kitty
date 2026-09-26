@@ -12,5 +12,7 @@
   "purpose_tldr": "Turn the nightly integration and performance suites green honestly and stop timed-out nightly legs from failing silently.",
   "slug": "nightly-red-remediation-01M3EP85",
   "target_branch": "claude/lucid-ptolemy-fjtzep",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-26T11:14:12.299110+00:00"
 }
