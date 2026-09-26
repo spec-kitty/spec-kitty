@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M3F3MK4Q8SAHX2ACCS2REFQ1",
+  "completed_at": "2026-09-26T17:29:26.066223+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "kitty-ops/01M3F3MK4Q8SAHX2ACCS2REFQ1.verify2.yaml"
+}

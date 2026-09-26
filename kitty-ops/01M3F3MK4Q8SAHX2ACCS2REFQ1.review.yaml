@@ -1,0 +1,112 @@
+schema: review-findings/v1
+phase: op-01M3F3MK4Q8SAHX2ACCS2REFQ1
+reviewer_profile: reviewer-renata
+directives_applied:
+  - "001 Architectural Integrity Standard"
+  - "024 Locality of Change"
+  - "030 Test and Typecheck Quality Gate"
+  - "032 Conceptual Alignment"
+  - "041 Tests as Scaffold, Not Friction"
+complete: true
+findings:
+  - id: op-review-001
+    severity: 3
+    title: "Linked operator runbook still describes the retired four-scenario Gate 3 floor with the SPEC_KITTY_ENABLE_SAAS_SYNC=1 pin"
+    location: "docs/migrations/cross-repo-e2e-gate.md:56-59,166-167 (linked from src/charter/offering/skills/spec-kitty-mission-review/SKILL.md:627 as \"Full operator runbook for the exception path\")"
+    evidence: >-
+      The fixed SKILL.md now correctly lists three Gate 3 floor scenarios and drops the
+      SPEC_KITTY_ENABLE_SAAS_SYNC pin. The SKILL.md's own "Operator exception path (Gate 3
+      only)" section still links to docs/migrations/cross-repo-e2e-gate.md as "Full operator
+      runbook for the exception path" (unchanged by this diff). That doc's "## The four floor
+      scenarios" table still lists `saas_sync_enabled.py | FR-040 | A full mission run with
+      SPEC_KITTY_ENABLE_SAAS_SYNC=1 against a configured dev SaaS endpoint...` and its
+      "## How to run the gate" section still says `export SPEC_KITTY_ENABLE_SAAS_SYNC=1` before
+      the three pytest invocations. A reviewer following the SKILL's own outbound link for the
+      Gate 3 exception mechanics lands on directly contradictory guidance one click away from
+      the just-fixed section. #5003's scope explicitly asked for a sweep so "no false Gate-3
+      hard-floor remains"; this reachable, non-ADR (i.e. not immutable-by-convention) operator
+      runbook is exactly that kind of residue and was not swept. (The doc does carry a
+      pre-existing "not the current 3.2 happy path" migration banner, which mitigates but does
+      not resolve the contradiction on the specific floor-scenario count/pin claims.)
+    recommendation: >-
+      Fold a follow-up edit to docs/migrations/cross-repo-e2e-gate.md into this PR (or file a
+      fast-follow issue against #5003's own sweep) updating "The four floor scenarios" to three
+      and dropping the `export SPEC_KITTY_ENABLE_SAAS_SYNC=1` line, mirroring the SKILL.md fix.
+  - id: op-review-002
+    severity: 2
+    title: "New guard test's flag-pin regex is broader than its own stated intent and would false-red a legitimate, unrelated future edit"
+    location: "tests/doctrine/test_mission_review_skill_gate3_floor.py:59-66 (test_gate_commands_do_not_pin_retired_saas_sync_flag)"
+    evidence: >-
+      The assertion `re.search(r"SPEC_KITTY_ENABLE_SAAS_SYNC\s*=\s*[01]\b", skill_text) is
+      None` scans the entire SKILL.md text, not just fenced gate-command blocks, even though
+      the test's own name and failure message say "must not pin ... on gate commands." Sibling
+      skills in this repo (src/charter/offering/skills/spk-team-auth/SKILL.md:24-27,
+      spk-team-tracker/SKILL.md:23-26, spk-team-sync/SKILL.md:27-30) legitimately explain
+      SPEC_KITTY_ENABLE_SAAS_SYNC=0 as the still-live #3980 hosted-mode launch-default opt-out
+      (confirmed current via docs/context/team-kitty.md "What SPEC_KITTY_ENABLE_SAAS_SYNC still
+      gates" section and src/specify_cli/tracker/saas_readiness.py:255). If a future,
+      unrelated, entirely correct edit added similar explanatory prose to
+      spec-kitty-mission-review/SKILL.md (e.g. clarifying the flag's current live meaning
+      outside the gate commands), this test would false-red it -- the "Tests as Scaffold, Not
+      Friction" failure mode the reviewer-renata profile flags explicitly. Currently harmless
+      only because the file happens not to mention a bare `=0`/`=1` anywhere else today
+      (verified: only two bare `SPEC_KITTY_ENABLE_SAAS_SYNC` mentions remain, neither followed
+      by `=`).
+    recommendation: >-
+      Scope the regex to the fenced ```bash gate-command blocks (e.g. match within the specific
+      code fences under "### Gate 1" / "### Gate 3" headings) rather than the whole document
+      text, so a later legitimate explanatory mention of the flag's live opt-out value elsewhere
+      in the same skill cannot trip this regression guard.
+  - id: op-review-003
+    severity: 1
+    title: "New Gate 1 rationale cites a spec-kitty-tooling-repo-internal test fixture as blanket justification in a skill shipped to downstream consumers"
+    location: "src/charter/offering/skills/spec-kitty-mission-review/SKILL.md:534-537"
+    evidence: >-
+      This SKILL.md ships in the PyPI wheel (pyproject.toml `[tool.hatch.build.targets.wheel]`
+      artifacts include `src/charter/**/*.md`, and `src/charter` is a wheel package) and is the
+      generic "review a Spec Kitty mission" skill loadable by agents on any Spec Kitty project,
+      not only this tooling repo. The new sentence "Gate 1's tests/contract/ already runs with
+      the flag forced on collection-wide (tests/conftest.py)" is accurate only for a reader
+      literally standing inside a checkout of the spec-kitty tooling repo itself (as the
+      surrounding `cd <spec-kitty-repo>` placeholder implies), where that specific conftest.py
+      fixture lives. It also is not the tightest available justification: grep confirms
+      SPEC_KITTY_ENABLE_SAAS_SYNC has zero references anywhere under tests/contract/ (`grep -rn
+      SPEC_KITTY_ENABLE_SAAS_SYNC tests/contract/` returns nothing), so the pin was already
+      inert for Gate 1 regardless of what tests/conftest.py forces at collection time -- the
+      simpler, more universal claim ("Gate 1's tests never read this flag") would have been
+      both true and audience-agnostic. This is a wording/precision nit, not a functional defect:
+      it does not change what a reviewer should do.
+    recommendation: >-
+      Optional polish: reword to "Gate 1's tests/contract/ suite does not read this flag at all"
+      (verifiable by grep, and true for any reader of the skill regardless of which repo's
+      tests/conftest.py they're standing in).
+  - id: op-review-004
+    severity: 1
+    title: "Pre-existing broken relative link adjacent to the fix (not introduced by this diff)"
+    location: "src/charter/offering/skills/spec-kitty-mission-review/SKILL.md:626 (unchanged by this diff)"
+    evidence: >-
+      While verifying that the diff's own new relative link
+      (`[docs/context/team-kitty.md](../../../../../docs/context/team-kitty.md)`, 5 levels of
+      `../` from src/charter/offering/skills/spec-kitty-mission-review/) correctly resolves --
+      confirmed it does -- the pre-existing, untouched link two paragraphs later,
+      `[docs/migrations/cross-repo-e2e-gate.md](../../../../docs/migrations/cross-repo-e2e-gate.md)`
+      (only 4 levels of `../`), resolves to `src/docs/migrations/cross-repo-e2e-gate.md`, which
+      does not exist. This line is outside every hunk in `git diff main...HEAD` and predates
+      this commit, so it is not this PR's defect, but it sits one paragraph away from a link the
+      PR just fixed and is worth a fast follow-up in the same neighborhood.
+    recommendation: >-
+      File or fold in a one-line fix changing `../../../../docs/...` to
+      `../../../../../docs/...` for that link (out of scope to require in this PR).
+  - id: op-review-005
+    severity: 1
+    title: "Commit type 'docs' undersells the added regression test"
+    location: "commit cb178a33b subject line"
+    evidence: >-
+      The single commit is typed `docs(skills): drop retired saas-sync floor from mission-review
+      Gate 3`, but the diff also adds a new test file,
+      tests/doctrine/test_mission_review_skill_gate3_floor.py (67 lines, 4 tests). A reader
+      scanning commit history by type would not expect a test addition from a `docs(...)`
+      commit.
+    recommendation: >-
+      Cosmetic only; no action required. Future similar commits could use `docs(skills)` in the
+      body and note the added guard test explicitly, or a combined type/scope.
