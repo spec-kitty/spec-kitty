@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances Concurrent create_mission_core TemplateConfigurationError race on fix/concurrent-template-config-race-4589 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Concurrent create_mission_core TemplateConfigurationError race",
   "slug": "concurrent-template-config-race-4589-01M35M6B",
+  "status_phase": "1",
   "target_branch": "fix/concurrent-template-config-race-4589",
   "topology": "single_branch",
   "vcs": "git",
