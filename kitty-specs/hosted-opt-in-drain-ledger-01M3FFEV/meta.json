@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-hosted-opt-in-drain-ledger-01M3FFEV",
+  "created_at": "2026-09-26T18:25:54.107240+00:00",
+  "flattened": false,
+  "friendly_name": "Opt-in hosted drain and ledger flags",
+  "mid8": "01M3FFEV",
+  "mission_id": "01M3FFEVWV4BX10QS238E0D28K",
+  "mission_number": null,
+  "mission_slug": "hosted-opt-in-drain-ledger-01M3FFEV",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Server-side Team Kitty development is frozen. Operators need config.yaml switches that keep the local execution-state ledger available for the upcoming local dashboard while turning the live drain to Zeitgeist off by default, and the shipped build must stop pointing at the live team.spec-kitty.ai endpoint unless an operator configures it (issue #4971).",
+  "purpose_tldr": "Make every hosted (Team Kitty / Zeitgeist) interaction an explicit, config-based opt-in so a fresh install never talks to a live server.",
+  "slug": "hosted-opt-in-drain-ledger-01M3FFEV",
+  "target_branch": "claude/spec-kitty-mission-impl-8u6zmc",
+  "topology": "coord"
+}
