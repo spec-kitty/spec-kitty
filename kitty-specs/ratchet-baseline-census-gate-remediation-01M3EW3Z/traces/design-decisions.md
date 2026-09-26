@@ -463,3 +463,18 @@ M16 | re-create module specify_cli.status.phase
     all red node IDs (mutation-induced):
 
 EXIT=0
+
+2026-09-26 · python-pedro · WP09 dispositions — RETIRED (duplicate), 13 of 21 functions; each mutation reds parity test AND survivor at base (see matrix):
+- test_same_events_produce_identical_snapshots -> TestByteIdenticalOutput::test_byte_identical_across_reduce_calls (M14)
+- test_event_order_does_not_affect_final_state -> TestReduceOutOfOrder::test_reduce_out_of_order_events (M1, spec_kitty_events.diary sort)
+- test_duplicate_events_deduplicated_deterministically -> TestReduceDeduplication::test_reduce_deduplication (M11)
+- test_json_serialization_byte_identical -> TestByteIdenticalOutput::test_byte_identical_output (M9)
+- test_reduce_then_serialize_roundtrip -> relocated TestRealisticEventLog::test_realistic_log_json_roundtrip_stable (M8; strict superset: richer log + full byte equality after from_dict; red at head)
+- test_empty_events_produce_stable_snapshot -> TestReduceEmpty::test_reduce_empty_events (M6)
+- test_force_events_tracked_in_force_count -> TestReduceForceCount::test_reduce_force_count_tracked (M12)
+- test_concurrent_events_rollback_precedence -> TestReduceConcurrentRollbackPrecedence::test_in_review_to_in_progress_rollback_beats_concurrent_approval (M13 reds both; M13b shows precedence REMOVAL reds only the survivor: parity test is strictly weaker, its rollback also sorts last)
+- test_realistic_log_identical_across_runs -> test_byte_identical_across_reduce_calls (M9)
+- test_transition_pairs_use_canonical_lanes -> test_transitions.py TestConstants::test_allowed_transitions_count (M4); count-preserving swap M4b is caught by TestBehaviorPreservationParity::test_validate_transition_matches_baseline (+ test_collapsed_matrix_catches_planted_row, test_legal_transition_accepted[planned-blocked-kwargs12])
+- test_no_self_transitions_in_matrix -> test_allowed_transitions_count, test_validate_transition_matches_baseline, test_collapsed_matrix_catches_planted_row (M3, ALLOWED_TRANSITIONS recomputed)
+- test_terminal_lanes_have_no_outbound_transitions -> test_allowed_transitions_count, test_illegal_transition_rejected[done-planned], test_validate_transition_matches_baseline, test_terminal_exit_without_force_is_illegal[done], test_collapsed_matrix_catches_planted_row (M2, recomputed)
+- test_all_enum_values_in_canonical_lanes -> test_models.py TestLaneEnum::test_lane_member_names_exact (M6; also test_lane_enum_string_values)
