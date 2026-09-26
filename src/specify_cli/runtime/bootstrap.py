@@ -129,7 +129,7 @@ def _cleanup_orphaned_update_dirs(parent: Path) -> None:
 
 def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAssetPreparation | None = None) -> OwnerAssessment:
     """Prepare managed package assets directly, without staging or bootstrap."""
-    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete, retry_torn_read
+    from specify_cli.runtime.asset_preparation import AssetPreparation, build_serialized, global_asset_root, incomplete
     from specify_cli.runtime.merge import MANAGED_DIRS, MANAGED_FILES
 
     home = get_kittify_home()
@@ -160,10 +160,11 @@ def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAss
         return prepared, assessment
 
     try:
-        # #4017 rescope: retry ONLY the local build (never `_batch.include()`,
-        # called once below on the stabilized result) so a retry can never
-        # replay stale partial mutations into a shared, cross-owner batch.
-        prepared, assessment = retry_torn_read(_build)
+        # #4017 rescope: escalate ONLY the local build (never `_batch.include()`,
+        # called once below on the stabilized result) so an escalated rebuild
+        # can never replay stale partial mutations into a shared, cross-owner
+        # batch.
+        prepared, assessment = build_serialized(_build, logger=logger)
         if _batch is not None:
             _batch.include(prepared, assessment.effects)
         return assessment
