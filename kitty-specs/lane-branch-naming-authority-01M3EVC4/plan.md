@@ -17,7 +17,7 @@ Lane branches and worktrees are **created** from the Mission slug + lane id only
 **Project Type**: single (existing `src/` packages).
 **Performance Goals**: No measurable regression: one extra `git rev-parse --verify` per approved lane in the reconciliation claim (FR-003 existence check); materialization happens at most once per fresh coordination Mission.
 **Constraints**: C901 ≤ 15 on every touched function (NFR-002); `compute_lanes` (CC34) and `backfill_ownership` (CC24) are behind `ruff.toml` per-file ignores and are **not edited**; layer direction `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli` unchanged (C-003); no probing (C-004); decision-ledger partitions unchanged (C-006).
-**Scale/Scope**: ~30 source call sites across ~25 modules; ~61 test call sites across 18 test files migrate; 7 work packages.
+**Scale/Scope**: ~30 source call sites across ~25 modules; ~72 test call sites across 19 test files migrate; 9 work packages.
 
 ## Charter Check
 
@@ -46,7 +46,12 @@ No violations requiring justification.
 - **PD-7 Match sites (FR-008).** New additive parsers in `branch_naming.py`: `parse_lane_worktree_dir(name) -> (slug, lane_id) | None` and `lane_id_for_worktree_dir(name, mission_slug) -> lane_id | None` (recognition by recomposition). `is_lane_branch` accepts the plain-legacy grammar. Sites: `git/sparse_checkout.py:229` (+ hand-rolled compose `:236`), `cli/commands/_coordination_doctor.py:774`, `status/doctor.py:287`, `live_work/bindings.py:40`, `policy/commit_guard.py:40`, plus folded extras `merge/resolve.py:44` (redundant regex, delete) and `core/vcs/detection.py:159`. Parsers accept `lane-[a-z]+`.
 - **PD-8 Acceptance site.** `acceptance/__init__.py:770` (`_approved_lane_source_roots`) — an additional divergent site found in research — folded into FR-006.
 - **PD-9 #5113 (FR-013).** New `coordination/surface_resolver.py::materialize_coord_surface_for_write(repo_root, mission_slug)` (UNMATERIALIZED + local branch → `CoordinationWorkspace.resolve`; remote-only → refuse before write; resolve failure → `CoordinationWorktreeUnmaterialized`). Called (function-local import) in `decisions/service.py` `open_decision` (after dry-run return, before ledger lock) and `_terminal_command` (before `_apply_terminal_under_lock`); events path pre-resolved at both sites. Read paths (`list`, `verify`) never materialize. CLI verbs render `StatusReadPathNotFound` as structured JSON (no new `DecisionErrorCode`).
-- **PD-10 #5113 (FR-014).** `spec-kitty doctor coordination --mission <slug> --fix` gains a missing-worktree fixer (`COORDINATION_WORKTREE_MISSING`); every emitter of the unmaterialized-coordination remedy names it: `coordination/surface_resolver.py:133,323-332`, `runtime/next/runtime_bridge.py:2965`, `mission_runtime/write_target_degrade.py:241`, `cli/commands/implement_cores.py:703`, `cli/commands/implement.py:1088`, `cli/commands/agent/mission_record_analysis.py:148`. Pinned text ("materializ", no "flatten") preserved.
+- **PD-11 Single gate authority** (post-plan squad). Extend `tests/architectural/test_no_worktree_name_guess.py` (same scan roots `src/specify_cli` + `src/runtime`, one allow-list registered in `tests/architectural/_baselines.yaml`) with: a signature leg (no `mission_id` on the lane surface), a match leg (regex/startswith/endswith/split/rsplit/partition/removeprefix/glob/fnmatch/`in` over lane tokens, including named constants), and a def-use leg modelled on `test_lane_allocation_single_seam.py` (every branch/path argument reaching `git worktree add`, `git branch`, `rev-parse`, `branch_exists`, or a `.worktrees` join traces to a naming-authority call). Prose is handled by allow-list only. Self-test injects the literal, variable-renamed (`f"{slug}-{lid}"`), `"-".join`, `%`/`.format`, and constant-held forms and asserts red. Rewrite the gate's docstring rationale (its #1899 premise "keyed on (slug, mission_id)" is reversed) and cite the ADR. No sibling gate file.
+- **PD-12 One lane-id grammar.** A single private `_LANE_ID_RE` fragment (`lane-[a-z]+`) in `branch_naming.py` from which every lane regex (`_LEGACY_LANE_RE`, `_PLAIN_LEGACY_LANE_RE`, `_NEW_LANE_RE`, the new parsers) and the rerouted commit-guard / merge-resolve / live-work matchers are built. Recognition with a known slug is by recomposition (`lane_id_for_worktree_dir`); the slug-free `parse_lane_worktree_dir` is used only by the doctor orphan scan and live-work bindings. `core/vcs/detection.py:159` uses the dir parser (no fake-branch round-trip).
+- **PD-13 FR-011 narrowed to preserve-only.** The first finalize *defines* the Mission branch that creation later creates from the manifest, so "first-time finalize names it as creation does" holds by construction; `compute_lanes` is not edited. Preservation lives in `compute_and_write_lanes`. Mission-branch fallbacks that recompose with the identity when the manifest lacks the value (`lanes/recovery.py:268`, `merge/preflight.py:123,165`, `status/aggregate.py:751`) prefer the recorded manifest value and convert a `_mid8` `ValueError` into a typed refusal.
+- **PD-14 Invalid identity < 8 chars (SC-001).** Lane naming no longer calls `_mid8` (post-cutover). The < 8 fixture writes `lanes.json` with a recorded `mission_branch` (lanes still created by the allocator); PD-13 fallbacks cover the remaining `_mid8` sites. Merges interrupted under the old code resume into the FR-005 refusal (intended upgrade behaviour, pinned by a test).
+- **PD-15 Living docs + decision record.** ADR `docs/adr/3.x/2026-09-26-1-lane-naming-keyed-on-creation-input.md` (creation-side authority, PD-3 golden re-pin, C-004 no probing, reversal of the #1899 premise). Docs updated in-mission: `lanes/branch_naming.py` module docstring + examples, `docs/architecture/execution-lanes.md` §Naming, `docs/architecture/git-worktrees.md`, `docs/migrations/mission-id-canonical-identity.md` (backfill does not rename lanes), `docs/migrations/legacy-to-coordination.md:107`, `CLAUDE.md` / `AGENTS.md` Mission-identity naming line (clarify: mid8 comes from the slug). CHANGELOG entry (keyword removal + backfilled-Mission behaviour change).
+- **PD-10 #5113 (FR-014).** `spec-kitty doctor coordination --mission <slug> --fix` gains a missing-worktree fixer (`COORDINATION_WORKTREE_MISSING`); every emitter of the unmaterialized-coordination remedy names it: `coordination/surface_resolver.py:133,323-332`, `runtime/next/runtime_bridge.py:2965`, `mission_runtime/write_target_degrade.py:241`, `cli/commands/implement_cores.py:703`, `cli/commands/implement.py:1088`, `cli/commands/agent/mission_record_analysis.py:148`. Pinned text ("materializ", no "flatten") preserved. Each emitter is first classified unmaterialized-vs-husk; the EMPTY/husk remedy (`surface_resolver.py:133`, #1890) keeps `doctor workspaces`. Pins to update: `test_coord_read_seam*.py`, `tests/runtime/test_bridge_parity.py:1772`, `test_implement_placement_routing.py:68`, `agent/test_record_analysis_placement.py:48`, `test_coord_never_created.py`, `tests/cli/commands/test_merge_status_commit.py:881`.
 
 ## Gate Baseline (NFR-003, measured at mission start, `src/specify_cli`, naming module excluded)
 
@@ -58,6 +63,8 @@ No violations requiring justification.
 | Lane-name match sites outside the naming module | 7 | 0 |
 | Allow-listed (spec-excluded) sites | 5 (recovery enumeration `lanes/recovery.py:136`; prose `lanes/stale_check.py:118`, `context.py:101`, `coordination/workspace.py:126`, `coordination/policy.py:189`) | ≤ 5 |
 | Existing `test_no_worktree_name_guess.py` `_NAME_COMPOSE_BASELINE_RAW_MATCHES` | 5 | 4 (after `detection.py:159`) |
+| Hand-rolled error-path worktree path (`lanes/lifecycle_sync.py:157`) | 1 | 0 (deleted with the probe) |
+| Test call sites passing `mission_id` to lane naming (grep; parametrized tables extra) | ~72 in 19 files | 0 (each migrated by the WP owning its source; re-counted by AST in WP07) |
 
 ## Project Structure
 
@@ -110,32 +117,40 @@ tests/specify_cli/cli/commands/ tests/coordination/ tests/architectural/
 
 ```mermaid
 graph LR
-  WP01[WP01 Reconciliation claim + divergent-shape fixture] --> WP02[WP02 Executor stages]
-  WP01 --> WP06[WP06 Signature cutover + gate]
-  WP02 --> WP06
-  WP03[WP03 Lanes/CLI consumers + probe removal] --> WP06
-  WP04[WP04 Match sites + parsers] --> WP06
-  WP05[WP05 Mission branch preservation]
-  WP07[WP07 #5113 decision materialization + remedy]
+  WP01[WP01 Reconciliation claim + divergent-shape fixture] --> WP02[WP02 Executor re-routes]
+  WP01 --> WP03[WP03 Resume refusal + end-to-end + fallbacks]
+  WP02 --> WP03
+  WP04[WP04 Lanes/CLI consumers + probe removal]
+  WP05[WP05 Match sites + parsers + lane-id grammar]
+  WP06[WP06 Mission-branch preservation]
+  WP03 --> WP07[WP07 Signature cutover + gate]
+  WP04 --> WP07
+  WP05 --> WP07
+  WP06 --> WP07
+  WP07 --> WP08[WP08 ADR + living docs + CHANGELOG]
+  WP09[WP09 #5113 decision materialization + remedy]
 ```
 
 ### Work Distribution
 
-- **WP01** Reconciliation claim (FR-003, FR-012) — `merge/reconciliation.py`, divergent-shape fixture.
-- **WP02** Executor stages (FR-004, FR-005, FR-006 executor, SC-001/002 end-to-end) — `merge/executor.py`.
-- **WP03** Lanes + CLI consumers (FR-006 rest incl. acceptance, FR-007).
-- **WP04** Match sites + parsers (FR-008) — additive in `branch_naming.py`.
-- **WP05** Mission branch (FR-011, FR-010 re-verify) — `lanes/compute_and_persist.py`, `status/aggregate.py`.
-- **WP06** Signature cutover + gate (FR-002, FR-009) — `branch_naming.py` removal, allocator, test migration, gates.
-- **WP07** #5113 (FR-013, FR-014) — decisions + coordination doctor + remedy text.
+- **WP01** Reconciliation claim (FR-003, FR-012) — `merge/reconciliation.py`; shared real-allocator fixture `tests/merge/_divergent_shapes.py` (4 shapes); migrates `tests/merge/test_reconciliation.py`.
+- **WP02** Executor re-routes (FR-004, FR-006 executor) — `merge/executor.py` sites :654, :1945, :2756/:2782/:2794, :2966; tidy-first cleanup extraction; `_created_lane_branch`; red-first per diverging site.
+- **WP03** Resume refusal + end-to-end (FR-005, SC-001/002, PD-13/14) — `_enforce_resume_anchor_integrity` H5 (executor, after WP02), `merge/preflight.py`, `lanes/recovery.py` (Mission-branch fallback only), end-to-end merges over 4 shapes, `TestPlanningArtifactReachesTarget` green unedited, upgrade-resume refusal pin.
+- **WP04** Lanes + CLI consumers (FR-006 rest incl. acceptance, FR-007) — `lifecycle_sync.py` (probe + :157), `lanes/merge.py`, `lanes/recovery.py` kwarg drops, `implement_support.py`, `acceptance/__init__.py`, `status_transition.py`, `tasks_parsing_validation.py`, `orchestrator_api/commands.py`, `mission_type.py`, `workspace/context.py`, `context/resolver.py`, `core/worktree_topology.py`; migrates their tests (incl. `tests/lanes/test_lanes_worktree_routing.py`).
+- **WP05** Match sites + parsers + grammar (FR-008, PD-7/12) — additive `branch_naming.py` parsers + `_LANE_ID_RE`; `sparse_checkout.py`, `_coordination_doctor.py`, `status/doctor.py`, `live_work/bindings.py`, `commit_guard.py`, `merge/resolve.py`, `core/vcs/detection.py`.
+- **WP06** Mission branch (FR-011, FR-010 re-verify) — `lanes/compute_and_persist.py`, `status/aggregate.py`.
+- **WP07** Signature cutover + gate (FR-002, FR-009, PD-3/11) — `branch_naming.py` removal, `worktree_allocator.py`, golden re-pins, residual test migration, extended `test_no_worktree_name_guess.py`, `_baselines.yaml`.
+- **WP08** ADR + living docs + CHANGELOG (PD-15).
+- **WP09** #5113 (FR-013, FR-014, PD-9/10) — independent.
 
-Parallel: {WP01, WP03, WP04, WP05, WP07} → WP02 → WP06.
+Parallel: {WP01, WP04, WP05, WP06, WP09} → WP02 → WP03 → WP07 → WP08.
 
 ### Coordination Points
 
-- WP04 (additive parsers) and WP06 (signature removal) both touch `lanes/branch_naming.py`: serialized by dependency.
-- WP01–WP04 drop `mission_id=None` kwargs in their own files (legal before cutover); WP06 owns only the seam, the allocator, tests and gates.
-- `surface_resolver.py` is owned solely by WP07.
+- `lanes/branch_naming.py`: WP05 (additive) then WP07 (removal) — serialized.
+- `merge/executor.py`: WP02 then WP03 — serialized.
+- `lanes/recovery.py`: WP04 (lane kwarg drops) and WP03 (Mission-branch fallback at :268) — disjoint functions; WP03 depends on nothing from WP04 but both edit the file, so WP03 → after WP04 in lane scheduling.
+- `surface_resolver.py` is owned solely by WP09.
 
 ## Risks
 
@@ -143,4 +158,5 @@ Parallel: {WP01, WP03, WP04, WP05, WP07} → WP02 → WP06.
 2. Behaviour changes inside "re-routes" (sparse-checkout expected branch for `NNN-` coordination Missions, live-work binding by slug, `is_lane_branch` accepting plain-legacy) each get a named test.
 3. Test churn (~61 call sites): fixtures composing names with an identity move to allocator-built fixtures, not kwarg deletion (FR-012).
 4. Concurrent materialization (WP07): `CoordinationWorkspace.resolve` uses an in-process lock; re-probe once after a failed `git worktree add`.
-5. Follow-ups to file at close-out (not in scope): recovery enumeration prefix over-match (`lanes/recovery.py:136`); review-workspace second lane-creation path (`cli/commands/agent/workflow.py:1691`, naming-compliant); `migration/mission_state.py:1621` rebuild without prior manifest; lane-id grammar past 26 lanes.
+5. #4762 (cleanup reports success while `branch -D` is refused) is adjacent in the same cleanup function but a different defect class (silent failure) — not folded; locality of change.
+6. Follow-ups to file at close-out (not in scope): recovery enumeration prefix over-match (`lanes/recovery.py:136`); review-workspace second lane-creation path (`cli/commands/agent/workflow.py:1691`, naming-compliant); `migration/mission_state.py:1621` rebuild without prior manifest; lane-id grammar past 26 lanes.
