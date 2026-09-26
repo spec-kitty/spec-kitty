@@ -1,0 +1,89 @@
+{
+  "mission_slug": "terminus-reconciliation-attribution-integrity-01M3D4RW",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_repro_5022.py red-first\u2192green: canceled-WP deletion FAILs+CAS-reverts under squash",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T23:30:17.321480+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "authored_deletions + _final_authored_walk; unit tests both directions",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T23:30:19.410734+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "bookkeeping-path deletion tolerated",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T23:30:21.517749+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_repro_5018.py red-first\u2192green: mixed lane PASSes under --strategy merge",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T23:30:23.639852+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "2nd-parent-smuggle still excluded + fully-canceled lane tests; 4977/4981 pass; opus-verified first-parent-only subtraction",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T23:30:25.754094+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_repro_5021 r1 red-first\u2192green + R2 guard; CAS-anchored resume short-circuit",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T23:30:27.813186+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "DESCOPED to #5038 (spec status Deferred); WP02 root-caused as 3-way-divergence class (out of scope, Decision 5); delivered P2 guard + honest xfail P1",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T23:30:32.037889+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "3-way kept xfail(strict), confirmed still xfailed \u2014 honest per SO#9",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T23:30:29.930051+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
