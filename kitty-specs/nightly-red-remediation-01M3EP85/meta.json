@@ -25,6 +25,7 @@
   "purpose_context": "The first nightly run of the integration lane went red with 25 failures, the performance suite with 2, and the Python 3.13 leg timed out without escalating. Analysis on #5045 found stale test fixtures, two merge product defects and a CI escalation gap; this mission re-pins the fixtures with rationale, fixes the defects red-first and makes the nightly fail closed.",
   "purpose_tldr": "Turn the nightly integration and performance suites green honestly and stop timed-out nightly legs from failing silently.",
   "slug": "nightly-red-remediation-01M3EP85",
+  "status_phase": "1",
   "target_branch": "claude/lucid-ptolemy-fjtzep",
   "topology": "single_branch",
   "vcs": "git",
