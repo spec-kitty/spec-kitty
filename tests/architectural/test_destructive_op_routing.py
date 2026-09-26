@@ -182,7 +182,7 @@ _ALLOWLIST: dict[str, str] = {
         "half-merge was already aborted -- lane-loop-scoped recovery, not an "
         "arbitrary destroy of operator state."
     ),
-    "src/specify_cli/merge/executor.py:3220:reset_hard": (
+    "src/specify_cli/merge/executor.py:3342:reset_hard": (
         "#4997 behind-own-HEAD resume recovery (_recover_behind_head_primary_on_resume): "
         "runs ONLY after a provably-pure-lag proof -- classify_resume_dirty_remedy == "
         "BEHIND_OWN_HEAD (lane already an ancestor of HEAD) AND is_pure_behind_head_lag "
