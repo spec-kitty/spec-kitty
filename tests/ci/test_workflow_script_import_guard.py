@@ -16,10 +16,11 @@ pinning one script: it derives the list of scripts every ``.github/workflows/*.y
 file invokes as a bare script (``python``/``python3 <path>``, excluding ``-m``
 module invocations, which already have the repo root on ``sys.path`` via the
 interpreter's own module-mode bootstrap and are not exposed to this defect) and
-runs each one exactly as CI does -- ``[sys.executable, script, "--help"]``, cwd the
-repo root, ``PYTHONPATH`` stripped from the environment -- so a future script that
-copies the same unguarded ``from scripts.`` import is caught here too, not just at
-the next red push.
+runs each one exactly as CI invokes it -- ``[sys.executable, <absolute script
+path>, "--help"]``, ``PYTHONPATH`` stripped from the environment -- so a future
+script that copies the same unguarded ``from scripts.`` import is caught here
+too, not just at the next red push. ``cwd`` is deliberately NOT the repo root;
+see "Subprocess isolation" below.
 
 The only assertion is the precise defect-class floor: no
 ``ModuleNotFoundError: No module named 'scripts'`` at import time. It deliberately
@@ -40,6 +41,45 @@ first established this exact repro shape (bare-script subprocess, ``PYTHONPATH``
 stripped, no ``ModuleNotFoundError``) for one script; this test generalizes it to
 every workflow-invoked script mechanically, rather than hand-adding one regression
 test per future script.
+
+Subprocess isolation (op-review-001): each subprocess below runs with ``cwd`` set
+to the test's own ``tmp_path`` and is invoked by the script's ABSOLUTE path, never
+a repo-root-relative one. This still exercises the exact defect class -- the
+``ModuleNotFoundError`` comes from ``sys.path[0]``, which a bare script run always
+seeds from the script's OWN directory (``Path(sys.argv[0]).resolve().parent``),
+never from the process cwd -- while denying every script a real repo-root cwd to
+write into. Concretely, this closes the hazard ``reconcile_shards.py`` has: it
+carries no argparse/``--help`` handling and unconditionally runs
+``resolved_dir.mkdir(parents=True, exist_ok=True)`` against its cwd-relative
+default (``out/aggregate/coverage/``) before failing on a missing registry file --
+previously this created a real, ``.gitignore``d ``out/aggregate/coverage/`` under
+the repo root on every test run, invisible to ``git status`` and colliding with
+``ci-aggregate.yml``'s own identical path contract on a persistent dev checkout.
+With ``cwd=tmp_path`` that same relative default resolves harmlessly inside the
+test's disposable directory instead.
+
+Every other workflow-invoked script that lacks ``--help`` handling was audited for
+the same class of hazard (cwd-relative writes or network calls) at the time this
+isolation was added:
+- ``scripts/ci/router_gate.py`` only reads ``sys.stdin`` (empty under pytest's
+  captured stdin) and writes nothing.
+- ``scripts/docs/plantuml_render.py`` treats ``--help`` as a literal, nonexistent
+  ``site_dir`` positional and globs zero files under it; it writes nothing.
+- ``scripts/release/extract_changelog.py`` only reads a cwd-relative
+  ``CHANGELOG.md`` (absent under ``tmp_path``, so it exits 1 without writing).
+- ``scripts/docs/generate_kitty_specs_docs.py`` is a DIFFERENT hazard shape this
+  cwd change cannot neutralize: its output directory (``DEST``) is resolved from
+  ``Path(__file__).resolve().parents[2]`` -- the script's own real repo-root
+  location, not the process cwd -- so it unconditionally
+  ``shutil.rmtree()``-and-regenerates the real (``.gitignore``d, but
+  reproducible-from-tracked-source) ``docs/kitty-specs/`` on every run regardless
+  of ``cwd``. Reported as a follow-up (out of locality-of-change scope for this
+  fix, same as op-review-003): a future mission should give it argparse
+  ``--help`` handling or an overridable output root, mirroring
+  ``reconcile_shards.py``'s own remediation options.
+Every argparse-based script in the parametrized set (the rest of the list) exits
+via argparse's own ``--help`` handling before reaching any file or network I/O, so
+none of them are exposed to either hazard shape.
 """
 
 from __future__ import annotations
@@ -52,7 +92,16 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.fast
+# Spawns a real subprocess per parametrized script (~dozens of ms to low seconds
+# each; one case measured 5.83s) -- legitimately slow, subprocess-fanning tests,
+# so this is `integration` and NEVER `fast` (pytest.ini's `fast` marker is
+# documented as "no subprocess/git overhead, sub-second per test"; see
+# tests/ci/test_sonarcloud_branch_review.py's identical rationale comment). The
+# `ci` module row in `.github/ci-module-registry.yml` selects the whole
+# `tests/ci` directory by `test_dirs`, and `module-tests.yml`'s pytest invocation
+# only ever deselects `performance`/`stress` -- so this marker change does not
+# drop the file from the per-PR `ci` shard.
+pytestmark = pytest.mark.integration
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _WORKFLOWS_DIR = _REPO_ROOT / ".github" / "workflows"
@@ -84,11 +133,11 @@ def test_workflow_invoked_scripts_is_a_non_vacuous_floor() -> None:
 
 
 @pytest.mark.parametrize("script", _workflow_invoked_scripts(), ids=lambda s: s)
-def test_workflow_invoked_script_survives_bare_run_without_module_not_found(script: str) -> None:
+def test_workflow_invoked_script_survives_bare_run_without_module_not_found(script: str, tmp_path: Path) -> None:
     env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
     proc = subprocess.run(
-        [sys.executable, script, "--help"],
-        cwd=_REPO_ROOT,
+        [sys.executable, str(_REPO_ROOT / script), "--help"],
+        cwd=tmp_path,
         env=env,
         capture_output=True,
         text=True,
