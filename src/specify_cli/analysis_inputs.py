@@ -60,12 +60,12 @@ def _declared_paths(charter: dict[str, Any]) -> list[str]:
     from charter.activation.sync import apply_legacy_governance_selection_key_compat
 
     governance = charter.get("governance", {})
-    doctrine = apply_legacy_governance_selection_key_compat(governance).get("charter", {}) if isinstance(governance, dict) else {}
-    if not isinstance(doctrine, dict):
-        raise MaterialInputError("governance.doctrine must be a mapping")
+    charter_cfg = apply_legacy_governance_selection_key_compat(governance).get("charter", {}) if isinstance(governance, dict) else {}
+    if not isinstance(charter_cfg, dict):
+        raise MaterialInputError("governance.charter must be a mapping")
     paths = list(DEFAULT_AUTHORITY_PATHS)
     for key in ("authority_paths", "governance_references"):
-        declared = doctrine.get(key, [])
+        declared = charter_cfg.get(key, [])
         if not isinstance(declared, list) or not all(isinstance(value, str) for value in declared):
             raise MaterialInputError(f"{key} must be a list of paths")
         paths.extend(declared)
