@@ -153,7 +153,6 @@ _ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
     # ``.worktrees``-shaped Path ONLY to populate the ``StatusReadPathNotFound``
     # diagnostic ``raise`` payload — the same site already dispositioned DIAG
     # (no FS sink) in ``test_single_mission_surface_resolver.py`` /
-    # ``surface_resolution_audit/inventory.md`` /
     # ``untrusted_path_audit/inventory.md``. It replaced a
     # ``CoordinationWorkspace.worktree_path(...)`` seam call (#2091, invariant
     # M-1: that seam now REQUIRES a non-empty mid8 and would raise a DIFFERENT

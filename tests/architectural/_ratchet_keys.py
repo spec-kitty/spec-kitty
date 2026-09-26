@@ -46,17 +46,15 @@ for the authoritative interface contract.
 
 Key shape — reuse, not fork
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-``tests/architectural/surface_resolution_audit/audit.py`` already defines the
-canonical **path-qualified 3-tuple** row identity: ``CompositeKey = (str, str,
-str)`` (``rel_path``, ``qualname``, ``token``) built by its ``_composite_from_file``.
-``CompositeKey`` below intentionally matches that exact shape — same
-``(rel_path, qualname, token_line)`` triple, built from the SAME canonical
-:func:`composite_key` primitive (no second token/qualname algorithm). It is
-declared here, not imported from ``audit.py``, because ``audit.py`` already
-imports ``composite_key_from_file`` from *this* module — importing back from
-``audit.py`` would create a circular import. Declaring the shared shape in this
-module (the designated home "every WS1 gate imports") is the "relocate" half of
-the plan's "reuse/relocate, do not fork a third key-builder" instruction.
+``CompositeKey`` below is **the** declaration of the canonical
+**path-qualified 3-tuple** row identity: ``(rel_path, qualname, token_line)``,
+built from the canonical :func:`composite_key` primitive (no second
+token/qualname algorithm). Consumers import it from here — the
+``tests/architectural/_surface_resolution_scan.py`` scanner imports both
+``CompositeKey`` and ``composite_key_from_file`` — rather than re-declaring the
+alias. This module is the designated home "every WS1 gate imports", which is the
+"relocate" half of the plan's "reuse/relocate, do not fork a third key-builder"
+instruction.
 """
 
 from __future__ import annotations
@@ -121,9 +119,8 @@ class ContentDescriptor(NamedTuple):
 
 
 #: The path-qualified 3-tuple row identity: ``(rel_path, qualname, token_line)``.
-#: Matches the shape of ``surface_resolution_audit.audit.CompositeKey`` — see the
-#: module docstring's "Key shape — reuse, not fork" note for why it is declared
-#: here rather than imported.
+#: The single declaration — see the module docstring's "Key shape — reuse, not
+#: fork" note; scanners import it from here.
 CompositeKey = tuple[str, str, str]
 
 
