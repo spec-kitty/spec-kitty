@@ -47,6 +47,16 @@ from kernel.vcs_lock import is_vcs_lock_only_change
 # Basename of the mission metadata file whose VCS-lock-only changes are tolerated.
 _META_FILENAME: str = "meta.json"
 
+# Marker substring :func:`_dirty_entries` appends to an untracked/ignored entry it
+# flags as a reset-hard obstruction (as opposed to a tracked-change entry, appended
+# raw with no suffix). :func:`reset_would_obstruct_untracked` matches on this marker
+# to ask ONLY the obstruction question through :func:`_dirty_entries` -- not "is
+# anything at all dirty" -- without re-deriving the classification itself (INV-3;
+# a second module-level ``git status --porcelain``-parsing predicate is exactly the
+# regression ``tests/architectural/test_destructive_op_routing.py`` (T019) guards
+# against).
+_RESET_OBSTRUCTION_MARKER: str = "would be overwritten by reset --hard to "
+
 # Sentinel for the short OID displayed when a ref has no current value yet.
 _UNBORN: str = "<unborn>"
 
@@ -330,11 +340,11 @@ def _dirty_entries(
                 dirty.append(f"{line} (untracked local file would be discarded by worktree removal)")
                 continue
             if _path_obstructs_target_tree(path, target_paths):
-                dirty.append(f"{line} (would be overwritten by reset --hard to {new_sha[:12]})")
+                dirty.append(f"{line} ({_RESET_OBSTRUCTION_MARKER}{new_sha[:12]})")
             continue
         if line.startswith("!!"):
             if _path_obstructs_target_tree(path, target_paths):
-                dirty.append(f"{line} (would be overwritten by reset --hard to {new_sha[:12]})")
+                dirty.append(f"{line} ({_RESET_OBSTRUCTION_MARKER}{new_sha[:12]})")
             continue
         # A tracked ``meta.json`` whose only diff against HEAD is the claim-time
         # VCS lock is a regenerable stamp, not destructive local state: the
@@ -344,6 +354,48 @@ def _dirty_entries(
             continue
         dirty.append(line)
     return dirty
+
+
+def reset_would_obstruct_untracked(
+    repo_root: Path,
+    ref: str = "HEAD",
+    *,
+    env: dict[str, str] | None = None,
+) -> bool:
+    """True when ``git reset --hard <ref>`` would clobber an untracked-or-ignored file.
+
+    #4997 (follow-up, data-loss). ``git reset --hard`` overwrites any UNTRACKED
+    **or IGNORED** path that collides with a path tracked in ``ref``'s tree --
+    ``git diff`` is blind to both, and scanning only untracked files (e.g. ``git
+    ls-files --others --exclude-standard``) hides gitignored paths, reopening the
+    hole for a path a mission force-added (``git add -f``) despite a
+    ``.gitignore`` entry: the operator's genuine gitignored file at that same
+    path would be silently clobbered by the reset.
+
+    This is the PUBLIC seam for a caller outside this module (the ``merge/``
+    layer, INV-3) to ask that obstruction question without reaching into this
+    module's private helpers. It delegates entirely to :func:`_dirty_entries` --
+    the single obstruction authority this module already reuses for
+    :func:`advance_branch_ref` -- and simply asks whether any of the entries it
+    returns are one it tagged as a reset-hard obstruction (``??``/``!!``
+    entries matching :data:`_RESET_OBSTRUCTION_MARKER`), ignoring tracked-change
+    entries: this seam answers only "would the reset clobber untracked/ignored
+    local state", not "is the worktree dirty" in general -- callers that also
+    need the tracked-change question (e.g. :func:`specify_cli.merge.preflight
+    .is_pure_behind_head_lag`) answer it separately (``git diff --quiet``
+    against their own base). No new ``git status --porcelain``-parsing
+    predicate is introduced (T019 of
+    ``tests/architectural/test_destructive_op_routing.py``).
+
+    Fail-closed: any git error (non-zero exit) or unexpected exception returns
+    True -- a reset whose safety could not be proven is never treated as safe.
+    """
+    try:
+        target_paths = _target_tree_paths(repo_root, ref, env)
+        dirty = _dirty_entries(repo_root, env, new_sha=ref, target_paths=target_paths)
+    except Exception:
+        return True
+    return any(_RESET_OBSTRUCTION_MARKER in entry for entry in dirty)
 
 
 def advance_branch_ref(

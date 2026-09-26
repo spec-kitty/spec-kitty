@@ -171,11 +171,16 @@ _ALLOWLIST: dict[str, str] = {
         "line; same _refresh_primary_checkout_after_merge site/rationale, "
         "confirmed by a direct read -- not a new destructive op."
     ),
-    "src/specify_cli/git/ref_advance.py:462:reset_hard": (
+    "src/specify_cli/git/ref_advance.py:514:reset_hard": (
         "the reused guard primitive's OWN resync implementation -- this "
         "module defines _dirty_entries (the residue-aware dirty check every "
         "other guard call reuses) and only resets after that check already "
-        "passed for this worktree."
+        "passed for this worktree. Re-pinned from :462 (#4997 follow-up, "
+        "data-loss fix): the new public seam reset_would_obstruct_untracked "
+        "(consumed by merge/preflight.py::is_pure_behind_head_lag, INV-3) "
+        "was added earlier in the file, shifting this line; same "
+        "advance_branch_ref resync site/rationale, confirmed by a direct read "
+        "-- not a new destructive op."
     ),
     "src/specify_cli/lanes/worktree_allocator.py:1040:reset_hard": (
         "atomic rollback to a pre-loop ref (#1915) AFTER the loop's own "

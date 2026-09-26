@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.terminus.conftest import _git as git
 from tests.terminus.conftest import build_coord_mission, run_terminus
 from tests.terminus.test_repro_4997 import _interrupt_behind_own_head
 
@@ -62,4 +63,55 @@ def test_resume_refuses_and_preserves_an_untracked_file_colliding_with_a_restore
     )
     assert collide.read_text(encoding="utf-8") == sentinel, (
         "the untracked operator file at a restored mission path was CLOBBERED by reset --hard during resume — the untracked-obstruction check failed (#4997)"
+    )
+
+
+def test_resume_refuses_and_preserves_a_gitignored_file_the_mission_force_added(tmp_path: Path) -> None:
+    # regression: #4997 follow-up (data-loss, VERIFIED LIVE). `git ls-files --others
+    # --exclude-standard` (the old obstruction scan) EXCLUDES gitignored paths, but
+    # `git reset --hard HEAD` overwrites an IGNORED file sitting at a path HEAD's tree
+    # tracks. If a mission commit force-adds (`git add -f`) a path that is gitignored,
+    # and the operator has genuine local content at that same gitignored path in the
+    # behind-own-HEAD window, the reset must NOT clobber it. The fix widens the
+    # obstruction scan to `git status --porcelain --ignored` (`??` AND `!!`), consumed
+    # through the public seam `ref_advance.reset_would_obstruct_untracked` (INV-3).
+    mission = build_coord_mission(
+        tmp_path,
+        wps=("WP01", "WP02"),
+        mid8="01M4997F",
+        extra_base_files={".gitignore": "secret.env\n"},
+    )
+
+    # WP01's approved lane commit force-adds a gitignored path (attributed to a real
+    # approved WP, so the terminus reconciliation gate has no unrelated reason to
+    # refuse) — HEAD's (post-advance) tree tracks `secret.env` despite `.gitignore`
+    # listing it.
+    lane_branch = mission.lane_branch("WP01")
+    git(mission.repo, "checkout", "-q", lane_branch)
+    (mission.repo / "secret.env").write_text("mission-tracked-secret\n", encoding="utf-8")
+    git(mission.repo, "add", "-f", "secret.env")
+    git(mission.repo, "commit", "-qm", "feat: WP01 force-adds a gitignored path")
+    git(mission.repo, "checkout", "-q", mission.target_branch)
+
+    _interrupt_behind_own_head(mission, ["WP01", "WP02"])
+
+    # The OPERATOR has genuine local content at that same gitignored path, in the
+    # primary checkout, while it sits behind its own (already-advanced) HEAD. The
+    # primary's currently checked-out tree predates the force-add commit, so this
+    # file reads as untracked-and-ignored (`!!`), not a tracked modification.
+    secret = mission.repo / "secret.env"
+    sentinel = "OPERATOR'S OWN GITIGNORED SECRET — must survive the resume\n"
+    secret.write_text(sentinel, encoding="utf-8")
+
+    result = run_terminus(mission, ["merge", "--resume", "--yes"])
+
+    assert result.returncode != 0, (
+        f"merge --resume must REFUSE when a gitignored file the operator owns collides "
+        f"with a path the mission force-added and the behind-own-HEAD reset would "
+        f"restore, got rc=0\nstdout:\n{result.stdout}"
+    )
+    assert secret.read_text(encoding="utf-8") == sentinel, (
+        "the operator's gitignored file was CLOBBERED by reset --hard during resume — "
+        "the --exclude-standard obstruction scan is blind to ignored paths (#4997 "
+        "follow-up, data-loss)"
     )

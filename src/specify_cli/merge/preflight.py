@@ -30,7 +30,8 @@ from specify_cli.merge._constants import (
     _STATUS_EVENTS_FILENAME,
     _STATUS_FILENAME,
 )
-from specify_cli.merge.git_probes import _has_branch_ref, _lane_already_integrated
+from specify_cli.git.ref_advance import reset_would_obstruct_untracked
+from specify_cli.merge.git_probes import _has_branch_ref, _lane_already_integrated, sha_reachable_from
 from specify_cli.merge.state import load_state
 from specify_cli.post_merge.review_artifact_consistency import (
     format_review_artifact_finding,
@@ -790,12 +791,14 @@ def is_pure_behind_head_lag(
       Any genuine edit, or an intentional deletion of a file unrelated to the advance,
       makes the tree differ from ``base_sha`` ⇒ ``False`` (fail-closed): it is preserved,
       never reset away.
-    * no UNTRACKED file may obstruct a path the reset would restore. ``git diff`` is blind
-      to untracked files, and ``git reset --hard HEAD`` silently OVERWRITES an untracked
-      file sitting at a path present in HEAD's tree (a restored mission file). This last
-      check closes that hole by reusing the single obstruction authority
-      (:func:`ref_advance._path_obstructs_target_tree` against HEAD's tree paths); any
-      obstructing untracked path ⇒ ``False``.
+    * no UNTRACKED or IGNORED file may obstruct a path the reset would restore. ``git
+      diff`` is blind to both, and ``git reset --hard HEAD`` silently OVERWRITES an
+      untracked *or ignored* file sitting at a path present in HEAD's tree (a restored
+      mission file force-added via ``git add -f`` despite a ``.gitignore`` entry is still
+      a path HEAD's tree tracks). This last check closes that hole by delegating to the
+      public git-layer seam :func:`specify_cli.git.ref_advance.reset_would_obstruct_untracked`
+      (INV-3: the merge layer never reaches into ``ref_advance``'s private helpers); any
+      obstructing untracked-or-ignored path ⇒ ``False``.
 
     Returns ``False`` on a missing ``base_sha`` or any git error (fail-closed): a state
     that cannot be proven a pure lag is treated as genuine local work.
@@ -810,13 +813,7 @@ def is_pure_behind_head_lag(
     )
     if head_ret != 0 or head_sha.strip() == base_sha:
         return False
-    ancestor_ret, _out, _err = run_command(
-        ["git", "merge-base", "--is-ancestor", base_sha, "HEAD"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ancestor_ret != 0:
+    if not sha_reachable_from(repo_root, base_sha, "HEAD"):
         return False
     worktree_ret, _wout, _werr = run_command(
         ["git", "diff", "--quiet", base_sha],
@@ -834,35 +831,4 @@ def is_pure_behind_head_lag(
     )
     if index_ret != 0:
         return False
-    return not _untracked_obstructs_head(repo_root)
-
-
-def _untracked_obstructs_head(repo_root: Path) -> bool:
-    """True when an untracked file would be clobbered by ``git reset --hard HEAD``.
-
-    ``git reset --hard`` preserves untracked files that do not collide, but OVERWRITES an
-    untracked file at a path HEAD's tree carries (a restored tracked file). Reuse the
-    single obstruction authority (:func:`ref_advance._path_obstructs_target_tree` against
-    :func:`ref_advance._target_tree_paths` for HEAD) rather than a parallel predicate
-    (INV-3). Fail-closed (``True``) on any git error, so an unprovable state blocks the
-    reset. #4997 (untracked-collision hole confirmed in pre-PR review).
-    """
-    from specify_cli.git import ref_advance
-
-    try:
-        head_paths = ref_advance._target_tree_paths(repo_root, "HEAD", None)
-    except Exception:
-        return True
-    untracked_ret, untracked_out, _err = run_command(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if untracked_ret != 0:
-        return True
-    for line in untracked_out.splitlines():
-        path = line.strip().rstrip("/")
-        if path and ref_advance._path_obstructs_target_tree(path, head_paths):
-            return True
-    return False
+    return not reset_would_obstruct_untracked(repo_root, "HEAD")
