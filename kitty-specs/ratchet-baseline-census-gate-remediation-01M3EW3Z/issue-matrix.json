@@ -73,7 +73,7 @@
       "wp": "WP13"
     },
     "#3011": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Converter retirement (FR-008/FR-009, DM-01M3EW4J8E)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,8 +81,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP07"
     },
     "#3026": {
       "evidence_ref": "<link or commit>",
