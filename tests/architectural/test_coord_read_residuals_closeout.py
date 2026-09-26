@@ -31,7 +31,7 @@ Three guards:
    against the recorded census. Both use-count floors it depended on
    (``CANONICALIZER_FLOOR`` / ``ROUTED_CANONICALIZER_FLOOR`` /
    ``ROUTED_CANONICALIZER_FLOOR_MARGIN``, in
-   ``test_resolution_authority_gates.py``) are retired there — the guarantee
+   ``test_resolution_authority_gates.py``, since deleted) are retired there — the guarantee
    transfers to the read-side bypass census (``test_no_read_side_bypass.py``,
    WP02) per the DIRECTIVE_043 adjudication recorded at that constant's
    retirement comment. Retiring the constants without retiring THIS module's
@@ -647,7 +647,7 @@ def test_sc006_executor_identity_reads_in_scope_both_shapes() -> None:
 # census`` used to pin ``ROUTED_CANONICALIZER_FLOOR == 40`` /
 # ``CANONICALIZER_FLOOR == 44`` here. Both constants (and the two use-count
 # floor tests that owned them) are retired in
-# ``test_resolution_authority_gates.py`` — see that module's retirement
+# ``test_resolution_authority_gates.py`` (since deleted) — see that module's retirement
 # comment for the honest re-derived census and the DIRECTIVE_043 transfer
 # adjudication (the guarantee moves to the read-side bypass census, WP02).
 # DIRECTIVE_041 disposition: STALE — this test's entire subject was verifying

@@ -168,7 +168,9 @@ A `MissionResolver` Protocol + `FsMissionResolver` + `FakeMissionResolver`, owni
 
 **Ratification (2026-07-29, write-side-seam-matrix-tracer-01KYP3MH WP02, HiC-approved).**
 This ADR was `status: Proposed` but de-facto shipped — the coord-authority gate it
-governs (`tests/architectural/test_resolution_authority_gates.py`) has been live and
+governs (at the time of this ratification, `tests/architectural/test_resolution_authority_gates.py`;
+that file has since been deleted, see [#5104](https://github.com/Priivacy-ai/spec-kitty/issues/5104), and
+the read-side guarantee now lives in `tests/architectural/test_no_read_side_bypass.py`) had been live and
 enforced since the sibling `single-authority-resolution-gates-01KW1P0F` mission. WP02
 re-pins the gate's census floor (`COORD_AUTHORITY_WRITE_FLOOR` 4 → 3, "Move A" per
 [`contracts/coord-authority-gate.md`](../../../kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/contracts/coord-authority-gate.md))
