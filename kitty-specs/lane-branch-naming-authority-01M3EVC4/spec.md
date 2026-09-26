@@ -13,6 +13,7 @@
 - **Architecture decision** (operator, pre-spec checkpoint): extend the existing creation-side lane-placement authority (Option A); do not persist per-lane branch names in the lanes manifest and do not move naming into a lower layer.
 - **Absorbed scope**: FR-010 of mission `terminus-merge-integrity-01M380R6` (stable, origin-aware lane identity). It has since landed on the mainline; this mission preserves and re-verifies it rather than re-implementing it.
 - **Audited scope**: whether the mission-branch / coordination-branch naming drifts the same way.
+- **Folded scope (operator, 2026-09-26)**: #5113 — recording a Decision Moment on a freshly created coordination-topology Mission partially writes the ledger and then fails because the coordination worktree is not yet materialized, and the advertised remedy cannot materialize it.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -74,6 +75,20 @@ Operators with modern Missions (mid8 embedded in the slug) and legacy Missions w
 1. **Given** a modern Mission, **When** lanes are created and merged, **Then** branch and worktree names are byte-identical to today's.
 2. **Given** a Mission whose work package is removed and tasks re-finalized, **When** lanes are recomputed, **Then** surviving lanes keep their ids and a fresh lane prefers an existing `origin/<lane>` (FR-010 preserved).
 
+### User Story 5 - Record decisions on a fresh coordination Mission (Priority: P2)
+
+An operator runs `/spec-kitty.specify` on a Mission created with the coordination topology and opens/resolves the first Decision Moment before any coordination write has happened.
+
+**Why this priority**: the canonical specify flow cannot be followed as written on any fresh coordination Mission; the partial write and misleading remedy push operators into improvised workarounds and split the decision ledger (#5113).
+
+**Independent Test**: create a coordination-topology Mission; run `decision open` then `decision resolve`; assert both succeed, the decision and its events land together on the surfaces the ledger is read from, and nothing is left half-written.
+
+**Acceptance Scenarios**:
+
+1. **Given** a fresh coordination-topology Mission with no coordination worktree, **When** the operator opens a Decision Moment, **Then** the command succeeds and returns the `decision_id`, with the ledger entry and its event recorded consistently.
+2. **Given** a condition under which recording cannot proceed, **When** the operator opens or resolves a Decision Moment, **Then** the command fails before writing anything.
+3. **Given** the unmaterialized-coordination error is shown anywhere, **When** the operator follows its remedy text, **Then** that remedy actually materializes the coordination worktree.
+
 ### Edge Cases
 
 - A lanes manifest whose identity is not a valid ULID (e.g. equal to the slug) — lane naming must not depend on it; the merge must still resolve the created lanes.
@@ -100,6 +115,8 @@ Operators with modern Missions (mid8 embedded in the slug) and legacy Missions w
 | FR-009 | Non-vacuous architectural gate | As a maintainer, I want an architectural gate that fails when lane branch/worktree names are composed or matched outside the naming authority, with a concrete frozen baseline, a shrink-only allowlist, and a self-mutation test, so that the defect class is closed by construction. | High | Open |
 | FR-010 | Preserve stable, origin-aware lane identity | As an operator, I want lane ids to stay stable across re-finalize and fresh lanes to prefer an existing `origin/<lane>`, so that the previously landed lane-identity guarantees (absorbed from `terminus-merge-integrity-01M380R6` WP04) remain intact. | High | Open |
 | FR-011 | Mission/coordination branch naming audit | As a maintainer, I want the mission-branch and coordination-branch naming audited for the same identity-form split; if the same defect class is present it is converged under this mission, otherwise a follow-up is filed with evidence. | Medium | Open |
+| FR-013 | Decision recording on a fresh coordination Mission | As an operator, I want `decision open` / `decision resolve` to succeed on a coordination-topology Mission whose coordination worktree is not yet materialized — or fail before any write — so that a Decision Moment is never half-recorded (#5113). | Medium | Open |
+| FR-014 | Truthful unmaterialized-coordination remedy | As an operator, I want the unmaterialized-coordination error to name a remedy that actually materializes the coordination worktree, so that following the tool's own advice unblocks me (#5113). | Medium | Open |
 | FR-012 | Red-first regressions for divergent Missions | As a maintainer, I want regression tests — unit and end-to-end through the merge entry point — for a legacy-slug Mission with a backfilled identity, a mismatched-mid8 slug, and an invalid manifest identity, each shown failing before the fix. | High | Open |
 
 ### Non-Functional Requirements
@@ -138,6 +155,7 @@ Operators with modern Missions (mid8 embedded in the slug) and legacy Missions w
 - **SC-002**: 0 lane branches or worktrees are left orphaned after a successful merge of each divergent Mission shape.
 - **SC-003**: 0 call sites outside the naming authority compose lane branch/worktree names in the merge, lanes and workspace subsystems; the gate goes red on 100% of injected synthetic offenders.
 - **SC-004**: 100% of existing naming goldens and lane-identity (FR-010) tests pass unchanged.
+- **SC-006**: On a fresh coordination Mission, 100% of `decision open` / `resolve` invocations either complete fully or write nothing; 0 half-recorded decisions.
 - **SC-005**: A resume with an unanchored lane-tip record refuses in 100% of cases and names the remedy.
 
 ## Assumptions
@@ -147,5 +165,5 @@ Operators with modern Missions (mid8 embedded in the slug) and legacy Missions w
 
 ## Traceability
 
-- Addresses: #5108.
-- Context: see #5045 (discovery), see mission `nightly-red-remediation-01M3EP85` (fixture re-pin), see mission `terminus-merge-integrity-01M380R6` (FR-010 origin).
+- Addresses: #5108, #5113.
+- Context: see #5045 (discovery), see #5023 (decision-ledger dual partition, related to #5113 — not fully resolved here), see mission `nightly-red-remediation-01M3EP85` (fixture re-pin), see mission `terminus-merge-integrity-01M380R6` (FR-010 origin).
