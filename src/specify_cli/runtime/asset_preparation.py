@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Literal, TypeVar
 if TYPE_CHECKING:
     from specify_cli.runtime.agent_skills import GlobalSkillSelection
 
+from kernel.errors import GuardedReadError
 from kernel.locks import machine_file_lock
 from kernel.paths import get_runtime_state_root
 from specify_cli.core.safe_delete import safe_rmdir, safe_unlink
@@ -513,6 +514,48 @@ def incomplete(owner: str, root: OperationRoot, error: Exception) -> OwnerAssess
     is distinguished for a ``TornReadError`` (FR-003).
     """
     return OwnerAssessment(owner, root, complete=False, diagnostics=(Diagnostic(_diagnostic_code(error), owner, "error", str(error)),))
+
+
+class StartupAssetError(GuardedReadError, RuntimeError):
+    """Terminal startup-asset-preparation failure (FR-005/C-010).
+
+    Raised by ``bootstrap.ensure_runtime``, ``agent_commands.
+    _apply_command_assessment`` and ``agent_skills.ensure_global_agent_skills``
+    in place of a bare ``RuntimeError`` when an assessment is incomplete or an
+    apply outcome is neither ``applied`` nor ``skipped``. Multiple-inherits
+    ``RuntimeError`` so existing ``except RuntimeError`` callers keep matching
+    (research D-7), and ``GuardedReadError`` so ``_run_app_with_error_hook``
+    renders it uniformly: exit 1, one stderr line, or one JSON object under
+    ``--json`` -- no traceback (C-010, reusing the existing seam, no new
+    renderer).
+
+    ``code`` is a Python attribute only, never part of the JSON envelope --
+    ``_guarded_read_error_json_payload`` emits only ``error``/``kind``/``path``
+    and stays unchanged.
+    """
+
+    def __init__(self, reason: str, *, path: str | None, code: str) -> None:
+        super().__init__(reason, path=path, reason=reason)
+        self.code = code
+
+
+def startup_asset_error(owner_key: str, diagnostics: tuple[Diagnostic, ...]) -> StartupAssetError:
+    """Build the terminal ``StartupAssetError`` for one owner's diagnostics.
+
+    ``reason`` names the owner and joins every diagnostic message with a next
+    step (FR-005/US3.1). ``path`` is always ``None`` here: this call site only
+    ever sees ``assessment.diagnostics`` (plain message strings, never a
+    carried typed exception), and ``Diagnostic`` itself has no path field --
+    guessing one out of message text would be exactly the message-parsing
+    research D-3 rules out, so it stays unset rather than fabricated. ``code``
+    is the first diagnostic's code.
+    """
+    reason = (
+        f"{owner_key}: " + "; ".join(d.message for d in diagnostics) + "; another spec-kitty process may still be installing -- re-run the command, "
+        "and if it persists remove the partially-written Spec Kitty home and re-run"
+    )
+    code = diagnostics[0].code if diagnostics else "global_assets_unavailable"
+    return StartupAssetError(reason, path=None, code=code)
 
 
 _BuiltAssessment = TypeVar("_BuiltAssessment")

@@ -209,11 +209,11 @@ def ensure_runtime() -> None:
     ``TestRecheckCommandCompletionConcurrentPeerVerdict``). Extending the
     re-assess seam there is tracked as a follow-up, not silently assumed.
     """
-    from specify_cli.runtime.asset_preparation import apply_with_reassess
+    from specify_cli.runtime.asset_preparation import apply_with_reassess, startup_asset_error
 
     assessment = assess_runtime()
     if not assessment.complete:
-        raise RuntimeError("; ".join(d.message for d in assessment.diagnostics))
+        raise startup_asset_error(assessment.owner_key, assessment.diagnostics)
     if not assessment.effects:
         return
     result = apply_with_reassess(
@@ -224,7 +224,7 @@ def ensure_runtime() -> None:
         logger=logger,
     )
     if result.outcome not in {"applied", "skipped"}:
-        raise RuntimeError("; ".join(d.message for d in result.diagnostics))
+        raise startup_asset_error(result.owner_key, result.diagnostics)
 
 
 def check_version_pin(project_dir: Path) -> None:
