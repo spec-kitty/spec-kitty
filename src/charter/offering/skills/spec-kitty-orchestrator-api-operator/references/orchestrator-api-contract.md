@@ -337,12 +337,28 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 
 | Code | Cause |
 |------|-------|
-| `MISSION_NOT_READY` | One or more WPs are not `approved` or `done` |
+| `MISSION_NOT_READY` | One or more WPs are not `approved` or `done`, OR (contract >= 1.7.0) the host readiness verdict (`collect_feature_summary(..., strict_metadata=True).ok`) is `False` -- a pending/failing acceptance matrix, missing/corrupt `lanes.json`, target-branch mismatch, unmet path convention, dirty working tree, etc. |
+
+**Error data (readiness-verdict refusal, contract >= 1.7.0):**
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `outstanding` | `dict[str, list[string]]` | `AcceptanceSummary.outstanding()`'s buckets |
+| `activity_issues` | `list[string]` | Human-readable readiness issues |
+| `skipped_checks` | `list[{check, detail}]` | Gates never reached |
+| `blocked_checks` | `list[{check, detail}]` | Gates that stopped readiness (e.g. `check: "lanes_manifest"` for a missing `lanes.json`) |
+
+No acceptance is recorded on this refusal (no `accepted_at` /
+`acceptance_mode`, HEAD unchanged; the readiness gate may still update the
+matrix rows it judged in the working tree). Acceptance is recorded only inside the same FR-010 locked
+pre-stamp verdict re-check the host `accept` CLI uses -- a verdict committed
+between the readiness check and the write, or a lock-acquisition timeout, is
+still refused with `MISSION_NOT_READY`.
 
 **Usage notes:**
 
 - Always call `mission-state` first to verify every WP is in `approved` or `done`
-- This is a guard-protected operation; it will reject if any WP is not `approved` or `done`
+- This is a guard-protected operation; it will reject if any WP is not `approved` or `done`, or if the host readiness verdict is not passing
 - `accept-mission` does not move WPs from `approved` to `done`; merge owns that transition
 
 
@@ -857,8 +873,7 @@ transition — it never invokes the WP-loop or `next` engines.
 |------------|----------|-------------|
 | `CONTRACT_VERSION_MISMATCH` | contract-version | Provider version too old |
 | `MISSION_NOT_FOUND` | mission-state, list-ready | Unknown mission slug |
-| `MISSION_NOT_READY` | accept-mission | Not all WPs are approved or done |
-| `WORKFLOW_EVIDENCE_REQUIRED` | accept-mission | Workflow files changed without runner proof |
+| `MISSION_NOT_READY` | accept-mission | Not all WPs are approved/done, or (contract >= 1.7.0) the host readiness verdict is not passing |
 | `POLICY_METADATA_REQUIRED` | start-implementation, start-review, transition | Missing or incomplete policy JSON |
 | `POLICY_VALIDATION_FAILED` | start-implementation, start-review, transition | Policy JSON invalid or contains secret-like values |
 | `USAGE_ERROR` | all commands | CLI usage error or missing required arguments |

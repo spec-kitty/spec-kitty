@@ -131,6 +131,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 if TYPE_CHECKING:
+    from specify_cli.acceptance import AcceptanceSummary
     from specify_cli.analysis_report import AnalysisReportResult
     from specify_cli.core.paths import RetentionDecision
     from specify_cli.decisions.models import OriginFlow
@@ -2029,6 +2030,61 @@ def append_history(
 # ── Command 8: accept-mission ──────────────────────────────────────────────
 
 
+def _readiness_failure_payload(mission_dir: Path, summary: AcceptanceSummary) -> dict[str, object]:
+    """FR-007/C-001 error-data shape for a failed host readiness verdict.
+
+    ``summary.outstanding()`` already returns ``dict[str, list[str]]`` (JSON-safe
+    as-is); ``skipped_checks``/``blocked_checks`` are lists of
+    ``AcceptanceCheckDiagnostic`` and are serialised through its own
+    ``to_dict()`` (``{check, detail}``) rather than a second, driftable
+    ad-hoc shape.
+    """
+    return {
+        **_mission_identity_payload(mission_dir),
+        "outstanding": summary.outstanding(),
+        "activity_issues": list(summary.activity_issues),
+        "skipped_checks": [item.to_dict() for item in summary.skipped_checks],
+        "blocked_checks": [item.to_dict() for item in summary.blocked_checks],
+    }
+
+
+def _stamp_mission_acceptance_or_fail(cmd: str, mission_dir: Path, summary: AcceptanceSummary, actor: str) -> str:
+    """Record acceptance inside the WP01/WP02 locked pre-stamp verdict guard.
+
+    Calls the SAME ``_stamp_acceptance_record`` seam the host ``accept`` CLI
+    uses (never ``feature_status_lock``/``locked_acceptance_verdict_guard``
+    directly here -- one lock-composition call site) -- it re-reads the
+    acceptance matrix fresh under the per-mission status lock immediately
+    before writing, and applies the identical planning-artifact-only bypass
+    rule (any OTHER missing matrix dir fails closed). Both a guard refusal
+    (a verdict committed after the readiness check above but before this
+    stamp -- SC-005) and a lock-acquisition timeout surface as
+    ``specify_cli.acceptance.AcceptanceError`` and map to ``MISSION_NOT_READY``
+    here -- never a raw traceback.
+    """
+    from specify_cli.acceptance import AcceptanceError, _stamp_acceptance_record
+    from specify_cli.mission_metadata import load_meta_strict
+
+    from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
+
+    try:
+        _stamp_acceptance_record(summary, actor, "orchestrator", None)
+    except (AcceptanceError, AcceptanceMatrixParseError) as exc:
+        # A matrix left malformed between the readiness check and the guard's
+        # locked re-read refuses like any other not-ready verdict.
+        _fail(cmd, "MISSION_NOT_READY", str(exc), _mission_identity_payload(mission_dir))
+    # Read back from ``summary.feature_dir`` -- the PRIMARY anchor
+    # ``_stamp_acceptance_record``/``record_acceptance`` actually wrote
+    # ``meta.json`` into (``acceptance/__init__.py``'s
+    # ``_primary_anchor_feature_dir``) -- never ``mission_dir``, which for a
+    # coord-topology mission is the coordination worktree's STATUS dir and
+    # carries no ``meta.json`` at all (review cycle 1, Issue 1): reading from
+    # the wrong directory let the write succeed and then raised a raw
+    # ``FileNotFoundError`` instead of returning the JSON envelope.
+    meta = load_meta_strict(summary.feature_dir)
+    return str(meta["accepted_at"])
+
+
 @app.command(name="accept-mission")
 def accept_mission(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
@@ -2067,12 +2123,16 @@ def accept_mission(
         )
         return
 
-    from specify_cli.acceptance import collect_feature_summary
+    from specify_cli.acceptance import ACCEPTANCE_CHECKS_FAILED_MESSAGE, AcceptanceError, collect_feature_summary
+    from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
     from specify_cli.config.path_conventions import PathConventionsConfigError
     from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 
     try:
-        summary = collect_feature_summary(main_repo_root, mission)
+        # FR-007 / C-001: pin ``strict_metadata=True`` explicitly -- the same
+        # single readiness authority the host ``accept`` CLI uses -- rather
+        # than resting on the parameter's current default.
+        summary = collect_feature_summary(main_repo_root, mission, strict_metadata=True)
     except Pre30LayoutError as exc:
         # #1057 / squad Blocker 1: pre-3.0 lane-directory missions hard-reject
         # rather than producing a vacuous all-done summary. A mission whose layout
@@ -2092,15 +2152,24 @@ def accept_mission(
             },
         )
         return
-    # Write acceptance record via centralized metadata writer
-    from specify_cli.mission_metadata import record_acceptance
+    except (AcceptanceError, AcceptanceMatrixParseError) as exc:
+        # A malformed acceptance matrix or an undecodable artifact (the host
+        # ``accept`` CLI reports both) refuses inside the JSON envelope rather
+        # than escaping as a traceback.
+        _fail(cmd, "MISSION_NOT_READY", str(exc), _mission_identity_payload(mission_dir))
+        return
 
-    meta = record_acceptance(
-        mission_dir,
-        accepted_by=actor,
-        mode="orchestrator",
-    )
-    accepted_at = str(meta["accepted_at"])
+    if not summary.ok:
+        # FR-007/FR-009/FR-010/C-001/C-002 (#4934): the host readiness verdict
+        # (the SAME ``AcceptanceSummary.ok`` the CLI ``accept`` command gates
+        # on) is now APPLIED here instead of being computed and discarded --
+        # the pre-fix defect this WP closes. No second readiness computation
+        # (C-001); the existing ``MISSION_NOT_READY`` error code is reused
+        # (C-002) rather than minting a new one.
+        _fail(cmd, "MISSION_NOT_READY", ACCEPTANCE_CHECKS_FAILED_MESSAGE, _readiness_failure_payload(mission_dir, summary))
+        return
+
+    accepted_at = _stamp_mission_acceptance_or_fail(cmd, mission_dir, summary, actor)
     approved_wps = list(summary.lanes.get("approved", []))
     done_wps = list(summary.lanes.get("done", []))
 

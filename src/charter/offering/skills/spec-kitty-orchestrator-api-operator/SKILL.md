@@ -289,6 +289,19 @@ spec-kitty orchestrator-api consolidate-mission \
 `accept-mission` returns `MISSION_NOT_READY` if any WP from the dependency
 graph is not `approved` or `done`.
 
+Once every WP is `approved`/`done`, `accept-mission` (contract >= 1.7.0) ALSO
+applies the host readiness verdict — the same `collect_feature_summary(...,
+strict_metadata=True)` check the `accept` CLI runs (a pending/failing
+acceptance matrix, a missing/corrupt `lanes.json`, a dirty working tree,
+etc.). A failing verdict refuses with `MISSION_NOT_READY` again, this time
+carrying `outstanding` / `activity_issues` / `skipped_checks` /
+`blocked_checks`, and records no acceptance (`meta.json` gains no
+`accepted_at`, HEAD unchanged; the gate may still update judged matrix rows in
+the working tree).
+Acceptance is only ever recorded inside the same locked pre-stamp re-check
+the host CLI uses, so a verdict committed between the check and the write is
+still refused.
+
 `accept-mission` reports `accepted_wps`, `approved_wps`, `done_wps`, and
 `merge_pending_wps`. It does not move WPs from `approved` to `done`; merge owns
 that transition.

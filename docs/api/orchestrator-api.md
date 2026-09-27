@@ -29,7 +29,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.5.0`
+- `CONTRACT_VERSION`: `1.7.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -62,6 +62,19 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `planning_commit` object (`action` / `sha` / `previous_sha` / `branch_tip`)
   from the delegate finalize-tasks `--json` payload (#4141, the
   `--refresh-planning-commit` re-point affordance). Purely additive.
+- `1.6.0` — the `planning_commit.action` vocabulary gains `"repinned"`
+  (#4827, the `--refresh-planning-commit --allow-orphaned` re-point
+  affordance). Purely additive.
+- `1.7.0` — `accept-mission` now applies the host readiness verdict (#4934):
+  it calls `collect_feature_summary(..., strict_metadata=True)` and refuses
+  with `MISSION_NOT_READY` whenever `summary.ok` is `False`, carrying
+  `outstanding` / `activity_issues` / `skipped_checks` / `blocked_checks`
+  plus the mission identity fields — see [Acceptance Payload](#acceptance-payload)
+  below. Acceptance is now recorded only through the same FR-010 locked
+  pre-stamp verdict guard the host `accept` CLI uses, so a verdict committed
+  between the readiness check and the stamp is refused rather than silently
+  accepted over. A behavioural tightening (a call that previously accepted
+  can now refuse), not purely additive.
 
 ## Response Envelope
 
@@ -217,7 +230,8 @@ in_review -> in_progress -> for_review
 
 ## Acceptance Payload
 
-`accept-mission` requires every WP to be `approved` or `done`. It returns:
+`accept-mission` requires every WP to be `approved` or `done`. On success it
+returns:
 
 | Field | Meaning |
 |---|---|
@@ -228,6 +242,35 @@ in_review -> in_progress -> for_review
 
 `accept-mission` does not move WPs from `approved` to `done`; merge owns that
 transition.
+
+### `MISSION_NOT_READY` (contract >= 1.7.0)
+
+Once every WP is `approved`/`done`, `accept-mission` additionally applies the
+SAME host readiness verdict the `accept` CLI computes via
+`collect_feature_summary(..., strict_metadata=True)` — one readiness
+authority, never a second computation. When `summary.ok` is `False` (a
+pending/failing acceptance matrix, a missing/corrupt `lanes.json`, a
+target-branch mismatch, an unmet path convention, a dirty working tree, and
+so on), `accept-mission` refuses with `MISSION_NOT_READY` and this error data:
+
+| Field | Meaning |
+|---|---|
+| `outstanding` | `dict[str, list[str]]` — `AcceptanceSummary.outstanding()`'s buckets (e.g. `lane_blockers`, `metadata`, `git_dirty`, `path_violations`) |
+| `activity_issues` | `list[str]` — human-readable readiness issues |
+| `skipped_checks` | `list[{check, detail}]` — gates the readiness pass never reached |
+| `blocked_checks` | `list[{check, detail}]` — gates that stopped readiness outright (e.g. a missing `lanes.json` reports `check: "lanes_manifest"`) |
+
+No acceptance is recorded on this refusal: `meta.json` gains no `accepted_at` /
+`acceptance_mode` / `acceptance_history`, and HEAD is unchanged. The readiness
+gate may still update the matrix rows it judged in the working-tree
+`acceptance-matrix.json`, exactly as the host `accept` CLI does.
+
+Acceptance is recorded only inside the same FR-010 locked pre-stamp verdict
+re-check the host `accept` CLI uses: the acceptance matrix is re-read fresh
+under the per-mission status lock immediately before the write. A verdict
+that a concurrent `acceptance-verdict` invocation commits between the
+readiness check above and this stamp — or a lock-acquisition timeout — is
+still refused with `MISSION_NOT_READY`, never silently accepted over.
 
 ## Design-Phase Commands
 

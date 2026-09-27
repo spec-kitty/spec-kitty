@@ -39,7 +39,15 @@ from kernel.clock import now_utc_iso
 # an ORPHANED (mid-mission-rebase) recorded SHA to the target-branch tip
 # (#4827). Purely additive; no consumer contract test pins the action
 # vocabulary (contracts/finalize-repin-contract.md).
-CONTRACT_VERSION = "1.6.0"
+# 1.7.0: ``accept-mission`` now APPLIES the host readiness verdict (#4934) --
+# it calls ``collect_feature_summary(..., strict_metadata=True)`` and refuses
+# with ``MISSION_NOT_READY`` (carrying ``outstanding`` / ``activity_issues`` /
+# ``skipped_checks`` / ``blocked_checks``, plus mission identity) whenever
+# ``summary.ok`` is False, and records acceptance only through the same
+# FR-010 locked pre-stamp verdict guard the host ``accept`` CLI uses.
+# Behavioural tightening (a previously-accepting call can now refuse), so a
+# minor bump rather than additive-only; no field is removed or renamed.
+CONTRACT_VERSION = "1.7.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

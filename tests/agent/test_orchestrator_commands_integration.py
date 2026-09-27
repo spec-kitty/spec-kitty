@@ -2,19 +2,29 @@
 
 Uses CliRunner to invoke commands against a fake mission directory
 with a real event log (no subprocess, no git).
+
+Exception: ``TestAcceptMission.test_all_done_accepted`` /
+``test_all_approved_accepted`` (#4934, WP03 of accept-fails-closed-01M3HS4V)
+use ``_make_acceptable_mission`` instead of ``_make_mission`` -- with
+``accept-mission`` now applying the host readiness verdict, a mission with no
+real git repo, no ``lanes.json`` and no acceptance matrix can never reach
+``summary.ok``, so these two positive-control tests need the real thing.
 """
 
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 from specify_cli.status.models import TransitionRequest
+from tests.lane_test_utils import derive_mission_id, write_single_lane_manifest
 
 import pytest
 
@@ -93,6 +103,93 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
     return repo_root, mission_dir
 
 
+def _git(repo_root: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo_root), *args], check=True, capture_output=True)
+
+
+def _commit_all(repo_root: Path, message: str) -> None:
+    """Commit every change (e.g. freshly-appended status events) so the
+    acceptance readiness check's ``git_dirty`` gate sees a clean tree."""
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-q", "-m", message)
+
+
+def _make_acceptable_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tuple[Path, Path]:
+    """A REAL-git variant of ``_make_mission`` for the two accept-mission
+    positive-control tests below (#4934, WP03).
+
+    ``accept-mission`` now applies the host readiness verdict
+    (``collect_feature_summary(..., strict_metadata=True).ok``), which
+    requires a real git repo (branch resolution), the path-convention
+    dirs (``src``/``tests``/``docs``), ``spec.md``/``plan.md``, a
+    ``lanes.json`` manifest, and a passing acceptance matrix -- none of
+    which the git-free ``_make_mission`` fixture provides. Everything else
+    (mission dir layout, WP task files, tasks.md index, meta.json shape)
+    mirrors ``_make_mission`` exactly so the two repaired tests keep
+    proving what they always proved.
+    """
+    repo_root = tmp_path / "repo"
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo_root)], check=True, capture_output=True)
+    _git(repo_root, "config", "user.email", "t@example.com")
+    _git(repo_root, "config", "user.name", "Test")
+    _git(repo_root, "config", "commit.gpgsign", "false")
+
+    for convention_dir in ("src", "tests", "docs"):
+        (repo_root / convention_dir).mkdir(parents=True, exist_ok=True)
+        (repo_root / convention_dir / ".gitkeep").write_text("", encoding="utf-8")
+    (mission_dir / "contracts").mkdir(parents=True, exist_ok=True)
+    (mission_dir / "contracts" / ".gitkeep").write_text("", encoding="utf-8")
+
+    for wp_id in ("WP01", "WP02"):
+        (tasks_dir / f"{wp_id}.md").write_text(
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# {wp_id}\n",
+            encoding="utf-8",
+        )
+    _write_tasks_index(mission_dir, {"WP01": 2, "WP02": 2})
+    for fname in ("spec.md", "plan.md"):
+        (mission_dir / fname).write_text(f"# {fname}\nDone.\n", encoding="utf-8")
+
+    mission_id = derive_mission_id(mission_slug)
+    meta = {
+        "mission_number": mission_slug.split("-")[0],
+        "slug": mission_slug,
+        "mission_slug": mission_slug,
+        "mission_id": mission_id,
+        "mid8": mission_id[:8],
+        "friendly_name": "Test Mission",
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-03-18T00:00:00+00:00",
+        "status_phase": 1,
+    }
+    (mission_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _seed_planned_events(mission_dir, mission_slug, ("WP01", "WP02"))
+
+    write_single_lane_manifest(mission_dir, wp_ids=("WP01", "WP02"), target_branch="main", mission_id=mission_id)
+    write_acceptance_matrix(
+        mission_dir,
+        AcceptanceMatrix(
+            mission_slug=mission_slug,
+            criteria=[
+                AcceptanceCriterion(
+                    criterion_id="AC-001",
+                    description="WP01/WP02 complete as specified",
+                    proof_type="automated_test",
+                    pass_fail="pass",
+                    evidence="test evidence",
+                )
+            ],
+        ),
+    )
+
+    _commit_all(repo_root, "seed acceptable mission")
+    return repo_root, mission_dir
+
+
 from tests.status.conftest import seed_wp_to_planned as _seed_wp_to_planned
 
 
@@ -146,7 +243,21 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
     from specify_cli.status.emit import emit_status_transition
     from specify_cli.status.models import ReviewResult
 
-    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="claimed", actor=actor))
+    # ``policy_metadata={"agent": actor}`` on the planned -> claimed hop is
+    # what the reducer's implementer-of-record projection reads (#4786,
+    # ``status/reducer.py::_project_implementer_of_record``) -- without it a
+    # strict-metadata readiness check (accept-mission, #4934) reports the WP
+    # as "never claimed" even though it reached done/approved here.
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane="claimed",
+            actor=actor,
+            policy_metadata={"agent": actor},
+        )
+    )
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="for_review", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_review", actor=actor))
@@ -183,7 +294,17 @@ def _emit_planned_to_approved(
     from specify_cli.status.emit import emit_status_transition
     from specify_cli.status.models import ReviewResult
 
-    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="claimed", actor=actor))
+    # See ``_emit_planned_to_done``'s comment on ``policy_metadata``.
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane="claimed",
+            actor=actor,
+            policy_metadata={"agent": actor},
+        )
+    )
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="for_review", actor=actor))
     emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_review", actor=actor))
@@ -1354,12 +1475,13 @@ class TestAppendHistory:
 
 class TestAcceptMission:
     def test_all_done_accepted(self, tmp_path):
-        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        repo_root, mission_dir = _make_acceptable_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
 
         # Transition all WPs to done
         _emit_planned_to_done(mission_dir, mission_slug, "WP01")
         _emit_planned_to_done(mission_dir, mission_slug, "WP02")
+        _commit_all(repo_root, "WP01/WP02 -> done")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -1393,11 +1515,12 @@ class TestAcceptMission:
         assert meta["accepted_by"] == "claude"
 
     def test_all_approved_accepted(self, tmp_path):
-        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        repo_root, mission_dir = _make_acceptable_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
 
         _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
         _emit_planned_to_approved(mission_dir, mission_slug, "WP02")
+        _commit_all(repo_root, "WP01/WP02 -> approved")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
