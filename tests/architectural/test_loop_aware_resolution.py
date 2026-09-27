@@ -74,24 +74,16 @@ pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 #: onto ``resolve_rejecting_loops`` removes its entry and lowers
 #: ``_ALLOWLIST_CEILING``.
 ALLOWLIST: tuple[ContentDescriptor, ...] = (
-    # `_resolve_commit_target`'s generic HEAD-detached path can legitimately
-    # raise inside the same try; the broad `except (..., RuntimeError, ...)`
-    # around the whole `safe_commit_command` body exists to turn every
-    # command-layer failure into a typer.Exit(1), not to translate a loop --
-    # none of the `.resolve()` calls in this try's body are on a path that
-    # can symlink-loop (repo-relative CLI file arguments), and the verdict
-    # (a clean CLI error exit) is identical on every interpreter.
-    ContentDescriptor(
-        "src/specify_cli/cli/commands/safe_commit_cmd.py",
-        "safe_commit_command",
-        "try :",
-        None,
-        "Broad command-layer except-all (RuntimeError among ValueError/TaskCliError/...) turns every "
-        "failure into typer.Exit(1); it does not discriminate loop-shaped RuntimeError, so the "
-        "CLI exit-code verdict is identical on every interpreter.",
-    ),
-    # Same broad command-layer except-all pattern as `safe_commit_command`
-    # above: `spec_commit_command`'s try wraps `ProtectionPolicy.resolve()`
+    # (Fold #3189: `safe_commit_command`'s entry lived here. Its file
+    # arguments now resolve through `_resolve_file_argument` /
+    # `kernel.resolution.resolve_rejecting_loops` instead of a bare
+    # `.resolve()`, so its `try:` body no longer calls `resolve`/`realpath`
+    # at all -- the site is structurally clean, not merely allowlisted, and
+    # the entry was removed. `_ALLOWLIST_CEILING` dropped from 9 to 8
+    # alongside this removal.)
+    #
+    # Same broad command-layer except-all pattern `safe_commit_command` used
+    # to have: `spec_commit_command`'s try wraps `ProtectionPolicy.resolve()`
     # (policy resolution, not path resolution) and `commit_for_mission`, and
     # the `except (RuntimeError, ValueError, subprocess.CalledProcessError)`
     # exists to produce one uniform CLI error exit, not to catch a loop.
@@ -224,7 +216,7 @@ MIN_RESOLUTION_CALL_SITES = 452
 MIN_RESOLVE_REJECTING_LOOPS_CALL_SITES = 13
 
 #: Lower this when an entry is migrated; never raise it without an ownership decision.
-_ALLOWLIST_CEILING = 9
+_ALLOWLIST_CEILING = 8
 
 
 def _parse(path: Path) -> ast.AST:
@@ -337,7 +329,7 @@ def test_every_allowlist_entry_is_a_real_violation() -> None:
 
 
 def test_allowlist_never_grows_past_its_landing_size() -> None:
-    """T018.3 (shrink-only): the allowlist holds at most the 9 hits this fold left behind.
+    """T018.3 (shrink-only): the allowlist holds at most the 8 hits this fold left behind.
 
     This is a floor on the allowlist itself, distinct from the zero-offender
     assertion above: the allowlist may only ever SHRINK (a future WP
@@ -386,7 +378,7 @@ def test_resolution_call_site_floor_is_met() -> None:
 _DRIFT_FILES: tuple[str, ...] = tuple(sorted({descriptor.rel_path for descriptor in ALLOWLIST}))
 
 #: Floor on ``_DRIFT_FILES`` so the drift proof cannot pass over a shrunken set.
-_DRIFT_FILES_FLOOR = 5
+_DRIFT_FILES_FLOOR = 4
 
 
 def _exemption_count_for(relpath: str) -> int:
