@@ -200,7 +200,7 @@ Parse the JSON and, in your next reply, explicitly tell the user:
 - Default planning/base branch<!-- glossary:glossary:base-branch --> if you create the mission right now: `planning_base_branch<!-- glossary:glossary:planning_base_branch -->`
 - Final merge target for completed changes: `merge_target_branch<!-- glossary:glossary:merge_target_branch -->`
 - Whether `branch_matches_target` is true or false
-- If that is not the intended landing branch, stop and ask which branch should receive this feature before you run `create`
+- If that is not the intended landing branch, stop and ask which branch should receive this mission before you run `create`
 
 Never talk generically about `main` or "the default branch". Name the actual branch values from the helper JSON. Do not shell out to git to *resolve* branch state for this prompt — the helper is the source of truth.
 
@@ -213,10 +213,10 @@ The helper JSON also returns a primary-branch recommendation payload:
 - `recommended_strategy` — `feature-branch` (start a dedicated branch) or `stay`
 - `reason` — a human-readable explanation you should relay to the user
 
-When `current_is_primary` is `true`, you **must** have an explicit branching-strategy conversation **before** calling `create` and create on a dedicated feature branch<!-- glossary:glossary:feature-branch -->:
+When `current_is_primary` is `true`, you **must** have an explicit branching-strategy conversation **before** calling `create` and create on a dedicated PR branch:
 
 1. Relay the `reason` to the user and ask whether they expect to open a pull request for this work later (the default assumption for mission work is yes).
-2. **If they expect a PR (recommended path):** recommend starting on a dedicated feature branch now, and propose a name derived from the provisional slug — e.g. `feat/<slug>` (use `fix/<slug>` for a bug-fix mission). Pass that branch to `create` with `--start-branch` so the CLI creates/switches to it before writing any mission artifacts:
+2. **If they expect a PR (recommended path):** recommend starting on a dedicated PR branch now, and propose a name derived from the provisional slug — e.g. `feat/<slug>` (use `fix/<slug>` for a bug-fix mission). Pass that branch to `create` with `--start-branch` so the CLI creates/switches to it before writing any mission artifacts:
 
    ```bash
    spec-kitty agent mission create "<slug>" \\
@@ -231,14 +231,14 @@ When `current_is_primary` is `true`, you **must** have an explicit branching-str
    ```
 
    Use the full `create` command in the Outline section below; the example here only shows the required branch flags. Do not run a separate raw `git switch` for this flow.
-3. **If they do not expect a PR:** a dedicated feature branch is still required
+3. **If they do not expect a PR:** a dedicated mission branch is still required
    for specify. Planning artifacts do not fall back to the coordination branch,
    and `spec-commit` refuses a protected primary ref. Explain that invariant,
    propose a non-protected `feat/<slug>` or `fix/<slug>` branch, and use
    `--start-branch`. If the user declines, stop before `create` rather than
    beginning a Mission that cannot complete specify safely.
 
-When `current_is_primary` is `false`, you are already on a feature branch — no branch switch is needed; proceed normally.
+When `current_is_primary` is `false`, you are already on a non-primary branch — no branch switch is needed; proceed normally.
 
 ## Commit Boundary (issue #846)
 
@@ -262,10 +262,10 @@ Workflow:
    `source_description`, always commit `spec.md` and `meta.json` together:
    ```bash
    spec-kitty spec-commit --mission <slug> --message "Add spec for mission <slug>" \\
-     <feature_dir>/spec.md <feature_dir>/meta.json
+     <mission_dir>/spec.md <mission_dir>/meta.json
    ```
    Planning/spec artifacts stay in the primary partition and never transit the
-   coordination worktree. On the dedicated non-protected feature branch this
+   coordination worktree. On the dedicated non-protected mission branch this
    commit is direct. If routing reports a protected-ref refusal, stop and repair
    branch placement; do not retry against the protected ref or claim that the
    coordination branch is a fallback.
@@ -443,7 +443,7 @@ Before asking **any** interview question during this command, you MUST:
   appears only in artifact filenames, not in CLI arguments.
 - Widening is represented by the CLI/SaaS widen flow; if that flow returns
   canonical thread metadata, it must be recorded as `DecisionPointWidened`.
-- SaaS sync is not required; all operations are local-only.
+- No hosted connection is required; all operations are local-only.
 
 ## Discovery Gate (mandatory)
 
@@ -519,7 +519,7 @@ breakage that DIRECTIVE_035 exists to prevent.
 2. Commits creation metadata; `spec.md` remains untracked until it is substantive and explicitly committed
 3. No worktree created during specify
 
-**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP<!-- glossary:glossary:wp -->## --agent <name>` for each WP. Each lane<!-- glossary:glossary:lane --> gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`).
+**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP<!-- glossary:glossary:wp -->## --agent <name>` for each WP. Each lane<!-- glossary:glossary:lane --> gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/checkout-upsell-flow-01J6XW9K-lane-a/`).
 
 ## Location
 
@@ -541,9 +541,9 @@ breakage that DIRECTIVE_035 exists to prevent.
 - Before creating, freeze the activated Mission type and the creation metadata
   snapshot as described above. Do not defer type selection until discovery.
 
-The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
+The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial mission description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
-Given that feature description, do this:
+Given that mission description, do this:
 
 - **Generation Mode (arguments provided)**: Use the provided text as a starting point, validate it through discovery, and fill gaps with explicit questions or clearly documented assumptions (limit `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->` to at most three critical decisions the user has postponed; call `decision defer` before writing each such marker).
 - **Interactive Interview Mode (no arguments)**: Ask the single bootstrap identity prompt, create the scaffold, then use the discovery interview to elicit all necessary context and confirm it before writing substantive `spec.md` content.
@@ -604,7 +604,7 @@ Given that feature description, do this:
    Where `<slug>` is a kebab-case version of the provisional title (e.g.,
    "Checkout Upsell Flow" → "checkout-upsell-flow").
 
-   If the user expects a pull request for this work, add `--pr-bound --branch-strategy already-confirmed`. When `current_is_primary` is true and they accept the recommended feature-branch path, also add `--start-branch <branch>` so no mission artifacts are written on the primary branch.
+   If the user expects a pull request for this work, add `--pr-bound --branch-strategy already-confirmed`. When `current_is_primary` is true and they accept the recommended `feature-branch` strategy, also add `--start-branch <branch>` so no mission artifacts are written on the primary branch.
 
    If this mission must preserve its lane branches and/or worktrees after `spec-kitty merge` (e.g. for post-merge inspection or a PR review window), declare that up front with `--retain-branches` and/or `--retain-worktrees` — this mints a machine-readable retention policy into `meta.json` so merge honors it automatically, rather than relying on a prose note nothing reads.
 
@@ -618,7 +618,7 @@ Given that feature description, do this:
    - `friendly_name`: provisional title
    - `purpose_tldr`: provisional one-line stakeholder-facing Mission summary
    - `purpose_context`: provisional stakeholder-facing context paragraph
-   - `feature_dir`: Absolute path to the feature directory inside the repository root checkout
+   - `mission_dir`: Absolute path to the mission directory inside the repository root checkout
    - `current_branch`: the branch you started from
    - `target_branch` / `base_branch`: deterministic branch contract for downstream commands
    - `planning_base_branch` / `merge_target_branch`: explicit landing-branch aliases
@@ -667,12 +667,12 @@ Given that feature description, do this:
 3. **Stay in the repository root checkout**: No worktree is created during specify.
 
 4. Read the files created by `create`:
-   - `<feature_dir>/spec.md` (already created, may be empty/template-filled)
-   - `<feature_dir>/meta.json` (already created with feature identity metadata)
+   - `<mission_dir>/spec.md` (already created, may be empty/template-filled)
+   - `<mission_dir>/meta.json` (already created with mission identity metadata)
 
    **Do NOT try to read a template file.** The spec structure is defined in this prompt (see sections below). The `create` command scaffolds an initial `spec.md` — read it, then update it following the structure in this prompt.
 
-5. Update `<feature_dir>/meta.json` only when needed:
+5. Update `<mission_dir>/meta.json` only when needed:
    - **Never** modify identity fields from `create` (`mission_id`, `slug`, `mission_slug`, `created_at`, `target_branch`). `mission_id` is the canonical ULID and is immutable. `mission_number` is display-only and is `null` pre-merge — do not set it by hand.
    - Keep `target_branch` aligned to the value from `create --json` output. Never hardcode `main`.
    - Preserve `friendly_name`, `purpose_tldr`, `purpose_context`, and
@@ -686,8 +686,8 @@ Given that feature description, do this:
    {
      "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
      "mission_number": null,
-     "slug": "my-feature",
-     "mission_slug": "my-feature",
+     "slug": "checkout-upsell-flow",
+     "mission_slug": "checkout-upsell-flow-01KQ7X2M",
      "friendly_name": "My Mission",
      "purpose_tldr": "Keep the mission understandable to product and executive stakeholders.",
      "purpose_context": "This mission exists to make the purpose of the work immediately legible to stakeholders who should not need to parse technical specification text to understand the value or expected outcome.",
@@ -706,7 +706,7 @@ Given that feature description, do this:
 
 6. Generate the specification content by following this flow:
     - Use the discovery answers as your authoritative source of truth (do **not** rely on the raw invocation text)
-    - For empty invocations, treat the synthesized interview summary as the canonical feature description
+    - For empty invocations, treat the synthesized interview summary as the canonical mission description
     - Identify: actors, actions, data, constraints, motivations, success metrics
     - Prefer concrete scenario walkthrough facts (actor, trigger, success outcome, exception path) over abstract restatements
     - For any remaining ambiguity:
@@ -723,18 +723,18 @@ Given that feature description, do this:
     - Define Success Criteria (measurable, technology-agnostic outcomes)
     - Identify Key Entities (if data involved)
 
-7. Update the existing `<feature_dir>/spec.md` using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
+7. Update the existing `<mission_dir>/spec.md` using the template structure, replacing placeholders with concrete details derived from the mission description while preserving section order and headings.
 
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `feature_dir/checklists/requirements.md` using the checklist template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `mission_dir/checklists/requirements.md` using the checklist template structure with these validation items:
 
       ```markdown
-      # Specification Quality Checklist: [FEATURE NAME]
+      # Specification Quality Checklist: [MISSION NAME]
 
       **Purpose**: Validate specification completeness and quality before proceeding to planning
       **Created**: [DATE]
-      **Feature**: [Link to spec.md]
+      **Mission**: [Link to spec.md]
 
       ## Content Quality
 
@@ -759,11 +759,11 @@ Given that feature description, do this:
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
 
-      ## Feature Readiness
+      ## Mission Readiness
 
       - [ ] All functional requirements have clear acceptance criteria
       - [ ] User scenarios cover primary flows
-      - [ ] Feature meets measurable outcomes defined in Success Criteria
+      - [ ] Mission meets measurable outcomes defined in Success Criteria
       - [ ] No implementation details leak into specification
 
       ## Notes
@@ -806,7 +806,7 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-9. Report completion with feature directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
+9. Report completion with mission directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 
@@ -821,8 +821,8 @@ Given that feature description, do this:
 
 ### Section Requirements
 
-- **Mandatory sections**: Must be completed for every feature
-- **Optional sections**: Include only when relevant to the feature
+- **Mandatory sections**: Must be completed for every mission
+- **Optional sections**: Include only when relevant to the mission
 - When a section doesn't apply, remove it entirely (don't leave as "N/A")
 
 ### For AI Generation
