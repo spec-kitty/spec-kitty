@@ -85,13 +85,16 @@ _EXPECTED_BOARD_AUTHORITY_TESTS: frozenset[str] = frozenset(
         "test_blocked_floor_no_actionable_wp_has_named_recovery",
         "test_blocked_floor_dependency_walled_has_named_recovery",
         "test_unmaterialized_coord_surfaces_typed_blocked_reason",
+        "test_deleted_coord_branch_surfaces_flatten_blocked_reason",
         "test_snapshot_byte_identical_across_redispatch",
         "test_no_advancing_path_emits_unauthorized_step",
     }
 )
-# 15 functions; ``test_review_reject_redispatches_implement_coord_family`` is
-# parametrized x2, giving 16 collected nodes.
-_EXPECTED_BOARD_AUTHORITY_NODES = 16
+# 16 functions; ``test_review_reject_redispatches_implement_coord_family`` is
+# parametrized x2, giving 17 collected nodes. (#5166 added
+# ``test_deleted_coord_branch_surfaces_flatten_blocked_reason``, re-homed here
+# from the retired ``test_bridge_parity`` location #5104 split.)
+_EXPECTED_BOARD_AUTHORITY_NODES = 17
 
 
 def _is_oracle_module(module: str) -> bool:
@@ -623,7 +626,54 @@ def test_unmaterialized_coord_surfaces_typed_blocked_reason(tmp_path: Path) -> N
     assert board.blocked_reason is not None
     assert "unmaterializ" in board.blocked_reason.lower(), f"blocked reason must name the unmaterialized coordination surface, got: {board.blocked_reason!r}"
     assert "no actionable" not in board.blocked_reason.lower(), "must NOT collapse into the generic no-actionable-wp floor (CT-5)"
-    assert "spec-kitty doctor workspaces --fix" in board.blocked_reason
+    # #5113 / FR-014: the recovery command must actually materialize the
+    # worktree (unlike the retired `doctor workspaces --fix`, #2240), and must
+    # name the real mission slug rather than a `<mission>` placeholder. Per the
+    # landing reconciliation with the already-merged #5113 WP07, `doctor
+    # coordination --fix` is the primary remedy and `git worktree add` its
+    # manual fallback.
+    assert f"spec-kitty doctor coordination --mission {result.mission_slug} --fix" in board.blocked_reason
+
+
+def test_deleted_coord_branch_surfaces_flatten_blocked_reason(tmp_path: Path) -> None:
+    """#5113: the split ``CoordinationBranchDeleted`` except-arm in
+    ``_resolve_wp_board_action`` must surface its OWN flatten-guidance
+    ``next_step`` -- never the sibling ``CoordinationWorktreeUnmaterialized``
+    arm's "Materialize it" text, since a deleted branch cannot be materialized
+    (split from the former single ``except (Unmaterialized, Deleted)`` arm that
+    gave both states the same "Materialize it" text)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    mission_slug = "coord-anbu-deleted"
+    _golden_init_git_repo(repo)
+    result = _golden_create_mission(repo, mission_slug, _MissionTopology.COORD)
+    write_wp_task_files(result.feature_dir, {"WP01": "planned"})
+    (result.feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], capture_output=True, check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-m", "seed deleted-coord-branch fixture"],
+        capture_output=True,
+        check=True,
+    )
+    # Delete the declared coordination branch entirely (no worktree, no
+    # remote-tracking ref either) -- CoordState.DELETED, never UNMATERIALIZED.
+    coord_branch = f"kitty/mission-{result.mission_slug}"
+    subprocess.run(
+        ["git", "-C", str(repo), "branch", "-D", coord_branch],
+        capture_output=True,
+        check=True,
+    )
+
+    from runtime.next.runtime_bridge import _resolve_wp_board_action
+
+    board = _resolve_wp_board_action(mission_slug=result.mission_slug, repo_root=repo)
+
+    assert board.action is None
+    assert board.blocked_reason is not None
+    assert "materialize it" not in board.blocked_reason.lower(), (
+        f"a DELETED coord branch must NOT get the sibling unmaterialized arm's 'Materialize it' text -- got: {board.blocked_reason!r}"
+    )
+    assert "flatten" in board.blocked_reason.lower(), f"the deleted-branch arm must surface its own flatten-guidance next_step, got: {board.blocked_reason!r}"
 
 
 def test_snapshot_byte_identical_across_redispatch(tmp_path: Path) -> None:
