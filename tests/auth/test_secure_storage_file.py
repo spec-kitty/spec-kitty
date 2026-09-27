@@ -408,3 +408,40 @@ def test_peek_on_unsafe_key_permissions_returns_none_and_keeps_the_files(storage
     assert storage.peek() is None
     assert _store_snapshot(tmp_path) == before
     assert stat.S_IMODE(key_file.stat().st_mode) == 0o644
+
+
+def test_peek_on_wrongly_typed_fields_returns_none_and_keeps_the_file(storage: FastFileFallback, tmp_path: Path):
+    """A v3 envelope whose nonce is not a hex string makes ``bytes.fromhex``
+    raise ``TypeError``; peek() must swallow it, not crash the migration."""
+    storage.write(_make_session())
+    cred_file = tmp_path / "session.json"
+    blob = json.loads(cred_file.read_text(encoding="utf-8"))
+    blob["nonce"] = 123
+    cred_file.write_text(json.dumps(blob), encoding="utf-8")
+    before = _store_snapshot(tmp_path)
+
+    assert storage.peek() is None
+    assert _store_snapshot(tmp_path) == before
+
+
+def test_peek_on_non_utf8_session_file_returns_none_and_keeps_the_file(storage: FastFileFallback, tmp_path: Path):
+    storage.write(_make_session())
+    (tmp_path / "session.json").write_bytes(b"\xff\xfe\x00not-utf8")
+    before = _store_snapshot(tmp_path)
+
+    assert storage.peek() is None
+    assert _store_snapshot(tmp_path) == before
+
+
+def test_peek_skips_a_legacy_v2_blob_before_any_decrypt(storage: FastFileFallback, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    storage.write(_make_session())
+    cred_file = tmp_path / "session.json"
+    blob = json.loads(cred_file.read_text(encoding="utf-8"))
+    blob["version"] = 2
+    cred_file.write_text(json.dumps(blob), encoding="utf-8")
+
+    def _no_decrypt(_blob: object) -> bytes:
+        raise AssertionError("peek() must not decrypt a blob it will not surface")
+
+    monkeypatch.setattr(storage, "_decrypt", _no_decrypt)
+    assert storage.peek() is None

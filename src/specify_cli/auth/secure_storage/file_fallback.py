@@ -276,11 +276,20 @@ class FileFallbackStorage(SecureStorage):
         """
         if not self._cred_file.exists():
             return None
+        # Check the format version before any crypto: a legacy v2 blob is
+        # never surfaced, so its key derivation is never worth running.
         try:
-            session, blob = self._decode()
-        except (SessionFilePermissionsError, StorageDecryptionError):
+            envelope = json.loads(self._cred_file.read_bytes())
+        except (OSError, ValueError):
             return None
-        if blob.get("version") != _FILE_FORMAT_VERSION:
+        if not isinstance(envelope, dict) or envelope.get("version") != _FILE_FORMAT_VERSION:
+            return None
+        try:
+            session, _blob = self._decode()
+        except (SecureStorageError, OSError, TypeError, ValueError):
+            # Every unreadable shape maps to None: typed storage errors, I/O
+            # errors, non-UTF-8 bytes (UnicodeDecodeError is a ValueError) and
+            # wrongly typed fields (bytes.fromhex on a non-str raises TypeError).
             return None
         return session
 
