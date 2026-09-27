@@ -265,11 +265,16 @@ def legacy_disposition_rows(text: str | None = None) -> dict[str, str]:
     return {path: disp for path, disp in map_rows(text).items() if disp in LEGACY_DISPOSITIONS}
 
 
-def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisite() -> None:
+def test_release_checklist_names_the_live_publish_workflows_and_nightly_gate() -> None:
+    """``release.yml`` and ``release-readiness.yml`` are live, restored workflows
+    (see ``RESTORED_WORKFLOWS``), no longer deferred to a P3.4b sibling. The
+    runbook must name both and keep the #5034 nightly-gate prerequisite that
+    fails a release closed without its dispatch token."""
     checklist = RELEASE_CHECKLIST.read_text(encoding="utf-8")
-    assert "P3.4b prerequisite" in checklist
-    assert "release.yml" in checklist
-    assert "release-readiness.yml" in checklist
+    assert ".github/workflows/release.yml" in checklist
+    assert ".github/workflows/release-readiness.yml" in checklist
+    assert "Release nightly-gate prerequisite (#5034)" in checklist
+    assert "RELEASE_NIGHTLY_DISPATCH_TOKEN" in checklist
 
 
 POST_TAG_CYCLE_HEADING = "Open the Next Development Cycle"
