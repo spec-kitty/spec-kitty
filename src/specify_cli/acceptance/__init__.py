@@ -45,6 +45,7 @@ from specify_cli.validators.paths import normalize_path_token
 # ``perform_acceptance`` (the executor) and the already-public ``WorkPackageState``
 # are load-bearing package exports.
 from .gates_core import (
+    PLANNING_ARTIFACT_ONLY_SKIP_REASON,
     AcceptanceCheckDiagnostic,
     _check_lane_gates,
     _find_unchecked_tasks,
@@ -437,6 +438,15 @@ def _filter_coordination_residue(
     return [line for line in dirty_lines if not is_coord_residue_churn(_porcelain_dirty_path(line), mission_slug=feature)]
 
 
+#: Canonical "not ready" wording for a failed host readiness verdict
+#: (``summary.ok is False``). Single-sourced (review cycle 1, WP03 nit) so
+#: every caller -- ``perform_acceptance`` below and orchestrator-api's
+#: ``accept_mission`` (``orchestrator_api/commands.py``) -- describes the
+#: same refusal with the identical string, rather than each holding its own
+#: copy that can drift.
+ACCEPTANCE_CHECKS_FAILED_MESSAGE = "Acceptance checks failed; run verify to see outstanding issues."
+
+
 class AcceptanceError(TaskCliError):
     """Raised when acceptance cannot complete due to outstanding issues."""
 
@@ -514,6 +524,21 @@ class AcceptanceSummary:
     #: shape ``{wp_id, reason, actor, at}``. A synthetic cancellation is NOT here
     #: — it surfaces as a blocker via :meth:`outstanding` instead.
     canceled_wps: list[dict[str, str]] = field(default_factory=list)
+    #: WP02 / FR-010: the surface the acceptance-matrix gate actually evaluated
+    #: (``gates_core._evaluate_acceptance_matrix``'s resolved ``matrix_dir``),
+    #: set whenever the matrix gate ran at all -- mutated or read-only. ``None``
+    #: means the gate never ran; :attr:`acceptance_matrix_gate_skip_reason`
+    #: then says whether that is the ONE legitimate skip (planning-artifact-only)
+    #: or a stop this summary's ``ok=False`` already reflects. Consumed by
+    #: ``_commit_acceptance_meta``'s FR-010 pre-stamp guard.
+    acceptance_matrix_dir: Path | None = None
+    #: Set to :data:`~specify_cli.acceptance.gates_core.
+    #: PLANNING_ARTIFACT_ONLY_SKIP_REASON` when the matrix gate was skipped
+    #: because this is a planning-artifact-only mission (no code lanes, so no
+    #: ``acceptance-matrix.json`` is ever produced) -- the ONLY reason
+    #: ``acceptance_matrix_dir is None`` is allowed to bypass the FR-010 guard.
+    #: ``None`` for every other "gate never ran" case.
+    acceptance_matrix_gate_skip_reason: str | None = None
 
     def _operator_provenance_by_wp(self) -> dict[str, bool]:
         """Per-WP operator-provenance lookup carried from the bucketing seam."""
@@ -1510,7 +1535,7 @@ def collect_feature_summary(
     # at all: ``_check_lane_gates`` -> ``_evaluate_acceptance_matrix`` resolves
     # its own coord-aware surface internally (``_acceptance_matrix_read_dir``,
     # gates_core.py), independent of the PRIMARY dir passed here.
-    _check_lane_gates(
+    lane_gate_outcome = _check_lane_gates(
         repo_root,
         read_feature_dir,
         branch,
@@ -1556,6 +1581,8 @@ def collect_feature_summary(
         blocked_checks=blocked_checks,
         recommended_fix_order=recommended_fix_order,
         canceled_wps=canceled_wps,
+        acceptance_matrix_dir=lane_gate_outcome.matrix_dir,
+        acceptance_matrix_gate_skip_reason=lane_gate_outcome.skip_reason,
     )
 
 
@@ -1589,6 +1616,59 @@ def acceptance_lane_derivations(summary: AcceptanceSummary) -> dict[str, list[st
 _WELL_KNOWN_INTEGRATION_BRANCHES = frozenset({"main", "master", "develop", "development", "2.x", "3.x"})
 
 
+def _stamp_acceptance_record(
+    summary: AcceptanceSummary,
+    actor_name: str,
+    mode: AcceptanceMode,
+    parent_commit: str | None,
+) -> None:
+    """FR-010: record acceptance only after the locked pre-stamp verdict re-check.
+
+    ``record_acceptance`` (a pure ``meta.json`` filesystem write, no
+    subprocess -- safe to run while the status lock is held) runs INSIDE
+    :func:`~specify_cli.acceptance.matrix.locked_acceptance_verdict_guard`,
+    which re-reads the acceptance matrix fresh under the SAME per-mission
+    status lock :func:`~specify_cli.acceptance.matrix.
+    locked_reread_splice_and_write` uses (C-004: keyed on
+    ``acceptance_matrix_dir.name``) and refuses unless its verdict is
+    ``pass``/``pass_pending_consolidation`` -- so a verdict a concurrent
+    ``acceptance-verdict`` invocation commits AFTER the gate's splice but
+    BEFORE this stamp is still caught (SC-005) instead of being silently
+    accepted over.
+
+    A planning-artifact-only mission never produces an acceptance matrix at
+    all (:data:`~specify_cli.acceptance.gates_core.
+    PLANNING_ARTIFACT_ONLY_SKIP_REASON`, the ONE case
+    ``collect_feature_summary`` legitimately never evaluated the gate for) --
+    that is the only case this guard is bypassed. Any OTHER
+    ``acceptance_matrix_dir is None`` fails closed: this is a defensive
+    posture, not a proven-unreachable path, since ``summary.ok`` being True
+    with no matrix gate outcome recorded would itself be a latent bug this
+    guard refuses to paper over.
+    """
+    matrix_dir = summary.acceptance_matrix_dir
+    if matrix_dir is None:
+        if summary.acceptance_matrix_gate_skip_reason == PLANNING_ARTIFACT_ONLY_SKIP_REASON:
+            record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None)
+            return
+        raise AcceptanceError(
+            "Cannot record acceptance: no acceptance-matrix gate outcome was recorded for "
+            f"mission {summary.feature!r} and this is not a planning-artifact-only mission. "
+            "Refusing to stamp acceptance without the FR-010 pre-stamp verdict re-check."
+        )
+
+    from specify_cli.acceptance.matrix import AcceptanceVerdictNotReadyError, locked_acceptance_verdict_guard
+    from specify_cli.status import FeatureStatusLockTimeoutError
+
+    try:
+        with locked_acceptance_verdict_guard(summary.repo_root, matrix_dir):
+            record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None)
+    except AcceptanceVerdictNotReadyError as exc:
+        raise AcceptanceError(f"Acceptance matrix verdict is not ready to accept: {exc}") from exc
+    except FeatureStatusLockTimeoutError as exc:
+        raise AcceptanceError(f"Acceptance matrix lock timed out while recording acceptance: {exc}") from exc
+
+
 def _commit_acceptance_meta(
     summary: AcceptanceSummary,
     actor_name: str,
@@ -1606,6 +1686,11 @@ def _commit_acceptance_meta(
     When HEAD is on a PROTECTED branch (e.g. ``main``, direct-repo solo-fork
     operator): commits are routed through ``commit_for_mission`` which
     materialises the coordination worktree on demand (C-001 / FR-003).
+
+    WP02 / FR-010 / C-003: the ``record_acceptance`` write (and ONLY that
+    write -- never the git ``add``/``commit`` subprocess calls below, which
+    stay OUTSIDE any lock span) happens inside
+    :func:`_stamp_acceptance_record`'s locked pre-stamp verdict re-check.
     """
     from specify_cli.core.git_ops import get_current_branch
     from specify_cli.git.protection_policy import ProtectionPolicy
@@ -1621,7 +1706,7 @@ def _commit_acceptance_meta(
     except TaskCliError:
         parent_commit = None
 
-    record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None)
+    _stamp_acceptance_record(summary, actor_name, mode, parent_commit)
 
     meta_path = summary.feature_dir / "meta.json"
     meta_rel = str(meta_path.relative_to(repo_root))
@@ -1798,7 +1883,7 @@ def perform_acceptance(
         auto_commit = get_auto_commit_default(summary.repo_root)
 
     if mode != "checklist" and not summary.ok:
-        raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
+        raise AcceptanceError(ACCEPTANCE_CHECKS_FAILED_MESSAGE)
 
     actor_name = resolve_acceptance_actor(actor)
     timestamp = now_utc_stamp()
@@ -1850,6 +1935,7 @@ def perform_acceptance(
 
 
 __all__ = [
+    "ACCEPTANCE_CHECKS_FAILED_MESSAGE",
     "ACCEPTANCE_HISTORY_FIELD",
     "ACCEPTANCE_PROVENANCE_FIELDS",
     "AcceptanceError",

@@ -27,6 +27,7 @@ boundary. Do not "simplify" this into a top-level import.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -61,6 +62,32 @@ class AcceptanceCheckDiagnostic:
 
     def to_dict(self) -> dict[str, str]:
         return {"check": self.check, "detail": self.detail}
+
+
+#: The reason `_check_lane_gates` skipped the acceptance-matrix gate entirely
+#: (never evaluated it at all, as opposed to evaluating it and finding it
+#: absent/failing). WP02 (accept-fails-closed / FR-010): a planning-artifact-only
+#: mission never produces an ``acceptance-matrix.json`` (a `_evaluate_branch_gate`
+#: no-op), and this is the ONLY skip reason the FR-010 pre-stamp guard in
+#: ``_commit_acceptance_meta`` is allowed to bypass on. Any other
+#: `acceptance_matrix_dir is None` on the stamping path fails closed.
+PLANNING_ARTIFACT_ONLY_SKIP_REASON = "planning_artifact_only"
+
+
+@dataclass(frozen=True)
+class LaneGateOutcome:
+    """What `_check_lane_gates` resolved, threaded up to `AcceptanceSummary`.
+
+    ``matrix_dir`` is the surface the acceptance-matrix gate actually evaluated
+    (WP02 / FR-010) -- ``None`` when the gate never ran at all (a blocked
+    lanes-manifest/branch gate, a cannot-evaluate refusal, a missing matrix, or
+    a lock timeout). ``skip_reason`` distinguishes the ONE legitimate "never
+    ran" case (planning-artifact-only, see :data:`PLANNING_ARTIFACT_ONLY_SKIP_REASON`)
+    from every other ``None`` case, which the FR-010 guard must fail closed on.
+    """
+
+    matrix_dir: Path | None = None
+    skip_reason: str | None = None
 
 
 def _all_work_packages_terminal(lanes: Mapping[str, list[str]]) -> bool:
@@ -472,121 +499,18 @@ def _record_matrix_cannot_evaluate(
     _append_skipped_lane_checks(skipped_checks, reason=cannot.reason.value)
 
 
-def _evaluate_acceptance_matrix(
-    repo_root: Path,
-    feature_dir: Path,
+def _judge_acceptance_matrix(
+    acc_matrix: Any,
     activity_issues: list[str],
     skipped_checks: list[AcceptanceCheckDiagnostic],
-    blocked_checks: list[AcceptanceCheckDiagnostic],
-    *,
-    mutate_matrix: bool,
-    branch: str | None = None,
-    effective_root: Path | None = None,
 ) -> None:
-    """Read/enforce/validate the acceptance matrix once the branch gate passed.
+    """FR-004: validate evidence and derive the verdict from ``acc_matrix``.
 
-    The matrix is judged strictly from the gate context's surface (C1) — the WP02
-    total resolver picks coord vs primary; this gate never re-reads an ambient
-    ``repo_root`` / cwd. GEC-2 (C5) refuses rather than judges when a ``PRIMARY``
-    surface has drifted from the branch this evaluation resolved as its reference
-    point (:func:`_assert_ref_agreement`). GEC-5 (C2) short-circuits to
-    cannot-evaluate when the coord-homed matrix would be judged against a
-    create-window PRIMARY substitution, rather than silently passing on an empty
-    surface (#2885).
+    Extracted so both the diagnose (``mutate_matrix=False``) leg and the
+    post-seam leg (which judges the FRESH, re-read-and-spliced matrix, never
+    accept's own pre-lock snapshot) share exactly one judgement path.
     """
-    from specify_cli.acceptance.matrix import (
-        VERDICT_PASS_PENDING_CONSOLIDATION,
-        enforce_negative_invariants,
-        populate_criteria_from_review_evidence,
-        read_acceptance_matrix,
-        validate_matrix_evidence,
-        write_acceptance_matrix,
-    )
-
-    scope = effective_root_kwargs(effective_root)
-    context = _acceptance_gate_context(repo_root, feature_dir, branch=branch, **scope)
-    ref_mismatch = _assert_ref_agreement(context)
-    if ref_mismatch is not None:
-        _record_ref_mismatch_cannot_evaluate(ref_mismatch, activity_issues, skipped_checks, blocked_checks)
-        return
-
-    cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir, **scope)
-    if cannot is not None:
-        _record_matrix_cannot_evaluate(cannot, activity_issues, skipped_checks, blocked_checks)
-        return
-
-    matrix_dir = context.surface
-    acc_matrix = read_acceptance_matrix(matrix_dir)
-    if acc_matrix is None:
-        message = (
-            "Acceptance matrix (acceptance-matrix.json) is required for lane-based "
-            "features but was not found. This file is normally scaffolded "
-            "automatically. If it is missing, regenerate it: "
-            f"spec-kitty agent mission finalize-tasks --mission {feature_dir.name}"
-        )
-        activity_issues.append(message)
-        blocked_checks.append(AcceptanceCheckDiagnostic(check="acceptance_matrix", detail=message))
-        _append_skipped_lane_checks(
-            skipped_checks,
-            reason="acceptance-matrix.json is missing",
-        )
-        return
-
-    if mutate_matrix and getattr(acc_matrix, "criteria", None) is not None:
-        # FR-008 (IC-04, governance-at-the-gate WP04): auto-derive pending
-        # ``code_review`` criterion rows from WP review evidence BEFORE the
-        # verdict is read below -- closes the "criterion rows never
-        # populated" gap (the matrix used to stay scaffolded ``pending``
-        # forever unless an operator hand-invoked ``agent mission
-        # acceptance-verdict``). Design + scope are documented on
-        # :func:`~specify_cli.acceptance.matrix.populate_criteria_from_
-        # review_evidence` itself. ``matrix_dir`` doubles as the WP
-        # status-event read dir here: ``ACCEPTANCE_MATRIX`` and
-        # ``STATUS_STATE`` are both coord-partition kinds that resolve to
-        # the SAME coord surface for this mission (never re-derived
-        # separately). A no-op (unchanged list) when evidence is absent or
-        # incomplete -- diagnose mode (``mutate_matrix=False``) never
-        # mutates, matching the negative-invariants arm below. The
-        # ``getattr`` guard tolerates unit-test doubles (bare
-        # ``SimpleNamespace`` fixtures elsewhere in this module's test
-        # suite) that model only the fields their own test cares about.
-        acc_matrix.criteria = populate_criteria_from_review_evidence(matrix_dir, acc_matrix.criteria)
-
-    if acc_matrix.negative_invariants and mutate_matrix:
-        # WP04 T023: hand the gate context to the enforcer so a pending invariant
-        # whose subject cannot exist on this surface defers (NI-3/C4) instead of
-        # reporting a false still_present, and a freshly judged result is stamped
-        # with the surface + ref it was established against (NI-1 provenance).
-        acc_matrix.negative_invariants = enforce_negative_invariants(repo_root, acc_matrix.negative_invariants, context=context)
-    elif acc_matrix.negative_invariants:
-        skipped_checks.append(
-            AcceptanceCheckDiagnostic(
-                check="negative_invariants",
-                detail="Negative invariant execution skipped: diagnose mode is read-only",
-            )
-        )
-
-    if mutate_matrix:
-        # WP04 / T016 (#2318 comment 5102989064): persist the RECOMPUTED
-        # ``overall_verdict`` unconditionally -- not only inside the
-        # ``negative_invariants`` arm above. The pre-fix gate wrote the matrix
-        # back to disk ONLY when it had negative invariants to enforce, so an
-        # all-pass / no-negative-invariant accept left the on-disk verdict
-        # stuck at its scaffolded ``pending`` forever: nothing ever re-derived
-        # and saved it, misleading downstream PR/readiness tooling that reads
-        # the file directly instead of recomputing the property.
-        #
-        # This stays the RAW, uncommitted writer (``write_acceptance_matrix``)
-        # deliberately, not the WP03 seam-committing wrapper
-        # (``write_and_commit_acceptance_matrix``): ``--no-commit``
-        # (``mutate_matrix=True``) is contractually allowed to MUTATE this
-        # accept-owned file but must NEVER commit anything (#1883 / #1908) --
-        # see ``test_accept_no_commit_via_cli_converges_and_leaves_tree_clean``
-        # (asserts HEAD is unchanged after a ``--no-commit`` run). The real
-        # accept-commit path picks this write up and commits it via
-        # ``cli/commands/accept.py``'s residual-artifact sweep, itself routed
-        # through the WP03 seam (``_commit_coord_residuals``).
-        write_acceptance_matrix(matrix_dir, acc_matrix)
+    from specify_cli.acceptance.matrix import VERDICT_PASS_PENDING_CONSOLIDATION, validate_matrix_evidence
 
     for err in validate_matrix_evidence(acc_matrix):
         activity_issues.append(f"Evidence: {err}")
@@ -614,6 +538,199 @@ def _evaluate_acceptance_matrix(
         )
 
 
+def _persist_matrix_under_lock(
+    repo_root: Path,
+    feature_dir: Path,
+    matrix_dir: Path,
+    snapshot: Any,
+    judged: Any,
+    activity_issues: list[str],
+    skipped_checks: list[AcceptanceCheckDiagnostic],
+    blocked_checks: list[AcceptanceCheckDiagnostic],
+) -> Any | None:
+    """FR-003/FR-004/FR-005: splice accept's owned rows into the FRESH matrix
+    through WP01's shared locked seam, instead of unconditionally overwriting
+    the matrix with accept's own pre-lock snapshot (#4974's root defect).
+
+    ``snapshot`` is accept's pre-lock read (taken BEFORE review-evidence
+    population / negative-invariant enforcement mutated ``judged`` in place);
+    ``judged`` is that same matrix AFTER those mutations. The seam re-reads the
+    matrix fresh under the lock, splices in only the rows accept owns
+    (:func:`~specify_cli.acceptance.matrix.splice_owned_rows`, FR-003), and
+    writes the result -- so a verdict committed by a concurrent
+    ``acceptance-verdict`` invocation while accept ran its (possibly slow)
+    negative-invariant checks is never silently erased.
+
+    ``commit=False``: mirrors the pre-existing ``--no-commit`` / diagnose
+    contract (C-003) -- the accept-owned matrix may be MUTATED here but this
+    call never commits; the real accept-commit path picks the resulting dirt
+    up via ``cli/commands/accept.py``'s residual-artifact sweep, itself routed
+    through the WP03 seam.
+
+    Returns the FRESH matrix on success, or ``None`` on a
+    :class:`~specify_cli.status.FeatureStatusLockTimeoutError` (FR-005: fails
+    CLOSED -- no write happens, and the caller records a dedicated
+    ``acceptance_matrix_lock`` blocked check so ``summary.ok`` is False).
+    """
+    from specify_cli.acceptance.matrix import locked_reread_splice_and_write, splice_owned_rows
+    from specify_cli.status import FeatureStatusLockTimeoutError
+
+    try:
+        fresh_matrix, _write_result = locked_reread_splice_and_write(
+            repo_root=repo_root,
+            mission_slug=feature_dir.name,
+            matrix_dir=matrix_dir,
+            splice=lambda fresh: splice_owned_rows(fresh, snapshot, judged),
+            commit=False,
+        )
+    except FeatureStatusLockTimeoutError as exc:
+        message = f"Acceptance matrix lock timed out while recording accept's judgement: {exc}"
+        activity_issues.append(message)
+        blocked_checks.append(AcceptanceCheckDiagnostic(check="acceptance_matrix_lock", detail=message))
+        _append_skipped_lane_checks(skipped_checks, reason="mission status lock timed out")
+        return None
+    return fresh_matrix
+
+
+def _populate_and_enforce_matrix(
+    repo_root: Path,
+    matrix_dir: Path,
+    acc_matrix: Any,
+    context: GateExecutionContext,
+) -> None:
+    """NFR-001: review-evidence population + negative-invariant enforcement,
+    run OUTSIDE the status lock, mutating ``acc_matrix`` IN PLACE.
+
+    Called only on the ``mutate_matrix=True`` leg, against accept's pre-lock
+    read -- never inside :func:`_persist_matrix_under_lock`'s locked span.
+    """
+    from specify_cli.acceptance.matrix import enforce_negative_invariants, populate_criteria_from_review_evidence
+
+    if getattr(acc_matrix, "criteria", None) is not None:
+        # FR-008 (IC-04, governance-at-the-gate WP04): auto-derive pending
+        # ``code_review`` criterion rows from WP review evidence BEFORE the
+        # verdict is read below -- closes the "criterion rows never
+        # populated" gap (the matrix used to stay scaffolded ``pending``
+        # forever unless an operator hand-invoked ``agent mission
+        # acceptance-verdict``). Design + scope are documented on
+        # :func:`~specify_cli.acceptance.matrix.populate_criteria_from_
+        # review_evidence` itself. The ``getattr`` guard tolerates unit-test
+        # doubles (bare ``SimpleNamespace`` fixtures elsewhere in this
+        # module's test suite) that model only the fields their own test
+        # cares about.
+        acc_matrix.criteria = populate_criteria_from_review_evidence(matrix_dir, acc_matrix.criteria)
+
+    if acc_matrix.negative_invariants:
+        # WP04 T023: hand the gate context to the enforcer so a pending invariant
+        # whose subject cannot exist on this surface defers (NI-3/C4) instead of
+        # reporting a false still_present, and a freshly judged result is stamped
+        # with the surface + ref it was established against (NI-1 provenance).
+        acc_matrix.negative_invariants = enforce_negative_invariants(repo_root, acc_matrix.negative_invariants, context=context)
+
+
+def _evaluate_acceptance_matrix(
+    repo_root: Path,
+    feature_dir: Path,
+    activity_issues: list[str],
+    skipped_checks: list[AcceptanceCheckDiagnostic],
+    blocked_checks: list[AcceptanceCheckDiagnostic],
+    *,
+    mutate_matrix: bool,
+    branch: str | None = None,
+    effective_root: Path | None = None,
+) -> Path | None:
+    """Read/enforce/validate the acceptance matrix once the branch gate passed.
+
+    The matrix is judged strictly from the gate context's surface (C1) — the WP02
+    total resolver picks coord vs primary; this gate never re-reads an ambient
+    ``repo_root`` / cwd. GEC-2 (C5) refuses rather than judges when a ``PRIMARY``
+    surface has drifted from the branch this evaluation resolved as its reference
+    point (:func:`_assert_ref_agreement`). GEC-5 (C2) short-circuits to
+    cannot-evaluate when the coord-homed matrix would be judged against a
+    create-window PRIMARY substitution, rather than silently passing on an empty
+    surface (#2885).
+
+    NFR-001 / FR-003 / FR-004: review-evidence population and negative-invariant
+    enforcement (both potentially slow) run OUTSIDE the status lock, against a
+    ``snapshot`` deep-copied immediately after the pre-lock read. When
+    ``mutate_matrix`` is True, the judged result is then spliced into the FRESH,
+    re-read matrix under WP01's shared locked seam
+    (:func:`_persist_matrix_under_lock`) rather than overwritten wholesale — a
+    verdict a concurrent ``acceptance-verdict`` invocation committed in the
+    meantime is judged, not erased (#4974). Evidence validation and the
+    ``overall_verdict`` judgement always run against that FRESH matrix.
+
+    Returns the resolved matrix directory when the matrix was found and judged
+    (mutated or not) — threaded up to :attr:`AcceptanceSummary.
+    acceptance_matrix_dir` (FR-010) — or ``None`` when the gate stopped before
+    a matrix could be judged (ref-mismatch refusal, cannot-hold refusal, a
+    missing matrix file, or a lock-acquisition timeout).
+    """
+    from specify_cli.acceptance.matrix import read_acceptance_matrix
+
+    scope = effective_root_kwargs(effective_root)
+    context = _acceptance_gate_context(repo_root, feature_dir, branch=branch, **scope)
+    ref_mismatch = _assert_ref_agreement(context)
+    if ref_mismatch is not None:
+        _record_ref_mismatch_cannot_evaluate(ref_mismatch, activity_issues, skipped_checks, blocked_checks)
+        return None
+
+    cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir, **scope)
+    if cannot is not None:
+        _record_matrix_cannot_evaluate(cannot, activity_issues, skipped_checks, blocked_checks)
+        return None
+
+    matrix_dir: Path = context.surface
+    acc_matrix = read_acceptance_matrix(matrix_dir)
+    if acc_matrix is None:
+        message = (
+            "Acceptance matrix (acceptance-matrix.json) is required for lane-based "
+            "features but was not found. This file is normally scaffolded "
+            "automatically. If it is missing, regenerate it: "
+            f"spec-kitty agent mission finalize-tasks --mission {feature_dir.name}"
+        )
+        activity_issues.append(message)
+        blocked_checks.append(AcceptanceCheckDiagnostic(check="acceptance_matrix", detail=message))
+        _append_skipped_lane_checks(
+            skipped_checks,
+            reason="acceptance-matrix.json is missing",
+        )
+        return None
+
+    if not mutate_matrix:
+        # Diagnose mode: read-only, no lock, no write (spec.md Edge Cases).
+        if acc_matrix.negative_invariants:
+            skipped_checks.append(
+                AcceptanceCheckDiagnostic(
+                    check="negative_invariants",
+                    detail="Negative invariant execution skipped: diagnose mode is read-only",
+                )
+            )
+        _judge_acceptance_matrix(acc_matrix, activity_issues, skipped_checks)
+        return matrix_dir
+
+    # C-004: ``matrix_dir`` is resolved ONCE above and reused unchanged as both
+    # the re-read base and the write target -- never re-derived after this point.
+    snapshot = deepcopy(acc_matrix)
+    _populate_and_enforce_matrix(repo_root, matrix_dir, acc_matrix, context)
+
+    fresh_matrix = _persist_matrix_under_lock(
+        repo_root,
+        feature_dir,
+        matrix_dir,
+        snapshot,
+        acc_matrix,
+        activity_issues,
+        skipped_checks,
+        blocked_checks,
+    )
+    if fresh_matrix is None:
+        return None
+
+    _judge_acceptance_matrix(fresh_matrix, activity_issues, skipped_checks)
+    return matrix_dir
+
+
 def _check_lane_gates(
     repo_root: Path,
     feature_dir: Path,
@@ -624,17 +741,37 @@ def _check_lane_gates(
     *,
     mutate_matrix: bool = True,
     effective_root: Path | None = None,
-) -> None:
-    """Enforce lane-based acceptance gates and acceptance matrix."""
+) -> LaneGateOutcome:
+    """Enforce lane-based acceptance gates and acceptance matrix.
+
+    Returns a :class:`LaneGateOutcome` naming the matrix surface the
+    acceptance-matrix gate actually evaluated (WP02 / FR-010), or -- when the
+    gate never ran -- the ONE legitimate skip reason
+    (:data:`PLANNING_ARTIFACT_ONLY_SKIP_REASON`) a caller may use to bypass the
+    FR-010 pre-stamp guard. Every other "never ran" case (a blocked
+    lanes-manifest/branch gate, a cannot-evaluate refusal, a missing matrix, or
+    a lock timeout) already leaves ``summary.ok`` False via ``activity_issues``
+    / ``blocked_checks`` -- but the outcome still carries no skip reason, so
+    the guard fails closed rather than trusting that invariant blindly.
+    """
     lanes_manifest = _resolve_lanes_manifest_or_stop(feature_dir, activity_issues, skipped_checks, blocked_checks)
     if lanes_manifest is None:
-        return
+        return LaneGateOutcome()
 
+    blocked_before = len(blocked_checks)
     should_continue = _evaluate_branch_gate(lanes_manifest, feature_dir, branch, activity_issues, skipped_checks, blocked_checks)
     if not should_continue:
-        return
+        from specify_cli.lanes.compute import is_planning_artifact_only
 
-    _evaluate_acceptance_matrix(
+        # The bypass is granted only when the branch gate stopped at its
+        # planning-only branch; a planning-only mission the branch gate
+        # BLOCKED (target mismatch, wrong branch) gets no skip reason.
+        branch_gate_blocked = len(blocked_checks) > blocked_before
+        if is_planning_artifact_only(lanes_manifest) and not branch_gate_blocked:
+            return LaneGateOutcome(skip_reason=PLANNING_ARTIFACT_ONLY_SKIP_REASON)
+        return LaneGateOutcome()
+
+    matrix_dir = _evaluate_acceptance_matrix(
         repo_root,
         feature_dir,
         activity_issues,
@@ -644,6 +781,7 @@ def _check_lane_gates(
         branch=branch,
         **effective_root_kwargs(effective_root),
     )
+    return LaneGateOutcome(matrix_dir=matrix_dir)
 
 
 def _git_ref_exists(repo_root: Path, ref: str) -> bool:

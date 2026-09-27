@@ -648,6 +648,12 @@ def test_accept_protected_branch_materialize_then_retry(feature_repo: Path, miss
     run(["git", "commit", "-m", "Add meta for acceptance unit test"], cwd=feature_repo)
 
     feature_dir = feature_repo / "kitty-specs" / mission_slug
+    # WP02 (accept-fails-closed / FR-010): ``_commit_acceptance_meta`` now
+    # refuses to stamp unless ``AcceptanceSummary.acceptance_matrix_dir``
+    # names a surface carrying a ready (pass) verdict, re-checked fresh under
+    # the lock -- a passing matrix is written here so this test's own
+    # protected-branch-routing assertion isn't masked by that unrelated guard.
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
 
     # Build an ok summary (no outstanding issues).
     full_lanes = {lane: [] for lane in LANES}
@@ -671,6 +677,7 @@ def test_accept_protected_branch_materialize_then_retry(feature_repo: Path, miss
         git_dirty=[],
         path_violations=[],
         warnings=[],
+        acceptance_matrix_dir=feature_dir,
     )
 
     # --- FR-009 provenance assertion ---

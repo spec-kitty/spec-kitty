@@ -30,7 +30,9 @@ from typing import Any
 import pytest
 
 from specify_cli.acceptance.gates_core import (
+    PLANNING_ARTIFACT_ONLY_SKIP_REASON,
     AcceptanceCheckDiagnostic,
+    _check_lane_gates,
     _evaluate_acceptance_matrix,
     _evaluate_branch_gate,
     _resolve_lanes_manifest_or_stop,
@@ -425,6 +427,40 @@ class TestEvaluateBranchGate:
         assert should_continue is True
 
 
+class TestCheckLaneGatesPlanningOnlyBypass:
+    """The pre-stamp guard bypass is granted only to a planning-only mission
+    the branch gate did NOT block."""
+
+    def _manifest(self) -> SimpleNamespace:
+        return SimpleNamespace(target_branch="feat/target", mission_branch="kitty/mission-x")
+
+    def _run(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, meta_target: str | None, branch: str) -> tuple[Any, list[AcceptanceCheckDiagnostic]]:
+        monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: self._manifest())
+        monkeypatch.setattr("specify_cli.acceptance._target_branch_for_feature", lambda _fd: meta_target)
+        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: True)
+        blocked: list[AcceptanceCheckDiagnostic] = []
+        outcome = _check_lane_gates(tmp_path, tmp_path, branch, [], [], blocked)
+        return outcome, blocked
+
+    def test_unblocked_planning_only_mission_gets_skip_reason(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        outcome, blocked = self._run(tmp_path, monkeypatch, meta_target=None, branch="feat/target")
+
+        assert blocked == []
+        assert outcome.skip_reason == PLANNING_ARTIFACT_ONLY_SKIP_REASON
+
+    def test_target_mismatch_planning_only_mission_gets_no_skip_reason(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        outcome, blocked = self._run(tmp_path, monkeypatch, meta_target="main", branch="feat/target")
+
+        assert blocked and blocked[0].check == "mission_branch"
+        assert outcome.skip_reason is None
+
+    def test_wrong_branch_planning_only_mission_gets_no_skip_reason(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        outcome, blocked = self._run(tmp_path, monkeypatch, meta_target=None, branch="some-other-branch")
+
+        assert blocked and blocked[0].check == "mission_branch"
+        assert outcome.skip_reason is None
+
+
 class TestEvaluateAcceptanceMatrix:
     def test_missing_matrix_blocks(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: None)
@@ -463,7 +499,18 @@ class TestEvaluateAcceptanceMatrix:
             # ``context`` is the WP04 gate-context kwarg (deferral + provenance).
             lambda _repo, invariants, **_kw: enforce_calls.append(invariants) or invariants,
         )
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, m: write_calls.append(m))
+        # WP02 (accept-fails-closed): the gate now persists through the shared
+        # locked seam (``locked_reread_splice_and_write``) instead of the raw
+        # ``write_acceptance_matrix`` overwrite. ``matrix`` here is a bare
+        # SimpleNamespace whose rows carry none of the id/definition fields
+        # ``splice_owned_rows`` needs, so the seam itself is stubbed here
+        # (splicing mechanics are WP01's own coverage in
+        # ``test_matrix_write_seam*``) to just return the already-mutated
+        # matrix, mirroring a re-read that found no concurrent writer.
+        monkeypatch.setattr(
+            "specify_cli.acceptance.matrix.locked_reread_splice_and_write",
+            lambda **_kw: (write_calls.append(matrix) or matrix, None),
+        )
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, [], [], [], mutate_matrix=True)
 
@@ -479,7 +526,10 @@ class TestEvaluateAcceptanceMatrix:
         matrix = SimpleNamespace(criteria=original_criteria, negative_invariants=[], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
+        monkeypatch.setattr(
+            "specify_cli.acceptance.matrix.locked_reread_splice_and_write",
+            lambda **_kw: (matrix, None),
+        )
         populate_calls: list[Any] = []
 
         def _populate(status_dir: Path, criteria: Any) -> Any:
@@ -507,7 +557,7 @@ class TestEvaluateAcceptanceMatrix:
             raise AssertionError("must not populate/write in diagnose mode")
 
         monkeypatch.setattr("specify_cli.acceptance.matrix.populate_criteria_from_review_evidence", _fail)
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", _fail)
+        monkeypatch.setattr("specify_cli.acceptance.matrix.locked_reread_splice_and_write", _fail)
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, [], [], [], mutate_matrix=False)
 
@@ -522,7 +572,7 @@ class TestEvaluateAcceptanceMatrix:
             raise AssertionError("must not enforce/write in diagnose mode")
 
         monkeypatch.setattr("specify_cli.acceptance.matrix.enforce_negative_invariants", _fail)
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", _fail)
+        monkeypatch.setattr("specify_cli.acceptance.matrix.locked_reread_splice_and_write", _fail)
         skipped: list[AcceptanceCheckDiagnostic] = []
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, [], skipped, [], mutate_matrix=False)
@@ -543,9 +593,14 @@ class TestEvaluateAcceptanceMatrix:
         # WP04 / T016 (#2318): the gate now persists the recomputed verdict
         # unconditionally when mutate_matrix=True, not only when negative
         # invariants are present. This test's fixture is a bare SimpleNamespace
-        # (no ``to_dict``), so the real writer is stubbed out here -- the write
-        # itself is covered by ``test_acceptance_verdict_command.py``.
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
+        # (no ``to_dict``), so the shared locked seam is stubbed out here (WP02
+        # accept-fails-closed) -- the splice/write mechanics themselves are
+        # covered by ``test_acceptance_verdict_command.py`` and WP01's own
+        # ``test_matrix_write_seam*`` coverage.
+        monkeypatch.setattr(
+            "specify_cli.acceptance.matrix.locked_reread_splice_and_write",
+            lambda **_kw: (matrix, None),
+        )
         activity_issues: list[str] = []
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, activity_issues, [], [], mutate_matrix=True)
@@ -557,7 +612,10 @@ class TestEvaluateAcceptanceMatrix:
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
         # WP04 / T016: see the comment in the parametrized test above.
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
+        monkeypatch.setattr(
+            "specify_cli.acceptance.matrix.locked_reread_splice_and_write",
+            lambda **_kw: (matrix, None),
+        )
         activity_issues: list[str] = []
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, activity_issues, [], [], mutate_matrix=True)

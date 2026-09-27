@@ -33,6 +33,7 @@ import pytest
 
 from specify_cli import acceptance as acceptance_module
 from specify_cli.acceptance import AcceptanceCheckDiagnostic, collect_feature_summary
+from specify_cli.acceptance.gates_core import LaneGateOutcome
 from specify_cli.cli.commands.agent import workflow as workflow_module
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     is_review_rejection_edge,
@@ -406,13 +407,21 @@ class TestCheckLaneGates:
         monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: evidence_errors or [])
-        # WP04 / T016 (#2318): the gate now persists the recomputed verdict
-        # unconditionally when mutate_matrix=True, not only inside the
-        # negative-invariants arm. ``_matrix()`` here is a bare SimpleNamespace
-        # (no ``to_dict``), so the real writer is stubbed to a no-op by
-        # default; tests that specifically exercise the write override this
-        # with their own monkeypatch call afterwards (setattr is last-wins).
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
+        # WP02 (accept-fails-closed): the gate now persists the recomputed
+        # verdict through the shared locked seam
+        # (``locked_reread_splice_and_write``) instead of the raw
+        # ``write_acceptance_matrix`` overwrite -- ``_matrix()`` here is a bare
+        # SimpleNamespace whose rows carry none of the id/definition fields
+        # ``splice_owned_rows`` needs, so the seam itself is stubbed (not
+        # exercised -- that's WP01's own coverage in ``test_matrix_write_seam*``)
+        # to just return the already-mutated matrix unchanged, mirroring a
+        # re-read that found no concurrent writer. Tests that specifically
+        # exercise the write override this with their own monkeypatch call
+        # afterwards (setattr is last-wins).
+        monkeypatch.setattr(
+            "specify_cli.acceptance.matrix.locked_reread_splice_and_write",
+            lambda **_kw: (matrix, None),
+        )
 
     def test_negative_invariants_enforced_and_matrix_written_when_mutate_true(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         matrix = _matrix(negative_invariants=[SimpleNamespace(name="no-secrets")])
@@ -424,11 +433,12 @@ class TestCheckLaneGates:
             enforce_calls.append(invariants)
             return invariants
 
-        def _fake_write(_fd: Path, m: Any) -> None:
-            write_calls.append(m)
+        def _fake_seam(**_kw: Any) -> tuple[Any, None]:
+            write_calls.append(matrix)
+            return matrix, None
 
         monkeypatch.setattr("specify_cli.acceptance.matrix.enforce_negative_invariants", _fake_enforce)
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", _fake_write)
+        monkeypatch.setattr("specify_cli.acceptance.matrix.locked_reread_splice_and_write", _fake_seam)
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
 
@@ -445,7 +455,7 @@ class TestCheckLaneGates:
             raise AssertionError("enforce_negative_invariants must not run in diagnose (mutate_matrix=False) mode")
 
         monkeypatch.setattr("specify_cli.acceptance.matrix.enforce_negative_invariants", _fail_if_called)
-        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", _fail_if_called)
+        monkeypatch.setattr("specify_cli.acceptance.matrix.locked_reread_splice_and_write", _fail_if_called)
         skipped: list[AcceptanceCheckDiagnostic] = []
 
         acceptance_module._check_lane_gates(tmp_path, tmp_path, "kitty/mission-x", [], skipped, [], mutate_matrix=False)
@@ -976,7 +986,10 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "_check_needs_clarification", lambda _files: [])
         monkeypatch.setattr(acceptance_module, "_missing_artifacts", lambda *_a: ([], []))
         monkeypatch.setattr(acceptance_module, "get_mission_for_feature", lambda _fd: (_ for _ in ()).throw(acceptance_module.MissionError("no mission.yaml")))
-        monkeypatch.setattr(acceptance_module, "_check_lane_gates", lambda *_a, **_k: None)
+        # WP02 (accept-fails-closed): ``_check_lane_gates`` now returns a
+        # ``LaneGateOutcome`` (never a bare ``None``) -- ``collect_feature_summary``
+        # unconditionally reads ``.matrix_dir``/``.skip_reason`` off it.
+        monkeypatch.setattr(acceptance_module, "_check_lane_gates", lambda *_a, **_k: LaneGateOutcome())
         return feature_dir, {}
 
     def test_strict_metadata_true_flags_missing_agent_and_assignee(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1096,7 +1109,12 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "get_mission_for_feature", lambda _fd: (_ for _ in ()).throw(acceptance_module.MissionError("no mission.yaml")))
 
         lane_gate_calls: list[Path] = []
-        monkeypatch.setattr(acceptance_module, "_check_lane_gates", lambda _repo, fd, *_a, **_k: lane_gate_calls.append(fd))
+
+        def _spy_check_lane_gates(_repo: Path, fd: Path, *_a: Any, **_k: Any) -> LaneGateOutcome:
+            lane_gate_calls.append(fd)
+            return LaneGateOutcome()
+
+        monkeypatch.setattr(acceptance_module, "_check_lane_gates", _spy_check_lane_gates)
 
         collect_feature_summary(tmp_path, "trio-mission", strict_metadata=False, mutate_matrix=False)
 
