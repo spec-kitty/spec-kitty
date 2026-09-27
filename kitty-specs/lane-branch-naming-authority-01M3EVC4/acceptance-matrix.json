@@ -1,0 +1,168 @@
+{
+  "mission_slug": "lane-branch-naming-authority-01M3EVC4",
+  "mission_number": "204",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/merge/test_executor_lane_naming.py 30/30 (test_created_lane_branch_never_the_identity_form, test_created_lane_worktree_matches_real_allocator_output); tests/merge/test_reconciliation_divergent.py 24/24; tests/lanes/test_lane_consumers_divergent.py 6/6; tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py 25/25; tests/architectural/test_no_worktree_name_guess.py 17/17 (test_no_lane_name_compose_outside_authority, test_no_lane_name_def_use_outside_authority)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:49:41.841256+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/specify_cli/lanes/test_lane_naming_signature.py 8/8 (lane_branch_name/worktree_dir_name/worktree_path/predict_lane_worktree have no mission_id param); tests/architectural/test_no_worktree_name_guess.py::test_seam_signature_carries_no_mission_id + test_signature_allowlist_entries_match_live_offenders pass (signature_allowlist=0)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:49:46.352597+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/merge/test_reconciliation_divergent.py 24/24 (test_claim_attributes_each_approved_lane[4 shapes], test_canceled_lane_excluded_survivor_attributed[4], test_missing_created_branch_refuses_by_name[4], test_authored_blobs_present_for_divergent_shape[4], canceled/planning exemptions); tests/merge/test_reconciliation.py 73 pass/1 skip; tests/merge/test_merge_divergent_end_to_end.py 13/13",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:49:50.751687+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/merge/test_executor_lane_naming.py::test_capture_pre_interrupt_lane_tips_keys_by_created_branch[3 shapes], ::test_capture_pre_interrupt_lane_tips_short_identity_no_longer_raises, ::..._skips_fully_canceled_lane, ::..._skips_planning_lane -- 6/6 (file 30/30)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:49:55.202227+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/merge/test_executor_lane_naming.py::test_h5_refuses_on_{empty,partial,old_form_identity_keyed}_record, test_h5_noop_on_{canceled_only,planning_only}_manifest, test_h5_noop_when_coord_topology_false, test_h5_not_evaluated_when_pre_mutation_coord_sha_none, test_h5_noop_on_complete_record -- 8/8; tests/merge/test_merge_divergent_end_to_end.py::test_resume_with_old_form_tip_record_refuses, ::test_resume_canceled_only_not_refused, ::test_resume_planning_only_not_refused -- 3/3",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:00.621845+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/merge/test_executor_lane_naming.py preflight/cleanup/retention legs (test_preflight_refuses_dirty_created_lane_worktree, test_remove_lane_worktrees_removes_created_worktree..., test_delete_lane_branches_*, test_cleanup_full_run_removes_no_orphans, test_phase_cleanup_*) 30/30; tests/lanes/test_lane_consumers_divergent.py::test_acceptance_finds_divergent_shape_lane_root 6/6; re-route blast radius (test_lanes_worktree_routing, test_workspace_context_tombstone, test_accept_candidate_source_tree_4254, test_worktree_allocator_atomicity, test_branch_naming_human_slug, test_colliding_mission_flow, test_bridge_parity, test_predict_lane_worktree, test_issue_4827_allocator_orphan_pin, test_adapters_claude_code, test_lanes_core_coord_read, test_coord_read_residuals_proof) 160/160; compose gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:05.477567+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/lanes/test_lane_consumers_divergent.py::test_decoy_identity_branch_is_never_attached, ::test_no_head_fallback_raises_naming_created_branch, ::test_invalid_short_identity_never_crashes_lifecycle_sync -- 6/6 file; lanes/lifecycle_sync.py has no candidate probing (single authority call); def-use gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:10.288686+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/specify_cli/lanes/test_lane_match_sites.py 24/24 (sparse-checkout TestManagedLanePolicy, status doctor TestCheckOrphanWorkspacesRecomposition, live-work TestResolveMissionFromWorktree, commit guard TestIsImplementationBranch, merge-resolve TestExtractMissionSlugKnownShapes); tests/specify_cli/lanes/test_lane_naming_gate_sites.py 7/7 (coord-doctor drift test_drift_check_*, VCS detection test_mid8_worktree_with_nnn_prefix_resolves_mission_dir); tests/specify_cli/lanes/test_lane_naming_parsers.py 21/21 (3 grammars); gate test_no_lane_name_match_outside_authority pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:14.759325+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/architectural/test_no_worktree_name_guess.py 17/17 incl. test_no_lane_name_{compose,match,def_use}_outside_authority, test_gate_self_test_flags_every_evasion_form_red, test_new_offender_in_allowlisted_function_is_flagged_red, *_allowlist_entries_match_live_offenders; tests/architectural/test_ratchet_baselines.py 21/21. _baselines.yaml: signature 0, compose 1 (lane-ID mint in compute.py::_next_free_lane_id, not a name), match 1, def_use 1",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:19.192183+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/lanes/test_lane_identity.py 8/8 unedited (TestStableLaneIdentity x5, TestOriginAwareBaseResolution x3)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:24.012207+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/lanes/test_refinalize_mission_branch.py 10/10 (test_backfill_then_refinalize_keeps_mission_branch_byte_identical, test_first_time_finalize_of_modern_mission_matches_todays_golden, TestInvalidIdentityTypedRefusal, TestDestinationRefPrefersRecordedBranch); tests/merge/test_mid8_embedded_preflight.py 15/15 (TestPreflightMissionBranchFallbacks); tests/lanes/test_lane_consumers_divergent.py::test_resolve_mission_branch_{raises_typed_error_on_invalid_identity,recorded_branch_wins_even_with_invalid_identity}",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:29.363440+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: red-first suites green: test_reconciliation_divergent 24/24, test_executor_lane_naming 30/30, test_merge_divergent_end_to_end 13/13, test_lane_consumers_divergent 6/6, test_refinalize_mission_branch 10/10 (fixtures via tests/merge/_divergent_shapes.py allocator). tests/integration/test_merge_lane_planning_data_loss.py::TestPlanningArtifactReachesTarget 4/4 green unedited (2 of them red on base 8900c2cb). Same file's 5 remaining reds (TestMergeIncludesPlanningLane wp_order MagicMock fixture, 4x TestRetentionConstraintSurvivesCleanup coord-unmaterialized) are also red on base 8900c2cb (verified), pre-existing",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:34.873517+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/specify_cli/cli/commands/test_decision_fresh_coord_5113.py 9/9 (test_open_materializes_and_returns_id, test_resolve_materializes, test_materialization_failure_is_byte_identical[open,resolve], remote-only refusals before write, list/verify/dry-run never materialize); tests/coordination/test_materialize_coord_surface.py 7/7",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:39.382723+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-h@326964e8: tests/specify_cli/cli/commands/test_coordination_remedy_5113.py 10/10 (test_unmaterialized_remedy_round_trip[surface_resolver,doctor_finding,runtime_bridge,write_target_degrade_stale_local_head,implement_claim_commit_target] parse+run remedy and assert worktree materialized; doctor --fix idempotent; remote-only ordered steps); tests/specify_cli/cli/commands/test_doctor_coordination.py 27/27",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T23:50:43.894942+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No lane_branch_name(...) call passes mission_id (post-merge src)",
+      "verification_method": "grep_absence",
+      "verification_command": "lane_branch_name(.*mission_id",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "No worktree_dir_name(...) call passes mission_id (post-merge src)",
+      "verification_method": "grep_absence",
+      "verification_command": "worktree_dir_name(.*mission_id",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src"
+    }
+  ]
+}

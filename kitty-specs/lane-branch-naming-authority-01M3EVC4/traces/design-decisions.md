@@ -1,0 +1,33 @@
+# Design Decisions
+
+> Capture the rationale that would otherwise evaporate.
+
+**Prompting questions**
+- What decision was made?
+- What alternatives were considered?
+- What was the rationale — why this option over the others?
+
+---
+
+## Entries
+
+<!-- YYYY-MM-DD — Decision: [what]. Alternatives: [what else]. Rationale: [why this one]. -->
+
+- 2026-09-26 — Option A (operator): extend the creation-side authority; no `lanes.json` per-lane branch field (Option B rejected: schema change + migration), no push-down into mission_runtime (Option C: layer violation).
+- 2026-09-26 — FR-010 (terminus-merge-integrity WP04) absorbed but found already landed (read-back ids in `lanes/compute.py`, origin-preferring fresh parent in `worktree_allocator.py`, `tests/lanes/test_lane_identity.py`): preserve + verify only.
+- 2026-09-26 — Resume with an empty persisted lane-tip record refuses fail-closed naming `merge --abort` (operator), mirroring the coord-base anchor handling.
+- 2026-09-26 — Gate reach is compose + match (operator): hand-rolled lane-name matchers route through the naming module's parsers.
+- 2026-09-26 — #5113 folded (operator); #5023's full dual-partition resolution stays out of scope.
+- 2026-09-26 — FR-003 strict arm limited to created-branch existence; the GitProbeError tolerance on approved lanes stays (#5001 FOLD-3, pinned by test_build_claim_tolerates_unresolvable_lane_probe) — the squad caught a prompt that would have silently flipped it.
+- 2026-09-26 — Analysis K1: the review-workspace lane-creation path (`cli/commands/agent/workflow.py:1691`) already composes its branch via the authority's `lane_branch_name` (no identity), so C-005's naming invariant holds; the remaining concern (a second creation path outside the allocator) is a close-out follow-up, not an FR-006 fold. U1: typed refusal for invalid identity added to WP06 (catch at `compute_and_write_lanes`, `compute_lanes` untouched). C1: NFR-004 diff-coverage gate added to every code WP's DoD.
+## Entries
+
+<!-- YYYY-MM-DD — Decision: [what]. Alternatives: [what else]. Rationale: [why this one]. -->
+
+- 2026-09-26 — Option A (operator): extend the creation-side authority; no `lanes.json` per-lane branch field (Option B rejected: schema change + migration), no push-down into mission_runtime (Option C: layer violation).
+- 2026-09-26 — FR-010 (terminus-merge-integrity WP04) absorbed but found already landed (read-back ids in `lanes/compute.py`, origin-preferring fresh parent in `worktree_allocator.py`, `tests/lanes/test_lane_identity.py`): preserve + verify only.
+- 2026-09-26 — Resume with an empty persisted lane-tip record refuses fail-closed naming `merge --abort` (operator), mirroring the coord-base anchor handling.
+- 2026-09-26 — Gate reach is compose + match (operator): hand-rolled lane-name matchers route through the naming module's parsers.
+- 2026-09-26 — #5113 folded (operator); #5023's full dual-partition resolution stays out of scope.
+- 2026-09-26 — FR-003 strict arm limited to created-branch existence; the GitProbeError tolerance on approved lanes stays (#5001 FOLD-3, pinned by test_build_claim_tolerates_unresolvable_lane_probe) — the squad caught a prompt that would have silently flipped it.
+- 2026-09-27 — Fold A: an invalid mission identity raises the typed `InvalidMissionIdentity(BranchIdentityUnresolved)` from `_mid8`, and the executor's slug-mismatch `assert` became a typed `LaneNamingSlugMismatch`. Alternatives: keep the assert (stripped under `-O`), or a bare ValueError. Rationale: one refusal family that existing `BranchIdentityUnresolved` catch sites already handle.
