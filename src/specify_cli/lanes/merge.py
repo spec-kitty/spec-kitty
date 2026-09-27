@@ -859,7 +859,14 @@ def reconcile_derived_status_snapshot_conflicts(worktree: Path, env: dict[str, s
     if any(Path(rel).name != SNAPSHOT_FILENAME for rel in unmerged):
         return False
     for rel in unmerged:
-        reconcile_status_snapshot((worktree / rel).parent)
+        # Fail closed if the snapshot was NOT actually regenerated: git leaves
+        # conflict markers in an unmerged file, and `reconcile_status_snapshot`
+        # no-ops (returns False) when it has no authoritative event log to derive
+        # from — e.g. the log is absent, or sparse-excluded from a coord lane
+        # worktree (status files are skip-worktree there). Staging in that case
+        # would commit conflict markers, so refuse and let the caller abort.
+        if not reconcile_status_snapshot((worktree / rel).parent):
+            return False
         add = subprocess.run(
             ["git", "add", "--", rel],
             cwd=str(worktree),
@@ -869,7 +876,8 @@ def reconcile_derived_status_snapshot_conflicts(worktree: Path, env: dict[str, s
         )
         if add.returncode != 0:
             return False
-    return True
+    # Never trust the add alone: only report success when the index is clean.
+    return not _unmerged_paths(worktree, env)
 
 
 def _resolve_planning_conflicts(

@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.merge import _make_merge_env, reconcile_derived_status_snapshot_conflicts
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
@@ -74,6 +75,7 @@ def _write_event(feature_dir: Path, *, event_id: str, wp_id: str, at: str) -> No
 
 def _write_divergent_snapshot(feature_dir: Path, marker: str) -> None:
     """Write a divergent (non-driver) status.json so the merge add/add conflicts."""
+    feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "status.json").write_text(json.dumps({"stale_side": marker}) + "\n", encoding="utf-8")
 
 
@@ -178,3 +180,48 @@ def test_human_authored_conflict_still_fails_closed(tmp_path: Path, monkeypatch:
     # closed — the derived-snapshot regeneration must never green-wash it.
     with pytest.raises(DependencyLaneMergeConflictError):
         _merge_dependency_lane_tips(repo, dependent_wt, MISSION_SLUG, dependent_lane, manifest)
+
+
+def test_reconcile_fails_closed_when_no_event_log_to_derive_from(tmp_path: Path) -> None:
+    """Squad fold (all 3 pre-PR lenses): the reconcile helper must fail closed —
+    never stage a conflict-markered status.json — when it has no authoritative
+    event log to regenerate from. This is the sparse-coord-lane situation in the
+    small (status.events.jsonl off-disk / absent): git leaves conflict markers in
+    the unmerged file, reconcile_status_snapshot no-ops, and the helper must
+    refuse rather than `git add` the markers.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    feature_dir = repo / "kitty-specs" / MISSION_SLUG
+    other = "other-side"
+    _git(repo, "branch", other)
+
+    # Both sides ADD status.json (add/add) with DIFFERENT content and NO event log.
+    _git(repo, "checkout", "-q", other)
+    _write_divergent_snapshot(feature_dir, "other")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "other: snapshot only, no event log")
+    _git(repo, "checkout", "-q", "main")
+    _write_divergent_snapshot(feature_dir, "main")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "main: snapshot only, no event log")
+
+    env = _make_merge_env()
+    merge = subprocess.run(
+        ["git", "-C", str(repo), "merge", "--no-commit", "--no-ff", other],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert merge.returncode != 0  # add/add conflict on the driver-less status.json
+
+    # No event log exists, so the helper must fail closed (not stage markers).
+    assert reconcile_derived_status_snapshot_conflicts(repo, env) is False
+    # status.json is still unmerged — nothing was green-washed into the index.
+    unmerged = subprocess.run(
+        ["git", "-C", str(repo), "diff", "--name-only", "--diff-filter=U"],
+        capture_output=True,
+        text=True,
+        env=env,
+    ).stdout
+    assert "status.json" in unmerged

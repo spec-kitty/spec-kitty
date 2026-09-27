@@ -16,6 +16,14 @@ canonical :func:`specify_cli.status.reducer.materialize` — the same full-fidel
 reducer (cancellation/implementer provenance, schema-version replay, mission
 identity) the rest of the system reads. Do not fork the reduce→materialize
 logic; extend it in the reducer instead.
+
+Level note: this is the *file-in-worktree* authority (reads the on-disk event
+log, atomically rewrites the on-disk ``status.json``). Its sibling
+:func:`specify_cli.merge.bookkeeping_projection._rematerialize_status_snapshot`
+is the *bytes→bytes* authority for the coord→target bookkeeping projection
+(takes union-merged event bytes, returns snapshot bytes for the caller to write
+to a target path). Different I/O models, same single reducer underneath — keep
+them separate; do not collapse one into the other.
 """
 
 from __future__ import annotations
@@ -38,12 +46,23 @@ def reconcile_status_snapshot(feature_dir: Path) -> bool:
     snapshot conflicting or stale.
 
     Returns ``True`` when the snapshot was regenerated, and ``False`` (a no-op)
-    when ``feature_dir`` carries no event log — a mission dir that never had a
-    ``status.events.jsonl`` has no authoritative state to derive a snapshot
-    from, so there is nothing to reconcile and the caller should treat the
-    snapshot as absent rather than fabricate an empty one.
+    when ``feature_dir`` has no authoritative event log to derive from — either
+    ``status.events.jsonl`` is absent (a mission dir that never had one, or a
+    coord lane worktree where status files are sparse-excluded from disk) or it
+    is present but empty. In every no-op case there is no authoritative state to
+    reduce, so the caller must treat the snapshot as unreconciled (fail closed)
+    rather than fabricate or commit a degenerate empty snapshot over whatever is
+    on disk.
     """
-    if not (feature_dir / EVENTS_FILENAME).exists():
+    events_path = feature_dir / EVENTS_FILENAME
+    if not events_path.exists():
+        return False
+    # An existing-but-empty log carries no authoritative state; regenerating from
+    # it would write a degenerate empty snapshot. Treat it as nothing to reconcile.
+    try:
+        if not events_path.read_text(encoding="utf-8").strip():
+            return False
+    except OSError:
         return False
     materialize(feature_dir)
     return True

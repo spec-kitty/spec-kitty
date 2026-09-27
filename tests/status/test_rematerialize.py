@@ -65,3 +65,19 @@ def test_reconcile_is_noop_without_event_log(tmp_path: Path) -> None:
 
     assert changed is False
     assert not (feature_dir / SNAPSHOT_FILENAME).exists()
+
+
+def test_reconcile_is_noop_on_empty_event_log(tmp_path: Path) -> None:
+    """Squad fold: an existing-but-empty event log carries no authoritative state,
+    so reconcile must no-op rather than write a degenerate empty snapshot over
+    whatever status.json is on disk."""
+    feature_dir = _feature_dir(tmp_path)
+    (feature_dir / EVENTS_FILENAME).write_text("   \n", encoding="utf-8")
+    snapshot_path = feature_dir / SNAPSHOT_FILENAME
+    snapshot_path.write_text("<<<<<<< divergent snapshot\n", encoding="utf-8")
+
+    changed = reconcile_status_snapshot(feature_dir)
+
+    assert changed is False
+    # The on-disk snapshot is left untouched (NOT overwritten with an empty one).
+    assert snapshot_path.read_text(encoding="utf-8") == "<<<<<<< divergent snapshot\n"
