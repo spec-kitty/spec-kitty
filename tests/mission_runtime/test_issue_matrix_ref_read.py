@@ -435,6 +435,68 @@ def test_4959_other_coord_kinds_still_raise_on_unmaterialized(repo: Path, kind: 
         resolve_artifact_surface(repo, mission_slug, kind)
 
 
+# ---------------------------------------------------------------------------
+# #5222 (F2): every underlying git-probe failure surfaces as the ONE typed
+# error this function's docstring promises, never an untyped exception.
+# ---------------------------------------------------------------------------
+
+
+def test_ref_existence_probe_error_wrapped_as_issue_matrix_error(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``_rev_is_valid`` raising ``LifecyclePhaseProbeError`` (its own
+    documented failure mode, e.g. a ``git rev-parse`` timeout) must not
+    escape untyped -- a caller catching only ``IssueMatrixRefReadError``
+    (the ONE type this module's docstring promises) would otherwise miss it.
+    """
+    from mission_runtime.lifecycle_phase import LifecyclePhaseProbeError
+
+    mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(repo, mid8="01KZM1KK", coord_matrix_content="fixed")
+
+    def _boom(*_a: object, **_kw: object) -> bool:
+        raise LifecyclePhaseProbeError("git rev-parse --verify timed out")
+
+    monkeypatch.setattr(resolution_module, "_rev_is_valid", _boom)
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == "ISSUE_MATRIX_PROBE_ERROR"
+
+
+def test_content_probe_oserror_wrapped_as_issue_matrix_error(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An ``OSError`` from ``subprocess.run`` (e.g. the ``git`` executable is
+    missing) must not escape untyped either -- same class of gap as the
+    ``TimeoutExpired`` leg this function already wrapped."""
+    mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(repo, mid8="01KZM1LL", coord_matrix_content="fixed")
+
+    real_run = resolution_module.subprocess.run
+
+    def _boom_on_show(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        # Only the ``git show`` content probe this function performs must be
+        # affected -- every other git call this call chain makes (ref
+        # resolution, phase derivation, etc.) uses the REAL subprocess so this
+        # stays a narrow, single-leg probe-failure fixture.
+        if cmd[:2] == ["git", "show"]:
+            raise FileNotFoundError("git executable not found")
+        return real_run(cmd, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(resolution_module.subprocess, "run", _boom_on_show)
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == "ISSUE_MATRIX_PROBE_ERROR"
+
+
+def test_issue_matrix_ref_read_error_importable_from_package_root() -> None:
+    """#5222 (F2): the error must be catchable via ``mission_runtime`` (the
+    package root), not only the import-forbidden ``mission_runtime.resolution``
+    submodule (MR-1/MR-2) -- a review/doctor consumer outside this package can
+    only ever import from the root."""
+    import mission_runtime
+
+    assert mission_runtime.IssueMatrixRefReadError is IssueMatrixRefReadError
+
+
 def test_4959_issue_matrix_post_consolidation_served_by_standalone_read(repo: Path) -> None:
     """Non-vacuity: on the IDENTICAL fixture the parametrized test above uses,
     ``resolve_artifact_surface`` for ISSUE_MATRIX STILL raises

@@ -52,6 +52,7 @@ from mission_runtime.identity import mid8_from_slug, resolve_mid8
 from mission_runtime.lifecycle_phase import (
     _GIT_PROBE_TIMEOUT,
     LifecyclePhase,
+    LifecyclePhaseProbeError,
     _rev_is_valid,
     content_present_at_primary_tip,
     resolve_lifecycle_phase,
@@ -85,6 +86,12 @@ __all__ = [
     "ACTION_NAMES",
     "ActionContextError",
     "ActionName",
+    # #5222 (F2): the ONE typed error every content-source consumer of
+    # ``read_issue_matrix_ref_content`` catches — previously reachable only
+    # via ``mission_runtime.resolution`` (an import-forbidden submodule per
+    # MR-1/MR-2), so a caller outside this package could not catch it by type
+    # at all and fell back to a bare ``Exception`` catch.
+    "IssueMatrixRefReadError",
     "PlacementSeam",
     # ResolvedSurface / SurfaceLocations / translate_surface: demoted -- the
     # stamped output, the input bundle, and the member->path translation of
@@ -1760,8 +1767,23 @@ def _issue_matrix_object_path(
 
 
 def _ensure_issue_matrix_ref_exists(repo_root: Path, ref: str) -> None:
-    """Helper (ii): existence probe (``_rev_is_valid``) — the deleted-ref leg (FR-007)."""
-    if not _rev_is_valid(repo_root, ref):
+    """Helper (ii): existence probe (``_rev_is_valid``) — the deleted-ref leg (FR-007).
+
+    #5222 (F2): ``_rev_is_valid`` raises ``LifecyclePhaseProbeError`` on its
+    own underlying git-probe failure (timeout) — that escaped this function
+    untyped before, so a caller catching only ``IssueMatrixRefReadError``
+    (the ONE documented type, per the module docstring) never saw it. Wrapped
+    into the same probe-error leg here so every git-probe failure surfaces
+    through the one typed error this function's docstring promises.
+    """
+    try:
+        ref_exists = _rev_is_valid(repo_root, ref)
+    except LifecyclePhaseProbeError as exc:
+        raise IssueMatrixRefReadError(
+            _ISSUE_MATRIX_PROBE_ERROR_CODE,
+            f"could not verify issue-matrix read ref {ref!r} in {repo_root}: {exc}",
+        ) from exc
+    if not ref_exists:
         raise IssueMatrixRefReadError(
             _ISSUE_MATRIX_REF_ABSENT_CODE,
             f"issue-matrix read ref {ref!r} does not resolve in {repo_root} — it has been deleted; refusing rather than falling back to the primary residue.",
@@ -1778,6 +1800,12 @@ def _read_issue_matrix_ref_content(repo_root: Path, ref: str, object_path: str) 
     unambiguously a content-probe failure (path never committed at this ref,
     an unreadable object, or another git-plumbing error) — a DISTINCT
     fail-closed path from the deleted-ref leg above, never conflated with it.
+
+    #5222 (F2): an ``OSError`` (e.g. the ``git`` executable itself is
+    missing) previously escaped untyped, same class of gap as the
+    ``TimeoutExpired`` leg already handled here — both are now wrapped into
+    the same probe-error code so the ONE documented type
+    (``IssueMatrixRefReadError``) is what every caller actually sees.
     """
     object_spec = f"{ref}:{object_path}"
     try:
@@ -1792,6 +1820,11 @@ def _read_issue_matrix_ref_content(repo_root: Path, ref: str, object_path: str) 
         raise IssueMatrixRefReadError(
             _ISSUE_MATRIX_PROBE_ERROR_CODE,
             f"git show {object_spec!r} timed out in {repo_root}",
+        ) from exc
+    except OSError as exc:
+        raise IssueMatrixRefReadError(
+            _ISSUE_MATRIX_PROBE_ERROR_CODE,
+            f"git show {object_spec!r} could not be run in {repo_root}: {exc}",
         ) from exc
     if result.returncode != 0:
         stderr = result.stderr.decode("utf-8", errors="replace").strip()

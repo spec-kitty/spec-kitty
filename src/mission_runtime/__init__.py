@@ -58,6 +58,7 @@ from mission_runtime.checkout_identity import (
 from mission_runtime.identity import mid8_from_slug, resolve_mid8
 from mission_runtime.resolution import (
     ActionContextError,
+    IssueMatrixRefReadError,
     PlacementSeam,
     coord_read_dir_for,
     declared_read_surface,
@@ -85,6 +86,12 @@ __all__ = [
     "ActionContextError",
     "CheckoutIdentityError",
     "CommitTarget",
+    # #5222 (F2): promoted onto the package root so review/doctor consumers of
+    # ``read_issue_matrix_ref_content`` (via ``resolve_issue_matrix_partition``)
+    # can catch it by type instead of a bare ``Exception`` -- it was reachable
+    # only via the import-forbidden ``mission_runtime.resolution`` submodule
+    # before (MR-1/MR-2).
+    "IssueMatrixRefReadError",
     "MissionArtifactKind",
     "MissionContext",
     "MissionExecutionContext",
