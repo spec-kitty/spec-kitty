@@ -683,7 +683,7 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
     good_fb.write_text("**Issue**: needs rework.\n", encoding="utf-8")
     # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): the valid
     # rollback path ALSO threads a REAL ``commit_artifact`` call (the
-    # ``decision.planned_rollback`` branch in ``tasks_move_task.py`` --
+    # ``decision.is_review_rejection`` branch in ``tasks_move_task.py`` --
     # T004/WP01's rejection-write commit step). Same environmental gap as the
     # ``rejected_verdict_block``/``rejected_verdict_override`` scenarios above
     # (this fixture root was never ``git init``'d) -- stub ``commit_for_mission``

@@ -932,7 +932,7 @@ def persist_rejected_review_cycle_for_rollback(
 ) -> VerdictDurabilitySignal:
     """Persist the rejection review cycle for a planned-rollback transition.
 
-    Extracted (site 3b) from the ``if decision.planned_rollback and
+    Extracted (site 3b) from the ``if decision.is_review_rejection and
     st.resolved_feedback_source is not None:`` block formerly inside
     ``_mt_finalize_plan`` (``tasks_move_task.py:1759-1772``). The guard itself
     stays at the call site (unchanged); this function is the unconditional
