@@ -76,7 +76,6 @@ def _foreign_anchor_mission(tmp_path: Path) -> tuple[Path, str]:
     return feature_dir, pointer
 
 
-@pytest.mark.regression
 def test_render_feedback_context_reads_handed_dir_under_phantom_partition(tmp_path: Path) -> None:
     """Public render entry (``workflow.py`` fix-mode handoff): feedback is present."""
     feature_dir, pointer = _foreign_anchor_mission(tmp_path)
@@ -89,7 +88,6 @@ def test_render_feedback_context_reads_handed_dir_under_phantom_partition(tmp_pa
     assert feedback_file == feature_dir / "tasks" / _WP_SLUG / "review-cycle-1.md"
 
 
-@pytest.mark.regression
 def test_move_task_verdict_facts_read_handed_dir_under_phantom_partition(tmp_path: Path) -> None:
     """Move-task verdict read: the recorded rejection is found, not treated as absent."""
     feature_dir, _ = _foreign_anchor_mission(tmp_path)
