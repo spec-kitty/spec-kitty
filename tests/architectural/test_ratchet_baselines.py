@@ -605,9 +605,10 @@ def test_size_ratchet_table_meets_floor() -> None:
     assert len(_SIZE_RATCHETS) >= 19, len(_SIZE_RATCHETS)
     keys = [(r.section, r.leaf) for r in _SIZE_RATCHETS]
     assert len(keys) == len(set(keys)), f"duplicate (section, leaf) rows: {keys}"
-    # 13 gated test-modules: the 12 pre-#5166 sections + `test_no_worktree_name_guess`
-    # (#5108 registered its four worktree-name-gate legs here).
-    assert len(_REQUIRED_TOP_LEVEL_KEYS) == 13, sorted(_REQUIRED_TOP_LEVEL_KEYS)
+    # 14 gated test-modules: the 12 pre-#5166 sections + `test_no_worktree_name_guess`
+    # (#5108 registered its four worktree-name-gate legs here) + `test_hosted_drain_gate`
+    # (#4971 registered its ungated-edge allowlist here).
+    assert len(_REQUIRED_TOP_LEVEL_KEYS) == 14, sorted(_REQUIRED_TOP_LEVEL_KEYS)
 
 
 def test_yaml_leaves_refuses_a_scalar_section() -> None:
