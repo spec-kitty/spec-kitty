@@ -281,7 +281,7 @@ After completing review:
 
 Move the WP forward:
 ```bash
-spec-kitty agent status emit WPxx --to approved --actor <name> --mission <handle>
+spec-kitty agent tasks move-task WPxx --to approved --actor <name> --mission <handle> --note "Review passed"
 ```
 
 ### On Rejection
@@ -300,10 +300,14 @@ implementer profile so the next implementation cycle starts with the right conte
    role: "implementer"
    ```
 
-3. Commit the updated frontmatter together with your review notes **before** running:
+3. Write your review feedback to a file, then commit the updated frontmatter together
+   with your review notes **before** running:
    ```bash
-   spec-kitty agent status emit WPxx --to in_progress --actor <name> --mission <handle>
+   spec-kitty agent tasks move-task WPxx --to in_progress --actor <name> --mission <handle> \
+     --review-feedback-file <feedback.md>
    ```
+   A rejection must carry its rationale (`--review-feedback-file`); a rejection without
+   one is accepted locally but never propagates to the team (see `move-task --help`).
 
 The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
 and resume work with the proper persona and self-review gates.

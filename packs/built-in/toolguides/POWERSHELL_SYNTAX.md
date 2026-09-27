@@ -11,8 +11,7 @@ This guide helps AI agents use correct PowerShell syntax when working with spec-
 | Task | ❌ Bash (WRONG) | ✅ PowerShell (CORRECT) |
 |------|-----------------|-------------------------|
 | **Command chaining** | `cmd1 && cmd2` | `cmd1; cmd2` |
-| **Parameter flags** | `--json --paths-only` | `-Json -PathsOnly` |
-| **Script path** | `./scripts/bash/script.sh` | `..\scripts\powershell\Script.ps1` |
+| **Cmdlet parameters** (not `spec-kitty` flags) | `ls --recurse` | `Get-ChildItem -Recurse` |
 | **Environment variable** | `$VAR_NAME` | `$env:VAR_NAME` |
 | **Current directory** | `pwd` | `Get-Location` (or `pwd` alias) |
 | **List files** | `ls -la` | `Get-ChildItem` (or `ls` alias) |
@@ -42,55 +41,46 @@ git branch --show-current
 
 ### Using the spec-kitty CLI
 
-Spec-kitty uses a Python CLI that works across all platforms:
+Spec-kitty uses a Python CLI that works across all platforms. There are no
+PowerShell wrapper scripts: call the CLI directly, with its normal
+double-dash flags, from PowerShell exactly as you would from Bash.
 
 **Common commands:**
 
-- `spec-kitty agent mission create-mission <slug>` - Create a new feature
+- `spec-kitty agent mission create <slug> --json` - Create a new mission
 - `spec-kitty verify-setup` - Check environment and paths
-- `spec-kitty agent workflow implement <WPID> --agent <name>` - Start implementing a work package
-- `spec-kitty agent workflow review <WPID> --agent <name>` - Start reviewing a work package
-- `spec-kitty agent tasks move-task <WPID> --to for_review` - Complete implementation (move to review)
+- `spec-kitty agent action implement <WPID> --agent <name> --mission <handle>` - Start implementing a work package (moves it to `in_progress`)
+- `spec-kitty agent action review <WPID> --agent <name> --mission <handle>` - Start reviewing a work package
+- `spec-kitty agent tasks move-task <WPID> --to for_review --mission <handle>` - Complete implementation (move to review)
 - `spec-kitty merge` - Merge completed mission
 
 ### Parameter Naming Convention
 
-PowerShell uses **PascalCase** with leading dash:
-
-- `-Json` (not `--json`)
-- `-MissionName` (not `--mission-name`)
-- `-IncludeTasks` (not `--include-tasks`)
-- `-RequireTasks` (not `--require-tasks`)
+CLI flags keep their double-dash spelling on every shell (`--json`,
+`--mission`, `--include-tasks`). PowerShell's PascalCase `-Param` convention
+applies only to PowerShell cmdlets and your own functions, never to
+`spec-kitty` flags.
 
 ### Examples
 
-**Create feature:**
+**Create a mission:**
 
 ```powershell
-.\.kittify\scripts\powershell\Create-NewMission.ps1 `
-  -MissionName "User Authentication" `
-  -FeatureDescription "Add login and registration"
+spec-kitty agent mission create "user-authentication" `
+  --friendly-name "User Authentication" `
+  --json
 ```
 
 **Check prerequisites:**
 
 ```powershell
-.\.kittify\scripts\powershell\check-prerequisites.ps1 -Json -IncludeTasks
+spec-kitty agent mission check-prerequisites --json --include-tasks --mission <handle>
 ```
 
 **Move task to review (after implementation):**
 
 ```powershell
-# Using the CLI (recommended):
-spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
-
-# Or using PowerShell script:
-.\.kittify\scripts\powershell\Move-TaskToLane.ps1 `
-  -Feature "001-auth" `
-  -TaskId "WP01" `
-  -Lane "for_review" `
-  -ShellPid $PID `
-  -Agent "claude"
+spec-kitty agent tasks move-task WP01 --to for_review --mission <handle> --note "Ready for review"
 ```
 
 ---
@@ -107,14 +97,17 @@ cd worktrees && pwd
 cd worktrees; Get-Location
 ```
 
-### ❌ Don't Use Bash-Style Parameters
+### ❌ Don't Use Bash-Style Parameters on Cmdlets
 
 ```powershell
-# WRONG:
-.\check-prerequisites.ps1 --json --require-tasks
+# WRONG (cmdlets take PascalCase parameters):
+Get-ChildItem --recurse --filter *.md
 
 # CORRECT:
-.\check-prerequisites.ps1 -Json -RequireTasks
+Get-ChildItem -Recurse -Filter *.md
+
+# The spec-kitty CLI is not a cmdlet: keep its double-dash flags.
+spec-kitty agent tasks status --json
 ```
 
 ### Path Separators in PowerShell
@@ -193,24 +186,20 @@ New-Item -ItemType Directory -Path "tasks\planned" -Force
 
 ## When to Use What
 
-**Use PowerShell scripts when:**
+**Use PowerShell syntax when:**
 
-- User specified `--script ps` during init
-- You're in a Windows PowerShell terminal
-- Templates reference `.ps1` files in frontmatter
+- You're in a Windows PowerShell or `pwsh` terminal
 
-**Use Bash scripts when:**
+**Use Bash syntax when:**
 
-- User specified `--script sh` during init
-- You're in bash/zsh/fish terminal
-- Templates reference `.sh` files in frontmatter
+- You're in a bash/zsh/fish terminal
 
 **Using spec-kitty commands:**
 All spec-kitty commands work the same way on PowerShell and Bash:
 
 ```powershell
-spec-kitty agent workflow implement WP01 --agent claude  # Auto-moves to doing
-spec-kitty agent tasks move-task WP01 --to for_review    # Completion step
+spec-kitty agent action implement WP01 --agent claude --mission <handle>  # Moves to in_progress
+spec-kitty agent tasks move-task WP01 --to for_review --mission <handle>  # Completion step
 spec-kitty verify-setup
 spec-kitty dashboard
 ```

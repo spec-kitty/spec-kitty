@@ -34,7 +34,11 @@ steps:
 
   - title: Write and validate the occurrence map
     description: >
-      Write the classification to occurrence_map.yaml. Run validation before
-      proceeding to implementation.
+      Write the classification to occurrence_map.yaml in the mission directory.
+      There is no standalone validate command: the occurrence-classification
+      gate runs automatically on `spec-kitty agent mission finalize-tasks`,
+      `spec-kitty agent action implement`, and `spec-kitty agent action review`
+      for missions with `change_mode: bulk_edit`, and blocks with
+      "Bulk Edit Gate: BLOCKED" until the map is structurally complete.
     examples:
-      - "spec-kitty agent bulk-edit validate --mission my-mission"
+      - "spec-kitty agent mission finalize-tasks --mission my-mission  # runs the occurrence-map gate"

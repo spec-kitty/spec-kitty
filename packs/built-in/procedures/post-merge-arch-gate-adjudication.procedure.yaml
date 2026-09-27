@@ -50,7 +50,7 @@ steps:
 
       ```bash
       # Identify the mission base branch (from meta.json or lanes.json)
-      MISSION_BASE=$(spec-kitty agent mission info --json | jq -r '.target_branch')
+      MISSION_BASE=$(spec-kitty agent mission branch-context --json | jq -r '.target_branch')
 
       # Run only the failing tests against the mission base branch
       git stash  # or use a worktree for clean isolation

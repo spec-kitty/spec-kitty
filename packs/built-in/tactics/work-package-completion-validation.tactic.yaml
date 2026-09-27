@@ -46,7 +46,7 @@ steps:
       Only after all prior steps pass, emit the transition using the spec-kitty
       status pipeline. Never manually edit status.events.jsonl.
     examples:
-      - "spec-kitty agent tasks transition WP01 for_review"
+      - "spec-kitty agent tasks move-task WP01 --to for_review --mission <handle>"
 
 failure_modes:
   - "Transitioning on green tests alone — passing tests are necessary but not sufficient; acceptance criteria may be unaddressed and the diff may contain unintended scope."
