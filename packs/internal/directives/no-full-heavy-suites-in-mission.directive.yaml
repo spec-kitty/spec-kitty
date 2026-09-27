@@ -1,0 +1,87 @@
+schema_version: "1.0"
+id: NO_FULL_HEAVY_SUITES_IN_MISSION
+title: No Full Runs of Computationally Heavy Suites in Mission Work
+intent: >
+  During mission work — implement, review, fold/rework, and closeout/pre-PR —
+  never run a full-directory or whole-repo sweep of a computationally heavy
+  test suite: the architectural suite (`tests/architectural/` as a whole),
+  an end-to-end suite (`tests/e2e/`, a full `tests/integration/` sweep), a
+  performance/stress/timing suite (`-m performance|stress|timing`, the
+  `ci-nightly`-tier run), or `make test-full`. These runs take 20+ minutes per
+  lane, contend with other parallel lanes on the same machine, and duplicate a
+  run CI already owns authoritatively (the module test matrix, the nightly
+  full/performance/interpreter run, and the aggregate gate). Run the targeted
+  set instead: the tests for the files the change touches, the SPECIFIC
+  architectural gate files that guard the change (named, not the whole
+  directory), and the owning module's fast tier — then record the exact
+  commands and pass/fail counts in the PR. This directive supersedes any
+  guidance that reads as "run tests/architectural/ in full for cross-cutting
+  changes" when the actor is doing mission work (implement/review/fold/
+  closeout); that guidance is retargeted to CI's cross-cutting lane, not to a
+  mission agent's local validation pass.
+enforcement: required
+scope: >
+  Applies to the orchestrator AND to every dispatched implementer/reviewer
+  subagent while performing mission work: implement, review, fold/rework, and
+  closeout/pre-PR validation. Applies to dispatch briefs and WP prompts that
+  instruct an agent to validate a change. Does not apply to CI itself (the
+  module test matrix, `ci-nightly.yml`, and `ci-aggregate.yml` own the full,
+  cross-cutting, and nightly runs authoritatively) and does not apply when the
+  operator explicitly asks for a full run of a named heavy suite.
+procedures:
+  - Identify the targeted test surface before running anything — the test
+    file(s) mirroring each source module the diff touches, the SPECIFIC
+    architectural gate file(s) that guard the change (name them — e.g.
+    `tests/architectural/test_layer_rules.py` for an import-direction change,
+    `tests/architectural/test_no_dead_symbols.py` for a dead-symbol change —
+    never the bare directory), and the owning module's fast tier
+    (`make test-fast` plus the module's own test directory).
+  - Never invoke `pytest tests/architectural/` (or any other heavy suite
+    directory) as a whole during mission work; invoke only the named gate
+    file(s) relevant to the change. Never invoke `tests/e2e/`, a full
+    `tests/integration/` sweep, `-m performance`, `-m stress`, `-m timing`, or
+    `make test-full` during mission work for the same reason.
+  - When writing a dispatch brief or a WP prompt that asks an implementer or
+    reviewer to validate a change, name the specific gate files and targeted
+    directories in the prompt's validation section; do not write an
+    instruction that reads as "run the full architectural/e2e/performance
+    suite" or that would resolve to one.
+  - When lanes run in parallel on one machine, bound `pytest-xdist` explicitly
+    (e.g. `-n 4`); never `-n auto` on a shared machine, and never launch a
+    second concurrent run of the same suite (see `no-parallel-duplicate-test-runs`).
+  - Record the exact targeted commands run and their pass/fail counts in the
+    PR's Tests run section, per the standing test policy.
+  - Treat a red result outside the change's blast radius as CI's to report,
+    not yours to chase locally — classify it via the baseline-red gotcha
+    (pre-existing known-P0 red, CI-environment failure, stale install, or
+    stale venv) instead of running a broader local sweep to investigate it.
+  - "Exception: only run a full heavy-suite sweep locally during mission work
+    when the operator explicitly asks for it by name (e.g. \"run the full
+    architectural suite\" or \"run test-full\"); an agent's own judgment that
+    a change is risky is not sufficient grounds to widen the run — escalate
+    the risk assessment to the operator instead."
+integrity_rules:
+  - A mission-work test invocation that targets `tests/architectural/`,
+    `tests/e2e/`, a full `tests/integration/` sweep, `-m performance|stress|timing`,
+    or `make test-full` as a whole, without an explicit operator request for
+    that exact run, is non-compliant.
+  - A dispatch brief or WP prompt that instructs a subagent to run a full
+    heavy-suite sweep (or that is silent on scope in a way that resolves to
+    one) is non-compliant; it must name the specific gate files and targeted
+    directories instead.
+  - A parallel-lane test invocation using `-n auto` on a shared machine during
+    mission work is non-compliant; the worker count must be explicitly bounded.
+  - Treating a red result outside the current change's blast radius as
+    something to fix by broadening the local run (rather than classifying it
+    per the baseline-red gotcha and leaving it to CI) is non-compliant.
+validation_criteria:
+  - Every mission-work test command in the PR's Tests run section targets
+    specific files/directories the change touches, or the fast tier plus
+    named architectural gate files — never a bare heavy-suite directory or
+    `make test-full`.
+  - Every dispatch brief and WP prompt authored during the mission names
+    specific gate files rather than instructing a full heavy-suite run.
+  - Any parallel-lane invocation on a shared machine shows a bounded
+    `-n <N>` worker count, never `-n auto`.
+  - The one exception on record for a full heavy-suite run in mission work is
+    an explicit operator request, cited in the PR or mission trace.

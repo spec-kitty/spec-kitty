@@ -25,7 +25,8 @@ packs/internal/
 ├── drg/fragment.yaml                                # SINGLE DRG fragment (org tier), not sharded *.graph.yaml;
 │                                                    #   declares every node and edge below
 ├── directives/
-│   └── operator-signal-contract.directive.yaml      # OPERATOR_SIGNAL_CONTRACT — a path that decides must also signal
+│   ├── operator-signal-contract.directive.yaml      # OPERATOR_SIGNAL_CONTRACT — a path that decides must also signal
+│   └── no-full-heavy-suites-in-mission.directive.yaml  # NO_FULL_HEAVY_SUITES_IN_MISSION — no full architectural/e2e/perf/test-full runs during mission work
 ├── glossary_packs/
 │   └── spk-internal.glossary-pack.yaml              # spk-internal-glossary — maintainer/engineering glossary
 ├── procedures/
@@ -55,7 +56,11 @@ A lot of maintainer-flavoured doctrine already ships in `packs/built-in/`
 `pr-agent-worktree-isolation`, `mission-tracer-files`, …). This pack **references**
 those via DRG `refines` edges rather than re-authoring them. Only genuinely
 repo-only residue (PR-landing specifics, the internal glossary, the
-maintainer-only `OPERATOR_SIGNAL_CONTRACT` directive) is authored here.
+maintainer-only `OPERATOR_SIGNAL_CONTRACT` and `NO_FULL_HEAVY_SUITES_IN_MISSION`
+directives) is authored here. `NO_FULL_HEAVY_SUITES_IN_MISSION` itself
+`refines` the built-in `no-parallel-duplicate-test-runs` tactic and
+`red-main-release-discipline` procedure rather than re-authoring their
+test-run and red-main substance.
 
 > First-step scaffold. See the initiative synthesis for the deferred decisions
 > (built-in ownership inversion, open-packs as the permanent home, private-vs-public

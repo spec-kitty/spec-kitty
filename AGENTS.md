@@ -86,7 +86,7 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 - Never add `# noqa: TID251` for a retired module.
 - Never resolve a kept-file conflict with `theirs` without re-running `tests/architectural/test_no_retired_subsystems.py`.
 
-**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and the full test directory of each owning subsystem. Run `tests/architectural/` in full only for cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) — see "Test policy — what you must run for a change" below for the calibrated blast-radius rule. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that.
+**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and the full test directory of each owning subsystem. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that. **Superseded by `NO_FULL_HEAVY_SUITES_IN_MISSION` (internal doctrine pack, 2026-09-27):** the line below about running `tests/architectural/` "in full" for cross-cutting changes no longer applies to mission work (implement/review/fold/closeout) — even a cross-cutting change targets the SPECIFIC gate files it implicates, never the bare directory, unless the operator explicitly asks for a full run; CI's cross-cutting lane (`ci-aggregate.yml`) still runs the full suite. See "Test policy — what you must run for a change" below for the calibrated blast-radius rule.
 
 ---
 
@@ -263,7 +263,7 @@ Both make targets set `PWHEADLESS=1` themselves and need the synced dev environm
 
 1. For every source module your diff touches, run its own test file(s). The test tree mirrors the source tree (`src/specify_cli/status/store.py` → `tests/status/`), and when the mirror is not obvious, find the tests that exercise the module: `grep -rl "<module_name>" tests/ --include="*.py"`.
 2. Plus the full test directory of each owning subsystem: touching `src/charter/offering/**` ⇒ both `tests/charter/` and `tests/doctrine/` — the doctrine test tree did not move when the package absorbed `src/doctrine/` into `src/charter/offering/`, so both directories still cover that code and both count as "each owning subsystem."
-3. Cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) additionally touch `tests/architectural/`.
+3. Cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) additionally touch `tests/architectural/` — but per `NO_FULL_HEAVY_SUITES_IN_MISSION`, run the SPECIFIC architectural gate file(s) the change implicates during mission work, not the bare directory as a whole; the full `tests/architectural/` sweep is CI's cross-cutting lane.
 
 Record the exact commands and passed/failed counts under the PR's *Tests run* section. A failure you did not cause and cannot explain is not yours to chase — classify it via the baseline-red gotcha below and note it in the PR.
 

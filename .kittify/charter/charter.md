@@ -2,6 +2,12 @@
 
 > Created: 2026-01-27
 > Version: 1.4.0
+> Updated: 2026-09-27 — added the `NO_FULL_HEAVY_SUITES_IN_MISSION` binding
+> pointer under Agent Operating Discipline and corrected the Review action's
+> "run the FULL compliance suite" wording, which conflicted with the Testing
+> Requirements section and the internal-pack directive: mission work
+> (implement/review/fold/closeout) never runs a full architectural/e2e/
+> performance/`test-full` sweep locally — CI owns that.
 > Updated: 2026-09-20 — documented the doctrine pack-tier boundary (`built-in` consumer vs `internal` in-house) under Architecture: Shared Package Boundaries (ADR 2026-08-16-3)
 > Updated: 2026-08-08 — activated the writing-comms & diagramming doctrine set (see "Writing, Communication & Diagramming Doctrine"; rehome-writing-comms-doctrine / PR #2918)
 > Updated: 2026-07-01 — interactive charter intake (doctrine-catfooding-2196-01KWE16N)
@@ -158,6 +164,18 @@ How agents and orchestrators should work so quality and context survive long mis
   relevant doctrine profile (not merely a persona name). Compact after task pivots; do not
   combine architecture, debugging, and implementation in one long context.
   → `autonomous-operation-protocol`.
+- **No full heavy-suite runs in mission work.** During implement, review,
+  fold/rework, and closeout/pre-PR — by the orchestrator and every dispatched
+  implementer/reviewer subagent — never run a full-directory or whole-repo
+  sweep of `tests/architectural/`, an e2e/full-integration suite, a
+  performance/stress/timing suite, or `make test-full`; run the targeted
+  files, the specific named architectural gate files the change implicates,
+  and the owning module's fast tier instead, and record commands + counts in
+  the PR. CI (the module matrix, `ci-nightly`, the aggregate gate) owns the
+  full/cross-cutting/nightly runs; exception only on an explicit operator
+  request. → `NO_FULL_HEAVY_SUITES_IN_MISSION` (internal pack), which
+  reconciles with (not duplicates) `no-parallel-duplicate-test-runs` and
+  `red-main-release-discipline`.
 
 ## Collaboration Strategy
 
@@ -190,9 +208,13 @@ context for the detail).
 - **Implement** — ATDD / red-first through the pre-existing entry point; close defect
   classes with non-vacuous gates; use canonical sources (no improvise); keep the
   terminology canon; append the mission tracer files.
-- **Review** — reviewer ≠ implementer; run the FULL compliance suite (not a subset);
-  verify no duplicate authority, no dead code, and live evidence; apply tiered rigour;
-  grant ownership-map leeway (no-overlap is the real guard).
+- **Review** — reviewer ≠ implementer; validate against the diff's full targeted
+  test surface (every file/module the change touches, not a hand-picked subset of
+  it) plus the specific named architectural gate files it implicates — never a
+  full `tests/architectural/`/e2e/performance/`test-full` sweep during mission
+  work (`NO_FULL_HEAVY_SUITES_IN_MISSION`); verify no duplicate authority, no
+  dead code, and live evidence; apply tiered rigour; grant ownership-map
+  leeway (no-overlap is the real guard).
 - **Merge** — PRs only, the programme merge agent merges; isolated PR-review
   agents; post-merge full arch-gate sweep with a cross-base pre-existing check;
   issue-matrix + tracker hygiene.
@@ -266,7 +288,7 @@ noted where they bind harder than advisory.
 - **mypy --strict** must pass (no type errors)
 - **Integration tests** for CLI commands
 - **Unit tests** for core logic
-- **Run only the affected test packages, not the full suite, whenever the change is scoped to a known surface.** The repository's test suite has ~17,000 tests and a full run is expensive in wall-clock time and orchestrator context budget. Per-WP and per-PR validation should target the directories that bound the change (e.g., `tests/specify_cli/audit/` for an audit-detector change, `tests/specify_cli/cli/commands/test_sync*.py` for a sync surface change). The full `pytest tests/` gate is reserved for: (a) post-merge mission-level validation against the merged mission branch, (b) explicit cross-cutting changes that touch shared infrastructure, and (c) release-candidate verification. Each WP must declare its targeted test surface in the WP prompt's validation section so reviewers can confirm scope.
+- **Run only the affected test packages, not the full suite, whenever the change is scoped to a known surface.** The repository's test suite has ~17,000 tests and a full run is expensive in wall-clock time and orchestrator context budget. Per-WP and per-PR validation should target the directories that bound the change (e.g., `tests/specify_cli/audit/` for an audit-detector change, `tests/specify_cli/cli/commands/test_sync*.py` for a sync surface change). The full `pytest tests/` gate is reserved for: (a) post-merge mission-level validation against the merged mission branch, (b) explicit cross-cutting changes that touch shared infrastructure, and (c) release-candidate verification. Each WP must declare its targeted test surface in the WP prompt's validation section so reviewers can confirm scope. This applies with particular force to the computationally heavy suites (architectural, e2e, performance/stress/timing) — see `NO_FULL_HEAVY_SUITES_IN_MISSION`.
 
 ### Performance and Scale
 

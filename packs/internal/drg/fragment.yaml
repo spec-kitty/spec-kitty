@@ -16,6 +16,10 @@ nodes:
     kind: directives
     title: "Operator-Signal Contract — a path that decides must also signal"
     body_path: directives/operator-signal-contract.directive.yaml
+  - id: NO_FULL_HEAVY_SUITES_IN_MISSION
+    kind: directives
+    title: "No Full Runs of Computationally Heavy Suites in Mission Work"
+    body_path: directives/no-full-heavy-suites-in-mission.directive.yaml
   # Branded-document + project-evolution-postmortem doctrine (maintainer authoring).
   - id: spec-kitty-branded-pdf
     kind: assets
@@ -51,6 +55,16 @@ edges:
     relation: refines
   - source: landing-contributor-prs
     target: "tactic:pr-agent-worktree-isolation"
+    relation: refines
+  # No-full-heavy-suite directive reconciles with (does not duplicate) the
+  # built-in test-run discipline and red-main policy: bounded/single test
+  # runs, and reds outside blast radius are CI's to report, not to chase
+  # by widening the local run.
+  - source: NO_FULL_HEAVY_SUITES_IN_MISSION
+    target: "tactic:no-parallel-duplicate-test-runs"
+    relation: refines
+  - source: NO_FULL_HEAVY_SUITES_IN_MISSION
+    target: "procedure:red-main-release-discipline"
     relation: refines
   # Postmortem authoring chain (all targets are local nodes declared above).
   # The procedure suggests the writing styleguide and the branded-deliverable
