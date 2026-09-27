@@ -20,8 +20,8 @@ sources, DIRECTIVE_044) rather than hand-rolling a third fixture.
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -56,12 +56,8 @@ def _fresh_coord_mission(tmp_path: Path):  # -> tuple[Path, MissionCreationResul
 
 
 def _invoke(args: list[str], cwd: Path):
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(cwd)
+    with contextlib.chdir(cwd):
         return runner.invoke(agent_app, args, catch_exceptions=True)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _assert_no_raw_traceback(result) -> None:
