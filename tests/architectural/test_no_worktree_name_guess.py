@@ -91,7 +91,7 @@ from typing import TypeGuard
 
 import pytest
 
-from tests.architectural._ast_scan import parse_file
+from tests.architectural._ast_scan import parse_file, read_and_parse
 from tests.architectural._ratchet_keys import composite_key
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
@@ -981,11 +981,7 @@ def _collect_seam_import_aliases(tree: ast.AST) -> dict[str, str]:
 
 def _scan_signature_file(path: Path) -> dict[int, str]:
     """Flag any alias-aware call to a seam function passing ``mission_id=``."""
-    try:
-        source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-    except SyntaxError:
-        return {}
+    source, tree = read_and_parse(path)  # fails closed (#5139); never swallows a parse failure
     aliases = _collect_seam_import_aliases(tree)
     if not aliases:
         return {}
@@ -1213,11 +1209,7 @@ def _compose_call_violation(node: ast.Call, consts: dict[str, str], lane_bound: 
 
 
 def _scan_compose_file(path: Path) -> dict[int, str]:
-    try:
-        source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-    except SyntaxError:
-        return {}
+    source, tree = read_and_parse(path)  # fails closed (#5139); never swallows a parse failure
 
     docstring_ids = _collect_docstring_ids(tree)
     lane_bound = _collect_lane_bound_names(tree)
@@ -1312,11 +1304,7 @@ def _scan_match_compare(node: ast.Compare, consts: dict[str, str]) -> str | None
 
 
 def _scan_match_file(path: Path) -> dict[int, str]:
-    try:
-        source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-    except SyntaxError:
-        return {}
+    source, tree = read_and_parse(path)  # fails closed (#5139); never swallows a parse failure
     consts = _module_str_constants(tree)
     violations: dict[int, str] = {}
     for node in ast.walk(tree):
@@ -1471,11 +1459,7 @@ def _iter_functions(tree: ast.AST) -> list[ast.FunctionDef | ast.AsyncFunctionDe
 
 
 def _scan_def_use_file(path: Path) -> dict[int, str]:
-    try:
-        source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-    except SyntaxError:
-        return {}
+    source, tree = read_and_parse(path)  # fails closed (#5139); never swallows a parse failure
     violations: dict[int, str] = {}
     for func in _iter_functions(tree):
         local_composed = _collect_locally_composed_names(func)
