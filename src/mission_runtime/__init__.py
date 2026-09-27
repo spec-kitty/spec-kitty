@@ -69,6 +69,7 @@ from mission_runtime.resolution import (
     resolve_placement_only,
     resolve_topology,
 )
+from mission_runtime.issue_matrix_partition import resolve_issue_matrix_partition
 from mission_runtime.mission_resolver_port import MissionResolver
 from mission_runtime.read_dir_degrade import (
     ReadDegradeStrategy,
@@ -115,6 +116,9 @@ __all__ = [
     "resolve_action_context",
     "resolve_artifact_surface",
     "resolve_create_time_write_target",
+    # issue-matrix-partition-integrity (#5171/#4943): the single two-partition
+    # split every issue-matrix gate consumes.
+    "resolve_issue_matrix_partition",
     "resolve_mid8",
     "resolve_placement_only",
     "resolve_read_dir_or_degrade",

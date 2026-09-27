@@ -117,7 +117,21 @@ def _issue_matrix_evaluation(
     feature_dir: Path,
     *,
     spec_feature_dir: Path | None = None,
+    matrix_content: str | None = None,
 ) -> tuple[IssueMatrixValidationResult, set[str], list[str], list[str]]:
+    """Evaluate the issue-matrix against discovered gating references.
+
+    ``matrix_content`` (MAJOR-1, issue-matrix-partition-integrity-01M3H10A
+    WP04): an OPTIONAL coordination-ref content source (the WP02 shared
+    helper's post-consolidation arm,
+    :func:`~mission_runtime.issue_matrix_partition.resolve_issue_matrix_partition`),
+    for the case where the matrix has no on-disk worktree to read. When
+    supplied, it is validated DIRECTLY as structured content and
+    ``feature_dir`` is never touched for the matrix read (``validate_issue_matrix``'s
+    existing content-source arm, IC-01b/T008). ``None`` (the default)
+    preserves the historical dir-based read byte-for-byte, so the existing
+    ``move-task`` caller (which never passes this kwarg) is unaffected.
+    """
     from specify_cli.cli.commands.review._issue_matrix import (
         IssueMatrixVerdict,
         validate_issue_matrix,
@@ -132,7 +146,7 @@ def _issue_matrix_evaluation(
     # tasks/*.md, contracts/*.md) under the resolved primary dir, not
     # spec.md alone.
     refs = discover_issue_references(spec_feature_dir or feature_dir)
-    result = validate_issue_matrix(feature_dir / "issue-matrix.md")
+    result = validate_issue_matrix(feature_dir / "issue-matrix.md", content=matrix_content)
     # FR-012/FR-013 (move-task-approval-ergonomics-01M302R0 WP02, #3469):
     # classification decides row-REQUIREMENT -- only the WP01 classifier's
     # ``implementation_target`` references ever require an issue-matrix row.
@@ -200,6 +214,7 @@ def _issue_matrix_approval_blocker(
     *,
     target_lane: Lane | None = None,
     primary_feature_dir: Path | None = None,
+    matrix_content: str | None = None,
 ) -> str | None:
     """Return a blocking message when referenced issues still lack final verdicts.
 
@@ -233,6 +248,17 @@ def _issue_matrix_approval_blocker(
     T029/FR-004: spec.md, plan.md, research.md, analysis-report.md,
     tasks/*.md, contracts/*.md — all genuine PRIMARY-partition kinds) — to
     detect the referenced issues.
+
+    ``matrix_content`` (MAJOR-1, issue-matrix-partition-integrity-01M3H10A
+    WP04): an OPTIONAL coordination-ref content source (the WP02 shared
+    helper's post-consolidation arm, threaded through
+    :func:`issue_matrix_artifact_present` and :func:`_issue_matrix_evaluation`)
+    for the case where the coord matrix has no on-disk worktree at all —
+    ``feature_dir`` then serves only as a label for the error-prefix message,
+    never touched on disk. Defaults to ``None``, which preserves the
+    historical dir-based read byte-for-byte, so the existing ``move-task``
+    caller (:func:`~specify_cli.cli.commands.agent.tasks_move_task`, which
+    never passes this kwarg) is unaffected.
     """
     spec_feature_dir = primary_feature_dir if primary_feature_dir is not None and (primary_feature_dir / SPEC_MD_FILENAME).exists() else feature_dir
 
@@ -267,7 +293,7 @@ def _issue_matrix_approval_blocker(
     # ever ran.
     from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
 
-    if not issue_matrix_artifact_present(feature_dir):
+    if not issue_matrix_artifact_present(feature_dir, content=matrix_content):
         issue_list = ", ".join(f"#{ref.number}" for ref in gating_refs)
         return (
             f"{_issue_matrix_error_prefix(feature_dir)} is required before approval.\n"
@@ -282,6 +308,7 @@ def _issue_matrix_approval_blocker(
     result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
         feature_dir,
         spec_feature_dir=spec_feature_dir,
+        matrix_content=matrix_content,
     )
     if target_lane != Lane.DONE:
         unresolved_in_mission = []

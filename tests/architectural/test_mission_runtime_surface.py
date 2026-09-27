@@ -149,6 +149,7 @@ _PUBLIC_SURFACE = sorted(
         # creation's pre-readable-identity window. Kept on the package root so
         # mission_creation never imports the internal resolution submodule.
         "resolve_create_time_write_target",
+        "resolve_issue_matrix_partition",
         "resolve_mid8",
         "resolve_placement_only",
         "resolve_topology",

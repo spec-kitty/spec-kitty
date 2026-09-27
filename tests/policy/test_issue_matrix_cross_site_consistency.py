@@ -122,7 +122,7 @@ def test_context_only_and_pr_ref_are_non_gating_at_all_three_sites(tmp_path: Pat
     assert gating_issue_numbers(feature_dir) == set()
 
     blocker_msg = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED)
-    gate = _evaluate_issue_matrix_completeness_gate(feature_dir, is_blocking=True)
+    gate = _evaluate_issue_matrix_completeness_gate(tmp_path, "demo", is_blocking=True)
     doctor_findings = check_issue_matrix(feature_dir)
     gate4_result, gate4_findings = _run_gate4(feature_dir)
 
@@ -164,7 +164,7 @@ def test_bare_unmarked_reference_still_gates_at_all_three_sites(tmp_path: Path) 
     assert gating_issue_numbers(feature_dir) == {"#2003"}
 
     blocker_msg = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED)
-    gate = _evaluate_issue_matrix_completeness_gate(feature_dir, is_blocking=True)
+    gate = _evaluate_issue_matrix_completeness_gate(tmp_path, "demo", is_blocking=True)
     doctor_findings = check_issue_matrix(feature_dir)
     gate4_result, gate4_findings = _run_gate4(feature_dir)
 

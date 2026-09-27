@@ -384,7 +384,41 @@ def check_reviewer_self_approval(feature_dir: Path) -> list[Finding]:
     return findings
 
 
-def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = None) -> list[Finding]:
+def _resolve_check_issue_matrix_source(
+    feature_dir: Path,
+    *,
+    issue_matrix_dir: Path | None,
+    repo_root: Path | None,
+    mission_slug: str | None,
+) -> tuple[Path, str | None]:
+    """Resolve ``(matrix_dir, matrix_content)`` for :func:`check_issue_matrix` (IC-shared, T008).
+
+    When ``repo_root``/``mission_slug`` are supplied, adopts the shared
+    two-partition split helper (:func:`~mission_runtime.issue_matrix_partition.
+    resolve_issue_matrix_partition`) so this reference consumer also reads
+    post-consolidation content (a coord surface that is unmaterialized or has
+    been consolidated away) instead of falling back to the PRIMARY residue.
+    Otherwise preserves the legacy ``issue_matrix_dir or feature_dir``
+    dir-based behaviour byte-for-byte (flat-topology / legacy-caller parity).
+    """
+    if repo_root is not None and mission_slug is not None:
+        from mission_runtime import resolve_issue_matrix_partition
+
+        _primary_discovery_dir, matrix_source = resolve_issue_matrix_partition(repo_root, mission_slug)
+        if isinstance(matrix_source, str):
+            return feature_dir, matrix_source
+        return matrix_source, None
+
+    return issue_matrix_dir or feature_dir, None
+
+
+def check_issue_matrix(
+    feature_dir: Path,
+    *,
+    issue_matrix_dir: Path | None = None,
+    repo_root: Path | None = None,
+    mission_slug: str | None = None,
+) -> list[Finding]:
     """Flag missions with GATING issue references whose issue-matrix verdicts are missing.
 
     ``issue_matrix_dir`` (coord-commit-integrity SURFACE A #1c): the COORD-partition
@@ -393,12 +427,22 @@ def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = Non
     placement seam (:func:`mission_runtime.coord_read_dir_for`). Defaults to
     ``feature_dir`` when ``None`` (coord-less missions and legacy callers).
 
+    ``repo_root``/``mission_slug`` (IC-shared, T008): when BOTH are supplied,
+    this function adopts the shared two-partition split helper
+    (:func:`~mission_runtime.issue_matrix_partition.resolve_issue_matrix_partition`)
+    to resolve the matrix source itself — superseding ``issue_matrix_dir`` —
+    so a post-consolidation coord surface (worktree gone, branch retained) is
+    read via its content source rather than silently falling back to
+    ``feature_dir`` (the #5171 residue bug). Omitting them preserves the
+    legacy ``issue_matrix_dir``-or-``feature_dir`` dir-based behaviour
+    byte-for-byte (flat-topology / legacy-caller parity).
+
     Discovery scans every mission artifact that can carry a load-bearing GH
     issue reference — ``spec.md``, ``plan.md``, ``research.md``,
     ``analysis-report.md``, ``tasks/*.md``, ``contracts/*.md`` — not
     ``spec.md`` alone (write-side-seam-matrix-tracer-01KYP3MH WP08 T029,
     FR-004). All of those are PRIMARY-partition kinds, so discovery ALWAYS
-    reads ``feature_dir`` — never ``issue_matrix_dir``.
+    reads ``feature_dir`` — never the resolved matrix source.
 
     move-task-approval-ergonomics-01M302R0 WP03 (#3469, FR-012, NFR-006):
     only references the WP01 classifier
@@ -443,8 +487,13 @@ def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = Non
     from specify_cli.tasks.issue_matrix import ISSUE_MATRIX_MD_FILENAME
     from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
 
-    matrix_dir = issue_matrix_dir or feature_dir
-    if not issue_matrix_artifact_present(matrix_dir):
+    matrix_dir, matrix_content = _resolve_check_issue_matrix_source(
+        feature_dir,
+        issue_matrix_dir=issue_matrix_dir,
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+    )
+    if not issue_matrix_artifact_present(matrix_dir, content=matrix_content):
         issue_list = ", ".join(f"#{ref.number}" for ref in gating_refs)
         return [
             Finding(
@@ -456,7 +505,7 @@ def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = Non
             )
         ]
 
-    result = validate_issue_matrix(matrix_dir / ISSUE_MATRIX_MD_FILENAME)
+    result = validate_issue_matrix(matrix_dir / ISSUE_MATRIX_MD_FILENAME, content=matrix_content)
     findings: list[Finding] = []
     referenced_issues = {f"#{ref.number}" for ref in gating_refs}
     matrix_issues = {row.issue for row in result.rows}
@@ -655,14 +704,15 @@ def run_doctor(
         result.findings.extend(check_blanked_runtime_slots(snapshot))
 
     result.findings.extend(check_reviewer_self_approval(feature_dir))
-    # coord-commit-integrity SURFACE A #1c: route the COORD-partition issue-matrix
-    # read through the shared placement seam (coord surface under
-    # coord/lanes-with-coord; primary ``feature_dir`` fallback when coord-less or
-    # the coord worktree is gone). ``spec.md`` stays on ``feature_dir`` (PRIMARY).
-    from mission_runtime import MissionArtifactKind, coord_read_dir_for
-
-    issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
-    result.findings.extend(check_issue_matrix(feature_dir, issue_matrix_dir=issue_matrix_dir))
+    # coord-commit-integrity SURFACE A #1c (superseded IC-01b/IC-shared, WP02):
+    # route the issue-matrix read through the shared two-partition split
+    # helper (:func:`~mission_runtime.issue_matrix_partition.
+    # resolve_issue_matrix_partition`) rather than the bare
+    # ``coord_read_dir_for`` dir probe — a coord surface that is
+    # unmaterialized or has been consolidated away now reads its content
+    # source instead of silently falling back to ``feature_dir`` (the #5171
+    # residue bug). ``spec.md`` stays on ``feature_dir`` (PRIMARY).
+    result.findings.extend(check_issue_matrix(feature_dir, repo_root=repo_root, mission_slug=mission_slug))
 
     # Repo-level sparse-checkout finding (FR-002). Appended last so existing
     # findings keep their position — scripts scraping doctor output rely on

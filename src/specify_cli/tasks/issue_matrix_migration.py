@@ -57,10 +57,41 @@ class IssueMatrixMigrationError(Exception):
 # ---------------------------------------------------------------------------
 
 
+_ISSUE_MATRIX_PARSE_ERROR_MESSAGE = "issue-matrix.json could not be parsed: {exc}"
+
+
 def _parse_structured_rows(
     json_path: Path,
 ) -> tuple[list[IssueMatrixRow], list[dict[str, str]]]:
     """Parse ``issue-matrix.json`` into ``(valid rows, diagnostics)``.
+
+    Dir-based fast path (unchanged, T005/T007): reads the file at
+    ``json_path`` and delegates to :func:`_parse_structured_rows_text` for
+    the shared parsing logic. See that function for the full contract.
+    """
+    from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
+
+    try:
+        text = json_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return [], [
+            {
+                "diagnostic_code": str(MissionReviewDiagnostic.ISSUE_MATRIX_SCHEMA_DRIFT),
+                "message": _ISSUE_MATRIX_PARSE_ERROR_MESSAGE.format(exc=exc),
+            }
+        ]
+    return _parse_structured_rows_text(text)
+
+
+def _parse_structured_rows_text(
+    content: str,
+) -> tuple[list[IssueMatrixRow], list[dict[str, str]]]:
+    """Parse ``issue-matrix.json`` CONTENT (already read) into ``(rows, diagnostics)``.
+
+    The content-source counterpart of :func:`_parse_structured_rows` (IC-01b,
+    T007): identical parsing/filtering rules, fed a string instead of reading
+    a directory -- the arm a coordination-ref content source (WP01's
+    :func:`~mission_runtime.resolution.read_issue_matrix_ref_content`) feeds.
 
     An entry whose ``verdict`` is not a valid :class:`IssueMatrixVerdict`
     member (e.g. a freshly-scaffolded ``"unknown"`` placeholder) is EXCLUDED
@@ -79,12 +110,12 @@ def _parse_structured_rows(
     )
 
     try:
-        data = json.loads(json_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
+        data = json.loads(content)
+    except ValueError as exc:
         return [], [
             {
                 "diagnostic_code": str(MissionReviewDiagnostic.ISSUE_MATRIX_SCHEMA_DRIFT),
-                "message": f"issue-matrix.json could not be parsed: {exc}",
+                "message": _ISSUE_MATRIX_PARSE_ERROR_MESSAGE.format(exc=exc),
             }
         ]
 
@@ -169,17 +200,23 @@ def diagnose_structured_issue_matrix(json_path: Path) -> list[dict[str, str]]:
     return diagnostics
 
 
+def diagnose_structured_issue_matrix_text(content: str) -> list[dict[str, str]]:
+    """Content-source counterpart of :func:`diagnose_structured_issue_matrix` (T008)."""
+    _rows, diagnostics = _parse_structured_rows_text(content)
+    return diagnostics
+
+
 # ---------------------------------------------------------------------------
 # T023 / M7 -- the ONE canonical dir-based reader
 # ---------------------------------------------------------------------------
 
 
-def load_issue_matrix(feature_dir: Path) -> list[IssueMatrixRow]:
-    """Canonical dir-based issue-matrix reader (M7 / T023).
+def load_issue_matrix(feature_dir: Path, *, content: str | None = None) -> list[IssueMatrixRow]:
+    """Canonical issue-matrix reader (M7 / T023; content source T007).
 
-    Resolves ``feature_dir/issue-matrix.json`` first; when absent,
-    failover-reads the legacy ``feature_dir/issue-matrix.md`` (FR-013).
-    Returns ``[]`` when neither is present.
+    Dir-based fast path (UNCHANGED): resolves ``feature_dir/issue-matrix.json``
+    first; when absent, failover-reads the legacy ``feature_dir/issue-matrix.md``
+    (FR-013). Returns ``[]`` when neither is present.
 
     ``feature_dir`` is whatever directory the CALLER has already resolved as
     the correct READ surface (the coordination worktree under coord /
@@ -190,7 +227,19 @@ def load_issue_matrix(feature_dir: Path) -> list[IssueMatrixRow]:
     that each one then hardcoded the ``.md`` FILENAME on top of that correct
     directory, so this function collapses only the ``.json``-then-``.md``
     filename fork, uniformly, in one place).
+
+    Content source (IC-01b, T007): when ``content`` is supplied (WP01's
+    coordination-ref content read, :func:`~mission_runtime.resolution.
+    read_issue_matrix_ref_content`, for the case where the artifact has no
+    on-disk worktree), it is parsed DIRECTLY as structured ``issue-matrix.json``
+    content -- ``feature_dir`` is not touched at all in this arm (no
+    ``.exists()`` probe against a directory the content source has already
+    proven has no on-disk representation).
     """
+    if content is not None:
+        rows, _diagnostics = _parse_structured_rows_text(content)
+        return rows
+
     json_path = feature_dir / ISSUE_MATRIX_JSON_FILENAME
     if json_path.exists():
         rows, _diagnostics = _parse_structured_rows(json_path)
@@ -206,15 +255,26 @@ def load_issue_matrix(feature_dir: Path) -> list[IssueMatrixRow]:
     return []
 
 
-def issue_matrix_artifact_present(feature_dir: Path) -> bool:
-    """True when an issue-matrix artifact (either format) exists at ``feature_dir``.
+def issue_matrix_artifact_present(feature_dir: Path, *, content: str | None = None) -> bool:
+    """True when an issue-matrix artifact (either format) exists (M7; content source T007).
 
     A dir-based EXISTENCE precheck -- distinct from :func:`load_issue_matrix`'s
     ROW-returning contract. A structurally malformed legacy ``.md`` (e.g. two
     tables) exists but parses to zero rows; a precheck gated on "has rows"
     would wrongly skip validating/linting it. Use this for "is there anything
     to look at" and :func:`load_issue_matrix` for "what does it say".
+
+    Content source (IC-01b, T007): when ``content`` is supplied, presence is
+    "the content source read something non-empty" -- WP01's
+    :func:`~mission_runtime.resolution.read_issue_matrix_ref_content` already
+    fails closed on an empty authored matrix (``ISSUE_MATRIX_EMPTY_CONTENT``),
+    so a non-``None`` ``content`` here is expected to be non-empty; the
+    ``.strip()`` guard is defence-in-depth, not a re-derivation of that
+    fail-closed contract.
     """
+    if content is not None:
+        return bool(content.strip())
+
     json_exists: bool = (feature_dir / ISSUE_MATRIX_JSON_FILENAME).exists()
     md_exists: bool = (feature_dir / ISSUE_MATRIX_MD_FILENAME).exists()
     return json_exists or md_exists
