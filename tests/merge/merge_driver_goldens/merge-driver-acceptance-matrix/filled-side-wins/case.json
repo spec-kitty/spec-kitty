@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "ours' unset placeholder ('pending') yields to theirs' authored 'pass' verdict",
+  "stderr": "",
+  "stdout": ""
+}

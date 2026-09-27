@@ -1,0 +1,9 @@
+{
+  "rows": {
+    "#100": {
+      "evidence_ref": "reviewer A",
+      "verdict": "pass"
+    }
+  },
+  "schema_version": 1
+}

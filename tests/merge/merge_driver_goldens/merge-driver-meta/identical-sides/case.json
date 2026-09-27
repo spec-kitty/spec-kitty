@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "identical meta.json on both sides reconciles to the same content",
+  "stderr": "",
+  "stdout": ""
+}

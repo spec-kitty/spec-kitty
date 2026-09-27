@@ -1,0 +1,9 @@
+{
+  "absent": [
+    "O"
+  ],
+  "exit_code": 0,
+  "note": "base (%O) file absent -- driver never reads it (2-way field merge)",
+  "stderr": "",
+  "stdout": ""
+}

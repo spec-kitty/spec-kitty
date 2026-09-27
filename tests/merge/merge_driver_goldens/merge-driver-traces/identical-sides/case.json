@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "byte-identical sections on both sides dedup to a single copy",
+  "stderr": "",
+  "stdout": ""
+}

@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "byte-identical ours/theirs -> trivial fast path, exit 0, no stdout notice",
+  "stderr": "",
+  "stdout": ""
+}

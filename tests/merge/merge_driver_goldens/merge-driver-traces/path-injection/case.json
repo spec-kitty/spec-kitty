@@ -1,0 +1,12 @@
+{
+  "absent": [],
+  "argv": [
+    "O",
+    "A",
+    "sub/B"
+  ],
+  "exit_code": 1,
+  "note": "B resolves under a nested 'sub/' dir -> path-injection refusal -> exit 1",
+  "stderr": "refusing merge-driver invocation: %O/%A/%B do not share a parent directory (['<TMP>/O', '<TMP>/A', '<TMP>/sub/B']) \u2014 refused as a possible path-injection attempt (#2970)\n",
+  "stdout": ""
+}

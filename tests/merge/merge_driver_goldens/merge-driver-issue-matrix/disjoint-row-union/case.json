@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "disjoint issue rows added on both sides both survive, keyed by canonicalized issue_ref, sorted",
+  "stderr": "",
+  "stdout": ""
+}

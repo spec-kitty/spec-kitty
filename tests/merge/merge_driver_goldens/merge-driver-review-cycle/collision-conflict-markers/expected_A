@@ -1,0 +1,11 @@
+<<<<<<< ours
+# Review Cycle 1 (PRIMARY)
+
+verdict: approved
+
+=======
+# Review Cycle 1 (COORD)
+
+verdict: rejected
+
+>>>>>>> theirs

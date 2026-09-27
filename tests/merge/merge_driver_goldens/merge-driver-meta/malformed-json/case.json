@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 1,
+  "note": "malformed JSON on theirs -> loader raises -> translated to exit 1",
+  "stderr": "<TMP>/B: malformed meta.json (Malformed JSON in <TMP>/B: Expecting property name enclosed in double quotes: line 1 column 3 (char 2))\n",
+  "stdout": ""
+}
