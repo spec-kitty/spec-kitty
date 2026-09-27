@@ -156,9 +156,7 @@ class TestAcceptNormalizeEncodingBackupCollision:
     guarantee on a re-run.
     """
 
-    def test_preexisting_backup_refuses_and_leaves_both_files_untouched(
-        self, feature_repo: Path, mission_slug: str
-    ) -> None:
+    def test_preexisting_backup_refuses_and_leaves_both_files_untouched(self, feature_repo: Path, mission_slug: str) -> None:
         spec_path = _spec_path(feature_repo, mission_slug)
         spec_path.write_bytes(SENTINEL.encode("cp1252"))
 
