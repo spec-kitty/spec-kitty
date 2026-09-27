@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-26T15:41:29.870592Z",
+      "decision_id": "01M3F61VWEFDY2036QP3S4K04R",
+      "final_answer": "full-local-detector-sweep",
+      "input_key": "s8997_sweep_breadth",
+      "mission_id": "01M3F61E0319MMGJFQB2G75ZF6",
+      "mission_slug": "merge-seam-test-isolation-campsite-01M3F61E",
+      "opened_by": "cli",
+      "options": [
+        "sonar-41-plus-frozen-baseline",
+        "full-local-detector-sweep",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How broad should the #5118 test-isolation sweep be: the 41 Sonar-cited sites only (freeze the rest of what the local detector finds as a shrink-only baseline), or everything the local detector finds (~430 raw hits / ~130 files, noisy)?",
+      "rationale": null,
+      "resolved_at": "2026-09-26T15:44:05.337013Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.s8997-sweep-breadth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3F61E0319MMGJFQB2G75ZF6",
+  "version": 1
+}
