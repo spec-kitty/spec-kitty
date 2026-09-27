@@ -417,3 +417,216 @@ def test_no_paradigm_carries_inline_tactic_refs() -> None:
         "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
         + "\n".join(offenders)
     )
+
+
+def _entry_title(entry: object) -> str:
+    """Return the leading title segment of a colon-delimited doctrine entry.
+
+    Failure-mode / procedure entries in this doctrine pack are authored as
+    ``"<Title>: <explanation ...>"``. Anchoring an assertion on this leading
+    segment — rather than the whole entry string — avoids a false match on
+    an incidental restatement of a needle phrase buried later in the
+    explanatory prose (pr-tests-001, mission analyze-prompt-context-load-01M3F4BV
+    pre-merge squad): a case-sensitive substring check against the full entry
+    text passed only because the entry's closing sentence happened to repeat
+    the phrase in lowercase, not because the assertion was anchored to the
+    entry's own stable identity (its title). No entry in this pack's
+    failure_modes/procedures lists is titleless — every one is authored
+    ``"<Title>: ..."`` — so the ``sep`` fallback below is defensive only.
+    """
+    title, sep, _ = str(entry).partition(":")
+    return title.strip() if sep else str(entry).strip()
+
+
+def test_size_assumption_bypass_failure_mode_documented() -> None:
+    """FR-002 (mission analyze-prompt-context-load-01M3F4BV, issue #5005): DIRECTIVE_044 /
+    the canonical-source-unification tactic must name the evidenced failure mode explicitly —
+    an agent bypassing a canonical prompt/skill/CLI surface on an *unverified size assumption*
+    instead of attempting to load/measure it first. Neither doctrine-source file names this
+    failure mode today.
+
+    GREEN: ``canonical-source-unification.tactic.yaml`` carries a failure-mode entry whose
+    own TITLE (the segment before the first ``:``) names the phrase — anchored
+    case-insensitively on the title via :func:`_entry_title` (pr-tests-001 fix, mission
+    analyze-prompt-context-load-01M3F4BV pre-merge squad): the prior version of this test
+    matched a case-sensitive substring against the WHOLE entry string, which passed only
+    because of an incidental lowercase restatement in the entry's closing sentence — a
+    behaviour-preserving copy-edit of that restatement (or a capitalization normalization
+    of the title) would have flipped the assertion's verdict without the underlying
+    doctrine content actually regressing. Anchoring on the title segment instead couples
+    the assertion to the entry's stable identity.
+    """
+    tactic_path = _BUILT_IN_TACTICS_DIR / "canonical-source-unification.tactic.yaml"
+    directive_path = _SHIPPED_DIRECTIVES_DIR / "044-canonical-sources-and-unification.directive.yaml"
+    assert tactic_path.is_file(), f"expected FR-002 target file to exist: {tactic_path}"
+    assert directive_path.is_file(), f"expected FR-002 target file to exist: {directive_path}"
+
+    tactic_data = _load_yaml(tactic_path)
+    directive_data = _load_yaml(directive_path)
+
+    failure_modes = tactic_data.get("failure_modes", []) or []
+    procedures = directive_data.get("procedures", []) or []
+
+    needle = "unverified size assumption"
+    found_in_tactic = any(needle in _entry_title(entry).lower() for entry in failure_modes)
+    found_in_directive = any(needle in _entry_title(entry).lower() for entry in procedures)
+
+    assert found_in_tactic or found_in_directive, (
+        f"Expected the failure-mode text {needle!r} in the TITLE of an entry in "
+        f"canonical-source-unification.tactic.yaml's failure_modes and/or "
+        f"044-canonical-sources-and-unification.directive.yaml's procedures "
+        f"(FR-002, analyze-prompt-context-load-01M3F4BV / issue #5005) — found in neither."
+    )
+
+
+#: The four shipped profiles that cite DIRECTIVE_044 via ``directive-references``
+#: (confirmed via ``grep -rl 'code: "044"' packs/built-in/agent_profiles/``). Operator
+#: Decision 8 (mission analyze-prompt-context-load-01M3F4BV, round-2 rework, 2026-09-27)
+#: authorizes the failure-mode clause on all four, not ``implementer-ivan`` alone.
+DIRECTIVE_044_CITING_PROFILES = (
+    "architect-alphonso",
+    "implementer-ivan",
+    "doctrine-daphne",
+    "python-pedro",
+)
+
+
+@pytest.mark.parametrize("profile_id", DIRECTIVE_044_CITING_PROFILES)
+def test_size_assumption_bypass_failure_mode_in_each_profiles_own_source_file(
+    profile_id: str,
+) -> None:
+    """WP01-C3-001 / pr-FRESH2-001 (mission analyze-prompt-context-load-01M3F4BV cycle-3
+    fix): assert directly on each profile's OWN source YAML, not on
+    ``resolve_profile``'s lineage-merged output.
+
+    The companion test immediately below (``..._reaches_rendered_profile_context``) proves the
+    failure-mode text reaches rendered agent-visible context through the *production*
+    render path — but for ``python-pedro`` specifically, that path is satisfied by
+    inheritance from its DRG ``specializes_from`` parent ``implementer-ivan``, not by
+    ``python-pedro``'s own file. ``AgentProfileRepository.resolve_profile``'s lineage
+    union-merge (``_union_merge``,
+    ``src/charter/offering/agent_profiles/repository.py:190-204``) seeds ``seen`` from
+    the accumulated ancestor merge first, so a child's own ``directive-references`` item
+    sharing a ``code`` with an item the accumulator already carries (here, ``"044"``,
+    contributed by ``implementer-ivan``) is filtered out of the merge entirely — the
+    child's own entry never reaches ``resolve_profile("python-pedro")``'s output. A
+    revert of ONLY ``python-pedro.agent.yaml``'s own DIRECTIVE_044 rationale hunk is
+    therefore invisible to the rendered-reachability test (it stays green via
+    inheritance) even though the source file itself regressed. This test closes that
+    gap: it reads each of the four DIRECTIVE_044-citing profiles' own YAML file
+    directly (not through ``resolve_profile``) and asserts the failure-mode clause is
+    present in THAT file's own ``directive-references[].rationale`` for code ``"044"``
+    — so a revert of any one profile's own hunk (including ``python-pedro``'s, which
+    the rendered-reachability test's production-path assertion cannot catch) is
+    caught here. Reproduced RED-first in an isolated scratch worktree with only
+    ``python-pedro``'s own hunk reverted (see the WP's commit history / review record
+    for the exact command and output); GREEN on the lane as shipped.
+    """
+    profile_path = PROFILES_DIR / f"{profile_id}.agent.yaml"
+    assert profile_path.is_file(), f"expected shipped profile file to exist: {profile_path}"
+
+    data = _load_yaml(profile_path)
+    directive_refs = data.get("directive-references", []) or []
+    entry_044 = next((e for e in directive_refs if str(e.get("code")) == "044"), None)
+    assert entry_044 is not None, (
+        f"expected {profile_id}.agent.yaml's own directive-references to cite "
+        "DIRECTIVE_044 (code \"044\")"
+    )
+
+    needle = "unverified size assumption"
+    rationale = str(entry_044.get("rationale", ""))
+    assert needle in rationale.lower(), (
+        f"Expected {profile_id}.agent.yaml's OWN DIRECTIVE_044 directive-references "
+        f"entry rationale to name the failure mode {needle!r} directly in its source "
+        "file — this is a raw-YAML, own-file check that catches a revert of this "
+        "profile's own hunk even when resolve_profile's lineage union-merge would "
+        "otherwise shadow it (python-pedro's case: its own entry is discarded by "
+        "_union_merge in favor of implementer-ivan's, per "
+        "src/charter/offering/agent_profiles/repository.py:190-204). "
+        f"Rationale found: {rationale!r}"
+    )
+
+
+@pytest.mark.parametrize("profile_id", DIRECTIVE_044_CITING_PROFILES)
+def test_size_assumption_bypass_failure_mode_reaches_rendered_profile_context(
+    profile_id: str,
+) -> None:
+    """FR-002 delivery gap (pr-contract-001, mission analyze-prompt-context-load-01M3F4BV
+    pre-merge squad): the failure-mode text documented in
+    ``canonical-source-unification.tactic.yaml``'s ``failure_modes`` is never read by any
+    automatic doctrine renderer — a tactic's inline body only ever renders
+    Name/Purpose/Steps (``_format_inline_tactic_body`` /
+    ``format_inline_named_body``) — and both that tactic's rendered body (~4.3K chars)
+    and DIRECTIVE_044's rendered body (~3.5K chars) already exceed the 2,400-char
+    per-artifact inline ceiling (``_PROFILE_INLINE_BODY_LIMIT_CHARS``,
+    ``token_budget.py``), so both fall back to a generic fetch-stanza pointer in every
+    automatic render path regardless of which file carries the new text.
+
+    The one surface that DOES render unconditionally, independent of that per-artifact
+    body budget, is the profile-citation header line: ``_render_directive_entry``
+    (``charter.activation.context_renderers.profile_sections``) appends a profile's own
+    ``directive-references[].rationale`` to the citation's header line BEFORE the
+    body/fetch-stanza budget check ever runs — so that rationale text always reaches the
+    rendered context for any profile citing the directive, regardless of the directive's
+    own body length.
+
+    This test exercises the REAL shipped doctrine catalog (not a synthetic fixture)
+    through ``_render_profile_sections`` — the same profile-channel renderer
+    ``build_charter_context`` / ``spec-kitty charter context`` calls for every action an
+    agent under any of the four shipped profiles performs — so it asserts on real
+    rendered output through the pre-existing entry point, not raw YAML.
+
+    **Extended 2026-09-27 (round-2 rework, Operator Decision 8, WP01 cycle-2 finding
+    WP01-C2-003 context):** parametrized over all four DIRECTIVE_044-citing profiles —
+    ``architect-alphonso``, ``implementer-ivan``, ``doctrine-daphne``, ``python-pedro``
+    — not ``implementer-ivan`` alone. RED before round 2's fix, GREEN after, for TWO of
+    the four cases: ``architect-alphonso`` and ``doctrine-daphne`` (their own files'
+    rationale genuinely lacked the clause, and ``resolve_profile`` reads each of those
+    two directly — neither has a lineage parent whose own "044" entry could shadow
+    it). ``implementer-ivan`` was already green from the round-1 rework and stays green.
+
+    **``python-pedro`` is a distinct, third case — corrected 2026-09-27, cycle-3 fix
+    (WP01-C3-001 / pr-FRESH2-001): it was ALREADY GREEN before this round's fix too,**
+    but not because its own file's rationale mentioned the failure mode at that time.
+    ``python-pedro`` ``specializes_from`` ``implementer-ivan`` in the DRG
+    (``packs/built-in/agent_profile.graph.yaml``), and
+    ``AgentProfileRepository.resolve_profile``'s lineage union-merge (``_union_merge``,
+    ``src/charter/offering/agent_profiles/repository.py:190-204``) resolves a
+    same-``code`` collision on ``directive-references`` to whichever entry the
+    accumulated ancestor merge already carries when the child is folded in — that is
+    ``implementer-ivan``'s "044" entry, never ``python-pedro``'s own. So this
+    parametrized case for ``python-pedro`` has always exercised (and only ever proves)
+    the INHERITED rationale, reached via lineage from ``implementer-ivan``, through the
+    real ``resolve_profile``/``_render_profile_sections`` production path — not
+    ``python-pedro``'s own file content. Reverting ONLY ``python-pedro``'s own
+    DIRECTIVE_044 rationale hunk leaves this specific parametrized case green
+    regardless, because the rendered output it asserts on is unaffected by that file.
+    The companion test
+    ``test_size_assumption_bypass_failure_mode_in_each_profiles_own_source_file``
+    (immediately above) closes that gap by asserting directly on each profile's own
+    source YAML, catching a revert of ``python-pedro``'s own hunk that this test
+    cannot. This still does **not** reach the mission-level orchestrating agent for
+    analyze/specify/plan/tasks/review/accept, whose step contract carries
+    ``agent_profile: null`` — that residual gap (WP01-C2-003) is out of this test's
+    scope and is recorded in spec.md's Known Residual section, not silently claimed as
+    closed here.
+    """
+    from charter.activation.context_renderers.profile_sections import (
+        _render_profile_sections,
+    )
+    from charter.offering.agent_profiles import AgentProfileRepository
+    from charter.offering.service import DoctrineService
+
+    service = DoctrineService()
+    profile = AgentProfileRepository().resolve_profile(profile_id)
+    assert profile is not None, f"expected the shipped {profile_id} profile to resolve"
+
+    rendered = _render_profile_sections(profile, service)
+
+    needle = "unverified size assumption"
+    assert needle in rendered.lower(), (
+        f"Expected the FR-002 failure-mode text to reach {profile_id}'s rendered "
+        "profile-cited-directives context (DIRECTIVE_044's citation rationale) — the "
+        "one automatic render path that survives the per-artifact inline-body budget "
+        "both the tactic and the directive already exceed. Rendered block:\n" + rendered
+    )
