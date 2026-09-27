@@ -244,6 +244,6 @@ tactics/work-package-completion-validation.tactic.yaml:
 toolguides/MERMAID_DIAGRAMMING.md:
   provenance: 5
 toolguides/POWERSHELL_SYNTAX.md:
-  provenance: 4
+  provenance: 3
 toolguides/PYTHON_REVIEW_CHECKS.md:
   repo_paths: 3
