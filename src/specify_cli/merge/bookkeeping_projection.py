@@ -13,7 +13,6 @@ One-way import: this module never imports the command shim.
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,7 +24,11 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME
-from specify_cli.merge.git_probes import GitProbeError, driver_replay_expected_bytes
+from specify_cli.merge.git_probes import (
+    GitProbeError,
+    _read_git_blob_bytes,
+    driver_replay_expected_bytes,
+)
 
 # The kind used to derive the PRIMARY (target-checkout) surface this projection
 # stages onto (coord-write-placement-closure-01KYCF83 WP03 / FR-003). The
@@ -481,24 +484,6 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     return paths
 
 
-def _git_show_blob_bytes(main_repo: Path, ref: str, repo_rel_path: str) -> bytes | None:
-    """Return the exact bytes of ``ref:repo_rel_path`` (``None`` when absent at ``ref``).
-
-    Uses ``subprocess`` directly (not ``run_command``, which decodes to text) so a
-    JSONL/YAML/Markdown bookkeeping blob is projected byte-for-byte — mirroring the
-    raw-read pattern in :func:`specify_cli.merge.git_probes.patch_id_of`.
-    """
-    result = subprocess.run(
-        ["git", "show", f"{ref}:{repo_rel_path}"],
-        cwd=str(main_repo),
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return None
-    return result.stdout
-
-
 def project_post_checkpoint_commits_to_target(
     *,
     main_repo: Path,
@@ -534,7 +519,7 @@ def project_post_checkpoint_commits_to_target(
     mission_prefix = Path(KITTY_SPECS_DIR) / safe_slug
     projected: list[str] = []
     for repo_rel in changed_paths:
-        content = _git_show_blob_bytes(main_repo, coord_ref, repo_rel)
+        content = _read_git_blob_bytes(main_repo, coord_ref, repo_rel)
         if content is None:
             continue
         rel_within = Path(repo_rel).relative_to(mission_prefix)
@@ -552,7 +537,7 @@ def project_post_checkpoint_commits_to_target(
         # copy would revert that accepted evidence. A concurrent coord commit the
         # target never touched (the #4981/#4970/#4973 case: target == checkpoint for
         # the path, usually both absent) is still projected.
-        checkpoint_content = _git_show_blob_bytes(main_repo, checkpoint_sha, repo_rel)
+        checkpoint_content = _read_git_blob_bytes(main_repo, checkpoint_sha, repo_rel)
         target_current = trusted.read_bytes() if trusted.exists() else None
         if target_current != checkpoint_content and target_current is not None:
             continue
@@ -594,12 +579,19 @@ def _projected_path_content_matches(
       driver, a missing blob, or a driver error (FR-003 / INV-FLOOR-2, never
       silently PASS).
     """
-    coord_bytes = _git_show_blob_bytes(main_repo, coord_ref, repo_rel)
+    # Explicit annotations pin the concrete `bytes | None` return of
+    # `_read_git_blob_bytes` for this narrow-file `mypy --strict` check: the
+    # `specify_cli.*` follow_imports=skip override (pyproject.toml) otherwise
+    # resolves a cross-module import's return type as `Any`, and `Any == Any`
+    # below would then trip `no-any-return` on this function's `-> bool`.
+    coord_bytes: bytes | None = _read_git_blob_bytes(main_repo, coord_ref, repo_rel)
     if coord_bytes is None:
         return False
-    target_bytes = _git_show_blob_bytes(main_repo, target_ref, repo_rel)
-    base_bytes = _git_show_blob_bytes(main_repo, checkpoint_sha, repo_rel)
-    pre_squash_target_bytes = _git_show_blob_bytes(main_repo, pre_squash_target_ref, repo_rel)
+    target_bytes: bytes | None = _read_git_blob_bytes(main_repo, target_ref, repo_rel)
+    base_bytes: bytes | None = _read_git_blob_bytes(main_repo, checkpoint_sha, repo_rel)
+    pre_squash_target_bytes: bytes | None = _read_git_blob_bytes(
+        main_repo, pre_squash_target_ref, repo_rel
+    )
     if pre_squash_target_bytes == base_bytes:
         return target_bytes == coord_bytes
     try:

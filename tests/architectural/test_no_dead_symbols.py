@@ -2241,10 +2241,16 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
         # specify_cli.merge.bookkeeping_projection::project_post_checkpoint_commits_to_target
         # -- same S-B/FR-004 projection helper; called only from within its
         # own module today (the ``__all__`` claim of cross-module export
-        # keeps it caught by this gate's rules regardless).
+        # keeps it caught by this gate's rules regardless). RE-KEYED
+        # (merge-seam-test-isolation-campsite-01M3F61E WP02 / #5119): the
+        # body changed (its two internal ``git show`` blob reads now call
+        # the collapsed single reader `git_probes._read_git_blob_bytes`
+        # instead of the deleted duplicate `_git_show_blob_bytes`), so the
+        # content-tier body_hash below was recomputed via
+        # ``resolve_symbol_key``/``key_tier``, not hand-guessed.
         SymbolKey(
             "project_post_checkpoint_commits_to_target",
-            "fd9b9d68d3086089da9b3efbe15209dddfb6a7c1810ecddefaccdc4e2ec57fcc",
+            "279b256560969d15906ad220dcfde65c55f272afcbdfbac9842c0ad54a37a514",
             source_module="specify_cli.merge.bookkeeping_projection",
         ),
         # specify_cli.merge.git_probes::lane_integrated_by_tree_or_ancestry --
