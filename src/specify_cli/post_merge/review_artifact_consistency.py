@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from mission_runtime import MissionArtifactKind
+from specify_cli.missions._read_path_resolver import resolve_partition_read_dir
 from specify_cli.review.artifacts import TERMINAL_REVIEW_LANES
 from specify_cli.status import materialize_snapshot
 from specify_cli.status import ReviewOverride
@@ -42,65 +43,18 @@ class RejectedReviewArtifactFinding:
 ReviewArtifactFinding = RejectedReviewArtifactFinding
 
 
-def _resolve_partition_read_dir(feature_dir: Path, kind: MissionArtifactKind) -> Path:
-    """Resolve the mission dir that OWNS ``kind`` for ``feature_dir``'s mission.
-
-    FR-006 / gate-execution-context C1 (#2885): the review-artifact gate needs two
-    facts that live in two different partitions — a WP's **lane state**
-    (``STATUS_STATE``, coordination-branch-owned for a coord-topology mission) and
-    its **review-cycle artifacts**. Review-cycle artifacts are NOT resolved through
-    this generic helper (see :func:`_artifact_dirs_for_wp`'s own docstring for why
-    and how) — this helper's sole remaining caller is
-    :func:`_resolve_lane_state_read_dir`. Each partition MUST resolve from its own
-    declared home; a single caller-supplied directory is correct for at most one of
-    the two. Routed through the ONE affirmative surface→filesystem seam
-    (lifecycle-gate-execution-context WP02): a PRIMARY-partition kind resolves the
-    primary mission dir for every topology, a COORD-partition kind resolves the
-    coordination husk when its worktree is materialised.
-
-    ``feature_dir.name`` is the mission slug for every caller — the primary
-    ``kitty-specs/<slug>`` and the coord husk ``…-coord/kitty-specs/<slug>`` both
-    end in ``<slug>`` — so the resolved partition is IDENTICAL no matter which
-    surface the caller passed. That is precisely why the dry-run preview (handed a
-    primary dir) and the real consolidation (handed the coord husk) now AGREE
-    (SC-002): each re-resolves both partitions from the mission identity rather than
-    trusting the dir it was handed.
-
-    When no workspace root can be derived (a bare non-git test fixture with no
-    coordination worktree), the mission directory IS its own sole partition and is
-    returned unchanged. This is the flat self-home answer, NOT the coord degradation
-    that produced #2885 — that defect was reading LANE STATE off a caller dir that
-    pointed at the PRIMARY partition (empty status log → every WP stateless → gate
-    passed a rejected review by default); resolving lane state from its own
-    ``STATUS_STATE`` home is what removes it. ``resolve_artifact_surface`` is typed
-    but widened to ``Any`` across the ``follow_imports=skip`` boundary on
-    ``specify_cli.*``; bind the ``.path`` result explicitly so the declared ``Path``
-    narrows back.
-    """
-    from mission_runtime import resolve_artifact_surface
-    from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
-
-    try:
-        repo_root = resolve_canonical_root(feature_dir)
-    except WorkspaceRootNotFound:
-        return feature_dir
-    resolved: Path = resolve_artifact_surface(repo_root, feature_dir.name, kind).path
-    if not resolved.exists() and feature_dir.exists():
-        # #154: the canonical-root walk found a repository that is not this
-        # mission's own (an ambient ancestor checkout above an ad-hoc mission
-        # dir), so the seam recomposed the partition against a foreign anchor
-        # and handed back a phantom path. Reducing a nonexistent log reads an
-        # empty snapshot -- every WP stateless, gate passes by default, the
-        # exact silent-wrong-answer shape #2885 closed. The handed directory
-        # provably holds this mission (it exists and resolution could not find
-        # its partition anywhere real), so it is its own sole partition here.
-        return feature_dir
-    return resolved
-
-
 def _resolve_lane_state_read_dir(feature_dir: Path) -> Path:
-    """Resolve the ``STATUS_STATE`` home (coord husk for a materialised coord mission)."""
-    return _resolve_partition_read_dir(feature_dir, MissionArtifactKind.STATUS_STATE)
+    """Resolve the ``STATUS_STATE`` home (coord husk for a materialised coord mission).
+
+    FR-006 / gate-execution-context C1 (#2885): a WP's lane state must be read
+    from its own declared partition, never from whichever dir the caller handed
+    in -- reading LANE STATE off a PRIMARY dir under a coord topology saw an
+    empty log and passed a rejected review by default. Resolution, including
+    the #154 phantom-partition degrade, is owned by the single handed-dir
+    authority :func:`~specify_cli.missions._read_path_resolver.resolve_partition_read_dir`
+    (#5180), which the render and verdict reads share.
+    """
+    return resolve_partition_read_dir(feature_dir, MissionArtifactKind.STATUS_STATE)
 
 
 def _snapshot_review_override(state: Mapping[str, Any]) -> ReviewOverride | None:

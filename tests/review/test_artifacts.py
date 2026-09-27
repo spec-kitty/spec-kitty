@@ -349,7 +349,7 @@ def _artifacts_feature_dir(tmp_path: Path) -> Path:
     -- which then makes ``resolve_canonical_root(feature_dir)`` treat
     ``feature_dir`` itself as a (fake) repo root, so a LATER
     ``resolve_artifact_surface``-based path reconstruction
-    (``post_merge/review_artifact_consistency.py::_resolve_partition_read_dir``)
+    (``missions/_read_path_resolver.py::resolve_partition_read_dir``)
     doubles the ``kitty-specs/<slug>`` suffix. A real ``git init`` avoids the
     ambiguity entirely -- matching this module's own ``pytest.mark.git_repo``
     marker intent.

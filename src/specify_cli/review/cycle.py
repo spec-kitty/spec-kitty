@@ -198,7 +198,7 @@ def _review_cycle_wp_dir(
     was this function's one ``kind=REVIEW_CYCLE`` caller; verified against the
     live tree, that module never calls ``_review_cycle_wp_dir`` at all -- it
     resolves its own read directory through a separate helper
-    (``_resolve_partition_read_dir``). No caller in this mission's scope
+    (``missions._read_path_resolver.resolve_partition_read_dir``). No caller in this mission's scope
     currently passes ``kind=MissionArtifactKind.REVIEW_CYCLE`` to this
     function; every real call site (the READ seam, the WRITE seam, the
     arbiter, ``tasks_materialization.py::_persist_review_feedback``,

@@ -1669,6 +1669,57 @@ def resolve_feature_dir_for_mission(
     return Path(context.feature_dir)
 
 
+def resolve_partition_read_dir(feature_dir: Path, kind: MissionArtifactKind) -> Path:
+    """Resolve the mission dir that OWNS ``kind`` for the handed ``feature_dir``.
+
+    The single handed-dir partition read authority (#5180): the post-merge
+    review-artifact gate, the implement/fix render feedback reads and the
+    move-task verdict read all resolve their ``STATUS_STATE`` home here, so the
+    guard below cannot drift between private copies again.
+
+    Routed through the one surface→filesystem seam
+    (:func:`mission_runtime.resolve_artifact_surface`): a PRIMARY-partition
+    ``kind`` resolves the primary mission dir for every topology; a
+    COORD-partition ``kind`` resolves the coordination husk when its worktree is
+    materialised, PRIMARY on a coord-less topology or an EMPTY coord, and raises
+    (``CoordinationBranchDeleted`` / ``CoordinationWorktreeUnmaterialized``)
+    when the declared coordination surface is gone or never materialised --
+    those fail-loud cells propagate unchanged. ``feature_dir.name`` is the
+    mission slug for both the primary ``kitty-specs/<slug>`` and the coord husk
+    ``…-coord/kitty-specs/<slug>``, so the answer is the same whichever surface
+    the caller holds.
+
+    Two degrades return the handed ``feature_dir`` itself:
+
+    * **No workspace root** (a bare non-git fixture): the mission dir is its
+      own sole partition -- the flat self-home answer.
+    * **Phantom partition** (#154, #5180): the canonical-root walk found a
+      repository that is not this mission's own (an ambient ancestor checkout
+      above an ad-hoc mission dir), so the seam recomposed the partition against
+      a foreign anchor and handed back a path that does not exist. Reading the
+      event log there yields nothing and every reader swallows the absence --
+      review feedback and verdicts vanish, gates pass by default. The handed
+      dir provably holds the mission (it exists and resolution found its
+      partition nowhere real), so it is its own home. When the handed dir does
+      not exist either, the resolved path is returned unguessed.
+
+    ``resolve_artifact_surface`` is typed but widened to ``Any`` across the
+    ``follow_imports=skip`` boundary on ``specify_cli.*``; the ``.path`` result
+    is bound explicitly so the declared ``Path`` narrows back. The import is
+    lazy because ``mission_runtime.resolution`` imports this module.
+    """
+    from mission_runtime import resolve_artifact_surface
+
+    try:
+        repo_root = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return feature_dir
+    resolved: Path = resolve_artifact_surface(repo_root, feature_dir.name, kind).path
+    if not resolved.exists() and feature_dir.exists():
+        return feature_dir
+    return resolved
+
+
 # ``coord_feature_dir``, ``probe_coord_state`` and ``CoordState`` are the WP01
 # shared compose/probe helpers (paula C1/C2). They are exported because the
 # coord-empty/coord-deleted convergence wired cross-module importers for them
@@ -1711,6 +1762,7 @@ __all__ = [
     "resolve_planning_read_dir",
     "resolve_feature_dir_for_mission",
     "resolve_handle_to_read_path",
+    "resolve_partition_read_dir",
     "resolve_subtasks_gate_dir",
     "resolve_surface_dir_or_typed_error",
 ]
