@@ -46,6 +46,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from kernel.clock import parse_iso, timedelta
 from specify_cli.cli.commands.agent import tasks, tasks_move_task, tasks_verdict_persistence
 from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskState,
@@ -1428,6 +1429,12 @@ class TestReimplementEdgeRequiresRationale:
         assert events_after_accept[-1].to_lane == Lane.IN_PROGRESS
 
 
+def _seconds_after_latest_event(feature_dir: Path, *offsets: int) -> list[str]:
+    """ISO-8601 timestamps ``offsets`` seconds after the latest status event."""
+    latest = parse_iso(read_events(feature_dir)[-1].at.replace("Z", "+00:00"))
+    return [(latest + timedelta(seconds=offset)).isoformat() for offset in offsets]
+
+
 @pytest.mark.regression
 class TestFr008ReviewCycleCounterOnReimplementEdge:
     """FR-008 (conditional, #3451): the review-cycle counter must increment
@@ -1460,6 +1467,11 @@ class TestFr008ReviewCycleCounterOnReimplementEdge:
 
         # Drive the WP back through for_review -> in_review for a genuine
         # second review round (mirrors the real implement/review lifecycle).
+        # Stamp the hand-appended events AFTER the first rejection, which the
+        # CLI stamped with the wall clock: a fixed literal timestamp sorts
+        # before it once the clock passes the literal, and the lane reducer
+        # then sees in_progress -> in_progress.
+        second_round_at = _seconds_after_latest_event(feature_dir, 1, 2)
         append_event(
             feature_dir,
             StatusEvent(
@@ -1468,7 +1480,7 @@ class TestFr008ReviewCycleCounterOnReimplementEdge:
                 wp_id="WP01",
                 from_lane=Lane.IN_PROGRESS,
                 to_lane=Lane.FOR_REVIEW,
-                at="2026-09-27T13:00:00Z",
+                at=second_round_at[0],
                 actor="claude",
                 force=False,
                 execution_mode="worktree",
@@ -1482,7 +1494,7 @@ class TestFr008ReviewCycleCounterOnReimplementEdge:
                 wp_id="WP01",
                 from_lane=Lane.FOR_REVIEW,
                 to_lane=Lane.IN_REVIEW,
-                at="2026-09-27T13:00:01Z",
+                at=second_round_at[1],
                 actor="claude",
                 force=False,
                 execution_mode="worktree",
