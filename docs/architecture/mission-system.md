@@ -2,7 +2,7 @@
 title: The Mission System Explained
 description: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-27'
 related:
 - docs/architecture/divio-documentation.md
 - docs/architecture/kanban-workflow.md
@@ -277,7 +277,7 @@ discover --> audit --> design --> generate --> validate --> publish
 **Special features:**
 - Gap analysis identifies missing documentation by classifying existing docs against the Divio grid
 - Supports auto-generation via JSDoc, Sphinx, or rustdoc for API reference docs
-- Three iteration modes: initial (from scratch), gap-filling (audit and fill), feature-specific (single component)
+- Three iteration modes: initial (from scratch), gap-filling (audit and fill), mission-specific (single component; `feature_specific` accepted as a legacy input alias)
 
 **Guards:** No guards on step transitions. Validation checks run during acceptance: all Divio types valid, no conflicting generators, templates populated (no `[TODO]` markers), gap analysis complete.
 

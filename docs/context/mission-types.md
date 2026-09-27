@@ -2,7 +2,7 @@
 title: Mission Types
 description: 'The four Mission types Spec Kitty ships today, their purpose, phases, and how to choose one.'
 doc_status: active
-updated: '2026-09-16'
+updated: '2026-09-27'
 type: explanation
 related:
 - docs/context/ops-vs-missions.md
@@ -92,8 +92,9 @@ freeform answer.
 following Write the Docs and Divio principles." Drives documentation as code,
 using the Divio four-type system (tutorial, how-to, reference, explanation)
 and supporting three iteration modes: `initial` (from scratch), `gap_filling`
-(audit existing docs and fill gaps), and `feature_specific` (document one
-component). This mission ran the mission that produced this very page.
+(audit existing docs and fill gaps), and `mission_specific` (document one
+component; `feature_specific` is accepted as a legacy input alias). This
+mission ran the mission that produced this very page.
 
 **Phases** (declared under `workflow.phases`; the runtime step DAG follows the
 same arc and adds a final acceptance step):
