@@ -35,6 +35,11 @@ _SRC_ROOT = _REPO_ROOT / "src"
 _DEFAULT_ARGV_NAMES: tuple[str, str, str] = ("O", "A", "B")
 _TMP_PLACEHOLDER = "<TMP>"
 _SUBPROCESS_TIMEOUT_SECONDS = 30
+# The first call against a fresh HOME pays the cold-install bootstrap, which
+# takes ~30s on a loaded xdist worker -- right at the per-case budget. Warming
+# a shared HOME gets its own, generous budget so the per-case timeout only ever
+# measures the driver itself.
+COLD_HOME_TIMEOUT_SECONDS = 300
 
 
 @dataclass(frozen=True)
@@ -156,7 +161,7 @@ def _normalize(text: str, tmp_dir: Path) -> str:
     return normalized
 
 
-def capture_case(case_dir: Path, *, home_dir: Path | None = None) -> CaseResult:
+def capture_case(case_dir: Path, *, home_dir: Path | None = None, timeout: float = _SUBPROCESS_TIMEOUT_SECONDS) -> CaseResult:
     """Replay one case dir's inputs through the real subprocess entrypoint.
 
     Returns the :class:`CaseResult` (bytes + exit code + normalized
@@ -193,7 +198,7 @@ def capture_case(case_dir: Path, *, home_dir: Path | None = None) -> CaseResult:
             capture_output=True,
             text=False,
             check=False,
-            timeout=_SUBPROCESS_TIMEOUT_SECONDS,
+            timeout=timeout,
         )
 
         ours_path = tmp_dir / argv_names[1]
@@ -237,8 +242,9 @@ def main() -> None:
     # unaffected by anything an earlier run may have left behind.
     with tempfile.TemporaryDirectory(prefix="merge-driver-golden-home-") as raw_home:
         shared_home = Path(raw_home)
-        for case in cases:
-            result = capture_case(case.case_dir, home_dir=shared_home)
+        for index, case in enumerate(cases):
+            timeout = COLD_HOME_TIMEOUT_SECONDS if index == 0 else _SUBPROCESS_TIMEOUT_SECONDS
+            result = capture_case(case.case_dir, home_dir=shared_home, timeout=timeout)
             _write_result(result)
             print(f"captured {case.full_id}: exit={result.exit_code}")
 

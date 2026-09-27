@@ -32,7 +32,7 @@ from specify_cli.merge.git_probes import (
     _DRIVER_COMMAND_PATTERN,
     _resolve_registered_driver_callable,
 )
-from tests.merge.merge_driver_goldens._capture import GoldenCase, capture_case, iter_cases
+from tests.merge.merge_driver_goldens._capture import COLD_HOME_TIMEOUT_SECONDS, GoldenCase, capture_case, iter_cases
 
 _GOLDENS_ROOT = Path(__file__).resolve().parent / "merge_driver_goldens"
 
@@ -75,7 +75,11 @@ def _shared_capture_home(tmp_path_factory: pytest.TempPathFactory) -> Path:
     :func:`_capture.capture_case`'s explicit subprocess ``env`` mapping, never
     written to this test process's own environment.
     """
-    return tmp_path_factory.mktemp("merge-driver-golden-home")
+    home = tmp_path_factory.mktemp("merge-driver-golden-home")
+    # Pay the cold-install bootstrap here, under its own budget, so no case's
+    # per-call timeout absorbs it (it timed out on a loaded worker otherwise).
+    capture_case(_CASES[0].case_dir, home_dir=home, timeout=COLD_HOME_TIMEOUT_SECONDS)
+    return home
 
 
 def _config_key_for_command(command: str) -> str:
