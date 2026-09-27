@@ -276,8 +276,21 @@ def _evaluate_issue_matrix(
     review_mode: MissionReviewMode,
     console: object,
     findings: list[dict[str, str]],
+    matrix_dir: Path | None = None,
+    matrix_content: str | None = None,
 ) -> bool | Literal["not_applicable"]:
     """Gate 4: issue-matrix enforcement.
+
+    ``feature_dir`` is the PRIMARY-partition discovery dir: it is used ONLY
+    for :func:`gating_issue_numbers` (reference discovery). ``matrix_dir`` /
+    ``matrix_content`` are the mission's coord-matrix source (IC-02, #5171),
+    resolved by the caller via :func:`~mission_runtime.issue_matrix_partition.
+    resolve_issue_matrix_partition` -- a materialized coord dir, the coord-less
+    parity dir, or post-consolidation ref content. ``matrix_dir`` defaults to
+    ``feature_dir`` (byte-for-byte legacy/flat-topology behaviour) when the
+    caller supplies neither, matching the WP02 dir-based readers' own
+    ``content=None`` fast path. Never feed one dir into both roles -- that
+    conflation is the exact #5171 residue this split closes.
 
     FR-005 / #3035: ``not_applicable`` is a first-class Gate-4 verdict, not a
     fabricated matrix or a hard fail. A mission that declares ZERO GATING
@@ -312,7 +325,9 @@ def _evaluate_issue_matrix(
         )
         return "not_applicable"
 
-    if not issue_matrix_artifact_present(feature_dir):
+    resolved_matrix_dir = matrix_dir if matrix_dir is not None else feature_dir
+
+    if not issue_matrix_artifact_present(resolved_matrix_dir, content=matrix_content):
         console.print(  # type: ignore[attr-defined]
             f"  [red]✗[/red]  Issue matrix: "
             f"{MissionReviewDiagnostic.ISSUE_MATRIX_MISSING}: "
@@ -328,8 +343,8 @@ def _evaluate_issue_matrix(
         )
         return False
 
-    issue_matrix_path = feature_dir / "issue-matrix.md"
-    matrix_result = validate_issue_matrix(issue_matrix_path)
+    issue_matrix_path = resolved_matrix_dir / "issue-matrix.md"
+    matrix_result = validate_issue_matrix(issue_matrix_path, content=matrix_content)
     if not matrix_result.passed:
         for diag in matrix_result.diagnostics:
             console.print(  # type: ignore[attr-defined]
@@ -420,16 +435,30 @@ def review_mission(
         gates_recorded=gates_recorded,
     )
     _run_ble001_gate(repo_root, console, findings, gates_recorded)
-    # coord-commit-integrity SURFACE A #1c: ``issue-matrix.md`` is COORD-partition.
-    # Route the read through the shared placement seam so a coord/lanes-with-coord
-    # mission reads the coordination surface; ``coord_read_dir_for`` fails soft to
-    # ``None`` (→ primary ``feature_dir``) for coord-less missions AND for a
-    # post-merge mission whose coordination worktree has been consolidated away.
-    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+    # IC-02 / #5171: discovery and matrix-verdict reads are two DIFFERENT
+    # partitions and must never share one directory (the residue bug this WP
+    # closes). Reference discovery (``gating_issue_numbers``) always reads the
+    # PRIMARY partition; the matrix verdict reads the mission's coord-matrix
+    # source, resolved via the WP02 shared helper
+    # (:func:`~mission_runtime.issue_matrix_partition.resolve_issue_matrix_partition`)
+    # -- a materialized coord dir, the coord-less parity dir, or (post-
+    # consolidation, worktree gone) ref content. Only resolved in post-merge
+    # mode: lightweight review returns ``not_applicable`` before either read
+    # matters, so it never pays for -- or can be broken by -- a coord probe.
+    matrix_dir: Path | None = None
+    matrix_content: str | None = None
+    if review_mode is MissionReviewMode.POST_MERGE:
+        from mission_runtime import resolve_issue_matrix_partition
 
-    issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
+        _primary_discovery_dir, matrix_source = resolve_issue_matrix_partition(repo_root, mission_slug)
+        if isinstance(matrix_source, str):
+            matrix_content = matrix_source
+        else:
+            matrix_dir = matrix_source
     issue_matrix_present = _evaluate_issue_matrix(
-        feature_dir=issue_matrix_dir,
+        feature_dir=feature_dir,
+        matrix_dir=matrix_dir,
+        matrix_content=matrix_content,
         review_mode=review_mode,
         console=console,
         findings=findings,

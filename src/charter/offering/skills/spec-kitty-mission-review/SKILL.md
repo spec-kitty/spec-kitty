@@ -590,17 +590,29 @@ Record the result under `## Gate Results — Cross-Repo E2E`.
 ### Gate 4: Issue matrix (FR-037)
 
 ```bash
-cat kitty-specs/<slug>/issue-matrix.json
+spec-kitty review --mission <slug> --mode post-merge
 ```
 
-`issue-matrix.json` is the single canonical artifact (C-008); a legacy
-`issue-matrix.md` mission is still read via failover, never re-authored as
-markdown. This file is scaffolded automatically during `spec-kitty tasks`
-(finalize-tasks) for any mission whose `spec.md` references GitHub issues —
-it should already exist by review time. If it is missing, regenerate it with
-`spec-kitty agent mission finalize-tasks --mission <slug>` rather than
-hand-authoring one; schema and a worked example live at
-`src/specify_cli/cli/commands/review/ERROR_CODES.md`.
+Do NOT `cat kitty-specs/<slug>/issue-matrix.json` directly. On a
+coord-topology mission (`coord` / `lanes_with_coord`), the primary checkout's
+`issue-matrix.json` can carry stale residue from before the mission's
+coordination surface recorded the real verdict — reading it raw silently
+reviews the wrong partition (spec-kitty#5171). `spec-kitty review` resolves
+the matrix through the mission's coord-matrix source
+(`mission_runtime.issue_matrix_partition.resolve_issue_matrix_partition`):
+the materialized coordination worktree when one exists, its retained-branch
+ref content when the worktree has been consolidated away, or the primary
+checkout unchanged on a coord-less (`single_branch` / `lanes`) topology.
+Read the rendered `## Gate Results — Issue Matrix` section of
+`kitty-specs/<slug>/mission-review-report.md` this command writes for the
+per-row verdicts. `issue-matrix.json` is the single canonical artifact
+(C-008); a legacy `issue-matrix.md` mission is still read via failover,
+never re-authored as markdown. This file is scaffolded automatically during
+`spec-kitty tasks` (finalize-tasks) for any mission whose `spec.md`
+references GitHub issues — it should already exist by review time. If it is
+missing, regenerate it with `spec-kitty agent mission finalize-tasks
+--mission <slug>` rather than hand-authoring one; schema and a worked
+example live at `src/specify_cli/cli/commands/review/ERROR_CODES.md`.
 
 For every row in the matrix table, assert that the `verdict` cell is one of:
 
