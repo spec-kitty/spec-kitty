@@ -28,7 +28,6 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Iterator
 from contextvars import ContextVar
-import errno
 import os
 import stat
 from dataclasses import dataclass, field, replace
@@ -59,6 +58,7 @@ from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENT
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from kernel.clock import now_utc_iso
 from kernel.no_follow import chmod_fd
+from kernel.resolution import resolve_rejecting_loops
 from specify_cli.shims.registry import CONSUMER_SKILLS
 from kernel import paths as kernel_paths
 from kernel.paths import to_posix
@@ -343,10 +343,14 @@ def _atomic_write(path: Path, content: bytes, *, mode: int = 0o644) -> None:
 
 
 def _ensure_project_confined(repo_root: Path, rel_path: str, abs_path: Path) -> None:
-    """Reject managed paths that escape the project root through symlinks."""
+    """Reject managed paths that escape the project root through symlinks.
+
+    Refuses a symlink loop anywhere in ``abs_path``'s components on every
+    interpreter, not only 3.11/3.12 (``kernel.resolution.resolve_rejecting_loops``).
+    """
     repo_resolved = repo_root.resolve()
     try:
-        resolved_target = abs_path.resolve(strict=False)
+        resolved_target = resolve_rejecting_loops(abs_path)
     except OSError as exc:
         raise InstallerError("unsafe_path", path=rel_path, detail=str(exc)) from exc
 
@@ -791,15 +795,13 @@ class _CommandBatch:
 
 
 def _resolve_observed_input(path: Path) -> Path:
-    try:
-        return path.resolve()
-    except RuntimeError as exc:
-        # Python 3.11 pathlib translates ELOOP into RuntimeError. Translate only
-        # that observation failure; programmer exceptions still escape.
-        cause = exc.__cause__ or exc.__context__
-        if isinstance(cause, OSError) and cause.errno == errno.ELOOP:
-            raise cause from exc
-        raise
+    """Resolve ``path``, raising ``OSError(errno.ELOOP)`` on a symlink loop.
+
+    Interpreter-invariant on 3.11-3.14 via
+    ``kernel.resolution.resolve_rejecting_loops``: a genuine programmer
+    ``RuntimeError`` (not loop-shaped) still escapes unmasked.
+    """
+    return resolve_rejecting_loops(path)
 
 
 def _prepare_command_provisioning(repo_root: Path, projected: object) -> _PreparedMissionTypeActivations | None:

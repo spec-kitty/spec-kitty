@@ -12,6 +12,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from stat import S_IMODE, S_ISDIR, S_ISREG
 
+from kernel.resolution import resolve_rejecting_loops
+
 
 #: Errnos that mean **absent** (or "not the kind of thing that could ever be a
 #: directory/file", e.g. a dangling symlink or a non-directory in the middle of
@@ -23,6 +25,12 @@ from stat import S_IMODE, S_ISDIR, S_ISREG
 #: classified — only make ``EACCES`` observable instead of silently swallowed.
 _ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
 _WRITE_BITS = 0o222
+
+#: Shared prefix for the containment seams' symlink-loop refusal (#3189,
+#: FR-002/FR-003): ``resolve_rejecting_loops`` reinstates the interpreter-
+#: invariant loop probe, and both seams below translate its ``OSError`` into
+#: this documented ``ValueError``.
+_SYMLINK_LOOP_REFUSAL_PREFIX = "Refusing to access unresolvable path (symlink loop)"
 
 #: The write bit for owner/group/other. A managed tree (e.g. skills set
 #: read-only by ``skills/installer._make_tree_read_only``) strips these, which
@@ -102,9 +110,19 @@ def ensure_directory(path: Path) -> Path:
 
 
 def ensure_within_directory(path: Path, root: Path) -> Path:
-    """Resolve ``path`` and assert it remains under ``root``."""
+    """Resolve ``path`` and assert it remains under ``root``.
+
+    Raises:
+        ValueError: When ``path`` resolves outside ``root``, or when
+            resolving ``path`` encounters a symlink loop anywhere in its
+            components (interpreter-invariant on 3.11-3.14; see
+            ``kernel.resolution.resolve_rejecting_loops``).
+    """
     resolved_root = root.resolve()
-    resolved_path = path.resolve()
+    try:
+        resolved_path = resolve_rejecting_loops(path)
+    except OSError as exc:
+        raise ValueError(f"{_SYMLINK_LOOP_REFUSAL_PREFIX}: {path}") from exc
     try:
         resolved_path.relative_to(resolved_root)
     except ValueError as exc:
@@ -112,9 +130,7 @@ def ensure_within_directory(path: Path, root: Path) -> Path:
     return resolved_path
 
 
-def ensure_within_any(
-    path: Path, *, roots: Sequence[Path], files: Sequence[Path] = ()
-) -> Path:
+def ensure_within_any(path: Path, *, roots: Sequence[Path], files: Sequence[Path] = ()) -> Path:
     """Return ``path.resolve(strict=False)`` if it is under any of ``roots`` OR equals
     an allowed exact file in ``files``; else raise ``ValueError``.
 
@@ -135,9 +151,14 @@ def ensure_within_any(
 
     Raises:
         ValueError: When ``path`` is neither under any root nor equal to any
-            allowed file.
+            allowed file, or when resolving ``path`` encounters a symlink
+            loop anywhere in its components (interpreter-invariant on
+            3.11-3.14; see ``kernel.resolution.resolve_rejecting_loops``).
     """
-    resolved = path.resolve(strict=False)
+    try:
+        resolved = resolve_rejecting_loops(path)
+    except OSError as exc:
+        raise ValueError(f"{_SYMLINK_LOOP_REFUSAL_PREFIX}: {path}") from exc
     resolved_roots = [r.resolve(strict=False) for r in roots]
     resolved_files = [f.resolve(strict=False) for f in files]
 
@@ -147,9 +168,7 @@ def ensure_within_any(
     if any(_is_relative_to(resolved, root) for root in resolved_roots):
         return resolved
 
-    raise ValueError(
-        f"Refusing to access path outside trusted roots: {resolved}"
-    )
+    raise ValueError(f"Refusing to access path outside trusted roots: {resolved}")
 
 
 def _is_relative_to(path: Path, root: Path) -> bool:
