@@ -375,6 +375,36 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "AcceptanceMode", "c5cd8f94fa6b672c333faeaf3cdc781f33fee2bb29a8bb465fd7562ec85582c2", source_module="specify_cli.acceptance"
         ),  # specify_cli.acceptance::AcceptanceMode
+        # specify_cli.acceptance::EncodingBackupCollisionError -- a legitimate
+        # public exception on the accept encoding-backup surface: defined and
+        # raised internally by ``_write_recovered_artifact`` when
+        # ``--normalize-encoding`` finds a pre-existing backup sibling it must
+        # never silently overwrite, and part of the documented accept
+        # encoding-backup contract exercised by
+        # ``tests/regressions/test_issue_4968_accept_encoding.py`` (#4962/#4968).
+        # ``__all__``-declared but only ever caught within the same module's own
+        # ``except AcceptanceError`` handler, so it has no cross-module ``src/``
+        # caller for this gate to see.
+        SymbolKey(
+            "EncodingBackupCollisionError",
+            "b4c5ed8e7eb99df0e588c2a7df454b0fd9208f938d100784f6bf3440d713f7a1",
+            source_module="specify_cli.acceptance",
+        ),  # specify_cli.acceptance::EncodingBackupCollisionError
+        # charter.encoding_recovery::EncodingRecoveryResult -- the return type
+        # of :func:`charter.encoding_recovery.recover` (the canonical
+        # encoding-recovery detector, #4962/#4968 WP01). Its sole cross-module
+        # caller (``specify_cli.acceptance._recover_normalized_text``) consumes
+        # the returned instance purely via attribute access
+        # (``.ambiguous``/``.text``/``.normalization_applied``/
+        # ``.source_encoding``/``.confidence``) -- legitimate duck-typed usage
+        # that never imports the dataclass by name, so it has no ``ImportFrom``
+        # site for this gate to see. Exercised directly by
+        # ``tests/charter/test_encoding_recovery.py``.
+        SymbolKey(
+            "EncodingRecoveryResult",
+            "85e807160de6a2d22f31c30ada6743a30b2917e24aede1180cedcf4c55559859",
+            source_module="charter.encoding_recovery",
+        ),  # charter.encoding_recovery::EncodingRecoveryResult
         # specify_cli.acceptance::WorkPackageState -- PRUNED (coord-authority-
         # trio-degod #2464/#2465/#2508): the class body relocated to
         # specify_cli.acceptance.summary_core, re-exported via

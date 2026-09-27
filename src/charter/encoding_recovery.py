@@ -17,6 +17,8 @@ from dataclasses import dataclass
 
 import charset_normalizer
 
+__all__ = ["CP1252_CODEC", "EncodingRecoveryResult", "recover"]
+
 _BOM_UTF8_SIG = b"\xef\xbb\xbf"
 _BOM_UTF16_LE = b"\xff\xfe"
 _BOM_UTF16_BE = b"\xfe\xff"
