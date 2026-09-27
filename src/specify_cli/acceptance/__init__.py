@@ -15,7 +15,6 @@ from uuid import uuid4
 from charter.encoding_recovery import recover as _recover_encoding
 from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
@@ -223,7 +222,39 @@ def _is_accept_pipeline_own_write(path: str, *, mission_slug: str) -> bool:
     return False
 
 
-def _is_own_encoding_backup_write(path: str, *, mission_slug: str) -> bool:
+def _encoding_backup_scope_prefix(
+    repo_root: Path, feature: str, *, effective_root: Path | None = None,
+) -> str | None:
+    """The posix-relative ``<primary-feature-dir>/`` prefix a backup must fall under.
+
+    Resolves the CURRENT mission's PRIMARY feature directory through the same
+    kind-aware seam :func:`_planning_read_dir` uses
+    (``mission_runtime.placement_seam``) rather than composing it from the raw
+    ``KITTY_SPECS_DIR`` constant (trio-seam-only invariant,
+    ``test_trio_imports_route_only_through_seam_wrappers`` --
+    coord-authority-trio-degod-01KX7094 WP05): the accept trio's ``__init__.py``
+    must never import that primitive directly. Behavior-preserving for the
+    common case -- for a coord-less (``SINGLE_BRANCH``/``LANES``) mission this
+    resolves the identical ``kitty-specs/<mission_slug>`` directory the retired
+    raw composition pointed to -- and it is a correctness upgrade for a
+    canonically-``<slug>-<mid8>``-renamed mission, where the raw literal
+    ``mission_slug`` string no longer matched the on-disk directory name but
+    this seam-resolved one does.
+
+    Returns ``None`` (fail-closed, matching every other predicate in this
+    module) when the resolved directory does not sit inside ``repo_root`` --
+    an unexpected shape for the PRIMARY anchor this seam returns, but never
+    silently treated as a match.
+    """
+    feature_dir = _planning_read_dir(repo_root, feature, effective_root=effective_root)
+    try:
+        relative = feature_dir.relative_to(repo_root)
+    except ValueError:
+        return None
+    return f"{to_posix(relative)}/"
+
+
+def _is_own_encoding_backup_write(path: str, *, feature_dir_prefix: str | None) -> bool:
     """True when *path* is the accept pipeline's OWN encoding-recovery backup.
 
     ``accept --normalize-encoding`` (FR-005 / #4968) writes an untracked
@@ -239,8 +270,8 @@ def _is_own_encoding_backup_write(path: str, *, mission_slug: str) -> bool:
     ``--diagnose``, which exits 0 unconditionally before the ``ok`` gate, so
     the self-block was untested.
 
-    Scoped NARROWLY to the CURRENT mission's feature dir
-    (``kitty-specs/<mission_slug>/...``) and the exact
+    Scoped NARROWLY to the CURRENT mission's feature dir via
+    *feature_dir_prefix* (:func:`_encoding_backup_scope_prefix`) and the exact
     ``_ENCODING_BACKUP_SUFFIX`` (``.bak``) suffix -- deliberately NOT a
     repo-wide ``*.bak`` rule: a tracked ``.bak`` fixture elsewhere in the repo,
     a user's own stray ``.bak`` file outside the mission tree, or another
@@ -249,11 +280,14 @@ def _is_own_encoding_backup_write(path: str, *, mission_slug: str) -> bool:
     deliberately NOT folded into the shared
     :func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn`
     authority, which has no mission-scoping parameter and would have to widen
-    to a repo-wide ``*.bak`` match to serve this call site).
+    to a repo-wide ``*.bak`` match to serve this call site). ``feature_dir_prefix
+    is None`` (the fail-closed resolution outcome) never matches -- a genuinely
+    unresolvable scope must not be silently treated as "this is our own write".
     """
+    if feature_dir_prefix is None:
+        return False
     normalized = to_posix(path)
-    prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
-    if not normalized.startswith(prefix):
+    if not normalized.startswith(feature_dir_prefix):
         return False
     return normalized.endswith(_ENCODING_BACKUP_SUFFIX)
 
@@ -323,10 +357,12 @@ def _accept_dirty_gate(
        (``<artifact><_ENCODING_BACKUP_SUFFIX>``, written by
        :func:`_write_recovered_artifact`) is excluded via
        :func:`_is_own_encoding_backup_write`, narrowly scoped to the CURRENT
-       mission's feature dir + the exact backup suffix -- so a successful
-       in-place repair does not self-block the very accept run that produced
-       it. Not folded into filter 1's classifier (the backup is not a
-       recognised :class:`~mission_runtime.MissionArtifactKind`) or into
+       mission's feature dir (resolved once here via
+       :func:`_encoding_backup_scope_prefix`, the seam-only replacement for the
+       retired raw ``KITTY_SPECS_DIR`` composition) + the exact backup suffix --
+       so a successful in-place repair does not self-block the very accept run
+       that produced it. Not folded into filter 1's classifier (the backup is
+       not a recognised :class:`~mission_runtime.MissionArtifactKind`) or into
        filter 3 below (mission-scoping, not a repo-wide ``*.bak`` rule).
     3. **Self-bookkeeping exclusion (#2251):** spec-kitty's own bookkeeping
        files (``meta.json``, encoding-provenance JSONL, and ``kitty-ops/<ULID>.jsonl``
@@ -350,11 +386,13 @@ def _accept_dirty_gate(
     """
     from specify_cli.coordination.coherence import is_self_bookkeeping_churn
 
+    encoding_backup_prefix = _encoding_backup_scope_prefix(repo_root, feature, effective_root=effective_root)
+
     git_dirty = [
         line
         for line in git_dirty_raw
         if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature)
-        and not _is_own_encoding_backup_write(_porcelain_dirty_path(line), mission_slug=feature)
+        and not _is_own_encoding_backup_write(_porcelain_dirty_path(line), feature_dir_prefix=encoding_backup_prefix)
         and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
     ]
     return _filter_coordination_residue(
