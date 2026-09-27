@@ -69,6 +69,7 @@ def test_context_resolve_strips_explicit_mission(tmp_path: Path) -> None:
     context = SimpleNamespace(
         to_dict=lambda: {
             "mission_slug": slug,
+            "feature_dir": str(tmp_path / "kitty-specs" / slug),
             "detection_method": "test",
             "target_branch": "main",
             "wp_id": None,
@@ -102,6 +103,7 @@ def test_context_resolve_strips_explicit_mission(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["success"] is True
     assert payload["mission_slug"] == slug
+    assert payload["mission_dir"] == payload["feature_dir"]
 
 
 def test_unresolvable_handle_raises_structured_error(tmp_path: Path) -> None:
