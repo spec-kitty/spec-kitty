@@ -14,6 +14,7 @@ left to each command's own tests.
 from __future__ import annotations
 
 import re
+import sys
 from collections.abc import Iterator
 
 import click
@@ -72,32 +73,53 @@ def _unresolved_prefix(root: click.Group, tokens: list[str]) -> str | None:
     return None
 
 
-def _collect_unresolved(root: click.Group) -> list[str]:
+#: Floor for the number of ``spec-kitty ...`` references the collector must
+#: check. The pack scans ~205 references today; a broken regex, an emptied
+#: pack root, or a scan that silently matches nothing must not pass this test
+#: vacuously (an empty ``violations`` list from zero references checked is not
+#: a pass).
+_MINIMUM_REFERENCES_CHECKED = 150
+
+
+def _collect_unresolved(root: click.Group) -> tuple[list[str], int]:
     violations: list[str] = []
+    checked = 0
     for path in sorted(BUILT_IN_PACK.rglob("*")):
         if path.suffix not in _SCANNED_SUFFIXES or not path.is_file():
             continue
         relative = path.relative_to(BUILT_IN_PACK).as_posix()
         for line_number, segment in _code_segments(path.read_text(encoding="utf-8")):
             for match in _COMMAND_PATTERN.finditer(segment):
+                checked += 1
                 unresolved = _unresolved_prefix(root, match.group(1).split())
                 if unresolved is None or (relative, unresolved) in _INTENTIONAL_NEGATIVE_REFERENCES:
                     continue
                 violations.append(f"{relative}:{line_number}: spec-kitty {unresolved}")
-    return violations
+    return violations, checked
 
 
 @pytest.fixture(scope="module")
 def cli_root() -> click.Group:
-    from specify_cli import _get_app
+    # Build the command tree with a pinned argv, mirroring
+    # ``tests/architectural/test_json_contract_enumeration.py`` — the cached
+    # ``specify_cli._get_app()`` must not depend on pytest's own argv, or
+    # registration can vary with how the suite happens to be invoked.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(sys, "argv", ["spec-kitty"])
+        from specify_cli import _get_app
 
-    root = get_command(_get_app())
+        root = get_command(_get_app())
     assert isinstance(root, click.Group)
     return root
 
 
 def test_builtin_doctrine_names_only_real_cli_commands(cli_root: click.Group) -> None:
-    violations = _collect_unresolved(cli_root)
+    violations, checked = _collect_unresolved(cli_root)
+    assert checked >= _MINIMUM_REFERENCES_CHECKED, (
+        f"Only checked {checked} spec-kitty command references in packs/built-in/ "
+        f"(expected at least {_MINIMUM_REFERENCES_CHECKED}); the collector regex or "
+        "pack root may be broken, which would make this guard pass vacuously."
+    )
     assert violations == [], "Shipped doctrine names CLI commands that do not exist:\n" + "\n".join(violations)
 
 
