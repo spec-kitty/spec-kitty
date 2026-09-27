@@ -7558,7 +7558,7 @@ pages:
     - {slug: "sanction-infra", text: "Sanction-infra", level: 3}
     - {slug: "wp03-agent-cli-src-specify-cli-cli-commands-agent", text: "WP03 — agent-CLI (`src/specify_cli/cli/commands/agent/**`)", level: 3}
     - {slug: "wp04-cli-commands-src-specify-cli-cli-commands-py-cli-commands-charter-widen-py", text: "WP04 — CLI-commands (`src/specify_cli/cli/commands/*.py` + `cli/commands/charter/_widen.py`)", level: 3}
-    - {slug: "wp05-merge-lanes-src-specify-cli-merge-src-specify-cli-lanes", text: "WP05 — merge+lanes (`src/specify_cli/merge/**` + `src/specify_cli/lanes/**`)", level: 3}
+    - {slug: "wp05-merge-lanes-src-specify-cli-consolidation-src-specify-cli-lanes", text: "WP05 — merge+lanes (`src/specify_cli/consolidation/**` + `src/specify_cli/lanes/**`)", level: 3}
     - {slug: "wp06-diagnostic-heavy", text: "WP06 — diagnostic-heavy", level: 3}
     - {slug: "wp07-core-misc", text: "WP07 — core/misc", level: 3}
     - {slug: "notes-for-the-migration-wps-wp03-wp08", text: "Notes for the migration WPs (WP03–WP08)", level: 2}
