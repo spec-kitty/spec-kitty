@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.fast]
 runner = CliRunner()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def _isolate_cwd_from_worktree_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#4873: the charter *write* commands (``resynthesize``) fail closed via the
     WP02 write-root guard (``resolve_charter_write_root``), probed against the
@@ -36,6 +36,11 @@ def _isolate_cwd_from_worktree_guard(tmp_path: Path, monkeypatch: pytest.MonkeyP
     ``git_topology`` probe degrade safely (not-a-repo -> not-a-linked-worktree,
     no raise). Mirrors the canonical fixture in
     ``tests/specify_cli/cli/commands/test_charter_resynthesize.py``.
+
+    Opt-in (NOT autouse): only the ``resynthesize`` contracts below hit the
+    write-root guard, so only they request it. Tests that need the REAL
+    repository root (e.g. ``test_non_json_error_preserves_bracketed_tokens``,
+    which asserts the resolver's own error text) must keep the real cwd.
     """
     monkeypatch.chdir(tmp_path)
 
@@ -62,6 +67,7 @@ def _assert_json_error(output: str) -> dict[str, object]:
 def test_charter_json_commands_emit_parseable_error_when_repo_root_missing(
     argv: list[str],
     exit_code: int,
+    _isolate_cwd_from_worktree_guard: None,
 ) -> None:
     with patch(
         "specify_cli.cli.commands.charter.find_repo_root",
@@ -74,7 +80,7 @@ def test_charter_json_commands_emit_parseable_error_when_repo_root_missing(
     assert payload["error"] == "repo root unavailable"
 
 
-def test_resynthesize_json_unresolved_topic_error_is_parseable(tmp_path: Path) -> None:
+def test_resynthesize_json_unresolved_topic_error_is_parseable(tmp_path: Path, _isolate_cwd_from_worktree_guard: None) -> None:
     evidence_result = SimpleNamespace(warnings=["corpus unavailable"], bundle=SimpleNamespace())
     unresolved = TopicSelectorUnresolvedError(
         raw="does-not-exist",
@@ -96,7 +102,7 @@ def test_resynthesize_json_unresolved_topic_error_is_parseable(tmp_path: Path) -
     assert "directive:PROJECT_001" in str(payload["error"])
 
 
-def test_resynthesize_json_keeps_evidence_warnings_inside_payload(tmp_path: Path) -> None:
+def test_resynthesize_json_keeps_evidence_warnings_inside_payload(tmp_path: Path, _isolate_cwd_from_worktree_guard: None) -> None:
     evidence_result = SimpleNamespace(warnings=["corpus unavailable"], bundle=SimpleNamespace())
 
     with (
