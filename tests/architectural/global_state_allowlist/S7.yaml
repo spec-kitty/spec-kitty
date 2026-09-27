@@ -1,0 +1,27 @@
+shard: S7
+owns:
+  - tests/integration/review/test_verdict_save_topologies.py
+  - tests/integration/sparse_checkout/test_implement_preflight_blocks.py
+  - tests/integration/sparse_checkout/test_merge_preflight_blocks.py
+  - tests/integration/sparse_checkout/test_merge_with_allow_override.py
+  - tests/integration/test_charter_synthesize_fresh.py
+  - tests/integration/test_deferral_enforcement_and_disclosure.py
+  - tests/integration/test_merge_lane_planning_data_loss.py
+  - tests/integration/test_placement_partition_golden_path.py
+  - tests/integration/test_review_durability_matrix.py
+  - tests/integration/test_specify_plan_commit_boundary.py
+  - tests/research/test_research_deliverables_unit.py
+  - tests/research/test_research_workflow_integration.py
+rows:
+  - file: tests/integration/review/test_verdict_save_topologies.py
+    qualname: "_event_mutant_worker"
+    kind: cwd
+    count: 2
+    class: subprocess-entry
+    reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."
+  - file: tests/integration/test_review_durability_matrix.py
+    qualname: "_sc004_worker"
+    kind: cwd
+    count: 1
+    class: subprocess-entry
+    reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."
