@@ -1562,11 +1562,13 @@ def test_ct7_raw_tuple_in_non_substrate_file_is_flagged() -> None:
 
 
 def test_real_kernel_gate_has_no_unexempted_line_pin() -> None:
-    """#5085 inversion of the former ``test_ct7_real_3206_import_lineno_exemption_
-    stays_green``: the REAL ``test_kernel_no_doctrine_import.py`` is scanned by
-    the actual guard and every finding it produces is covered by an interim
-    :data:`_POSITIONAL_ANCHOR_EXEMPTIONS` row (a SUBSET check: WP03 migrates the
-    gate in a parallel lane and empties the finding set).
+    """#3206 pointed regression pin: the REAL ``test_kernel_no_doctrine_import.py``
+    (whose ``(path, lineno)`` exemptions were the original CT7 target, migrated
+    to ContentDescriptors by WP03) produces no finding the pinned-empty
+    :data:`_POSITIONAL_ANCHOR_EXEMPTIONS` leaves unexpected.
+
+    The whole-universe gate above already covers this file; this test adds a
+    named failure for the #3206 site and fails if the kernel gate moves.
     """
     kernel_gate = _ARCH_ROOT / "test_kernel_no_doctrine_import.py"
     assert kernel_gate.exists(), "the #3206 import-lineno gate moved — repoint this test"

@@ -126,11 +126,12 @@ def test_internalized_runtime_matches_upstream_snapshot(
 
 
 def test_no_rich_or_typer_imports_in_internal_package() -> None:
-    """Layer-rule gate: presentation belongs in the CLI layer, not the runtime."""
-    files_inspected, offenders = _rich_typer_import_offenders(_RUNTIME_PACKAGE)
-    assert files_inspected >= _RUNTIME_PACKAGE_FILE_FLOOR, (
-        f"rich/typer ban inspected {files_inspected} files under {_RUNTIME_PACKAGE}; expected >= {_RUNTIME_PACKAGE_FILE_FLOOR}"
-    )
+    """Layer-rule gate: presentation belongs in the CLI layer, not the runtime.
+
+    The file-count floor that keeps this gate non-vacuous is asserted once, in
+    :func:`test_rich_typer_ban_inspects_live_runtime_package`.
+    """
+    _, offenders = _rich_typer_import_offenders(_RUNTIME_PACKAGE)
     assert offenders == [], "rich/typer imports must not appear inside _internal_runtime/:\n" + "\n".join(f"  {o}" for o in offenders)
 
 
