@@ -35,8 +35,13 @@ _TIE_EPSILON = 0.02
 _CP1252_FAMILY = frozenset({CP1252_CODEC, "windows-1252"})
 
 #: The five byte values Windows-1252 leaves undefined (never legitimately
-#: decodable by strict cp1252; used only by the "0x81 fixture" ambiguity
-#: class and the unsafe lossless bypass).
+#: decodable by strict cp1252). Consumed only by
+#: ``tests/charter/test_encoding_recovery.py``'s "0x81 fixture" ambiguity
+#: class (``UNDEFINED_CP1252_FIXTURE``) -- NOT by the unsafe lossless bypass
+#: (:func:`_cp1252_lossless_error_handler`), which maps ANY byte cp1252's own
+#: decoder raises on to its raw code point generically, without consulting
+#: this set. #4962 review fold C: the prior comment claimed the bypass
+#: consumed this constant too; it never did.
 _CP1252_UNDEFINED_BYTES = frozenset({0x81, 0x8D, 0x8F, 0x90, 0x9D})
 
 #: A tie-broken single-byte pick must never report a bare 1.0 (contract
@@ -192,6 +197,26 @@ def _strict_decodable(data: bytes, encoding: str) -> bool:
 
 
 def _chaos_for(candidates: tuple[tuple[str, float], ...], encoding: str) -> float:
+    """Return the chaos score ``charset_normalizer`` reported for ``encoding``.
+
+    Matches by EXACT name, with one deliberate exception: when ``encoding``
+    is the canonical cp1252 alias (:data:`CP1252_CODEC`), the lookup matches
+    ANY :data:`_CP1252_FAMILY` member present in ``candidates``. This closes
+    a real gap (#4962 review fold C): ``_select_from_tied`` always returns
+    the canonical ``"cp1252"`` label as the selected encoding even when
+    ``charset_normalizer`` itself reported the winning tie member under the
+    OTHER family alias (``"windows-1252"``) -- an exact-name-only lookup then
+    silently misses, falls back to chaos ``0.0``, and reports a near-max
+    honest confidence with no basis. Every OTHER encoding this function is
+    called with is always the verbatim string a candidate reported (the
+    ``_select_from_tied`` non-cp1252 branch returns ``only_encoding`` straight
+    off the candidates tuple), so exact matching stays correct there.
+    """
+    if encoding in _CP1252_FAMILY:
+        for candidate_encoding, confidence in candidates:
+            if candidate_encoding in _CP1252_FAMILY:
+                return 1.0 - confidence
+        return 0.0
     for candidate_encoding, confidence in candidates:
         if candidate_encoding == encoding:
             return 1.0 - confidence

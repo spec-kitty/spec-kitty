@@ -14,8 +14,10 @@ import pytest
 
 from charter.encoding_recovery import (
     _CP1252_UNDEFINED_BYTES,
+    _MAX_HONEST_CONFIDENCE,
     _TIE_EPSILON,
     EncodingRecoveryResult,
+    _honest_confidence,
     recover,
 )
 
@@ -169,4 +171,49 @@ def test_candidates_populated_only_on_single_byte_path() -> None:
 
     tie_result = recover(SENTINEL.encode("cp1252"))
     assert len(tie_result.candidates) > 0
-    assert all(isinstance(pair, tuple) and len(pair) == 2 for pair in tie_result.candidates)
+
+
+def test_chaos_lookup_matches_windows_1252_alias_when_tie_reports_that_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#4962 review fold C: the chaos lookup must be family-wide, not exact-name.
+
+    ``_select_from_tied`` always returns the canonical ``CP1252_CODEC``
+    label (``"cp1252"``) once a cp1252-family tie member strict-decodes --
+    even when ``charset_normalizer`` itself reported that winning candidate
+    under the OTHER family alias (``"windows-1252"``). Before the fold,
+    ``_chaos_for`` looked up the exact string ``"cp1252"`` in the candidates
+    tuple; when only ``"windows-1252"`` is present, that lookup silently
+    misses and falls back to chaos ``0.0`` -- reporting a confidence right at
+    the honest ceiling (:data:`_MAX_HONEST_CONFIDENCE`) with NO basis in the
+    real detection. The family-aware lookup must instead recover the REAL,
+    non-trivial chaos ``charset_normalizer`` reported for that alias.
+    """
+    data = SENTINEL.encode("cp1252")
+
+    class _FakeMatch:
+        def __init__(self, encoding: str, chaos: float) -> None:
+            self.encoding = encoding
+            self.chaos = chaos
+
+    # A deliberately non-trivial chaos: distinguishable from the buggy
+    # fallback's chaos 0.0 (which would report confidence == _MAX_HONEST_CONFIDENCE).
+    fake_chaos = 0.2
+    monkeypatch.setattr(
+        charset_normalizer,
+        "from_bytes",
+        lambda _data: [_FakeMatch("windows-1252", fake_chaos)],
+    )
+
+    result = recover(data)
+
+    assert result.ambiguous is False
+    # _select_from_tied always reports the canonical alias, regardless of
+    # which family member charset_normalizer named.
+    assert result.source_encoding == "cp1252"
+    # Non-vacuous: the buggy exact-name lookup reports chaos 0.0 here, i.e.
+    # confidence == _MAX_HONEST_CONFIDENCE (0.98) -- clearly distinct from the
+    # honest value derived from the REAL 0.2 chaos this test injected.
+    expected_confidence = _honest_confidence(fake_chaos, tie_size=1)
+    assert expected_confidence < _MAX_HONEST_CONFIDENCE - 0.05, "fixture chaos must be distinguishable from the buggy fallback"
+    assert result.confidence == pytest.approx(expected_confidence)
