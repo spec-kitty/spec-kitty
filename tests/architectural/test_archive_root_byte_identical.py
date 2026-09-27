@@ -25,9 +25,14 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import logging
 import os
+import re
 import stat
 import subprocess
+import sys
+import warnings
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -147,11 +152,25 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   derive from them, so the result is deterministic and reduce(events)==persisted.
 #   Follow-up: once in main's baseline, these entries are dead weight and should be
 #   removed to restore the byte-freeze on the corrected files.
+#
+# - kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md
+#   (2026-09-27, operator decision during the #4957 landing pass): the archived
+#   file carried UNRESOLVED git conflict markers (`<<<<<<< HEAD` … `=======` …
+#   `>>>>>>>`) at lines 758/773, surfaced by mission #4957 (this mission) —
+#   the same defect class the #4880/#4936 precedent and #4972 landings above
+#   addressed. The correction resolves the markers to the `HEAD` side (the
+#   lineage confirmed an ancestor of `main` via `git merge-base --is-ancestor
+#   df2dac046 main`); the losing `5eda48f7` side (confirmed NOT an ancestor of
+#   `main`) was deleted along with the markers.
+#   Follow-up: once this correction is in main's baseline, this entry is dead
+#   weight and should be removed to restore the byte-freeze on the corrected
+#   file (#4956).
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
     {
         "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json",
         "kitty-specs/coord-read-fail-closed-01M38VVH/status.json",
         "kitty-specs/silent-write-hardening-residuals-01M37QN4/status.json",
+        "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md",
     }
 )
 
@@ -166,12 +185,28 @@ def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
+# PR-FRESH2-002: the three git-subprocess env overrides below (disable
+# replace-refs so a candidate can't be silently substituted; disable
+# optional locks for a read-only walk; force the SaaS sync client off) were
+# duplicated verbatim at three call sites (`_git_bytes` here, plus
+# `_read_file_at_rev` and `_run_ls_files` below) -- hoisted to one constant,
+# per this repo's own >=3-repetition hoisting convention (Sonar S1192).
+# `_run_git` above intentionally keeps its own, narrower two-var env (no
+# `GIT_OPTIONAL_LOCKS`) -- a pre-existing, distinct helper this finding does
+# not touch.
+_GIT_SUBPROCESS_ENV_OVERRIDES: dict[str, str] = {
+    "GIT_NO_REPLACE_OBJECTS": "1",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "SPEC_KITTY_ENABLE_SAAS_SYNC": "0",
+}
+
+
 def _git_bytes(*args: str) -> bytes:
     result = subprocess.run(
         ["git", "-C", str(REPO_ROOT), *args],
         capture_output=True,
         check=False,
-        env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1", "GIT_OPTIONAL_LOCKS": "0", "SPEC_KITTY_ENABLE_SAAS_SYNC": "0"},
+        env={**os.environ, **_GIT_SUBPROCESS_ENV_OVERRIDES},
     )
     assert result.returncode == 0, f"Git preservation read failed {args!r}: {result.stderr!r}"
     return result.stdout
@@ -788,6 +823,770 @@ def test_archive_baseline_is_non_empty() -> None:
     assert _files_under_roots_at(_require_port_base_rev()), (
         "no tracked files found under the archive roots at the EXP port base — the byte-identity gate would pass vacuously"
     )
+
+
+# ---------------------------------------------------------------------------
+# Conflict-marker guard (M1 FR-002-009, mission #4957): a non-vacuous,
+# always-on gate against committed git conflict markers, plus a shrink-only
+# ratchet over its one legitimate exemption. See spec.md/plan.md Section B
+# for the Standing Order #5 non-vacuity rationale (concrete floor,
+# self-mutation test, shrink-only allowlist, and that allowlist's own
+# positive control -- four distinct legs, none folded into another).
+# ---------------------------------------------------------------------------
+
+logger = logging.getLogger(__name__)
+
+_CONFLICT_MARKER_PATTERN = re.compile(r"^(<<<<<<<|>>>>>>>) ")
+
+# The one legitimate exemption: `test_conflict_marker_parsing`
+# (tests/git_ops/test_git.py:452-457) commits a literal conflict-marker
+# fixture on purpose, to exercise GitVCS's own marker parsing -- not real
+# corruption.
+#
+# PR-FRESH-003 (accept-with-reason, not narrowed to that fixture's own line
+# range): this is a whole-file exemption, not a line-scoped one, so a
+# hypothetical future real corruption landing elsewhere in this same file
+# would also be invisible to the guard. This mirrors the pre-existing
+# `_APPEND_ONLY_SPINE_EXCEPTIONS` shape a few lines below (also a whole-path
+# carve-out), so it is a consistent, documented precedent rather than an
+# oversight, and the risk is bounded to one contributor-owned test file.
+# Narrowing to the fixture's own line range would require locating it
+# programmatically (e.g. an `ast` walk for the `conflict_content` literal) to
+# avoid a second, drift-prone hardcoded-line-number surface -- disproportionate
+# cost for marginal risk reduction on a file whose only content is
+# git-behavior test fixtures. Left as a known, accepted residual risk.
+_CONFLICT_MARKER_SCAN_EXEMPTIONS: frozenset[str] = frozenset({"tests/git_ops/test_git.py"})
+
+# PR-CONTRACT-001: the shrink-only ratchet's baseline is NOT a second literal
+# co-located in this same file -- that was the mission's original design, and
+# it was trivially co-editable with the live set above in one diff hunk: a
+# contributor growing the exemption set could "re-baseline" it in the same
+# PR, indistinguishable from a legitimate operator re-baseline. Instead, the
+# baseline is read from the BASE ref's own copy of this file --
+# `git show <base>:tests/architectural/test_archive_root_byte_identical.py`,
+# parsed structurally via `ast` (not a regex) for the
+# `_CONFLICT_MARKER_SCAN_EXEMPTIONS` assignment -- reusing the exact base-ref
+# resolution the byte-identical freeze test above already uses
+# (`_require_port_base_rev` / `_port_base_candidate_refs`, line ~708). A PR's
+# own working-tree diff cannot move that anchor: the anchor is fixed at
+# `merge-base(HEAD, main)`, a commit the PR's own diff is, by definition, not
+# part of -- see `test_conflict_marker_exemption_baseline_anchors_to_base_ref_not_working_tree`
+# for the same-PR-co-edit-is-now-caught proof.
+#
+# spec.md Clarification (k) is cited ONLY for the separate decision not to
+# register this exemption set in `_baselines.yaml` (a three-file-edit problem
+# under C-002's two-file blast radius) -- it says nothing about, and is not
+# the basis for, this anti-co-edit anchoring design (PR-VERIFY-001).
+#
+# `_resolve_exemption_baseline` below resolves one of THREE outcomes, not two
+# (PR-FRESH2-001 hardened the mission's original two-outcome design, which
+# treated "the base ref's own copy has no assignment" as always meaning "this
+# mission's own PR is the first landing" -- true for THIS PR, but also true,
+# indefinitely, for any stale/un-rebased branch forked before the mechanism
+# existed; a sweeper reproduced exactly that bypass against the real,
+# imported functions):
+#
+# 1. `base_rev`'s own copy already has the constant -- use it verbatim (the
+#    anti-co-edit anchor above; unchanged).
+# 2. `base_rev` predates the constant, but it has already landed on the
+#    canonical branch -- checked at each `landed_candidate_refs()` ref's OWN
+#    TIP (never a merge-base with HEAD, which is what made `base_rev` stale
+#    in the first place) -- use THAT real, landed value instead of the live
+#    set. `test_conflict_marker_exemption_baseline_checks_landed_ref_when_base_predates_constant`
+#    is the sweeper's reproduction: red before this fix, green after.
+# 3. Neither `base_rev` nor any candidate ref has ever landed the constant --
+#    genuinely nothing to shrink from yet (this mechanism's own introducing
+#    PR, or any equally-early fork). The live set becomes its own baseline.
+#    `test_conflict_marker_exemption_baseline_defaults_to_live_on_first_landing`
+#    covers this, with `landed_candidate_refs` pinned to `[]` so the test is
+#    a hermetic, deterministic proof rather than depending on this
+#    checkout's own transient upstream state.
+#
+# An UNREACHABLE base ref (git unavailable, no candidate remote resolves) is
+# a different, unaffected case and fails closed:
+# `_require_conflict_marker_exemption_baseline` reuses
+# `_require_port_base_rev`'s existing contract (raise in CI, skip locally)
+# rather than defaulting to an empty/vacuous baseline.
+#
+# Residual, deliberately accepted: outcome 2's landed-ref lookup still names
+# the constant's Python identifier as a string
+# (`_CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME`) for the `ast` walk, exactly as
+# outcome 1/3 always did. A future rename of the live identifier that forgets
+# to update that string would make the lookup find nothing at every
+# revision, reading as outcome 3 forever --
+# `test_conflict_marker_exemption_constant_name_matches_live_identifier`
+# closes that specific drift LOUDLY (asserting the string still names a
+# live module global), independent of git history.
+_CONFLICT_MARKER_GUARD_RELATIVE_PATH = "tests/architectural/test_archive_root_byte_identical.py"
+_CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME = "_CONFLICT_MARKER_SCAN_EXEMPTIONS"
+
+
+def _read_file_at_rev(root: Path, rev: str, rel_path: str) -> str | None:
+    """Return ``rel_path``'s text content at ``rev``, or ``None`` if it does
+    not exist there (a plain ``git show`` miss, not a git failure)."""
+    result = subprocess.run(
+        ["git", "-C", str(root), "show", f"{rev}:{rel_path}"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, **_GIT_SUBPROCESS_ENV_OVERRIDES},
+    )
+    return result.stdout if result.returncode == 0 else None
+
+
+def _parse_frozenset_of_str_constant(source: str, constant_name: str) -> frozenset[str] | None:
+    """Structurally parse a module-level ``frozenset[str]`` literal assignment
+    named ``constant_name`` out of ``source`` -- an ``ast`` walk, not a
+    regex, so it is robust to reformatting/comments and to the annotated
+    (``name: frozenset[str] = ...``) shape this file actually uses. Returns
+    ``None`` when no such assignment exists at module level, so the caller
+    can distinguish "this constant doesn't exist yet at this revision" from
+    a parse failure."""
+    tree = ast.parse(source)
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            targets: list[ast.expr] = list(node.targets)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets = [node.target]
+        else:
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == constant_name for target in targets):
+            continue
+        value = node.value
+        assert value is not None
+        if isinstance(value, ast.Call) and isinstance(value.func, ast.Name) and value.func.id == "frozenset":
+            literal: object = ast.literal_eval(value.args[0]) if value.args else frozenset()
+        else:
+            literal = ast.literal_eval(value)
+        return frozenset(literal)
+    return None
+
+
+def _parse_exemption_constant_at_rev(root: Path, rev: str) -> frozenset[str] | None:
+    """Read and structurally parse ``_CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME``
+    out of ``root``'s copy of this file at ``rev``. Returns ``None`` both when
+    the file does not exist at ``rev`` and when it exists without that
+    assignment -- the caller cannot yet tell "not landed here" from "landed
+    under a different name" from this return value alone; see
+    ``test_conflict_marker_exemption_constant_name_matches_live_identifier``
+    for the independent, loud guard against a silent rename."""
+    source = _read_file_at_rev(root, rev, _CONFLICT_MARKER_GUARD_RELATIVE_PATH)
+    if source is None:
+        return None
+    return _parse_frozenset_of_str_constant(source, _CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME)
+
+
+def _resolve_landed_exemption_baseline(root: Path, candidate_refs: list[str]) -> frozenset[str] | None:
+    """Search each candidate ref's OWN TIP (never a merge-base) for a landed
+    exemption baseline -- the real value the mechanism has already recorded
+    upstream, for a branch whose own merge-base predates the constant's
+    introduction (PR-FRESH2-001). Returns ``None`` only when no candidate ref
+    has ever landed the constant either -- genesis, not staleness."""
+    for ref in candidate_refs:
+        parsed = _parse_exemption_constant_at_rev(root, ref)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _resolve_exemption_baseline(
+    root: Path,
+    base_rev: str,
+    live: frozenset[str],
+    *,
+    landed_candidate_refs: Callable[[], list[str]] = _port_base_candidate_refs,
+) -> frozenset[str]:
+    """Resolve the shrink-only ratchet's baseline -- three outcomes, per the
+    module comment above ``_CONFLICT_MARKER_GUARD_RELATIVE_PATH`` (PR-FRESH2-001):
+    ``base_rev``'s own copy, else the first candidate ref that has landed the
+    constant at its own current tip, else ``live`` (genuinely never landed
+    anywhere). ``landed_candidate_refs`` defaults to the real
+    ``_port_base_candidate_refs`` (production callers never override it); test
+    fixtures inject a ref list scoped to their own throwaway repo instead."""
+    parsed = _parse_exemption_constant_at_rev(root, base_rev)
+    if parsed is not None:
+        return parsed
+    landed = _resolve_landed_exemption_baseline(root, landed_candidate_refs())
+    return live if landed is None else landed
+
+
+def _require_conflict_marker_exemption_baseline() -> frozenset[str]:
+    """Fail-closed wrapper real callers use: reuses ``_require_port_base_rev``
+    so an unreachable base fails exactly like the byte-identical freeze test
+    already does, never silently defaulting to an empty baseline."""
+    base_rev = _require_port_base_rev()
+    return _resolve_exemption_baseline(REPO_ROOT, base_rev, _CONFLICT_MARKER_SCAN_EXEMPTIONS)
+
+
+def _run_ls_files(root: Path) -> subprocess.CompletedProcess[str]:
+    """Enumerate tracked files under ``root`` via ``git ls-files -z``.
+
+    ``-z`` yields NUL-separated, *verbatim* paths -- this disables git's
+    default ``core.quotePath`` C-quoting, which would otherwise wrap a
+    non-ASCII path like ``café.txt`` as ``"caf\\303\\251.txt"`` (a literal
+    string that does not exist on disk) and silently drop that path out of
+    the content scan via a mislabeled binary/unreadable skip (PR-TESTS-001).
+    Mirrors ``tests/architectural/test_no_invalid_windows_filenames.py``'s
+    ``_tracked_paths()`` precedent for the identical defect class.
+
+    A genuinely new call site -- applies the same ``_GIT_SUBPROCESS_ENV_OVERRIDES``
+    (``GIT_NO_REPLACE_OBJECTS``, ``GIT_OPTIONAL_LOCKS``,
+    ``SPEC_KITTY_ENABLE_SAAS_SYNC``) ``_git_bytes`` and ``_read_file_at_rev``
+    apply, unconditionally, on every call (PR-FRESH2-002). Does not change
+    ``_run_git``'s own, narrower two-var env.
+    """
+    return subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, **_GIT_SUBPROCESS_ENV_OVERRIDES},
+    )
+
+
+def _enumerate_tracked_files(root: Path = REPO_ROOT) -> list[str]:
+    """Return tracked relative paths under ``root``, raising on enumeration failure.
+
+    Splits on ``"\\0"`` (NUL), matching ``-z``'s verbatim output -- never
+    ``str.splitlines()``, which would only be correct for the C-quoted,
+    newline-delimited default output this guard deliberately does not use.
+    """
+    result = _run_ls_files(root)
+    if result.returncode != 0:
+        raise RuntimeError(f"git ls-files under {root} failed (exit {result.returncode}): {result.stderr!r}")
+    return [path for path in result.stdout.split("\0") if path]
+
+
+_BINARY_SKIP_REASON = "binary (NUL byte present)"
+
+
+def _warn_skipped_file(rel_path: str, reason: str) -> None:
+    """Surface one unreadable-file (``OSError``) content-scan skip on two
+    independent channels, immediately and per-file -- this is the
+    actually-actionable skip case, unlike the expected/permanent binary case
+    (see ``_warn_binary_skip_summary``, PR-FRESH-002).
+
+    PR-CONTRACT-002: a ``logger.warning`` alone is invisible in CI's actual
+    ``pytest tests/architectural/test_archive_root_byte_identical.py -q``
+    invocation (no ``--log-cli-level``/``--log-cli-format``, and neither
+    ``pytest.ini`` nor ``pyproject.toml`` sets ``log_cli``/``log_level``), so
+    it never prints for a *passing* run. ``warnings.warn`` does not have that
+    problem: pytest's default warnings-summary footer prints for every run,
+    passing or not, with no special flag -- so a skip is never silently
+    hidden behind an unread log stream (spec.md Edge Cases).
+    """
+    message = f"conflict-marker scan: skipping tracked file not content-scanned: {rel_path} ({reason})"
+    logger.warning(message)
+    warnings.warn(message, stacklevel=2)
+
+
+def _warn_binary_skip_summary(paths: list[str]) -> None:
+    """Aggregate every binary (NUL-byte) content-scan skip from one
+    invocation into ONE warning naming the count and every skipped path
+    (PR-FRESH-002).
+
+    Before this, each of the ~30 known-binary tracked files (images, logos)
+    produced its own ``UserWarning``, printed unconditionally on every green
+    run of the always-on archive-freeze job -- permanent, unactionable
+    noise for content that never changes. The per-file ``OSError`` skip (see
+    ``_warn_skipped_file``) is untouched and stays loud, since that case is
+    the actually-actionable one. Every skipped path is still named here,
+    just inside one message instead of N -- spec.md Edge Cases still holds:
+    a skip can never silently shrink the floor or hide which files were not
+    scanned.
+    """
+    message = f"conflict-marker scan: skipping {len(paths)} tracked file(s) not content-scanned (binary, NUL byte present): {', '.join(sorted(paths))}"
+    logger.warning(message)
+    warnings.warn(message, stacklevel=2)
+
+
+def _decode_tracked_file_for_scan(root: Path, rel_path: str) -> tuple[str | None, str | None]:
+    """Read and decode one tracked file's content for the marker scan.
+
+    Returns ``(content, skip_reason)``. ``content`` is ``None`` when the file
+    is skipped -- the caller still counts it toward FR-004's scanned-file
+    floor. Two distinct skip reasons, surfaced differently by the caller
+    (PR-FRESH-002):
+
+    * unreadable (``OSError`` -- permission denied, dangling symlink, or any
+      other read failure) -- the actually-actionable case, warned loudly and
+      immediately per file;
+    * a genuine binary blob, detected by a NUL-byte heuristic on the raw
+      bytes *before* any decode attempt -- expected/permanent, aggregated by
+      the caller into one summary warning instead of N per-file ones.
+
+    A genuine text file with an isolated non-UTF-8 byte (no NUL byte) is
+    NOT skipped: it is decoded with ``errors="replace"`` rather than the
+    strict default, so its ASCII conflict-marker lines still match the
+    anchored regex even though the byte around them decodes lossily. This
+    closes PR-CONTRACT-002's false-negative gap, where a strict decode raised
+    ``UnicodeDecodeError`` for *any* encoding wrinkle -- not just "legitimate
+    binary blobs" as spec.md's Edge Cases rationale intends -- and silently
+    dropped that file's real marker out of the content scan.
+    """
+    try:
+        raw = (root / rel_path).read_bytes()
+    except OSError as error:
+        return None, f"unreadable: {error}"
+    if b"\x00" in raw:
+        return None, _BINARY_SKIP_REASON
+    return raw.decode("utf-8", errors="replace"), None
+
+
+def _scan_tracked_files_for_conflict_markers(
+    root: Path,
+    exemptions: frozenset[str],
+) -> tuple[list[tuple[str, int]], int, list[str]]:
+    """Enumerate tracked files under ``root`` and scan each non-exempted file
+    for a committed conflict-marker line.
+
+    Fails closed (NFR-002/FR-007): raises if enumeration itself raises, or if
+    it unexpectedly reports zero tracked files -- a git repository with at
+    least one commit is never legitimately empty for this gate's callers
+    (REPO_ROOT, or a fixture repo that just committed a file), so a zero
+    count signals a broken enumeration, not "nothing to scan."
+
+    Returns ``(violations, scanned_count, skipped)`` where ``violations`` is
+    a list of ``(relative_path, line_number)`` pairs, ``scanned_count`` is
+    the exact number of tracked files enumerated (FR-004's ground-truth
+    tie), and ``skipped`` is the list of relative paths that were not
+    content-scanned (still counted toward ``scanned_count``) -- returned
+    rather than only logged, so a caller can assert on it directly instead
+    of depending on log capture. Every binary skip in this call is folded
+    into one summary warning at the end (PR-FRESH-002); every unreadable
+    (``OSError``) skip warns immediately, per file.
+    """
+    tracked = _enumerate_tracked_files(root)
+    if not tracked:
+        raise RuntimeError(f"git ls-files under {root} enumerated zero tracked files; refusing to report a vacuous pass")
+    violations: list[tuple[str, int]] = []
+    skipped: list[str] = []
+    binary_skips: list[str] = []
+    for rel_path in tracked:
+        if rel_path in exemptions:
+            continue
+        content, skip_reason = _decode_tracked_file_for_scan(root, rel_path)
+        if content is None:
+            assert skip_reason is not None
+            skipped.append(rel_path)
+            if skip_reason == _BINARY_SKIP_REASON:
+                binary_skips.append(rel_path)
+            else:
+                _warn_skipped_file(rel_path, skip_reason)
+            continue
+        for line_no, line in enumerate(content.splitlines(), start=1):
+            if _CONFLICT_MARKER_PATTERN.match(line):
+                violations.append((rel_path, line_no))
+    if binary_skips:
+        _warn_binary_skip_summary(binary_skips)
+    return violations, len(tracked), skipped
+
+
+def _assert_exemption_set_is_shrink_only(candidate: frozenset[str], baseline: frozenset[str]) -> None:
+    """Assert ``candidate`` is a subset of ``baseline`` (shrink-only ratchet).
+
+    Shared by the ratchet test and its own positive control so neither
+    duplicates the comparison logic (FR-005/FR-008).
+    """
+    unexpected = candidate - baseline
+    assert not unexpected, f"Exemption allowlist grew beyond baseline; unexpected entries: {sorted(unexpected)}"
+
+
+def _git_init_fixture_repo(path: Path) -> None:
+    """Initialize a throwaway git repo for a conflict-marker guard fixture."""
+    subprocess.run(["git", "init", "-q"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True, capture_output=True)
+
+
+def _git_commit_all(path: Path, message: str) -> None:
+    subprocess.run(["git", "add", "-A"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", message], cwd=path, check=True, capture_output=True)
+
+
+def _run_git_rev_parse(path: Path, ref: str) -> str:
+    """Resolve ``ref`` to a full SHA inside a throwaway fixture repo."""
+    result = subprocess.run(["git", "-C", str(path), "rev-parse", ref], capture_output=True, text=True, check=True)
+    return result.stdout.strip()
+
+
+def test_no_conflict_markers_in_tracked_files(tmp_path: Path) -> None:
+    """Real-tree negative control (FR-003/FR-004), plus the folded spec.md User
+    Story 2 Acceptance Scenario 5: a ground-truth-tied floor over an
+    independently-counted N-file fixture subtree, including one binary file."""
+    violations, scanned_count, _skipped = _scan_tracked_files_for_conflict_markers(REPO_ROOT, _CONFLICT_MARKER_SCAN_EXEMPTIONS)
+    assert not violations, "Conflict markers found in tracked files:\n  " + "\n  ".join(f"{path}:{line_no}" for path, line_no in violations)
+    assert scanned_count > 0
+    assert scanned_count == len(_enumerate_tracked_files(REPO_ROOT))
+
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    (fixture_repo / "a.txt").write_text("alpha\n")
+    (fixture_repo / "b.txt").write_text("bravo\n")
+    (fixture_repo / "binary.bin").write_bytes(bytes([0xFF, 0xFE, 0x00, 0x01, 0x02]))
+    _git_commit_all(fixture_repo, "fixture subtree")
+
+    fixture_violations, fixture_scanned_count, fixture_skipped = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert fixture_scanned_count == 3, "binary file must be counted toward the floor, not silently dropped"
+    assert not fixture_violations
+    assert fixture_skipped == ["binary.bin"]
+
+
+def test_conflict_marker_guard_aggregates_binary_skips_into_one_warning(tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
+    """PR-FRESH-002: N binary (NUL-byte) skips from one invocation must
+    produce exactly one aggregate ``UserWarning`` naming the count and every
+    skipped path -- not N separate warnings, which was permanent,
+    unactionable noise on every green run of the always-on archive-freeze
+    job (measured: ~30 such warnings on the real tree before this fix). The
+    per-file ``OSError`` skip path is untouched and stays loud (see
+    ``test_conflict_marker_guard_logs_skipped_undecodable_files``)."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    (fixture_repo / "clean.txt").write_text("nothing suspicious here\n")
+    binary_names = ("one.bin", "two.bin", "three.bin")
+    for name in binary_names:
+        (fixture_repo / name).write_bytes(bytes([0xFF, 0x00, 0x01]))
+    _git_commit_all(fixture_repo, "fixture with three binary tracked files")
+
+    violations, scanned_count, skipped = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+
+    assert not violations
+    assert scanned_count == 4
+    assert sorted(skipped) == sorted(binary_names)
+    binary_warnings = [w for w in recwarn.list if issubclass(w.category, UserWarning) and "binary" in str(w.message)]
+    assert len(binary_warnings) == 1, f"expected exactly one aggregate warning for {len(binary_names)} binary skips; got {len(binary_warnings)}"
+    message = str(binary_warnings[0].message)
+    assert str(len(binary_names)) in message
+    for name in binary_names:
+        assert name in message
+
+
+def test_conflict_marker_guard_scans_non_ascii_tracked_filenames(tmp_path: Path) -> None:
+    """PR-TESTS-001: a non-ASCII tracked filename must not be C-quoted out of
+    the content scan. Without ``-z``, git's default ``core.quotePath`` emits
+    such a path as a literal octal-escaped string that does not exist on
+    disk; ``(root / rel_path).read_text(...)`` (or ``.read_bytes()``) then
+    raises ``FileNotFoundError`` (an ``OSError``), mislabeling a real,
+    content-scannable file as a binary/unreadable skip -- exactly the defect
+    class ``tests/architectural/test_no_invalid_windows_filenames.py``'s
+    ``_tracked_paths()`` already fixed with ``-z``. Red before the ``-z``
+    fix (the marker would be silently skipped, not caught), green after."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    target = fixture_repo / "café.txt"
+    target.write_text("clean line\n<<<<<<< HEAD\nplanted\n")
+    _git_commit_all(fixture_repo, "non-ascii tracked filename with a real marker")
+
+    violations, scanned_count, skipped = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert violations == [("café.txt", 2)], "a non-ASCII tracked filename must be content-scanned via the verbatim -z enumeration, not C-quoted and skipped"
+    assert scanned_count == 1
+    assert skipped == []
+
+
+def test_conflict_marker_guard_scans_text_file_with_stray_non_utf8_byte(tmp_path: Path) -> None:
+    """PR-CONTRACT-002: a genuine text file with one stray non-UTF-8 byte
+    elsewhere in the file must still be content-scanned -- its ASCII marker
+    line survives ``errors="replace"`` decoding of the surrounding bytes.
+    Red before this fix (a strict ``utf-8`` decode raised
+    ``UnicodeDecodeError``, silently binary-skipping the file and its real
+    marker); green after."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    target = fixture_repo / "corrupted.txt"
+    target.write_bytes(b"clean start\n\xff\n<<<<<<< HEAD\nplanted\n")
+    _git_commit_all(fixture_repo, "text file with a stray non-utf-8 byte and a real marker")
+
+    violations, scanned_count, skipped = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert violations == [("corrupted.txt", 3)], "a text file with an isolated non-UTF-8 byte must still be content-scanned, not silently binary-skipped"
+    assert scanned_count == 1
+    assert skipped == []
+
+
+def test_conflict_marker_guard_self_mutation_catches_synthetic_marker(tmp_path: Path) -> None:
+    """The marker-scan guard's own positive control (FR-006): proves the
+    real-tree pass above is a real negative, not a probe that cannot see
+    anything -- catches a planted marker, clears once it is removed."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    target = fixture_repo / "clean.txt"
+    target.write_text("nothing suspicious here\n")
+    _git_commit_all(fixture_repo, "clean baseline")
+
+    violations, _, _ = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert not violations
+
+    target.write_text("nothing suspicious here\n<<<<<<< HEAD\nplanted\n")
+    _git_commit_all(fixture_repo, "plant synthetic marker")
+    violations, _, _ = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert violations == [("clean.txt", 2)]
+
+    target.write_text("nothing suspicious here\n")
+    _git_commit_all(fixture_repo, "remove synthetic marker")
+    violations, _, _ = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert not violations
+
+
+def test_conflict_marker_guard_self_mutation_catches_synthetic_closing_marker(tmp_path: Path) -> None:
+    """PR-FRESH-001: the ``>>>>>>> `` alternation arm has its own,
+    independent self-mutation proof -- every other fixture in this file
+    plants only the opening ``<<<<<<< HEAD`` marker, so dropping the closing
+    arm from ``_CONFLICT_MARKER_PATTERN`` left every test in this file
+    passing (verified by mutation in a throwaway worktree). Mirrors
+    ``test_conflict_marker_guard_self_mutation_catches_synthetic_marker``
+    exactly, but for a bare closing marker with no accompanying opening
+    marker -- catches it, clears once removed."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    target = fixture_repo / "clean.txt"
+    target.write_text("nothing suspicious here\n")
+    _git_commit_all(fixture_repo, "clean baseline")
+
+    violations, _, _ = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert not violations
+
+    target.write_text("nothing suspicious here\n>>>>>>> some-branch\n")
+    _git_commit_all(fixture_repo, "plant synthetic closing marker with no opening marker")
+    violations, _, _ = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert violations == [("clean.txt", 2)]
+
+    target.write_text("nothing suspicious here\n")
+    _git_commit_all(fixture_repo, "remove synthetic closing marker")
+    violations, _, _ = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+    assert not violations
+
+
+def test_conflict_marker_exemption_allowlist_is_shrink_only() -> None:
+    """Shrink-only ratchet (FR-005/NFR-003): the live exemption set must
+    never grow beyond the base ref's own historical copy of this same
+    exemption set (PR-CONTRACT-001) -- an anchor a same-PR diff cannot move,
+    unlike the mission's original co-located-literal design (see
+    ``_require_conflict_marker_exemption_baseline`` and the module comment
+    above it).
+
+    Subset-only, per FR-005's own text ("the exemption set can shrink over
+    time but never silently grow") and NFR-003's cited Burn-down Policy
+    analogy ("growth ... FAILS CI, shrinkage WARNS"): an exact-equality
+    assertion here would false-red a legitimate future shrink -- e.g.
+    removing ``tests/git_ops/test_git.py`` once its fixture no longer needs
+    the exemption. See ``test_conflict_marker_exemption_allowlist_permits_a_shrink``
+    below for the shrink direction's own positive control (PR-TESTS-003)."""
+    baseline = _require_conflict_marker_exemption_baseline()
+    _assert_exemption_set_is_shrink_only(_CONFLICT_MARKER_SCAN_EXEMPTIONS, baseline)
+
+
+def test_conflict_marker_exemption_shrink_only_ratchet_has_positive_control() -> None:
+    """The shrink-only ratchet's own positive control (FR-008), distinct from
+    the marker-scan guard's positive control above: proves the comparator
+    detects growth, so the ratchet test's pass is a real negative. Exercises
+    the pure comparator directly (not the git-anchored baseline resolution,
+    which has its own dedicated tests below)."""
+    augmented = _CONFLICT_MARKER_SCAN_EXEMPTIONS | frozenset({"some/spurious/extra/path.py"})
+    with pytest.raises(AssertionError, match="some/spurious/extra/path.py"):
+        _assert_exemption_set_is_shrink_only(augmented, _CONFLICT_MARKER_SCAN_EXEMPTIONS)
+
+
+def test_conflict_marker_exemption_allowlist_permits_a_shrink() -> None:
+    """Shrink-direction positive control (PR-TESTS-003): a strict,
+    non-empty-diff subset of the baseline -- and the empty set -- must NOT
+    raise, proving the ratchet's namesake "shrink" permission is genuinely
+    exercised rather than merely untested-and-coincidentally-working
+    alongside the growth-detection test above. A mutation that tightens
+    ``_assert_exemption_set_is_shrink_only`` back to a strict-equality check
+    (the exact defect PR-CONTRACT-001 found) makes this test fail."""
+    shrunk = _CONFLICT_MARKER_SCAN_EXEMPTIONS - {"tests/git_ops/test_git.py"}
+    assert shrunk != _CONFLICT_MARKER_SCAN_EXEMPTIONS, "fixture must be a genuine strict subset, not the baseline itself"
+    _assert_exemption_set_is_shrink_only(shrunk, _CONFLICT_MARKER_SCAN_EXEMPTIONS)
+    _assert_exemption_set_is_shrink_only(frozenset(), _CONFLICT_MARKER_SCAN_EXEMPTIONS)
+
+
+def test_conflict_marker_exemption_baseline_defaults_to_live_on_first_landing(tmp_path: Path) -> None:
+    """PR-CONTRACT-001 genesis case, hardened by PR-FRESH2-001: outcome 3 of
+    ``_resolve_exemption_baseline``'s three-outcome design -- the constant has
+    NEVER landed anywhere, not merely "the base ref's own copy lacks it"
+    (that alone is now insufficient to reach this outcome; see
+    ``test_conflict_marker_exemption_baseline_checks_landed_ref_when_base_predates_constant``
+    for the case where it HAS landed elsewhere and must NOT default to live).
+    ``landed_candidate_refs`` is pinned to an empty list so this test is a
+    hermetic, deterministic proof of genesis, independent of this real
+    checkout's own transient upstream state -- it no longer relies on
+    ``_port_base_candidate_refs``'s live remote resolution against
+    ``REPO_ROOT`` the way the mission's original version of this test did."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    fixture_file = fixture_repo / _CONFLICT_MARKER_GUARD_RELATIVE_PATH
+    fixture_file.parent.mkdir(parents=True, exist_ok=True)
+    fixture_file.write_text("# no exemption constant defined at this revision\n")
+    _git_commit_all(fixture_repo, "base commit predates the exemption constant")
+    base_rev = _run_git_rev_parse(fixture_repo, "HEAD")
+
+    live = frozenset({"tests/git_ops/test_git.py"})
+    baseline = _resolve_exemption_baseline(fixture_repo, base_rev, live, landed_candidate_refs=lambda: [])
+    assert baseline == live
+
+
+def test_conflict_marker_exemption_baseline_checks_landed_ref_when_base_predates_constant(tmp_path: Path) -> None:
+    """PR-FRESH2-001: reproduces the sweeper's stale/un-rebased-branch bypass
+    against the real, imported ``_resolve_exemption_baseline``.
+
+    A "main" lineage lands the guard's exemption constant with baseline
+    ``{"a.txt"}``. A separate "contributor" commit forks from BEFORE that
+    landing -- its own copy of this file has no
+    ``_CONFLICT_MARKER_SCAN_EXEMPTIONS`` assignment at all, exactly like this
+    mission's own introducing PR looks to the base-ref check alone -- and
+    grows a LIVE set that hides a malicious entry. Before this fix,
+    ``_resolve_exemption_baseline`` could not distinguish "genuinely never
+    landed anywhere" from "predates landing, but IS landed on main," and
+    silently fell back to the (already-grown) live set, so the shrink-only
+    ratchet compared the malicious live set against itself and passed
+    vacuously -- RED reproduces exactly that with the pre-fix two-outcome
+    behaviour (parsed is ``None`` at ``base_rev`` -> return ``live``
+    unconditionally). After this fix (GREEN), the base ref's own copy still
+    has no constant, but the landed-ref lookup finds ``main``'s real, current
+    ``{"a.txt"}`` baseline and checks the malicious growth against THAT --
+    failing exactly as FR-005/NFR-003 require."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    fixture_file = fixture_repo / _CONFLICT_MARKER_GUARD_RELATIVE_PATH
+    fixture_file.parent.mkdir(parents=True, exist_ok=True)
+
+    fixture_file.write_text("# pre-guard revision: no exemption constant defined yet\n")
+    _git_commit_all(fixture_repo, "pre-guard commit (contributor's stale merge-base)")
+    pre_guard_rev = _run_git_rev_parse(fixture_repo, "HEAD")
+
+    fixture_file.write_text('_CONFLICT_MARKER_SCAN_EXEMPTIONS: frozenset[str] = frozenset({"a.txt"})\n')
+    _git_commit_all(fixture_repo, "guard lands on main: baseline is {a.txt}")
+    landed_main_rev = _run_git_rev_parse(fixture_repo, "HEAD")
+
+    grown_live = frozenset({"a.txt", "malicious/hides_a_marker.py"})
+    baseline = _resolve_exemption_baseline(
+        fixture_repo,
+        pre_guard_rev,
+        grown_live,
+        landed_candidate_refs=lambda: [landed_main_rev],
+    )
+    assert baseline == frozenset({"a.txt"}), "a stale merge-base must anchor to main's real landed baseline, not its own (possibly grown) live set"
+    with pytest.raises(AssertionError, match="malicious/hides_a_marker.py"):
+        _assert_exemption_set_is_shrink_only(grown_live, baseline)
+
+
+def test_conflict_marker_exemption_constant_name_matches_live_identifier() -> None:
+    """PR-FRESH2-001 (related, lower-probability variant): the ast-lookup
+    name ``_CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME`` must name a REAL,
+    currently-live module-level frozenset. If a future rename changes
+    ``_CONFLICT_MARKER_SCAN_EXEMPTIONS``'s Python identifier without updating
+    this string, ``_parse_exemption_constant_at_rev`` would silently find no
+    matching assignment at every revision (including the current one), and
+    ``_resolve_exemption_baseline`` would treat that drift as "never landed,
+    use live" forever. This test fails LOUDLY the moment the string and the
+    real identifier diverge, instead of that silent, indefinite fallback."""
+    module_globals = sys.modules[__name__].__dict__
+    assert _CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME in module_globals, (
+        f"the ast-lookup name {_CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME!r} no longer names a live module-level "
+        "symbol -- the constant was renamed without updating _CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME"
+    )
+    live_value = module_globals[_CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME]
+    assert isinstance(live_value, frozenset)
+    assert live_value is _CONFLICT_MARKER_SCAN_EXEMPTIONS
+
+
+def test_conflict_marker_exemption_baseline_anchors_to_base_ref_not_working_tree(tmp_path: Path) -> None:
+    """PR-CONTRACT-001: proves a same-PR co-edit is now caught. The base
+    commit's copy of this file records a small exemption set; a later
+    commit (simulating this PR's own diff) grows it in the SAME file at the
+    SAME path. The resolved baseline still reflects the base commit's set,
+    not the file's current committed content -- because it is read via
+    ``git show <base_rev>:...``, an anchor the PR's own diff cannot move.
+    This is exactly the defect the mission's original co-located-literal
+    design could not catch (both constants moved together in one diff hunk);
+    here, growing the live set alone still fails the shrink-only ratchet."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    fixture_file = fixture_repo / _CONFLICT_MARKER_GUARD_RELATIVE_PATH
+    fixture_file.parent.mkdir(parents=True, exist_ok=True)
+    fixture_file.write_text('_CONFLICT_MARKER_SCAN_EXEMPTIONS: frozenset[str] = frozenset({"a.txt"})\n')
+    _git_commit_all(fixture_repo, "base: exemption set is {a.txt}")
+    base_rev = _run_git_rev_parse(fixture_repo, "HEAD")
+
+    fixture_file.write_text('_CONFLICT_MARKER_SCAN_EXEMPTIONS: frozenset[str] = frozenset({"a.txt", "b.txt"})\n')
+    _git_commit_all(fixture_repo, "PR diff: grows the exemption set in the same file")
+    grown_live = frozenset({"a.txt", "b.txt"})
+
+    baseline = _resolve_exemption_baseline(fixture_repo, base_rev, grown_live)
+    assert baseline == frozenset({"a.txt"}), "baseline must anchor to the base commit, not the PR's own working-tree content"
+    with pytest.raises(AssertionError, match="b.txt"):
+        _assert_exemption_set_is_shrink_only(grown_live, baseline)
+
+
+def test_conflict_marker_exemption_baseline_fails_closed_when_base_is_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PR-CONTRACT-001: an unreachable base must never silently default to an
+    empty/vacuous baseline -- it must fail exactly like the byte-identical
+    freeze test's own base-ref resolution already does. Proven by wiring:
+    ``_require_conflict_marker_exemption_baseline`` calls straight through
+    ``_require_port_base_rev``, so whatever that raises propagates
+    unmodified rather than being swallowed into a default."""
+    sentinel_message = "simulated: base ref unreachable"
+
+    def _raising_require_port_base_rev() -> str:
+        raise RuntimeError(sentinel_message)
+
+    monkeypatch.setattr(sys.modules[__name__], "_require_port_base_rev", _raising_require_port_base_rev)
+    with pytest.raises(RuntimeError, match=sentinel_message):
+        _require_conflict_marker_exemption_baseline()
+
+
+def test_conflict_marker_guard_fails_closed_on_enumeration_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail-closed leg (FR-007/NFR-002): enumeration failure -- or an
+    unexpectedly empty enumeration -- must raise, never silently report zero
+    conflict markers as a pass. Scoped to enumeration failure only; a
+    per-file binary/decode failure during content scan is a different,
+    non-fatal path already covered above."""
+    this_module = sys.modules[__name__]
+
+    def _raising_ls_files(root: Path) -> subprocess.CompletedProcess[str]:
+        raise OSError("git executable unavailable (simulated)")
+
+    monkeypatch.setattr(this_module, "_run_ls_files", _raising_ls_files)
+    with pytest.raises(OSError, match="git executable unavailable"):
+        _scan_tracked_files_for_conflict_markers(REPO_ROOT, _CONFLICT_MARKER_SCAN_EXEMPTIONS)
+    monkeypatch.undo()
+
+    monkeypatch.setattr(this_module, "_enumerate_tracked_files", lambda root=REPO_ROOT: [])
+    with pytest.raises(RuntimeError, match="zero tracked files"):
+        _scan_tracked_files_for_conflict_markers(REPO_ROOT, _CONFLICT_MARKER_SCAN_EXEMPTIONS)
+
+
+def test_conflict_marker_guard_logs_skipped_undecodable_files(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Review fix (WP02-R-002), hardened by PR-CONTRACT-002: a genuine binary
+    skip (NUL-byte heuristic) must never be silent (spec.md Edge Cases), and
+    its visibility must not depend on ``--log-cli-level`` -- assert both the
+    ``logger.warning`` record AND a ``warnings.warn`` (which pytest's default
+    warnings summary prints even under CI's exact ``pytest ... -q``
+    invocation) name the skipped path."""
+    fixture_repo = tmp_path / "fixture-repo"
+    fixture_repo.mkdir()
+    _git_init_fixture_repo(fixture_repo)
+    (fixture_repo / "clean.txt").write_text("nothing suspicious here\n")
+    undecodable = fixture_repo / "undecodable.bin"
+    undecodable.write_bytes(bytes([0xFF, 0xFE, 0x00, 0x01, 0x02]))
+    _git_commit_all(fixture_repo, "fixture with one undecodable tracked file")
+
+    with caplog.at_level(logging.WARNING), pytest.warns(UserWarning, match="undecodable.bin"):
+        violations, scanned_count, skipped = _scan_tracked_files_for_conflict_markers(fixture_repo, frozenset())
+
+    assert not violations
+    assert scanned_count == 2, "the undecodable file must still count toward the enumerated-file floor"
+    assert skipped == ["undecodable.bin"]
+    skip_warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+    assert any("undecodable.bin" in message for message in skip_warnings), f"expected a warning naming the skipped undecodable file; got: {skip_warnings!r}"
 
 
 def test_remote_repo_slug_matches_every_checkout_shape() -> None:
