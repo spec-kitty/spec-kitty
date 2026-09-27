@@ -2,7 +2,7 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-09-27'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -25,7 +25,7 @@ related:
 > [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
 > and the issue tracker.
 
-**Snapshot date: 2026-08-15 · Spec Kitty 3.2.x.** Proof that this list drifts:
+**Snapshot date: 2026-09-27 · Spec Kitty 3.2.x.** Proof that this list drifts:
 `#2772` was a known-red P0 when this note was first drafted and has since been
 closed — so the "known reds" below are already a different set than a month ago.
 
@@ -131,6 +131,17 @@ closed — so the "known reds" below are already a different set than a month ag
   checkout itself moved, delete `.git/hooks/pre-commit` and re-run
   `spec-kitty implement <any-WP>` (or any path that allocates a lane
   worktree) to regenerate the hook pinned to the new location.
+- **Any test-count change in a pinned module reds a per-PR gate that only a
+  full ~18-min shard-timings recapture clears.**
+  `tests/architectural/test_module_length_agreement.py` runs per-PR (in the
+  architectural-battery shard) and fails when a pinned module's committed count
+  in `.github/ci-shard-timings.json` != the live collected count; `charter` is a
+  hard exact-count invariant, so adding/removing even one charter test reds it.
+  The only remedy in-tree is `python scripts/ci/capture_shard_timings.py
+  --module charter --write` — a real, serial, full-module *measured* run
+  (~18 min locally) that also churns ~5–6k lines of JSON, as mandatory landing
+  work (the nightly recapture does **not** absorb it). Bit #5164 and #5175
+  consecutively (tracked in #5189).
 
 ## Maintaining this page
 
