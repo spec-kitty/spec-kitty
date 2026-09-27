@@ -32,7 +32,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.acceptance import _accept_dirty_gate
+from specify_cli.acceptance import _ENCODING_BACKUP_SUFFIX, _accept_dirty_gate, _is_own_encoding_backup_write
 from specify_cli.merge.git_probes import _classify_porcelain_lines
 from specify_cli.review.dirty_classifier import _is_benign, classify_dirty_paths
 
@@ -275,3 +275,31 @@ class TestReviewGateKittyOps:
         assert not _is_benign(non_ulid, self._WP_ID), (
             f"Non-ULID kitty-ops path must NOT be benign; path={non_ulid!r}"
         )
+
+
+class TestEncodingBackupSelfWriteScope:
+    """#5170 review NOTE (architect-alphonso): dedicated coverage for the two
+    fail-closed / narrowing branches of ``_is_own_encoding_backup_write`` that
+    the positive integration test only exercised implicitly."""
+
+    _PREFIX = "kitty-specs/my-mission/"
+
+    def test_unresolved_scope_is_never_our_own_write(self) -> None:
+        """``feature_dir_prefix is None`` (the fail-closed resolution outcome of
+        ``_encoding_backup_scope_prefix``) must never be treated as our own
+        backup -- an unresolvable scope blocks, it does not wave the .bak through."""
+        assert _is_own_encoding_backup_write(f"kitty-specs/my-mission/spec.md{_ENCODING_BACKUP_SUFFIX}", feature_dir_prefix=None) is False
+
+    def test_out_of_mission_backup_still_blocks(self) -> None:
+        """A .bak outside the CURRENT mission's feature-dir prefix (another
+        mission, or a sibling-slug prefix collision) is NOT our own write and
+        must still block; the in-mission .bak is the positive control, and an
+        in-mission non-.bak is excluded by suffix."""
+        # positive control: in-mission .bak IS our own write
+        assert _is_own_encoding_backup_write(f"{self._PREFIX}spec.md{_ENCODING_BACKUP_SUFFIX}", feature_dir_prefix=self._PREFIX) is True
+        # another mission's .bak -> blocks
+        assert _is_own_encoding_backup_write(f"kitty-specs/other-mission/spec.md{_ENCODING_BACKUP_SUFFIX}", feature_dir_prefix=self._PREFIX) is False
+        # sibling-slug prefix collision (trailing slash guards it) -> blocks
+        assert _is_own_encoding_backup_write(f"kitty-specs/my-mission-2/spec.md{_ENCODING_BACKUP_SUFFIX}", feature_dir_prefix=self._PREFIX) is False
+        # in-mission but not a .bak -> excluded by suffix
+        assert _is_own_encoding_backup_write(f"{self._PREFIX}spec.md", feature_dir_prefix=self._PREFIX) is False
