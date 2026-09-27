@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -160,19 +159,15 @@ def test_public_safe_commit_does_not_honor_internal_protected_branch_exceptions(
         text=True,
     ).stdout.strip()
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        # Post-#1348 (WP02): --to-branch is required. The test runs on
-        # `main` (the protected branch) so the helper rejects the commit at the
-        # protected-branch check, which is what this test asserts.
-        result = runner.invoke(
-            cli_app,
-            ["safe-commit", "--to-branch", "main", "--message", message, "--json", "change.txt"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    # Post-#1348 (WP02): --to-branch is required. The test runs on
+    # `main` (the protected branch) so the helper rejects the commit at the
+    # protected-branch check, which is what this test asserts.
+    result = runner.invoke(
+        cli_app,
+        ["safe-commit", "--to-branch", "main", "--message", message, "--json", "change.txt"],
+        catch_exceptions=False,
+    )
 
     payload = json.loads(result.stdout)
     head_after = subprocess.run(
@@ -206,24 +201,20 @@ def test_public_safe_commit_rejects_protected_branch_in_test_mode(
         text=True,
     ).stdout.strip()
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            cli_app,
-            [
-                "safe-commit",
-                "--to-branch",
-                "main",
-                "--message",
-                "WP01: arbitrary status write",
-                "--json",
-                "change.txt",
-            ],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli_app,
+        [
+            "safe-commit",
+            "--to-branch",
+            "main",
+            "--message",
+            "WP01: arbitrary status write",
+            "--json",
+            "change.txt",
+        ],
+        catch_exceptions=False,
+    )
 
     payload = json.loads(result.stdout)
     head_after = subprocess.run(
@@ -313,15 +304,11 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
     mission_slug = "relational-cutover-01KYHHR8"
-    feature_dir, _feature_branch, _primary_branch = _seed_merged_and_pruned_mission(
-        tmp_path, mission_slug
-    )
+    feature_dir, _feature_branch, _primary_branch = _seed_merged_and_pruned_mission(tmp_path, mission_slug)
 
     retro_path = feature_dir / "retrospective.yaml"
     retro_path.write_text(
-        "summary: Relational cutover retrospective\n"
-        "lessons_learned:\n"
-        "  - Post-merge writes must not require the merged branch to still exist.\n",
+        "summary: Relational cutover retrospective\nlessons_learned:\n  - Post-merge writes must not require the merged branch to still exist.\n",
         encoding="utf-8",
     )
 
@@ -332,31 +319,22 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     # classification through the public helpers so a future reclassification
     # (or a COORD re-home) makes THIS assertion fail loudly instead of the
     # test silently going green for the wrong reason.
-    retro_kind = kind_for_mission_file(
-        retro_path.relative_to(tmp_path), mission_slug=mission_slug
-    )
+    retro_kind = kind_for_mission_file(retro_path.relative_to(tmp_path), mission_slug=mission_slug)
     assert retro_kind is MissionArtifactKind.RETROSPECTIVE, retro_kind
-    assert is_primary_artifact_kind(retro_kind), (
-        "retrospective.yaml must classify to a PRIMARY-partition kind for "
-        "this regression to exercise the #3033 defect"
-    )
+    assert is_primary_artifact_kind(retro_kind), "retrospective.yaml must classify to a PRIMARY-partition kind for this regression to exercise the #3033 defect"
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            cli_app,
-            [
-                "safe-commit",
-                "--message",
-                f"chore({mission_slug}): record retrospective",
-                "--json",
-                str(retro_path.relative_to(tmp_path)),
-            ],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli_app,
+        [
+            "safe-commit",
+            "--message",
+            f"chore({mission_slug}): record retrospective",
+            "--json",
+            str(retro_path.relative_to(tmp_path)),
+        ],
+        catch_exceptions=False,
+    )
 
     payload = json.loads(result.stdout)
 
@@ -392,10 +370,7 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
         capture_output=True,
         text=True,
     ).stdout
-    assert (
-        "Post-merge writes must not require the merged branch to still exist."
-        in committed_blob
-    ), committed_blob
+    assert "Post-merge writes must not require the merged branch to still exist." in committed_blob, committed_blob
 
 
 def test_resolve_placement_only_rejects_pruned_target_branch_3033(
@@ -442,14 +417,10 @@ def test_resolve_placement_only_rejects_pruned_target_branch_3033(
     that is gone.
     """
     mission_slug = "relational-cutover-01KYHHR8"
-    feature_dir, feature_branch, _primary_branch = _seed_merged_and_pruned_mission(
-        tmp_path, mission_slug
-    )
+    feature_dir, feature_branch, _primary_branch = _seed_merged_and_pruned_mission(tmp_path, mission_slug)
     assert feature_dir.exists()  # sanity: the shared fixture did seed the mission
 
-    target = resolve_placement_only(
-        tmp_path, mission_slug, kind=MissionArtifactKind.RETROSPECTIVE
-    )
+    target = resolve_placement_only(tmp_path, mission_slug, kind=MissionArtifactKind.RETROSPECTIVE)
 
     ref_exists = subprocess.run(
         ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{target.ref}"],
@@ -464,10 +435,7 @@ def test_resolve_placement_only_rejects_pruned_target_branch_3033(
         "resolve_placement_only gaining post-merge lifecycle awareness), not "
         "as a call-site HEAD fallback in _resolve_commit_target."
     )
-    assert target.ref != feature_branch, (
-        f"resolve_placement_only must not hand back the pruned feature "
-        f"branch {feature_branch!r} verbatim"
-    )
+    assert target.ref != feature_branch, f"resolve_placement_only must not hand back the pruned feature branch {feature_branch!r} verbatim"
 
 
 # ---------------------------------------------------------------------------
@@ -516,9 +484,7 @@ def _guard_no_shared_helper_call(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_mission_runtime, "resolve_write_target_or_degrade", _boom)
 
 
-def test_resolve_mission_aware_target_calls_placement_only_directly(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resolve_mission_aware_target_calls_placement_only_directly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The mission-aware target resolves via a direct ``resolve_placement_only`` call.
 
     Asserts (a) ``resolve_placement_only`` is invoked with the mission slug
@@ -544,13 +510,9 @@ def test_resolve_mission_aware_target_calls_placement_only_directly(
         )
         return sentinel
 
-    monkeypatch.setattr(
-        _mission_runtime, "resolve_placement_only", _fake_resolve_placement_only
-    )
+    monkeypatch.setattr(_mission_runtime, "resolve_placement_only", _fake_resolve_placement_only)
 
-    result = _resolve_mission_aware_target(
-        tmp_path, "my-mission", MissionArtifactKind.SPEC
-    )
+    result = _resolve_mission_aware_target(tmp_path, "my-mission", MissionArtifactKind.SPEC)
 
     assert result is sentinel
     assert calls == [
@@ -562,9 +524,7 @@ def test_resolve_mission_aware_target_calls_placement_only_directly(
     ]
 
 
-def test_resolve_mission_aware_target_consolidated_absent_still_refuses(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resolve_mission_aware_target_consolidated_absent_still_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """CONSOLIDATED_CONTENT_ABSENT -> MissionAwareCommitRefused.
 
     ``resolve_placement_only`` itself raises this structured off-checkout
@@ -580,14 +540,10 @@ def test_resolve_mission_aware_target_consolidated_absent_still_refuses(
             "mission is published but this checkout lacks consolidated content",
         )
 
-    monkeypatch.setattr(
-        _mission_runtime, "resolve_placement_only", _fake_resolve_placement_only
-    )
+    monkeypatch.setattr(_mission_runtime, "resolve_placement_only", _fake_resolve_placement_only)
 
     with pytest.raises(MissionAwareCommitRefused):
-        _resolve_mission_aware_target(
-            tmp_path, "published-mission", MissionArtifactKind.SPEC
-        )
+        _resolve_mission_aware_target(tmp_path, "published-mission", MissionArtifactKind.SPEC)
 
 
 @pytest.mark.parametrize(
@@ -601,9 +557,7 @@ def test_resolve_mission_aware_target_consolidated_absent_still_refuses(
         pytest.param(ValueError("not a resolvable mission path"), id="value-error"),
     ],
 )
-def test_resolve_mission_aware_target_benign_failure_still_degrades(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception
-) -> None:
+def test_resolve_mission_aware_target_benign_failure_still_degrades(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception) -> None:
     """Benign resolution failures still degrade to ``None``.
 
     A legitimate operator commit that merely *looks* mission-scoped (no
@@ -616,13 +570,6 @@ def test_resolve_mission_aware_target_benign_failure_still_degrades(
     def _fake_resolve_placement_only(*_a: object, **_k: object) -> CommitTarget:
         raise raised
 
-    monkeypatch.setattr(
-        _mission_runtime, "resolve_placement_only", _fake_resolve_placement_only
-    )
+    monkeypatch.setattr(_mission_runtime, "resolve_placement_only", _fake_resolve_placement_only)
 
-    assert (
-        _resolve_mission_aware_target(
-            tmp_path, "looks-like-mission", MissionArtifactKind.SPEC
-        )
-        is None
-    )
+    assert _resolve_mission_aware_target(tmp_path, "looks-like-mission", MissionArtifactKind.SPEC) is None

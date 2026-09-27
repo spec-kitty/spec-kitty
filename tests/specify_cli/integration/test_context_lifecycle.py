@@ -155,7 +155,9 @@ class TestContextResolutionNoHeuristics:
         with pytest.raises(MissingIdentityError, match="config.yaml"):
             resolve_context("WP01", "047-lifecycle-test", "claude", tmp_path)
 
-    def test_no_detect_feature_called_during_resolution(self, tmp_path: Path) -> None:
+    def test_no_detect_feature_called_during_resolution(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Verify detection heuristics are not invoked during context resolution.
 
         The old feature_detection module has been removed (WP02). This test
@@ -169,18 +171,15 @@ class TestContextResolutionNoHeuristics:
         repo = _setup_project(tmp_path)
         import sys
 
-        # Ensure the deleted module is not importable even if stale .pyc exists
-        old_entry = sys.modules.pop("specify_cli.core.feature_detection", None)
-        try:
-            sys.modules["specify_cli.core.feature_detection"] = None  # type: ignore[assignment]
-            # Resolution must succeed even with feature_detection blocked
-            ctx = resolve_context("WP01", "047-lifecycle-test", "claude", repo)
-            assert ctx.wp_code == "WP01"
-        finally:
-            # Restore state
-            del sys.modules["specify_cli.core.feature_detection"]
-            if old_entry is not None:
-                sys.modules["specify_cli.core.feature_detection"] = old_entry
+        # Ensure the deleted module is not importable even if stale .pyc exists.
+        # ``monkeypatch.setitem`` records whatever was there before (nothing,
+        # in the real-world case, since the module is permanently removed) and
+        # restores exactly that on teardown -- absent key stays absent, a
+        # stale entry would be restored verbatim.
+        monkeypatch.setitem(sys.modules, "specify_cli.core.feature_detection", None)
+        # Resolution must succeed even with feature_detection blocked
+        ctx = resolve_context("WP01", "047-lifecycle-test", "claude", repo)
+        assert ctx.wp_code == "WP01"
 
 
 # ---------------------------------------------------------------------------

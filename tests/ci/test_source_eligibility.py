@@ -19,6 +19,7 @@ import importlib.util
 import os
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
@@ -41,21 +42,22 @@ _FROZEN_GUARD_RUN = (
 )
 
 
-def _load_module() -> ModuleType:
+def _load_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     spec = importlib.util.spec_from_file_location("source_eligibility", _SCRIPT_PATH)
     if spec is None or spec.loader is None:  # pragma: no cover - import plumbing
         raise RuntimeError(f"cannot build an import spec for {_SCRIPT_PATH}")
     module = importlib.util.module_from_spec(spec)
     # dataclasses resolve field annotations against sys.modules[__module__];
     # register before exec so `@dataclass` on this file-loaded module works.
-    sys.modules[spec.name] = module
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     return module
 
 
 @pytest.fixture(scope="module")
-def mod() -> ModuleType:
-    return _load_module()
+def mod() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield _load_module(mp)
 
 
 def _trigger(mod: ModuleType, *, event: str, head_branch: str, conclusion: str) -> object:

@@ -12,26 +12,23 @@ generator — so a run exercises the same code path CI does.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from textwrap import dedent
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs.freshen_adr_inventory import (  # noqa: E402
+from scripts.docs.freshen_adr_inventory import (
     DEFAULT_INVENTORY_PATH,
     detect_missing_adrs,
     freshen,
     main,
 )
-from scripts.docs.inventory_lockfile import (  # noqa: E402
+from scripts.docs.inventory_lockfile import (
     generate_inventory,
     render_lockfile,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 pytestmark = [pytest.mark.fast]
 
@@ -118,20 +115,12 @@ def _write_docs_tree(repo_root: Path) -> Path:
     (era / "README.md").write_text(_README_TEMPLATE, encoding="utf-8")
 
     # Pre-existing ADRs that already have README rows.
-    (era / "2026-04-03-1-execution-lanes.md").write_text(
-        _adr("Execution lanes own worktrees", "2026-04-03"), encoding="utf-8"
-    )
-    (era / "2026-05-16-1-doctrine-merge.md").write_text(
-        _adr("Doctrine layer merge semantics", "2026-05-16"), encoding="utf-8"
-    )
-    (era / "2026-06-26-1-single-authority-seam.md").write_text(
-        _adr("Single-authority seam", "2026-06-26"), encoding="utf-8"
-    )
+    (era / "2026-04-03-1-execution-lanes.md").write_text(_adr("Execution lanes own worktrees", "2026-04-03"), encoding="utf-8")
+    (era / "2026-05-16-1-doctrine-merge.md").write_text(_adr("Doctrine layer merge semantics", "2026-05-16"), encoding="utf-8")
+    (era / "2026-06-26-1-single-authority-seam.md").write_text(_adr("Single-authority seam", "2026-06-26"), encoding="utf-8")
 
     # A non-ADR doc so the inventory has more than ADRs in it.
-    (docs_root / "index.md").write_text(
-        _adr("Docs home", "2026-01-01"), encoding="utf-8"
-    )
+    (docs_root / "index.md").write_text(_adr("Docs home", "2026-01-01"), encoding="utf-8")
 
     _write_inventory(repo_root, docs_root)
     return docs_root
@@ -178,15 +167,11 @@ def test_new_adr_gets_inventory_and_readme_rows(tmp_path: Path) -> None:
     new_adr = docs_root / "adr" / "3.x" / "2026-06-30-1-new-thing.md"
     new_adr.write_text(_adr("A Brand New Thing", "2026-06-30"), encoding="utf-8")
 
-    result = freshen(
-        [new_adr], docs_root=docs_root, repo_root=repo_root, check=False
-    )
+    result = freshen([new_adr], docs_root=docs_root, repo_root=repo_root, check=False)
 
     # README row present with the right date/title/link.
     readme = _read_readme(docs_root)
-    assert (
-        "| 2026-06-30 | [A Brand New Thing](2026-06-30-1-new-thing.md) |" in readme
-    )
+    assert "| 2026-06-30 | [A Brand New Thing](2026-06-30-1-new-thing.md) |" in readme
     assert "2026-06-30-1-new-thing.md" in result.readme_rows_added
 
     # Inventory row present (path appears in the regenerated lockfile).
@@ -208,16 +193,12 @@ def test_canonical_index_is_used_when_readme_is_redirect(tmp_path: Path) -> None
     new_adr.write_text(_adr("A Brand New Thing", "2026-06-30"), encoding="utf-8")
     assert new_adr in detect_missing_adrs(docs_root)
 
-    result = freshen(
-        [new_adr], docs_root=docs_root, repo_root=repo_root, check=False
-    )
+    result = freshen([new_adr], docs_root=docs_root, repo_root=repo_root, check=False)
 
     assert new_adr.name in result.readme_rows_added
     assert f"]({new_adr.name})" in index.read_text(encoding="utf-8")
     assert readme.read_text(encoding="utf-8") == redirect_before
-    check_result = freshen(
-        [new_adr], docs_root=docs_root, repo_root=repo_root, check=True
-    )
+    check_result = freshen([new_adr], docs_root=docs_root, repo_root=repo_root, check=True)
     assert check_result.is_clean
     assert new_adr not in detect_missing_adrs(docs_root)
 
@@ -226,16 +207,12 @@ def test_all_refuses_malformed_canonical_index(tmp_path: Path) -> None:
     repo_root = tmp_path
     docs_root = _write_docs_tree(repo_root)
     era = docs_root / "adr" / "3.x"
-    (era / "index.md").write_text(
-        "# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8"
-    )
+    (era / "index.md").write_text("# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8")
     readme = era / "README.md"
     readme.write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
     redirect_before = readme.read_text(encoding="utf-8")
 
-    exit_code = main(
-        ["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
-    )
+    exit_code = main(["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)])
 
     assert exit_code == 2
     assert readme.read_text(encoding="utf-8") == redirect_before
@@ -245,9 +222,7 @@ def test_explicit_check_refuses_malformed_declared_index(tmp_path: Path) -> None
     repo_root = tmp_path
     docs_root = _write_docs_tree(repo_root)
     era = docs_root / "adr" / "3.x"
-    (era / "index.md").write_text(
-        "# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8"
-    )
+    (era / "index.md").write_text("# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8")
     (era / "README.md").write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
     _write_inventory(repo_root, docs_root)
 
@@ -275,9 +250,7 @@ def test_all_skips_production_shaped_legacy_tableless_index(tmp_path: Path) -> N
     _write_inventory(repo_root, docs_root)
 
     assert detect_missing_adrs(docs_root) == []
-    assert main(
-        ["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
-    ) == 0
+    assert main(["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]) == 0
     assert (
         main(
             [
@@ -307,9 +280,7 @@ def test_running_twice_is_idempotent(tmp_path: Path) -> None:
     freshen([new_adr], docs_root=docs_root, repo_root=repo_root, check=False)
     first = _read_readme(docs_root)
 
-    second_result = freshen(
-        [new_adr], docs_root=docs_root, repo_root=repo_root, check=False
-    )
+    second_result = freshen([new_adr], docs_root=docs_root, repo_root=repo_root, check=False)
     second = _read_readme(docs_root)
 
     assert first == second  # no duplicate row / no second change
@@ -397,9 +368,7 @@ def test_all_detects_and_adds_missing_row(tmp_path: Path) -> None:
 
     assert orphan in detect_missing_adrs(docs_root)
 
-    exit_code = main(
-        ["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
-    )
+    exit_code = main(["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)])
     assert exit_code == 0
 
     readme = _read_readme(docs_root)
@@ -443,10 +412,7 @@ def test_folded_multiline_title_collapses(tmp_path: Path) -> None:
     freshen([adr], docs_root=docs_root, repo_root=repo_root, check=False)
 
     readme = _read_readme(docs_root)
-    assert (
-        "| 2026-06-30 | [Single-Authority Seam + Call-Site Gate for "
-        "Resolution Boundaries (Phase 1)](2026-06-30-1-folded.md) |" in readme
-    )
+    assert "| 2026-06-30 | [Single-Authority Seam + Call-Site Gate for Resolution Boundaries (Phase 1)](2026-06-30-1-folded.md) |" in readme
 
 
 # --------------------------------------------------------------------------- #
@@ -490,9 +456,7 @@ def test_out_of_tree_adr_is_rejected_and_edits_nothing(tmp_path: Path) -> None:
     decoy.write_text(_adr("Decoy", "2026-06-30"), encoding="utf-8")
     before = outside_readme.read_text(encoding="utf-8")
 
-    exit_code = main(
-        [str(decoy), "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
-    )
+    exit_code = main([str(decoy), "--repo-root", str(repo_root), "--docs-root", str(docs_root)])
 
     assert exit_code == 2  # FreshenError: path escapes docs_root
     assert outside_readme.read_text(encoding="utf-8") == before  # untouched
@@ -533,15 +497,11 @@ def test_prose_link_does_not_block_table_row_insert(tmp_path: Path) -> None:
     repo_root = tmp_path
     docs_root = _write_docs_tree(repo_root)
     basename = "2026-06-30-1-new-thing.md"
-    (docs_root / "adr" / "3.x" / "README.md").write_text(
-        _readme_prose_links(basename), encoding="utf-8"
-    )
+    (docs_root / "adr" / "3.x" / "README.md").write_text(_readme_prose_links(basename), encoding="utf-8")
     new_adr = docs_root / "adr" / "3.x" / basename
     new_adr.write_text(_adr("A Brand New Thing", "2026-06-30"), encoding="utf-8")
 
-    result = freshen(
-        [new_adr], docs_root=docs_root, repo_root=repo_root, check=False
-    )
+    result = freshen([new_adr], docs_root=docs_root, repo_root=repo_root, check=False)
 
     # The prose link must NOT suppress the table-row insert.
     assert basename in result.readme_rows_added
@@ -553,9 +513,7 @@ def test_check_reports_missing_when_only_prose_links_adr(tmp_path: Path) -> None
     repo_root = tmp_path
     docs_root = _write_docs_tree(repo_root)
     basename = "2026-06-30-1-new-thing.md"
-    (docs_root / "adr" / "3.x" / "README.md").write_text(
-        _readme_prose_links(basename), encoding="utf-8"
-    )
+    (docs_root / "adr" / "3.x" / "README.md").write_text(_readme_prose_links(basename), encoding="utf-8")
     new_adr = docs_root / "adr" / "3.x" / basename
     new_adr.write_text(_adr("A Brand New Thing", "2026-06-30"), encoding="utf-8")
     _write_inventory(repo_root, docs_root)  # isolate: only the README row is at issue

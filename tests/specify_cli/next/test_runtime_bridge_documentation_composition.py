@@ -50,7 +50,9 @@ _GATE_ARTIFACT = {
 }
 
 
-def test_documentation_in_composed_actions(tmp_path: Path) -> None:
+def test_documentation_in_composed_actions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """FR-002 + FR-015: documentation entry present with the 6 expected verbs.
 
     After WP07 (_COMPOSED_ACTIONS_BY_MISSION removed), the action sequence is
@@ -74,23 +76,18 @@ def test_documentation_in_composed_actions(tmp_path: Path) -> None:
     fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
     fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
-    saved = sys.modules.get("charter.offering.missions.mission_type_repository")
-    sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
-    try:
-        from charter.activation.mission_type_profiles import resolve_mission_type_context
+    monkeypatch.setitem(
+        sys.modules, "charter.offering.missions.mission_type_repository", fake_module
+    )
+    from charter.activation.mission_type_profiles import resolve_mission_type_context
 
-        with patch(
-            "charter.activation.mission_type_profiles.existing_mission_types",
-            return_value=["documentation", "plan", "research", "software-dev"],
-        ):
-            result = resolve_mission_type_context(
-                tmp_path, mission_type="documentation"
-            ).action_sequence
-    finally:
-        if saved is None:
-            sys.modules.pop("charter.offering.missions.mission_type_repository", None)
-        else:
-            sys.modules["charter.offering.missions.mission_type_repository"] = saved
+    with patch(
+        "charter.activation.mission_type_profiles.existing_mission_types",
+        return_value=["documentation", "plan", "research", "software-dev"],
+    ):
+        result = resolve_mission_type_context(
+            tmp_path, mission_type="documentation"
+        ).action_sequence
 
     assert set(result) == frozenset(_DOC_ACTIONS)
 

@@ -30,23 +30,23 @@ pytestmark = [pytest.mark.architectural]
 _SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "lint_canonical_producers.py"
 
 
-def _load_lint_module():
+def _load_lint_module(monkeypatch: pytest.MonkeyPatch):
     spec = importlib.util.spec_from_file_location("lint_canonical_producers", _SCRIPT_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules["lint_canonical_producers"] = module
+    monkeypatch.setitem(sys.modules, "lint_canonical_producers", module)
     spec.loader.exec_module(module)
     return module
 
 
-def _lint_source(tmp_path: Path, source: str):
+def _lint_source(tmp_path: Path, source: str, monkeypatch: pytest.MonkeyPatch):
     path = tmp_path / "candidate.py"
     path.write_text(textwrap.dedent(source), encoding="utf-8")
-    lint = _load_lint_module()
+    lint = _load_lint_module(monkeypatch)
     return lint.lint_paths([path])
 
 
-def test_clean_canonical_construction_yields_zero_findings(tmp_path: Path) -> None:
+def test_clean_canonical_construction_yields_zero_findings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     findings = _lint_source(
         tmp_path,
         """
@@ -58,11 +58,12 @@ def test_clean_canonical_construction_yields_zero_findings(tmp_path: Path) -> No
                 actor="claude",
             )
         """,
+        monkeypatch,
     )
     assert findings == []
 
 
-def test_hand_rolled_event_dict_still_fires_cp001(tmp_path: Path) -> None:
+def test_hand_rolled_event_dict_still_fires_cp001(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     findings = _lint_source(
         tmp_path,
         """
@@ -70,6 +71,7 @@ def test_hand_rolled_event_dict_still_fires_cp001(tmp_path: Path) -> None:
             x = {"event_type": "WPApproved", "payload": {"wp_id": "WP01"}}
             return x
         """,
+        monkeypatch,
     )
     codes = [f.code for f in findings]
     assert "CP001" in codes, "canonical-producer lint has gone inert: a hand-rolled event dict no longer fires CP001"

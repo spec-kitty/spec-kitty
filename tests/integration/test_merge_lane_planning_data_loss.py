@@ -1435,8 +1435,6 @@ def _invoke_merge_cli(repo: Path, extra_args: list[str]) -> object:
     cleanup flags' default lives) — NOT ``_run_lane_based_merge`` directly,
     whose ``delete_branch``/``remove_worktree`` params have no default of
     their own."""
-    import os
-
     from typer.testing import CliRunner
 
     from specify_cli.cli.commands.merge import merge
@@ -1445,12 +1443,8 @@ def _invoke_merge_cli(repo: Path, extra_args: list[str]) -> object:
     app.command()(merge)
 
     runner = CliRunner()
-    original_cwd = os.getcwd()
-    try:
-        os.chdir(repo)
+    with contextlib.chdir(repo):
         return runner.invoke(app, extra_args, catch_exceptions=False)
-    finally:
-        os.chdir(original_cwd)
 
 
 class TestRetentionConstraintSurvivesCleanup:

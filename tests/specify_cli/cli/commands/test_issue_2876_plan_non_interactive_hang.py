@@ -45,8 +45,8 @@ rather than a stuck test run.
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -128,27 +128,23 @@ def _setup_repo(tmp_path: Path) -> None:
 
 def _invoke_plan_non_interactive(tmp_path: Path) -> Result:
     """Drive the real ``plan`` command with a closed stdin, cwd'd into the fixture repo."""
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        with (
-            patch(
-                "specify_cli.cli.commands.lifecycle.agent_feature.setup_plan",
-                return_value=None,
-            ),
-            patch(
-                "specify_cli.cli.commands.lifecycle.locate_project_root",
-                return_value=tmp_path,
-            ),
-        ):
-            return runner.invoke(
-                _app,
-                ["--mission", MISSION_SLUG],
-                input="",  # closed/non-TTY stdin: the agent/CI invocation shape from #2876
-                catch_exceptions=True,
-            )
-    finally:
-        os.chdir(old_cwd)
+    with (
+        contextlib.chdir(tmp_path),
+        patch(
+            "specify_cli.cli.commands.lifecycle.agent_feature.setup_plan",
+            return_value=None,
+        ),
+        patch(
+            "specify_cli.cli.commands.lifecycle.locate_project_root",
+            return_value=tmp_path,
+        ),
+    ):
+        return runner.invoke(
+            _app,
+            ["--mission", MISSION_SLUG],
+            input="",  # closed/non-TTY stdin: the agent/CI invocation shape from #2876
+            catch_exceptions=True,
+        )
 
 
 def test_plan_non_interactive_never_prompts_or_hangs_2876(
@@ -184,7 +180,5 @@ def test_plan_non_interactive_never_prompts_or_hangs_2876(
     forbidden_markers = ["[enter]=accept default", first_question_text]
     leaked = [marker for marker in forbidden_markers if marker in result.output]
     assert not leaked, (
-        "spec-kitty plan emitted an interactive prompt under "
-        f"SPEC_KITTY_NON_INTERACTIVE=1 (#2876): {leaked!r} found in captured "
-        f"output:\n{result.output}"
+        f"spec-kitty plan emitted an interactive prompt under SPEC_KITTY_NON_INTERACTIVE=1 (#2876): {leaked!r} found in captured output:\n{result.output}"
     )

@@ -30,12 +30,15 @@ from typing import Any
 
 import pytest
 
-# Mirror the CLI-reference parity gate: env flags before importing specify_cli.
-os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
-
-from specify_cli import completion  # noqa: E402
+from specify_cli import completion
 
 pytestmark = [pytest.mark.architectural]
+
+
+@pytest.fixture(autouse=True)
+def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the upgrade-check opt-out set for every test (was a module-level ``setdefault``)."""
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
 
 
 def _committed_manifest() -> dict[str, Any]:

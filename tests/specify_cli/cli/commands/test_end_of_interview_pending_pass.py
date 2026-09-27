@@ -809,10 +809,10 @@ class TestCharterEndOfInterviewPendingPass:
         )
         return tmp_path
 
-    def test_pending_pass_not_called_when_widen_disabled(self, tmp_path: Path) -> None:
+    def test_pending_pass_not_called_when_widen_disabled(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Without SAAS token, widen_store is None → pending pass never runs."""
-        import os
-
         from charter.activation.interview import MINIMAL_QUESTION_ORDER
         from typer.testing import CliRunner
 
@@ -823,26 +823,22 @@ class TestCharterEndOfInterviewPendingPass:
         inputs = "\n".join([""] * n_questions + [""] * 3) + "\n"
 
         runner = CliRunner()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            result = runner.invoke(
-                charter_app,
-                ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
-                input=inputs,
-                catch_exceptions=False,
-            )
-        finally:
-            os.chdir(old_cwd)
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app,
+            ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
+            input=inputs,
+            catch_exceptions=False,
+        )
 
         assert result.exit_code == 0, result.output
         # No "Pending Widened Questions" panel since widen is disabled
         assert "Pending Widened Questions" not in result.output
 
-    def test_pending_pass_called_when_widen_enabled_and_store_empty(self, tmp_path: Path) -> None:
+    def test_pending_pass_called_when_widen_enabled_and_store_empty(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Widen enabled + empty store → interview completes without pending panel."""
-        import os
-
         from charter.activation.interview import MINIMAL_QUESTION_ORDER
         from typer.testing import CliRunner
 
@@ -856,27 +852,23 @@ class TestCharterEndOfInterviewPendingPass:
         prereq_ok = PrereqState(teamspace_ok=True, slack_ok=True, saas_reachable=True)
 
         runner = CliRunner()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=MagicMock(_token="tok")),
-                patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
-                patch("specify_cli.widen.flow.WidenFlow", return_value=MagicMock()),
-                patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
-            ):
-                mock_store = MagicMock()
-                mock_store.list_pending.return_value = []
-                mock_store_cls.return_value = mock_store
+        monkeypatch.chdir(tmp_path)
+        with (
+            patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=MagicMock(_token="tok")),
+            patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
+            patch("specify_cli.widen.flow.WidenFlow", return_value=MagicMock()),
+            patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
+        ):
+            mock_store = MagicMock()
+            mock_store.list_pending.return_value = []
+            mock_store_cls.return_value = mock_store
 
-                result = runner.invoke(
-                    charter_app,
-                    ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+            result = runner.invoke(
+                charter_app,
+                ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         # run_end_of_interview_pending_pass is called but returns silently (empty store)

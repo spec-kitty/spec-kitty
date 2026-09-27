@@ -12,7 +12,6 @@ absent (the WP06 LAND-BLOCKER, exercised here at the live CLI call site).
 
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
@@ -70,38 +69,34 @@ def test_interview_promotes_selections_preserving_builtins_on_absent_key(
     # that ambient ancestor instead of this fixture's repo, and the
     # promoted config.yaml would land there instead of under tmp_path.
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app,
-            [
-                "interview",
-                "--defaults",
-                "--profile", "minimal",
-                "--selected-directives", _DIRECTIVE_010_STEM,
-                "--selected-paradigms", _PARADIGM_DDD,
-            ],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0, f"interview failed: stdout={result.stdout!r}"
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app,
+        [
+            "interview",
+            "--defaults",
+            "--profile", "minimal",
+            "--selected-directives", _DIRECTIVE_010_STEM,
+            "--selected-paradigms", _PARADIGM_DDD,
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, f"interview failed: stdout={result.stdout!r}"
 
-        config = _read_config(tmp_path)
-        real_builtin_directives = load_default_pack_ids().get("activated_directives", [])
-        real_builtin_paradigms = load_default_pack_ids().get("activated_paradigms", [])
-        assert real_builtin_directives and real_builtin_paradigms
+    config = _read_config(tmp_path)
+    real_builtin_directives = load_default_pack_ids().get("activated_directives", [])
+    real_builtin_paradigms = load_default_pack_ids().get("activated_paradigms", [])
+    assert real_builtin_directives and real_builtin_paradigms
 
-        committed_directives = config["activated_directives"]
-        committed_paradigms = config["activated_paradigms"]
+    committed_directives = config["activated_directives"]
+    committed_paradigms = config["activated_paradigms"]
 
-        # Selected ids present.
-        assert _DIRECTIVE_010_STEM in committed_directives
-        assert _PARADIGM_DDD in committed_paradigms
-        # Built-ins NOT dropped (the absent-key LAND-BLOCKER, at this call site).
-        assert set(real_builtin_directives).issubset(set(committed_directives))
-        assert set(real_builtin_paradigms).issubset(set(committed_paradigms))
-    finally:
-        os.chdir(old_cwd)
+    # Selected ids present.
+    assert _DIRECTIVE_010_STEM in committed_directives
+    assert _PARADIGM_DDD in committed_paradigms
+    # Built-ins NOT dropped (the absent-key LAND-BLOCKER, at this call site).
+    assert set(real_builtin_directives).issubset(set(committed_directives))
+    assert set(real_builtin_paradigms).issubset(set(committed_paradigms))
 
 
 def test_interview_normalizes_canonical_form_directive_id(
@@ -114,26 +109,22 @@ def test_interview_normalizes_canonical_form_directive_id(
     # See the hermeticity note in
     # test_interview_promotes_selections_preserving_builtins_on_absent_key.
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app,
-            [
-                "interview",
-                "--defaults",
-                "--profile", "minimal",
-                "--selected-directives", _DIRECTIVE_010_CANONICAL,
-            ],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0, result.stdout
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app,
+        [
+            "interview",
+            "--defaults",
+            "--profile", "minimal",
+            "--selected-directives", _DIRECTIVE_010_CANONICAL,
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.stdout
 
-        config = _read_config(tmp_path)
-        assert _DIRECTIVE_010_STEM in config["activated_directives"]
-        assert _DIRECTIVE_010_CANONICAL not in config["activated_directives"]
-    finally:
-        os.chdir(old_cwd)
+    config = _read_config(tmp_path)
+    assert _DIRECTIVE_010_STEM in config["activated_directives"]
+    assert _DIRECTIVE_010_CANONICAL not in config["activated_directives"]
 
 
 def test_interview_promotion_is_idempotent_across_runs(
@@ -143,51 +134,45 @@ def test_interview_promotion_is_idempotent_across_runs(
     # See the hermeticity note in
     # test_interview_promotes_selections_preserving_builtins_on_absent_key.
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        args = [
-            "interview",
-            "--defaults",
-            "--profile", "minimal",
-            "--selected-directives", _DIRECTIVE_010_STEM,
-        ]
-        first = runner.invoke(charter_app, args, catch_exceptions=False)
-        assert first.exit_code == 0
-        second = runner.invoke(charter_app, args, catch_exceptions=False)
-        assert second.exit_code == 0
+    monkeypatch.chdir(tmp_path)
+    args = [
+        "interview",
+        "--defaults",
+        "--profile", "minimal",
+        "--selected-directives", _DIRECTIVE_010_STEM,
+    ]
+    first = runner.invoke(charter_app, args, catch_exceptions=False)
+    assert first.exit_code == 0
+    second = runner.invoke(charter_app, args, catch_exceptions=False)
+    assert second.exit_code == 0
 
-        config = _read_config(tmp_path)
-        assert config["activated_directives"].count(_DIRECTIVE_010_STEM) == 1
-    finally:
-        os.chdir(old_cwd)
+    config = _read_config(tmp_path)
+    assert config["activated_directives"].count(_DIRECTIVE_010_STEM) == 1
 
 
-def test_interview_with_no_selections_leaves_config_untouched(tmp_path: Path) -> None:
+def test_interview_with_no_selections_leaves_config_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """FR-007 is append-only: an interview run with no directive/paradigm
     selections must not fabricate config.yaml activation keys.
     """
     _git_init(tmp_path)
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app,
-            [
-                "interview",
-                "--defaults",
-                "--profile", "minimal",
-                "--selected-directives", "",
-                "--selected-paradigms", "",
-            ],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0, result.stdout
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app,
+        [
+            "interview",
+            "--defaults",
+            "--profile", "minimal",
+            "--selected-directives", "",
+            "--selected-paradigms", "",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.stdout
 
-        config_path = tmp_path / ".kittify" / "config.yaml"
-        if config_path.exists():
-            data = YAML(typ="safe").load(config_path.read_text(encoding="utf-8")) or {}
-            assert "activated_directives" not in data
-            assert "activated_paradigms" not in data
-    finally:
-        os.chdir(old_cwd)
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    if config_path.exists():
+        data = YAML(typ="safe").load(config_path.read_text(encoding="utf-8")) or {}
+        assert "activated_directives" not in data
+        assert "activated_paradigms" not in data

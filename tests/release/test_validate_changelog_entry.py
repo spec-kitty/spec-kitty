@@ -12,11 +12,10 @@ from textwrap import dedent
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+from scripts.release.extract_changelog import extract_changelog_section
+from scripts.release.validate_release import changelog_has_entry
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "release"))
-from extract_changelog import extract_changelog_section  # type: ignore[import]
-from validate_release import changelog_has_entry  # type: ignore[import]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR = REPO_ROOT / "scripts" / "release" / "validate_release.py"

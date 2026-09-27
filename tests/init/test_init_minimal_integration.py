@@ -9,19 +9,16 @@ Subtasks: T038, T039
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.git_repo
 
-# Ensure src is on the path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-
 # ---------------------------------------------------------------------------
 # Helpers for setting up a fake global runtime
 # ---------------------------------------------------------------------------
+
 
 def _populate_global_runtime(global_home: Path) -> None:
     """Create a realistic global runtime directory structure.
@@ -52,6 +49,7 @@ def _populate_global_runtime(global_home: Path) -> None:
     cache.mkdir(parents=True, exist_ok=True)
     (cache / "version.lock").write_text("0.99.0")
 
+
 def _populate_package_templates(pkg_root: Path) -> None:
     """Create a fake package templates directory tree.
 
@@ -76,9 +74,11 @@ def _populate_package_templates(pkg_root: Path) -> None:
     templates.mkdir()
     (templates / "spec-template.md").write_text("# Package spec template\n")
 
+
 # ---------------------------------------------------------------------------
 # T038: Init creates only project-specific files when global runtime exists
 # ---------------------------------------------------------------------------
+
 
 class TestInitCreatesMinimalProject:
     """Verify that init with global runtime creates only project-specific files."""
@@ -133,9 +133,7 @@ class TestInitCreatesMinimalProject:
         vault = tmp_path / "vault"
         (vault / "m-target").mkdir(parents=True)
         (global_home / "missions").mkdir(parents=True)
-        (global_home / "missions" / "m-link").symlink_to(
-            vault / "m-target", target_is_directory=True
-        )
+        (global_home / "missions" / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
 
         canary = vault / "canary"
@@ -238,9 +236,11 @@ class TestInitCreatesMinimalProject:
         assert claude_dir.is_dir()
         assert any(claude_dir.iterdir()), "Agent shims should be generated"
 
+
 # ---------------------------------------------------------------------------
 # T039: Init resolves shared assets from global runtime
 # ---------------------------------------------------------------------------
+
 
 class TestInitResolvesFromGlobal:
     """Verify that after minimal init, shared assets resolve from ~/.kittify/."""
@@ -341,9 +341,11 @@ class TestInitResolvesFromGlobal:
 
         assert _has_global_runtime() is False
 
+
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestGlobalRuntimeEdgeCases:
     """Edge cases for the global runtime detection."""
@@ -387,9 +389,11 @@ class TestGlobalRuntimeEdgeCases:
         # But the condition 'and template_mode == "package"' ensures local mode is unaffected.
         # This is tested by verifying the code logic, not calling init directly.
 
+
 # ---------------------------------------------------------------------------
 # ensure_runtime() called during init
 # ---------------------------------------------------------------------------
+
 
 class TestEnsureRuntimeCalledDuringInit:
     """Verify that ensure_runtime() is invoked before _has_global_runtime()."""
@@ -429,6 +433,7 @@ class TestEnsureRuntimeCalledDuringInit:
         # Call the code path manually (mirrors lines 746-757 of init.py)
         try:
             from specify_cli.runtime.bootstrap import ensure_runtime
+
             ensure_runtime()
         except Exception:
             pass
@@ -457,6 +462,7 @@ class TestEnsureRuntimeCalledDuringInit:
         # Simulate the init code path with failure
         try:
             from specify_cli.runtime.bootstrap import ensure_runtime
+
             ensure_runtime()
         except Exception:
             pass  # graceful fallback
@@ -489,14 +495,17 @@ class TestEnsureRuntimeCalledDuringInit:
         )
 
         from specify_cli.runtime.bootstrap import ensure_runtime
+
         ensure_runtime()
 
         # After ensure_runtime, global runtime should be detected
         assert _has_global_runtime() is True
 
+
 # ---------------------------------------------------------------------------
 # Scratch directory does not shadow legacy tier
 # ---------------------------------------------------------------------------
+
 
 class TestScratchDirNotLegacy:
     """WP10: Scratch command-template workflow replaced by shim generation.
@@ -521,12 +530,8 @@ class TestScratchDirNotLegacy:
         generate_all_shims(project)
 
         # WP10: No scratch directory should exist
-        assert not (project / ".kittify" / ".scratch").exists(), (
-            ".kittify/.scratch/ should not exist in WP10 (command-templates deleted)"
-        )
-        assert not (project / ".kittify" / "command-templates").exists(), (
-            ".kittify/command-templates/ should not exist in WP10"
-        )
+        assert not (project / ".kittify" / ".scratch").exists(), ".kittify/.scratch/ should not exist in WP10 (command-templates deleted)"
+        assert not (project / ".kittify" / "command-templates").exists(), ".kittify/command-templates/ should not exist in WP10"
 
     def test_shim_files_written_to_agent_directory(self, tmp_path, monkeypatch):
         """WP10: Shim files are written directly to agent directories, not via scratch."""
@@ -625,9 +630,7 @@ def _fake_copy_pkg(project_path: Path) -> TemplateCopyResult:
 class TestWP01InitCoherence:
     """WP01 regressions: init must be file-creation-only."""
 
-    def test_init_does_not_create_git_dir(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_init_does_not_create_git_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """T1.1: init must not create a .git/ directory in the project."""
         app = _make_init_app(monkeypatch)
         monkeypatch.chdir(tmp_path)
@@ -638,13 +641,9 @@ class TestWP01InitCoherence:
         result = runner.invoke(app, ["init", "no-git-proj", "--ai", "codex", "--non-interactive"])
 
         assert result.exit_code == 0, f"init failed: {result.output}"
-        assert not (tmp_path / "no-git-proj" / ".git").exists(), (
-            "init created a .git/ directory — init must be file-creation-only (T001)."
-        )
+        assert not (tmp_path / "no-git-proj" / ".git").exists(), "init created a .git/ directory — init must be file-creation-only (T001)."
 
-    def test_init_does_not_create_commit(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_init_does_not_create_commit(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """T1.2: init must not create any git commits.
 
         Run init in a fresh directory (no pre-existing repo).  Because init
@@ -677,14 +676,9 @@ class TestWP01InitCoherence:
             text=True,
             check=False,
         )
-        assert git_log.stdout.strip() == "", (
-            "init created git commits — this must not happen (T001).\n"
-            f"git log output: {git_log.stdout}"
-        )
+        assert git_log.stdout.strip() == "", f"init created git commits — this must not happen (T001).\ngit log output: {git_log.stdout}"
 
-    def test_init_creates_agents_skills_for_codex(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_init_creates_agents_skills_for_codex(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """T1.3: init creates .agents/skills/ when a skills-pipeline agent is chosen.
 
         Mission 083 migrated Codex from the slash-command pipeline to the Agent Skills
@@ -712,14 +706,21 @@ class TestWP01InitCoherence:
 
         skills_root = project / ".agents" / "skills"
         assert skills_root.exists(), (
-            "init failed to create .agents/skills/ for the codex agent.\n"
-            "Post-083 codex uses the Agent Skills pipeline; the shared root must exist."
+            "init failed to create .agents/skills/ for the codex agent.\nPost-083 codex uses the Agent Skills pipeline; the shared root must exist."
         )
 
         # Every canonical command should have a skill package with SKILL.md
         expected_commands = {
-            "specify", "plan", "tasks", "tasks-outline", "tasks-packages",
-            "implement", "review", "analyze", "research", "charter",
+            "specify",
+            "plan",
+            "tasks",
+            "tasks-outline",
+            "tasks-packages",
+            "implement",
+            "review",
+            "analyze",
+            "research",
+            "charter",
         }
         packages = {p.name for p in skills_root.iterdir() if p.is_dir()}
         missing = {f"spec-kitty.{c}" for c in expected_commands} - packages

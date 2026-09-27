@@ -11,18 +11,10 @@ This guards against:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
-# ---------------------------------------------------------------------------
-# Ensure the worktree's src/ takes priority over the main-repo editable install.
-# ---------------------------------------------------------------------------
-_WORKTREE_SRC = Path(__file__).resolve().parents[5] / "src"
-if str(_WORKTREE_SRC) not in sys.path:
-    sys.path.insert(0, str(_WORKTREE_SRC))
 
 # Force both migration modules to register before MigrationRunner is imported.
 import specify_cli.upgrade.migrations.m_3_3_0_session_presence_claude_code  # noqa: F401

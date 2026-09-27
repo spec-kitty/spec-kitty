@@ -5,19 +5,14 @@ Test cases for the gitignore management functionality using GitignoreManager.
 Updated to use the new GitignoreManager class instead of the old functions.
 """
 
+import sys
 import tempfile
 from pathlib import Path
-import sys
-
-# Add the src directory to the path so we can import the module
 
 import pytest
+from specify_cli import gitignore_manager
 
 pytestmark = [pytest.mark.integration]
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src" / "specify_cli"))
-
-import gitignore_manager
 
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult

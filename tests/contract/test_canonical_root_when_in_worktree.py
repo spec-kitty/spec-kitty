@@ -15,7 +15,6 @@ is exercised end-to-end.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -29,6 +28,7 @@ from specify_cli.workspace.root_resolver import (
 
 
 pytestmark = [pytest.mark.contract, pytest.mark.git_repo]
+
 
 def _git(cwd: Path, *args: str) -> str:
     result = subprocess.run(
@@ -87,7 +87,7 @@ def test_canonical_root_resolves_from_inside_worktree(tmp_path: Path) -> None:
 
 @pytest.mark.contract
 @pytest.mark.git_repo
-def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path) -> None:
+def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Status emitted from a worktree CWD must land in the canonical repo."""
     slug = "fixture-mission"
     repo = _bootstrap_repo(tmp_path / "main")
@@ -109,9 +109,7 @@ def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path) -> None:
         "to_lane": "planned",
         "wp_id": "WP01",
     }
-    (canonical_feature_dir / "status.events.jsonl").write_text(
-        json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (canonical_feature_dir / "status.events.jsonl").write_text(json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8")
 
     worktree = tmp_path / "wt-feature"
     _git(repo, "worktree", "add", "-b", "feature", str(worktree))
@@ -120,26 +118,20 @@ def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path) -> None:
     # path computed inside the worktree.
     worktree_feature_dir = worktree / "kitty-specs" / slug
 
-    cwd = os.getcwd()
-    try:
-        os.chdir(worktree)
-        emit_status_transition(
-            feature_dir=worktree_feature_dir,
-            mission_slug=slug,
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="contract-test",
-        )
-    finally:
-        os.chdir(cwd)
+    monkeypatch.chdir(worktree)
+    emit_status_transition(
+        feature_dir=worktree_feature_dir,
+        mission_slug=slug,
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="contract-test",
+    )
 
     canonical_log = canonical_feature_dir / "status.events.jsonl"
     worktree_log = worktree_feature_dir / "status.events.jsonl"
 
     assert canonical_log.exists(), "canonical event log must exist"
-    canonical_lines = [
-        line for line in canonical_log.read_text(encoding="utf-8").splitlines() if line
-    ]
+    canonical_lines = [line for line in canonical_log.read_text(encoding="utf-8").splitlines() if line]
     # genesis->planned seed + the planned->claimed transition under test.
     assert len(canonical_lines) == 2
     payload = json.loads(canonical_lines[-1])
@@ -148,11 +140,5 @@ def test_emit_from_worktree_writes_to_canonical_repo(tmp_path: Path) -> None:
 
     if worktree_log.exists():
         # Permissible only if it is empty / does not contain the new event.
-        worktree_lines = [
-            line
-            for line in worktree_log.read_text(encoding="utf-8").splitlines()
-            if line
-        ]
-        assert worktree_lines == [], (
-            "emit must not write to the stale worktree-local event log"
-        )
+        worktree_lines = [line for line in worktree_log.read_text(encoding="utf-8").splitlines() if line]
+        assert worktree_lines == [], "emit must not write to the stale worktree-local event log"

@@ -16,18 +16,13 @@ integration test in ``tests/integration/test_init_fresh_project_chain.py``.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
-# Make the workspace's ``src/`` importable when tests are invoked from a clean
-# venv that does not yet have spec-kitty installed in editable mode.
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent / "src"))
-
-from specify_cli.cli.commands.init import _stamp_schema_metadata  # noqa: E402
-from specify_cli.migration.schema_version import (  # noqa: E402
+from specify_cli.cli.commands.init import _stamp_schema_metadata
+from specify_cli.migration.schema_version import (
     CURRENT_SCHEMA_CAPABILITIES,
     CURRENT_SCHEMA_VERSION,
 )
@@ -65,9 +60,7 @@ def test_existing_metadata_with_operator_keys_preserved(tmp_path: Path) -> None:
     metadata_path = kittify / "metadata.yaml"
     # Pre-existing operator-authored content. No spec_kitty section.
     metadata_path.write_text(
-        "my_custom_key: custom_value\n"
-        "another_section:\n"
-        "  nested: 42\n",
+        "my_custom_key: custom_value\nanother_section:\n  nested: 42\n",
         encoding="utf-8",
     )
 
@@ -91,8 +84,7 @@ def test_existing_schema_version_not_overwritten(tmp_path: Path) -> None:
     kittify.mkdir(parents=True)
     metadata_path = kittify / "metadata.yaml"
     metadata_path.write_text(
-        "spec_kitty:\n"
-        "  schema_version: 99\n",
+        "spec_kitty:\n  schema_version: 99\n",
         encoding="utf-8",
     )
 
@@ -119,10 +111,7 @@ def test_existing_schema_capabilities_not_merged_into(tmp_path: Path) -> None:
     kittify.mkdir(parents=True)
     metadata_path = kittify / "metadata.yaml"
     metadata_path.write_text(
-        "spec_kitty:\n"
-        "  schema_version: 3\n"
-        "  schema_capabilities:\n"
-        "    canonical_context: false\n",
+        "spec_kitty:\n  schema_version: 3\n  schema_capabilities:\n    canonical_context: false\n",
         encoding="utf-8",
     )
 
@@ -161,8 +150,7 @@ def test_stamp_preserves_yaml_round_trip_comments(tmp_path: Path) -> None:
     kittify.mkdir(parents=True)
     metadata_path = kittify / "metadata.yaml"
     metadata_path.write_text(
-        "# operator comment that must survive\n"
-        "my_custom_key: custom_value  # inline comment\n",
+        "# operator comment that must survive\nmy_custom_key: custom_value  # inline comment\n",
         encoding="utf-8",
     )
 

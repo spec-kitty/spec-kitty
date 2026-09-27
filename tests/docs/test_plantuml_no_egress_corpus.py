@@ -14,17 +14,13 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_DOCS_DIR = _REPO_ROOT / "scripts" / "docs"
-if str(_DOCS_DIR) not in sys.path:
-    sys.path.insert(0, str(_DOCS_DIR))
+from scripts.docs import plantuml_invoke
 
-import plantuml_invoke  # noqa: E402
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.unit
 

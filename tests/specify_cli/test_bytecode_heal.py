@@ -27,6 +27,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _PKG = "skbh_fake_pkg"
 
 
+#: Every synthetic module name any test in this file writes under _PKG.
+#: Add to this tuple when a test creates a new submodule (e.g. a new
+#: ``fake_pkg / "<name>.py"``) -- _purge_pkg_modules only clears listed names.
+_PKG_MODULES = (_PKG, f"{_PKG}.runner", f"{_PKG}.base", f"{_PKG}.boom", f"{_PKG}.broken")
+
+
 @pytest.fixture()
 def fake_pkg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """A synthetic package mirroring specify_cli's upgrade import chain."""
@@ -38,24 +44,36 @@ def fake_pkg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     (pkg_dir / "base.py").write_text("B = 1\n")
     monkeypatch.syspath_prepend(str(root))
     monkeypatch.setattr(bytecode_heal, "package_root", lambda: pkg_dir)
+    # Anchors the pre-state ("absent") for every synthetic name as the
+    # EARLIEST monkeypatch undo entry, so the LIFO teardown ends on absence
+    # no matter how many purge/reimport cycles the test runs in between.
+    # Load-bearing: test_laundered_genuine_import_bug_is_not_healed imports
+    # a submodule without purging first, so this call must anchor it too.
+    _purge_pkg_modules(monkeypatch)
     yield pkg_dir
-    for name in list(sys.modules):
-        if name == _PKG or name.startswith(f"{_PKG}."):
-            del sys.modules[name]
 
 
 def _base_pyc(pkg_dir: Path) -> Path:
     return Path(importlib.util.cache_from_source(str(pkg_dir / "base.py")))
 
 
-def _purge_pkg_modules() -> None:
-    for name in list(sys.modules):
-        if name == _PKG or name.startswith(f"{_PKG}."):
-            del sys.modules[name]
+def _purge_pkg_modules(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force every synthetic name absent from ``sys.modules``.
+
+    ``monkeypatch.delitem`` alone records nothing when the key is already
+    absent (its ``if name not in dic`` guard skips the undo entry), so a
+    bare ``delitem`` cannot anchor "absent" as the pre-state. Pairing
+    ``setitem`` (which always records, even for an absent key) immediately
+    before the ``delitem`` fixes that: undoing the pair, in either order,
+    leaves the key absent.
+    """
+    for name in _PKG_MODULES:
+        monkeypatch.setitem(sys.modules, name, None)
+        monkeypatch.delitem(sys.modules, name)
 
 
-def _import_pkg() -> None:
-    _purge_pkg_modules()
+def _import_pkg(monkeypatch: pytest.MonkeyPatch) -> None:
+    _purge_pkg_modules(monkeypatch)
     importlib.import_module(_PKG)
 
 
@@ -66,9 +84,9 @@ def test_package_root_points_at_real_package() -> None:
     assert (root / "__init__.py").is_file()
 
 
-def test_truncated_pyc_is_healed_and_retried(fake_pkg: Path) -> None:
-    _import_pkg()  # writes valid caches
-    _purge_pkg_modules()
+def test_truncated_pyc_is_healed_and_retried(fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _import_pkg(monkeypatch)  # writes valid caches
+    _purge_pkg_modules(monkeypatch)
     pyc = _base_pyc(fake_pkg)
     _corrupt_truncated(pyc)
     corrupt_bytes = pyc.read_bytes()
@@ -76,7 +94,7 @@ def test_truncated_pyc_is_healed_and_retried(fake_pkg: Path) -> None:
     healed_with: list[int] = []
 
     def operation() -> str:
-        _import_pkg()  # first call dies unmarshalling, retry recompiles
+        _import_pkg(monkeypatch)  # first call dies unmarshalling, retry recompiles
         return "done"
 
     result = bytecode_heal.invoke_with_bytecode_heal(operation, on_healed=healed_with.append)
@@ -88,15 +106,15 @@ def test_truncated_pyc_is_healed_and_retried(fake_pkg: Path) -> None:
     assert pyc.read_bytes() != corrupt_bytes
 
 
-def test_non_code_pyc_import_error_is_healed(fake_pkg: Path) -> None:
-    _import_pkg()  # writes valid caches
-    _purge_pkg_modules()
+def test_non_code_pyc_import_error_is_healed(fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _import_pkg(monkeypatch)  # writes valid caches
+    _purge_pkg_modules(monkeypatch)
     pyc = _base_pyc(fake_pkg)
     _corrupt_non_code(pyc)
     corrupt_bytes = pyc.read_bytes()
 
     def operation() -> str:
-        _import_pkg()
+        _import_pkg(monkeypatch)
         return "done"
 
     result = bytecode_heal.invoke_with_bytecode_heal(operation)
@@ -106,8 +124,8 @@ def test_non_code_pyc_import_error_is_healed(fake_pkg: Path) -> None:
     assert pyc.read_bytes() != corrupt_bytes
 
 
-def test_ordinary_runtime_bug_is_not_healed(fake_pkg: Path) -> None:
-    _import_pkg()  # caches exist and are valid
+def test_ordinary_runtime_bug_is_not_healed(fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _import_pkg(monkeypatch)  # caches exist and are valid
 
     def operation() -> None:
         raise RuntimeError("genuine bug in package code")
@@ -121,7 +139,7 @@ def test_package_frame_without_import_machinery_is_not_healed(fake_pkg: Path, mo
     # The MigrationDiscoveryError shape: raised from the package's own frame,
     # not from the import machinery — must propagate untouched.
     (fake_pkg / "boom.py").write_text("def detonate():\n    raise ValueError('bad marshal data (unknown type code)')\n")
-    _import_pkg()
+    _import_pkg(monkeypatch)
     boom = importlib.import_module(f"{_PKG}.boom")
 
     purged: list[int] = []
@@ -132,7 +150,7 @@ def test_package_frame_without_import_machinery_is_not_healed(fake_pkg: Path, mo
     assert purged == []
 
 
-def test_laundered_discovery_failure_is_healed(fake_pkg: Path) -> None:
+def test_laundered_discovery_failure_is_healed(fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The laundered wrapper: a fresh exception raised ``from`` a corrupt-``.pyc`` import failure.
 
     ``upgrade.migrations.auto_discover_migrations`` collects per-module import
@@ -141,15 +159,15 @@ def test_laundered_discovery_failure_is_healed(fake_pkg: Path) -> None:
     Non-vacuity: with the cause-chain walk removed, the wrapper matches no
     direct shape and this test sees the raw wrapper error instead of "done".
     """
-    _import_pkg()  # writes valid caches
-    _purge_pkg_modules()
+    _import_pkg(monkeypatch)  # writes valid caches
+    _purge_pkg_modules(monkeypatch)
     pyc = _base_pyc(fake_pkg)
     _corrupt_truncated(pyc)
     corrupt_bytes = pyc.read_bytes()
 
     def operation() -> str:
         try:
-            _import_pkg()  # first call dies unmarshalling, retry recompiles
+            _import_pkg(monkeypatch)  # first call dies unmarshalling, retry recompiles
         except Exception as exc:  # launder exactly like auto_discover_migrations
             raise RuntimeError(f"Failed to import migration module(s): base: {exc}") from exc
         return "done"
@@ -199,8 +217,8 @@ def test_no_purgeable_cache_propagates_original(fake_pkg: Path, monkeypatch: pyt
     assert calls == [1]  # no retry — nothing changed, retry would be futile
 
 
-def test_purge_package_bytecode_removes_only_caches(fake_pkg: Path) -> None:
-    _import_pkg()
+def test_purge_package_bytecode_removes_only_caches(fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _import_pkg(monkeypatch)
     pyc = _base_pyc(fake_pkg)
     assert pyc.exists()
 

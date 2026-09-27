@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import os
+import importlib.util
 import io
 import json
 import re
 import stat
 import subprocess
+import sys
 import tarfile
 import types
 from pathlib import Path
@@ -37,7 +39,13 @@ def pytest_fixture_setup(fixturedef: pytest.FixtureDef[object], request: SubRequ
         return None
     value = Path(frozen)
     assert value.is_absolute() and (value / "bin/python").is_file()
-    os.environ["SPEC_KITTY_TEST_VENV"] = str(value)
+    # This stands in for the root `test_venv` fixture for the WHOLE session, so
+    # a block-scoped `mock.patch.dict` would undo the variable before any test
+    # runs. `pytest.MonkeyPatch()` + `request.config.add_cleanup` gives it the
+    # same session lifetime while still auto-restoring at session teardown.
+    mp = pytest.MonkeyPatch()
+    mp.setenv("SPEC_KITTY_TEST_VENV", str(value))
+    request.config.add_cleanup(mp.undo)
     fixturedef.cached_result = (value, fixturedef.cache_key(request), None)
     return value
 
@@ -631,30 +639,28 @@ def test_gate_does_not_repair_its_inputs(recovery_repo: Path, monkeypatch: pytes
     assert before == {p: (p.read_bytes(), p.lstat().st_mode, p.lstat().st_mtime_ns) for p in paths}
 
 
-def mutant_module(tmp_path: Path, old: str, new: str) -> types.ModuleType:
+def mutant_module(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, old: str, new: str) -> types.ModuleType:
     source = Path(gate.__file__).read_text(encoding="utf-8")
     assert old in source
     file = tmp_path / "mutated_gate.py"
     file.write_text(source.replace(old, new, 1), encoding="utf-8")
-    import importlib.util
-    import sys
 
     spec = importlib.util.spec_from_file_location("wp12_mutated_gate", file)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     return module
 
 
-def test_structural_floor_detects_deleted_gate(tmp_path: Path) -> None:
-    module = mutant_module(tmp_path, "def test_archive_baseline_is_non_empty()", "def removed_gate()")
+def test_structural_floor_detects_deleted_gate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    module = mutant_module(monkeypatch, tmp_path, "def test_archive_baseline_is_non_empty()", "def removed_gate()")
     with pytest.raises(AssertionError, match="protected gate function missing"):
         module.test_archive_freeze_gate_uses_the_exp_port_base_without_import_time_skip()
 
 
-def test_prefix_self_mutation_breaks_independent_control(archive_repo: Path, tmp_path: Path) -> None:
-    module = mutant_module(tmp_path, "if after == before:", "if True:")
+def test_prefix_self_mutation_breaks_independent_control(archive_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    module = mutant_module(monkeypatch, tmp_path, "if after == before:", "if True:")
     module.__dict__["REPO_ROOT"] = archive_repo
     path = archive_repo / "kitty-ops/lifecycle.jsonl"
     path.write_bytes(b"rewritten\n")
@@ -667,6 +673,7 @@ def test_removing_exact_candidate_proof_breaks_controls(
     recovery_repo: Path,
     tmp_path: Path,
     attack: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     old = '''    assert index.get(path) == expected, f"{path}: tracked index blob/mode differs from reviewed proof"
     raw = _disk(path, expected.mode)
@@ -675,7 +682,7 @@ def test_removing_exact_candidate_proof_breaks_controls(
     if attack == "receipt":
         # Deliberately let the candidate index choose its own trusted hash.
         replacement = "    if path == RECEIPT:\n        expected = index[path]\n" + old
-    module = mutant_module(tmp_path, old, replacement)
+    module = mutant_module(monkeypatch, tmp_path, old, replacement)
     module.__dict__["REPO_ROOT"] = recovery_repo
     path = gate.MOVES[0][1] if attack == "destination" else gate.RECEIPT
     target = recovery_repo / path
@@ -688,6 +695,7 @@ def test_removing_exact_candidate_proof_breaks_controls(
 def test_omitting_archive_root_breaks_independent_control(
     archive_repo: Path,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     path = archive_repo / ".kittify/missions/old/retrospective.yaml"
     path.parent.mkdir(parents=True)
@@ -695,7 +703,7 @@ def test_omitting_archive_root_breaks_independent_control(
     git(archive_repo, "add", ".")
     git(archive_repo, "commit", "-m", "Fourth root baseline")
     git(archive_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
-    module = mutant_module(tmp_path, '    ".kittify/missions/",\n', "")
+    module = mutant_module(monkeypatch, tmp_path, '    ".kittify/missions/",\n', "")
     module.__dict__["REPO_ROOT"] = archive_repo
     path.write_bytes(b"changed")
     with pytest.raises(pytest.fail.Exception, match="DID NOT RAISE"), pytest.raises(AssertionError, match="ordinary archive"):

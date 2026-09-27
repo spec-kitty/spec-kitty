@@ -13,16 +13,13 @@ from __future__ import annotations
 import html
 import json
 import re
-import sys
 from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+from scripts.docs import seo_postprocess, seo_verify
 
-from scripts.docs import seo_postprocess, seo_verify  # noqa: E402
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -49,14 +46,9 @@ def _rendered_page(
         head.append(f'  <meta name="description" content="{description}">')
     head.append(f'  <link rel="canonical" href="{canonical}">')
     effective_title = title if title is not None else seo_postprocess.DEFAULT_TITLE
-    effective_description = (
-        description if description is not None else seo_postprocess.FALLBACK_DESCRIPTION
-    )
+    effective_description = description if description is not None else seo_postprocess.FALLBACK_DESCRIPTION
     head.append(f'  <meta property="og:title" content="{effective_title if og_title is None else og_title}">')
-    head.append(
-        '  <meta property="og:description" '
-        f'content="{effective_description if og_description is None else og_description}">'
-    )
+    head.append(f'  <meta property="og:description" content="{effective_description if og_description is None else og_description}">')
     head += ["</head>", "<body><h1>Page</h1></body>", "</html>", ""]
     return "\n".join(head)
 
@@ -64,7 +56,7 @@ def _rendered_page(
 def _redirect_stub(target: str) -> str:
     """A redirect stub, matching ``redirect_stub_generator.STUB_TEMPLATE``."""
     return (
-        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n"
+        '<!DOCTYPE html>\n<html lang="en">\n<head>\n'
         '<meta charset="utf-8">\n<title>Page moved</title>\n'
         f'<meta http-equiv="refresh" content="0; url={target}">\n'
         f'<link rel="canonical" href="{target}">\n'
@@ -84,9 +76,7 @@ def _write_sitemap(site: Path, urls: list[str]) -> None:
     _write(
         site,
         "sitemap.xml",
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        f"{entries}\n</urlset>\n",
+        f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{entries}\n</urlset>\n',
     )
 
 
@@ -124,11 +114,7 @@ def _tree_snapshot(root: Path) -> dict[str, bytes]:
     mutation this test has to catch. Comparing raw bytes is strictly stronger
     than comparing a digest and needs no hashing primitive.
     """
-    return {
-        path.relative_to(root).as_posix(): path.read_bytes()
-        for path in sorted(root.rglob("*"))
-        if path.is_file()
-    }
+    return {path.relative_to(root).as_posix(): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
 
 
 # --- V-06 … V-10 red paths --------------------------------------------------
@@ -362,9 +348,7 @@ def test_non_indexable_pages_are_labelled_by_reason(clean_site: Path) -> None:
 def test_verifier_does_not_mutate_site(clean_site: Path, tmp_path: Path) -> None:
     """C-B6: a tool that can fix what it checks can pass itself."""
     before = _tree_snapshot(clean_site)
-    exit_code = seo_verify.main(
-        ["--site-dir", str(clean_site), "--base-url", BASE_URL, "--json", str(tmp_path / "report.json")]
-    )
+    exit_code = seo_verify.main(["--site-dir", str(clean_site), "--base-url", BASE_URL, "--json", str(tmp_path / "report.json")])
     assert exit_code == 0
     assert _tree_snapshot(clean_site) == before
 
@@ -459,6 +443,7 @@ def test_report_records_stale_url_finding(clean_site: Path) -> None:
 
 def test_stale_url_finding_note_states_only_what_was_observed(clean_site: Path) -> None:
     """FR-011: the note is evidence, so it must not confirm an unobserved page."""
+
     def note(site: Path) -> str:
         record = seo_verify.verify_site(site_dir=site, base_url=BASE_URL)
         finding = next(f for f in record.findings if f["reported_address"] == "how-to/install-spec-kitty.html")
@@ -567,8 +552,7 @@ def test_postprocess_preserves_existing_description(tmp_path: Path) -> None:
     _write(
         site,
         "guides/install.html",
-        f'<html><head><title>Install</title><meta name="description" content="{INSTALL_DESCRIPTION}">'
-        "</head><body></body></html>",
+        f'<html><head><title>Install</title><meta name="description" content="{INSTALL_DESCRIPTION}"></head><body></body></html>',
     )
     _postprocess(site)
     rendered = (site / "guides/install.html").read_text(encoding="utf-8")
@@ -626,8 +610,7 @@ def _page_with_description(site: Path, relative_path: str, description: str) -> 
     _write(
         site,
         relative_path,
-        f'<html><head><title>Install notes</title><meta name="description" content="{description}">'
-        "</head><body></body></html>",
+        f'<html><head><title>Install notes</title><meta name="description" content="{description}"></head><body></body></html>',
     )
     _postprocess(site)
     return (site / relative_path).read_text(encoding="utf-8")

@@ -44,10 +44,11 @@ _SRC = _WORKTREE_ROOT / "src"
 
 # Fixture construction imports ``specify_cli`` / ``kernel`` from THIS worktree's
 # ``src`` so the builders match the CLI-under-test exactly, regardless of how the
-# venv / editable install resolves those packages.
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
+# venv / editable install resolves those packages. ``pytest.ini``'s
+# ``pythonpath = src`` already puts this worktree's ``src`` on THIS process's
+# ``sys.path`` at the matching rootdir, so no manual insert is needed for
+# in-process imports here; ``_SRC`` itself is still needed below to build the
+# subprocess's ``PYTHONPATH``.
 _MISSION_TYPE = "software-dev"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 

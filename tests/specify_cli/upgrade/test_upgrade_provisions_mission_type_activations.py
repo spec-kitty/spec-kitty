@@ -52,6 +52,7 @@ failing closed even after a "successful" upgrade. These additional tests:
 
 from __future__ import annotations
 
+import contextlib
 import subprocess
 from kernel.clock import now_utc
 from pathlib import Path
@@ -192,14 +193,8 @@ _runner = CliRunner()
 
 
 def _run_upgrade(args: list[str], cwd: Path) -> Result:
-    import os
-
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(cwd)
+    with contextlib.chdir(cwd):
         return _runner.invoke(_test_app, args, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 # ---------------------------------------------------------------------------

@@ -5,22 +5,33 @@ from __future__ import annotations
 import importlib
 import sys
 
-
 import pytest
 
 pytestmark = [pytest.mark.integration]
 
-def _snapshot_modules(*prefixes: str) -> dict[str, object]:
-    """Return a copy of sys.modules for all keys matching any prefix."""
-    return {k: v for k, v in sys.modules.items() if any(k.startswith(p) for p in prefixes)}
 
+def _purge_modules(monkeypatch: pytest.MonkeyPatch, *prefixes: str) -> None:
+    """Force a fresh import for every loaded module matching a prefix.
 
-def _restore_modules(snapshot: dict[str, object], *prefixes: str) -> None:
-    """Remove newly-added modules and restore the snapshotted state."""
-    for key in list(sys.modules):
-        if any(key.startswith(p) for p in prefixes):
-            del sys.modules[key]
-    sys.modules.update(snapshot)
+    ``monkeypatch.delitem`` on a key already present in ``sys.modules``
+    records the removed value and restores it when the fixture tears down, so
+    a bare delitem per key already puts ``sys.modules`` back to its exact
+    pre-test state once the test ends, regardless of what the import
+    machinery wrote in between.
+
+    The import machinery also rebinds the *parent* package's attribute
+    (``pkg.sub = submodule``) on a fresh import; a plain ``sys.modules``
+    purge/restore does not touch that attribute, so it keeps pointing at the
+    stale, freshly-reimported submodule after the test even though
+    ``sys.modules`` itself is clean again. Restore that too via
+    ``monkeypatch.delattr`` before each purge.
+    """
+    for name in [k for k in sys.modules if any(k.startswith(p) for p in prefixes)]:
+        parent_name, _, child = name.rpartition(".")
+        parent = sys.modules.get(parent_name)
+        if parent is not None and hasattr(parent, child):
+            monkeypatch.delattr(parent, child)
+        monkeypatch.delitem(sys.modules, name)
 
 
 _SPEC_KITTY_AUTH_STORAGE = "specify_cli.auth.secure_storage"
@@ -37,39 +48,27 @@ def test_from_environment_windows_returns_windows_file_storage(monkeypatch):
     (C-003: faking ``os.name`` flips ``pathlib`` to ``WindowsPath`` and
     crashes pytest).
     """
-    prefixes = (_SPEC_KITTY_AUTH_STORAGE,)
-    snapshot = _snapshot_modules(*prefixes)
-
     monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
-    for name in list(sys.modules):
-        if name.startswith(_SPEC_KITTY_AUTH_STORAGE):
-            del sys.modules[name]
+    _purge_modules(monkeypatch, _SPEC_KITTY_AUTH_STORAGE)
 
     import specify_cli.auth.secure_storage.abstract as abstract_mod
 
     importlib.reload(abstract_mod)
 
-    try:
-        storage = abstract_mod.SecureStorage.from_environment()
+    storage = abstract_mod.SecureStorage.from_environment()
 
-        from specify_cli.auth.secure_storage.windows_storage import WindowsFileStorage
+    from specify_cli.auth.secure_storage.windows_storage import WindowsFileStorage
 
-        assert isinstance(storage, WindowsFileStorage), (
-            f"Expected WindowsFileStorage on win32, got {type(storage).__name__}"
-        )
-        # WP03 / DM-01KW1KDHVGWZ0QERDMV1CRJ15S: the Windows store is no longer
-        # hardcoded to ``~/.spec-kitty/auth``; it now resolves through the
-        # unified runtime root (platformdirs base on real Windows,
-        # ``$SPEC_KITTY_HOME`` when set). Assert against get_runtime_root() so
-        # the test reflects the normalization rather than a coincidental path.
-        from specify_cli.paths import get_runtime_root
+    assert isinstance(storage, WindowsFileStorage), f"Expected WindowsFileStorage on win32, got {type(storage).__name__}"
+    # WP03 / DM-01KW1KDHVGWZ0QERDMV1CRJ15S: the Windows store is no longer
+    # hardcoded to ``~/.spec-kitty/auth``; it now resolves through the
+    # unified runtime root (platformdirs base on real Windows,
+    # ``$SPEC_KITTY_HOME`` when set). Assert against get_runtime_root() so
+    # the test reflects the normalization rather than a coincidental path.
+    from specify_cli.paths import get_runtime_root
 
-        assert storage.store_path == get_runtime_root().auth_dir
-        assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, (
-            "keychain module must never be imported in the file-only storage model"
-        )
-    finally:
-        _restore_modules(snapshot, *prefixes)
+    assert storage.store_path == get_runtime_root().auth_dir
+    assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, "keychain module must never be imported in the file-only storage model"
 
 
 def test_from_environment_posix_returns_encrypted_file_storage(monkeypatch):
@@ -79,28 +78,16 @@ def test_from_environment_posix_returns_encrypted_file_storage(monkeypatch):
     on the sibling Windows test above for why this patches the seam instead
     of ``sys.platform``.
     """
-    prefixes = (_SPEC_KITTY_AUTH_STORAGE,)
-    snapshot = _snapshot_modules(*prefixes)
-
     monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
-    for name in list(sys.modules):
-        if name.startswith(_SPEC_KITTY_AUTH_STORAGE):
-            del sys.modules[name]
+    _purge_modules(monkeypatch, _SPEC_KITTY_AUTH_STORAGE)
 
     import specify_cli.auth.secure_storage.abstract as abstract_mod
 
     importlib.reload(abstract_mod)
 
-    try:
-        storage = abstract_mod.SecureStorage.from_environment()
+    storage = abstract_mod.SecureStorage.from_environment()
 
-        from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
+    from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
 
-        assert isinstance(storage, FileFallbackStorage), (
-            f"Expected FileFallbackStorage on linux, got {type(storage).__name__}"
-        )
-        assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, (
-            "keychain module must never be imported in the file-only storage model"
-        )
-    finally:
-        _restore_modules(snapshot, *prefixes)
+    assert isinstance(storage, FileFallbackStorage), f"Expected FileFallbackStorage on linux, got {type(storage).__name__}"
+    assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, "keychain module must never be imported in the file-only storage model"

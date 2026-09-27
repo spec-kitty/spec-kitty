@@ -14,11 +14,15 @@ from pathlib import Path
 
 import pytest
 
-os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
-
 from scripts.docs import check_slash_command_freshness as freshness
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+@pytest.fixture(autouse=True)
+def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the upgrade-check opt-out set for every test (was a module-level ``setdefault``)."""
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
 
 
 # ---------------------------------------------------------------------------
@@ -72,18 +76,14 @@ class TestEvaluate:
             documented={"specify", "plan"},
             registry=self._REGISTRY,
         )
-        assert [(f.rule_id, f.command) for f in findings] == [
-            ("SLASH-MISSING", "tasks")
-        ]
+        assert [(f.rule_id, f.command) for f in findings] == [("SLASH-MISSING", "tasks")]
 
     def test_extra_direction(self) -> None:
         findings = freshness.evaluate(
             documented={"specify", "plan", "tasks", "retired-cmd"},
             registry=self._REGISTRY,
         )
-        assert [(f.rule_id, f.command) for f in findings] == [
-            ("SLASH-EXTRA", "retired-cmd")
-        ]
+        assert [(f.rule_id, f.command) for f in findings] == [("SLASH-EXTRA", "retired-cmd")]
 
     def test_both_directions_at_once(self) -> None:
         findings = freshness.evaluate(
@@ -101,9 +101,7 @@ class TestEvaluate:
 # ---------------------------------------------------------------------------
 
 
-_REAL_REFERENCE = (
-    Path(__file__).resolve().parents[2] / "docs" / "api" / "slash-commands.md"
-)
+_REAL_REFERENCE = Path(__file__).resolve().parents[2] / "docs" / "api" / "slash-commands.md"
 
 
 def _write(path: Path, body: str) -> Path:
@@ -137,9 +135,7 @@ class TestCli:
         rc = freshness.main(["--reference", str(ref)])
         assert rc == 1
 
-    def test_extra_command_ci_writes_stdout(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_extra_command_ci_writes_stdout(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from specify_cli.shims.registry import CONSUMER_SKILLS
 
         documented = sorted(CONSUMER_SKILLS | {"retired-cmd"})

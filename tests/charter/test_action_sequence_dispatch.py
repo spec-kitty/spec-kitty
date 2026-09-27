@@ -95,11 +95,11 @@ def _make_repo(*mission_types: MagicMock) -> MagicMock:
     return repo
 
 
-def _inject_pack_context_mock(activated: frozenset[str]) -> tuple[MagicMock, dict]:
+def _inject_pack_context_mock(activated: frozenset[str], monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Inject a mock PackContext module into sys.modules for lazy-import patching.
 
-    Returns (mock_ctx, saved_modules) where saved_modules can be used to restore
-    the original sys.modules state.
+    ``monkeypatch`` restores the pre-test ``sys.modules`` entry (present or
+    absent) automatically at teardown.
     """
     mock_ctx = _make_pack_context(activated)
     mock_pack_context_cls = MagicMock()
@@ -109,26 +109,14 @@ def _inject_pack_context_mock(activated: frozenset[str]) -> tuple[MagicMock, dic
     fake_module = types.ModuleType("charter.activation.pack_context")
     fake_module.PackContext = mock_pack_context_cls  # type: ignore[attr-defined]
 
-    saved: dict = {}
-    for key in ("charter.activation.pack_context",):
-        saved[key] = sys.modules.get(key)
-
-    sys.modules["charter.activation.pack_context"] = fake_module
-    return mock_ctx, saved
-
-
-def _restore_modules(saved: dict) -> None:
-    """Restore sys.modules to the state before _inject_pack_context_mock."""
-    for key, val in saved.items():
-        if val is None:
-            sys.modules.pop(key, None)
-        else:
-            sys.modules[key] = val
+    monkeypatch.setitem(sys.modules, "charter.activation.pack_context", fake_module)
+    return mock_ctx
 
 
 def _inject_mission_type_repository_mock(
     mock_repo: MagicMock,
-) -> dict:
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Inject a mock ``resolve_layered_mission_types`` module into sys.modules.
 
     WP04: ``_resolve_action_slot`` calls
@@ -138,7 +126,8 @@ def _inject_mission_type_repository_mock(
     interface the returned roster needs, so it doubles as the fake factory's
     return value unchanged.
 
-    Returns saved_modules for cleanup.
+    ``monkeypatch`` restores the pre-test ``sys.modules`` entries automatically
+    at teardown.
     """
     mock_resolve_layered = MagicMock(return_value=mock_repo)
 
@@ -147,15 +136,10 @@ def _inject_mission_type_repository_mock(
     fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
     fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
-    saved: dict = {}
-    for key in ("charter.offering.missions", "charter.offering.missions.mission_type_repository"):
-        saved[key] = sys.modules.get(key)
-
     # Only inject the specific module (don't override charter.offering.missions if it exists)
     if "charter.offering.missions" not in sys.modules:
-        sys.modules["charter.offering.missions"] = fake_pkg
-    sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
-    return saved
+        monkeypatch.setitem(sys.modules, "charter.offering.missions", fake_pkg)
+    monkeypatch.setitem(sys.modules, "charter.offering.missions.mission_type_repository", fake_module)
 
 
 # ---------------------------------------------------------------------------
@@ -166,51 +150,39 @@ def _inject_mission_type_repository_mock(
 class TestExistingMissionTypes:
     """existing_mission_types() returns the sorted list of activated mission type IDs."""
 
-    def test_returns_builtin_defaults_when_no_config(self, tmp_path: Path) -> None:
+    def test_returns_builtin_defaults_when_no_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """When no charter config exists, all four built-in types are returned (fallback)."""
         builtin = frozenset({"software-dev", "documentation", "research", "plan"})
-        mock_ctx, saved = _inject_pack_context_mock(builtin)
-        try:
-            result = existing_mission_types(tmp_path)
-        finally:
-            _restore_modules(saved)
+        _inject_pack_context_mock(builtin, monkeypatch)
+        result = existing_mission_types(tmp_path)
 
         assert result == sorted(builtin)
 
-    def test_returns_sorted_list(self, tmp_path: Path) -> None:
+    def test_returns_sorted_list(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """existing_mission_types() MUST return a sorted list."""
         activated = frozenset({"software-dev", "documentation", "plan"})
-        mock_ctx, saved = _inject_pack_context_mock(activated)
-        try:
-            result = existing_mission_types(tmp_path)
-        finally:
-            _restore_modules(saved)
+        _inject_pack_context_mock(activated, monkeypatch)
+        result = existing_mission_types(tmp_path)
 
         assert result == sorted(activated)
         assert isinstance(result, list)
 
-    def test_returns_only_activated_types(self, tmp_path: Path) -> None:
+    def test_returns_only_activated_types(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """When charter config specifies activation, only activated types are returned."""
         activated = frozenset({"software-dev", "documentation"})
-        mock_ctx, saved = _inject_pack_context_mock(activated)
-        try:
-            result = existing_mission_types(tmp_path)
-        finally:
-            _restore_modules(saved)
+        _inject_pack_context_mock(activated, monkeypatch)
+        result = existing_mission_types(tmp_path)
 
         assert "software-dev" in result
         assert "documentation" in result
         assert "research" not in result
         assert "plan" not in result
 
-    def test_returns_custom_type_when_activated(self, tmp_path: Path) -> None:
+    def test_returns_custom_type_when_activated(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A custom mission type activated in config appears in the returned list."""
         activated = frozenset({"software-dev", "compliance-audit"})
-        mock_ctx, saved = _inject_pack_context_mock(activated)
-        try:
-            result = existing_mission_types(tmp_path)
-        finally:
-            _restore_modules(saved)
+        _inject_pack_context_mock(activated, monkeypatch)
+        result = existing_mission_types(tmp_path)
 
         assert "compliance-audit" in result
         assert "software-dev" in result
@@ -226,30 +198,30 @@ class TestResolveActionSequence:
     UnknownMissionTypeError for unregistered types.
     """
 
-    def test_software_dev_returns_builtin_sequence(self, tmp_path: Path) -> None:
+    def test_software_dev_returns_builtin_sequence(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """_action_sequence('software-dev', repo_root) returns the built-in sequence."""
         expected = ["specify", "plan", "tasks", "implement", "review"]
         software_dev = _make_mission_type("software-dev", expected)
         mock_repo = _make_repo(software_dev)
-        saved = _inject_mission_type_repository_mock(mock_repo)
+        _inject_mission_type_repository_mock(mock_repo, monkeypatch)
 
-        try:
-            with patch(
-                "charter.activation.mission_type_profiles.existing_mission_types",
-                return_value=["documentation", "plan", "research", "software-dev"],
-            ):
-                result = _action_sequence("software-dev", tmp_path)
-        finally:
-            _restore_modules(saved)
+        with patch(
+            "charter.activation.mission_type_profiles.existing_mission_types",
+            return_value=["documentation", "plan", "research", "software-dev"],
+        ):
+            result = _action_sequence("software-dev", tmp_path)
 
         assert result == expected
 
     def test_nonexistent_raises_unknown_mission_type_error(self, tmp_path: Path) -> None:
         """_action_sequence('nonexistent', ...) raises UnknownMissionTypeError."""
-        with patch(
-            "charter.activation.mission_type_profiles.existing_mission_types",
-            return_value=["documentation", "plan", "research", "software-dev"],
-        ), pytest.raises(UnknownMissionTypeError) as exc_info:
+        with (
+            patch(
+                "charter.activation.mission_type_profiles.existing_mission_types",
+                return_value=["documentation", "plan", "research", "software-dev"],
+            ),
+            pytest.raises(UnknownMissionTypeError) as exc_info,
+        ):
             _action_sequence("nonexistent-type", tmp_path)
 
         assert "nonexistent-type" in str(exc_info.value)
@@ -258,36 +230,36 @@ class TestResolveActionSequence:
         """The UnknownMissionTypeError raised carries sorted activated IDs in registered_ids."""
         registered = ["documentation", "plan", "research", "software-dev"]
 
-        with patch(
-            "charter.activation.mission_type_profiles.existing_mission_types",
-            return_value=registered,
-        ), pytest.raises(UnknownMissionTypeError) as exc_info:
+        with (
+            patch(
+                "charter.activation.mission_type_profiles.existing_mission_types",
+                return_value=registered,
+            ),
+            pytest.raises(UnknownMissionTypeError) as exc_info,
+        ):
             _action_sequence("unknown-type", tmp_path)
 
         err = exc_info.value
         assert err.registered_ids == registered
 
-    def test_result_is_a_list(self, tmp_path: Path) -> None:
+    def test_result_is_a_list(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """_action_sequence() returns a list, not another iterable type."""
         software_dev = _make_mission_type(
             "software-dev",
             ["specify", "plan", "tasks", "implement", "review"],
         )
         mock_repo = _make_repo(software_dev)
-        saved = _inject_mission_type_repository_mock(mock_repo)
+        _inject_mission_type_repository_mock(mock_repo, monkeypatch)
 
-        try:
-            with patch(
-                "charter.activation.mission_type_profiles.existing_mission_types",
-                return_value=["software-dev"],
-            ):
-                result = _action_sequence("software-dev", tmp_path)
-        finally:
-            _restore_modules(saved)
+        with patch(
+            "charter.activation.mission_type_profiles.existing_mission_types",
+            return_value=["software-dev"],
+        ):
+            result = _action_sequence("software-dev", tmp_path)
 
         assert isinstance(result, list)
 
-    def test_not_cached_across_calls(self, tmp_path: Path) -> None:
+    def test_not_cached_across_calls(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """_action_sequence() calls the layered factory once per invocation
         (FR-007) -- ``_resolve_action_slot`` itself applies no additional
         caching on top of whatever the injected factory does.
@@ -302,9 +274,7 @@ class TestResolveActionSequence:
 
         call_count = 0
 
-        def counting_roster_factory(
-            mission_types_dirs: object, pack_context: object
-        ) -> MagicMock:
+        def counting_roster_factory(mission_types_dirs: object, pack_context: object) -> MagicMock:
             nonlocal call_count
             call_count += 1
             return _make_repo(software_dev)
@@ -314,20 +284,14 @@ class TestResolveActionSequence:
         fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
         fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
-        saved: dict = {}
-        for key in ("charter.offering.missions.mission_type_repository",):
-            saved[key] = sys.modules.get(key)
-        sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
+        monkeypatch.setitem(sys.modules, "charter.offering.missions.mission_type_repository", fake_module)
 
-        try:
-            with patch(
-                "charter.activation.mission_type_profiles.existing_mission_types",
-                return_value=["software-dev"],
-            ):
-                _action_sequence("software-dev", tmp_path)
-                _action_sequence("software-dev", tmp_path)
-        finally:
-            _restore_modules(saved)
+        with patch(
+            "charter.activation.mission_type_profiles.existing_mission_types",
+            return_value=["software-dev"],
+        ):
+            _action_sequence("software-dev", tmp_path)
+            _action_sequence("software-dev", tmp_path)
 
         # resolve_layered_mission_types() should be called twice (once per
         # top-level _action_sequence() call; the *real* factory is itself
@@ -335,7 +299,7 @@ class TestResolveActionSequence:
         # concern, not something _resolve_action_slot adds on top).
         assert call_count == 2
 
-    def test_extends_chain_resolved_when_own_sequence_empty(self, tmp_path: Path) -> None:
+    def test_extends_chain_resolved_when_own_sequence_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """When a mission type has an extends: field and empty action_sequence,
         the parent's action_sequence is used.
         """
@@ -345,20 +309,17 @@ class TestResolveActionSequence:
         )
         child = _make_mission_type("custom-dev", [], extends="software-dev")
         mock_repo = _make_repo(parent, child)
-        saved = _inject_mission_type_repository_mock(mock_repo)
+        _inject_mission_type_repository_mock(mock_repo, monkeypatch)
 
-        try:
-            with patch(
-                "charter.activation.mission_type_profiles.existing_mission_types",
-                return_value=["software-dev", "custom-dev"],
-            ):
-                result = _action_sequence("custom-dev", tmp_path)
-        finally:
-            _restore_modules(saved)
+        with patch(
+            "charter.activation.mission_type_profiles.existing_mission_types",
+            return_value=["software-dev", "custom-dev"],
+        ):
+            result = _action_sequence("custom-dev", tmp_path)
 
         assert result == ["specify", "plan", "tasks", "implement", "review"]
 
-    def test_own_sequence_takes_priority_over_extends(self, tmp_path: Path) -> None:
+    def test_own_sequence_takes_priority_over_extends(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """When a mission type has its own action_sequence, it takes priority over extends:."""
         parent = _make_mission_type(
             "software-dev",
@@ -370,16 +331,13 @@ class TestResolveActionSequence:
             extends="software-dev",
         )
         mock_repo = _make_repo(parent, child)
-        saved = _inject_mission_type_repository_mock(mock_repo)
+        _inject_mission_type_repository_mock(mock_repo, monkeypatch)
 
-        try:
-            with patch(
-                "charter.activation.mission_type_profiles.existing_mission_types",
-                return_value=["software-dev", "custom-dev"],
-            ):
-                result = _action_sequence("custom-dev", tmp_path)
-        finally:
-            _restore_modules(saved)
+        with patch(
+            "charter.activation.mission_type_profiles.existing_mission_types",
+            return_value=["software-dev", "custom-dev"],
+        ):
+            result = _action_sequence("custom-dev", tmp_path)
 
         assert result == ["design", "build", "ship"]
 
@@ -418,23 +376,21 @@ class TestMissionTypeProfileNoLiteralConstraint:
                 profile = MissionTypeProfile(mission_type=mt)
                 assert profile.mission_type == mt
             except ValidationError as exc:
-                pytest.fail(
-                    f"MissionTypeProfile raised ValidationError for mission_type={mt!r}. "
-                    f"T029 requires str annotation, not Literal[...]. Error: {exc}"
-                )
+                pytest.fail(f"MissionTypeProfile raised ValidationError for mission_type={mt!r}. T029 requires str annotation, not Literal[...]. Error: {exc}")
 
-    def test_resolve_action_sequence_raises_for_unactivated_custom_type(
-        self, tmp_path: Path
-    ) -> None:
+    def test_resolve_action_sequence_raises_for_unactivated_custom_type(self, tmp_path: Path) -> None:
         """Even though MissionTypeProfile accepts 'custom-type', resolve_action_sequence
         raises UnknownMissionTypeError if that type is not activated.
         """
         registered = ["documentation", "plan", "research", "software-dev"]
 
-        with patch(
-            "charter.activation.mission_type_profiles.existing_mission_types",
-            return_value=registered,
-        ), pytest.raises(UnknownMissionTypeError) as exc_info:
+        with (
+            patch(
+                "charter.activation.mission_type_profiles.existing_mission_types",
+                return_value=registered,
+            ),
+            pytest.raises(UnknownMissionTypeError) as exc_info,
+        ):
             _action_sequence("custom-type", tmp_path)
 
         err = exc_info.value

@@ -14,6 +14,7 @@ helper in isolation.
 from __future__ import annotations
 
 import subprocess
+from contextlib import chdir
 from functools import partial
 from pathlib import Path
 
@@ -106,16 +107,11 @@ class TestMergePreflightBlocks:
         app.command()(merge)
 
         # CliRunner uses CWD from the system, so run it inside repo.
-        import os
-
-        original_cwd = os.getcwd()
         try:
-            os.chdir(repo)
-            return runner.invoke(app, extra_args, catch_exceptions=False)
+            with chdir(repo):
+                return runner.invoke(app, extra_args, catch_exceptions=False)
         except SystemExit as exc:  # typer.Exit inherits from click.exceptions.Exit
             return exc
-        finally:
-            os.chdir(original_cwd)
 
     def test_sparse_repo_blocks_merge(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

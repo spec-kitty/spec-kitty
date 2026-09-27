@@ -10,19 +10,14 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-import sys
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
-# Make ``scripts.docs`` importable. The repository's ``pytest.ini`` only adds
-# ``src`` to ``pythonpath`` to avoid double-import problems, so we extend the
-# path explicitly here for the tooling under ``scripts/``.
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
+# ``scripts.docs`` is importable without any sys.path bootstrap: pytest's own
+# rootdir-prepend (triggered by ``tests/__init__.py``) already puts the repo
+# root on ``sys.path`` before this conftest is collected.
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 SAMPLE_PAGES_DIR = FIXTURES_DIR / "sample_pages"
 

@@ -40,8 +40,6 @@ while still failing on any usage/description/flag/help-text drift.
 
 from __future__ import annotations
 
-import os
-
 import click
 import pytest
 from typer.main import get_command
@@ -629,18 +627,12 @@ def test_skills_name_is_invokable_and_returns_documented_exit_code(
 
 def test_sparse_checkout_fix_reaches_refusal_or_clean_path(
     runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Load-bearing name (compat safety predicate). In a non-interactive runner
     # --fix reaches the CI-refusal (non-zero) or clean (0) path, never crashes.
-    prior = os.environ.get("CI")
-    os.environ["CI"] = "1"
-    try:
-        result = runner.invoke(app, ["sparse-checkout", "--fix"])
-    finally:
-        if prior is None:
-            os.environ.pop("CI", None)
-        else:
-            os.environ["CI"] = prior
+    monkeypatch.setenv("CI", "1")
+    result = runner.invoke(app, ["sparse-checkout", "--fix"])
     assert result.exit_code in {0, 1}
     assert result.exception is None or isinstance(result.exception, SystemExit)
 

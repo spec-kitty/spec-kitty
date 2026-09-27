@@ -49,7 +49,8 @@ _RESEARCH_ACTIONS = ["scoping", "methodology", "gathering", "synthesis", "output
 
 def _inject_mission_type_repository_mock(
     mock_repo: MagicMock,
-) -> dict:
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Inject a mock ``resolve_layered_mission_types`` into sys.modules.
 
     WP04 (mission up-mission-type-seam-01KZY1JB): ``_resolve_action_slot``
@@ -62,7 +63,9 @@ def _inject_mission_type_repository_mock(
     Mirrors ``tests/charter/test_action_sequence_dispatch.py``'s helper of the
     same name; both must move together.
 
-    Returns saved_modules for cleanup.
+    Caller-supplied *monkeypatch* restores whatever was in ``sys.modules``
+    (or removes the key entirely, if absent) at teardown -- no manual
+    save/restore bookkeeping needed.
     """
     mock_resolve_layered = MagicMock(return_value=mock_repo)
 
@@ -70,22 +73,11 @@ def _inject_mission_type_repository_mock(
     fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
     fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
-    saved: dict = {}
-    for key in ("charter.offering.missions", "charter.offering.missions.mission_type_repository"):
-        saved[key] = sys.modules.get(key)
-
     if "charter.offering.missions" not in sys.modules:
-        sys.modules["charter.offering.missions"] = fake_pkg
-    sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
-    return saved
-
-
-def _restore_modules(saved: dict) -> None:
-    for key, val in saved.items():
-        if val is None:
-            sys.modules.pop(key, None)
-        else:
-            sys.modules[key] = val
+        monkeypatch.setitem(sys.modules, "charter.offering.missions", fake_pkg)
+    monkeypatch.setitem(
+        sys.modules, "charter.offering.missions.mission_type_repository", fake_module
+    )
 
 
 def _provision_mission_type_activation(repo_root: Path) -> None:
@@ -288,7 +280,9 @@ class TestGracefulDegradation:
 class TestPerformance:
     """NFR-001: charter.resolve_mission_type_context completes within 100ms (warm filesystem)."""
 
-    def test_resolve_mission_type_context_within_100ms(self, tmp_path: Path) -> None:
+    def test_resolve_mission_type_context_within_100ms(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """charter.resolve_mission_type_context(repo_root, mission_type='software-dev') < 100ms."""
         # Build a mock repo that returns immediately (no I/O).
         sw_dev = MagicMock()
@@ -298,28 +292,27 @@ class TestPerformance:
 
         mock_repo = MagicMock()
         mock_repo.get.side_effect = lambda k: sw_dev if k == "software-dev" else None
-        saved = _inject_mission_type_repository_mock(mock_repo)
+        _inject_mission_type_repository_mock(mock_repo, monkeypatch)
 
-        try:
-            with patch(
-                "charter.activation.mission_type_profiles.existing_mission_types",
-                return_value=["documentation", "plan", "research", "software-dev"],
-            ):
-                from charter.activation.mission_type_profiles import resolve_mission_type_context
+        with patch(
+            "charter.activation.mission_type_profiles.existing_mission_types",
+            return_value=["documentation", "plan", "research", "software-dev"],
+        ):
+            from charter.activation.mission_type_profiles import resolve_mission_type_context
 
-                # Warm the import cache.
-                resolve_mission_type_context(tmp_path, mission_type="software-dev")
+            # Warm the import cache.
+            resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
-                result = resolve_mission_type_context(
-                    tmp_path, mission_type="software-dev"
-                ).action_sequence
-        finally:
-            _restore_modules(saved)
+            result = resolve_mission_type_context(
+                tmp_path, mission_type="software-dev"
+            ).action_sequence
 
         assert result == _SW_DEV_ACTIONS
 
     @pytest.mark.performance
-    def test_resolve_mission_type_context_under_100ms(self, tmp_path: Path) -> None:
+    def test_resolve_mission_type_context_under_100ms(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """charter.resolve_mission_type_context(repo_root, mission_type='software-dev') < 100ms."""
         # Build a mock repo that returns immediately (no I/O).
         sw_dev = MagicMock()
@@ -329,26 +322,23 @@ class TestPerformance:
 
         mock_repo = MagicMock()
         mock_repo.get.side_effect = lambda k: sw_dev if k == "software-dev" else None
-        saved = _inject_mission_type_repository_mock(mock_repo)
+        _inject_mission_type_repository_mock(mock_repo, monkeypatch)
 
-        try:
-            with patch(
-                "charter.activation.mission_type_profiles.existing_mission_types",
-                return_value=["documentation", "plan", "research", "software-dev"],
-            ):
-                from charter.activation.mission_type_profiles import resolve_mission_type_context
+        with patch(
+            "charter.activation.mission_type_profiles.existing_mission_types",
+            return_value=["documentation", "plan", "research", "software-dev"],
+        ):
+            from charter.activation.mission_type_profiles import resolve_mission_type_context
 
-                # Warm the import cache.
-                resolve_mission_type_context(tmp_path, mission_type="software-dev")
+            # Warm the import cache.
+            resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
-                # Time the second (warm) call.
-                start = time.monotonic()
-                resolve_mission_type_context(
-                    tmp_path, mission_type="software-dev"
-                )
-                elapsed_ms = (time.monotonic() - start) * 1000
-        finally:
-            _restore_modules(saved)
+            # Time the second (warm) call.
+            start = time.monotonic()
+            resolve_mission_type_context(
+                tmp_path, mission_type="software-dev"
+            )
+            elapsed_ms = (time.monotonic() - start) * 1000
 
         assert_timing_budget(elapsed_ms, 100, name="resolve_mission_type_context NFR-001")
 

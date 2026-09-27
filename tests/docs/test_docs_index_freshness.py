@@ -14,23 +14,20 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
 
-# SPEC_KITTY_ENABLE_SAAS_SYNC is set collection-wide in tests/conftest.py
-# pytest_configure (#3213), not per-module.
-os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs import check_docs_freshness as orchestrator  # noqa: E402
-from scripts.docs.docs_index import generate_index, render_index  # noqa: E402
+from scripts.docs import check_docs_freshness as orchestrator
+from scripts.docs.docs_index import generate_index, render_index
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+@pytest.fixture(autouse=True)
+def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the upgrade-check opt-out set for every test (was a module-level ``setdefault``)."""
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
 
 
 # ---------------------------------------------------------------------------
@@ -42,12 +39,7 @@ def _write_page(path: Path, *, title: str, description: str, heading: str) -> No
     """Write a minimal docs page with frontmatter + one ``##`` heading."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        "---\n"
-        f"title: {title}\n"
-        f"description: {description}\n"
-        "---\n\n"
-        f"## {heading}\n\n"
-        "Some body text.\n",
+        f"---\ntitle: {title}\ndescription: {description}\n---\n\n## {heading}\n\nSome body text.\n",
         encoding="utf-8",
     )
 
@@ -109,14 +101,10 @@ def test_stale_page_emits_error_severity_docs_index_drift(tmp_path: Path) -> Non
     assert finding.rule_id == "DOCS-INDEX-DRIFT"
     assert finding.severity == "error"  # assert severity, not merely non-zero exit
     assert "guide.md" in finding.location
-    assert "PYTHONPATH=. uv run python scripts/docs/docs_index.py --write" in (
-        finding.suggested_action
-    )
+    assert "PYTHONPATH=. uv run python scripts/docs/docs_index.py --write" in (finding.suggested_action)
 
 
-def test_stale_page_reds_the_aggregate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_stale_page_reds_the_aggregate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``check_docs_freshness --ci`` exits non-zero when the new ruler errors."""
     docs_root, index_path = _stage_one_page(tmp_path)
     _write_page(
@@ -160,9 +148,7 @@ def test_stale_page_reds_the_aggregate(
     assert rc == 1
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     assert payload["exit_code"] == 1
-    drift_findings = [
-        f for f in payload["findings"] if f["rule_id"] == "DOCS-INDEX-DRIFT"
-    ]
+    drift_findings = [f for f in payload["findings"] if f["rule_id"] == "DOCS-INDEX-DRIFT"]
     assert len(drift_findings) == 1
     assert drift_findings[0]["severity"] == "error"
 
@@ -194,9 +180,7 @@ def test_regenerated_index_is_green_again(tmp_path: Path) -> None:
 
 def test_missing_committed_index_skips(tmp_path: Path) -> None:
     docs_root = tmp_path / "docs"
-    _write_page(
-        docs_root / "guide.md", title="Guide", description="A guide.", heading="Intro"
-    )
+    _write_page(docs_root / "guide.md", title="Guide", description="A guide.", heading="Intro")
     absent_index = docs_root / "development" / "3-2-docs-retrieval-index.yaml"
 
     findings = orchestrator._check_docs_index_drift(absent_index, docs_root)
@@ -205,9 +189,7 @@ def test_missing_committed_index_skips(tmp_path: Path) -> None:
 
 
 def test_missing_docs_root_skips(tmp_path: Path) -> None:
-    findings = orchestrator._check_docs_index_drift(
-        tmp_path / "index.yaml", tmp_path / "absent-docs"
-    )
+    findings = orchestrator._check_docs_index_drift(tmp_path / "index.yaml", tmp_path / "absent-docs")
     assert findings == []
 
 
@@ -227,31 +209,18 @@ def test_inventory_lockfile_drift_findings_unchanged_by_wp02(tmp_path: Path) -> 
     docs_root = tmp_path / "inv_docs"
     (docs_root).mkdir(parents=True)
     (docs_root / "other.md").write_text(
-        "---\n"
-        "version_tag: current\n"
-        "type: how-to\n"
-        "owning_workstream: Q\n"
-        "---\n\n"
-        "# Other\n\nBody.\n",
+        "---\nversion_tag: current\ntype: how-to\nowning_workstream: Q\n---\n\n# Other\n\nBody.\n",
         encoding="utf-8",
     )
     inventory_path = tmp_path / "inventory.yaml"
     inventory_path.write_text(
-        "- path: inv_docs/missing.md\n"
-        "  tag: current\n"
-        "  divio_type: how-to\n"
-        "  owning_workstream: Q\n"
-        "  current_target: true\n"
-        "  citation_refs: []\n"
-        "  notes: null\n",
+        "- path: inv_docs/missing.md\n  tag: current\n  divio_type: how-to\n  owning_workstream: Q\n  current_target: true\n  citation_refs: []\n  notes: null\n",
         encoding="utf-8",
     )
 
     findings = orchestrator._check_inventory_lockfile_drift(inventory_path, docs_root)
 
-    assert [
-        (f.rule_id, f.severity, f.location, f.message) for f in findings
-    ] == [
+    assert [(f.rule_id, f.severity, f.location, f.message) for f in findings] == [
         (
             "INVENTORY-LOCKFILE-DRIFT",
             "error",
@@ -292,6 +261,4 @@ def _isolate_unrelated_subchecks(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(orchestrator, "_invoke_version_leakage", _fake_leakage)
     monkeypatch.setattr(orchestrator, "_invoke_cli_reference_freshness", _fake_ref)
-    monkeypatch.setattr(
-        orchestrator, "_check_inventory_lockfile_drift", lambda *_a, **_k: []
-    )
+    monkeypatch.setattr(orchestrator, "_check_inventory_lockfile_drift", lambda *_a, **_k: [])

@@ -52,12 +52,12 @@ _ARTEFACT = _REPO_ROOT / "tests" / "release" / "pinning_rule_inventory.json"
 _MIN_REASON_CHARS = 60
 
 
-def _load_deriver() -> ModuleType:
+def _load_deriver(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     """Import the derivation script by path (``scripts/`` is not a package)."""
     spec = importlib.util.spec_from_file_location("derive_pinning_inventory", _SCRIPT)
     assert spec is not None and spec.loader is not None, f"cannot load {_SCRIPT}"
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     return module
 
@@ -103,13 +103,14 @@ def _rule_exists(rule_id: str) -> bool:
     return bool(re.search(definition, text, re.MULTILINE))
 
 
-def test_inventory_is_reproducible_by_rerunning_the_derivation() -> None:
+def test_inventory_is_reproducible_by_rerunning_the_derivation(monkeypatch: pytest.MonkeyPatch) -> None:
     """SC-009: re-deriving must reproduce the committed artefact byte-for-byte.
 
     A hand-edited row, or a new pin added to the tree without regenerating,
     reds here. This is the assertion that makes "derived" mean something.
     """
-    fresh = _load_deriver().serialize(_load_deriver().build_document())
+    deriver = _load_deriver(monkeypatch)
+    fresh = deriver.serialize(deriver.build_document())
     committed = _ARTEFACT.read_text(encoding="utf-8")
     assert fresh == committed, (
         f"{_ARTEFACT.relative_to(_REPO_ROOT)} is stale or hand-edited — re-run "
@@ -118,14 +119,14 @@ def test_inventory_is_reproducible_by_rerunning_the_derivation() -> None:
     )
 
 
-def test_every_entry_carries_a_disposition_from_the_vocabulary_and_a_reason() -> None:
+def test_every_entry_carries_a_disposition_from_the_vocabulary_and_a_reason(monkeypatch: pytest.MonkeyPatch) -> None:
     """C-005/SC-009: no rule is left undispositioned or unexplained.
 
     ``disposition: null`` is what the derivation emits for a *newly discovered*
     dependency with no recorded decision, so this is the fail-closed edge: a
     pin cannot enter the tree without someone adjudicating it.
     """
-    vocabulary = _load_deriver().DISPOSITIONS_VOCABULARY
+    vocabulary = _load_deriver(monkeypatch).DISPOSITIONS_VOCABULARY
     offenders: list[str] = []
     for row in _entries("derived") + _entries("executed"):
         rule = str(row.get("rule"))

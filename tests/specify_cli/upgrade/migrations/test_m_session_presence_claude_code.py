@@ -6,20 +6,10 @@ Covers detect/apply/idempotency, dry_run, runs_on_worktrees, and registry regist
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
-
-# ---------------------------------------------------------------------------
-# Ensure the worktree's src/ takes priority over the main-repo editable install
-# so that specify_cli.session_presence resolves to the worktree package.
-# ---------------------------------------------------------------------------
-_WORKTREE_SRC = Path(__file__).resolve().parents[5] / "src"
-if str(_WORKTREE_SRC) not in sys.path:
-    sys.path.insert(0, str(_WORKTREE_SRC))
-
-from unittest.mock import patch
 
 # Force import of the migration module so its @register decorator fires
 import specify_cli.upgrade.migrations.m_3_3_0_session_presence_claude_code  # noqa: F401

@@ -12,8 +12,8 @@ Tests cover:
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import time
 from io import StringIO
 from pathlib import Path
@@ -72,22 +72,16 @@ def _invoke_interview(
     mission_slug: str | None = MISSION_SLUG,
     extra_patches: list | None = None,
 ) -> object:
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         args = ["interview", "--profile", "minimal"]
         if mission_slug is not None:
             args += ["--mission-slug", mission_slug]
         if extra_patches:
-            from contextlib import ExitStack
-
-            with ExitStack() as stack:
+            with contextlib.ExitStack() as stack:
                 for p in extra_patches:
                     stack.enter_context(p)
                 return runner.invoke(charter_app, args, input=inputs, catch_exceptions=False)
         return runner.invoke(charter_app, args, input=inputs, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _make_decision_error() -> Exception:
@@ -189,30 +183,26 @@ class TestWidenAffordanceVisibility:
         # Accept defaults for all questions; test that prompt includes widen option
         inputs = _make_inputs([""] * _N_QUESTIONS)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(_token="tok"),
-                ),
-                patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
-                patch("specify_cli.widen.flow.WidenFlow", return_value=MagicMock()),
-                patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
-            ):
-                mock_store = MagicMock()
-                mock_store.list_pending.return_value = []
-                mock_store_cls.return_value = mock_store
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(_token="tok"),
+            ),
+            patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
+            patch("specify_cli.widen.flow.WidenFlow", return_value=MagicMock()),
+            patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
+        ):
+            mock_store = MagicMock()
+            mock_store.list_pending.return_value = []
+            mock_store_cls.return_value = mock_store
 
-                result = runner.invoke(
-                    charter_app,
-                    ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+            result = runner.invoke(
+                charter_app,
+                ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         # Rich strips [w] markup, so "iden" (from [w]iden) and "efer" (from [d]efer)
@@ -259,34 +249,30 @@ class TestWidenHappyPathBlock:
         remaining_q = [""] * (_N_QUESTIONS - 1)
         inputs = _make_inputs(q1_inputs + remaining_q)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(_token="tok"),
-                ),
-                patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
-                patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
-                patch(
-                    "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
-                    return_value=MagicMock(),
-                ),
-                patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
-            ):
-                mock_store = MagicMock()
-                mock_store.list_pending.return_value = []
-                mock_store_cls.return_value = mock_store
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(_token="tok"),
+            ),
+            patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
+            patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+            patch(
+                "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
+                return_value=MagicMock(),
+            ),
+            patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
+        ):
+            mock_store = MagicMock()
+            mock_store.list_pending.return_value = []
+            mock_store_cls.return_value = mock_store
 
-                result = runner.invoke(
-                    charter_app,
-                    ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+            result = runner.invoke(
+                charter_app,
+                ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         mock_flow.run_widen_mode.assert_called_once()
@@ -311,34 +297,30 @@ class TestWidenHappyPathBlock:
         remaining_q = [""] * (_N_QUESTIONS - 1)
         inputs = _make_inputs(q1_inputs + remaining_q)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(_token="tok"),
-                ),
-                patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
-                patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
-                patch(
-                    "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
-                    return_value=MagicMock(),
-                ),
-                patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
-            ):
-                mock_store = MagicMock()
-                mock_store.list_pending.return_value = []
-                mock_store_cls.return_value = mock_store
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(_token="tok"),
+            ),
+            patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
+            patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+            patch(
+                "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
+                return_value=MagicMock(),
+            ),
+            patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
+        ):
+            mock_store = MagicMock()
+            mock_store.list_pending.return_value = []
+            mock_store_cls.return_value = mock_store
 
-                result = runner.invoke(
-                    charter_app,
-                    ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+            result = runner.invoke(
+                charter_app,
+                ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
@@ -415,30 +397,26 @@ class TestWidenHappyPathContinue:
         remaining_q = [""] * (_N_QUESTIONS - 1)
         inputs = _make_inputs(q1_inputs + remaining_q)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(_token="tok"),
-                ),
-                patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
-                patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
-                patch("specify_cli.widen.state.WidenPendingStore", return_value=real_store),
-                patch(
-                    "specify_cli.widen.interview_helpers.run_end_of_interview_pending_pass",
-                    MagicMock(),
-                ),
-            ):
-                result = runner.invoke(
-                    charter_app,
-                    ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(_token="tok"),
+            ),
+            patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
+            patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+            patch("specify_cli.widen.state.WidenPendingStore", return_value=real_store),
+            patch(
+                "specify_cli.widen.interview_helpers.run_end_of_interview_pending_pass",
+                MagicMock(),
+            ),
+        ):
+            result = runner.invoke(
+                charter_app,
+                ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         mock_flow.run_widen_mode.assert_called_once()
@@ -467,34 +445,30 @@ class TestWidenHappyPathContinue:
         remaining_q = [""] * (_N_QUESTIONS - 1)
         inputs = _make_inputs(q1_inputs + remaining_q)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(_token="tok"),
-                ),
-                patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
-                patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
-                patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
-                patch(
-                    "specify_cli.widen.interview_helpers.run_end_of_interview_pending_pass",
-                    MagicMock(),
-                ),
-            ):
-                mock_store = MagicMock()
-                mock_store.list_pending.return_value = []
-                mock_store_cls.return_value = mock_store
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(_token="tok"),
+            ),
+            patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
+            patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+            patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
+            patch(
+                "specify_cli.widen.interview_helpers.run_end_of_interview_pending_pass",
+                MagicMock(),
+            ),
+        ):
+            mock_store = MagicMock()
+            mock_store.list_pending.return_value = []
+            mock_store_cls.return_value = mock_store
 
-                result = runner.invoke(
-                    charter_app,
-                    ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+            result = runner.invoke(
+                charter_app,
+                ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
@@ -594,9 +568,7 @@ class TestNFR004InactivityReminder:
 
         output = buf.getvalue()
         # The reminder must have been printed
-        assert "waiting" in output.lower() or "widen" in output.lower(), (
-            f"Inactivity reminder not found in output: {output!r}"
-        )
+        assert "waiting" in output.lower() or "widen" in output.lower(), f"Inactivity reminder not found in output: {output!r}"
 
     def test_inactivity_timer_is_daemon(self) -> None:
         """Timer thread is a daemon so it does not block process exit."""

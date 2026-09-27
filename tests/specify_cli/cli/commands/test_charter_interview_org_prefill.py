@@ -8,7 +8,6 @@ surface, which was the original HIGH-2 finding in the post-mission review.
 
 from __future__ import annotations
 
-import os
 import subprocess
 import textwrap
 from pathlib import Path
@@ -90,33 +89,31 @@ def project_with_org_pack(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_interview_defaults_picks_up_org_charter_pre_fill(project_with_org_pack: Path) -> None:
+def test_interview_defaults_picks_up_org_charter_pre_fill(
+    project_with_org_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`charter interview --defaults` writes org-charter values into answers.yaml.
 
     This is the FR-026 integration check: the user-facing CLI command must
     apply the org-layer pre-fill, not just expose it as a library helper.
     """
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project_with_org_pack)
-        result = runner.invoke(
-            charter_app,
-            ["interview", "--defaults", "--profile", "minimal"],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0, (
-            f"interview failed: stdout={result.stdout!r}"
-        )
+    monkeypatch.chdir(project_with_org_pack)
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, (
+        f"interview failed: stdout={result.stdout!r}"
+    )
 
-        answers = _read_answers(project_with_org_pack)
-        # interview_defaults landed in answers.yaml
-        assert answers["answers"]["human_in_command"] == "True"
-        assert answers["answers"]["autonomous_mode"] == "disallowed"
-        # required_directives unioned into selected_directives
-        selected = answers.get("selected_directives", [])
-        assert "DIRECTIVE_999" in selected
-    finally:
-        os.chdir(old_cwd)
+    answers = _read_answers(project_with_org_pack)
+    # interview_defaults landed in answers.yaml
+    assert answers["answers"]["human_in_command"] == "True"
+    assert answers["answers"]["autonomous_mode"] == "disallowed"
+    # required_directives unioned into selected_directives
+    selected = answers.get("selected_directives", [])
+    assert "DIRECTIVE_999" in selected
 
 
 def test_interview_without_org_packs_has_no_pre_fill(
@@ -132,25 +129,23 @@ def test_interview_without_org_packs_has_no_pre_fill(
     # ``locate_project_root`` would otherwise happily resolve to an ambient
     # ancestor instead of this fixture's repo.
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app,
-            ["interview", "--defaults", "--profile", "minimal"],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0, result.stdout
-        # No "Org charter:" announcement in output
-        assert "Org charter: Pre-" not in result.stdout
-        answers = _read_answers(tmp_path)
-        # answers were written but no org keys appear
-        assert "answers" in answers
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.stdout
+    # No "Org charter:" announcement in output
+    assert "Org charter: Pre-" not in result.stdout
+    answers = _read_answers(tmp_path)
+    # answers were written but no org keys appear
+    assert "answers" in answers
 
 
-def test_interview_user_answer_survives_org_default(project_with_org_pack: Path) -> None:
+def test_interview_user_answer_survives_org_default(
+    project_with_org_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """If the user already provided an answer (e.g. via prior run), the org default must not overwrite it.
 
     Simulates a prior interview run by seeding answers.yaml first, then rerunning the
@@ -175,24 +170,20 @@ def test_interview_user_answer_survives_org_default(project_with_org_pack: Path)
         encoding="utf-8",
     )
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project_with_org_pack)
-        result = runner.invoke(
-            charter_app,
-            ["interview", "--defaults", "--profile", "minimal"],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0, result.stdout
+    monkeypatch.chdir(project_with_org_pack)
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.stdout
 
-        # NOTE: `--defaults` always rewrites the file from `default_interview()` output.
-        # The pre-fill helper operates on the in-memory CharterInterview before write_interview_answers
-        # is called. Because the user's prior answers.yaml is overwritten in --defaults mode (this is
-        # how the CLI is designed), this test documents the actual behaviour: in defaults mode the
-        # org pre-fill DOES take effect because there is no in-memory prior answer to preserve.
-        # The non-destructive guarantee applies within a single interview invocation, not across runs.
-        answers = _read_answers(project_with_org_pack)
-        # autonomous_mode (only set by org charter) must be present
-        assert answers["answers"]["autonomous_mode"] == "disallowed"
-    finally:
-        os.chdir(old_cwd)
+    # NOTE: `--defaults` always rewrites the file from `default_interview()` output.
+    # The pre-fill helper operates on the in-memory CharterInterview before write_interview_answers
+    # is called. Because the user's prior answers.yaml is overwritten in --defaults mode (this is
+    # how the CLI is designed), this test documents the actual behaviour: in defaults mode the
+    # org pre-fill DOES take effect because there is no in-memory prior answer to preserve.
+    # The non-destructive guarantee applies within a single interview invocation, not across runs.
+    answers = _read_answers(project_with_org_pack)
+    # autonomous_mode (only set by org charter) must be present
+    assert answers["answers"]["autonomous_mode"] == "disallowed"

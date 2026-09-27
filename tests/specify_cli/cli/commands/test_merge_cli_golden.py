@@ -163,11 +163,7 @@ def _live_parser_visibility_partition() -> tuple[frozenset[str], frozenset[str]]
     hidden: set[str] = set()
     for param in command.params:
         if isinstance(param, click.Option):
-            longs = [
-                opt
-                for opt in (*param.opts, *param.secondary_opts)
-                if opt.startswith("--")
-            ]
+            longs = [opt for opt in (*param.opts, *param.secondary_opts) if opt.startswith("--")]
             (hidden if param.hidden else visible).update(longs)
     return frozenset(visible), frozenset(hidden)
 
@@ -186,15 +182,12 @@ def test_merge_is_registered_as_top_level_command() -> None:
 
 def _registered_top_level_commands() -> list[typer.models.CommandInfo]:
     import sys
+    from unittest import mock
 
     from specify_cli import app
 
-    saved = sys.argv[:]
-    sys.argv = ["spec-kitty", "--help"]
-    try:
+    with mock.patch.object(sys, "argv", ["spec-kitty", "--help"]):
         commands_module.register_commands(app)
-    finally:
-        sys.argv = saved
     return list(app.registered_commands)
 
 
@@ -275,9 +268,7 @@ def test_feature_alias_is_rejected_by_the_parser(
 # --- --json gate (T003) -----------------------------------------------------
 
 
-def test_json_without_dry_run_errors_and_exits_one(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_json_without_dry_run_errors_and_exits_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``merge --json`` (no --dry-run) prints the exact gate error and exits 1.
 
     The ``--json``-without-``--dry-run`` gate runs AFTER ``_validate_target_branch``
@@ -297,9 +288,7 @@ def test_json_without_dry_run_errors_and_exits_one(
     monkeypatch.chdir(mission.repo_root)
     _patch_dry_run_git_boundaries(monkeypatch, mission)
     runner = CliRunner()
-    result = runner.invoke(
-        _build_merge_app(), ["--json", "--mission", mission.mission_slug]
-    )
+    result = runner.invoke(_build_merge_app(), ["--json", "--mission", mission.mission_slug])
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip().splitlines()[-1])
     assert payload == {
@@ -311,9 +300,7 @@ def test_json_without_dry_run_errors_and_exits_one(
 # --- Headline error / exit-code paths (T004) --------------------------------
 
 
-def test_resume_with_no_interrupted_merge_exits_one(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resume_with_no_interrupted_merge_exits_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``merge --resume`` with no state prints the no-op message and exits 1.
 
     ``--mission`` must name a RESOLVABLE mission: ``_dispatch_resume`` gates on
@@ -327,9 +314,7 @@ def test_resume_with_no_interrupted_merge_exits_one(
     monkeypatch.chdir(mission.repo_root)
     _patch_dry_run_git_boundaries(monkeypatch, mission)
     runner = CliRunner()
-    result = runner.invoke(
-        _build_merge_app(), ["--resume", "--mission", mission.mission_slug]
-    )
+    result = runner.invoke(_build_merge_app(), ["--resume", "--mission", mission.mission_slug])
     assert result.exit_code == 1
     assert "No interrupted merge to resume." in result.stdout
 
@@ -341,19 +326,13 @@ def test_unresolved_mission_slug_exits_one(monkeypatch: pytest.MonkeyPatch) -> N
     branch is not a mission branch (slug resolution yields ``None``). We pin that
     resolution outcome and the resulting headline error/exit-code.
     """
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._resolve_mission_slug", lambda *a, **kw: None
-    )
+    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.merge._resolve_mission_slug", lambda *a, **kw: None)
     monkeypatch.setattr(
         "specify_cli.cli.commands.merge._resolve_target_branch",
         lambda *a, **kw: ("main", "cli"),
     )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None
-    )
+    monkeypatch.setattr("specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None)
     runner = CliRunner()
     result = runner.invoke(_build_merge_app(), ["--dry-run"])
     assert result.exit_code == 1
@@ -367,19 +346,13 @@ def test_unresolved_mission_slug_non_dry_run_exits_two(monkeypatch: pytest.Monke
     must produce exit code 2 — the canonical "no selector" signal — not 1.
     This pin guards against regression of that specific branch.
     """
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._resolve_mission_slug", lambda *a, **kw: None
-    )
+    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.merge._resolve_mission_slug", lambda *a, **kw: None)
     monkeypatch.setattr(
         "specify_cli.cli.commands.merge._resolve_target_branch",
         lambda *a, **kw: ("main", "cli"),
     )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None
-    )
+    monkeypatch.setattr("specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None)
     runner = CliRunner()
     result = runner.invoke(_build_merge_app(), [])
     assert result.exit_code == 2
@@ -390,12 +363,8 @@ def test_unresolved_mission_slug_non_dry_run_exits_two(monkeypatch: pytest.Monke
 
 
 def _patch_dry_run_git_boundaries(monkeypatch: pytest.MonkeyPatch, mission: MissionFixture) -> None:
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.find_repo_root", lambda: mission.repo_root
-    )
+    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.merge.find_repo_root", lambda: mission.repo_root)
     monkeypatch.setattr(
         "specify_cli.cli.commands.merge.get_main_repo_root",
         lambda _repo: mission.repo_root,
@@ -450,10 +419,7 @@ def _write_retention_spec(mission: MissionFixture) -> None:
                 "",
                 "| ID | Title | Constraint | Category | Priority | Status |",
                 "|----|-------|------------|----------|----------|--------|",
-                (
-                    "| C-005 | Retention | Keep branches and worktrees after merge "
-                    "unless separately directed. | Operational | High | Accepted |"
-                ),
+                ("| C-005 | Retention | Keep branches and worktrees after merge unless separately directed. | Operational | High | Accepted |"),
                 "",
             ]
         ),
@@ -461,9 +427,7 @@ def _write_retention_spec(mission: MissionFixture) -> None:
     )
 
 
-def test_clean_dry_run_json_payload_key_set_is_frozen(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_clean_dry_run_json_payload_key_set_is_frozen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``merge --dry-run --json`` on a clean mission carries exactly the contract keys."""
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
@@ -482,9 +446,7 @@ def test_clean_dry_run_json_payload_key_set_is_frozen(
         _build_merge_app(),
         ["--mission", mission.mission_slug, "--dry-run", "--json"],
     )
-    assert result.exit_code == 0, (
-        f"expected exit 0, got {result.exit_code}\nstdout={result.stdout}"
-    )
+    assert result.exit_code == 0, f"expected exit 0, got {result.exit_code}\nstdout={result.stdout}"
     payload = json.loads(result.stdout.strip().splitlines()[-1])
     assert frozenset(payload) == EXPECTED_DRY_RUN_PAYLOAD_KEYS
     assert payload["spec_kitty_version"] == SPEC_KITTY_VERSION
@@ -497,9 +459,7 @@ def test_clean_dry_run_json_payload_key_set_is_frozen(
     assert payload["push"] is False
 
 
-def test_retained_mission_requires_explicit_cleanup_choice(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_retained_mission_requires_explicit_cleanup_choice(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A retained mission blocks default cleanup and honors explicit choices."""
     mission = create_mission_fixture(tmp_path)
     _write_retention_spec(mission)
@@ -557,9 +517,7 @@ def test_retained_mission_requires_explicit_cleanup_choice(
     assert keep_payload["remove_worktree"] is False
 
 
-def test_real_merge_with_retention_never_reaches_default_cleanup(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_real_merge_with_retention_never_reaches_default_cleanup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Default cleanup is blocked before the real merge executor is entered."""
     mission = create_mission_fixture(tmp_path)
     _write_retention_spec(mission)
@@ -598,9 +556,7 @@ def _write_rejected_review_artifact(mission: MissionFixture) -> None:
     artifact.write(artifact_dir / "review-cycle-1.md")
 
 
-def test_dry_run_json_emits_rejected_review_artifact_conflict(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dry_run_json_emits_rejected_review_artifact_conflict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A rejected latest review-cycle on an approved WP blocks dry-run with the conflict code.
 
     WP06 repoint: ``find_rejected_review_artifact_conflicts`` is pure-event

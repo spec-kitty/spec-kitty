@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -46,21 +47,16 @@ def _drive(command: object, instruction: str, *, line: str) -> str:
     from typer.completion import shell_complete
 
     completion_init()
-    saved = {key: os.environ.get(key) for key in ("COMP_WORDS", "COMP_CWORD", "_TYPER_COMPLETE_ARGS")}
-    try:
-        os.environ["COMP_WORDS"] = line
-        os.environ["COMP_CWORD"] = str(len(line.split()))
-        os.environ["_TYPER_COMPLETE_ARGS"] = line
+    env_overrides = {
+        "COMP_WORDS": line,
+        "COMP_CWORD": str(len(line.split())),
+        "_TYPER_COMPLETE_ARGS": line,
+    }
+    with mock.patch.dict(os.environ, env_overrides):
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
             shell_complete(command, {}, completion.PROG_NAME, completion.COMPLETE_VAR, instruction)
         return buffer.getvalue()
-    finally:
-        for key, value in saved.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
 
 
 def _real_command() -> object:
@@ -219,7 +215,9 @@ def test_completion_fast_path_avoids_heavy_imports(tmp_path: Path) -> None:
     assert "agent" in result.stdout.split()
 
 
-def test_generate_manifest_ignores_ambient_argv_narrowing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_generate_manifest_ignores_ambient_argv_narrowing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Landing fold (PR #4992): ``generate_manifest()`` must always capture the
     FULL command tree, regardless of whatever ``sys.argv`` happens to be live
     at call time.
@@ -232,12 +230,8 @@ def test_generate_manifest_ignores_ambient_argv_narrowing(monkeypatch: pytest.Mo
     manifest generator still returns every top-level command, not just the
     one argv would have lazily registered.
     """
-    saved_argv = sys.argv[:]
-    sys.argv = ["spec-kitty", "doctor"]
-    try:
-        manifest = completion.generate_manifest()
-    finally:
-        sys.argv = saved_argv
+    monkeypatch.setattr(sys, "argv", ["spec-kitty", "doctor"])
+    manifest = completion.generate_manifest()
 
     top_level_commands = set(manifest.get("commands", {}))
     assert "doctor" in top_level_commands

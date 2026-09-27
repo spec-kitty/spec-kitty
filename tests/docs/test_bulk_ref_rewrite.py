@@ -18,16 +18,11 @@ cannot express.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs.bulk_ref_rewrite import (  # noqa: E402
+from scripts.docs.bulk_ref_rewrite import (
     build_substitutions,
     find_dead_twinned_adr_links,
     load_moves,
@@ -37,6 +32,8 @@ from scripts.docs.bulk_ref_rewrite import (  # noqa: E402
     run,
     split_frontmatter,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.fast
 
@@ -110,7 +107,7 @@ class TestMovesPrefixRewritten:
         src = tmp_path / "src" / "mod.py"
         _write(src, 'DOC = "architecture/3.x/adr/2026-01-01-1-x.md"\n')
         run(tmp_path, occ, roots=("src",), include_root_md=False)
-        assert 'docs/adr/3.x/2026-01-01-1-x.md' in src.read_text()
+        assert "docs/adr/3.x/2026-01-01-1-x.md" in src.read_text()
         assert "architecture/3.x/adr" not in src.read_text()
 
     def test_subdir_preserving_landing_resolved(self, tmp_path: Path) -> None:
@@ -186,10 +183,7 @@ class TestDoNotChangeCategoriesUntouched:
         page = tmp_path / "docs" / "p.md"
         _write(
             page,
-            "---\n"
-            "related: [architecture/3.x/adr/x.md]\n"
-            "---\n"
-            "Body link architecture/3.x/adr/x.md here.\n",
+            "---\nrelated: [architecture/3.x/adr/x.md]\n---\nBody link architecture/3.x/adr/x.md here.\n",
         )
         run(tmp_path, occ, roots=("docs",), include_root_md=False)
         text = page.read_text()
@@ -259,26 +253,14 @@ def test_resolve_destination_variants(tmp_path: Path) -> None:
     (tmp_path / "docs/architecture/audits").mkdir(parents=True)
     (tmp_path / "docs/plans/engineering-notes").mkdir(parents=True)
     # subdir preserved
-    assert (
-        resolve_destination("architecture/audits", "docs/architecture", tmp_path)
-        == "docs/architecture/audits"
-    )
+    assert resolve_destination("architecture/audits", "docs/architecture", tmp_path) == "docs/architecture/audits"
     # flattened (no docs/adr/3.x/adr subdir)
     (tmp_path / "docs/adr/3.x").mkdir(parents=True)
-    assert (
-        resolve_destination("architecture/3.x/adr", "docs/adr/3.x", tmp_path)
-        == "docs/adr/3.x"
-    )
+    assert resolve_destination("architecture/3.x/adr", "docs/adr/3.x", tmp_path) == "docs/adr/3.x"
     # underscore -> dash rename
-    assert (
-        resolve_destination("docs/engineering_notes", "docs/plans", tmp_path)
-        == "docs/plans/engineering-notes"
-    )
+    assert resolve_destination("docs/engineering_notes", "docs/plans", tmp_path) == "docs/plans/engineering-notes"
     # file move, `to` is a directory root -> to/basename
-    assert (
-        resolve_destination("architecture/2.x/shim-registry.yaml", "docs/migrations", tmp_path)
-        == "docs/migrations/shim-registry.yaml"
-    )
+    assert resolve_destination("architecture/2.x/shim-registry.yaml", "docs/migrations", tmp_path) == "docs/migrations/shim-registry.yaml"
     # file move, `to` is the full destination FILE path -> used verbatim
     # (regression: appending the basename doubled it, e.g. …/x.md/x.md)
     assert (
@@ -389,8 +371,7 @@ class TestAdrEraTwinResolution:
         page = tmp_path / "docs" / "sub" / "p.md"
         _write(
             page,
-            f"rel [a](../../docs/adr/2.x/{_DEDUPED}) and "
-            f"url https://example.test/blob/main/docs/adr/2.x/{_DEDUPED}\n",
+            f"rel [a](../../docs/adr/2.x/{_DEDUPED}) and url https://example.test/blob/main/docs/adr/2.x/{_DEDUPED}\n",
         )
         run(tmp_path, occ, roots=("docs",), include_root_md=False)
         text = page.read_text()
@@ -440,9 +421,7 @@ def test_teeth_flags_dead_twinned_link(tmp_path: Path) -> None:
     _build_era_twin_repo(tmp_path)
     _write(tmp_path / "docs" / "guide.md", f"x docs/adr/2.x/{_DEDUPED}\n")
     dead = find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False)
-    assert dead == [
-        ("docs/guide.md", f"docs/adr/2.x/{_DEDUPED}", f"docs/adr/3.x/{_DEDUPED}")
-    ]
+    assert dead == [("docs/guide.md", f"docs/adr/2.x/{_DEDUPED}", f"docs/adr/3.x/{_DEDUPED}")]
 
 
 def test_teeth_clean_after_run_and_ignores_no_twin_placeholders(
@@ -452,15 +431,10 @@ def test_teeth_clean_after_run_and_ignores_no_twin_placeholders(
     occ = _build_era_twin_repo(tmp_path)
     _write(
         tmp_path / "docs" / "guide.md",
-        f"dead architecture/2.x/adr/{_DEDUPED} "
-        f"real architecture/2.x/adr/{_REAL_2X} "
-        "ghost docs/adr/2.x/2099-01-01-1-some-slug.md\n",
+        f"dead architecture/2.x/adr/{_DEDUPED} real architecture/2.x/adr/{_REAL_2X} ghost docs/adr/2.x/2099-01-01-1-some-slug.md\n",
     )
     run(tmp_path, occ, roots=("docs",), include_root_md=False)
-    assert (
-        find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False)
-        == []
-    )
+    assert find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False) == []
 
 
 def test_teeth_skips_frontmatter_fields(tmp_path: Path) -> None:
@@ -470,7 +444,4 @@ def test_teeth_skips_frontmatter_fields(tmp_path: Path) -> None:
         tmp_path / "docs" / "guide.md",
         f"---\nrelated: [docs/adr/2.x/{_DEDUPED}]\n---\nbody\n",
     )
-    assert (
-        find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False)
-        == []
-    )
+    assert find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False) == []

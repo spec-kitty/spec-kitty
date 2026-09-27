@@ -20,13 +20,17 @@ import click
 import pytest
 from typer.main import get_command
 
-os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
-
-from specify_cli import app as _typer_app  # noqa: E402
+from specify_cli import app as _typer_app
 
 pytestmark = [pytest.mark.architectural]
 
 cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
+
+
+@pytest.fixture(autouse=True)
+def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the upgrade-check opt-out set for every test (was a module-level ``setdefault``)."""
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
 
 
 def _walk_leaf_commands(group: click.Group, prefix: tuple[str, ...] = ()):

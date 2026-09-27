@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import json
 import subprocess
+from contextlib import chdir
 from pathlib import Path
 
 import pytest
@@ -145,8 +146,6 @@ class TestMergeWithAllowOverride:
         _init_git_repo(repo)
         _run(["git", "-C", str(repo), "config", "core.sparseCheckout", "true"])
 
-        import os
-
         import typer
         from typer.testing import CliRunner
 
@@ -154,16 +153,12 @@ class TestMergeWithAllowOverride:
         app.command()(merge_mod.merge)
         runner = CliRunner()
 
-        original_cwd = os.getcwd()
-        try:
-            os.chdir(repo)
+        with chdir(repo):
             runner.invoke(
                 app,
                 ["--mission", "feat-test", "--allow-sparse-checkout"],
                 catch_exceptions=True,
             )
-        finally:
-            os.chdir(original_cwd)
 
         assert observed.get("override_flag") is True, (
             f"--allow-sparse-checkout must thread through to require_no_sparse_checkout; "
@@ -225,8 +220,6 @@ class TestMergeWithAllowOverride:
 
         caplog.set_level(logging.WARNING, logger=sc_mod.logger.name)
 
-        import os
-
         import typer
         from typer.testing import CliRunner
 
@@ -234,16 +227,12 @@ class TestMergeWithAllowOverride:
         app.command()(merge_mod.merge)
         runner = CliRunner()
 
-        original_cwd = os.getcwd()
-        try:
-            os.chdir(repo)
+        with chdir(repo):
             runner.invoke(
                 app,
                 ["--mission", "feat-test", "--allow-sparse-checkout"],
                 catch_exceptions=True,
             )
-        finally:
-            os.chdir(original_cwd)
 
         # 1. The preflight arg must carry the resolved identity (not None, not
         #    <unknown>). SPEC_KITTY_AGENT wins over git config per _resolve_merge_actor.

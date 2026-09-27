@@ -42,6 +42,7 @@ commits via the ``specify``/``plan``/``tasks`` verbs -- WP03) plus real
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import threading
@@ -124,14 +125,8 @@ def _init_repo(tmp_path: Path) -> Path:
 
 def _run(repo: Path, args: list[str]) -> Result:
     """Invoke the real orchestrator-api ``app`` with cwd pinned at ``repo``."""
-    import os
-
-    prev_cwd = Path.cwd()
-    os.chdir(repo)
-    try:
+    with contextlib.chdir(repo):
         return runner.invoke(app, args, catch_exceptions=False)
-    finally:
-        os.chdir(prev_cwd)
 
 
 def _envelope(result: Result) -> dict[str, Any]:
@@ -252,21 +247,16 @@ def test_check_prerequisites_field_parity_with_host_cli(tmp_path: Path, monkeypa
 
     import contextlib
     import io
-    import os
 
-    prev_cwd = Path.cwd()
-    os.chdir(repo)
-    try:
-        from specify_cli.cli.commands.agent.mission_check_prerequisites import (
-            check_prerequisites as host_check_prerequisites,
-        )
+    monkeypatch.chdir(repo)
+    from specify_cli.cli.commands.agent.mission_check_prerequisites import (
+        check_prerequisites as host_check_prerequisites,
+    )
 
-        capture = io.StringIO()
-        with contextlib.redirect_stdout(capture):
-            host_check_prerequisites(feature=mission_slug, json_output=True, include_tasks=True)
-        host_payload = json.loads(capture.getvalue().strip().split("\n")[0])
-    finally:
-        os.chdir(prev_cwd)
+    capture = io.StringIO()
+    with contextlib.redirect_stdout(capture):
+        host_check_prerequisites(feature=mission_slug, json_output=True, include_tasks=True)
+    host_payload = json.loads(capture.getvalue().strip().split("\n")[0])
 
     result = _run(
         repo,
@@ -473,9 +463,7 @@ def _host_record_analysis_error_code(repo: Path, mission_slug: str, body: str, *
     re-derive its shape" precedent. Callers are expected to pass a failure
     fixture (this helper asserts the call raises ``typer.Exit``).
     """
-    import contextlib
     import io
-    import os
 
     from specify_cli.cli.commands.agent.mission_record_analysis import (
         record_analysis as host_record_analysis,
@@ -484,19 +472,14 @@ def _host_record_analysis_error_code(repo: Path, mission_slug: str, body: str, *
     input_file = tmp_path / "host-record-analysis-body.md"
     input_file.write_text(body, encoding="utf-8")
 
-    prev_cwd = Path.cwd()
-    os.chdir(repo)
     capture = io.StringIO()
-    try:
-        with contextlib.redirect_stdout(capture), pytest.raises(typer.Exit):
-            host_record_analysis(
-                feature=mission_slug,
-                input_file=str(input_file),
-                analyzer_agent=agent,
-                json_output=True,
-            )
-    finally:
-        os.chdir(prev_cwd)
+    with contextlib.chdir(repo), contextlib.redirect_stdout(capture), pytest.raises(typer.Exit):
+        host_record_analysis(
+            feature=mission_slug,
+            input_file=str(input_file),
+            analyzer_agent=agent,
+            json_output=True,
+        )
     payload = json.loads(capture.getvalue().strip().split("\n")[0])
     return str(payload["error_code"])
 

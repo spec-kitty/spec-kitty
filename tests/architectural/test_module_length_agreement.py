@@ -210,7 +210,7 @@ def _committed_length(timings: dict[str, Any], module: str) -> int:
 
 
 @lru_cache(maxsize=1)
-def _load_capture_shard_timings_module() -> ModuleType:
+def _load_capture_shard_timings_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     """Load ``scripts/ci/capture_shard_timings.py`` by file path.
 
     ``scripts/ci`` is not an importable package from this test's own import
@@ -225,7 +225,10 @@ def _load_capture_shard_timings_module() -> ModuleType:
     called once per registry module inside the session-scoped
     `_collected_counts` fixture loop -- this keeps the module load to once per
     session, matching what the prior `sys.path.insert` + bare `import` did via
-    Python's own `sys.modules` cache.
+    Python's own `sys.modules` cache. The single ``monkeypatch`` argument
+    (the same ``pytest.MonkeyPatch.context()`` instance across the whole
+    `_collected_counts` loop) is part of the cache key, which is exactly what
+    keeps this a session-lifetime cache rather than fragmenting per call.
     """
     spec = importlib.util.spec_from_file_location("capture_shard_timings", _SCRIPTS_CI_DIR / "capture_shard_timings.py")
     assert spec is not None and spec.loader is not None
@@ -234,12 +237,12 @@ def _load_capture_shard_timings_module() -> ModuleType:
     # while processing the class body, and an unregistered by-path module makes
     # that lookup return None (AttributeError at import, on 3.11) -- same
     # reasoning as `tests/ci/test_capture_shard_timings.py`'s `_load_module()`.
-    sys.modules[spec.name] = module
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     return module
 
 
-def _resolve_test_dirs(registry: dict[str, Any], module: str) -> tuple[str, ...]:
+def _resolve_test_dirs(registry: dict[str, Any], module: str, monkeypatch: pytest.MonkeyPatch) -> tuple[str, ...]:
     """The consumer's own test-directory resolution, imported -- never reimplemented.
 
     `scripts/ci/capture_shard_timings.resolve_test_dirs` already mirrors
@@ -248,7 +251,7 @@ def _resolve_test_dirs(registry: dict[str, Any], module: str) -> tuple[str, ...]
     precedence a third time here would risk exactly the kind of silent
     divergence this gate exists to catch elsewhere.
     """
-    _capture = _load_capture_shard_timings_module()
+    _capture = _load_capture_shard_timings_module(monkeypatch)
 
     return _capture.resolve_test_dirs(registry, module)
 
@@ -318,9 +321,12 @@ def _live_timings_state() -> dict[str, Any]:
 def _collected_counts(_live_registry_state: dict[str, Any]) -> dict[str, int]:
     """Live-collect every registry module exactly once per pytest session."""
     counts: dict[str, int] = {}
-    for module in _registry_modules(_live_registry_state):
-        test_dirs = _resolve_test_dirs(_live_registry_state, module)
-        counts[module] = _live_collected_count(test_dirs)
+    # Session-scoped: not the function-scoped `monkeypatch` fixture, which a
+    # session-scoped fixture cannot depend on.
+    with pytest.MonkeyPatch.context() as mp:
+        for module in _registry_modules(_live_registry_state):
+            test_dirs = _resolve_test_dirs(_live_registry_state, module, mp)
+            counts[module] = _live_collected_count(test_dirs)
     return counts
 
 

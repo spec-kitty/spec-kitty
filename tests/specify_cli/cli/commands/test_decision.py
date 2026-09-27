@@ -16,8 +16,8 @@ Coverage:
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -64,13 +64,9 @@ def _setup_mission(tmp_path: Path) -> Path:
 
 def _invoke(args: list[str], cwd: Path | None = None) -> object:
     """Invoke the agent_app with given args, optionally setting cwd."""
-    old_cwd = os.getcwd()
-    try:
-        if cwd is not None:
-            os.chdir(cwd)
+    ctx = contextlib.chdir(cwd) if cwd is not None else contextlib.nullcontext()
+    with ctx:
         return runner.invoke(agent_app, args, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _parse_open_output(output: str) -> dict:  # type: ignore[type-arg]
@@ -756,9 +752,7 @@ def test_open_mission_path_traversal_rejected(tmp_path: Path) -> None:
             ],
             cwd=tmp_path,
         )
-        assert result.exit_code != 0, (
-            f"Expected non-zero exit for traversal value {bad_mission!r}, got 0"
-        )
+        assert result.exit_code != 0, f"Expected non-zero exit for traversal value {bad_mission!r}, got 0"
 
 
 # ---------------------------------------------------------------------------

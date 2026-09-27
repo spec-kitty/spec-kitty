@@ -56,7 +56,6 @@ different topologies -- this is deliberate, not an inconsistency:
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -143,9 +142,7 @@ def _write_meta(
     if coordination_branch is not None:
         meta["coordination_branch"] = coordination_branch
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _write_wp_file(feature_dir: Path, wp_id: str) -> Path:
@@ -269,9 +266,7 @@ def _build_e2_mission_flat(repo: Path) -> tuple[str, Path, str]:
         topology="single_branch",
     )
     wp_path = _write_wp_file(feature_dir, wp_id)
-    (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(_done_event(mission_slug, wp_id), sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "status.events.jsonl").write_text(json.dumps(_done_event(mission_slug, wp_id), sort_keys=True) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({mission_slug}): mission scaffold")
 
@@ -326,9 +321,7 @@ def _build_e2_mission_coord(repo: Path) -> tuple[str, str, str]:
     )
     _write_wp_file(feature_dir, wp_id)
     _write_issue_matrix_file(feature_dir)
-    (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(_done_event(mission_slug, wp_id), sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "status.events.jsonl").write_text(json.dumps(_done_event(mission_slug, wp_id), sort_keys=True) + "\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({mission_slug}): mission scaffold")
 
@@ -359,9 +352,7 @@ def _build_e2_mission_coord(repo: Path) -> tuple[str, str, str]:
 # ---------------------------------------------------------------------------
 
 
-def test_safe_commit_succeeds_for_primary_kind_write_on_e2_mission(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_safe_commit_succeeds_for_primary_kind_write_on_e2_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Regression guard for the fixed #3033 defect (T006 / SC-001 / C-006).
 
     On a genuine E2 mission (consolidated then published-to-trunk, Target Ref
@@ -389,12 +380,8 @@ def test_safe_commit_succeeds_for_primary_kind_write_on_e2_mission(
     assert meta is not None
     assert meta["baseline_merge_commit"], meta
     assert meta["mission_number"] == 214, meta
-    assert not _branch_exists(repo, target_branch), (
-        "Target Ref must be deleted for a genuine E2 fixture"
-    )
-    assert _current_branch(repo) == "main", (
-        "must run from the repository-root checkout on the Primary Branch"
-    )
+    assert not _branch_exists(repo, target_branch), "Target Ref must be deleted for a genuine E2 fixture"
+    assert _current_branch(repo) == "main", "must run from the repository-root checkout on the Primary Branch"
     assert (feature_dir / "meta.json").exists()
 
     # Seam-level pin ("for the right reason"): the CommitTarget a PRIMARY-kind
@@ -422,22 +409,18 @@ def test_safe_commit_succeeds_for_primary_kind_write_on_e2_mission(
     # from the repository-root checkout should commit cleanly. No
     # `--to-branch` is passed -- passing it would short-circuit resolution
     # through the mission-aware seam entirely and mask the defect.
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(repo)
-        result = runner.invoke(
-            cli_app,
-            [
-                "safe-commit",
-                "--message",
-                f"chore({mission_slug}): record evidence",
-                "--json",
-                str(wp_path.relative_to(repo)),
-            ],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "safe-commit",
+            "--message",
+            f"chore({mission_slug}): record evidence",
+            "--json",
+            str(wp_path.relative_to(repo)),
+        ],
+        catch_exceptions=False,
+    )
 
     payload = json.loads(result.stdout)
     # TODAY: exit_code == 1, success is False, and payload["error"] carries
@@ -462,9 +445,7 @@ def test_safe_commit_succeeds_for_primary_kind_write_on_e2_mission(
         (MissionArtifactKind.ACCEPTANCE_MATRIX, "AC-001"),
     ],
 )
-def test_write_artifact_succeeds_for_coord_kind_write_on_e2_mission(
-    tmp_path: Path, kind: MissionArtifactKind, entry_id: str
-) -> None:
+def test_write_artifact_succeeds_for_coord_kind_write_on_e2_mission(tmp_path: Path, kind: MissionArtifactKind, entry_id: str) -> None:
     """Regression guard for the fixed #3033 defect (T007 / SC-002).
 
     On a genuine E2 mission whose COORD topology coordination branch has
@@ -493,12 +474,8 @@ def test_write_artifact_succeeds_for_coord_kind_write_on_e2_mission(
     assert meta is not None
     assert meta["baseline_merge_commit"], meta
     assert meta["mission_number"] == 217, meta
-    assert not _branch_exists(repo, target_branch), (
-        "Target Ref must be deleted for a genuine E2 fixture"
-    )
-    assert not _branch_exists(repo, coordination_branch), (
-        "coordination branch must be deleted for this fixture's mechanism"
-    )
+    assert not _branch_exists(repo, target_branch), "Target Ref must be deleted for a genuine E2 fixture"
+    assert not _branch_exists(repo, coordination_branch), "coordination branch must be deleted for this fixture's mechanism"
     assert _current_branch(repo) == "main"
 
     policy = ProtectionPolicy.resolve(repo)

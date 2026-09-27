@@ -18,7 +18,7 @@ idempotent (that would be a vacuous green here; see the module note above).
 from __future__ import annotations
 
 import json
-import os
+import contextlib
 import subprocess
 from pathlib import Path
 
@@ -60,12 +60,8 @@ def _init_project(root: Path, *, version: str = "1.0.0a1") -> None:
 
 
 def _run_upgrade(args: list[str], cwd: Path):
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(cwd)
+    with contextlib.chdir(cwd):
         return _runner.invoke(_test_app, args, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _last_json_line(output: str) -> dict[str, object]:

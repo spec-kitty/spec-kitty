@@ -29,7 +29,6 @@ Discipline (mirrors WP08 T025 + the standing red-first memory):
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -123,28 +122,18 @@ def _run_setup_plan_from(
     runner = CliRunner()
     monkeypatch.chdir(invocation_cwd)
 
-    prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
-    os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
-    prev_saas = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC")
-    os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
-    try:
-        with (
-            patch.object(mission_mod, "locate_project_root", return_value=primary),
-            patch.object(mission_mod, "_enforce_git_preflight"),
-            patch.object(mission_mod, "_find_feature_directory", return_value=feature_dir),
-        ):
-            result = runner.invoke(
-                mission_mod.app,
-                ["setup-plan", "--json", "--mission", SLUG_WITH_MID8],
-                catch_exceptions=False,
-            )
-    finally:
-        if prev_allow is None:
-            os.environ.pop("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", None)
-        else:
-            os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = prev_allow
-        if prev_saas is not None:
-            os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = prev_saas
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    with (
+        patch.object(mission_mod, "locate_project_root", return_value=primary),
+        patch.object(mission_mod, "_enforce_git_preflight"),
+        patch.object(mission_mod, "_find_feature_directory", return_value=feature_dir),
+    ):
+        result = runner.invoke(
+            mission_mod.app,
+            ["setup-plan", "--json", "--mission", SLUG_WITH_MID8],
+            catch_exceptions=False,
+        )
 
     output = result.output.strip()
     start = output.find("{")

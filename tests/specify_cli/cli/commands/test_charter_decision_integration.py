@@ -23,8 +23,8 @@ test verifies that all three DM lifecycle states produce coherent triples.
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -65,17 +65,13 @@ def _setup_repo(tmp_path: Path) -> Path:
 
 def _invoke_interview(tmp_path: Path, inputs: str) -> object:
     """Invoke charter interview with the given stdin, returning the result."""
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         return runner.invoke(
             charter_app,
             ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
             input=inputs,
             catch_exceptions=False,
         )
-    finally:
-        os.chdir(old_cwd)
 
 
 # ---------------------------------------------------------------------------
@@ -173,9 +169,7 @@ def test_charter_decision_triple_coherence(tmp_path: Path) -> None:
 
     index = dm_store.load_index(mission_dir)
     # n_questions entries from interview + 1 manual cancel
-    assert len(index.entries) == n_questions + 1, (
-        f"Expected {n_questions + 1} index entries, got {len(index.entries)}"
-    )
+    assert len(index.entries) == n_questions + 1, f"Expected {n_questions + 1} index entries, got {len(index.entries)}"
 
     # (b) DM-*.md artifact files exist for all entries
     for entry in index.entries:
@@ -190,9 +184,7 @@ def test_charter_decision_triple_coherence(tmp_path: Path) -> None:
     # (c) Resolved entries have final_answer set
     assert resolved_entries, "no resolved entries found"
     for entry in resolved_entries:
-        assert entry.final_answer is not None and entry.final_answer.strip(), (
-            f"Resolved entry {entry.decision_id} missing final_answer"
-        )
+        assert entry.final_answer is not None and entry.final_answer.strip(), f"Resolved entry {entry.decision_id} missing final_answer"
 
     # (d) Deferred entry exists
     assert deferred_entries, "no deferred entry found"
@@ -205,16 +197,10 @@ def test_charter_decision_triple_coherence(tmp_path: Path) -> None:
     # (f) status.events.jsonl has at least 2*(n_questions+1) event lines
     events_file = mission_dir / "status.events.jsonl"
     assert events_file.exists(), "status.events.jsonl was not created"
-    event_lines = [
-        json.loads(line)
-        for line in events_file.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    event_lines = [json.loads(line) for line in events_file.read_text(encoding="utf-8").splitlines() if line.strip()]
     # Each decision produces opened + resolved = 2 events
     min_expected_events = 2 * (n_questions + 1)
-    assert len(event_lines) >= min_expected_events, (
-        f"Expected >= {min_expected_events} events, got {len(event_lines)}"
-    )
+    assert len(event_lines) >= min_expected_events, f"Expected >= {min_expected_events} events, got {len(event_lines)}"
 
     # (g) All Opened events have origin_surface and origin_flow
     from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DECISION_POINT_RESOLVED
@@ -222,45 +208,24 @@ def test_charter_decision_triple_coherence(tmp_path: Path) -> None:
     opened_events = [e for e in event_lines if e["event_type"] == DECISION_POINT_OPENED]
     for ev in opened_events:
         payload = ev["payload"]
-        assert payload.get("origin_surface") == "planning_interview", (
-            f"Opened event has wrong origin_surface: {payload.get('origin_surface')}"
-        )
-        assert payload.get("origin_flow") == "charter", (
-            f"Opened event has wrong origin_flow: {payload.get('origin_flow')}"
-        )
+        assert payload.get("origin_surface") == "planning_interview", f"Opened event has wrong origin_surface: {payload.get('origin_surface')}"
+        assert payload.get("origin_flow") == "charter", f"Opened event has wrong origin_flow: {payload.get('origin_flow')}"
 
     # (h) Resolved event for Q1 (first question) has terminal_outcome="resolved"
     first_q_id = MINIMAL_QUESTION_ORDER[0]
-    first_entry = next(
-        e for e in index.entries if e.input_key == first_q_id
-    )
-    resolved_events = [
-        e
-        for e in event_lines
-        if e["event_type"] == DECISION_POINT_RESOLVED
-        and e["payload"].get("decision_point_id") == first_entry.decision_id
-    ]
+    first_entry = next(e for e in index.entries if e.input_key == first_q_id)
+    resolved_events = [e for e in event_lines if e["event_type"] == DECISION_POINT_RESOLVED and e["payload"].get("decision_point_id") == first_entry.decision_id]
     assert resolved_events, f"No resolved event found for Q1 ({first_q_id})"
     assert resolved_events[0]["payload"]["terminal_outcome"] == "resolved"
 
     # (i) Resolved event for the deferred entry has terminal_outcome="deferred"
     deferred_entry = deferred_entries[0]
-    deferred_events = [
-        e
-        for e in event_lines
-        if e["event_type"] == DECISION_POINT_RESOLVED
-        and e["payload"].get("decision_point_id") == deferred_entry.decision_id
-    ]
+    deferred_events = [e for e in event_lines if e["event_type"] == DECISION_POINT_RESOLVED and e["payload"].get("decision_point_id") == deferred_entry.decision_id]
     assert deferred_events, f"No resolved event found for deferred entry {deferred_entry.decision_id}"
     assert deferred_events[0]["payload"]["terminal_outcome"] == "deferred"
 
     # (j) Resolved event for canceled entry has terminal_outcome="canceled"
-    canceled_events = [
-        e
-        for e in event_lines
-        if e["event_type"] == DECISION_POINT_RESOLVED
-        and e["payload"].get("decision_point_id") == canceled_decision_id
-    ]
+    canceled_events = [e for e in event_lines if e["event_type"] == DECISION_POINT_RESOLVED and e["payload"].get("decision_point_id") == canceled_decision_id]
     assert canceled_events, f"No resolved event found for canceled entry {canceled_decision_id}"
     assert canceled_events[0]["payload"]["terminal_outcome"] == "canceled"
 

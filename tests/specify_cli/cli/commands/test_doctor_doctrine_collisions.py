@@ -8,8 +8,8 @@ from shadowed lower layers (ADR `docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import textwrap
 from pathlib import Path
 
@@ -82,12 +82,8 @@ def test_doctor_doctrine_text_shows_collisions(tmp_path: Path) -> None:
     )
     _write_kittify_config_with_pack(tmp_path, pack_dir)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         result = runner.invoke(doctor_app, ["doctrine"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
     # WP01 (C5): the configured org pack has no fetched DRG fragment, so the
     # org-DRG load records a "pack missing" error → the honest health flag
@@ -110,12 +106,8 @@ def test_doctor_doctrine_text_reports_no_collisions_when_pack_disjoint(tmp_path:
     )
     _write_kittify_config_with_pack(tmp_path, pack_dir)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         result = runner.invoke(doctor_app, ["doctrine"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
     # WP01 (C5): missing org-DRG fragment → unhealthy → RC=1 (loud over hidden).
     assert result.exit_code == 1, result.stdout
@@ -135,12 +127,8 @@ def test_doctor_doctrine_json_emits_collisions_array(tmp_path: Path) -> None:
     )
     _write_kittify_config_with_pack(tmp_path, pack_dir)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         result = runner.invoke(doctor_app, ["doctrine", "--json"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
     # WP01 (C5): missing org-DRG fragment → unhealthy → RC=1 (loud over hidden).
     assert result.exit_code == 1, result.stdout

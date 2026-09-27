@@ -10,8 +10,8 @@ documented in T031.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
+from contextlib import chdir
 from pathlib import Path
 
 import pytest
@@ -68,15 +68,11 @@ def _write_minimal_interview(repo: Path) -> None:
 
 def _run_generate(project: Path) -> None:
     """Run ``charter generate`` against the project's cwd."""
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
+    with chdir(project):
         result = runner.invoke(
             charter_app, ["generate", "--from-interview"],
             catch_exceptions=False,
         )
-    finally:
-        os.chdir(old_cwd)
     assert result.exit_code == 0, (
         f"charter generate failed: {result.stdout!r}"
     )
@@ -84,15 +80,11 @@ def _run_generate(project: Path) -> None:
 
 def _run_synthesize(project: Path, *args: str) -> object:
     """Run ``charter synthesize`` with extra args, returning the Result."""
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
+    with chdir(project):
         return runner.invoke(
             charter_app, ["synthesize", *args],
             catch_exceptions=False,
         )
-    finally:
-        os.chdir(old_cwd)
 
 
 # ---------------------------------------------------------------------------

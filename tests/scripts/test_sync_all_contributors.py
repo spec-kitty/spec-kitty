@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
@@ -14,19 +15,31 @@ pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT_PATH = _REPO_ROOT / "scripts" / "sync_all_contributors.py"
+_SCRIPT_MODULE_NAME = "sync_all_contributors"
+
+#: Populated by the autouse ``_sync_all_contributors_module`` fixture below.
+sync_all_contributors: ModuleType
 
 
-def _load_script_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("sync_all_contributors", _SCRIPT_PATH)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"cannot build an import spec for {_SCRIPT_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+@pytest.fixture(scope="module", autouse=True)
+def _sync_all_contributors_module() -> Iterator[ModuleType]:
+    """Load the script once for this module's tests.
 
-
-sync_all_contributors = _load_script_module()
+    A module-scoped ``pytest.MonkeyPatch.context()`` — not the function-scoped
+    ``monkeypatch`` fixture, which a module-scoped fixture cannot depend on —
+    registers the module in ``sys.modules`` and undoes it once every test in
+    this module has run.
+    """
+    global sync_all_contributors
+    with pytest.MonkeyPatch.context() as mp:
+        spec = importlib.util.spec_from_file_location(_SCRIPT_MODULE_NAME, _SCRIPT_PATH)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"cannot build an import spec for {_SCRIPT_PATH}")
+        module = importlib.util.module_from_spec(spec)
+        mp.setitem(sys.modules, _SCRIPT_MODULE_NAME, module)
+        spec.loader.exec_module(module)
+        sync_all_contributors = module
+        yield module
 
 
 def _page_command(repo: str, page: int) -> list[str]:

@@ -16,6 +16,7 @@ scaffold + 300 bytes of arbitrary prose stays NON-substantive.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -260,8 +261,6 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
     detection helpers so the command treats ``repo`` as the project root and
     finds the feature directly under ``kitty-specs/``.
     """
-    import os
-
     from specify_cli.cli.commands.agent import mission as mission_module
     from typer.testing import CliRunner
 
@@ -273,35 +272,28 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
 
     # These fixtures intentionally exercise setup-plan commits on synthetic
     # main branches; opt in through the explicit protected-branch test override.
-    _prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
-    os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
-    try:
-        with (
-            patch.object(mission_module, "locate_project_root", return_value=repo),
-            patch.object(mission_module, "_enforce_git_preflight"),
-            patch.object(
-                mission_module,
-                "_find_feature_directory",
-                return_value=feature_dir,
-            ),
-            patch.object(
-                mission_module,
-                "_show_branch_context",
-                side_effect=_fake_show_branch_context,
-            ),
-            patch.object(mission_module, "get_current_branch", return_value="main"),
-            patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-        ):
-            result = runner.invoke(
-                mission_module.app,
-                ["setup-plan", "--json", "--mission", mission_handle],
-                catch_exceptions=False,
-            )
-    finally:
-        if _prev_allow is None:
-            os.environ.pop("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", None)
-        else:
-            os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = _prev_allow
+    with (
+        patch.dict(os.environ, {"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS": "1"}),
+        patch.object(mission_module, "locate_project_root", return_value=repo),
+        patch.object(mission_module, "_enforce_git_preflight"),
+        patch.object(
+            mission_module,
+            "_find_feature_directory",
+            return_value=feature_dir,
+        ),
+        patch.object(
+            mission_module,
+            "_show_branch_context",
+            side_effect=_fake_show_branch_context,
+        ),
+        patch.object(mission_module, "get_current_branch", return_value="main"),
+        patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
+    ):
+        result = runner.invoke(
+            mission_module.app,
+            ["setup-plan", "--json", "--mission", mission_handle],
+            catch_exceptions=False,
+        )
     assert result.exit_code in (0, 1), f"unexpected exit {result.exit_code}: {result.output}"
     # Locate the JSON envelope in the output (commands print plain JSON).
     output = result.output.strip()
@@ -418,8 +410,6 @@ def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, 
     bare ``--mission <mid8>`` exercises the real handle-canonicalization on the
     planning-read path (the wrapper at ``mission.py::_planning_read_dir``).
     """
-    import os
-
     from specify_cli.cli.commands.agent import mission as mission_module
     from typer.testing import CliRunner
 
@@ -428,31 +418,24 @@ def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, 
     def _fake_show_branch_context(_repo_root: Path, _slug: str, _json: bool) -> tuple[str, str]:
         return ("main", "main")
 
-    _prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
-    os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
-    try:
-        with (
-            patch.object(mission_module, "locate_project_root", return_value=repo),
-            patch.object(mission_module, "get_main_repo_root", return_value=repo),
-            patch.object(mission_module, "_enforce_git_preflight"),
-            patch.object(
-                mission_module,
-                "_show_branch_context",
-                side_effect=_fake_show_branch_context,
-            ),
-            patch.object(mission_module, "get_current_branch", return_value="main"),
-            patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-        ):
-            result = runner.invoke(
-                mission_module.app,
-                ["setup-plan", "--json", "--mission", mission_handle],
-                catch_exceptions=False,
-            )
-    finally:
-        if _prev_allow is None:
-            os.environ.pop("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", None)
-        else:
-            os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = _prev_allow
+    with (
+        patch.dict(os.environ, {"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS": "1"}),
+        patch.object(mission_module, "locate_project_root", return_value=repo),
+        patch.object(mission_module, "get_main_repo_root", return_value=repo),
+        patch.object(mission_module, "_enforce_git_preflight"),
+        patch.object(
+            mission_module,
+            "_show_branch_context",
+            side_effect=_fake_show_branch_context,
+        ),
+        patch.object(mission_module, "get_current_branch", return_value="main"),
+        patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
+    ):
+        result = runner.invoke(
+            mission_module.app,
+            ["setup-plan", "--json", "--mission", mission_handle],
+            catch_exceptions=False,
+        )
     assert result.exit_code in (0, 1), f"unexpected exit {result.exit_code}: {result.output}"
     output = result.output.strip()
     start = output.find("{")

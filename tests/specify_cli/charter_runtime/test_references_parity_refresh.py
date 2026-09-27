@@ -23,7 +23,7 @@ extension point WP04 installed at ``preflight.runner.refresh_references_if_neede
 
 from __future__ import annotations
 
-import os
+import contextlib
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -78,12 +78,8 @@ def _invoke_generate_in_process(repo: Path, argv: list[str]) -> subprocess.Compl
     process cwd is switched to *repo* for the duration of the call and
     restored afterwards.
     """
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(repo)
+    with contextlib.chdir(repo):
         result = _runner.invoke(charter_app, argv, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
     return subprocess.CompletedProcess(
         args=["spec-kitty", "charter", *argv],
         returncode=result.exit_code,

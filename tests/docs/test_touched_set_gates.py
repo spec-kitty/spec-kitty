@@ -18,8 +18,10 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -36,25 +38,39 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # --------------------------------------------------------------------------- #
 
 
-def _load_lint_module() -> ModuleType:
-    """Load the structural-lint asset by file path (it is not a package)."""
+_LINT_ASSET_MODULE_NAME = "docs_structural_lint_asset_wp04"
+
+#: Populated by the autouse ``_lint_module`` fixture below, once per module.
+LintConfig: type[Any]
+check_one_index_per_dir: Callable[..., Any]
+check_sanctioned_section_membership: Callable[..., Any]
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _lint_module() -> Iterator[ModuleType]:
+    """Load the structural-lint asset once for this module's tests.
+
+    The module defines ``@dataclass`` types, and dataclasses resolves their
+    string annotations via ``sys.modules[cls.__module__]`` — which must
+    already be present before ``exec_module`` runs. A module-scoped
+    ``pytest.MonkeyPatch.context()`` — not the function-scoped ``monkeypatch``
+    fixture, which a module-scoped fixture cannot depend on — keeps that
+    registration and undoes it once every test in this module has run.
+    """
     from charter.offering.service import DoctrineService
 
+    global LintConfig, check_one_index_per_dir, check_sanctioned_section_membership
     asset_path = DoctrineService().assets.resolve_path("common-docs-structural-lint")
-    spec = importlib.util.spec_from_file_location(
-        "docs_structural_lint_asset_wp04", asset_path
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-_lint = _load_lint_module()
-LintConfig = _lint.LintConfig
-check_one_index_per_dir = _lint.check_one_index_per_dir
-check_sanctioned_section_membership = _lint.check_sanctioned_section_membership
+    with pytest.MonkeyPatch.context() as mp:
+        spec = importlib.util.spec_from_file_location(_LINT_ASSET_MODULE_NAME, asset_path)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        mp.setitem(sys.modules, _LINT_ASSET_MODULE_NAME, module)
+        spec.loader.exec_module(module)
+        LintConfig = module.LintConfig
+        check_one_index_per_dir = module.check_one_index_per_dir
+        check_sanctioned_section_membership = module.check_sanctioned_section_membership
+        yield module
 
 
 def _lint_config(**overrides: object) -> object:
@@ -201,9 +217,7 @@ def test_audience_presence_red_first_and_clean(tmp_path: Path) -> None:
     missing = repo / "docs" / "guides" / "missing.md"
     missing.write_text(_page({"title": "no audience"}), encoding="utf-8")
     dangling = repo / "docs" / "guides" / "dangling.md"
-    dangling.write_text(
-        _page({"audience": "../context/audience/internal/ghost.md"}), encoding="utf-8"
-    )
+    dangling.write_text(_page({"audience": "../context/audience/internal/ghost.md"}), encoding="utf-8")
     catalog_root = repo / "docs" / "context" / "audience"
 
     assert tsg.check_audience_presence([good], repo, catalog_root) == []
@@ -279,9 +293,7 @@ def test_audience_placement_skips_when_homes_unresolvable(tmp_path: Path) -> Non
     page = docs / "guides" / "howto.md"
     page.parent.mkdir(parents=True, exist_ok=True)
     page.write_text(
-        _page(
-            {"type": "how_to", "audience": "../context/audience/internal/m.md"}
-        ),
+        _page({"type": "how_to", "audience": "../context/audience/internal/m.md"}),
         encoding="utf-8",
     )
     # Baseline (pre-WP01) routing has no how_to_internal/how_to_external split.
@@ -334,9 +346,7 @@ def test_run_gates_end_to_end_advisory_vs_strict(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     styleguide = repo / "sg.yaml"
     styleguide.write_text(
-        "structural_lint_config:\n"
-        "  root_allowlist: [README.md]\n"
-        "  concern_bucket_to_section: {}\n",
+        "structural_lint_config:\n  root_allowlist: [README.md]\n  concern_bucket_to_section: {}\n",
         encoding="utf-8",
     )
     base = _git(repo, "rev-parse", "HEAD").strip()
@@ -353,12 +363,7 @@ def test_run_gates_end_to_end_advisory_vs_strict(tmp_path: Path) -> None:
     assert {"audience_presence", "description_band", "root_allowlist"} <= rule_ids
     # advisory exit 0, strict exit 1
     assert tsg.main(["--base", base, "--repo-root", str(repo), "--styleguide", str(styleguide)]) == 0
-    assert (
-        tsg.main(
-            ["--base", base, "--repo-root", str(repo), "--styleguide", str(styleguide), "--strict"]
-        )
-        == 1
-    )
+    assert tsg.main(["--base", base, "--repo-root", str(repo), "--styleguide", str(styleguide), "--strict"]) == 1
 
 
 # --------------------------------------------------------------------------- #
@@ -444,15 +449,11 @@ def test_run_reconcile_end_to_end_with_fixtures(tmp_path: Path) -> None:
     _commit_all(repo, "delete off-spine page")
 
     occ = repo / "occ.yaml"
-    occ.write_text(
-        "moves:\n  - {from: ['docs/reference/'], to: 'docs/api'}\n", encoding="utf-8"
-    )
+    occ.write_text("moves:\n  - {from: ['docs/reference/'], to: 'docs/api'}\n", encoding="utf-8")
     red = repo / "red.yaml"
     red.write_text("{}\n", encoding="utf-8")
 
-    report = rr.run_reconcile(
-        base=base, repo_root=repo, occurrence_map_path=occ, redirect_map_path=red
-    )
+    report = rr.run_reconcile(base=base, repo_root=repo, occurrence_map_path=occ, redirect_map_path=red)
 
     assert report.renames_examined == 1  # non-vacuous
     assert report.moves_examined == 1

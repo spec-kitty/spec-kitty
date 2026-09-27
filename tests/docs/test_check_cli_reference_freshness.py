@@ -14,10 +14,6 @@ from pathlib import Path
 import pytest
 import typer
 
-# SPEC_KITTY_ENABLE_SAAS_SYNC is set collection-wide in tests/conftest.py
-# pytest_configure (#3213), not per-module.
-os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
-
 from scripts.docs import check_cli_reference_freshness as freshness
 from scripts.docs._typer_walker import CommandPathEntry
 
@@ -25,6 +21,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture(autouse=True)
+def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the upgrade-check opt-out set for every test (was a module-level ``setdefault``)."""
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
 
 
 # ---------------------------------------------------------------------------
@@ -116,12 +118,7 @@ class TestExtractReferencedPaths:
         assert ("mission", "switch") in paths
 
     def test_extracts_classification_flags(self) -> None:
-        text = (
-            "## spec-kitty old\n\n"
-            "> **Deprecated**: replaced by new\n\n"
-            "## spec-kitty internal\n\n"
-            "> **Internal**: dev only\n\n"
-        )
+        text = "## spec-kitty old\n\n> **Deprecated**: replaced by new\n\n## spec-kitty internal\n\n> **Internal**: dev only\n\n"
         paths = freshness.extract_referenced_paths(text)
         assert paths[("old",)]["classified_deprecated"] is True
         assert paths[("internal",)]["classified_internal"] is True
@@ -147,19 +144,10 @@ class TestExtractReferencedPaths:
 
         paths = freshness.extract_referenced_paths(text)
 
-        assert paths[("foo",)]["help_body"] == (
-            "Stable summary. Body text wrapped across terminal lines."
-        )
+        assert paths[("foo",)]["help_body"] == ("Stable summary. Body text wrapped across terminal lines.")
 
     def test_extracts_click_deprecated_label_as_presentation_only(self) -> None:
-        text = (
-            "## spec-kitty old\n\n"
-            "```\n"
-            "Usage: spec-kitty old [OPTIONS]\n\n"
-            "(Deprecated) The command's actual help.\n\n"
-            "Options:\n"
-            "```\n"
-        )
+        text = "## spec-kitty old\n\n```\nUsage: spec-kitty old [OPTIONS]\n\n(Deprecated) The command's actual help.\n\nOptions:\n```\n"
 
         paths = freshness.extract_referenced_paths(text)
 
@@ -184,14 +172,10 @@ class TestRules:
         return (FIXTURES_DIR / "sample_cli_reference.md").read_text(encoding="utf-8")
 
     def _missing_reference(self) -> str:
-        return (FIXTURES_DIR / "sample_cli_reference_missing.md").read_text(
-            encoding="utf-8"
-        )
+        return (FIXTURES_DIR / "sample_cli_reference_missing.md").read_text(encoding="utf-8")
 
     def _extra_reference(self) -> str:
-        return (FIXTURES_DIR / "sample_cli_reference_extra.md").read_text(
-            encoding="utf-8"
-        )
+        return (FIXTURES_DIR / "sample_cli_reference_extra.md").read_text(encoding="utf-8")
 
     def test_clean_reference_produces_no_findings(self) -> None:
         findings = freshness.evaluate_reference(
@@ -245,10 +229,7 @@ class TestRules:
             agent_reference_text="",
             saas_sync_enabled=True,
         )
-        assert any(
-            f.rule_id == "REF-DEPRECATED-UNCLASSIFIED" and f.path == ("legacy-cmd",)
-            for f in findings
-        )
+        assert any(f.rule_id == "REF-DEPRECATED-UNCLASSIFIED" and f.path == ("legacy-cmd",) for f in findings)
 
     def test_internal_leak(self) -> None:
         entries = [
@@ -436,10 +417,7 @@ class TestRules:
             requires_saas_sync=False,
             help_body="Canonical help body.",
         )
-        main_ref = (
-            "## spec-kitty foo\n\n"
-            "```\nUsage: spec-kitty foo\n\nCanonical help body.\n\nOptions:\n```\n"
-        )
+        main_ref = "## spec-kitty foo\n\n```\nUsage: spec-kitty foo\n\nCanonical help body.\n\nOptions:\n```\n"
 
         findings = freshness.evaluate_reference(
             entries=[entry],
@@ -470,9 +448,7 @@ class TestRules:
             agent_reference_text="",
             saas_sync_enabled=True,
         )
-        assert any(
-            f.rule_id == "REF-MISSING" and f.path == ("agent", "tasks") for f in findings
-        )
+        assert any(f.rule_id == "REF-MISSING" and f.path == ("agent", "tasks") for f in findings)
 
     def test_agent_path_in_agent_reference_is_clean(self) -> None:
         entries = [
@@ -504,9 +480,7 @@ class TestRules:
 
 class TestCli:
     @pytest.fixture()
-    def stub_specify_cli(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> Iterator[None]:
+    def stub_specify_cli(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         import sys
         import types
 
@@ -515,9 +489,7 @@ class TestCli:
         @synthetic.command("foo", help="Run the foo command")
         def foo_cmd() -> None: ...
 
-        @synthetic.command(
-            "legacy-cmd", help="Deprecated: replaced by foo", deprecated=True
-        )
+        @synthetic.command("legacy-cmd", help="Deprecated: replaced by foo", deprecated=True)
         def legacy_cmd() -> None: ...
 
         bar_app = typer.Typer()
@@ -559,9 +531,7 @@ class TestCli:
         )
         assert rc == 2
 
-    def test_main_returns_2_for_missing_agent_reference(
-        self, tmp_path: Path
-    ) -> None:
+    def test_main_returns_2_for_missing_agent_reference(self, tmp_path: Path) -> None:
         ref = tmp_path / "ref.md"
         ref.write_text("# ref\n", encoding="utf-8")
         rc = freshness.main(
@@ -603,9 +573,7 @@ class TestCli:
     ) -> None:
         ref = tmp_path / "ref.md"
         ref.write_text(
-            (FIXTURES_DIR / "sample_cli_reference_missing.md").read_text(
-                encoding="utf-8"
-            ),
+            (FIXTURES_DIR / "sample_cli_reference_missing.md").read_text(encoding="utf-8"),
             encoding="utf-8",
         )
         agent_ref = tmp_path / "agent.md"
@@ -627,9 +595,7 @@ class TestCli:
     ) -> None:
         ref = tmp_path / "ref.md"
         ref.write_text(
-            (FIXTURES_DIR / "sample_cli_reference_extra.md").read_text(
-                encoding="utf-8"
-            ),
+            (FIXTURES_DIR / "sample_cli_reference_extra.md").read_text(encoding="utf-8"),
             encoding="utf-8",
         )
         agent_ref = tmp_path / "agent.md"
@@ -656,9 +622,7 @@ class TestCli:
 
         ref = tmp_path / "ref.md"
         ref.write_text(
-            (FIXTURES_DIR / "sample_cli_reference_no_saas.md").read_text(
-                encoding="utf-8"
-            ),
+            (FIXTURES_DIR / "sample_cli_reference_no_saas.md").read_text(encoding="utf-8"),
             encoding="utf-8",
         )
         agent_ref = tmp_path / "agent.md"
@@ -681,9 +645,7 @@ class TestCli:
     ) -> None:
         ref = tmp_path / "ref.md"
         ref.write_text(
-            (FIXTURES_DIR / "sample_cli_reference_extra.md").read_text(
-                encoding="utf-8"
-            ),
+            (FIXTURES_DIR / "sample_cli_reference_extra.md").read_text(encoding="utf-8"),
             encoding="utf-8",
         )
         agent_ref = tmp_path / "agent.md"
@@ -712,9 +674,7 @@ class TestCli:
     ) -> None:
         ref = tmp_path / "ref.md"
         ref.write_text(
-            (FIXTURES_DIR / "sample_cli_reference_extra.md").read_text(
-                encoding="utf-8"
-            ),
+            (FIXTURES_DIR / "sample_cli_reference_extra.md").read_text(encoding="utf-8"),
             encoding="utf-8",
         )
         agent_ref = tmp_path / "agent.md"
@@ -746,40 +706,34 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     orchestrator-api design-phase verbs onto the experimental tree while
     preserving its retired-surface removals.
     Tolerance: ±10% on the visible count (253..309) to allow natural growth.
+
+    Block-scoped (``pytest.MonkeyPatch.context()``, not the ``monkeypatch``
+    fixture): the sibling
+    ``test_visible_count_smoke_does_not_clobber_ambient_env_overrides`` calls
+    this function directly (not as a collected test) and asserts the ambient
+    env is restored the moment this call returns -- a ``monkeypatch`` fixture
+    parameter would only restore at THIS function's own (nonexistent, since
+    it is called directly) fixture teardown, never in time for that
+    assertion.
     """
     import sys
 
-    env_overrides = {
-        "SPEC_KITTY_ENABLE_SAAS_SYNC": "1",
-        "SPEC_KITTY_NO_UPGRADE_CHECK": "1",
-    }
-    saved_env = {key: os.environ.get(key) for key in env_overrides}
-    os.environ.update(env_overrides)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+        mp.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
+        mp.setattr(sys, "argv", ["spec-kitty", "--help"])
 
-    saved = sys.argv[:]
-    sys.argv = ["spec-kitty", "--help"]
-    try:
         from specify_cli import app
         from specify_cli.cli.commands import register_commands
 
         register_commands(app)
-    finally:
-        sys.argv = saved
-        for key, value in saved_env.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
 
     from scripts.docs._typer_walker import walk
 
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 253 <= len(visible) <= 309, (
-        f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the 2026-09-05 convergence audit baseline of 281"
-    )
+    assert 253 <= len(visible) <= 309, f"visible count {len(visible)} is outside the ±10% tolerance band around the 2026-09-05 convergence audit baseline of 281"
     assert len(deprecated) >= 1
 
 

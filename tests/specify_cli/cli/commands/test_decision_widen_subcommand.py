@@ -20,8 +20,8 @@ Coverage:
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -60,13 +60,9 @@ runner = CliRunner()
 
 def _invoke(args: list[str], cwd: Path | None = None) -> Result:
     """Invoke the agent_app with given args."""
-    old_cwd = os.getcwd()
-    try:
-        if cwd is not None:
-            os.chdir(cwd)
+    ctx = contextlib.chdir(cwd) if cwd is not None else contextlib.nullcontext()
+    with ctx:
         return runner.invoke(agent_app, args, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _arrange_owning_ledger(root: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -282,9 +278,7 @@ class TestLivePath:
                 ["decision", "widen", DECISION_ID, "--invited", "101, 102"],
                 cwd=tmp_path,
             )
-        mock_client.post_widen.assert_called_once_with(
-            decision_id=DECISION_ID, invited=[101, 102]
-        )
+        mock_client.post_widen.assert_called_once_with(decision_id=DECISION_ID, invited=[101, 102])
 
     def test_live_saas_error_exits_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """SaasClientError → exit 1, **and for that reason** (LOW-5).
@@ -361,9 +355,7 @@ class TestLivePath:
             )
         assert result.exit_code == 0, f"exit {result.exit_code}\n{result.output}"
         assert len(captured) == 1
-        assert captured[0] is not None, (
-            "from_env must receive a repo_root so .kittify/saas-auth.json is reachable (D-5 / #2248)"
-        )
+        assert captured[0] is not None, "from_env must receive a repo_root so .kittify/saas-auth.json is reachable (D-5 / #2248)"
         assert isinstance(captured[0], Path)
 
 
@@ -392,9 +384,7 @@ class TestErrorPaths:
                 cwd=tmp_path,
             )
         assert result.exit_code == 0
-        mock_client.post_widen.assert_called_once_with(
-            decision_id=DECISION_ID, invited=[101, 102]
-        )
+        mock_client.post_widen.assert_called_once_with(decision_id=DECISION_ID, invited=[101, 102])
 
     def test_missing_invited_flag_exits_nonzero(self, tmp_path: Path) -> None:
         """Omitting --invited entirely → non-zero exit (required option)."""

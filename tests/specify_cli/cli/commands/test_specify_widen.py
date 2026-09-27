@@ -12,8 +12,8 @@ Coverage:
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -71,9 +71,7 @@ def _setup_repo(tmp_path: Path) -> Path:
     kittify.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
     (kittify / "config.yaml").write_text(
-        "version: 1\n"
-        "project:\n"
-        "  uuid: 00000000-0000-0000-0000-000000000002\n",
+        "version: 1\nproject:\n  uuid: 00000000-0000-0000-0000-000000000002\n",
         encoding="utf-8",
     )
     (tmp_path / "kitty-specs").mkdir(parents=True, exist_ok=True)
@@ -102,35 +100,31 @@ class TestSpecifyWidenAbsent:
     def test_widen_not_shown_without_prereqs(self, tmp_path: Path) -> None:
         _setup_repo(tmp_path)
         inputs = _make_inputs([""] * _N_QUESTIONS)
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
-                    return_value=None,
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
+                return_value=None,
+            ),
+            patch(
+                "specify_cli.cli.commands.lifecycle.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.widen.check_prereqs",
+                return_value=PrereqState(
+                    teamspace_ok=False,
+                    slack_ok=False,
+                    saas_reachable=False,
                 ),
-                patch(
-                    "specify_cli.cli.commands.lifecycle.locate_project_root",
-                    return_value=tmp_path,
-                ),
-                patch(
-                    "specify_cli.widen.check_prereqs",
-                    return_value=PrereqState(
-                        teamspace_ok=False,
-                        slack_ok=False,
-                        saas_reachable=False,
-                    ),
-                ),
-            ):
-                result = runner.invoke(
-                    _app,
-                    [MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+            ),
+        ):
+            result = runner.invoke(
+                _app,
+                [MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
         assert result.exit_code == 0, result.output
         assert "[w]iden" not in result.output
 
@@ -157,46 +151,42 @@ class TestSpecifyWidenCancelPath:
         remaining_q = [""] * (_N_QUESTIONS - 1)
         inputs = _make_inputs(q1_inputs + remaining_q)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
-                    return_value=None,
-                ),
-                patch(
-                    "specify_cli.cli.commands.lifecycle.locate_project_root",
-                    return_value=tmp_path,
-                ),
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(has_token=True),
-                ),
-                patch(
-                    "specify_cli.widen.check_prereqs",
-                    return_value=prereq_ok,
-                ),
-                patch(
-                    "specify_cli.widen.flow.WidenFlow",
-                    return_value=mock_flow,
-                ),
-                patch(
-                    "specify_cli.widen.state.WidenPendingStore",
-                ) as mock_store_cls,
-            ):
-                mock_store_inst = MagicMock()
-                mock_store_inst.list_pending.return_value = []
-                mock_store_cls.return_value = mock_store_inst
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
+                return_value=None,
+            ),
+            patch(
+                "specify_cli.cli.commands.lifecycle.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(has_token=True),
+            ),
+            patch(
+                "specify_cli.widen.check_prereqs",
+                return_value=prereq_ok,
+            ),
+            patch(
+                "specify_cli.widen.flow.WidenFlow",
+                return_value=mock_flow,
+            ),
+            patch(
+                "specify_cli.widen.state.WidenPendingStore",
+            ) as mock_store_cls,
+        ):
+            mock_store_inst = MagicMock()
+            mock_store_inst.list_pending.return_value = []
+            mock_store_cls.return_value = mock_store_inst
 
-                result = runner.invoke(
-                    _app,
-                    [MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+            result = runner.invoke(
+                _app,
+                [MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         mock_flow.run_widen_mode.assert_called_once()
@@ -233,34 +223,30 @@ class TestSpecifyWidenContinuePath:
         remaining_q = [""] * (_N_QUESTIONS - 1)
         inputs = _make_inputs(q1_inputs + remaining_q)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
-                    return_value=None,
-                ),
-                patch(
-                    "specify_cli.cli.commands.lifecycle.locate_project_root",
-                    return_value=tmp_path,
-                ),
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(has_token=True),
-                ),
-                patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
-                patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
-                patch("specify_cli.widen.state.WidenPendingStore", return_value=bad_store),
-            ):
-                result = runner.invoke(
-                    _app,
-                    [MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
+                return_value=None,
+            ),
+            patch(
+                "specify_cli.cli.commands.lifecycle.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(has_token=True),
+            ),
+            patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
+            patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+            patch("specify_cli.widen.state.WidenPendingStore", return_value=bad_store),
+        ):
+            result = runner.invoke(
+                _app,
+                [MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         bad_store.add_pending.assert_called_once()
@@ -288,47 +274,43 @@ class TestSpecifyWidenContinuePath:
         remaining_q = [""] * (_N_QUESTIONS - 1)
         inputs = _make_inputs(q1_inputs + remaining_q)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
-                    return_value=None,
-                ),
-                patch(
-                    "specify_cli.cli.commands.lifecycle.locate_project_root",
-                    return_value=tmp_path,
-                ),
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(has_token=True),
-                ),
-                patch(
-                    "specify_cli.widen.check_prereqs",
-                    return_value=prereq_ok,
-                ),
-                patch(
-                    "specify_cli.widen.flow.WidenFlow",
-                    return_value=mock_flow,
-                ),
-                patch(
-                    "specify_cli.widen.state.WidenPendingStore",
-                    return_value=real_store,
-                ),
-                patch(
-                    "specify_cli.widen.interview_helpers.run_end_of_interview_pending_pass",
-                    MagicMock(),
-                ),
-            ):
-                result = runner.invoke(
-                    _app,
-                    [MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
+                return_value=None,
+            ),
+            patch(
+                "specify_cli.cli.commands.lifecycle.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(has_token=True),
+            ),
+            patch(
+                "specify_cli.widen.check_prereqs",
+                return_value=prereq_ok,
+            ),
+            patch(
+                "specify_cli.widen.flow.WidenFlow",
+                return_value=mock_flow,
+            ),
+            patch(
+                "specify_cli.widen.state.WidenPendingStore",
+                return_value=real_store,
+            ),
+            patch(
+                "specify_cli.widen.interview_helpers.run_end_of_interview_pending_pass",
+                MagicMock(),
+            ),
+        ):
+            result = runner.invoke(
+                _app,
+                [MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         mock_flow.run_widen_mode.assert_called_once()
@@ -367,50 +349,46 @@ class TestSpecifyWidenBlockPath:
         remaining_q = [""] * (_N_QUESTIONS - 1)
         inputs = _make_inputs(q1_inputs + remaining_q)
 
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch(
-                    "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
-                    return_value=None,
-                ),
-                patch(
-                    "specify_cli.cli.commands.lifecycle.locate_project_root",
-                    return_value=tmp_path,
-                ),
-                patch(
-                    "specify_cli.saas_client.client.SaasClient.from_env",
-                    return_value=MagicMock(has_token=True),
-                ),
-                patch(
-                    "specify_cli.widen.check_prereqs",
-                    return_value=prereq_ok,
-                ),
-                patch(
-                    "specify_cli.widen.flow.WidenFlow",
-                    return_value=mock_flow,
-                ),
-                patch(
-                    "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
-                    return_value=MagicMock(),
-                ),
-                patch(
-                    "specify_cli.widen.state.WidenPendingStore",
-                ) as mock_store_cls,
-            ):
-                mock_store_inst = MagicMock()
-                mock_store_inst.list_pending.return_value = []
-                mock_store_cls.return_value = mock_store_inst
+        with (
+            contextlib.chdir(tmp_path),
+            patch(
+                "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
+                return_value=None,
+            ),
+            patch(
+                "specify_cli.cli.commands.lifecycle.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.saas_client.client.SaasClient.from_env",
+                return_value=MagicMock(has_token=True),
+            ),
+            patch(
+                "specify_cli.widen.check_prereqs",
+                return_value=prereq_ok,
+            ),
+            patch(
+                "specify_cli.widen.flow.WidenFlow",
+                return_value=mock_flow,
+            ),
+            patch(
+                "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "specify_cli.widen.state.WidenPendingStore",
+            ) as mock_store_cls,
+        ):
+            mock_store_inst = MagicMock()
+            mock_store_inst.list_pending.return_value = []
+            mock_store_cls.return_value = mock_store_inst
 
-                result = runner.invoke(
-                    _app,
-                    [MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+            result = runner.invoke(
+                _app,
+                [MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
 
         assert result.exit_code == 0, result.output
         mock_flow.run_widen_mode.assert_called_once()

@@ -43,18 +43,14 @@ from specify_cli.cli.commands.doctor import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-SNAPSHOT_PATH: Path = (
-    Path(__file__).parent / "__snapshots__" / "doctor_doctrine_selections.txt"
-)
+SNAPSHOT_PATH: Path = Path(__file__).parent / "__snapshots__" / "doctor_doctrine_selections.txt"
 
 
 def _seed_project_charter(repo_root: Path) -> None:
     """Write a deterministic project charter with two non-empty kinds."""
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    (charter_dir / "charter.md").write_text(
-        "# Snapshot Project Charter\n", encoding="utf-8"
-    )
+    (charter_dir / "charter.md").write_text("# Snapshot Project Charter\n", encoding="utf-8")
     # DIRECTIVE_032 is a known shipped (built-in) directive — selecting it
     # exercises the ``source: built-in`` branch.  PROJECT_DIRECTIVE_01 is
     # NOT in the catalog so it surfaces as ``source: charter`` (declared
@@ -123,17 +119,13 @@ def _render_fixture(repo_root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-def test_doctor_doctrine_selections_snapshot(tmp_path: Path) -> None:
+def test_doctor_doctrine_selections_snapshot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The rendered Selections section MUST match the pinned snapshot byte-for-byte."""
     _seed_project_charter(tmp_path)
     _seed_org_pack(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        actual = _render_fixture(tmp_path)
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    actual = _render_fixture(tmp_path)
 
     # Strip any ANSI / Rich markup that may sneak in if the renderer is
     # later refactored to share code with the Rich console (defensive —
@@ -145,10 +137,7 @@ def test_doctor_doctrine_selections_snapshot(tmp_path: Path) -> None:
         SNAPSHOT_PATH.write_text(actual_clean, encoding="utf-8")
         return
 
-    assert SNAPSHOT_PATH.exists(), (
-        f"Snapshot file missing at {SNAPSHOT_PATH}. Regenerate with "
-        f"UPDATE_SNAPSHOTS=1 pytest {__file__}"
-    )
+    assert SNAPSHOT_PATH.exists(), f"Snapshot file missing at {SNAPSHOT_PATH}. Regenerate with UPDATE_SNAPSHOTS=1 pytest {__file__}"
 
     expected = SNAPSHOT_PATH.read_text(encoding="utf-8")
     assert actual_clean == expected, (

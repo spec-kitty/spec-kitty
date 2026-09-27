@@ -9,16 +9,9 @@ functionality, including all public methods, edge cases, and error scenarios.
 import os
 import tempfile
 from pathlib import Path
+
 import pytest
-import sys
-
-# Add the src directory to the path so we can import the module
-
-pytestmark = [pytest.mark.integration]
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-
-from specify_cli.gitignore_manager import (  # noqa: E402
+from specify_cli.gitignore_manager import (
     AGENT_DIRECTORIES,
     RUNTIME_PROTECTED_ENTRIES,
     AgentDirectory,
@@ -27,6 +20,8 @@ from specify_cli.gitignore_manager import (  # noqa: E402
     ProtectionResult,
     read_ignore_file_text,
 )
+
+pytestmark = [pytest.mark.integration]
 
 # Total entries: agents + runtime (derived from state contract)
 _TOTAL_ENTRIES = len(AGENT_DIRECTORIES) + len(RUNTIME_PROTECTED_ENTRIES)

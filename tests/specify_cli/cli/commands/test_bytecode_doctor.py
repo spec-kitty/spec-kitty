@@ -44,16 +44,35 @@ def fake_pkg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     pkg_dir.mkdir(parents=True)
     (pkg_dir / "__init__.py").write_text("VALUE = 1\n")
     monkeypatch.syspath_prepend(str(root))
-    _purge_pkg_modules()
+    _purge_pkg_modules(monkeypatch)
     importlib.import_module(_PKG)
     yield pkg_dir
-    _purge_pkg_modules()
 
 
-def _purge_pkg_modules() -> None:
-    for name in list(sys.modules):
-        if name == _PKG or name.startswith(f"{_PKG}."):
-            del sys.modules[name]
+def _purge_pkg_modules(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Guarantee ``sys.modules`` has no ``_PKG`` entry, now and at teardown.
+
+    A bare ``monkeypatch.delitem`` records whatever value is present *at
+    call time* as the value to restore on undo. Calling it a second time
+    after ``importlib.import_module`` (as a teardown purge) would make
+    monkeypatch's own undo -- which runs *after* this fixture tears down --
+    re-insert the just-deleted module, leaking it into every later test in
+    the worker. Registering ``setitem(..., None)`` then ``delitem(...)``
+    up front instead makes monkeypatch's undo, run LIFO, restore ``None``
+    first and then whatever was ACTUALLY present before this purge ran --
+    the key's undo therefore ends in "delete" only when the key was absent
+    beforehand; if a real module was already sitting in ``sys.modules``
+    under this name (e.g. left there by an earlier test in the same
+    worker), undo restores that prior module object instead. Either way,
+    the just-imported module from THIS test is never the value undo
+    restores, so a single purge before the import is sufficient and no
+    teardown purge is needed (or safe).
+    """
+    names = {name for name in sys.modules if name == _PKG or name.startswith(f"{_PKG}.")}
+    names.add(_PKG)
+    for name in names:
+        monkeypatch.setitem(sys.modules, name, None)
+        monkeypatch.delitem(sys.modules, name)
 
 
 def _init_pyc(pkg_dir: Path) -> Path:

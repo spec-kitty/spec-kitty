@@ -3,7 +3,7 @@
 This ruleset is **reproducible**: a reviewer re-runs
 
 ```bash
-python tests/architectural/untrusted_path_audit/audit.py
+python -m tests.architectural.untrusted_path_audit.audit
 ```
 
 and the script re-walks `src/specify_cli`, re-discovers the sink set, and
