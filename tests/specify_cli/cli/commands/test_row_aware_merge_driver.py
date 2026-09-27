@@ -29,11 +29,13 @@ from typer.testing import CliRunner
 
 from specify_cli import _get_app
 from specify_cli.cli.commands.merge_driver import (
+    merge_driver_acceptance_matrix,
+    merge_driver_issue_matrix,
+)
+from specify_cli.merge.drivers import (
     RowMatrixMergeError,
     _canonicalize_issue_ref,
     _resolve_merge_driver_paths,
-    merge_driver_acceptance_matrix,
-    merge_driver_issue_matrix,
     reconcile_acceptance_matrix_documents,
     reconcile_issue_matrix_documents,
 )

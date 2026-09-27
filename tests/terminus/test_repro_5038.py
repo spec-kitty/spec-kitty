@@ -25,7 +25,8 @@ edit ``traces/WP01.md`` from a shared baseline). ``git merge --squash`` resolves
 that overlap through the path's registered ``spec-kitty-traces`` merge driver
 (``.gitattributes``: ``kitty-specs/**/traces/*.md merge=spec-kitty-traces`` ->
 ``merge_driver_traces``, a deterministic, lossless, order-preserving union --
-see ``src/specify_cli/cli/commands/merge_driver.py``): the resulting target
+see ``src/specify_cli/merge/drivers.py::run_traces_driver``, relocated there
+from ``cli/commands/merge_driver.py`` by #5119): the resulting target
 blob equals NEITHER the checkpoint blob NOR the coord blob, but it IS the
 driver's own reproducible output. The PRE-fix proof demanded raw
 ``coord_bytes == target_bytes`` and REFUSEd this legitimate union -- the true

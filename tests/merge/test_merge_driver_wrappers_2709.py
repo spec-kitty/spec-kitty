@@ -18,13 +18,13 @@ from pathlib import Path
 import pytest
 import typer
 
-from specify_cli.cli.commands import merge_driver
 from specify_cli.cli.commands.merge_driver import (
-    _load_json_object,
     merge_driver_event_log,
     merge_driver_meta,
     merge_driver_traces,
 )
+from specify_cli.merge import drivers
+from specify_cli.merge.drivers import _load_json_object
 from specify_cli.status import EventLogMergeError
 
 pytestmark = pytest.mark.fast
@@ -79,13 +79,20 @@ def test_event_log_wrapper_translates_merge_error_to_exit1(
 ) -> None:
     """An ``EventLogMergeError`` from the merger becomes ``typer.Exit(1)``."""
 
-    def _boom(**_kwargs: object) -> None:
+    calls: list[object] = []
+
+    def _boom(**kwargs: object) -> None:
+        calls.append(kwargs)
         raise EventLogMergeError("corrupt event log")
 
-    monkeypatch.setattr(merge_driver, "merge_event_log_files", _boom)
+    # Patch where the body now looks it up (#5119): merge_event_log_files is
+    # imported by name at module level in merge/drivers.py, not in the CLI
+    # shell any more.
+    monkeypatch.setattr(drivers, "merge_event_log_files", _boom)
     with pytest.raises(typer.Exit) as excinfo:
         merge_driver_event_log(str(tmp_path / "O"), str(tmp_path / "A"), str(tmp_path / "B"))
     assert excinfo.value.exit_code == 1
+    assert calls, "the patched merge_event_log_files stub was never called -- monkeypatch target missed"
 
 
 # ---------------------------------------------------------------------------

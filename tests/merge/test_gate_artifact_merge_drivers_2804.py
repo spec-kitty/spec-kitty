@@ -2,7 +2,8 @@
 
 Deleted by ``b04da00e1`` when the acceptance/issue-matrix merge drivers moved
 from a whole-file "more-filled-side" heuristic to the row-aware, base-aware
-(3-way) reconciler in ``merge_driver.py`` (FR-008). This module restores the
+(3-way) reconciler in ``merge/drivers.py`` (FR-008; relocated there from
+``cli/commands/merge_driver.py`` by #5119). This module restores the
 gate as an in-memory unit overlay, calling
 :func:`reconcile_acceptance_matrix_documents` /
 :func:`reconcile_issue_matrix_documents` directly -- no git repo, no
@@ -43,7 +44,7 @@ from typing import Any
 import pytest
 
 from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER, VERDICT_PASS_PENDING_CONSOLIDATION
-from specify_cli.cli.commands.merge_driver import (
+from specify_cli.merge.drivers import (
     reconcile_acceptance_matrix_documents,
     reconcile_issue_matrix_documents,
 )

@@ -1,6 +1,6 @@
 """Site-E (merge-driver ``meta.json`` blob) diagnosability under WP04.
 
-``merge_driver._load_json_object`` routes its decode through the public L2 reader
+``specify_cli.merge.drivers._load_json_object`` routes its decode through the public L2 reader
 ``parse_meta_file`` (``on_malformed="raise"``) so a corrupt merge-blob
 ``meta.json`` fails LOUD and NAMED — an ``EventLogMergeError`` carrying the path —
 instead of the pre-routing bare, unnamed ``json.JSONDecodeError`` (mission
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.merge_driver import _load_json_object
+from specify_cli.merge.drivers import _load_json_object
 from specify_cli.status import EventLogMergeError
 
 pytestmark = pytest.mark.fast

@@ -2552,7 +2552,7 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
     deleted, so a failed deletion would strand the inverse inconsistency (a
     cleared marker with a still-live branch). It still runs after the lane->target
     merge-driver reconciliation (which treats ``coordination_branch`` as a
-    *theirs-authoritative* planning key, ``merge/merge_driver.py``), so the clear
+    *theirs-authoritative* planning key, ``merge/drivers.py``), so the clear
     is the last writer regardless.
 
     The edit is persisted through the same protected-flow bookkeeping-commit seam

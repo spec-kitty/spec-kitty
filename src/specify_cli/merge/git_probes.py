@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 
@@ -686,8 +686,10 @@ def _read_git_blob_bytes(repo_root: Path, ref: str, repo_rel_path: str) -> bytes
     """Return the exact bytes of ``ref:repo_rel_path``, or ``None`` when absent.
 
     Byte-exact (``subprocess`` directly, not :func:`~specify_cli.core.git_ops.run_command`,
-    which decodes to text) -- mirrors ``bookkeeping_projection._git_show_blob_bytes``'s same
-    raw-read pattern; a JSONL/YAML/Markdown bookkeeping blob must be compared byte-for-byte,
+    which decodes to text) -- this is now the SINGLE reader for a bookkeeping
+    blob's raw bytes; ``bookkeeping_projection`` reuses this function rather
+    than keeping its own copy of the same pattern (WP02, #5119 hand-off). A
+    JSONL/YAML/Markdown bookkeeping blob must be compared byte-for-byte,
     never re-encoded through a text decode/encode round trip.
     """
     result = subprocess.run(
@@ -734,18 +736,34 @@ def _resolve_merge_driver_config_key(repo_root: Path, ref: str, repo_rel_path: s
     return value
 
 
-def _resolve_registered_driver_callable(config_key: str) -> Callable[[str, str, str], None]:
-    """Map a resolved ``config_key`` to its ``cli.commands.merge_driver`` implementation.
+# TYPE_CHECKING-only import (#5119): the module-level ``from typing import
+# TYPE_CHECKING`` now at the top of this file replaced the unused
+# ``from typing import cast`` it displaced -- a same-line, same-line-count
+# substitution (verified: every following line, including the census-pinned
+# L236 ``reset_hard`` call test_destructive_op_routing.py:172 keys on, is
+# unshifted) so ``MergeDriverBody`` can be imported for type-checking only,
+# at zero runtime import cost, without following ``merge.drivers`` at
+# module-import time.
+if TYPE_CHECKING:
+    from specify_cli.merge.drivers import MergeDriverBody
+
+
+def _resolve_registered_driver_callable(config_key: str) -> MergeDriverBody:
+    """Map a resolved ``config_key`` to its ``merge.drivers`` body (#5119).
 
     Reuses the canonical registry (``lanes.merge._MERGE_DRIVERS``) instead of a second,
     hand-maintained table: a driver's ``command`` field (e.g. ``"spec-kitty
-    merge-driver-traces %O %A %B"``) names the exact ``merge_driver_<name>`` function this
-    derives and calls, so the two can never silently drift apart (C-006). Function-local
-    import: avoids paying the ``cli.commands`` package ``__init__`` import cost (and any
-    load-order risk) unless a caller actually needs to replay a driver.
+    merge-driver-traces %O %A %B"``) names the exact ``MERGE_DRIVER_BODIES`` key this
+    derives and looks up, so the two can never silently drift apart (C-006). Function-local
+    import: avoids paying the ``merge.drivers`` module's own dependency import cost (and any
+    load-order risk) unless a caller actually needs to replay a driver. Resolving from
+    ``MERGE_DRIVER_BODIES`` (rather than the pre-#5119 ``cli.commands.merge_driver`` module)
+    means this replay executes the exact same body a real subprocess invocation would
+    (FR-004) — and this module no longer imports the CLI command layer at all
+    (:class:`~tests.architectural.test_layer_rules.TestMergeCliBoundary`).
     """
-    from specify_cli.cli.commands import merge_driver as _merge_driver_module
     from specify_cli.lanes.merge import _MERGE_DRIVERS
+    from specify_cli.merge.drivers import MERGE_DRIVER_BODIES
 
     spec = next((candidate for candidate in _MERGE_DRIVERS if candidate.config_key == config_key), None)
     if spec is None:
@@ -753,10 +771,10 @@ def _resolve_registered_driver_callable(config_key: str) -> Callable[[str, str, 
     match = _DRIVER_COMMAND_PATTERN.match(spec.command)
     if match is None:
         raise GitProbeError(f"unrecognized merge-driver command shape: {spec.command!r}")
-    driver = getattr(_merge_driver_module, match.group(1).replace("-", "_"), None)
-    if driver is None or not callable(driver):
+    driver = MERGE_DRIVER_BODIES.get(match.group(1))
+    if driver is None:
         raise GitProbeError(f"no merge-driver implementation for config key {config_key!r}")
-    return cast("Callable[[str, str, str], None]", driver)
+    return driver
 
 
 def driver_replay_expected_bytes(
@@ -810,10 +828,16 @@ def driver_replay_expected_bytes(
         ours_path.write_bytes(ours_bytes)
         theirs_path.write_bytes(theirs_bytes)
         try:
+            # The returned MergeDriverOutcome is discarded (#5119): this replay
+            # only needs the bytes the body wrote to `ours_path`. Benign side
+            # effect vs. the pre-#5119 CLI-module call: a review-cycle
+            # collision's stdout notice is no longer printed during replay --
+            # only the real CLI shell (`cli/commands/merge_driver.py`) echoes it.
             driver(str(base_path), str(ours_path), str(theirs_path))
         except Exception as exc:
-            # Any driver failure (typer.Exit, RowMatrixMergeError, ...) REFUSEs
-            # fail-closed (FR-003) rather than escaping as an unhandled crash.
+            # Any driver failure (MergeDriverError, RowMatrixMergeError, ...)
+            # REFUSEs fail-closed (FR-003) rather than escaping as an
+            # unhandled crash.
             raise GitProbeError(f"driver replay for {repo_rel_path!r} ({config_key}) failed: {exc}") from exc
         return ours_path.read_bytes()
 

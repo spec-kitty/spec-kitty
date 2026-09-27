@@ -190,7 +190,7 @@ def _is_allowed_value(value: Any, allowed: frozenset[str]) -> bool:
 # landing in a prose-only field (e.g. ``notes``) leaves no such signal at
 # all. Either way the merge damage goes undetected. This is the read-side
 # guard; the write-side guard (merge-driver conflict-marker rejection) is a
-# separate module (WP01, ``merge_driver.py``).
+# separate module (WP01, ``merge/drivers.py`` since #5119).
 _CONFLICT_MARKERS: tuple[str, ...] = ("<<<<<<<", "=======", ">>>>>>>")
 
 

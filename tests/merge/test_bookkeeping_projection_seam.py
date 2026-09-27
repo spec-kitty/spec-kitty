@@ -165,8 +165,9 @@ def test_project_returns_target_paths_when_not_worktree(tmp_path: Path) -> None:
 #
 # Real, on-disk git repos throughout (no git-layer mocking): the probe shells out
 # to ``git show``/``git check-attr`` and invokes the ACTUAL registered
-# ``cli.commands.merge_driver`` implementations, so a mock would prove nothing
-# about whether the replay genuinely matches what a real squash would do.
+# ``merge.drivers`` bodies (relocated there from ``cli.commands.merge_driver``
+# by #5119), so a mock would prove nothing about whether the replay genuinely
+# matches what a real squash would do.
 
 
 def _driver_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
