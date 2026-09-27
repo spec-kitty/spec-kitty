@@ -81,8 +81,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
+import warnings
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -144,6 +146,31 @@ _MISMATCH_ALLOWLIST: dict[str, str] = {
 # a module and deleting its entry shrinks both this constant's headroom and
 # `len(_MISMATCH_ALLOWLIST)` together, and is always welcome.
 _BASELINE_ALLOWLIST_COUNT = 20
+
+
+# spec-kitty#5189 interim relief: a committed/collected count drift no longer
+# reds the per-PR architectural battery. Any +1/-1 test-count change in a
+# pinned module (charter above all) otherwise forced a ~18-min serial measured
+# recapture as mandatory landing work, once per rebase. Drift now surfaces as a
+# `ShardTimingsDriftWarning` in the pytest warnings summary; set this env var to
+# "1" to restore the hard failure (local check, or a future scheduled lane).
+# The owning remedy (spec-kitty#5189, remedy d) replaces this switch.
+_STRICT_ENV_VAR = "SPEC_KITTY_STRICT_SHARD_TIMINGS"
+
+
+class ShardTimingsDriftWarning(UserWarning):
+    """Committed shard-timings length disagrees with live collection (non-blocking per PR)."""
+
+
+def _strict_mode() -> bool:
+    return os.environ.get(_STRICT_ENV_VAR) == "1"
+
+
+def _report_drift(message: str, *, strict: bool) -> None:
+    """Fail under strict mode; otherwise warn so the drift stays visible without blocking."""
+    if strict:
+        pytest.fail(message)
+    warnings.warn(ShardTimingsDriftWarning(message), stacklevel=2)
 
 
 @dataclass(frozen=True)
@@ -316,13 +343,14 @@ def test_non_allowlisted_modules_agree_with_live_collection(
     modules = _registry_modules(_live_registry_state)
     committed_lengths = {module: _committed_length(_live_timings_state, module) for module in modules}
     mismatches = _find_mismatches(modules, _MISMATCH_ALLOWLIST, committed_lengths, _collected_counts)
-    assert not mismatches, (
-        "committed/collected length mismatch for module(s) NOT in the frozen baseline allowlist: "
-        f"{[(m.module, m.committed, m.collected) for m in mismatches]}. Either the module's timings "
-        "drifted without recapture (recapture via scripts/ci/capture_shard_timings.py --module <name> "
-        "--write), or this is newly-drifted debt that must be added to _MISMATCH_ALLOWLIST with "
-        "_BASELINE_ALLOWLIST_COUNT bumped in the same PR, with a reason."
-    )
+    if mismatches:
+        _report_drift(
+            "committed/collected length mismatch for module(s) NOT in the frozen baseline allowlist: "
+            f"{[(m.module, m.committed, m.collected) for m in mismatches]}. The module's timings drifted "
+            "without recapture (recapture via scripts/ci/capture_shard_timings.py --module <name> --write); "
+            f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
+            strict=_strict_mode(),
+        )
 
 
 @pytest.mark.slow
@@ -341,7 +369,12 @@ def test_charter_is_not_allowlisted_and_agrees(
     assert "charter" not in _MISMATCH_ALLOWLIST, "`charter` must never enter the mismatch allowlist -- it is this mission's own recaptured module."
     committed = _committed_length(_live_timings_state, "charter")
     collected = _collected_counts["charter"]
-    assert committed == collected, f"charter regressed: committed={committed} collected={collected} (was 6156==6156 at WP04/WP05 recapture)"
+    if committed != collected:
+        _report_drift(
+            f"charter drifted: committed={committed} collected={collected} (was 6156==6156 at WP04/WP05 recapture); "
+            f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
+            strict=_strict_mode(),
+        )
 
 
 @pytest.mark.fast
@@ -419,3 +452,28 @@ def test_mismatch_detection_respects_allowlist() -> None:
     collected_counts = {"alpha": 10, "bravo": 999}
 
     assert _find_mismatches(modules, allowlist={"bravo": "known debt"}, committed_lengths=committed_lengths, collected_counts=collected_counts) == []
+
+
+@pytest.mark.fast
+def test_report_drift_warns_by_default() -> None:
+    """spec-kitty#5189: outside strict mode, drift is a visible warning, never a failure."""
+    with pytest.warns(ShardTimingsDriftWarning, match="charter drifted"):
+        _report_drift("charter drifted: committed=1 collected=2", strict=False)
+
+
+@pytest.mark.fast
+def test_report_drift_fails_in_strict_mode() -> None:
+    """Strict mode restores the hard gate, so the check can still be enforced on demand."""
+    with pytest.raises(pytest.fail.Exception, match="charter drifted"):
+        _report_drift("charter drifted: committed=1 collected=2", strict=True)
+
+
+@pytest.mark.fast
+def test_strict_mode_reads_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only the exact opt-in value "1" turns strict mode on."""
+    monkeypatch.delenv(_STRICT_ENV_VAR, raising=False)
+    assert _strict_mode() is False
+    monkeypatch.setenv(_STRICT_ENV_VAR, "0")
+    assert _strict_mode() is False
+    monkeypatch.setenv(_STRICT_ENV_VAR, "1")
+    assert _strict_mode() is True
