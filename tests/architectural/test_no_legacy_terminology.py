@@ -546,14 +546,12 @@ _COMMAND_SURFACE_SCAN_ROOTS: tuple[str, ...] = ("src", "docs", "packs")
 
 _COMMAND_SURFACE_PHRASE_BASELINE: frozenset[str] = frozenset(
     {
-        "docs/api/cli-commands.md",
         "docs/api/environment-variables.md",
         "docs/api/skills/spk-gate-mission-review.md",
         "docs/changelog/1x/workflow.md",
         "docs/changelog/CHANGELOG.md",
         "docs/changelog/release-notes-3.2.6.md",
         "docs/context/orchestration.md",
-        "docs/development/3-2-docs-retrieval-index.yaml",
         "docs/development/agent-fleet.md",
         "docs/development/getting-started/onboarding-run.md",
         "docs/development/reference/ci-gate-mechanics.md",
@@ -586,10 +584,8 @@ _COMMAND_SURFACE_PHRASE_BASELINE: frozenset[str] = frozenset(
         "src/charter/offering/skills/spec-kitty-mission-review/SKILL.md",
         "src/charter/offering/skills/spec-kitty-program-orchestrate/SKILL.md",
         "src/specify_cli/.contextive/orchestration.yml",
-        "src/specify_cli/_completion_manifest.json",
         "src/specify_cli/acceptance/matrix.py",
         "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
-        "src/specify_cli/cli/commands/doctor.py",
         "src/specify_cli/cli/commands/mission_type.py",
         "src/specify_cli/cli/commands/review/ERROR_CODES.md",
         "src/specify_cli/cli/commands/upgrade.py",
