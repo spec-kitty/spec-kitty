@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-09-20'
+updated: '2026-09-27'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -4379,6 +4379,106 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 │ on      Switch moments back ON at the documented default (`team`).           │
 │ status  Show the effective mode, which file decided it, and the active       │
 │         filters.                                                             │
+│ drain   Live drain (moments/presence/capability/relay) is effective only     │
+│         when BOTH scopes are on: the repository (.kittify/config.yaml        │
+│         hosted.drain) and your personal runtime-root config.toml ([hosted]   │
+│         drain). No environment variable can turn drain on -- env vars only   │
+│         narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments drain
+
+_Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS)._
+
+```
+ Usage: spec-kitty moments drain [OPTIONS] COMMAND [ARGS]...
+
+ Live drain (moments/presence/capability/relay) is effective only when BOTH
+ scopes are on: the repository (.kittify/config.yaml hosted.drain) and your
+ personal runtime-root config.toml ([hosted] drain). No environment variable
+ can turn drain on -- env vars only narrow it further (e.g.
+ SPEC_KITTY_NO_MOMENT_HANDLERS).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ on      Turn live drain ON for one scope. Live drain                         │
+│         (moments/presence/capability/relay) is effective only when BOTH      │
+│         scopes are on: the repository (.kittify/config.yaml hosted.drain)    │
+│         and your personal runtime-root config.toml ([hosted] drain). No      │
+│         environment variable can turn drain on -- env vars only narrow it    │
+│         further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).                        │
+│ off     Turn live drain OFF for one scope. Live drain                        │
+│         (moments/presence/capability/relay) is effective only when BOTH      │
+│         scopes are on: the repository (.kittify/config.yaml hosted.drain)    │
+│         and your personal runtime-root config.toml ([hosted] drain). No      │
+│         environment variable can turn drain on -- env vars only narrow it    │
+│         further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).                        │
+│ status  Show the effective live-drain posture, both scopes' values and       │
+│         source                                                               │
+│         files, active narrowers, the ledger-projection posture, and all four │
+│         hosted-posture file paths (existing or not).                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments drain off
+
+_Turn live drain OFF for one scope. Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS)._
+
+```
+ Usage: spec-kitty moments drain off [OPTIONS]
+
+ Turn live drain OFF for one scope. Live drain
+ (moments/presence/capability/relay) is effective only when BOTH scopes are on:
+ the repository (.kittify/config.yaml hosted.drain) and your personal
+ runtime-root config.toml ([hosted] drain). No environment variable can turn
+ drain on -- env vars only narrow it further (e.g.
+ SPEC_KITTY_NO_MOMENT_HANDLERS).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --repo            Write the repository scope (<repo>/.kittify/config.yaml    │
+│                   hosted.drain) instead of the personal scope (the           │
+│                   runtime-root config.toml [hosted] drain).                  │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments drain on
+
+_Turn live drain ON for one scope. Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS)._
+
+```
+ Usage: spec-kitty moments drain on [OPTIONS]
+
+ Turn live drain ON for one scope. Live drain
+ (moments/presence/capability/relay) is effective only when BOTH scopes are on:
+ the repository (.kittify/config.yaml hosted.drain) and your personal
+ runtime-root config.toml ([hosted] drain). No environment variable can turn
+ drain on -- env vars only narrow it further (e.g.
+ SPEC_KITTY_NO_MOMENT_HANDLERS).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --repo            Write the repository scope (<repo>/.kittify/config.yaml    │
+│                   hosted.drain) instead of the personal scope (the           │
+│                   runtime-root config.toml [hosted] drain).                  │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments drain status
+
+```
+ Usage: spec-kitty moments drain status [OPTIONS]
+
+ Show the effective live-drain posture, both scopes' values and source files,
+ active narrowers, the ledger-projection posture, and all four hosted-posture
+ file paths (existing or not).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6421,6 +6521,12 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 
  Approve ``item_id``. Requires typing back the item's own challenge at the
  controlling terminal when prompted — there is no flag to skip this.
+
+ Pre-flighted like every other relay-publishing command (R-3): approving
+ an item is what publishes its prose to the relay, even though
+ ``outbox_approval.py`` itself never opens a socket (its docstring, line
+ ~91). ``list``/``show``/``reject``/``revoke`` are local-only and are
+ NOT pre-flighted.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    item_id      TEXT  The content-addressed id of the pending/decided      │

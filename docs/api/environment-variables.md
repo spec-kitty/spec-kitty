@@ -2,11 +2,13 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, dashboard, and test configuration.
 doc_status: active
-updated: '2026-08-16'
+updated: '2026-09-26'
 related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
 - docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
+- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+- docs/context/team-kitty.md
 ---
 # Environment Variables Reference
 
@@ -205,22 +207,37 @@ spec-kitty auth login
 
 ### SPEC_KITTY_SAAS_URL
 
-Override the packaged default Spec Kitty SaaS base URL
-(`https://team.spec-kitty.ai`, #3980 — the env var is a dev/self-host
-override, not a requirement).
+Configures the hosted endpoint; there is no built-in default (#4971) — set this or
+`config.toml [sync].server_url` before any explicit hosted command will do anything other than
+print setup guidance. Configuring an endpoint here is independent of whether live drain is
+on: even with an endpoint configured, no hosted traffic is sent automatically unless both drain
+scopes are also on (`spec-kitty moments drain status`; see
+[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)).
 
 An explicitly exported value is always a real opinion (#4259): it wins over
-`config.toml [sync].server_url` even when it equals the packaged default, so
-exporting the canonical URL is a positive way to pin the target on a machine
-whose saved target is stale. (`spec-kitty upgrade` migrates a saved retired
-first-party address to the canonical one; self-hosted values are never
-rewritten.)
+`config.toml [sync].server_url` regardless of what that file holds.
+
+**Upgrade migrations that touch the saved endpoint (`config.toml [sync].server_url`), not this
+variable:**
+- `m_4_0_0_retired_hosted_target` **deletes** a saved `server_url` naming the retired first-party
+  address (`https://app.spec-kitty.ai`, #4259) and prints setup guidance — it no longer rewrites
+  that value to a packaged default (there is none to rewrite to; FR-013). Every other saved value,
+  including a machine's own prior `https://team.spec-kitty.ai` migration, is left untouched.
+- `m_4_0_0rc5_hosted_endpoint_session_backfill` backfills `[sync].server_url` from a stored login
+  session's `issuer_url` when no endpoint is configured at all (D-6/FR-016) — treating a prior
+  successful `spec-kitty auth login` as explicit opt-in to the endpoint it logged into, so an
+  already-logged-in machine is not stranded by the removal of the packaged default. It never
+  backfills the retired first-party address, and it never touches drain posture (`[hosted] drain`
+  lives in the same file but is a separate, independently-gated opt-in — see
+  [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)).
 
 **Scope**: machine-global when **exported**; repo-scoped when set in a per-repo
 `.kitty.env` (see the warning at the top of this section). Exporting this in a
 shell points every project that shell touches at the named instance.
 
-**Purpose**: Point auth, tracker discovery, and sync clients at a specific hosted environment such as a dev deployment.
+**Purpose**: configures which hosted endpoint auth, tracker discovery, and the Zeitgeist relay
+client talk to — one of only two ways to configure it at all (the other is
+`config.toml [sync].server_url`), since there is no built-in default.
 
 **Example**:
 ```bash
@@ -230,11 +247,12 @@ spec-kitty auth login
 
 **See also**:
 - [Internal Hosted-Readiness (Pre-Launch)](../operations/internal-hosted-readiness.md)
-  -- this URL override is a dev / staging tool used by internal
-  operators, not user behavior.
-- [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
-  -- the override remains internal-only after launch; only the
-  user-facing default URL changes.
+  -- background on the pre-launch opt-in era; this variable is now one of the
+  two primary ways any operator configures a hosted endpoint, not an
+  internal-only dev/staging tool.
+- [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)
+  -- the decision record for the no-packaged-default / two-scope-drain model this
+  variable now operates under.
 
 ### SPEC_KITTY_SYNC_DISABLE
 
@@ -566,7 +584,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt out of hosted sync/auth flows (on by default) | `0` |
-| `SPEC_KITTY_SAAS_URL` | Override the packaged default hosted base URL | `https://spec-kitty-dev.example.internal` |
+| `SPEC_KITTY_SAAS_URL` | Configures the hosted endpoint; no built-in default | `https://spec-kitty-dev.example.internal` |
 | `SPEC_KITTY_SYNC_DISABLE` | Process-wide kill switch for sync-adjacent work | `1` |
 | `SPEC_KITTY_NO_MOMENT_HANDLERS` | Register no moment handlers at import | `1` |
 | `SPEC_KITTY_SKIP_PRE_REVIEW_GATE` | Skip the pre-review regression gate | `1` |

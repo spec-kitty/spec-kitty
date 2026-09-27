@@ -2,21 +2,26 @@
 title: Launch-Readiness Behavior (Coming Soon)
 description: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-09-27'
 type: explanation
 audience: launch coordinators
 ---
 # Launch-Readiness Behavior (Coming Soon)
 
-> **Status: the default flip has landed (issue #3980, Team Kitty launch
-> defaults).** The opt-out-only `SPEC_KITTY_ENABLE_SAAS_SYNC` and the
-> packaged default `https://team.spec-kitty.ai` described below as "at
-> launch" are now the behavior on `main`. This page is kept as the launch
-> playbook and design record; see
+> **Status (2026-09-27): the packaged-default half of the flip was reversed
+> (endpoint opt-in, ADR
+> [`2026-09-26-2`](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)).**
+> The #3980 flip below briefly landed a packaged default
+> `https://team.spec-kitty.ai` baked into the CLI; that default has since
+> been **removed** — there is no built-in fallback endpoint any more, and
+> every explicit caller raises `HostedEndpointUnconfigured` with setup
+> guidance unless `SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url`
+> is set explicitly. The "Default SaaS URL" row below is stale design intent
+> that did not survive; do not treat it as current or planned behavior. See
+> [Team Kitty and Zeitgeist](../context/team-kitty.md) for the current,
+> opt-in-first transport and
 > [environment variables](../api/environment-variables.md) for the current
-> reference, and
-> [Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md)
-> for the pre-launch opt-in era this replaced.
+> reference.
 
 ## Why this doc exists
 
@@ -40,7 +45,7 @@ describe behavior that will ship at the launch milestone.**
 | Dimension | Today (pre-launch) | At launch |
 |---|---|---|
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | **Opt-in gate.** Unset / falsy = local-first; truthy = hidden hosted-readiness mode for internal operators. | **Override only.** Hosted readiness is on by default; the variable becomes an internal escape hatch (e.g., `SPEC_KITTY_ENABLE_SAAS_SYNC=0` to force local-only). |
-| Default SaaS URL | Operators must set `SPEC_KITTY_SAAS_URL` explicitly to dial dev / staging. There is no user-facing default. | A user-facing default URL ships baked into the CLI. End users do not set `SPEC_KITTY_SAAS_URL`. |
+| Default SaaS URL | Operators must set `SPEC_KITTY_SAAS_URL` explicitly to dial dev / staging. There is no user-facing default. | **Reversed, see banner above.** ~~A user-facing default URL ships baked into the CLI. End users do not set `SPEC_KITTY_SAAS_URL`.~~ Endpoint opt-in (ADR `2026-09-26-2`) means this never shipped as permanent behavior: there is no packaged default, at launch or since — every user configures `SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url` explicitly. |
 | Sync default | Sync commands no-op unless hosted mode is explicitly enabled. | Sync runs by default for Teamspace-connected repos. The same suppression contract still applies (interactive / non-interactive / machine-output). |
 | Tracker discovery | Tracker calls only happen behind the opt-in gate. | Tracker discovery happens by default for Teamspace-connected repos; unreachable-tracker states surface via the readiness coordinator. |
 | `spec-kitty auth login` | Documented as the canonical hosted login flow for internal operators dogfooding the hidden mode. | Documented as the canonical hosted login flow for **all** users joining a Teamspace. |

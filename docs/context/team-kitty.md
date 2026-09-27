@@ -2,14 +2,16 @@
 title: 'Context: Team Kitty and Zeitgeist'
 description: "Glossary context for the hosted product: how the CLI, its Zeitgeist client, the per-team relay, and the Team Kitty SaaS fit together, and why 'sync' is a dead word."
 doc_status: active
-updated: '2026-09-13'
+updated: '2026-09-27'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
 type: explanation
 related:
 - docs/context/system-events.md
 - docs/context/orchestration.md
 - docs/api/environment-variables.md
+- docs/api/configuration.md
 - docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
+- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
 ---
 # Context: Team Kitty and Zeitgeist
 
@@ -28,10 +30,44 @@ The Spec Kitty CLI talks to the SaaS only to authenticate and to mint a
 capability; it then publishes each status **moment** straight to the team's
 relay in a single bounded HTTP request. The SaaS never receives moments over
 HTTP: it polls the relay back ("Pulse") to build its activity feed. Nothing is
-queued anywhere, nothing is persisted on the relay, and the only gates are
-server-side: team membership plus the repository being admitted to that team.
-There is no client-side opt-in, no consent grant, no offline queue, and no
-daemon.
+queued anywhere, nothing is persisted on the relay, and the server-side gates
+are team membership plus the repository being admitted to that team. There is
+no offline queue and no daemon. There **is** a client-side opt-in: a moment is
+published only when both the repository (`.kittify/config.yaml` `hosted.drain`)
+and the developer's personal runtime-root `config.toml` `[hosted] drain` are
+on — see `spec-kitty moments drain status`.
+
+## Drain: the client-side opt-in
+
+**Drain** is the canonical term for automatic outbound hosted interaction: moments,
+presence/focus, capability minting, and relay traffic — the "NOW" path this page describes above.
+It requires two separate opt-ins, both on at once:
+
+- **Repository scope** — `.kittify/config.yaml` → `hosted.drain: true`, committed per checkout.
+- **Personal scope** — the developer's runtime-root `config.toml` (`~/.spec-kitty/config.toml` on
+  POSIX, `SPEC_KITTY_HOME`-overridable) → `[hosted] drain = true`, **not**
+  `~/.kittify/config.toml`, where `[moments]` already lives.
+
+Either scope off or absent means drain is off, and **no environment variable can turn drain on** —
+`SPEC_KITTY_NO_MOMENT_HANDLERS` and `SPEC_KITTY_SYNC_DISABLE` can only narrow an already-on drain
+back to off, never enable it. Manage both scopes with `spec-kitty moments drain on|off [--repo]`;
+inspect the resolved posture — both scopes' values and source files, active narrowers, the
+ledger-projection posture, and all four hosted-posture file paths — with `spec-kitty moments drain
+status [--json]`. The full truth table lives in
+`kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/contracts/hosted-posture.md`; the governing
+decision record (including the reversal of the earlier packaged-default behavior this section used
+to describe) is
+[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md).
+
+Drain is distinct from — and does not itself change — whether a hosted **endpoint** is configured
+at all (`SPEC_KITTY_SAAS_URL` / `config.toml [sync].server_url`, still no built-in default). With
+an endpoint configured and drain fully off: `auth login/logout/status/whoami/doctor` and the
+`tracker` command group work normally (gated only by endpoint configuration, not by drain), but
+every relay command is still drain-gated (R-3) — `zeitgeist status/watch/activity/read/inbox/send/
+reply/outbox approve`, the MCP relay tools, and automatic moment/presence/capability paths all stop
+with the one-line `Live drain is off (...)` guidance (or, for automatic callers, a silent clean
+skip) before any credential read. Nothing fires automatically, and the explicit relay surface does
+not work either — only auth and the tracker do.
 
 ## "Sync" is dead
 
@@ -64,7 +100,8 @@ Do not design against, extend, or "re-enable" sync.
 | **Moment** | One content-agnostic, bounded status event published as `op: event.publish` with `{kind, ref?, attrs}`. The relay carries it and never interprets it. A moment is activity *about* a session, never liveness *of* one. | "sync event", "envelope" (the envelope is the wire wrapper) |
 | **Presence** / **focus** | Liveness samples (`presence.publish`, TTL ≤ 90 s) and focus sessions (`focus.start/heartbeat/pause/end`). The CLI refreshes presence after each moment when it holds a lease. | |
 | **Capability credential** | A signed statement of *what* a caller may do on one `(team, deployment, repo)`, kinds `presence` (also grants `event.publish`), `focus`, `operator`, `observer`. Minted by the SaaS, never by Zeitgeist. It is a capability, not an identity. | "API key", "token" (that is the separate bearer) |
-| **Admission** | The SaaS-side decision that a repository belongs to a team (`TeamRepository` row on an enabled, healthy installation; one team per repo per provider). Membership plus admission is the whole gate. | "consent", "opt-in" |
+| **Admission** | The SaaS-side decision that a repository belongs to a team (`TeamRepository` row on an enabled, healthy installation; one team per repo per provider). Membership plus admission is the whole **server-side** gate — drain (client-side, see below) gates whether the CLI attempts the call at all. | "consent", "opt-in" |
+| **Drain** | The **client-side** opt-in gating automatic outbound hosted interaction — repository `hosted.drain` + personal runtime-root `[hosted] drain`, both required (see "Drain: the client-side opt-in" above). Distinct from admission, which is server-side. | "sync", "SaaS sync", "fan-out enabled" |
 | **Pulse** | The SaaS poller: every 60 s per admitted repo it mints an `observer` credential, reads `GET /managed/discover` and `GET /managed/events?since=<epoch>:<seq>`, and upserts `TeamMoment` rows keyed `(team, repo_slug, event_id)`. Retained for a rolling window, default 72 h. | |
 
 Charter rule on the Zeitgeist side, which the CLI mirrors: **fail open on
@@ -86,24 +123,31 @@ sequenceDiagram
     A->>E: move-task --to for_review
     E->>E: append event, materialize snapshot (always succeeds locally)
     E->>Z: fire_saas_fanout (daemon thread, 10 s bound)
-    Z->>Z: load bearer (auth login session / service token)
-    alt no usable credential cached
-        Z->>S: GET /api/v1/sync/repo-admission/?repo_slug=…
-        S-->>Z: admitted + team, or 403 / not admitted (negative cached 5 min)
-        Z->>S: POST /api/v1/live/capability/cli/ {repo_slug, kind: presence}
-        S-->>Z: relay_url, relay_token, capability_credential, expires_at, session_ref, logical_session_id
+    Z->>Z: check hosted_posture.drain_posture().enabled
+    alt drain off (either scope off/absent, or narrowed by env)
+        Z-->>Z: clean skip -- no credential read, no network call
+    else drain on (both scopes on, no narrower active)
+        Z->>Z: load bearer (auth login session / service token)
+        alt no usable credential cached
+            Z->>S: GET /api/v1/sync/repo-admission/?repo_slug=…
+            S-->>Z: admitted + team, or 403 / not admitted (negative cached 5 min)
+            Z->>S: POST /api/v1/live/capability/cli/ {repo_slug, kind: presence}
+            S-->>Z: relay_url, relay_token, capability_credential, expires_at, session_ref, logical_session_id
+        end
+        Z->>R: POST /managed/control op=event.publish (one request, 750 ms budget)
+        R-->>Z: 202 / 429 / 4xx (logged, never retried)
+        Z->>R: presence.publish (and focus.start if a focus lease exists)
     end
-    Z->>R: POST /managed/control op=event.publish (one request, 750 ms budget)
-    R-->>Z: 202 / 429 / 4xx (logged, never retried)
-    Z->>R: presence.publish (and focus.start if a focus lease exists)
     P->>R: GET /managed/events?since=epoch:seq (every 60 s, observer credential)
     P->>P: upsert TeamMoment, render activity feed
 ```
 
-Alt text: the CLI persists locally first, resolves a capability from the
-SaaS only when it has none cached, publishes the moment directly to the
-team's relay once without retry, and the SaaS learns about it by polling the
-relay.
+Alt text: the CLI persists locally first, then checks drain — off skips
+straight to a no-op with no credential read and no network call; on, it
+resolves a capability from the SaaS only when it has none cached, publishes
+the moment directly to the team's relay once without retry, and the SaaS
+learns about it by polling the relay regardless (Pulse only sees moments the
+relay actually received).
 
 Publisher identity, lease generations, cache isolation, and the reader contract are
 explained in [Zeitgeist publisher and lease identity](../architecture/zeitgeist-session-identity.md).
@@ -154,8 +198,9 @@ transition is one moment however often it is re-emitted.
 
 ## What `SPEC_KITTY_ENABLE_SAAS_SYNC` still gates (and what it does not)
 
-The moment path above is **not** gated by this flag. Moments go out by
-default whenever a credential resolves. The flag still switches on four
+The moment path above is **not** gated by this flag. Whether a moment goes out at all is gated by
+drain (off by default — see "Drain: the client-side opt-in" above), never by this flag. The flag
+still switches on four
 leftovers. Two gate functions in `src/specify_cli/core/saas_sync_config.py`
 read it: leftovers 1-2 check the bare `is_saas_sync_enabled()`, while leftover
 3 checks `sync_active()` (`is_saas_sync_enabled()` **and** no
@@ -189,8 +234,10 @@ pins versions the SaaS no longer uses. Vestigial `ensure_sync_daemon` /
 ## Sources
 
 Read at these heads on 2026-09-07: spec-kitty `d6e8fe423`,
-EXPERIMENTAL-zeitgeist `9b6553e`, EXPERIMENTAL-spec-kitty-saas `93e2ad2`.
-Related: ADR
+EXPERIMENTAL-zeitgeist `9b6553e`, EXPERIMENTAL-spec-kitty-saas `93e2ad2`. The drain-model sections
+above (added 2026-09-26, mission `hosted-opt-in-drain-ledger-01M3FFEV`) additionally mirror
+the #4971 change (mission `hosted-opt-in-drain-ledger-01M3FFEV`); drain code (`core/hosted_posture.py`, `cli/commands/moments.py`)
+carries no zeitgeist- or saas-side counterpart to re-cite. Related: ADR
 [convergence retirement and client-repo inversion](../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md);
 [system events](system-events.md) for the canonical event envelope;
 [environment variables](../api/environment-variables.md).

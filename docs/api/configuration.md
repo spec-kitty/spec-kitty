@@ -2,7 +2,7 @@
 title: Configuration Reference
 description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings.
 doc_status: active
-updated: '2026-08-16'
+updated: '2026-09-26'
 related:
 - docs/api/agent-subcommands.md
 - docs/api/cli-commands.md
@@ -10,6 +10,8 @@ related:
 - docs/api/file-structure.md
 - docs/api/missions.md
 - docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
+- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+- docs/context/team-kitty.md
 ---
 # Configuration Reference
 
@@ -283,6 +285,41 @@ artifacts:
   - plan.md
   - tasks.md
   - data-model.md
+```
+
+---
+
+## hosted (repository opt-in for live drain)
+
+`.kittify/config.yaml` → `hosted.drain` (bool, default absent/off): the repository's half of the
+two-scope live-drain opt-in (moments, presence, capability minting, relay). Effective drain
+requires this **and** the developer's personal runtime-root `config.toml` `[hosted] drain` to both
+be `true`; either off or absent is off, and no environment variable can turn either scope on —
+managed via `spec-kitty moments drain`, see
+[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md).
+
+```yaml
+hosted:
+  drain: true
+```
+
+Manage both scopes with `spec-kitty moments drain on|off [--repo]`; inspect the resolved posture
+(both scopes' values and source files, active narrowers, and all four hosted-posture file paths)
+with `spec-kitty moments drain status [--json]`. See
+[Context: Team Kitty and Zeitgeist](../context/team-kitty.md) for the full model.
+
+## ledger (local execution-state projection refresh)
+
+`.kittify/config.yaml` → `ledger.projection` (bool, default `true`): gates only the automatic
+refresh of the derived, gitignored execution-state projection under
+`.kittify/derived/<mission>/` — the local dashboard's query source. It never gates the lane ledger
+(`status.events.jsonl`), its commit, the committed status snapshot, the decision ledger
+(`decisions/`), the runtime run journal, or invocation records — those are a non-optional floor
+under every setting (FR-010).
+
+```yaml
+ledger:
+  projection: false  # stop automatic projection refresh; the committed record is unaffected
 ```
 
 ---

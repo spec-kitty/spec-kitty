@@ -2,7 +2,7 @@
 title: 'Team Kitty (SaaS): the end-to-end hosted-sync flow'
 description: 'The opt-in-to-delivery flow for hosted Team Kitty sync — consent, store migration, admission, auth, history disclosure, and the 3-gate drain — with a Mermaid diagram.'
 doc_status: deprecated
-updated: '2026-08-31'
+updated: '2026-09-27'
 related:
 - docs/operations/sync-drain.md
 - docs/guides/project-sync-consent.md
@@ -157,9 +157,13 @@ sequenceDiagram
   participant is touched. Only the auth exchange, the admission `PUT`, and the two actual
   batch `POST`s (stage 5's `--apply` and stage 6) cross the wire.
 - This diagram describes the retired sync architecture; see [Team Kitty and Zeitgeist](../context/team-kitty.md) for the current transport.
-  The current hosted default is `https://team.spec-kitty.ai`. OAuth login resolves its target through
-  `src/specify_cli/auth/server_target.py`; a saved `config.toml [sync].server_url` can select another host.
-  Remove stale saved targets or set them to the canonical Team Kitty URL.
+  **Stale claim removed (2026-09-27):** this section used to say the hosted endpoint defaults
+  to `https://team.spec-kitty.ai`. Endpoint opt-in (ADR
+  [`2026-09-26-2`](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)) removed that packaged
+  default — there is no built-in fallback any more. OAuth login resolves its target through
+  `src/specify_cli/auth/server_target.py`, which now raises `HostedEndpointUnconfigured` unless
+  `SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url` is explicitly set; see
+  [Team Kitty and Zeitgeist](../context/team-kitty.md) for the current, opt-in-first behavior.
 - The admission client/outbox machinery (`AdmissionOperationService`, `SaasAdmissionClient`)
   is fully built and is what the diagram's step 4 shows, but at the time this page was
   written no traced CLI command path actually *invokes* `.perform()` — live command paths

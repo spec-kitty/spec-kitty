@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-08-30'
+updated: '2026-09-27'
 ---
 # Agent Subcommand Reference
 
@@ -382,6 +382,9 @@ _Manage project AI agent configuration (add, remove, list agents)_
 │ --sync-hooks                                Update AI harness hook           │
 │                                             configurations (Claude, Cursor,  │
 │                                             etc.)                            │
+│ --json                                      Emit a JSON summary listing      │
+│                                             every tracked-manifest mutation  │
+│                                             (#2691).                         │
 │ --help             -h                       Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1150,13 +1153,15 @@ _Mission lifecycle commands for AI agents_
  Persist `/spec-kitty.analyze` output as `analysis-report.md`.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission             TEXT  Mission slug (e.g., '020-my-mission')            │
-│ --input-file          TEXT  Markdown report path, or '-' to read report from │
-│                             stdin                                            │
-│                             [default: -]                                     │
-│ --agent               TEXT  Agent name that produced the analysis report     │
-│ --json                      Output JSON format                               │
-│ --help        -h            Show this message and exit.                      │
+│ --mission              TEXT  Mission slug (e.g., '020-my-mission')           │
+│ --input-file           TEXT  Markdown report path, or '-' to read report     │
+│                              from stdin                                      │
+│                              [default: -]                                    │
+│ --agent                TEXT  Agent name that produced the analysis report    │
+│ --json                       Output JSON format                              │
+│ --report-only                Commit only the report while preserving         │
+│                              unrelated work; require clean material inputs   │
+│ --help         -h            Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

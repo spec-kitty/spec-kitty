@@ -1207,6 +1207,28 @@
      "help": "Show the effective mode, which file decided it, and the active filters.",
      "hidden": false,
      "deprecated": false
+    },
+    "drain": {
+     "help": "Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "on": {
+       "help": "Turn live drain ON for one scope. Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).",
+       "hidden": false,
+       "deprecated": false
+      },
+      "off": {
+       "help": "Turn live drain OFF for one scope. Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).",
+       "hidden": false,
+       "deprecated": false
+      },
+      "status": {
+       "help": "Show the effective live-drain posture, both scopes' values and source\nfiles, active narrowers, the ledger-projection posture, and all four\nhosted-posture file paths (existing or not).",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
     }
    }
   },
@@ -1656,7 +1678,7 @@
        "deprecated": false
       },
       "approve": {
-       "help": "Approve ``item_id``. Requires typing back the item's own challenge at\nthe controlling terminal when prompted — there is no flag to skip this.",
+       "help": "Approve ``item_id``. Requires typing back the item's own challenge at\nthe controlling terminal when prompted — there is no flag to skip this.\n\nPre-flighted like every other relay-publishing command (R-3): approving\nan item is what publishes its prose to the relay, even though\n``outbox_approval.py`` itself never opens a socket (its docstring, line\n~91). ``list``/``show``/``reject``/``revoke`` are local-only and are\nNOT pre-flighted.",
        "hidden": false,
        "deprecated": false
       },

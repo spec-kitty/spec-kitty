@@ -205,4 +205,5 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-09-24 | [Coord reads fail closed: an unmaterialised coordination worktree raises instead of returning empty PRIMARY](2026-09-24-2-coord-read-fail-closed.md) |
 | 2026-09-26 | [a green main/nightly must mean the tests actually ran](2026-09-26-1-ci-coverage-honesty.md) |
 | 2026-09-26 | [Lane Naming Is Keyed on Creation Input, Never on Mission Identity](2026-09-26-2-lane-naming-keyed-on-creation-input.md) |
+| 2026-09-26 | [hosted interaction is opt-in, twice, with no packaged endpoint](2026-09-26-2-hosted-interaction-opt-in.md) |
 | 2026-09-27 | [pack skills — share and co-maintain agent commands through charter packs](2026-09-27-1-pack-skills-share-commands-through-charter-packs.md) |
