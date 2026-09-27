@@ -50,9 +50,11 @@ def test_owned_gate_baseline_reads_selected_mission_directory(tmp_path: Path, mo
 def finalized_checkouts(checkouts: tuple[Path, Path, Path]) -> tuple[Path, Path, Path]:
     primary, owned, sibling = checkouts
     before = snapshot(primary), snapshot(sibling)
-    (owned / ".gitignore").write_text(".kittify/sync-state.json\n", encoding="utf-8")
+    # Mirror the ``spec-kitty init`` ignore contract: the derived execution-state
+    # projection (#4971) lands under ``.kittify/derived/`` and is never tracked.
+    (owned / ".gitignore").write_text(".kittify/sync-state.json\n.kittify/derived/\n", encoding="utf-8")
     git(owned, "add", ".gitignore")
-    git(owned, "commit", "-qm", "fixture: ignore checkout-local sync bookkeeping")
+    git(owned, "commit", "-qm", "fixture: ignore checkout-local sync bookkeeping and derived views")
     result = invoke("finalize-tasks", owned)
     assert result.exit_code == 0, result.output
     mission = owned / "kitty-specs" / SLUG

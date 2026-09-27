@@ -37,9 +37,11 @@ def finalized_checkouts(checkouts: tuple[Path, Path, Path]) -> tuple[Path, Path,
         wp_file.read_text(encoding="utf-8").replace("subtasks: []", "subtasks: [T001]"),
         encoding="utf-8",
     )
-    (owned / ".gitignore").write_text(".kittify/sync-state.json\n", encoding="utf-8")
+    # Mirror the ``spec-kitty init`` ignore contract: the derived execution-state
+    # projection (#4971) lands under ``.kittify/derived/`` and is never tracked.
+    (owned / ".gitignore").write_text(".kittify/sync-state.json\n.kittify/derived/\n", encoding="utf-8")
     git(owned, "add", ".gitignore")
-    git(owned, "commit", "-qm", "fixture: ignore checkout-local sync bookkeeping")
+    git(owned, "commit", "-qm", "fixture: ignore checkout-local sync bookkeeping and derived views")
     result = invoke("finalize-tasks", owned)
     assert result.exit_code == 0, result.output
     assert git(owned, "branch", "--show-current") == TARGET
