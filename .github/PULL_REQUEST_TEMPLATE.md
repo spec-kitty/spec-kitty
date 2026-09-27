@@ -1,57 +1,45 @@
 <!--
-Use this template for material pull requests.
+Spec Kitty PR-body contract (docs/development/how-to/pr-landing.md, "PR-body contract").
+Use EXACTLY these five sections, in this order. An ad-hoc body
+(Summary / Changes / Why / ...) draws a squad MAJOR and blocks merge.
 
-For tiny fixes, keep the body short, but still capture:
-- what changed
-- why it changed
-- compatibility or migration impact
-- how it was validated
-
-If this PR comes from a mission, prefer linking the mission artifacts below.
-For larger diffs, keep the git-tracked reviewer summary in
-`kitty-specs/<mission>/pr-summary.md` and treat the PR body/comment as a rendered copy.
+- Title: `[#<n>] <what changes>`; branch `issue-<n>-<slug>` where possible.
+- Open as a draft while CI runs; never request review with a WIP/[WIP] title.
+- Lead `## Change` with impact for a user or operator (BLUF), before any
+  architecture or test-strategy detail (docs/development/how-to/review-gates.md,
+  "PR body style: consumer-focused BLUF").
+- User-facing changes also carry an entry in docs/changelog/CHANGELOG.md
+  under [Unreleased].
 -->
 
-## Summary
+## Issue
 
-- Briefly describe the change in 1-3 bullets.
+closes #<n>
 
-## Why Now
+## Change
 
-- State the trigger, prerequisite, bug, or product reason for doing this now.
+<!-- First paragraph: what changes for a user or operator, in plain language.
+     Then: what changed and why, grouped by area. Call out formatting-only or
+     generated-file churn separately from behaviour changes. -->
 
-## What This PR Does
+## Tests run
 
-- List the substantive changes.
-- Group them by change area when the diff spans multiple concerns.
-- Call out any incidental formatting-only diffs separately from behavior changes.
+<!-- Every command must be runnable verbatim: full tests/... and docs/... paths;
+     invoke doc scripts as `uv run python -m scripts.docs.<x>`. Record counts. -->
 
-## Effect on Existing Projects
+```
+<command>  # <N passed, M failed>
+```
 
-- Runtime / compatibility:
-- Upgrade / migration:
-- Operator / reviewer impact:
+Self-review:
+- <what you checked in your own diff, and the result>
 
-## Validation
+## Blast radius
 
-- [ ] Relevant tests pass locally or in CI
-- [ ] Backward compatibility impact considered
-- [ ] Follow-up work called out if intentionally deferred
+Discovery: `<git grep command used to find affected code>`
+Files:
+- <paths re-derived from a fresh run of the discovery command>
 
-## Tickets / Contracts
-
-| Ticket | Relationship |
-|--------|--------------|
-| # | |
-
-## Mission Artifacts
-
-- Spec:
-- Plan:
-- Research:
-- Review:
-- PR summary:
-
-## Follow-ups
+## Deferred
 
 - None.
