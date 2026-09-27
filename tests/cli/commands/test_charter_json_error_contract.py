@@ -21,6 +21,25 @@ pytestmark = [pytest.mark.fast]
 runner = CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_cwd_from_worktree_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#4873: the charter *write* commands (``resynthesize``) fail closed via the
+    WP02 write-root guard (``resolve_charter_write_root``), probed against the
+    REAL process cwd -- deliberately NOT patchable through this suite's
+    ``find_repo_root`` mocks, since the guard (#4785 Finding 3, a single
+    canonical authority) exists precisely to catch cwd/``find_repo_root``
+    divergence. Without isolating cwd here, the ``resynthesize`` contracts below
+    spuriously trip the guard whenever the test process runs from inside a real
+    linked git worktree (e.g. the mandated spec-kitty lane worktree), so
+    ``make test-fast`` false-reds on the isolated PR workflow. ``tmp_path`` is a
+    plain (non-git) directory, so chdir'ing into it makes the guard's kernel
+    ``git_topology`` probe degrade safely (not-a-repo -> not-a-linked-worktree,
+    no raise). Mirrors the canonical fixture in
+    ``tests/specify_cli/cli/commands/test_charter_resynthesize.py``.
+    """
+    monkeypatch.chdir(tmp_path)
+
+
 def _assert_json_error(output: str) -> dict[str, object]:
     payload = json.loads(output)
     assert payload["result"] == "error"
