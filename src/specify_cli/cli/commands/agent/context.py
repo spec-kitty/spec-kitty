@@ -186,6 +186,12 @@ def resolve_context(
             if primary_feature_dir is not None:
                 payload["feature_dir"] = str(primary_feature_dir)
 
+        # #5206: emit the canonical ``mission_dir`` key alongside the legacy
+        # ``feature_dir`` alias so agent-facing prompts (which document
+        # ``mission_dir`` as canonical) get a value that matches. Both keys
+        # always agree; ``feature_dir`` remains for backward compatibility.
+        payload["mission_dir"] = payload["feature_dir"]
+
         if json_output:
             print(json.dumps({"success": True, **payload}, indent=2))
         else:

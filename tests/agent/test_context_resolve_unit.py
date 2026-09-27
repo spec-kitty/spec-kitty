@@ -126,6 +126,8 @@ def test_context_resolve_tasks_uses_latest_incomplete(tmp_path: Path, monkeypatc
     assert payload["target_branch"] == "2.x"
     assert payload["commands"]["check_prerequisites"].endswith("--mission 002-second")
     assert payload["commands"]["finalize_tasks"].endswith("--mission 002-second --json")
+    assert "mission_dir" in payload
+    assert payload["mission_dir"] == payload["feature_dir"]
 
 
 def test_context_resolve_implement_auto_resolves_base(tmp_path: Path, monkeypatch) -> None:
