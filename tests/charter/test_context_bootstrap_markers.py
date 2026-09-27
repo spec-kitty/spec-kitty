@@ -76,7 +76,7 @@ def _write_common_charter_files(tmp_path: Path, charter_md: str) -> None:
     (charter_dir / "governance.yaml").write_text(
         textwrap.dedent(
             """\
-            doctrine:
+            charter:
               template_set: software-dev-default
               selected_paradigms: []
               selected_directives: []
