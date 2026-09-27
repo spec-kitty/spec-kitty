@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-09-27T05:25:16.296969+00:00",
+  "flattened": false,
+  "friendly_name": "Tooling friction: fresh-env derived-state & partition remediation",
+  "mid8": "01M3GN66",
+  "mission_id": "01M3GN66S0DTMCXN3JAFJ0QXZC",
+  "mission_number": null,
+  "mission_slug": "tooling-friction-fresh-env-remediation-01M3GN66",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Tooling friction: fresh-env derived-state & partition remediation on claude/tooling-friction-investigation-gpb1yl so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Fix the tooling-friction cluster (#4873, #4955, #5160, #5113) that blocks contributors on fresh worktrees/lanes.",
+  "slug": "tooling-friction-fresh-env-remediation-01M3GN66",
+  "target_branch": "claude/tooling-friction-investigation-gpb1yl",
+  "topology": "single_branch"
+}

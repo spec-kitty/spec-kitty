@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "mission_slug": "tooling-friction-fresh-env-remediation-01M3GN66",
+  "mission_id": "01M3GN66S0DTMCXN3JAFJ0QXZC",
+  "mission_branch": "kitty/mission-tooling-friction-fresh-env-remediation-01M3GN66",
+  "target_branch": "claude/tooling-friction-investigation-gpb1yl",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/cli/commands/test_charter_json_error_contract.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "tests/architectural/test_pyproject_shape.py",
+        "uv.lock"
+      ],
+      "predicted_surfaces": [
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/bookkeeping_projection.py",
+        "tests/specify_cli/merge/test_rematerialization_authority.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "tests/mission_runtime/test_resolve_action_context_feature_dir.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/decision.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "tests/coordination/test_unmaterialized_remedy_text.py"
+      ],
+      "predicted_surfaces": [
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "tests/lanes/test_worktree_allocator_rematerialize.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        ".gitattributes",
+        "src/mission_runtime/artifacts.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/merge_driver.py",
+        "src/specify_cli/lanes/merge.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0_mission_events_merge_driver.py",
+        "tests/architectural/test_merge_reconciliation_class_guard.py",
+        "tests/lanes/test_squash_seam_reconciliation.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-27T05:32:19.889036+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "cb8acac12ea0853dbf26f83d08c2a04a9670af6c"
+}

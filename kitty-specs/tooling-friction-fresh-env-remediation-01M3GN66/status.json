@@ -1,0 +1,71 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M3GNKJRG0S1MC65V1EESYDXZ",
+  "materialized_at": "2026-09-27T05:32:33.424073+00:00",
+  "mission_number": "",
+  "mission_slug": "tooling-friction-fresh-env-remediation-01M3GN66",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 7
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3GNK6NSMRAP41ZJJJ7RH6P8",
+      "last_transition_at": "2026-09-27T05:32:21.049345+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3GNK8F5DVF5MQCR8224TCCK",
+      "last_transition_at": "2026-09-27T05:32:22.885909+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3GNKAPYJ07K8X496PV4RKFH",
+      "last_transition_at": "2026-09-27T05:32:25.182864+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3GNKCTHBC9A4BD5MAJ84R98",
+      "last_transition_at": "2026-09-27T05:32:27.345263+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3GNKENWPCHCTHZDNHEC72YZ",
+      "last_transition_at": "2026-09-27T05:32:29.244326+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3GNKGRQZR5K08YKPR9E0V61",
+      "last_transition_at": "2026-09-27T05:32:31.383268+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3GNKJRG0S1MC65V1EESYDXZ",
+      "last_transition_at": "2026-09-27T05:32:33.424073+00:00"
+    }
+  }
+}
