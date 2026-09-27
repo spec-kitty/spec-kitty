@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.status.models import DoneEvidence, GuardContext, Lane, ReviewApproval, ReviewResult
+from specify_cli.status.models import NON_DISPLAY_LANES, DoneEvidence, GuardContext, Lane, ReviewApproval, ReviewResult
 from specify_cli.status.transitions import (
     ALLOWED_TRANSITIONS,
     CANONICAL_LANES,
@@ -46,6 +46,23 @@ class TestConstants:
         """
         for lane_str in CANONICAL_LANES:
             assert Lane(lane_str), f"{lane_str} not in Lane enum"
+
+    def test_all_enum_values_in_canonical_lanes(self) -> None:
+        """The reverse half of the CANONICAL_LANES <-> Lane biconditional: every
+        Lane member is in CANONICAL_LANES unless it is a NON_DISPLAY_LANES
+        sentinel (``genesis`` pre-finalize state, ``uninitialized`` read
+        sentinel), which must stay OUT of the board/display set.
+
+        Relocated from the retired ``tests/status/test_parity.py`` (WP09 /
+        NFR-006). Without it a newly-added ``Lane`` member left unregistered in
+        CANONICAL_LANES / NON_DISPLAY_LANES would go uncaught -- the count pin
+        stays green and the parity table simply never exercises the orphan lane.
+        """
+        for lane in Lane:
+            if lane in NON_DISPLAY_LANES:
+                assert lane.value not in CANONICAL_LANES, f"{lane.value} must stay out of CANONICAL_LANES (non-display lane)"
+                continue
+            assert lane.value in CANONICAL_LANES, f"{lane.value} in Lane enum but not in CANONICAL_LANES"
 
     def test_allowed_transitions_count(self) -> None:
         # 27 base transitions + 2 genesis seeds: (genesis,planned) and
