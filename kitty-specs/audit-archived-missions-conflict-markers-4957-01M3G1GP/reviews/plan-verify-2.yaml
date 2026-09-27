@@ -1,0 +1,20 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      Commit 33a942228 fully commits to option (b): §B item 1 (plan.md:209-212) now says
+      enumeration goes through the new, narrowly-scoped `_enumerate_tracked_files` helper "not
+      the file's existing `_run_git`/`_git_bytes` call sites, which this mission leaves
+      untouched," and the fold-in note (plan.md:259-274) reiterates this consistently, ending
+      with the non-contradictory closing sentence that there is one enumeration code path
+      "even though that path is new rather than reused from `_run_git`/`_git_bytes`"; the old
+      "not a new git wrapper" / "reusing the file's existing ... helpers" phrasing that created
+      the clash is gone from plan.md entirely (verified via grep, zero hits), and the fix's env-
+      hardening claim (`GIT_NO_REPLACE_OBJECTS`, `SPEC_KITTY_ENABLE_SAAS_SYNC=0`, plus
+      `GIT_OPTIONAL_LOCKS=0` for `_git_bytes`) matches the live `_run_git`/`_git_bytes` bodies in
+      tests/architectural/test_archive_root_byte_identical.py:159-177 exactly, and `git show
+      --stat 33a942228` confirms only plan.md changed, i.e. no new call was added at any
+      existing `_run_git`/`_git_bytes` call site.

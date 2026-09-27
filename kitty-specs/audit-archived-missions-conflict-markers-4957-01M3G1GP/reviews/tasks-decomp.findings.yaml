@@ -1,0 +1,39 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: decomp
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: TASKS-DECOMP-001
+    lens: WP concreteness / implement-without-re-deriving
+    severity: 3
+    title: "WP01 repeatedly mislabels the preserved HEAD-side block as \"eleven\" lines when the cited range (759–770) is twelve"
+    evidence:
+      - artifact: "tasks/WP01-repair-archived-conflict-markers.md lines 123, 132, 154, 168, 191, 207"
+      - code: "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md:759-770 (12 bullet lines, verified via `grep -n \"\" <file> | sed -n '755,775p'`)"
+    claim: >
+      WP01 states six times (Objective context, Step 2, Step 3 validation note, Definition of
+      Done, Risks, Reviewer Guidance) that the preserved HEAD-side Activity Log block spans
+      "eleven" lines at 759–770. Counting the actual archived file at that exact line range
+      (independently re-read this session) yields twelve distinct Activity Log bullets (759
+      "Ready for review..." through 770 "Review passed..."), not eleven. The instruction's line
+      range (759–770) is itself correct and unambiguous, and every "eleven" mention sits next to
+      that correct range, so a careful implementer who follows the line numbers rather than the
+      count label will still do the right repair — but the Definition of Done ("All eleven
+      HEAD-side Activity Log lines... are present") and Reviewer Guidance ("Confirm all eleven
+      HEAD-side lines survive") both invite a literal count check that will fail against the
+      correct 12-line result, risking a reviewer flagging correct work as defective (an extra
+      line "snuck in") or an implementer second-guessing and dropping a genuine Activity Log
+      entry to force the stated count of 11. The related "Files" line ("content edit only, net
+      ~5 lines removed, 0 lines added") is also imprecise: removing the 3 marker lines (758,
+      771, 773) plus the 1 losing-side line (772) is a net of exactly 4 lines removed, not ~5 —
+      consistent with the same off-by-one miscount of the block's total size (16 lines, not the
+      implied 17).
+    remediation: >
+      In WP01, replace every "eleven" (and "the eleven lines from 759–770") with "twelve" (or
+      drop the count and rely solely on the verified 759–770 range plus "no gap, no marker
+      text, no 5eda48f7-side content" as the DoD/reviewer check, which is count-agnostic and
+      already correct). Update the "Files" line's "net ~5 lines removed" to "net 4 lines
+      removed, 0 lines added" to match the actual marker/losing-line delta.
+# If you have no findings, write: findings: []

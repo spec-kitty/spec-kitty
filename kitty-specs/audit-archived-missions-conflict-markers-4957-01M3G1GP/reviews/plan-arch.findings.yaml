@@ -1,0 +1,50 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: PLAN-ARCH-001
+    lens: Landing-order coupling correctness (mission-derived)
+    severity: 2
+    title: Plan mischaracterizes the freeze test's enforcement mechanism, though its sequencing conclusion still holds for this file
+    evidence:
+      - artifact: "plan.md § D, 'FR-002 (carve-out) and FR-001 (repair) landing-order coupling' paragraph"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:713-739 (test_no_preexisting_archived_file_was_modified body)"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:236-247 (_changes: classifies via `git diff --name-status`, i.e. git's own status codes A/M/D/R/C, not a manual byte comparison)"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:268-341,554,592,342-392 (_check_lifecycle, _check_op_closures, _check_recovery, _check_dead_port_recovery, _terminal_lifecycle_paths — five further admission mechanisms beyond the two frozensets, gating the fixed kitty-ops/lifecycle.jsonl path, a fixed op-closures path, and specific meta.json/status.json/status.events.jsonl triples per mission dir)"
+    claim: >-
+      Plan Section D justifies landing FR-001 and FR-002 in the same commit by asserting "the
+      freeze test only compares bytes against merge-base, not content validity" and reasons about
+      "the two frozensets" (_APPEND_ONLY_SPINE_EXCEPTIONS, _OPERATOR_SANCTIONED_CORRECTIONS) as the
+      sole gating mechanism. Reading test_no_preexisting_archived_file_was_modified's actual body
+      shows this is inaccurate on two counts: (1) the function classifies each path via `git diff
+      --name-status` status codes (A/M/D/R/C), not a raw byte comparison, and (2) beyond the two
+      frozensets it also admits changes via a fixed lifecycle-log path check (status == "M" on
+      kitty-ops/lifecycle.jsonl), a fixed op-closures path check, and three further per-mission
+      admission helpers (_check_recovery, _check_dead_port_recovery, _terminal_lifecycle_paths)
+      that structurally admit specific meta.json/status.json/status.events.jsonl triples. I
+      independently traced all five of these extra mechanisms and confirmed none of them can match
+      kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md
+      (they are keyed to a fixed singleton path or to the meta.json/status.json/status.events.jsonl
+      filenames specifically, never a tasks/WP*.md path) — so the plan's forward claim
+      (repair-without-carve-out reds this test) and reverse claim (carve-out-without-repair does not
+      red it) both still hold for this specific file, and the "land both in the same commit"
+      sequencing decision is therefore correct. The defect is narrower than a broken central claim:
+      the plan's stated *justification* for that correct decision describes the wrong mechanism, in
+      a way that would mislead a future reader trying to reason about a different archived path
+      against this same function (e.g. a path that DOES fall under one of the three per-mission
+      lifecycle/recovery admission helpers, where the two-frozenset framing would give a wrong
+      answer).
+    remediation: >-
+      In plan.md Section D, replace "the freeze test only compares bytes against merge-base, not
+      content validity" with an accurate description: the test classifies each archived-root path's
+      `git diff --name-status` status against merge-base and skips a path only if it matches one of
+      five admission mechanisms (_APPEND_ONLY_SPINE_EXCEPTIONS, _OPERATOR_SANCTIONED_CORRECTIONS,
+      the fixed lifecycle-log path, the fixed op-closures path, or one of the three per-mission
+      lifecycle/recovery admission helpers gating meta.json/status.json/status.events.jsonl
+      triples). State explicitly that none of the latter three helpers can admit a tasks/WP*.md
+      path (confirmed by inspection of _check_recovery/_check_dead_port_recovery/
+      _terminal_lifecycle_paths), which is why the simpler two-frozenset framing happens to be
+      sufficient for this specific file even though it is not a complete description of the
+      function as a whole.

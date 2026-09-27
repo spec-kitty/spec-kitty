@@ -1,0 +1,108 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: PLAN-FRESH2-001
+    lens: fresh-eyes cross-reference sweep after the §B item 1 enumeration-mechanism rewrite
+    severity: 3
+    title: >-
+      Technical Context and the import-linter gate row still claim the guard
+      "reuses" _run_git/_git_bytes, directly contradicting the just-revised
+      §B item 1 / fold-in note
+    evidence:
+      - artifact: >-
+          plan.md line 25 (Technical Context, Primary Dependencies): "git
+          (subprocess, via the file's existing _run_git/_git_bytes helpers —
+          no new dependency)"
+      - artifact: >-
+          plan.md line 297 (§C gate table, import-linter row): "the new
+          tests reuse the file's existing _run_git/_git_bytes helpers,
+          adding no new import crossing a boundary"
+      - artifact: >-
+          plan.md lines 209-212 (§B item 1, as revised in 33a942228):
+          "through the new, narrowly-scoped _enumerate_tracked_files helper
+          ... not the file's existing _run_git/_git_bytes call sites, which
+          this mission leaves untouched"
+      - artifact: >-
+          plan.md lines 259-274 (§B fold-in note, as revised in 33a942228):
+          explicitly states _run_git/_git_bytes are "left completely
+          untouched by this mission — no signature change, and no new call
+          added at any of their ~10 existing call sites" and that the
+          guard's enumeration "lives in a genuinely new, narrowly-scoped
+          helper"
+    claim: >-
+      The 33a942228 revision fixed the contradiction between §B item 1 and
+      §E's fold-in note (both now agree a brand-new _enumerate_tracked_files
+      helper is added and the pre-existing _run_git/_git_bytes call sites
+      are untouched), but it did not propagate that correction to two other
+      places in the same plan.md that make the opposite factual claim
+      verbatim ("the new tests reuse the file's existing _run_git/_git_bytes
+      helpers"). A fresh reader now hits two "the guard reuses the existing
+      helpers" statements (Technical Context line 25, gate table line 297)
+      and two "the guard uses a brand-new helper; the existing ones are
+      untouched" statements (§B item 1, fold-in note) in the same document,
+      with nothing indicating which is authoritative post-revision.
+    remediation: >-
+      Update plan.md line 25 and line 297 to match the corrected §B/fold-in
+      framing, e.g. "via a new, narrowly-scoped _enumerate_tracked_files
+      helper in the same file (the file's pre-existing _run_git/_git_bytes
+      helpers are left untouched) — no new dependency", and the equivalent
+      rewording for the import-linter row's rationale.
+  - id: PLAN-FRESH2-002
+    lens: independent re-verification of the fix's own new factual claim against the live test file
+    severity: 3
+    title: >-
+      The revised fold-in note's "write-adjacent" env-var framing
+      misdescribes _git_bytes's actual, unconditional behavior
+    evidence:
+      - artifact: >-
+          plan.md lines 265-269: "This new helper reuses _git_bytes's
+          env-hardening dict by name rather than re-deriving it by hand:
+          GIT_NO_REPLACE_OBJECTS and SPEC_KITTY_ENABLE_SAAS_SYNC=0 for every
+          call, plus GIT_OPTIONAL_LOCKS=0 for the fixture-subtree call
+          below, which follows a git init/commit earlier in the same test
+          and so is write-adjacent the way _git_bytes's own callers are."
+      - code: >-
+          tests/architectural/test_archive_root_byte_identical.py:159-167
+          (_run_git) sets env GIT_NO_REPLACE_OBJECTS=1 and
+          SPEC_KITTY_ENABLE_SAAS_SYNC=0 only — 2 vars, no GIT_OPTIONAL_LOCKS
+      - code: >-
+          tests/architectural/test_archive_root_byte_identical.py:169-177
+          (_git_bytes) sets env GIT_NO_REPLACE_OBJECTS=1,
+          GIT_OPTIONAL_LOCKS=0 and SPEC_KITTY_ENABLE_SAAS_SYNC=0 together,
+          hardcoded unconditionally as one literal dict on every call
+      - code: >-
+          tests/architectural/test_archive_root_byte_identical.py:188 and
+          :193 — _git_bytes is called for pure reads (cat-file blob,
+          ls-tree), still with the full 3-var dict, showing there is no
+          read/write-adjacency conditionality in its actual behavior
+    claim: >-
+      The plan's own re-verified claim is correct only as to which three env
+      vars exist somewhere in the file; the surrounding rationale is
+      inaccurate about how they are actually applied. _git_bytes does not
+      conditionally add GIT_OPTIONAL_LOCKS=0 only for callers that are
+      "write-adjacent" — it hardcodes all three vars unconditionally for
+      every single call it makes, including plain reads (cat-file, ls-tree)
+      that have no write-adjacency at all. The plan's model ("every call
+      gets 2 vars, plus a third when write-adjacent, the way _git_bytes's
+      own callers are") does not correspond to any real behavior in this
+      file: the 2-var "every call" baseline the plan describes actually
+      matches _run_git's dict, not _git_bytes's, and _git_bytes itself has
+      no conditional logic to be "the way" of anything. This risks an
+      implementer building conditional env-var selection into the new
+      helper based on a fabricated precedent, when the file's real existing
+      precedent (both helpers apply their fixed dict unconditionally,
+      regardless of read/write shape) argues for applying all three vars
+      unconditionally to every _enumerate_tracked_files call instead.
+    remediation: >-
+      Rewrite the fold-in note to state plainly that _git_bytes applies
+      GIT_NO_REPLACE_OBJECTS, GIT_OPTIONAL_LOCKS and
+      SPEC_KITTY_ENABLE_SAAS_SYNC unconditionally on every call (verified at
+      tests/architectural/test_archive_root_byte_identical.py:169-177), and
+      either (a) have the new helper apply all three unconditionally too,
+      matching the file's actual existing precedent, or (b) if a narrower
+      2-var set is intentionally chosen for the real-tree scan, justify it
+      on its own merits rather than attributing a nonexistent conditional
+      behavior to _git_bytes.

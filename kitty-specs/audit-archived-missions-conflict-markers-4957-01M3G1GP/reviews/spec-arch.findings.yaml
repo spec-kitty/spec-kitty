@@ -1,0 +1,43 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: arch
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: SPEC-ARCH-001
+    lens: Canonical source
+    severity: 4
+    title: "Activity Log line-count in the repair AC contradicts the actual HEAD-side content (5, then 6, then the real 12)"
+    evidence:
+      - artifact: "spec.md § User Story 1 Independent Test (lines 22-27): \"the HEAD (df2dac046) side's five Activity Log entries are preserved verbatim and in order\""
+      - artifact: "spec.md § Acceptance Scenario 1 (lines 30-35): \"the file contains the six HEAD-side Activity Log lines\""
+      - code: "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md:759-770"
+    claim: >
+      The spec states two different, and both wrong, counts for the number of HEAD-side
+      Activity Log lines the repair must preserve: "five" in the Independent Test paragraph
+      and "six" in Acceptance Scenario 1. Independently re-reading the actual file at the
+      exact line range the spec itself cites (758-773, confirmed correct via `git grep`)
+      shows the `<<<<<<< HEAD` block spans lines 759-770 — twelve Activity Log lines, not
+      five or six (one "Ready for review" entry plus eleven "Started review / Moved to
+      planned / Moved to doing / Moved to for_review / Review passed" entries from actors
+      unknown, codex (x8), claude-sonnet-4.5, and claude-reviewer). The `=======` losing
+      side (line 772) is a single line, so the marker block collapses 12 kept + 1 dropped
+      + 2 marker lines = 15 physical lines (758-773 minus the blank contexts), consistent
+      with the cited 758-773 range but not with either "five" or "six" preserved lines.
+      This is exactly the kind of miscount that matters here: this mission's whole premise
+      is historical-preservation integrity (Standing Order #9 / the byte-freeze gate this
+      mission must carve an exception into). An implementer who trims the file to match the
+      spec's stated count (five or six lines) rather than reading the actual HEAD block
+      would silently discard 6-7 genuine, already-shipped Activity Log entries — the exact
+      defect class (silent loss of historical record) this mission exists to close, just
+      introduced by the mission's own fix instead of by a botched merge.
+    remediation: >
+      Correct both the Independent Test paragraph and Acceptance Scenario 1 to state the
+      real count — twelve HEAD-side Activity Log lines (lines 759-770 inclusive) — or drop
+      the specific numeral entirely and instead assert the AC in a count-independent, more
+      robust way (e.g. "every HEAD-side Activity Log line between the `<<<<<<< HEAD` marker
+      at line 758 and the `=======` marker at line 771 is preserved verbatim and in order,
+      and no line from the `5eda48f7` side at line 772 survives"). Whichever form is chosen,
+      re-verify the exact line range and content against the live file before landing the
+      spec, not against a paraphrase of it.

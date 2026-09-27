@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: Clarification (k) now explicitly states no tracker/ledger entry is filed for the _baselines.yaml migration and gives genuine, evidenced reasons (no pre-existing tracker to attach to, a pre-existing rather than newly-introduced gap, disproportionate to file for every deferred aside), explicitly cross-referencing Clarification (e)'s commit-time-hook aside as the same, verified-consistent pattern of deferring without an opened issue.

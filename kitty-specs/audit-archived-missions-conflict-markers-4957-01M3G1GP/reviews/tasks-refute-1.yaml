@@ -1,0 +1,56 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >-
+      Independently recounted lines 759-770 of the archived WP01 file
+      (`grep -n ""` then `sed -n`) and got 12 distinct Activity Log bullets,
+      not 11; the six "eleven" mentions at lines 123/132/154/168/191/207 and
+      the "net ~5 lines removed" (actual: 3 marker lines + 1 losing-side
+      line = 4) are both verified miscounts as claimed.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: >-
+      lanes.json shows WP01/WP02 in two distinct lanes (lane-planning,
+      lane-a) joined only by depends_on_lanes, matching compute.py's own
+      docstring that dependency edges never collapse lanes; lane-planning
+      resolves to the repo-root checkout (workspace/context.py:801-811+),
+      the checkout here is in fact on issue-4957-archived-conflict-markers,
+      and _assert_mission_terminal_ready (executor.py:461-521, called at
+      539) only runs inside `spec-kitty merge` lane consolidation, not
+      before any git push/PR-open of the already-landed WP01 commit — so
+      the WP prose's "same lane / no independent merge-and-gate checkpoint"
+      claim is factually wrong and the described gap is real.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      dependency_graph.py:34-58 confirms a dependency is satisfied only at
+      approved/done (every other lane, including for_review/in_review, is
+      not ready), and CLAUDE.md's own Status Model Patterns section says the
+      same; since WP02 cannot even be claimed until WP01 reaches that state,
+      its live working tree necessarily already contains WP01's repair by
+      the time T003 step 5 (WP02 lines 237-243, quote verified verbatim) is
+      executed, making the "confirm this test fails today (before WP01's
+      repair has landed)" instruction unobservable on the live tree exactly
+      as claimed.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      issue-matrix.json shows all six rows still at the raw "unknown"
+      scaffold placeholder (never demoted to the non-gating
+      "not-applicable" that issue_matrix.py:68-80 documents scaffolding
+      writes for context-only refs), _validate_structured_issue_matrix
+      (lines 398-424) flags "unknown" via ISSUE_MATRIX_VERDICT_UNKNOWN and
+      sets result.passed=False, _issue_matrix_approval_blocker
+      (tasks_parsing_validation.py:271-330) turns that into a blocking
+      message, tasks_transition_core.py:689-690 converts it into a hard
+      RefuseExit1 at both APPROVED and DONE transitions, discover_issue_
+      references scans the whole mission (spec.md/plan.md/tasks/*.md) so
+      this fires at WP01's own approval attempt (WP01 has no lane
+      dependency and can be approved first), and neither WP file mentions
+      issue-matrix at all — WP02's T008 only posts a GitHub comment on
+      #4956, a distinct action from setting any row's verdict.

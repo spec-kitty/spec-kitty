@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: WP02 T003 step 5 now cites tests/git_ops/test_git.py:453/457, which independently re-reading the file confirms are exactly the conflict_content literal's marker lines (453 <<<<<<< HEAD, 457 >>>>>>> branch).

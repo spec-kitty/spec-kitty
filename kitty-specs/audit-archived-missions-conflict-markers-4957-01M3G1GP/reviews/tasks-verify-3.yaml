@@ -1,0 +1,32 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      plan.md's IC-01 heading, Sequencing line, and Risks bullet (lines 123, 136-138) now state
+      the claim-time-dependency/two-lane/two-commit mechanism instead of "coupled, must land
+      together"/"same commit, recommended"/"parallel", IC-02's Sequencing (line 153) now says
+      "hard-gated on IC-01, not none strictly", both point to Section D's correction with no
+      remaining contradiction, and IC-03 is untouched as expected.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >-
+      Both WP01 (line ~89) and WP02 (line ~92) now describe _assert_mission_terminal_ready's
+      timing as "early in ... (after the review-artifact consistency gate and merge-state
+      setup/load, but strictly before _phase_merge_lanes)", which matches executor.py exactly:
+      _enforce_review_artifact_consistency (3066), _load_or_create_merge_state (3075), and
+      _persist_executed_strategy (3102) all run before _phase_gates_and_state (3133, which calls
+      _assert_mission_terminal_ready first at line 539) and before _phase_merge_lanes (3185).
+  - id: TASKS-FRESH2-003
+    status: resolved
+    reason: >-
+      WP02's T003 step 5 paragraph now correctly states T004 covers "detection and
+      line-identification only" and never constructs an exempted-marker case (confirmed against
+      T004's own steps 1-4, which only plant markers outside the exemption set), and correctly
+      attributes exemption-skip coverage as incidental to T003's own real-tree run via the literal
+      "<<<<<<< HEAD"/">>>>>>> branch" text in tests/git_ops/test_git.py:452-457's
+      conflict_content fixture; the verbatim quote of plan.md's IC-02 sequencing sentence in
+      WP02's Context section is preserved exactly and still reads coherently in its new
+      surrounding context.

@@ -1,0 +1,53 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      WP02 T008 step 5 now sets a concrete, non-empty placeholder evidence-ref
+      for #4957 ("PR not yet opened, will be updated per this mission's
+      push-after-both-WPs-approved discipline"), states the issue-verdict call
+      is idempotent and should be re-run with the real PR link at the
+      PR-opening step, and the Validation/DoD text was reworded to gate on the
+      verdict field only ("not about evidence-completeness"), which matches
+      _validate_structured_issue_matrix's actual non-empty-string check
+      confirmed in src/specify_cli/tasks/issue_matrix_migration.py lines
+      112-117 - the circularity is gone.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >-
+      plan.md Section D preserves the original "Decision, land both in the
+      same commit" paragraph verbatim and appends a clearly dated Correction
+      (tasks phase, 2026-09-27) that names the tasks-finalize kitty-specs
+      ownership ban (INVALID_WP_OWNED_FILES_KITTY_SPECS, confirmed present in
+      src/specify_cli/cli/commands/agent/mission_finalize.py), correctly names
+      lane-planning and lane-a and the depends_on_lanes edge (verified
+      byte-for-byte against lanes.json), and states the operative push/PR
+      discipline as the compensating control, with terminology now consistent
+      across plan.md, WP01, and WP02 - though note a residual, lower-severity
+      staleness worth a follow-up nit: IC-01's own heading ("coupled, must
+      land together") and its Risks line ("see Section D's explicit
+      resolution, same commit, recommended") were left unedited and now point
+      a reader at a resolution Section D itself says is superseded, which the
+      correction note only reconciles by name deep in Section D rather than
+      at IC-01 itself.
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: >-
+      Both WP01 (Context) and WP02 (Context) now correctly describe
+      _assert_mission_terminal_ready as a mission-wide precondition over
+      run.all_wp_ids evaluated once before any lane consolidation, and this
+      was independently verified against src/specify_cli/merge/executor.py -
+      the function is defined at line 461 evaluating run.all_wp_ids, and its
+      caller _phase_gates_and_state (line 3133) runs strictly before
+      _phase_merge_lanes (line 3185) in _run_lane_based_merge_locked.
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: >-
+      WP02 T003 step 5 now carries an explicit paragraph ("Why this
+      grep-only proxy is sufficient here, and deliberately narrow") that
+      states the grep only proves the regex pattern, not the guard
+      function's exemption, encoding, and floor-count logic, and explicitly
+      cross-references Subtask T004 as the real function-level non-vacuity
+      proof.

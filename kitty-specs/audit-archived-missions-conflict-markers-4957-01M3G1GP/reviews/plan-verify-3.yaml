@@ -1,0 +1,39 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >-
+      Grepped every occurrence of _run_git/_git_bytes in the current plan.md (lines 25-27,
+      213-214, 261, 267-279, 302); all five now agree the guard uses a new, narrowly-scoped
+      _enumerate_tracked_files helper while the file's pre-existing _run_git/_git_bytes helpers
+      and their ~10 call sites are left completely untouched — Technical Context (line 25-27)
+      and the import-linter gate row (line 302), the two prior holdouts, were rewritten by
+      commit 27ba31215 to drop "reuse the file's existing helpers" and now match §B item 1 and
+      the fold-in note verbatim; no contradicting occurrence remains anywhere in the document.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >-
+      Re-read _run_git (tests/architectural/test_archive_root_byte_identical.py:159-166, sets
+      exactly GIT_NO_REPLACE_OBJECTS and SPEC_KITTY_ENABLE_SAAS_SYNC unconditionally) and
+      _git_bytes (:169-177, sets all three vars including GIT_OPTIONAL_LOCKS unconditionally on
+      every call with zero branching, confirmed against its own pure-read callers at :188-193
+      cat-file blob / ls-tree) from scratch; the current plan.md fold-in note (lines 269-273)
+      now states exactly this — "unconditionally on every call... including its own pure-read
+      callers (cat-file blob, ls-tree)... no read/write-adjacency conditionality... The new
+      helper follows that same precedent... with no conditional branching" — and a grep for
+      "write-adjacent"/"conditional" across the whole document finds zero remaining occurrences
+      of the fabricated write-adjacency framing.
+last_look_sanity_check: >-
+  Diffed commit 27ba31215 directly: a surgical 12-insertion/7-deletion edit touching only three
+  locations (Technical Context ~line 25, the §B fold-in note ~lines 265-273, and the gate
+  table's import-linter row ~line 302). None of these overlap the sections the five round-1
+  confirmed findings (PLAN-GOV-001 SK-279 tracer entry, PLAN-ARCH-001 freeze-test mechanism,
+  PLAN-VERIFY-001 AS5/binary fixture mechanism, PLAN-VERIFY-002 corpus mischaracterization,
+  PLAN-VERIFY-003 NFR-001 verification step) touched via commit 130ccd0d3, and the fixture-subtree
+  mechanism text those findings fixed (git-init throwaway tmp_path repo, single enumeration code
+  path via root=tmp_path_repo) is still fully intact at plan.md lines 274-284, unmodified by the
+  later fix. No reintroduction of the original round-1 PLAN-FRESH-001 contradiction either — that
+  was the §B item 1 vs. fold-in note mismatch, already fixed in 33a942228 and left untouched by
+  27ba31215's further edits to the two other locations.

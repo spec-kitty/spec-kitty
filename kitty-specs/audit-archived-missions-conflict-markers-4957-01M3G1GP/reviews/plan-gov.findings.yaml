@@ -1,0 +1,48 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+lens_group: gov
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: PLAN-GOV-001
+    lens: ledger
+    severity: 2
+    title: "This mission's own status.events.jsonl live-reproduces SK-279 (PlanStarted=1, PlanCompleted=0 on a substantive plan), but neither plan.md nor tracer-tooling-friction.md records it"
+    evidence:
+      - artifact: "kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/status.events.jsonl"
+      - code: "SPEC-KITTY-LEDGER.md:13752 (SK-279 — \"setup-plan emits PlanCompleted only if plan.md is already substantive; the scaffold-then-author flow never records plan completion\")"
+      - artifact: "kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/tracer-tooling-friction.md (Plan-phase entries, items 1-4 — no mention of PlanCompleted/SK-279)"
+      - artifact: "kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/plan.md § Tooling / verification notes for this phase (covers SK-248/SK-276 re-verification only)"
+    claim: >
+      The brief asked this lens to spot-check that the tracer's SK-248/SK-276 non-recurrence
+      claims are re-derivable rather than merely asserted, and they are (independently
+      re-verified: `diff .kittify/overrides/.../plan-template.md
+      packs/built-in/.../plan-template.md` is byte-identical, confirming no SK-248/SK-276
+      recurrence). But a third open ledger entry the brief also named as relevant to this
+      mission, SK-279, is live-reproduced on this exact mission's own status log and is not
+      accounted for anywhere. Reading
+      `kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/status.events.jsonl`
+      directly shows: MissionCreated, SpecifyStarted, SpecifyCompleted, PlanStarted — and no
+      PlanCompleted event, even though `plan.md` (487 lines, R-reviewable content, now committed
+      at HEAD `2c7132a03`) is unambiguously substantive. This is the exact symptom SK-279
+      describes verbatim ("status.events.jsonl carries PlanStarted = 1, PlanCompleted = 0 on a
+      fully authored, squad-passed plan"). Standing Order #3 requires the tooling-friction tracer
+      to capture friction encountered during the mission, and this friction is both real
+      (independently confirmed against this mission's own JSONL, not inferred) and directly
+      on-lens for the Ledger check the brief calls out by name — yet it is invisible in both
+      `plan.md`'s tooling notes and `tracer-tooling-friction.md`'s four logged entries. SK-279
+      itself notes this is a state-fidelity defect, not a blocker (downstream `finalize-tasks`/
+      `record-analysis` do not refuse on the missing event), so this does not put the mission's
+      implementation at risk — it is a completeness gap in a Standing-Order-#3-mandated
+      deliverable, not a defect in the plan's technical content.
+    remediation: >
+      Append an entry to tracer-tooling-friction.md's "Plan-phase entries" (or, if already past
+      this phase, "Implementation-phase entries") section noting: this mission's own
+      status.events.jsonl shows PlanStarted=1/PlanCompleted=0 against a fully-authored,
+      committed plan.md, matching SK-279 exactly (cite the ledger heading); confirm downstream
+      tooling (finalize-tasks, record-analysis) did not refuse on the missing event, per SK-279's
+      own noted precedent, so this is recorded as a non-blocking, verified-first-hand
+      recurrence rather than left silent for the close-phase assessment to rediscover from
+      scratch.
+# If you have no findings, write: findings: []

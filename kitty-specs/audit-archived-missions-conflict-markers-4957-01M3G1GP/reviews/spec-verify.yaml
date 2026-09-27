@@ -1,0 +1,49 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >-
+      Re-counted _OPERATOR_SANCTIONED_CORRECTIONS in
+      tests/architectural/test_archive_root_byte_identical.py:150-156 — it holds exactly three
+      entries (one from #4936, two from #4972); spec.md now says so verbatim in US3, FR-002,
+      Clarification (b) and C-003, and correctly frames this mission's addition as the fourth.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: >-
+      Re-fetched `gh issue view 4956` (still OPEN/unassigned/stale body); spec.md now adds FR-009
+      requiring a direct GitHub comment on #4956 enumerating the full four-entry membership and
+      the correct current line (728, re-grepped and confirmed), replacing the old PR-body-only plan
+      in C-003.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >-
+      Re-counted the HEAD-side block in WP01...md — lines 759-770 inclusive is 12 Activity Log
+      lines, not five or six; spec.md's User Story 1 body, Independent Test, and Acceptance
+      Scenario 1 no longer assert any specific line count, instead describing "every HEAD-side
+      Activity Log line that originally sat between the marker and the marker," a count-independent
+      structural form that cannot silently trim entries.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >-
+      FR-005 and SC-004 now both read "no-op passable: no" (contradiction removed); the positive
+      control is promoted to its own FR-008 and Acceptance Scenario 6 of User Story 2; and NFR-003
+      now explicitly states no growth/shrink enforcement exists today for either frozenset and that
+      this mechanism is new "by analogy" rather than a "mirrors" claim — re-confirmed by grepping
+      tests/architectural/_baselines.yaml (454 lines, zero references to either frozenset).
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >-
+      FR-004 and User Story 2 Acceptance Scenario 5 now require the guard's self-reported count to
+      equal an independently-counted fixture subtree's N tracked files exactly, not merely be
+      non-empty, closing the hardcoded-literal-count loophole the finding identified.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >-
+      NFR-002 now explicitly scopes "fatal" to enumeration-level failures only and states per-file
+      decode/binary failures are not covered by it; the binary/non-text Edge Case is reconciled to
+      match (skip/log-and-continue at the per-file level, still counted or excluded-and-logged
+      against the FR-004 floor) — the two clauses no longer give contradictory prescriptions for
+      the same trigger.

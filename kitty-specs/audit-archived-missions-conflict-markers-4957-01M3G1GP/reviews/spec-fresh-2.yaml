@@ -1,0 +1,33 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-2
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: SPEC-FRESH2-001
+    lens: conceptual-alignment
+    severity: 2
+    title: Clarification (k)'s deferred _baselines.yaml migration has no tracker/ledger reference, unlike sibling Clarification (e)
+    evidence:
+      - artifact: "spec.md § Clarifications (k), lines 329-352"
+      - artifact: "spec.md § Clarifications (e), lines 268-286 (contrast)"
+    claim: >
+      Clarification (k) explains why the new exemption allowlist's shrink-only enforcement is a
+      bespoke test rather than registration in tests/architectural/_baselines.yaml, and defers the
+      "real" fix ("A future mission remains free to migrate both this file's allowlists into
+      `_baselines.yaml` together as its own scoped piece of work") without filing or citing any
+      GitHub issue or SPEC-KITTY-LEDGER entry for that follow-up. This is inconsistent with how the
+      spec handles its other deferred-work item: Clarification (e) explicitly ties its own deferred
+      commit-time-hook idea to no tracker reference either, but Clarification (b)/(e)'s core
+      deferred cleanup (removing all four _OPERATOR_SANCTIONED_CORRECTIONS entries) is anchored to a
+      live, verified issue (#4956, independently confirmed OPEN/unassigned via `gh issue view 4956`
+      during this review) and FR-009 mandates posting to it. Clarification (k)'s deferral has no
+      equivalent anchor, so "a future mission" risks becoming an untracked intention that nobody
+      picks up (per this project's own memory note that deferred work must be folded in, escalated
+      via a tracker issue, or logged in the ledger — never left as bare prose).
+    remediation: >
+      Either file a small tracker issue (or a SPEC-KITTY-LEDGER entry) for "migrate
+      _APPEND_ONLY_SPINE_EXCEPTIONS and the new marker-scan exemption allowlist into
+      tests/architectural/_baselines.yaml" and cite it in Clarification (k), or explicitly state in
+      (k) that no tracker reference is being filed and why (mirroring the reasoning already applied
+      to name every other deferred item in this spec with a concrete tracker anchor).

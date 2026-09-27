@@ -1,0 +1,167 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed-round2
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+- id: TASKS-FRESH-001
+  lens: fresh-sweep
+  severity: 4
+  title: "WP02 T008 step 5 creates a circular dependency: #4957's evidence-ref waits
+    on a PR that the new operative discipline forbids opening before this WP is approved"
+  evidence:
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md § Subtask T008, 
+      step 5, bullet '#4957'
+    detail: "'`#4957` → `fixed` — this mission's own issue; `--evidence-ref` the PR
+      link (fill in once the PR exists).'"
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md § Subtask T008 
+      Validation
+    detail: "'confirm all six issue-matrix rows ... carry a non-`unknown` verdict
+      ... before this WP or WP01 requests `for_review`/`approved`.'"
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md § Context (newly 
+      added 'Operative discipline')
+    detail: "'do NOT push the mission branch ... and do NOT open or update a pull
+      request from it, until BOTH WP01 and this WP have reached `approved`/`done`.'"
+  claim: "The revised T008 step 5 tells the implementer to set #4957's `issue-verdict`
+    to `fixed` with `--evidence-ref` \"the PR link (fill in once the PR exists)\"\
+    , but the same subtask's Validation clause and the Definition of Done both require
+    all six issue-matrix rows resolved \"before this WP or WP01 requests for_review/approved\"\
+    \ — and this fix round's own newly-added \"operative discipline\" forbids opening
+    any PR from this branch until BOTH WP01 and WP02 have already reached approved/done.
+    Under the mission's single-PR convention (plan.md Section G) and the just-added
+    discipline, no PR can exist before approval, so an implementer following the literal
+    instruction (\"fill in once the PR exists\") cannot complete step 5 before approval,
+    yet approval cannot happen until step 5 is complete — a self-contradictory ordering
+    introduced entirely within this fix round (both the operative discipline and the
+    T008 step 5 wording are new in this commit).\n"
+  remediation: "Either (a) instruct the implementer to set a placeholder evidence-ref
+    for #4957 now (e.g. \"mission audit-archived-missions-conflict-markers-4957-01M3G1GP,
+    PR TBD at merge\") — evidence_ref only needs to be non-empty for the `fixed` verdict
+    per `_validate_structured_issue_matrix`, and note the idempotent `issue-verdict`
+    call can be re-run with the real PR link once it exists (this does not need to
+    happen before approval); or (b) explicitly scope the \"before this WP or WP01
+    requests for_review/approved\" requirement to exclude #4957's evidence-ref and
+    describe a follow-up `issue-verdict` update as part of the PR-opening step. Either
+    fix must also update the Validation/DoD wording so it no longer says all six rows
+    must be evidence-complete before approval while one of them structurally cannot
+    be until later.\n"
+- id: TASKS-FRESH-002
+  lens: fresh-sweep
+  severity: 4
+  title: Revised two-lane, two-commit architecture in WP01/WP02 Context 
+    contradicts plan.md Section D's explicit 'land both in the same commit' 
+    decision and IC-01's 'coupled, must land together' framing
+  evidence:
+  - artifact: plan.md § IC-01 (line 123)
+    detail: "'IC-01 — Repair + carve-out registration (coupled, must land together)'"
+  - artifact: plan.md § Section D (line ~387)
+    detail: "'**Decision: land both in the same commit.** Justification: ... a same-commit
+      landing means neither intermediate git history state is ever inconsistent ...
+      The alternative (sequenced across two commits within the topic branch, relying
+      on \"CI gates the PR tip, not every intermediate commit\") is not chosen ...'"
+  - artifact: tasks/WP01-repair-archived-conflict-markers.md § Context (revised)
+    detail: "'WP01 and WP02 are in two distinct lanes (`lane-planning` and `lane-a`
+      respectively, per `lanes.json`), joined only by `depends_on_lanes` — dependency
+      edges never collapse lanes in this codebase.'"
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md § Context 
+      (revised)
+    detail: "'This WP does **not** execute in the same lane as WP01 ... There is no
+      independent merge-and-gate checkpoint between the two lanes ...'"
+  - code: 
+      kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/lanes.json
+  claim: "plan.md Section D made an explicit, justified decision that WP01's repair
+    and WP02's carve-out registration must land in the SAME commit specifically so
+    that no intermediate git-history state is ever inconsistent, and explicitly rejected
+    the \"two commits, CI only gates the PR tip\" alternative. The just-revised WP01/WP02
+    Context sections now describe an architecture that is materially further from
+    \"same commit\" than even the pre-fix text: two distinct lanes producing two distinct
+    commits, joined only by a claim-time `depends_on_lanes` edge (which gates only
+    when WP02 can be *claimed*, not any commit sequencing), with no shared worktree
+    at all. The compensating control this fix round adds — a manual \"operative discipline\"\
+    \ not to push/open a PR until both WPs are approved/done — is precisely the \"\
+    CI gates the PR tip\" approach plan.md Section D explicitly says it does NOT choose,
+    and it does not prevent the inconsistent intermediate state from existing in local
+    git history on the shared repo-root checkout (the branch `issue-4957-archived-conflict-markers`)
+    between WP01's commit and WP02's commit — it only prevents that state from being
+    pushed. plan.md (Section D, Section G, IC-01) was not updated in this commit and
+    contains zero mention of `lane-planning`/`lane-a`/`depends_on_lanes` anywhere,
+    so this architectural decision is now undocumented and unreconciled with the plan
+    a downstream reviewer would check against.\n"
+  remediation: "Either update plan.md Section D to record the corrected decision (two
+    lanes/two commits are required by the `kitty-specs/` ownership ban, with the operative
+    push/PR discipline as the accepted compensating control, replacing \"land both
+    in the same commit\"), or restructure the WPs so the guarantee plan.md actually
+    promises is preserved (e.g. a single combined commit authored by whichever WP
+    lands second, or an explicit plan.md waiver of IC-01's \"coupled, must land together\"\
+    \ framing). Do not leave plan.md's stronger, still-current decision standing unreconciled
+    against the tasks' now-explicit two-lane, two-commit mechanism.\n"
+- id: TASKS-FRESH-003
+  lens: fresh-sweep
+  severity: 3
+  title: Both WPs mischaracterize _assert_mission_terminal_ready as scoped to 
+    'WP02's lane (lane-a)' consolidation; it is actually an unconditional, 
+    mission-wide precondition over all WPs, run once before any lane is 
+    consolidated
+  evidence:
+  - artifact: tasks/WP01-repair-archived-conflict-markers.md § Context (revised)
+    detail: "'the only code-level gate, `_assert_mission_terminal_ready`, fires inside
+      `spec-kitty merge`'s consolidation of **WP02's** lane (`lane-a`)'"
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md § Context 
+      (revised)
+    detail: "'the only real gate, `_assert_mission_terminal_ready`, fires inside `spec-kitty
+      merge`'s consolidation of **this WP's** lane (`lane-a`)'"
+  - code: src/specify_cli/merge/executor.py:461-521 
+      (_assert_mission_terminal_ready), :531-539 (_phase_gates_and_state)
+    detail: "'Evaluated over `run.all_wp_ids` — the mission's WPs' and 'T007: `_assert_mission_terminal_ready`
+      runs FIRST, at the top of this phase ... strictly before `_phase_merge_lanes`
+      (the first mutating phase).'"
+  claim: "Verified directly against `src/specify_cli/merge/executor.py`: `_assert_mission_terminal_ready`
+    is evaluated over `run.all_wp_ids` (every WP in the mission, including WP01, not
+    just WP02/lane-a) and runs once, unconditionally, at the very top of a single
+    mission-wide `spec-kitty merge` invocation — strictly BEFORE `_phase_merge_lanes`
+    (the first phase that actually consolidates any lane). It is not \"inside lane-a's
+    consolidation\"; it is a mission-level gate that runs before any lane consolidation
+    happens at all, for the whole mission's WP set. The practical conclusion both
+    WPs draw (\"no gate stops a premature `git push`/PR from this checkout\") is still
+    correct, but the mechanism cited to support it misdescribes which WPs the gate
+    covers and when in the merge sequence it fires — a claim about repo mechanics
+    that does not match the code, in both files.\n"
+  remediation: "Correct both passages to say `_assert_mission_terminal_ready` is a
+    mission-wide precondition (covers WP01 and WP02 together) evaluated once at the
+    start of `spec-kitty merge`, before any lane is consolidated — and that it gates
+    local lane consolidation only, never a `git push origin` or `gh pr create`, which
+    is why the operative discipline is still needed.\n"
+- id: TASKS-FRESH-004
+  lens: fresh-sweep
+  severity: 2
+  title: WP02 T003 step 5's rewritten red-first proof greps the historical git 
+    blob instead of actually running the new test function against the corrupted
+    state
+  evidence:
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md § Subtask T003, 
+      step 5 (revised)
+    detail: "'produce the red-first proof by inspecting the file at WP01's parent
+      commit: `git show <WP01-commit>^:...  | grep -nE ...` ... this proves the guard's
+      regex would have caught the corruption before WP01 landed.'"
+  - artifact: plan.md § Section D, FR-003/004/006/007/008 red-first list
+    detail: each of the other four test functions is confirmed red by actually 
+      running it ('confirm it fails ... i.e., if the guard is not yet 
+      fail-closed') rather than by inspecting raw file content.
+  claim: "The rewritten step 5 is a reasonable adaptation to the new lane split (a
+    live corrupted tree is genuinely unobservable once WP02 can only be claimed after
+    WP01 is approved/done), but the substitute proof — a raw `grep` for the marker
+    regex against the historical blob — only shows the corruption pattern is textually
+    present. It does not exercise `test_no_conflict_markers_in_tracked_files` itself
+    (its exemption-list handling, encoding, and floor-count logic) against known-bad
+    input, so it does not prove the actual guard function — as written — would have
+    failed on that tree, only that a manual grep would have. This is a materially
+    weaker red-first proof than the standard the plan applies to the other four new
+    test functions in the same subtask.\n"
+  remediation: "If feasible, have the implementer create a throwaway git worktree
+    at `<WP01-commit>^`, copy the new test file into it, and run `pytest -k test_no_conflict_markers_in_tracked_files`
+    there to observe a genuine failure before confirming it passes on the live, repaired
+    tree — or explicitly document in T003 why the grep-only proxy is accepted as sufficient
+    for this one function.\n"
+note: Round-2 confirmed set = the round-1 fresh-sweep findings verbatim 
+  (fresh-sweep findings are routed straight to R4 per protocol, no refutation 
+  pass needed).
