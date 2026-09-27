@@ -222,30 +222,81 @@ class FileFallbackStorage(SecureStorage):
         if mode & 0o077:
             raise SessionFilePermissionsError(f"Session file {path} has unsafe permissions (mode={oct(mode)}); expected 0600. Fix with: chmod 600 {path}")
 
+    # ---- shared decode path ----------------------------------------------
+
+    def _decode(self) -> tuple[StoredSession, dict[str, Any]]:
+        """Decode ``session.json`` into a session plus its raw blob.
+
+        Read-only: checks the credentials-file permissions, parses the JSON
+        envelope, decrypts it (:meth:`_decrypt`, which itself checks the key
+        file's permissions on the v3 path), and parses the plaintext into a
+        :class:`StoredSession`. Performs no writes, deletes, or lock
+        acquisition of its own — callers own locking and any
+        discard-on-failure policy. Raises :class:`SessionFilePermissionsError`
+        or :class:`StorageDecryptionError` on any unreadable state; never
+        returns a partial result.
+        """
+        self._check_file_permissions(self._cred_file)
+        raw = self._cred_file.read_text(encoding="utf-8")
+        try:
+            blob = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise StorageDecryptionError(f"Session file {self._cred_file} is not valid JSON: {exc}") from exc
+        if not isinstance(blob, dict):
+            raise StorageDecryptionError(f"Session file {self._cred_file} is not a JSON object")
+        plaintext = self._decrypt(blob)
+        try:
+            session = StoredSession.from_json(plaintext.decode("utf-8"))
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            raise StorageDecryptionError(f"Decrypted session payload is not a valid session: {exc}") from exc
+        return session, blob
+
     # ---- public API ------------------------------------------------------
+
+    def peek(self) -> StoredSession | None:
+        """Side-effect-free, best-effort read of the current-format session.
+
+        Decodes through the exact same permission checks and decrypt path as
+        :meth:`read` (:meth:`_decode`), but never acquires ``session.lock``,
+        never discards an unreadable file, and never rewrites a legacy v2
+        blob to v3. Returns ``None`` on any unreadable state — missing file,
+        unsafe permissions on the session or key file, corrupt JSON, a
+        missing/wrong-length key, a decrypt failure, or a malformed payload —
+        instead of raising or mutating anything on disk.
+
+        Deliberately scoped to the current on-disk format (v3): a legacy v2
+        blob, even one that would decode successfully, is treated the same
+        as any other state ``peek()`` will not surface and returns ``None``.
+        ``peek()`` never migrates anything, so there is no in-place upgrade
+        path for it to hand a v2 result through — only :meth:`read` performs
+        the v2-to-v3 rewrite. Intended for callers (e.g. upgrade migrations)
+        that want to look at a stored session without any chance of
+        triggering :meth:`read`'s discard-on-unreadable or legacy-rewrite
+        side effects.
+        """
+        if not self._cred_file.exists():
+            return None
+        try:
+            session, blob = self._decode()
+        except (SessionFilePermissionsError, StorageDecryptionError):
+            return None
+        if blob.get("version") != _FILE_FORMAT_VERSION:
+            return None
+        return session
 
     def read(self) -> StoredSession | None:
         self._ensure_dir()
         with machine_file_lock(self._lock_file, blocking=True, timeout_s=10):
             if not self._cred_file.exists():
                 return None
-            self._check_file_permissions(self._cred_file)
-            raw = self._cred_file.read_text(encoding="utf-8")
             try:
-                try:
-                    blob = json.loads(raw)
-                except json.JSONDecodeError as exc:
-                    raise StorageDecryptionError(f"Session file {self._cred_file} is not valid JSON: {exc}") from exc
-                if not isinstance(blob, dict):
-                    raise StorageDecryptionError(f"Session file {self._cred_file} is not a JSON object")
-                plaintext = self._decrypt(blob)
-                try:
-                    session = StoredSession.from_json(plaintext.decode("utf-8"))
-                except (json.JSONDecodeError, KeyError, ValueError) as exc:
-                    raise StorageDecryptionError(f"Decrypted session payload is not a valid session: {exc}") from exc
+                session, blob = self._decode()
             except StorageDecryptionError:
                 self._discard_unreadable_session_locked()
                 raise
+            # A SessionFilePermissionsError from _decode() propagates
+            # uncaught here, matching the pre-refactor behaviour: unsafe
+            # permissions are refused without discarding the file.
 
             if blob.get("version") == _LEGACY_FILE_FORMAT_VERSION:
                 self._write_locked(session)
@@ -312,3 +363,16 @@ class FileFallbackStorage(SecureStorage):
 
 #: Public alias used by WindowsFileStorage and the auth-secure-storage contract.
 EncryptedFileStorage = FileFallbackStorage
+
+
+def peek_stored_session(store_dir: Path | None = None) -> StoredSession | None:
+    """Module-level convenience wrapping :meth:`FileFallbackStorage.peek`.
+
+    For callers that want a side-effect-free glance at the stored session
+    without constructing a :class:`FileFallbackStorage` themselves — e.g. an
+    upgrade migration that must never risk triggering :meth:`FileFallbackStorage.read`'s
+    discard-on-unreadable behaviour. *store_dir* defaults to
+    :func:`default_store_dir` (via ``FileFallbackStorage.__init__``) when
+    omitted. See :meth:`FileFallbackStorage.peek` for the full contract.
+    """
+    return FileFallbackStorage(base_dir=store_dir).peek()

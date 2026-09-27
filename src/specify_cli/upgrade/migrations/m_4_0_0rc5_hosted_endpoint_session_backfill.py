@@ -44,23 +44,25 @@ method mutates on the read path: it creates the store directory, writes
 :class:`~specify_cli.auth.errors.StorageDecryptionError`, and rewrites a
 legacy v2 blob to v3 (unlinking ``session.salt``). An upgrade migration must
 never touch credential material as a side effect of merely checking whether
-it can help. This module instead reads the on-disk v3 format directly and
-read-only (:func:`_read_only_session_issuer_url`): if ``session.json`` is
-absent, no-op; check its permissions (NFR-013 — mirrors
-``FileFallbackStorage.read()``'s own ``_check_file_permissions(cred_file)``
-call; a group/world-readable session file is refused, not read); parse it;
-if its ``version`` is not ``3``, no-op (a legacy v2 session is not migrated
-to v3 from an upgrade step — the documented limitation from Context §2 of
-this WP); read ``session.key`` (absent, unsafe permissions, or the wrong
-length, no-op — the permission check mirrors ``_decrypt``'s own v3-branch
-``_check_file_permissions(key_file)`` call); AES-GCM-decrypt exactly as
-``FileFallbackStorage._decrypt``'s v3 branch does; and
-:meth:`~specify_cli.auth.session.StoredSession.from_json` to extract only
-``issuer_url``. Any exception anywhere in that path is a silent no-op logged
-at debug level with the exception *type* only, never its payload
-(DIRECTIVE_050 — no token material is ever read, logged, or printed; only
-``issuer_url``, a bare URL, is extracted). The session directory is
-byte-unchanged by every call: no new files, no lock file, no legacy rewrite.
+it can help. This module instead calls
+:func:`~specify_cli.auth.secure_storage.file_fallback.peek_stored_session`
+(:func:`_read_only_session_issuer_url`) — the storage layer's own
+side-effect-free peek, which decodes through the exact same permission
+checks (NFR-013) and AES-GCM decrypt path ``FileFallbackStorage.read()``
+uses, but never acquires ``session.lock``, never discards an unreadable
+file, and never rewrites a legacy v2 blob to v3; a legacy v2 session decodes
+fine there but is filtered back out to ``None`` here (a legacy v2 session is
+not migrated to v3 from an upgrade step — the documented limitation from
+Context §2 of this WP) since only the v3 format is backfillable. Any failure
+in the peek (missing file, unsafe permissions, corrupt JSON, wrong-length
+key, decrypt failure, malformed payload) degrades to ``None`` silently;
+:meth:`~specify_cli.auth.session.StoredSession.issuer_url` is the only field
+this module ever reads off the result (DIRECTIVE_050 — no token material is
+ever read, logged, or printed; only ``issuer_url``, a bare URL, is
+extracted). The session directory is byte-unchanged by every call: no new
+files, no lock file, no legacy rewrite. There is exactly one implementation
+of session decode + permission checks in the codebase now, in
+``file_fallback.py``.
 
 **D5 — retired issuer is never backfilled.** When
 :func:`~specify_cli.auth.config.is_retired_first_party_url` says the
@@ -86,39 +88,26 @@ migration or otherwise), it records no changes and changes nothing.
 
 from __future__ import annotations
 
-import json
-import logging
-import os
-import stat
 from pathlib import Path
 from typing import Any
 
 import toml
 import tomli_w
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from kernel.atomic import atomic_write
 from specify_cli.auth.config import is_retired_first_party_url
-from specify_cli.auth.secure_storage.file_fallback import default_store_dir
+from specify_cli.auth.secure_storage.file_fallback import peek_stored_session
 from specify_cli.auth.server_target import resolve_server_target_or_none
-from specify_cli.auth.session import StoredSession
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_4_0_0_retired_hosted_target import home_config_path
-
-_LOG = logging.getLogger(__name__)
 
 MIGRATION_ID = "4_0_0rc5_hosted_endpoint_session_backfill"
 TARGET_VERSION = "4.0.0rc5"
 
 _SYNC_TABLE = "sync"
 _SERVER_URL_KEY = "server_url"
-
-_SESSION_FILENAME = "session.json"
-_SESSION_KEY_FILENAME = "session.key"
-_SESSION_FORMAT_VERSION = 3  # matches FileFallbackStorage._FILE_FORMAT_VERSION
-_SESSION_KEY_BYTES = 32
 
 _NOTHING_TO_BACKFILL = "no unconfigured endpoint with a backfillable, non-retired stored session issuer_url"
 _CONFIG_UNSAFE_TO_WRITE = "config.toml is unparseable or its [sync] value is not a table; nothing backfilled"
@@ -144,65 +133,25 @@ def _is_endpoint_configured() -> bool:
     return target is not None
 
 
-def _has_unsafe_permissions(path: Path) -> bool:
-    """Mirror ``FileFallbackStorage._check_file_permissions``'s POSIX check (NFR-013).
-
-    True when *path* is not owner-only (``mode & 0o077``). Windows has no
-    POSIX permission bits (no ``os.getuid``), so this is always ``False``
-    there — the same platform carve-out the production check makes. Caller
-    must confirm *path* exists first.
-    """
-    if not hasattr(os, "getuid"):
-        return False
-    mode = stat.S_IMODE(path.stat().st_mode)
-    return bool(mode & 0o077)
-
-
 def _read_only_session_issuer_url() -> str | None:
     """Return the stored session's ``issuer_url``, or ``None`` — never mutates.
 
     See the module docstring's "Read-only session access" section for the
-    full contract. Every failure mode (missing file, legacy v2, corrupt
-    JSON, wrong-length key, unsafe permissions, decrypt failure, malformed
-    payload) degrades to ``None`` silently; nothing under the session
-    directory is ever written, deleted, or renamed by this function.
-
-    Mirrors two permission checks the real read path makes (NFR-013, review
-    cycle 1 Issue 3): ``FileFallbackStorage.read()`` checks the session file
-    itself before parsing, and ``_decrypt``'s v3 branch checks the key file
-    before reading it. A group/world-readable ``session.json`` or
-    ``session.key`` is refused here exactly as production refuses to decrypt
-    it — backfilling from a session the CLI itself would not trust is worse
-    than not backfilling at all.
+    full contract. Delegates every failure mode (missing file, legacy v2,
+    corrupt JSON, wrong-length/unsafe-permission key, decrypt failure,
+    malformed payload) to
+    :func:`~specify_cli.auth.secure_storage.file_fallback.peek_stored_session`,
+    which by its own contract never raises and never mutates anything under
+    the session directory — it degrades to ``None`` on every failure mode
+    itself. This module holds no decode or permission logic of its own —
+    that lives in exactly one place, ``file_fallback.py``.
     """
-    auth_dir = default_store_dir()
-    session_path = auth_dir / _SESSION_FILENAME
-    key_path = auth_dir / _SESSION_KEY_FILENAME
-    if not session_path.is_file():
+    session = peek_stored_session()
+    if session is None:
         return None
-    try:
-        if _has_unsafe_permissions(session_path):
-            return None
-        blob = json.loads(session_path.read_text(encoding="utf-8"))
-        if not isinstance(blob, dict) or blob.get("version") != _SESSION_FORMAT_VERSION:
-            # Not v3 (missing, malformed, or legacy v2): no migration of a
-            # legacy session format happens from an upgrade step.
-            return None
-        if not key_path.is_file() or _has_unsafe_permissions(key_path):
-            return None
-        key = key_path.read_bytes()
-        if len(key) != _SESSION_KEY_BYTES:
-            return None
-        nonce = bytes.fromhex(blob["nonce"])
-        ciphertext = bytes.fromhex(blob["ciphertext"])
-        plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
-        session = StoredSession.from_json(plaintext.decode("utf-8"))
-    except Exception as exc:  # noqa: BLE001 — any failure here is a silent no-op (D6); never logs payload
-        _LOG.debug("Read-only session issuer probe failed: %s", type(exc).__name__)
-        return None
-    # Typed local: StoredSession resolves as Any under mypy's
-    # follow_imports=skip for specify_cli.* — binding to str | None keeps the
-    # declared return type honest without an ignore.
+    # Typed local: peek_stored_session's return resolves as Any under
+    # mypy's follow_imports=skip for specify_cli.* — binding to str | None
+    # keeps the declared return type honest without an ignore.
     issuer_url: str | None = session.issuer_url
     return issuer_url
 
