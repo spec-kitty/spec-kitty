@@ -70,6 +70,15 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 # patches the COMMAND-MODULE binding the concurrency seam tests need.
 av_command = importlib.import_module("specify_cli.cli.commands.agent.acceptance_verdict")
 
+# accept-fails-closed-01M3HS4V (#4887/FR-001/FR-002): the locked
+# re-read/splice/write critical section moved OUT of ``av_command`` and into
+# the shared seam in ``specify_cli.acceptance.matrix``. A gate-spy test that
+# patches ``feature_status_lock``/``read_acceptance_matrix``/
+# ``write_and_commit_acceptance_matrix`` for the LOCKED critical section must
+# patch THIS module now, or the patch is silently inert (the seam calls its
+# own module-global names, never ``av_command``'s).
+matrix_module = importlib.import_module("specify_cli.acceptance.matrix")
+
 
 # ---------------------------------------------------------------------------
 # Shared flat-repo git helpers
@@ -906,7 +915,7 @@ class TestConcurrencyGateSpies:
             calls.append((repo_root_arg, lock_key, timeout))
             return feature_status_lock(repo_root_arg, lock_key, timeout=timeout)
 
-        monkeypatch.setattr(av_command, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr(matrix_module, "feature_status_lock", _spy_lock)
 
         try:
             acceptance_verdict(
@@ -951,7 +960,7 @@ class TestConcurrencyGateSpies:
             return _OrderTrackingContext(cm, order)
 
         monkeypatch.setattr(av_command, "enforce_negative_invariants", _spy_enforce)
-        monkeypatch.setattr(av_command, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr(matrix_module, "feature_status_lock", _spy_lock)
 
         try:
             acceptance_verdict(
@@ -991,9 +1000,15 @@ class TestConcurrencyGateSpies:
             order.append("write")
             return write_and_commit_acceptance_matrix(*args, **kwargs)  # type: ignore[arg-type]
 
-        monkeypatch.setattr(av_command, "feature_status_lock", _spy_lock)
+        # The pre-lock existence check at the top of ``acceptance_verdict()``
+        # calls ``av_command``'s OWN ``read_acceptance_matrix`` binding; the
+        # locked re-read inside the shared seam calls ``matrix_module``'s.
+        # Both must be spied to observe the full ``read -> enter -> read ->
+        # write`` order.
         monkeypatch.setattr(av_command, "read_acceptance_matrix", _spy_read)
-        monkeypatch.setattr(av_command, "write_and_commit_acceptance_matrix", _spy_write)
+        monkeypatch.setattr(matrix_module, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr(matrix_module, "read_acceptance_matrix", _spy_read)
+        monkeypatch.setattr(matrix_module, "write_and_commit_acceptance_matrix", _spy_write)
 
         try:
             acceptance_verdict(
@@ -1067,8 +1082,8 @@ class TestConcurrencyGateSpies:
             write_calls.append(args)
             return write_and_commit_acceptance_matrix(*args, **kwargs)  # type: ignore[arg-type]
 
-        monkeypatch.setattr(av_command, "feature_status_lock", _timeout_lock)
-        monkeypatch.setattr(av_command, "write_and_commit_acceptance_matrix", _spy_write)
+        monkeypatch.setattr(matrix_module, "feature_status_lock", _timeout_lock)
+        monkeypatch.setattr(matrix_module, "write_and_commit_acceptance_matrix", _spy_write)
 
         with pytest.raises(typer.Exit) as exc_info:
             acceptance_verdict(

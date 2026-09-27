@@ -176,9 +176,13 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         "specify_cli.cli.commands.agent.workflow_executor",
         "specify_cli.cli.commands.agent.tasks_mark_status",
         "specify_cli.cli.commands.agent.tasks_move_task",
-        # #4858: acceptance-verdict holds L1 around the locked re-read +
-        # single-row splice + write-and-commit critical section.
-        "specify_cli.cli.commands.agent.acceptance_verdict",
+        # accept-fails-closed-01M3HS4V (#4887): the #4858 locked re-read +
+        # single-row splice + write-and-commit critical section moved OUT of
+        # ``acceptance_verdict`` into the ONE shared seam, ``acceptance.
+        # matrix.locked_reread_splice_and_write`` -- every acceptance-matrix
+        # writer (the verdict command AND the accept gate's pre-stamp guard)
+        # now composes through it instead of each holding L1 privately.
+        "specify_cli.acceptance.matrix",
         # #4884: issue-verdict holds L1 around the same locked re-read +
         # single-row splice + write-and-commit critical section, mirroring
         # #4858 for the issue-matrix twin of the lost-update race.

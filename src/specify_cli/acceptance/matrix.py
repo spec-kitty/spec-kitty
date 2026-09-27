@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import json
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -22,6 +23,7 @@ from kernel.atomic import atomic_write
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command
 from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
+from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS, feature_status_lock
 
 if TYPE_CHECKING:
     from specify_cli.acceptance.execution_context import GateExecutionContext
@@ -539,6 +541,254 @@ def read_acceptance_matrix(feature_dir: Path) -> AcceptanceMatrix | None:
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
     return AcceptanceMatrix.from_dict(data)
+
+
+def locked_reread_splice_and_write(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    matrix_dir: Path,
+    splice: Callable[[AcceptanceMatrix], None],
+    commit: bool,
+    entry_id: str | None = None,
+    message: str | None = None,
+    timeout: float | None = None,
+) -> tuple[AcceptanceMatrix, WriteSeamResult | Path]:
+    """The ONE locked read-modify-write critical section for the acceptance matrix.
+
+    Lifted from the #4858 verdict-command-private
+    ``_locked_reread_splice_and_write`` (#4887/FR-001): every acceptance-matrix
+    writer -- the verdict command AND the accept gate -- now shares this ONE
+    critical section instead of each carrying its own copy, closing the
+    lost-update class #4887 named as the root cause of #4974.
+
+    ``matrix_dir`` MUST be resolved ONCE by the caller, BEFORE any slow
+    check/subprocess AND before this lock is acquired, and reused unchanged
+    as both the re-read base and the write target (C-004): the lock key is
+    ``matrix_dir.name`` -- never re-derived inside this function or after the
+    lock is released.
+
+    Under :func:`specify_cli.status.feature_status_lock` (NFR-002's bounded
+    ``timeout`` -- read at CALL TIME via the ``timeout`` parameter, never
+    baked into a default argument, so a test can shorten it), this:
+
+    1. Re-reads ``matrix_dir`` (:func:`read_acceptance_matrix`). If the file
+       vanished between the caller's pre-lock existence check and this
+       re-read, an empty, schema-valid :class:`AcceptanceMatrix` is used as
+       the re-read base instead of crashing (matches the #4858 contract).
+    2. Applies ``splice(fresh)`` IN PLACE -- the caller's row-ownership logic
+       (e.g. :func:`splice_owned_rows`, or a single-row splice like the
+       verdict command's).
+    3. Writes: ``commit=True`` routes through
+       :func:`write_and_commit_acceptance_matrix` (requires ``entry_id`` and
+       ``message``); ``commit=False`` calls the raw
+       :func:`write_acceptance_matrix` (matches the accept gate's
+       ``--no-commit`` contract, C-003 -- HEAD must stay unchanged).
+
+    The re-read, splice and write ALL happen while the lock is held (NFR-001
+    is about what happens OUTSIDE this function: slow checks / review-evidence
+    population run before this is called, never inside it). Fails CLOSED
+    (FR-001/FR-005): a lock-acquisition timeout raises
+    :class:`~specify_cli.status.FeatureStatusLockTimeoutError` before the
+    re-read or any write, so a timeout NEVER degrades to an unlocked write.
+    """
+    if timeout is None:
+        timeout = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
+    with feature_status_lock(repo_root, matrix_dir.name, timeout=timeout):
+        fresh_matrix = read_acceptance_matrix(matrix_dir)
+        if fresh_matrix is None:
+            # The matrix vanished between the pre-lock existence check and
+            # this re-read -- start from an empty, schema-valid matrix rather
+            # than crashing; the splice below still inserts exactly the
+            # row(s) this invocation owns.
+            fresh_matrix = AcceptanceMatrix(mission_slug=mission_slug)
+        splice(fresh_matrix)
+        write_result: WriteSeamResult | Path
+        if commit:
+            if entry_id is None or message is None:
+                raise ValueError("entry_id and message are required when commit=True")
+            write_result = write_and_commit_acceptance_matrix(
+                repo_root,
+                mission_slug,
+                matrix_dir,
+                fresh_matrix,
+                entry_id=entry_id,
+                message=message,
+            )
+        else:
+            write_result = write_acceptance_matrix(matrix_dir, fresh_matrix)
+    return fresh_matrix, write_result
+
+
+@dataclass(frozen=True)
+class _RowOwnershipSpec:
+    """Which fields identify, judge and define one matrix row kind (FR-003)."""
+
+    section: str
+    id_attr: str
+    result_attr: str
+    pending_value: str
+    definition_attrs: tuple[str, ...]
+
+
+# spec.md "Row ownership rule (FR-003)": a criterion's judgement-defining
+# fields are ``proof_type``/``description``.
+_CRITERION_OWNERSHIP = _RowOwnershipSpec(
+    section="criteria",
+    id_attr="criterion_id",
+    result_attr="pass_fail",
+    pending_value="pending",
+    definition_attrs=("proof_type", "description"),
+)
+
+# spec.md "Row ownership rule (FR-003)": a negative invariant's
+# judgement-defining fields are ``verification_method``/``verification_command``/``scope``.
+_INVARIANT_OWNERSHIP = _RowOwnershipSpec(
+    section="negative_invariants",
+    id_attr="invariant_id",
+    result_attr="result",
+    pending_value="pending",
+    definition_attrs=("verification_method", "verification_command", "scope"),
+)
+
+
+def _rows_for(matrix: Any, section: str) -> list[Any]:
+    """``getattr(matrix, section, None) or []`` -- tolerates a test double
+    (unit-test ``SimpleNamespace``/mock) that carries no ``criteria`` /
+    ``negative_invariants`` attribute at all, treating it as empty."""
+    return getattr(matrix, section, None) or []
+
+
+def _row_is_owned(
+    spec: _RowOwnershipSpec,
+    snapshot_row: Any | None,
+    fresh_row: Any | None,
+    judged_row: Any,
+) -> bool:
+    """The four FR-003 conditions, evaluated for one candidate row."""
+    if snapshot_row is None or fresh_row is None:
+        return False
+    if getattr(snapshot_row, spec.result_attr) != spec.pending_value:
+        return False
+    if getattr(judged_row, spec.result_attr) == spec.pending_value:
+        return False
+    if getattr(fresh_row, spec.result_attr) != spec.pending_value:
+        return False
+    snapshot_definition = tuple(getattr(snapshot_row, attr) for attr in spec.definition_attrs)
+    fresh_definition = tuple(getattr(fresh_row, attr) for attr in spec.definition_attrs)
+    return snapshot_definition == fresh_definition
+
+
+def _replace_row_by_id(rows: list[Any], id_attr: str, row_id: Any, new_row: Any) -> None:
+    for idx, existing in enumerate(rows):
+        if getattr(existing, id_attr) == row_id:
+            rows[idx] = new_row
+            return
+
+
+def _splice_owned_rows_for_spec(fresh: Any, snapshot: Any, judged: Any, spec: _RowOwnershipSpec) -> None:
+    fresh_rows = _rows_for(fresh, spec.section)
+    if not fresh_rows:
+        return
+    snapshot_by_id = {getattr(row, spec.id_attr): row for row in _rows_for(snapshot, spec.section)}
+    fresh_by_id = {getattr(row, spec.id_attr): row for row in fresh_rows}
+    for judged_row in _rows_for(judged, spec.section):
+        row_id = getattr(judged_row, spec.id_attr)
+        if _row_is_owned(spec, snapshot_by_id.get(row_id), fresh_by_id.get(row_id), judged_row):
+            _replace_row_by_id(fresh_rows, spec.id_attr, row_id, judged_row)
+
+
+def splice_owned_rows(fresh: AcceptanceMatrix, snapshot: AcceptanceMatrix, judged: AcceptanceMatrix) -> None:
+    """Splice INTO ``fresh`` (in place) only the rows accept owns (FR-003).
+
+    spec.md "Row ownership rule (FR-003)": for a row R, ``judged``'s value
+    replaces ``fresh``'s value ONLY when ALL of:
+
+    1. R was ``pending`` in ``snapshot`` (accept's pre-check read);
+    2. ``judged``'s value for R is no longer ``pending`` (accept judged it);
+    3. R is STILL ``pending`` in ``fresh`` (the freshly re-read matrix);
+    4. R's judgement-defining fields are UNCHANGED between ``snapshot`` and
+       ``fresh`` (a negative invariant re-registered with a different
+       command/method/scope, or a criterion re-authored with a different
+       proof_type/description, is a NEW row, and accept's stale judgement of
+       the OLD definition must not apply to it).
+
+    A row present only in ``fresh`` (added concurrently) is left untouched
+    (kept). A row present only in ``snapshot`` (removed concurrently, or
+    simply not present in the freshly re-read matrix) is never re-added --
+    condition 3 already requires the row to exist in ``fresh``. Applies to
+    BOTH ``criteria`` and ``negative_invariants`` with the same rule, using
+    each row kind's own id/result/definition fields.
+
+    Every one of ``fresh``/``snapshot``/``judged`` may be a plain object
+    (e.g. a unit-test double) that lacks a ``criteria`` or
+    ``negative_invariants`` attribute entirely -- that section is then
+    treated as empty rather than raising.
+    """
+    _splice_owned_rows_for_spec(fresh, snapshot, judged, _CRITERION_OWNERSHIP)
+    _splice_owned_rows_for_spec(fresh, snapshot, judged, _INVARIANT_OWNERSHIP)
+
+
+class AcceptanceVerdictNotReadyError(RuntimeError):
+    """Raised by :func:`locked_acceptance_verdict_guard` on a non-ready verdict.
+
+    FR-010's locked pre-stamp re-check: host ``accept`` and
+    ``accept-mission`` must refuse to record acceptance unless the matrix,
+    read FRESH under the lock immediately before the stamp, carries a
+    ``pass`` or ``VERDICT_PASS_PENDING_CONSOLIDATION`` verdict. Defined here
+    (matrix-level), not as an :class:`~specify_cli.acceptance.AcceptanceError`
+    subclass, so this module never imports ``specify_cli.acceptance``'s
+    package ``__init__`` (a circular import -- that package is the one that
+    imports FROM ``matrix.py``). The caller (host accept / accept-mission,
+    WP02) catches this and translates it into its own structured, non-zero
+    exit / envelope error.
+    """
+
+    def __init__(self, *, matrix_dir: Path, verdict: str) -> None:
+        self.matrix_dir = matrix_dir
+        self.verdict = verdict
+        super().__init__(f"Acceptance matrix at {matrix_dir} carries verdict {verdict!r}, not pass; refusing to record acceptance.")
+
+
+@contextmanager
+def locked_acceptance_verdict_guard(
+    repo_root: Path,
+    matrix_dir: Path,
+    *,
+    timeout: float | None = None,
+) -> Iterator[AcceptanceMatrix]:
+    """FR-010 primitive: hold the lock across the pre-stamp verdict re-check.
+
+    Takes the SAME per-mission status lock (keyed on ``matrix_dir.name``,
+    C-004) as :func:`locked_reread_splice_and_write`, re-reads the matrix
+    fresh, and raises :class:`AcceptanceVerdictNotReadyError` unless its
+    ``overall_verdict`` is ``"pass"`` or
+    :data:`VERDICT_PASS_PENDING_CONSOLIDATION` -- then YIELDS the fresh
+    matrix while STILL HOLDING THE LOCK, so the caller's own in-process
+    acceptance-record write (never a subprocess -- that could deadlock on
+    this same lock) happens inside the same critical section a concurrently
+    committed failing verdict would also need to acquire. A missing matrix
+    (``read_acceptance_matrix`` returns ``None``) is treated as ``"pending"``
+    -- never ready.
+
+    ``timeout`` is read at CALL TIME (never bound into a default argument),
+    mirroring :func:`locked_reread_splice_and_write`, so a test can shorten
+    it to exercise the fail-closed timeout path.
+    """
+    if timeout is None:
+        timeout = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
+    with feature_status_lock(repo_root, matrix_dir.name, timeout=timeout):
+        fresh_matrix = read_acceptance_matrix(matrix_dir)
+        if fresh_matrix is None:
+            # Treated as "pending" -- never ready -- and raised explicitly
+            # here (rather than via an ``assert`` further down) so the
+            # missing-matrix path is a real, always-enforced control-flow
+            # branch, not a runtime invariant that ``python -O`` could strip.
+            raise AcceptanceVerdictNotReadyError(matrix_dir=matrix_dir, verdict="pending")
+        verdict = fresh_matrix.overall_verdict
+        if verdict not in ("pass", VERDICT_PASS_PENDING_CONSOLIDATION):
+            raise AcceptanceVerdictNotReadyError(matrix_dir=matrix_dir, verdict=verdict)
+        yield fresh_matrix
 
 
 def scaffold_acceptance_matrix(
