@@ -1,16 +1,18 @@
 """Configuration helpers for the spec-kitty auth subsystem (feature 080).
 
-Single source of truth for the *hosted SaaS target* URL. D-5 revised
-(#3980, Team Kitty launch defaults): the packaged default
-:data:`DEFAULT_HOSTED_SAAS_URL` IS the target — ``SPEC_KITTY_SAAS_URL`` is a
-dev/self-host override of it and ``config.toml [sync].server_url`` a
-per-machine configured target, with precedence resolved once by
+Single source of truth for the *hosted SaaS target* URL. Endpoint opt-in
+(mission ``hosted-opt-in-drain-ledger``, FR-011/FR-012, reversing #3980 D-5):
+there is no packaged default target any more. ``SPEC_KITTY_SAAS_URL`` (env)
+and ``config.toml [sync].server_url`` (per-machine config) are the only two
+sources, with precedence resolved once by
 :func:`specify_cli.auth.server_target.resolve_server_target` (env over
-config over packaged default). The pre-launch "never fall back to a default"
-reading died with the opt-in era: an unconfigured machine now resolves to the
-packaged launch host instead of failing closed. #179's fail-closed survives
-for a genuinely ambiguous env/config split-brain, which the resolver guards
-before any network call.
+config). With neither source naming a target, the resolver raises
+:class:`~specify_cli.auth.server_target.HostedEndpointUnconfigured` — a
+:class:`~specify_cli.auth.errors.ConfigurationError` subclass — carrying
+setup guidance, instead of silently defaulting to a packaged host.
+#179's original fail-closed reading is restored for the "nothing configured"
+case; it also still fails closed for a genuinely ambiguous env/config
+split-brain, guarded before any network call.
 """
 
 from __future__ import annotations
@@ -20,13 +22,24 @@ from urllib.parse import urlsplit
 
 _ENV_VAR = "SPEC_KITTY_SAAS_URL"
 
-#: The packaged default hosted target — the Team Kitty launch host (#3980,
-#: D-5 revised). Promoted from the former example-only literal
-#: ``EXAMPLE_HOSTED_SAAS_URL``: it is now a functional default that
-#: :func:`specify_cli.auth.server_target.resolve_server_target` falls back to
-#: when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml [sync].server_url``
-#: names a target.
+#: The first-party hosted target's *identity* — the Team Kitty host. Kept
+#: under this name (F-7 m4 of the post-plan squad fold; endpoint opt-in does
+#: NOT rename it) even though it no longer plays a fallback/resolution role:
+#: :func:`is_canonical_hosted_url`, :func:`is_noncanonical_first_party_url`,
+#: and :func:`is_retired_first_party_url` key off it purely to recognize
+#: "is this URL the first-party Team Kitty host", independent of how the
+#: target was resolved.
 DEFAULT_HOSTED_SAAS_URL = "https://team.spec-kitty.ai"
+
+#: Guidance printed/raised when neither ``SPEC_KITTY_SAAS_URL`` nor
+#: ``config.toml [sync].server_url`` names a hosted endpoint (Sonar S1192 —
+#: reused by both :func:`get_saas_base_url` and
+#: :func:`specify_cli.auth.server_target.resolve_server_target`, never a
+#: second, independent literal). ``{config_path}`` is filled in at raise
+#: time with the resolved absolute runtime-root ``config.toml`` path — never
+#: at import time, since the runtime root can be ``SPEC_KITTY_HOME``-overridden
+#: per invocation.
+ENDPOINT_UNCONFIGURED_GUIDANCE = "No hosted endpoint configured. Set SPEC_KITTY_SAAS_URL or [sync].server_url in {config_path}."
 
 #: The retired first-party hosted target (#4259): the pre-launch app
 #: subdomain ``config.toml [sync].server_url`` still carries on machines
@@ -73,13 +86,13 @@ def is_retired_first_party_url(url: str) -> bool:
 def is_noncanonical_first_party_url(url: str) -> bool:
     """True when ``url`` is first-party (``spec-kitty.ai``) but not canonical.
 
-    Canonical is the packaged default host (:data:`DEFAULT_HOSTED_SAAS_URL`).
+    Canonical is the first-party host identity (:data:`DEFAULT_HOSTED_SAAS_URL`).
     Anything else under the first-party domain — the retired app subdomain,
     a docs/staging host — is first-party infrastructure the operator almost
     certainly did not mean to target, so ``auth login`` warns (never
     rejects). A self-hosted endpoint on any other domain is ``False``:
     legitimate self-hosting is supported and is not nagged as
-    "noncanonical" merely for differing from the packaged default.
+    "noncanonical" merely for differing from the canonical host.
     """
     host = _hostname_of(url)
     if host is None:
@@ -90,7 +103,7 @@ def is_noncanonical_first_party_url(url: str) -> bool:
 
 
 def is_canonical_hosted_url(url: str) -> bool:
-    """True when ``url``'s host is the packaged default's host (#4265).
+    """True when ``url``'s host is the first-party host identity's host (#4265).
 
     Hostname-exact against :data:`DEFAULT_HOSTED_SAAS_URL`'s host, scheme and
     port ignored — the same shape :func:`is_retired_first_party_url` and
@@ -120,12 +133,29 @@ def get_saas_url_env_override() -> str | None:
     return normalized or None
 
 
-def get_saas_base_url() -> str:
-    """Return the hosted target: the env override, else the packaged default.
+def format_endpoint_unconfigured_message() -> str:
+    """Format :data:`ENDPOINT_UNCONFIGURED_GUIDANCE` with the resolved config.toml path.
 
-    Never raises for a missing URL (D-5 revised, #3980) — the packaged default
-    is the target. This accessor deliberately answers only "env override or
-    packaged default"; callers that need ``config.toml`` precedence must read
+    Resolved at call time (never at import time) via
+    ``specify_cli.paths.get_runtime_root()`` — a lazy import, since this
+    module is imported early and must not pull in the paths subsystem at
+    module-load time — so a ``SPEC_KITTY_HOME`` override taken after import
+    is still honored.
+    """
+    from specify_cli.paths import get_runtime_config_toml_path  # noqa: PLC0415
+
+    config_path = get_runtime_config_toml_path()
+    return ENDPOINT_UNCONFIGURED_GUIDANCE.format(config_path=config_path)
+
+
+def get_saas_base_url() -> str:
+    """Return the hosted target: the env override, or raise if unset.
+
+    Endpoint opt-in (FR-011/FR-012): raises
+    :class:`~specify_cli.auth.server_target.HostedEndpointUnconfigured` when
+    ``SPEC_KITTY_SAAS_URL`` is unset — there is no packaged default to fall
+    back to any more. This accessor deliberately answers only "env override,
+    or unconfigured"; callers that need ``config.toml`` precedence must read
     ``resolve_server_target().resolved_server_url``
     (:func:`specify_cli.auth.server_target.resolve_server_target`) instead.
 
@@ -142,8 +172,16 @@ def get_saas_base_url() -> str:
 
     Returns:
         The hosted base URL with any trailing slashes stripped.
+
+    Raises:
+        HostedEndpointUnconfigured: ``SPEC_KITTY_SAAS_URL`` is unset (or blank).
     """
     override = get_saas_url_env_override()
     if override is not None:
         return override
-    return DEFAULT_HOSTED_SAAS_URL
+    # Lazy import: server_target.py imports DEFAULT_HOSTED_SAAS_URL /
+    # get_saas_url_env_override from this module at its own top level, so a
+    # top-level import here would be circular.
+    from specify_cli.auth.server_target import HostedEndpointUnconfigured  # noqa: PLC0415
+
+    raise HostedEndpointUnconfigured(format_endpoint_unconfigured_message())

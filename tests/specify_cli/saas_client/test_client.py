@@ -17,7 +17,6 @@ import pytest
 from kernel.clock import now_utc, timedelta
 
 from specify_cli.auth import reset_token_manager
-from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
 from specify_cli.auth.errors import ConfigurationError, NetworkError, RefreshTokenExpiredError
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
@@ -123,19 +122,20 @@ def test_load_auth_context_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert ctx.team_slug == "my-team"
 
 
-def test_load_auth_context_env_token_no_url_resolves_packaged_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#3980 (D-5 revised): with a token but no SaaS URL from env or file, the
-    packaged default is the target — no hardcoded ``api.spec-kitty.io``
-    fallback ever existed (#2248 / #2146); the packaged launch host is not a
-    guess, it is the shipped default."""
+def test_load_auth_context_env_token_no_url_raises_when_endpoint_unconfigured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Endpoint opt-in (mission ``hosted-opt-in-drain-ledger``, FR-011/FR-012,
+    reversing #3980 D-5): WP06 removed the packaged-default fallback from
+    ``resolve_server_target()``, so an env token with no SaaS URL from env or
+    file now fails closed instead of resolving a live host it was never told
+    to use — re-pinned per DIRECTIVE_041 from the retired "resolves packaged
+    default" assumption this test previously asserted."""
     home = tmp_path / "empty-home"
     home.mkdir()
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "test-token")
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-    ctx = load_auth_context()
-    assert ctx.token == "test-token"
-    assert ctx.saas_url == DEFAULT_HOSTED_SAAS_URL
+    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
+        load_auth_context()
 
 
 def test_load_auth_context_env_token_no_url_names_env_and_config_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -266,10 +266,12 @@ def test_load_auth_context_file_token_pairs_with_env_url_when_file_has_no_url(tm
     assert ctx.saas_url == "https://env-url.example"
 
 
-def test_load_auth_context_file_token_no_url_resolves_packaged_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#3980 (D-5 revised) file branch: file token present but no saas_url key
-    → the packaged default (the file's own url still only ever rides with its
-    own token, #237)."""
+def test_load_auth_context_file_token_no_url_raises_when_endpoint_unconfigured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Endpoint opt-in (reversing #3980 D-5) file branch: file token present
+    but no saas_url key and no resolvable canonical target now fails closed
+    (the file's own url still only ever rides with its own token, #237) —
+    re-pinned per DIRECTIVE_041 from the retired "resolves packaged default"
+    assumption this test previously asserted."""
     home = tmp_path / "empty-home"
     home.mkdir()
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
@@ -278,9 +280,8 @@ def test_load_auth_context_file_token_no_url_resolves_packaged_default(tmp_path:
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
     (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token"}))
-    ctx = load_auth_context(repo_root=tmp_path)
-    assert ctx.token == "file-token"
-    assert ctx.saas_url == DEFAULT_HOSTED_SAAS_URL
+    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
+        load_auth_context(repo_root=tmp_path)
 
 
 def test_load_auth_context_file_token_no_url_still_names_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -299,9 +300,12 @@ def test_load_auth_context_file_token_no_url_still_names_file(tmp_path: Path, mo
     assert '"saas_url" in .kittify/saas-auth.json' in str(exc_info.value)
 
 
-def test_load_auth_context_file_token_empty_url_resolves_packaged_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#3980 (D-5 revised) file branch: empty-string saas_url in file is no
-    opinion (strip normalises it) → the packaged default."""
+def test_load_auth_context_file_token_empty_url_raises_when_endpoint_unconfigured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Endpoint opt-in (reversing #3980 D-5) file branch: empty-string
+    saas_url in file is no opinion (strip normalises it), and with no
+    packaged default any more this fails closed — re-pinned per
+    DIRECTIVE_041 from the retired "resolves packaged default" assumption
+    this test previously asserted."""
     home = tmp_path / "empty-home"
     home.mkdir()
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
@@ -310,8 +314,8 @@ def test_load_auth_context_file_token_empty_url_resolves_packaged_default(tmp_pa
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
     (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": ""}))
-    ctx = load_auth_context(repo_root=tmp_path)
-    assert ctx.saas_url == DEFAULT_HOSTED_SAAS_URL
+    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
+        load_auth_context(repo_root=tmp_path)
 
 
 def test_load_auth_context_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

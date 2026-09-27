@@ -55,6 +55,17 @@ from kernel.locks import LockAcquireTimeout
 pytestmark = [pytest.mark.integration]
 
 
+@pytest.fixture(autouse=True)
+def _configured_saas_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """This suite exercises refresh/single-flight/lock mechanics, not
+    endpoint resolution — endpoint opt-in (FR-011) means an unset
+    ``SPEC_KITTY_SAAS_URL`` now raises ``HostedEndpointUnconfigured`` from
+    ``resolve_token_endpoint`` (called at the top of ``refresh_if_needed``)
+    instead of silently resolving to a packaged default, so every test here
+    needs an explicit, configured target."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")
+
+
 def _now() -> datetime:
     return now_utc()
 

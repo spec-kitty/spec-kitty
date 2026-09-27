@@ -22,10 +22,12 @@ refresh-token expiry directly from the server response — it never hardcodes
 a TTL and never computes the expiry locally. See ``_build_session`` for the
 prefer-absolute-then-relative fallback logic.
 
-Per D-5 (revised #3980) the SaaS base URL is resolved, never hardcoded here:
-callers pass it in via the constructor, typically from
-:func:`specify_cli.auth.config.get_saas_base_url` (env override or the
-packaged default).
+The SaaS base URL is resolved, never hardcoded here: callers pass it in
+via the constructor, typically from
+:func:`specify_cli.auth.config.get_saas_base_url` (env override; raises
+``HostedEndpointUnconfigured`` when unset, endpoint opt-in FR-011). Direct
+construction with no ``saas_base_url`` and no env override is a dead path
+in practice — ``_auth_login.py`` always pre-resolves and passes the URL.
 """
 
 from __future__ import annotations
@@ -85,7 +87,8 @@ class AuthorizationCodeFlow:
             saas_base_url: Base URL of the spec-kitty SaaS (no trailing slash).
                 When ``None``, the flow calls
                 :func:`specify_cli.auth.config.get_saas_base_url` itself
-                (env override or the packaged default, #3980).
+                (env override; raises ``HostedEndpointUnconfigured`` when
+                unset, endpoint opt-in FR-011).
                 Callers that already have the URL in hand (such as
                 ``_auth_login.py``) pass it in directly to avoid two env-var
                 reads per login.
@@ -122,9 +125,7 @@ class AuthorizationCodeFlow:
 
             auth_url = self._build_auth_url(pkce_state, callback_url)
             if not BrowserLauncher.launch(auth_url):
-                raise BrowserLaunchError(
-                    f"No browser available. Please visit:\n  {auth_url}"
-                )
+                raise BrowserLaunchError(f"No browser available. Please visit:\n  {auth_url}")
 
             callback_params = await callback_server.wait_for_callback()
         finally:
@@ -162,9 +163,7 @@ class AuthorizationCodeFlow:
 
     # ---- Token exchange (T024) -------------------------------------------
 
-    async def _exchange_code(
-        self, *, code: str, code_verifier: str, redirect_uri: str
-    ) -> dict[str, Any]:
+    async def _exchange_code(self, *, code: str, code_verifier: str, redirect_uri: str) -> dict[str, Any]:
         """Exchange an authorization code for access + refresh tokens.
 
         POSTs to ``{saas}/oauth/token`` with grant_type=authorization_code
@@ -193,23 +192,17 @@ class AuthorizationCodeFlow:
             # Include only the status and a trimmed body for diagnostics;
             # the body can contain server-side error descriptions.
             body = response.text[:500]
-            raise AuthenticationError(
-                f"Token exchange failed: HTTP {response.status_code} - {body}"
-            )
+            raise AuthenticationError(f"Token exchange failed: HTTP {response.status_code} - {body}")
 
         try:
             tokens = response.json()
         except ValueError as exc:
-            raise AuthenticationError(
-                f"Token exchange returned invalid JSON: {exc}"
-            ) from exc
+            raise AuthenticationError(f"Token exchange returned invalid JSON: {exc}") from exc
 
         required = ("access_token", "refresh_token", "expires_in", "session_id")
         missing = [k for k in required if k not in tokens]
         if missing:
-            raise AuthenticationError(
-                f"Token response missing required fields: {missing}"
-            )
+            raise AuthenticationError(f"Token response missing required fields: {missing}")
         return cast(dict[str, Any], tokens)
 
     # ---- User info + StoredSession (T025) --------------------------------
@@ -254,24 +247,18 @@ class AuthorizationCodeFlow:
                 raise NetworkError(f"Network error fetching user info: {exc}") from exc
 
         if response.status_code != 200:
-            raise AuthenticationError(
-                f"User info fetch failed: HTTP {response.status_code}"
-            )
+            raise AuthenticationError(f"User info fetch failed: HTTP {response.status_code}")
 
         try:
             me = parse_me_payload(response.json())
         except ValueError as exc:
-            raise AuthenticationError(
-                f"User info response was not JSON: {exc}"
-            ) from exc
+            raise AuthenticationError(f"User info response was not JSON: {exc}") from exc
 
         user_id = require_me_field(me, "user_id")
         email = require_me_field(me, "email")
         teams = parse_me_teams(me)
         if not teams:
-            raise AuthenticationError(
-                "User has no team memberships. Contact your administrator."
-            )
+            raise AuthenticationError("User has no team memberships. Contact your administrator.")
         # Client-picked default (see C-011): the SaaS does not return
         # ``default_team_id``; we prefer Private Teamspace when available.
         default_team_id = pick_default_team_id(teams)
@@ -280,9 +267,7 @@ class AuthorizationCodeFlow:
         try:
             expires_in = int(tokens["expires_in"])
         except (KeyError, TypeError, ValueError) as exc:
-            raise AuthenticationError(
-                "Token response missing or invalid 'expires_in' field."
-            ) from exc
+            raise AuthenticationError("Token response missing or invalid 'expires_in' field.") from exc
 
         refresh_token_expires_at = self._resolve_refresh_expiry(tokens, me, now)
 
@@ -321,26 +306,19 @@ class AuthorizationCodeFlow:
         3. ``refresh_token_expires_in`` from the token response (relative).
         4. ``None`` — server-managed, client learns expiry on refresh.
         """
-        absolute = tokens.get("refresh_token_expires_at") or me.get(
-            "refresh_token_expires_at"
-        )
+        absolute = tokens.get("refresh_token_expires_at") or me.get("refresh_token_expires_at")
         if absolute is not None:
             try:
                 return _parse_iso_utc(absolute)
             except (AttributeError, TypeError, ValueError) as exc:
-                raise AuthenticationError(
-                    "Refresh token expiry field 'refresh_token_expires_at' "
-                    "must be an ISO-8601 timestamp."
-                ) from exc
+                raise AuthenticationError("Refresh token expiry field 'refresh_token_expires_at' must be an ISO-8601 timestamp.") from exc
 
         relative = tokens.get("refresh_token_expires_in")
         if relative is not None:
             try:
                 return now + timedelta(seconds=int(relative))
             except (TypeError, ValueError):
-                log.warning(
-                    "refresh_token_expires_in was not an int: %r", relative
-                )
+                log.warning("refresh_token_expires_in was not an int: %r", relative)
                 return None
         return None
 

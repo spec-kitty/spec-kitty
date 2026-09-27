@@ -136,12 +136,16 @@ class TestConstructor:
         flow = AuthorizationCodeFlow()
         assert flow._saas_base_url == "https://env.test"
 
-    def test_missing_env_uses_packaged_default(self, monkeypatch):
-        from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
+    def test_missing_env_raises_hosted_endpoint_unconfigured(self, monkeypatch):
+        """Endpoint opt-in (FR-011/FR-012, T028 item 14): direct construction
+        with no ``saas_base_url`` and no env override now raises rather than
+        silently defaulting — this constructor path is dead in practice via
+        ``_auth_login.py``, which always pre-resolves and passes the URL."""
+        from specify_cli.auth.server_target import HostedEndpointUnconfigured
 
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        flow = AuthorizationCodeFlow()
-        assert flow._saas_base_url == DEFAULT_HOSTED_SAAS_URL
+        with pytest.raises(HostedEndpointUnconfigured):
+            AuthorizationCodeFlow()
 
 
 # ---------------------------------------------------------------------------

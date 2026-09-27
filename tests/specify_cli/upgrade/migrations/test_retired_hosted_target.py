@@ -1,4 +1,4 @@
-"""Tests for ``m_4_0_0_retired_hosted_target`` (#4259).
+"""Tests for ``m_4_0_0_retired_hosted_target`` (#4259, WP07 delete-and-guide flip).
 
 Mirrors the established migration-test pattern (see
 ``tests/specify_cli/upgrade/migrations/test_provision_kitty_env.py``): unit
@@ -10,6 +10,18 @@ upgrade entry point, so the CLI-driven tests at the bottom invoke the real
 harness) against a synthetic project on a machine whose saved target is
 stale — once with no env override, once with an explicit canonical
 ``SPEC_KITTY_SAAS_URL``.
+
+WP07 (mission ``hosted-opt-in-drain-ledger``, FR-013/R-4): endpoint opt-in
+retired the packaged-default rewrite this migration used to perform. A
+retired ``app.spec-kitty.ai`` ``[sync].server_url`` is now **deleted**, not
+rewritten to ``DEFAULT_HOSTED_SAAS_URL`` — rewriting to a live address would
+silently opt a never-configured machine into the hosted target. The
+``TestApply`` assertions below were re-pinned from "rewrites to canonical"
+to "deletes the key and emits guidance" accordingly (DIRECTIVE_041: this is
+exactly the retired packaged-fallback assumption WP06 already removed from
+the resolver, not a product regression). ``TestDetect`` is unaffected —
+detection of the retired value is unchanged; only what ``apply()`` does
+about it changed.
 """
 
 from __future__ import annotations
@@ -24,8 +36,12 @@ import toml
 import typer
 from typer.testing import CliRunner
 
-from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL, RETIRED_HOSTED_SAAS_URL
-from specify_cli.auth.server_target import resolve_server_target
+from specify_cli.auth.config import (
+    DEFAULT_HOSTED_SAAS_URL,
+    RETIRED_HOSTED_SAAS_URL,
+    is_retired_first_party_url,
+)
+from specify_cli.auth.server_target import HostedEndpointUnconfigured, resolve_server_target
 from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.upgrade.migrations.m_4_0_0_retired_hosted_target import (
     MIGRATION_ID,
@@ -156,14 +172,33 @@ class TestDetect:
         assert can_apply is False
         assert "no retired first-party server_url" in reason
 
+    def test_detect_and_apply_leave_canonical_value_untouched(self, home: Path) -> None:
+        """R-4 non-regression: a machine already carrying the canonical value
+        (written by a *prior* run of this same migration, pre-WP07) is left
+        completely untouched by both ``detect()`` and ``apply()`` — that value
+        is explicit, opt-in configuration now, not a stale target to react to.
+        """
+        assert is_retired_first_party_url(CANONICAL_URL) is False
+        path = _write_home_config(home, f'[sync]\nserver_url = "{CANONICAL_URL}"\npoll_interval = 30\n')
+        before = path.read_text(encoding="utf-8")
+
+        assert RetiredHostedTargetMigration().detect(Path("/any/project")) is False
+        result = RetiredHostedTargetMigration().apply(Path("/any/project"))
+
+        assert result.success is True
+        assert path.read_text(encoding="utf-8") == before
+
 
 # ---------------------------------------------------------------------------
-# apply()
+# apply() — FR-013 / R-4: delete the retired value, never rewrite it
 # ---------------------------------------------------------------------------
 
 
 class TestApply:
-    def test_apply_rewrites_retired_target_to_canonical(self, home: Path) -> None:
+    def test_apply_deletes_retired_target_key(self, home: Path) -> None:
+        """FR-013 / US4-AS4 scenario 4: post-WP06 there is no packaged default
+        to rewrite to, so a retired ``server_url`` is deleted outright, never
+        replaced with a live address that would silently opt the machine in."""
         path = _write_home_config(home, _UNRELATED_CONFIG)
 
         result = RetiredHostedTargetMigration().apply(Path("/any/project"))
@@ -171,19 +206,48 @@ class TestApply:
         assert result.success is True
         assert result.errors == []
         data = toml.load(path)
-        assert data["sync"]["server_url"] == CANONICAL_URL
+        assert "server_url" not in data["sync"]
+
+    def test_apply_changes_made_names_deletion_and_guidance(self, home: Path) -> None:
+        """The operator-facing message names the deletion and points at the
+        two ways to configure an endpoint explicitly (FR-013)."""
+        _write_home_config(home, _UNRELATED_CONFIG)
+
+        result = RetiredHostedTargetMigration().apply(Path("/any/project"))
+
+        joined = " ".join(result.changes_made)
+        assert RETIRED_URL in joined
+        assert "SPEC_KITTY_SAAS_URL" in joined
+        assert "[sync].server_url" in joined
+        # Never a rewrite-to-canonical message any more.
+        assert "->" not in joined
+        assert CANONICAL_URL not in joined
 
     def test_apply_preserves_unrelated_configuration(self, home: Path) -> None:
         """#4259 agreed scope: unrelated settings, custom endpoints, ports and
-        paths survive the rewrite semantically untouched."""
+        paths survive the deletion semantically untouched — only the target
+        value assertion changed (rewrite -> absence) from the pre-WP07 shape."""
         path = _write_home_config(home, _UNRELATED_CONFIG)
 
         RetiredHostedTargetMigration().apply(Path("/any/project"))
 
         data = toml.load(path)
+        assert "server_url" not in data["sync"]
         assert data["sync"]["poll_interval"] == 30
         assert data["telemetry"] == {"enabled": False}
         assert data["ui"] == {"theme": "dark"}
+
+    def test_apply_leaves_empty_sync_table_in_place(self, home: Path) -> None:
+        """When ``server_url`` was the table's only key, the now-empty
+        ``[sync]`` table is left in place rather than dropped — minimal TOML
+        shape churn beyond the one key (WP07 T032 step 1)."""
+        path = _write_home_config(home, f'[sync]\nserver_url = "{RETIRED_URL}"\n')
+
+        result = RetiredHostedTargetMigration().apply(Path("/any/project"))
+
+        assert result.success is True
+        data = toml.load(path)
+        assert data["sync"] == {}
 
     def test_apply_is_idempotent(self, home: Path) -> None:
         _write_home_config(home, _UNRELATED_CONFIG)
@@ -195,8 +259,8 @@ class TestApply:
         assert first.success is True
         assert second.success is True
         data = toml.load(home / "config.toml")
-        assert data["sync"]["server_url"] == CANONICAL_URL
-        # The second run records a no-op, not a second rewrite.
+        assert "server_url" not in data["sync"]
+        # The second run records a no-op, not a second deletion.
         assert "no retired first-party server_url" in " ".join(second.changes_made)
 
     def test_apply_dry_run_leaves_file_untouched(self, home: Path) -> None:
@@ -207,11 +271,12 @@ class TestApply:
 
         assert result.success is True
         assert path.read_text(encoding="utf-8") == before
-        assert any("would rewrite" in change for change in result.changes_made)
+        assert any("would remove" in change for change in result.changes_made)
+        assert not any("would rewrite" in change for change in result.changes_made)
 
     def test_apply_never_touches_custom_self_hosted_target(self, home: Path) -> None:
         """#4259 agreed scope: only the retired first-party address is
-        replaced — never every noncanonical URL."""
+        removed — never every noncanonical URL."""
         path = _write_home_config(home, f'[sync]\nserver_url = "{CUSTOM_URL}"\n')
         before = path.read_text(encoding="utf-8")
 
@@ -243,7 +308,7 @@ class TestApply:
         result = RetiredHostedTargetMigration().apply(Path("/any/project"))
 
         assert result.success is True
-        assert toml.load(path)["sync"]["server_url"] == CANONICAL_URL
+        assert "server_url" not in toml.load(path)["sync"]
 
 
 # ---------------------------------------------------------------------------
@@ -290,14 +355,15 @@ def _last_json_line(output: str) -> dict[str, object]:
 
 
 class TestUpgradeEntryPoint:
-    """#4259 acceptance: the real ``spec-kitty upgrade`` command migrates a
-    stale saved target on a machine whose resolver would otherwise keep
-    resolving the retired first-party endpoint."""
+    """#4259 / WP07 acceptance: the real ``spec-kitty upgrade`` command deletes
+    a stale saved target on a machine whose resolver would otherwise keep
+    resolving the retired first-party endpoint, per the FR-013 delete-and-guide
+    behaviour (re-pinned from the pre-WP07 "rewrites to canonical" shape)."""
 
     @pytest.mark.integration
     @pytest.mark.git_repo
     @pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the canonical owner pins SPEC_KITTY_HOME=tmp_path/home
-    def test_upgrade_rewrites_stale_saved_target_without_env_override(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_upgrade_deletes_stale_saved_target_without_env_override(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         home = tmp_path / "home"
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
         _write_home_config(home, _UNRELATED_CONFIG)
@@ -316,12 +382,14 @@ class TestUpgradeEntryPoint:
         assert payload["success"] is True, payload
 
         data = toml.load(home / "config.toml")
-        assert data["sync"]["server_url"] == CANONICAL_URL
+        assert "server_url" not in data["sync"]
         assert data["sync"]["poll_interval"] == 30
         assert data["telemetry"] == {"enabled": False}
         assert data["ui"] == {"theme": "dark"}
-        # Post-migration: the resolver now answers the canonical target.
-        assert resolve_server_target().resolved_server_url == CANONICAL_URL
+        # Post-migration (endpoint opt-in, FR-011): the resolver now fails
+        # closed instead of ever answering a packaged default.
+        with pytest.raises(HostedEndpointUnconfigured):
+            resolve_server_target()
 
     @pytest.mark.integration
     @pytest.mark.git_repo
@@ -341,7 +409,7 @@ class TestUpgradeEntryPoint:
         assert second.exit_code == 0, second.output
 
         data = toml.load(home / "config.toml")
-        assert data["sync"]["server_url"] == CANONICAL_URL
+        assert "server_url" not in data["sync"]
         assert data["sync"]["poll_interval"] == 30
 
     @pytest.mark.integration
@@ -351,7 +419,10 @@ class TestUpgradeEntryPoint:
         """With ``SPEC_KITTY_SAAS_URL`` explicitly equal to the canonical
         target, the resolver already answers canonical (#4259 precedence
         fix) — and the upgrade still removes the stale saved address, so the
-        machine no longer depends on the override to reach the right host."""
+        machine no longer depends on either the override or a saved value to
+        reach a hosted target (endpoint opt-in, FR-011: removing the env
+        override afterwards now leaves the machine unconfigured, not
+        defaulted, since there is no packaged default to fall back to)."""
         home = tmp_path / "home"
         monkeypatch.setenv("SPEC_KITTY_SAAS_URL", CANONICAL_URL)
         _write_home_config(home, _UNRELATED_CONFIG)
@@ -369,8 +440,11 @@ class TestUpgradeEntryPoint:
         assert result.exit_code == 0, result.output
 
         data = toml.load(home / "config.toml")
-        assert data["sync"]["server_url"] == CANONICAL_URL
-        # The override is no longer load-bearing: with it removed, the
-        # machine still resolves the canonical target.
-        monkeypatch.delenv("SPEC_KITTY_SAAS_URL")
+        assert "server_url" not in data["sync"]
+        # The env override still resolves the target for this process ...
         assert resolve_server_target().resolved_server_url == CANONICAL_URL
+        # ... but it is no longer backed by a saved value: remove it and the
+        # machine is unconfigured, not silently defaulted (endpoint opt-in).
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL")
+        with pytest.raises(HostedEndpointUnconfigured):
+            resolve_server_target()

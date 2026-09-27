@@ -3,11 +3,11 @@
 Re-homed and slimmed down from the deleted ``tests/sync/test_target_authority.py``
 (``specify_cli.sync.target_authority``) to match the surviving surface at
 ``specify_cli.auth.server_target``: no queue scope, no user/team identity, no
-network. What remains is the precedence contract (env over config over the
-packaged default, #3980 — D-5 revised) and the fail-closed split-brain guard.
-#179's "no target at all" fail-closed died with the opt-in era: with neither
-source naming a target the resolver answers the packaged default
-``https://team.spec-kitty.ai``.
+network. What remains is the precedence contract (env over config) and two
+fail-closed guards: an ambiguous split-brain, and (endpoint opt-in, mission
+``hosted-opt-in-drain-ledger``, FR-011, reversing #3980 D-5) neither source
+naming a target at all — restoring #179's original "no target at all"
+fail-closed, which the packaged-default era had suspended.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import pytest
 from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
 from specify_cli.auth.server_target import (
     SAAS_URL_ENV_VAR,
+    HostedEndpointUnconfigured,
     OverrideMode,
     ResolvedServerTarget,
     ServerTargetSplitBrainError,
@@ -79,22 +80,19 @@ def test_to_diagnostics_dict_is_json_safe_with_all_keys(target_root: Path) -> No
     json.dumps(diag)  # must round-trip through JSON
 
 
-def test_neither_config_nor_env_resolves_to_packaged_default(target_root: Path) -> None:
-    """#3980 (D-5 revised): no env value and no config value resolves to the
-    packaged default — the launch host — instead of failing closed."""
-    target = resolve_server_target()
+def test_neither_config_nor_env_raises_hosted_endpoint_unconfigured(target_root: Path) -> None:
+    """Endpoint opt-in (FR-011, reversing #3980 D-5): no env value and no
+    config value raises guidance instead of resolving to a packaged host."""
+    with pytest.raises(HostedEndpointUnconfigured) as excinfo:
+        resolve_server_target()
 
-    assert target.configured_server_url is None
-    assert target.env_server_url is None
-    assert target.override_mode is OverrideMode.PACKAGED_DEFAULT
-    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
+    assert SAAS_URL_ENV_VAR in str(excinfo.value)
 
 
-def test_corrupt_config_toml_with_no_env_resolves_to_packaged_default(target_root: Path) -> None:
+def test_corrupt_config_toml_with_no_env_raises_hosted_endpoint_unconfigured(target_root: Path) -> None:
     (target_root / "config.toml").write_text("this is = = not valid toml", encoding="utf-8")
-    target = resolve_server_target()
-    assert target.configured_server_url is None
-    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
+    with pytest.raises(HostedEndpointUnconfigured):
+        resolve_server_target()
 
 
 def test_corrupt_config_toml_is_treated_as_no_configured_url(
@@ -107,19 +105,20 @@ def test_corrupt_config_toml_is_treated_as_no_configured_url(
     assert target.resolved_server_url == ENV_URL
 
 
-def test_non_table_sync_key_with_no_env_resolves_to_packaged_default(target_root: Path) -> None:
+def test_non_table_sync_key_with_no_env_raises_hosted_endpoint_unconfigured(target_root: Path) -> None:
     (target_root / "config.toml").write_text('sync = "oops"\n', encoding="utf-8")
-    target = resolve_server_target()
-    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
+    with pytest.raises(HostedEndpointUnconfigured):
+        resolve_server_target()
 
 
-def test_blank_config_server_url_is_no_opinion_and_yields_packaged_default(target_root: Path) -> None:
+def test_blank_config_server_url_is_no_opinion_and_raises_hosted_endpoint_unconfigured(
+    target_root: Path,
+) -> None:
     """A blank ``server_url`` is no opinion: with no env value the resolver
-    answers the packaged default instead of resolving to an empty target."""
+    raises guidance instead of resolving to an empty target."""
     (target_root / "config.toml").write_text('[sync]\nserver_url = "  "\n', encoding="utf-8")
-    target = resolve_server_target()
-    assert target.configured_server_url is None
-    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
+    with pytest.raises(HostedEndpointUnconfigured):
+        resolve_server_target()
 
 
 def test_blank_config_server_url_defers_to_env(

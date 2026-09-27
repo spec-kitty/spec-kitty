@@ -4,11 +4,12 @@ Reads ``SPEC_KITTY_SAAS_URL``, ``SPEC_KITTY_SAAS_TOKEN``, and optional
 ``SPEC_KITTY_TEAM_SLUG`` from the environment, falling back to
 ``.kittify/saas-auth.json`` when env vars are absent, and finally to the
 OAuth session ``spec-kitty auth login`` persists (spec-kitty#198).  Raises
-``SaasAuthError`` if no token can be resolved. D-5 revised (#3980): the
-packaged default ``https://team.spec-kitty.ai`` is the target — the env var
-is a dev/self-host override — so a missing URL no longer fails closed here;
-the refusal below is reachable only when the canonical resolver itself is
-unavailable.
+``SaasAuthError`` if no token can be resolved. Endpoint opt-in (mission
+``hosted-opt-in-drain-ledger``, FR-011/FR-012, reversing #3980 D-5): there is
+no packaged default target any more — the URL resolves only from
+``SPEC_KITTY_SAAS_URL``, ``.kittify/saas-auth.json``'s own ``saas_url``
+(paired with its own token), or ``specify_cli.auth.server_target``'s
+canonical resolver; a missing URL fails closed with the refusal below.
 
 Scope of the #237 trust boundary (#289): this module only ever pairs
 ``.kittify/saas-auth.json``'s ``saas_url`` with its own token, never with an
@@ -74,9 +75,8 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
        Its ``team_slug`` comes only from ``SPEC_KITTY_TEAM_SLUG``; a
        repo-local file may not scope an operator's stored session.
     4. Raises ``SaasAuthError`` if no token is found, or if no SaaS URL is
-       supplied by any source and the canonical resolver is unavailable (D-5
-       revised, #3980: the packaged default is the target, so a missing URL
-       resolves to it rather than failing closed).
+       supplied by any source (endpoint opt-in, FR-011: there is no packaged
+       default any more — a missing URL fails closed).
 
     Args:
         repo_root: Optional path to the repository root.  Used to locate
@@ -87,9 +87,7 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
 
     Raises:
         SaasAuthError: If no token can be resolved, or if no SaaS URL is
-            supplied by env var, auth file, or the canonical resolver (the
-            packaged default included — the refusal below fires only when
-            that resolver itself is unavailable).
+            supplied by env var, auth file, or the canonical resolver.
     """
     env_url = os.environ.get("SPEC_KITTY_SAAS_URL", "").strip()
     env_token = os.environ.get("SPEC_KITTY_SAAS_TOKEN", "").strip()
@@ -131,10 +129,9 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
         url = env_url or _server_target_url()
     elif file_token:
         token = file_token
-        # #3980 (D-5 revised): a file token with no repo-local url pairs with
-        # the env override or the canonical resolver's target (packaged
-        # default included) — the file's own url still only ever rides with
-        # its own token (#237).
+        # A file token with no repo-local url pairs with the env override or
+        # the canonical resolver's target — the file's own url still only
+        # ever rides with its own token (#237).
         url = file_url or env_url or _server_target_url()
         team_slug = team_slug or file_team_slug
     else:
@@ -155,14 +152,13 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
             )
         raise SaasAuthError("no SaaS token configured: set SPEC_KITTY_SAAS_TOKEN, provide .kittify/saas-auth.json, or run `spec-kitty auth login`")
 
-    # D-5 revised (#3980): the packaged default is the target, so this refusal
-    # is reachable only when the canonical resolver itself is unavailable
-    # (``_server_target_url`` degrades any resolver failure to ``""`` — e.g.
-    # an env/config split-brain, which :func:`resolve_server_target` fails
-    # closed on before any network call). The URL must come from the
-    # environment, the auth file, or that resolver; falling back further would
-    # silently point the client at the wrong server (#2248 / #2146 canonical
-    # target authority). Fail closed instead.
+    # Endpoint opt-in (FR-011, reversing #3980 D-5): there is no packaged
+    # default any more, so this refusal is reachable whenever none of the
+    # environment, the auth file, or the canonical resolver name a URL
+    # (``_server_target_url`` degrades any resolver failure, including an
+    # unconfigured endpoint or an env/config split-brain, to ``""``).
+    # Falling back further would silently point the client at the wrong
+    # server (#2248 / #2146 canonical target authority). Fail closed instead.
     if not url:
         if env_token:
             # #290: an env-supplied token never pairs with .kittify/saas-auth.json's
@@ -302,6 +298,13 @@ def _saas_source_name(target: Any) -> str:
     (#300) so this refusal names the same override source ``spec-kitty auth
     status`` would — duplicated locally so this module does not reach into
     a CLI-presentation module's helper.
+
+    Same shape as ``specify_cli.auth.server_target._source_name_for_target``,
+    including why the third branch stays a real, coverable fallback rather
+    than a coverage-suppressed dead one: a real resolver call can no longer
+    produce a target with both fields ``None`` (endpoint opt-in, FR-011),
+    but a caller can still hand this function a hand-built ``target`` in
+    that shape (e.g. a test double).
     """
     from specify_cli.auth.server_target import SAAS_URL_ENV_VAR  # noqa: PLC0415
 

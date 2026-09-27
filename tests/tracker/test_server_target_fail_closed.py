@@ -33,9 +33,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL
 from specify_cli.auth.server_target import SAAS_URL_ENV_VAR, ServerTargetSplitBrainError
-from specify_cli.tracker.saas_client import SaaSTrackerClient
+from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClientError
 from specify_cli.tracker.saas_readiness import ReadinessState, evaluate_readiness
 
 pytestmark = pytest.mark.fast
@@ -62,20 +61,27 @@ def _refuse_network(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_saas_client_construction_without_host_binds_packaged_default(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No env and no config ⇒ the packaged default, not a bound dead host
-    (#3980) and not a refusal. Construction opens no network connection."""
+def test_saas_client_construction_without_host_raises_hosted_endpoint_unconfigured(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Endpoint opt-in (mission ``hosted-opt-in-drain-ledger``, FR-011/FR-012,
+    reversing #3980 D-5): WP06 removed the packaged-default fallback from
+    ``resolve_server_target()``, so construction on an unconfigured machine
+    now raises instead of silently binding a live host — re-pinned per
+    DIRECTIVE_041 from the retired "binds packaged default" assumption this
+    test previously asserted. Construction still opens no network
+    connection either way."""
     _refuse_network(monkeypatch)
 
-    client = SaaSTrackerClient(project_root=unconfigured_host / "repo")
+    with pytest.raises(SaaSTrackerClientError, match="hosted_endpoint_unconfigured|No hosted endpoint configured"):
+        SaaSTrackerClient(project_root=unconfigured_host / "repo")
 
-    assert client._base_url == DEFAULT_HOSTED_SAAS_URL
 
-
-def test_evaluate_readiness_without_host_resolves_packaged_default(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#3980: the readiness evaluator resolves the packaged default on an
-    unconfigured machine (``MISSING_HOST_CONFIG`` is gone for that case); with
-    the wire refused it reports ``HOST_UNREACHABLE`` against that default."""
+def test_evaluate_readiness_without_host_yields_missing_host_config(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Endpoint opt-in (reversing #3980 D-5): with no packaged default any
+    more, ``_probe_host_config``'s tolerant except degrades
+    ``HostedEndpointUnconfigured`` to ``None``, so an unconfigured machine
+    once again yields ``MISSING_HOST_CONFIG`` — re-pinned per DIRECTIVE_041
+    from the retired "resolves packaged default" assumption this test
+    previously asserted (the reachability probe is never reached)."""
     _refuse_network(monkeypatch)
     # Order: rollout gate → auth → host config → reachability. Pass the first
     # two so the evaluation reaches the host-config check under test.
@@ -87,14 +93,11 @@ def test_evaluate_readiness_without_host_resolves_packaged_default(unconfigured_
         probe_reachability=True,
     )
 
-    assert result.state is ReadinessState.HOST_UNREACHABLE
+    assert result.state is ReadinessState.MISSING_HOST_CONFIG
     assert not result.is_ready
-    assert DEFAULT_HOSTED_SAAS_URL in result.message or DEFAULT_HOSTED_SAAS_URL in (result.next_action or "")
 
 
-def test_evaluate_readiness_yields_missing_host_config_only_when_resolver_degrades(
-    unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_evaluate_readiness_yields_missing_host_config_only_when_resolver_degrades(unconfigured_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``MISSING_HOST_CONFIG`` survives only for a resolver that itself
     degrades (its no-raise representation of an unresolvable target)."""
     _refuse_network(monkeypatch)
@@ -171,7 +174,5 @@ def test_evaluate_readiness_with_split_brain_target_yields_ambiguous_host_config
         "`https://env-override.example.com`."
     )
     assert result.next_action == (
-        "Reconcile the two: update `config.toml`'s `[sync].server_url` to "
-        "match, or change/unset `SPEC_KITTY_SAAS_URL`, so both name the "
-        "same host."
+        "Reconcile the two: update `config.toml`'s `[sync].server_url` to match, or change/unset `SPEC_KITTY_SAAS_URL`, so both name the same host."
     )

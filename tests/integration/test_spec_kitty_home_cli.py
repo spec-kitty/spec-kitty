@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.auth.server_target import resolve_server_target
+from specify_cli.auth.server_target import HostedEndpointUnconfigured, resolve_server_target
 
 pytestmark = pytest.mark.integration
 
@@ -102,13 +102,18 @@ def test_unset_spec_kitty_home_preserves_posix_default(tmp_path: Path, monkeypat
     sys.platform.startswith("win"),
     reason="POSIX-only default-home fallback (~/.spec-kitty) assertions.",
 )
-def test_absent_config_resolves_to_packaged_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No ``config.toml`` anywhere and no env value ⇒ the packaged default.
+def test_absent_config_raises_hosted_endpoint_unconfigured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No ``config.toml`` anywhere and no env value ⇒ fails closed.
 
-    #179's fail-closed corollary, retargeted by #3980 (D-5 revised): an
-    unconfigured machine neither reads the default home nor invents a target
-    from ambient state — it resolves the one packaged default,
-    ``https://team.spec-kitty.ai``.
+    #179's fail-closed corollary, restored by endpoint opt-in (mission
+    ``hosted-opt-in-drain-ledger``, FR-011, reversing #3980 D-5): an
+    unconfigured machine neither reads the default home nor invents a
+    target from ambient state — WP06 removed the packaged-default fallback
+    ``resolve_server_target()`` used to resolve here, so it now raises
+    :class:`HostedEndpointUnconfigured` instead. Re-pinned per
+    DIRECTIVE_041 from the retired "resolves to the packaged default"
+    assumption this test previously asserted; the isolation contract this
+    test module exists to prove (neither home is consulted) is unchanged.
     """
     default_home = tmp_path / "empty-home"
     isolated_root = tmp_path / "empty-root"
@@ -122,5 +127,5 @@ def test_absent_config_resolves_to_packaged_default(tmp_path: Path, monkeypatch:
     assert not (default_home / ".spec-kitty" / "config.toml").exists()
     assert not (isolated_root / "config.toml").exists()
 
-    target = resolve_server_target()
-    assert target.resolved_server_url == "https://team.spec-kitty.ai"
+    with pytest.raises(HostedEndpointUnconfigured):
+        resolve_server_target()

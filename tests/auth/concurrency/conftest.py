@@ -53,6 +53,20 @@ from specify_cli.auth.session import StoredSession, Team
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _configured_saas_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """This concurrency surface exercises refresh/single-flight/lock
+    mechanics, not endpoint resolution — endpoint opt-in (FR-011) means an
+    unset ``SPEC_KITTY_SAAS_URL`` now raises ``HostedEndpointUnconfigured``
+    from ``resolve_token_endpoint`` (called at the top of
+    ``refresh_if_needed``) instead of silently resolving to a packaged
+    default. Sets a default configured target; a test using
+    ``fake_refresh_server`` overrides it with the real fake-server URL via
+    its own ``monkeypatch.setenv`` call, which wins (set after this fixture
+    runs)."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")
+
+
 @pytest.fixture
 def auth_store_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Return a ``tmp_path``-rooted auth directory with the lock redirected.

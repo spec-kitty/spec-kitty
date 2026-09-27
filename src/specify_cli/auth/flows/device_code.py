@@ -24,10 +24,12 @@ refresh-token expiry directly from the server response — it never hardcodes a
 TTL and never computes the expiry locally. The ``_resolve_refresh_expiry``
 helper mirrors the one in :class:`AuthorizationCodeFlow` exactly.
 
-Per D-5 (revised #3980) the SaaS base URL is resolved, never hardcoded here:
-callers pass it in via the constructor, typically from
-:func:`specify_cli.auth.config.get_saas_base_url` (env override or the
-packaged default).
+The SaaS base URL is resolved, never hardcoded here: callers pass it in
+via the constructor, typically from
+:func:`specify_cli.auth.config.get_saas_base_url` (env override; raises
+``HostedEndpointUnconfigured`` when unset, endpoint opt-in FR-011). Direct
+construction with no ``saas_base_url`` and no env override is a dead path
+in practice — ``_auth_login.py`` always pre-resolves and passes the URL.
 """
 
 from __future__ import annotations
@@ -84,7 +86,8 @@ class DeviceCodeFlow:
             saas_base_url: Base URL of the spec-kitty SaaS (no trailing slash).
                 When ``None``, the flow calls
                 :func:`specify_cli.auth.config.get_saas_base_url` itself
-                (env override or the packaged default, #3980).
+                (env override; raises ``HostedEndpointUnconfigured`` when
+                unset, endpoint opt-in FR-011).
                 Callers that already have the URL in hand (such as
                 ``_auth_login.py``) pass it in directly to avoid two env-var
                 reads per login.
@@ -127,18 +130,12 @@ class DeviceCodeFlow:
         # Step 2: display the user code and verification URI so the operator
         # can open a browser on another device and approve the request.
         writer("")
-        writer(
-            f"[yellow]Visit:[/yellow] [bold blue]{device_state.verification_uri}[/bold blue]"
-        )
-        writer(
-            f"[yellow]Code:[/yellow]  [bold green]{format_user_code(device_state.user_code)}[/bold green]"
-        )
+        writer(f"[yellow]Visit:[/yellow] [bold blue]{device_state.verification_uri}[/bold blue]")
+        writer(f"[yellow]Code:[/yellow]  [bold green]{format_user_code(device_state.user_code)}[/bold green]")
         if device_state.verification_uri_complete:
             writer(f"[dim]Or open: {device_state.verification_uri_complete}[/dim]")
         writer("")
-        writer(
-            f"[dim]Waiting for authorization (timeout in {device_state.expires_in // 60} minutes)...[/dim]"
-        )
+        writer(f"[dim]Waiting for authorization (timeout in {device_state.expires_in // 60} minutes)...[/dim]")
 
         # Step 3: poll the token endpoint until approval, denial, or expiry.
         # The poller uses WP03's primitives and respects the 10-second ceiling
@@ -169,29 +166,21 @@ class DeviceCodeFlow:
             try:
                 response = await client.post(url, data=data)
             except httpx.RequestError as exc:
-                raise NetworkError(
-                    f"Network error requesting device code: {exc}"
-                ) from exc
+                raise NetworkError(f"Network error requesting device code: {exc}") from exc
 
         if response.status_code != 200:
             body = response.text[:500]
-            raise AuthenticationError(
-                f"Device code request failed: HTTP {response.status_code} - {body}"
-            )
+            raise AuthenticationError(f"Device code request failed: HTTP {response.status_code} - {body}")
 
         try:
             payload = response.json()
         except ValueError as exc:
-            raise AuthenticationError(
-                f"Device code response was not JSON: {exc}"
-            ) from exc
+            raise AuthenticationError(f"Device code response was not JSON: {exc}") from exc
 
         try:
             return DeviceFlowState.from_oauth_response(payload)
         except KeyError as exc:
-            raise AuthenticationError(
-                f"Device code response missing required field: {exc}"
-            ) from exc
+            raise AuthenticationError(f"Device code response missing required field: {exc}") from exc
 
     # ---- Token polling ---------------------------------------------------
 
@@ -227,9 +216,7 @@ class DeviceCodeFlow:
             try:
                 response = await client.post(url, data=data)
             except httpx.RequestError as exc:
-                raise NetworkError(
-                    f"Network error polling for token: {exc}"
-                ) from exc
+                raise NetworkError(f"Network error polling for token: {exc}") from exc
 
         # RFC 8628 §3.5: both success and pending/error responses are JSON.
         # The poller classifies via the ``error`` key.
@@ -237,9 +224,7 @@ class DeviceCodeFlow:
             try:
                 return cast(dict[str, Any], response.json())
             except ValueError as exc:
-                raise AuthenticationError(
-                    f"Token poll response was not JSON: {exc}"
-                ) from exc
+                raise AuthenticationError(f"Token poll response was not JSON: {exc}") from exc
 
         if response.status_code == 401:
             # A 401 is terminal even if its body claims polling is pending.
@@ -266,23 +251,13 @@ class DeviceCodeFlow:
             # at all is a third case: nothing was withheld, so the message
             # must not claim a redaction either.
             if isinstance(error, str) and error in reasons:
-                report_instruction = (
-                    "If it fails again, report this status and error code to your administrator."
-                )
+                report_instruction = "If it fails again, report this status and error code to your administrator."
             elif error is None:
-                report_instruction = (
-                    "If it fails again, report this status to your administrator "
-                    "(the response carried no error code)."
-                )
+                report_instruction = "If it fails again, report this status to your administrator (the response carried no error code)."
             else:
-                report_instruction = (
-                    "If it fails again, report this status to your administrator "
-                    "(unrecognized server error code, redacted)."
-                )
+                report_instruction = "If it fails again, report this status to your administrator (unrecognized server error code, redacted)."
             raise AuthenticationError(
-                f"Token poll failed: HTTP 401 ({reason}). "
-                "Run `spec-kitty auth login --headless` for a new device code. "
-                + report_instruction
+                f"Token poll failed: HTTP 401 ({reason}). Run `spec-kitty auth login --headless` for a new device code. " + report_instruction
             )
 
         if response.status_code == 429:
@@ -291,9 +266,7 @@ class DeviceCodeFlow:
                 "retry_after": _parse_retry_after(response.headers),
             }
 
-        raise AuthenticationError(
-            f"Unexpected response from /oauth/token: HTTP {response.status_code}"
-        )
+        raise AuthenticationError(f"Unexpected response from /oauth/token: HTTP {response.status_code}")
 
     # ---- User info + StoredSession ---------------------------------------
 
@@ -317,29 +290,21 @@ class DeviceCodeFlow:
             try:
                 response = await client.get(url, headers=headers)
             except httpx.RequestError as exc:
-                raise NetworkError(
-                    f"Network error fetching user info: {exc}"
-                ) from exc
+                raise NetworkError(f"Network error fetching user info: {exc}") from exc
 
         if response.status_code != 200:
-            raise AuthenticationError(
-                f"User info fetch failed: HTTP {response.status_code}"
-            )
+            raise AuthenticationError(f"User info fetch failed: HTTP {response.status_code}")
 
         try:
             me = parse_me_payload(response.json())
         except ValueError as exc:
-            raise AuthenticationError(
-                f"User info response was not JSON: {exc}"
-            ) from exc
+            raise AuthenticationError(f"User info response was not JSON: {exc}") from exc
 
         user_id = require_me_field(me, "user_id")
         email = require_me_field(me, "email")
         teams = parse_me_teams(me)
         if not teams:
-            raise AuthenticationError(
-                "User has no team memberships. Contact your administrator."
-            )
+            raise AuthenticationError("User has no team memberships. Contact your administrator.")
         # Client-picked default (see C-011): the SaaS does not return
         # ``default_team_id``; we prefer Private Teamspace when available.
         default_team_id = pick_default_team_id(teams)
@@ -348,9 +313,7 @@ class DeviceCodeFlow:
         try:
             expires_in = int(tokens["expires_in"])
         except (KeyError, TypeError, ValueError) as exc:
-            raise AuthenticationError(
-                "Token response missing or invalid 'expires_in' field."
-            ) from exc
+            raise AuthenticationError("Token response missing or invalid 'expires_in' field.") from exc
 
         refresh_token_expires_at = self._resolve_refresh_expiry(tokens, me, now)
 
@@ -389,26 +352,19 @@ class DeviceCodeFlow:
         3. ``refresh_token_expires_in`` from the token response (relative).
         4. ``None`` — server-managed, client learns expiry on refresh.
         """
-        absolute = tokens.get("refresh_token_expires_at") or me.get(
-            "refresh_token_expires_at"
-        )
+        absolute = tokens.get("refresh_token_expires_at") or me.get("refresh_token_expires_at")
         if absolute is not None:
             try:
                 return _parse_iso_utc(absolute)
             except (AttributeError, TypeError, ValueError) as exc:
-                raise AuthenticationError(
-                    "Refresh token expiry field 'refresh_token_expires_at' "
-                    "must be an ISO-8601 timestamp."
-                ) from exc
+                raise AuthenticationError("Refresh token expiry field 'refresh_token_expires_at' must be an ISO-8601 timestamp.") from exc
 
         relative = tokens.get("refresh_token_expires_in")
         if relative is not None:
             try:
                 return now + timedelta(seconds=int(relative))
             except (TypeError, ValueError):
-                log.warning(
-                    "refresh_token_expires_in was not an int: %r", relative
-                )
+                log.warning("refresh_token_expires_in was not an int: %r", relative)
                 return None
         return None
 

@@ -52,7 +52,7 @@ from .refresh_transaction import (
     run_refresh_transaction,
 )
 from .secure_storage import SecureStorage
-from .server_target import ServerTargetSplitBrainError, resolve_token_endpoint
+from .server_target import HostedEndpointUnconfigured, ServerTargetSplitBrainError, resolve_token_endpoint
 from .session import (
     StoredSession,
     Team,
@@ -495,14 +495,20 @@ class TokenManager:
 
             try:
                 target_url = self._resolve_saas_base_url(session)
-            except (IssuerTargetMismatchError, ServerTargetSplitBrainError) as exc:
+            except (IssuerTargetMismatchError, ServerTargetSplitBrainError, HostedEndpointUnconfigured) as exc:
                 # Fail-closed no-op (D-4): never upgraded to a hard raise —
                 # that would break an otherwise-working session — but the
                 # warning names the issuer host, resolved host, and remedy
                 # (both exception messages are token-free by construction,
                 # NFR-006) instead of the generic fetch-failure text below.
+                # HostedEndpointUnconfigured (T028 item 10 gap, endpoint
+                # opt-in FR-011/FR-012): a genuine gap found here — this
+                # except tuple predates this exception type and would
+                # otherwise let it propagate uncaught through the
+                # post-refresh membership hook, which this method's own
+                # docstring and D-4 both promise never happens.
                 log.warning(
-                    "rehydrate_membership_if_needed: issuer/target mismatch, skipping /api/v1/me fetch: %s",
+                    "rehydrate_membership_if_needed: issuer/target/endpoint resolution problem, skipping /api/v1/me fetch: %s",
                     exc,
                 )
                 return False

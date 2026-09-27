@@ -660,11 +660,12 @@ class TestSaasSourceName:
         target = _target(env_server_url=None, configured_server_url="https://config.test")
         assert saas_source_name(target) == "config.toml [sync].server_url"
 
-    def test_packaged_default_when_neither_set(self):
-        # #3980 (D-5 revised): nothing configured resolves to the packaged
-        # default, and the mismatch warning names it as the source.
-        target = _target(env_server_url=None, configured_server_url=None)
-        assert saas_source_name(target) == "the packaged default"
+    # The former "neither set" case (`test_packaged_default_when_neither_set`)
+    # is removed rather than re-pinned (T029): endpoint opt-in (FR-011) means
+    # `resolve_server_target` now raises `HostedEndpointUnconfigured` before
+    # ever constructing a `ResolvedServerTarget` with both sources absent, so
+    # `saas_source_name`/`format_saas_provenance` are never called with that
+    # shape any more — there is no real behaviour left to pin here.
 
 
 class TestFormatSaasProvenance:
@@ -678,12 +679,8 @@ class TestFormatSaasProvenance:
         target = _target(env_server_url=None, configured_server_url="https://config.test")
         assert format_saas_provenance(target) == "(from config.toml [sync].server_url)"
 
-    def test_packaged_default_when_neither_set(self):
-        # #3980: a launch build with nothing configured renders the packaged
-        # default with its own provenance — never ``None`` (which crashed the
-        # renderer before the packaged-default branch existed).
-        target = _target(env_server_url=None, configured_server_url=None)
-        assert format_saas_provenance(target) == "(packaged default)"
+    # See the matching note above `TestSaasSourceName` for why the former
+    # "neither set" case is removed rather than re-pinned (T029).
 
 
 class TestFormatSaasMismatchWarning:
@@ -766,14 +763,14 @@ class TestAuthStatusSaasLine:
         user_at = result.stdout.index("User:")
         assert saas_at < user_at
 
-    def test_status_reports_packaged_default_when_unconfigured(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
-        """No env var and no config.toml -> the packaged default (#3980, D-5
-        revised): the status block names ``https://team.spec-kitty.ai`` with
-        ``(packaged default)`` provenance instead of the not-configured
-        remedy. The stored session issuer remains visible so QA can tell
-        which SaaS the authenticated session belongs to (#213), and the
-        mismatch warning fires naming the packaged default as the source.
-        """
+    def test_status_reports_guidance_when_unconfigured(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """Endpoint opt-in (FR-011/FR-012, reversing #3980 D-5): no env var
+        and no config.toml -> the status block prints the "No hosted
+        endpoint configured..." guidance line, never a packaged-default
+        endpoint. The stored session issuer remains visible so QA can tell
+        which SaaS the authenticated session belongs to (#213); with no
+        resolved target there is nothing for the mismatch warning to compare
+        against, so it does not fire (research.md R4's no-traceback pin)."""
         session = _make_session(issuer_url="https://saas.test")
         mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
@@ -786,17 +783,13 @@ class TestAuthStatusSaasLine:
             result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 0, result.stdout
+        assert "Traceback" not in result.stdout
         flat = _flat(result.stdout)
         assert "Session SaaS:" in flat
         assert "https://saas.test" in flat
         assert "(authenticated session)" in flat
-        assert "https://team.spec-kitty.ai" in flat
-        assert "(packaged default)" in flat
-        assert "SaaS:" in flat
-        assert _saas_line(result.stdout).startswith("  SaaS:           https://team.spec-kitty.ai ")
-        # The issuer disagrees with the packaged default, so the stale-session
-        # warning names the packaged default as the thing now pointed at.
-        assert "the packaged default now points at https://team.spec-kitty.ai" in flat
+        assert "No hosted endpoint configured" in flat
+        assert "SPEC_KITTY_SAAS_URL" in flat
 
     def test_status_prints_session_endpoint_when_env_points_elsewhere(self):
         """The status output must name the server the token belongs to (#213)."""
@@ -818,11 +811,11 @@ class TestAuthStatusSaasLine:
         assert "https://team.spec-kitty.ai" in flat
         assert "Session is for https://team.spec-kitty.ai" in flat
 
-    def test_status_reports_packaged_default_when_config_server_url_is_blank(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
-        """#182 squad MAJOR, retargeted by #3980: a blank ``[sync].server_url``
-        is *no opinion*, so the resolver answers the packaged default — a
-        blank value must never be rendered as a configured (but empty)
-        endpoint, nor as config provenance."""
+    def test_status_reports_guidance_when_config_server_url_is_blank(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """#182 squad MAJOR, retargeted by endpoint opt-in (FR-011): a blank
+        ``[sync].server_url`` is *no opinion*, so with no env value either the
+        resolver raises guidance — a blank value must never be rendered as a
+        configured (but empty) endpoint, nor as config provenance."""
         (tmp_path / "config.toml").write_text('[sync]\nserver_url = "  "\n', encoding="utf-8")
         session = _make_session(issuer_url="https://saas.test")
         mock_storage = _mock_storage_returning(session, backend="file")
@@ -837,8 +830,7 @@ class TestAuthStatusSaasLine:
 
         assert result.exit_code == 0, result.stdout
         flat = _flat(result.stdout)
-        assert "https://team.spec-kitty.ai" in flat
-        assert "(packaged default)" in flat
+        assert "No hosted endpoint configured" in flat
         # The blank value must never be rendered as a configured provenance.
         assert "(from config.toml [sync].server_url)" not in flat
 
@@ -981,11 +973,11 @@ class TestAuthStatusSaasLine:
         assert "Session is for" not in _flat(result.stdout)
         assert "https://saas.test" in _flat(result.stdout)  # endpoint still shown
 
-    def test_packaged_default_shown_in_not_authenticated_branch(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
-        """#189, retargeted by #3980: the packaged-default endpoint line must
-        reach the no-session branch too, not just the authenticated one —
-        there is no session to compare against, so this is the whole
-        endpoint line."""
+    def test_guidance_shown_in_not_authenticated_branch(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """#189, retargeted by endpoint opt-in (FR-011/FR-012): the guidance
+        line must reach the no-session branch too, not just the
+        authenticated one — there is no session to compare against, so this
+        is the whole endpoint line, and it must never traceback."""
         mock_storage = _mock_storage_returning(None, backend="file")
         with patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
@@ -997,10 +989,10 @@ class TestAuthStatusSaasLine:
             result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 0, result.stdout
+        assert "Traceback" not in result.stdout
         flat = _flat(result.stdout)
         assert "Not authenticated" in flat
-        assert "https://team.spec-kitty.ai" in flat
-        assert "(packaged default)" in flat
+        assert "No hosted endpoint configured" in flat
         assert "Session SaaS:" not in flat  # no session -> nothing to name
 
     def test_endpoint_and_mismatch_shown_in_expired_branch(self):

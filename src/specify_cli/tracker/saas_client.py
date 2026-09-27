@@ -35,7 +35,7 @@ from specify_cli.auth.errors import (
 )
 from specify_cli.auth.session import require_private_team_id
 from specify_cli.core.contract_gate import validate_outbound_payload
-from specify_cli.auth.server_target import resolve_server_target
+from specify_cli.auth.server_target import HostedEndpointUnconfigured, resolve_server_target
 from specify_cli.tracker.egress_verdict import (
     EgressDestination,
     TrackerEgressVerdict,
@@ -318,16 +318,24 @@ class SaaSTrackerClient:
         # sync config in issue #5): resolve the URL we will actually hit —
         # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
         # config.toml accessor, which would silently ignore an env override.
-        # #3980 (D-5 revised): an unconfigured machine resolves to the
-        # packaged default target, so construction no longer fails closed on
-        # a missing target — only an ambiguous env/config split-brain still
-        # refuses. process_wide_override=False (#117): this client sends a
-        # bearer token
-        # with no human confirming the target at call time, so an ambiguous
-        # env/config disagreement must fail closed here rather than silently
-        # letting the env value win, the way the interactive `auth login`
-        # command's whole-process override is allowed to.
-        self._base_url = _normalize_origin(resolve_server_target(process_wide_override=False).resolved_server_url)
+        # Endpoint opt-in (FR-011/FR-012, reversing #3980 D-5): construction
+        # is an explicit caller (T028 item 3) — an unconfigured machine now
+        # fails closed here, mirroring the project_root_resolution_failed
+        # guard just above, instead of silently binding a packaged default.
+        # process_wide_override=False (#117): this client sends a bearer
+        # token with no human confirming the target at call time, so an
+        # ambiguous env/config disagreement must fail closed here rather
+        # than silently letting the env value win, the way the interactive
+        # `auth login` command's whole-process override is allowed to.
+        try:
+            resolved_target = resolve_server_target(process_wide_override=False).resolved_server_url
+        except HostedEndpointUnconfigured as exc:
+            raise SaaSTrackerClientError(
+                str(exc),
+                error_code="hosted_endpoint_unconfigured",
+                details={"reason": str(exc)},
+            ) from exc
+        self._base_url = _normalize_origin(resolved_target)
         self._timeout = timeout
         # Instance-scoped seam (#3187): retry/poll delays call ``self._sleep``
         # rather than the bare ``time.sleep``. ``time.sleep`` is a single
@@ -505,6 +513,190 @@ class SaaSTrackerClient:
                 details={"effect_certainty": "unknown"},
             ) from exc
 
+    def _retry_on_unauthorized(
+        self,
+        response: httpx.Response,
+        *,
+        method: str,
+        path: str,
+        json: dict[str, Any] | None,
+        headers: dict[str, str] | None,
+        params: dict[str, Any] | None,
+        authority: _HostedTrackerAuthority,
+        deadline: datetime,
+        monotonic_deadline: float,
+    ) -> httpx.Response:
+        """401: one refresh + retry. Returns ``response`` unchanged if not 401.
+
+        Campsite extraction (S2, WP06): pulled out of
+        ``_physical_request_with_retry`` to keep that function under the
+        C901 complexity ceiling. Behaviour-preserving -- identical branches,
+        identical exception shapes.
+        """
+        if response.status_code != 401:
+            return response
+
+        try:
+            # Force a refresh via TokenManager (sync bridge). The single-flight
+            # lock inside TokenManager guarantees at most one concurrent refresh
+            # across threads / callers.
+            _force_refresh_sync()
+        except AuthenticationError as exc:
+            raise SaaSTrackerClientError(
+                _SESSION_EXPIRED_MESSAGE,
+                error_code="session_expired",
+                status_code=401,
+                details={"effect_certainty": "no_effect"},
+                user_action_required=True,
+            ) from exc
+        except Exception as exc:
+            raise SaaSTrackerClientError(
+                _SESSION_EXPIRED_MESSAGE,
+                error_code="session_expired",
+                status_code=401,
+                details={"effect_certainty": "no_effect"},
+                user_action_required=True,
+            ) from exc
+
+        remaining_after_refresh = self._remaining_transport_seconds(
+            deadline,
+            monotonic_deadline,
+        )
+        if remaining_after_refresh <= 0:
+            raise SaaSTrackerClientError(
+                "Authentication retry exceeded the transport operation deadline.",
+                error_code="deadline_exceeded",
+                status_code=401,
+                details={"effect_certainty": "no_effect"},
+                user_action_required=True,
+            )
+        response = self._request(
+            method,
+            path,
+            json=json,
+            headers=headers,
+            params=params,
+            expected_team_slug=authority.collaborative_team_slug,
+            expected_account_identity=authority.account_identity,
+            expected_private_teamspace_id=authority.private_teamspace_id,
+            timeout_seconds=min(self._timeout, remaining_after_refresh),
+        )
+        if response.status_code == 401:
+            raise SaaSTrackerClientError(
+                _SESSION_EXPIRED_MESSAGE,
+                error_code="session_expired",
+                status_code=401,
+                details={"effect_certainty": "no_effect"},
+                user_action_required=True,
+            )
+        return response
+
+    def _retry_on_rate_limit(
+        self,
+        response: httpx.Response,
+        *,
+        method: str,
+        path: str,
+        json: dict[str, Any] | None,
+        headers: dict[str, str] | None,
+        params: dict[str, Any] | None,
+        authority: _HostedTrackerAuthority,
+        deadline: datetime,
+        monotonic_deadline: float,
+    ) -> httpx.Response:
+        """429: respect ``retry_after_seconds``. Returns ``response`` unchanged if not 429.
+
+        Campsite extraction (S2, WP06): see :meth:`_retry_on_unauthorized`.
+        """
+        if response.status_code != 429:
+            return response
+
+        envelope = _parse_error_envelope(response)
+        wait_seconds = envelope.get("retry_after_seconds")
+        if wait_seconds is None or not isinstance(wait_seconds, (int, float)):
+            wait_seconds = 5
+        if float(wait_seconds) >= self._remaining_transport_seconds(
+            deadline,
+            monotonic_deadline,
+        ):
+            raise SaaSTrackerClientError(
+                "Rate-limit retry would exceed the transport operation deadline.",
+                error_code="deadline_exceeded",
+                status_code=429,
+                details={"effect_certainty": "no_effect"},
+                user_action_required=True,
+            )
+        self._sleep(float(wait_seconds))
+
+        remaining_after_sleep = self._remaining_transport_seconds(
+            deadline,
+            monotonic_deadline,
+        )
+        if remaining_after_sleep <= 0:
+            raise SaaSTrackerClientError(
+                "Rate-limit backoff exhausted the transport operation deadline.",
+                error_code="deadline_exceeded",
+                status_code=429,
+                details={"effect_certainty": "no_effect"},
+                user_action_required=True,
+            )
+
+        response = self._request(
+            method,
+            path,
+            json=json,
+            headers=headers,
+            params=params,
+            expected_team_slug=authority.collaborative_team_slug,
+            expected_account_identity=authority.account_identity,
+            expected_private_teamspace_id=authority.private_teamspace_id,
+            timeout_seconds=min(self._timeout, remaining_after_sleep),
+        )
+        if response.status_code == 429:
+            envelope = _parse_error_envelope(response)
+            raise SaaSTrackerClientError(
+                envelope.get("message") or "Rate limited by SaaS API.",
+                error_code="rate_limited",
+                status_code=429,
+                details={**envelope, "effect_certainty": "no_effect"},
+            )
+        return response
+
+    def _raise_for_terminal_error(
+        self,
+        response: httpx.Response,
+        *,
+        allow_error_response: bool,
+    ) -> httpx.Response:
+        """Raise on a non-2xx response the retry helpers didn't already resolve.
+
+        Campsite extraction (S2, WP06): the pure response-classification
+        step, separated from the retry I/O in
+        ``_physical_request_with_retry``.
+        """
+        if response.status_code < 400:
+            return response
+        if allow_error_response:
+            return response
+        envelope = _parse_error_envelope(response)
+        msg = envelope.get("message") or f"HTTP {response.status_code}"
+        # user_action_required is a boolean per PRI-12 ErrorEnvelope.
+        # When True, suffix the message with generic guidance.
+        if envelope.get("user_action_required"):
+            msg += " (action required — check the Spec Kitty dashboard)"
+        raise SaaSTrackerClientError(
+            msg,
+            # PRI-12 ``code`` is canonical (#2944 coordination): the stable
+            # machine code must survive onto the exception, with the
+            # category kept only as a fallback when no code was emitted —
+            # the old category-first order masked ``binding_not_found`` and
+            # friends from every code-driven consumer.
+            error_code=envelope.get("error_code") or envelope.get("error_category"),
+            status_code=response.status_code,
+            details=envelope,
+            user_action_required=bool(envelope.get("user_action_required")),
+        )
+
     def _physical_request_with_retry(
         self,
         method: str,
@@ -541,139 +733,29 @@ class SaaSTrackerClient:
             expected_private_teamspace_id=authority.private_teamspace_id,
             timeout_seconds=request_timeout,
         )
-
-        # --- 401: one refresh + retry ---
-        if response.status_code == 401:
-            try:
-                # Force a refresh via TokenManager (sync bridge). The single-flight
-                # lock inside TokenManager guarantees at most one concurrent refresh
-                # across threads / callers.
-                _force_refresh_sync()
-            except AuthenticationError as exc:
-                raise SaaSTrackerClientError(
-                    _SESSION_EXPIRED_MESSAGE,
-                    error_code="session_expired",
-                    status_code=401,
-                    details={"effect_certainty": "no_effect"},
-                    user_action_required=True,
-                ) from exc
-            except Exception as exc:
-                raise SaaSTrackerClientError(
-                    _SESSION_EXPIRED_MESSAGE,
-                    error_code="session_expired",
-                    status_code=401,
-                    details={"effect_certainty": "no_effect"},
-                    user_action_required=True,
-                ) from exc
-
-            remaining_after_refresh = self._remaining_transport_seconds(
-                deadline,
-                monotonic_deadline,
-            )
-            if remaining_after_refresh <= 0:
-                raise SaaSTrackerClientError(
-                    "Authentication retry exceeded the transport operation deadline.",
-                    error_code="deadline_exceeded",
-                    status_code=401,
-                    details={"effect_certainty": "no_effect"},
-                    user_action_required=True,
-                )
-            response = self._request(
-                method,
-                path,
-                json=json,
-                headers=headers,
-                params=params,
-                expected_team_slug=authority.collaborative_team_slug,
-                expected_account_identity=authority.account_identity,
-                expected_private_teamspace_id=authority.private_teamspace_id,
-                timeout_seconds=min(self._timeout, remaining_after_refresh),
-            )
-            if response.status_code == 401:
-                raise SaaSTrackerClientError(
-                    _SESSION_EXPIRED_MESSAGE,
-                    error_code="session_expired",
-                    status_code=401,
-                    details={"effect_certainty": "no_effect"},
-                    user_action_required=True,
-                )
-
-        # --- 429: respect retry_after_seconds ---
-        if response.status_code == 429:
-            envelope = _parse_error_envelope(response)
-            wait_seconds = envelope.get("retry_after_seconds")
-            if wait_seconds is None or not isinstance(wait_seconds, (int, float)):
-                wait_seconds = 5
-            if float(wait_seconds) >= self._remaining_transport_seconds(
-                deadline,
-                monotonic_deadline,
-            ):
-                raise SaaSTrackerClientError(
-                    "Rate-limit retry would exceed the transport operation deadline.",
-                    error_code="deadline_exceeded",
-                    status_code=429,
-                    details={"effect_certainty": "no_effect"},
-                    user_action_required=True,
-                )
-            self._sleep(float(wait_seconds))
-
-            remaining_after_sleep = self._remaining_transport_seconds(
-                deadline,
-                monotonic_deadline,
-            )
-            if remaining_after_sleep <= 0:
-                raise SaaSTrackerClientError(
-                    "Rate-limit backoff exhausted the transport operation deadline.",
-                    error_code="deadline_exceeded",
-                    status_code=429,
-                    details={"effect_certainty": "no_effect"},
-                    user_action_required=True,
-                )
-
-            response = self._request(
-                method,
-                path,
-                json=json,
-                headers=headers,
-                params=params,
-                expected_team_slug=authority.collaborative_team_slug,
-                expected_account_identity=authority.account_identity,
-                expected_private_teamspace_id=authority.private_teamspace_id,
-                timeout_seconds=min(self._timeout, remaining_after_sleep),
-            )
-            if response.status_code == 429:
-                envelope = _parse_error_envelope(response)
-                raise SaaSTrackerClientError(
-                    envelope.get("message") or "Rate limited by SaaS API.",
-                    error_code="rate_limited",
-                    status_code=429,
-                    details={**envelope, "effect_certainty": "no_effect"},
-                )
-
-        # --- Other non-2xx ---
-        if response.status_code >= 400:
-            if allow_error_response:
-                return response
-            envelope = _parse_error_envelope(response)
-            msg = envelope.get("message") or f"HTTP {response.status_code}"
-            # user_action_required is a boolean per PRI-12 ErrorEnvelope.
-            # When True, suffix the message with generic guidance.
-            if envelope.get("user_action_required"):
-                msg += " (action required — check the Spec Kitty dashboard)"
-            raise SaaSTrackerClientError(
-                msg,
-                # PRI-12 ``code`` is canonical (#2944 coordination): the stable
-                # machine code must survive onto the exception, with the
-                # category kept only as a fallback when no code was emitted —
-                # the old category-first order masked ``binding_not_found`` and
-                # friends from every code-driven consumer.
-                error_code=envelope.get("error_code") or envelope.get("error_category"),
-                status_code=response.status_code,
-                details=envelope,
-                user_action_required=bool(envelope.get("user_action_required")),
-            )
-
-        return response
+        response = self._retry_on_unauthorized(
+            response,
+            method=method,
+            path=path,
+            json=json,
+            headers=headers,
+            params=params,
+            authority=authority,
+            deadline=deadline,
+            monotonic_deadline=monotonic_deadline,
+        )
+        response = self._retry_on_rate_limit(
+            response,
+            method=method,
+            path=path,
+            json=json,
+            headers=headers,
+            params=params,
+            authority=authority,
+            deadline=deadline,
+            monotonic_deadline=monotonic_deadline,
+        )
+        return self._raise_for_terminal_error(response, allow_error_response=allow_error_response)
 
     def _request_with_retry(
         self,

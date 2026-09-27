@@ -3,19 +3,19 @@
 Re-homed from ``specify_cli.sync.target_authority`` when the sync transport was
 deleted (issue #5): auth login and the SaaS tracker client still need one
 answer to "which server are we hitting?", resolved with a single precedence —
-``SPEC_KITTY_SAAS_URL`` over ``config.toml [sync].server_url`` over the
-packaged default ``https://team.spec-kitty.ai`` (#3980, D-5 revised: the
-packaged default is the target; the env var is a dev/self-host override) —
-and one fail-closed guard, decided *before* any network call: an ambiguous
+``SPEC_KITTY_SAAS_URL`` over ``config.toml [sync].server_url`` — plus two
+fail-closed guards, both decided *before* any network call: no target at all
+(endpoint opt-in, mission ``hosted-opt-in-drain-ledger``, FR-011/FR-012 — this
+reverses #3980 D-5: there is no packaged default any more), and an ambiguous
 split-brain (env and config disagreeing without a clean whole-process
-override). #179's "no target at all" fail-closed died with the opt-in era: a
-machine naming no target now resolves to the packaged launch host. An
-*unset* env var is *no opinion* — it never disagrees with a configured
-target, so an existing ``config.toml`` entry never trips the guard — but an
-*explicitly set* one is a real opinion even when its value equals the
-packaged default (#4259): it wins in a whole-process context (``auth
-login``) instead of letting a stale configured target through, and it can
-trip the setup-only guard against a different configured target.
+override). An *unset* env var is *no opinion* — it never disagrees with a
+configured target, so an existing ``config.toml`` entry never trips the
+split-brain guard — but an *explicitly set* one is a real opinion even when
+its value equals the first-party host's identity
+(:data:`specify_cli.auth.config.DEFAULT_HOSTED_SAAS_URL`, #4259): it wins in
+a whole-process context (``auth login``) instead of letting a stale
+configured target through, and it can trip the setup-only guard against a
+different configured target.
 
 The queue-scope half of the old resolver died with the sync transport; what
 remains is purely descriptive — no network, no config mutation.
@@ -30,8 +30,8 @@ from typing import TYPE_CHECKING
 
 import toml
 
-from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL, get_saas_url_env_override
-from specify_cli.auth.errors import IssuerTargetMismatchError
+from specify_cli.auth.config import format_endpoint_unconfigured_message, get_saas_url_env_override
+from specify_cli.auth.errors import ConfigurationError, IssuerTargetMismatchError
 
 if TYPE_CHECKING:
     from specify_cli.auth.session import StoredSession
@@ -54,12 +54,19 @@ _SPLIT_BRAIN_MESSAGE = (
 
 
 class OverrideMode(StrEnum):
-    """How the resolved target was chosen (descriptive only)."""
+    """How the resolved target was chosen (descriptive only).
+
+    ``PACKAGED_DEFAULT`` was removed entirely (endpoint opt-in, F-5/F-7 m4):
+    it becomes unreachable rather than merely unused, since
+    :func:`resolve_server_target` now raises
+    :class:`HostedEndpointUnconfigured` before ever constructing a
+    :class:`ResolvedServerTarget` for the "neither source names a target"
+    case.
+    """
 
     NONE = "none"
     PROCESS_OVERRIDE = "process_override"
     SETUP_ONLY = "setup_only"
-    PACKAGED_DEFAULT = "packaged_default"
 
 
 class ServerTargetSplitBrainError(RuntimeError):
@@ -79,6 +86,17 @@ class ServerTargetSplitBrainError(RuntimeError):
         )
         self.configured_server_url = configured_server_url
         self.env_server_url = env_server_url
+
+
+class HostedEndpointUnconfigured(ConfigurationError):
+    """Raised when neither SPEC_KITTY_SAAS_URL nor config.toml [sync].server_url names a hosted endpoint.
+
+    Endpoint opt-in (mission ``hosted-opt-in-drain-ledger``, FR-011/FR-012):
+    reverses #3980 D-5's packaged-default fallback. A
+    :class:`~specify_cli.auth.errors.ConfigurationError` subclass, so every
+    pre-existing ``except ConfigurationError`` boundary (e.g.
+    ``cli/commands/_auth_login.py``) already handles it with no code change.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,9 +130,9 @@ def _read_configured_server_url() -> str | None:
     (#179): an empty string is no opinion, not a candidate target, so it must
     not slip past the fail-closed guard or pose as a disagreeing config value.
     """
-    from specify_cli.paths import get_runtime_root
+    from specify_cli.paths import get_runtime_config_toml_path
 
-    config_file = get_runtime_root().base / "config.toml"
+    config_file = get_runtime_config_toml_path()
     if not config_file.exists():
         return None
     try:
@@ -133,9 +151,8 @@ def _read_configured_server_url() -> str | None:
 def _read_env_server_url() -> str | None:
     """Read ``SPEC_KITTY_SAAS_URL``, normalizing blank/whitespace to ``None``.
 
-    The env-only override read (#3980): an unset variable is no opinion, never
-    the packaged default, so a configured ``config.toml`` target wins without
-    a split-brain.
+    The env-only override read (#3980): an unset variable is no opinion, so a
+    configured ``config.toml`` target wins without a split-brain.
     """
     # ``specify_cli.*`` is type-checked with ``follow_imports = skip``, so the
     # cross-module ``get_saas_url_env_override()`` is seen as ``Any`` here; bind to a
@@ -149,28 +166,30 @@ def _classify_override(
     env_server_url: str | None,
     *,
     process_wide_override: bool,
-) -> tuple[OverrideMode, str]:
+) -> tuple[OverrideMode, str | None]:
     """Decide ``(override_mode, resolved_server_url)`` — pure, no I/O.
 
-    Precedence: env first, then config, then the packaged default. An
-    *unset* (or blank) env variable is *no opinion* (#3980, D-5 revised):
-    ``config.toml [sync].server_url`` then wins without a split-brain, and
-    with neither source set the packaged default is the target. An env
-    variable that *is* explicitly set is a real opinion even when its value
-    equals :data:`specify_cli.auth.config.DEFAULT_HOSTED_SAAS_URL` (#4259:
-    the 4.0.0rc1 regression treated such a value as no opinion and let a
-    stale configured target — the retired first-party app endpoint — win
-    over an explicit canonical override): it resolves as the target, wins
-    over a *different* configured value in a whole-process context, and
-    trips the fail-closed guard against one in a setup-only context. A
-    missing config key is likewise *no opinion*: an env-only machine
-    resolves cleanly (to the env URL) even in a setup-only context, because
-    with no configured value there is nothing for the env var to disagree
-    with.
+    Precedence: env first, then config. An *unset* (or blank) env variable
+    is *no opinion*: ``config.toml [sync].server_url`` then wins without a
+    split-brain, and with neither source set the resolution is unconfigured
+    — ``resolved_server_url`` is ``None`` (endpoint opt-in, FR-011: this
+    reverses #3980 D-5's packaged-default fallback; :func:`resolve_server_target`
+    raises :class:`HostedEndpointUnconfigured` for that case rather than
+    ever returning a ``None`` target). An env variable that *is* explicitly
+    set is a real opinion even when its value equals
+    :data:`specify_cli.auth.config.DEFAULT_HOSTED_SAAS_URL` (#4259: the
+    4.0.0rc1 regression treated such a value as no opinion and let a stale
+    configured target — the retired first-party app endpoint — win over an
+    explicit canonical override): it resolves as the target, wins over a
+    *different* configured value in a whole-process context, and trips the
+    fail-closed guard against one in a setup-only context. A missing config
+    key is likewise *no opinion*: an env-only machine resolves cleanly (to
+    the env URL) even in a setup-only context, because with no configured
+    value there is nothing for the env var to disagree with.
     """
     if env_server_url is None:
         if configured_server_url is None:
-            return OverrideMode.PACKAGED_DEFAULT, DEFAULT_HOSTED_SAAS_URL
+            return OverrideMode.NONE, None
         return OverrideMode.NONE, _normalize_url(str(configured_server_url))
     env_normalized = _normalize_url(env_server_url)
     if configured_server_url is None:
@@ -227,13 +246,15 @@ def resolve_server_target(*, process_wide_override: bool = True) -> ResolvedServ
     """Resolve the single canonical hosted-server target.
 
     Reads ``[sync].server_url`` and ``SPEC_KITTY_SAAS_URL``, classifies the
-    :class:`OverrideMode`, and fails-closed before any network call on an
-    ambiguous split-brain. With neither source naming a target the packaged
-    default (:data:`specify_cli.auth.config.DEFAULT_HOSTED_SAAS_URL`) is the
-    target (#3980, D-5 revised) — an unconfigured machine no longer fails
-    closed. Purely descriptive: no network, no config mutation.
+    :class:`OverrideMode`, and fails-closed before any network call on
+    either of two conditions: an ambiguous split-brain, or neither source
+    naming a target at all (endpoint opt-in, FR-011 — this reverses #3980
+    D-5's packaged-default fallback). Purely descriptive: no network, no
+    config mutation.
 
     Raises:
+        HostedEndpointUnconfigured: Neither ``SPEC_KITTY_SAAS_URL`` nor
+            ``config.toml [sync].server_url`` names a target.
         ServerTargetSplitBrainError: When env and config disagree without a
             clean whole-process override.
     """
@@ -245,6 +266,8 @@ def resolve_server_target(*, process_wide_override: bool = True) -> ResolvedServ
         process_wide_override=process_wide_override,
     )
     _guard_split_brain(override_mode, configured_server_url, env_server_url)
+    if resolved_server_url is None:
+        raise HostedEndpointUnconfigured(format_endpoint_unconfigured_message())
     _warn_process_override(override_mode, configured_server_url, resolved_server_url)
     return ResolvedServerTarget(
         configured_server_url=configured_server_url,
@@ -254,6 +277,22 @@ def resolve_server_target(*, process_wide_override: bool = True) -> ResolvedServ
     )
 
 
+def resolve_server_target_or_none(*, process_wide_override: bool = True) -> ResolvedServerTarget | None:
+    """Like :func:`resolve_server_target`, but returns ``None`` instead of raising.
+
+    For automatic/best-effort callers (FR-012) that must degrade quietly when
+    nothing is configured, rather than surface setup guidance the caller
+    cannot act on. :class:`ServerTargetSplitBrainError` still propagates — an
+    ambiguous env/config disagreement is not "unconfigured", it is a real
+    ambiguity a caller must not silently paper over (C-005/#4311 coupling: a
+    future retry must not paper over a split-brain).
+    """
+    try:
+        return resolve_server_target(process_wide_override=process_wide_override)
+    except HostedEndpointUnconfigured:
+        return None
+
+
 def _source_name_for_target(target: ResolvedServerTarget) -> str:
     """Name the configuration source ``target.resolved_server_url`` came from.
 
@@ -261,6 +300,15 @@ def _source_name_for_target(target: ResolvedServerTarget) -> str:
     each consumer keeps its own local copy of this small naming rule instead
     of importing another module's private helper, so this reference doesn't
     go stale as those copies move independently.
+
+    A real :func:`resolve_server_target` call can no longer produce a
+    ``target`` whose ``env_server_url`` and ``configured_server_url`` are
+    both ``None`` (endpoint opt-in, FR-011: it raises
+    :class:`HostedEndpointUnconfigured` before constructing one in that
+    case) — but a caller can still hand this function a stale or
+    hand-built :class:`ResolvedServerTarget` in that shape (e.g. a test
+    double), so the third branch stays a real, coverable fallback rather
+    than a coverage-suppressed dead one.
     """
     if target.env_server_url is not None:
         return SAAS_URL_ENV_VAR
@@ -323,6 +371,9 @@ def resolve_token_endpoint(session: StoredSession | None) -> str:
     Raises:
         IssuerTargetMismatchError: When ``session.issuer_url`` is set and
             disagrees with the resolved target.
+        HostedEndpointUnconfigured: Propagated unchanged from
+            ``resolve_server_target`` when neither source names a target
+            (endpoint opt-in, FR-011/FR-012).
         ServerTargetSplitBrainError: Propagated unchanged from
             ``resolve_server_target`` on an ambiguous env/config
             disagreement.

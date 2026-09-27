@@ -34,10 +34,15 @@ from specify_cli.cli.console import console, sanitize_terminal_text
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import IssuerTargetMismatchError
 from specify_cli.auth.flows.revoke import RevokeFlow, RevokeOutcome
-from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_token_endpoint
+from specify_cli.auth.server_target import HostedEndpointUnconfigured, ServerTargetSplitBrainError, resolve_token_endpoint
 from specify_cli.auth.session import StoredSession
 
 log = logging.getLogger(__name__)
+
+#: S1192: this exact suffix closes seven distinct revocation-skip messages
+#: below -- server revocation never blocks local credential deletion
+#: (FR-004), so every skip/failure variant ends on the same reassurance.
+_STILL_DELETED_SUFFIX = " Local credentials will still be deleted.[/yellow]"
 
 
 async def logout_impl(*, force: bool) -> None:
@@ -89,38 +94,46 @@ def _print_revoke_outcome(outcome: RevokeOutcome, session: StoredSession) -> Non
     if outcome is RevokeOutcome.REVOKED:
         console.print("[green]✓ Server revocation confirmed.[/green]")
     elif outcome is RevokeOutcome.NO_REFRESH_TOKEN:
-        console.print("[yellow]! Server revocation could not be attempted (no refresh token). Local credentials will still be deleted.[/yellow]")
+        console.print(f"[yellow]! Server revocation could not be attempted (no refresh token).{_STILL_DELETED_SUFFIX}")
     elif outcome is RevokeOutcome.NETWORK_ERROR:
-        console.print("[yellow]! Server revocation not confirmed (network error). Local credentials will still be deleted.[/yellow]")
+        console.print(f"[yellow]! Server revocation not confirmed (network error).{_STILL_DELETED_SUFFIX}")
     elif outcome is RevokeOutcome.ISSUER_MISMATCH:
         _print_issuer_mismatch_warning(session)
     else:  # SERVER_FAILURE
-        console.print("[yellow]! Server revocation not confirmed (server error). Local credentials will still be deleted.[/yellow]")
+        console.print(f"[yellow]! Server revocation not confirmed (server error).{_STILL_DELETED_SUFFIX}")
 
 
 def _print_issuer_mismatch_warning(session: StoredSession) -> None:
     """Warn that server-side revocation was refused/skipped over an issuer mismatch.
 
-    ``RevokeFlow.revoke`` collapses both a mismatch and a split-brain
-    ambiguity into ``RevokeOutcome.ISSUER_MISMATCH`` (no payload), so the
-    specific, actionable detail (issuer host, resolved host, remedy) is
-    re-derived here via :func:`resolve_token_endpoint` — a pure, network-free
-    recomputation of the same decision ``revoke()`` already made, not a
-    second network attempt. NFR-006: the resulting message never contains
-    token material, only host names and the remedy command.
+    ``RevokeFlow.revoke`` collapses a mismatch, a split-brain ambiguity, and
+    (T028 item 8, endpoint opt-in FR-011/FR-012) an unconfigured endpoint
+    into ``RevokeOutcome.ISSUER_MISMATCH`` (no payload), so the specific,
+    actionable detail (issuer host, resolved host, remedy — or the
+    unconfigured guidance) is re-derived here via
+    :func:`resolve_token_endpoint` — a pure, network-free recomputation of
+    the same decision ``revoke()`` already made, not a second network
+    attempt. NFR-006: the resulting message never contains token material,
+    only host names and the remedy command.
     """
     try:
         resolve_token_endpoint(session)
     except IssuerTargetMismatchError as exc:
         detail = escape(sanitize_terminal_text(str(exc)))
-        console.print(f"[yellow]! Server-side revocation skipped: {detail} Local credentials will still be deleted.[/yellow]")
+        console.print(f"[yellow]! Server-side revocation skipped: {detail}{_STILL_DELETED_SUFFIX}")
+    except HostedEndpointUnconfigured as exc:
+        # A machine whose endpoint became unconfigured after login (e.g.
+        # post-migration, see WP07) never tracebacks on logout — revocation
+        # is skipped with the same guidance `auth status`/`login` show.
+        detail = escape(sanitize_terminal_text(str(exc)))
+        console.print(f"[yellow]! Server-side revocation skipped: {detail}{_STILL_DELETED_SUFFIX}")
     except ServerTargetSplitBrainError as exc:
         detail = escape(sanitize_terminal_text(str(exc)))
-        console.print(f"[yellow]! Server-side revocation skipped (server target is ambiguous): {detail} Local credentials will still be deleted.[/yellow]")
+        console.print(f"[yellow]! Server-side revocation skipped (server target is ambiguous): {detail}{_STILL_DELETED_SUFFIX}")
     else:
         # The target now resolves cleanly (e.g. reconfigured mid-run) —
         # nothing specific left to report beyond the generic skip.
-        console.print("[yellow]! Server-side revocation skipped due to a target mismatch. Local credentials will still be deleted.[/yellow]")
+        console.print(f"[yellow]! Server-side revocation skipped due to a target mismatch.{_STILL_DELETED_SUFFIX}")
 
 
 __all__ = ["logout_impl"]

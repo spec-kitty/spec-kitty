@@ -244,9 +244,7 @@ class TestAuthLogoutCommand:
                 new_callable=AsyncMock,
                 return_value=RevokeOutcome.REVOKED,
             ),
-            patch(
-                "specify_cli.cli.commands._auth_logout.get_token_manager"
-            ) as mock_get_tm,
+            patch("specify_cli.cli.commands._auth_logout.get_token_manager") as mock_get_tm,
         ):
             mock_tm = MagicMock()
             mock_tm.get_current_session.return_value = _make_session()
@@ -316,11 +314,15 @@ class TestAuthLogoutCommand:
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
 
-    def test_logout_missing_saas_url_still_revokes_and_cleans_up_locally(self, monkeypatch):
-        """#3980 (D-5 revised): missing ``SPEC_KITTY_SAAS_URL`` no longer
-        short-circuits server revocation — the target always resolves (env
-        override or the packaged default), so revocation is attempted and
-        local cleanup still runs unconditionally."""
+    def test_logout_missing_saas_url_still_attempts_revoke_and_cleans_up_locally(self, monkeypatch):
+        """Local cleanup is unconditional regardless of endpoint config
+        (FR-004): a missing ``SPEC_KITTY_SAAS_URL`` never short-circuits
+        ``logout`` before it even attempts server-side revocation — the
+        decision of whether the target resolves lives entirely inside
+        ``RevokeFlow.revoke`` (mocked here to REVOKED), which since endpoint
+        opt-in (FR-011) folds an unconfigured endpoint into
+        ``RevokeOutcome.ISSUER_MISMATCH`` rather than ever reaching this
+        command's own config-error handling."""
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
         storage = _mock_storage(_make_session())
         revoke_mock = AsyncMock(return_value=RevokeOutcome.REVOKED)
@@ -339,9 +341,9 @@ class TestAuthLogoutCommand:
             result = runner.invoke(app, ["logout"])
 
         assert result.exit_code == 0, result.stdout
-        # No config-error warning: the target resolved to the packaged default.
+        # No config-error warning surfaces here: RevokeFlow.revoke owns the
+        # target-resolution outcome, and it is mocked to REVOKED.
         assert "config error" not in result.stdout.lower()
-        # Revocation WAS attempted against the resolved default target.
         revoke_mock.assert_called_once()
         # Local cleanup still ran.
         assert "Logged out" in result.stdout

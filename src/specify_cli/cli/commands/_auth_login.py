@@ -20,8 +20,10 @@ unchanged.
 This module never hardcodes a SaaS URL. It resolves the login target through the
 canonical resolver :func:`specify_cli.auth.server_target.resolve_server_target`,
 which folds ``SPEC_KITTY_SAAS_URL`` (env) over ``[sync].server_url`` in
-``config.toml`` and falls back to the packaged default — the same
-precedence every hosted surface uses.
+``config.toml`` — the same precedence every hosted surface uses — and raises
+``HostedEndpointUnconfigured`` (endpoint opt-in, FR-011/FR-012) when neither
+source names a target, printing its guidance and exiting non-zero before any
+flow starts.
 This is deliberate (#3406, FR-005): login previously read the env-only accessor
 ``get_saas_base_url`` and errored when the env var was unset, even when the user
 had already set a server via ``config.toml``. That inconsistency meant
@@ -63,6 +65,7 @@ from specify_cli.auth import (
 )
 from specify_cli.auth.config import (
     DEFAULT_HOSTED_SAAS_URL,
+    format_endpoint_unconfigured_message,
     is_canonical_hosted_url,
     is_noncanonical_first_party_url,
     is_retired_first_party_url,
@@ -105,10 +108,11 @@ async def login_impl(*, headless: bool, force: bool, machine: bool = False) -> N
     """
     # Resolve the login target the same way every hosted surface does — env over
     # config.toml (#3406, FR-005; #4259: an explicitly-set env value is a real
-    # opinion even when it equals the packaged default). The resolver fails
-    # closed (#179) when neither source names a server; surface its remedy
-    # verbatim instead of duplicating the message here so login and the
-    # resolver cannot drift apart again.
+    # opinion even when it equals the first-party host's canonical identity).
+    # The resolver fails closed (#179, restored by endpoint opt-in FR-011)
+    # when neither source names a server; surface its remedy verbatim instead
+    # of duplicating the message here so login and the resolver cannot drift
+    # apart again.
     try:
         target = resolve_server_target()
     except ConfigurationError as exc:
@@ -139,20 +143,12 @@ async def login_impl(*, headless: bool, force: bool, machine: bool = False) -> N
             # is never forwarded here — fresh authentication is required.
             # escape(): both URLs are operator-controlled (#182/#202).
             console.print(f"[yellow]! {escape(sanitize_terminal_text(mismatch))}[/yellow]")
-            console.print(
-                "Credentials minted for one endpoint are never reused against "
-                "another; fresh authentication is required."
-            )
+            console.print("Credentials minted for one endpoint are never reused against another; fresh authentication is required.")
             # #4265: a refusal is not success — without this, `spec-kitty auth
             # login && ...` chains read the mismatch refusal as exit 0.
             raise typer.Exit(1)
-        console.print(
-            f"[green]+ Already logged in as {escape(session.email)}[/green]"
-        )
-        console.print(
-            "Run [bold]spec-kitty auth login --force[/bold] to re-authenticate, "
-            "or [bold]spec-kitty auth logout[/bold] first."
-        )
+        console.print(f"[green]+ Already logged in as {escape(session.email)}[/green]")
+        console.print("Run [bold]spec-kitty auth login --force[/bold] to re-authenticate, or [bold]spec-kitty auth logout[/bold] first.")
         return
 
     if force and tm.is_authenticated:
@@ -186,31 +182,22 @@ def _print_login_target(target: ResolvedServerTarget) -> None:
     # any remedy naming `[sync].server_url` are operator-controlled and
     # bracket-shaped — unescaped, Rich markup drops or chokes on them
     # (#182/#202). The canonical URL is a fixed safe literal.
-    console.print(
-        f"[dim]SaaS: {escape(sanitize_terminal_text(url))} "
-        f"{escape(sanitize_terminal_text(format_saas_provenance(target)))}[/dim]"
-    )
+    console.print(f"[dim]SaaS: {escape(sanitize_terminal_text(url))} {escape(sanitize_terminal_text(format_saas_provenance(target)))}[/dim]")
     if is_retired_first_party_url(url):
         message = (
             f"{url} is the retired first-party endpoint; the canonical hosted "
-            f"endpoint is {DEFAULT_HOSTED_SAAS_URL}. Run spec-kitty upgrade to "
-            "migrate a stale config.toml target, or correct SPEC_KITTY_SAAS_URL / "
-            "config.toml [sync].server_url — proceeding against the configured target."
+            f"endpoint is {DEFAULT_HOSTED_SAAS_URL}. Run spec-kitty upgrade to remove "
+            f"the retired target from config.toml — afterward, {format_endpoint_unconfigured_message()} "
+            "Proceeding against the currently configured target."
         )
         console.print(f"[yellow]! {escape(sanitize_terminal_text(message))}[/yellow]")
         return
     if is_noncanonical_first_party_url(url):
-        message = (
-            f"{url} is a noncanonical first-party endpoint; the canonical "
-            f"hosted endpoint is {DEFAULT_HOSTED_SAAS_URL}."
-        )
+        message = f"{url} is a noncanonical first-party endpoint; the canonical hosted endpoint is {DEFAULT_HOSTED_SAAS_URL}."
         console.print(f"[yellow]! {escape(sanitize_terminal_text(message))}[/yellow]")
         return
     if not is_canonical_hosted_url(url):
-        console.print(
-            f"[dim]Custom endpoint (not the canonical {escape(DEFAULT_HOSTED_SAAS_URL)}); "
-            "self-hosted targets are supported and left unchanged.[/dim]"
-        )
+        console.print(f"[dim]Custom endpoint (not the canonical {escape(DEFAULT_HOSTED_SAAS_URL)}); self-hosted targets are supported and left unchanged.[/dim]")
 
 
 async def _run_browser_flow(tm: TokenManager, saas_url: str) -> None:
@@ -234,10 +221,7 @@ async def _run_browser_flow(tm: TokenManager, saas_url: str) -> None:
         # escape(): exception text can embed attacker-influenced callback data;
         # unescaped, Rich markup parses it and can raise MarkupError (#202/#182/#383).
         console.print(f"[red]X Callback validation failed: {escape(str(exc))}[/red]")
-        console.print(
-            "This may indicate a CSRF attack or a stale browser tab. "
-            "Run [bold]spec-kitty auth login[/bold] again."
-        )
+        console.print("This may indicate a CSRF attack or a stale browser tab. Run [bold]spec-kitty auth login[/bold] again.")
         raise typer.Exit(1) from exc
     except BrowserLaunchError as exc:
         # escape(): see CallbackValidationError above.
@@ -273,9 +257,7 @@ async def _run_device_flow(tm: TokenManager, saas_url: str) -> None:
             DeviceCodeFlow,
         )
     except ImportError as exc:
-        console.print(
-            "[red]X Headless login is not yet implemented (waiting on WP05).[/red]"
-        )
+        console.print("[red]X Headless login is not yet implemented (waiting on WP05).[/red]")
         raise typer.Exit(1) from exc
 
     flow = DeviceCodeFlow(

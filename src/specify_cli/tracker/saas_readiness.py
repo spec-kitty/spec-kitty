@@ -162,13 +162,15 @@ def _probe_host_config() -> str | None:
 
     Two invariants are reconciled here:
 
-    * **D-5 revised (#3980)**: the packaged default
-      ``https://team.spec-kitty.ai`` is the target — ``SPEC_KITTY_SAAS_URL``
-      is a dev/self-host override and ``config.toml [sync].server_url`` a
-      per-machine configured target. With neither set the resolver answers
-      the packaged default, so the former "env var unset ⇒
-      ``MISSING_HOST_CONFIG``" opt-in gate no longer exists; ``None`` now
-      means only "the resolver itself degraded".
+    * **Endpoint opt-in (mission ``hosted-opt-in-drain-ledger``, FR-011/
+      FR-012, reversing #3980 D-5)**: ``SPEC_KITTY_SAAS_URL`` is the env
+      override and ``config.toml [sync].server_url`` the per-machine
+      configured target — there is no packaged default target any more.
+      With neither set the resolver raises ``HostedEndpointUnconfigured``,
+      which this function's own tolerant except (below) degrades to
+      ``None``, so the "env var/config unset ⇒ ``MISSING_HOST_CONFIG``" gate
+      is restored (T028 item 4: this file needed no code change for that —
+      the pre-existing broad ``except Exception`` already covered it).
     * **Target authority** (WP02, contract §1): the URL returned is the
       canonical ``resolved_server_url`` from
       :func:`~specify_cli.auth.server_target.resolve_server_target`, i.e. the
@@ -255,9 +257,9 @@ def evaluate_readiness(
     1. Rollout gate (``SPEC_KITTY_ENABLE_SAAS_SYNC`` — opt-out-only, #3980)
     2. Auth (``TokenManager.is_authenticated``)
     3. Host config (``resolve_server_target``: env override over
-       ``config.toml [sync].server_url`` over the packaged default); an
-       env/``config.toml`` disagreement yields ``AMBIGUOUS_HOST_CONFIG``
-       instead of ``MISSING_HOST_CONFIG`` (#305)
+       ``config.toml [sync].server_url``; neither set yields
+       ``MISSING_HOST_CONFIG``); an env/``config.toml`` disagreement yields
+       ``AMBIGUOUS_HOST_CONFIG`` instead (#305)
     4. Reachability — only when ``probe_reachability=True``
     5. Mission binding — only when ``require_mission_binding=True``
     6. ``READY``

@@ -17,6 +17,7 @@ from specify_cli.cli.console import console, sanitize_terminal_text
 
 from specify_cli.auth.server_target import (
     SAAS_URL_ENV_VAR,
+    HostedEndpointUnconfigured,
     OverrideMode,
     ResolvedServerTarget,
     ServerTargetSplitBrainError,
@@ -32,7 +33,8 @@ _SAAS_STATUS_LABEL = "  SaaS:           "
 def print_saas_endpoint() -> ResolvedServerTarget | None:
     """Print the ``SaaS:`` endpoint line — the resolved URL + provenance, or
     the not-configured notice — and return the resolved target (``None`` on
-    the not-configured branch).
+    the not-configured branch, whether not-configured means unconfigured or
+    a split-brain).
 
     Split out of :func:`print_saas_target` so callers with no
     :class:`StoredSession` (the not-authenticated branch) can print this line
@@ -40,14 +42,12 @@ def print_saas_endpoint() -> ResolvedServerTarget | None:
 
     The URL is the *same* resolved target ``auth login`` prints
     (:func:`specify_cli.auth.server_target.resolve_server_target`), so no two
-    commands can ever name different endpoints. Since #3980 (D-5 revised)
-    that resolver answers the packaged default ``https://team.spec-kitty.ai``
-    when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml`` names a server,
-    so this line renders that default with ``(packaged default)`` provenance;
-    ``resolve_server_target`` now raises only :class:`ServerTargetSplitBrainError`
-    (#4053: the prior ``ConfigurationError`` branch here was dead — that
-    resolver stopped raising it once the packaged default became the
-    fallback — and has been removed rather than left unreachable).
+    commands can ever name different endpoints. Endpoint opt-in
+    (FR-011/FR-012, reversing #3980 D-5): with neither ``SPEC_KITTY_SAAS_URL``
+    nor ``config.toml`` naming a server, the resolver now raises
+    :class:`HostedEndpointUnconfigured` instead of falling back to a packaged
+    default — caught here and rendered as the guidance line, never a
+    traceback (closes the gap research.md R4 names at these exact lines).
 
     Resolved with ``process_wide_override=False`` (#193): this call is purely
     descriptive (no network, no config mutation), so it should show a
@@ -59,6 +59,13 @@ def print_saas_endpoint() -> ResolvedServerTarget | None:
     """
     try:
         target = resolve_server_target(process_wide_override=False)
+    except HostedEndpointUnconfigured as exc:
+        # escape(): the message names the resolved config.toml path, which
+        # embeds the runtime-root directory — not attacker-controlled in
+        # practice, but sanitized/escaped for the same reason every other
+        # branch here is (#182's rationale).
+        console.print(f"{_SAAS_STATUS_LABEL}[yellow]{escape(sanitize_terminal_text(str(exc)))}[/yellow]")
+        return None
     except ServerTargetSplitBrainError as exc:
         # escape(): the message embeds the raw config/env URLs, which are
         # attacker- or fat-finger-controlled and can contain
@@ -106,10 +113,12 @@ def saas_source_name(target: ResolvedServerTarget) -> str:
     """Name the configuration source the resolved SaaS URL came from.
 
     Mirrors the precedence inside
-    :func:`specify_cli.auth.server_target.resolve_server_target`: env first,
-    then ``config.toml [sync].server_url``, then the packaged default
-    ``https://team.spec-kitty.ai`` (#3980, D-5 revised — the packaged default
-    is the target on a launch build with nothing else configured).
+    :func:`specify_cli.auth.server_target.resolve_server_target`: env, then
+    ``config.toml [sync].server_url``. Endpoint opt-in (FR-011) removed the
+    third, packaged-default rung of that precedence — with neither source
+    set, ``resolve_server_target`` now raises before a
+    :class:`ResolvedServerTarget` is ever constructed, so ``target`` here is
+    always resolved from one of the two remaining sources.
     Used in the mismatch warning so the sentence names the thing the user must
     change. Note ``.kittify/saas-auth.json`` is deliberately absent — it feeds
     the tracker/zeitgeist transport chain, not the OAuth login target.
@@ -122,8 +131,6 @@ def saas_source_name(target: ResolvedServerTarget) -> str:
     old presence-first check mislabeled as ``SPEC_KITTY_SAAS_URL`` provenance.
     ``override_mode`` names the actual decision, so it cannot drift from it.
     """
-    if target.override_mode is OverrideMode.PACKAGED_DEFAULT:
-        return "the packaged default"
     if target.override_mode is OverrideMode.PROCESS_OVERRIDE:
         # str(): SAAS_URL_ENV_VAR resolves as Any under mypy's
         # follow_imports=skip for specify_cli.* — the runtime value is a str.
@@ -134,10 +141,9 @@ def saas_source_name(target: ResolvedServerTarget) -> str:
 def format_saas_provenance(target: ResolvedServerTarget) -> str:
     """Return the dim provenance suffix shown next to the ``SaaS:`` line.
 
-    Keyed off ``override_mode``; see :func:`saas_source_name` for why (#4053).
+    Keyed off ``override_mode``; see :func:`saas_source_name` for why (#4053,
+    and FR-011 for why there are now only two rungs to key off of).
     """
-    if target.override_mode is OverrideMode.PACKAGED_DEFAULT:
-        return "(packaged default)"
     if target.override_mode is OverrideMode.PROCESS_OVERRIDE:
         return f"(from {SAAS_URL_ENV_VAR})"
     return "(from config.toml [sync].server_url)"

@@ -34,7 +34,7 @@ import httpx
 from kernel.clock import now_utc, timedelta
 
 from specify_cli.auth import get_token_manager
-from specify_cli.auth.config import get_saas_base_url
+from specify_cli.auth.server_target import resolve_server_target_or_none
 from specify_cli.auth.errors import (
     NetworkError,
     NotAuthenticatedError,
@@ -299,17 +299,26 @@ class OAuthHttpClient(_BaseHttpClient):
 
 
 def _targets_configured_saas(url: str) -> bool:
+    """True when ``url`` matches the resolved hosted target.
+
+    T028 item 13 (D4): resolved through
+    :func:`~specify_cli.auth.server_target.resolve_server_target_or_none`
+    rather than the env-only ``get_saas_base_url()`` — with
+    ``get_saas_base_url()`` now env-only-and-raising (endpoint opt-in,
+    FR-011), the old call here would have silently disabled the stdlib
+    fallback for every ``config.toml``-only-configured user. ``None`` (no
+    endpoint configured, or an ambiguous split-brain) means the stdlib
+    fallback is not applicable.
+    """
     target = urlsplit(url)
     try:
-        saas = urlsplit(get_saas_base_url())
-    except Exception:  # noqa: BLE001 - SaaS URL config failures mean stdlib fallback is not applicable
+        resolved = resolve_server_target_or_none()
+    except Exception:  # noqa: BLE001 - split-brain/other faults mean stdlib fallback is not applicable
         return False
-    return (
-        bool(target.hostname)
-        and target.scheme == saas.scheme
-        and target.hostname == saas.hostname
-        and (target.port or 443) == (saas.port or 443)
-    )
+    if resolved is None:
+        return False
+    saas = urlsplit(resolved.resolved_server_url)
+    return bool(target.hostname) and target.scheme == saas.scheme and target.hostname == saas.hostname and (target.port or 443) == (saas.port or 443)
 
 
 def _request_with_stdlib(
@@ -401,9 +410,7 @@ def request_with_fallback_sync(
                 return sync_client.request(method, url, **kwargs)
         except httpx.RequestError as exc:
             last_exc = exc
-            response = request_with_stdlib_fallback_sync(
-                method, url, timeout=timeout, **kwargs
-            )
+            response = request_with_stdlib_fallback_sync(method, url, timeout=timeout, **kwargs)
             if response is not None:
                 return response
     assert last_exc is not None

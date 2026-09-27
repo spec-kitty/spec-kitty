@@ -78,6 +78,9 @@ from kernel.clock import now_utc
 from spec_kitty_events.models import normalize_event_id
 from ulid import ULID
 
+from specify_cli.core import hosted_posture
+from specify_cli.core.hosted_posture import DRAIN_GUIDANCE_LINE
+
 from .bindings import ResolvedBindings
 from .kinds import WorkEmissionKind, payload_id
 from .models import ActorBinding, Observation, Provenance, SessionBinding
@@ -348,19 +351,28 @@ def _inject_authored_attrs(args: dict[str, Any], *, message_id: str, thread: str
 def _offer_with_bounded_retry(client: ZeitgeistClient, args: dict[str, Any], message_id: str) -> tuple[SendOutcome, str | None]:
     """Offer until sent, definitively refused, or attempts exhausted.
 
-    A definitive refusal (relay 4xx/5xx, local sanitizer) never retries —
-    retrying an unauthorized audience or a revoked thread would only hammer
-    the door the relay just closed. Throttle and transport drops retry on the
-    SAME contribution id, which the relay's replay cache makes idempotent.
+    Retryable is an explicit allow-list (D3/C-005), not a deny-list: only
+    THROTTLED, DROPPED_BUDGET and DROPPED_UNREACHABLE retry (on the SAME
+    contribution id, which the relay's replay cache makes idempotent).
+    Every other outcome -- REJECTED, REFUSED_LOCAL, and any future refusal
+    such as WP02's DRAIN_DISABLED -- is definitive by construction: retrying
+    an unauthorized audience, a revoked thread, or a drain-off refusal would
+    only hammer a door that is never going to open, or sleep for no reason.
     """
     from specify_cli.zeitgeist_client.transport import OfferOutcome  # noqa: PLC0415
 
+    # A tuple, not a frozenset: `in` here only needs __eq__, and a future
+    # non-StrEnum stand-in outcome (this WP's own test fixture; a real
+    # future refusal will always be a proper OfferOutcome member) must not
+    # be required to be hashable just to be correctly classified as
+    # non-retryable.
+    retryable_outcomes = (OfferOutcome.THROTTLED, OfferOutcome.DROPPED_BUDGET, OfferOutcome.DROPPED_UNREACHABLE)
     last: OfferResult | None = None
     for attempt in range(MAX_SEND_ATTEMPTS):
         result = client.offer(_EVENT_PUBLISH_OP, args, request_id=message_id)
         if result.outcome is OfferOutcome.SENT:
             return SendOutcome.ACCEPTED, None
-        if result.outcome in (OfferOutcome.REJECTED, OfferOutcome.REFUSED_LOCAL):
+        if result.outcome not in retryable_outcomes:
             return SendOutcome.FAILED, _failure_reason(result)
         last = result
         if attempt + 1 < MAX_SEND_ATTEMPTS:
@@ -395,6 +407,10 @@ def _publish(
     here — unlike capture hooks, an authored send has a caller waiting for
     an honest answer, so "silently drop" is not an option.
     """
+    posture = hosted_posture.drain_posture()
+    if not posture.enabled:
+        raise AuthoredMessageError("drain_off", DRAIN_GUIDANCE_LINE.format(reason=posture.reason))
+
     from specify_cli.zeitgeist_client import repo_identity, resolution  # noqa: PLC0415
     from specify_cli.zeitgeist_client.transport import ClientConfig, ZeitgeistClient  # noqa: PLC0415
 

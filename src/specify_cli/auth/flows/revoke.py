@@ -8,7 +8,7 @@ from enum import StrEnum
 import httpx
 
 from ..errors import IssuerTargetMismatchError
-from ..server_target import ServerTargetSplitBrainError, resolve_token_endpoint
+from ..server_target import HostedEndpointUnconfigured, ServerTargetSplitBrainError, resolve_token_endpoint
 from ..session import StoredSession
 
 log = logging.getLogger(__name__)
@@ -47,12 +47,18 @@ class RevokeFlow:
         if not session.refresh_token:
             return RevokeOutcome.NO_REFRESH_TOKEN
 
-        # Resolved BEFORE the try/except below so a mismatch or split-brain
-        # refusal is never folded into SERVER_FAILURE by the bare
-        # `except Exception` guarding the HTTP call.
+        # Resolved BEFORE the try/except below so a mismatch, split-brain, or
+        # unconfigured-endpoint refusal is never folded into SERVER_FAILURE
+        # by the bare `except Exception` guarding the HTTP call.
+        # HostedEndpointUnconfigured (T028 item 9, endpoint opt-in FR-011/
+        # FR-012) folds into the same ISSUER_MISMATCH-shaped outcome: the
+        # caller (_auth_logout.py's _print_issuer_mismatch_warning)
+        # re-derives the specific detail via resolve_token_endpoint, so no
+        # new RevokeOutcome member is needed — revoke() keeps its "never
+        # raises" contract.
         try:
             endpoint = resolve_token_endpoint(session)
-        except (IssuerTargetMismatchError, ServerTargetSplitBrainError) as exc:
+        except (IssuerTargetMismatchError, ServerTargetSplitBrainError, HostedEndpointUnconfigured) as exc:
             log.warning("Revoke refused: %s", type(exc).__name__)
             return RevokeOutcome.ISSUER_MISMATCH
 

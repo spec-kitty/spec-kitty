@@ -141,15 +141,19 @@ class TestAuthLoginDispatch:
         if the gate were called somehow, blocking it must not block
         identity acquisition. Patches the gate to raise, then verifies
         the login impl never invokes it."""
+
         async def _noop_browser_flow(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._teamspace_mission_state_gate.enforce_teamspace_mission_state_ready",
-            side_effect=AssertionError("auth login must not invoke the TeamSpace gate"),
-        ), patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop_browser_flow),
+        with (
+            patch(
+                "specify_cli.cli.commands._teamspace_mission_state_gate.enforce_teamspace_mission_state_ready",
+                side_effect=AssertionError("auth login must not invoke the TeamSpace gate"),
+            ),
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop_browser_flow),
+            ),
         ):
             result = runner.invoke(app, ["login"])
 
@@ -159,15 +163,17 @@ class TestAuthLoginDispatch:
         async def _noop(*args, **kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser, patch(
-            "specify_cli.cli.commands._auth_login._run_device_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_device:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_device_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_device,
+        ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
@@ -179,15 +185,17 @@ class TestAuthLoginDispatch:
         async def _noop(*args, **kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser, patch(
-            "specify_cli.cli.commands._auth_login._run_device_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_device:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_device_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_device,
+        ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login", "--headless"])
 
@@ -202,13 +210,11 @@ class TestAuthLoginDispatch:
 
 
 class TestAuthLoginConfigErrors:
-
-    def test_missing_env_and_config_targets_packaged_default(self, monkeypatch, tmp_path):
-        # #3406 FR-005, retargeted by #3980 (D-5 revised): with NEITHER
-        # SPEC_KITTY_SAAS_URL nor a configured `[sync].server_url`, login no
-        # longer refuses — the packaged default `https://team.spec-kitty.ai`
-        # is the target (the #3980 acceptance criterion), and the browser flow
-        # is handed exactly that URL.
+    def test_missing_env_and_config_refuses_with_guidance(self, monkeypatch, tmp_path):
+        # Endpoint opt-in (FR-011/FR-012, reversing #3980 D-5): with NEITHER
+        # SPEC_KITTY_SAAS_URL nor a configured `[sync].server_url`, login
+        # once again refuses with setup guidance (US4 AS1) — no browser flow
+        # is ever constructed, so no HTTP call is made.
         runtime_root = tmp_path / "runtime-root"
         runtime_root.mkdir()
         monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
@@ -217,19 +223,19 @@ class TestAuthLoginConfigErrors:
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
-        assert result.exit_code == 0, result.stdout
-        assert mock_browser.called
-        # Login resolved the packaged default and handed it to the flow.
-        assert mock_browser.call_args.args[1] == "https://team.spec-kitty.ai"
+        assert result.exit_code != 0, result.stdout
+        assert "No hosted endpoint configured" in result.stdout
+        assert not mock_browser.called
 
     def test_missing_env_uses_configured_sync_server_url(self, monkeypatch, tmp_path):
         # #3406 FR-005: the actual bug. When the env var is unset but the user
@@ -241,19 +247,18 @@ class TestAuthLoginConfigErrors:
         runtime_root.mkdir(parents=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        (runtime_root / "config.toml").write_text(
-            '[sync]\nserver_url = "https://configured.example"\n', encoding="utf-8"
-        )
+        (runtime_root / "config.toml").write_text('[sync]\nserver_url = "https://configured.example"\n', encoding="utf-8")
 
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
@@ -262,43 +267,38 @@ class TestAuthLoginConfigErrors:
         # Login resolved the configured server_url and handed it to the flow.
         assert mock_browser.call_args.args[1] == "https://configured.example"
 
-    def test_blank_configured_server_url_targets_packaged_default(self, monkeypatch, tmp_path):
-        # #182 squad MAJOR, retargeted by #3980: `server_url = ""` names no
-        # endpoint — it is *no opinion* — so login targets the packaged
-        # default exactly as it does when `[sync].server_url` is absent,
-        # never treating the blank string as a configured (but empty)
-        # endpoint.
+    def test_blank_configured_server_url_refuses_with_guidance(self, monkeypatch, tmp_path):
+        # #182 squad MAJOR, retargeted by endpoint opt-in (FR-011): `server_url
+        # = ""` names no endpoint — it is *no opinion* — so with no env value
+        # either, login refuses with the same guidance it gives when
+        # `[sync].server_url` is absent entirely, never treating the blank
+        # string as a configured (but empty) endpoint.
         runtime_root = tmp_path / "runtime-root"
         runtime_root.mkdir(parents=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        (runtime_root / "config.toml").write_text(
-            '[sync]\nserver_url = ""\n', encoding="utf-8"
-        )
+        (runtime_root / "config.toml").write_text('[sync]\nserver_url = ""\n', encoding="utf-8")
 
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
-        assert result.exit_code == 0, result.stdout
-        assert mock_browser.called
-        # The blank value is no opinion: the packaged default wins, and the
-        # blank string is never handed to the flow as a configured endpoint.
-        assert mock_browser.call_args.args[1] == "https://team.spec-kitty.ai"
+        assert result.exit_code != 0, result.stdout
+        assert "No hosted endpoint configured" in result.stdout
+        assert not mock_browser.called
 
 
 class TestAuthLoginSaasLineRendering:
-    def test_saas_line_renders_server_url_containing_bracket_markup(
-        self, monkeypatch, tmp_path
-    ):
+    def test_saas_line_renders_server_url_containing_bracket_markup(self, monkeypatch, tmp_path):
         """#202: ``_run_browser_flow`` interpolated the configured
         ``server_url`` into a Rich ``[dim]`` line unescaped, so a value
         containing a closing-tag-like substring (``https://x.test[/]``) raised
@@ -309,18 +309,15 @@ class TestAuthLoginSaasLineRendering:
         runtime_root.mkdir(parents=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        (runtime_root / "config.toml").write_text(
-            f'[sync]\nserver_url = "{bracketed}"\n', encoding="utf-8"
-        )
+        (runtime_root / "config.toml").write_text(f'[sync]\nserver_url = "{bracketed}"\n', encoding="utf-8")
 
         async def _noop_login(*_args, **_kwargs):
             return _make_session()
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
-        ) as mock_flow_cls:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch("specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow") as mock_flow_cls,
+        ):
             mock_factory.return_value.is_authenticated = False
             mock_flow_cls.return_value.login = AsyncMock(side_effect=_noop_login)
             result = runner.invoke(app, ["login"])
@@ -386,13 +383,9 @@ class TestAuthLoginErrorMessageEscaping:
         async def _raise_auth_error(*_args, **_kwargs):
             raise error_type(hostile_body)
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(flow_class) as mock_flow_cls:
+        with patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory, patch(flow_class) as mock_flow_cls:
             mock_factory.return_value.is_authenticated = False
-            mock_flow_cls.return_value.login = AsyncMock(
-                side_effect=_raise_auth_error
-            )
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_raise_auth_error)
             args = ["login", "--headless"] if headless else ["login"]
             result = runner.invoke(app, args)
 
@@ -409,19 +402,19 @@ class TestAuthLoginErrorMessageEscaping:
 
 
 class TestAuthLoginAlreadyAuthenticated:
-
     def test_shows_friendly_message_when_already_logged_in(self):
         existing = _make_session()
 
         async def _noop(*args, **kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = True
             mock_tm.get_current_session.return_value = existing
@@ -436,9 +429,7 @@ class TestAuthLoginAlreadyAuthenticated:
     def test_renders_bracket_markup_in_existing_session_email(self):
         existing = _make_session(email="alice[/]@example.com")
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory:
+        with patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory:
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = True
             mock_tm.get_current_session.return_value = existing
@@ -455,11 +446,10 @@ class TestAuthLoginAlreadyAuthenticated:
         async def _login(*_args, **_kwargs):
             return session
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
-        ) as mock_flow_cls:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch("specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow") as mock_flow_cls,
+        ):
             mock_factory.return_value.is_authenticated = False
             mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
             result = runner.invoke(app, ["login"])
@@ -469,18 +459,15 @@ class TestAuthLoginAlreadyAuthenticated:
         assert "MarkupError" not in result.stdout
 
     def test_renders_bracket_markup_in_private_team_name_with_suffix(self):
-        session = _make_session(
-            team_name="A[/]C", is_private_teamspace=True
-        )
+        session = _make_session(team_name="A[/]C", is_private_teamspace=True)
 
         async def _login(*_args, **_kwargs):
             return session
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
-        ) as mock_flow_cls:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch("specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow") as mock_flow_cls,
+        ):
             mock_factory.return_value.is_authenticated = False
             mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
             result = runner.invoke(app, ["login"])
@@ -500,11 +487,10 @@ class TestAuthLoginAlreadyAuthenticated:
         async def _login(*_args, **_kwargs):
             return session
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
-        ) as mock_flow_cls:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch("specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow") as mock_flow_cls,
+        ):
             mock_factory.return_value.is_authenticated = False
             mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
             result = runner.invoke(app, ["login"])
@@ -522,12 +508,13 @@ class TestAuthLoginAlreadyAuthenticated:
         async def _noop(*args, **kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = True
             mock_tm.get_current_session.return_value = existing
@@ -542,12 +529,13 @@ class TestAuthLoginAlreadyAuthenticated:
         async def _noop(*args, **kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = False
             mock_tm.get_current_session.return_value = None
@@ -579,18 +567,15 @@ class TestAuthLoginTargetDiagnostics:
         runtime_root.mkdir(parents=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        (runtime_root / "config.toml").write_text(
-            '[sync]\nserver_url = "https://configured.example"\n', encoding="utf-8"
-        )
+        (runtime_root / "config.toml").write_text('[sync]\nserver_url = "https://configured.example"\n', encoding="utf-8")
 
         async def _noop_login(*_args, **_kwargs):
             return _make_session()
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
-        ) as mock_flow_cls:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch("specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow") as mock_flow_cls,
+        ):
             mock_factory.return_value.is_authenticated = False
             mock_flow_cls.return_value.login = AsyncMock(side_effect=_noop_login)
             result = runner.invoke(app, ["login"])
@@ -600,19 +585,18 @@ class TestAuthLoginTargetDiagnostics:
         assert "SaaS: https://configured.example" in flat
         assert "(from config.toml [sync].server_url)" in flat
         # The diagnostic precedes the flow, giving the operator time to abort.
-        assert flat.index("SaaS: https://configured.example") < flat.index(
-            "Opening browser"
-        )
+        assert flat.index("SaaS: https://configured.example") < flat.index("Opening browser")
 
     def test_prints_env_provenance_for_env_target(self):
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ),
         ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
@@ -622,9 +606,7 @@ class TestAuthLoginTargetDiagnostics:
         assert "SaaS: https://saas.test" in flat
         assert "(from SPEC_KITTY_SAAS_URL)" in flat
 
-    def test_warns_on_retired_first_party_target_without_rejecting(
-        self, monkeypatch, tmp_path
-    ):
+    def test_warns_on_retired_first_party_target_without_rejecting(self, monkeypatch, tmp_path):
         """The #4259 stale shape: a saved retired first-party target warns
         loudly (naming the canonical endpoint and the upgrade remedy) but the
         flow still proceeds against the configured target."""
@@ -632,19 +614,18 @@ class TestAuthLoginTargetDiagnostics:
         runtime_root.mkdir(parents=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        (runtime_root / "config.toml").write_text(
-            '[sync]\nserver_url = "https://app.spec-kitty.ai"\n', encoding="utf-8"
-        )
+        (runtime_root / "config.toml").write_text('[sync]\nserver_url = "https://app.spec-kitty.ai"\n', encoding="utf-8")
 
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
@@ -660,15 +641,17 @@ class TestAuthLoginTargetDiagnostics:
     def test_labels_custom_endpoint_without_warning(self):
         """A self-hosted endpoint is supported: labelled custom, never warned
         at, never rewritten (#4259 agreed scope)."""
+
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
@@ -686,11 +669,12 @@ class TestAuthLoginTargetDiagnostics:
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ),
         ):
             mock_factory.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
@@ -722,12 +706,13 @@ class TestAuthLoginIssuerBoundary:
         async def _fail(*_args, **_kwargs):
             raise AssertionError("login must not forward an old-host session to a new target")
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_fail),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_fail),
+            ) as mock_browser,
+        ):
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = True
             mock_tm.get_current_session.return_value = existing
@@ -753,12 +738,13 @@ class TestAuthLoginIssuerBoundary:
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = True
             mock_tm.get_current_session.return_value = existing
@@ -778,12 +764,13 @@ class TestAuthLoginIssuerBoundary:
         async def _noop(*_args, **_kwargs):
             return None
 
-        with patch(
-            "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.cli.commands._auth_login._run_browser_flow",
-            new=AsyncMock(side_effect=_noop),
-        ) as mock_browser:
+        with (
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as mock_factory,
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                new=AsyncMock(side_effect=_noop),
+            ) as mock_browser,
+        ):
             mock_tm = mock_factory.return_value
             mock_tm.is_authenticated = True
             mock_tm.get_current_session.return_value = existing

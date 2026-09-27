@@ -39,6 +39,17 @@ from specify_cli.auth.session import StoredSession, Team
 
 pytestmark = [pytest.mark.integration]
 
+
+@pytest.fixture(autouse=True)
+def _configured_saas_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """This suite exercises 401-retry/bearer-injection mechanics, not
+    endpoint resolution — endpoint opt-in (FR-011) means an unset
+    ``SPEC_KITTY_SAAS_URL`` now raises ``HostedEndpointUnconfigured`` instead
+    of silently resolving to a packaged default, so every test here needs an
+    explicit, configured target."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")
+
+
 def _now() -> datetime:
     return now_utc()
 

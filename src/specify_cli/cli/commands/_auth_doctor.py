@@ -446,6 +446,95 @@ def _server_issuer_mismatch_error(tm: Any, target: ResolvedServerTarget | None =
     return warning
 
 
+def _resolve_target_for_server_session(tm: Any) -> tuple[ResolvedServerTarget | None, str | None]:
+    """Resolve the server target for :func:`_check_server_session`, or a reason it cannot.
+
+    Campsite extraction (S2, WP06): pulled out of ``_check_server_session`` to
+    keep that function under the C901 complexity ceiling. Pure translation
+    from resolution/mismatch/storage-refusal outcomes to a
+    ``(target, error_message)`` pair — never raises, matches
+    ``_check_server_session``'s own never-raise contract.
+
+    Returns:
+        ``(target, None)`` on success, or ``(None, error_message)`` when the
+        target cannot be resolved, the stored session's issuer disagrees
+        with it, or local storage already refused to read the session.
+    """
+    try:
+        # Resolve once so issuer diagnostics and the bearer-token request use
+        # the same configured target (#762).
+        target = resolve_server_target(process_wide_override=False)
+    except ServerTargetSplitBrainError as exc:
+        return None, f"SaaS URL mismatch: {exc}"
+    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
+        return None, "SaaS URL not configured"
+
+    mismatch = _server_issuer_mismatch_error(tm, target)
+    if mismatch is not None:
+        return None, mismatch
+
+    # #4761: a storage refusal is not a server verdict — report the storage
+    # layer's own message instead of attempting a refresh that would fail
+    # with a NotAuthenticatedError indistinguishable from a revoked session.
+    assessment = getattr(tm, "session_assessment", None)
+    storage_refusal = getattr(assessment, "detail", None)
+    if getattr(assessment, "reason", None) == "storage_permissions_unsafe" and storage_refusal:
+        return None, storage_refusal
+
+    return target, None
+
+
+async def _acquire_access_token_for_server_session(tm: Any) -> tuple[str | None, str | None]:
+    """Acquire (refreshing if needed) the access token for the server probe.
+
+    Campsite extraction (S2, WP06): isolates the token-acquisition except
+    tuple from ``_check_server_session``. Never raises.
+
+    Returns:
+        ``(access_token, None)`` on success, or ``(None, error_message)``
+        translating the specific refresh/auth failure into doctor-facing
+        text.
+    """
+    from specify_cli.auth.errors import (  # noqa: PLC0415
+        NotAuthenticatedError,
+        RefreshTokenExpiredError,
+        SessionInvalidError,
+        TokenRefreshError,
+    )
+    from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError  # noqa: PLC0415
+
+    try:
+        return await tm.get_access_token(), None
+    except (NotAuthenticatedError, RefreshTokenExpiredError, SessionInvalidError):
+        return None, "re-authenticate"
+    except RefreshLockTimeoutError as exc:
+        return None, str(exc) or "Auth refresh is busy; retry later."
+    except TokenRefreshError:
+        return None, "Could not refresh access token; run `spec-kitty auth login` if this persists."
+    except Exception:  # noqa: BLE001 - token acquisition failures are translated to doctor status
+        return None, "Could not obtain access token."
+
+
+def _classify_session_status_response(response: Any) -> ServerSessionStatus:
+    """Translate the raw ``/api/v1/session-status`` HTTP response into a verdict.
+
+    Campsite extraction (S2, WP06): the pure response-classification step,
+    separated from the network I/O in ``_check_server_session``.
+    """
+    if response.status_code == 200:
+        try:
+            body = response.json()
+            session_id = body.get("session_id")
+            return ServerSessionStatus(active=True, session_id=session_id)
+        except ValueError:
+            return ServerSessionStatus(active=False, error="Invalid response from server")
+
+    if response.status_code == 401:
+        return ServerSessionStatus(active=False, error="re-authenticate")
+
+    return ServerSessionStatus(active=False, error=f"Server returned HTTP {response.status_code}")
+
+
 async def _check_server_session() -> ServerSessionStatus:
     """Refresh token if needed, then GET /api/v1/session-status.
 
@@ -458,51 +547,22 @@ async def _check_server_session() -> ServerSessionStatus:
     from specify_cli.auth import get_token_manager  # noqa: PLC0415 (avoid circular at module level)
     import httpx  # noqa: PLC0415
 
-    from specify_cli.auth.errors import (  # noqa: PLC0415
-        NotAuthenticatedError,
-        RefreshTokenExpiredError,
-        SessionInvalidError,
-        TokenRefreshError,
-    )
-    from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError  # noqa: PLC0415
-
     tm = get_token_manager()
 
-    try:
-        # Resolve once so issuer diagnostics and the bearer-token request use
-        # the same configured target (#762).
-        target = resolve_server_target(process_wide_override=False)
-    except ServerTargetSplitBrainError as exc:
-        return ServerSessionStatus(active=False, error=f"SaaS URL mismatch: {exc}")
-    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
-        return ServerSessionStatus(active=False, error="SaaS URL not configured")
+    target, target_error = _resolve_target_for_server_session(tm)
+    if target_error is not None:
+        return ServerSessionStatus(active=False, error=target_error)
+    if target is None:
+        # Unreachable per `_resolve_target_for_server_session`'s documented
+        # contract (`(target, None)` on success, `(None, error)` otherwise),
+        # but narrowed with an explicit raise rather than `assert` -- a
+        # production assert is stripped under `-O` and must never carry
+        # real control flow.
+        return ServerSessionStatus(active=False, error="internal error: no server target and no error reported")
 
-    mismatch = _server_issuer_mismatch_error(tm, target)
-    if mismatch is not None:
-        return ServerSessionStatus(active=False, error=mismatch)
-
-    # #4761: a storage refusal is not a server verdict — report the storage
-    # layer's own message instead of attempting a refresh that would fail
-    # with a NotAuthenticatedError indistinguishable from a revoked session.
-    assessment = getattr(tm, "session_assessment", None)
-    storage_refusal = getattr(assessment, "detail", None)
-    if getattr(assessment, "reason", None) == "storage_permissions_unsafe" and storage_refusal:
-        return ServerSessionStatus(active=False, error=storage_refusal)
-
-    try:
-        access_token = await tm.get_access_token()
-    except (NotAuthenticatedError, RefreshTokenExpiredError, SessionInvalidError):
-        return ServerSessionStatus(active=False, error="re-authenticate")
-    except RefreshLockTimeoutError as exc:
-        message = str(exc) or "Auth refresh is busy; retry later."
-        return ServerSessionStatus(active=False, error=message)
-    except TokenRefreshError:
-        return ServerSessionStatus(
-            active=False,
-            error=("Could not refresh access token; run `spec-kitty auth login` if this persists."),
-        )
-    except Exception:  # noqa: BLE001 - token acquisition failures are translated to doctor status
-        return ServerSessionStatus(active=False, error="Could not obtain access token.")
+    access_token, token_error = await _acquire_access_token_for_server_session(tm)
+    if token_error is not None:
+        return ServerSessionStatus(active=False, error=token_error)
 
     saas_url = target.resolved_server_url
 
@@ -517,18 +577,7 @@ async def _check_server_session() -> ServerSessionStatus:
     except Exception:  # noqa: BLE001 - unexpected server probe failures are translated to doctor status
         return ServerSessionStatus(active=False, error="Unexpected error during server check")
 
-    if response.status_code == 200:
-        try:
-            body = response.json()
-            session_id = body.get("session_id")
-            return ServerSessionStatus(active=True, session_id=session_id)
-        except ValueError:
-            return ServerSessionStatus(active=False, error="Invalid response from server")
-
-    if response.status_code == 401:
-        return ServerSessionStatus(active=False, error="re-authenticate")
-
-    return ServerSessionStatus(active=False, error=f"Server returned HTTP {response.status_code}")
+    return _classify_session_status_response(response)
 
 
 # ---------------------------------------------------------------------------

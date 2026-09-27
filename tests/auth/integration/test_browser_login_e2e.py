@@ -283,14 +283,14 @@ class TestBrowserLoginE2E:
         # Raw tokens must not leak.
         assert "at_preexisting" not in result.stdout
 
-    def test_login_proceeds_to_packaged_default_when_saas_url_missing(
+    def test_login_refuses_with_guidance_when_saas_url_missing(
         self,
         tmp_path: Any,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """#3980 (D-5 revised): no SaaS URL in the environment is no longer an
-        error — ``auth login`` proceeds against the packaged default target
-        (the acceptance criterion for the launch defaults flip)."""
+        """Endpoint opt-in (FR-011/FR-012, reversing #3980 D-5): no SaaS URL
+        anywhere is once again an error — ``auth login`` exits non-zero with
+        setup guidance and never starts the browser flow."""
 
         async def _fake_browser_flow(tm: Any, saas_url: str) -> None:
             recorded["saas_url"] = saas_url
@@ -305,7 +305,7 @@ class TestBrowserLoginE2E:
             patch(
                 "specify_cli.cli.commands._auth_login._run_browser_flow",
                 side_effect=_fake_browser_flow,
-            ),
+            ) as mock_browser_flow,
             patch(
                 "specify_cli.cli.commands._auth_login.get_token_manager"
             ) as tm_cls,
@@ -313,8 +313,10 @@ class TestBrowserLoginE2E:
             tm_cls.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
 
-        assert result.exit_code == 0, result.stdout
-        assert recorded["saas_url"] == "https://team.spec-kitty.ai"
+        assert result.exit_code != 0, result.stdout
+        assert "No hosted endpoint configured" in result.stdout
+        mock_browser_flow.assert_not_called()
+        assert recorded == {}
 
     def test_login_force_resets_session(
         self,
