@@ -27,6 +27,7 @@
   "purpose_context": "The word 'merge' currently carries three distinct meanings in Spec Kitty (fold the lanes, git-integrate two refs, publish to trunk), and that overload has already produced false review verdicts. This mission promotes 'consolidate'/'consolidation' to the single canonical term for the lane-consolidation sense across the command, code identifiers, docs, prompt templates, the mission gate-step name, and a drift guard, while keeping 'spec-kitty merge' working as a deprecated alias so no user is hard-broken.",
   "purpose_tldr": "Give the lane-consolidation operation one canonical word — consolidate — so operators, agents, and reviewers never confuse it with git-merge or publish.",
   "slug": "consolidate-canonical-terminology-01M3GSSV",
+  "status_phase": "1",
   "target_branch": "feat/consolidate-canonical-terminology",
   "topology": "coord",
   "vcs": "git",
