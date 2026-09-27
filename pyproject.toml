@@ -558,7 +558,6 @@ exclude = [
     "src/specify_cli/cli/commands/regen.py",
     "src/specify_cli/cli/commands/retrospect.py",
     "src/specify_cli/cli/commands/review/_ble001_audit.py",
-    "src/specify_cli/cli/commands/review/_issue_matrix.py",
     "src/specify_cli/cli/commands/review/_lane_gate.py",
     "src/specify_cli/cli/commands/safe_commit_cmd.py",
     "src/specify_cli/cli/commands/spec_commit_cmd.py",
@@ -2740,6 +2739,19 @@ follow_imports = "normal"
 # core.errors entries above (issue #3719) — must stay after the
 # ``specify_cli.*`` skip.
 module = ["specify_cli.asset_preservation.backup"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+# tasks.issue_matrix_migration hosts load_issue_matrix, whose concrete
+# ``-> list[IssueMatrixRow]`` return type is consumed by merge_gates._load_issue_matrix_rows
+# (issue-matrix-partition-integrity-01M3H10A WP04). Under the specify_cli.* skip
+# above it resolves as Any, so a narrow-file check on merge_gates.py reports
+# "Returning Any from function declared to return ...". It imports typer +
+# specify_cli.cli.console/core.constants/tasks.issue_matrix at module scope
+# (no CLI bootstrap chain), so following it does not drag in unrelated errors --
+# same shape/precedent as the protection_policy/core.errors entries above; must
+# stay after the specify_cli.* skip.
+module = ["specify_cli.tasks.issue_matrix_migration"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]

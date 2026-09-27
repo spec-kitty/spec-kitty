@@ -15,18 +15,27 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kernel.clock import now_utc_iso
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.policy.config import MergeGateConfig
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 
+if TYPE_CHECKING:
+    from specify_cli.cli.commands.review._issue_matrix import IssueMatrixRow
+
 
 class GateVerdict(StrEnum):
     PASS = "pass"
     FAIL = "fail"
     SKIP = "skip"
+
+
+# S1192: gate-name literals recur across the evaluator, the caller wiring,
+# and tests -- hoisted so a third/fourth spelling cannot drift.
+_GATE_NAME_ISSUE_MATRIX_COMPLETENESS = "issue_matrix_completeness"
+_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY = "issue_matrix_verdict_terminality"
 
 
 @dataclass(frozen=True)
@@ -138,7 +147,10 @@ def evaluate_merge_gates(
         )
 
     evaluation.gates.append(
-        _evaluate_issue_matrix_completeness_gate(feature_dir, is_blocking)
+        _evaluate_issue_matrix_completeness_gate(repo_root, mission_slug, is_blocking)
+    )
+    evaluation.gates.append(
+        _evaluate_issue_matrix_verdict_terminality_gate(repo_root, mission_slug, is_blocking)
     )
 
     return evaluation
@@ -357,8 +369,27 @@ def _evaluate_dependency_gate(
         )
 
 
+def _load_issue_matrix_rows(coord_matrix_source: Path | str) -> list[IssueMatrixRow]:
+    """Load issue-matrix rows from a WP02 ``(primary, coord)`` split result.
+
+    ``coord_matrix_source`` is either a materialized directory (dir-based
+    fast path) or post-consolidation ref content (``str``) — see
+    :func:`~mission_runtime.issue_matrix_partition.resolve_issue_matrix_partition`.
+    Dispatches on ``isinstance(..., str)`` exactly as that helper's docstring
+    prescribes, rather than re-deriving the split.
+    """
+    from specify_cli.tasks.issue_matrix_migration import load_issue_matrix
+
+    if isinstance(coord_matrix_source, str):
+        # ``feature_dir`` is unused on the content-source arm -- the reader
+        # ignores it entirely once ``content`` is supplied (never construct
+        # a Path from the content string itself).
+        return load_issue_matrix(Path("."), content=coord_matrix_source)
+    return load_issue_matrix(coord_matrix_source)
+
+
 def _evaluate_issue_matrix_completeness_gate(
-    feature_dir: Path, is_blocking: bool,
+    repo_root: Path, mission_slug: str, is_blocking: bool,
 ) -> GateResult:
     """Check that every GATING discovered issue reference has an issue-matrix row.
 
@@ -374,6 +405,22 @@ def _evaluate_issue_matrix_completeness_gate(
     :func:`~specify_cli.tasks.issue_matrix_migration.load_issue_matrix` for
     "what the matrix says".
 
+    #4943 leg 1 / FR-003/FR-004 (issue-matrix-partition-integrity-01M3H10A
+    WP04, IC-03): this gate used to read BOTH the gating references AND the
+    matrix off ONE caller-supplied ``feature_dir`` — on a coord-topology
+    mission the merge flow hands in the coord husk (status-only, no
+    ``spec.md``), so discovery silently found nothing and reported "nothing
+    to enforce" (a false PASS). Mirroring the risk/dependency gates
+    (#3439), this gate now takes ``repo_root``/``mission_slug`` and routes
+    the ``(primary_discovery_dir, coord_matrix_source)`` split through the
+    ONE shared seam helper
+    (:func:`~mission_runtime.issue_matrix_partition.resolve_issue_matrix_partition`,
+    WP02/IC-shared): reference discovery ALWAYS reads the PRIMARY partition;
+    matrix content is read from COORD (a materialized dir, or — post-
+    consolidation — the retained coordination branch ref). A coord-less
+    topology resolves both to the same primary dir (byte-for-byte parity
+    with the pre-fix behaviour on flat missions).
+
     Fail-closed only when GATING references exist (move-task-approval-
     ergonomics-01M302R0 WP03, #3469): a reference the WP01 classifier calls
     ``context_only``/``pr_or_commit_ref`` never requires a row, so zero
@@ -386,27 +433,34 @@ def _evaluate_issue_matrix_completeness_gate(
     this gate does not define a second one — it consumes the same classifier
     predicate every other enforcement site does. This gate checks row PRESENCE
     only; verdict validity is enforced at the ``approved`` transition, so by
-    merge time every row carries a valid verdict.
+    merge time every row carries a valid verdict (the terminal-VALUE rule —
+    ``in-mission``/``unknown`` must not survive to ``done`` — is enforced by
+    the sibling gate, :func:`_evaluate_issue_matrix_verdict_terminality_gate`).
     """
     try:
-        from specify_cli.tasks.issue_matrix_migration import load_issue_matrix
+        from mission_runtime import resolve_issue_matrix_partition
+
         from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
 
-        referenced_issues = gating_issue_numbers(feature_dir)
+        primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
+            repo_root, mission_slug
+        )
+
+        referenced_issues = gating_issue_numbers(primary_discovery_dir)
         if not referenced_issues:
             return GateResult(
-                gate_name="issue_matrix_completeness",
+                gate_name=_GATE_NAME_ISSUE_MATRIX_COMPLETENESS,
                 verdict=GateVerdict.PASS,
                 details="No gating issue references discovered — nothing to enforce",
                 blocking=False,
             )
 
-        matrix_issues = {row.issue for row in load_issue_matrix(feature_dir)}
+        matrix_issues = {row.issue for row in _load_issue_matrix_rows(coord_matrix_source)}
         missing_issues = sorted(referenced_issues - matrix_issues)
 
         if missing_issues:
             return GateResult(
-                gate_name="issue_matrix_completeness",
+                gate_name=_GATE_NAME_ISSUE_MATRIX_COMPLETENESS,
                 verdict=GateVerdict.FAIL,
                 details=(
                     "Issue-matrix is missing rows for referenced issue(s): "
@@ -415,15 +469,106 @@ def _evaluate_issue_matrix_completeness_gate(
                 blocking=is_blocking,
             )
         return GateResult(
-            gate_name="issue_matrix_completeness",
+            gate_name=_GATE_NAME_ISSUE_MATRIX_COMPLETENESS,
             verdict=GateVerdict.PASS,
             details=f"All {len(referenced_issues)} referenced issue(s) have matrix rows",
             blocking=False,
         )
     except Exception as exc:
         return GateResult(
-            gate_name="issue_matrix_completeness",
+            gate_name=_GATE_NAME_ISSUE_MATRIX_COMPLETENESS,
             verdict=GateVerdict.FAIL,
             details=f"Could not evaluate issue-matrix completeness: {exc}",
+            blocking=is_blocking,
+        )
+
+
+def _evaluate_issue_matrix_verdict_terminality_gate(
+    repo_root: Path, mission_slug: str, is_blocking: bool,
+) -> GateResult:
+    """Enforce the ``in-mission``/``unknown`` -> ``done`` terminal-verdict rule.
+
+    #4943 leg 2 / FR-006 (WP04, IC-04): the ``in-mission`` verdict is
+    documented as non-terminal — it must not survive to mission ``done`` —
+    but that rule was previously enforced ONLY by
+    ``move-task --to done``, which merge bypassed entirely. A mission whose
+    matrix still said ``in-mission`` could merge with exit 0.
+
+    REUSE, not re-implementation (MINOR-4): this gate is a thin sibling that
+    calls the existing rule,
+    :func:`~specify_cli.cli.commands.agent.tasks_parsing_validation._issue_matrix_approval_blocker`,
+    with ``target_lane=Lane.DONE`` — the SAME lever the interactive ``done``
+    transition uses. That function's ``result.passed`` check (schema
+    validity) additionally catches a row whose verdict string does not
+    parse to a valid :class:`IssueMatrixVerdict` member (e.g. a
+    freshly-scaffolded ``unknown`` placeholder) REGARDLESS of the
+    ``in-mission`` lever, so both non-terminal legs are covered by one call —
+    a hand-rolled "reject the in-mission set" mirror would miss the
+    ``unknown``/schema-validity leg. Imported function-locally (as this
+    module already does for its seam calls) to avoid an import cycle
+    (MINOR-3): ``tasks_parsing_validation`` sits in the CLI ``agent`` command
+    tree, which this policy module must not import at module scope.
+
+    Verdict content is read from the SAME COORD/ref partition the
+    completeness gate uses (:func:`~mission_runtime.issue_matrix_partition.
+    resolve_issue_matrix_partition`, WP02/IC-shared) — it never reads the
+    stale PRIMARY residue, which would re-introduce the exact bug this gate
+    exists to close (FR-004/FR-005).
+
+    The existing gate mechanism already delivers block-before-advance and
+    warn-prints-list semantics (``merge/executor.py``: block aborts via
+    ``MergeGateEvaluation.overall_pass`` before any mutating phase; warn
+    surfaces this gate's message via ``MergeGateEvaluation.warnings``), so
+    ``done_bookkeeping.py`` needs no change (de-scoped, MINOR-5) — this gate
+    only needs to report the correct verdict/blocking.
+    """
+    try:
+        from mission_runtime import resolve_issue_matrix_partition
+
+        from specify_cli.cli.commands.agent.tasks_parsing_validation import (
+            _issue_matrix_approval_blocker,
+        )
+        from specify_cli.status import Lane
+
+        primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
+            repo_root, mission_slug
+        )
+
+        if isinstance(coord_matrix_source, str):
+            # Post-consolidation: no on-disk coord dir. ``feature_dir`` is
+            # decorative in this arm (used only for cosmetic error-prefix
+            # naming inside the blocker) — ``matrix_content`` is what
+            # actually drives evaluation.
+            feature_dir_for_blocker = primary_discovery_dir
+            matrix_content = coord_matrix_source
+        else:
+            feature_dir_for_blocker = coord_matrix_source
+            matrix_content = None
+
+        blocker_message = _issue_matrix_approval_blocker(
+            feature_dir_for_blocker,
+            target_lane=Lane.DONE,
+            primary_feature_dir=primary_discovery_dir,
+            matrix_content=matrix_content,
+        )
+
+        if blocker_message is not None:
+            return GateResult(
+                gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
+                verdict=GateVerdict.FAIL,
+                details=blocker_message,
+                blocking=is_blocking,
+            )
+        return GateResult(
+            gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
+            verdict=GateVerdict.PASS,
+            details="No unresolved (in-mission/unknown) issue-matrix rows",
+            blocking=False,
+        )
+    except Exception as exc:
+        return GateResult(
+            gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
+            verdict=GateVerdict.FAIL,
+            details=f"Could not evaluate issue-matrix verdict terminality: {exc}",
             blocking=is_blocking,
         )
