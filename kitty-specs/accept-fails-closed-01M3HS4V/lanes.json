@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "mission_slug": "accept-fails-closed-01M3HS4V",
+  "mission_id": "01M3HS4VAB5BY4AZFG32FNZ93V",
+  "mission_branch": "kitty/mission-accept-fails-closed-01M3HS4V",
+  "target_branch": "claude/project-thread-zj01ct",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/matrix.py",
+        "src/specify_cli/cli/commands/agent/acceptance_verdict.py",
+        "tests/specify_cli/acceptance/test_acceptance_verdict_command.py",
+        "tests/specify_cli/acceptance/test_matrix_write_seam.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/acceptance/gates_core.py",
+        "src/specify_cli/cli/commands/accept.py",
+        "tests/specify_cli/acceptance/test_issue_4974_accept_concurrent_verdict.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/orchestrator-api.md",
+        "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "tests/agent/test_orchestrator_commands_integration.py",
+        "tests/orchestrator_api/test_issue_4934_accept_mission_readiness.py",
+        "tests/specify_cli/orchestrator_api/test_contract_version.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_acceptance_matrix_write_seam.py",
+        "tests/specify_cli/cli/commands/test_issue_4891_accept_missing_lanes.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-27T16:03:29.185816+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f429969c232a0376459dbe3a0c52dabd5c0f999d"
+}

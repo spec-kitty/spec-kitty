@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#4089": {
+      "evidence_ref": "out of scope per spec C-005; stays open under sub-epic #5227",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4162": {
+      "evidence_ref": "out of scope per spec C-005; stays open under sub-epic #5227",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4232": {
+      "evidence_ref": "out of scope per spec C-005; stays open under sub-epic #5227",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4858": {
+      "evidence_ref": "closed precedent (acceptance_verdict lock), cited for context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4887": {
+      "evidence_ref": "acceptance/matrix.py locked_reread_splice_and_write is the single locked RMW seam; tests/specify_cli/acceptance/test_matrix_write_seam.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4891": {
+      "evidence_ref": "gates_core.py:174 require_lanes_json; CHANGELOG.md:66; issue closed 2026-09-27",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP04"
+    },
+    "#4934": {
+      "evidence_ref": "accept_mission refuses MISSION_NOT_READY on not-ok summary; tests/orchestrator_api/test_issue_4934_accept_mission_readiness.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#4974": {
+      "evidence_ref": "gates_core splices owned rows via the seam and judges the fresh matrix; _stamp_acceptance_record guard; tests/specify_cli/acceptance/test_issue_4974_accept_concurrent_verdict.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5025": {
+      "evidence_ref": "out of scope per spec C-005; stays open under sub-epic #5227",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5227": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
