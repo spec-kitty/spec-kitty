@@ -214,7 +214,19 @@ class AgentProfileSchema(BaseModel):
     # ``preferred_model``/``effort`` in profile.py. Use an explicit alias (not a
     # bare ``model`` field, which fails to register on this model) so the
     # generated JSON schema exposes ``model``/``effort`` properties.
-    preferred_model: str | None = Field(default=None, alias="model")
+    # #5117 KEEP verdict: consumer-authored, wired end-to-end to the dispatch
+    # routing advisory — not an inert slot despite the detector's local-variable
+    # name collision at drg/project_scan.py:207.
+    preferred_model: str | None = Field(
+        default=None,
+        alias="model",
+        description=(
+            "Consumer-authored preferred model id for this profile's routing "
+            "preference. Built-in profiles deliberately leave it unset; the "
+            "dispatch routing advisory surfaces it as the profile-preference "
+            "candidate."
+        ),
+    )
     effort: str | None = Field(default=None, alias="effort")
 
     # Specialization
