@@ -43,6 +43,9 @@ from .reducer import (
     review_result_from_state,
     wp_snapshot_state,
 )
+from .rematerialize import (
+    reconcile_status_snapshot,
+)
 from .store import (
     is_non_lane_event,
     is_retrospective_lifecycle_event,
@@ -561,6 +564,7 @@ __all__ = [
     "is_terminal",
     "materialize",
     "materialize_to_json",
+    "reconcile_status_snapshot",
     "ensure_runtime_moment_producer",
     "fire_lifecycle_saas_fanout",
     "fire_resolved_binding_fanout",
