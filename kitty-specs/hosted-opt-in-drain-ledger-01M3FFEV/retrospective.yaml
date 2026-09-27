@@ -1,0 +1,360 @@
+schema_version: 1
+mission_id: 01M3FFEVWV4BX10QS238E0D28K
+mission_slug: hosted-opt-in-drain-ledger-01M3FFEV
+mission_number: 205
+friendly_name: Opt-in hosted drain and ledger flags
+mission_type: software-dev
+target_branch: claude/spec-kitty-mission-impl-8u6zmc
+created_at: '2026-09-27T04:55:39.959775+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-27T04:55:39.959775+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-025
+  category: doc
+  summary: analysis-report.md records 6 finding(s)
+  evidence_refs:
+  - e-038
+  details: The analysis-report.md artifact for this mission records 6 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-017
+  category: implementation
+  summary: WP01 needed 2 implementation cycles
+  evidence_refs:
+  - e-030
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-018
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-031
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-019
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-032
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-020
+  category: implementation
+  summary: WP04 needed 2 implementation cycles
+  evidence_refs:
+  - e-033
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-021
+  category: implementation
+  summary: WP05 needed 2 implementation cycles
+  evidence_refs:
+  - e-034
+  details: WP WP05 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-022
+  category: implementation
+  summary: WP06 needed 2 implementation cycles
+  evidence_refs:
+  - e-035
+  details: WP WP06 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-023
+  category: implementation
+  summary: WP07 needed 2 implementation cycles
+  evidence_refs:
+  - e-036
+  details: WP WP07 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-024
+  category: implementation
+  summary: WP08 needed 2 implementation cycles
+  evidence_refs:
+  - e-037
+  details: WP WP08 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-009
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-011
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-012
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-025
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-013
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-026
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-014
+  category: process
+  summary: WP06 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-027
+  details: WP WP06 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-015
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-028
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-016
+  category: process
+  summary: WP08 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-029
+  details: WP WP08 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP01 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP02 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP03 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-017
+  details: WP WP04 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-018
+  details: WP WP05 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-019
+  details: WP WP06 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-007
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-020
+  details: WP WP07 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-008
+  category: review_loop
+  summary: WP08 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-021
+  details: WP WP08 was sent back from review/approval to an earlier lane 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks/WP01-posture-core.md
+- id: e-006
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks/WP02-relay-edges.md
+- id: e-007
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks/WP03-capability-fanout.md
+- id: e-008
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks/WP04-drain-gate-and-matrix.md
+- id: e-009
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks/WP05-ledger-projection.md
+- id: e-010
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks/WP06-endpoint-opt-in.md
+- id: e-011
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks/WP07-migration-and-repins.md
+- id: e-012
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/tasks/WP08-operator-surface-docs-adr.md
+- id: e-013
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3FYVJE0X8GC3BZC7ZGCW7S1
+- id: e-015
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3G6EPTSKBTRBAD12J2ZPACM
+- id: e-016
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3G71MKN38CN1WNAD0FHEAN3
+- id: e-017
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3GHGA6VQB9AVRSE6T923K46
+- id: e-018
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3G6MRZ2GZ0VXR6VHBBNJ4BC
+- id: e-019
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3FTHNDCY8B317YXEXEZ0AXV
+- id: e-020
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3G26PA2VMS55J9WSHVX7QSK
+- id: e-021
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3GE53WJ81THA95RKCZ0YDVD
+- id: e-022
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3FYVJE0X8GC3BZC7ZGCW7S1
+- id: e-023
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3G6EPTSKBTRBAD12J2ZPACM
+- id: e-024
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3G71MKN38CN1WNAD0FHEAN3
+- id: e-025
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3GHGA6VQB9AVRSE6T923K46
+- id: e-026
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3G6MRZ2GZ0VXR6VHBBNJ4BC
+- id: e-027
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3FTHNDCY8B317YXEXEZ0AXV
+- id: e-028
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3G26PA2VMS55J9WSHVX7QSK
+- id: e-029
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: 01M3GE53WJ81THA95RKCZ0YDVD
+- id: e-030
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: implementation_cycles
+- id: e-031
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: implementation_cycles
+- id: e-032
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: implementation_cycles
+- id: e-033
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: implementation_cycles
+- id: e-034
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: implementation_cycles
+- id: e-035
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: implementation_cycles
+- id: e-036
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: implementation_cycles
+- id: e-037
+  kind: event_range
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/status.events.jsonl
+  range: implementation_cycles
+- id: e-038
+  kind: file
+  path: kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

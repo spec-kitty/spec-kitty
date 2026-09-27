@@ -1,0 +1,159 @@
+{
+  "mission_slug": "hosted-opt-in-drain-ledger-01M3FFEV",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_hosted_posture.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:49:40.028160+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_hosted_posture.py (personal [hosted] drain in runtime-root config.toml; R-1 no env enable) \u2014 lane-h",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:48:30.446986+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_hosted_posture.py truth table + tests/integration/test_hosted_posture_matrix.py (both scopes required) \u2014 lane-d",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:48:35.161615+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/zeitgeist_client/test_drain_relay_edges.py, test_drain_capability.py, tests/status/test_drain_fanout.py, tests/specify_cli/live_work/test_drain_live_work.py, tests/specify_cli/widen/, tests/architectural/test_hosted_drain_gate.py, tests/integration/test_hosted_posture_matrix.py (0 egress drain-off)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:48:40.229985+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_zeitgeist_drain_guidance.py, tests/zeitgeist_client/test_mcp_stdio_drain.py, test_drain_relay_edges.py (stream/history/watch refuse pre-credential)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:48:44.838945+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_hosted_posture_matrix.py (full lane walk exits 0, lane ledger identical) + zeitgeist guidance exit codes",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:48:49.950839+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_moments_drain.py (moments drain on|off|status, --repo, --json, provenance) \u2014 25 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:48:54.558356+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/core/test_hosted_posture.py ledger_posture default True/non-bool/parse-error",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:48:59.153772+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_execution_projection.py (write-free refresh, repo-root derived dir, git-op guard, coord post-commit) + matrix ledger cells",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:49:03.539662+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_ledger_floor.py (AST alias-aware, self-mutation) + matrix NFR-004 byte identity across 4 cells flat+coord",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:49:08.681318+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/auth/test_endpoint_opt_in.py (no packaged fallback; env/config/saas-auth.json explicit sources)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:49:13.385250+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_auth_endpoint_unconfigured.py + tests/auth/test_endpoint_opt_in.py caller census (guidance, no traceback; automatic paths silent)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:49:17.895735+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/migrations/test_retired_hosted_target.py (retired target deleted + guidance) + test_hosted_endpoint_session_backfill.py (D-6/FR-016)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:49:22.113156+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md (WP08, reviewed cycle 2: records D-1..D-6, R-1..R-4, #3980 D-5 reversal, C-005)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:49:26.895530+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/api/configuration.md, docs/api/environment-variables.md, docs/context/team-kitty.md, CHANGELOG \u2014 WP08 cycle-2 docs-fidelity review; check_docs_freshness --ci exit 0; docs_index --strict drift=False",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-27T04:49:31.261851+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
