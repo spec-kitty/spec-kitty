@@ -2961,19 +2961,6 @@ class _WpBoardAction:
 _WP_BOARD_DECLINE = _WpBoardAction(board_step=None, action=None, wp_id=None, workspace_path=None, blocked_reason=None)
 
 
-def _coord_unmaterialized_recovery(mission_slug: str) -> str:
-    """CT-4's runnable recovery command for the coord-read fail-closed floor
-    (CT-5) — materializing the coordination worktree, never flattening it.
-
-    #5113 / FR-014: names the real materializing fixer with the caller's own
-    ``mission_slug`` in scope (never a ``<mission>`` placeholder). The former
-    constant named `spec-kitty doctor workspaces --fix`, which only removes
-    husks and cannot CREATE a worktree (#2240) — replaced with the truthful
-    ``doctor coordination --fix`` command, which does.
-    """
-    return f"spec-kitty doctor coordination --mission {mission_slug} --fix"
-
-
 def _inspect_board_recovery_command(mission_slug: str) -> str:
     """CT-4's runnable recovery command for the generic 'inspect the board'
     blocked arms (``no_actionable_wp`` / ``review_in_progress`` / a
@@ -3082,9 +3069,13 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path) -> _WpBoardA
         # #5113 / FR-014: the branch is present, only the worktree is not yet
         # materialized — the truthful recovery is to materialize it, never to
         # flatten (that arm is `CoordinationBranchDeleted`, handled below).
+        # Surface the exception's OWN next_step (the single remedy authority,
+        # surface_resolver._compose_next_step) rather than re-composing the
+        # materialize command here — matching the sibling arm below, so the
+        # `doctor coordination --fix` string has exactly one composer.
         return _wp_blocked_action(
             None,
-            f"Coordination surface for mission {mission_slug!r} is not readable ({exc}). Materialize it: `{_coord_unmaterialized_recovery(mission_slug)}`.",
+            f"Coordination surface for mission {mission_slug!r} is not readable ({exc}). {exc.next_step}",
         )
     except CoordinationBranchDeleted as exc:
         # The declared coordination branch itself is gone (never created or
