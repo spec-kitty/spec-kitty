@@ -596,7 +596,6 @@ exclude = [
     "src/specify_cli/core/secret_redaction.py",
     "src/specify_cli/core/stale_detection.py",
     "src/specify_cli/core/subtask_rows.py",
-    "src/specify_cli/core/utils.py",
     "src/specify_cli/core/vcs/detection.py",
     "src/specify_cli/core/wps_manifest.py",
     "src/specify_cli/dashboard/diagnostics.py",
