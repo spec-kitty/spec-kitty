@@ -159,7 +159,7 @@ directive-references:
       must be filed as a gap, not committed as a workaround; do not bypass a canonical
       prompt/skill/CLI surface on an unverified size assumption — measure or attempt to
       load it first, and if it is genuinely oversized, file an upstream gap rather than
-      improvising a substitute (Rule 3's missing-command pattern)
+      improvising a substitute (mirrors Rule 3's missing-command remedy)
   - code: "045"
     name: PRs-Only and Read-Intent Before High-Risk Operations
     rationale: Never push directly to origin/main or run `gh pr merge` without explicit operator instruction; read mission context before any high-risk git operation (merge, rebase, deletion, force)

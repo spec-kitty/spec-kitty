@@ -125,8 +125,8 @@ directive-references:
       parity fixes to non-canonical surfaces are architectural violations that must be
       consolidated; do not bypass a canonical prompt/skill/CLI surface on an unverified
       size assumption — measure or attempt to load it first, and if it is genuinely
-      oversized, file an upstream gap rather than improvising a substitute (Rule 3's
-      missing-command pattern)
+      oversized, file an upstream gap rather than improvising a substitute (mirrors Rule 3's
+      missing-command remedy)
   - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-

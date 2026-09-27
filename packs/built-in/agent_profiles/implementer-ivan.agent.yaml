@@ -120,7 +120,7 @@ directive-references:
       do not bypass a canonical prompt/skill/CLI surface on an unverified size
       assumption — measure or attempt to load it first, and if it is genuinely
       oversized, file an upstream gap rather than improvising a substitute
-      (Rule 3's missing-command pattern)
+      (mirrors Rule 3's missing-command remedy)
   - code: "045"
     name: PRs-Only and Read-Intent Before High-Risk Operations
     rationale: All changes to origin/main go through pull requests; every high-risk git operation (merge, rebase, deletion) requires reading the mission spec before execution; never push directly without explicit operator instruction

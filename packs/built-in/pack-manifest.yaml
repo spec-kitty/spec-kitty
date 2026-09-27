@@ -5,7 +5,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/analyst-annie.agent.yaml
   provenance_path:
-- content_hash: f96f440c49c313861a97d49826e47f442107d9720b37a8f9d3026f4b85b4413a
+- content_hash: b7b1ce2a3c8ce665e2a18ceba4987d696c177256ed0f69786764ed2b1ebcd07e
   id: architect-alphonso
   kind: agent_profile
   path: agent_profiles/architect-alphonso.agent.yaml
@@ -35,7 +35,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/diagram-daisy.agent.yaml
   provenance_path:
-- content_hash: 87aa05754f4aae7badf82cae9ae9f26530be71c7863e1ed15343681736aa3494
+- content_hash: 6c1779acaa8c11438846a30f347bb636dae1a4521bf1297b038e3349ad3f54d9
   id: doctrine-daphne
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
@@ -60,7 +60,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/human-in-charge.agent.yaml
   provenance_path:
-- content_hash: 244fa0b9be957202b1b41b8d3b4b84f9f9c4d7614894f2f2c92f3a1e71af1687
+- content_hash: 594a504aa0fb2c708d2aff7365d5458110800f2439e850d824b95a1fd5dc6a75
   id: implementer-ivan
   kind: agent_profile
   path: agent_profiles/implementer-ivan.agent.yaml
@@ -95,7 +95,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/planner-priti.agent.yaml
   provenance_path:
-- content_hash: 8127b8a3a954122a3fc8945f95e8fdfdd0bfaa43757dd70fa84273bade27444f
+- content_hash: be446235b46f934a8a68071a91d1d1e047aa7d6d6d32231a550e33dcc79b9b96
   id: python-pedro
   kind: agent_profile
   path: agent_profiles/python-pedro.agent.yaml
@@ -1385,7 +1385,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: a0fe7947ea5c580fa3e611b156de6d1a0aaf2ad638b1ba687883c15837c22742
+manifest_hash: 51f7443323fcd98dccd7ca4878f28f60812de84d63b97c665fa41dfd26575a0a
 schema_version: '1'
 source_type: built-in
 source_url:

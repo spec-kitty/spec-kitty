@@ -352,5 +352,5 @@ directive-references:
     never be used as copy sources for new artifact authoring; do not bypass a
     canonical prompt/skill/CLI surface on an unverified size assumption —
     measure or attempt to load it first, and if it is genuinely oversized,
-    file an upstream gap rather than improvising a substitute (Rule 3's
-    missing-command pattern)
+    file an upstream gap rather than improvising a substitute (mirrors Rule 3's
+    missing-command remedy)
