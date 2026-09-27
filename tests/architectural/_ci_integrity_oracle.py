@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "HEAVY_BATTERY_GATE",
+    "HEAVY_BATTERY_NON_SRC_GROUPS",
     "MUST_RUN_ALWAYS_ON_GATES",
     "RUNTIME_EVIDENCE_BOUNDARY",
     "MustRunGateUnwiredError",
@@ -82,8 +83,16 @@ MUST_RUN_ALWAYS_ON_GATES = frozenset(
 )
 
 #: The heavy architectural battery gate: code-scoped, gated over exactly the
-#: src-backed routing groups (contract router-two-authority §"Derived").
+#: src-backed routing groups (contract router-two-authority §"Derived") plus
+#: :data:`HEAVY_BATTERY_NON_SRC_GROUPS`.
 HEAVY_BATTERY_GATE = "architectural-heavy"
+
+#: Non-src routing groups the heavy battery ALSO gates on (spec-kitty#5168):
+#: ``architectural`` -- tests/architectural has no module row, so the battery is
+#: its only per-PR home. (``ci`` deliberately gates no router job, #4386.)
+#: Enumerated here so the wiring stays an exact-equality assertion rather than a
+#: ``>=`` that would let a group drift in.
+HEAVY_BATTERY_NON_SRC_GROUPS: frozenset[str] = frozenset({"architectural"})
 
 
 class OracleVacuousError(AssertionError):
@@ -201,12 +210,14 @@ def assert_must_run_gates_wired(router: Router) -> None:
         raise MustRunGateUnwiredError(msg)
 
     heavy_groups = router.job_gates.get(HEAVY_BATTERY_GATE, frozenset())
-    if heavy_groups != router.src_backed_groups:
+    expected = router.src_backed_groups | HEAVY_BATTERY_NON_SRC_GROUPS
+    if heavy_groups != expected:
         msg = (
             "the heavy architectural battery must be gated over EXACTLY the "
-            "src-backed routing groups (authority #2 OR-list == authority #1 "
-            "src-backed set). Mismatch — only-in-if: "
-            f"{sorted(heavy_groups - router.src_backed_groups)}; "
-            f"only-in-filters: {sorted(router.src_backed_groups - heavy_groups)}."
+            "src-backed routing groups plus HEAVY_BATTERY_NON_SRC_GROUPS "
+            "(authority #2 OR-list == authority #1 src-backed set ∪ the enumerated "
+            "non-src groups). Mismatch — only-in-if: "
+            f"{sorted(heavy_groups - expected)}; "
+            f"only-in-expected: {sorted(expected - heavy_groups)}."
         )
         raise MustRunGateUnwiredError(msg)

@@ -47,6 +47,27 @@ def test_docs_only_diff_selects_zero_code_shards(router: Router) -> None:
     assert not selection.unmatched_src
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "tests/architectural/test_scanner_parse_fail_closed.py",
+        "tests/architectural/_ast_scan.py",
+        "tests/architectural/inline_meta_read_allowlist.yaml",
+    ],
+)
+def test_architectural_only_diff_selects_the_heavy_battery(router: Router, path: str) -> None:
+    """#5168: a diff confined to ``tests/architectural/**`` runs the battery that owns it.
+
+    The registry gives ``tests/architectural`` no module row -- its only per-PR
+    home is ``architectural-heavy`` -- so a src-scoped battery skipped every
+    gate/allowlist/helper change there, and a new gate first ran after merge.
+    """
+    selection = select_gates([path], router=router)
+    assert "architectural-heavy" in selection.selected_jobs
+    assert selection.selected_code_shards == frozenset({"architectural-heavy"})
+    assert not selection.unmatched_src
+
+
 def test_corpus_only_diff_selects_zero_code_shards(router: Router) -> None:
     """Non-src corpus data selects no code shards and does not trip unmatched."""
     selection = select_gates(["packs/built-in/missions/foo.md"], router=router)

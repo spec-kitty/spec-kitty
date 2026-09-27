@@ -352,6 +352,7 @@ _BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
     "changes.unit": False,
     "changes.specify_cli_runtime": False,
     "changes.docs": False,
+    "changes.architectural": False,
 }
 
 
@@ -404,6 +405,21 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     assert jobs["tests-corpus"]["needs"] == ["changes"]
     assert jobs["tests-e2e"]["needs"] == ["changes"]
     assert "prose_only" not in jobs["changes"]["outputs"]
+
+
+def test_golden_architectural_only_pr_runs_the_heavy_battery_and_no_code_shard(router_workflow: dict[str, Any]) -> None:
+    """#5168 golden: a PR touching only ``tests/architectural/**`` runs the heavy
+    battery (the directory's only per-PR home) and no src-scoped code shard."""
+    jobs = router_workflow["jobs"]
+    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context["changes.architectural"] = True
+    context["prose-scan.prose_only"] = False
+
+    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
+    assert _eval_gh_if(jobs["tests-merge"]["if"], context) is False
+    assert _eval_gh_if(jobs["tests-status"]["if"], context) is False
+    assert _eval_gh_if(jobs["tests-cli"]["if"], context) is False
+    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
 
 
 def test_golden_non_prose_pr_lane_set_is_byte_identical_to_today(router_workflow: dict[str, Any]) -> None:

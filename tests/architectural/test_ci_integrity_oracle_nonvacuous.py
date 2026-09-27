@@ -231,7 +231,8 @@ def test_enumerated_must_run_gates_are_all_wired() -> None:
     # Content assertions (not a cardinality count).
     assert router.always_on_jobs >= oracle.MUST_RUN_ALWAYS_ON_GATES
     assert oracle.HEAVY_BATTERY_GATE in router.code_shard_jobs
-    assert router.job_gates[oracle.HEAVY_BATTERY_GATE] == router.src_backed_groups
+    assert router.job_gates[oracle.HEAVY_BATTERY_GATE] == router.src_backed_groups | oracle.HEAVY_BATTERY_NON_SRC_GROUPS
+    assert (router.routing_groups - router.src_backed_groups) >= oracle.HEAVY_BATTERY_NON_SRC_GROUPS
 
 
 def test_unwired_must_run_gate_reds_the_oracle() -> None:
@@ -254,6 +255,26 @@ def test_unwired_must_run_gate_reds_the_oracle() -> None:
 
     with pytest.raises(oracle.MustRunGateUnwiredError):
         oracle.assert_must_run_gates_wired(router)
+
+
+@pytest.mark.parametrize("dropped", ["architectural"])
+def test_heavy_battery_losing_a_non_src_group_reds_the_oracle(dropped: str) -> None:
+    """#5168: the heavy battery's non-src groups are pinned by exact equality.
+
+    Dropping ``architectural`` from the battery's ``if:`` would silently re-open
+    the gap where a tests/architectural-only PR runs none of the gates it changes.
+    """
+    from scripts.ci.gate_selection import Router, load_router
+
+    from tests.architectural import _ci_integrity_oracle as oracle
+
+    live = load_router()
+    job_gates = dict(live.job_gates)
+    job_gates[oracle.HEAVY_BATTERY_GATE] = live.job_gates[oracle.HEAVY_BATTERY_GATE] - {dropped}
+    drifted = Router(filters=live.filters, job_gates=job_gates)
+
+    with pytest.raises(oracle.MustRunGateUnwiredError, match=dropped):
+        oracle.assert_must_run_gates_wired(drifted)
 
 
 # ---------------------------------------------------------------------------

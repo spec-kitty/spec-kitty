@@ -87,6 +87,11 @@ jobs:
       # above. Names the scripts/ci/** + .github/workflows/** path family so it
       # routes (matches a named group) instead of silently matching nothing.
       ci: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.ci }}
+      # Architectural-gate group (spec-kitty#5168): non-src, like ci above. The
+      # registry gives tests/architectural no module row -- its only per-PR home is
+      # the heavy battery -- so this group routes a gate/allowlist/helper change
+      # there instead of skipping it.
+      architectural: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.architectural }}
       # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
@@ -194,6 +199,11 @@ jobs:
             ci:
               - 'scripts/ci/**'
               - '.github/workflows/**'
+            # Architectural-gate group (spec-kitty#5168): NON-src (not in the
+            # unmatched loop); gates only the heavy battery, the sole per-PR home
+            # of tests/architectural (see .github/ci-module-registry.yml).
+            architectural:
+              - 'tests/architectural/**'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).
@@ -503,9 +513,11 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # HEAVY architectural battery (FR-008 / NFR-002): CODE-SCOPED. Its `if:` is
-  # authority #2 — the OR of every src-backed filter group — so ANY code change
-  # runs it and a docs-only PR runs NEITHER it nor a code shard. (The completeness
-  # oracle in WP17 asserts this OR-list equals the parsed src-backed group set.)
+  # authority #2 — the OR of every src-backed filter group PLUS the non-src
+  # `architectural` group (spec-kitty#5168) — so ANY code change and any
+  # tests/architectural change runs it, while a docs-only PR runs NEITHER it nor a
+  # code shard. (The completeness oracle asserts this OR-list equals the parsed
+  # src-backed group set ∪ HEAVY_BATTERY_NON_SRC_GROUPS.)
   # ---------------------------------------------------------------------------
   architectural-heavy:
     name: architectural battery (heavy, code-scoped)
@@ -532,7 +544,8 @@ jobs:
       needs.changes.outputs.execution_context == 'true' ||
       needs.changes.outputs.core_misc == 'true' ||
       needs.changes.outputs.unit == 'true' ||
-      needs.changes.outputs.specify_cli_runtime == 'true') &&
+      needs.changes.outputs.specify_cli_runtime == 'true' ||
+      needs.changes.outputs.architectural == 'true') &&
       needs.prose-scan.outputs.prose_only != 'true'
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

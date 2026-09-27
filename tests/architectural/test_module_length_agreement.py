@@ -63,25 +63,14 @@ Which CI shard executes this
 ------------------------------
 This file lives under ``tests/architectural/``, selected whenever that
 directory runs. ``.github/workflows/ci-router.yml``'s ``architectural-heavy``
-job is deliberately CODE-SCOPED -- its ``if:`` is the OR of the registry's
-*src-backed* path-filter groups only, excluding the non-src ``ci``/``docs``/
-``corpus``/``e2e`` groups by design. A PR that touches only
-``.github/ci-*.{yml,json}`` and ``tests/architectural/**`` -- which is this
-mission's own PR shape (WP01-WP07 touch no ``src/**`` path) -- matches NONE
-of those groups, so ``architectural-heavy`` will NOT be auto-selected by
-GitHub's path-filter routing on THIS mission's own PR. This test IS
-guaranteed to run: (a) on ``ci-nightly.yml``'s ``mode: full`` dispatch,
-which forces every ``architectural-heavy`` OR-branch to ``true``
-unconditionally; (b) under ``make test-full``'s parallel ``tests/`` pass;
-and (c) on the next real PR that also touches any src-backed group -- i.e.
-almost any future product-code change, since that OR-list spans nearly all
-of ``src/**``. Rewiring ``ci-router.yml``'s path filters to also select
-``architectural-heavy`` for CI-config-only changes would close that per-PR
-gap; that rewiring touches a routing model governed by its own invariants
-(``contracts/router-two-authority.md``, the completeness oracle asserting
-the OR-list equals the parsed src-backed group set) that this WP does not
-own, so it is recorded here as an explicit, unresolved trade-off rather than
-silently patched.
+job is deliberately CODE-SCOPED: its ``if:`` is the OR of the registry's
+*src-backed* path-filter groups plus the non-src ``architectural`` group
+(``tests/architectural/**``, spec-kitty#5168). A PR touching
+``tests/architectural/**`` therefore runs it. A PR touching ONLY
+``.github/ci-*.{yml,json}`` still matches none of those groups (the ``ci``
+group deliberately gates no router job, #4386), so on that PR shape this test
+first runs on ``ci-nightly.yml``'s ``mode: full`` dispatch, under ``make
+test-full``, or on the next PR touching ``src/**`` or ``tests/architectural/**``.
 
 Both YAML/JSON artefacts are loaded lazily inside fixtures/tests (never at
 import time), mirroring ``test_module_shard_registry.py``'s own convention,
