@@ -122,6 +122,19 @@ def _get_yaml() -> YAML:
 _locks_guard = threading.Lock()
 _locks: dict[tuple[Any, ...], threading.Lock] = {}
 
+# Safety invariant for this shared registry (squad NOTE): the two call sites
+# use disjoint key ARITIES -- this module's own site keys on
+# ``(builtin_root, mission_type_id, pack_context)`` (a 3-tuple), while
+# ``mission_type_repository._resolve_layered_mission_types``'s site keys on
+# ``(mission_types_dirs, pack_context)`` (a 2-tuple) -- so a shared ``_locks``
+# dict can never map both sites to the SAME ``Lock`` object. Acquisition
+# ordering is strictly type -> step (``_inject_projected_fields`` acquires
+# this module's step-site lock while the type site's lock is held; the step
+# path never calls back into type resolution), so there is no AB/BA cycle.
+# ``threading.Lock`` is non-reentrant; this is safe only because neither path
+# ever re-enters on the SAME key. A future refactor that unified the key
+# shapes, or added a same-key re-entrant call, would need an ``RLock``.
+
 
 def _lock_for(key: tuple[Any, ...]) -> threading.Lock:
     """Return the single-flight lock for *key*, creating it on first use.

@@ -654,7 +654,11 @@ def _resolve_layered_mission_types_cached(
     was considered and rejected for this fix round as exceeding a
     pre-merge-fix's scope -- it would need its own design (what counts as
     "fresh", how deep to stat, cross-platform mtime granularity) and its own
-    red-first regression suite, not a documentation-round addendum.
+    red-first regression suite, not a documentation-round addendum. The
+    shared ``mission_step_repository._lock_for`` registry carries the same
+    long-lived-host caveat: it accumulates one ``threading.Lock`` per
+    distinct key for the process lifetime and is not reclaimed by either
+    site's ``cache_clear()``.
     """
     return _resolve_layered_mission_types_uncached(mission_types_dirs, pack_context)
 
