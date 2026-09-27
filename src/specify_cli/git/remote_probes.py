@@ -101,14 +101,16 @@ def _configured_remotes(repo_root: Path) -> list[str] | None:
 def _ls_remote_heads(repo_root: Path, remote: str, branch: str) -> bool | None:
     """Probe one remote for *branch*.
 
-    Returns ``True`` on a match, ``False`` on a clean (exit 0, empty) miss,
-    and ``None`` on any error/timeout — the caller treats ``None`` as
-    fail-closed ERROR, never as a vote toward absence.
+    Returns ``True`` on an exact ``refs/heads/<branch>`` match, ``False`` on a
+    clean (exit 0, no exact match) miss, and ``None`` on any error/timeout —
+    the caller treats ``None`` as fail-closed ERROR, never as a vote toward
+    absence.
     """
     env = {**os.environ, **_NO_PROMPT_ENV}
+    target_ref = f"refs/heads/{branch}"
     try:
         result = subprocess.run(
-            ["git", "-C", str(repo_root), "ls-remote", "--heads", remote, branch],
+            ["git", "-C", str(repo_root), "ls-remote", "--heads", remote, target_ref],
             check=False,
             capture_output=True,
             text=True,
@@ -119,7 +121,11 @@ def _ls_remote_heads(repo_root: Path, remote: str, branch: str) -> bool | None:
         return None
     if result.returncode != 0:
         return None
-    return bool(result.stdout.strip())
+    for line in result.stdout.splitlines():
+        _, _, ref = line.partition("\t")
+        if ref == target_ref:
+            return True
+    return False
 
 
 def _lookup_uncached(repo_root: Path, branch: str) -> RemoteLookup:

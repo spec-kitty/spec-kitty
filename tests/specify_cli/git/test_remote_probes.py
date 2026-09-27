@@ -237,3 +237,62 @@ def test_ls_remote_and_remote_enumeration_pass_a_bounded_timeout(tmp_path: Path)
     for call in mock_run.call_args_list:
         timeout = call.kwargs.get("timeout")
         assert timeout is not None and 0 < timeout <= 10
+
+
+# ---------------------------------------------------------------------------
+# Exact-ref matching — real git, no subprocess mocking (a suffix-collision
+# false HIT can only be reproduced through git's own ls-remote pattern
+# matching, not a mocked boundary).
+# ---------------------------------------------------------------------------
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True)
+
+
+def _init_repo(repo: Path) -> None:
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(repo, "add", "README.md")
+    _git(repo, "commit", "-q", "-m", "seed")
+
+
+def _bare_origin(tmp_path: Path, name: str = "origin.git") -> Path:
+    bare = tmp_path / name
+    subprocess.run(["git", "init", "--bare", "-q", str(bare)], check=True)
+    return bare
+
+
+def _push(repo: Path, bare: Path, local_branch: str, remote_ref: str) -> None:
+    _git(repo, "push", "-q", str(bare), f"{local_branch}:{remote_ref}")
+
+
+def test_suffix_collision_branch_is_a_clean_miss_not_a_hit(tmp_path: Path) -> None:
+    """A pattern of bare ``coord`` would suffix-match ``refs/heads/team/coord``
+    under git's own ls-remote pattern matching. Only ``refs/heads/coord``
+    exists here — ``refs/heads/team/coord`` must never be mistaken for it."""
+    repo = tmp_path / "work"
+    _init_repo(repo)
+    bare = _bare_origin(tmp_path)
+    _push(repo, bare, "main", "refs/heads/team/coord")
+    _git(repo, "remote", "add", "origin", str(bare))
+
+    result = remote_branch_lookup(repo, "coord")
+
+    assert result is RemoteLookup.CLEAN_MISS
+
+
+def test_exact_branch_match_is_a_hit(tmp_path: Path) -> None:
+    repo = tmp_path / "work"
+    _init_repo(repo)
+    bare = _bare_origin(tmp_path)
+    _push(repo, bare, "main", "refs/heads/coord")
+    _git(repo, "remote", "add", "origin", str(bare))
+
+    result = remote_branch_lookup(repo, "coord")
+
+    assert result is RemoteLookup.HIT
