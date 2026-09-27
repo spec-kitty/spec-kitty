@@ -657,6 +657,13 @@ class TestLayeredMissionTypesCacheKeyAndClear:
     def teardown_method(self) -> None:
         resolve_layered_mission_types.cache_clear()
 
+    def test_public_name_reports_public_identity(self) -> None:
+        """PR-FRESH1-001: the typed ``cast()`` that binds this public name to
+        its private implementation must not leak the private name through
+        ``__name__``/``__qualname__``."""
+        assert resolve_layered_mission_types.__name__ == "resolve_layered_mission_types"
+        assert resolve_layered_mission_types.__qualname__ == "resolve_layered_mission_types"
+
     def test_same_key_is_a_cache_hit(self, tmp_path: Path) -> None:
         org_root = tmp_path / "org"
         _write_layered_yaml(
