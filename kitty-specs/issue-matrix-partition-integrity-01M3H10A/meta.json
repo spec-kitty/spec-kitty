@@ -1,0 +1,35 @@
+{
+  "accept_commit": "c4029b553355aca85c4b9c5debcb51b5920f2ba5",
+  "acceptance_history": [
+    {
+      "accept_commit": "c4029b553355aca85c4b9c5debcb51b5920f2ba5",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-27T12:08:44.123763+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "70a2b9a755e2e904513abb976bdc365d470f7cfd"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-27T12:08:44.123763+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "70a2b9a755e2e904513abb976bdc365d470f7cfd",
+  "baseline_merge_commit": "545d8e38e4dda58bab8d917498b0e6492551bbd4",
+  "created_at": "2026-09-27T08:51:47.108264+00:00",
+  "flattened": false,
+  "friendly_name": "Issue-Matrix Partition Read Integrity & Merge Verdict-Terminality",
+  "merged_at": "2026-09-27T12:11:01.156016+00:00",
+  "merged_commit": "7fc75cc3c1653c1b5d494b98001a1b5444b7d95e",
+  "mid8": "01M3H10A",
+  "mission_id": "01M3H10APAG3B9VS6DMZDM1S2F",
+  "mission_number": null,
+  "mission_slug": "issue-matrix-partition-integrity-01M3H10A",
+  "mission_type": "software-dev",
+  "purpose_context": "On coordination-topology missions the authored issue-matrix verdicts live on the coordination branch, but several gates read the primary working-tree copy (stale residue): mission-review reports a false hard FAIL (#5171) and the merge gate finds nothing to enforce and lands a false PASS (#4943). Separately, merge records work packages done without applying the in-mission -> done terminal-verdict rule that only move-task enforces, so a mission can land with an unresolved verdict on record (#4943, second leg). This mission closes the partition-resolution class at every consumer and makes merge honor terminal verdicts, so the mission ledger a team relies on is trustworthy.",
+  "purpose_tldr": "Make issue-matrix gates resolve the coordination partition (and the coord branch ref post-consolidation) so coord-topology missions stop getting false review FAILs and false merge PASSes, and make merge enforce terminal issue verdicts.",
+  "slug": "issue-matrix-partition-integrity-01M3H10A",
+  "status_phase": "1",
+  "target_branch": "claude/spec-kitty-ci-failures-r0xui3",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-27T09:45:39.088390+00:00"
+}

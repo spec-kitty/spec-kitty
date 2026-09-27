@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "mission_slug": "issue-matrix-partition-integrity-01M3H10A",
+  "mission_id": "01M3H10APAG3B9VS6DMZDM1S2F",
+  "mission_branch": "kitty/mission-issue-matrix-partition-integrity-01M3H10A",
+  "target_branch": "claude/spec-kitty-ci-failures-r0xui3",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "tests/mission_runtime/test_issue_matrix_ref_read.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/mission_runtime/issue_matrix_partition.py",
+        "src/specify_cli/cli/commands/review/_issue_matrix.py",
+        "src/specify_cli/status/doctor.py",
+        "src/specify_cli/tasks/issue_matrix_migration.py",
+        "tests/specify_cli/tasks/test_issue_matrix_content_source.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/offering/skills/spec-kitty-mission-review/SKILL.md",
+        "src/specify_cli/cli/commands/review/__init__.py",
+        "tests/doctrine/test_mission_review_skill_gate4.py",
+        "tests/specify_cli/cli/commands/review/test_issue_matrix_partition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/policy/merge_gates.py",
+        "tests/policy/test_merge_gates_issue_matrix.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/architectural/test_issue_matrix_partition_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-09-27T09:45:59.356566+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "991a46898e5b50c080ad2865490cadb284941e78"
+}

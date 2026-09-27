@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#3044": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3439": {
+      "evidence_ref": "Cited only as the precedent pattern (risk/dependency gates already route PRIMARY reads through the seam) that this mission mirrors; owes no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4943": {
+      "evidence_ref": "WP04 lane-d b315f71a: merge completeness gate partition split + terminal-verdict sibling gate (in-mission/unknown block/warn); guarded by WP05 test_issue_matrix_partition_guard.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#4959": {
+      "evidence_ref": "Already fixed upstream; this mission only guards it with a non-regression test (other coord kinds still raise). Owes no fix work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5169": {
+      "evidence_ref": "Out of scope: nightly interpreter-3.13 shard reds, unrelated to issue-matrix partition resolution (see spec Assumptions)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5171": {
+      "evidence_ref": "WP03 lane-c 1980ed96: review Gate-4 splits discovery (PRIMARY) from matrix (coord/ref) via resolve_issue_matrix_partition; Gate-4 doctrine resolver-backed; guarded by WP05 test_issue_matrix_partition_guard.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#5172": {
+      "evidence_ref": "Out of scope: nightly interpreter-3.13 shard reds, unrelated to issue-matrix partition resolution (see spec Assumptions)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

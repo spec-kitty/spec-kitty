@@ -1,0 +1,175 @@
+{
+  "event_count": 45,
+  "last_event_id": "01M3HCDRNDMK0R0TF7PRHBM4CV",
+  "materialized_at": "2026-09-27T12:11:20.109934+00:00",
+  "mission_number": "",
+  "mission_slug": "issue-matrix-partition-integrity-01M3H10A",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3HCD7YEJPV44SA99YFNQJYA",
+      "last_transition_at": "2026-09-27T12:11:02.990327+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "IC-01a standalone ref-content read; RED->GREEN; ruff/mypy/layer-gate clean. Commands: PYTHONPATH=.../lane-a/src .venv/bin/python -m pytest tests/mission_runtime/test_issue_matrix_ref_read.py -q => 14 passed, exit 0; pytest tests/architectural/test_layer_rules.py -q => 55 passed, exit 0; pytest tests/mission_runtime -q => 393 passed, exit 0; ruff check resolution.py test_issue_matrix_ref_read.py => All checks passed, exit 0; ruff format --check => already formatted, exit 0; mypy resolution.py => Success, exit 0.",
+        "Review passed (opus/reviewer-renata): standalone ref-content read via lifecycle-phase authority; no _classify/Path-semantics change; #4959 non-regression non-vacuous; layer gate green; 69 targeted tests pass; ruff/mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260927",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24147,
+      "shell_pid_created_at": "1790503760.19",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3HCDC29VP0G0JYH5KQVZN1J",
+      "last_transition_at": "2026-09-27T12:11:07.209597+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "IC-01b+IC-shared; RED->GREEN. Commands: PWHEADLESS=1 PYTHONPATH=<lane-b>/src .venv/bin/python -m pytest tests/specify_cli/tasks/test_issue_matrix_content_source.py tests/status -q => 1257 passed, 8 skipped (0 failed). Also ran: tests/specify_cli/cli/commands/review/test_issue_matrix_validator.py tests/specify_cli/tasks/test_issue_matrix_structured.py tests/policy/test_issue_matrix_cross_site_consistency.py tests/mission_runtime/test_issue_matrix_ref_read.py => 73 passed (exit 0). tests/architectural/test_layer_rules.py => 55 passed (exit 0). ruff check + ruff format --check + mypy on changed files: clean (exit 0).",
+        "Review passed: shared helper resolve_issue_matrix_partition lives in mission_runtime (zero specify_cli imports, layer_rules green), thin composition of the seam (C-001) with live caller via doctor.check_issue_matrix/run_doctor; dispatches materialized coord dir->Path, unmaterialized/post-consolidation->WP01 read_issue_matrix_ref_content content, NEVER falls back to feature_dir on None (#5171 closed); readers gain content arm with dir fast-path unchanged and flat-topology byte-for-byte parity; ATDD red-first test uses real git fixtures with discriminating control (primary residue #11->in-mission vs coord #11->fixed, non-vacuous); ruff/format/mypy clean, no new suppressions, S1192 hoisted to constant. Targeted suite 1312 passed/8 pre-existing skips."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260927",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2330,
+      "shell_pid_created_at": "1790505380.04",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3HCDG8X3CZ7Q2F59TPWN4HK",
+      "last_transition_at": "2026-09-27T12:11:11.517603+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "IC-02; RED->GREEN. Commands: PYTHONPATH=<lane>/src .venv/bin/python -m pytest tests/specify_cli/cli/commands/review tests/doctrine -q -> 3332 passed, 12 skipped, exit 0 (637.76s). PYTHONPATH=<lane>/src .venv/bin/python -m pytest tests/architectural/test_no_legacy_terminology.py -q -> 90 passed, exit 0. ruff check/format clean on changed files; mypy clean on changed files except one pre-existing no-any-return at __init__.py:136 confirmed red on base too (not mine). Integration check: grep confirms _evaluate_issue_matrix caller now uses resolve_issue_matrix_partition (mission_runtime.issue_matrix_partition), no residual coord_read_dir_for/feature_dir-fed-to-both conflation, and Gate 4 doctrine no longer contains a raw cat kitty-specs/.../issue-matrix instruction (positive resolver-backed read added).",
+        "Review passed: #5171 gate partition split verified. _evaluate_issue_matrix reads discovery (gating_issue_numbers) from PRIMARY feature_dir only; matrix presence/validate from separate matrix_dir/matrix_content. Old 'coord_read_dir_for(...) or feature_dir' conflation removed (grep clean). Caller uses WP02 resolve_issue_matrix_partition with Path->matrix_dir / str->matrix_content dispatch; POST_MERGE gating is strict narrowing (function short-circuits not_applicable for non-post-merge before any read, so #5171 path still fixed). SKILL.md Gate 4 raw cat replaced with positive spec-kitty review resolver-backed read; doctrine test is a real positive control (asserts resolver markers). ATDD red-first confirmed (base lacks kwargs -> TypeError); divergent/in-mission-control/flat/post-consolidation arms all green; tests exercise real prod code + real helper. ruff+format clean; mypy line-136 no-any-return is pre-existing (outside all WP03 hunks, byte-identical to base). No dead code, no test skips. 97 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260927",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 20924,
+      "shell_pid_created_at": "1790507173.15",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3HCDMG7R3SJ7166HR7JYC55",
+      "last_transition_at": "2026-09-27T12:11:15.847101+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "IC-03+IC-04; RED->GREEN. RED: PYTHONPATH=<lane-d>/src PWHEADLESS=1 .venv/bin/python -m pytest tests/policy/test_merge_gates_issue_matrix.py -q -> 7 failed (StopIteration/false-PASS), 2 passed (exit 1). GREEN: same command -> 9 passed (exit 0). Full tests/policy -q (after re-judging 2 old-signature calls in test_issue_matrix_cross_site_consistency.py) -> 68 passed, 2 skipped (exit 0). Blast radius: tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py + test_tasks_move_task_seam.py, tests/specify_cli/cli/commands/review/, tests/mission_runtime/, tests/specify_cli/tasks/ -> 648 passed (exit 0). tests/merge -m 'fast or unit' -> 618 passed, 369 deselected (exit 0). tests/architectural/test_pyproject_shape.py -> 9 passed (exit 0, covers the mypy-override pyproject.toml edit). ruff check . -> All checks passed. ruff format --check . -> only the new test file needed formatting, applied; merge_gates.py/tasks_parsing_validation.py remain on the pre-existing formatter-debt ratchet (unrelated to this change, confirmed via git-stash diff on pyproject.toml). mypy on both changed source files -> Success, no issues (required a narrow mypy override for specify_cli.tasks.issue_matrix_migration, precedented by protection_policy/core.errors/asset_preservation.backup). One pre-existing unrelated red confirmed on base: tests/integration/test_coord_unprotected_lifecycle_loop.py::TestGuard4NoSplitBrain::test_gate_read_surface_equals_issue_matrix_authority_unmaterialized. Deviation: touched pyproject.toml (mypy override) and tests/policy/test_issue_matrix_cross_site_consistency.py (re-judged 2 assertions pinning the old gate signature) outside declared owned_files -- both required by DoD (mypy-clean; re-judge pinned tests, do not green-wash).",
+        "Review passed. IC-03: completeness gate now takes (repo_root,mission_slug), discovery->PRIMARY + matrix->COORD via resolve_issue_matrix_partition; no single feature_dir feeds both (leg-1 false-PASS fixed); caller wired. IC-04: terminality gate REUSES _issue_matrix_approval_blocker(target_lane=DONE), covers 'unknown' via result.passed schema check; executor/done_bookkeeping ZERO diff. MAJOR-1: optional matrix_content defaults None; tasks_move_task.py ZERO diff, 165 move-task compat tests pass. ATDD 9 tests real/non-vacuous (half-by-half proof genuine), tests/policy 68 passed. Re-judged cross-site assertions: pure signature migration (feature_dir->repo_root,slug), outcome assertions incl '#2003 in details' unchanged - not green-washing. mypy override minimal/precedented/stricter, pyproject_shape 9 passed, mypy clean. #7 investigation: test_gate_read_surface_equals_issue_matrix_authority_unmaterialized FAILS identically on lane-d, mission base AND upstream target claude/spec-kitty-ci-failures-r0xui3 (pre-existing baseline red for a DIFFERENT mission #3867); it asserts resolve_artifact_surface(ISSUE_MATRIX) PRIMARY-fallback which THIS mission deliberately retires (WP01 leaves resolve_artifact_surface untouched #4959, routes via standalone helper) - genuinely out of scope, greening it would reintroduce the anti-pattern. NOTE (non-blocking): ruff format --check red on both changed files under locked ruff 0.15.12, but confirmed repo-wide baseline drift (upstream target dirty on untouched lines); WP04 matched existing style, a format sweep is a separate cross-cutting change."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260927",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3085,
+      "shell_pid_created_at": "1790507974.84",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3HCDRNDMK0R0TF7PRHBM4CV",
+      "last_transition_at": "2026-09-27T12:11:20.109934+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T015 guard: 21 passed (tests/architectural/test_issue_matrix_partition_guard.py). Self-mutation for each rule + fail-closed legs. Counterfactual: scanner flags original reads on planning-base versions of review/__init__.py, merge_gates.py, SKILL.md. Layer+terminology guards green. ruff/format/mypy clean.",
+        "Cycle 2: taint-tracked sinks + pinned allow-list; reviewer's 4 swaps (+2) now trip; stale-pin + out-of-guard tests; doctrine carve-out clause-scoped. 30 passed; ruff/format/mypy clean; counterfactual on planning base still reports original reads.",
+        "Cycle 3: positional helper-unpack rule, attribute + kitty-specs taint sources, tuple pairing, value-tainted-only reporting, docstring exemption, strict doctrine carve-out. 40 passed; ruff/format/mypy clean; counterfactual unchanged.",
+        "Review passed (cycle 3, eac05a31): guard non-vacuous across review gate, merge gates, Gate-4 doctrine; fail-closed; counterfactual on planning base reports all original #5171/#4943 reads; all 13 cycle-1/2 swaps (incl. swapped/indexed helper unpack, attribute feature_dir, hand-built kitty-specs dir) trip; 40/40 pass; ruff/format/mypy clean. Non-blocking: (1) reverse swap (coord source fed to discovery, e.g. primary_feature_dir=coord_matrix_source or gating_issue_numbers(matrix dir)) is not guarded - outside FR-008/NFR-001, covered behaviourally by tests/policy/test_merge_gates_issue_matrix.py; (2) doctrine exemption still passes 'Don't forget to `cat ...issue-matrix.json`' (prohibition regex matches don't as a prefix; anchor on do not/never + optional verb only, which it does, but don't-forget still matches); (3) git show <ref>:kitty-specs/.../issue-matrix.json not in raw-read verbs; (4) holding helper result in a variable (split = helper(...)) is flagged even if unpacked correctly later - strict, acceptable; (5) user-facing non-docstring hint strings with the full path still red; (6) loop targets documented limitation. Only owned file touched."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20260927",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 5707,
+      "shell_pid_created_at": "1790510664.03",
+      "subtasks": {
+        "T015": "done"
+      }
+    }
+  }
+}

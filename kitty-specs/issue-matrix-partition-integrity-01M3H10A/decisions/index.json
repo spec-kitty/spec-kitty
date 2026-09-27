@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-27T08:52:24.709702Z",
+      "decision_id": "01M3H11H052ZVVE07HVP39GGE9",
+      "final_answer": "Fold #5171 review-gate and #4943 merge-gate partition legs into one mission, using the status/doctor.py check_issue_matrix two-partition split as the canonical pattern.",
+      "input_key": "mission_scope",
+      "mission_id": "01M3H10APAG3B9VS6DMZDM1S2F",
+      "mission_slug": "issue-matrix-partition-integrity-01M3H10A",
+      "opened_by": "cli",
+      "options": [
+        "Fold #5171 review-gate and #4943 merge-gate partition legs",
+        "#5171 only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What partition-resolution scope should this mission cover?",
+      "rationale": null,
+      "resolved_at": "2026-09-27T08:52:27.077768Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.mission-cut",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-27T08:52:29.732181Z",
+      "decision_id": "01M3H11NX4HRRMNC0NX6394TTH",
+      "final_answer": "Deep: resolve coord-partition artifacts (issue-matrix) from the coordination branch ref when the worktree is unmaterialized post-consolidation, so review and merge read authored verdicts correctly even after teardown.",
+      "input_key": "fix_depth",
+      "mission_id": "01M3H10APAG3B9VS6DMZDM1S2F",
+      "mission_slug": "issue-matrix-partition-integrity-01M3H10A",
+      "opened_by": "cli",
+      "options": [
+        "Deep: read the coordination branch ref when the worktree is unmaterialized",
+        "Shallow: adopt existing coord_read_dir_for only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How deep should the coordination-partition read fix go?",
+      "rationale": null,
+      "resolved_at": "2026-09-27T08:52:31.960566Z",
+      "resolved_by": null,
+      "slot_key": "specify.fix.depth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-27T08:52:34.255942Z",
+      "decision_id": "01M3H11TAFD5118Z1DEMJZQ9HB",
+      "final_answer": "Fold into this mission: merge must apply the same terminal-verdict rule move-task applies, refusing (block) or warning when a gating row is still in-mission/unknown before the target advances.",
+      "input_key": "verdict_terminality",
+      "mission_id": "01M3H10APAG3B9VS6DMZDM1S2F",
+      "mission_slug": "issue-matrix-partition-integrity-01M3H10A",
+      "opened_by": "cli",
+      "options": [
+        "Fold into this mission",
+        "Carve as sibling follow-up",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How to handle #4943's second leg (merge records done bypassing the in-mission->done terminal-verdict rule)?",
+      "rationale": null,
+      "resolved_at": "2026-09-27T08:52:36.474812Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.verdict-terminality",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3H10APAG3B9VS6DMZDM1S2F",
+  "version": 1
+}

@@ -1,0 +1,89 @@
+{
+  "mission_slug": "issue-matrix-partition-integrity-01M3H10A",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/review/test_issue_matrix_partition.py (coord verdicts read; in-mission control still FAILs) + tests/specify_cli/tasks/test_issue_matrix_content_source.py; lane-e 5 WPs integrated, 77/77 passed (6 files, PWHEADLESS=1 pytest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:07:54.256272+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_mission_review_skill_gate4.py (rendered Gate-4 references resolver-backed read); lane-e 5 WPs integrated, 77/77 passed (6 files, PWHEADLESS=1 pytest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:08:00.326487+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_merge_gates_issue_matrix.py (coord/lanes parity both FAIL on missing row); lane-e 5 WPs integrated, 77/77 passed (6 files, PWHEADLESS=1 pytest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:08:06.611827+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_merge_gates_issue_matrix.py (divergent primary vs coord fixtures, both directions); lane-e 5 WPs integrated, 77/77 passed (6 files, PWHEADLESS=1 pytest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:08:12.540406+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/mission_runtime/test_issue_matrix_ref_read.py + tests/policy/test_merge_gates_issue_matrix.py post-consolidation ref arm; lane-e 5 WPs integrated, 77/77 passed (6 files, PWHEADLESS=1 pytest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:08:18.946810+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_merge_gates_issue_matrix.py (terminal-verdict block/warn + unknown leg + positive control); lane-e 5 WPs integrated, 77/77 passed (6 files, PWHEADLESS=1 pytest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:08:24.905754+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/mission_runtime/test_issue_matrix_ref_read.py (deleted ref, probe error, empty-with-refs each refuse, paired positive controls); lane-e 5 WPs integrated, 77/77 passed (6 files, PWHEADLESS=1 pytest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:08:30.760546+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_issue_matrix_partition_guard.py (40 tests, self-mutation incl. partition swaps; counterfactual on planning base reports original reads); lane-e 5 WPs integrated, 77/77 passed (6 files, PWHEADLESS=1 pytest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:08:36.937062+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
