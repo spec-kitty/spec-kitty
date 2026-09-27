@@ -1,50 +1,22 @@
 shard: deferred-01M3EW3Z
 owns:
-  - tests/architectural/surface_resolution_audit/audit.py
-  - tests/architectural/surface_resolution_audit/rekey_inventory.py
   - tests/architectural/test_docs_cli_reference_parity.py
-  - tests/architectural/test_single_mission_surface_resolver.py
-  - tests/status/test_parity.py
 rows:
-  - file: tests/architectural/surface_resolution_audit/audit.py
-    qualname: "<module>"
-    kind: sys.path
-    count: 1
-    class: deferred-01M3EW3Z
-    reason: "Owned by in-flight mission 01M3EW3Z (C-002); convert after it merges."
-  - file: tests/architectural/surface_resolution_audit/rekey_inventory.py
-    qualname: "_load_audit"
-    kind: sys.modules
-    count: 1
-    class: deferred-01M3EW3Z
-    reason: "Owned by in-flight mission 01M3EW3Z (C-002); convert after it merges."
   - file: tests/architectural/test_docs_cli_reference_parity.py
     qualname: "<module>"
     kind: os.environ
     count: 1
     class: deferred-01M3EW3Z
-    reason: "Owned by in-flight mission 01M3EW3Z (C-002); convert after it merges."
+    reason: "Deferred conversion: mission 01M3EW3Z (ratchet/census) merged without touching this file; convert this site to a scoped facility as a follow-up."
   - file: tests/architectural/test_docs_cli_reference_parity.py
     qualname: "<module>"
     kind: sys.path
     count: 1
     class: deferred-01M3EW3Z
-    reason: "Owned by in-flight mission 01M3EW3Z (C-002); convert after it merges."
+    reason: "Deferred conversion: mission 01M3EW3Z (ratchet/census) merged without touching this file; convert this site to a scoped facility as a follow-up."
   - file: tests/architectural/test_docs_cli_reference_parity.py
     qualname: "_build_live_app"
     kind: sys.argv
     count: 2
     class: deferred-01M3EW3Z
-    reason: "Owned by in-flight mission 01M3EW3Z (C-002); convert after it merges."
-  - file: tests/architectural/test_single_mission_surface_resolver.py
-    qualname: "<module>"
-    kind: sys.modules
-    count: 1
-    class: deferred-01M3EW3Z
-    reason: "Owned by in-flight mission 01M3EW3Z (C-002); convert after it merges."
-  - file: tests/status/test_parity.py
-    qualname: "TestBackportReadiness.test_module_importable_without_sync"
-    kind: sys.modules
-    count: 9
-    class: deferred-01M3EW3Z
-    reason: "Owned by in-flight mission 01M3EW3Z (C-002); convert after it merges."
+    reason: "Deferred conversion: mission 01M3EW3Z (ratchet/census) merged without touching this file; convert this site to a scoped facility as a follow-up."

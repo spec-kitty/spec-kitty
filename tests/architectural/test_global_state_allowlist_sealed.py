@@ -12,7 +12,7 @@ Current sealed caps, by class::
     process-bootstrap    6
     subprocess-entry    12
     leak-sentinel        2
-    deferred-01M3EW3Z   16
+    deferred-01M3EW3Z    4
 
 This module reuses ``test_no_manual_global_state_mutation``'s own
 ``load_allowlist``/``AllowlistRow``/``Allowlist`` -- it does not parse the YAML
@@ -47,7 +47,7 @@ SEALED_CLASS_CAPS: Final[Mapping[str, int]] = {
     "process-bootstrap": 6,
     "subprocess-entry": 12,
     "leak-sentinel": 2,
-    "deferred-01M3EW3Z": 16,
+    "deferred-01M3EW3Z": 4,
 }
 
 
