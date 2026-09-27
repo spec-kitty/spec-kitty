@@ -113,7 +113,14 @@ directive-references:
     rationale: Repeating defect patterns must be resolved structurally — AST gates, type invariants, or shrink-only ratchets — rather than by adding process rules; Ivan applies this during implementation to ensure the fix closes the class permanently
   - code: "044"
     name: Canonical Sources and Unification
-    rationale: Always use canonical templates and CLI surfaces; never copy from prior kitty-specs/ missions; when a split-brain surface is found, consolidate to one canonical authority rather than adding parity to non-canonical copies
+    rationale: >-
+      Always use canonical templates and CLI surfaces; never copy from prior
+      kitty-specs/ missions; when a split-brain surface is found, consolidate to
+      one canonical authority rather than adding parity to non-canonical copies;
+      do not bypass a canonical prompt/skill/CLI surface on an unverified size
+      assumption — measure or attempt to load it first, and if it is genuinely
+      oversized, file an upstream gap rather than improvising a substitute
+      (Rule 3's missing-command pattern)
   - code: "045"
     name: PRs-Only and Read-Intent Before High-Risk Operations
     rationale: All changes to origin/main go through pull requests; every high-risk git operation (merge, rebase, deletion) requires reading the mission spec before execution; never push directly without explicit operator instruction

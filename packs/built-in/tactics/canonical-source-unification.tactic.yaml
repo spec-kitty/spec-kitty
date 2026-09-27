@@ -92,6 +92,13 @@ failure_modes:
     Parity-instead-of-unification and Fallback-preservation failure modes above describe
     what happens if a duplicate is allow-listed instead: the split-brain grows rather
     than resolving."
+  - "Unverified size assumption: bypassing a canonical prompt/skill/CLI surface because it
+    is assumed too large to load, without first attempting to load or measure it. The
+    correct response mirrors Rule 3's missing-command pattern: measure the surface first,
+    and if it is genuinely oversized, file an upstream gap rather than improvising a
+    substitute — an unverified size assumption is not evidence, and routing around a
+    canonical surface on that basis reintroduces the same split-brain this tactic exists
+    to prevent."
 references:
   - name: Canonical Sources and Unification
     type: directive

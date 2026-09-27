@@ -120,7 +120,13 @@ directive-references:
     rationale: Architecture must expose structural mechanisms (gates, type invariants, ratchets) that close recurrent defect classes; a design that requires discipline reminders to enforce a constraint is structurally incomplete
   - code: "044"
     name: Canonical Sources and Unification
-    rationale: System designs must converge on single canonical surfaces; parallel copies or parity fixes to non-canonical surfaces are architectural violations that must be consolidated
+    rationale: >-
+      System designs must converge on single canonical surfaces; parallel copies or
+      parity fixes to non-canonical surfaces are architectural violations that must be
+      consolidated; do not bypass a canonical prompt/skill/CLI surface on an unverified
+      size assumption — measure or attempt to load it first, and if it is genuinely
+      oversized, file an upstream gap rather than improvising a substitute (Rule 3's
+      missing-command pattern)
   - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-

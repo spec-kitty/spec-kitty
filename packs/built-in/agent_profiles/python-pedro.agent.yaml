@@ -153,7 +153,13 @@ directive-references:
     rationale: Python-specific gate authoring (AST walks, type constraints, ruff/mypy rules) to close recurrent defect classes by construction rather than discipline; tests and type checks implement the structural gate
   - code: "044"
     name: Canonical Sources and Unification
-    rationale: Use the canonical CLI commands, templates, and code surfaces for every task; hand-rolling substitutes for documented-but-absent commands is a violation that must be filed as a gap, not committed as a workaround
+    rationale: >-
+      Use the canonical CLI commands, templates, and code surfaces for every task;
+      hand-rolling substitutes for documented-but-absent commands is a violation that
+      must be filed as a gap, not committed as a workaround; do not bypass a canonical
+      prompt/skill/CLI surface on an unverified size assumption — measure or attempt to
+      load it first, and if it is genuinely oversized, file an upstream gap rather than
+      improvising a substitute (Rule 3's missing-command pattern)
   - code: "045"
     name: PRs-Only and Read-Intent Before High-Risk Operations
     rationale: Never push directly to origin/main or run `gh pr merge` without explicit operator instruction; read mission context before any high-risk git operation (merge, rebase, deletion, force)

@@ -346,6 +346,11 @@ directive-references:
     candidate and record the structural gap before authoring the artifact
 - code: "044"
   name: Canonical Sources and Unification
-  rationale: Doctrine artifacts must reference the canonical template chain;
+  rationale: >-
+    Doctrine artifacts must reference the canonical template chain;
     prior-mission artifacts in kitty-specs/ are historical snapshots and must
-    never be used as copy sources for new artifact authoring
+    never be used as copy sources for new artifact authoring; do not bypass a
+    canonical prompt/skill/CLI surface on an unverified size assumption —
+    measure or attempt to load it first, and if it is genuinely oversized,
+    file an upstream gap rather than improvising a substitute (Rule 3's
+    missing-command pattern)
