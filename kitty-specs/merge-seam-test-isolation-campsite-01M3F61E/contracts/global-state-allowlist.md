@@ -9,6 +9,7 @@ Detector: `tests/architectural/_global_state_scan.py`. Gate: `tests/architectura
 ## Allowlist row (YAML)
 
 ```yaml
+# round-trip: skip: illustrative allowlist row shape (plain YAML data, not a Pydantic contract example)
 - file: tests/conftest.py
   qualname: pytest_configure
   kind: os.environ
