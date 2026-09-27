@@ -145,6 +145,7 @@ def _queue_decision_fanout(
     event_dict: dict,  # type: ignore[type-arg]
     *,
     mission_slug: str,
+    repo_root: Path,
 ) -> None:
     """Best-effort ``event.publish`` fan-out for an already-persisted decision event.
 
@@ -156,6 +157,9 @@ def _queue_decision_fanout(
     a defect in that chain reaching this seam, matching every other slot
     wrapper in ``zeitgeist_bridge.py`` (e.g. ``lifecycle_moment_handler``) --
     never let fan-out raise into a decision-emission caller.
+
+    ``repo_root`` (#5181): the caller's own ``repo_root`` argument, threaded
+    through so the drain gate reads THIS repo's posture, never the process CWD.
     """
     from specify_cli.status import fire_lifecycle_saas_fanout
 
@@ -168,7 +172,7 @@ def _queue_decision_fanout(
         "payload": event_dict["payload"],
     }
     try:
-        fire_lifecycle_saas_fanout(envelope=envelope, log_path=events_path)
+        fire_lifecycle_saas_fanout(envelope=envelope, log_path=events_path, repo_root=repo_root)
     except Exception:
         logger.warning(
             "Zeitgeist fan-out failed for %s; canonical decision log unaffected",
@@ -240,7 +244,7 @@ def emit_decision_opened(
     }
     events_path = _events_path(repo_root, mission_slug)
     line_count = _append_raw_event(events_path, event_dict)
-    _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug)
+    _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug, repo_root=repo_root)
     return line_count
 
 
@@ -322,5 +326,5 @@ def emit_decision_resolved(
     }
     events_path = _events_path(repo_root, mission_slug)
     line_count = _append_raw_event(events_path, event_dict)
-    _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug)
+    _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug, repo_root=repo_root)
     return line_count

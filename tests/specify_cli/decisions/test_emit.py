@@ -296,7 +296,7 @@ def test_emit_decision_opened_fanout_sees_the_append_already_durable(
     entry = _make_entry("01KAAAAAAAAAAAAAAAAAAAAAAA")
     seen_lines: list[str] = []
 
-    def fake_fanout(*, envelope: dict, log_path: Path) -> None:
+    def fake_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         seen_lines.extend(log_path.read_text().splitlines())
 
     monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", fake_fanout)
@@ -317,7 +317,7 @@ def test_emit_decision_opened_fanout_envelope_matches_the_local_event(
     entry = _make_entry("01KCCCCCCCCCCCCCCCCCCCCCCC")
     captured: dict = {}
 
-    def fake_fanout(*, envelope: dict, log_path: Path) -> None:
+    def fake_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         captured["envelope"] = envelope
         captured["log_path"] = log_path
 
@@ -346,7 +346,7 @@ def test_emit_decision_opened_survives_a_fanout_exception(
     happened before fan-out was attempted."""
     entry = _make_entry("01KBBBBBBBBBBBBBBBBBBBBBBB")
 
-    def exploding_fanout(*, envelope: dict, log_path: Path) -> None:
+    def exploding_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         raise RuntimeError("relay unreachable")
 
     monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", exploding_fanout)
@@ -375,7 +375,7 @@ def test_emit_decision_resolved_fanout_envelope_matches_the_local_event(
     )
     captured: dict = {}
 
-    def fake_fanout(*, envelope: dict, log_path: Path) -> None:
+    def fake_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         captured["envelope"] = envelope
 
     monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", fake_fanout)
@@ -402,7 +402,7 @@ def test_emit_decision_resolved_survives_a_fanout_exception(
         resolved_by=ACTOR,
     )
 
-    def exploding_fanout(*, envelope: dict, log_path: Path) -> None:
+    def exploding_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         raise RuntimeError("relay unreachable")
 
     monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", exploding_fanout)

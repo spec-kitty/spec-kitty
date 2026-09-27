@@ -73,7 +73,7 @@ from runtime.next._internal_runtime.significance import (
 )
 from specify_cli.core import hosted_posture
 from specify_cli.core.constants import KITTIFY_DIR
-from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.paths import WorkspaceRootNotFound, assert_safe_path_segment, resolve_canonical_root
 from specify_cli.mission_metadata import resolve_mission_identity
 
 __all__ = ["RuntimeMomentProducer"]
@@ -209,17 +209,30 @@ class RuntimeMomentProducer:
         """Not a runtime moment: timeout expiry stays in the local run journal."""
         del payload
 
+    def _repo_root(self) -> Path | None:
+        """The repository owning ``self._feature_dir`` (#5181), or ``None`` when
+        it cannot be resolved (e.g. a hermetic test directory with no ``.git``
+        anywhere above it). Threaded into the drain gate and the fan-out call
+        below so both read THIS repo's posture; a caller that genuinely has no
+        resolvable repo root falls back to ``drain_posture()``'s own documented
+        CWD resolution, unchanged from before this fix."""
+        try:
+            return resolve_canonical_root(self._feature_dir)
+        except WorkspaceRootNotFound:
+            return None
+
     def _publish(self, event_type: str, payload: BaseModel) -> None:
         # C-004: this module already lives in specify_cli, so calling
         # specify_cli.core.hosted_posture here creates no runtime -> specify_cli
         # edge. A deliberate drain-off skip is logged at debug, never warning
         # -- only a genuine failure below (find_run_journal/latest_matching_record
         # raising) is worth a warning.
-        if not hosted_posture.drain_posture().enabled:
+        repo_root = self._repo_root()
+        if not hosted_posture.drain_posture(project_root=repo_root).enabled:
             logger.debug("Runtime moment %s not published: drain off", event_type)
             return
         try:
-            self._publish_journalled(event_type, payload)
+            self._publish_journalled(event_type, payload, repo_root=repo_root)
         except Exception:
             logger.warning(
                 "Runtime moment %s not published; mission runtime state unaffected",
@@ -227,7 +240,7 @@ class RuntimeMomentProducer:
                 exc_info=True,
             )
 
-    def _publish_journalled(self, event_type: str, payload: BaseModel) -> None:
+    def _publish_journalled(self, event_type: str, payload: BaseModel, *, repo_root: Path | None) -> None:
         payload_dict = payload.model_dump(mode="json")
         run_id = str(payload_dict.get("run_id") or "")
         journal = find_run_journal(self._feature_dir, run_id)
@@ -248,7 +261,7 @@ class RuntimeMomentProducer:
             "timestamp": record.timestamp,
             "payload": self._with_mission_identity(payload_dict),
         }
-        fire_lifecycle_saas_fanout(envelope=envelope, log_path=journal)
+        fire_lifecycle_saas_fanout(envelope=envelope, log_path=journal, repo_root=repo_root)
 
     def _with_mission_identity(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Stamp the mission's slug and ULID into the published payload where the engine left them empty."""

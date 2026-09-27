@@ -979,7 +979,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             ensure_sync_daemon=ensure_sync_daemon,
         )
         if prepared.annotation is not None:
-            _resolved_binding_fan_out(prepared.annotation, request_mission_slug)
+            _resolved_binding_fan_out(prepared.annotation, request_mission_slug, request.repo_root)
 
     return prepared.event
 
@@ -1147,8 +1147,12 @@ def emit_status_transition_batch(
                 policy_metadata=request.policy_metadata,
                 ensure_sync_daemon=ensure_sync_daemon,
             )
-        for annotation in annotations:
-            _resolved_binding_fan_out(annotation, mission_slug)
+        # #5181: paired with its own request (never the flattened `annotations`
+        # list above) so each annotation's fan-out reads ITS OWN request's
+        # repo_root, not some other request's in the same batch.
+        for _event, prepared, request in built:
+            if prepared.annotation is not None:
+                _resolved_binding_fan_out(prepared.annotation, mission_slug, request.repo_root)
 
     return events
 
@@ -1220,7 +1224,7 @@ def emit_inner_state_changed(
     # so it can never alter local persistence or the reduced snapshot. A non-
     # binding annotation is a no-op; a binding annotation fans out when the events
     # package supports it, else logs an intentional skip (version-gated).
-    _resolved_binding_fan_out(event, mission_slug)
+    _resolved_binding_fan_out(event, mission_slug, repo_root)
 
     return event
 
@@ -1238,7 +1242,7 @@ _RESOLVED_BINDING_DELTA_FIELDS: tuple[str, ...] = (
 )
 
 
-def _resolved_binding_fan_out(event: InnerStateChanged, mission_slug: str) -> None:
+def _resolved_binding_fan_out(event: InnerStateChanged, mission_slug: str, repo_root: Path | None = None) -> None:
     """Version-gated ``WPResolvedBindingChanged`` fan-out for a binding change.
 
     ``emit_inner_state_changed`` has no fan-out of its own; this adds the
@@ -1253,6 +1257,9 @@ def _resolved_binding_fan_out(event: InnerStateChanged, mission_slug: str) -> No
     The concrete payload model is built by the registered sync handler once 6.2.0
     ships; the status layer only feature-detects via the gate and hands off kwargs
     (the same handoff shape as :func:`_saas_fan_out` — no local type definition).
+
+    ``repo_root`` (#5181): threaded through to :func:`fire_resolved_binding_fanout`
+    so its drain gate reads the emitting repo's own posture, never the process CWD.
     """
     delta = event.delta
     binding = {name: getattr(delta, name) for name in _RESOLVED_BINDING_DELTA_FIELDS}
@@ -1277,6 +1284,7 @@ def _resolved_binding_fan_out(event: InnerStateChanged, mission_slug: str) -> No
         actor=event.actor,
         causation_id=event.event_id,
         occurred_at=event.at,
+        repo_root=repo_root,
         **binding,
     )
 

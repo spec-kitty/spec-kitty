@@ -480,10 +480,17 @@ def fanout_lifecycle_event_hosted(
     This is the explicit hosted-effect half of lifecycle emission. It never
     writes the local JSONL log; callers that need the traditional composed
     behavior should continue to use :func:`append_lifecycle_event`.
+
+    #5181: resolves the emitting repo from *log_path* (the same
+    :func:`_repo_root_for_lifecycle_log` the write-lock derivation above
+    already uses) and threads it through, so ``fire_lifecycle_saas_fanout``'s
+    drain gate reads that repo's own posture rather than falling back to the
+    process CWD.
     """
     from specify_cli.status.adapters import fire_lifecycle_saas_fanout
 
-    fire_lifecycle_saas_fanout(envelope=envelope, log_path=log_path)
+    repo_root = _repo_root_for_lifecycle_log(log_path)
+    fire_lifecycle_saas_fanout(envelope=envelope, log_path=log_path, repo_root=repo_root)
 
 
 def _match_lifecycle_event(
