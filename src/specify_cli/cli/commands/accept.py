@@ -694,15 +694,28 @@ def _collect_summary_with_optional_repair(
             raise
         repaired = normalize_feature_encoding(repo_root, mission_slug, **scope)
         _report_encoding_repair(repo_root, repaired)
-        # Re-collect exactly once; a second encoding (or other acceptance)
-        # failure propagates rather than looping.
-        return collect_feature_summary(
-            repo_root,
-            mission_slug,
-            strict_metadata=strict_metadata,
-            mutate_matrix=mutate_matrix,
-            **scope,
-        )
+        # Re-collect exactly once; a second encoding failure means the canonical
+        # detector refused the file (its code page is genuinely ambiguous — e.g. a
+        # lone stray byte in otherwise-ASCII text that no single code page can
+        # disambiguate). Re-suggesting --normalize-encoding would loop; point the
+        # operator at the byte-offset repair surface instead (#4962/#4968).
+        try:
+            return collect_feature_summary(
+                repo_root,
+                mission_slug,
+                strict_metadata=strict_metadata,
+                mutate_matrix=mutate_matrix,
+                **scope,
+            )
+        except ArtifactEncodingError as exc:
+            raise AcceptanceError(
+                f"Could not safely recover the encoding of {exc.path}: byte "
+                f"0x{exc.error.object[exc.error.start]:02x} at offset {exc.error.start} "
+                "is ambiguous (no single code page fits), so --normalize-encoding "
+                "refused rather than risk silent corruption. Repair the stray "
+                f"byte(s) with `spec-kitty validate-encoding --fix {exc.path}` "
+                "(byte-offset repair), or re-save the file as UTF-8, then re-run accept."
+            ) from exc
 
 
 def _owned_accept_context(

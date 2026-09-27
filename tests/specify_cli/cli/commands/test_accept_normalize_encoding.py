@@ -329,3 +329,48 @@ def test_without_flag_clean_exit_referencing_flag(
     output = buf.getvalue()
     assert "Invalid UTF-8" in output
     assert "--normalize-encoding" in output
+
+
+# A realistic mostly-ASCII plan with a SINGLE stray cp1252 byte. This is the
+# sparse-signal case: too little cp1252 context for the canonical detector to
+# confidently pick a code page, so --normalize-encoding correctly REFUSES it
+# (fail-closed) rather than risk a wrong-page rewrite (#4962/#4968).
+_SPARSE_PLAN_ASCII = "# plan.md\n" + "This is a normal ASCII plan line.\n" * 40
+
+
+def _corrupt_plan_sparse_signal(feature_dir: Path) -> Path:
+    """Write plan.md as long ASCII plus one stray cp1252 byte (ambiguous)."""
+    plan_path = feature_dir / "plan.md"
+    plan_path.write_bytes(_SPARSE_PLAN_ASCII.encode("ascii") + _CP1252_SMART_QUOTE)
+    return plan_path
+
+
+def test_normalize_encoding_refuses_ambiguous_and_points_to_validate_encoding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A sparse-signal artifact --normalize-encoding cannot disambiguate is
+    refused (exit 1), untouched, with a message pointing at ``validate-encoding
+    --fix`` -- never re-suggesting the flag that already refused, and never a
+    silent wrong-page rewrite (#4962/#4968 fail-closed contract).
+
+    Non-vacuous: without the fold in ``_collect_summary_with_optional_repair``
+    the second ``ArtifactEncodingError`` would surface the stale "Run with
+    --normalize-encoding" text, failing the ``validate-encoding`` assertion.
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    feature_dir = _create_accept_ready_feature(repo_root)
+    plan_path = _corrupt_plan_sparse_signal(feature_dir)
+    before = plan_path.read_bytes()
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+    buf = _capture_console(monkeypatch)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _run_accept(normalize_encoding=True, monkeypatch=monkeypatch)
+
+    assert exc_info.value.exit_code == 1, "ambiguous artifact must be refused, not repaired"
+    # Untouched: fail-closed writes nothing (no silent wrong-page rewrite, no backup litter).
+    assert plan_path.read_bytes() == before
+    output = buf.getvalue()
+    assert "validate-encoding --fix" in output, "refusal must point to the byte-offset repair surface"
