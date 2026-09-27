@@ -512,7 +512,7 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
 
     REUSE, not re-implementation (MINOR-4): this gate is a thin sibling that
     calls the existing rule,
-    :func:`~specify_cli.cli.commands.agent.tasks_parsing_validation._issue_matrix_approval_blocker`,
+    :func:`~specify_cli.tasks.issue_matrix_approval._issue_matrix_approval_blocker`,
     with ``target_lane=Lane.DONE`` — the SAME lever the interactive ``done``
     transition uses. That function's ``result.passed`` check (schema
     validity) additionally catches a row whose verdict string does not
@@ -521,9 +521,10 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
     ``in-mission`` lever, so both non-terminal legs are covered by one call —
     a hand-rolled "reject the in-mission set" mirror would miss the
     ``unknown``/schema-validity leg. Imported function-locally (as this
-    module already does for its seam calls) to avoid an import cycle
-    (MINOR-3): ``tasks_parsing_validation`` sits in the CLI ``agent`` command
-    tree, which this policy module must not import at module scope.
+    module already does for its seam calls). #5222 (F4): this rule moved to a
+    domain home under ``specify_cli.tasks`` precisely so this import is
+    policy -> domain, not policy -> CLI (it previously reached into
+    ``tasks_parsing_validation``, the CLI ``agent`` command tree).
 
     Verdict content is read from the SAME COORD/ref partition the
     completeness gate uses (:func:`~mission_runtime.issue_matrix_partition.
@@ -545,7 +546,7 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
             resolve_issue_matrix_partition,
         )
 
-        from specify_cli.cli.commands.agent.tasks_parsing_validation import (
+        from specify_cli.tasks.issue_matrix_approval import (
             _issue_matrix_approval_blocker,
         )
         from specify_cli.status import Lane
