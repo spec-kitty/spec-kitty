@@ -3926,6 +3926,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/engineering-notes/architectural-review/README.md
   tag: current
   divio_type: none

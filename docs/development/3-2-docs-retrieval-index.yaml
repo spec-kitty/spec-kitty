@@ -11471,6 +11471,25 @@ pages:
     - {slug: "5-open-issue-triage-candidates-for-an-intermediate-remediation-mission", text: "5. Open-issue triage — candidates for an intermediate remediation mission", level: 2}
     - {slug: "6-recommended-next-mission-scope", text: "6. Recommended next-mission scope", level: 2}
     - {slug: "7-out-of-scope-for-this-review", text: "7. Out of scope for this review", level: 2}
+  - path: "docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md"
+    title: "Engine-side alignment review against the Kitty Shared Architecture — 2026-09-27"
+    divio_type: "explanation"
+    abstract: "Engine-side, point-in-time review of what spec-kitty offers and lacks for a proposed hosted target architecture: 29 findings, term collisions, next steps."
+    anchors:
+    - {slug: "executive-summary", text: "Executive summary", level: 2}
+    - {slug: "1-what-the-engine-already-provides", text: "1. What the engine already provides", level: 2}
+    - {slug: "2-findings", text: "2. Findings", level: 2}
+    - {slug: "ec-engine-contract", text: "EC — engine contract", level: 3}
+    - {slug: "cl-target-architecture-assumptions-vs-code", text: "CL — target-architecture assumptions vs code", level: 3}
+    - {slug: "rm-roadmap", text: "RM — roadmap", level: 3}
+    - {slug: "da-docs-language-and-authority", text: "DA — docs, language and authority", level: 3}
+    - {slug: "sk-spec-kitty-staleness-fix-in-this-repo", text: "SK — spec-kitty staleness (fix in this repo)", level: 3}
+    - {slug: "3-term-collisions-that-matter", text: "3. Term collisions that matter", level: 2}
+    - {slug: "4-authority-split-engine-side", text: "4. Authority split, engine side", level: 2}
+    - {slug: "5-recommended-next-steps", text: "5. Recommended next steps", level: 2}
+    - {slug: "spec-kitty-tracker-items", text: "spec-kitty tracker items", level: 3}
+    - {slug: "spec-kitty-doc-fixes-safe-now", text: "spec-kitty doc fixes (safe now)", level: 3}
+    - {slug: "6-method", text: "6. Method", level: 2}
   - path: "docs/plans/engineering-notes/architectural-review/README.md"
     title: "Engineering notes — Architectural reviews"
     divio_type: "none"
