@@ -55,13 +55,29 @@ __all__ = [
 
 _LS_REMOTE_TIMEOUT_SECONDS = 5.0
 
-# GIT_TERMINAL_PROMPT=0 refuses any interactive credential prompt outright;
-# the SSH BatchMode mirrors that refusal for the ssh(1) transport, which does
-# not honor GIT_TERMINAL_PROMPT on its own (NFR-002).
-_NO_PROMPT_ENV: dict[str, str] = {
-    "GIT_TERMINAL_PROMPT": "0",
-    "GIT_SSH_COMMAND": "ssh -o BatchMode=yes",
-}
+_DEFAULT_SSH_COMMAND = "ssh -o BatchMode=yes"
+
+
+def _no_prompt_env() -> dict[str, str]:
+    """Build the subprocess environment for a non-interactive git probe.
+
+    ``GIT_TERMINAL_PROMPT=0`` refuses any interactive credential prompt
+    outright; the SSH ``BatchMode`` mirrors that refusal for the ssh(1)
+    transport, which does not honor ``GIT_TERMINAL_PROMPT`` on its own
+    (NFR-002). A caller's own pre-set ``GIT_SSH_COMMAND`` (a custom identity
+    file, port, or proxy) is preserved by appending ``BatchMode=yes`` to it,
+    rather than clobbering it with the bare default — the old hand-rolled
+    ``_branch_resolvable`` loop inherited the plain environment, so replacing
+    a custom transport outright would be a behavioral regression.
+    """
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    existing_ssh_command = os.environ.get("GIT_SSH_COMMAND", "").strip()
+    if existing_ssh_command:
+        env["GIT_SSH_COMMAND"] = f"{existing_ssh_command} -o BatchMode=yes"
+    else:
+        env["GIT_SSH_COMMAND"] = _DEFAULT_SSH_COMMAND
+    return env
 
 
 class RemoteLookup(enum.Enum):
@@ -106,7 +122,7 @@ def _ls_remote_heads(repo_root: Path, remote: str, branch: str) -> bool | None:
     the caller treats ``None`` as fail-closed ERROR, never as a vote toward
     absence.
     """
-    env = {**os.environ, **_NO_PROMPT_ENV}
+    env = _no_prompt_env()
     target_ref = f"refs/heads/{branch}"
     try:
         result = subprocess.run(

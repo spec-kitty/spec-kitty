@@ -25,6 +25,7 @@ import pytest
 from specify_cli.git.remote_probes import (
     RemoteLookup,
     remote_branch_lookup,
+    _no_prompt_env,
     _reset_remote_branch_lookup_cache,
 )
 
@@ -296,3 +297,30 @@ def test_exact_branch_match_is_a_hit(tmp_path: Path) -> None:
     result = remote_branch_lookup(repo, "coord")
 
     assert result is RemoteLookup.HIT
+
+
+# ---------------------------------------------------------------------------
+# _no_prompt_env — preserve an existing GIT_SSH_COMMAND (NFR-002)
+# ---------------------------------------------------------------------------
+
+
+def test_existing_ssh_command_is_preserved_with_batchmode_appended(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -i /custom/key -p 2222")
+
+    env = _no_prompt_env()
+
+    assert "-i /custom/key" in env["GIT_SSH_COMMAND"]
+    assert "-p 2222" in env["GIT_SSH_COMMAND"]
+    assert "-o BatchMode=yes" in env["GIT_SSH_COMMAND"]
+    assert env["GIT_TERMINAL_PROMPT"] == "0"
+
+
+def test_default_ssh_command_used_when_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GIT_SSH_COMMAND", raising=False)
+
+    env = _no_prompt_env()
+
+    assert env["GIT_SSH_COMMAND"] == "ssh -o BatchMode=yes"
+    assert env["GIT_TERMINAL_PROMPT"] == "0"
