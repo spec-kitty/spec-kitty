@@ -16,16 +16,13 @@ mostly-valid-UTF-8 file wholesale and reintroduce the exact corruption
 #4896 was filed to stop (see ``test_stray_cp1252_byte_is_byte_faithfully_repaired``
 below).
 
-WP02/WP03 (sibling lanes) are responsible for rewiring
-``src/charter/activation/_io.py`` and ``src/specify_cli/acceptance/__init__.py``
-off their current direct ``charset_normalizer``/``from_bytes`` usage and onto
-``charter.encoding_recovery.recover``. On *this* lane (WP04) those rewires may
-not have landed yet, so the fork-guard for each file is written to detect its
-own current state: a file that still imports ``charset_normalizer`` directly
-is reported ``xfail(strict=False)`` (expected-to-still-be-red, non-blocking)
-with a reason tying it to the WP02/WP03 integration; a file that has already
-been rewired asserts hard. Once WP02/WP03 land, the xfail markers below
-should be deleted so this becomes an unconditional hard guard.
+WP02 rewired ``src/charter/activation/_io.py`` and WP03 rewired
+``src/specify_cli/acceptance/__init__.py`` off their former direct
+``charset_normalizer``/``from_bytes`` usage and onto the single canonical
+``charter.encoding_recovery.recover``. Both fork-guards below are now
+unconditional hard asserts: reintroducing a second whole-file detector (a
+direct ``charset_normalizer`` import in either module, or a bare ``cp1252``
+repair literal in ``text_sanitization``) fails the build.
 """
 
 from __future__ import annotations
@@ -78,45 +75,26 @@ def _imports_specify_cli(path: Path) -> bool:
     return False
 
 
-def test_charter_io_detection_funnels_through_recover_or_is_flagged_pending() -> None:
+def test_charter_io_detection_funnels_through_recover() -> None:
     """`_io.py` must not import `charset_normalizer` directly.
 
-    Known state on the WP04 lane: WP02 has not yet rewired this file, so it
-    still imports `charset_normalizer` (see module docstring "Detection
-    order" step 3). That is reported as an expected, non-blocking failure
-    tied to WP02, not a hard red on this lane.
+    WP02 rewired this file onto ``charter.encoding_recovery.recover`` (#4962),
+    so detection funnels through the single canonical detector. This is an
+    unconditional hard fork-guard: reintroducing a direct ``charset_normalizer``
+    import here (a second whole-file detector) fails the build.
     """
-    if _imports_charset_normalizer(_CHARTER_IO):
-        pytest.xfail(
-            reason=(
-                "src/charter/activation/_io.py still imports charset_normalizer "
-                "directly, pending WP02's rewire onto charter.encoding_recovery.recover "
-                "(#4896 unification). Delete this xfail once WP02 lands."
-            )
-        )
-    # Already rewired (WP02 landed ahead of this lane, or merged in): hard guard.
     assert not _imports_charset_normalizer(_CHARTER_IO)
 
 
-def test_acceptance_init_detection_funnels_through_recover_or_is_flagged_pending() -> None:
+def test_acceptance_init_detection_funnels_through_recover() -> None:
     """`acceptance/__init__.py` must not import `charset_normalizer` directly.
 
-    Known state on the WP04 lane: this module does its own hand-rolled
-    cp1252-then-latin-1 fallback (never imported `charset_normalizer`), so
-    this assertion already holds pre-integration -- it is the WP03 rewire
-    onto ``recover()`` that is still pending, not this specific import. The
-    xfail branch exists for completeness/symmetry with the `_io.py` check
-    above and to protect against a future regression that adds a direct
-    `charset_normalizer` import here before WP03 lands its `recover()` call.
+    WP03 rewired ``accept --normalize-encoding`` off its hand-rolled
+    cp1252-then-latin-1 fallback and onto ``charter.encoding_recovery.recover``
+    (#4968). This is an unconditional hard fork-guard against a future
+    regression that adds a direct ``charset_normalizer`` import here instead of
+    reusing the canonical detector.
     """
-    if _imports_charset_normalizer(_ACCEPTANCE_INIT):
-        pytest.xfail(
-            reason=(
-                "src/specify_cli/acceptance/__init__.py imports charset_normalizer "
-                "directly, pending WP03's rewire onto charter.encoding_recovery.recover "
-                "(#4896 unification). Delete this xfail once WP03 lands."
-            )
-        )
     assert not _imports_charset_normalizer(_ACCEPTANCE_INIT)
 
 
