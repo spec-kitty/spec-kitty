@@ -409,6 +409,33 @@ class ArtifactEncodingError(AcceptanceError):
         self.error = error
 
 
+class EncodingBackupCollisionError(AcceptanceError):
+    """Raised when a ``--normalize-encoding`` repair finds a pre-existing
+    ``<name><_ENCODING_BACKUP_SUFFIX>`` sibling for the artifact it is about
+    to rewrite (#4962 review fold B).
+
+    Mirrors ``migrate charter-encoding``'s collision rule
+    (``cli/commands/migrate/charter_encoding.py::_BackupCollisionError``,
+    data-model.md "Backup artifact"): the existing backup is NEVER silently
+    overwritten -- doing so would destroy the only surviving copy of some
+    PRIOR repair's original bytes, breaking the "never a one-way trip"
+    guarantee :func:`_write_recovered_artifact` exists to uphold. ``accept``
+    refuses instead, surfacing through the command's ``except AcceptanceError``
+    handler (exit 1), so the operator can inspect/remove the stale backup and
+    re-run ``--normalize-encoding``.
+    """
+
+    def __init__(self, path: Path, backup_path: Path):
+        message = (
+            f"Refusing to normalize {path}: a backup already exists at "
+            f"{backup_path} and would be silently overwritten. Remove or "
+            "rename the existing backup, then re-run `accept --normalize-encoding`."
+        )
+        super().__init__(message)
+        self.path = path
+        self.backup_path = backup_path
+
+
 def _format_lane_blocker(lane: str, wp_id: str) -> str:
     hint = _ACTIONABLE_LANE_BLOCKER_HINTS.get(lane)
     if hint is None:
@@ -910,9 +937,20 @@ def _write_recovered_artifact(path: Path, text: str) -> Path:
     in-place rewrite, so a repaired artifact is never a one-way trip (#4968 —
     the prior ``normalize_feature_encoding`` overwrote in place with no
     backup at all).
+
+    Raises:
+        EncodingBackupCollisionError: a ``<name><_ENCODING_BACKUP_SUFFIX>``
+            sibling already exists (#4962 review fold B). Mirrors
+            ``migrate charter-encoding``'s ``_BackupCollisionError`` guard —
+            an existing backup is NEVER silently overwritten (it may be the
+            only surviving copy of a PRIOR repair's original bytes); this
+            function had no such guard before fold B, unlike migrate's
+            equivalent ``_write_normalized_with_backup``.
     """
     original_bytes = path.read_bytes()
     backup_path = path.with_name(f"{path.name}{_ENCODING_BACKUP_SUFFIX}")
+    if backup_path.exists():
+        raise EncodingBackupCollisionError(path, backup_path)
     backup_path.write_bytes(original_bytes)
 
     tmp_path = path.with_name(f"{path.name}.tmp-{uuid4().hex}")
@@ -1765,6 +1803,7 @@ __all__ = [
     "AcceptanceSummary",
     "acceptance_lane_derivations",
     "ArtifactEncodingError",
+    "EncodingBackupCollisionError",
     "WorkPackageState",
     "choose_mode",
     "collect_feature_summary",

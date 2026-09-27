@@ -141,3 +141,41 @@ class TestAcceptNormalizeEncodingIssue4968:
         assert spec_path not in rewritten
         assert spec_path.read_bytes() == original
         assert not _backup_path(spec_path).exists()
+
+
+class TestAcceptNormalizeEncodingBackupCollision:
+    """#4962 review fold B: ``_write_recovered_artifact`` must never clobber
+    a pre-existing ``.bak`` sibling.
+
+    Mirrors ``migrate charter-encoding``'s ``_BackupCollisionError`` guard
+    (``cli/commands/migrate/charter_encoding.py``), which the pre-fold
+    ``accept --normalize-encoding`` repair path lacked entirely: an
+    unconditional ``backup_path.write_bytes(...)`` silently overwrote
+    whatever was already at ``<name>.bak`` -- clobbering the ORIGINAL bytes a
+    prior repair preserved there, breaking the "never a one-way trip"
+    guarantee on a re-run.
+    """
+
+    def test_preexisting_backup_refuses_and_leaves_both_files_untouched(
+        self, feature_repo: Path, mission_slug: str
+    ) -> None:
+        spec_path = _spec_path(feature_repo, mission_slug)
+        spec_path.write_bytes(SENTINEL.encode("cp1252"))
+
+        backup_path = _backup_path(spec_path)
+        stale_backup_bytes = b"stale backup from a prior repair run\x92"
+        backup_path.write_bytes(stale_backup_bytes)
+
+        with pytest.raises(acc.EncodingBackupCollisionError) as exc_info:
+            acc.normalize_feature_encoding(feature_repo, mission_slug)
+
+        # Non-vacuous: without the fold B guard this raises nothing -- the
+        # collision is silently overwritten and the call returns normally.
+        assert str(spec_path) in str(exc_info.value)
+        assert str(backup_path) in str(exc_info.value)
+
+        # The stale backup is NEVER silently overwritten...
+        assert backup_path.read_bytes() == stale_backup_bytes
+        # ...and the artifact needing repair is left exactly as it was
+        # (refused, not partially rewritten).
+        assert spec_path.read_bytes() == SENTINEL.encode("cp1252")
