@@ -204,3 +204,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-09-23 | [Auto-Merge Gates on the Terminal CI Aggregators — main Required Status Checks](2026-09-23-1-auto-merge-required-checks-gate.md) |
 | 2026-09-24 | [Coord reads fail closed: an unmaterialised coordination worktree raises instead of returning empty PRIMARY](2026-09-24-2-coord-read-fail-closed.md) |
 | 2026-09-26 | [a green main/nightly must mean the tests actually ran](2026-09-26-1-ci-coverage-honesty.md) |
+| 2026-09-26 | [Lane Naming Is Keyed on Creation Input, Never on Mission Identity](2026-09-26-2-lane-naming-keyed-on-creation-input.md) |

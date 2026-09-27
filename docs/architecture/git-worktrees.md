@@ -2,7 +2,7 @@
 title: Git Worktrees Explained
 description: "What git worktrees are and why Spec Kitty gives each execution lane its own: what worktrees share and keep separate, plus lifecycle commands and crash recovery."
 doc_status: active
-updated: '2026-06-17'
+updated: '2026-09-26'
 related:
 - docs/architecture/branch-target-routing.md
 - docs/architecture/execution-lanes.md
@@ -14,12 +14,15 @@ related:
 
 Git worktrees are the technology that enables Spec Kitty's parallel development model. This document explains what worktrees are, why Spec Kitty uses them, and how they work in the modern lane-based execution model.
 
-> **Naming note (mission 083+):** Lane worktree paths now embed `mid8` — the
-> first 8 characters of the mission's ULID `mission_id` — as in
-> `.worktrees/my-feature-01J6XW9K-lane-a/`. This is the current form produced
-> by `spec-kitty implement`. The legacy numeric-prefix form
-> `.worktrees/001-my-feature-lane-a/` shown in some examples below still
-> resolves for pre-083 projects. See the
+> **Naming note:** a lane worktree path embeds `mid8` — the first 8 characters
+> of the mission's ULID `mission_id`, as in `.worktrees/my-feature-01J6XW9K-lane-a/`
+> — only when the recorded Mission slug itself embeds a mid8. Lane naming keys
+> on the recorded Mission slug and lane id alone; the Mission identity is
+> never an input to it (see ADR
+> [`2026-09-26-2`](../adr/3.x/2026-09-26-2-lane-naming-keyed-on-creation-input.md)
+> and [Execution Lanes §Naming](execution-lanes.md#naming)). The legacy
+> numeric-prefix form `.worktrees/001-my-feature-lane-a/` shown in some
+> examples below still resolves for pre-083 projects. See the
 > [mission identity migration runbook](../migrations/mission-id-canonical-identity.md)
 > for upgrade steps.
 

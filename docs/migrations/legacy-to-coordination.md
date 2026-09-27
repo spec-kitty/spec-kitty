@@ -2,7 +2,7 @@
 title: 'Migration: Legacy Topology to the Coordination Model'
 description: 'Operator runbook for the legacy-topology bookkeeping warning: what a pre-coordination mission is, how to detect one, and the supported paths forward.'
 doc_status: active
-updated: '2026-07-04'
+updated: '2026-09-26'
 related:
 - docs/architecture/branch-target-routing.md
 - docs/architecture/execution-lanes.md
@@ -103,9 +103,12 @@ the legacy-topology warning:
 
 3. **Check the worktree layout.** Coordination missions have a
    `.worktrees/<slug>-<mid8>-coord/` worktree alongside any lane worktrees.
-   Legacy missions have only lane worktrees
-   (`.worktrees/<slug>-<mid8>-lane-<id>/`, or the pre-083 forms described in
-   the [mission identity runbook](mission-id-canonical-identity.md)).
+   Legacy missions have only lane worktrees, laid out as
+   `.worktrees/<slug>-lane-<id>/` (or `.worktrees/<slug>-<mid8>-lane-<id>/`
+   when the recorded slug itself embeds a mid8 — lane naming keys on the
+   slug and lane id, never on the Mission identity; see [Execution Lanes
+   §Naming](../architecture/execution-lanes.md#naming)), or the pre-083
+   forms described in the [mission identity runbook](mission-id-canonical-identity.md).
 
 ## Path A — Stay on the legacy topology and backfill the stored shape
 

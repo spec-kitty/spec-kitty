@@ -2,7 +2,7 @@
 title: Execution Lanes
 description: "Spec Kitty's lane-based execution model: finalize-tasks computes lanes.json from dependencies and file ownership, giving each lane one worktree and branch to preserve parallelism."
 doc_status: active
-updated: '2026-06-17'
+updated: '2026-09-26'
 related:
 - docs/architecture/branch-target-routing.md
 - docs/migrations/mission-id-canonical-identity.md
@@ -46,26 +46,49 @@ for the real behavior.)
 
 ## Naming
 
-As of mission `083-mission-id-canonical-identity-migration`, every mission carries a ULID
-identity (`mission_id`), and branch and worktree names embed the first 8 characters of
-that ULID (`mid8`) to guarantee collision-free naming even when two missions share the
-same human slug.
+Mission and lane naming are two separate decisions, and only the Mission
+decision takes the Mission identity.
 
-- Mission branch: `kitty/mission-<human-slug>-<mid8>`
-- Lane branch: `kitty/mission-<human-slug>-<mid8>-lane-a`
-- Lane worktree: `.worktrees/<human-slug>-<mid8>-lane-a/`
+**Mission branch** — unchanged. As of mission
+`083-mission-id-canonical-identity-migration`, every mission carries a ULID
+identity (`mission_id`), and the Mission branch embeds the first 8 characters
+of that ULID (`mid8`) to guarantee collision-free naming even when two
+missions share the same human slug: `kitty/mission-<human-slug>-<mid8>`.
 
-Example, for a mission with `mission_slug=my-feature` and
-`mission_id=01J6XW9KQT7M0YB3N4R5CQZ2EX` (so `mid8=01J6XW9K`):
+**Lane branch and lane worktree** — keyed on the recorded Mission slug and the
+lane id only. The Mission identity is never an input to lane naming (see ADR
+[`2026-09-26-2`](../adr/3.x/2026-09-26-2-lane-naming-keyed-on-creation-input.md)):
+
+- Lane branch: `kitty/mission-<slug-body>-<lane-id>`, where `<slug-body>` is
+  the recorded Mission slug with a stale `NNN-` numeric prefix dropped only
+  when the slug itself embeds a mid8.
+- Lane worktree: `.worktrees/<slug>-<lane-id>/`, verbatim — the recorded slug,
+  not recomposed.
+
+`mid8` therefore appears in a lane name only when the Mission slug happens to
+embed it — never because lane naming looked up the identity.
+
+**Example — a modern mission** (slug embeds the mid8, so lane names look the
+same as before this ADR): `mission_slug=my-feature-01J6XW9K`,
+`mission_id=01J6XW9KQT7M0YB3N4R5CQZ2EX`:
 
 - Mission branch: `kitty/mission-my-feature-01J6XW9K`
 - Lane branch: `kitty/mission-my-feature-01J6XW9K-lane-a`
 - Lane worktree: `.worktrees/my-feature-01J6XW9K-lane-a/`
 
-Legacy (pre-083) forms such as `kitty/mission-001-my-feature-lane-a` and
-`.worktrees/001-my-feature-lane-a/` remain readable by current tooling but
-are no longer the form produced by `implement`. Upgrade via the
-[mission identity migration runbook](../migrations/mission-id-canonical-identity.md).
+**Example — a legacy mission** whose recorded slug is `057-foo` and whose
+identity was later backfilled to a *different* mid8 (`01KV6510`): lane naming
+never sees the identity, so lane names are unaffected by the backfill:
+
+- Mission branch (recomposed only on first finalize; preserved after):
+  `kitty/mission-057-foo` (pre-backfill) — see the
+  [mission identity migration runbook](../migrations/mission-id-canonical-identity.md)
+  for what backfill does and does not change.
+- Lane branch: `kitty/mission-057-foo-lane-a`
+- Lane worktree: `.worktrees/057-foo-lane-a/`
+
+Legacy (pre-083) lane forms such as `kitty/mission-001-my-feature-lane-a` and
+`.worktrees/001-my-feature-lane-a/` remain readable by current tooling.
 
 ## Why This Replaced Per-WP Worktrees
 

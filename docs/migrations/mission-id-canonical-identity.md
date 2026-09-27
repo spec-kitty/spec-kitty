@@ -2,7 +2,7 @@
 title: 'Migration: Mission ID as Canonical Identity'
 description: "Migration to mission_id (ULID) as a mission's canonical identity, shipped with mission 083: the new identity model, the backfill, and the ADR behind it."
 doc_status: active
-updated: '2026-07-08'
+updated: '2026-09-26'
 related:
 - docs/migrations/feature-flag-deprecation.md
 ---
@@ -62,16 +62,28 @@ global invariant can actually be enforced.
 |-------|--------------|--------------|
 | Canonical machine identity | `mission_number` (3-digit string) | `mission_id` (26-char ULID) |
 | Selector routing | `mission_number` / `mission_slug` prefix match | `mission_id`, `mid8`, or `mission_slug`, disambiguated by `mission_id` |
-| Branch naming | `kitty/mission-<slug>-lane-<id>` | `kitty/mission-<slug>-<mid8>-lane-<id>` |
-| Worktree naming | `.worktrees/<slug>-lane-<id>` | `.worktrees/<slug>-<mid8>-lane-<id>` |
+| Mission branch naming | `kitty/mission-<slug>` | `kitty/mission-<slug>-<mid8>` |
+| Lane branch naming† | `kitty/mission-<slug>-lane-<id>` | `kitty/mission-<slug>-lane-<id>` (unchanged — see footnote) |
+| Lane worktree naming† | `.worktrees/<slug>-lane-<id>` | `.worktrees/<slug>-lane-<id>` (unchanged — see footnote) |
 | Ambiguous selector | Silent first-match fallback | Structured `MISSION_AMBIGUOUS_SELECTOR` error |
 | When `mission_number` is assigned | At mission creation | At merge time, under the merge-state lock |
 | Dashboard scanner key | `mission_slug` | `mission_id` (distinct rows for duplicate prefixes) |
 
 - `mid8` is the first 8 characters of the ULID. It is the short disambiguator
-  used in filesystem and git identifiers.
+  used in the Mission branch and coordination identifiers.
 - Pre-083 missions without a `mission_id` are called **legacy missions**. The
   doctor and backfill commands below mint a `mission_id` for them.
+- † **Lane branch and worktree naming never derived from `mission_id`.**
+  Mission 083 originally documented lane names as embedding `mid8` the same
+  way the Mission branch does. That was never what lane *creation* produced
+  — lanes were always named from the slug and lane id alone — and the gap
+  between what six other read sites assumed and what creation actually did
+  caused a merge defect (#5108). ADR
+  [`2026-09-26-2`](../adr/3.x/2026-09-26-2-lane-naming-keyed-on-creation-input.md)
+  makes the created (slug-only) name the only name any caller can compose.
+  `mid8` appears in a lane name only when the recorded Mission **slug**
+  happens to embed it (see
+  [Execution Lanes §Naming](../architecture/execution-lanes.md#naming)).
 
 ## Step 1 — Upgrade `spec-kitty-cli`
 
@@ -181,39 +193,80 @@ If any mission is still `legacy`, rerun backfill against that mission
 directly. If a `conflict` appears after backfill, open an issue — backfill
 should never produce one.
 
+## What Backfill Does Not Change
+
+Backfill mints `mission_id` and writes it into `meta.json`; it does **not**
+touch `lanes.json` or rename anything already created on disk:
+
+- **Lane branches and worktrees keep their created names.** Backfilling a
+  legacy mission's identity does not rename its lane branches or lane
+  worktrees, because lane naming never took the identity as an input in the
+  first place (see the footnote in **What Changed** above and ADR
+  [`2026-09-26-2`](../adr/3.x/2026-09-26-2-lane-naming-keyed-on-creation-input.md)).
+  A lane created before backfill and a lane created after backfill compose
+  the identical name, for the identical slug and lane id.
+- **`lanes.json`'s recorded `mission_branch` is preserved across
+  re-finalize (FR-011).** Only the *first* `finalize-tasks` for a mission
+  defines its recorded Mission branch. Backfilling the identity and then
+  re-running `finalize-tasks` leaves that recorded value byte-identical —
+  it is never recomposed from the (now-different) identity. This is what
+  keeps a backfilled mission's later `implement`/`merge` steps targeting the
+  Mission branch that was actually created, instead of a phantom name that
+  was never created.
+
 ## Step 5 — Understanding the new branch and worktree naming
 
-Once a mission has a `mission_id`, the next `spec-kitty implement` cycle will
-produce new branches and worktrees that embed `mid8`.
+This step applies only to a Mission's **first** `finalize-tasks` — the one
+that defines `lanes.json`'s recorded Mission branch for the first time. Once
+a mission has a `mission_id`, that first finalize (via the following
+`spec-kitty implement` cycle) produces a **Mission branch** that embeds
+`mid8`. A **re-finalize** on an already-finalized Mission is a different
+case: it preserves the already-recorded Mission branch byte-identically (see
+**What Backfill Does Not Change** above) rather than recomputing it. Lane
+branches and lane worktrees are keyed on the slug and lane id only in either
+case, never on `mission_id` directly.
 
-**Legacy form (still resolvable for pre-083 state):**
+**Case A — a legacy Mission backfilled after it was already finalized.**
+Its lanes were created from the pre-backfill slug, so its lane names do not
+change:
 
 ```text
-Branch:    kitty/mission-auth-system-lane-a
-Worktree:  .worktrees/auth-system-lane-a/
+Mission branch: kitty/mission-auth-system
+Lane branch:    kitty/mission-auth-system-lane-a
+Lane worktree:  .worktrees/auth-system-lane-a/
 ```
 
-**New form (083+):**
+Backfilling this Mission's identity does not by itself change any of the
+above — see **What Backfill Does Not Change**.
+
+**Case B — a Mission created fresh on 083+.** Its recorded slug already
+embeds the mid8 (minted at `mission create`, before the first `finalize`
+ever runs), so the Mission branch **and** the lane names both contain it —
+not because lane naming looked up the identity, but because it is already
+part of the slug it composes from:
 
 ```text
-Branch:    kitty/mission-auth-system-01J6XW9K-lane-a
-Worktree:  .worktrees/auth-system-01J6XW9K-lane-a/
+Mission branch: kitty/mission-auth-system-01J6XW9K
+Lane branch:    kitty/mission-auth-system-01J6XW9K-lane-a
+Lane worktree:  .worktrees/auth-system-01J6XW9K-lane-a/
 ```
 
 Where `01J6XW9K` is the first 8 characters of
-`mission_id = 01J6XW9KQT7M0YB3N4R5CQZ2EX`.
+`mission_id = 01J6XW9KQT7M0YB3N4R5CQZ2EX`. Compare Case A: there, the slug
+never embedded a mid8, so the lane names never picked one up either — lane
+naming only ever reflects whatever the recorded slug already contains, never
+the identity directly (see ADR
+[`2026-09-26-2`](../adr/3.x/2026-09-26-2-lane-naming-keyed-on-creation-input.md)).
 
 **What this means in practice:**
 
-- You may see both legacy and new branches side-by-side during the transition.
-  That is expected.
+- You may see both legacy and new Mission branches side-by-side during the
+  transition. That is expected.
 - The dashboard scanner keys rows by `mission_id`, so two missions that share
   a numeric prefix now appear as distinct rows instead of overwriting each
   other.
-- Existing worktrees for a mission do **not** rename automatically. They
-  continue to work until the next `implement` cycle, at which point the new
-  lane worktree is created in the new form. You can delete the old one with
-  `git worktree remove` once you have moved any in-flight work.
+- Existing worktrees for a mission do **not** rename automatically. Lane
+  worktrees never need to — they were never keyed on the identity.
 
 ## Step 6 — What to do if a selector is ambiguous
 
@@ -251,7 +304,7 @@ after the migration:
 2. **Pin the CLI back.** `pipx install spec-kitty-cli==<pre-083-version>`
    returns you to the 2.x line. The old CLI will ignore the new
    `mission_id` field in `meta.json` and continue to route by
-   `mission_number`. The new branches and worktrees created under 083 will
+   `mission_number`. The new Mission branches created under 083 will
    remain on disk but will not be used by the old CLI; you can either
    `git worktree remove` them or leave them as archived state.
 3. **Report the failure.** File an issue at
