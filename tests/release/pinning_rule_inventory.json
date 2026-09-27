@@ -41,7 +41,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        33
+        42
       ],
       "dependency": true,
       "disposition": "none",
@@ -276,8 +276,8 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        954,
-        1381
+        872,
+        1258
       ],
       "dependency": false,
       "disposition": "none",
@@ -574,7 +574,37 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        45
+        47
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/architectural/test_pyproject_shape.py::<module>",
+      "file": "tests/architectural/test_pyproject_shape.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        300
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/architectural/test_pyproject_shape.py::_dev_group_plugin_violations",
+      "file": "tests/architectural/test_pyproject_shape.py",
+      "scope": "_dev_group_plugin_violations",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        319
       ],
       "dependency": false,
       "disposition": "none",
@@ -1178,6 +1208,21 @@
       "reason": "FALSE POSITIVE, recorded as the contract requires: the token is the directory name `tests/ci/fixtures/sonarcloud`, belonging to the read-only REST helper sonarcloud_branch_review.sh. Unrelated to the job. (The subject regex is boundary-matched and case-sensitive precisely to keep the helper's own module name out of the inventory; this path segment is the one spelling that still matches.)"
     },
     {
+      "rule": "tests/cli/commands/test_charter_json_error_contract.py::_isolate_cwd_from_worktree_guard",
+      "file": "tests/cli/commands/test_charter_json_error_contract.py",
+      "scope": "_isolate_cwd_from_worktree_guard",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        34
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
       "rule": "tests/cli/test_events_tail.py::<module-docstring>",
       "file": "tests/cli/test_events_tail.py",
       "scope": "<module-docstring>",
@@ -1339,7 +1384,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        372
+        377
       ],
       "dependency": true,
       "disposition": "none",
@@ -1384,9 +1429,9 @@
       ],
       "form": "path-anchored",
       "lines": [
-        328,
-        332,
-        333
+        333,
+        337,
+        338
       ],
       "dependency": true,
       "disposition": "none",
@@ -1401,7 +1446,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        574
+        579
       ],
       "dependency": true,
       "disposition": "none",
@@ -1416,8 +1461,8 @@
       ],
       "form": "path-anchored",
       "lines": [
-        337,
-        346
+        342,
+        351
       ],
       "dependency": true,
       "disposition": "none",
@@ -1433,8 +1478,8 @@
       ],
       "form": "path-anchored",
       "lines": [
-        305,
-        307
+        310,
+        312
       ],
       "dependency": true,
       "disposition": "rewrite",
