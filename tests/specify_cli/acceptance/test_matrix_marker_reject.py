@@ -7,8 +7,8 @@ it. Before this guard, a marker landing in ``pass_fail``/``result`` merely
 happened to coerce ``overall_verdict`` to a false ``fail`` via the existing
 out-of-domain-value branch; a marker in a prose-only field (e.g. ``notes``)
 left no signal at all that the file was merge-damaged. WP01 (a parallel
-lane, ``merge_driver.py``) closes the write side of the same defect; this
-WP closes the read side.
+lane, ``merge/drivers.py`` since #5119) closes the write side of the same
+defect; this WP closes the read side.
 """
 
 from __future__ import annotations

@@ -1,8 +1,10 @@
 """Regression + unit coverage for #4894 (WP03): traces merge-driver section union.
 
-``merge_driver_traces`` / ``union_trace_texts`` (``src/specify_cli/cli/commands/
-merge_driver.py``) used to dedup ``kitty-specs/**/traces/*.md`` conflict inputs at
-LINE granularity with one shared ``seen`` set across ``ours``/``theirs`` -- sound
+``merge_driver_traces`` (``src/specify_cli/cli/commands/merge_driver.py``, a
+thin shell since #5119) / ``union_trace_texts`` (``src/specify_cli/merge/
+drivers.py`` since #5119) used to dedup ``kitty-specs/**/traces/*.md``
+conflict inputs at LINE granularity with one shared ``seen`` set across
+``ours``/``theirs`` -- sound
 only for documents whose non-empty lines are globally unique, which markdown is
 not (fences, ``Example:`` labels, and headings all legitimately recur across
 distinct sections). A file with four fenced blocks came out with one fence line,
@@ -12,7 +14,7 @@ exit 0, clean-merge recorded, on every ordinary ``git merge``/``rebase``/
 The rewrite unions at SECTION/BLOCK granularity (:func:`union_trace_texts`) and
 adds 3-way base-awareness (:func:`merge_driver_traces` now reads ``%O``) so a
 section left unchanged by one side while the other edited it is recognized as
-stale rather than resurrected. See the module docstring in ``merge_driver.py``
+stale rather than resurrected. See the module docstring in ``merge/drivers.py``
 for the full contract (INV-3: every non-empty line present in either input is
 present in the output).
 
@@ -39,11 +41,11 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.merge_driver import (
+from specify_cli.cli.commands.merge_driver import merge_driver_traces
+from specify_cli.merge.drivers import (
     _drop_stale_theirs_trace_blocks,
     _split_trace_blocks,
     _union_acceptance_history,
-    merge_driver_traces,
     union_trace_texts,
 )
 

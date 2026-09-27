@@ -1091,8 +1091,9 @@ def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
 
     (a) the kernel L1 raw-content shape (``json.loads(text)`` where ``text`` is a
     decoded ``raw`` parameter, NOT a file read) and (b) the
-    ``merge_driver._parse_json_document`` row-matrix shape (``json.loads`` over a
-    generic ``path`` argument) are both invisible to the meta-path detection.
+    ``merge.drivers._parse_json_document`` row-matrix shape (``json.loads`` over a
+    generic ``path`` argument, relocated from ``cli/commands/merge_driver.py``
+    by #5119) are both invisible to the meta-path detection.
     Placed at a scratch path (not the kernel module), neither is flagged -- the
     gate keys on meta-content provenance, not on the mere presence of
     ``json.loads``.
@@ -1112,10 +1113,20 @@ def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
         "self-test: neither the raw-content kernel-L1 shape nor the generic-path row-matrix shape may be flagged as a meta-content read"
     )
     # And on the REAL tree the row-matrix decoder is not surfaced as a meta read.
+    # C-002 approved re-pin (#5119, WP04 of merge-seam-test-isolation-campsite-
+    # 01M3F61E): the row-matrix decoder moved from
+    # cli/commands/merge_driver.py to merge/drivers.py. The qualname-existence
+    # assertion below is required BECAUSE the filter alone is vacuous -- an
+    # empty `row_matrix` list also (trivially) passes if `_parse_json_document`
+    # were deleted or renamed, so this proves the function still exists at the
+    # new path before trusting the empty-list assertion that follows.
+    drivers_path = SRC_ROOT / "specify_cli" / "merge" / "drivers.py"
+    drivers_functions = {node.name for node in ast.walk(ast.parse(drivers_path.read_text(encoding="utf-8"))) if isinstance(node, ast.FunctionDef)}
+    assert "_parse_json_document" in drivers_functions, (
+        "merge/drivers.py must still define _parse_json_document -- the row-matrix exclusion re-pin below would be vacuous otherwise"
+    )
     row_matrix = [
-        site
-        for site in scan_inline_meta_reads(SRC_ROOT)
-        if site.rel_path.endswith("cli/commands/merge_driver.py") and site.key.enclosing_qualname == "_parse_json_document"
+        site for site in scan_inline_meta_reads(SRC_ROOT) if site.rel_path.endswith("merge/drivers.py") and site.key.enclosing_qualname == "_parse_json_document"
     ]
     assert row_matrix == [], "the row-matrix decoder (_parse_json_document) must be excluded from the meta scope (it decodes issue/row-matrix docs, not meta.json)"
 

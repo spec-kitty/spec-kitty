@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.merge_driver import (
+from specify_cli.merge.drivers import (
     _union_acceptance_history,
     reconcile_meta_payloads,
     union_trace_texts,

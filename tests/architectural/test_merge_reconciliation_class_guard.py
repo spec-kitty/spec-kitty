@@ -274,7 +274,9 @@ def _canonical_artifact_file_globs() -> dict[str, MissionArtifactKind]:
 # appends, which IS both-sides-divergent bookkeeping (the exact #2709 shape
 # a blind ``-X theirs`` would clobber). This is why the pre-existing
 # ``spec-kitty-traces`` order-preserving union merge driver
-# (``merge_driver.py::merge_driver_traces``) already covers
+# (``merge/drivers.py::run_traces_driver``, behind the
+# ``cli/commands/merge_driver.py::merge_driver_traces`` shell since #5119)
+# already covers
 # ``kitty-specs/**/traces/*.md`` across all four seeding surfaces (registry /
 # .gitattributes / init seed / upgrade migration, T013b below) -- traces is
 # divergent, not human-source, and its driver already exists; this dir set

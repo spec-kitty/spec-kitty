@@ -48,10 +48,13 @@ import ast
 import importlib.util
 import sys
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 from pytestarch import LayerRule
+
+from specify_cli.contracts.anchoring import enclosing_qualname
 
 pytestmark = pytest.mark.architectural
 
@@ -216,36 +219,186 @@ def _specify_cli_subpackage(module: str) -> str:
     return parts[1] if len(parts) > 1 else ""
 
 
-def _collect_specify_cli_imports(root: Path) -> list[tuple[str, str]]:
-    """Return ``(relative_path, imported_module)`` for every specify_cli import.
+@dataclass(frozen=True)
+class ImportSite:
+    """One AST-observed ``specify_cli`` import, site-level.
 
-    Walks the full AST so *lazy, in-function* imports are included — the
-    ``mission_runtime`` upward edges live inside functions, so a module-level
-    scan would miss them and the rule would pass vacuously.
-    Root ``from`` imports resolve real submodules against the source tree without
-    executing them; root attributes/functions retain the bare-root classification.
+    ``qualname`` is the innermost enclosing function/class scope (or
+    ``"<module>"``), computed via :func:`enclosing_qualname` so a boundary
+    violation's failure message can name *where* in the file the offending
+    import lives, not just which line.
     """
-    found: list[tuple[str, str]] = []
+
+    rel: str
+    lineno: int
+    qualname: str
+    module: str
+
+
+_DYNAMIC_IMPORT_CALLABLE_NAMES: frozenset[str] = frozenset({"import_module", "__import__", "find_spec"})
+
+
+def _pkg_parts(rel: str) -> tuple[str, ...]:
+    """The dotted package (as path parts) that *owns* the module at *rel*.
+
+    ``specify_cli/merge/git_probes.py`` -> ``("specify_cli", "merge")``;
+    ``specify_cli/merge/__init__.py`` -> ``("specify_cli", "merge")`` too (an
+    ``__init__`` module's *own* package is one level up from its file name,
+    same as any other module's -- both cases drop exactly the last part).
+    """
+    return Path(rel).with_suffix("").parts[:-1]
+
+
+def _is_real_submodule(pkg_dotted: str, name: str) -> bool:
+    """True when ``<pkg_dotted>/<name>`` exists on disk under ``_SRC`` as a
+    module or package (never imports/executes anything — a pure filesystem
+    check so this stays safe to run over untrusted/dynamic trees)."""
+    if not pkg_dotted:
+        return False
+    candidate = _SRC.joinpath(*pkg_dotted.split("."), name)
+    return candidate.is_dir() or candidate.with_suffix(".py").is_file()
+
+
+def _resolve_import_from_base(node: ast.ImportFrom, rel: str) -> str:
+    """The dotted base module of ``from <base> import ...``, relative-aware.
+
+    ``node.level == 0`` (absolute) returns ``node.module`` verbatim (possibly
+    ``""`` for a bare ``from . import x`` — level-0 imports never have that
+    shape, so this is effectively always non-empty for level 0). A relative
+    import resolves against the *importing file's own package*
+    (:func:`_pkg_parts`), walking up one level per ``node.level`` beyond the
+    first (mirrors ``research/merge_cli_rule_probe.py``'s ``resolve_from``).
+    """
+    if node.level == 0:
+        return node.module or ""
+    pkg = list(_pkg_parts(rel))
+    if node.level > 1:
+        pkg = pkg[: len(pkg) - (node.level - 1)]
+    parts = [*pkg]
+    if node.module:
+        parts.append(node.module)
+    return ".".join(parts)
+
+
+def _expand_from_targets(base: str, node: ast.ImportFrom) -> list[str]:
+    """Modules yielded by ``from base import name, ...``.
+
+    ``base == "specify_cli"`` (the literal bare root) keeps the pre-existing
+    EXCLUSIVE per-alias resolution byte-identical to the original collector:
+    one entry per alias — the real submodule form (``specify_cli.<alias>``)
+    when the alias resolves to a real module/package on disk, else the bare
+    root itself. This is what keeps ``TestRuntimeSpecifyCliLedger``'s
+    root-member tests (and the mission_runtime/runtime ledgers, verified by a
+    live before/after AST diff — research R3 step 6) byte-for-byte unchanged.
+
+    Any OTHER ``specify_cli`` base (``specify_cli.cli``,
+    ``specify_cli.cli.commands``, ...) uses the ADDITIVE form instead: the
+    base itself, PLUS ``base.alias`` for every alias that resolves to a real
+    submodule. This is what lets one
+    ``from specify_cli.cli.commands import merge_driver`` site surface as
+    BOTH ``specify_cli.cli.commands`` and
+    ``specify_cli.cli.commands.merge_driver`` — the two entries
+    ``TestMergeCliBoundary`` dedupes back down to one reported finding
+    (matching ``research/merge_cli_rule_probe.py``'s additive ``resolve_from``).
+    """
+    if not base:
+        return []
+    if base == "specify_cli":
+        return [
+            f"{base}.{alias.name}" if _is_real_submodule(base, alias.name) else base
+            for alias in node.names
+        ]
+    targets = [base]
+    for alias in node.names:
+        if _is_real_submodule(base, alias.name):
+            targets.append(f"{base}.{alias.name}")
+    return targets
+
+
+def _dynamic_import_target(node: ast.Call) -> str | None:
+    """The literal string module argument of a dynamic-import call, if any.
+
+    Matches ``importlib.import_module(...)`` / bare ``import_module(...)``
+    (however the name reached scope) / ``__import__(...)`` /
+    ``importlib.util.find_spec(...)`` / bare ``find_spec(...)`` — always by
+    the call's final attribute/name only, so the fully-qualified spelling
+    does not need to be reproduced here. Requires a string-literal first
+    argument (a dynamic/computed module name is out of scope — this rule
+    catches *static* boundary leaks, not every possible obfuscation) and
+    NEVER matches an unrelated call sharing another name (e.g.
+    ``logging.getLogger("specify_cli.cli.commands.merge")`` — ``getLogger``
+    is not in :data:`_DYNAMIC_IMPORT_CALLABLE_NAMES`).
+    """
+    func = node.func
+    name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+    if name not in _DYNAMIC_IMPORT_CALLABLE_NAMES:
+        return None
+    if not node.args:
+        return None
+    first_arg = node.args[0]
+    if not (isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str)):
+        return None
+    return first_arg.value
+
+
+def _collect_specify_cli_import_sites(root: Path) -> list[ImportSite]:
+    """Return every ``specify_cli`` import site under *root*.
+
+    Walks the full AST (so *lazy, in-function* imports are included — the
+    ``mission_runtime``/``runtime`` upward edges live inside functions) in
+    FOUR forms other collectors have historically missed: module-level,
+    function-local, RELATIVE (``from ..cli.commands import x`` —
+    :func:`_resolve_import_from_base`), and literal-string dynamic
+    (``importlib.import_module("...")`` / ``__import__("...")`` /
+    ``importlib.util.find_spec("...")`` — :func:`_dynamic_import_target`).
+    A bare string elsewhere (a logger name, a docstring) is never matched —
+    only a string that is BOTH a dynamic-import call's first argument AND
+    itself a ``specify_cli`` module reaches this list.
+    """
+    sites: list[ImportSite] = []
     for path in sorted(root.rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
         rel = str(path.relative_to(_SRC))
         for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.level == 0:
-                if node.module and _is_specify_cli_module(node.module):
-                    if node.module == "specify_cli":
-                        for alias in node.names:
-                            target = _SRC / "specify_cli" / alias.name
-                            module = f"specify_cli.{alias.name}" if target.is_dir() or target.with_suffix(".py").is_file() else node.module
-                            found.append((rel, module))
-                    else:
-                        found.append((rel, node.module))
+            modules: list[str] = []
+            if isinstance(node, ast.ImportFrom):
+                base = _resolve_import_from_base(node, rel)
+                if _is_specify_cli_module(base):
+                    modules = _expand_from_targets(base, node)
             elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    if _is_specify_cli_module(alias.name):
-                        found.append((rel, alias.name))
-    return found
+                modules = [alias.name for alias in node.names if _is_specify_cli_module(alias.name)]
+            elif isinstance(node, ast.Call):
+                dynamic_target = _dynamic_import_target(node)
+                if dynamic_target is not None and _is_specify_cli_module(dynamic_target):
+                    modules = [dynamic_target]
+            for module in modules:
+                sites.append(
+                    ImportSite(
+                        rel=rel,
+                        lineno=node.lineno,
+                        qualname=enclosing_qualname(source, node.lineno),
+                        module=module,
+                    )
+                )
+    return sites
+
+
+def _collect_specify_cli_imports(root: Path) -> list[tuple[str, str]]:
+    """Return ``(relative_path, imported_module)`` for every specify_cli import.
+
+    A thin projection over :func:`_collect_specify_cli_import_sites` (the
+    single-collector authority, C-007) so every consumer
+    (``TestRuntimeBoundary``, ``TestMissionRuntimeBoundary``,
+    ``TestRuntimeSpecifyCliLedger``) keeps its exact ``(rel, module)``
+    signature and, over the real ``runtime``/``mission_runtime`` trees,
+    byte-identical results (verified live — no relative/dynamic
+    ``specify_cli`` imports exist there today; see
+    :func:`_expand_from_targets` for the bare-root resolution rule).
+    """
+    return [(site.rel, site.module) for site in _collect_specify_cli_import_sites(root)]
 
 
 def _out_of_ledger_specify_cli_imports(
@@ -413,6 +566,189 @@ class TestRuntimeBoundary:
             if any(module == prefix or module.startswith(prefix + ".") for prefix in forbidden_prefixes)
         ]
         assert not offenders
+
+
+# ---------------------------------------------------------------------------
+# TestMergeCliBoundary: merge -> cli.commands rule
+# ---------------------------------------------------------------------------
+#
+# ``specify_cli/merge/**`` must not import the CLI command layer (the
+# upward leak this rule closes). The one sanctioned exception is
+# ``specify_cli.cli.console`` — a presentation-only singleton — imported by
+# the named ledger below. The same upward leak also exists in
+# ``status/doctor.py`` -> ``cli.commands.review`` and
+# ``tasks/`` -> ``cli.commands`` (C-008 scope note): those are out of scope
+# for this rule.
+#
+# No ``_baselines.yaml`` row for this ledger (C-002/C-007 deferral): the
+# named ledger + its own stale-entry guard below is the shrink-only
+# mechanism, mirroring the sibling mission_runtime/runtime ledgers but
+# without touching the ratchet-owned baseline file.
+
+_MERGE_ROOT = _SRC / "specify_cli" / "merge"
+
+_MERGE_CLI_CONSOLE_IMPORTERS: frozenset[str] = frozenset(
+    {
+        "specify_cli/merge/done_bookkeeping.py",
+        "specify_cli/merge/ordering.py",
+        "specify_cli/merge/forecast.py",
+        "specify_cli/merge/push_preflight.py",
+        "specify_cli/merge/git_probes.py",
+        "specify_cli/merge/preflight.py",
+        "specify_cli/merge/executor.py",
+    }
+)
+
+
+def _is_forbidden_merge_cli_import(module: str) -> bool:
+    """True for any ``specify_cli.cli``/``specify_cli.cli.*`` module OTHER
+    than the one sanctioned exception, ``specify_cli.cli.console`` (a
+    presentation-only singleton every merge module may print through)."""
+    if module == "specify_cli.cli.console":
+        return False
+    return module == "specify_cli.cli" or module.startswith("specify_cli.cli.")
+
+
+def _merge_cli_boundary_offenders(sites: Iterable[ImportSite]) -> list[str]:
+    """Format + dedupe offending ``merge -> cli.commands`` sites.
+
+    Deduped per ``(rel, lineno)``: the additive ``_expand_from_targets``
+    form deliberately yields MULTIPLE module strings for one physical
+    import statement (e.g. both ``specify_cli.cli.commands`` and
+    ``specify_cli.cli.commands.merge_driver`` for the single
+    ``git_probes.py:667`` statement) so every offending form is caught —
+    but a single import statement is still exactly one offending SITE, so
+    the reported failure names it once, using its most specific (longest)
+    offending module string.
+    """
+    grouped: dict[tuple[str, int], list[ImportSite]] = {}
+    for site in sites:
+        if _is_forbidden_merge_cli_import(site.module):
+            grouped.setdefault((site.rel, site.lineno), []).append(site)
+    offenders: list[str] = []
+    for (rel, lineno), grouped_sites in sorted(grouped.items()):
+        representative = max(grouped_sites, key=lambda site: len(site.module))
+        offenders.append(f"{rel}:{lineno} {representative.qualname} -> {representative.module}")
+    return offenders
+
+
+class TestMergeCliBoundary:
+    """``specify_cli/merge/**`` must not import the CLI command layer."""
+
+    def test_merge_does_not_import_cli_command_layer(self) -> None:
+        """No ``specify_cli/merge/**`` module may import the CLI command
+        layer; the driver body lives in ``merge/drivers.py`` instead."""
+        sites = _collect_specify_cli_import_sites(_MERGE_ROOT)
+        offenders = _merge_cli_boundary_offenders(sites)
+        assert not offenders, (
+            "specify_cli/merge/** must not import specify_cli.cli / "
+            "specify_cli.cli.* other than specify_cli.cli.console — move "
+            "the driver body into merge/drivers.py instead:\n  " + "\n  ".join(offenders)
+        )
+
+    def test_console_importers_within_ledger(self) -> None:
+        """Every ``specify_cli.cli.console`` importer is a named, reviewed one."""
+        sites = _collect_specify_cli_import_sites(_MERGE_ROOT)
+        importers = {site.rel for site in sites if site.module == "specify_cli.cli.console"}
+        unlisted = importers - _MERGE_CLI_CONSOLE_IMPORTERS
+        assert not unlisted, (
+            f"unlisted specify_cli.cli.console importer(s) under specify_cli/merge/: "
+            f"{sorted(unlisted)!r}. Add them to _MERGE_CLI_CONSOLE_IMPORTERS with a reason."
+        )
+
+    def test_console_ledger_has_no_stale_entries(self) -> None:
+        """Stale-entry guard: every ledger file must still import console (shrink-only)."""
+        sites = _collect_specify_cli_import_sites(_MERGE_ROOT)
+        importers = {site.rel for site in sites if site.module == "specify_cli.cli.console"}
+        stale = _MERGE_CLI_CONSOLE_IMPORTERS - importers
+        assert not stale, (
+            f"_MERGE_CLI_CONSOLE_IMPORTERS has stale entries with no live "
+            f"specify_cli.cli.console import: {sorted(stale)!r}. Remove them."
+        )
+
+    @staticmethod
+    def _write_probe_tree(tmp_path: Path) -> tuple[Path, Path]:
+        """Build a minimal ``specify_cli/{merge,cli/commands}`` tree under
+        *tmp_path* for the self-mutation forms below. Returns
+        ``(merge_pkg, probe_path)``."""
+        merge_pkg = tmp_path / "specify_cli" / "merge"
+        merge_pkg.mkdir(parents=True)
+        (merge_pkg / "__init__.py").write_text("", encoding="utf-8")
+        cli_pkg = tmp_path / "specify_cli" / "cli"
+        cli_pkg.mkdir(parents=True)
+        (cli_pkg / "__init__.py").write_text("", encoding="utf-8")
+        (cli_pkg / "console.py").write_text("console = None\n", encoding="utf-8")
+        commands_pkg = cli_pkg / "commands"
+        commands_pkg.mkdir()
+        (commands_pkg / "__init__.py").write_text("", encoding="utf-8")
+        (commands_pkg / "merge_driver.py").write_text("", encoding="utf-8")
+        return merge_pkg, merge_pkg / "probe.py"
+
+    @pytest.mark.parametrize("lazy", [False, True], ids=["top-level", "lazy"])
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "import specify_cli.cli.commands.merge_driver",
+            "from specify_cli.cli.commands import merge_driver",
+            "from specify_cli.cli import commands",
+            "from ..cli.commands import merge_driver",
+            'importlib.import_module("specify_cli.cli.commands.merge_driver")',
+            '__import__("specify_cli.cli.commands")',
+        ],
+        ids=[
+            "import-dotted",
+            "from-commands-import-merge-driver",
+            "from-cli-import-commands",
+            "relative-from-cli-commands",
+            "import-module-literal",
+            "dunder-import-literal",
+        ],
+    )
+    def test_boundary_catches_every_import_form(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        lazy: bool,
+        statement: str,
+    ) -> None:
+        """Self-mutation (non-vacuity): every documented import shape is caught,
+        module-level and function-local alike."""
+        merge_pkg, probe_path = self._write_probe_tree(tmp_path)
+        header = "import importlib\n" if "importlib." in statement else ""
+        source = f"{header}def load():\n    {statement}\n" if lazy else f"{header}{statement}\n"
+        probe_path.write_text(source, encoding="utf-8")
+        monkeypatch.setattr(sys.modules[__name__], "_SRC", tmp_path)
+        sites = _collect_specify_cli_import_sites(merge_pkg)
+        offenders = _merge_cli_boundary_offenders(sites)
+        assert offenders, f"form {statement!r} (lazy={lazy}) was not caught by the merge -> cli boundary rule"
+
+    @pytest.mark.parametrize("lazy", [False, True], ids=["top-level", "lazy"])
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "from specify_cli.cli.console import console",
+            'logging.getLogger("specify_cli.cli.commands.merge")',
+        ],
+        ids=["console-import", "logger-name-string"],
+    )
+    def test_boundary_ignores_negative_controls(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        lazy: bool,
+        statement: str,
+    ) -> None:
+        """Negative controls: the console exception and a bare logger-name
+        string that happens to look like a forbidden module path — neither
+        is a real import and neither must ever be reported."""
+        merge_pkg, probe_path = self._write_probe_tree(tmp_path)
+        header = "import logging\n" if "getLogger" in statement else ""
+        source = f"{header}def load():\n    {statement}\n" if lazy else f"{header}{statement}\n"
+        probe_path.write_text(source, encoding="utf-8")
+        monkeypatch.setattr(sys.modules[__name__], "_SRC", tmp_path)
+        sites = _collect_specify_cli_import_sites(merge_pkg)
+        offenders = _merge_cli_boundary_offenders(sites)
+        assert not offenders, f"negative control {statement!r} (lazy={lazy}) was wrongly flagged: {offenders!r}"
 
 
 class TestRefAdvancePlumbingBoundary:

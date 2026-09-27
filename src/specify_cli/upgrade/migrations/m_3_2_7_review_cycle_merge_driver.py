@@ -19,13 +19,17 @@ the not-yet-final ``3.2.6``) would mean this migration silently never runs
 for a user upgrading to the current release candidate.
 
 Unlike its siblings, the driver this migration seeds does NOT union or
-field-merge -- ``merge_driver_review_cycle`` (see that function's docstring
-in ``cli/commands/merge_driver.py``) refuses fail-closed on a genuine
-two-verdict collision under one ``review-cycle-N.md`` filename, embedding
-both raw documents verbatim inside conflict markers rather than fabricating
-a blended verdict. This migration only wires the *registration* surfaces
-(``.gitattributes`` entry + local git config); the reconciliation semantics
-live entirely in the driver command it points at.
+field-merge -- ``run_review_cycle_driver`` (see that function's docstring
+in ``merge/drivers.py``, moved there from ``cli/commands/merge_driver.py``
+by #5119) resolves a genuine two-verdict collision under one
+``review-cycle-N.md`` filename by embedding both raw documents verbatim
+inside conflict markers rather than fabricating a blended verdict --
+best-effort and NON-aborting (exit 0) since the WP09/FR-014/D-PLAN-6
+downgrade demoted this ``.md`` render to non-authoritative, unread prose;
+it no longer refuses/exits non-zero on a collision. This migration only
+wires the *registration* surfaces (``.gitattributes`` entry + local git
+config); the reconciliation semantics live entirely in the driver command
+it points at.
 
 **Command form (T079 design question -- what a real, non-dev-clone consumer
 sees):** this migration writes the bare ``spec-kitty merge-driver-review-cycle
