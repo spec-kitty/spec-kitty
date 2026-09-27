@@ -98,6 +98,23 @@ def test_acceptance_init_detection_funnels_through_recover() -> None:
     assert not _imports_charset_normalizer(_ACCEPTANCE_INIT)
 
 
+def test_charset_normalizer_has_a_single_importer_repo_wide() -> None:
+    """Fork-guard, repo-wide: ``charset_normalizer`` may be imported by ONLY
+    the canonical detector module (#4962 review fold D).
+
+    The two guards above pin the specific historical fork sites
+    (``_io.py`` / ``acceptance/__init__.py``, #4896/#4962/#4968) by name.
+    This walks the WHOLE ``src/`` tree instead, so a future THIRD or FOURTH
+    call site vendoring its own ``charset_normalizer``/``from_bytes`` usage
+    fails the build too -- not just a regression at one of the two
+    already-named files. Keep the per-file guards (a clearer, more specific
+    failure message for the two known-sensitive sites) alongside this one.
+    """
+    importers = sorted(path.relative_to(_REPO_ROOT).as_posix() for path in _SRC.rglob("*.py") if _imports_charset_normalizer(path))
+    expected = [_ENCODING_RECOVERY.relative_to(_REPO_ROOT).as_posix()]
+    assert importers == expected, f"charset_normalizer must be imported ONLY by {expected[0]} -- found importers: {importers}"
+
+
 def test_text_sanitization_imports_shared_cp1252_codec_symbol() -> None:
     """`text_sanitization` must consume the shared codec constant, not a local literal."""
     tree = ast.parse(_TEXT_SANITIZATION.read_text(encoding="utf-8"), filename=str(_TEXT_SANITIZATION))
