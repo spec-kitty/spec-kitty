@@ -143,8 +143,8 @@ selected_styleguides:
 selected_toolguides:
   - git-agent-commit-signing
   - github-tracker
-  # Catfooding toolguide (doctrine-catfooding-2196):
-  - terminology-guard
+  # terminology-guard now reaches this repo via the internal org pack
+  # (packs/internal/org-charter.yaml required_toolguides), not built-in.
 
 # Procedures: catfooding additions.
 selected_procedures:

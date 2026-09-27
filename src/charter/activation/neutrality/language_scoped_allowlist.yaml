@@ -79,16 +79,6 @@ paths:
     owner: "charter team"
     reason: "Secure regex remediation tactic intentionally discusses Python test tooling and timing guards."
     added_in: "3.3.3"
-  - path: "packs/built-in/toolguides/terminology-guard.toolguide.yaml"
-    scope: python
-    owner: "charter team"
-    reason: "Toolguide documenting the pytest-based terminology guard; the pytest invocation IS the subject (mirrors python-review-checks precedent)."
-    added_in: "3.2.4"
-  - path: "packs/built-in/toolguides/TERMINOLOGY_GUARD.md"
-    scope: python
-    owner: "charter team"
-    reason: "Human-readable companion to terminology-guard.toolguide.yaml; same pytest commands are the subject."
-    added_in: "3.2.4"
   - path: "packs/built-in/styleguides/testing-principles.styleguide.yaml"
     scope: python
     owner: "charter team"

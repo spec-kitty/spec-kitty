@@ -205,7 +205,6 @@ governance:
     - python-review-checks
     - typescript-mutation-tools
     - github-tracker
-    - terminology-guard
     - gherkin
     - sonar
     selected_procedures:
@@ -1479,12 +1478,6 @@ catalog:
     summary: "Operator reference for SonarQube static analysis and its quality gate. Covers the four measure families (new-code coverage, code smells / maintainability, security hotspots and vulnerabilities, duplication), why the gate is evaluated on NEW code rather than the whole project, and the loopback-safe handling of a local Sonar or control-plane URL (do not force HTTPS on 127.0.0.1).\n"
     source_path: ''
     local_path: _LIBRARY/toolguide-sonar.md
-  - id: TOOLGUIDE:terminology-guard
-    kind: toolguide
-    title: Terminology Guard
-    summary: "Describes when and how to invoke the legacy-terminology guard before pushing changes to src/doctrine/ or user-facing prose. The guard catches superseded terms that have reappeared in active source and fails CI if any are found.\n"
-    source_path: ''
-    local_path: _LIBRARY/toolguide-terminology-guard.md
   - id: TOOLGUIDE:typescript-mutation-tools
     kind: toolguide
     title: typescript-mutation-tools
@@ -1941,7 +1934,6 @@ activated_toolguides:
 - python-review-checks
 - typescript-mutation-tools
 - github-tracker
-- terminology-guard
 - gherkin
 - sonar
 activated_paradigms:

@@ -31,14 +31,23 @@ packs/internal/
 │   └── spk-internal.glossary-pack.yaml              # spk-internal-glossary — maintainer/engineering glossary
 ├── procedures/
 │   ├── landing-contributor-prs.procedure.yaml       # maintainer PR-landing runbook
-│   └── project-evolution-postmortem.procedure.yaml  # cycle postmortem: research squads + branded report
+│   ├── memory-curation-and-escalation.procedure.yaml  # agent-memory curation and escalation
+│   ├── project-evolution-postmortem.procedure.yaml  # cycle postmortem: research squads + branded report
+│   ├── spec-kitty-arch-gate-adjudication.procedure.yaml  # refines built-in post-merge-arch-gate-adjudication
+│   └── spec-kitty-red-main-policy.procedure.yaml    # refines built-in red-main-release-discipline
 ├── styleguides/
-│   └── report-writing.styleguide.yaml               # audience-first, anti-AI-prose, Spec Kitty voice
+│   ├── report-writing.styleguide.yaml               # audience-first, anti-AI-prose, Spec Kitty voice
+│   ├── spec-kitty-docs-lint-config.styleguide.yaml  # this repo's docs structural-lint config (refines common-docs)
+│   ├── spec-kitty-package-tiers.styleguide.yaml     # this repo's package-to-tier map (refines tiered-standards)
+│   └── spec-kitty-tracker-labels.styleguide.yaml    # this repo's label scheme (refines planning-and-tracking)
 ├── tactics/
-│   └── branded-deliverable.tactic.yaml              # when and how to produce a branded document
+│   ├── branded-deliverable.tactic.yaml              # when and how to produce a branded document
+│   └── spec-kitty-gate-non-vacuity-exemplar.tactic.yaml  # exemplar audit (refines architectural-gate-non-vacuity)
 ├── toolguides/
 │   ├── branded-document-generation.toolguide.yaml   # the branded-PDF pipeline manifest
-│   └── BRANDED_DOCUMENT_GENERATION.md               # its how-to guide
+│   ├── BRANDED_DOCUMENT_GENERATION.md               # its how-to guide
+│   ├── terminology-guard.toolguide.yaml             # this repo's legacy-terminology test (moved from built-in)
+│   └── TERMINOLOGY_GUARD.md                         # its how-to guide
 └── assets/
     ├── spec-kitty-branded-pdf.py                    # the Markdown -> branded-PDF generator
     └── spec-kitty-branded-pdf.py.asset.yaml         # its asset sidecar
@@ -51,10 +60,12 @@ styleguide and the `branded-deliverable` tactic; the tactic `requires` the
 
 ## Reference, don't duplicate
 
-A lot of maintainer-flavoured doctrine already ships in `packs/built-in/`
-(`red-main-release-discipline`, `tracker-organisation-workflow`,
-`pr-agent-worktree-isolation`, `mission-tracer-files`, …). This pack **references**
-those via DRG `refines` edges rather than re-authoring them. Only genuinely
+Built-in doctrine is repository-agnostic; the Spec Kitty specifics of a
+built-in artifact live here in a node that **refines** it (the `spec-kitty-*`
+nodes above, #5203), rather than re-authoring the built-in artifact. A
+shrink-only census (`tests/architectural/test_builtin_pack_provenance_ratchet.py`)
+fails when new repo-local paths or provenance tokens (issue numbers, WP/FR ids)
+land in `packs/built-in/`. Only genuinely
 repo-only residue (PR-landing specifics, the internal glossary, the
 maintainer-only `OPERATOR_SIGNAL_CONTRACT` and `NO_FULL_HEAVY_SUITES_IN_MISSION`
 directives) is authored here. `NO_FULL_HEAVY_SUITES_IN_MISSION` itself
