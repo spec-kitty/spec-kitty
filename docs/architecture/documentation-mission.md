@@ -16,7 +16,7 @@ The Documentation Mission provides a structured workflow for generating comprehe
 
 **Key Features:**
 - **Divio 4-type system**: Distinct documentation for tutorials, how-tos, reference, and explanations
-- **Iteration modes**: Support for initial documentation, gap-filling, and feature-specific docs
+- **Iteration modes**: Support for initial documentation, gap-filling, and mission-specific docs
 - **Generator integration**: Automatic API reference generation (JSDoc, Sphinx, rustdoc)
 - **Gap analysis**: Identify missing documentation and prioritize by user impact
 - **Documentation as code**: Version-controlled docs living alongside source code
@@ -76,7 +76,7 @@ Document a specific feature or component:
 ```
 
 When prompted:
-- **Iteration mode**: `feature_specific`
+- **Iteration mode**: `mission_specific`
 - **Divio types**: Choose relevant types (e.g., `how-to, reference` for API features)
 - **Target audience**: Match your users
 
@@ -90,7 +90,7 @@ The Documentation Mission follows a six-phase workflow:
 
 **Activities**:
 - Define target audience (developers, end-users, contributors, operators)
-- Choose iteration mode (initial, gap-filling, feature-specific)
+- Choose iteration mode (`initial`, `gap_filling`, `mission_specific`)
 - Select Divio types to include
 - Identify documentation gaps (if gap-filling mode)
 
@@ -598,7 +598,7 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 **State Persisted**:
 ```json
 {
-  "iteration_mode": "feature_specific",
+  "iteration_mode": "mission_specific",
   "divio_types_selected": ["how-to", "reference"],  // Only relevant types
   "generators_configured": [...],
   "target_audience": "developers",
@@ -849,7 +849,7 @@ After implementation, re-run gap analysis:
 
 Documentation state is persisted in `kitty-specs/<feature>/meta.json` under the `documentation_state` field. This enables:
 
-- **Iteration tracking**: Remember which mode (initial/gap-filling/feature-specific)
+- **Iteration tracking**: Remember which mode (`initial`/`gap_filling`/`mission_specific`)
 - **Configuration reuse**: Persist generator configs across runs
 - **Audit history**: Track last audit date and coverage percentage
 - **Divio type selection**: Remember which types user chose

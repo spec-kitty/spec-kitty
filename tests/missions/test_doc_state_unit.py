@@ -12,7 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doc_analysis.doc_state import set_divio_types_selected, set_iteration_mode
+from specify_cli.doc_analysis.doc_state import (
+    ITERATION_MODES,
+    canonical_iteration_mode,
+    initialize_documentation_state,
+    read_documentation_state,
+    set_divio_types_selected,
+    set_iteration_mode,
+    update_documentation_state,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -39,9 +47,7 @@ def _make_meta(path: Path, extra: dict | None = None) -> Path:
     if extra:
         data.update(extra)
     meta = path / "meta.json"
-    meta.write_text(
-        json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    meta.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return meta
 
 
@@ -83,8 +89,8 @@ class TestSetIterationMode:
         stored = json.loads(meta.read_text())
         assert stored["documentation_state"]["iteration_mode"] == "gap_filling"
 
-    def test_sets_feature_specific_mode(self, tmp_path: Path) -> None:
-        """'feature_specific' is accepted and stored correctly."""
+    def test_sets_mission_specific_mode(self, tmp_path: Path) -> None:
+        """'mission_specific' is accepted and stored correctly."""
         # Arrange
         meta = _make_meta(tmp_path)
 
@@ -92,11 +98,23 @@ class TestSetIterationMode:
         assert meta.exists()
 
         # Act
+        set_iteration_mode(meta, "mission_specific")
+
+        # Assert
+        stored = json.loads(meta.read_text())
+        assert stored["documentation_state"]["iteration_mode"] == "mission_specific"
+
+    def test_legacy_feature_specific_alias_is_stored_canonically(self, tmp_path: Path) -> None:
+        """The legacy 'feature_specific' input is accepted but written as 'mission_specific' (#5205)."""
+        # Arrange
+        meta = _make_meta(tmp_path)
+
+        # Act
         set_iteration_mode(meta, "feature_specific")
 
         # Assert
         stored = json.loads(meta.read_text())
-        assert stored["documentation_state"]["iteration_mode"] == "feature_specific"
+        assert stored["documentation_state"]["iteration_mode"] == "mission_specific"
 
     def test_overwrites_existing_mode(self, tmp_path: Path) -> None:
         """A second call overwrites the previously stored mode."""
@@ -139,7 +157,7 @@ class TestSetIterationMode:
 
         # Act / Assert
         with pytest.raises(ValueError, match="Invalid iteration_mode"):
-            set_iteration_mode(meta, "bogus")  # type: ignore[arg-type]
+            set_iteration_mode(meta, "bogus")
 
     def test_missing_meta_file_raises(self, tmp_path: Path) -> None:
         """FileNotFoundError is raised when meta.json does not exist."""
@@ -152,6 +170,57 @@ class TestSetIterationMode:
         # Act / Assert
         with pytest.raises(FileNotFoundError):
             set_iteration_mode(meta, "initial")
+
+
+# ---------------------------------------------------------------------------
+# Iteration-mode canon and the legacy feature_specific alias (#5205)
+# ---------------------------------------------------------------------------
+
+
+class TestIterationModeCanon:
+    """Canonical tokens round-trip; the legacy alias is read-only."""
+
+    @pytest.mark.parametrize("mode", sorted(ITERATION_MODES))
+    def test_canonical_tokens_are_identity(self, mode: str) -> None:
+        assert canonical_iteration_mode(mode) == mode
+
+    def test_legacy_alias_maps_to_mission_specific(self) -> None:
+        assert canonical_iteration_mode("feature_specific") == "mission_specific"
+
+    @pytest.mark.parametrize("value", ["mission-specific", "gap-filling", "bogus", None, 3])
+    def test_unknown_values_are_rejected(self, value: object) -> None:
+        assert canonical_iteration_mode(value) is None
+
+    def test_read_surfaces_legacy_value_canonically_without_rewriting(self, tmp_path: Path) -> None:
+        meta = _make_meta(
+            tmp_path,
+            {"mission_type": "documentation", "documentation_state": {"iteration_mode": "feature_specific"}},
+        )
+
+        state = read_documentation_state(meta)
+
+        assert state is not None
+        assert state["iteration_mode"] == "mission_specific"
+        # read-only alias: the file on disk is untouched
+        assert json.loads(meta.read_text())["documentation_state"]["iteration_mode"] == "feature_specific"
+
+    def test_initialize_normalizes_and_rejects(self, tmp_path: Path) -> None:
+        meta = _make_meta(tmp_path, {"mission_type": "documentation"})
+
+        state = initialize_documentation_state(meta, "feature_specific", ["tutorial"], [], "developers")
+
+        assert state["iteration_mode"] == "mission_specific"
+        with pytest.raises(ValueError, match="Invalid iteration_mode"):
+            initialize_documentation_state(meta, "mission-specific", ["tutorial"], [], "developers")
+
+    def test_update_writes_canonical_token(self, tmp_path: Path) -> None:
+        meta = _make_meta(tmp_path, {"mission_type": "documentation"})
+        initialize_documentation_state(meta, "initial", ["tutorial"], [], "developers")
+
+        update_documentation_state(meta, iteration_mode="feature_specific")
+
+        stored = json.loads(meta.read_text())
+        assert stored["documentation_state"]["iteration_mode"] == "mission_specific"
 
 
 # ---------------------------------------------------------------------------

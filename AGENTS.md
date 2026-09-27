@@ -616,7 +616,7 @@ Runbook: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS 
 
 ## Documentation Mission Patterns (0.11.0+)
 
-**Modes:** `initial` (from scratch), `gap_filling` (audit + fill gaps), `feature_specific` (one feature/component).
+**Modes:** `initial` (from scratch), `gap_filling` (audit + fill gaps), `mission_specific` (one feature/component; legacy input alias `feature_specific`).
 
 **Divio types:** Tutorial (learning), How-To (task), Reference (API, often auto-generated), Explanation (architecture/why).
 

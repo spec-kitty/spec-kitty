@@ -12,7 +12,7 @@ documentation mission features. It persists state between iterations.
 Schema:
 {
     "documentation_state": {
-        "iteration_mode": "initial" | "gap_filling" | "feature_specific",
+        "iteration_mode": "initial" | "gap_filling" | "mission_specific",
         "divio_types_selected": ["tutorial", "how-to", "reference", "explanation"],
         "generators_configured": [
             {
@@ -28,7 +28,9 @@ Schema:
 }
 
 Fields:
-- iteration_mode: How this documentation mission was run
+- iteration_mode: How this documentation mission was run. The legacy token
+  ``feature_specific`` is still accepted on input and read back as
+  ``mission_specific`` (Terminology Canon, #5205); it is never written.
 - divio_types_selected: Which Divio types user chose to include
 - generators_configured: Which generators were set up and where
 - target_audience: Primary documentation audience
@@ -46,6 +48,37 @@ from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.mission_metadata import write_meta
 
 
+IterationMode = Literal["initial", "gap_filling", "mission_specific"]
+
+ITERATION_MODES: frozenset[str] = frozenset({"initial", "gap_filling", "mission_specific"})
+
+# Read-only legacy input aliases: accepted from existing meta.json files and
+# callers, normalized to the canonical token, never written back (#5205).
+_LEGACY_ITERATION_MODE_ALIASES: dict[str, IterationMode] = {"feature_specific": "mission_specific"}
+
+
+def canonical_iteration_mode(value: object) -> IterationMode | None:
+    """Return the canonical iteration mode for *value*, or ``None`` if unknown.
+
+    Accepts the canonical tokens and the legacy ``feature_specific`` alias.
+    """
+    if not isinstance(value, str):
+        return None
+    if value in _LEGACY_ITERATION_MODE_ALIASES:
+        return _LEGACY_ITERATION_MODE_ALIASES[value]
+    if value in ITERATION_MODES:
+        return cast(IterationMode, value)
+    return None
+
+
+def _require_iteration_mode(value: object) -> IterationMode:
+    """Normalize *value* to a canonical iteration mode, or raise ``ValueError``."""
+    mode = canonical_iteration_mode(value)
+    if mode is None:
+        raise ValueError(f"Invalid iteration_mode: {value}. Must be one of: {sorted(ITERATION_MODES)}")
+    return mode
+
+
 class GeneratorConfig(TypedDict):
     """Generator configuration entry."""
 
@@ -57,7 +90,7 @@ class GeneratorConfig(TypedDict):
 class DocumentationState(TypedDict):
     """Documentation state schema for meta.json."""
 
-    iteration_mode: Literal["initial", "gap_filling", "feature_specific"]
+    iteration_mode: IterationMode
     divio_types_selected: list[str]
     generators_configured: list[GeneratorConfig]
     target_audience: str
@@ -97,20 +130,19 @@ def _require_meta(meta_file: Path) -> dict[str, Any]:
 # ============================================================================
 
 
-def set_iteration_mode(meta_file: Path, iteration_mode: Literal["initial", "gap_filling", "feature_specific"]) -> None:
+def set_iteration_mode(meta_file: Path, iteration_mode: str) -> None:
     """Set iteration mode in feature meta.json.
 
     Args:
         meta_file: Path to meta.json
-        iteration_mode: Iteration mode to store
+        iteration_mode: Iteration mode to store (the legacy ``feature_specific``
+            alias is accepted and stored as ``mission_specific``)
 
     Raises:
         FileNotFoundError: If meta.json doesn't exist
         ValueError: If iteration_mode is invalid
     """
-    valid_modes = {"initial", "gap_filling", "feature_specific"}
-    if iteration_mode not in valid_modes:
-        raise ValueError(f"Invalid iteration_mode: {iteration_mode}. Must be one of: {valid_modes}")
+    mode = _require_iteration_mode(iteration_mode)
 
     # Read existing meta.json (fail-closed on corruption; raises if missing)
     meta = _require_meta(meta_file)
@@ -120,7 +152,7 @@ def set_iteration_mode(meta_file: Path, iteration_mode: Literal["initial", "gap_
         meta["documentation_state"] = {}
 
     # Set iteration mode
-    meta["documentation_state"]["iteration_mode"] = iteration_mode
+    meta["documentation_state"]["iteration_mode"] = mode
 
     # Write back with standard formatting (tolerant — no top-level validation)
     write_meta(meta_file.parent, meta, validate=False)
@@ -263,7 +295,14 @@ def read_documentation_state(meta_file: Path) -> DocumentationState | None:
 
     # Get documentation_state (may be missing for old features)
     state = meta.get("documentation_state")
-    return cast(DocumentationState, state) if isinstance(state, dict) else None
+    if not isinstance(state, dict):
+        return None
+    # Read-only legacy alias: surface ``feature_specific`` as ``mission_specific``
+    # without rewriting the file.
+    mode = canonical_iteration_mode(state.get("iteration_mode"))
+    if mode is not None and mode != state.get("iteration_mode"):
+        state = {**state, "iteration_mode": mode}
+    return cast(DocumentationState, state)
 
 
 def write_documentation_state(meta_file: Path, state: DocumentationState) -> None:
@@ -293,8 +332,8 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
     # Read existing meta.json (fail-closed on corruption; raises if missing)
     meta = _require_meta(meta_file)
 
-    # Update documentation_state
-    meta["documentation_state"] = state
+    # Update documentation_state, always persisting the canonical iteration mode
+    meta["documentation_state"] = {**state, "iteration_mode": _require_iteration_mode(state["iteration_mode"])}
 
     # Write back with standard formatting (tolerant — no top-level validation)
     write_meta(meta_file.parent, meta, validate=False)
@@ -311,7 +350,8 @@ def initialize_documentation_state(
 
     Args:
         meta_file: Path to meta.json
-        iteration_mode: initial, gap_filling, or feature_specific
+        iteration_mode: initial, gap_filling, or mission_specific (legacy
+            ``feature_specific`` is accepted and normalized)
         divio_types: Selected Divio types
         generators: Configured generators
         target_audience: Primary documentation audience
@@ -323,7 +363,7 @@ def initialize_documentation_state(
         FileNotFoundError: If meta.json doesn't exist
     """
     state: DocumentationState = {
-        "iteration_mode": iteration_mode,  # type: ignore
+        "iteration_mode": _require_iteration_mode(iteration_mode),
         "divio_types_selected": divio_types,
         "generators_configured": generators,
         "target_audience": target_audience,
@@ -358,7 +398,7 @@ def update_documentation_state(meta_file: Path, **updates: Any) -> Documentation
     # Update fields
     for key, value in updates.items():
         if key in state:
-            state[key] = value  # type: ignore
+            state[key] = _require_iteration_mode(value) if key == "iteration_mode" else value  # type: ignore
 
     # Write back
     write_documentation_state(meta_file, state)

@@ -9,7 +9,7 @@
 
 ## Documentation Scope
 
-**Iteration Mode**: [NEEDS CLARIFICATION: initial | gap-filling | mission-specific]
+**Iteration Mode**: [NEEDS CLARIFICATION: initial | gap_filling | mission_specific]
 **Target Audience**: [NEEDS CLARIFICATION: developers integrating library | end users | contributors | operators]
 **Selected Divio Types**: [NEEDS CLARIFICATION: Which of tutorial, how-to, reference, explanation?]
 **Languages Detected**: [Auto-detected during planning - JavaScript, Python, Rust, etc.]

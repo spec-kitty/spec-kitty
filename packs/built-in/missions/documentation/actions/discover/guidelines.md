@@ -8,7 +8,7 @@ These guidelines govern the quality and authorship standards for the **discover*
 
 - Identify the **documentation needs** explicitly. What questions must the documentation answer? What user tasks must it enable? Vague needs ("better docs") produce vague deliverables.
 - Name the **target audience** by role and skill level — beginner end-users, working developers, integrators, operators, contributors. Each audience implies a different Divio type mix.
-- Declare the **iteration mode** up front: `initial` (greenfield documentation suite), `gap_filling` (audit-first, fill missing cells), or `mission-specific` (one feature or component). The mode drives every downstream decision.
+- Declare the **iteration mode** up front: `initial` (greenfield documentation suite), `gap_filling` (audit-first, fill missing cells), or `mission_specific` (one feature or component). The mode drives every downstream decision.
 - State the **documentation goals** in stakeholder-relevant terms — onboarding speed, support-ticket reduction, API discoverability, contributor ramp-up. Goals tie the documentation to a business or user outcome, not a page count.
 
 ---

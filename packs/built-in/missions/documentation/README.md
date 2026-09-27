@@ -9,8 +9,8 @@ Divio 4-type documentation system (Tutorial, How-To, Reference, Explanation).
 discover → audit → design → generate → validate → publish
 ```
 
-Supports three iteration modes: initial (from scratch), gap-filling (audit existing
-docs), and mission-specific (targeted documentation).
+Supports three iteration modes: `initial` (from scratch), `gap_filling` (audit existing
+docs), and `mission_specific` (targeted documentation).
 
 ## Contents
 

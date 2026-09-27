@@ -57,7 +57,7 @@ Produce a documentation specification that frames the documentation needs, names
 3. **Declare the iteration mode** up front and record it in `spec.md`:
    - `initial` — greenfield documentation suite, nothing exists yet.
    - `gap_filling` — audit-first; fill missing cells in an existing coverage matrix.
-   - `mission-specific` — cover one feature or component, not the whole product surface.
+   - `mission_specific` — cover one feature or component, not the whole product surface.
 
    The mode drives every downstream decision. Do not change it silently mid-mission — a mode change is a re-scoping decision that needs an explicit note.
 
@@ -77,7 +77,7 @@ Produce a documentation specification that frames the documentation needs, names
 
 - The documentation needs are stated in user-task or stakeholder-outcome terms — a reader can restate the goal without re-reading `spec.md`.
 - The target audience is named and scoped; mixed-audience entries are explicitly flagged.
-- Iteration mode is declared (`initial` | `gap_filling` | `mission-specific`) and matches the work the rest of the mission will do.
+- Iteration mode is declared (`initial` | `gap_filling` | `mission_specific`) and matches the work the rest of the mission will do.
 - Success criteria in `spec.md` are verifiable against the produced artifacts, not against process metadata.
 - No `[NEEDS CLARIFICATION: ...]` markers remain unresolved in `spec.md`.
 

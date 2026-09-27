@@ -22,7 +22,7 @@ steps:
     title: Documentation Discovery
     agent-profile: researcher-robbie
     prompt_template: discover.md
-    description: Identify documentation needs, target audience, and the iteration mode (initial / gap-filling / mission-specific).
+    description: Identify documentation needs, target audience, and the iteration mode (`initial` / `gap_filling` / `mission_specific`).
 
   - id: audit
     title: Documentation Audit
