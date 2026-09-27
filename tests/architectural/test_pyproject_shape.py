@@ -295,3 +295,50 @@ def test_dependency_config_guard_rejects_planted_fixture(tmp_path: Path) -> None
     assert "retired mutmut copy: src/specify_cli/sync/" in failures
     assert "Makefile still names _real_port_suites" in failures
     assert "pyproject.toml still cites the retired batch-sync HTTP client" in failures
+
+
+# Plugins the `make test-fast` / `make test-full` targets require at import time
+# but which are declared in the `test` OPTIONAL extra (installed only with
+# `--extra test`). Because the targets run `uv run --frozen pytest`, a fresh lane
+# worktree provisions only the DEFAULT groups (the dev group), so each of these
+# MUST also be mirrored into `[dependency-groups].dev` or an architectural-style
+# test run from inside a lane false-reds with `ModuleNotFoundError` (#5160
+# friction 2; pytest-xdist/pytest-timeout are prior instances of the same class).
+_DEV_GROUP_REQUIRED_TEST_PLUGINS: frozenset[str] = frozenset({"pytest-xdist", "pytest-timeout", "pytestarch"})
+
+
+def _dev_group_plugin_violations(data: dict[str, Any]) -> list[str]:
+    dev_entries = data.get("dependency-groups", {}).get("dev", [])
+    dev_by_name = {_dep_name(entry): entry for entry in dev_entries}
+    test_extra = data.get("project", {}).get("optional-dependencies", {}).get("test", [])
+    test_by_name = {_dep_name(entry): entry for entry in test_extra}
+    failures: list[str] = []
+    for plugin in sorted(_DEV_GROUP_REQUIRED_TEST_PLUGINS):
+        if plugin not in dev_by_name:
+            failures.append(
+                f"{plugin} is required by make test-fast/test-full without --all-extras but is missing from [dependency-groups].dev (lane venvs would false-red)"
+            )
+            continue
+        # Keep the dev-group pin equal to the `test` extra pin so a plain
+        # `uv sync` and `uv sync --extra test` resolve the same version (no
+        # uv.lock drift).
+        if plugin in test_by_name and dev_by_name[plugin] != test_by_name[plugin]:
+            failures.append(f"{plugin} pin drifts between dev group ({dev_by_name[plugin]}) and test extra ({test_by_name[plugin]})")
+    return failures
+
+
+def test_dev_group_mirrors_test_plugins_needed_without_extras() -> None:
+    """#5160 friction 2: every pytest plugin the make targets need at import time
+    must live in the dev group, so a lane worktree's `uv run --frozen` venv can
+    run the architectural suite without `--all-extras`."""
+    assert _dev_group_plugin_violations(_load_pyproject()) == []
+
+
+def test_dev_group_plugin_guard_rejects_missing_mirror() -> None:
+    """The guard fails closed when a required plugin is absent from the dev group."""
+    planted = {
+        "project": {"optional-dependencies": {"test": ["pytestarch>=4.0.0"]}},
+        "dependency-groups": {"dev": ["pytest-xdist>=3.8.0", "pytest-timeout>=2.2.0"]},
+    }
+    failures = _dev_group_plugin_violations(planted)
+    assert any("pytestarch" in failure and "missing" in failure for failure in failures)

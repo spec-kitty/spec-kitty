@@ -2891,6 +2891,15 @@ dev = [
     # reasoning as pytest-xdist above: it lives in the `test` extra, but the
     # dev group IS installed by a plain `uv sync`, so declare it here too.
     "pytest-timeout>=2.2.0",
+    # The architectural suite (`tests/architectural/`) imports `pytestarch`.
+    # `make test-fast` / `make test-full` run `uv run --frozen pytest`, which in
+    # a fresh lane worktree provisions only the DEFAULT groups (the dev group) —
+    # the `test` extra is NOT installed without `--extra test`. Same reasoning as
+    # pytest-xdist/pytest-timeout above; without this mirror, architectural-style
+    # tests run from inside a lane false-red with `ModuleNotFoundError: pytestarch`
+    # (#5160 friction 2). Keep the pin equal to the `test` extra to avoid uv.lock
+    # drift.
+    "pytestarch>=4.0.0",
 ]
 
 [tool.mutmut]
