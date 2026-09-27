@@ -17,12 +17,13 @@ prompt's review guidance.
 
 from __future__ import annotations
 
+import errno
 import os
 from pathlib import Path
 
 import pytest
 
-from specify_cli.core.utils import ensure_within_any, ensure_within_directory
+from specify_cli.core.utils import _unresolvable_path_refusal, ensure_within_any, ensure_within_directory
 
 pytestmark = [pytest.mark.fast]
 
@@ -145,3 +146,12 @@ class TestEnsureWithinAnySymlinkLoops:
 
         with pytest.raises(ValueError):
             ensure_within_any(escape, roots=[root])
+
+
+def test_refusal_names_a_symlink_loop_only_for_eloop(tmp_path: Path) -> None:
+    loop = _unresolvable_path_refusal(tmp_path / "a", OSError(errno.ELOOP, "loop"))
+    missing = _unresolvable_path_refusal(tmp_path / "a", FileNotFoundError(errno.ENOENT, "gone"))
+
+    assert "(symlink loop)" in str(loop)
+    assert "(symlink loop)" not in str(missing)
+    assert str(missing).startswith("Refusing to access unresolvable path:")

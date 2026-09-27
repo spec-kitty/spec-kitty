@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from stat import S_IMODE, S_ISDIR, S_ISREG
 
-from kernel.resolution import resolve_rejecting_loops
+from kernel.resolution import is_symlink_loop_error, resolve_rejecting_loops
 
 
 #: Errnos that mean **absent** (or "not the kind of thing that could ever be a
@@ -31,6 +31,19 @@ _WRITE_BITS = 0o222
 #: invariant loop probe, and both seams below translate its ``OSError`` into
 #: this documented ``ValueError``.
 _SYMLINK_LOOP_REFUSAL_PREFIX = "Refusing to access unresolvable path (symlink loop)"
+_UNRESOLVABLE_REFUSAL_PREFIX = "Refusing to access unresolvable path"
+
+
+def _unresolvable_path_refusal(path: Path, exc: OSError) -> ValueError:
+    """Build the containment refusal for a path that could not be resolved.
+
+    Only a genuine symlink loop is named as one; any other ``OSError`` (for
+    example a relative path under a deleted working directory) gets the
+    neutral wording so the message does not misreport the cause.
+    """
+    prefix = _SYMLINK_LOOP_REFUSAL_PREFIX if is_symlink_loop_error(exc) else _UNRESOLVABLE_REFUSAL_PREFIX
+    return ValueError(f"{prefix}: {path}")
+
 
 #: The write bit for owner/group/other. A managed tree (e.g. skills set
 #: read-only by ``skills/installer._make_tree_read_only``) strips these, which
@@ -122,7 +135,7 @@ def ensure_within_directory(path: Path, root: Path) -> Path:
     try:
         resolved_path = resolve_rejecting_loops(path)
     except OSError as exc:
-        raise ValueError(f"{_SYMLINK_LOOP_REFUSAL_PREFIX}: {path}") from exc
+        raise _unresolvable_path_refusal(path, exc) from exc
     try:
         resolved_path.relative_to(resolved_root)
     except ValueError as exc:
@@ -158,7 +171,7 @@ def ensure_within_any(path: Path, *, roots: Sequence[Path], files: Sequence[Path
     try:
         resolved = resolve_rejecting_loops(path)
     except OSError as exc:
-        raise ValueError(f"{_SYMLINK_LOOP_REFUSAL_PREFIX}: {path}") from exc
+        raise _unresolvable_path_refusal(path, exc) from exc
     resolved_roots = [r.resolve(strict=False) for r in roots]
     resolved_files = [f.resolve(strict=False) for f in files]
 
