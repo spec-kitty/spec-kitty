@@ -1,0 +1,34 @@
+{
+  "accept_commit": "c6b05391325291c57615aeab158a55c158b8630c",
+  "acceptance_history": [
+    {
+      "accept_commit": "c6b05391325291c57615aeab158a55c158b8630c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-27T08:26:09.252844+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "9e4503d5cd78cc9794ea407905c5b3b9e214f982"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-27T08:26:09.252844+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "9e4503d5cd78cc9794ea407905c5b3b9e214f982",
+  "baseline_merge_commit": "b74ab1b2338e5c83f88cee65178c0e4e20cd2c82",
+  "created_at": "2026-09-27T05:03:58.847420+00:00",
+  "flattened": true,
+  "friendly_name": "Rejection feedback reaches the implementer",
+  "merged_at": "2026-09-27T08:30:18.376542+00:00",
+  "merged_commit": "6b8b14db81bb9af792ad84472f830907a2d8b6a0",
+  "mid8": "01M3GKZ8",
+  "mission_id": "01M3GKZ8BMNDRS6K7PWXNHFHE4",
+  "mission_number": null,
+  "mission_slug": "review-feedback-to-implementer-01M3GKZ8",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Rejection feedback reaches the implementer on issue-4899-review-feedback-to-implementer so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Reviewer feedback survives the rejection to re-implement loop all the way to the implementer's regenerated prompt.",
+  "slug": "review-feedback-to-implementer-01M3GKZ8",
+  "status_phase": "1",
+  "target_branch": "issue-4899-review-feedback-to-implementer",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-27T06:34:13.917581+00:00"
+}
