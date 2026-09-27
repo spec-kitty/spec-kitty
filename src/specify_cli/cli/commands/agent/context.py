@@ -31,6 +31,24 @@ from mission_runtime import (
 
 app = typer.Typer(name="context", help="Agent context management commands", no_args_is_help=True)
 
+# #5160 friction 3 (#2017/#2101): planning/authoring actions author artifacts on
+# the PRIMARY partition (spec/plan/tasks). ``resolve_action_context`` routes the
+# reported ``feature_dir`` through the coord-aware read resolver (the correct
+# surface for STATUS reads such as move-task, which the FR-010 guards pin on the
+# coord husk), so this command MUST re-anchor to primary for planning actions —
+# exactly as ``check-prerequisites`` does — or an agent authoring at the reported
+# dir writes to coord while ``finalize-tasks`` reads an empty primary ``tasks/``.
+_PLANNING_AUTHORING_ACTIONS: frozenset[str] = frozenset(
+    {
+        "specify",
+        "plan",
+        "tasks",
+        "tasks_outline",
+        "tasks_packages",
+        "tasks_finalize",
+    }
+)
+
 
 def _find_feature_directory(
     repo_root: Path,
@@ -153,11 +171,27 @@ def resolve_context(
             effective_root=operation.mission_anchor_root,
         )
 
+        # #5160 friction 3: re-anchor the reported feature_dir to the PRIMARY
+        # partition for planning/authoring actions so this command agrees with
+        # ``check-prerequisites`` / ``finalize-tasks`` (which anchor to primary).
+        # Uses the SAME primary anchor ``check-prerequisites`` uses; falls back to
+        # the resolver's coord-aware dir only when the mission has no primary dir.
+        payload = context.to_dict()
+        if action in _PLANNING_AUTHORING_ACTIONS:
+            from specify_cli.cli.commands.agent.mission_feature_resolution import (
+                _primary_anchored_feature_dir,
+            )
+
+            primary_feature_dir = _primary_anchored_feature_dir(repo_root, mission_slug)
+            if primary_feature_dir is not None:
+                payload["feature_dir"] = str(primary_feature_dir)
+
         if json_output:
-            print(json.dumps({"success": True, **context.to_dict()}, indent=2))
+            print(json.dumps({"success": True, **payload}, indent=2))
         else:
             console.print(f"[green]✓[/green] Resolved {action} context")
             console.print(f"  Mission: {context.mission_slug} ({context.detection_method})")
+            console.print(f"  Feature dir: {payload['feature_dir']}")
             console.print(f"  Target branch: {context.target_branch}")
             if context.wp_id:
                 console.print(f"  Work package: {context.wp_id} ({context.lane})")
