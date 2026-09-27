@@ -11,7 +11,7 @@ patterns:
   - name: Core tier packages
     description: >
       Load-bearing state, orchestration, and runtime logic:
-      src/specify_cli/status/, src/specify_cli/merge/, src/specify_cli/core/,
+      src/specify_cli/status/, src/specify_cli/consolidation/, src/specify_cli/core/,
       src/mission_runtime/, src/runtime/, src/charter/offering/drg/.
     good_example: |
       # src/specify_cli/status/reducer.py: >=85% line coverage for new code,
@@ -23,7 +23,7 @@ patterns:
       src/specify_cli/cli/, src/specify_cli/upgrade/,
       src/specify_cli/diagnostics/, src/specify_cli/runtime/.
     good_example: |
-      # src/specify_cli/cli/commands/merge.py: integration coverage at the
+      # src/specify_cli/cli/commands/consolidate.py: integration coverage at the
       # command boundary, ruff clean, mypy --strict on new code.
 
   - name: Scripting tier packages
