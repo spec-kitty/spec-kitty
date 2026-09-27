@@ -132,15 +132,26 @@ def _require_record_analysis_placement(placement_ref: CommitTarget | None, *, mi
     :class:`PlacementResolutionRequired` (naming the mission) instead of
     letting the dirty-tree preflight run with an un-filtered, potentially
     misleading dirty set.
+
+    #5113 / FR-014 (T041): ``placement_ref`` is ``None`` for both an
+    unmaterialized coordination worktree (branch present) and a deleted /
+    never-created coordination branch. The remedy command below is truthful
+    for both: ``doctor coordination --fix`` materializes a present branch via
+    its ``COORDINATION_WORKTREE_MISSING`` fixer, and flattens (drops the
+    stale key) via its ``COORDINATION_WORKTREE_NEVER_CREATED`` fixer.
     """
     if placement_ref is None:
         raise PlacementResolutionRequired(
             f"Could not resolve the canonical write placement for mission "
             f"'{mission_slug}'. This usually means the mission's stored "
-            f"topology could not be resolved (e.g. a coordination branch "
-            f"declared in meta.json is missing/torn down in git). Run "
-            f"`spec-kitty doctor workspaces --fix`, or flatten the mission by "
-            f"removing `coordination_branch` from meta.json if the "
+            f"coordination topology could not be resolved (e.g. the "
+            f"coordination worktree has not been materialized yet, or the "
+            f"`coordination_branch` declared in meta.json is missing/torn "
+            f"down in git). Run `spec-kitty doctor coordination --mission "
+            f"{mission_slug} --fix` to repair automatically -- it "
+            f"materializes a present branch, or flattens (removes the stale "
+            f"key) if the topology was never activated; or remove "
+            f"`coordination_branch` from meta.json manually if you know the "
             f"coordination topology was never used, then retry "
             f"`record-analysis`."
         )

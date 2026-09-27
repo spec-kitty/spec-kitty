@@ -30,7 +30,7 @@ git configuration or sparse-checkout state; remediation lives in WP03.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.lanes.branch_naming import resolve_mid8
+from specify_cli.lanes.branch_naming import lane_branch_name, lane_id_for_worktree_dir, resolve_mid8
 from specify_cli.mission_metadata import load_meta
 import enum
 import logging
@@ -222,18 +222,14 @@ def scan_path(path: Path, *, is_worktree: bool) -> SparseCheckoutState:
 @dataclass(frozen=True)
 class _ManagedLanePolicy:
     mission_slug: str
-    coordination_branch: str
     expected_patterns: frozenset[str]
 
     def matches_path(self, path: Path) -> bool:
-        return path.name.startswith(f"{self.mission_slug}-lane-")
+        return lane_id_for_worktree_dir(path.name, self.mission_slug) is not None
 
     def expected_branch_for(self, path: Path) -> str | None:
-        prefix = f"{self.mission_slug}-"
-        if not path.name.startswith(prefix):
-            return None
-        lane_id = path.name.removeprefix(prefix)
-        return f"{self.coordination_branch}-{lane_id}"
+        lane_id = lane_id_for_worktree_dir(path.name, self.mission_slug)
+        return None if lane_id is None else lane_branch_name(self.mission_slug, lane_id)
 
 
 def _read_patterns(path: Path) -> frozenset[str] | None:
@@ -278,7 +274,6 @@ def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ..
         policies.append(
             _ManagedLanePolicy(
                 mission_slug=mission_slug,
-                coordination_branch=coord_branch,
                 expected_patterns=frozenset(lane_sparse_checkout_patterns(mission_slug, mid8)),
             )
         )

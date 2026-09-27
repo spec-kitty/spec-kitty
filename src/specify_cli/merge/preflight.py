@@ -117,22 +117,61 @@ def target_branch_sync_remediation(
         )
 
     if mission_slug:
-        from specify_cli.lanes.branch_naming import mission_branch_name_required
-
-        focused_branch = focused_pr_branch_name(mission_slug, status.target_branch)
-        source_branch = mission_branch or mission_branch_name_required(mission_slug, mission_id)
-        lines.extend(
-            [
-                (f"Focused PR path: git switch -c {focused_branch} {source_branch}"),
-                f"Then push it: git push -u origin {focused_branch}",
-                f"Open a PR from {focused_branch} into {status.target_branch}.",
-            ]
-        )
+        lines.extend(_focused_pr_remediation_lines(mission_slug, mission_branch, mission_id, status.target_branch))
     else:
         lines.append("If local-only commits are intentional, preserve them on a new PR branch before retrying.")
 
     lines.append("Do not use reset, rebase, or force-push as part of this preflight remediation.")
     return lines
+
+
+def _focused_pr_remediation_lines(
+    mission_slug: str,
+    mission_branch: str | None,
+    mission_id: str | None,
+    target_branch: str,
+) -> list[str]:
+    """Build the focused-PR recovery lines, degrading gracefully on unresolvable identity.
+
+    FR-011: the recorded ``lanes.json.mission_branch`` always wins verbatim.
+    When it is absent the canonical branch is composed via the fail-closed
+    seam :func:`mission_branch_name_required`. An *absent* identity on a
+    modern slug raises :class:`BranchIdentityUnresolved`, which propagates
+    unchanged (its remedy, ``migrate backfill-identity``, is correct there).
+    Only a *present-but-invalid* ``mission_id`` (the typed subclass
+    :class:`InvalidMissionIdentity`, raised at the source in ``_mid8``)
+    degrades to advisory text, because this diagnostics builder's contract
+    returns remediation text rather than crashing and that case needs a
+    hand edit that no command performs.
+    """
+    from specify_cli.lanes.branch_naming import InvalidMissionIdentity, mission_branch_name_required
+
+    focused_branch = focused_pr_branch_name(mission_slug, target_branch)
+    source_branch = mission_branch
+    if source_branch is None:
+        try:
+            source_branch = mission_branch_name_required(mission_slug, mission_id)
+        except InvalidMissionIdentity:
+            source_branch = None
+
+    if source_branch is None:
+        return [
+            (
+                f"Could not resolve a canonical source branch for mission {mission_slug!r} "
+                f"(mission_id={mission_id!r} is too short to derive a mid8 disambiguator). "
+                "`spec-kitty doctor identity --json` only AUDITS mission-identity "
+                "health -- it does not mint or repair a value, and neither does "
+                "`spec-kitty migrate backfill-identity` (it only mints a mission_id "
+                "when one is absent; a present-but-invalid value is left as-is). "
+                "Correct mission_id in the mission's meta.json by hand, confirm with "
+                "`spec-kitty doctor identity --json`, then retry the focused-PR path."
+            )
+        ]
+    return [
+        f"Focused PR path: git switch -c {focused_branch} {source_branch}",
+        f"Then push it: git push -u origin {focused_branch}",
+        f"Open a PR from {focused_branch} into {target_branch}.",
+    ]
 
 
 def _check_mission_branch(
@@ -157,12 +196,16 @@ def _check_mission_branch(
     missing (#1978). ``resolve_branch_name`` keeps that #1978 fix intact for
     canonical/embedded slugs (no warning), failovers to the legacy ``NNN-`` branch
     with a one-shot deprecation warning, and still raises
-    :class:`BranchIdentityUnresolved` for a genuinely-unresolvable modern slug
-    (fail-closed preserved).
+    :class:`BranchIdentityUnresolved` for a genuinely-unresolvable modern slug,
+    or its typed subclass :class:`InvalidMissionIdentity` (raised at the source
+    in ``_mid8``, #5108 residual) for a present-but-too-short ``mission_id`` —
+    no local conversion shim needed; both are already the typed, fail-closed
+    refusal this function's callers expect (never a raw ``ValueError``).
     """
     from specify_cli.lanes.branch_naming import resolve_branch_name
 
-    expected_branch = expected_branch or resolve_branch_name(mission_slug, mission_id=mission_id)
+    if expected_branch is None:
+        expected_branch = resolve_branch_name(mission_slug, mission_id=mission_id)
     if _has_branch_ref(repo_root, expected_branch):
         return True, None
 

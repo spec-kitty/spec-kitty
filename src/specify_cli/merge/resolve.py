@@ -12,7 +12,6 @@ edits (FR-006, C-002). One-way import: this module never imports the command shi
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from specify_cli.core.constants import KITTIFY_DIR
@@ -32,8 +31,31 @@ from mission_runtime import MissionArtifactKind, placement_seam
 
 
 def _extract_mission_slug(branch_name: str) -> str | None:
-    """Infer a feature slug from a feature, mission, or lane branch name."""
-    from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
+    """Infer a Mission slug from a mission or lane branch name.
+
+    Evidence (T018): this function's only
+    caller, :func:`_resolve_mission_slug`, falls through to it from
+    ``_resolve_slug_or_exit`` (``cli/commands/merge.py``) whenever an
+    operator runs ``spec-kitty merge`` with no ``--mission`` and the current
+    ``git rev-parse --abbrev-ref HEAD`` is a bare ``NNN-slug[-lane-x]`` name
+    carrying no ``kitty/mission-`` prefix — the shape
+    ``tests/merge/test_resolve_seam.py`` exercises directly. The prefixed
+    grammar is covered by :func:`parse_mission_slug_from_branch` above; a
+    bare legacy slug is additionally recognized through the worktree-dir
+    grammar (:func:`parse_lane_worktree_dir`), which matches the same
+    ``<slug>-<lane_id>`` shape without requiring the branch prefix — no new
+    hand-rolled regex. The bare-slug BODY is validated against the naming
+    authority's :func:`is_valid_bare_slug_body` (the same character class the
+    pre-WP05 hand-rolled regex enforced here), so a non-slug-grammar string
+    (``"057-Foo_Bar"``, ``"123-WIP branch"``) is still rejected rather than
+    returned as a Mission slug (the widening was previously silent).
+    """
+    from specify_cli.lanes.branch_naming import (
+        is_valid_bare_slug_body,
+        parse_lane_worktree_dir,
+        parse_mission_slug_from_branch,
+        strip_numeric_prefix,
+    )
 
     parsed = parse_mission_slug_from_branch(branch_name)
     if parsed:
@@ -41,10 +63,14 @@ def _extract_mission_slug(branch_name: str) -> str | None:
         slug: str = parsed.slug
         return slug
 
-    match = re.match(r"^(\d{3}-[a-z0-9][a-z0-9-]*?)(?:-(?:lane-[a-z]))?$", branch_name)
-    if match:
-        return match.group(1)
-    return None
+    if strip_numeric_prefix(branch_name) == branch_name:
+        # No NNN- numeric prefix: not a bare legacy mission/lane slug.
+        return None
+    parsed_dir = parse_lane_worktree_dir(branch_name)
+    candidate = parsed_dir[0] if parsed_dir is not None else branch_name
+    if not is_valid_bare_slug_body(strip_numeric_prefix(candidate)):
+        return None
+    return candidate
 
 
 def _resolve_mission_slug(repo_root: Path, mission_slug: str | None) -> str | None:
@@ -61,9 +87,7 @@ def _resolve_mission_slug(repo_root: Path, mission_slug: str | None) -> str | No
         from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
         try:
-            candidate: Path = placement_seam(
-                get_main_repo_root(repo_root), mission_slug
-            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+            candidate: Path = placement_seam(get_main_repo_root(repo_root), mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         except StatusReadPathNotFound:
             # Fail-closed coordination window (coord worktree root
             # materialized, mission dir absent): fall back to the raw handle —
@@ -114,9 +138,7 @@ def _merge_state_key_candidates(repo_root: Path, mission_slug: str | None) -> li
         # currently unreachable for this kind (PRIMARY_METADATA never raises
         # CoordinationBranchDeleted); it would become live again if the kind
         # this call resolves against ever changed.
-        feature_dir = placement_seam(
-            get_main_repo_root(repo_root), mission_slug
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        feature_dir = placement_seam(get_main_repo_root(repo_root), mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         if feature_dir.exists():
             identity = resolve_mission_identity(feature_dir)
             if identity.mission_id:
@@ -319,9 +341,7 @@ def _resolve_target_branch(
     from specify_cli.core.paths import resolve_merge_target_branch
 
     persisted_target = _persisted_merge_target(repo_root, mission_slug)
-    resolved: tuple[str, str | None] = resolve_merge_target_branch(
-        repo_root, mission_slug, explicit_target, persisted_target=persisted_target
-    )
+    resolved: tuple[str, str | None] = resolve_merge_target_branch(repo_root, mission_slug, explicit_target, persisted_target=persisted_target)
     return resolved
 
 

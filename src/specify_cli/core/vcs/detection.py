@@ -147,21 +147,43 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                 break
 
         if worktree_root:
-            # Resolve the mission slug from the worktree dir name via the
-            # canonical dual-era grammar. The dir name is the body of the lane
-            # branch (``kitty/mission-<name>``), so it carries either legacy
-            # ``NNN-slug-lane-x`` or mid8-era ``<slug>-<mid8>-lane-x``. The old
-            # ``re.match(r"(\d{3})-", ...)`` returned None for EVERY mid8
-            # mission — silent signal loss (#1860 class).
-            from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
+            # Recognize the worktree dir name by shape alone (WP05/WP11,
+            # PD-12): a lane-worktree directory is right-anchored on the
+            # lane-id grammar, ``<slug>-<lane_id>``, where ``<slug>`` is
+            # whatever the seam composed it from — legacy ``NNN-slug``, a
+            # bare slug, or the mid8-era ``<human-slug>-<mid8>`` form. The
+            # slug-free parser recovers that ENTIRE prefix verbatim, so it
+            # already equals the on-disk ``kitty-specs/<slug>`` mission dir
+            # name byte-for-byte — no fake-branch round trip (the previous
+            # ``parse_mission_slug_from_branch(f"kitty/mission-{name}")``
+            # detour) and no ``endswith`` prefix-collision risk are needed.
+            # The old ``re.match(r"(\d{3})-", ...)`` returned None for EVERY
+            # mid8 mission — silent signal loss (#1860 class); the fake
+            # branch-name round trip that replaced it under-matched a mid8
+            # worktree still carrying its ``NNN-`` prefix (the mid8 parser
+            # separates the mid8 token from the slug, dropping the leading
+            # ``NNN-`` from the recovered slug) — the #1899-adjacent class
+            # this WP closes.
+            from specify_cli.lanes.branch_naming import parse_lane_worktree_dir
 
             worktree_name = worktree_root.name
-            parsed = parse_mission_slug_from_branch(f"kitty/mission-{worktree_name}")
+            parsed = parse_lane_worktree_dir(worktree_name)
             if parsed is not None:
-                # Match the kitty-specs feature dir for the resolved slug.
-                # Legacy worktrees embed the full ``NNN-slug`` (dir name matches
-                # exactly); mid8 worktrees carry the human-slug (the dir name is
-                # the slug, optionally still NNN-prefixed in kitty-specs).
+                # Match the Mission dir whose name EQUALS the recovered slug.
+                # Equality suffices for every era this parser was built for
+                # (legacy ``NNN-slug``, bare slug, mid8-era ``slug-mid8``)
+                # because the parser above already recovered the full
+                # on-disk prefix — no ``endswith`` fallback is needed, and
+                # none is kept: a prefix-suffix fallback historically let an
+                # unrelated mission whose slug happens to end the same way
+                # match by accident (the ``057-foo`` vs ``057-foobar``
+                # prefix trap). Known behaviour change (non-observable with
+                # only a GIT backend): a pre-WP07 worktree keyed on Mission
+                # identity, e.g. ``foo-01KV6510-lane-a`` for a backfilled
+                # ``kitty-specs/057-foo`` (mid8 embedded, no matching ``NNN-``
+                # prefix in the dir name), used to resolve through the
+                # dropped ``endswith`` fallback and now returns ``None``
+                # (falls through to ``get_vcs``'s GIT auto-detect).
                 #
                 # mission-resolver-port-01KX1C05 WP03 (FR-003/T015): adopts
                 # ``FsMissionResolver.all_missions()`` (the canonical port,
@@ -176,10 +198,9 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                 from specify_cli.context.mission_resolver import FsMissionResolver
 
                 main_repo = worktree_root.parent.parent
-                slug = parsed.slug
+                slug, _lane_id = parsed
                 for mission in FsMissionResolver(main_repo).all_missions():
-                    name = mission.mission_slug
-                    if name == slug or name.endswith(f"-{slug}"):
+                    if mission.mission_slug == slug:
                         meta = load_meta(mission.feature_dir, on_malformed="none")
                         if meta is not None and "vcs" in meta:
                             with contextlib.suppress(ValueError):

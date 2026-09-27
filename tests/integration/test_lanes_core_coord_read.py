@@ -100,9 +100,7 @@ def _seed_reducible_husk_event(ctx: CoordTopologyContext) -> None:
         "to_lane": "claimed",
         "wp_id": "WP01",
     }
-    (ctx.coord_feature_dir / "status.events.jsonl").write_text(
-        _json.dumps(event) + "\n", encoding="utf-8"
-    )
+    (ctx.coord_feature_dir / "status.events.jsonl").write_text(_json.dumps(event) + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -195,18 +193,14 @@ def test_scan_recovery_state_reads_primary_lane_membership(
     from specify_cli.lanes.recovery import scan_recovery_state
 
     ctx = coord_topology_mission_sentinel_meta
-    lane_branch = lane_branch_name(ctx.slug, "lane-a", mission_id=ctx.mission_id)
+    lane_branch = lane_branch_name(ctx.slug, "lane-a")
     _git(ctx.repo, "branch", lane_branch, "main")
 
     states = scan_recovery_state(ctx.repo, ctx.slug)
     wp_ids = {rs.wp_id for rs in states}
 
-    assert "WP01" in wp_ids, (
-        "routed LANE_STATE read must resolve lane-a → WP01 off PRIMARY lanes.json"
-    )
-    assert "unknown" not in wp_ids, (
-        "the husk fallback ('unknown') means the read regressed to coord-aware"
-    )
+    assert "WP01" in wp_ids, "routed LANE_STATE read must resolve lane-a → WP01 off PRIMARY lanes.json"
+    assert "unknown" not in wp_ids, "the husk fallback ('unknown') means the read regressed to coord-aware"
 
 
 def test_recover_context_reads_primary_lane_wps(
@@ -227,7 +221,7 @@ def test_recover_context_reads_primary_lane_wps(
     state = RecoveryState(
         wp_id="WPXX",
         lane_id="lane-a",
-        branch_name=lane_branch_name(ctx.slug, "lane-a", mission_id=ctx.mission_id),
+        branch_name=lane_branch_name(ctx.slug, "lane-a"),
         branch_exists=True,
         worktree_exists=False,
         context_exists=False,
@@ -238,9 +232,7 @@ def test_recover_context_reads_primary_lane_wps(
 
     context = recover_context(ctx.repo, ctx.slug, state)
 
-    assert context.lane_wp_ids == ["WP01"], (
-        "routed LANE_STATE read must reconstruct lane_wp_ids from PRIMARY lanes.json"
-    )
+    assert context.lane_wp_ids == ["WP01"], "routed LANE_STATE read must reconstruct lane_wp_ids from PRIMARY lanes.json"
 
 
 # ---------------------------------------------------------------------------
@@ -265,8 +257,7 @@ def test_read_coordination_branch_reads_primary_meta(
     branch = _read_coordination_branch(ctx.repo, ctx.slug)
 
     assert branch == ctx.coord_branch, (
-        "routed PRIMARY_METADATA read must discover coordination_branch off PRIMARY "
-        f"meta.json; got {branch!r} (None means the read regressed to the husk)"
+        f"routed PRIMARY_METADATA read must discover coordination_branch off PRIMARY meta.json; got {branch!r} (None means the read regressed to the husk)"
     )
 
 
@@ -292,8 +283,7 @@ def test_materialize_worktree_topology_reads_primary(
     topo = materialize_worktree_topology(ctx.repo, ctx.slug)
 
     assert {entry.wp_id for entry in topo.entries} == {"WP01"}, (
-        "routed PRIMARY read must materialize WP01 from PRIMARY tasks/lanes; an "
-        "empty topology means the read regressed to the STATUS-only husk"
+        "routed PRIMARY read must materialize WP01 from PRIMARY tasks/lanes; an empty topology means the read regressed to the STATUS-only husk"
     )
     assert topo.mission_type == _PRIMARY_MISSION_TYPE
 
@@ -324,8 +314,7 @@ def test_show_kanban_status_tasks_leg_reads_primary(
 
     assert "error" not in result, f"board should render, got error: {result.get('error')}"
     assert [wp["id"] for wp in result["work_packages"]] == ["WP01"], (
-        "routed #2187 tasks read must glob PRIMARY tasks/ (WP01); an empty/errored "
-        "board means the tasks read regressed to the STATUS-only husk"
+        "routed #2187 tasks read must glob PRIMARY tasks/ (WP01); an empty/errored board means the tasks read regressed to the STATUS-only husk"
     )
 
 
@@ -349,8 +338,7 @@ def test_show_kanban_status_identity_leg_reads_primary(
 
     assert "error" not in result, f"board should render, got error: {result.get('error')}"
     assert result["mission_type"] == _PRIMARY_MISSION_TYPE, (
-        "routed #2186 identity read must resolve mission_type off PRIMARY meta.json; "
-        f"got {result['mission_type']!r} (the sentinel means the read regressed)"
+        f"routed #2186 identity read must resolve mission_type off PRIMARY meta.json; got {result['mission_type']!r} (the sentinel means the read regressed)"
     )
     assert result["mission_type"] != SENTINEL_HUSK_MISSION_TYPE
 
@@ -390,9 +378,7 @@ def _revert_lanes_read_to_coord_aware(monkeypatch: pytest.MonkeyPatch) -> None:
     def _coord_aware(self: PlacementSeam, kind: MissionArtifactKind) -> Path:
         # Kind-BLIND by construction — the pre-#2185 resolver ignored ``kind``.
         _ = kind
-        resolved: Path = candidate_feature_dir_for_mission(
-            self.repo_root, self.mission_slug
-        )
+        resolved: Path = candidate_feature_dir_for_mission(self.repo_root, self.mission_slug)
         return resolved
 
     monkeypatch.setattr(PlacementSeam, "read_dir", _coord_aware)
@@ -433,8 +419,8 @@ def test_lifecycle_sync_reads_primary_lanes_not_coord_husk(
 
     # Pre-create the lane worktree shell so the function skips the heavy
     # ``git worktree add`` and reaches the auto-rebase decision. Its path mirrors
-    # the function's own ``_worktree_path(repo, slug, mission_id=None, lane_id=…)``.
-    lane_worktree = _worktree_path(ctx.repo, ctx.slug, mission_id=None, lane_id="lane-a")
+    # the function's own ``_worktree_path(repo, slug, lane_id=…)``.
+    lane_worktree = _worktree_path(ctx.repo, ctx.slug, lane_id="lane-a")
     lane_worktree.mkdir(parents=True, exist_ok=True)
     (lane_worktree / ".git").write_text("gitdir: fixture\n", encoding="utf-8")
 
@@ -454,12 +440,9 @@ def test_lifecycle_sync_reads_primary_lanes_not_coord_husk(
     )
 
     assert report is not None and report.succeeded, (
-        "routed LANE_STATE read must find the PRIMARY lanes.json so the auto-rebase "
-        "FIRES (returns a report); None means the read regressed to the coord husk"
+        "routed LANE_STATE read must find the PRIMARY lanes.json so the auto-rebase FIRES (returns a report); None means the read regressed to the coord husk"
     )
-    assert calls == ["lane-a"], (
-        "the post-coordination auto-rebase must run for lane-a (WP01's PRIMARY lane)"
-    )
+    assert calls == ["lane-a"], "the post-coordination auto-rebase must run for lane-a (WP01's PRIMARY lane)"
 
     # --- Executed revert→RED: route the LANE_STATE read to the coord-aware husk. ---
     calls.clear()
@@ -470,11 +453,5 @@ def test_lifecycle_sync_reads_primary_lanes_not_coord_husk(
         wp_id="WP01",
         coordination_branch=ctx.coord_branch,
     )
-    assert reverted is None, (
-        "REVERT GUARD FAILED: with the lanes read reverted to coord-aware the husk "
-        "has no lanes.json → the function must SKIP (return None)"
-    )
-    assert calls == [], (
-        "REVERT GUARD FAILED: the auto-rebase must NOT fire when the lanes read "
-        "lands on the coord husk"
-    )
+    assert reverted is None, "REVERT GUARD FAILED: with the lanes read reverted to coord-aware the husk has no lanes.json → the function must SKIP (return None)"
+    assert calls == [], "REVERT GUARD FAILED: the auto-rebase must NOT fire when the lanes read lands on the coord husk"

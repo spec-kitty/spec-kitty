@@ -484,13 +484,12 @@ def predict_lane_worktree(repo_root: Path, mission_slug: str, lane_id: str) -> t
     cutover is one edit.
 
     Emit-don't-guess: routes the on-disk worktree name through the canonical
-    WP01 seam instead of an ad-hoc f-string. Passes ``mission_id=None`` so the
-    seam reproduces the legacy ``f"{slug}-{lane}"`` grammar byte-identically
-    (the historical call sites carried no mid8); introducing a mission_id here
-    would append ``-{mid8}`` and rename every existing lane worktree.
+    WP01 seam instead of an ad-hoc f-string (FR-005). Lane naming is keyed on
+    the creation input (slug + lane id) alone (WP07, FR-002/PD-1) — the Mission
+    identity is not an input to a lane name.
     """
     branch = lane_branch_name(mission_slug, lane_id)
-    worktree_path = _worktree_path(repo_root, mission_slug, mission_id=None, lane_id=lane_id)
+    worktree_path = _worktree_path(repo_root, mission_slug, lane_id=lane_id)
     return worktree_path, branch
 
 

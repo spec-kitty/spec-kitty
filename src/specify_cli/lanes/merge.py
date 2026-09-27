@@ -201,7 +201,7 @@ def _try_auto_rebase_if_stale(
     """If the lane is stale and a worktree exists, attempt auto-rebase and recheck."""
     if not stale.is_stale:
         return stale
-    worktree_path = _worktree_path(repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id)
+    worktree_path = _worktree_path(repo_root, mission_slug, lane_id=lane.lane_id)
     if not worktree_path.exists():
         return stale
     from specify_cli.lanes.auto_rebase import attempt_auto_rebase

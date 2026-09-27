@@ -1204,15 +1204,24 @@ def _commit_planning_artifacts_transaction(
         # coord-only commit) makes both halves of the claim agree: neither
         # commits partially or silently when the canonical write placement
         # cannot be resolved for a protected planning branch.
+        # SC-002 / T041: kept byte-identical (given the same mission_slug) to
+        # implement_cores.py::_resolve_claim_commit_target's message -- known
+        # duplication, deliberately not deduped in this WP (no new shared
+        # module); follow-up: dedupe the PlacementResolutionRequired remedy
+        # between implement_cores.py and implement.py.
         raise PlacementResolutionRequired(
             "Cannot resolve the canonical write placement for this mission's "
             "WP status claim commit -- refusing to commit to the currently "
             "checked-out branch (D11 fail-closed). This usually means the "
-            "mission's stored topology could not be resolved (e.g. a "
-            "coordination branch declared in meta.json is missing/torn down "
-            "in git). Run `spec-kitty doctor workspaces --fix`, or flatten "
-            "the mission by removing `coordination_branch` from meta.json if "
-            "the coordination topology was never used, then retry."
+            "mission's stored coordination topology could not be resolved "
+            "(e.g. the coordination worktree has not been materialized yet, "
+            "or the `coordination_branch` declared in meta.json is missing/"
+            "torn down in git). Run `spec-kitty doctor coordination "
+            f"--mission {mission_slug} --fix` to repair automatically -- it "
+            "materializes a present branch, or flattens (removes the stale "
+            "key) if the topology was never activated; or remove "
+            "`coordination_branch` from meta.json manually if you know the "
+            "coordination topology was never used, then retry."
         )
     else:
         # T007: meta-derived coordination mission -- partition-aware commit.

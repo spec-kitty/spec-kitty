@@ -53,6 +53,9 @@ def _init_git_repo(repo: Path) -> None:
 
 def _make_manifest(slug: str) -> MagicMock:
     manifest = MagicMock()
+    # Lane naming is keyed
+    # on lanes_manifest.mission_slug; keep it aligned with the real slug.
+    manifest.mission_slug = slug
     manifest.target_branch = "main"
     manifest.mission_branch = f"kitty/mission-{slug}"
     lane = MagicMock()

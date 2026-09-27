@@ -45,7 +45,9 @@ class TestRequireRecordAnalysisPlacementFailClosed:
 
         assert excinfo.value.error_code == "PLACEMENT_RESOLUTION_REQUIRED"
         assert "001-demo" in str(excinfo.value)
-        assert "doctor workspaces --fix" in str(excinfo.value)
+        # #5113 / FR-014: names the real materializing/flattening command
+        # with the real slug, never the retired `doctor workspaces --fix`.
+        assert "doctor coordination --mission 001-demo --fix" in str(excinfo.value)
 
     def test_resolved_placement_ref_is_returned_verbatim(self) -> None:
         from specify_cli.cli.commands.agent.mission_record_analysis import (

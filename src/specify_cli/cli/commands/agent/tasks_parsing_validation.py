@@ -64,9 +64,7 @@ SPEC_MD_FILENAME = "spec.md"
 
 # Known verdict values from the review-cycle schema.
 # Unknown values warn but do NOT block (backward compatibility).
-_VALID_VERDICTS: frozenset[str] = frozenset(
-    {"approved", "approved_after_orchestrator_fix", "arbiter_override", "rejected"}
-)
+_VALID_VERDICTS: frozenset[str] = frozenset({"approved", "approved_after_orchestrator_fix", "arbiter_override", "rejected"})
 
 # S1192 (WP05/#2555.5): the "ERROR: <artifact>" prefix and the
 # "before approving" hint each recur across the approval-blocker error
@@ -105,9 +103,7 @@ def _issue_matrix_error_prefix(feature_dir: Path) -> str:
         ISSUE_MATRIX_MD_FILENAME,
     )
 
-    if (feature_dir / ISSUE_MATRIX_MD_FILENAME).exists() and not (
-        feature_dir / ISSUE_MATRIX_JSON_FILENAME
-    ).exists():
+    if (feature_dir / ISSUE_MATRIX_MD_FILENAME).exists() and not (feature_dir / ISSUE_MATRIX_JSON_FILENAME).exists():
         return f"ERROR: {ISSUE_MATRIX_MD_FILENAME}"
     return f"ERROR: {ISSUE_MATRIX_JSON_FILENAME}"
 
@@ -167,11 +163,7 @@ def _issue_matrix_in_mission_rows(
     referenced_issues: set[str],
     in_mission_verdict: IssueMatrixVerdict,
 ) -> list[str]:
-    return sorted(
-        row.issue
-        for row in result.rows
-        if row.verdict is in_mission_verdict and row.issue in referenced_issues
-    )
+    return sorted(row.issue for row in result.rows if row.verdict is in_mission_verdict and row.issue in referenced_issues)
 
 
 def _issue_matrix_diagnostic_lines(result: IssueMatrixValidationResult) -> list[str]:
@@ -242,11 +234,7 @@ def _issue_matrix_approval_blocker(
     tasks/*.md, contracts/*.md — all genuine PRIMARY-partition kinds) — to
     detect the referenced issues.
     """
-    spec_feature_dir = (
-        primary_feature_dir
-        if primary_feature_dir is not None and (primary_feature_dir / SPEC_MD_FILENAME).exists()
-        else feature_dir
-    )
+    spec_feature_dir = primary_feature_dir if primary_feature_dir is not None and (primary_feature_dir / SPEC_MD_FILENAME).exists() else feature_dir
 
     try:
         from specify_cli.tasks.issue_reference_discovery import (
@@ -258,9 +246,7 @@ def _issue_matrix_approval_blocker(
     except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
         logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
         return (
-            f"{_issue_matrix_error_prefix(feature_dir)} could not be evaluated before approval.\n"
-            f"Reason: {exc}\n"
-            f"Fix the issue-matrix check {_FILL_VERDICTS_HINT}."
+            f"{_issue_matrix_error_prefix(feature_dir)} could not be evaluated before approval.\nReason: {exc}\nFix the issue-matrix check {_FILL_VERDICTS_HINT}."
         )
 
     # FR-013 lever SSOT (move-task-approval-ergonomics-01M302R0 WP02, #3469):
@@ -309,10 +295,7 @@ def _issue_matrix_approval_blocker(
     # the operator and the per-row cause.
     diagnostic_lines = _issue_matrix_diagnostic_lines(result)
 
-    lines = [
-        f"{_issue_matrix_error_prefix(feature_dir)} has unresolved entries. "
-        f"Fill in verdicts {_FILL_VERDICTS_HINT}."
-    ]
+    lines = [f"{_issue_matrix_error_prefix(feature_dir)} has unresolved entries. Fill in verdicts {_FILL_VERDICTS_HINT}."]
     for message in diagnostic_lines:
         lines.append(f"- {message}")
     # FR-007 (#2555.5): only claim rows are "missing" when rows were actually
@@ -323,10 +306,7 @@ def _issue_matrix_approval_blocker(
     if missing_issues and result.rows:
         lines.append(f"Missing rows: {', '.join(missing_issues)}")
     if unresolved_in_mission:
-        lines.append(
-            "Still 'in-mission' (resolve to fixed / verified-already-fixed / "
-            f"deferred-with-followup before done): {', '.join(unresolved_in_mission)}"
-        )
+        lines.append(f"Still 'in-mission' (resolve to fixed / verified-already-fixed / deferred-with-followup before done): {', '.join(unresolved_in_mission)}")
     lines.append(_ISSUE_VERDICT_REMEDY)
     return "\n".join(lines)
 
@@ -467,9 +447,7 @@ def _apply_review_status_flags(
 
         lane = wp.get("lane")
         if lane in (Lane.APPROVED, Lane.DONE):
-            _apply_wp_review_verdict_flag(
-                wp, wp_id=wp_id, feature_dir=feature_dir, stale_verdicts=stale_verdicts
-            )
+            _apply_wp_review_verdict_flag(wp, wp_id=wp_id, feature_dir=feature_dir, stale_verdicts=stale_verdicts)
 
         if lane == Lane.IN_REVIEW:
             last_event_time = _latest_status_event_time(events, wp_id)
@@ -599,16 +577,11 @@ def _resolve_worktree_path(
     if workspace is None:
         from specify_cli.lanes.branch_naming import worktree_path as _seam_worktree_path
 
-        # Legacy lane-a worktree grammar ({slug}-lane-a, no mid8) ⇒
-        # mission_id=None reproduces the historical name byte-identically (FR-005).
+        # Lane naming is keyed on the creation input alone (WP07, FR-002/PD-1);
         # ``Path(...)`` is a narrow coercion: the cross-module ``specify_cli.*``
         # imports are ``follow_imports = skip`` under mypy --strict, so the
         # seam's already-``Path`` return is otherwise inferred as ``Any``.
-        return Path(
-            _seam_worktree_path(
-                main_repo_root, mission_slug, mission_id=None, lane_id="lane-a"
-            )
-        )
+        return Path(_seam_worktree_path(main_repo_root, mission_slug, lane_id="lane-a"))
     return Path(workspace.worktree_path)
 
 
@@ -745,9 +718,7 @@ def _check_uncommitted_worktree_changes(
     filter_runtime_state_paths: Callable[[str], str],
 ) -> list[str] | None:
     """Block when the worktree has genuine uncommitted implementation work."""
-    result = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=worktree_path, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-    )
+    result = subprocess.run(["git", "status", "--porcelain"], cwd=worktree_path, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
     # FR-015 / C-003: strip spec-kitty's own runtime-state files (e.g.
     # .spec-kitty/review-lock.json written by the review tooling, or
     # .kittify/ merge metadata) before deciding whether the worktree
@@ -862,9 +833,7 @@ def _resolve_planning_branch_for_lane_guard(feature_dir: Path) -> str | None:
             _target: str | None = _read_target_branch_lggrd(feature_dir)
             return _target
     except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
-        logger.debug(
-            "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
-        )
+        logger.debug("Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc)
     return None
 
 
@@ -901,9 +870,7 @@ def _check_kitty_specs_contamination(
         guidance.append(f"  ... and {len(contamination_files) - 5} more")
     guidance.append("")
     if _planning_branch:
-        _first_planning_path = (
-            contamination_files[0] if contamination_files else f"{KITTY_SPECS_DIR}/<path-to-file>"
-        )
+        _first_planning_path = contamination_files[0] if contamination_files else f"{KITTY_SPECS_DIR}/<path-to-file>"
         guidance.append(
             f"{KITTY_SPECS_DIR}/ changes are not allowed on lane branches.\n"
             f"Planning artifacts must live on: {_planning_branch}\n\n"
@@ -911,10 +878,7 @@ def _check_kitty_specs_contamination(
             f"  git show {_planning_branch}:{_first_planning_path}"
         )
     else:
-        guidance.append(
-            f"{KITTY_SPECS_DIR}/ changes are not allowed on lane branches "
-            f"(planning branch unknown — check {KITTY_SPECS_DIR}/ on the base branch)."
-        )
+        guidance.append(f"{KITTY_SPECS_DIR}/ changes are not allowed on lane branches (planning branch unknown — check {KITTY_SPECS_DIR}/ on the base branch).")
     guidance.append("")
     guidance.append(f"Clean the branch before moving to {target_lane}:")
     guidance.append(f"  cd {worktree_path}")
@@ -1096,11 +1060,7 @@ def _validate_ready_for_review(
         placement_seam,
     )
 
-    feature_dir = placement_seam(
-        main_repo_root, mission_slug, effective_root=effective_root
-    ).read_dir(
-        MissionArtifactKind.RESEARCH
-    )
+    feature_dir = placement_seam(main_repo_root, mission_slug, effective_root=effective_root).read_dir(MissionArtifactKind.RESEARCH)
 
     # Detect mission type from feature's meta.json
     mission_type = get_mission_type(feature_dir)

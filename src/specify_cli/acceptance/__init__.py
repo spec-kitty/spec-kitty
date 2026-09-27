@@ -749,8 +749,8 @@ def _approved_lane_source_roots(
     check then behaves exactly as it did before this change rather than
     guessing at a topology.
     """
-    from specify_cli.lanes.branch_naming import worktree_path  # noqa: PLC0415
-    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json  # noqa: PLC0415
+    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
     accepted_wps = {*lanes.get("approved", []), *lanes.get("done", [])}
     if not accepted_wps:
@@ -767,11 +767,8 @@ def _approved_lane_source_roots(
         lane_wps = set(getattr(lane, "wp_ids", ()) or ())
         if not lane_wps or not lane_wps <= accepted_wps:
             continue
-        candidate = worktree_path(
-            repo_root,
-            manifest.mission_slug,
-            mission_id=manifest.mission_id,
-            lane_id=lane.lane_id,
+        candidate, _lane_branch = predict_lane_worktree(
+            repo_root, manifest.mission_slug, lane.lane_id
         )
         if candidate.is_dir():
             roots.append(candidate)

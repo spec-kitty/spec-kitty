@@ -151,6 +151,11 @@ class TestEmitRemediationHint:
 def _make_mock_lanes_manifest(mission_slug: str) -> MagicMock:
     """Return a mock LanesManifest for a 2-lane, 2-WP mission."""
     manifest = MagicMock()
+    # Lane naming is keyed
+    # on ``lanes_manifest.mission_slug`` alone, so it must match the real
+    # slug ``run.mission_slug`` carries, or ``_phase_merge_lanes``'s
+    # invariant assertion refuses this mock as internally inconsistent.
+    manifest.mission_slug = mission_slug
     manifest.target_branch = "main"
     manifest.mission_branch = f"kitty/mission-{mission_slug}"
 

@@ -24,10 +24,10 @@ is attributed per session — exactly, never merged.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+
+from specify_cli.lanes.branch_naming import parse_lane_worktree_dir, worktree_dir_name
 
 from .models import MissionBinding, RepositoryBinding
 
@@ -35,10 +35,6 @@ __all__ = [
     "ResolvedBindings",
     "resolve_bindings",
 ]
-
-
-_WORKTREE_DIR_RE: Final = re.compile(r"^(?P<slug>.+)-(?P<mid8>[0-9A-HJKMNP-TV-Z]{8})-lane-(?P<lane_id>[0-9A-Za-z-]+)$")
-"""``.worktrees/<slug>-<mid8>-lane-<id>`` — the canonical mission worktree name."""
 
 
 @dataclass(frozen=True)
@@ -75,30 +71,34 @@ def _branch_name(cwd: Path) -> str | None:
 def _resolve_mission_from_worktree(worktree_dir: Path, main_repo_root: Path) -> MissionBinding | None:
     """Resolve a mission worktree's own declared identity, or ``None``.
 
-    The worktree directory name declares ``(slug, mid8)``; the binding is
-    confirmed against the repository's mission metadata (the ULID whose
-    first 8 characters match) so a stale or hand-renamed directory never
-    mints a mission identity. The sanctioned discovery boundary is the
-    mission resolver, never a raw ``kitty-specs/`` walk.
+    Named behaviour change (plan Risk 2): binding is now by **slug
+    recomposition** instead of mid8-prefix matching. The worktree directory
+    name is parsed slug-free (:func:`parse_lane_worktree_dir`, which also
+    recognizes legacy and plain-legacy dirs the old mid8-only regex missed),
+    then confirmed against each candidate mission by recomposing
+    ``worktree_dir_name(mission.mission_slug, lane_id=...)``
+    and checking it reproduces the directory name byte-for-byte. Zero or more
+    than one match returns ``None`` — never guess. The sanctioned discovery
+    boundary is the mission resolver, never a raw ``kitty-specs/`` walk.
     """
     from specify_cli.context.mission_resolver import FsMissionResolver  # noqa: PLC0415
 
-    match = _WORKTREE_DIR_RE.match(worktree_dir.name)
-    if match is None:
+    parsed = parse_lane_worktree_dir(worktree_dir.name)
+    if parsed is None:
         return None
-    slug, mid8 = match.group("slug"), match.group("mid8")
+    _slug, lane_id = parsed
     try:
         missions = FsMissionResolver(main_repo_root).all_missions()
     except Exception:
         return None
-    for mission in missions:
-        mission_id = getattr(mission, "mission_id", None)
-        if isinstance(mission_id, str) and mission_id.startswith(mid8):
-            return MissionBinding(
-                mission_id=mission_id,
-                display_label=getattr(mission, "mission_slug", None) or slug,
-            )
-    return None
+    matches = [mission for mission in missions if worktree_dir_name(mission.mission_slug, lane_id=lane_id) == worktree_dir.name]
+    if len(matches) != 1:
+        return None
+    mission = matches[0]
+    return MissionBinding(
+        mission_id=mission.mission_id,
+        display_label=mission.mission_slug,
+    )
 
 
 def resolve_bindings(cwd: Path) -> ResolvedBindings:

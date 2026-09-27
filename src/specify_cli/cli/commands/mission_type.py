@@ -145,18 +145,11 @@ def current_cmd(
     detected_mission = _detect_current_feature(project_root)
 
     if mission is None and not detected_mission:
-        console.print(
-            "[yellow]No active mission detected.[/yellow]\n"
-            "\nUse [cyan]--mission <slug>[/cyan] to specify one, "
-            "or run from within a mission worktree."
-        )
+        console.print("[yellow]No active mission detected.[/yellow]\n\nUse [cyan]--mission <slug>[/cyan] to specify one, or run from within a mission worktree.")
         # Optionally list available missions
         mission_specs = project_root / KITTY_SPECS_DIR
         if mission_specs.is_dir():
-            missions = sorted(
-                d.name for d in mission_specs.iterdir()
-                if d.is_dir() and d.name[0:1].isdigit()
-            )
+            missions = sorted(d.name for d in mission_specs.iterdir() if d.is_dir() and d.name[0:1].isdigit())
             if missions:
                 console.print("\n[cyan]Available missions:[/cyan]")
                 for slug in missions[:10]:
@@ -217,9 +210,7 @@ def current_cmd(
                 # normal warnings machinery so it still reaches whatever
                 # filter/handler the caller has configured, instead of being
                 # silently swallowed by this command's own capture.
-                warnings.warn_explicit(
-                    caught.message, caught.category, caught.filename, caught.lineno
-                )
+                warnings.warn_explicit(caught.message, caught.category, caught.filename, caught.lineno)
         context = f"Mission: {mission_slug}"
 
     except MissionNotFoundError as exc:
@@ -300,7 +291,8 @@ def create_cmd(
     if ":" not in from_ticket:
         typer.secho(
             "Error: --from-ticket requires format provider:KEY (e.g. linear:PRI-42)",
-            err=True, fg=typer.colors.RED,
+            err=True,
+            fg=typer.colors.RED,
         )
         raise typer.Exit(1)
 
@@ -322,9 +314,9 @@ def create_cmd(
     config = load_tracker_config(repo_root)
     if config.provider and config.provider != provider:
         typer.secho(
-            f"Error: This repo is bound to '{config.provider}', not '{provider}'. "
-            f"Run: spec-kitty tracker bind --provider {provider}",
-            err=True, fg=typer.colors.RED,
+            f"Error: This repo is bound to '{config.provider}', not '{provider}'. Run: spec-kitty tracker bind --provider {provider}",
+            err=True,
+            fg=typer.colors.RED,
         )
         raise typer.Exit(1)
 
@@ -344,7 +336,8 @@ def create_cmd(
     if ticket is None:
         typer.secho(
             f"Error: Ticket '{issue_key}' not found in {provider}. Check the key and try again.",
-            err=True, fg=typer.colors.RED,
+            err=True,
+            fg=typer.colors.RED,
         )
         raise typer.Exit(1)
 
@@ -354,21 +347,11 @@ def create_cmd(
 
     # Handoff
     console.print()
-    console.print(
-        f"[green]✓[/green] Ticket [bold]{ticket.get('identifier', issue_key)}[/bold] "
-        f"fetched → [dim]{context_path.relative_to(repo_root)}[/dim]"
-    )
+    console.print(f"[green]✓[/green] Ticket [bold]{ticket.get('identifier', issue_key)}[/bold] fetched → [dim]{context_path.relative_to(repo_root)}[/dim]")
     console.print(f"  [dim]{ticket.get('title', '')}[/dim]")
     console.print()
-    console.print(
-        "Run [cyan]/spec-kitty.specify[/cyan] inside your coding agent (Claude Code, Codex, Cursor) "
-        "to create the mission from this ticket."
-    )
-    console.print(
-        "The mission will be linked to "
-        f"[bold]{provider}:{ticket.get('identifier', issue_key)}[/bold] "
-        "automatically on completion."
-    )
+    console.print("Run [cyan]/spec-kitty.specify[/cyan] inside your coding agent (Claude Code, Codex, Cursor) to create the mission from this ticket.")
+    console.print(f"The mission will be linked to [bold]{provider}:{ticket.get('identifier', issue_key)}[/bold] automatically on completion.")
     console.print()
 
 
@@ -390,9 +373,7 @@ def _resolve_mission_slug(repo_root: Path, mission_slug: str) -> str:
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     try:
-        candidate: Path = placement_seam(
-            get_main_repo_root(repo_root), mission_slug
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        candidate: Path = placement_seam(get_main_repo_root(repo_root), mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except StatusReadPathNotFound:
         # Fail-closed coordination window (coord worktree root materialized,
         # mission dir absent): fall back to the raw handle so slug resolution
@@ -512,9 +493,9 @@ def close_cmd(
         typer.Option(
             "--discard",
             help="Discard the mission mid-flight: delete the coordination "
-                 "branch + all lane branches and tear down all worktrees. "
-                 "Without --discard, requires that the mission has already "
-                 "been merged (no-op cleanup otherwise).",
+            "branch + all lane branches and tear down all worktrees. "
+            "Without --discard, requires that the mission has already "
+            "been merged (no-op cleanup otherwise).",
         ),
     ] = False,
     force: Annotated[
@@ -564,8 +545,7 @@ def close_cmd(
     mission_slug = mission or _detect_current_feature(project_root)
     if not mission_slug:
         _emit_mission_error(
-            "[red]Error:[/red] No mission specified and no active mission "
-            "detected. Use [cyan]--mission <slug>[/cyan].",
+            "[red]Error:[/red] No mission specified and no active mission detected. Use [cyan]--mission <slug>[/cyan].",
             code="mission_not_specified",
             json_output=json_output,
         )
@@ -619,9 +599,7 @@ def close_cmd(
     # ``feature_dir.name`` (line 593, already composed) and the seam folds it
     # again internally regardless (idempotent no-op for an already-canonical
     # handle).
-    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
 
     meta_path = feature_dir / "meta.json"
     mid8_value = _read_mission_mid8(meta_path)
@@ -643,9 +621,7 @@ def close_cmd(
             # Fail closed (#2120): a destructive discard must not report success
             # while leaving worktrees/branches behind. Verify BEFORE flattening so the
             # legacy-branch check can still read coordination_branch from meta.json.
-            _verify_discard_complete(
-                repo_root, mission_slug, mid8_value, feature_dir, meta_path
-            )
+            _verify_discard_complete(repo_root, mission_slug, mid8_value, feature_dir, meta_path)
             # Flatten: drop the now-dangling coordination_branch marker so subsequent
             # commands for this mission don't trip CoordinationBranchDeleted (#2120).
             _flatten_discarded_mission(feature_dir)
@@ -694,9 +670,7 @@ def close_cmd(
             # Tolerates an orphaned ``coordination_branch`` marker (FR-013):
             # the seam's destroy leg is itself idempotent on a missing
             # worktree/branch, so no traceback surfaces here.
-            _teardown_coordination_worktree(
-                repo_root, mission_slug, mid8_value, quiet=json_output
-            )
+            _teardown_coordination_worktree(repo_root, mission_slug, mid8_value, quiet=json_output)
             if json_output:
                 console.emit_json({"ok": True, "result": "closed", "mission_slug": mission_slug})
             else:
@@ -733,9 +707,7 @@ def _discard_mission(
     # branch-first order silently leaked the coordination/lane branches.
     # #3716: this is the abandonment leg — the retrospective the teardown persists
     # must carry ``runtime_abandoned`` provenance, not completion provenance.
-    _teardown_coordination_worktree(
-        repo_root, mission_slug, mid8_value, provenance_kind="runtime_abandoned"
-    )
+    _teardown_coordination_worktree(repo_root, mission_slug, mid8_value, provenance_kind="runtime_abandoned")
     if lanes_manifest is not None:
         _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
@@ -764,10 +736,7 @@ def _load_lanes_manifest_for_discard(feature_dir: Path, mission_slug: str) -> An
     except MissingLanesError:
         return None
     except CorruptLanesError as exc:
-        console.print(
-            f"[red]Error:[/red] cannot discard {mission_slug}: lanes.json is "
-            f"corrupt ({exc}). Repair or remove it, then retry."
-        )
+        console.print(f"[red]Error:[/red] cannot discard {mission_slug}: lanes.json is corrupt ({exc}). Repair or remove it, then retry.")
         raise typer.Exit(1) from exc
 
 
@@ -805,13 +774,11 @@ def _registered_worktree_names(repo_root: Path) -> list[str]:
     names: list[str] = []
     for line in result.stdout.splitlines():
         if line.startswith("worktree "):
-            names.append(Path(line[len("worktree "):].strip()).name)
+            names.append(Path(line[len("worktree ") :].strip()).name)
     return names
 
 
-def _expected_discard_branches(
-    feature_dir: Path, mission_slug: str, meta_path: Path
-) -> list[str]:
+def _expected_discard_branches(feature_dir: Path, mission_slug: str, meta_path: Path) -> list[str]:
     """The branches a discard is expected to delete (for post-teardown verify).
 
     Mirrors :func:`_delete_lane_branches` / :func:`_delete_legacy_coordination_branch`
@@ -862,13 +829,8 @@ def _verify_discard_complete(
     if mid8_value:
         from specify_cli.coordination import CoordinationWorkspace
 
-        coord_name = CoordinationWorkspace.worktree_path(
-            repo_root, mission_slug, mid8_value
-        ).name
-        if (
-            CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value)
-            or coord_name in registered
-        ):
+        coord_name = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8_value).name
+        if CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value) or coord_name in registered:
             leaks.append(f".worktrees/{coord_name}")
 
     # Lane worktrees — EXACT names from the manifest (no prefix over-match),
@@ -886,16 +848,10 @@ def _verify_discard_complete(
     if not leaks:
         return
 
-    console.print(
-        f"[red]Error:[/red] discard of {mission_slug} did not complete — these "
-        "artifacts were not removed:"
-    )
+    console.print(f"[red]Error:[/red] discard of {mission_slug} did not complete — these artifacts were not removed:")
     for leak in leaks:
         console.print(f"  - {leak}")
-    console.print(
-        "[dim]Remove them manually (git worktree remove --force / git branch -D) "
-        "and retry, or report this as a bug.[/dim]"
-    )
+    console.print("[dim]Remove them manually (git worktree remove --force / git branch -D) and retry, or report this as a bug.[/dim]")
     raise typer.Exit(1)
 
 
@@ -966,9 +922,7 @@ def _meta_has_uncommitted_changes(repo_root: Path, meta_path: Path) -> bool:
     return ret == 0 and bool(out.strip())
 
 
-def _commit_flattened_meta(
-    repo_root: Path, feature_dir: Path, mission_slug: str
-) -> None:
+def _commit_flattened_meta(repo_root: Path, feature_dir: Path, mission_slug: str) -> None:
     """Commit the discard flatten's ``meta.json`` write to the PRIMARY surface (#3716).
 
     ``_flatten_discarded_mission`` is the last mutating write on the discard path
@@ -994,9 +948,7 @@ def _commit_flattened_meta(
     from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
 
     meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
-    target_branch = (
-        str(meta.get("target_branch") or "").strip() if isinstance(meta, dict) else ""
-    ) or None
+    target_branch = (str(meta.get("target_branch") or "").strip() if isinstance(meta, dict) else "") or None
 
     try:
         commit_merge_bookkeeping(
@@ -1054,10 +1006,7 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
         _force_delete_branch_if_exists(repo_root, branch_name)
 
     _force_delete_branch_if_exists(repo_root, lanes_manifest.mission_branch)
-    console.print(
-        f"  Deleted {len(lanes_manifest.lanes)} lane branch(es) + "
-        f"mission/coordination branch"
-    )
+    console.print(f"  Deleted {len(lanes_manifest.lanes)} lane branch(es) + mission/coordination branch")
 
 
 def _delete_legacy_coordination_branch(repo_root: Path, meta_path: Path) -> None:
@@ -1093,26 +1042,18 @@ def _teardown_coordination_worktree(
     from specify_cli.coordination.workspace import CoordinationWorkspace
     from specify_cli.lanes.branch_naming import coord_mission_dir_name
 
-    teardown_coordination_topology(
-        repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind
-    )
+    teardown_coordination_topology(repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind)
     if quiet:
         # ``--json`` mode (FR-013): the caller emits a single structured
         # envelope instead — these are the human-readable rich lines.
         return
     if CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value):
-        console.print(
-            "[yellow]Warning:[/yellow] coordination worktree still "
-            "present after teardown; manual cleanup may be required."
-        )
+        console.print("[yellow]Warning:[/yellow] coordination worktree still present after teardown; manual cleanup may be required.")
     else:
         # The slug read from the feature dir already embeds the mid8, so name
         # the identity through the seam's idempotent composer instead of
         # appending the mid8 a second time (#4163).
-        console.print(
-            f"[green]✓[/green] Coordination worktree torn down for "
-            f"{coord_mission_dir_name(mission_slug, mid8=mid8_value)}"
-        )
+        console.print(f"[green]✓[/green] Coordination worktree torn down for {coord_mission_dir_name(mission_slug, mid8=mid8_value)}")
 
 
 def _force_delete_branch_if_exists(repo_root: Path, branch_name: str) -> None:
@@ -1150,11 +1091,7 @@ def _expected_lane_worktree_dir_names(mission_slug: str, lanes_manifest: Any) ->
     from specify_cli.lanes.branch_naming import worktree_dir_name
     from specify_cli.lanes.compute import is_planning_lane
 
-    return {
-        worktree_dir_name(mission_slug, mission_id=None, lane_id=lane.lane_id)
-        for lane in lanes_manifest.lanes
-        if not is_planning_lane(lane)
-    }
+    return {worktree_dir_name(mission_slug, lane_id=lane.lane_id) for lane in lanes_manifest.lanes if not is_planning_lane(lane)}
 
 
 def _remove_lane_worktrees(
@@ -1193,6 +1130,7 @@ def _remove_lane_worktrees(
 # WP02 / FR-001/FR-002 — post-mission lifecycle commands
 # (``spec-kitty mission reopen`` + ``spec-kitty mission follow-up``)
 # ---------------------------------------------------------------------------
+
 
 def _detect_actor() -> str:
     """Detect caller identity from environment variables.
@@ -1261,9 +1199,7 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
         # terminal read is routed through the kind-aware placement seam
         # directly (meta.json is read right below) rather than the
         # (now-bypassed) primary_feature_dir_for_mission wrapper.
-        feature_dir = placement_seam(repo_root, handle).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        feature_dir = placement_seam(repo_root, handle).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         meta = _safe_load_meta(feature_dir)
         return _ResolvedMissionHandle(
             mission_id=(meta or {}).get("mission_id") if meta else None,
@@ -1479,10 +1415,7 @@ def reopen_cmd(
         )
         raise typer.Exit(0)
 
-    console.print(
-        f"[green]✓[/green] Mission [bold]{resolved.mission_slug}[/bold] re-opened "
-        "and is actionable again."
-    )
+    console.print(f"[green]✓[/green] Mission [bold]{resolved.mission_slug}[/bold] re-opened and is actionable again.")
     if cleared:
         console.print(f"  [dim]Cleared merge markers: {', '.join(sorted(cleared))}[/dim]")
     raise typer.Exit(0)
@@ -1608,15 +1541,9 @@ def follow_up_cmd(
 
     ref = commit if commit is not None else f"#{pr}"
     if deduped:
-        console.print(
-            f"[dim]Follow-up {follow_up_type} {ref} already recorded for "
-            f"{resolved.mission_slug} (no-op).[/dim]"
-        )
+        console.print(f"[dim]Follow-up {follow_up_type} {ref} already recorded for {resolved.mission_slug} (no-op).[/dim]")
     else:
-        console.print(
-            f"[green]✓[/green] Recorded follow-up {follow_up_type} [bold]{ref}[/bold] "
-            f"for {resolved.mission_slug}."
-        )
+        console.print(f"[green]✓[/green] Recorded follow-up {follow_up_type} [bold]{ref}[/bold] for {resolved.mission_slug}.")
     raise typer.Exit(0)
 
 

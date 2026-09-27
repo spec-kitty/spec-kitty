@@ -245,6 +245,7 @@ def test_non_cancel_transition_unaffected_by_tombstone_hook(tmp_path: Path) -> N
 
 def _make_merge_run(tmp_path: Path, *, lane_ids: list[str], remove_worktree: bool = True) -> _executor._MergeRunState:
     lanes_manifest = SimpleNamespace(
+        mission_slug="m",  # run.mission_slug must equal lanes_manifest.mission_slug
         target_branch="main",
         mission_branch="kitty/mission-m",
         lanes=[SimpleNamespace(lane_id=lane_id, wp_ids=["WP01"]) for lane_id in lane_ids],
@@ -273,10 +274,16 @@ def _make_merge_run(tmp_path: Path, *, lane_ids: list[str], remove_worktree: boo
 
 
 def _run_cleanup_phase(run: _executor._MergeRunState) -> None:
+    # The worktree-removal loop
+    # resolves its path via ``_created_lane_worktree``
+    # (``predict_lane_worktree``), never via a directly-imported
+    # ``worktree_path`` reference this patch could intercept — the CREATED
+    # path (``<tmp_path>/.worktrees/m-lane-a``) is already guaranteed absent
+    # under a fresh ``tmp_path``, so no patch is needed to keep the
+    # worktree-removal branch a no-op here.
     with (
         patch.object(_executor, "_worktree_removal_delay", return_value=0),
         patch.object(_executor, "run_command", return_value=(0, "", "")),
-        patch("specify_cli.lanes.branch_naming.worktree_path", return_value=Path("/nonexistent")),
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
         patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
         patch("specify_cli.coordination.workspace.CoordinationWorkspace"),

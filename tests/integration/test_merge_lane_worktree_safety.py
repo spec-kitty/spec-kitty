@@ -153,7 +153,7 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
 
 
 def _add_lane_worktree(tmp_path: Path, slug: str, lane_branch: str) -> Path:
-    wt_path = worktree_path(tmp_path, slug, mission_id=None, lane_id="lane-a")
+    wt_path = worktree_path(tmp_path, slug, lane_id="lane-a")
     wt_path.parent.mkdir(parents=True, exist_ok=True)
     _git(tmp_path, "worktree", "add", str(wt_path), lane_branch)
     return wt_path
@@ -320,7 +320,6 @@ class TestCoordinationWorktreeSafety:
                 slug,
                 "main",
                 lanes_manifest,
-                None,
                 feature_dir,
                 remove_worktree=True,
                 teardown_coordination=True,
@@ -374,7 +373,6 @@ class TestCoordinationWorktreeSafety:
             slug,
             "main",
             lanes_manifest,
-            None,
             feature_dir,
             remove_worktree=False,
             teardown_coordination=False,

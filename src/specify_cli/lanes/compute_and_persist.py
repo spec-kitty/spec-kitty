@@ -32,9 +32,10 @@ depending on either.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from specify_cli.lanes.compute import compute_lanes
+from specify_cli.lanes.branch_naming import InvalidMissionIdentity
+from specify_cli.lanes.compute import LaneComputationError, compute_lanes
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.ownership.validation import validate_glob_matches
 
@@ -62,6 +63,23 @@ class LaneGlobValidationError(Exception):
     def __init__(self, result: GlobValidationResult) -> None:
         self.result = result
         super().__init__("Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written.")
+
+
+def _preserved_mission_branch(previous: LanesManifest | None, computed: str) -> str:
+    """FR-011: a re-finalize keeps the Mission branch the first finalize recorded.
+
+    The first finalize defines the Mission branch that lane creation later
+    creates from the manifest (``_ensure_mission_branch``); recomputing it from a
+    since-backfilled identity would name a branch that was never created.
+    """
+    if previous is not None and previous.mission_branch:
+        # ``cast``, not a suppression: a narrow-file mypy check resolves
+        # ``LanesManifest`` (from ``specify_cli.lanes.models``) through the
+        # project-wide ``specify_cli.*`` follow-imports skip, so the field
+        # types as ``Any`` here even though it is declared ``str`` on the
+        # dataclass; the cast restores the real, already-guaranteed type.
+        return cast(str, previous.mission_branch)
+    return computed
 
 
 def compute_and_write_lanes(
@@ -124,15 +142,32 @@ def compute_and_write_lanes(
     # branch). A first finalize (no prior manifest) passes ``None`` and mints
     # fresh positional ids exactly as before.
     previous_lanes = read_lanes_json(planning_dir)
-    lanes_manifest = compute_lanes(
-        dependency_graph=wp_dependencies,
-        ownership_manifests=wp_manifests,
-        mission_slug=mission_slug,
-        target_branch=target_branch,
-        wp_bodies=wp_bodies,
-        mission_id=mission_id,
-        previous_lanes=previous_lanes,
-    )
+    try:
+        lanes_manifest = compute_lanes(
+            dependency_graph=wp_dependencies,
+            ownership_manifests=wp_manifests,
+            mission_slug=mission_slug,
+            target_branch=target_branch,
+            wp_bodies=wp_bodies,
+            mission_id=mission_id,
+            previous_lanes=previous_lanes,
+        )
+    except InvalidMissionIdentity as exc:
+        # U1: ``compute_lanes`` (untouched) composes the Mission branch via
+        # ``mission_branch_name(..., mission_id=mission_id)``, which raises the
+        # typed ``InvalidMissionIdentity`` at the source (``_mid8``) when
+        # ``mission_id`` is present but shorter than 8 characters. Preserve
+        # this module's own ``LaneComputationError`` contract (callers/tests
+        # expect it here — no lanes.json may be written on this failure), but
+        # reuse the source error's own correctly-worded remedy rather than
+        # inventing a second, potentially-wrong one at this call site.
+        raise LaneComputationError(f"cannot compute lanes for mission {mission_slug!r}: {exc.next_step}") from exc
+
+    # FR-011 / PD-6 / PD-13: a re-finalize must not recompose the Mission
+    # branch from a since-backfilled identity -- the first finalize's recorded
+    # branch is what lane creation already created on disk (research Part A
+    # §4). ``compute_lanes`` itself stays untouched (Complexity Tracking).
+    lanes_manifest.mission_branch = _preserved_mission_branch(previous_lanes, lanes_manifest.mission_branch)
     lanes_manifest.planning_commit_sha = planning_commit_sha
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     return lanes_path, lanes_manifest

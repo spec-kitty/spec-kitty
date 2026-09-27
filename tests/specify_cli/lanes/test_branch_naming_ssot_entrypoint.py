@@ -26,6 +26,7 @@ import pytest
 
 from specify_cli.lanes import branch_naming
 from specify_cli.lanes.branch_naming import (
+    InvalidMissionIdentity,
     _mid8,
     lane_branch_name,
     mission_branch_name,
@@ -111,8 +112,10 @@ def test_resolve_mid8_declared_identity_governs_over_divergent_tail() -> None:
 
 @pytest.mark.parametrize("bad", ["", "short", "01KV651"])  # 0 / 5 / 7 chars
 def test__mid8_raises_on_short(bad: str) -> None:
-    """``_mid8`` raises ``ValueError`` on a shorter-than-8-char argument."""
-    with pytest.raises(ValueError):
+    """``_mid8`` raises the typed ``InvalidMissionIdentity`` on a
+    shorter-than-8-char argument (#5108 residual: raised at the source so
+    every caller gets the same typed refusal, never a bare ``ValueError``)."""
+    with pytest.raises(InvalidMissionIdentity):
         _mid8(bad)
 
 
@@ -166,65 +169,102 @@ def test_reset_seam_is_callable_and_idempotent() -> None:
 # T004 — byte-parity of composed names (golden literals captured from HEAD).
 # ---------------------------------------------------------------------------
 
-# (slug, mission_id, expected_mission_branch, expected_lane_branch, expected_worktree_dir)
+# (slug, mission_id, expected_mission_branch)
 # Golden RHS values were captured from HEAD before the mid8→_mid8 rename.
+# ``mission_branch_name`` still takes ``mission_id`` (it names Mission
+# branches, not lanes) and its column stays byte-identical (NFR-001).
 _PARITY_CASES = [
     (
         "mission-id-canonical-identity-migration",
         _OTHER_ID,
         "kitty/mission-mission-id-canonical-identity-migration-01KNXQS9",
-        "kitty/mission-mission-id-canonical-identity-migration-01KNXQS9-lane-a",
-        "mission-id-canonical-identity-migration-01KNXQS9-lane-a",
     ),
     (
         "083-my-feature",
         _OTHER_ID,
         "kitty/mission-my-feature-01KNXQS9",
-        "kitty/mission-my-feature-01KNXQS9-lane-a",
-        "my-feature-01KNXQS9-lane-a",
     ),
     (
         "foo-01KV6510",
         _FULL_ID,
         "kitty/mission-foo-01KV6510",
-        "kitty/mission-foo-01KV6510-lane-a",
-        "foo-01KV6510-lane-a",
     ),
     (
         "057-my-feature",
         None,
         "kitty/mission-057-my-feature",
-        "kitty/mission-057-my-feature-lane-a",
-        "057-my-feature-lane-a",
     ),
     (
         "plain-slug",
         _FULL_ID,
         "kitty/mission-plain-slug-01KV6510",
-        "kitty/mission-plain-slug-01KV6510-lane-a",
-        "plain-slug-01KV6510-lane-a",
     ),
 ]
 
 
 @pytest.mark.parametrize(
-    ("slug", "mission_id", "mission_branch", "lane_branch", "worktree_dir"),
+    ("slug", "mission_id", "mission_branch"),
     _PARITY_CASES,
 )
-def test_composed_names_byte_identical_to_head(
+def test_mission_branch_name_byte_identical_to_head(
     slug: str,
     mission_id: str | None,
     mission_branch: str,
+) -> None:
+    """``mission_branch_name`` is byte-identical to the pre-rename output (unchanged column)."""
+    assert mission_branch_name(slug, mission_id=mission_id) == mission_branch
+
+
+# (slug, expected_lane_branch, expected_worktree_dir)
+# ``lane_branch_name``/``worktree_dir_name`` take no ``mission_id`` (FR-002)
+# — a lane name is keyed on the creation input (slug + lane id) alone. Rows 1,
+# 2 and 5 (identity-injected via ``_OTHER_ID``/``_FULL_ID`` above) are
+# RE-PINNED here to the created name (the identity-injected form pinned the
+# #5108 defect). Rows 3
+# ("foo-01KV6510", the slug already embeds the matching mid8) and 4
+# ("057-my-feature", pure legacy) compose the SAME bytes with or without an
+# identity, so they are unchanged.
+_LANE_WORKTREE_PARITY_CASES = [
+    (
+        "mission-id-canonical-identity-migration",
+        "kitty/mission-mission-id-canonical-identity-migration-lane-a",
+        "mission-id-canonical-identity-migration-lane-a",
+    ),
+    (
+        "083-my-feature",
+        "kitty/mission-083-my-feature-lane-a",
+        "083-my-feature-lane-a",
+    ),
+    (
+        "foo-01KV6510",
+        "kitty/mission-foo-01KV6510-lane-a",
+        "foo-01KV6510-lane-a",
+    ),
+    (
+        "057-my-feature",
+        "kitty/mission-057-my-feature-lane-a",
+        "057-my-feature-lane-a",
+    ),
+    (
+        "plain-slug",
+        "kitty/mission-plain-slug-lane-a",
+        "plain-slug-lane-a",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("slug", "lane_branch", "worktree_dir"),
+    _LANE_WORKTREE_PARITY_CASES,
+)
+def test_lane_and_worktree_names_are_the_created_form(
+    slug: str,
     lane_branch: str,
     worktree_dir: str,
 ) -> None:
-    """Composed branch/worktree names are byte-identical to the pre-rename output."""
-    assert mission_branch_name(slug, mission_id=mission_id) == mission_branch
-    assert lane_branch_name(slug, "lane-a", mission_id=mission_id) == lane_branch
-    assert (
-        worktree_dir_name(slug, mission_id=mission_id, lane_id="lane-a")
-        == worktree_dir
-    )
+    """Lane/worktree names are keyed on the creation input alone (no mission_id)."""
+    assert lane_branch_name(slug, "lane-a") == lane_branch
+    assert worktree_dir_name(slug, lane_id="lane-a") == worktree_dir
 
 
 # ---------------------------------------------------------------------------
@@ -235,18 +275,10 @@ def test_composed_names_byte_identical_to_head(
 def test_resolve_transaction_mid8_cascade_preserved() -> None:
     """The transaction resolver's declared-source cascade is intact (T003)."""
     # explicit mid8 wins
-    assert (
-        resolve_transaction_mid8("foo", mission_id=None, mid8="01EXPLCT") == "01EXPLCT"
-    )
+    assert resolve_transaction_mid8("foo", mission_id=None, mid8="01EXPLCT") == "01EXPLCT"
     # mission_id[:8]
-    assert (
-        resolve_transaction_mid8("foo", mission_id=_FULL_ID, mid8=None)
-        == _FULL_ID_MID8
-    )
+    assert resolve_transaction_mid8("foo", mission_id=_FULL_ID, mid8=None) == _FULL_ID_MID8
     # embedded slug tail
-    assert (
-        resolve_transaction_mid8("foo-01KV6510", mission_id=None, mid8=None)
-        == "01KV6510"
-    )
+    assert resolve_transaction_mid8("foo-01KV6510", mission_id=None, mid8=None) == "01KV6510"
     # legacy NNN- slug carves out to the bare-slug surface (empty mid8)
     assert resolve_transaction_mid8("057-legacy", mission_id=None, mid8=None) == ""

@@ -29,6 +29,7 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
+
 # Deep import: status.emit imports this module during status/__init__ execution,
 # so the status facade is not yet initialized here — importing from it would cycle.
 from specify_cli.status.wp_metadata import WPMetadata, read_authored_wp_frontmatter
@@ -51,11 +52,7 @@ class WorkspaceResolutionError(RuntimeError):
         self.workspace_path = workspace_path
         self.failed_check = failed_check
         self.detail = detail
-        super().__init__(
-            f"Workspace resolution failed: {workspace_path} failed check '{failed_check}'. "
-            f"{detail} "
-            f"Recover with: {WORKSPACE_HUSK_RECOVERY_COMMAND}"
-        )
+        super().__init__(f"Workspace resolution failed: {workspace_path} failed check '{failed_check}'. {detail} Recover with: {WORKSPACE_HUSK_RECOVERY_COMMAND}")
 
 
 def husk_resolution_error(workspace_path: Path) -> WorkspaceResolutionError:
@@ -96,10 +93,7 @@ def verify_workspace_toplevel(workspace_path: Path) -> WorkspaceResolutionError 
         return WorkspaceResolutionError(
             workspace_path=workspace_path,
             failed_check="git-toplevel",
-            detail=(
-                f"git resolves the working tree toplevel to {actual_toplevel}, "
-                f"not the resolved workspace path {workspace_path}."
-            ),
+            detail=(f"git resolves the working tree toplevel to {actual_toplevel}, not the resolved workspace path {workspace_path}."),
         )
     return None
 
@@ -243,11 +237,7 @@ class ResolvedWorkspace:
         structured error (see :func:`husk_resolution_error`) instead of
         silently recreating a worktree on top — recreation hides the anomaly.
         """
-        return (
-            self.resolution_kind == "lane_workspace"
-            and self.worktree_path.exists()
-            and not (self.worktree_path / ".git").exists()
-        )
+        return self.resolution_kind == "lane_workspace" and self.worktree_path.exists() and not (self.worktree_path / ".git").exists()
 
 
 @dataclass(frozen=True)
@@ -304,11 +294,10 @@ def save_context(repo_root: Path, context: WorkspaceContext) -> Path:
         Path to saved context file
     """
     # The context-JSON filename is keyed to the on-disk lane-worktree dir name;
-    # compose it through the seam (emit-don't-guess, FR-005). Legacy grammar
-    # ({slug}-{lane}, no mid8) ⇒ mission_id=None reproduces it byte-identically.
-    workspace_name = worktree_dir_name(
-        context.mission_slug, mission_id=None, lane_id=context.lane_id
-    )
+    # compose it through the seam (emit-don't-guess, FR-005). Lane naming is
+    # keyed on the creation input alone (WP07, FR-002/PD-1); no Mission
+    # identity is passed here.
+    workspace_name = worktree_dir_name(context.mission_slug, lane_id=context.lane_id)
     context_path = get_context_path(repo_root, workspace_name)
 
     # Write JSON with pretty formatting
@@ -441,11 +430,7 @@ def resolve_active_wp_for_branch(
     as authoritative for the active WP and returns diagnostics instead of
     falling back to stale ownership when the active WP cannot be proven.
     """
-    matching_contexts = [
-        context
-        for context in list_contexts(repo_root)
-        if context.branch_name == branch_name
-    ]
+    matching_contexts = [context for context in list_contexts(repo_root) if context.branch_name == branch_name]
     if not matching_contexts:
         return ActiveWPResolution(branch_name=branch_name, context_source="absent")
 
@@ -455,10 +440,7 @@ def resolve_active_wp_for_branch(
             branch_name=branch_name,
             context_source="workspace_context",
             diagnostic_code="ACTIVE_WP_CONTEXT_AMBIGUOUS",
-            diagnostic_message=(
-                "ACTIVE_WP_CONTEXT_AMBIGUOUS: Multiple workspace contexts match "
-                f"branch {branch_name}; lanes: {lanes}"
-            ),
+            diagnostic_message=(f"ACTIVE_WP_CONTEXT_AMBIGUOUS: Multiple workspace contexts match branch {branch_name}; lanes: {lanes}"),
         )
 
     context = matching_contexts[0]
@@ -466,17 +448,13 @@ def resolve_active_wp_for_branch(
     # WP09/FR-001 (kind-correct): route through the seam on ``STATUS_STATE``
     # rather than the kind-blind slug resolver (NFR-001) — same coord-aware
     # surface this comment already documents.
-    feature_dir = placement_seam(repo_root, context.mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    feature_dir = placement_seam(repo_root, context.mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     # PRIMARY leg (C-001): tasks/ WP-frontmatter always lives in the primary checkout.
     # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK through
     # the seam authority instead of the kind-blind ``resolve_planning_read_dir``.
     # WORK_PACKAGE_TASK is PRIMARY-partition, so resolution is behavior-identical
     # to the prior resolver — the seam's fail-loud arm (NFR-002) is not reachable.
-    planning_dir = placement_seam(repo_root, context.mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    planning_dir = placement_seam(repo_root, context.mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     lane_wp_ids = _context_lane_wp_ids(context)
 
     if not feature_dir.is_dir():
@@ -491,11 +469,7 @@ def resolve_active_wp_for_branch(
         from specify_cli.status import Lane
 
         lanes_by_wp = get_all_wp_lanes(feature_dir)
-        active_candidates = [
-            wp_id
-            for wp_id in lane_wp_ids
-            if lanes_by_wp.get(wp_id) == Lane.IN_PROGRESS
-        ]
+        active_candidates = [wp_id for wp_id in lane_wp_ids if lanes_by_wp.get(wp_id) == Lane.IN_PROGRESS]
     except Exception as exc:
         return _active_wp_diagnostic(
             context,
@@ -505,27 +479,18 @@ def resolve_active_wp_for_branch(
 
     if len(active_candidates) != 1:
         candidates = ", ".join(active_candidates) if active_candidates else "none"
-        lane_states = ", ".join(
-            f"{wp_id}={lanes_by_wp.get(wp_id, Lane.UNINITIALIZED)}"
-            for wp_id in lane_wp_ids
-        )
+        lane_states = ", ".join(f"{wp_id}={lanes_by_wp.get(wp_id, Lane.UNINITIALIZED)}" for wp_id in lane_wp_ids)
         return _active_wp_diagnostic(
             context,
             code="ACTIVE_WP_CONTEXT_AMBIGUOUS",
-            message=(
-                f"Cannot prove active WP for branch {branch_name}; "
-                f"lane_id={context.lane_id}; active candidates: {candidates}; "
-                f"lane states: {lane_states}"
-            ),
+            message=(f"Cannot prove active WP for branch {branch_name}; lane_id={context.lane_id}; active candidates: {candidates}; lane states: {lane_states}"),
         )
 
     active_wp_id = active_candidates[0]
     warnings: list[str] = []
     if context.current_wp and context.current_wp != active_wp_id:
         warnings.append(
-            "ACTIVE_WP_CONTEXT_STALE: "
-            f"workspace context current_wp={context.current_wp}, "
-            f"canonical active_wp={active_wp_id}; lane_id={context.lane_id}"
+            f"ACTIVE_WP_CONTEXT_STALE: workspace context current_wp={context.current_wp}, canonical active_wp={active_wp_id}; lane_id={context.lane_id}"
         )
 
     wp_path = _find_wp_file(planning_dir / "tasks", active_wp_id)
@@ -639,9 +604,7 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
                 "Add an explicit execution_mode in the WP frontmatter to silence this default."
             )
         else:
-            diagnostic = (
-                f"Inferred execution_mode={execution_mode.value!r} for {metadata.work_package_id} from existing mission content."
-            )
+            diagnostic = f"Inferred execution_mode={execution_mode.value!r} for {metadata.work_package_id} from existing mission content."
     else:
         try:
             execution_mode = WorkProductKind(raw_mode)
@@ -676,9 +639,7 @@ def build_normalized_wp_index(
     # the seam authority instead of the kind-blind ``resolve_planning_read_dir``.
     # WORK_PACKAGE_TASK is PRIMARY-partition, so this is behavior-identical to
     # the prior resolver — no fail-loud arm is reachable here.
-    tasks_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    ) / "tasks"
+    tasks_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
     snapshot = _normalized_feature_snapshot(tasks_dir)
     cached = _FEATURE_WP_METADATA_CACHE.get(cache_key)
     if cached is not None and _FEATURE_WP_METADATA_SNAPSHOT_CACHE.get(cache_key) == snapshot:
@@ -818,9 +779,7 @@ def _resolve_workspace_for_wp_impl(
         # behavior-identical since LANE_STATE is PRIMARY-partition (no
         # fail-loud arm reachable here).
         lane_wp_ids: list[str] = []
-        lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.LANE_STATE
-        )
+        lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
         lanes_manifest = read_lanes_json(lanes_read_dir)
         if lanes_manifest is not None:
             planning_lane = lanes_manifest.lane_for_wp(wp_id)
@@ -863,9 +822,7 @@ def _resolve_workspace_for_wp_impl(
     # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
     # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
     # reachable here).
-    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.LANE_STATE
-    )
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_planning_lane
     from specify_cli.lanes.persistence import require_lanes_json, resolve_lanes_dir
@@ -894,10 +851,8 @@ def _resolve_workspace_for_wp_impl(
 
     # Route the COMPOSE (not just the .worktrees join) through the seam so no
     # name-guess survives the assign-then-join indirection (FR-005, WP09 ratchet).
-    # Legacy worktree grammar ({slug}-{lane}, no mid8) ⇒ mission_id=None.
-    workspace_name = worktree_dir_name(
-        mission_slug, mission_id=None, lane_id=lane.lane_id
-    )
+    # Lane naming is keyed on the creation input alone (WP07, FR-002/PD-1).
+    workspace_name = worktree_dir_name(mission_slug, lane_id=lane.lane_id)
     return ResolvedWorkspace(
         mission_slug=mission_slug,
         wp_id=wp_id,
@@ -905,9 +860,7 @@ def _resolve_workspace_for_wp_impl(
         mode_source=normalized_wp.mode_source,
         resolution_kind="lane_workspace",
         workspace_name=workspace_name,
-        worktree_path=_seam_worktree_path(
-            repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
-        ),
+        worktree_path=_seam_worktree_path(repo_root, mission_slug, lane_id=lane.lane_id),
         branch_name=lane_branch_name(mission_slug, lane.lane_id),
         lane_id=lane.lane_id,
         lane_wp_ids=list(lane.wp_ids),
@@ -966,18 +919,14 @@ def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
     # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
     # reachable here).
-    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.LANE_STATE
-    )
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
     from specify_cli.lanes.persistence import read_lanes_json
 
     lanes_manifest = read_lanes_json(lanes_read_dir)
 
     if lanes_manifest is not None:
         for lane in lanes_manifest.lanes:
-            lane_candidate: Path = _seam_worktree_path(
-                repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
-            )
+            lane_candidate: Path = _seam_worktree_path(repo_root, mission_slug, lane_id=lane.lane_id)
             if lane_candidate.is_dir():
                 return lane_candidate
     return None
@@ -997,9 +946,7 @@ def find_orphaned_contexts(repo_root: Path) -> list[tuple[str, WorkspaceContext]
     for context in list_contexts(repo_root):
         workspace_path = repo_root / context.worktree_path
         if not workspace_path.exists():
-            workspace_name = worktree_dir_name(
-                context.mission_slug, mission_id=None, lane_id=context.lane_id
-            )
+            workspace_name = worktree_dir_name(context.mission_slug, lane_id=context.lane_id)
             orphaned.append((workspace_name, context))
 
     return orphaned

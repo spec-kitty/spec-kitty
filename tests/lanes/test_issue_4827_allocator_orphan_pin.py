@@ -232,7 +232,7 @@ class TestFreshPathOrphanedPin:
                 lanes_manifest=manifest,
             )
 
-        expected_path = worktree_path(repo, MISSION_SLUG, mission_id=None, lane_id="lane-a")
+        expected_path = worktree_path(repo, MISSION_SLUG, lane_id="lane-a")
         assert expected_path.exists(), "an orphaned-pin failure must leave the worktree registered (never removed-and-retried like a transient merge conflict)"
 
 

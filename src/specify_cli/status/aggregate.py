@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -134,9 +134,7 @@ class InvalidMissionSlug(ValueError):
     def __init__(self, mission_slug: str) -> None:
         self.mission_slug = mission_slug
         super().__init__(
-            f"Invalid mission slug {mission_slug!r}: mission slugs must be a "
-            "single safe path segment (ASCII, no path separators, no '..', no "
-            "leading dot)."
+            f"Invalid mission slug {mission_slug!r}: mission slugs must be a single safe path segment (ASCII, no path separators, no '..', no leading dot)."
         )
 
 
@@ -256,11 +254,7 @@ class MissionStatus:
             primary_candidate=primary_candidate,
         )
 
-        topology: Literal["legacy", "coordination"] = (
-            "coordination"
-            if cls._is_coord_dir(read_dir, repo_root=repo_root)
-            else "legacy"
-        )
+        topology: Literal["legacy", "coordination"] = "coordination" if cls._is_coord_dir(read_dir, repo_root=repo_root) else "legacy"
         return cls(
             mission_slug=mission_slug,
             mission_id=mission_id,
@@ -401,9 +395,7 @@ class MissionStatus:
             raise InvalidMissionSlug(mission_slug) from exc
 
     @staticmethod
-    def _read_meta(
-        repo_root: Path, mission_slug: str
-    ) -> tuple[str | None, str | None, Path]:
+    def _read_meta(repo_root: Path, mission_slug: str) -> tuple[str | None, str | None, Path]:
         """Read ``meta.json`` and extract identity fields.
 
         Returns:
@@ -512,9 +504,7 @@ class MissionStatus:
         # every handle form (bare mid8 / ULID / numeric prefix / bare human
         # slug) to the correct composed primary dir internally, so the caller
         # no longer pre-canonicalizes with ``_canonicalize_primary_read_handle``.
-        primary_dir = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         raw_meta = primary_dir / _META_JSON_FILENAME
         # Pure-path happy path: when the literal slug already names an existing
         # primary mission dir with ``meta.json``, it IS the canonical directory
@@ -577,9 +567,7 @@ class MissionStatus:
         # non-existent composed path (NFR-001's one accepted divergence, US3
         # scenario 3) -- pinned by
         # ``tests/specify_cli/status/test_aggregate_read_seam_migration.py``.
-        canonical_primary = placement_seam(repo_root, candidate_dir.name).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        canonical_primary = placement_seam(repo_root, candidate_dir.name).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         return canonical_primary / _META_JSON_FILENAME, canonical_primary
 
     # ------------------------------------------------------------------
@@ -702,6 +690,59 @@ class MissionStatus:
             from_lane_enum = lane_unseeded
         return str(from_lane_enum), current.actor
 
+    def _destination_ref(self) -> str:
+        """Resolve the ``BookkeepingTransaction`` destination ref, fail-closed.
+
+        FR-011/FR-012 fold-in: a recorded ``lanes.json`` ``mission_branch``
+        (written once by the first ``finalize-tasks``, see
+        ``lanes.compute_and_persist._preserved_mission_branch``) is preferred
+        over recomposing the branch name from ``mission_id`` -- recomposing
+        after a legacy Mission was backfilled would name a branch
+        ``_ensure_mission_branch`` never created (research Part A §4). C-004:
+        this reads the recorded value as data; it never probes git for which
+        branch exists.
+
+        Order: ``coordination_branch`` -> recorded ``lanes.json.mission_branch``
+        -> ``mission_branch_name_required(...)``.
+
+        Raises:
+            BranchIdentityUnresolved: when recomposition is required and
+                ``mission_id`` is absent with no recoverable slug disambiguator,
+                or present but shorter than 8 characters (an invalid identity;
+                surfaced as the typed subclass ``InvalidMissionIdentity``,
+                raised at the source in ``lanes.branch_naming._mid8``) --
+                either way, a typed refusal, never a raw ``ValueError``.
+        """
+        if self.coordination_branch:
+            return self.coordination_branch
+
+        # Function-local import (Risks note): avoids a cold-import/cycle cost
+        # on every ``status`` import for a branch-identity concern only ``save``
+        # needs.
+        from mission_runtime import MissionArtifactKind, placement_seam
+        from specify_cli.lanes.branch_naming import mission_branch_name_required
+        from specify_cli.lanes.persistence import read_lanes_json
+
+        lanes_read_dir = placement_seam(self.repo_root, self.mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
+        recorded_manifest = read_lanes_json(lanes_read_dir)
+        if recorded_manifest is not None and recorded_manifest.mission_branch:
+            # ``cast``, not a suppression: a narrow-file mypy check resolves
+            # ``specify_cli.lanes.persistence``/``models`` through the
+            # project-wide ``specify_cli.*`` follow-imports skip, so this
+            # already-``str`` field types as ``Any`` here (same shape as the
+            # documented ``protection_policy``/``core.errors`` precedent).
+            return cast(str, recorded_manifest.mission_branch)
+
+        # No conversion shim needed: mission_branch_name_required raises the
+        # typed BranchIdentityUnresolved (absent identity) or its subclass
+        # InvalidMissionIdentity (present-but-too-short identity, raised at
+        # the source in ``_mid8``) directly -- both are already the typed,
+        # correctly-worded refusal this method's callers expect.
+        # Bind rather than cast: the explicit annotation narrows the late-import
+        # ``Any`` under a narrow-file check and is not redundant under a wide one.
+        composed: str = mission_branch_name_required(self.mission_slug, self.mission_id)
+        return composed
+
     def save(self, *, operation: str) -> CommitReceipt:
         """Persist staged transitions via ``BookkeepingTransaction``.
 
@@ -729,27 +770,24 @@ class MissionStatus:
             # longer pre-canonicalizes with ``_canonicalize_primary_read_handle``.
             from mission_runtime import MissionArtifactKind, placement_seam
 
-            diag_primary = placement_seam(
-                self.repo_root, self.mission_slug
-            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+            diag_primary = placement_seam(self.repo_root, self.mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
             raise MissionMetadataUnavailable(
                 mission_slug=self.mission_slug,
                 meta_path=diag_primary / _META_JSON_FILENAME,
                 primary_candidate=diag_primary,
                 reason="mission_id is required to persist via BookkeepingTransaction",
             )
-        # FR-006 fold-in (cluster-B): compose the destination ref through the
-        # canonical branch-identity authority instead of the legacy
-        # ``f"kitty/mission-{slug}"`` f-string (which named a branch that never
+        # FR-006 fold-in (cluster-B) / FR-011-FR-012 (this WP): compose the
+        # destination ref through ``_destination_ref``, which prefers a
+        # recorded ``lanes.json`` branch before recomposing via the canonical
+        # branch-identity authority (never the legacy
+        # ``f"kitty/mission-{slug}"`` f-string, which named a branch that never
         # existed for mid8-era missions). ``mission_id`` is guaranteed present
-        # by the guard above, so this always resolves the mid8-era branch.
-        from specify_cli.lanes.branch_naming import mission_branch_name_required
+        # by the guard above.
         from specify_cli.status.reducer import SNAPSHOT_FILENAME
         from specify_cli.status.store import EVENTS_FILENAME
 
-        destination_ref = self.coordination_branch or mission_branch_name_required(
-            self.mission_slug, self.mission_id
-        )
+        destination_ref = self._destination_ref()
 
         with BookkeepingTransaction.acquire(
             repo_root=self.repo_root,

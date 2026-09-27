@@ -216,11 +216,8 @@ def assert_coord_write_materialized(
     state = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coord_branch)
     if state in (CoordState.MATERIALIZED, CoordState.EMPTY):
         return
-    if (
-        state is CoordState.UNMATERIALIZED
-        and _coord_branch_is_local_head(repo_root, coord_branch)
-        and not coord_branch_has_committed_artifact(repo_root, coord_branch, mission_slug, kind)
-    ):
+    is_local_head = _coord_branch_is_local_head(repo_root, coord_branch)
+    if state is CoordState.UNMATERIALIZED and is_local_head and not coord_branch_has_committed_artifact(repo_root, coord_branch, mission_slug, kind):
         # Sanctioned self-materialization window (FR-006 / #4970): an UNMATERIALIZED
         # LOCAL-head coord branch that carries NO committed artifact-of-this-kind is
         # a genuine ``mission create`` → first-write. A local head that ALREADY
@@ -229,6 +226,26 @@ def assert_coord_write_materialized(
         # REFUSE raise below.
         return
 
+    # #5113 / FR-014 (T040): classify BOTH refusal arms truthfully instead of
+    # claiming the remote-only text for both.
+    if is_local_head:
+        # (b) STALE local head: the branch IS a local ref (branch present),
+        # only the worktree is absent — `doctor coordination --fix` (via the
+        # canonical materializer) can bring it up right now.
+        raise ActionContextError(
+            _COORD_WRITE_UNMATERIALIZED_CODE,
+            f"Refusing a terminus WRITE of {kind.value!r} for mission {mission_slug!r}: "
+            f"its authoritative coordination surface (branch {coord_branch!r}) already "
+            f"carries committed content but its coordination worktree is not "
+            f"materialized on this checkout. Writing would degrade to the primary "
+            f"directory and overwrite committed coordination state (#4970). "
+            f"Materialize the coordination surface first: run "
+            f"`spec-kitty doctor coordination --mission {mission_slug} --fix`.",
+        )
+    # (a) remote-only: the branch is declared and exists in git, but only as a
+    # remote-tracking ref (a fresh clone / CI checkout where the lane exists
+    # solely on `origin/<lane>`) -- `doctor coordination --fix` alone would
+    # refuse, because a remote-only branch is never auto-materialized.
     raise ActionContextError(
         _COORD_WRITE_UNMATERIALIZED_CODE,
         f"Refusing a terminus WRITE of {kind.value!r} for mission {mission_slug!r}: "
@@ -237,9 +254,10 @@ def assert_coord_write_materialized(
         f"is absent and {coord_branch!r} is not a local branch head (e.g. a fresh "
         f"clone / CI checkout where the lane exists only on origin). Writing would "
         f"degrade to the primary directory and overwrite committed coordination "
-        f"state (#4970). Materialize the coordination surface first: run `git fetch` "
-        f"then `spec-kitty doctor workspaces --fix`, or check out {coord_branch!r} "
-        f"locally before retrying.",
+        f"state (#4970). Materialize the coordination surface first: `git fetch`, "
+        f"create the local branch (`git branch {coord_branch} origin/{coord_branch}`), "
+        f"then run `spec-kitty doctor coordination --mission {mission_slug} --fix`; "
+        f"or check out {coord_branch!r} locally before retrying.",
     )
 
 

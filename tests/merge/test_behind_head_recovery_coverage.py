@@ -289,7 +289,7 @@ def test_preflight_with_recovery_passes_through_on_success(tmp_path: Path) -> No
     manifest, retention = _manifest_and_retention()
 
     with patch.object(ex, "_pre_mutation_safety_preflight") as mock_preflight:
-        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", "01MISSION", tmp_path / "meta", retention)
+        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
     mock_preflight.assert_called_once()
 
@@ -303,7 +303,7 @@ def test_preflight_with_recovery_recovers_and_retries_successfully(tmp_path: Pat
         patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=True) as mock_recover,
         patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
     ):
-        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", "01MISSION", tmp_path / "meta", retention)
+        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
     assert mock_preflight.call_count == 2
     mock_recover.assert_called_once_with(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
@@ -320,7 +320,7 @@ def test_preflight_with_recovery_reports_and_exits_when_not_recovered(tmp_path: 
         patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exc_info,
     ):
-        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", "01MISSION", tmp_path / "meta", retention)
+        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
     assert mock_preflight.call_count == 1
     mock_recover.assert_called_once()
@@ -341,7 +341,7 @@ def test_preflight_with_recovery_reports_and_exits_when_still_refused_after_reco
         patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exc_info,
     ):
-        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", "01MISSION", tmp_path / "meta", retention)
+        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
     assert mock_preflight.call_count == 2
     mock_recover.assert_called_once()

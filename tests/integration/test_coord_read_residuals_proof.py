@@ -85,26 +85,20 @@ def _assert_divergence_triad(ctx: CoordTopologyContext) -> None:
     silent false-green downstream.
     """
     assert not (ctx.coord_feature_dir / "lanes.json").exists(), (
-        "divergence triad violated: coord husk must NOT carry lanes.json "
-        "(else a husk-landing LANE_STATE read is non-falsifiable)."
+        "divergence triad violated: coord husk must NOT carry lanes.json (else a husk-landing LANE_STATE read is non-falsifiable)."
     )
     assert not (ctx.coord_feature_dir / "tasks").exists(), (
-        "divergence triad violated: coord husk must NOT carry tasks/ "
-        "(else a husk-landing WORK_PACKAGE_TASK read is non-falsifiable)."
+        "divergence triad violated: coord husk must NOT carry tasks/ (else a husk-landing WORK_PACKAGE_TASK read is non-falsifiable)."
     )
     assert ctx.coord_husk_meta_path is not None and ctx.coord_husk_meta_path.exists(), (
-        "divergence triad violated: the sentinel husk meta.json must be present "
-        "(a present-but-wrong identity, not a missing file)."
+        "divergence triad violated: the sentinel husk meta.json must be present (a present-but-wrong identity, not a missing file)."
     )
     husk_meta = json.loads(ctx.coord_husk_meta_path.read_text(encoding="utf-8"))
     assert husk_meta["mission_id"] == SENTINEL_HUSK_MISSION_ID, (
-        "divergence triad violated: husk meta mission_id must be the sentinel "
-        f"{SENTINEL_HUSK_MISSION_ID!r}, got {husk_meta['mission_id']!r}."
+        f"divergence triad violated: husk meta mission_id must be the sentinel {SENTINEL_HUSK_MISSION_ID!r}, got {husk_meta['mission_id']!r}."
     )
     assert husk_meta["mission_id"] != ctx.mission_id, (
-        "divergence triad violated: husk meta mission_id must DIFFER from the "
-        f"resolved PRIMARY id {ctx.mission_id!r} (else identity proof is "
-        "non-falsifiable)."
+        f"divergence triad violated: husk meta mission_id must DIFFER from the resolved PRIMARY id {ctx.mission_id!r} (else identity proof is non-falsifiable)."
     )
     assert ctx.mission_id == _PRIMARY_MISSION_ID
 
@@ -181,17 +175,13 @@ def _revert_resolver_to_coord_aware(monkeypatch: pytest.MonkeyPatch) -> None:
     def _coord_aware(self: PlacementSeam, kind: MissionArtifactKind) -> Path:
         # Kind-BLIND by construction — the pre-#2185 resolver ignored ``kind``.
         _ = kind
-        resolved: Path = candidate_feature_dir_for_mission(
-            self.repo_root, self.mission_slug
-        )
+        resolved: Path = candidate_feature_dir_for_mission(self.repo_root, self.mission_slug)
         return resolved
 
     monkeypatch.setattr(PlacementSeam, "read_dir", _coord_aware)
 
 
-def _reroute_status_leg_to_primary(
-    monkeypatch: pytest.MonkeyPatch, primary_feature_dir: Path
-) -> None:
+def _reroute_status_leg_to_primary(monkeypatch: pytest.MonkeyPatch, primary_feature_dir: Path) -> None:
     """Re-route ONLY the ``STATUS_STATE`` seam read to PRIMARY (NFR-001 guard).
 
     The kind-SELECTIVE counterpart of :func:`_revert_resolver_to_coord_aware`:
@@ -213,9 +203,7 @@ def _reroute_status_leg_to_primary(
     monkeypatch.setattr(PlacementSeam, "read_dir", _rerouted)
 
 
-def _spy_seam_read_dir(
-    monkeypatch: pytest.MonkeyPatch, captured: dict[Any, Path]
-) -> None:
+def _spy_seam_read_dir(monkeypatch: pytest.MonkeyPatch, captured: dict[Any, Path]) -> None:
     """Install a PASS-THROUGH spy over the seam's read projection.
 
     Records ``kind → resolved dir`` for every routed read while the real routing
@@ -262,8 +250,7 @@ def test_materialize_worktree_topology_returns_primary_worktrees(
     topo = materialize_worktree_topology(ctx.repo, ctx.slug)
 
     assert {entry.wp_id for entry in topo.entries} == {"WP01"}, (
-        "routed PRIMARY read must materialize WP01 from the PRIMARY tasks/lanes; "
-        "an empty/other topology means the read regressed to the STATUS-only husk"
+        "routed PRIMARY read must materialize WP01 from the PRIMARY tasks/lanes; an empty/other topology means the read regressed to the STATUS-only husk"
     )
     assert topo.mission_type == _PRIMARY_MISSION_TYPE
     assert topo.mission_type != SENTINEL_HUSK_MISSION_TYPE
@@ -273,12 +260,10 @@ def test_materialize_worktree_topology_returns_primary_worktrees(
     _revert_resolver_to_coord_aware(monkeypatch)  # seam-level (kind-blind read_dir)
     reverted = materialize_worktree_topology(ctx.repo, ctx.slug)
     assert {entry.wp_id for entry in reverted.entries} != {"WP01"}, (
-        "REVERT GUARD FAILED: with the read reverted to coord-aware the topology "
-        "must NOT still resolve WP01 — the routing is not load-bearing."
+        "REVERT GUARD FAILED: with the read reverted to coord-aware the topology must NOT still resolve WP01 — the routing is not load-bearing."
     )
     assert reverted.mission_type == SENTINEL_HUSK_MISSION_TYPE, (
-        "REVERT GUARD FAILED: the coord-aware read must surface the husk sentinel "
-        f"mission_type {SENTINEL_HUSK_MISSION_TYPE!r}, got {reverted.mission_type!r}"
+        f"REVERT GUARD FAILED: the coord-aware read must surface the husk sentinel mission_type {SENTINEL_HUSK_MISSION_TYPE!r}, got {reverted.mission_type!r}"
     )
 
 
@@ -324,8 +309,7 @@ def test_dry_run_forecast_returns_primary_wp_set(
     forecast_wps = {wp for lane in payload.get("lanes", []) for wp in lane["wp_ids"]}
 
     assert forecast_wps == {"WP01"}, (
-        "the dry-run forecast must read the PRIMARY lanes.json and forecast its WP "
-        f"set; got {forecast_wps} (empty/other ⇒ the lanes read hit the coord husk)"
+        f"the dry-run forecast must read the PRIMARY lanes.json and forecast its WP set; got {forecast_wps} (empty/other ⇒ the lanes read hit the coord husk)"
     )
     assert "error" not in payload
 
@@ -343,10 +327,7 @@ def test_dry_run_forecast_returns_primary_wp_set(
             json_output=True,
         )
     reverted_payload = json.loads(capsys.readouterr().out.strip())
-    assert "lanes" not in reverted_payload, (
-        "REVERT GUARD FAILED: the coord-aware forecast must NOT still produce a "
-        f"lane/WP set; got {reverted_payload!r}"
-    )
+    assert "lanes" not in reverted_payload, f"REVERT GUARD FAILED: the coord-aware forecast must NOT still produce a lane/WP set; got {reverted_payload!r}"
     assert "error" in reverted_payload
 
 
@@ -370,27 +351,20 @@ def test_scan_recovery_state_returns_primary_lane_membership(
     ctx = coord_topology_mission_sentinel_meta
     _assert_divergence_triad(ctx)
 
-    lane_branch = lane_branch_name(ctx.slug, "lane-a", mission_id=ctx.mission_id)
+    lane_branch = lane_branch_name(ctx.slug, "lane-a")
     _git_branch(ctx, lane_branch)
 
     states = scan_recovery_state(ctx.repo, ctx.slug)
     wp_ids = {rs.wp_id for rs in states}
 
-    assert "WP01" in wp_ids, (
-        "routed LANE_STATE read must resolve lane-a → WP01 off the PRIMARY lanes.json"
-    )
-    assert "unknown" not in wp_ids, (
-        "the husk fallback ('unknown') means the lanes read regressed to coord-aware"
-    )
+    assert "WP01" in wp_ids, "routed LANE_STATE read must resolve lane-a → WP01 off the PRIMARY lanes.json"
+    assert "unknown" not in wp_ids, "the husk fallback ('unknown') means the lanes read regressed to coord-aware"
 
     # --- Executed revert→RED demonstration on the recovery membership. ---
     _revert_resolver_to_coord_aware(monkeypatch)
     reverted_states = recovery.scan_recovery_state(ctx.repo, ctx.slug)
     reverted_wp_ids = {rs.wp_id for rs in reverted_states}
-    assert "WP01" not in reverted_wp_ids, (
-        "REVERT GUARD FAILED: the coord-aware lanes read must NOT still resolve "
-        f"lane-a → WP01; got {reverted_wp_ids}"
-    )
+    assert "WP01" not in reverted_wp_ids, f"REVERT GUARD FAILED: the coord-aware lanes read must NOT still resolve lane-a → WP01; got {reverted_wp_ids}"
 
 
 # ===========================================================================
@@ -427,7 +401,7 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
     # a non-reducible string marker into evidence — a wrong-leg probe — which the
     # real reducer rejects; the STATUS leg needs a reducible log to yield a lane).
     _seed_reducible_event(ctx.coord_feature_dir, ctx.slug, to_lane="claimed")
-    lane_branch = lane_branch_name(ctx.slug, "lane-a", mission_id=ctx.mission_id)
+    lane_branch = lane_branch_name(ctx.slug, "lane-a")
     _git_branch(ctx, lane_branch)
 
     # Pass-through spy capturing every dir handed to read_events during the scan.
@@ -443,29 +417,20 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
     states = scan_recovery_state(ctx.repo, ctx.slug)
     wp01 = next(rs for rs in states if rs.wp_id == "WP01")
 
-    assert ctx.coord_feature_dir in seen_dirs, (
-        "NFR-001: the STATUS leg must read the event log from the COORD husk"
-    )
+    assert ctx.coord_feature_dir in seen_dirs, "NFR-001: the STATUS leg must read the event log from the COORD husk"
     assert ctx.primary_feature_dir not in seen_dirs, (
-        "NFR-001 REGRESSION: a STATUS read was routed to PRIMARY — the event log "
-        "must stay coord-aware (zero STATUS legs re-routed)"
+        "NFR-001 REGRESSION: a STATUS read was routed to PRIMARY — the event log must stay coord-aware (zero STATUS legs re-routed)"
     )
-    assert wp01.status_lane == "claimed", (
-        "the WP status_lane must reflect the COORD husk event (read coord-aware); "
-        f"got {wp01.status_lane!r}"
-    )
+    assert wp01.status_lane == "claimed", f"the WP status_lane must reflect the COORD husk event (read coord-aware); got {wp01.status_lane!r}"
 
     # --- Executed revert-fails guard: re-route the STATUS leg to PRIMARY. ---
     seen_dirs.clear()
     _reroute_status_leg_to_primary(monkeypatch, ctx.primary_feature_dir)
     reverted_states = recovery.scan_recovery_state(ctx.repo, ctx.slug)
     reverted_wp01 = next(rs for rs in reverted_states if rs.wp_id == "WP01")
-    assert ctx.primary_feature_dir in seen_dirs, (
-        "the revert must route the STATUS read to PRIMARY (guard setup sanity)"
-    )
+    assert ctx.primary_feature_dir in seen_dirs, "the revert must route the STATUS read to PRIMARY (guard setup sanity)"
     assert reverted_wp01.status_lane != "claimed", (
-        "REVERT GUARD FAILED: a silent STATUS→PRIMARY re-route went undetected — "
-        "the PRIMARY decoy event is non-reducible so status_lane must NOT be 'claimed'"
+        "REVERT GUARD FAILED: a silent STATUS→PRIMARY re-route went undetected — the PRIMARY decoy event is non-reducible so status_lane must NOT be 'claimed'"
     )
 
 
@@ -510,9 +475,7 @@ def test_executor_status_feature_dir_stays_coord_aware(
         )
 
     status_dir = captured.get(MissionArtifactKind.STATUS_STATE)
-    assert status_dir == ctx.coord_feature_dir, (
-        f"NFR-001: the executor STATUS feature_dir must resolve the COORD husk; got {status_dir!r}"
-    )
+    assert status_dir == ctx.coord_feature_dir, f"NFR-001: the executor STATUS feature_dir must resolve the COORD husk; got {status_dir!r}"
     assert status_dir != ctx.primary_feature_dir
     # The per-leg split, same call: the PRIMARY-partition kinds must NOT follow
     # the STATUS leg onto the husk (a kind-blind read would land all three there).
@@ -576,7 +539,7 @@ def test_flat_topology_recovery_is_noop(
     from specify_cli.lanes.recovery import scan_recovery_state
 
     ctx = flat_topology_mission
-    lane_branch = lane_branch_name(ctx.slug, "lane-a", mission_id=ctx.mission_id)
+    lane_branch = lane_branch_name(ctx.slug, "lane-a")
     _git_branch(ctx, lane_branch)
 
     states = scan_recovery_state(ctx.repo, ctx.slug)
@@ -591,9 +554,7 @@ def test_flat_topology_recovery_is_noop(
 # ---------------------------------------------------------------------------
 
 
-def _git_branch(
-    ctx: CoordTopologyContext | FlatTopologyContext, branch: str
-) -> None:
+def _git_branch(ctx: CoordTopologyContext | FlatTopologyContext, branch: str) -> None:
     """Create a local branch off ``main`` so the recovery live-branch scan runs."""
     import subprocess
 
@@ -629,6 +590,4 @@ def _seed_reducible_event(feature_dir: Any, slug: str, *, to_lane: str) -> None:
         "to_lane": to_lane,
         "wp_id": "WP01",
     }
-    (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(event) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "status.events.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")

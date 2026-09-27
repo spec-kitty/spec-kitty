@@ -61,11 +61,14 @@ class TestResolveClaimCommitTargetFailClosed:
         )
 
         with pytest.raises(PlacementResolutionRequired) as excinfo:
-            _resolve_claim_commit_target(None)
+            _resolve_claim_commit_target(None, mission_slug="demo-mission")
 
         # Structured (error_code) and actionable (names the remediation path).
+        # #5113 / FR-014: names the REAL materializing command with the real
+        # slug, never the retired `doctor workspaces --fix` (#2240) and never
+        # a `<mission>` placeholder.
         assert excinfo.value.error_code == "PLACEMENT_RESOLUTION_REQUIRED"
-        assert "doctor workspaces --fix" in str(excinfo.value)
+        assert "doctor coordination --mission demo-mission --fix" in str(excinfo.value)
 
     def test_resolved_placement_ref_is_used_verbatim(self) -> None:
         """No re-derivation, no checkout consultation -- the resolved seam
@@ -75,7 +78,7 @@ class TestResolveClaimCommitTargetFailClosed:
         from specify_cli.cli.commands.implement import _resolve_claim_commit_target
 
         target = CommitTarget(ref="kitty/mission-demo-AAAA1111")
-        assert _resolve_claim_commit_target(target) is target
+        assert _resolve_claim_commit_target(target, mission_slug="demo-mission") is target
 
     def test_structured_error_is_not_swallowed_as_soft_warning(self) -> None:
         """D11: implement()'s WP-status-update try/except has a broad

@@ -6,7 +6,7 @@ the write authority (``allocate_lane_worktree``) and the read-only mirrors
 so the mid8 cutover — when it comes — is a single edit. These tests pin:
 
 1. parity with the canonical naming seams it wraps (``lane_branch_name`` +
-   ``worktree_path`` with the legacy ``mission_id=None`` grammar), and
+   ``worktree_path``, keyed on the creation input alone), and
 2. read-only purity — composing a placement must never touch the filesystem.
 """
 
@@ -25,17 +25,17 @@ MISSION_SLUG = "demo-feature-01J6XW9K"
 
 
 def test_predict_matches_canonical_naming_seams(tmp_path: Path) -> None:
-    """predict == (worktree_path(mission_id=None), lane_branch_name) byte-for-byte."""
+    """predict == (worktree_path(...), lane_branch_name(...)) byte-for-byte."""
     predicted_path, predicted_branch = predict_lane_worktree(tmp_path, MISSION_SLUG, "lane-a")
-    assert predicted_path == worktree_path(tmp_path, MISSION_SLUG, mission_id=None, lane_id="lane-a")
+    assert predicted_path == worktree_path(tmp_path, MISSION_SLUG, lane_id="lane-a")
     assert predicted_branch == lane_branch_name(MISSION_SLUG, "lane-a")
 
 
 def test_predict_uses_legacy_no_mid8_grammar(tmp_path: Path) -> None:
     """The composed dir name is ``{slug}-{lane}`` — no mid8 segment is appended.
 
-    Passing a mission_id would rename every existing lane worktree; the seam
-    must keep reproducing the historical grammar until an explicit cutover.
+    Lane naming takes no Mission identity input (FR-002); a mid8
+    segment appears only when the slug itself already embeds one.
     """
     predicted_path, _ = predict_lane_worktree(tmp_path, MISSION_SLUG, "lane-a")
     assert predicted_path.name == f"{MISSION_SLUG}-lane-a"

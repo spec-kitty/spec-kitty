@@ -85,10 +85,17 @@ def mission_repo(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def _lane_worktree(repo_root: Path, *, with_dirs: tuple[str, ...]) -> Path:
-    """A lane worktree carrying the reviewed source directories."""
-    from specify_cli.lanes.branch_naming import worktree_path
+    """A lane worktree carrying the reviewed source directories.
 
-    lane_root = worktree_path(repo_root, _SLUG, mission_id=_MISSION_ID, lane_id="lane-a")
+    Built at the same path :func:`_approved_lane_source_roots` now resolves
+    through :func:`predict_lane_worktree` (FR-006) rather than the
+    identity-form ``worktree_path(..., mission_id=...)`` call this fixture
+    used before — that identity path is a different, divergent-shape
+    location the acceptance seam no longer looks at.
+    """
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+
+    lane_root, _lane_branch = predict_lane_worktree(repo_root, _SLUG, "lane-a")
     lane_root.mkdir(parents=True)
     for name in with_dirs:
         (lane_root / name).mkdir()

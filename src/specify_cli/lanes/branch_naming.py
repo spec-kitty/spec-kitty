@@ -23,6 +23,16 @@ two concurrent missions with identical human slugs produce distinct branch names
 (FR-032), eliminating the partition-unsafe collision that led to the 080-* triple.
 
 Both forms are accepted at read time so existing worktrees keep working (FR-052).
+
+Lane-naming signature cutover (WP07, FR-002/PD-1): ``lane_branch_name``,
+``worktree_dir_name`` and ``worktree_path`` take NO ``mission_id`` — lane branch
+and worktree names are keyed on the creation input (slug + lane id); the Mission
+identity is not an input (I-1). A mid8 token appears in a lane name only when
+the slug itself already embeds one (e.g. a mid8-era mission slug); a lane name
+is NEVER minted by injecting a mission's declared ``mission_id`` at naming time.
+``mission_branch_name``, ``mission_branch_name_required``, ``coord_branch_name``,
+``resolve_branch_name`` and ``resolve_transaction_mid8`` keep ``mission_id``:
+they name Mission and coordination branches, not lanes.
 """
 
 from __future__ import annotations
@@ -42,14 +52,18 @@ from specify_cli.core.errors import StructuredError
 # long-standing helpers retain their existing implicit public surface.
 __all__ = [
     "BranchIdentityUnresolved",
+    "InvalidMissionIdentity",
     "LEGACY_FAILOVER_SUPPRESS_ENV",
     "coord_branch_name",
     "coord_dir_name",
     "coord_mission_dir_name",
     "coord_reconstruct_branch",
+    "is_valid_bare_slug_body",
+    "lane_id_for_worktree_dir",
     "mid8_from_slug",
     "mission_branch_name_required",
     "mission_dir_name",
+    "parse_lane_worktree_dir",
     "reset_legacy_failover_warning",
     "resolve_branch_name",
     "resolve_mid8",
@@ -71,19 +85,41 @@ LEGACY_FAILOVER_SUPPRESS_ENV = "SPEC_KITTY_SUPPRESS_LEGACY_BRANCH_WARNING"
 # Process-lifetime guard so the legacy-failover deprecation warning fires once.
 _legacy_failover_warned = False
 
+# Single lane-id grammar (PD-12): every lane regex below is built from it.
+# Widening this fragment (e.g. to multi-letter ids) automatically widens every
+# lane regex composed from it, so there is exactly one place that defines what
+# a "lane id" looks like.
+_LANE_ID_RE = r"lane-[a-z]+"
+
 # Legacy regex: NNN-slug (3 digits + hyphen prefix)
 _LEGACY_MISSION_RE = re.compile(r"^kitty/mission-(\d{3}-.+)$")
-_LEGACY_LANE_RE = re.compile(r"^kitty/mission-(\d{3}-.+)-(lane-[a-z])$")
+_LEGACY_LANE_RE = re.compile(rf"^kitty/mission-(\d{{3}}-.+)-({_LANE_ID_RE})$")
 _PLAIN_LEGACY_MISSION_RE = re.compile(r"^kitty/mission-(.+)$")
-_PLAIN_LEGACY_LANE_RE = re.compile(r"^kitty/mission-(.+)-(lane-[a-z])$")
+_PLAIN_LEGACY_LANE_RE = re.compile(rf"^kitty/mission-(.+)-({_LANE_ID_RE})$")
 
 # New regex: <human-slug>-<mid8>[-lane-<id>]
 # Mid8 = exactly 8 uppercase alphanumeric characters (ULID character set)
-_NEW_LANE_RE = re.compile(r"^kitty/mission-(.+)-([0-9A-HJKMNP-TV-Z]{8})-(lane-[a-z])$")
+_NEW_LANE_RE = re.compile(rf"^kitty/mission-(.+)-([0-9A-HJKMNP-TV-Z]{{8}})-({_LANE_ID_RE})$")
 _NEW_MISSION_RE = re.compile(r"^kitty/mission-(.+)-([0-9A-HJKMNP-TV-Z]{8})$")
+
+# Worktree-directory grammar (no ``kitty/mission-`` prefix, right-anchored on
+# the lane-id fragment): ``<slug>-<lane_id>``. Used by the slug-free discovery
+# parsers below (PD-7): a caller without a known mission slug (the doctor
+# orphan scan, live-work bindings, VCS detection) recognizes a worktree
+# directory name by shape alone, then confirms it by recomposition.
+_LANE_WORKTREE_DIR_RE = re.compile(rf"^(.+)-({_LANE_ID_RE})$")
 
 # Numeric prefix pattern: exactly 3 digits + hyphen
 _NUMERIC_PREFIX_RE = re.compile(r"^\d{3}-(.+)$")
+
+# Canonical bare-slug body character class (lowercase alnum + internal
+# hyphens, no leading hyphen). This is the same character class the
+# pre-WP05 hand-rolled ``merge/resolve.py`` regex enforced on the slug body
+# of a bare (no ``kitty/mission-`` prefix) ``NNN-slug`` branch name; it is
+# the single authority validator for that shape so a
+# non-slug-grammar bare name (``"057-Foo_Bar"``, ``"123-WIP branch"``) is
+# still rejected after routing through :func:`parse_lane_worktree_dir`.
+_BARE_SLUG_BODY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +156,20 @@ def strip_numeric_prefix(slug: str) -> str:
     return slug
 
 
+def is_valid_bare_slug_body(slug_body: str) -> bool:
+    """Return True iff *slug_body* matches the canonical bare-slug character class.
+
+    The canonical body is lowercase alphanumerics and internal hyphens,
+    starting with an alphanumeric (``^[a-z0-9][a-z0-9-]*$``). This validates
+    the NNN-prefix-stripped body of a bare (no ``kitty/mission-`` prefix)
+    mission slug — used by callers that recognize a slug shape outside the
+    branch-prefix grammar (e.g. :func:`_extract_mission_slug`'s bare-slug
+    fallback) so a non-slug-grammar string (``"Foo_Bar"``, ``"WIP branch"``)
+    is rejected rather than accepted as a Mission slug.
+    """
+    return bool(_BARE_SLUG_BODY_RE.match(slug_body))
+
+
 def _mid8(mission_id: str) -> str:
     """Return the first 8 characters of a ULID (internal mid8 primitive).
 
@@ -137,13 +187,16 @@ def _mid8(mission_id: str) -> str:
         The first 8 characters.
 
     Raises:
-        ValueError: If ``mission_id`` is shorter than 8 characters — this is a
-            programming error (mission_id from meta.json is always a full ULID).
+        InvalidMissionIdentity: If ``mission_id`` is shorter than 8 characters
+            — a corrupt/truncated ``meta.json.mission_id`` (a full ULID is
+            always >= 8 characters). Raised HERE, at the single source, so
+            every caller that composes a branch through this module gets the
+            SAME typed refusal with the SAME remedy, instead of each call site
+            inventing its own conversion of a bare ``ValueError`` (#5108
+            residual — see :class:`InvalidMissionIdentity`).
     """
     if len(mission_id) < 8:
-        raise ValueError(
-            f"mission_id must be at least 8 characters to derive mid8, got {len(mission_id)!r}: {mission_id!r}"
-        )
+        raise InvalidMissionIdentity(mission_id)
     return mission_id[:8]
 
 
@@ -242,15 +295,69 @@ class BranchIdentityUnresolved(StructuredError):
             "legacy mission missing one."
         )
         super().__init__(
-            f"cannot compose a canonical mission branch for {mission_handle!r}: "
-            f"mission_id is absent and the slug carries no mid8 disambiguator. "
-            f"{self.next_step}"
+            f"cannot compose a canonical mission branch for {mission_handle!r}: mission_id is absent and the slug carries no mid8 disambiguator. {self.next_step}"
         )
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = super().to_dict()
         payload["mission_handle"] = self.mission_handle
         payload["next_step"] = self.next_step
+        return payload
+
+
+class InvalidMissionIdentity(BranchIdentityUnresolved):
+    """Raised when a *declared* ``mission_id`` is present but too short to
+    derive a mid8 (a corrupt or truncated ULID, not a missing one).
+
+    Single source of truth (#5108 residual): before this class existed, the
+    bare :class:`ValueError` :func:`_mid8` raised for this case was caught and
+    converted FOUR different ways at four different call sites
+    (``lanes/compute_and_persist.py``, ``lanes/recovery.py``,
+    ``status/aggregate.py``, ``merge/preflight.py``) — different messages,
+    different (and in one case wrong) remedies. Raising this typed,
+    correctly-worded error AT THE SOURCE (:func:`_mid8`) means every caller
+    gets the same refusal and the same remedy; most call sites no longer need
+    a conversion shim at all (it subclasses :class:`BranchIdentityUnresolved`,
+    so a caller that already handles that is unaffected).
+
+    Remedy correctness: ``spec-kitty migrate backfill-identity`` does **not**
+    fix this. It idempotently mints a ``mission_id`` only when one is
+    *absent*; an existing non-empty (even invalid) value short-circuits its
+    "already present" no-op path and is left exactly as invalid
+    (:func:`specify_cli.migration.backfill_identity.backfill_mission`). The
+    only correct remedy is to correct the value in ``meta.json`` by hand (or
+    restore it from git history / a backup), then confirm with
+    ``spec-kitty doctor identity --json`` — which itself only AUDITS mission
+    identity health; it does not mint or repair a value either.
+    """
+
+    error_code: str = "INVALID_MISSION_IDENTITY"
+
+    def __init__(self, mission_id: str, *, meta_path: Path | None = None) -> None:
+        self.invalid_mission_id = mission_id
+        where = str(meta_path) if meta_path is not None else "the mission's meta.json"
+        next_step = (
+            f"mission_id {mission_id!r} is invalid: a full ULID is always at "
+            "least 8 characters, so this is a corrupt or truncated value, not "
+            "a missing one. `spec-kitty migrate backfill-identity` will NOT "
+            "fix it (it only mints a mission_id when one is absent). Correct "
+            f"mission_id in {where} by hand, then run "
+            "`spec-kitty doctor identity --json` to confirm."
+        )
+        # Bypass BranchIdentityUnresolved.__init__: its message template says
+        # "mission_id is absent", which is wrong here (the identity is
+        # present, just invalid). mission_handle/next_step are still set so
+        # every existing BranchIdentityUnresolved consumer (to_dict, callers
+        # that read exc.next_step) keeps working unchanged.
+        self.mission_handle = mission_id
+        self.next_step = next_step
+        RuntimeError.__init__(self, f"cannot derive mid8 for mission_id {mission_id!r}: {next_step}")
+
+    def to_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = StructuredError.to_dict(self)
+        payload["mission_handle"] = self.mission_handle
+        payload["next_step"] = self.next_step
+        payload["invalid_mission_id"] = self.invalid_mission_id
         return payload
 
 
@@ -270,7 +377,7 @@ def mission_branch_name_required(mission_slug: str, mission_id: str | None) -> s
       → :class:`BranchIdentityUnresolved` (the only genuinely-wrong case).
 
     Args:
-        mission_slug: Feature slug (e.g. ``"083-my-feature"`` or
+        mission_slug: Mission slug (e.g. ``"083-my-feature"`` or
             ``"my-feature-01KNXQS9"``).
         mission_id: Optional ULID read from ``meta.json``.
 
@@ -341,7 +448,7 @@ def resolve_transaction_mid8(
     wrong-but-plausible coord dir name.
 
     Args:
-        mission_slug: Feature slug (e.g. ``"my-feature-01KT3YBD"``).
+        mission_slug: Mission slug (e.g. ``"my-feature-01KT3YBD"``).
         mission_id: Optional ULID read from ``meta.json``.
         mid8: Optional explicit ``mid8`` read from ``meta.json``.
         coordination_branch: The declared ``coordination_branch`` from
@@ -390,8 +497,6 @@ def lane_branch_name(
     mission_slug: str,
     lane_id: str,
     planning_base_branch: str | None = None,
-    *,
-    mission_id: str | None = None,
 ) -> str:
     """Return a lane branch name.
 
@@ -399,21 +504,21 @@ def lane_branch_name(
     rather than a ``kitty/mission-…`` branch name, because planning-artifact WPs
     live in the main repository checkout on the target branch (typically ``main``).
 
-    When ``mission_id`` is provided, uses the new ``<human-slug>-<mid8>`` format
-    (FR-032).  When ``mission_id`` is ``None``, falls back to the legacy format.
+    Lane names are keyed on the creation input (slug + lane id) alone (WP07,
+    FR-002/PD-1); the Mission identity is not an input (I-1). A mid8 token
+    appears in the result only when *mission_slug* itself already embeds one.
 
     Args:
-        mission_slug: Feature slug (e.g. ``"083-my-feature"``).
+        mission_slug: Mission slug (e.g. ``"083-my-feature"`` or
+            ``"my-feature-01KNXQS9"``).
         lane_id: Lane identifier (e.g. ``"lane-a"`` or ``"lane-planning"``).
         planning_base_branch: The branch that planning-artifact work targets
             (typically the value of ``target_branch`` from ``meta.json``).
             Defaults to ``"main"`` when ``lane_id == "lane-planning"`` and this
             argument is omitted.  Ignored for all other lane IDs.
-        mission_id: Optional ULID. When present, the new ``<human-slug>-<mid8>``
-            naming format is used. When ``None``, the legacy format is preserved.
 
     Examples:
-        lane_branch_name("083-my-feature", "lane-a", mission_id="01KNXQS9ATWWFXS3K5ZJ9E5008")
+        lane_branch_name("my-feature-01KNXQS9", "lane-a")
           -> "kitty/mission-my-feature-01KNXQS9-lane-a"
         lane_branch_name("057-my-feature", "lane-a")  # legacy
           -> "kitty/mission-057-my-feature-lane-a"
@@ -424,11 +529,8 @@ def lane_branch_name(
     """
     if lane_id == "lane-planning":
         return planning_base_branch if planning_base_branch is not None else "main"
-    if mission_id is not None:
-        human_slug = _human_slug_for_mid8_branch(mission_slug, mission_id)
-        return f"{_MISSION_PREFIX}{human_slug}-{_mid8(mission_id)}-{lane_id}"
-    # Legacy form. Idempotency-preserving (#1949): embedded-mid8 slugs dedup
-    # their stale NNN- prefix; pure legacy NNN- slugs are preserved verbatim.
+    # Idempotency-preserving (#1949): embedded-mid8 slugs dedup their stale
+    # NNN- prefix; pure legacy NNN- slugs are preserved verbatim.
     return f"{_MISSION_PREFIX}{_idempotent_legacy_body(mission_slug)}-{lane_id}"
 
 
@@ -440,40 +542,28 @@ def lane_branch_name(
 def worktree_dir_name(
     mission_slug: str,
     *,
-    mission_id: str | None,
     lane_id: str,
 ) -> str:
     """Return the on-disk lane-worktree directory name (no ``.worktrees/`` prefix).
 
-    Reproduces the CURRENT on-disk grammar EXACTLY in BOTH modes so routing call
-    sites to this seam causes zero worktree churn (FR-005):
-
-    - ``mission_id=None`` ⇒ legacy ``{slug}-{lane_id}`` — byte-identical to the
-      allocator/lifecycle ``f"{mission_slug}-{lane_id}"`` f-strings (no mid8);
-    - ``mission_id`` present ⇒ the embedded ``{human-slug}-{mid8}-{lane_id}`` form,
-      derived from :func:`lane_branch_name` with the ``kitty/mission-`` prefix
-      stripped (single source of grammar).
+    Byte-identical to the allocator/lifecycle ``f"{mission_slug}-{lane_id}"``
+    f-string this seam subsumes (FR-005). Keyed on the creation input (slug +
+    lane id) alone (WP07, FR-002/PD-1) — the Mission identity is not an input
+    (I-1); a mid8 appears in the result only when *mission_slug* embeds one.
 
     Examples:
-        worktree_dir_name("057-foo", mission_id=None, lane_id="lane-a")
+        worktree_dir_name("057-foo", lane_id="lane-a")
           -> "057-foo-lane-a"
-        worktree_dir_name("foo-01KV6510", mission_id="01KV6510…", lane_id="lane-a")
+        worktree_dir_name("foo-01KV6510", lane_id="lane-a")
           -> "foo-01KV6510-lane-a"
     """
-    if mission_id is None:
-        # Legacy grammar: the allocator composes ``f"{mission_slug}-{lane_id}"``
-        # with no mission_id; preserve it byte-for-byte (no idempotent dedup here,
-        # because the legacy allocator never dedups its dir name).
-        return f"{mission_slug}-{lane_id}"
-    branch = lane_branch_name(mission_slug, lane_id, mission_id=mission_id)
-    return branch.removeprefix(_MISSION_PREFIX)
+    return f"{mission_slug}-{lane_id}"
 
 
 def worktree_path(
     repo_root: os.PathLike[str] | str,
     mission_slug: str,
     *,
-    mission_id: str | None,
     lane_id: str,
 ) -> Path:
     """Emit the absolute lane-worktree path under ``<repo_root>/.worktrees/`` (FR-005).
@@ -481,7 +571,7 @@ def worktree_path(
     Emit-don't-guess: the directory name is composed by :func:`worktree_dir_name`,
     never by an ad-hoc f-string at the call site.
     """
-    dir_name = worktree_dir_name(mission_slug, mission_id=mission_id, lane_id=lane_id)
+    dir_name = worktree_dir_name(mission_slug, lane_id=lane_id)
     return Path(repo_root) / _WORKTREES_DIRNAME / dir_name
 
 
@@ -670,16 +760,50 @@ def is_mission_branch(branch_name: str) -> bool:
     # Must not be a lane branch
     if is_lane_branch(branch_name):
         return False
-    body = branch_name[len(_MISSION_PREFIX):]
+    body = branch_name[len(_MISSION_PREFIX) :]
     return bool(body)
 
 
 def is_lane_branch(branch_name: str) -> bool:
-    """Return True if branch matches a lane branch pattern (legacy or new)."""
-    return (
-        _LEGACY_LANE_RE.match(branch_name) is not None
-        or _NEW_LANE_RE.match(branch_name) is not None
-    )
+    """Return True if branch matches a lane branch pattern (legacy, plain-legacy, or new)."""
+    return _LEGACY_LANE_RE.match(branch_name) is not None or _PLAIN_LEGACY_LANE_RE.match(branch_name) is not None or _NEW_LANE_RE.match(branch_name) is not None
+
+
+def parse_lane_worktree_dir(dir_name: str) -> tuple[str, str] | None:
+    """Recognize a lane worktree directory name by shape alone, or ``None``.
+
+    Returns ``(slug, lane_id)`` via a right-anchored match on the single
+    lane-id grammar (:data:`_LANE_ID_RE`). This is **slug-free** recognition:
+    it never confirms that ``slug`` names a real mission, so it is only safe
+    where the caller does not yet know the mission slug (the doctor orphan
+    scan, live-work bindings, VCS detection). A caller that already knows the
+    expected mission slug MUST use :func:`lane_id_for_worktree_dir` instead,
+    which confirms the match by recomposition and rejects a same-prefix
+    impostor (for example ``057-foobar-lane-a`` is not ``057-foo``'s).
+    """
+    match = _LANE_WORKTREE_DIR_RE.match(dir_name)
+    if match is None:
+        return None
+    return match.group(1), match.group(2)
+
+
+def lane_id_for_worktree_dir(dir_name: str, mission_slug: str) -> str | None:
+    """Return the lane id iff *dir_name* is *mission_slug*'s worktree dir, else ``None``.
+
+    Recognition is **by recomposition**, not by prefix or regex: the directory
+    name is parsed for a candidate ``(slug, lane_id)``, and the lane id is
+    returned only when re-composing it with :func:`worktree_dir_name` for
+    ``mission_slug`` reproduces *dir_name* byte-for-byte. This rejects the
+    ``057-foo`` vs ``057-foobar`` prefix trap that a ``startswith`` check falls
+    into.
+    """
+    parsed = parse_lane_worktree_dir(dir_name)
+    if parsed is None:
+        return None
+    _slug, lane_id = parsed
+    if worktree_dir_name(mission_slug, lane_id=lane_id) != dir_name:
+        return None
+    return lane_id
 
 
 def is_legacy_branch(branch_name: str) -> bool:

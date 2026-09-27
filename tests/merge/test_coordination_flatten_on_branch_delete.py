@@ -112,6 +112,7 @@ def test_issue_3086_merge_delete_branch_flattens_coordination_metadata(
     feature_dir = repo / "kitty-specs" / _SLUG
 
     lanes_manifest = SimpleNamespace(
+        mission_slug=_SLUG,  # run.mission_slug must equal lanes_manifest.mission_slug
         target_branch="main",
         mission_branch=_MISSION_BRANCH,
         lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
@@ -220,6 +221,7 @@ def test_partial_retention_retains_coord_triple_together(
     feature_dir = repo / "kitty-specs" / _SLUG
 
     lanes_manifest = SimpleNamespace(
+        mission_slug=_SLUG,  # run.mission_slug must equal lanes_manifest.mission_slug
         target_branch="main",
         mission_branch=_MISSION_BRANCH,
         lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],

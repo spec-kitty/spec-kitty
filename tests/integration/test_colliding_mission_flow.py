@@ -45,7 +45,6 @@ from specify_cli.context.mission_resolver import (
     resolve_mission,
 )
 from specify_cli.lanes.branch_naming import (
-    _mid8,
     lane_branch_name,
     mission_branch_name,
 )
@@ -141,9 +140,7 @@ def test_doctor_identity_audit_sees_three_080_missions(colliding_080_repo: Path)
     assert slugs == ["080-bar", "080-baz", "080-foo"]
     # All three should be classified as 'assigned' since mission_id is present
     # and mission_number is an int.
-    assert all(s.state == "assigned" for s in states), (
-        f"Expected all assigned, got {[(s.slug, s.state) for s in states]}"
-    )
+    assert all(s.state == "assigned" for s in states), f"Expected all assigned, got {[(s.slug, s.state) for s in states]}"
 
     duplicates = find_duplicate_prefixes(colliding_080_repo)
     assert "080" in duplicates
@@ -157,9 +154,7 @@ def test_doctor_identity_audit_reports_ambiguous_selectors(
     states = audit_repo(colliding_080_repo)
     ambiguous = find_ambiguous_selectors(states)
     # "080" is ambiguous (3-way tie)
-    assert "080" in ambiguous, (
-        f"Expected '080' in ambiguous handles, got {sorted(ambiguous.keys())}"
-    )
+    assert "080" in ambiguous, f"Expected '080' in ambiguous handles, got {sorted(ambiguous.keys())}"
     assert len(ambiguous["080"]) == 3
 
 
@@ -179,19 +174,13 @@ def test_doctor_identity_cli_json_reports_three_duplicates(
 
     runner = CliRunner()
     result = runner.invoke(doctor_app, ["identity", "--json"])
-    assert result.exit_code == 0, (
-        f"doctor identity --json failed: {result.exit_code}\n{result.stdout}"
-    )
+    assert result.exit_code == 0, f"doctor identity --json failed: {result.exit_code}\n{result.stdout}"
 
     report = json.loads(result.stdout)
     assert "duplicate_prefixes" in report
-    assert "080" in report["duplicate_prefixes"], (
-        f"Expected '080' in duplicate_prefixes, got {sorted(report['duplicate_prefixes'].keys())}"
-    )
+    assert "080" in report["duplicate_prefixes"], f"Expected '080' in duplicate_prefixes, got {sorted(report['duplicate_prefixes'].keys())}"
     dup_080 = report["duplicate_prefixes"]["080"]
-    assert len(dup_080) == 3, (
-        f"Expected 3 duplicates under '080', got {len(dup_080)}: {dup_080}"
-    )
+    assert len(dup_080) == 3, f"Expected 3 duplicates under '080', got {len(dup_080)}: {dup_080}"
 
     # Summary counts match the four-state classifier output.
     assert report["summary"]["assigned"] == 3, report["summary"]
@@ -308,7 +297,14 @@ def test_resolve_unknown_handle_raises_not_found(colliding_080_repo: Path) -> No
 
 
 def test_lane_branches_are_distinct_per_mission(colliding_080_repo: Path) -> None:
-    """Lane branch names derived from mid8 must not collide across the 3 missions."""
+    """Lane branch names must not collide across the 3 missions.
+
+    Lane naming takes no identity (FR-002) — the disambiguator here
+    is the distinct ``mission_slug`` each mission already carries (``080-foo``
+    / ``080-bar`` / ``080-baz``), not an injected mid8. This fixture's three
+    missions collide only on their shared numeric prefix, never on the full
+    slug, so distinctness holds without any identity parameter.
+    """
     branch_names: set[str] = set()
     worktree_paths: set[str] = set()
 
@@ -317,26 +313,20 @@ def test_lane_branches_are_distinct_per_mission(colliding_080_repo: Path) -> Non
         branch = lane_branch_name(
             mission_slug=resolved.mission_slug,
             lane_id="lane-a",
-            mission_id=ulid,
         )
         branch_names.add(branch)
-        # Simulate the worktree directory path:
-        # .worktrees/<human-slug>-<mid8>-lane-a
+        # Simulate the worktree directory path: .worktrees/<mission_slug>-lane-a
+        # (the created form — no mid8, since none of these slugs embed one).
         # We aren't actually creating worktrees in this test — just verifying
         # that the derived path differs for each mission.
-        worktree_paths.add(f"{resolved.mission_slug}-{_mid8(ulid)}-lane-a")
+        worktree_paths.add(f"{resolved.mission_slug}-lane-a")
 
-    assert len(branch_names) == 3, (
-        f"Expected 3 distinct branch names, got {sorted(branch_names)}"
-    )
-    assert len(worktree_paths) == 3, (
-        f"Expected 3 distinct worktree paths, got {sorted(worktree_paths)}"
-    )
-    # Every branch must include its own mid8 as disambiguator.
+    assert len(branch_names) == 3, f"Expected 3 distinct branch names, got {sorted(branch_names)}"
+    assert len(worktree_paths) == 3, f"Expected 3 distinct worktree paths, got {sorted(worktree_paths)}"
+    # Every branch must include its own (distinct) mission slug.
     for ulid in (ULID_FOO, ULID_BAR, ULID_BAZ):
-        assert any(_mid8(ulid) in name for name in branch_names), (
-            f"mid8 {_mid8(ulid)} missing from any lane branch name: {branch_names}"
-        )
+        resolved = resolve_mission(ulid, colliding_080_repo)
+        assert any(resolved.mission_slug in name for name in branch_names), f"slug {resolved.mission_slug!r} missing from any lane branch name: {branch_names}"
 
 
 def test_mission_branches_are_distinct_per_mission(colliding_080_repo: Path) -> None:

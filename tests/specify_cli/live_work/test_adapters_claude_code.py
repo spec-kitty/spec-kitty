@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name
 from specify_cli.live_work.adapters.claude_code import ClaudeCodeHookAdapter
 from specify_cli.live_work.kinds import WorkEmissionKind
 from specify_cli.live_work.models import FileDetail, FileOperation, TestRunDetail, ToolDetail, ToolOutcome, ToolState
@@ -297,7 +298,18 @@ def test_token_in_command_summary_is_redacted_on_the_record(repo: Path) -> None:
 
 @pytest.fixture
 def mission_repo(repo: Path) -> tuple[Path, str]:
-    """A repo with one identity-bearing mission and two overlapping worktrees."""
+    """A repo with one identity-bearing mission and two overlapping worktrees.
+
+    Re-pinned: the fixture builds the worktree
+    directory names and branches through the naming authority's own
+    composers (:func:`worktree_dir_name` / :func:`lane_branch_name`, which
+    take no identity), matching what every real creation site (the
+    allocator, ``workspace/context.py``, ``recovery.py``,
+    ``lifecycle_sync.py``) actually produces for a bare ``mission_slug``:
+    ``<slug>-lane-<id>`` -- NOT ``<slug>-<mid8>-lane-<id>``. No creation
+    site composes the "NNN-slug + mid8" shape the old fixture used, so
+    that shape was never a real worktree name to begin with.
+    """
     mission_id = "01J" + "23456789ABCDEFGHJKMNPQRST"[:23]  # valid Crockford chars
     slug = "080-demo-mission"
     mission_dir = repo / "kitty-specs" / slug
@@ -308,15 +320,18 @@ def mission_repo(repo: Path) -> tuple[Path, str]:
     _git(repo, "commit", "-m", "mission")
     worktree_root = repo / ".worktrees"
     worktree_root.mkdir()
-    for lane in ("01", "02"):
-        _git(repo, "worktree", "add", str(worktree_root / f"{slug}-{mission_id[:8]}-lane-{lane}"), "-b", f"kitty/mission-{slug}-{mission_id[:8]}-lane-{lane}")
+    for lane_id in ("lane-a", "lane-b"):
+        dir_name = worktree_dir_name(slug, lane_id=lane_id)
+        branch = lane_branch_name(slug, lane_id)
+        _git(repo, "worktree", "add", str(worktree_root / dir_name), "-b", branch)
     return repo, mission_id
 
 
 def test_two_agents_in_overlapping_worktrees_attributed_exactly(mission_repo) -> None:
     repo, mission_id = mission_repo
-    lane1 = repo / ".worktrees" / f"080-demo-mission-{mission_id[:8]}-lane-01"
-    lane2 = repo / ".worktrees" / f"080-demo-mission-{mission_id[:8]}-lane-02"
+    slug = "080-demo-mission"
+    lane1 = repo / ".worktrees" / worktree_dir_name(slug, lane_id="lane-a")
+    lane2 = repo / ".worktrees" / worktree_dir_name(slug, lane_id="lane-b")
     adapter = ClaudeCodeHookAdapter()
 
     # Two agents, different sessions, editing the SAME file in two

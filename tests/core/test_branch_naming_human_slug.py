@@ -15,6 +15,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.lanes.branch_naming import (
+    InvalidMissionIdentity,
     _mid8,
     is_legacy_branch,
     lane_branch_name,
@@ -30,6 +31,8 @@ from specify_cli.lanes.branch_naming import (
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 @pytest.mark.parametrize(
     ("slug", "expected"),
     [
@@ -64,7 +67,9 @@ def test_mid8_on_minimum_length() -> None:
 
 
 def test_mid8_raises_on_too_short() -> None:
-    with pytest.raises(ValueError, match="mission_id must be at least 8 characters"):
+    """The typed ``InvalidMissionIdentity`` (a ``BranchIdentityUnresolved``
+    subclass), raised at the source — never a bare ``ValueError`` (#5108)."""
+    with pytest.raises(InvalidMissionIdentity, match="mission_id 'short' is invalid"):
         _mid8("short")
 
 
@@ -88,61 +93,63 @@ def test_mission_branch_name_does_not_double_existing_mid8_suffix() -> None:
 
 
 def test_lane_branch_name_new_format() -> None:
+    # Re-pinned to the created name; the identity-injected form
+    # ("...-01KNXQS9-lane-a") pinned the #5108 defect. Lane naming takes no
+    # mission_id: the slug carries no embedded mid8, so it composes
+    # verbatim.
     slug = "083-mission-id-canonical-identity-migration"
-    ulid = "01KNXQS9ATWWFXS3K5ZJ9E5008"
-    result = lane_branch_name(slug, "lane-a", mission_id=ulid)
-    assert result == "kitty/mission-mission-id-canonical-identity-migration-01KNXQS9-lane-a"
+    result = lane_branch_name(slug, "lane-a")
+    assert result == "kitty/mission-083-mission-id-canonical-identity-migration-lane-a"
 
 
 def test_lane_branch_name_does_not_double_existing_mid8_suffix() -> None:
+    # Unchanged: the slug already embeds its own mid8, so the created name is
+    # byte-identical whether or not an identity is supplied.
     slug = "agent-profile-projection-plugin-production-01KV3NGS"
-    ulid = "01KV3NGSDCJ272573TF6T6NWDW"
-    result = lane_branch_name(slug, "lane-a", mission_id=ulid)
+    result = lane_branch_name(slug, "lane-a")
     assert result == "kitty/mission-agent-profile-projection-plugin-production-01KV3NGS-lane-a"
 
 
 def test_lane_branch_name_without_numeric_prefix() -> None:
-    # Slug with no numeric prefix — strip_numeric_prefix returns it unchanged
+    # Re-pinned to the created name. Slug with no numeric prefix
+    # and no embedded mid8 composes verbatim (lane naming takes no
+    # mission_id).
     slug = "my-feature"
-    ulid = "01KNXQS9ATWWFXS3K5ZJ9E5008"
-    result = lane_branch_name(slug, "lane-b", mission_id=ulid)
-    assert result == "kitty/mission-my-feature-01KNXQS9-lane-b"
+    result = lane_branch_name(slug, "lane-b")
+    assert result == "kitty/mission-my-feature-lane-b"
 
 
-def test_lane_branch_name_planning_lane_ignores_mission_id() -> None:
-    # lane-planning returns the planning base branch, no change
-    result = lane_branch_name("083-foo", "lane-planning", mission_id="01KNXQS9ATWWFXS3K5ZJ9E5008")
+def test_lane_branch_name_planning_lane_ignores_identity() -> None:
+    # lane-planning returns the planning base branch, unaffected by identity.
+    result = lane_branch_name("083-foo", "lane-planning")
     assert result == "main"
 
 
 def test_lane_branch_name_planning_with_explicit_base() -> None:
     result = lane_branch_name(
-        "083-foo", "lane-planning",
+        "083-foo",
+        "lane-planning",
         planning_base_branch="release/3.x",
-        mission_id="01KNXQS9ATWWFXS3K5ZJ9E5008",
     )
     assert result == "release/3.x"
 
 
 # ---------------------------------------------------------------------------
-# Collision: same human slug, different ULIDs -> distinct branch names
+# Lane naming takes no identity (FR-002), closing the collision
+# class by construction — the SAME (slug, lane_id) always composes the SAME
+# branch; there is no longer a parameter that could make it diverge.
 # ---------------------------------------------------------------------------
 
 
-def test_collision_different_ulids_produce_distinct_branches() -> None:
+def test_lane_branch_name_is_identity_independent_by_construction() -> None:
+    """No identity parameter exists to inject, so the branch is deterministic.
+
+    Re-expresses the former "different ULIDs -> distinct branches" collision
+    pin: that property no longer applies because lane naming no
+    longer takes an identity at all.
+    """
     slug = "083-foo-bar"
-    # Two ULIDs with DIFFERENT mid8 prefixes so they produce distinct branch names.
-    ulid_a = "01KNXQS9ATWWFXS3K5ZJ9E5008"  # mid8 = 01KNXQS9
-    ulid_b = "01KNXQSAATWWFXS3K5ZJ9E5009"  # mid8 = 01KNXQSA  (differs at char 8)
-
-    branch_a = lane_branch_name(slug, "lane-a", mission_id=ulid_a)
-    branch_b = lane_branch_name(slug, "lane-a", mission_id=ulid_b)
-
-    assert branch_a != branch_b
-    assert _mid8(ulid_a) in branch_a
-    assert _mid8(ulid_b) in branch_b
-    # The mid8 tokens must differ
-    assert _mid8(ulid_a) != _mid8(ulid_b)
+    assert lane_branch_name(slug, "lane-a") == lane_branch_name(slug, "lane-a") == "kitty/mission-083-foo-bar-lane-a"
 
 
 # ---------------------------------------------------------------------------
@@ -174,9 +181,7 @@ def test_parse_legacy_branch(branch: str, expected_lane_id: str | None) -> None:
     slug, mid8_val, lane_id = result
     assert slug  # non-empty
     assert mid8_val is None  # legacy: no mid8
-    assert lane_id == expected_lane_id, (
-        f"Expected lane_id={expected_lane_id!r} for {branch!r}, got {lane_id!r}"
-    )
+    assert lane_id == expected_lane_id, f"Expected lane_id={expected_lane_id!r} for {branch!r}, got {lane_id!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -253,22 +258,35 @@ def test_is_legacy_branch_non_kitty() -> None:
 
 
 @pytest.mark.parametrize(
-    ("slug", "ulid", "lane"),
+    ("slug", "lane"),
     [
-        ("083-foo-bar", "01KNXQS9ATWWFXS3K5ZJ9E5008", "lane-a"),
-        ("001-simple", "01KNXQS0ATWWFXS3K5ZJ9E5001", "lane-b"),
-        ("my-feature", "01KNXQS1ATWWFXS3K5ZJ9E5002", "lane-c"),
+        ("083-foo-bar", "lane-a"),
+        ("001-simple", "lane-b"),
+        ("my-feature", "lane-c"),
     ],
 )
-def test_round_trip_construct_then_parse(slug: str, ulid: str, lane: str) -> None:
-    branch = lane_branch_name(slug, lane, mission_id=ulid)
+def test_round_trip_construct_then_parse(slug: str, lane: str) -> None:
+    """Lane naming takes no identity, so a bare slug round-trips with no
+    ``mid8_token`` (that case is covered separately, below, for an
+    already-embedded slug)."""
+    branch = lane_branch_name(slug, lane)
     result = parse_mission_slug_from_branch(branch)
     assert result is not None
     parsed_slug, parsed_mid8, parsed_lane = result
-    assert parsed_mid8 == ulid[:8]
+    assert parsed_mid8 is None
     assert parsed_lane == lane
-    # The human slug should be strip_numeric_prefix(slug)
-    assert parsed_slug == strip_numeric_prefix(slug)
+    assert parsed_slug == slug
+
+
+def test_round_trip_construct_then_parse_embedded_mid8() -> None:
+    """A slug that already embeds a mid8 tail round-trips it (no injection)."""
+    slug = "foo-01KV3NGS"
+    branch = lane_branch_name(slug, "lane-a")
+    result = parse_mission_slug_from_branch(branch)
+    assert result is not None
+    assert result.slug == "foo"
+    assert result.mid8_token == "01KV3NGS"
+    assert result.lane_id == "lane-a"
 
 
 # ---------------------------------------------------------------------------
@@ -293,16 +311,13 @@ def test_mission_branch_name_does_not_strip_different_mid8_suffix() -> None:
     assert result == "kitty/mission-my-feature-AAAA1111-01KV3NGS"
 
 
-def test_lane_branch_name_pathological_mid8_mismatch() -> None:
-    """Parallel pathological test for lane_branch_name with a mismatched mid8.
+def test_lane_branch_name_embedded_mid8_shaped_token_preserved() -> None:
+    """Re-pinned to the created name.
 
-    When the slug's embedded mid8-shaped suffix differs from the mission_id's
-    mid8, the guard does NOT strip the slug's token — documented behavior.
-    The result contains both the slug's embedded token and the own mid8,
-    followed by the lane suffix.
+    Lane naming takes no identity, so there is no "own mid8" to append or
+    mismatch against; the slug's own mid8-shaped tail is preserved verbatim,
+    exactly once (the double-append this test used to pin is now impossible).
     """
     slug = "my-feature-AAAA1111"
-    mission_id = "01KV3NGSDCJ272573TF6T6NWDW"  # mid8 = "01KV3NGS"
-    result = lane_branch_name(slug, "lane-a", mission_id=mission_id)
-    # slug's "AAAA1111" treated as part of human name; "01KV3NGS" appended
-    assert result == "kitty/mission-my-feature-AAAA1111-01KV3NGS-lane-a"
+    result = lane_branch_name(slug, "lane-a")
+    assert result == "kitty/mission-my-feature-AAAA1111-lane-a"

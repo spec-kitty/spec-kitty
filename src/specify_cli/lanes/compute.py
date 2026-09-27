@@ -19,7 +19,7 @@ from typing import ClassVar
 
 from specify_cli.core.dependency_graph import topological_sort
 from kernel.clock import now_utc_iso
-from specify_cli.lanes.branch_naming import mission_branch_name
+from specify_cli.lanes.branch_naming import lane_branch_name, mission_branch_name
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
 from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import _globs_overlap
@@ -60,6 +60,46 @@ def is_planning_artifact_only(lanes_manifest: object) -> bool:
     """
     lanes = list(getattr(lanes_manifest, "lanes", None) or [])
     return bool(lanes) and all(is_planning_lane(lane) for lane in lanes)
+
+
+def lane_created_branch(lanes_manifest: LanesManifest, lane_id: str) -> str:
+    """Resolve a lane's CREATED branch name from the creation input (slug + lane id).
+
+    Single shared home for the composition previously duplicated (same name,
+    same body) as ``merge.executor._created_lane_branch`` and
+    ``merge.reconciliation._lane_branch_for``. The Mission identity
+    (``mission_id``) is NOT an input (I-1): a lane's branch is created once, by
+    :func:`specify_cli.lanes.worktree_allocator.predict_lane_worktree` /
+    ``allocate_lane_worktree``, which compose it from ``(mission_slug, lane_id)``
+    alone (never ``mission_id``). Passing ``mission_id`` here would let a caller
+    resolve a branch that was never created (the #5108 defect class). Keyed on
+    ``lanes_manifest.mission_slug`` — never a caller-supplied ULID — so this
+    always matches the branch the allocator actually created.
+    ``lane-planning`` is exempt (I-3): it still resolves to the planning base
+    branch, not a ``kitty/mission-…`` branch.
+    """
+    return str(
+        lane_branch_name(
+            lanes_manifest.mission_slug,
+            lane_id,
+            planning_base_branch=lanes_manifest.target_branch,
+        )
+    )
+
+
+def lane_fully_canceled(lane: ExecutionLane, excluded_canceled_wp_ids: frozenset[str]) -> bool:
+    """True iff *lane* is non-empty and every one of its WPs is an acceptable
+    canceled-with-provenance ending (FR-004/FR-009).
+
+    Single shared home for the "fully canceled" predicate previously
+    duplicated with divergent semantics: ``merge.executor._lane_fully_canceled``
+    required ``bool(lane.wp_ids)`` (empty lane is never "fully canceled" —
+    there is nothing to have canceled); ``merge.reconciliation``'s inline
+    ``all(wp in excluded_canceled_wp_ids for wp in lane.wp_ids)`` lacked that
+    guard and is vacuously ``True`` for an empty ``wp_ids`` tuple. This is the
+    executor's (correct) semantics, consolidated so both callers agree.
+    """
+    return bool(lane.wp_ids) and all(wp in excluded_canceled_wp_ids for wp in lane.wp_ids)
 
 
 class LaneComputationError(Exception):

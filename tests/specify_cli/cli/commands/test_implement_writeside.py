@@ -357,7 +357,7 @@ class TestNarrowTripleProtectedPlanningBranchFailsClosed:
         # status-commit half, so both halves are indistinguishable to the
         # operator.
         try:
-            _resolve_claim_commit_target(None)
+            _resolve_claim_commit_target(None, mission_slug=mission_slug)
         except PlacementResolutionRequired as status_half_exc:
             assert str(excinfo.value) == str(status_half_exc)
         else:  # pragma: no cover -- _resolve_claim_commit_target(None) always raises

@@ -682,7 +682,9 @@ def _resolve_placement_ref(repo_root: Path, *, mission_slug: str, wp_id: str) ->
     return placement.placement_ref if placement is not None else None
 
 
-def _resolve_claim_commit_target(placement_ref: CommitTarget | None) -> CommitTarget:
+def _resolve_claim_commit_target(
+    placement_ref: CommitTarget | None, *, mission_slug: str
+) -> CommitTarget:
     """Resolve the WP status claim-commit target (T012 / D11 fail-closed).
 
     A small, pure extraction (Sonar-testable) over the single seam-resolved
@@ -692,17 +694,31 @@ def _resolve_claim_commit_target(placement_ref: CommitTarget | None) -> CommitTa
     ``placement_ref`` failed to resolve, this FAILS CLOSED with
     :class:`PlacementResolutionRequired` instead of silently committing the
     WP claim to whatever branch happens to be checked out.
+
+    #5113 / FR-014 (T041): ``placement_ref`` is ``None`` for BOTH an
+    unmaterialized coordination worktree (branch present) and a deleted /
+    never-created coordination branch — ``_resolve_status_surface_dir``
+    collapses both into the same generic ``ActionContextError`` the caller
+    degrades on (see the module docstring's classification note), so this
+    helper cannot tell them apart. The remedy command below is truthful for
+    both: ``doctor coordination --fix`` materializes a present branch via its
+    ``COORDINATION_WORKTREE_MISSING`` fixer, and flattens (drops the stale
+    key) via its ``COORDINATION_WORKTREE_NEVER_CREATED`` fixer.
     """
     if placement_ref is None:
         raise PlacementResolutionRequired(
             "Cannot resolve the canonical write placement for this mission's "
             "WP status claim commit -- refusing to commit to the currently "
             "checked-out branch (D11 fail-closed). This usually means the "
-            "mission's stored topology could not be resolved (e.g. a "
-            "coordination branch declared in meta.json is missing/torn down "
-            "in git). Run `spec-kitty doctor workspaces --fix`, or flatten "
-            "the mission by removing `coordination_branch` from meta.json if "
-            "the coordination topology was never used, then retry."
+            "mission's stored coordination topology could not be resolved "
+            "(e.g. the coordination worktree has not been materialized yet, "
+            "or the `coordination_branch` declared in meta.json is missing/"
+            "torn down in git). Run `spec-kitty doctor coordination "
+            f"--mission {mission_slug} --fix` to repair automatically -- it "
+            "materializes a present branch, or flattens (removes the stale "
+            "key) if the topology was never activated; or remove "
+            "`coordination_branch` from meta.json manually if you know the "
+            "coordination topology was never used, then retry."
         )
     return placement_ref
 

@@ -100,9 +100,7 @@ def _build_deleted_coord_mission(tmp_path: Path) -> Path:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     _write_wp_task(tasks_dir, "WP01")
-    _write_lanes_json(
-        feature_dir, slug=_DELETED_COORD_SLUG, mission_id=_DELETED_COORD_MISSION_ID
-    )
+    _write_lanes_json(feature_dir, slug=_DELETED_COORD_SLUG, mission_id=_DELETED_COORD_MISSION_ID)
     (feature_dir / "status.events.jsonl").write_text(
         _status_event_line(_DELETED_COORD_SLUG, "WP01", marker="PRIMARY_DECOY") + "\n",
         encoding="utf-8",
@@ -211,9 +209,7 @@ def test_seam_parity_resolve_feature_worktree_resolves_lanes_on_flat_topology(
     from specify_cli.workspace.context import resolve_feature_worktree
 
     ctx = flat_topology_mission
-    expected_lane_worktree = _seam_worktree_path(
-        ctx.repo, ctx.slug, mission_id=None, lane_id="lane-a"
-    )
+    expected_lane_worktree = _seam_worktree_path(ctx.repo, ctx.slug, lane_id="lane-a")
     expected_lane_worktree.mkdir(parents=True)
 
     assert resolve_feature_worktree(ctx.repo, ctx.slug) == expected_lane_worktree
@@ -243,9 +239,7 @@ def test_seam_parity_agent_tasks_ports_real_fs_reader_resolves_primary(
     handle = MissionHandle(repo_root=ctx.repo, mission_slug=ctx.slug)
     reader = RealFsReader()
 
-    read_dir = reader.planning_read_dir(
-        handle, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    read_dir = reader.planning_read_dir(handle, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
     assert read_dir == ctx.primary_feature_dir
 
     tasks_dir = reader.wp_tasks_dir(handle)
@@ -321,8 +315,5 @@ def test_seam_parity_mission_record_analysis_write_feature_dir_resolves_primary(
     )
 
     ctx = flat_topology_mission
-    write_feature_dir = placement_seam(ctx.repo, ctx.slug).read_dir(
-        _kind_for_artifact("spec")
-    )
+    write_feature_dir = placement_seam(ctx.repo, ctx.slug).read_dir(_kind_for_artifact("spec"))
     assert write_feature_dir == ctx.primary_feature_dir
-

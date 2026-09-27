@@ -91,7 +91,7 @@ def refresh_reused_lane_context(
 
     from specify_cli.workspace.context import load_context
 
-    context_name = _worktree_dir_name(mission_slug, mission_id=None, lane_id=lane_id)
+    context_name = _worktree_dir_name(mission_slug, lane_id=lane_id)
     existing_ctx = load_context(repo_root, context_name)
     if existing_ctx is None:
         return False

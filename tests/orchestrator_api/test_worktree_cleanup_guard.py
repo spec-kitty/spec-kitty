@@ -95,7 +95,7 @@ def lane_worktree(tmp_path: Path) -> tuple[Path, LanesManifest, Path]:
     repo = _init_repo(tmp_path)
     manifest = _manifest(SLUG)
     lane = manifest.lanes[0]
-    wt_path = worktree_path(repo, SLUG, mission_id=None, lane_id=lane.lane_id)
+    wt_path = worktree_path(repo, SLUG, lane_id=lane.lane_id)
     _git(repo, "worktree", "add", "--detach", str(wt_path))
     return repo, manifest, wt_path
 

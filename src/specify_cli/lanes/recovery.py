@@ -21,10 +21,11 @@ from pathlib import Path
 from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import (
     BranchIdentityUnresolved,
+    InvalidMissionIdentity,
     mission_branch_name_required,
     parse_lane_id_from_branch,
-    worktree_path as _worktree_path,
 )
+from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 from specify_cli.status import Lane
 from specify_cli.workspace.context import (
     WorkspaceContext,
@@ -259,6 +260,7 @@ def _resolve_mission_branch(feature_dir: Path, mission_slug: str) -> str:
     mission_branch = _find_mission_branch(feature_dir)
     if mission_branch:
         return mission_branch
+    meta_path = feature_dir / "meta.json"
     try:
         # ``mission_branch_name_required`` is typed -> str; mypy widens it to
         # ``Any`` through the late-import chain (``follow_imports=skip`` on
@@ -269,14 +271,17 @@ def _resolve_mission_branch(feature_dir: Path, mission_slug: str) -> str:
             mission_slug, _mission_id_from_meta(feature_dir)
         )
         return composed
+    except InvalidMissionIdentity as exc:
+        # Present-but-invalid identity: keep the typed error (its
+        # INVALID_MISSION_IDENTITY code and hand-edit remedy) and name the
+        # meta.json to correct; the base-class template would say "absent".
+        raise InvalidMissionIdentity(exc.invalid_mission_id, meta_path=meta_path) from exc
     except BranchIdentityUnresolved as exc:
-        # Re-raise with the feature directory in the next_step so a recovery
-        # caller can locate the meta.json whose mission_id is missing.
+        # Absent identity: re-raise with the feature directory in next_step so
+        # a recovery caller can locate the meta.json missing its mission_id.
         raise BranchIdentityUnresolved(
             mission_slug,
-            next_step=(
-                f"{exc.next_step} (meta.json expected at {feature_dir / 'meta.json'})"
-            ),
+            next_step=f"{exc.next_step} (meta.json expected at {meta_path})",
         ) from exc
 
 
@@ -395,8 +400,8 @@ def _scan_live_branch_states(
             continue
 
         worktree_path_from_git = _worktree_exists_for_branch(repo_root, branch)
-        expected_worktree = _worktree_path(
-            repo_root, mission_slug, mission_id=None, lane_id=lane_id
+        expected_worktree, _lane_branch = predict_lane_worktree(
+            repo_root, mission_slug, lane_id
         )
         worktree_exists = (
             worktree_path_from_git is not None
@@ -693,8 +698,8 @@ def recover_worktree(
     """
     from specify_cli.lanes.worktree_allocator import _recover_lane_worktree
 
-    worktree_path = _worktree_path(
-        repo_root, mission_slug, mission_id=None, lane_id=state.lane_id
+    worktree_path, _lane_branch = predict_lane_worktree(
+        repo_root, mission_slug, state.lane_id
     )
     _recover_lane_worktree(repo_root, worktree_path, state.branch_name)
 
@@ -715,8 +720,8 @@ def recover_context(
     feature_dir = placement_seam(repo_root, mission_slug).read_dir(
         MissionArtifactKind.LANE_STATE
     )
-    worktree_path = _worktree_path(
-        repo_root, mission_slug, mission_id=None, lane_id=state.lane_id
+    worktree_path, _lane_branch = predict_lane_worktree(
+        repo_root, mission_slug, state.lane_id
     )
 
     # Get base info from lanes.json

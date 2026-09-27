@@ -77,6 +77,12 @@ from specify_cli.git.destructive_guard import (
 )
 from specify_cli.merge.git_probes import _paths_have_status_changes
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
+# Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
+# (single canonical home in ``lanes.compute`` — see its docstrings); re-exported
+# under the historical private names so existing call sites and tests in this
+# module (``ex._lane_fully_canceled`` / ``ex._created_lane_branch``) still work.
+from specify_cli.lanes.compute import lane_created_branch as _created_lane_branch
+from specify_cli.lanes.compute import lane_fully_canceled as _lane_fully_canceled
 from specify_cli.lanes.persistence import read_lanes_json, require_lanes_json
 from specify_cli.merge._constants import (
     _STATUS_EVENTS_FILENAME,
@@ -164,6 +170,14 @@ from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_ch
 
 _GLOBAL_MERGE_LOCK_ID = "__global_merge__"
 
+# lane-branch-naming-authority-01M3EVC4 WP02 (T032, S1192): the single source
+# for the abort-and-retry remediation text every resume-refusal message
+# renders. Route EVERY occurrence (old and new) through these constants so
+# the CLI command name below is spelled out, as a quoted literal, exactly
+# once in this module (the assignment on the next line).
+_MERGE_ABORT_COMMAND = "spec-kitty merge --abort"
+_MERGE_ABORT_AND_RESTART_HINT = f"Run `{_MERGE_ABORT_COMMAND}` and start the merge fresh."
+
 
 class CoordinationTeardownError(RuntimeError):
     """A leg of the coord triple (worktree, branch, marker) did not come down.
@@ -171,6 +185,17 @@ class CoordinationTeardownError(RuntimeError):
     #3131 INV-2 makes the triple all-or-nothing, so a partial teardown has to
     stop the run and say so rather than print a success line over a git error
     and leave a stranded coord worktree/branch behind (#3926).
+    """
+
+
+class LaneNamingSlugMismatch(RuntimeError):
+    """``run.mission_slug`` diverged from ``lanes_manifest.mission_slug``.
+
+    The manifest slug is the ONE naming input for lane branch/worktree
+    composition; a real merge run is expected to carry the same slug on both
+    fields. A divergence here would silently name/consolidate against two
+    different slugs, so it fails loud with a typed error rather than an
+    ``assert`` (which a ``python -O`` invocation would compile away).
     """
 
 
@@ -621,13 +646,36 @@ def _lane_completed_but_branch_gone(run: _MergeRunState, lane: ExecutionLane, la
     return all(wp in completed for wp in lane.wp_ids)
 
 
+def _created_lane_worktree(main_repo: Path, mission_slug: str, lane_id: str) -> Path:
+    """The lane's CREATED worktree, from the placement authority (PD-1).
+
+    Routes through :func:`~specify_cli.lanes.worktree_allocator.predict_lane_worktree`
+    (the single read-only lane-placement decision) rather than composing the
+    path independently, so this seam and the allocator can never disagree.
+    """
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+
+    # Re-wrap: mypy widens the late-imported return to Any (follow_imports=skip).
+    path, _branch = predict_lane_worktree(main_repo, mission_slug, lane_id)
+    return Path(path)
+
+
 def _phase_merge_lanes(run: _MergeRunState) -> None:
     """Merge each lane branch into the mission branch (skipping integrated lanes)."""
-    from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import is_planning_lane
     from specify_cli.lanes.merge import consolidate_lane_into_mission
 
     lanes_manifest = run.lanes_manifest
+    # The manifest slug is the ONE naming input; run.mission_slug is checked
+    # equal to it for a real run rather than read directly below, so a future
+    # divergence between the two fails loud here instead of silently
+    # naming/consolidating against two different slugs.
+    if run.mission_slug != lanes_manifest.mission_slug:
+        raise LaneNamingSlugMismatch(
+            f"run.mission_slug {run.mission_slug!r} != "
+            f"lanes_manifest.mission_slug {lanes_manifest.mission_slug!r} "
+            "(lane naming is keyed on the manifest slug alone)"
+        )
     for lane in lanes_manifest.lanes:
         if run.planning_artifact_only and is_planning_lane(lane):
             console.print(
@@ -640,9 +688,7 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         # never have been created — the #2945 shape). A mixed lane (survivors +
         # canceled) still integrates its survivors, so this guard requires ALL
         # WPs excluded, never merely any.
-        if lane.wp_ids and all(
-            wp in run.excluded_canceled_wp_ids for wp in lane.wp_ids
-        ):
+        if _lane_fully_canceled(lane, run.excluded_canceled_wp_ids):
             console.print(
                 f"  [dim]Skipping {lane.lane_id} (all WPs canceled with "
                 "provenance — acceptable ending, no branch to integrate)[/dim]"
@@ -651,11 +697,7 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
 
         # FR-037: skip ONLY when the lane branch is already fully integrated into
         # the mission branch (real tree state), never on the ``done`` proxy.
-        _lane_branch = lane_branch_name(
-            run.mission_slug,
-            lane.lane_id,
-            planning_base_branch=lanes_manifest.target_branch,
-        )
+        _lane_branch = _created_lane_branch(lanes_manifest, lane.lane_id)
         if not is_planning_lane(lane) and (
             _lane_already_integrated(run.main_repo, _lane_branch, lanes_manifest.mission_branch)
             or _lane_completed_but_branch_gone(run, lane, _lane_branch)
@@ -1336,7 +1378,7 @@ def _reject_zero_diff_noop_integration(run: _MergeRunState) -> None:
     console.print(
         f"  Mission branch: {run.lanes_manifest.mission_branch}; "
         f"target: {run.lanes_manifest.target_branch}. "
-        "Inspect the lane branches and rerun, or `spec-kitty merge --abort`."
+        f"Inspect the lane branches and rerun, or `{_MERGE_ABORT_COMMAND}`."
     )
     _restore_pre_target_if_at_baseline(run)
     raise typer.Exit(1)
@@ -1928,26 +1970,25 @@ def _persist_executed_strategy(
 def _capture_pre_interrupt_lane_tips(run: _MergeRunState) -> dict[str, str]:
     """Resolve each lane BRANCH's current tip SHA at pre-mutation capture (FR-004).
 
-    terminus-integrity-followups WP05 (T021, b2). Keyed by the lane branch name the
-    reconciliation claim resolves (:func:`lane_branch_name`, mid8 form), so a resume
-    CAS-checks the SAME ref via :func:`lane_tip_cas_ok` (``refs/heads/<key>``). The
-    canonical ``lane-planning`` lane resolves to the target branch (not a
-    ``kitty/mission-…`` branch) and is skipped — its "tip" is the moving target ref,
-    never a pre-interrupt identity to preserve. A branch that does not resolve (a
-    fully-canceled lane has none) contributes no entry (tolerant, like the claim
-    builder). Captured ONCE before ``_phase_merge_lanes`` mutates anything."""
-    from specify_cli.lanes.branch_naming import lane_branch_name
-
+    terminus-integrity-followups WP05 (T021, b2); re-keyed by
+    lane-branch-naming-authority-01M3EVC4 WP02 (T031). Keyed by the lane's
+    CREATED branch (:func:`_created_lane_branch` — never a Mission identity),
+    so a resume CAS-checks the SAME ref via :func:`lane_tip_cas_ok`
+    (``refs/heads/<key>``). The canonical ``lane-planning`` lane resolves to
+    the target branch (not a ``kitty/mission-…`` branch) and is skipped — its
+    "tip" is the moving target ref, never a pre-interrupt identity to
+    preserve. A fully-canceled lane (FR-009, every WP an acceptable canceled
+    ending) is also skipped — its branch may never have been created. A
+    branch that does not resolve for any other reason contributes no entry
+    (tolerant, like the claim builder). Captured ONCE before
+    ``_phase_merge_lanes`` mutates anything."""
     tips: dict[str, str] = {}
     for lane in run.lanes_manifest.lanes:
         if lane.lane_id == "lane-planning":
             continue
-        branch = lane_branch_name(
-            run.lanes_manifest.mission_slug,
-            lane.lane_id,
-            planning_base_branch=run.lanes_manifest.target_branch,
-            mission_id=run.lanes_manifest.mission_id,
-        )
+        if _lane_fully_canceled(lane, run.excluded_canceled_wp_ids):
+            continue
+        branch = _created_lane_branch(run.lanes_manifest, lane.lane_id)
         ret, sha, _err = run_command(
             ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}^{{commit}}"],
             capture=True,
@@ -1988,11 +2029,65 @@ def _resolve_pre_mutation_coord_sha(state: MergeState, run: _MergeRunState) -> s
     return checkpoint.sha
 
 
+def _unanchored_lane_branches(run: _MergeRunState) -> list[str]:
+    """The CREATED branches of every lane the H5 resume guard requires an
+    anchor for, but that ``run.state.pre_interrupt_lane_tips`` has no key for.
+
+    lane-branch-naming-authority-01M3EVC4 WP02 (T032). Mirrors EXACTLY the
+    lanes :func:`_capture_pre_interrupt_lane_tips` captures keys for (never
+    the canonical ``lane-planning`` lane, never a fully-canceled lane), so a
+    lane this function flags as missing is always a lane the capture step was
+    supposed to key — an empty, partial, or old-form (identity-keyed) record
+    is caught here, never a lane that was legitimately never captured.
+    Returned sorted for a deterministic message."""
+    from specify_cli.lanes.compute import is_planning_lane
+
+    missing: list[str] = []
+    for lane in run.lanes_manifest.lanes:
+        if is_planning_lane(lane) or _lane_fully_canceled(lane, run.excluded_canceled_wp_ids):
+            continue
+        branch = _created_lane_branch(run.lanes_manifest, lane.lane_id)
+        if branch not in run.state.pre_interrupt_lane_tips:
+            missing.append(branch)
+    return sorted(missing)
+
+
+def _refuse_unanchored_resume(run: _MergeRunState, *, coord_topology: bool) -> None:
+    """H5 (lane-branch-naming-authority-01M3EVC4 WP02, FR-005): refuse a resume
+    whose persisted ``pre_interrupt_lane_tips`` record has no key for one of
+    :func:`_unanchored_lane_branches`' CREATED branches — an empty record, a
+    partial one (some lanes missing), or an old-form record keyed by an
+    identity-form branch name a post-fix capture never produces. Scoped to
+    ``coord_topology and state.pre_mutation_coord_sha`` (the same precondition
+    the tips are captured/persisted under, H4); a canceled-only or
+    planning-only manifest is exempt because the helper already excludes
+    those lanes. Extracted from :func:`_enforce_resume_anchor_integrity` so
+    that function stays within its complexity ceiling (DoD: current + 1)."""
+    if not (coord_topology and run.state.pre_mutation_coord_sha):
+        return
+    missing = _unanchored_lane_branches(run)
+    if not missing:
+        return
+    console.print(
+        "\n[red]Error:[/red] cannot resume this merge: the persisted "
+        "pre-interrupt lane-tip record has no anchor for lane "
+        "branch(es) " + ", ".join(repr(b) for b in missing)
+        + " (the record is empty, partial, or was written by an "
+        "older release under a different name). Resuming without "
+        "an anchor would disarm the resume guard. "
+        + _MERGE_ABORT_AND_RESTART_HINT
+    )
+    raise typer.Exit(1)
+
+
 def _enforce_resume_anchor_integrity(run: _MergeRunState, *, coord_topology: bool) -> None:
     """Fail-closed resume guard for the persisted coord/lane-tip anchors (FR-004/005).
 
-    terminus-integrity-followups WP05 (T022, H3/H4). Runs only on a ``--resume``;
-    a fresh merge has nothing persisted yet (the anchors are captured moments later).
+    terminus-integrity-followups WP05 (T022, H3/H4); lane-branch-naming-authority-
+    01M3EVC4 WP02 (T032, H5). Runs only on a ``--resume``; a fresh merge has
+    nothing persisted yet (the anchors are captured moments later). Order matches
+    the T032 spec (after H4, before the H3 CAS loop): an old-form (identity-keyed)
+    record then gets H5's message, never a misleading H3 "diverged" one.
 
     * **H4** — a coord-topology resume *that requires the persisted base* REFUSEs on
       its absence rather than silently collapsing to the live (already-advanced)
@@ -2007,6 +2102,7 @@ def _enforce_resume_anchor_integrity(run: _MergeRunState, *, coord_topology: boo
       :func:`_resolve_pre_mutation_coord_sha` called from :func:`_capture_reconciliation_claim`
       before :func:`_phase_merge_lanes`), so a consolidated-but-baseless state is an
       inconsistency (corruption / pre-fix residue) and refusing it is correct.
+    * **H5** — see :func:`_refuse_unanchored_resume`.
     * **H3** — each persisted pre-interrupt lane tip must satisfy the CAS expectation
       (:func:`lane_tip_cas_ok`: equal / descendant / behind-HEAD ancestor OK; true
       divergence REFUSEs), so a legitimately-advanced lane is never silently dropped
@@ -2027,18 +2123,17 @@ def _enforce_resume_anchor_integrity(run: _MergeRunState, *, coord_topology: boo
             "\n[red]Error:[/red] cannot resume this merge: a prior attempt already "
             "consolidated work but the pre-mutation coordination base was not "
             "persisted, so the reconciliation claim cannot be anchored to the true "
-            "pre-interrupt tip. Run `spec-kitty merge --abort` and start the merge "
-            "fresh."
+            "pre-interrupt tip. " + _MERGE_ABORT_AND_RESTART_HINT
         )
         raise typer.Exit(1)
+    _refuse_unanchored_resume(run, coord_topology=coord_topology)
     for branch, persisted_sha in state.pre_interrupt_lane_tips.items():
         if not lane_tip_cas_ok(run.main_repo, branch, persisted_sha):
             console.print(
                 "\n[red]Error:[/red] cannot resume this merge: lane branch "
                 f"{branch!r} diverged from its persisted pre-interrupt tip "
                 f"{persisted_sha[:10]} (neither equal, ancestor, nor descendant). "
-                "Resuming would drop or resurrect work. Run `spec-kitty merge --abort` "
-                "and start the merge fresh."
+                "Resuming would drop or resurrect work. " + _MERGE_ABORT_AND_RESTART_HINT
             )
             raise typer.Exit(1)
 
@@ -2742,89 +2837,109 @@ def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
         _teardown_coord_worktree(run)
 
 
-def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
-    """Worktree removal + lane/mission branch deletion + coordination teardown."""
-    from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name, worktree_path
-    from specify_cli.lanes.compute import is_planning_lane
+def _remove_lane_worktrees(run: _MergeRunState) -> None:
+    """T005/T012 (#4753, C-003): remove every lane worktree + tombstone its context.
+
+    Extracted (tidy-first, WP02/T034) out of
+    :func:`_phase_cleanup_worktrees_and_branches`, behaviour-preserving. Routed
+    through the shared :func:`~specify_cli.git.destructive_guard.guarded_worktree_remove`
+    chokepoint instead of a raw ``git worktree remove --force``. The T010
+    preflight has already fail-closed on any dirty lane worktree BEFORE any
+    ref advance, so every worktree reaching this loop is known-clean; the
+    guard call here is defense-in-depth against a race between preflight and
+    cleanup, not the primary safety mechanism. ``retain=False`` because this
+    function only runs when ``run.remove_worktree`` is True (removal
+    requested) — ``--keep-worktree`` already makes ``run.remove_worktree``
+    False and skips this function entirely (ADVISORY-3: do not map the
+    operator retain flag onto the guard's ``retain`` parameter here).
+    """
     from specify_cli.workspace import delete_context
 
     lanes_manifest = run.lanes_manifest
-    # -- T005: Worktree removal with retry tolerance and macOS FSEvents delay --
-    # T012 (#4753, C-003): routed through the shared ``guarded_worktree_remove``
-    # chokepoint instead of a raw ``git worktree remove --force``. The T010
-    # preflight has already fail-closed on any dirty lane worktree BEFORE any
-    # ref advance, so every worktree reaching this loop is known-clean; the
-    # guard call here is defense-in-depth against a race between preflight and
-    # cleanup, not the primary safety mechanism. ``retain=False`` because this
-    # loop only runs when ``run.remove_worktree`` is True (removal requested) —
-    # ``--keep-worktree`` already makes ``run.remove_worktree`` False and skips
-    # the loop entirely (ADVISORY-3: do not map the operator retain flag onto
-    # the guard's ``retain`` parameter here).
-    if run.remove_worktree:
-        delay = _worktree_removal_delay()
-        # WP10 integration (C-3 / #4978): thread the STORED topology so the
-        # coord-residue leg is topology-aware — a coord-partition-KIND artifact
-        # on a LANES / SINGLE_BRANCH mission is real work, never reset as residue.
-        is_residue = functools.partial(
-            is_toolchain_generated_churn,
-            mission_slug=run.mission_slug,
-            topology=_stored_topology_for(run.target_feature_dir),
+    delay = _worktree_removal_delay()
+    # WP10 integration (C-3 / #4978): thread the STORED topology so the
+    # coord-residue leg is topology-aware — a coord-partition-KIND artifact
+    # on a LANES / SINGLE_BRANCH mission is real work, never reset as residue.
+    is_residue = functools.partial(
+        is_toolchain_generated_churn,
+        mission_slug=run.mission_slug,
+        topology=_stored_topology_for(run.target_feature_dir),
+    )
+    for idx, lane in enumerate(lanes_manifest.lanes):
+        # lane-branch-naming-authority-01M3EVC4 WP02 (T035): the CREATED
+        # worktree (never keyed by ``run.baseline_mission_id``), so a
+        # divergent-identity mission's worktree is never orphaned.
+        wt_path = _created_lane_worktree(run.main_repo, lanes_manifest.mission_slug, lane.lane_id)
+        if wt_path.exists():
+            guarded_worktree_remove(wt_path, retain=False, is_residue=is_residue)
+            console.print(f"  Removed worktree: {wt_path.name}")
+            if delay > 0 and idx < len(lanes_manifest.lanes) - 1:
+                time.sleep(delay)
+        else:
+            logger.debug("Worktree %s does not exist, skipping removal", wt_path)
+
+    # FR-005/LC-6 (#1842 WP03): tombstone each lane's workspace-context
+    # JSON when its worktree is removed at merge completion. The tombstone
+    # is deliberately nested under ``remove_worktree``: the context JSON
+    # *describes* the worktree, so the two are torn down together — a
+    # ``--no-remove-worktree`` merge intentionally keeps BOTH the worktree
+    # and its context (never orphaning one from the other).
+    # ``delete_context`` itself is a pure, order-independent unlink — it
+    # targets the legacy ``<slug>-<lane>`` filename ``save_context`` always
+    # writes, and silently no-ops for a lane that never saved a context
+    # (e.g. a planning-artifact lane) or one already tombstoned. The
+    # filename MUST equal ``_created_lane_worktree(...).name`` (the string
+    # ``save_context`` wrote) — never independently composed.
+    for lane in lanes_manifest.lanes:
+        workspace_name = _created_lane_worktree(
+            run.main_repo, lanes_manifest.mission_slug, lane.lane_id
+        ).name
+        delete_context(run.main_repo, workspace_name)
+
+
+def _delete_lane_branches(run: _MergeRunState) -> None:
+    """T005/#3131 T008: delete every non-planning lane branch, retry-tolerant.
+
+    Extracted (tidy-first, WP02/T034) out of
+    :func:`_phase_cleanup_worktrees_and_branches`, behaviour-preserving. Lane
+    branches stay keyed to the plain ``delete_branch`` gate regardless of
+    topology — only the MISSION/coordination branch
+    (:func:`_cleanup_mission_branch_and_coordination`) is topology-aware and
+    coupled to ``teardown_coordination`` for a coord mission.
+    """
+    from specify_cli.lanes.compute import is_planning_lane
+
+    lanes_manifest = run.lanes_manifest
+    for lane in lanes_manifest.lanes:
+        if is_planning_lane(lane):
+            continue
+        # lane-branch-naming-authority-01M3EVC4 WP02 (T035): the CREATED
+        # branch (never a Mission-identity form).
+        branch_name = _created_lane_branch(lanes_manifest, lane.lane_id)
+        ret, _, _ = run_command(
+            ["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"],
+            capture=True,
+            check_return=False,
+            cwd=run.main_repo,
         )
-        for idx, lane in enumerate(lanes_manifest.lanes):
-            wt_path = worktree_path(
-                run.main_repo,
-                run.mission_slug,
-                mission_id=run.baseline_mission_id,
-                lane_id=lane.lane_id,
-            )
-            if wt_path.exists():
-                guarded_worktree_remove(wt_path, retain=False, is_residue=is_residue)
-                console.print(f"  Removed worktree: {wt_path.name}")
-                if delay > 0 and idx < len(lanes_manifest.lanes) - 1:
-                    time.sleep(delay)
-            else:
-                logger.debug("Worktree %s does not exist, skipping removal", wt_path)
-
-        # FR-005/LC-6 (#1842 WP03): tombstone each lane's workspace-context
-        # JSON when its worktree is removed at merge completion. The tombstone
-        # is deliberately nested under ``remove_worktree``: the context JSON
-        # *describes* the worktree, so the two are torn down together — a
-        # ``--no-remove-worktree`` merge intentionally keeps BOTH the worktree
-        # and its context (never orphaning one from the other).
-        # ``delete_context`` itself is a pure, order-independent unlink — it
-        # targets the legacy ``<slug>-<lane>`` filename ``save_context`` always
-        # writes (mission_id=None, matching the workspace/context.py grammar),
-        # and silently no-ops for a lane that never saved a context (e.g. a
-        # planning-artifact lane) or one already tombstoned.
-        for lane in lanes_manifest.lanes:
-            workspace_name = worktree_dir_name(run.mission_slug, mission_id=None, lane_id=lane.lane_id)
-            delete_context(run.main_repo, workspace_name)
-
-    # -- T005: LANE branch deletion with retry tolerance --
-    # #3131 T008: lane branches stay keyed to the plain ``delete_branch`` gate
-    # regardless of topology — only the MISSION/coordination branch (below) is
-    # topology-aware and coupled to ``teardown_coordination`` for a coord
-    # mission.
-    if run.delete_branch:
-        for lane in lanes_manifest.lanes:
-            if is_planning_lane(lane):
-                continue
-            branch_name = lane_branch_name(run.mission_slug, lane.lane_id)
-            ret, _, _ = run_command(
-                ["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"],
-                capture=True,
-                check_return=False,
+        if ret == 0:
+            run_command(
+                ["git", "branch", "-D", branch_name],
                 cwd=run.main_repo,
+                check_return=False,
             )
-            if ret == 0:
-                run_command(
-                    ["git", "branch", "-D", branch_name],
-                    cwd=run.main_repo,
-                    check_return=False,
-                )
-            else:
-                logger.debug("Branch %s does not exist, skipping deletion", branch_name)
-        console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es)")
+        else:
+            logger.debug("Branch %s does not exist, skipping deletion", branch_name)
+    console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es)")
+
+
+def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
+    """Worktree removal + lane/mission branch deletion + coordination teardown."""
+    if run.remove_worktree:
+        _remove_lane_worktrees(run)
+
+    if run.delete_branch:
+        _delete_lane_branches(run)
 
     # -- #3131 T008: MISSION/coordination branch + marker + worktree --
     # Topology-aware and (for coord) coupled under ``teardown_coordination``;
@@ -2919,7 +3034,6 @@ def _pre_mutation_safety_preflight(
     mission_slug: str,
     target_branch: str,
     lanes_manifest: LanesManifest,
-    canonical_mission_id: str | None,
     primary_meta_dir: Path,
     *,
     remove_worktree: bool,
@@ -2961,8 +3075,6 @@ def _pre_mutation_safety_preflight(
     here propagates to the caller, which aborts the merge fail-closed before
     the lock is acquired and before any mutation.
     """
-    from specify_cli.lanes.branch_naming import worktree_path
-
     # WP10 integration (C-3 / #4978): thread the STORED topology so the pre-mutation
     # dirty gate never resets a coord-partition-KIND artifact as residue on a
     # LANES / SINGLE_BRANCH mission.
@@ -2981,12 +3093,10 @@ def _pre_mutation_safety_preflight(
         return
 
     for lane in lanes_manifest.lanes:
-        wt_path = worktree_path(
-            main_repo,
-            mission_slug,
-            mission_id=canonical_mission_id,
-            lane_id=lane.lane_id,
-        )
+        # lane-branch-naming-authority-01M3EVC4 WP02 (T033): the CREATED
+        # worktree (never a Mission-identity form) — the same placement
+        # ``_phase_cleanup_worktrees_and_branches`` removes.
+        wt_path = _created_lane_worktree(main_repo, mission_slug, lane.lane_id)
         if wt_path.exists():
             # #4753 Finding A: this worktree is removal-destined, so an
             # untracked-only operator file must block just as a tracked edit
@@ -3380,7 +3490,6 @@ def _pre_mutation_safety_preflight_with_recovery(
     mission_slug: str,
     lanes_manifest: LanesManifest,
     canonical_id: str,
-    canonical_mission_id: str,
     primary_meta_dir: Path,
     retention: RetentionDecision,
 ) -> None:
@@ -3399,7 +3508,6 @@ def _pre_mutation_safety_preflight_with_recovery(
             mission_slug,
             lanes_manifest.target_branch,
             lanes_manifest,
-            canonical_mission_id,
             primary_meta_dir,
             remove_worktree=retention.remove_worktree,
             teardown_coordination=retention.teardown_coordination,
@@ -3626,7 +3734,6 @@ def _run_lane_based_merge(
         mission_slug,
         lanes_manifest,
         canonical_id,
-        canonical_mission_id,
         primary_meta_dir,
         retention,
     )

@@ -15,6 +15,7 @@ import pytest
 from specify_cli.core.errors import StructuredError
 from specify_cli.lanes.branch_naming import (
     BranchIdentityUnresolved,
+    InvalidMissionIdentity,
     mission_branch_name_required,
     resolve_transaction_mid8,
 )
@@ -195,3 +196,44 @@ class TestBranchIdentityUnresolvedShape:
         err = BranchIdentityUnresolved("handle-x")
         assert err.mission_handle == "handle-x"
         assert err.next_step
+
+
+class TestInvalidMissionIdentity:
+    """#5108 residual: the single typed source of a present-but-too-short
+    ``mission_id``, raised at ``_mid8`` and propagated through every branch
+    composer (``mission_branch_name``, ``mission_branch_name_required``,
+    ``resolve_branch_name``) without a per-call-site conversion shim."""
+
+    def test_is_a_branch_identity_unresolved(self):
+        """Every existing ``BranchIdentityUnresolved`` handler (e.g.
+        ``lanes/recovery.py``'s single ``except`` clause) catches this too."""
+        assert issubclass(InvalidMissionIdentity, BranchIdentityUnresolved)
+
+    def test_class_level_error_code(self):
+        assert InvalidMissionIdentity.error_code == "INVALID_MISSION_IDENTITY"
+
+    def test_carries_invalid_mission_id_and_next_step(self):
+        err = InvalidMissionIdentity("short")
+        assert err.invalid_mission_id == "short"
+        assert err.mission_handle == "short"
+        assert "short" in err.next_step
+
+    def test_remedy_does_not_claim_backfill_identity_fixes_it(self):
+        """`spec-kitty migrate backfill-identity` only mints a mission_id when
+        one is ABSENT (idempotent no-op on any existing, even invalid, value)
+        -- the remedy must not point at a command that is a silent no-op here."""
+        err = InvalidMissionIdentity("short")
+        assert "will NOT" in err.next_step
+        assert "meta.json" in err.next_step
+
+    def test_raised_from_mission_branch_name_required_with_present_short_id(self):
+        with pytest.raises(InvalidMissionIdentity) as exc_info:
+            mission_branch_name_required("modern-mission", "short")
+        assert exc_info.value.invalid_mission_id == "short"
+
+    def test_to_dict_carries_invalid_mission_id(self):
+        err = InvalidMissionIdentity("short")
+        payload = err.to_dict()
+        assert payload["error_code"] == "INVALID_MISSION_IDENTITY"
+        assert payload["invalid_mission_id"] == "short"
+        assert payload["next_step"] == err.next_step

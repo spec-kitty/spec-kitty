@@ -910,9 +910,9 @@ def _apply_lane_merge_cleanup(
 
     if retention.remove_worktree:
         for lane in lanes_manifest.lanes:
-            # Legacy lane-worktree grammar ({slug}-{lane}, no mid8) ⇒ mission_id=None
-            # reproduces the historical name byte-identically (FR-005).
-            wt_path = worktree_path(main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id)
+            # Lane naming is keyed on the creation input alone (WP07,
+            # FR-002/PD-1); no Mission identity is passed here.
+            wt_path = worktree_path(main_repo_root, mission_slug, lane_id=lane.lane_id)
             if wt_path.exists():
                 # #4753 C-003: ``retention.remove_worktree`` is the upstream
                 # decision of WHETHER to remove at all (already resolved
@@ -1321,9 +1321,9 @@ def _lane_assignment_or_legacy(main_repo_root: Path, mission: str, wp: str) -> t
 
     Returns the ``(manifest, lane)`` pair when ``wp`` is lane-assigned;
     otherwise the legacy bare-path ``_StartWorkspace`` — the WP-based worktree
-    form ``{mission}-{wp}`` with no mid8 (the seam's ``mission_id=None``
-    grammar reproduces the historical name byte-identically) — so legacy /
-    non-lane missions keep working unchanged.
+    form ``{mission}-{wp}`` with no mid8 (the seam reproduces the historical
+    name byte-identically since lane naming takes no Mission identity input,
+    WP07) — so legacy / non-lane missions keep working unchanged.
 
     lanes.json is PRIMARY-partition — read from the primary surface (#2118).
     SSOT: this is the ONLY place this surface decides lane-vs-legacy; a future
@@ -1335,7 +1335,7 @@ def _lane_assignment_or_legacy(main_repo_root: Path, mission: str, wp: str) -> t
     manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
     lane = manifest.lane_for_wp(wp) if manifest is not None else None
     if manifest is None or lane is None:
-        return _StartWorkspace(workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp)))
+        return _StartWorkspace(workspace_path=str(_wt_path(main_repo_root, mission, lane_id=wp)))
     return manifest, lane
 
 

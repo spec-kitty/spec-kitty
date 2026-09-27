@@ -221,6 +221,9 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         materialize(feature_dir)
 
         manifest = MagicMock()
+        # Lane naming is keyed on lanes_manifest.mission_slug; keep it
+        # aligned with the real slug.
+        manifest.mission_slug = mission_slug
         manifest.target_branch = "main"
         manifest.mission_branch = f"kitty/mission-{mission_slug}"
 
@@ -320,6 +323,9 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         _materialize(feature_dir)
 
         manifest = MagicMock()
+        # Lane naming is keyed on lanes_manifest.mission_slug; keep it
+        # aligned with the real slug.
+        manifest.mission_slug = mission_slug
         manifest.target_branch = "main"
         manifest.mission_branch = f"kitty/mission-{mission_slug}"
 
@@ -446,6 +452,9 @@ class TestMergeDoneTransitions:
         call_order: list[str] = []
 
         manifest = MagicMock()
+        # Lane naming is keyed on lanes_manifest.mission_slug; keep it
+        # aligned with the real slug.
+        manifest.mission_slug = mission_slug
         manifest.target_branch = "main"
         manifest.mission_branch = f"kitty/mission-{mission_slug}"
 
@@ -584,6 +593,9 @@ class TestDoneEventsCommittedToGit:
         materialize(feature_dir)
 
         manifest = MagicMock()
+        # Lane naming is keyed on lanes_manifest.mission_slug; keep it
+        # aligned with the real slug.
+        manifest.mission_slug = mission_slug
         manifest.target_branch = "main"
         manifest.mission_branch = f"kitty/mission-{mission_slug}"
 
@@ -727,6 +739,9 @@ class TestDoneEventsCommittedToGit:
         )
 
         manifest = MagicMock()
+        # Lane naming is keyed on lanes_manifest.mission_slug; keep it
+        # aligned with the real slug.
+        manifest.mission_slug = mission_slug
         manifest.target_branch = "main"
         manifest.mission_branch = coord_branch
         lane_a = MagicMock()
@@ -878,5 +893,8 @@ class TestDoneEventsCommittedToGit:
         # breaks.
         output = " ".join(capsys.readouterr().out.split())
         assert coord_branch in output, f"the error must name the unmaterialized branch; got: {output!r}"
-        assert "doctor workspaces --fix" in output, f"the error must carry the exception's OWN remediation (next_step); got: {output!r}"
+        # #5113: the remedy names the mission-scoped doctor fixer, not the
+        # (worktree-creation-incapable, #2240) husk-only `doctor workspaces --fix`.
+        assert "doctor coordination" in output, f"the error must carry the exception's OWN remediation (next_step); got: {output!r}"
+        assert "--fix" in output, f"the error must carry the exception's OWN remediation (next_step); got: {output!r}"
         assert "Merge aborted before any state change" in output, f"the operator must be told the merge is a clean no-op; got: {output!r}"

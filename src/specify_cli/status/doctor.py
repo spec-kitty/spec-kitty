@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.clock import now_utc, parse_iso
+from specify_cli.lanes.branch_naming import lane_id_for_worktree_dir
 from specify_cli.status_lanes import TERMINAL_LANES
 from .models import Lane, WPInnerStateDelta
 from .reducer import SNAPSHOT_FILENAME, reduce
@@ -284,8 +285,10 @@ def check_orphan_workspaces(
     if not worktrees_dir.exists():
         return findings
 
-    feature_pattern = f"{mission_slug}-lane-*"
-    orphan_dirs = list(worktrees_dir.glob(feature_pattern))
+    # Recognition by recomposition (FR-008), not a hand-rolled glob: rejects
+    # the same-prefix impostor (e.g. a "<mission_slug>bar-lane-a" dir is not
+    # this mission's).
+    orphan_dirs = sorted(p for p in worktrees_dir.iterdir() if p.is_dir() and lane_id_for_worktree_dir(p.name, mission_slug) is not None)
 
     for orphan_dir in orphan_dirs:
         if orphan_dir.is_dir():

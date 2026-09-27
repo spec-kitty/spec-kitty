@@ -42,6 +42,7 @@ def _make_run(
     teardown_coordination: bool | None = None,
 ) -> ex._MergeRunState:
     lanes_manifest = SimpleNamespace(
+        mission_slug="m",  # run.mission_slug must equal lanes_manifest.mission_slug
         target_branch="main",
         mission_branch="kitty/mission-m",
         lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],

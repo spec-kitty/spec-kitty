@@ -48,9 +48,11 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
+from typing import Any
 
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes._git import branch_exists
+from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.merge.git_probes import (
     GitProbeError,
@@ -960,6 +962,15 @@ def build_approved_wp_set(
         )
 
     work_packages = snapshot.work_packages or {}
+    unresolvable = _unresolvable_approved_lane_branches(repo_root, lanes_manifest, work_packages, frozenset(excluded_canceled_wp_ids))
+    if unresolvable:
+        return _refusal_claim(
+            lanes_manifest,
+            manifest_wp_ids,
+            planning_prefix,
+            excluded_window_base,
+            _missing_branch_refusal_text(unresolvable),
+        )
     approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref)
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
@@ -993,6 +1004,65 @@ def build_approved_wp_set(
     )
 
 
+def _missing_branch_refusal_text(unresolvable: list[tuple[str, str]]) -> str:
+    """Compose the PD-5 refusal text, joining multiple lanes deterministically."""
+    return "; ".join(
+        f"approved lane {lane_id}: created branch '{branch}' does not exist in git; "
+        "the lane's work cannot be attributed. Verify the lane worktree was allocated and "
+        "its branch was not deleted before the merge could attribute its commits."
+        for lane_id, branch in unresolvable
+    )
+
+
+def _refusal_claim(
+    lanes_manifest: LanesManifest,
+    manifest_wp_ids: frozenset[str],
+    planning_prefix: str | None,
+    excluded_window_base: str | None,
+    message: str,
+) -> ApprovedWpCommitSet:
+    """Build a REFUSE-shaped claim, mirroring the unmaterializable-surface refusal."""
+    return ApprovedWpCommitSet(
+        manifest_wp_ids=manifest_wp_ids,
+        excluded_window_base=excluded_window_base,
+        surface_resolved=True,
+        refusal=message,
+        mission_slug=lanes_manifest.mission_slug,
+        planning_prefix=planning_prefix,
+    )
+
+
+def _unresolvable_approved_lane_branches(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    work_packages: Mapping[str, Any],
+    excluded_canceled_wp_ids: frozenset[str],
+) -> list[tuple[str, str]]:
+    """PD-5: name every approved, non-planning, non-canceled lane whose created
+    branch does not exist in git.
+
+    This is the ONLY new strict arm (probe-error tolerance on
+    :func:`_lane_tip_commits` / :func:`_lane_first_parent_spine` is unchanged,
+    on every axis — #5001 FOLD-3 scoping). A lane qualifies when it is not
+    ``lane-planning``, at least one of its WPs is approved, and it is not
+    fully canceled; such a lane's created branch not resolving means its
+    approved work can never be attributed, so the claim must refuse BY NAME
+    rather than silently returning an empty commit set for it (US1 AS3).
+    """
+    unresolvable: list[tuple[str, str]] = []
+    for lane in sorted(lanes_manifest.lanes, key=lambda lane: lane.lane_id):
+        if is_planning_lane(lane):
+            continue
+        if not _lane_is_approved(lane, work_packages):
+            continue
+        if lane_fully_canceled(lane, excluded_canceled_wp_ids):
+            continue
+        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        if not branch_exists(repo_root, branch):
+            unresolvable.append((lane.lane_id, branch))
+    return unresolvable
+
+
 def _planning_prefix(repo_root: Path, feature_dir: Path) -> str | None:
     """Repo-relative posix path of the mission planning dir (``kitty-specs/<slug>``).
 
@@ -1007,13 +1077,17 @@ def _planning_prefix(repo_root: Path, feature_dir: Path) -> str | None:
 
 
 def _lane_branch_for(lanes_manifest: LanesManifest, lane_id: str) -> str:
-    """Resolve a lane's branch name from the manifest identity."""
-    branch: str = lane_branch_name(
-        lanes_manifest.mission_slug,
-        lane_id,
-        planning_base_branch=lanes_manifest.target_branch,
-        mission_id=lanes_manifest.mission_id,
-    )
+    """Resolve a lane's **created** branch name from the creation input (slug + lane id).
+
+    Thin alias over the shared :func:`~specify_cli.lanes.compute.lane_created_branch`
+    (single canonical home — see its docstring for the I-1/I-3 rationale this
+    module and ``merge.executor`` previously duplicated under different names).
+    """
+    # Local annotation re-narrows to ``str``: the narrow-file mypy override
+    # (``specify_cli.*`` follow_imports = "skip") erases the callee's own
+    # ``-> str`` to ``Any`` here (same pattern as executor.py's
+    # ``_created_lane_branch`` re-wrap it replaces).
+    branch: str = lane_created_branch(lanes_manifest, lane_id)
     return branch
 
 

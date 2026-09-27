@@ -708,12 +708,15 @@ class TestResolvePlanningArtifactStaging:
 class TestResolveClaimCommitTarget:
     def test_none_raises_placement_resolution_required(self) -> None:
         with pytest.raises(PlacementResolutionRequired) as excinfo:
-            _resolve_claim_commit_target(None)
+            _resolve_claim_commit_target(None, mission_slug="demo-mission")
         assert excinfo.value.error_code == "PLACEMENT_RESOLUTION_REQUIRED"
+        # #5113 / FR-014: names the real materializing/flattening command
+        # with the real slug, never the retired `doctor workspaces --fix`.
+        assert "doctor coordination --mission demo-mission --fix" in str(excinfo.value)
 
     def test_resolved_ref_returned_verbatim(self) -> None:
         target = CommitTarget(ref="kitty/mission-demo-AAAA1111")
-        assert _resolve_claim_commit_target(target) is target
+        assert _resolve_claim_commit_target(target, mission_slug="demo-mission") is target
 
 
 class TestPlacementCoordFilter:

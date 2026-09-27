@@ -8,10 +8,9 @@ from pathlib import Path
 from typing import ClassVar
 
 from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
-from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
 from specify_cli.lanes.compute import is_planning_lane
-from specify_cli.lanes.models import ExecutionLane
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
+from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 from mission_runtime import MissionArtifactKind, placement_seam
 
 LANE_AUTO_REBASE_FAILED = "LANE_AUTO_REBASE_FAILED"
@@ -55,13 +54,10 @@ class LaneAutoRebaseSyncError(RuntimeError):
 
 def _git_stdout(repo_root: Path, *args: str) -> str | None:
     # coord-commit-integrity WP04/T015 (campsite): tolerate a non-existent
-    # ``cwd``. ``_resolve_lane_branch`` calls this with the lane WORKTREE path,
-    # which may not exist yet (a coord commit whose lane was never
-    # materialized). ``subprocess.run(cwd=<absent dir>)`` raises a raw
-    # ``FileNotFoundError`` ([Errno 2]) that crashed the auto-rebase sync
-    # instead of the documented "Returns None when ... no lane worktree
-    # exists" contract. Treat an absent cwd as an unresolved read (None) so the
-    # caller degrades cleanly to its computed lane-branch candidate.
+    # ``cwd``. A caller may pass a repo path that does not exist yet (a coord
+    # commit whose lane was never materialized). ``subprocess.run(cwd=<absent
+    # dir>)`` raises a raw ``FileNotFoundError`` ([Errno 2]) that crashed the
+    # auto-rebase sync instead of degrading to an unresolved read.
     try:
         result = subprocess.run(
             ["git", *args],
@@ -75,52 +71,6 @@ def _git_stdout(repo_root: Path, *args: str) -> str | None:
     if result.returncode != 0:
         return None
     return result.stdout.strip() or None
-
-
-def _git_ref_exists(repo_root: Path, ref: str) -> bool:
-    result = subprocess.run(
-        ["git", "rev-parse", "--verify", "--quiet", ref],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.returncode == 0
-
-
-def _resolve_lane_branch(
-    repo_root: Path,
-    worktree_path: Path,
-    mission_slug: str,
-    lane: ExecutionLane,
-    *,
-    planning_base_branch: str,
-    mission_id: str | None,
-) -> str:
-    candidates: list[str] = []
-    if mission_id and len(mission_id) >= 8:
-        candidates.append(
-            lane_branch_name(
-                mission_slug,
-                lane.lane_id,
-                planning_base_branch=planning_base_branch,
-                mission_id=mission_id,
-            )
-        )
-    candidates.append(
-        lane_branch_name(
-            mission_slug,
-            lane.lane_id,
-            planning_base_branch=planning_base_branch,
-        )
-    )
-    for candidate in candidates:
-        if _git_ref_exists(repo_root, candidate):
-            return candidate
-    return (
-        _git_stdout(worktree_path, "rev-parse", "--abbrev-ref", "HEAD")
-        or candidates[0]
-    )
 
 
 def sync_lane_after_coordination_commit(
@@ -154,7 +104,14 @@ def sync_lane_after_coordination_commit(
         raise LaneAutoRebaseSyncError(
             lane_id="unknown",
             lane_branch="unknown",
-            lane_worktree_path=repo_root / WORKTREES_DIRNAME / f"{mission_slug}-unknown",
+            # A non-lane-shaped sentinel path (the ``.worktrees`` dir itself,
+            # not a fabricated ``<slug>-unknown`` worktree name): the lane is
+            # unresolvable at this point (the manifest itself is corrupt), so
+            # there is no real lane worktree to point at. The previous
+            # ``f"{mission_slug}-unknown"`` guess was still a hand-rolled
+            # worktree-dir compose outside the naming seam even though it was
+            # never opened (WP11 gate-pinned site).
+            lane_worktree_path=repo_root / WORKTREES_DIRNAME,
             coordination_branch=coordination_branch,
             coordination_head=_git_stdout(repo_root, "rev-parse", coordination_branch),
             halt_reason=str(exc),
@@ -167,19 +124,15 @@ def sync_lane_after_coordination_commit(
     if lane is None or is_planning_lane(lane):
         return None
 
-    _lane_worktree = _worktree_path(
-        repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
-    )
-    lane_branch = _resolve_lane_branch(
-        repo_root,
-        _lane_worktree,
-        mission_slug,
-        lane,
-        planning_base_branch=lanes_manifest.target_branch,
-        mission_id=lanes_manifest.mission_id,
+    # Placement (path + branch) comes from the single predict seam (PD-1):
+    # the write authority (``allocate_lane_worktree``) and this read-only
+    # sync point must never diverge on this decision. No candidate probing,
+    # no HEAD fallback (C-004) — ``lanes_manifest.mission_slug`` (PD-2) is
+    # the same value as ``mission_slug`` for every real caller.
+    worktree_path, lane_branch = predict_lane_worktree(
+        repo_root, lanes_manifest.mission_slug, lane.lane_id
     )
     coordination_head = _git_stdout(repo_root, "rev-parse", coordination_branch)
-    worktree_path = _lane_worktree
     if not (worktree_path / ".git").exists():
         worktree_path.parent.mkdir(parents=True, exist_ok=True)
         add_result = subprocess.run(
