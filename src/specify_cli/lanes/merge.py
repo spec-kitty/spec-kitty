@@ -827,6 +827,51 @@ def _unmerged_paths(
     return tuple(sorted(os.fsdecode(raw_path) for raw_path in result.stdout.split(b"\0") if raw_path))
 
 
+def reconcile_derived_status_snapshot_conflicts(worktree: Path, env: dict[str, str]) -> bool:
+    """Regenerate any unmerged derived ``status.json`` from its union-merged event log.
+
+    #4955 / #5160: ``status.json`` is a derived, disposable reduced snapshot of the
+    append-only ``status.events.jsonl`` (the sole authority per the Status Model).
+    The event log union-merges via its ``spec-kitty-event-log`` driver, but the
+    snapshot carries no driver, so a both-sides divergence conflicts. A git
+    ``merge=`` driver cannot fix this — it would see only ``status.json``'s own
+    blobs, never the merged sibling event log — so the reconciliation is a
+    post-merge regeneration at the seam: when EVERY still-unmerged path is a
+    ``status.json`` snapshot, regenerate each from its (now union-merged) event log
+    via the single canonical authority
+    (:func:`specify_cli.status.reconcile_status_snapshot`) and stage it, so the
+    caller can complete the merge instead of failing closed on a disposable view.
+
+    This is the ONE authority both the mission→target squash seam
+    (:func:`_run_squash_merge`) and lane allocation
+    (``worktree_allocator``) use, so the reduce→materialize logic is never forked.
+
+    Returns ``True`` when there were unmerged paths and ALL of them were derived
+    snapshots that were regenerated + staged; ``False`` when there is nothing to
+    resolve OR any unmerged path is a non-derived (genuinely divergent) artifact —
+    in which case the caller MUST fail closed (no green-washing of a real conflict).
+    """
+    from specify_cli.status import SNAPSHOT_FILENAME, reconcile_status_snapshot
+
+    unmerged = _unmerged_paths(worktree, env)
+    if not unmerged:
+        return False
+    if any(Path(rel).name != SNAPSHOT_FILENAME for rel in unmerged):
+        return False
+    for rel in unmerged:
+        reconcile_status_snapshot((worktree / rel).parent)
+        add = subprocess.run(
+            ["git", "add", "--", rel],
+            cwd=str(worktree),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        if add.returncode != 0:
+            return False
+    return True
+
+
 def _resolve_planning_conflicts(
     repo_root: Path,
     worktree: Path,
@@ -921,6 +966,12 @@ def _run_squash_merge(
             env,
         )
         conflicts = _unmerged_paths(worktree, env)
+        # #4955: a both-sides-divergent DERIVED status.json is not a real conflict
+        # — regenerate it from the union-merged event log and stage it, so a
+        # routine snapshot divergence never blocks integration. Genuine
+        # (non-derived) conflicts still fail closed below.
+        if conflicts and reconcile_derived_status_snapshot_conflicts(worktree, env):
+            conflicts = _unmerged_paths(worktree, env)
         if conflicts:
             raise _SquashMergeConflict(
                 source_branch,
