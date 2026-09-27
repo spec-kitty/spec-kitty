@@ -15,6 +15,7 @@ from uuid import uuid4
 from charter.encoding_recovery import recover as _recover_encoding
 from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
@@ -222,6 +223,41 @@ def _is_accept_pipeline_own_write(path: str, *, mission_slug: str) -> bool:
     return False
 
 
+def _is_own_encoding_backup_write(path: str, *, mission_slug: str) -> bool:
+    """True when *path* is the accept pipeline's OWN encoding-recovery backup.
+
+    ``accept --normalize-encoding`` (FR-005 / #4968) writes an untracked
+    ``<artifact><_ENCODING_BACKUP_SUFFIX>`` sibling next to every artifact it
+    repairs (:func:`_write_recovered_artifact`) BEFORE the in-place UTF-8
+    rewrite. After a SUCCESSFUL repair,
+    ``_collect_summary_with_optional_repair`` (``cli/commands/accept.py``)
+    re-collects the summary exactly once -- and without this exclusion that
+    re-collect's ``git status`` snapshot sees the freshly-written ``.bak`` as
+    untracked dirt, flips ``AcceptanceSummary.ok`` False, and makes a REAL
+    (non-``--diagnose``) accept exit 1 on its own successful repair (#4962
+    review fold A). Every test exercising the repair path before this fix used
+    ``--diagnose``, which exits 0 unconditionally before the ``ok`` gate, so
+    the self-block was untested.
+
+    Scoped NARROWLY to the CURRENT mission's feature dir
+    (``kitty-specs/<mission_slug>/...``) and the exact
+    ``_ENCODING_BACKUP_SUFFIX`` (``.bak``) suffix -- deliberately NOT a
+    repo-wide ``*.bak`` rule: a tracked ``.bak`` fixture elsewhere in the repo,
+    a user's own stray ``.bak`` file outside the mission tree, or another
+    mission's backup must still block (matches the narrow, mission-scoped
+    posture of :func:`_is_accept_pipeline_own_write` above -- this is
+    deliberately NOT folded into the shared
+    :func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn`
+    authority, which has no mission-scoping parameter and would have to widen
+    to a repo-wide ``*.bak`` match to serve this call site).
+    """
+    normalized = to_posix(path)
+    prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
+    if not normalized.startswith(prefix):
+        return False
+    return normalized.endswith(_ENCODING_BACKUP_SUFFIX)
+
+
 def _mission_routes_through_coordination(repo_root: Path, feature: str, *, effective_root: Path | None = None) -> bool:
     """True when ``feature`` routes through coordination under its STORED topology.
 
@@ -273,7 +309,7 @@ def _accept_dirty_gate(
 ) -> list[str]:
     """Compute the accept dirty set: accept-owned exclusion + FR-008 coord residue.
 
-    Three filters compose:
+    Four filters compose:
 
     1. **Accept-owned convergence (#1883):** the accept gate's own writes
        (``acceptance-matrix.json`` + ``status.json``) are excluded via
@@ -282,14 +318,24 @@ def _accept_dirty_gate(
        exactly those two kinds (IC-07g retired the former accept-owned-paths
        filename frozenset onto it) — unconditionally, every topology, so
        ``accept ∘ accept`` converges in every mode.
-    2. **Self-bookkeeping exclusion (#2251):** spec-kitty's own bookkeeping
+    2. **Encoding-backup exclusion (#4962 review fold A):** the accept
+       pipeline's OWN ``--normalize-encoding`` recovery backup
+       (``<artifact><_ENCODING_BACKUP_SUFFIX>``, written by
+       :func:`_write_recovered_artifact`) is excluded via
+       :func:`_is_own_encoding_backup_write`, narrowly scoped to the CURRENT
+       mission's feature dir + the exact backup suffix -- so a successful
+       in-place repair does not self-block the very accept run that produced
+       it. Not folded into filter 1's classifier (the backup is not a
+       recognised :class:`~mission_runtime.MissionArtifactKind`) or into
+       filter 3 below (mission-scoping, not a repo-wide ``*.bak`` rule).
+    3. **Self-bookkeeping exclusion (#2251):** spec-kitty's own bookkeeping
        files (``meta.json``, encoding-provenance JSONL, and ``kitty-ops/<ULID>.jsonl``
        Op-record orphans) are excluded via the SINGLE shared
        :func:`specify_cli.coordination.coherence.is_self_bookkeeping_churn`
        authority — no independent literal carried here (G-5 invariant / #1914
        framing; WP11 retired the former ``mission_runtime`` self-bookkeeping predicate
        onto this owner-module leg).
-    3. **FR-008 topology-aware residue:** under coordination topology the
+    4. **FR-008 topology-aware residue:** under coordination topology the
        recognized coordination residue (stale primary copies of artifacts owned
        by the coordination branch) is excluded via the SAME per-ref pattern the
        record-analysis preflight uses (:func:`routes_through_coordination` + the
@@ -299,15 +345,17 @@ def _accept_dirty_gate(
        artifacts STILL block. The accept-owned exclusion (1) is NOT widened to
        this leg's ``ISSUE_MATRIX`` kind (see :func:`_is_accept_pipeline_own_write`).
 
-    Non-accept-owned, non-self-bookkeeping, non-residue dirt is preserved verbatim
-    (fail-closed, NFR-003).
+    Non-accept-owned, non-backup, non-self-bookkeeping, non-residue dirt is
+    preserved verbatim (fail-closed, NFR-003).
     """
     from specify_cli.coordination.coherence import is_self_bookkeeping_churn
 
     git_dirty = [
         line
         for line in git_dirty_raw
-        if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature) and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
+        if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature)
+        and not _is_own_encoding_backup_write(_porcelain_dirty_path(line), mission_slug=feature)
+        and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
     ]
     return _filter_coordination_residue(
         git_dirty, repo_root=repo_root, feature=feature,

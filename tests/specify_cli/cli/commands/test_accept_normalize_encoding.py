@@ -41,10 +41,16 @@ from rich.console import Console
 
 import specify_cli.cli.commands.accept as accept_cmd
 from specify_cli.acceptance import AcceptanceError
+from specify_cli.acceptance.matrix import (
+    AcceptanceCriterion,
+    AcceptanceMatrix,
+    write_acceptance_matrix,
+)
 from specify_cli.cli.commands.accept import accept
 from specify_cli.config.path_conventions import PathConventionsConfigError
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event
@@ -374,3 +380,219 @@ def test_normalize_encoding_refuses_ambiguous_and_points_to_validate_encoding(
     assert plan_path.read_bytes() == before
     output = buf.getvalue()
     assert "validate-encoding --fix" in output, "refusal must point to the byte-offset repair surface"
+
+
+def _create_accept_ready_feature_for_commit(repo_root: Path) -> Path:
+    """Build a REAL-commit-ready lane-based mission (strict metadata + a
+    passing acceptance matrix), unlike :func:`_create_accept_ready_feature`
+    (whose bare ``planned -> done`` force transition is only exercised through
+    ``--diagnose``, which exits 0 regardless of ``AcceptanceSummary.ok`` and so
+    never needs the claim-policy sidecar or a resolvable matrix verdict).
+
+    A REAL (non-``--diagnose``) accept additionally requires:
+
+    * a ``planned -> claimed -> done`` event chain carrying the claim-policy
+      ``agent``/``shell_pid`` sidecar (strict-metadata's "missing agent in
+      canonical runtime state" gate — mirrors
+      ``test_accept_clean_tree._create_lane_feature``), and
+    * an acceptance matrix with a ``pass`` criterion (otherwise the matrix
+      verdict blocks before the commit step is ever reached).
+
+    Returns the feature directory.
+    """
+    _git(repo_root, "init", ".")
+    _git(repo_root, "config", "user.email", "test@test.com")
+    _git(repo_root, "config", "user.name", "Test")
+    _git(repo_root, "branch", "-M", "main")
+
+    (repo_root / ".kittify").mkdir()
+    for required_dir in ("src", "tests", "docs"):
+        path = repo_root / required_dir
+        path.mkdir()
+        (path / ".gitkeep").write_text("")
+
+    feature_dir = repo_root / "kitty-specs" / _SLUG
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "contracts").mkdir(parents=True, exist_ok=True)
+
+    meta = {
+        "mission_number": "099",
+        "slug": _SLUG,
+        "mission_slug": _SLUG,
+        "mission_id": _MISSION_ID,
+        "mid8": _MISSION_ID[:8],
+        "friendly_name": "Normalize Encoding Commit",
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-01-01T00:00:00Z",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
+
+    for fname in ("spec.md", "tasks.md"):
+        (feature_dir / fname).write_text(f"# {fname}\nDone.\n")
+    # plan.md is committed with the SAME text the encoding repair will later
+    # reconstruct (:data:`_CP1252_PLAN_TEXT`, valid UTF-8 here). The test then
+    # corrupts the WORKING TREE copy to cp1252 bytes of that identical text
+    # (:func:`_corrupt_plan_encoding`) -- a realistic "an editor mis-saved a
+    # tracked file's encoding" repro. A successful repair round-trips the
+    # working tree back to byte-identical with this commit, so ``plan.md``
+    # itself shows NO git diff afterward and the test isolates exactly the
+    # ``.bak`` sibling as the only candidate blocking dirt (#4962 fold A).
+    (feature_dir / "plan.md").write_text(_CP1252_PLAN_TEXT, encoding="utf-8")
+
+    (tasks_dir / "WP01-test.md").write_text(
+        "---\n"
+        'work_package_id: "WP01"\n'
+        'title: "Test WP"\n'
+        'lane: "done"\n'
+        'assignee: "test-agent"\n'
+        'agent: "test-agent"\n'
+        'shell_pid: "12345"\n'
+        "subtasks: []\n"
+        "---\n"
+        "# WP01\nDone.\n"
+    )
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="01TESTNORMALIZEENCCOMMIT0000",
+            mission_slug=_SLUG,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="test-agent",
+            force=False,
+            execution_mode="direct_repo",
+            policy_metadata=build_claim_policy_metadata(
+                shell_pid=12345,
+                shell_pid_created_at="2026-01-01T00:00:00+00:00",
+                agent="test-agent",
+            ),
+        ),
+    )
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="01TESTNORMALIZEENCCOMMIT0001",
+            mission_slug=_SLUG,
+            wp_id="WP01",
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.DONE,
+            at=now_utc_iso(),
+            actor="test-agent",
+            force=True,
+            execution_mode="direct_repo",
+            reason="Test setup: skip to done",
+        ),
+    )
+    materialize(feature_dir)
+
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            mission_slug=_SLUG,
+            mission_id=_SLUG,
+            mission_branch=_MISSION_BRANCH,
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=("WP01",),
+                    write_scope=("src/**",),
+                    predicted_surfaces=("test",),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-04-05T12:00:00Z",
+            computed_from="test",
+        ),
+    )
+
+    write_acceptance_matrix(
+        feature_dir,
+        AcceptanceMatrix(
+            mission_slug=_SLUG,
+            criteria=[
+                AcceptanceCriterion(
+                    criterion_id="AC1",
+                    description="feature behaves as specified",
+                    proof_type="automated_test",
+                    pass_fail="pass",
+                )
+            ],
+            negative_invariants=[],
+        ),
+    )
+
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-m", "init")
+    _git(repo_root, "checkout", "-b", _MISSION_BRANCH)
+    return feature_dir
+
+
+def test_normalize_encoding_real_commit_mode_ignores_own_backup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FOLD A (#4962 review, MAJOR/blocking): a REAL (non-``--diagnose``)
+    ``accept`` must not self-block on the untracked ``.bak`` sibling its OWN
+    ``--normalize-encoding`` repair just wrote.
+
+    Isolating the ``.bak`` as the ONLY candidate dirt: ``plan.md`` is
+    committed with the exact text the repair will reconstruct
+    (:data:`_CP1252_PLAN_TEXT`, valid UTF-8), then the WORKING TREE copy is
+    corrupted to cp1252 bytes of that SAME text (:func:`_corrupt_plan_encoding`
+    -- a realistic "an editor mis-saved a tracked file's encoding" repro). A
+    successful repair round-trips ``plan.md`` back to byte-identical with the
+    commit, so ``plan.md`` itself carries no git diff afterward; only its
+    ``.bak`` sibling is new, untracked dirt.
+
+    Sequence the bug lived in: the repair rewrites ``plan.md`` to UTF-8 and
+    leaves the ORIGINAL bytes at ``plan.md.bak`` (:func:`_write_recovered_artifact`);
+    ``_collect_summary_with_optional_repair`` then re-collects the summary
+    EXACTLY once. Before the accept dirty-gate exclusion, that re-collect's
+    ``git status`` snapshot sees the freshly-written, untracked ``plan.md.bak``
+    as real dirt, ``AcceptanceSummary.ok`` flips ``False``, and a fully
+    successful repair still exits 1 (``diagnose=True`` never caught this: it
+    exits 0 unconditionally, before the ``if not summary.ok`` gate this test
+    exercises).
+
+    Non-vacuous / RED-before-GREEN: reverting the encoding-backup exclusion in
+    ``_accept_dirty_gate`` reds this test (``accept`` raises ``typer.Exit(1)``
+    instead of returning).
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    feature_dir = _create_accept_ready_feature_for_commit(repo_root)
+    plan_path = _corrupt_plan_encoding(feature_dir)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+    _capture_console(monkeypatch)
+
+    # A successful (non-JSON) accept returns normally -- no typer.Exit raised.
+    accept(
+        mission=_SLUG,
+        mode="auto",
+        actor="tester",
+        test=[],
+        json_output=False,
+        lenient=False,
+        no_commit=False,
+        diagnose=False,
+        allow_fail=False,
+        normalize_encoding=True,
+    )
+
+    # The repaired artifact reads as clean, byte-exact UTF-8...
+    assert plan_path.read_bytes() == _CP1252_PLAN_TEXT.encode("utf-8")
+    plan_path.read_text(encoding="utf-8")  # must not raise
+
+    # ...and its original-bytes backup is NOT a one-way trip: it survives the
+    # accept (never cleaned up, never counted as blocking dirt).
+    backup_path = plan_path.with_name(f"{plan_path.name}.bak")
+    assert backup_path.exists(), "the encoding-recovery backup must survive a successful accept"
+    assert backup_path.read_bytes() == _CP1252_PLAN_TEXT.encode("cp1252")
