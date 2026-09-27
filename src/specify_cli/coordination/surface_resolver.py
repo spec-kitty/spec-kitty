@@ -331,7 +331,7 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         primary_candidate: Path,
     ) -> None:
         self.coordination_branch = coordination_branch
-        self.next_step = self._compose_next_step(repo_root, coordination_branch)
+        self.next_step = self._compose_next_step(repo_root, coordination_branch, mission_slug, mid8, coord_candidate)
         super().__init__(
             repo_root=repo_root,
             mission_slug=mission_slug,
@@ -344,13 +344,37 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         return f"Coordination branch {self.coordination_branch!r} for mission {self.mission_slug!r} is unmaterialized. {self.next_step}"
 
     @staticmethod
-    def _compose_next_step(repo_root: Path, coordination_branch: str) -> str:
+    def _compose_next_step(
+        repo_root: Path,
+        coordination_branch: str,
+        mission_slug: str,
+        mid8: str,
+        coord_candidate: Path,
+    ) -> str:
         """Branch the recovery guidance on local-head vs remote-only (FR-006).
 
         ``coordination_branch`` empty (the defensive ``or ""`` coercion —
         unreachable on any real call path per :meth:`for_mission`) keeps the
         local-head guidance: there is no branch name to fetch.
+
+        #5113: both branches name the command that ACTUALLY materializes the
+        worktree — the concrete ``git worktree add`` against the coord worktree
+        ROOT (mirroring the #2240 ``_coordination_doctor.py``
+        COORDINATION_WORKTREE_MISSING hint) — never ``spec-kitty doctor
+        workspaces --fix`` (which only removes stale registrations and cannot
+        create a worktree) and no longer promises a self-materialization the
+        decision path never performs. The worktree path is composed via the
+        canonical ``CoordinationWorkspace.worktree_path`` (a pure path composer;
+        requires a non-empty mid8, guaranteed for an UNMATERIALIZED state),
+        falling back to the read-path grammar defensively.
         """
+        if mid8:
+            from specify_cli.coordination.workspace import CoordinationWorkspace
+
+            coord_worktree_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+        else:  # pragma: no cover - mid8 is always resolved for UNMATERIALIZED
+            coord_worktree_root = coord_candidate.parent.parent
+        materialize_cmd = f"git -C {repo_root} worktree add {coord_worktree_root} {coordination_branch}"
         if coordination_branch and not _coord_branch_is_local_head(repo_root, coordination_branch):
             return (
                 f"The coordination branch {coordination_branch!r} declared in "
@@ -358,18 +382,17 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
                 f"fetched it, so its coordination worktree has not been "
                 f"materialized. Run `git fetch origin {coordination_branch}` "
                 f"(or fix a stale `remote.origin.fetch` refspec) first, then "
-                f"`spec-kitty doctor workspaces --fix` to materialize it. Keep "
-                f"the `coordination_branch` key in meta.json as-is — the "
-                f"branch is not lost, only not yet fetched."
+                f"`{materialize_cmd}` to materialize it. Keep the "
+                f"`coordination_branch` key in meta.json as-is — the branch is "
+                f"not lost, only not yet fetched."
             )
         return (
             f"The coordination branch {coordination_branch!r} declared in "
             f"meta.json exists in git, but its coordination worktree has not "
-            f"been materialized yet. It will self-materialize on the "
-            f"mission's first coordination-branch write, or you can "
-            f"materialize it now by running "
-            f"`spec-kitty doctor workspaces --fix`. Keep the "
-            f"`coordination_branch` key in meta.json as-is — the branch is "
+            f"been materialized yet. Materialize it now by running: "
+            f"`{materialize_cmd}` (`spec-kitty doctor workspaces --fix` only "
+            f"removes stale registrations and cannot create the worktree). Keep "
+            f"the `coordination_branch` key in meta.json as-is — the branch is "
             f"not lost, only not yet checked out."
         )
 
