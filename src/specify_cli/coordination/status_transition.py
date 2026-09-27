@@ -438,7 +438,7 @@ def _fan_out_committed_coord_tail(
             ensure_sync_daemon=ensure_sync_daemon,
         )
     for annotation in stream.annotations:
-        _emit._resolved_binding_fan_out(annotation, mission_slug)
+        _emit._resolved_binding_fan_out(annotation, mission_slug, repo_root)
     if coord_feature_dir is not None and repo_root is not None and hosted_posture.ledger_posture(repo_root).enabled:
         _refresh_execution_projection(coord_feature_dir, repo_root)
 
@@ -1058,7 +1058,7 @@ def _defer_fan_out(
 ) -> None:
     """Step 7 of the transactional shell: fan-out fires only after commit success."""
     if prepared.annotation is not None:
-        txn.defer_outbound(_deferred_resolved_binding_fan_out(prepared.annotation, mission_slug))
+        txn.defer_outbound(_deferred_resolved_binding_fan_out(prepared.annotation, mission_slug, txn.repo_root))
     queue_saas_emission(
         txn,
         event,
@@ -1116,11 +1116,18 @@ def _collapse_alias_in_transaction(
 def _deferred_resolved_binding_fan_out(
     annotation: InnerStateChanged,
     mission_slug: str,
+    repo_root: Path | None,
 ) -> Callable[[], None]:
-    """Return a typed post-commit resolved-binding fan-out callback."""
+    """Return a typed post-commit resolved-binding fan-out callback.
+
+    ``repo_root`` (m1): threaded through to :func:`_emit._resolved_binding_fan_out`
+    so its drain gate reads the emitting repo's own posture rather than the
+    process CWD -- this callback previously omitted it even though every
+    caller already has ``txn.repo_root`` in scope.
+    """
 
     def emit() -> None:
-        _emit._resolved_binding_fan_out(annotation, mission_slug)
+        _emit._resolved_binding_fan_out(annotation, mission_slug, repo_root)
 
     return emit
 
@@ -1681,7 +1688,7 @@ def emit_inner_state_changed_transactional(
             capability=capability,
         ) as txn:
             txn.append_events([annotation])
-            txn.defer_outbound(_deferred_resolved_binding_fan_out(annotation, mission_slug))
+            txn.defer_outbound(_deferred_resolved_binding_fan_out(annotation, mission_slug, txn.repo_root))
             # F-3: this path persists an InnerStateChanged annotation rather
             # than a lane-transition StatusEvent -- still a durably persisted
             # change worth reflecting in the projection.

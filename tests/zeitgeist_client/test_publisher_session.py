@@ -219,6 +219,6 @@ def test_unbound_lease_never_constructs_a_publisher(session_ref: str | None, ope
     monkeypatch.setattr(transport, "ZeitgeistClient", forbidden)
     monkeypatch.setattr(transport.ClientConfig, "for_repository", forbidden)
     if operation == "moment":
-        zeitgeist_bridge._offer_and_log(credential, "MissionCreated", {"kind": "MissionCreated"})
+        zeitgeist_bridge._offer_and_log(credential, "MissionCreated", {"kind": "MissionCreated"}, project_root=tmp_path)
     else:
         zeitgeist_bridge._refresh_liveness_bounded(credential, cwd=tmp_path, focus_wp=("mission", "WP01"), deadline=Deadline())

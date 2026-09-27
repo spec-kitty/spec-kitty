@@ -38,6 +38,7 @@ personal is True and no env narrower is set)``.
 
 from __future__ import annotations
 
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -234,6 +235,71 @@ class TestNoResolvableRepoRoot:
 
         assert posture.enabled is True
         assert posture.source == "no repository root resolved"
+
+
+# ---------------------------------------------------------------------------
+# B1: an explicit project_root is a starting point, never trusted verbatim
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.real_drain_posture
+class TestExplicitRootIsCanonicalisedNotTrustedVerbatim:
+    """B1 (adversarial review finding): every real caller of
+    :func:`drain_posture`/:func:`resolve_credentials` that passes an explicit
+    ``project_root`` hands it a *starting point* under the repo -- a lifecycle
+    envelope's ``cwd`` is ``kitty-specs/<mission>/``, a runtime moment's is
+    ``.kittify/runtime/runs/<id>/`` -- never the repo root itself. Before the
+    fix, ``_resolve_repo_root`` returned that path verbatim, so
+    ``<subdir>/.kittify/config.yaml`` (which never exists) always read as
+    absent and every such caller was permanently drain-off regardless of the
+    real repo's configured posture.
+    """
+
+    def test_a_mission_subdir_of_a_real_git_repo_resolves_to_the_repo_root(self, tmp_path: Path, canonical_home: None) -> None:
+        repo = _repo(tmp_path, yaml_text="hosted:\n  drain: true\n")
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True, capture_output=True)
+        _home(tmp_path, toml_text="[hosted]\ndrain = true\n")
+        mission_subdir = repo / "kitty-specs" / "mission-01"
+        mission_subdir.mkdir(parents=True)
+
+        posture = drain_posture(project_root=mission_subdir)
+
+        assert posture.enabled is True
+        assert posture.repo_value is True
+
+    def test_a_mission_subdir_of_a_kittify_only_repo_with_no_git_still_resolves(self, tmp_path: Path, canonical_home: None) -> None:
+        """No ``.git`` at all (a project that predates or omits one, exactly
+        this reader's own ``.kittify``-only test fixtures) -- the
+        ``.kittify``-marker fallback tier must still find the root from a
+        subdirectory, not only when given the root verbatim."""
+        repo = _repo(tmp_path, yaml_text="hosted:\n  drain: true\n")
+        _home(tmp_path, toml_text="[hosted]\ndrain = true\n")
+        mission_subdir = repo / "kitty-specs" / "mission-01"
+        mission_subdir.mkdir(parents=True)
+
+        posture = drain_posture(project_root=mission_subdir)
+
+        assert posture.enabled is True
+        assert posture.repo_value is True
+
+    def test_an_unresolvable_explicit_root_is_drain_off_never_the_cwd(self, tmp_path: Path, canonical_home: None, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The process CWD is a real, drain-ON repo, but the explicit root
+        passed to ``drain_posture`` has no ``.git``/``.kittify`` anywhere
+        above it. This must fail closed (drain off), never silently fall
+        back to reading the CWD repo's posture instead -- an explicit root
+        that cannot resolve is never conflated with "no root was given"."""
+        cwd_repo = _repo(tmp_path, yaml_text="hosted:\n  drain: true\n")
+        subprocess.run(["git", "init", "-q"], cwd=cwd_repo, check=True, capture_output=True)
+        _home(tmp_path, toml_text="[hosted]\ndrain = true\n")
+        monkeypatch.chdir(cwd_repo)
+        rootless = tmp_path / "elsewhere" / "rootless"
+        rootless.mkdir(parents=True)
+
+        posture = drain_posture(project_root=rootless)
+
+        assert posture.enabled is False
+        assert posture.repo_value is None
+        assert posture.repo_source == "no repository root resolved"
 
 
 # ---------------------------------------------------------------------------

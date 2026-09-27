@@ -168,6 +168,7 @@ class SaasCapabilityGateway:
         team_slug: str | None = None,
         timeout_s: float = DEFAULT_TIMEOUT_S,
         _http: httpx.Client | None = None,
+        project_root: Path | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._team_slug = team_slug
@@ -176,6 +177,12 @@ class SaasCapabilityGateway:
             headers={"Authorization": f"Bearer {token}"},
             timeout=timeout_s,
         )
+        # M2: the repo this gateway is acting on behalf of, so its own
+        # `require_drain("capability")` gates scope to that repo rather than
+        # the process's CWD (which can be an unrelated repo). `None` keeps
+        # the CWD-derived posture for a caller (e.g. a CLI relay command)
+        # with no mission-scoped root to offer.
+        self._project_root = project_root
 
     def _headers(self, team_slug_override: str | None = None) -> dict[str, str]:
         slug = team_slug_override or self._team_slug
@@ -185,7 +192,7 @@ class SaasCapabilityGateway:
 
     def check_repo_admission(self, *, repo_slug: str, host: str | None = None) -> AdmissionAnswer:
         """``GET /api/v1/sync/repo-admission/?repo_slug=<>&host=<>``."""
-        hosted_posture.require_drain("capability")
+        hosted_posture.require_drain("capability", project_root=self._project_root)
         params: dict[str, str] = {"repo_slug": repo_slug}
         if host is not None:
             params["host"] = host
@@ -233,7 +240,7 @@ class SaasCapabilityGateway:
         teams A+B whose auth context selects A would deterministically 403 a
         mint for a repo only B admits — asking the team the pre-flight proved
         admits the repo is what makes the two calls agree."""
-        hosted_posture.require_drain("capability")
+        hosted_posture.require_drain("capability", project_root=self._project_root)
         selector = logical_session_id()
         try:
             resp = self._http.post(
@@ -441,16 +448,22 @@ def _expired(expires_at: str | None) -> bool:
     return now_utc() >= parsed
 
 
-def _default_gateway(auth_repo_root: Path) -> SaasCapabilityGateway:
+def _default_gateway(auth_repo_root: Path, *, project_root: Path | None = None) -> SaasCapabilityGateway:
     """Build the real gateway from the same auth sources every other
     CLI→SaaS transport uses (env vars, then ``<root>/.kittify/saas-auth.json``,
     then the stored ``auth login`` session — #198). Raises
-    :class:`SaasAuthError` when nothing is configured — logged by the caller."""
+    :class:`SaasAuthError` when nothing is configured — logged by the caller.
+
+    ``project_root`` (M2) is the acting repo the gateway's own
+    ``require_drain("capability")`` gate must scope to -- distinct from
+    ``auth_repo_root``, which is only where the auth fallback file is read
+    from and may not be the same directory."""
     ctx: AuthContext = load_auth_context(repo_root=auth_repo_root)
     return SaasCapabilityGateway(
         ctx.saas_url,
         ctx.token,
         team_slug=ctx.team_slug,
+        project_root=project_root,
     )
 
 
@@ -640,7 +653,10 @@ def resolve_credentials(
     resolved_gateway = gateway
     if resolved_gateway is None:
         try:
-            resolved_gateway = _default_gateway(Path(auth_repo_root) if auth_repo_root is not None else Path(cwd))
+            resolved_gateway = _default_gateway(
+                Path(auth_repo_root) if auth_repo_root is not None else Path(cwd),
+                project_root=Path(cwd),
+            )
         except SaasAuthError as exc:
             logger.debug("zeitgeist credentials: nothing configured to authenticate with (%s)", exc)
             return None
@@ -730,7 +746,10 @@ def resolve_focus_capability(
     resolved_gateway = gateway
     if resolved_gateway is None:
         try:
-            resolved_gateway = _default_gateway(Path(auth_repo_root) if auth_repo_root is not None else Path(cwd))
+            resolved_gateway = _default_gateway(
+                Path(auth_repo_root) if auth_repo_root is not None else Path(cwd),
+                project_root=Path(cwd),
+            )
         except SaasAuthError as exc:
             logger.debug("zeitgeist focus capability: nothing configured to authenticate with (%s)", exc)
             return None

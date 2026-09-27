@@ -142,6 +142,7 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Literal
 
 from kernel.clock import datetime, now_utc
@@ -207,6 +208,11 @@ class ClientConfig:
     # FIX-M2-10 single-credential behaviour -- every config/call site that
     # predates this field keeps working unchanged.
     capability_credential: str | None = None
+    # M2: the repo `offer()`'s `require_drain("relay")` gate scopes to,
+    # rather than the process's CWD (which can be an unrelated repo). `None`
+    # keeps the CWD-derived posture for a caller (e.g. a CLI relay command)
+    # with no mission-scoped root to offer.
+    project_root: Path | None = None
 
     @classmethod
     def for_repository(
@@ -221,6 +227,7 @@ class ClientConfig:
         capability_credential: str | None = None,
         budget_s: float = repo_identity.GIT_BUDGET_S,
         deadline: repo_identity.Deadline | None = None,
+        project_root: Path | None = None,
     ) -> ClientConfig:
         """The sanctioned, non-spoofable constructor (Z6-C): ``repo``/
         ``branch`` come from ``repo_identity.identity(cwd)`` — the checkout's
@@ -253,6 +260,7 @@ class ClientConfig:
             repo=ident.repo,
             branch=ident.branch,
             capability_credential=capability_credential,
+            project_root=project_root,
         )
 
 
@@ -364,7 +372,7 @@ class ZeitgeistClient:
         # drain is off (hosted-opt-in-drain-ledger-01M3FFEV, WP02/T007) — a
         # distinct outcome, never misclassified as DROPPED_UNREACHABLE.
         try:
-            require_drain("relay")
+            require_drain("relay", project_root=self._config.project_root)
         except DrainDisabled:
             return OfferResult(outcome=OfferOutcome.DRAIN_DISABLED, request_id=request_id, elapsed_s=0.0)
 

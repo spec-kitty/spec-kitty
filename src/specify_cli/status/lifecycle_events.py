@@ -481,15 +481,21 @@ def fanout_lifecycle_event_hosted(
     writes the local JSONL log; callers that need the traditional composed
     behavior should continue to use :func:`append_lifecycle_event`.
 
-    #5181: resolves the emitting repo from *log_path* (the same
-    :func:`_repo_root_for_lifecycle_log` the write-lock derivation above
-    already uses) and threads it through, so ``fire_lifecycle_saas_fanout``'s
-    drain gate reads that repo's own posture rather than falling back to the
-    process CWD.
+    #5181/m2: passes *log_path*'s directory straight through as the drain
+    gate's ``project_root`` rather than pre-resolving it with
+    :func:`_repo_root_for_lifecycle_log` (git-only, no ``.kittify`` fallback)
+    and collapsing an unresolvable result to ``None`` here -- that pre-
+    resolution made "this log path could not be canonicalised" indistinguishable
+    from "no log path was ever given", so the drain gate fell back to the
+    process's CWD for the former instead of refusing (m2). An explicit,
+    non-``None`` ``project_root`` is never CWD-fallback-eligible in
+    :func:`hosted_posture.drain_posture` (see ``_resolve_repo_root``), so
+    handing it the raw path and letting IT canonicalise (and fail closed) is
+    correct and simpler.
     """
     from specify_cli.status.adapters import fire_lifecycle_saas_fanout
 
-    repo_root = _repo_root_for_lifecycle_log(log_path)
+    repo_root = log_path.parent if log_path is not None else None
     fire_lifecycle_saas_fanout(envelope=envelope, log_path=log_path, repo_root=repo_root)
 
 

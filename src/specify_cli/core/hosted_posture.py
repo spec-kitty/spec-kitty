@@ -69,7 +69,8 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core import env as _env
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.constants import KITTIFY_DIR
+from specify_cli.core.paths import WorkspaceRootNotFound, locate_project_root, resolve_canonical_root
 from specify_cli.core.toml_table import write_toml_table_key
 from specify_cli.paths import get_runtime_config_toml_path
 
@@ -142,9 +143,63 @@ class DrainDisabled(RuntimeError):
     """
 
 
+def _walk_up_to_kittify_marker(start: Path) -> Path | None:
+    """Walk up from *start* looking for a bare ``.kittify`` marker directory.
+
+    Mirrors :func:`locate_project_root`'s tier-3 fallback, minus its tier-1
+    ``SPECIFY_REPO_ROOT`` env-var override: that override is only correct for
+    the "no explicit root at all, resolve from CWD" case
+    (:func:`_resolve_repo_root`'s ``project_root is None`` branch) -- letting
+    it hijack an EXPLICIT ``project_root`` here would mean an ambient
+    ``SPECIFY_REPO_ROOT`` could silently redirect one repo's drain read onto
+    an unrelated directory, exactly the kind of environment-driven surprise
+    R-1 forbids for the personal scope and this resolver must not reintroduce
+    for the repo scope. Git-worktree-following is already covered by
+    :func:`specify_cli.core.paths.resolve_canonical_root`, tried first by the
+    caller; this is only the ``.kittify``-only fallback tier for a project
+    that predates or omits a ``.git`` directory.
+    """
+    current = start.resolve()
+    for candidate in [current, *current.parents]:
+        if (candidate / KITTIFY_DIR).is_dir():
+            return candidate
+    return None
+
+
 def _resolve_repo_root(project_root: Path | None) -> Path | None:
+    """Resolve the repository root a posture read should key ``.kittify/config.yaml``
+    lookups off of.
+
+    An explicit ``project_root`` is a caller-supplied *starting point*, not
+    necessarily the repo root itself (B1): a lifecycle envelope's ``cwd`` can be
+    ``kitty-specs/<mission>/`` or ``.kittify/runtime/runs/<id>/``, and a
+    ``<subdir>/.kittify/config.yaml`` never exists. Canonicalise it the same
+    way every other repo-root consumer does -- walk up to the real repo root
+    (and map a worktree to its main checkout) via
+    :func:`specify_cli.core.paths.resolve_canonical_root`; when that git-based
+    walk finds no repository (a project with ``.kittify`` but no ``.git`` --
+    this reader's own tests use exactly that shape), fall back to a plain
+    ``.kittify``-marker walk-up (:func:`_walk_up_to_kittify_marker`) that,
+    unlike :func:`locate_project_root`, never lets an ambient
+    ``SPECIFY_REPO_ROOT`` override an explicit root.
+
+    When BOTH fail to find anything at or above ``project_root``, fail
+    closed: return ``None`` (drain off) rather than silently falling back to
+    CWD, which would read an unrelated repository's posture -- an explicit
+    root that cannot be resolved is never conflated with "no root was given
+    at all".
+
+    With no ``project_root`` at all, keep the existing CWD behaviour via
+    :func:`locate_project_root` with no ``start`` (used by CLI-context
+    callers that have no other root to offer -- this is the one call site
+    where the ``SPECIFY_REPO_ROOT`` override is correct, since there is no
+    caller-supplied root to override).
+    """
     if project_root is not None:
-        return project_root
+        try:
+            return resolve_canonical_root(project_root)
+        except WorkspaceRootNotFound:
+            return _walk_up_to_kittify_marker(project_root)
     return locate_project_root()
 
 
@@ -292,11 +347,19 @@ def ledger_posture(project_root: Path | None = None) -> LedgerPosture:
     return LedgerPosture(enabled=value, source=source)
 
 
-def require_drain(context: str) -> None:
+def require_drain(context: str, *, project_root: Path | None = None) -> None:
     """Raise :class:`DrainDisabled` when drain is off; return ``None``
     otherwise. One call site per edge instead of re-deriving the posture and
-    the guidance text each time."""
-    posture = drain_posture()
+    the guidance text each time.
+
+    ``project_root`` (M2) scopes the posture read to the repo the edge is
+    acting on, the same way :func:`drain_posture` does -- a caller that knows
+    the owning repo (a bridge with a ``repo_root``/``cwd``) must pass it so
+    the gate is never evaluated against the *process's* CWD, which can be an
+    unrelated repository (e.g. a CLI relay command with no mission context).
+    Omitted (``None``) keeps the CWD-derived posture for callers with no
+    other root to offer."""
+    posture = drain_posture(project_root=project_root)
     if not posture.enabled:
         raise DrainDisabled(f"{context}: {DRAIN_GUIDANCE_LINE.format(reason=posture.reason)}")
 

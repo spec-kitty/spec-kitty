@@ -24,6 +24,7 @@ from typing import Any
 import pytest
 
 from specify_cli.core import hosted_posture
+from specify_cli.core.env import MOMENT_HANDLER_DISABLE_ENV_VARS
 from specify_cli.zeitgeist_client import budget, filtered_stream, history, operability, transport
 
 pytestmark = pytest.mark.fast
@@ -230,3 +231,66 @@ def test_drop_signal_never_reports_drain_disabled_as_a_dropped_frame() -> None:
 
     assert drop_sig.dropped is False
     assert drop_sig.reason is None
+
+
+# --- M2: offer()'s own require_drain("relay") gate is repo-scoped -------
+
+
+def _repo_with_drain(tmp_path_factory_dir: Any, name: str, *, drain: bool) -> Any:
+    """A tmp-path repo with a ``.kittify/config.yaml`` pinning ``hosted.drain``."""
+    from pathlib import Path
+
+    root: Path = tmp_path_factory_dir / name
+    kittify = root / ".kittify"
+    kittify.mkdir(parents=True)
+    (kittify / "config.yaml").write_text(f"hosted:\n  drain: {'true' if drain else 'false'}\n", encoding="utf-8")
+    return root
+
+
+def _fake_sent(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fake_run_with_deadline(_fn: Any, *, deadline_s: float) -> budget.DeadlineOutcome[tuple[int, bytes]]:
+        return budget.DeadlineOutcome(completed=True, result=(200, b"{}"), error=None, elapsed_s=0.01)
+
+    monkeypatch.setattr(budget, "run_with_deadline", _fake_run_with_deadline)
+
+
+@pytest.mark.real_drain_posture
+class TestOfferRelayGateIsRepoScopedNotCwdScoped:
+    """M2 (adversarial review finding): before this fix, ``offer()``'s own
+    ``require_drain("relay")`` call always read ``drain_posture()`` with no
+    ``project_root``, i.e. the process's CWD -- never the repo the send is
+    actually for. ``ClientConfig.project_root`` now threads the acting repo
+    through so this gate matches every other repo-scoped drain read (#5181).
+    """
+
+    def test_offer_is_not_drain_disabled_when_the_configured_repo_opted_in_even_with_cwd_in_a_drain_off_repo(
+        self, tmp_path: Any, canonical_home: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for name in MOMENT_HANDLER_DISABLE_ENV_VARS:
+            monkeypatch.delenv(name, raising=False)
+        repo_a = _repo_with_drain(tmp_path, "repo_a", drain=True)
+        repo_b = _repo_with_drain(tmp_path, "repo_b", drain=False)
+        (tmp_path / "home" / "config.toml").write_text("[hosted]\ndrain = true\n", encoding="utf-8")
+        monkeypatch.chdir(repo_b)
+        _fake_sent(monkeypatch)
+
+        client = transport.ZeitgeistClient(_client_config(project_root=repo_a))
+        result = client.offer("presence.publish", {"kind": "command"})
+
+        assert result.outcome is transport.OfferOutcome.SENT
+
+    def test_offer_is_drain_disabled_when_the_configured_repo_is_off_even_with_cwd_in_a_drain_on_repo(
+        self, tmp_path: Any, canonical_home: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for name in MOMENT_HANDLER_DISABLE_ENV_VARS:
+            monkeypatch.delenv(name, raising=False)
+        repo_a = _repo_with_drain(tmp_path, "repo_a", drain=False)
+        repo_b = _repo_with_drain(tmp_path, "repo_b", drain=True)
+        (tmp_path / "home" / "config.toml").write_text("[hosted]\ndrain = true\n", encoding="utf-8")
+        monkeypatch.chdir(repo_b)
+        _fake_sent(monkeypatch)
+
+        client = transport.ZeitgeistClient(_client_config(project_root=repo_a))
+        result = client.offer("presence.publish", {"kind": "command"})
+
+        assert result.outcome is transport.OfferOutcome.DRAIN_DISABLED

@@ -398,7 +398,7 @@ def _broadcast_moment(
     offer_args: dict[str, Any] = {"session_id": credential.session_ref, "kind": event_type, "attrs": attrs}
     if ref:
         offer_args["ref"] = ref
-    _offer_and_log(credential, event_type, offer_args)
+    _offer_and_log(credential, event_type, offer_args, project_root=cwd)
 
     # The moment is out; refresh this actor's live presence/focus state under
     # the same credential (no-op when nothing was resolvable above), sharing
@@ -433,12 +433,23 @@ def _log_offer_outcome(label: str, result: OfferResult) -> None:
         logger.warning("Zeitgeist %s dropped (%s) after %.0f ms; no retry by design", label, result.outcome.value, result.elapsed_s * 1000)
 
 
-def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Mapping[str, Any]) -> None:
+def _offer_and_log(
+    credential: StoredCredential,
+    event_type: str,
+    offer_args: Mapping[str, Any],
+    *,
+    project_root: Path,
+) -> None:
     """One bounded offer through the typed client, with the outcome logged.
 
     Imported here, not at module level: the resolution/transport chains pull
     httpx and the urllib machinery, none of which the status package should
     pay for at import time (every CLI start imports this package).
+
+    ``project_root`` (M2) is the acting repo this broadcast is for (the same
+    ``cwd`` credential resolution above already scoped to) -- threaded onto
+    the config so the send path's own ``require_drain("relay")`` gate (inside
+    ``offer()``) scopes to it too, rather than the process's CWD.
     """
     from specify_cli.zeitgeist_client.transport import ClientConfig, ZeitgeistClient  # noqa: PLC0415
 
@@ -457,6 +468,7 @@ def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Ma
             repo="",
             branch="",
             capability_credential=credential.capability_credential,
+            project_root=project_root,
         )
     )
     _log_offer_outcome(f"moment {event_type}", client.offer(_EVENT_PUBLISH_OP, dict(offer_args)))
@@ -525,6 +537,7 @@ def _refresh_liveness_bounded(
             agent_id=None,
             capability_credential=credential.capability_credential,
             deadline=deadline,
+            project_root=cwd,
         )
     except repo_identity.RepoIdentityError as exc:
         logger.debug("Zeitgeist presence not published: no canonical checkout identity (%s)", exc)

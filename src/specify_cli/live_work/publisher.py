@@ -273,6 +273,7 @@ def publish_observations(observations: Iterable[Observation], *, cwd: Path, repo
             repo="",
             branch="",
             capability_credential=credential.capability_credential,
+            project_root=cwd,
         )
     )
     for observation in pending:

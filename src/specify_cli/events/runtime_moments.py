@@ -73,7 +73,7 @@ from runtime.next._internal_runtime.significance import (
 )
 from specify_cli.core import hosted_posture
 from specify_cli.core.constants import KITTIFY_DIR
-from specify_cli.core.paths import WorkspaceRootNotFound, assert_safe_path_segment, resolve_canonical_root
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.mission_metadata import resolve_mission_identity
 
 __all__ = ["RuntimeMomentProducer"]
@@ -209,17 +209,20 @@ class RuntimeMomentProducer:
         """Not a runtime moment: timeout expiry stays in the local run journal."""
         del payload
 
-    def _repo_root(self) -> Path | None:
-        """The repository owning ``self._feature_dir`` (#5181), or ``None`` when
-        it cannot be resolved (e.g. a hermetic test directory with no ``.git``
-        anywhere above it). Threaded into the drain gate and the fan-out call
-        below so both read THIS repo's posture; a caller that genuinely has no
-        resolvable repo root falls back to ``drain_posture()``'s own documented
-        CWD resolution, unchanged from before this fix."""
-        try:
-            return resolve_canonical_root(self._feature_dir)
-        except WorkspaceRootNotFound:
-            return None
+    def _repo_root(self) -> Path:
+        """The starting point a posture read should canonicalise from
+        (#5181, m2). ``self._feature_dir`` is always a real path -- never
+        pre-resolved to ``None`` here: :func:`hosted_posture.drain_posture`
+        (via ``_resolve_repo_root``) does its OWN walk-up-and-fail-closed
+        canonicalisation for an explicit, non-``None`` ``project_root`` and
+        never falls back to CWD for one. Pre-resolving here and collapsing an
+        unresolvable feature_dir to ``None`` before calling ``drain_posture``
+        was the bug (m2): ``None`` is indistinguishable there from "no root
+        was offered at all", so a target that genuinely could not resolve
+        (e.g. a hermetic test directory with no ``.git``/``.kittify`` above
+        it) was silently re-gated on the process's own CWD instead of being
+        treated as drain-off."""
+        return self._feature_dir
 
     def _publish(self, event_type: str, payload: BaseModel) -> None:
         # C-004: this module already lives in specify_cli, so calling
