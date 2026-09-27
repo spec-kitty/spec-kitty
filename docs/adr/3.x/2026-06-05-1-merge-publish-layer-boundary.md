@@ -86,6 +86,6 @@ should operate on the local git graph and remain entirely network-free.
 ## References
 
 - Issue: [#1706](https://github.com/Priivacy-ai/spec-kitty/issues/1706)
-- Publish-layer module: [`src/specify_cli/merge/push_preflight.py`](../../../src/specify_cli/merge/push_preflight.py)
-- Domain-layer preflight: [`src/specify_cli/merge/preflight.py`](../../../src/specify_cli/merge/preflight.py)
-- Publish preflight tests: [`tests/merge/test_push_preflight.py`](../../../tests/merge/test_push_preflight.py)
+- Publish-layer module: [`src/specify_cli/consolidation/push_preflight.py`](../../../src/specify_cli/consolidation/push_preflight.py)
+- Domain-layer preflight: [`src/specify_cli/consolidation/preflight.py`](../../../src/specify_cli/consolidation/preflight.py)
+- Publish preflight tests: [`tests/consolidation/test_push_preflight.py`](../../../tests/consolidation/test_push_preflight.py)

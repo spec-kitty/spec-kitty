@@ -7361,7 +7361,7 @@ pages:
   - path: "docs/development/how-to/review-gates.md"
     title: "Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate"
     divio_type: "how-to"
-    abstract: "The review-cycle-artifact and consolidation-gate mechanics, the --skip-review-artifact-check override, and the issue-matrix discovery surface, so review and consolidation focus on substance."
+    abstract: "Review-cycle-artifact and consolidation-gate mechanics, the --skip-review-artifact-check override, and issue-matrix discovery, so review focuses on substance."
     anchors:
     - {slug: "environment-hygiene-before-review-pr", text: "Environment hygiene before review/PR", level: 2}
     - {slug: "why", text: "Why", level: 3}
