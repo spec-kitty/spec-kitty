@@ -1,0 +1,9 @@
+shard: S3
+owns:
+  - tests/specify_cli/cli/commands/test_bytecode_doctor.py
+  - tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py
+  - tests/specify_cli/cli/commands/test_doctor_doctrine_collisions.py
+  - tests/specify_cli/cli/commands/test_doctor_doctrine_selections.py
+  - tests/specify_cli/cli/commands/test_doctrine_new.py
+  - tests/specify_cli/cli/commands/test_upgrade_command.py
+rows: []

@@ -1,0 +1,15 @@
+shard: S4
+owns:
+  - tests/specify_cli/cli/commands/agent/test_setup_plan_branch_match.py
+  - tests/specify_cli/cli/commands/agent/test_setup_plan_read_surface.py
+  - tests/specify_cli/cli/commands/test_completion_fast_path.py
+  - tests/specify_cli/cli/commands/test_init_hybrid.py
+  - tests/specify_cli/cli/commands/test_init_schema_stamp.py
+  - tests/specify_cli/cli/commands/test_issue_2876_plan_non_interactive_hang.py
+  - tests/specify_cli/cli/commands/test_issue_3033_post_consolidation_write.py
+  - tests/specify_cli/cli/commands/test_merge_cli_golden.py
+  - tests/specify_cli/cli/commands/test_research_read_surface.py
+  - tests/specify_cli/cli/commands/test_safe_commit_cli.py
+  - tests/specify_cli/cli/commands/test_safe_commit_cmd.py
+  - tests/specify_cli/cli/commands/test_session_start.py
+rows: []

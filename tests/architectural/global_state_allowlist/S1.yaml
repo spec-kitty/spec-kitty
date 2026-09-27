@@ -1,0 +1,10 @@
+shard: S1
+owns:
+  - tests/specify_cli/cli/commands/charter/test_recompile_preserves_mission_4908.py
+  - tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py
+  - tests/specify_cli/cli/commands/charter/test_synthesize_freshgate_4785.py
+  - tests/specify_cli/cli/commands/test_charter_generate_autotrack.py
+  - tests/specify_cli/cli/commands/test_charter_interview_org_prefill.py
+  - tests/specify_cli/cli/commands/test_charter_interview_promotion.py
+  - tests/specify_cli/cli/commands/test_end_of_interview_pending_pass.py
+rows: []

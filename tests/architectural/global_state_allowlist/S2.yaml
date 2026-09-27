@@ -1,0 +1,13 @@
+shard: S2
+owns:
+  - tests/specify_cli/cli/commands/test_charter.py
+  - tests/specify_cli/cli/commands/test_charter_decision_integration.py
+  - tests/specify_cli/cli/commands/test_charter_prereq_suppression.py
+  - tests/specify_cli/cli/commands/test_charter_widen.py
+  - tests/specify_cli/cli/commands/test_charter_widen_integration.py
+  - tests/specify_cli/cli/commands/test_decision.py
+  - tests/specify_cli/cli/commands/test_decision_single_authority.py
+  - tests/specify_cli/cli/commands/test_decision_widen_subcommand.py
+  - tests/specify_cli/cli/commands/test_plan_widen.py
+  - tests/specify_cli/cli/commands/test_specify_widen.py
+rows: []

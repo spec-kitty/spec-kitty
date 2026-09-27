@@ -1,0 +1,23 @@
+shard: S5
+owns:
+  - tests/specify_cli/bulk_edit/test_occurrence_map_field_paths.py
+  - tests/specify_cli/charter_runtime/test_boundary_heal.py
+  - tests/specify_cli/charter_runtime/test_references_parity_refresh.py
+  - tests/specify_cli/coordination/test_write_seam_thunk.py
+  - tests/specify_cli/integration/test_context_lifecycle.py
+  - tests/specify_cli/next/test_runtime_bridge_dispatch.py
+  - tests/specify_cli/next/test_runtime_bridge_documentation_composition.py
+  - tests/specify_cli/orchestrator_api/test_answer_decision.py
+  - tests/specify_cli/orchestrator_api/test_check_prerequisites_record_analysis.py
+  - tests/specify_cli/orchestrator_api/test_decision_verbs.py
+  - tests/specify_cli/orchestrator_api/test_design_status.py
+  - tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py
+  - tests/specify_cli/session_presence/conftest.py
+  - tests/specify_cli/test_bytecode_heal.py
+  - tests/specify_cli/upgrade/migrations/test_m_3_2_0rc39_refresh_orientation_block.py
+  - tests/specify_cli/upgrade/migrations/test_m_session_presence_all_harnesses.py
+  - tests/specify_cli/upgrade/migrations/test_m_session_presence_claude_code.py
+  - tests/specify_cli/upgrade/migrations/test_retired_hosted_target.py
+  - tests/specify_cli/upgrade/migrations/test_session_presence_upgrade_smoke.py
+  - tests/specify_cli/upgrade/test_upgrade_provisions_mission_type_activations.py
+rows: []
