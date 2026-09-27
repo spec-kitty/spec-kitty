@@ -61,8 +61,8 @@ CensusKey(rel="src/...", qualname="...", token_line="...", op="...", op_ordinal=
 
 `op_ordinal` counts identical `(qualname, token_line, op)` sites in source order. A second
 identical operation in the same function therefore becomes a new, unexpected site and fails
-the gate. If the gate is registered in `tests/architectural/_baselines.yaml` (for example
-`destructive_op_allowlist`), raise that ceiling in the same change and justify it in review.
+the gate. If the gate is registered in `tests/architectural/_baselines.yaml` (for example the
+mutation-ownership gate's `destructive_op_allowlist`), raise that ceiling in the same change and justify it in review.
 Baselines are shrink-only by default.
 
 ## 3. Verify
