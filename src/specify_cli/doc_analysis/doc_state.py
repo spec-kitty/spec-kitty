@@ -122,7 +122,12 @@ def _require_meta(meta_file: Path) -> dict[str, Any]:
     meta = load_meta_fail_closed(meta_file.parent)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
-    return meta
+    # ``load_meta_fail_closed`` is declared ``dict[str, Any] | None``, but this
+    # module is checked narrowly (``specify_cli.*`` is ``follow_imports =
+    # "skip"`` in ``[tool.mypy]``), which erases that signature to ``Any`` at
+    # this call site. Cast to the already-declared return type rather than
+    # suppress the check (#3719 precedent).
+    return cast(dict[str, Any], meta)
 
 
 # ============================================================================
