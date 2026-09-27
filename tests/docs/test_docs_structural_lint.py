@@ -65,9 +65,7 @@ _LINT_ASSET_PATH = _resolve_lint_asset_path()
 #: styleguide carries only a repository-agnostic default. The asset itself does
 #: not hard-code this path — it is supplied explicitly (``--styleguide`` /
 #: ``SPEC_KITTY_STYLEGUIDE``), which is what makes it consumable elsewhere.
-STYLEGUIDE_PATH = (
-    _REPO_ROOT / "packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml"
-)
+STYLEGUIDE_PATH = _REPO_ROOT / "packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml"
 
 
 _LINT_ASSET_MODULE_NAME = "docs_structural_lint_asset"
