@@ -483,6 +483,16 @@ def open_decision(
             event_lamport=None,
         )
 
+    # #5113 / FR-013: resolve every write target BEFORE any ledger write. A fresh
+    # coordination Mission has its branch but no worktree; materialize it through the
+    # canonical materializer so the ledger write and the event emit land on a real
+    # surface. Function-local import: decisions.* sits on the charter cold-import path
+    # (tests/architectural/test_cold_import_status_boundary.py).
+    from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
+
+    materialize_coord_surface_for_write(repo_root, mission_slug)
+    _events_path(repo_root, mission_slug)  # pre-resolve: any placement failure fails before write
+
     # T010 (D4/FR-004): the dedup lookup (check) and the mint-and-append
     # (act) run under ONE lock acquisition -- the service-level
     # check-then-act window this WP closes. ``store.append_entry`` still
@@ -669,6 +679,14 @@ def _terminal_command(
             idempotent=False,
             event_lamport=None,
         )
+
+    # #5113 / FR-013: see ``open_decision``'s identical rationale -- materialize
+    # any absent coordination worktree before this terminal write (resolve /
+    # defer / cancel all route through here).
+    from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
+
+    materialize_coord_surface_for_write(repo_root, mission_slug)
+    _events_path(repo_root, mission_slug)  # pre-resolve: any placement failure fails before write
 
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
     # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir``.

@@ -400,11 +400,18 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "Also runs the minimum git-version (RR-01) check.",
         "Exits with code 1 if any ``error`` finding is emitted; ``warning``",
         "findings exit 0 but are still printed.",
-        "With ``--fix``, automatically flattens missions that have a stale",
-        "``coordination_branch`` key (branch never created or already deleted),",
-        "re-derives topology, and attempts the Gap-1 coord-vs-target fast-forward",
-        "(FR-009) -- which fails loud with a unified diff and mutates nothing when",
-        "the coord branch has diverged or its worktree is dirty. Safe to run on",
+        "With ``--fix``, automatically materializes a missing coordination worktree",
+        "whose declared branch still exists in git (#5113 / FR-014, via the",
+        "canonical ``materialize_coord_surface_for_write`` helper — idempotent, and",
+        "it refuses rather than crashing when the branch is remote-only), flattens",
+        "missions that have a stale ``coordination_branch`` key (branch never",
+        "created or already deleted), re-derives topology, and attempts the Gap-1",
+        "coord-vs-target fast-forward (FR-009) -- which fails loud with a unified",
+        "diff and mutates nothing when",
+        "the coord branch has diverged or its worktree is dirty, and refuses",
+        "without mutating when the coord worktree is on another branch, detached,",
+        "or not a worktree of this repository. ``Fast-forwarded`` is printed only",
+        "once the coord branch really matches the target. Safe to run on",
         "100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.",
         "With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target",
         "staleness (FR-008) — non-blocking either way.",
@@ -418,9 +425,10 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor coordination --check-staleness",
         "spec-kitty doctor coordination --mission 083-my-mission",
         "Options",
-        "--fix Remove stale coordination_branch keys from meta.json for missions "
-        "whose coord branch was never created, then re-derive topology via "
-        "`migrate backfill-topology`.",
+        "--fix Repair coordination topology: materialize a missing coordination "
+        "worktree whose branch exists, remove stale `coordination_branch` "
+        "keys for never-created branches (then `migrate backfill-topology`), "
+        "and revert stranded coordination state.",
         "--json Machine-readable JSON output",
         "--check-staleness Also report coord-branch-vs-target-branch staleness "
         "(Gap-1, FR-008): non-blocking, whether the coord branch is behind or has "

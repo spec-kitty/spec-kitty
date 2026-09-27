@@ -43,13 +43,15 @@ class PlacementResolutionRequired(StructuredError):
     Fail-closed replacement for the forbidden checkout-derived commit grammars
     (``_get_current_branch() or planning_branch`` / the silent "conservative
     legacy preflight" degradation) — coord-primary-partition-lock WP03 / D11,
-    contracts/seam-api.md. A genuine placement-resolution failure (missing
-    mission, corrupt state, a ``coordination_branch`` declared in meta.json but
-    torn down in git, ...) must never silently commit to whatever branch the
-    operator happens to have checked out. A genuinely-legacy, coordination-less
-    mission resolves successfully; this error fires only on a REAL failure,
-    which must be fixed via migration/backfill (e.g. ``spec-kitty doctor
-    workspaces --fix``), never papered over with a silent runtime fallback.
+    contracts/seam-api.md. A genuine placement-resolution failure (an
+    unmaterialized coordination worktree, or a ``coordination_branch`` declared
+    in meta.json but torn down / never created in git, ...) must never silently
+    commit to whatever branch the operator happens to have checked out. A
+    genuinely-legacy, coordination-less mission resolves successfully; this
+    error fires only on a REAL failure, which must be fixed via
+    ``spec-kitty doctor coordination --fix`` (#5113 / FR-014 — it materializes
+    a present branch and flattens a never-created one) or migration/backfill,
+    never papered over with a silent runtime fallback.
 
     Single canonical home (consolidated from the two identical per-command
     copies formerly in implement.py + agent/mission_record_analysis.py, which

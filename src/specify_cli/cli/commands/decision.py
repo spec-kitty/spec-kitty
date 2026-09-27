@@ -16,7 +16,10 @@ All subcommands output JSON to stdout and exit 0 on success, 1 on structured err
 from __future__ import annotations
 
 from specify_cli.core.paths import locate_project_root
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import (
+    StatusReadPathNotFound,
+    resolve_feature_dir_for_mission,
+)
 import json
 import re as _re
 from pathlib import Path
@@ -104,8 +107,7 @@ def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
     # guards the RAW operator token only — the resolver's output is trusted.
     if not _SAFE_SLUG_RE.match(mission_handle):
         raise typer.BadParameter(
-            f"Invalid --mission value {mission_handle!r}: must match "
-            f"{_SAFE_SLUG_RE.pattern}",
+            f"Invalid --mission value {mission_handle!r}: must match {_SAFE_SLUG_RE.pattern}",
             param_hint="'--mission'",
         )
 
@@ -207,6 +209,29 @@ def _handle_action_context_error(exc: ActionContextError) -> None:
     payload = {
         "error": str(exc),
         "code": exc.code,
+    }
+    typer.echo(json.dumps(payload, sort_keys=True), err=True)
+    raise typer.Exit(1)
+
+
+def _handle_status_read_path_error(exc: StatusReadPathNotFound) -> None:
+    """Render a coord-surface resolution failure as a structured diagnostic.
+
+    #5113 (FR-013/FR-014): ``materialize_coord_surface_for_write`` (called by
+    ``open_decision``/``_terminal_command`` before any ledger write) raises
+    :class:`~specify_cli.coordination.surface_resolver.CoordinationWorktreeUnmaterialized`
+    (a :class:`StatusReadPathNotFound` subclass) when the coordination surface
+    cannot be safely materialized (a remote-only branch, or a real
+    materialization failure). That MUST surface as the same
+    ``{"error", "code", "next_step"}`` JSON shape every other structured
+    handler on this module emits — never an uncaught Rich traceback (the #8 /
+    #5113 symptom class). No new ``DecisionErrorCode`` is introduced (the
+    orchestrator ``upstream_contract.json`` stays unchanged).
+    """
+    payload = {
+        "error": str(exc),
+        "code": exc.error_code,
+        "next_step": getattr(exc, "next_step", None),
     }
     typer.echo(json.dumps(payload, sort_keys=True), err=True)
     raise typer.Exit(1)
@@ -351,6 +376,13 @@ def cmd_open(  # noqa: PLR0913
         # lives here, not on the other verbs (catch the type the callee raises).
         _handle_event_log_read_error(exc)
         return  # unreachable — _handle_event_log_read_error raises
+    except StatusReadPathNotFound as exc:
+        # #5113: the pre-write materialization gate refused (remote-only
+        # branch, or a real materialization failure) — after the more
+        # specific excepts above so ``DecisionEventLogReadError`` (also
+        # reachable from this call) is not shadowed.
+        _handle_status_read_path_error(exc)
+        return  # unreachable — _handle_status_read_path_error raises
 
     typer.echo(
         json.dumps(
@@ -409,6 +441,10 @@ def cmd_resolve(  # noqa: PLR0913
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
+    except StatusReadPathNotFound as exc:
+        # #5113: the pre-write materialization gate refused.
+        _handle_status_read_path_error(exc)
+        return  # unreachable — _handle_status_read_path_error raises
 
     typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
 
@@ -460,6 +496,10 @@ def cmd_defer(
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
+    except StatusReadPathNotFound as exc:
+        # #5113: the pre-write materialization gate refused.
+        _handle_status_read_path_error(exc)
+        return  # unreachable — _handle_status_read_path_error raises
 
     typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
 
@@ -511,6 +551,10 @@ def cmd_cancel(
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
+    except StatusReadPathNotFound as exc:
+        # #5113: the pre-write materialization gate refused.
+        _handle_status_read_path_error(exc)
+        return  # unreachable — _handle_status_read_path_error raises
 
     typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
 
@@ -606,9 +650,7 @@ def _entry_to_dict(entry: IndexEntry) -> dict[str, object]:
 @decision_app.command("list")
 def cmd_list(
     mission: str = typer.Option(..., "--mission", help="Mission handle (slug, mission_id, or mid8)"),
-    status: str | None = typer.Option(
-        None, "--status", help="Only list decisions in this status: open | resolved | deferred | canceled"
-    ),
+    status: str | None = typer.Option(None, "--status", help="Only list decisions in this status: open | resolved | deferred | canceled"),
     json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON (default true)"),  # noqa: ARG001
 ) -> None:
     """List the mission's recorded decision moments (read-only)."""
@@ -695,8 +737,7 @@ def cmd_widen(
     # constructed request line, because nothing downstream of here runs.
     if not is_well_formed_decision_id(decision_id):
         typer.echo(
-            "Error: decision_id must be a 26-character Crockford-base32 ULID "
-            "(digits and A-Z excluding I, L, O, U)",
+            "Error: decision_id must be a 26-character Crockford-base32 ULID (digits and A-Z excluding I, L, O, U)",
             err=True,
         )
         raise typer.Exit(1)
@@ -725,25 +766,27 @@ def cmd_widen(
         # formatted for copy-paste into a real invocation without ever seeing the
         # mismatch. It rides in the payload rather than on stderr because this
         # command's dry-run contract is "stdout is one JSON document".
-        typer.echo(json.dumps(
-            {
-                "dry_run": True,
-                "decision_id": decision_id,
-                "endpoint": f"POST /a/<team_slug>/collaboration/decision-points/{decision_id}/widen",
-                "invited": invited_list,
-                "mission_slug": mission_slug,
-                "ownership": {
-                    "acting_root": str(ownership.repo_root),
-                    "missions_searched": list(ownership.missions_searched),
-                    "owned": ownership.owned,
-                    "owning_mission_slug": ownership.owning_mission_slug,
-                    "unreadable_ledgers": list(ownership.unreadable_ledgers),
-                    "warning": refusal,
+        typer.echo(
+            json.dumps(
+                {
+                    "dry_run": True,
+                    "decision_id": decision_id,
+                    "endpoint": f"POST /a/<team_slug>/collaboration/decision-points/{decision_id}/widen",
+                    "invited": invited_list,
+                    "mission_slug": mission_slug,
+                    "ownership": {
+                        "acting_root": str(ownership.repo_root),
+                        "missions_searched": list(ownership.missions_searched),
+                        "owned": ownership.owned,
+                        "owning_mission_slug": ownership.owning_mission_slug,
+                        "unreadable_ledgers": list(ownership.unreadable_ledgers),
+                        "warning": refusal,
+                    },
+                    "payload": {"invited_user_ids": invited_list},
                 },
-                "payload": {"invited_user_ids": invited_list},
-            },
-            indent=2,
-        ))
+                indent=2,
+            )
+        )
         raise typer.Exit(0)
 
     # No fall-through. "Found nothing" is *ownership not established*, and falling
@@ -757,16 +800,18 @@ def cmd_widen(
     try:
         client = SaasClient.from_env(repo_root=repo_root)
         response = client.post_widen(decision_id=decision_id, invited=invited_list)
-        typer.echo(json.dumps(
-            {
-                "decision_id": response["decision_id"],
-                "invited_count": response["invited_count"],
-                "slack_thread_url": response["slack_thread_url"],
-                "success": True,
-                "widened_at": response["widened_at"],
-            },
-            indent=2,
-        ))
+        typer.echo(
+            json.dumps(
+                {
+                    "decision_id": response["decision_id"],
+                    "invited_count": response["invited_count"],
+                    "slack_thread_url": response["slack_thread_url"],
+                    "success": True,
+                    "widened_at": response["widened_at"],
+                },
+                indent=2,
+            )
+        )
     except SaasClientError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(1) from exc

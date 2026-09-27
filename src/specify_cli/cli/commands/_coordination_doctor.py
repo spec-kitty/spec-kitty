@@ -476,6 +476,33 @@ def _resolve_coord_short(mission_slug: str, mission_id: str) -> str:
     return resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]
 
 
+def _coord_worktree_missing_remote_only_steps(
+    repo_root: Path, mission_slug: str, coord_branch: str,
+) -> str:
+    """#5113 / FR-014: the truthful ordered remedy
+    for a coordination branch that exists ONLY as a remote-tracking ref (a
+    fresh clone / CI checkout where the lane exists solely on
+    ``origin/<branch>``).
+
+    ``spec-kitty doctor coordination --fix`` alone REFUSES this state
+    (``materialize_coord_surface_for_write`` never auto-materializes a
+    remote-only branch) -- naming it as the LEADING remedy loops the operator
+    back to a command that just refused. The single construction site
+    (S1192): both the ``COORDINATION_WORKTREE_MISSING`` finding builder
+    (:func:`_check_coordination_worktree_health`) and the ``--fix`` fixer's
+    warning (:func:`_apply_missing_worktree_fix`) call this so the two
+    truthful texts can never drift apart. Mirrors
+    :func:`~mission_runtime.write_target_degrade.assert_coord_write_materialized`'s
+    remote-only arm (T040) in shape, though that site cannot import this one
+    (runtime/mission_runtime -> specify_cli is a one-way ledger).
+    """
+    return (
+        f"Run in order: `git -C {repo_root} fetch`, then "
+        f"`git -C {repo_root} branch {coord_branch} origin/{coord_branch}`, "
+        f"then `spec-kitty doctor coordination --mission {mission_slug} --fix`."
+    )
+
+
 def _check_coordination_worktree_health(
     repo_root: Path, mission_meta: dict[str, object],
 ) -> list[DoctorFinding]:
@@ -510,7 +537,10 @@ def _check_coordination_worktree_health(
         # Reuse the canonical branch-existence probe (WP02 seam: _coord_branch_exists
         # in surface_resolver) to distinguish never-created from merely missing.
         # Function-local import keeps the one-way I-2 discipline intact.
-        from specify_cli.coordination.surface_resolver import _coord_branch_exists
+        from specify_cli.coordination.surface_resolver import (
+            _coord_branch_exists,
+            _coord_branch_is_local_head,
+        )
 
         if not _coord_branch_exists(repo_root, coord_branch):
             # Branch was never created or has been deleted.  Flatten is the
@@ -528,23 +558,48 @@ def _check_coordination_worktree_health(
             )]
 
         # Branch exists but the worktree has not been materialised yet.
-        # Provide a real `git worktree add` command — NOT `doctor workspaces --fix`
-        # which only removes husks and cannot CREATE a worktree (#2240).
+        # #5113/FR-014: lead with the doctor `--fix` command, which actually
+        # materializes the worktree (via `materialize_coord_surface_for_write`,
+        # the canonical materializer) — not `doctor workspaces --fix`, which only
+        # removes husks and cannot CREATE a worktree (#2240). The raw
+        # `git worktree add` is kept as a manual fallback, and `recovery_args`
+        # (still the raw git command) stays pinned for callers that shell out
+        # to it directly -- it also works for the remote-only sub-case below
+        # via git's own remote-tracking DWIM.
         _recovery_args = [
             "git", "-C", str(repo_root), "worktree", "add",
             str(worktree), coord_branch,
         ]
+        # #5113: a branch that exists ONLY as a
+        # remote-tracking ref (a fresh clone / CI checkout) is never
+        # auto-materialized by `--fix` (materialize_coord_surface_for_write
+        # refuses it) -- leading with the bare `--fix` command there is a
+        # remedy that refuses and loops the operator back to itself. Classify
+        # it here and lead with the truthful ordered steps instead.
+        is_local_head = _coord_branch_is_local_head(repo_root, coord_branch)
+        if is_local_head:
+            next_step = (
+                f"Run: `spec-kitty doctor coordination --mission {mission_slug} --fix` "
+                f"(or, manually: `git -C {repo_root} worktree add {worktree} {coord_branch}`)"
+            )
+        else:
+            next_step = _coord_worktree_missing_remote_only_steps(
+                repo_root, mission_slug, coord_branch,
+            )
         return [DoctorFinding(
             severity="warning",
             message=(
                 f"Coordination worktree {worktree} is missing for mission "
                 f"{mission_slug!r} (the branch {coord_branch!r} exists)."
             ),
-            next_step=(
-                f"Run: `git -C {repo_root} worktree add {worktree} {coord_branch}`"
-            ),
+            next_step=next_step,
             error_code="COORDINATION_WORKTREE_MISSING",
-            extra={"recovery_args": _recovery_args},
+            extra={
+                "recovery_args": _recovery_args,
+                "mission_slug": mission_slug,
+                "mid8": short,
+                "coord_branch": coord_branch,
+            },
         )]
 
     findings: list[DoctorFinding] = []
@@ -758,6 +813,7 @@ def _check_lane_sparse_checkout_drift(
     Skips silently for legacy missions.
     """
     from specify_cli.coordination import lane_sparse_checkout_patterns
+    from specify_cli.lanes.branch_naming import lane_id_for_worktree_dir
 
     identity = _coordination_identity(mission_meta)
     if identity is None:
@@ -784,8 +840,12 @@ def _check_lane_sparse_checkout_drift(
 
     findings: list[DoctorFinding] = []
     for lane_dir in sorted(worktrees_dir.iterdir()):
-        # Only inspect lane worktrees for THIS mission (slug prefix + "-lane-").
-        if not lane_dir.name.startswith(f"{mission_slug}-lane-"):
+        # Only inspect lane worktrees for THIS mission. Recognition is by
+        # recomposition (WP11, PD-12), not by prefix: a ``startswith`` check
+        # over-matches a same-prefix impostor (e.g. a ``057-foobar-lane-a``
+        # dir is not ``057-foo``'s), so the worktree dir name is confirmed by
+        # re-composing it from ``mission_slug`` via the naming seam instead.
+        if lane_id_for_worktree_dir(lane_dir.name, mission_slug) is None:
             continue
         if str(lane_dir.resolve()) not in wt_list:
             # Not a registered git worktree; skip silently.
@@ -1320,6 +1380,79 @@ def _apply_stranded_revert_fix(
     return warnings
 
 
+def _apply_missing_worktree_fix(
+    findings: list[DoctorFinding], repo_root: Path
+) -> list[DoctorFinding]:
+    """#5113 / FR-014: materialize a missing coordination worktree (branch present).
+
+    Error-code-scoped and idempotent. Materializes through the canonical
+    coordination-layer helper (never a raw ``git worktree add``), so stale
+    registrations and remote-only refusal behave exactly as for a decision
+    write.
+
+    #5113: a remote-only branch refusal here must
+    NOT relay :class:`CoordinationWorktreeUnmaterialized`'s generic
+    ``next_step`` verbatim -- that text itself says "run `doctor coordination
+    --fix`", which is exactly the command that just refused, looping the
+    operator. Reclassify it here (the same local-head check the finding
+    builder already applies) and emit the truthful ordered fetch/branch/fix
+    steps via the ONE shared :func:`_coord_worktree_missing_remote_only_steps`
+    builder instead.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationWorktreeUnmaterialized,
+        _coord_branch_is_local_head,
+        materialize_coord_surface_for_write,
+    )
+
+    warnings: list[DoctorFinding] = []
+    for f in findings:
+        if f.error_code != "COORDINATION_WORKTREE_MISSING":
+            continue
+        mission_slug = f.extra.get("mission_slug")
+        if not isinstance(mission_slug, str) or not mission_slug:
+            # Defensive: a finding without the mission_slug extra (e.g. an older
+            # producer) is skipped rather than crashing the whole `--fix` run.
+            continue
+        coord_branch = f.extra.get("coord_branch")
+        try:
+            materialize_coord_surface_for_write(repo_root, mission_slug)
+        except CoordinationWorktreeUnmaterialized as exc:
+            if (
+                isinstance(coord_branch, str)
+                and coord_branch
+                and not _coord_branch_is_local_head(repo_root, coord_branch)
+            ):
+                next_step = _coord_worktree_missing_remote_only_steps(
+                    repo_root, mission_slug, coord_branch,
+                )
+                message = (
+                    f"Could not materialize the coordination worktree for "
+                    f"mission {mission_slug!r}: the coordination branch "
+                    f"{coord_branch!r} exists only as a remote-tracking ref. "
+                    f"{next_step}"
+                )
+            else:
+                next_step = exc.next_step
+                message = (
+                    f"Could not materialize the coordination worktree for "
+                    f"mission {mission_slug!r}: {exc.next_step}"
+                )
+            warnings.append(DoctorFinding(
+                severity="warning",
+                message=message,
+                next_step=next_step,
+                error_code=f.error_code,
+                extra={"mission_slug": mission_slug},
+            ))
+            continue
+        console.print(
+            f"[green]Materialized:[/green] coordination worktree for mission "
+            f"{mission_slug!r}."
+        )
+    return warnings
+
+
 def _apply_coordination_fixes(
     findings: list[DoctorFinding], repo_root: Path
 ) -> list[DoctorFinding]:
@@ -1329,7 +1462,8 @@ def _apply_coordination_fixes(
     and this dispatch each well under the CC-15 ceiling. Each handler is
     error-code-scoped and idempotent, so the order is irrelevant. Returns any
     ``warning`` findings the fixers raised (e.g. a strand whose coord worktree is
-    pruned) so the entrypoint surfaces them in the post-fix output.
+    pruned, or a remote-only branch the missing-worktree fixer refused to
+    auto-materialize) so the entrypoint surfaces them in the post-fix output.
 
     The WP06 Gap-1 fast-forward (:func:`_apply_coord_staleness_fixes`) is
     deliberately NOT dispatched from here: unlike every other fixer above, an
@@ -1339,7 +1473,8 @@ def _apply_coordination_fixes(
     order-irrelevant fixers have already applied.
     """
     _apply_never_created_fix(findings, repo_root)
-    return _apply_stranded_revert_fix(findings, repo_root)
+    warnings = _apply_missing_worktree_fix(findings, repo_root)
+    return warnings + _apply_stranded_revert_fix(findings, repo_root)
 
 
 # ---------------------------------------------------------------------------
@@ -1760,7 +1895,13 @@ def run_coordination_health(
 ) -> None:
     """Entry point for ``doctor coordination`` (exit 1 iff any ``error`` finding).
 
-    When *fix* is ``True``, automatically removes stale ``coordination_branch``
+    When *fix* is ``True``, automatically materializes a missing coordination
+    worktree for any ``COORDINATION_WORKTREE_MISSING`` finding (branch exists,
+    worktree absent — #5113 / FR-014) via :func:`_apply_missing_worktree_fix`,
+    which routes through the canonical
+    :func:`~specify_cli.coordination.surface_resolver.materialize_coord_surface_for_write`
+    materializer (idempotent; refuses with a ``warning`` finding, never a crash,
+    when the branch is remote-only). It also removes stale ``coordination_branch``
     keys from ``meta.json`` for any ``COORDINATION_WORKTREE_NEVER_CREATED``
     findings, re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
     to re-derive topology from the now-absent key, then attempts the WP06

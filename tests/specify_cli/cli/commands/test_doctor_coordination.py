@@ -727,3 +727,77 @@ def test_coordination_branch_deleted_next_step_message_pin(tmp_path: Path) -> No
     )
     assert "spec-kitty doctor coordination --fix" in err.next_step
     assert "spec-kitty migrate backfill-topology" in err.next_step
+
+
+def test_apply_missing_worktree_fix_extras_and_defensive_skip(tmp_path: Path) -> None:
+    """#5113: extras carry mission_slug/mid8, and a finding WITHOUT the
+    ``mission_slug`` extra (e.g. an older producer) is skipped defensively --
+    never crashes the whole ``--fix`` run."""
+    from specify_cli.cli.commands._coordination_doctor import (
+        DoctorFinding,
+        _apply_missing_worktree_fix,
+    )
+
+    well_formed = DoctorFinding(
+        severity="warning",
+        message="missing worktree",
+        error_code="COORDINATION_WORKTREE_MISSING",
+        extra={"mission_slug": "no-such-mission-here", "mid8": "AAAAAAAA"},
+    )
+    missing_extra = DoctorFinding(
+        severity="warning",
+        message="missing worktree, no extras",
+        error_code="COORDINATION_WORKTREE_MISSING",
+        extra={},
+    )
+    unrelated = DoctorFinding(severity="ok", message="unrelated")
+
+    # Must not raise for either the defensive-skip case or the well-formed one
+    # whose mission does not resolve (materialize_coord_surface_for_write reads
+    # a real meta.json that is simply absent here -> a silent no-op, per its own
+    # contract: "No declared coordination_branch: no-op").
+    warnings = _apply_missing_worktree_fix([unrelated, missing_extra, well_formed], tmp_path)
+    assert warnings == []
+
+
+def test_apply_missing_worktree_fix_generic_refusal_without_coord_branch_extra(
+    fresh_mission_repo: Path,
+) -> None:
+    """#5113: the FALLBACK ``else`` arm
+    (a finding whose ``coord_branch`` extra is absent, or the refusal is not a
+    remote-only one) must still relay the exception's own ``next_step``
+    verbatim -- never crash, never fabricate ordered steps it cannot back up
+    with a real branch name."""
+    from specify_cli.cli.commands._coordination_doctor import (
+        DoctorFinding,
+        _apply_missing_worktree_fix,
+    )
+
+    # A remote-only coord branch (materialize_coord_surface_for_write WILL
+    # raise), but the finding's extra deliberately omits `coord_branch` --
+    # forcing the generic fallback rather than the remote-only classification.
+    # Clone BEFORE deleting the local branch, so the bare "origin" actually
+    # carries it.
+    remote = fresh_mission_repo.parent / "generic-refusal-origin.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(fresh_mission_repo), str(remote)],
+        check=True, capture_output=True,
+    )
+    _git(fresh_mission_repo, "remote", "add", "origin", str(remote))
+    _git(fresh_mission_repo, "fetch", "origin")
+    _git(fresh_mission_repo, "branch", "-D", COORD_BRANCH)
+
+    no_branch_extra = DoctorFinding(
+        severity="warning",
+        message="missing worktree",
+        error_code="COORDINATION_WORKTREE_MISSING",
+        extra={"mission_slug": MISSION_SLUG, "mid8": MID8},
+    )
+    warnings = _apply_missing_worktree_fix([no_branch_extra], fresh_mission_repo)
+    assert len(warnings) == 1
+    warning = warnings[0]
+    assert warning.next_step is not None
+    # The generic materialize-it-now text, relayed verbatim -- never the ordered
+    # fetch/branch/fix steps (which require a real coord_branch to name).
+    assert "materialize it now" in warning.next_step.lower()
+    assert "git fetch" not in warning.next_step

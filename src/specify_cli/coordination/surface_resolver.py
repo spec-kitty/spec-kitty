@@ -87,6 +87,7 @@ __all__ = [
     "classify_worktree_topology",
     "is_registered_coord_worktree",
     "is_under_worktrees_segment",
+    "materialize_coord_surface_for_write",
     "read_worktree_registry",
     "resolve_declared_mid8",
     "resolve_for_write",
@@ -357,16 +358,20 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         unreachable on any real call path per :meth:`for_mission`) keeps the
         local-head guidance: there is no branch name to fetch.
 
-        #5113: both branches name the command that ACTUALLY materializes the
-        worktree — the concrete ``git worktree add`` against the coord worktree
-        ROOT (mirroring the #2240 ``_coordination_doctor.py``
-        COORDINATION_WORKTREE_MISSING hint) — never ``spec-kitty doctor
-        workspaces --fix`` (which only removes stale registrations and cannot
-        create a worktree) and no longer promises a self-materialization the
-        decision path never performs. The worktree path is composed via the
-        canonical ``CoordinationWorkspace.worktree_path`` (a pure path composer;
-        requires a non-empty mid8, guaranteed for an UNMATERIALIZED state),
-        falling back to the read-path grammar defensively.
+        #5113: both branches lead with the command that ACTUALLY materializes
+        the worktree. The primary remedy is ``spec-kitty doctor coordination
+        --mission <slug> --fix`` (which #5166 wires up to materialize a missing
+        coordination worktree), with the concrete ``git worktree add`` against
+        the coord worktree ROOT (mirroring the #2240 ``_coordination_doctor.py``
+        COORDINATION_WORKTREE_MISSING hint) named as the manual fallback for
+        when the doctor command cannot. Neither branch names ``spec-kitty
+        doctor workspaces --fix`` (which only removes stale registrations and
+        cannot create a worktree). Coordination writes now self-materialize on
+        demand (#5166 extends ``materialize_coord_surface_for_write`` to the
+        decision-write path), so this message is the manual path. The worktree
+        path is composed via the canonical ``CoordinationWorkspace.worktree_path``
+        (a pure path composer; requires a non-empty mid8, guaranteed for an
+        UNMATERIALIZED state), falling back to the read-path grammar defensively.
         """
         if mid8:
             from specify_cli.coordination.workspace import CoordinationWorkspace
@@ -374,6 +379,7 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
             coord_worktree_root: Path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
         else:  # pragma: no cover - mid8 is always resolved for UNMATERIALIZED
             coord_worktree_root = coord_candidate.parent.parent
+        doctor_cmd = f"spec-kitty doctor coordination --mission {mission_slug} --fix"
         materialize_cmd = f"git -C {repo_root} worktree add {coord_worktree_root} {coordination_branch}"
         if coordination_branch and not _coord_branch_is_local_head(repo_root, coordination_branch):
             return (
@@ -382,17 +388,21 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
                 f"fetched it, so its coordination worktree has not been "
                 f"materialized. Run `git fetch origin {coordination_branch}` "
                 f"(or fix a stale `remote.origin.fetch` refspec) first, then "
-                f"`{materialize_cmd}` to materialize it. Keep the "
+                f"`{doctor_cmd}` to materialize it (if that command cannot, "
+                f"materialize it manually with `{materialize_cmd}`). Keep the "
                 f"`coordination_branch` key in meta.json as-is — the branch is "
                 f"not lost, only not yet fetched."
             )
         return (
             f"The coordination branch {coordination_branch!r} declared in "
             f"meta.json exists in git, but its coordination worktree has not "
-            f"been materialized yet. Materialize it now by running: "
-            f"`{materialize_cmd}` (`spec-kitty doctor workspaces --fix` only "
-            f"removes stale registrations and cannot create the worktree). Keep "
-            f"the `coordination_branch` key in meta.json as-is — the branch is "
+            f"been materialized yet. Coordination writes such as "
+            f"`spec-kitty agent decision open` materialize it on demand; to "
+            f"materialize it now, run `{doctor_cmd}` (if that command cannot, "
+            f"materialize it manually with `{materialize_cmd}`). "
+            f"`spec-kitty doctor workspaces --fix` only removes stale "
+            f"registrations and cannot create the worktree. Keep the "
+            f"`coordination_branch` key in meta.json as-is — the branch is "
             f"not lost, only not yet checked out."
         )
 
@@ -803,6 +813,100 @@ def resolve_for_write(
             coordination surface is unmaterialized/unresolved on this checkout.
     """
     return resolve_write_target_or_degrade(repo_root, mission_slug, kind, degrade_ref=None, terminus_write=True)
+
+
+def _raise_unmaterialized(
+    repo_root: Path,
+    mission_slug: str,
+    mid8: str,
+    coordination_branch: str,
+    *,
+    cause: BaseException | None = None,
+) -> None:
+    """Build and raise the ONE #5113 write-gate payload (S1192: one construction site).
+
+    Mirrors :meth:`CoordinationWorktreeUnmaterialized.for_mission`'s payload shape;
+    factored out so :func:`materialize_coord_surface_for_write`'s two raise sites
+    (remote-only branch, and ``resolve`` re-probe exhaustion) never drift apart.
+    """
+    error = CoordinationWorktreeUnmaterialized.for_mission(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        mid8=mid8,
+        coordination_branch=coordination_branch,
+        primary_candidate=_compose_primary_feature_dir(repo_root, mission_slug),
+    )
+    if cause is not None:
+        raise error from cause
+    raise error
+
+
+def materialize_coord_surface_for_write(repo_root: Path, mission_slug: str) -> None:
+    """Materialize an absent coordination worktree BEFORE a coordination write (FR-013).
+
+    The ONE seam every coordination-routed write (``decision open`` / ``resolve``
+    / ``defer`` / ``cancel``, and any future writer) calls before touching a
+    ledger, so a fresh coordination Mission (branch present, worktree never
+    materialized — :attr:`~specify_cli.missions._read_path_resolver.CoordState.
+    UNMATERIALIZED`) gets its coordination surface materialized up front instead
+    of a half-recorded write followed by an uncaught
+    :class:`CoordinationWorktreeUnmaterialized` (#5113).
+
+    Reuses the canonical materializer
+    (:meth:`~specify_cli.coordination.workspace.CoordinationWorkspace.resolve`)
+    rather than re-implementing worktree creation — this helper only decides
+    WHETHER and WHEN to call it (D1):
+
+    1. No declared ``coordination_branch`` (flat / ``SINGLE_BRANCH`` / ``LANES``
+       Missions): no-op.
+    2. Not :attr:`~...CoordState.UNMATERIALIZED` (``MATERIALIZED`` / ``EMPTY``):
+       no-op — nothing to materialize, and ``DELETED`` is left to raise
+       downstream exactly as it does today.
+    3. A remote-only branch (not a local head) is never auto-materialized
+       before a write (#4970 parity, S-C) — raises BEFORE any write.
+    4. Otherwise materializes via the canonical resolver. A concurrent CLI race
+       that materializes the worktree between this function's probe and its own
+       ``resolve`` call (plan Risk 4) is tolerated: on a narrowed materialization
+       failure, this function re-probes ONCE, and only raises if the surface is
+       still not materialized/empty.
+
+    Never called on a read path (D2): reads must stay side-effect free.
+    """
+    meta, _ = read_primary_meta(repo_root, mission_slug)
+    raw_coordination_branch = meta.get("coordination_branch")
+    if not raw_coordination_branch:
+        return
+    coordination_branch = str(raw_coordination_branch)
+
+    mid8 = resolve_declared_mid8(meta, mission_slug)
+    state = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coordination_branch)
+    if state is not CoordState.UNMATERIALIZED:
+        return
+
+    if not _coord_branch_is_local_head(repo_root, coordination_branch):
+        _raise_unmaterialized(repo_root, mission_slug, mid8, coordination_branch)
+
+    from specify_cli.coordination.workspace import (  # noqa: PLC0415
+        CoordinationWorkspace,
+        CoordinationWorkspaceBranchMismatch,
+        CoordinationWorkspaceIdentityUnresolved,
+    )
+
+    try:
+        CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)
+    except (
+        OSError,
+        subprocess.SubprocessError,
+        CoordinationWorkspaceBranchMismatch,
+        CoordinationWorkspaceIdentityUnresolved,
+    ) as exc:
+        # Plan Risk 4 — a concurrent CLI process may have materialized (or
+        # emptied) the surface between the probe above and this call. Re-probe
+        # exactly once before failing loud.
+        re_probed = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coordination_branch)
+        if re_probed in (CoordState.MATERIALIZED, CoordState.EMPTY):
+            return
+        _raise_unmaterialized(repo_root, mission_slug, mid8, coordination_branch, cause=exc)
 
 
 @dataclass(frozen=True)
