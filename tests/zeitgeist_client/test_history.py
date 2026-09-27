@@ -238,3 +238,41 @@ def test_agent_history_requests_issuer_identity_and_requires_ack(relay, monkeypa
 def test_history_rejects_non_boolean_own_filter(value):
     with pytest.raises(ValueError, match="boolean"):
         history.read_history("github.com/acme/repo", filter_own=value)
+
+
+# --- _validate_read_history_args (WP02 review cycle 1, issue 3): direct unit
+# coverage of the T008-extracted helper itself, one call per raise branch --
+# not just through read_history's own end-to-end path above.
+
+
+def test_validate_read_history_args_accepts_the_defaults() -> None:
+    """No exception for a fully valid, in-range argument set."""
+    history._validate_read_history_args(window_s=900, timeout_s=2.0, since=None, filter_own=False)
+
+
+@pytest.mark.parametrize("value", ["true", 1, None])
+def test_validate_read_history_args_rejects_non_boolean_filter_own(value) -> None:
+    with pytest.raises(ValueError, match="boolean"):
+        history._validate_read_history_args(window_s=900, timeout_s=2.0, since=None, filter_own=value)
+
+
+@pytest.mark.parametrize("window_s", [-1, -900])
+def test_validate_read_history_args_rejects_a_negative_window(window_s) -> None:
+    with pytest.raises(ValueError, match="non-negative"):
+        history._validate_read_history_args(window_s=window_s, timeout_s=2.0, since=None, filter_own=False)
+
+
+@pytest.mark.parametrize("timeout_s", [0.0, -1.0, float("nan"), float("inf")])
+def test_validate_read_history_args_rejects_a_non_finite_or_non_positive_timeout(timeout_s) -> None:
+    with pytest.raises(ValueError, match="finite and > 0"):
+        history._validate_read_history_args(window_s=900, timeout_s=timeout_s, since=None, filter_own=False)
+
+
+@pytest.mark.parametrize("since", ["invalid", "epoch-1", "epoch-1:-1", ""])
+def test_validate_read_history_args_rejects_a_malformed_cursor(since) -> None:
+    with pytest.raises(ValueError, match="epoch.*seq"):
+        history._validate_read_history_args(window_s=900, timeout_s=2.0, since=since, filter_own=False)
+
+
+def test_validate_read_history_args_accepts_a_well_formed_cursor() -> None:
+    history._validate_read_history_args(window_s=900, timeout_s=2.0, since="epoch-1:42", filter_own=False)

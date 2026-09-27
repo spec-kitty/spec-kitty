@@ -145,6 +145,7 @@ from enum import StrEnum
 from typing import Any, Literal
 
 from kernel.clock import datetime, now_utc
+from specify_cli.core.hosted_posture import DrainDisabled, require_drain
 
 from . import budget, repo_identity, sanitizer
 
@@ -262,6 +263,7 @@ class OfferOutcome(StrEnum):
     DROPPED_BUDGET = "dropped_budget"  # 750ms elapsed before a response
     DROPPED_UNREACHABLE = "dropped_unreachable"  # connect/DNS failure
     REFUSED_LOCAL = "refused_local"  # sanitizer rejected before any socket call
+    DRAIN_DISABLED = "drain_disabled"  # drain is off — refused before any network attempt (spec-kitty#4971)
 
 
 @dataclass(frozen=True)
@@ -357,6 +359,14 @@ class ZeitgeistClient:
             sanitizer.assert_clean(args)
         except sanitizer.ForbiddenFieldError:
             return OfferResult(outcome=OfferOutcome.REFUSED_LOCAL, request_id=request_id, elapsed_s=0.0)
+
+        # FR-004: refuse before any network attempt or thread spawn when
+        # drain is off (hosted-opt-in-drain-ledger-01M3FFEV, WP02/T007) — a
+        # distinct outcome, never misclassified as DROPPED_UNREACHABLE.
+        try:
+            require_drain("relay")
+        except DrainDisabled:
+            return OfferResult(outcome=OfferOutcome.DRAIN_DISABLED, request_id=request_id, elapsed_s=0.0)
 
         envelope = {
             "schema_version": _SCHEMA_VERSION,

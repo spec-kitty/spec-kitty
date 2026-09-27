@@ -79,6 +79,8 @@ from typing import Any
 import typer
 
 from specify_cli.cli.console import console
+from specify_cli.core import hosted_posture
+from specify_cli.core.hosted_posture import DrainDisabled, require_drain
 from specify_cli.zeitgeist_client import credentials, moments, operability, outbox_approval, subscription, transport
 
 app = typer.Typer(
@@ -141,6 +143,19 @@ def _report_not_checked_out(exc: subscription.NotCheckedOut) -> None:
 def _report_connection_fault(exc: BaseException) -> None:
     console.print(f"[red]Error:[/red] could not reach the relay: {exc}")
     raise typer.Exit(1)
+
+
+def _report_drain_disabled(exc: DrainDisabled) -> None:
+    """The one clean guidance line every relay command/tool this WP owns
+    shows when drain is off, instead of a network error or a raw traceback.
+    ``str(exc)`` is built by ``hosted_posture.require_drain`` from
+    ``hosted_posture.DRAIN_GUIDANCE_LINE`` -- reused verbatim, never
+    hand-rolled a second time (Sonar S1192; pinned by
+    ``test_drain_disabled_message_reuses_the_hosted_posture_guidance_constant``).
+    Prints only; each call site decides its own exit code (0 for ``status``,
+    1 for every other relay command). ``soft_wrap=True`` keeps this one
+    logical line from being rich-wrapped across terminal columns."""
+    console.print(str(exc), markup=False, soft_wrap=True)
 
 
 def _report_watch_relay_fault(exc: urllib.error.HTTPError, *, seed: float) -> None:
@@ -255,6 +270,19 @@ def status(
     """Who is live on ``repo``'s relay right now, answered immediately from
     the relay's own presence/focus record; a relay without that route falls
     back to a bounded listen."""
+    try:
+        require_drain("relay")
+    except DrainDisabled as exc:
+        # A2: `status --json` must stay parseable even when drain is off,
+        # instead of the plain-text guidance line every other drain-gated
+        # relay command prints (this is the only one of them that takes
+        # --json and is expected to return machine-readable output on the
+        # drain-off path rather than a non-zero exit).
+        if as_json:
+            console.emit_json({"drain": {"enabled": False, "reason": hosted_posture.drain_posture().reason}})
+        else:
+            _report_drain_disabled(exc)
+        return
     key = _resolve_store_key(repo)
     try:
         result = subscription.status(key, timeout_s=timeout, filter_own=not raw)
@@ -277,6 +305,46 @@ def status(
         console.emit_json(result)
     else:
         _print_snapshot_summary(result)
+
+
+def _print_watch_frame(frame: dict[str, Any], *, as_json: bool) -> None:
+    """One frame's rendering, extracted (campsite-first, S2) from ``watch``'s
+    body so the command function stays inside the complexity ceiling."""
+    if as_json:
+        # One compact JSON object per line (JSON Lines), never the
+        # multi-line pretty form status() uses — a stream of frames
+        # must stay line-delimited for a caller piping this output.
+        console.emit_json(frame, indent=None)
+    elif frame["frame_type"] == "event":
+        # An event's attrs are another client's free prose (#10): the
+        # human-readable branch renders it through the same shared,
+        # nonce-framed untrusted-content block the MCP adapter uses —
+        # never as this tool's own trusted output. Printed with rich
+        # markup DISABLED: the block's own [markers] are literal text,
+        # and so is whatever prose a teammate broadcast — letting the
+        # console interpret bracketed tags would both strip the frame
+        # and hand hostile bytes a markup interpreter.
+        console.print(subscription.render_event(frame), markup=False, highlight=False)
+    else:
+        console.print(f"[bold]{frame['frame_type']}[/bold]  seq={frame['seq']}  {frame['payload']}")
+
+
+def _print_watch_summary(*, key: str, count: int, reason: str, elapsed_s: float, result: dict[str, Any], as_json: bool) -> None:
+    """The final watch summary line/object, extracted (campsite-first, S2)
+    alongside :func:`_print_watch_frame`."""
+    summary = {
+        "type": "watch_summary",
+        "repo": key,
+        "frames": count,
+        "reason": reason,
+        "elapsed_s": round(elapsed_s, 3),
+        **{k: v for k, v in result.items() if k not in {"frames", "repo", "receipt"}},
+    }
+    if as_json:
+        console.emit_json(summary, indent=None)
+    else:
+        console.print(f"watch summary  frames={count}  reason={reason}  elapsed_s={elapsed_s:.3f}")
+        console.print({k: v for k, v in summary.items() if k not in {"type", "repo", "frames", "reason", "elapsed_s"}})
 
 
 @app.command()
@@ -323,6 +391,11 @@ def watch(
     ``--timeout`` and ``--max-frames`` count. ``--seed <seconds>`` first
     replays that much retained history through the same policy, so nothing
     published during startup is lost."""
+    try:
+        require_drain("relay")
+    except DrainDisabled as exc:
+        _report_drain_disabled(exc)
+        raise typer.Exit(1) from None
     key = _resolve_store_key(repo)
     started = time.monotonic()
     count = 0
@@ -339,23 +412,7 @@ def watch(
             frame_iter = iter(result["frames"])
         for frame in frame_iter:
             count += 1
-            if as_json:
-                # One compact JSON object per line (JSON Lines), never the
-                # multi-line pretty form status() uses — a stream of frames
-                # must stay line-delimited for a caller piping this output.
-                console.emit_json(frame, indent=None)
-            elif frame["frame_type"] == "event":
-                # An event's attrs are another client's free prose (#10): the
-                # human-readable branch renders it through the same shared,
-                # nonce-framed untrusted-content block the MCP adapter uses —
-                # never as this tool's own trusted output. Printed with rich
-                # markup DISABLED: the block's own [markers] are literal text,
-                # and so is whatever prose a teammate broadcast — letting the
-                # console interpret bracketed tags would both strip the frame
-                # and hand hostile bytes a markup interpreter.
-                console.print(subscription.render_event(frame), markup=False, highlight=False)
-            else:
-                console.print(f"[bold]{frame['frame_type']}[/bold]  seq={frame['seq']}  {frame['payload']}")
+            _print_watch_frame(frame, as_json=as_json)
     except moments.MomentsDisabled as exc:
         console.print(str(exc), markup=False)
         raise typer.Exit(0) from None
@@ -374,19 +431,7 @@ def watch(
         elapsed_s = time.monotonic() - started
         effective_timeout = min(timeout, float(subscription.MAX_TIMEOUT_S))
         reason = _watch_end_reason(count=count, max_frames=max_frames, elapsed_s=elapsed_s, effective_timeout=effective_timeout)
-        summary = {
-            "type": "watch_summary",
-            "repo": key,
-            "frames": count,
-            "reason": reason,
-            "elapsed_s": round(elapsed_s, 3),
-            **{k: v for k, v in result.items() if k not in {"frames", "repo", "receipt"}},
-        }
-        if as_json:
-            console.emit_json(summary, indent=None)
-        else:
-            console.print(f"watch summary  frames={count}  reason={reason}  elapsed_s={elapsed_s:.3f}")
-            console.print({k: v for k, v in summary.items() if k not in {"type", "repo", "frames", "reason", "elapsed_s"}})
+        _print_watch_summary(key=key, count=count, reason=reason, elapsed_s=elapsed_s, result=result, as_json=as_json)
         sys.stdout.flush()
         if policy is not None:
             policy.acknowledge(result.get("receipt"))
@@ -423,6 +468,11 @@ def activity(
     ``--person``/``--project`` narrow the catch-up client-side (the relay's
     retained-events route has no such filter) with matched/withheld counts
     in the result."""
+    try:
+        require_drain("relay")
+    except DrainDisabled as exc:
+        _report_drain_disabled(exc)
+        raise typer.Exit(1) from None
     from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
 
     key = _resolve_store_key(repo)
@@ -521,6 +571,11 @@ def send(
 ) -> None:
     """Author and publish one live message (#4269) — accepted/offered/failed,
     never retained delivery."""
+    try:
+        require_drain("relay")
+    except DrainDisabled as exc:
+        _report_drain_disabled(exc)
+        raise typer.Exit(1) from None
     from specify_cli.live_work.authored import AuthoredMessageError, SendOutcome  # noqa: PLC0415
 
     module = _authored()
@@ -547,6 +602,11 @@ def reply(
 ) -> None:
     """Reply to one authored message — thread and audience come from the
     parent; a peer thread is never broadened to team scope."""
+    try:
+        require_drain("relay")
+    except DrainDisabled as exc:
+        _report_drain_disabled(exc)
+        raise typer.Exit(1) from None
     from specify_cli.live_work.authored import AuthoredMessageError, SendOutcome  # noqa: PLC0415
 
     module = _authored()
@@ -583,6 +643,11 @@ def read(
 ) -> None:
     """Read a conversation thread (or recent authored messages) from the
     relay's recent ring; bodies render inside untrusted markers."""
+    try:
+        require_drain("relay")
+    except DrainDisabled as exc:
+        _report_drain_disabled(exc)
+        raise typer.Exit(1) from None
     module = _authored()
     key = _resolve_store_key(repo)
     try:
@@ -608,6 +673,11 @@ def inbox(
 ) -> None:
     """Addressed inbox: novel authored messages for this consumer, over the
     same novelty/receipt policy as agent watch."""
+    try:
+        require_drain("relay")
+    except DrainDisabled as exc:
+        _report_drain_disabled(exc)
+        raise typer.Exit(1) from None
     module = _authored()
     key = _resolve_store_key(repo)
     try:
@@ -732,7 +802,18 @@ def _run_decision(item_id: str, actor: str | None, decide: Any, verb: str) -> No
 @outbox_app.command("approve")
 def outbox_approve(item_id: str = _ITEM_ID_ARGUMENT, actor: str | None = _ACTOR_OPTION) -> None:
     """Approve ``item_id``. Requires typing back the item's own challenge at
-    the controlling terminal when prompted — there is no flag to skip this."""
+    the controlling terminal when prompted — there is no flag to skip this.
+
+    Pre-flighted like every other relay-publishing command (R-3): approving
+    an item is what publishes its prose to the relay, even though
+    ``outbox_approval.py`` itself never opens a socket (its docstring, line
+    ~91). ``list``/``show``/``reject``/``revoke`` are local-only and are
+    NOT pre-flighted."""
+    try:
+        require_drain("relay")
+    except DrainDisabled as exc:
+        _report_drain_disabled(exc)
+        raise typer.Exit(1) from None
     _run_decision(item_id, actor, outbox_approval.approve, "approved")
 
 
@@ -822,6 +903,18 @@ def operability_report(repo: str | None = _REPO_ARGUMENT, as_json: bool = _JSON_
     _print_operability_report(report)
 
 
+def _drill_outcome_color(outcome: str) -> str:
+    """The rendering colour for a drill's ``outcome`` string. A pass is
+    green and a failure is red, but a clean skip (drain off) is neither --
+    #4737's own misdiagnosis class is exactly a clean skip rendered as a
+    failure, so it gets its own, distinct yellow."""
+    if outcome == "pass":
+        return "green"
+    if outcome.startswith("skipped"):
+        return "yellow"
+    return "red"
+
+
 @operability_app.command("drill-timeout")
 def operability_drill_timeout(as_json: bool = _JSON_OPTION) -> None:
     """Local "relay unreachable" drill — one offer() against a loopback
@@ -831,7 +924,7 @@ def operability_drill_timeout(as_json: bool = _JSON_OPTION) -> None:
     if as_json:
         console.emit_json(dataclasses.asdict(result))
         return
-    color = "green" if result.outcome == "pass" else "red"
+    color = _drill_outcome_color(result.outcome)
     console.print(f"[{color}]{result.outcome}[/{color}]  offer={result.offer.outcome}  elapsed_s={result.offer.elapsed_s:.3f}  budget_s={result.offer.budget_s}")
 
 

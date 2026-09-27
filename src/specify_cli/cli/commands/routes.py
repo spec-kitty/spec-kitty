@@ -34,7 +34,9 @@ that precedes it is the one place the slug is ever in hand);
 print it without asking again.
 
 Faults exit non-zero with the reason named: no canonical repo identity, no
-hosted remote (there is nothing to admit), nothing configured to authenticate
+hosted remote (there is nothing to admit), no hosted endpoint configured at
+all (FR-012 -- named directly rather than sent into an ``auth login`` that
+would only fail with the same refusal), nothing configured to authenticate
 with, Team Kitty unreachable. A recorded negative is *not* a fault: no accessible
 relay was resolved, so it exits zero with scoped guidance. Cached answers do not prove the identity
 of the currently stored OAuth account.
@@ -49,8 +51,11 @@ from typing import Any
 import typer
 from rich.markup import escape
 
-from specify_cli.auth.server_target import ServerTargetSplitBrainError
+from specify_cli.auth.config import format_endpoint_unconfigured_message
+from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_server_target_or_none
 from specify_cli.cli.console import console
+from specify_cli.core import hosted_posture
+from specify_cli.core.hosted_posture import DRAIN_GUIDANCE_LINE
 from specify_cli.saas_client.auth import load_auth_context
 from specify_cli.saas_client.errors import SaasAuthError
 from specify_cli.zeitgeist_client import credentials, repo_identity, resolution
@@ -100,6 +105,21 @@ def _gateway_for(cwd: Path) -> resolution.SaasCapabilityGateway:
     builds its own — env vars first, then ``<root>/.kittify/saas-auth.json``,
     then the OAuth session ``spec-kitty auth login`` wrote (#198), so the
     documented login path needs no service token to see its own routes."""
+    # FR-012: check the endpoint itself before ``load_auth_context`` — an
+    # unconfigured endpoint makes every auth source (env, saas-auth.json,
+    # stored session) unusable, and the generic "run spec-kitty auth login
+    # first" guidance below sends the operator into a login flow that fails
+    # with the SAME unconfigured-endpoint refusal. Naming the real cause
+    # here breaks that loop. A genuine env/config split-brain still
+    # propagates from ``resolve_server_target_or_none`` (its own documented
+    # contract) rather than being swallowed as "unconfigured" -- reported
+    # through the same specific-remediation path ``load_auth_context``'s own
+    # split-brain refusal below uses.
+    try:
+        if resolve_server_target_or_none() is None:
+            _fail(format_endpoint_unconfigured_message())
+    except ServerTargetSplitBrainError as exc:
+        _fail(escape(str(exc)))
     try:
         ctx = load_auth_context(repo_root=cwd)
     except SaasAuthError as exc:
@@ -143,6 +163,17 @@ def routes(as_json: bool = _JSON_OPTION) -> None:
     # context) at all.
     hit, stored, negative = resolution.cached_answer(key, repo_slug=slug, host=host)
     if not hit:
+        posture = hosted_posture.drain_posture()
+        if not posture.enabled:
+            # F-2/D2: checked before _gateway_for -- a drain-off cache miss
+            # never builds a gateway or resolves credentials. No
+            # `except DrainDisabled` here: resolve_credentials returns None
+            # under drain-off rather than raising, so that would be dead code.
+            if as_json:
+                console.emit_json({"drain": {"enabled": False, "reason": posture.reason}})
+            else:
+                console.print(DRAIN_GUIDANCE_LINE.format(reason=posture.reason), markup=False)
+            return
         gateway = _gateway_for(Path(os.getcwd()))
         stored = resolution.resolve_credentials(os.getcwd(), gateway=gateway)
         negative = credentials.load_negative(repo=key)

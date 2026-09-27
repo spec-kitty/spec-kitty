@@ -28,6 +28,7 @@ from pathlib import Path
 
 import typer
 
+from specify_cli.core import hosted_posture
 from specify_cli.core.env import moment_handlers_disabled_reason
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,10 @@ def _run_hook(harness: str, verbose: bool) -> None:
     if moment_handlers_disabled_reason() is not None:
         # The same kill switch that silences the moment handlers silences
         # live-work capture: one switch, one meaning.
+        return
+    if not hosted_posture.drain_posture().enabled:
+        # Skip before touching stdin or resolving an adapter (no wasted
+        # work, NFR-003); a drain-off skip is not an error.
         return
     adapter = get_adapter(harness)
     if adapter is None:

@@ -19,7 +19,9 @@ import urllib.error
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands import zeitgeist
 from specify_cli.cli.commands.zeitgeist import app
+from specify_cli.cli.console import console
 from specify_cli.zeitgeist_client import subscription
 
 pytestmark = pytest.mark.fast
@@ -284,3 +286,85 @@ def test_status_own_filter_contract_fault_is_not_a_connection_fault(monkeypatch:
     assert result.exit_code == 1
     assert message in result.stdout
     assert "could not reach the relay" not in result.stdout
+
+
+# --- _print_watch_frame / _print_watch_summary (WP02 review cycle 1, issue 3):
+# direct unit coverage of the T009-extracted helpers themselves, one call per
+# rendering branch -- not just through the full `watch` command above.
+
+
+def test_print_watch_frame_as_json_emits_one_compact_json_line(capsys: pytest.CaptureFixture[str]) -> None:
+    # emit_json() writes straight to console.file (the --json sink bypasses
+    # rich's styled-print path entirely), so it must be read back via capsys,
+    # not console.capture() (which only intercepts styled Console.print calls).
+    frame = {"frame_type": "presence", "seq": 1, "payload": {"actor": "a"}}
+    zeitgeist._print_watch_frame(frame, as_json=True)
+    assert json.loads(capsys.readouterr().out) == frame
+
+
+def test_print_watch_frame_event_renders_through_the_untrusted_block(monkeypatch: pytest.MonkeyPatch) -> None:
+    frame = {"frame_type": "event", "seq": 2, "payload": {}}
+    monkeypatch.setattr(subscription, "render_event", lambda f: f"[zeitgeist moment] rendered seq={f['seq']} [/zeitgeist moment]")
+    with console.capture() as capture:
+        zeitgeist._print_watch_frame(frame, as_json=False)
+    assert "[zeitgeist moment] rendered seq=2 [/zeitgeist moment]" in capture.get()
+
+
+def test_print_watch_frame_non_event_renders_the_bold_frame_type_line() -> None:
+    """The plain else branch — a presence/focus frame — is neither JSON nor
+    an event: the frame_type/seq/payload summary line."""
+    frame = {"frame_type": "presence", "seq": 7, "payload": {"actor": "a"}}
+    with console.capture() as capture:
+        zeitgeist._print_watch_frame(frame, as_json=False)
+    text = capture.get()
+    assert "presence" in text
+    assert "seq=7" in text
+    assert "{'actor': 'a'}" in text
+
+
+def test_print_watch_summary_as_json_emits_one_compact_json_line(capsys: pytest.CaptureFixture[str]) -> None:
+    zeitgeist._print_watch_summary(key="github.com/acme/widget", count=3, reason="timeout", elapsed_s=1.2345, result={}, as_json=True)
+    summary = json.loads(capsys.readouterr().out)
+    assert summary == {
+        "type": "watch_summary",
+        "repo": "github.com/acme/widget",
+        "frames": 3,
+        "reason": "timeout",
+        "elapsed_s": 1.234,
+    }
+
+
+def test_print_watch_summary_merges_result_keys_except_frames_repo_receipt(capsys: pytest.CaptureFixture[str]) -> None:
+    """The dict-comprehension merge in ``_print_watch_summary`` folds every
+    key from ``result`` (``agent_watch``'s return value) into the summary
+    EXCEPT ``frames``/``repo``/``receipt`` -- those three are either already
+    set explicitly from the function's own params (``frames``/``repo``) or
+    internal delivery-receipt plumbing never meant for the summary
+    (``receipt``). A seed/coverage-style key must pass through untouched."""
+    result = {
+        "frames": 999,  # must NOT overwrite the explicit count=3 -> "frames": 3
+        "repo": "should-not-leak",  # must NOT overwrite the explicit key= -> "repo"
+        "receipt": {"secret": "internal-delivery-token"},  # must be dropped entirely
+        "seed_coverage": {"requested_s": 30, "served_s": 12},
+    }
+    zeitgeist._print_watch_summary(key="github.com/acme/widget", count=3, reason="timeout", elapsed_s=1.2345, result=result, as_json=True)
+    summary = json.loads(capsys.readouterr().out)
+    assert summary == {
+        "type": "watch_summary",
+        "repo": "github.com/acme/widget",
+        "frames": 3,
+        "reason": "timeout",
+        "elapsed_s": 1.234,
+        "seed_coverage": {"requested_s": 30, "served_s": 12},
+    }
+    assert "receipt" not in summary
+
+
+def test_print_watch_summary_human_readable_prints_the_summary_line() -> None:
+    with console.capture() as capture:
+        zeitgeist._print_watch_summary(key="github.com/acme/widget", count=2, reason="max_frames", elapsed_s=0.5, result={}, as_json=False)
+    text = capture.get()
+    assert "watch summary" in text
+    assert "frames=2" in text
+    assert "reason=max_frames" in text
+    assert "elapsed_s=0.500" in text

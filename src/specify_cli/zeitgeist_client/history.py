@@ -17,6 +17,8 @@ import urllib.request
 from collections.abc import Callable
 from typing import Any, cast
 
+from specify_cli.core.hosted_posture import require_drain
+
 from . import budget, credentials, subscription, own_filter
 from .live_frame import parse_live_frame
 
@@ -140,6 +142,21 @@ def _project(data: dict[str, Any], *, repo: str, window_s: int) -> dict[str, Any
     }
 
 
+def _validate_read_history_args(*, window_s: int, timeout_s: float, since: str | None, filter_own: bool) -> None:
+    """Every argument shape check :func:`read_history` performs, extracted
+    (campsite-first, S2) so the caller can keep the drain pre-flight ahead
+    of even this: a drain-off caller never needs valid arguments to get a
+    clean, cheap refusal (WP02/T008)."""
+    if not isinstance(filter_own, bool):
+        raise ValueError("filter_own must be a boolean")
+    if not _unsigned(window_s):
+        raise ValueError("window_s must be a non-negative integer")
+    if not math.isfinite(timeout_s) or timeout_s <= 0:
+        raise ValueError("timeout_s must be finite and > 0")
+    if since is not None and not _CURSOR.fullmatch(since):
+        raise ValueError("since must be <epoch>:<seq> with seq >= 0")
+
+
 def read_history(
     repo: str,
     *,
@@ -156,14 +173,8 @@ def read_history(
     not guess that deployment setting. Unknown retention/completeness remains
     explicit even for empty responses. HTTP errors propagate without retries.
     """
-    if not isinstance(filter_own, bool):
-        raise ValueError("filter_own must be a boolean")
-    if not _unsigned(window_s):
-        raise ValueError("window_s must be a non-negative integer")
-    if not math.isfinite(timeout_s) or timeout_s <= 0:
-        raise ValueError("timeout_s must be finite and > 0")
-    if since is not None and not _CURSOR.fullmatch(since):
-        raise ValueError("since must be <epoch>:<seq> with seq >= 0")
+    require_drain("relay")  # ahead of even argument validation -- NFR-003, before any cache/keyring read
+    _validate_read_history_args(window_s=window_s, timeout_s=timeout_s, since=since, filter_own=filter_own)
     stored = credentials.load(repo=repo)
     if stored is None:
         raise subscription.NotCheckedOut(repo)

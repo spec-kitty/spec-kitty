@@ -74,6 +74,7 @@ import httpx
 
 from kernel.clock import UTC, now_utc, parse_iso, timedelta
 
+from specify_cli.core import hosted_posture
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.saas_client.errors import SaasAuthError
 
@@ -184,6 +185,7 @@ class SaasCapabilityGateway:
 
     def check_repo_admission(self, *, repo_slug: str, host: str | None = None) -> AdmissionAnswer:
         """``GET /api/v1/sync/repo-admission/?repo_slug=<>&host=<>``."""
+        hosted_posture.require_drain("capability")
         params: dict[str, str] = {"repo_slug": repo_slug}
         if host is not None:
             params["host"] = host
@@ -231,6 +233,7 @@ class SaasCapabilityGateway:
         teams A+B whose auth context selects A would deterministically 403 a
         mint for a repo only B admits — asking the team the pre-flight proved
         admits the repo is what makes the two calls agree."""
+        hosted_posture.require_drain("capability")
         selector = logical_session_id()
         try:
             resp = self._http.post(
@@ -600,6 +603,14 @@ def resolve_credentials(
             here (Priivacy-ai/spec-kitty#203).
     """
     cwd_str = str(cwd)
+    # A3: scope the posture check to the ACTING repo (`cwd`), not the
+    # process's own working directory -- `drain_posture()` with no argument
+    # falls back to `locate_project_root()` off `os.getcwd()`, which is wrong
+    # whenever the caller resolves credentials for a repo other than the
+    # process's cwd.
+    if not hosted_posture.drain_posture(project_root=Path(cwd)).enabled:
+        logger.debug("zeitgeist credentials: drain-off (%s)", cwd_str)
+        return None
     try:
         # One Git read: the verbatim origin URL is where both the store
         # key's (host, owner/repo) scope and Team Kitty's admission question
@@ -687,6 +698,10 @@ def resolve_focus_capability(
             broadcast (Priivacy-ai/spec-kitty#203).
     """
     cwd_str = str(cwd)
+    # A3: same acting-repo scoping as `resolve_credentials` above.
+    if not hosted_posture.drain_posture(project_root=Path(cwd)).enabled:
+        logger.debug("zeitgeist focus capability: drain-off (%s)", cwd_str)
+        return None
     try:
         origin = repo_identity.origin_url(cwd_str, deadline or repo_identity.Deadline())
     except repo_identity.RepoIdentityError as exc:
@@ -756,7 +771,12 @@ class FocusLease:
 
 
 def resolve_focus_lease(cwd: str | Path, *, deadline: repo_identity.Deadline | None = None) -> FocusLease | None:
-    """Resolve focus authority and identity together, refusing a racing replacement."""
+    """Resolve focus authority and identity together, refusing a racing replacement.
+
+    No separate drain gate here: :func:`resolve_focus_capability` already
+    returns ``None`` under drain-off (WP03/T012), and this function returns
+    immediately when that happens — the gate is inherited, not duplicated.
+    """
     capability = resolve_focus_capability(cwd, deadline=deadline)
     if capability is None:
         return None

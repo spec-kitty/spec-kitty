@@ -13,6 +13,7 @@ from typing import Any
 
 import typer
 
+from specify_cli.core import hosted_posture
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.task_utils import TaskCliError
@@ -223,7 +224,13 @@ def interview(  # noqa: C901
         widen_store: Any = None
         _saas_client: Any = None
 
-        if mission_slug is not None:
+        # FR-004: the drain check must gate BEFORE SaasClient.from_env/
+        # load_auth_context, not just before check_prereqs -- those two calls
+        # already read the credential store (and may refresh an expired
+        # OAuth session over the network) before check_prereqs' own internal
+        # gate is ever reached. With drain off, [w] stays silently suppressed
+        # (prereq_state stays ABSENT), same UX as any other prereq failure.
+        if mission_slug is not None and hosted_posture.drain_posture().enabled:
             try:
                 from specify_cli.saas_client import SaasClient
                 from specify_cli.widen import check_prereqs

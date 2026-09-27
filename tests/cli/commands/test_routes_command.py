@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from unittest.mock import Mock
 from pathlib import Path
 from types import SimpleNamespace
 from collections.abc import Iterator
@@ -104,6 +105,13 @@ def _login_only(monkeypatch: pytest.MonkeyPatch, session: _StoredLoginSession) -
     monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
 
     target = SimpleNamespace(resolved_server_url="http://saas.test")
+    # A1: `routes` now also resolves the endpoint through the real,
+    # unpatched `auth.server_target.resolve_server_target_or_none` (FR-012's
+    # own-cause check) before ever reaching `load_auth_context` — so this
+    # fixture's "SPEC_KITTY_SAAS_URL set" premise (see docstring) must set
+    # the actual env var, not only the narrower `_resolved_server_target`
+    # seam `load_auth_context`'s OAuth branch consults internally.
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", target.resolved_server_url)
 
     from specify_cli.saas_client import auth as saas_auth_module
 
@@ -351,8 +359,26 @@ def test_unreachable_team_kitty_is_not_dressed_up_as_not_admitted(state_root: Pa
     assert credentials.load_negative(repo="github.com/acme/widget") is None  # transient: cached nothing
 
 
-def test_unauthenticated_checkout_exits_nonzero_with_a_login_hint(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unconfigured_endpoint_names_the_real_cause_not_a_login_loop(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-012: with no endpoint configured at all (no env, no config.toml,
+    no session), ``routes`` must name the unconfigured endpoint directly
+    rather than sending the operator to ``auth login`` — which would only
+    fail with the very same refusal, an unwinnable loop (finding A1)."""
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 1
+    assert "No hosted endpoint configured" in result.stdout
+    assert "Run `spec-kitty auth login` first." not in result.stdout
+
+
+def test_unauthenticated_checkout_with_a_configured_endpoint_exits_with_a_login_hint(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The endpoint IS configured but nothing can authenticate with it: the
+    login hint is the correct, actionable remedy here (contrast with the
+    unconfigured-endpoint case above, which must not print it)."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "http://saas.test")
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
 
@@ -364,6 +390,10 @@ def test_unauthenticated_checkout_exits_nonzero_with_a_login_hint(state_root: Pa
 def test_config_source_refusal_survives_rich_rendering(clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The auth refusal's ``[sync]`` source label is data, not Rich markup."""
     from specify_cli.cli.commands import routes as routes_module
+
+    # A1: the endpoint-unconfigured pre-check ahead of `load_auth_context`
+    # needs a resolvable endpoint to let this test reach the mocked refusal.
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://team.example")
 
     def _raise_config_source_mismatch(repo_root: Path) -> None:
         raise SaasAuthError(
@@ -381,6 +411,12 @@ def test_config_source_refusal_survives_rich_rendering(clone: Path, monkeypatch:
 def test_split_brain_auth_refusal_keeps_its_specific_remediation(clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The route wrapper must not turn a split-brain refusal back into a login hint."""
     from specify_cli.cli.commands import routes as routes_module
+
+    # A1: a resolvable (non-conflicting) endpoint lets this test reach the
+    # mocked `load_auth_context`, whose OWN split-brain refusal is what this
+    # test actually pins -- the pre-check's `resolve_server_target_or_none`
+    # must not itself see a split-brain here.
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://legit-team-kitty.example.com")
 
     def _raise_split_brain(repo_root: Path) -> None:
         cause = ServerTargetSplitBrainError(
@@ -529,3 +565,49 @@ def test_json_shape_when_not_admitted(state_root: Path, auth_env: None, clone: P
     assert payload["relay_url"] is None
     assert payload["team"] is None
     assert payload["reason"] == "denied"
+
+
+# --- drain gate (ATDD contract, mission hosted-opt-in-drain-ledger-01M3FFEV) ------
+
+
+def test_cache_miss_under_drain_off_prints_guidance_without_building_a_gateway(
+    state_root: Path, auth_env: None, clone: Path, drain_off: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F-2/D2: on a cache miss, `routes` checks drain posture before
+    `_gateway_for` and prints DRAIN_GUIDANCE_LINE — never a raw traceback,
+    never "Team Kitty gave no answer", and distinguishable from the
+    negative-cache "No accessible team route found" UX."""
+    from specify_cli.cli.commands import routes as routes_module
+    from specify_cli.core.hosted_posture import DRAIN_GUIDANCE_LINE
+
+    gateway_for = Mock(name="_gateway_for", side_effect=AssertionError("must not be called under drain-off"))
+    monkeypatch.setattr(routes_module, "_gateway_for", gateway_for)
+    resolve_credentials = Mock(name="resolve_credentials", side_effect=AssertionError("must not be called under drain-off"))
+    monkeypatch.setattr(routes_module.resolution, "resolve_credentials", resolve_credentials)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 0
+    gateway_for.assert_not_called()
+    resolve_credentials.assert_not_called()
+    flat = " ".join(result.stdout.split())
+    expected = " ".join(DRAIN_GUIDANCE_LINE.format(reason="repository scope is off (test fixture)").split())
+    assert expected in flat
+    assert "No accessible team route found" not in flat
+    assert "Team Kitty gave no answer" not in flat
+
+
+def test_json_stays_parseable_under_drain_off(state_root: Path, auth_env: None, clone: Path, drain_off: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A2: ``routes --json`` under drain-off must emit parseable JSON, not
+    the plain-text DRAIN_GUIDANCE_LINE."""
+    from specify_cli.cli.commands import routes as routes_module
+
+    gateway_for = Mock(name="_gateway_for", side_effect=AssertionError("must not be called under drain-off"))
+    monkeypatch.setattr(routes_module, "_gateway_for", gateway_for)
+
+    result = runner.invoke(app, ["routes", "--json"])
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload == {"drain": {"enabled": False, "reason": "repository scope is off (test fixture)"}}
+    gateway_for.assert_not_called()

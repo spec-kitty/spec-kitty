@@ -231,6 +231,16 @@ def publish_observations(observations: Iterable[Observation], *, cwd: Path, repo
         report.dropped.append((payload_id(observation.kind), "invocation frame budget exceeded"))
         logger.debug("live-work frame dropped: invocation budget exceeded")
 
+    from specify_cli.core import hosted_posture  # noqa: PLC0415
+
+    # A3: scope the posture check to the acting repo (`cwd`), not the
+    # process's own working directory.
+    if not hosted_posture.drain_posture(project_root=cwd).enabled:
+        for observation in pending:
+            report.dropped.append((payload_id(observation.kind), "drain off"))
+        logger.debug("live-work frames not published: drain off")
+        return report
+
     from specify_cli.zeitgeist_client import repo_identity, resolution  # noqa: PLC0415
     from specify_cli.zeitgeist_client.credentials import StoredCredential  # noqa: PLC0415
 

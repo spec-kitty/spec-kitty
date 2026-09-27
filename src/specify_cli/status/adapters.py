@@ -24,6 +24,7 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
+from specify_cli.core import hosted_posture
 from specify_cli.core.env import moment_handlers_disabled_reason
 
 # The E3 Zeitgeist moment handler (#8): the default occupant of the three
@@ -275,6 +276,12 @@ def fire_saas_fanout(**kwargs: Any) -> None:
     The breadcrumb identifies the WP, lane delta, and force flag; the
     full kwargs are NOT logged (PII / payload-size reasons).
     """
+    # Drain gate (WP03/T013): evaluated per call, independently of the
+    # import-time moment_handlers_disabled_reason() registration gate below
+    # -- the two compose (either one silences fan-out); neither replaces the
+    # other. A future reader must not "simplify" this into one check.
+    if not hosted_posture.drain_posture().enabled:
+        return
     # Diagnostic breadcrumb (issue #1141). Cheap dict.get() calls avoid
     # raising if the caller drops a key; the breadcrumb is best-effort and
     # never blocks fan-out. Log even with zero handlers; a missing handler
@@ -325,6 +332,10 @@ def fire_resolved_binding_fanout(**kwargs: Any) -> None:
     no-op. The status layer only reaches here once its version gate confirms the
     installed ``spec_kitty_events`` supports the event (FR-015 / IC-09).
     """
+    # Drain gate (WP03/T013): composes with, does not replace, the
+    # import-time moment_handlers_disabled_reason() gate below.
+    if not hosted_posture.drain_posture().enabled:
+        return
     logger.info(
         "fire_resolved_binding_fanout: wp_id=%s mission_slug=%s handlers=%d",
         kwargs.get("wp_id"),
@@ -354,6 +365,10 @@ def fire_resolved_binding_fanout(**kwargs: Any) -> None:
 
 def fire_lifecycle_saas_fanout(**kwargs: Any) -> None:
     """Call all registered lifecycle SaaS fan-out handlers with **kwargs."""
+    # Drain gate (WP03/T013): composes with, does not replace, the
+    # import-time moment_handlers_disabled_reason() gate below.
+    if not hosted_posture.drain_posture().enabled:
+        return
     for handler in _lifecycle_saas_handlers:
         try:
             _run_fanout_handler_bounded(handler, kwargs, label="Lifecycle SaaS fan-out")

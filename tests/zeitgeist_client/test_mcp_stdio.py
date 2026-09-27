@@ -79,6 +79,29 @@ async def test_server_exposes_exactly_the_status_and_watch_tools() -> None:
     }
 
 
+async def test_tool_schema_titles_match_the_tool_name_not_the_private_fn_name() -> None:
+    """Review cycle 1, issue 2: the campsite-first extraction to module-level
+    ``_tool_*`` functions must not leak private function names into the
+    agent-facing JSON schema. FastMCP's ``func_metadata`` titles the
+    generated Arguments/DictOutput pydantic models directly from
+    ``fn.__name__`` -- independent of the ``name=`` kwarg passed to
+    ``server.tool(...)`` -- so ``_bind_tool`` must strip this module's own
+    ``_tool_`` prefix before handing the bound callable to FastMCP."""
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        listed = await client.list_tools()
+    assert listed.tools, "expected at least one registered tool"
+    for tool in listed.tools:
+        assert not tool.name.startswith("_tool_")
+        assert tool.inputSchema.get("title") == f"{tool.name}Arguments"
+        if tool.outputSchema is not None:
+            assert tool.outputSchema.get("title") == f"{tool.name}DictOutput"
+        # The bound `resolved` positional argument must never surface as a
+        # visible parameter -- functools.partial's own signature exclusion,
+        # unaffected by the __name__ rewrite above.
+        assert "resolved" not in (tool.inputSchema.get("properties") or {})
+
+
 async def test_no_tool_input_schema_names_a_relay_url_or_credential_field() -> None:
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 
+from specify_cli.core import hosted_posture
 from specify_cli.saas_client import SaasClient, SaasClientError
 from specify_cli.widen.models import PrereqState
 
@@ -37,6 +38,10 @@ def check_prereqs(saas_client: SaasClient, team_slug: str) -> PrereqState:
     Returns:
         A frozen :class:`~specify_cli.widen.models.PrereqState`.
     """
+    if not hosted_posture.drain_posture().enabled:
+        # G2: an automatic hosted call (interview startup) -- with drain off
+        # this makes no call against the injected SaasClient at all.
+        return PrereqState(teamspace_ok=False, slack_ok=False, saas_reachable=False)
     teamspace_ok = _check_teamspace(saas_client)
     slack_ok = _check_slack(saas_client, team_slug) if teamspace_ok else False
     saas_reachable = _check_health(saas_client)

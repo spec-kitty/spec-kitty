@@ -1047,3 +1047,82 @@ def test_zero_seed_keeps_the_plain_stream_route(managed_stream_double) -> None:
     assert [f.seq for f in frames if f is not None] == [1]  # type: ignore[attr-defined]
     assert managed_stream_double.requested_paths[0].startswith("/managed/stream?")
     assert stream.seed_coverage() is None
+
+
+# --- _poll_with_deadline (WP02 review cycle 1, issue 3): direct, deterministic
+# unit coverage of the campsite-extracted helper's early-exit branches, with a
+# stub `resp` instead of a real socket -- no timing races.
+
+
+class _BlockingResp:
+    """A ``resp`` double whose ``readline()`` blocks until ``close()`` is
+    called, then returns EOF (``b""``) -- the reader thread's own loop then
+    exits cleanly, so nothing leaks past the test."""
+
+    def __init__(self) -> None:
+        self.closed = threading.Event()
+
+    def readline(self) -> bytes:
+        self.closed.wait(timeout=5.0)
+        return b""
+
+    def close(self) -> None:
+        self.closed.set()
+
+
+class _RaisingResp:
+    """A ``resp`` double whose ``readline()`` raises ``exc`` immediately --
+    the reader thread's own ``except BaseException`` catches it and puts it
+    on the queue, exactly as a real socket timeout/fault would."""
+
+    def __init__(self, exc: BaseException) -> None:
+        self._exc = exc
+        self.closed = threading.Event()
+
+    def readline(self) -> bytes:
+        raise self._exc
+
+    def close(self) -> None:
+        self.closed.set()
+
+
+def test_poll_with_deadline_returns_immediately_when_deadline_already_elapsed() -> None:
+    """filtered_stream.py's own early-exit: ``remaining <= 0`` is checked
+    BEFORE the queue is ever touched, so an already-elapsed deadline returns
+    on the very first loop iteration."""
+    stream = filtered_stream.FilteredStream(_config("http://127.0.0.1:1"))
+    resp = _BlockingResp()
+
+    gen = stream._poll_with_deadline(resp, overlap=None, deadline=time.monotonic() - 1.0)
+    with pytest.raises(StopIteration):
+        next(gen)
+    assert resp.closed.is_set()  # the `finally` block still ran
+
+
+def test_poll_with_deadline_swallows_a_timeout_error_item_and_returns() -> None:
+    """A ``TimeoutError`` surfaced by the reader thread (a real socket
+    timeout) is swallowed as a clean end of the poll, not re-raised."""
+    stream = filtered_stream.FilteredStream(_config("http://127.0.0.1:1"))
+    resp = _RaisingResp(TimeoutError("socket timed out"))
+
+    gen = stream._poll_with_deadline(resp, overlap=None, deadline=time.monotonic() + 5.0)
+    with pytest.raises(StopIteration):
+        next(gen)
+    assert resp.closed.is_set()
+
+
+class _BoomError(RuntimeError):
+    """A distinguishable non-``TimeoutError`` reader fault."""
+
+
+def test_poll_with_deadline_reraises_a_non_timeout_reader_exception() -> None:
+    """Any other exception the reader thread hits (not a timeout) must
+    propagate to the caller, never be silently swallowed like the
+    ``TimeoutError`` case above."""
+    stream = filtered_stream.FilteredStream(_config("http://127.0.0.1:1"))
+    resp = _RaisingResp(_BoomError("socket exploded"))
+
+    gen = stream._poll_with_deadline(resp, overlap=None, deadline=time.monotonic() + 5.0)
+    with pytest.raises(_BoomError):
+        next(gen)
+    assert resp.closed.is_set()

@@ -642,6 +642,7 @@ def _fanout_live_work_retrospective(
     the mission binding is the record's own canonical ``mission_id``.
     """
     try:
+        from specify_cli.core import hosted_posture
         from specify_cli.core.env import moment_handlers_disabled_reason
         from specify_cli.live_work.bindings import resolve_bindings
         from specify_cli.live_work.kinds import WorkEmissionKind
@@ -655,6 +656,10 @@ def _fanout_live_work_retrospective(
         from specify_cli.live_work.publisher import publish_observations
 
         if moment_handlers_disabled_reason() is not None:
+            return
+        # A3: scope the posture check to the acting repo (`repo_root`), not
+        # the process's own working directory.
+        if not hosted_posture.drain_posture(project_root=repo_root).enabled:
             return
         kind = {
             "captured": WorkEmissionKind.RETROSPECTIVE_CAPTURED,

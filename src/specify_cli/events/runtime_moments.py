@@ -71,6 +71,7 @@ from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     TimeoutExpiredPayload,
 )
+from specify_cli.core import hosted_posture
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -209,6 +210,14 @@ class RuntimeMomentProducer:
         del payload
 
     def _publish(self, event_type: str, payload: BaseModel) -> None:
+        # C-004: this module already lives in specify_cli, so calling
+        # specify_cli.core.hosted_posture here creates no runtime -> specify_cli
+        # edge. A deliberate drain-off skip is logged at debug, never warning
+        # -- only a genuine failure below (find_run_journal/latest_matching_record
+        # raising) is worth a warning.
+        if not hosted_posture.drain_posture().enabled:
+            logger.debug("Runtime moment %s not published: drain off", event_type)
+            return
         try:
             self._publish_journalled(event_type, payload)
         except Exception:

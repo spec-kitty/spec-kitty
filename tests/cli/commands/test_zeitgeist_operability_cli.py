@@ -120,6 +120,28 @@ def test_operability_drill_timeout_json_passes_without_a_repo_argument(state_roo
     assert payload["drop"]["dropped"] is True
 
 
+def test_operability_drill_timeout_under_drain_off_prints_the_skip_outcome(state_root: Path, drain_off: None) -> None:
+    """A clean drain-off skip renders its distinct outcome string -- see
+    ``test_drill_outcome_color`` below for the colour it is never rendered
+    in (CliRunner's captured stdout is markup-stripped plain text, so the
+    colour itself is not observable through this seam)."""
+    result = runner.invoke(app, ["operability", "drill-timeout"])
+    assert result.exit_code == 0
+    assert "skipped: drain off" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("outcome", "expected_color"),
+    [("pass", "green"), ("fail", "red"), ("skipped: drain off", "yellow")],
+)
+def test_drill_outcome_color(outcome: str, expected_color: str) -> None:
+    """#4737's own misdiagnosis class: a clean drain-off skip must render in
+    neither the pass (green) nor the failure (red) colour."""
+    from specify_cli.cli.commands.zeitgeist import _drill_outcome_color
+
+    assert _drill_outcome_color(outcome) == expected_color
+
+
 # --- drill-rotation --------------------------------------------------------
 
 

@@ -426,6 +426,9 @@ def _log_offer_outcome(label: str, result: OfferResult) -> None:
         logger.debug("Zeitgeist %s offered (%s) in %.0f ms", label, result.request_id, result.elapsed_s * 1000)
     elif result.outcome is OfferOutcome.THROTTLED:
         logger.debug("Zeitgeist %s throttled (%s) in %.0f ms; dropped", label, result.request_id, result.elapsed_s * 1000)
+    elif result.outcome is OfferOutcome.DRAIN_DISABLED:
+        # D8: drain-off is a deliberate, silent skip, never a diagnostic-as-error.
+        logger.debug("Zeitgeist %s drain off; not sent (%s)", label, result.request_id)
     else:
         logger.warning("Zeitgeist %s dropped (%s) after %.0f ms; no retry by design", label, result.outcome.value, result.elapsed_s * 1000)
 

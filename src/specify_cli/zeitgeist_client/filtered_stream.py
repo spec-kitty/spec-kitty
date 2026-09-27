@@ -78,6 +78,8 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
+from specify_cli.core.hosted_posture import require_drain
+
 from . import budget, own_filter
 from .live_frame import FocusView, LiveFrame, StreamState, TeamSnapshot, parse_live_frame
 
@@ -248,6 +250,7 @@ class FilteredStream:
         caller's decision, not this class's. Connection faults propagate
         unchanged, exactly as they do from :meth:`watch`.
         """
+        require_drain("relay")
         url = self._filter_own_url(_SNAPSHOT_PATH, {"window_s": str(window_s)})
         req = urllib.request.Request(url, headers=self._headers(), method="GET")
         opener = budget.NoRedirects.build()
@@ -449,6 +452,7 @@ class FilteredStream:
         apply here; whether/when to reconnect is the caller's decision, not
         this generator's.
         """
+        require_drain("relay")
         seed = _validated_seed_window(seed_window_s)
         with self._lock:
             self._seed_coverage = None
@@ -471,43 +475,51 @@ class FilteredStream:
                 yield from self._read_frames(resp, overlap=overlap)
                 return
 
-            items: queue.Queue[bytes | BaseException] = queue.Queue()
-            stop = threading.Event()
+            yield from self._poll_with_deadline(resp, overlap=overlap, deadline=deadline)
 
-            def _reader() -> None:
-                try:
-                    while not stop.is_set():
-                        raw_line = resp.readline()
-                        items.put(raw_line)
-                        if not raw_line:
-                            return
-                except BaseException as exc:  # noqa: BLE001 - forwarded to caller thread
-                    items.put(exc)
+    def _poll_with_deadline(self, resp: object, *, overlap: set[tuple[str, int]] | None, deadline: float) -> Iterator[LiveFrame]:
+        """The whole-call-deadline read path :meth:`watch` delegates to when
+        ``idle_timeout_s`` is set: a background reader thread feeds a queue
+        so the main generator can bail out the instant ``deadline`` elapses,
+        even mid-``readline`` (campsite-first extraction, S2 -- behaviour
+        unchanged from the inline version this replaces)."""
+        items: queue.Queue[bytes | BaseException] = queue.Queue()
+        stop = threading.Event()
 
-            reader = threading.Thread(target=_reader, name="zeitgeist-sse-read", daemon=True)
-            reader.start()
+        def _reader() -> None:
             try:
-                while True:
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
+                while not stop.is_set():
+                    raw_line = resp.readline()  # type: ignore[attr-defined]
+                    items.put(raw_line)
+                    if not raw_line:
                         return
-                    try:
-                        item = items.get(timeout=remaining)
-                    except queue.Empty:
+            except BaseException as exc:  # noqa: BLE001 - forwarded to caller thread
+                items.put(exc)
+
+        reader = threading.Thread(target=_reader, name="zeitgeist-sse-read", daemon=True)
+        reader.start()
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return
+                try:
+                    item = items.get(timeout=remaining)
+                except queue.Empty:
+                    return
+                if isinstance(item, BaseException):
+                    if isinstance(item, TimeoutError):
                         return
-                    if isinstance(item, BaseException):
-                        if isinstance(item, TimeoutError):
-                            return
-                        raise item
-                    if not item:
-                        return
-                    live_frame_obj = self._apply_line(item, overlap=overlap)
-                    if live_frame_obj is not None:
-                        yield live_frame_obj
-            finally:
-                stop.set()
-                resp.close()
-                reader.join(timeout=0.1)
+                    raise item
+                if not item:
+                    return
+                live_frame_obj = self._apply_line(item, overlap=overlap)
+                if live_frame_obj is not None:
+                    yield live_frame_obj
+        finally:
+            stop.set()
+            resp.close()  # type: ignore[attr-defined]
+            reader.join(timeout=0.1)
 
     def _read_frames(self, resp: object, *, overlap: set[tuple[str, int]] | None = None) -> Iterator[LiveFrame]:
         """Unbounded read path used only when no deadline was requested."""

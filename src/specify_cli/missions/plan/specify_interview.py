@@ -17,6 +17,7 @@ infrastructure already used by charter.py.
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.core import hosted_posture
 from specify_cli.core.env import is_interactive
 from specify_cli.mission_metadata import load_meta_or_empty
 import contextlib
@@ -140,7 +141,10 @@ def run_specify_interview(  # noqa: C901
 
     # Widen needs a keystroke ([w]); it is only reachable interactively. Skipping
     # the setup non-interactively also avoids the SaaS prereq probe in CI (#2876).
-    if interactive:
+    # FR-004: gate on drain BEFORE SaasClient.from_env/load_auth_context, not
+    # just before check_prereqs -- those two calls already read the credential
+    # store (and may refresh an expired OAuth session over the network).
+    if interactive and hosted_posture.drain_posture().enabled:
         try:
             from specify_cli.saas_client import SaasClient
             from specify_cli.widen import check_prereqs

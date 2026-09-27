@@ -132,6 +132,10 @@ _DROPPED_OUTCOMES: frozenset[transport.OfferOutcome] = frozenset(
         # signal reports. A bare REJECTED stays out: that is the relay's
         # answer about the frame, not a lost frame.
         transport.OfferOutcome.THROTTLED,
+        # DRAIN_DISABLED is deliberately NOT here (D8, WP02): drain-off is a
+        # clean, expected skip -- never a lost frame -- so DropSignal.from_result
+        # must never report a drain refusal as a drop, and `operability report`
+        # must never show it as one.
     }
 )
 
@@ -342,7 +346,7 @@ def _drill_config(relay_url: str) -> transport.ClientConfig:
 
 @dataclasses.dataclass(frozen=True)
 class TimeoutDrillResult:
-    outcome: str  # "pass" | "fail"
+    outcome: str  # "pass" | "fail" | "skipped: drain off" (WP02)
     offer: OfferSignal
     drop: DropSignal
 
@@ -352,11 +356,21 @@ def timeout_drill(relay_url: str = DEFAULT_UNREACHABLE_URL) -> TimeoutDrillResul
     (a loopback address nothing listens on by default). Passes when the
     offer was dropped AND its elapsed time stayed within the 750ms
     denominator — proving the drop-no-retry contract holds under an
-    unreachable target, not merely that *some* result came back."""
+    unreachable target, not merely that *some* result came back.
+
+    With drain off, ``offer()`` returns ``OfferOutcome.DRAIN_DISABLED``
+    instead of a real drop -- no unreachable target was ever exercised, so
+    reporting ``"pass"`` here would misreport "the drop-no-retry contract
+    holds" for a check that never ran, and ``"fail"`` would misreport a
+    clean, expected skip as a drill failure. ``outcome`` is instead the
+    distinct string ``"skipped: drain off"`` -- neither ``"pass"`` nor
+    ``"fail"`` (WP02/T009)."""
     client = transport.ZeitgeistClient(_drill_config(relay_url))
     result = client.presence("command")
     offer_sig = OfferSignal.from_result(result)
     drop_sig = DropSignal.from_result(result)
+    if result.outcome is transport.OfferOutcome.DRAIN_DISABLED:
+        return TimeoutDrillResult(outcome="skipped: drain off", offer=offer_sig, drop=drop_sig)
     passed = drop_sig.dropped and offer_sig.within_budget
     return TimeoutDrillResult(outcome="pass" if passed else "fail", offer=offer_sig, drop=drop_sig)
 
