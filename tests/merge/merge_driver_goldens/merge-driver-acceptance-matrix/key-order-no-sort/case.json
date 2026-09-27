@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "pins that acceptance-matrix serialization has NO sort_keys: mission_slug precedes criteria (dataclass field order), unlike issue-matrix's alphabetical sort_keys=True",
+  "stderr": "",
+  "stdout": ""
+}

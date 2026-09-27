@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 1,
+  "note": "both sides independently authored a differing verdict for AC-002 -> RowMatrixMergeError -> exit 1",
+  "stderr": "row 'AC-002': verdict field 'pass_fail' diverged on both sides with no common base value (target/ours='pass', incoming/theirs='fail')\n",
+  "stdout": ""
+}

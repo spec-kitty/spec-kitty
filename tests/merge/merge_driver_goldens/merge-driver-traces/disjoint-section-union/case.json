@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "disjoint sections on both sides all survive in the union, ours first then theirs",
+  "stderr": "",
+  "stdout": ""
+}

@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "disjoint events on both sides union into ours (append-only log union)",
+  "stderr": "",
+  "stdout": ""
+}

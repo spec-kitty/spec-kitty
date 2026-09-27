@@ -1,0 +1,13 @@
+{
+  "mission_slug": "merge-seam-test-isolation-campsite-01M3F61E",
+  "criteria": [
+    {
+      "criterion_id": "AC-001",
+      "description": "Goldens are green",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "evidence": "WP03 review",
+      "verified_by": "reviewer-renata"
+    }
+  ]
+}

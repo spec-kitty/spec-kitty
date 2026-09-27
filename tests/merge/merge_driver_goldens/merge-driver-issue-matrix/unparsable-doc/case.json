@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 1,
+  "note": "theirs is not valid JSON -> _parse_json_document raises RowMatrixMergeError -> exit 1",
+  "stderr": "<TMP>/B: not valid JSON (Expecting property name enclosed in double quotes: line 1 column 3 (char 2))\n",
+  "stdout": ""
+}

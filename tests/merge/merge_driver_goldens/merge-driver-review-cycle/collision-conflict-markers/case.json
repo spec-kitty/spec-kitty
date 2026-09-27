@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "two distinct verdict renders under one filename -> embedded verbatim behind conflict markers, exit 0 + stdout notice",
+  "stderr": "",
+  "stdout": "review-cycle verdict collision at A: two distinct best-effort renders collided under one filename (T017 create-window hazard); both embedded verbatim behind conflict markers -- non-aborting (FR-014/D-PLAN-6: the .md is non-authoritative, unread prose; the squash proceeds)\n"
+}

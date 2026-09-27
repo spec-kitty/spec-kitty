@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "identical event_id+payload on both sides dedups; theirs-only event unions in",
+  "stderr": "",
+  "stdout": ""
+}

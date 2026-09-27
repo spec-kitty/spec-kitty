@@ -1,0 +1,1 @@
+{"actor": "claude", "at": "2026-09-20T11:00:00+00:00", "event_id": "01HXYZ00000000000000000002", "evidence": null, "execution_mode": "worktree", "feature_slug": "merge-seam-test-isolation-campsite-01M3F61E", "force": false, "from_lane": "claimed", "reason": null, "review_ref": null, "to_lane": "in_progress", "wp_id": "WP03"}
