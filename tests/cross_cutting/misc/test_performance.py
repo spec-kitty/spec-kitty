@@ -16,17 +16,12 @@ import tempfile
 import time
 from pathlib import Path
 
-# Add the src directory to the path
-
 import pytest
-
-pytestmark = [pytest.mark.integration]
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src" / "specify_cli"))
-
-import gitignore_manager
+from specify_cli import gitignore_manager
 
 from tests._perf_helpers import assert_timing_budget
+
+pytestmark = [pytest.mark.integration]
 
 GitignoreManager = gitignore_manager.GitignoreManager
 

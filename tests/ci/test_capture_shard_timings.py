@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -37,21 +38,22 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT_PATH = _REPO_ROOT / "scripts" / "ci" / "capture_shard_timings.py"
 
 
-def _load_module() -> ModuleType:
+def _load_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     spec = importlib.util.spec_from_file_location("capture_shard_timings", _SCRIPT_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     # Register BEFORE exec: `@dataclass` resolves `sys.modules[cls.__module__]`
     # while processing the class body, and an unregistered by-path module makes
     # that lookup return None (AttributeError at import, on 3.11).
-    sys.modules[spec.name] = module
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     return module
 
 
 @pytest.fixture(scope="module")
-def capture_shard_timings() -> ModuleType:
-    return _load_module()
+def capture_shard_timings() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield _load_module(mp)
 
 
 @dataclass(frozen=True)

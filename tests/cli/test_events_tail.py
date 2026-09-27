@@ -418,12 +418,8 @@ def test_events_tail_registered_on_the_real_top_level_app(
 
     force_wide_help_console(monkeypatch)
 
-    saved_argv = sys.argv[:]
-    sys.argv = ["spec-kitty", "--help"]
-    try:
-        register_commands(top_level_app)
-    finally:
-        sys.argv = saved_argv
+    monkeypatch.setattr(sys, "argv", ["spec-kitty", "--help"])
+    register_commands(top_level_app)
 
     result = runner.invoke(top_level_app, ["events", "--help"])
     assert result.exit_code == 0, result.output

@@ -27,13 +27,13 @@ from kernel.clock import now_utc
 
 pytestmark = [pytest.mark.unit]
 
+
 class TestProtocolConformance:
     def test_fixture_adapter_isinstance_synthesis_adapter(self) -> None:
         """FixtureAdapter satisfies the SynthesisAdapter runtime-checkable Protocol."""
         adapter = FixtureAdapter()
         assert isinstance(adapter, SynthesisAdapter), (
-            "FixtureAdapter must satisfy isinstance(adapter, SynthesisAdapter). "
-            "Check that FixtureAdapter exposes .id, .version, and .generate()."
+            "FixtureAdapter must satisfy isinstance(adapter, SynthesisAdapter). Check that FixtureAdapter exposes .id, .version, and .generate()."
         )
 
     def test_fixture_adapter_has_required_attributes(self) -> None:
@@ -46,9 +46,7 @@ class TestProtocolConformance:
     def test_fixture_adapter_has_optional_batch(self) -> None:
         """FixtureAdapter also exposes generate_batch (optional, detected via hasattr)."""
         adapter = FixtureAdapter()
-        assert hasattr(adapter, "generate_batch"), (
-            "FixtureAdapter should expose generate_batch for batch-orchestration paths."
-        )
+        assert hasattr(adapter, "generate_batch"), "FixtureAdapter should expose generate_batch for batch-orchestration paths."
 
 
 # ---------------------------------------------------------------------------
@@ -66,19 +64,14 @@ class TestContractStructuralEquivalence:
     If they diverge, this test fails immediately — before ADR amendment happens.
     """
 
-    def _load_contract_module(self):
+    def _load_contract_module(self, monkeypatch: pytest.MonkeyPatch):
         """Dynamically load the planning contract module."""
         import importlib.util
         import sys
+
         # Climb from tests/charter/synthesizer/ up to repo root
         repo_root = Path(__file__).parent.parent.parent.parent
-        contract_path = (
-            repo_root
-            / "kitty-specs"
-            / "phase-3-charter-synthesizer-pipeline-01KPE222"
-            / "contracts"
-            / "adapter.py"
-        )
+        contract_path = repo_root / "kitty-specs" / "phase-3-charter-synthesizer-pipeline-01KPE222" / "contracts" / "adapter.py"
         if not contract_path.exists():
             pytest.skip(f"Contract file not found at {contract_path}")
 
@@ -86,17 +79,17 @@ class TestContractStructuralEquivalence:
         spec = importlib.util.spec_from_file_location(mod_name, contract_path)
         mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
         # Register in sys.modules so @dataclass can resolve the module's __dict__
-        sys.modules[mod_name] = mod
+        monkeypatch.setitem(sys.modules, mod_name, mod)
         try:
             spec.loader.exec_module(mod)  # type: ignore[union-attr]
         except Exception:
-            del sys.modules[mod_name]
+            monkeypatch.delitem(sys.modules, mod_name, raising=False)
             raise
         return mod
 
-    def test_synthesis_adapter_has_same_protocol_members(self) -> None:
+    def test_synthesis_adapter_has_same_protocol_members(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """SynthesisAdapter in impl and contract expose the same required members."""
-        contract = self._load_contract_module()
+        contract = self._load_contract_module(monkeypatch)
         contract_proto = contract.SynthesisAdapter
         impl_proto = SynthesisAdapter
 
@@ -107,10 +100,7 @@ class TestContractStructuralEquivalence:
             for cls in proto.__mro__:
                 members.update(getattr(cls, "__annotations__", {}).keys())
             # Methods defined directly on the class
-            members.update(
-                name for name, val in vars(proto).items()
-                if callable(val) and not name.startswith("__")
-            )
+            members.update(name for name, val in vars(proto).items() if callable(val) and not name.startswith("__"))
             return members
 
         contract_members = _protocol_members(contract_proto)
@@ -121,32 +111,25 @@ class TestContractStructuralEquivalence:
             assert member in contract_members, f"contract Protocol missing member: {member}"
             assert member in impl_members, f"impl Protocol missing member: {member}"
 
-    def test_adapter_output_same_fields(self) -> None:
+    def test_adapter_output_same_fields(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """AdapterOutput in impl and contract have the same dataclass fields."""
-        contract = self._load_contract_module()
+        contract = self._load_contract_module(monkeypatch)
         import dataclasses
 
         contract_fields = {f.name for f in dataclasses.fields(contract.AdapterOutput)}
         impl_fields = {f.name for f in dataclasses.fields(AdapterOutput)}
-        assert contract_fields == impl_fields, (
-            f"AdapterOutput field mismatch.\n"
-            f"  contract: {sorted(contract_fields)}\n"
-            f"  impl:     {sorted(impl_fields)}"
-        )
+        assert contract_fields == impl_fields, f"AdapterOutput field mismatch.\n  contract: {sorted(contract_fields)}\n  impl:     {sorted(impl_fields)}"
 
-    def test_synthesis_request_same_fields(self) -> None:
+    def test_synthesis_request_same_fields(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """SynthesisRequest in impl and contract have the same dataclass fields."""
-        contract = self._load_contract_module()
+        contract = self._load_contract_module(monkeypatch)
         import dataclasses
 
         contract_fields = {f.name for f in dataclasses.fields(contract.SynthesisRequest)}
         from charter.activation.synthesizer.request import SynthesisRequest as ImplReq
+
         impl_fields = {f.name for f in dataclasses.fields(ImplReq)}
-        assert contract_fields == impl_fields, (
-            f"SynthesisRequest field mismatch.\n"
-            f"  contract: {sorted(contract_fields)}\n"
-            f"  impl:     {sorted(impl_fields)}"
-        )
+        assert contract_fields == impl_fields, f"SynthesisRequest field mismatch.\n  contract: {sorted(contract_fields)}\n  impl:     {sorted(impl_fields)}"
 
 
 # ---------------------------------------------------------------------------

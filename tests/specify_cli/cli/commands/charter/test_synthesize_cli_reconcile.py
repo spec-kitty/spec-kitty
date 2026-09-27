@@ -35,10 +35,10 @@ preserve reporting) is exercised for real, not stubbed out.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import io
 import json
-import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -274,27 +274,23 @@ def _invoke_synthesize(
     degrade safely (not-a-repo -> not-a-linked-worktree, no raise) exactly
     like a real, ordinary checkout would.
     """
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        with (
-            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
-            patch(
-                "specify_cli.cli.commands.charter._collect_evidence_result",
-                return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
-            ),
-            patch(
-                "specify_cli.cli.commands.charter._build_synthesis_request",
-                return_value=(request, syn_adapter),
-            ),
-        ):
-            return runner.invoke(
-                charter_app,
-                ["synthesize", "--adapter", "fixture", "--json", *extra_args],
-                catch_exceptions=False,
-            )
-    finally:
-        os.chdir(old_cwd)
+    with (
+        contextlib.chdir(tmp_path),
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+        patch(
+            "specify_cli.cli.commands.charter._collect_evidence_result",
+            return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
+        ),
+        patch(
+            "specify_cli.cli.commands.charter._build_synthesis_request",
+            return_value=(request, syn_adapter),
+        ),
+    ):
+        return runner.invoke(
+            charter_app,
+            ["synthesize", "--adapter", "fixture", "--json", *extra_args],
+            catch_exceptions=False,
+        )
 
 
 # ---------------------------------------------------------------------------

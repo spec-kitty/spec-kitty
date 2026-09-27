@@ -53,10 +53,6 @@ def research_project_root(tmp_path: Path) -> Path:
 
 def test_citation_validation_with_valid_data(tmp_path: Path) -> None:
     """Citation validation should pass with valid citations."""
-    import sys
-
-    sys.path.insert(0, str(Path.cwd() / "src"))
-
     from specify_cli.validators.research import validate_citations
 
     evidence_log = tmp_path / "evidence-log.csv"
@@ -70,10 +66,6 @@ def test_citation_validation_with_valid_data(tmp_path: Path) -> None:
 
 def test_citation_validation_catches_errors(tmp_path: Path) -> None:
     """Citation validation should catch completeness errors."""
-    import sys
-
-    sys.path.insert(0, str(Path.cwd() / "src"))
-
     from specify_cli.validators.research import validate_citations
 
     invalid_log = tmp_path / "invalid.csv"
@@ -87,10 +79,6 @@ def test_citation_validation_catches_errors(tmp_path: Path) -> None:
 
 def test_source_register_validation(tmp_path: Path) -> None:
     """Source register validation should work in research context."""
-    import sys
-
-    sys.path.insert(0, str(Path.cwd() / "src"))
-
     from specify_cli.validators.research import validate_source_register
 
     valid = tmp_path / "sources.csv"
@@ -159,9 +147,6 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     )
 
     # Validate artifacts
-    import sys
-
-    sys.path.insert(0, str(Path.cwd() / "src"))
     from specify_cli.validators.research import validate_citations, validate_source_register
 
     result_cit = validate_citations(research_dir / "evidence-log.csv")
@@ -172,10 +157,7 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
 
 def test_deliverables_path_in_meta_json(tmp_path: Path) -> None:
     """meta.json should correctly store and retrieve deliverables_path."""
-    import sys
     import json
-
-    sys.path.insert(0, str(Path.cwd() / "src"))
 
     from specify_cli.mission import get_deliverables_path
 
@@ -197,10 +179,6 @@ def test_deliverables_path_in_meta_json(tmp_path: Path) -> None:
 
 def test_deliverables_path_not_in_kitty_specs(tmp_path: Path) -> None:
     """deliverables_path must NOT be inside kitty-specs/."""
-    import sys
-
-    sys.path.insert(0, str(Path.cwd() / "src"))
-
     from specify_cli.mission import validate_deliverables_path
 
     # Should reject kitty-specs paths
@@ -214,10 +192,7 @@ def test_deliverables_path_not_in_kitty_specs(tmp_path: Path) -> None:
 
 def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
     """Research deliverables should be separate from planning artifacts."""
-    import sys
     import json
-
-    sys.path.insert(0, str(Path.cwd() / "src"))
 
     from specify_cli.mission import get_deliverables_path, get_mission_type
 
@@ -251,10 +226,7 @@ def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
 
 def test_default_deliverables_path_generation(tmp_path: Path) -> None:
     """Should generate default deliverables path when not specified."""
-    import sys
     import json
-
-    sys.path.insert(0, str(Path.cwd() / "src"))
 
     from specify_cli.mission import get_deliverables_path
 

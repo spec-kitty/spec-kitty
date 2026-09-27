@@ -24,8 +24,8 @@ contract, ``additionalProperties: false``, owns no provisioning field).
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -67,10 +67,7 @@ def _write_project(
     kittify = project / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     (kittify / "metadata.yaml").write_text(
-        "spec_kitty:\n"
-        f'  version: "{version}"\n'
-        f"  schema_version: {schema_version}\n"
-        "  initialized_at: '2026-01-01T00:00:00+00:00'\n",
+        f"spec_kitty:\n  version: \"{version}\"\n  schema_version: {schema_version}\n  initialized_at: '2026-01-01T00:00:00+00:00'\n",
         encoding="utf-8",
     )
     (kittify / "config.yaml").write_text(config_body, encoding="utf-8")
@@ -79,12 +76,8 @@ def _write_project(
 def _invoke_upgrade(project: Path, args: list[str], monkeypatch: pytest.MonkeyPatch) -> object:
     """Invoke ``upgrade`` with *args* inside *project* (CI=1 → no network)."""
     monkeypatch.setenv("CI", "1")
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
+    with contextlib.chdir(project):
         return _runner.invoke(_test_app, args, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _run_dry_run_json(project: Path, monkeypatch: pytest.MonkeyPatch) -> dict:
@@ -115,9 +108,7 @@ def _real_applied_ids(project: Path, target_version: str, from_version: str) -> 
     """The migration ids a real ``upgrade`` run would apply (upgrade.py:751)."""
     auto_discover_migrations()
     version_for_migration = "0.0.0" if from_version == "unknown" else from_version
-    applicable = MigrationRegistry.get_applicable(
-        version_for_migration, target_version, project_path=project
-    )
+    applicable = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project)
     return sorted(m.migration_id for m in applicable)
 
 
@@ -126,9 +117,7 @@ def _real_applied_ids(project: Path, target_version: str, from_version: str) -> 
 # ---------------------------------------------------------------------------
 
 
-def test_dry_run_json_pending_set_equals_real_applied_set(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dry_run_json_pending_set_equals_real_applied_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Preview ``pending_migrations`` == the real run's ``get_applicable`` set.
 
     The project is schema-compatible (block decision ALLOW) but version-stale,
@@ -161,9 +150,7 @@ def test_dry_run_json_pending_set_equals_real_applied_set(
 _PROVISION_NOTICE = "Would provision missing mission_type_activations"
 
 
-def test_dry_run_reflects_pending_provisioning(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dry_run_reflects_pending_provisioning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A project missing ``mission_type_activations`` previews the pending seed.
 
     The real run seeds the key (``_provision_missing_mission_type_activations``);
@@ -182,9 +169,7 @@ def test_dry_run_reflects_pending_provisioning(
     assert _PROVISION_NOTICE in output
 
 
-def test_dry_run_no_provisioning_when_key_present(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dry_run_no_provisioning_when_key_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An already-provisioned project previews no pending provisioning."""
     project = tmp_path / "provisioned"
     _write_project(
@@ -198,9 +183,7 @@ def test_dry_run_no_provisioning_when_key_present(
     assert _PROVISION_NOTICE not in output
 
 
-def test_dry_run_no_provisioning_for_authored_empty_list(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dry_run_no_provisioning_for_authored_empty_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An authored empty list is a deliberate state — never a pending seed."""
     project = tmp_path / "empty-authored"
     _write_project(

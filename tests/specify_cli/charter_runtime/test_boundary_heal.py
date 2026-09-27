@@ -45,7 +45,7 @@ Covers:
 
 from __future__ import annotations
 
-import os
+import contextlib
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -457,12 +457,8 @@ def _invoke_generate_in_process(repo: Path, argv: list[str]) -> subprocess.Compl
     -- ``find_repo_root()`` resolves from ``os.getcwd()``, so cwd is
     switched to *repo* for the call and restored afterwards.
     """
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(repo)
+    with contextlib.chdir(repo):
         result = _runner.invoke(charter_cli_app, argv, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
     return subprocess.CompletedProcess(
         args=["spec-kitty", "charter", *argv],
         returncode=result.exit_code,

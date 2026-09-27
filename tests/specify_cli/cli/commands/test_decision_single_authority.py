@@ -18,8 +18,8 @@ Topology-true fixtures only (NFR-002): full 26-char ULID ``mission_id`` and the
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -93,15 +93,11 @@ def _coord_materialized(tmp_path: Path) -> Path:
 
 
 def _invoke(args: list[str], cwd: Path) -> object:
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(cwd)
+    with contextlib.chdir(cwd):
         # catch_exceptions=True so an UNCAUGHT resolver error is captured as a
         # traceback (result.exception) — the live #8 symptom we assert against —
         # instead of bubbling out of the test and aborting collection.
         return runner.invoke(agent_app, args, catch_exceptions=True)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _assert_no_raw_traceback(result: object) -> None:

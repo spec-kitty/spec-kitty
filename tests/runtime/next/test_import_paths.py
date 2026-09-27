@@ -17,7 +17,7 @@ def test_runtime_next_is_canonical_decision_home() -> None:
     assert decision.Decision.__module__ == "runtime.next.decision"
 
 
-def test_legacy_specify_cli_next_shim_is_gone() -> None:
+def test_legacy_specify_cli_next_shim_is_gone(monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-003 (unshim wave 2): the ``specify_cli.next`` shim is deleted.
 
     Replaces ``test_legacy_next_package_import_warns_and_aliases_submodules``,
@@ -26,9 +26,9 @@ def test_legacy_specify_cli_next_shim_is_gone() -> None:
     cannot silently return (refactor-stable: converts the shim-behavior pin
     into an absence pin instead of deleting coverage outright).
     """
-    for name in list(sys.modules):
-        if name == "specify_cli.next" or name.startswith("specify_cli.next."):
-            sys.modules.pop(name)
+    for name in [n for n in sys.modules if n == "specify_cli.next" or n.startswith("specify_cli.next.")]:
+        monkeypatch.setitem(sys.modules, name, None)
+        monkeypatch.delitem(sys.modules, name)
 
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("specify_cli.next")

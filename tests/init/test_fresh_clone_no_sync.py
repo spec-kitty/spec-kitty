@@ -157,10 +157,8 @@ def test_load_governance_config_auto_syncs_on_fresh_clone(tmp_path: Path) -> Non
     _assert_charter_yaml_resolved(repo_root)
 
 
-def test_charter_status_cli_auto_syncs_on_fresh_clone(tmp_path: Path) -> None:
+def test_charter_status_cli_auto_syncs_on_fresh_clone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-004 reader: ``spec-kitty charter status`` handler flips through chokepoint."""
-    import os
-
     from typer.testing import CliRunner
 
     from specify_cli.cli.commands.charter import app as charter_app
@@ -169,12 +167,8 @@ def test_charter_status_cli_auto_syncs_on_fresh_clone(tmp_path: Path) -> None:
     _clear_resolver_cache()
 
     runner = CliRunner()
-    cwd = os.getcwd()
-    os.chdir(repo_root)
-    try:
-        result = runner.invoke(charter_app, ["status", "--json"])
-    finally:
-        os.chdir(cwd)
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(charter_app, ["status", "--json"])
 
     assert result.exit_code == 0, f"charter status failed: {result.output!r}"
     _assert_charter_yaml_resolved(repo_root)

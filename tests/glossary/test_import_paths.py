@@ -27,16 +27,16 @@ def test_canonical_glossary_imports() -> None:
     assert "src/glossary/" in glossary.__file__.replace("\\", "/")
 
 
-def test_legacy_specify_cli_glossary_shim_is_gone() -> None:
+def test_legacy_specify_cli_glossary_shim_is_gone(monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-004 (unshim wave 2): the ``specify_cli.glossary`` shim is deleted.
 
     Absence pin (refactor-stable): the legacy import path must not silently
     return — not as a re-export shim and not as a namespace package revived
     by leftover directories.
     """
-    for name in list(sys.modules):
-        if name == "specify_cli.glossary" or name.startswith("specify_cli.glossary."):
-            sys.modules.pop(name)
+    for name in [n for n in sys.modules if n == "specify_cli.glossary" or n.startswith("specify_cli.glossary.")]:
+        monkeypatch.setitem(sys.modules, name, None)
+        monkeypatch.delitem(sys.modules, name)
 
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("specify_cli.glossary")

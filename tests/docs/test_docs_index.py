@@ -26,20 +26,13 @@ import ast
 import inspect
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-# Make ``scripts.docs`` importable (mirrors tests/docs/conftest.py — the
-# repository's pytest.ini only puts ``src`` on ``pythonpath``).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs import docs_index, generate_kitty_specs_docs  # noqa: E402
-from specify_cli.docs import index_model  # noqa: E402
-from specify_cli.docs.index_model import (  # noqa: E402
+from scripts.docs import docs_index, generate_kitty_specs_docs
+from specify_cli.docs import index_model
+from specify_cli.docs.index_model import (
     DEFAULT_INDEX_PATH,
     Anchor,
     DocsIndexStore,
@@ -48,6 +41,8 @@ from specify_cli.docs.index_model import (  # noqa: E402
     parse_index,
     render_index,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # NOT `fast`: the byte-stability test spawns a subprocess (a fresh interpreter
 # under a different PYTHONHASHSEED), which Rule 2 of the marker-correctness gate
@@ -270,41 +265,20 @@ def test_slug_for_headings_uses_canonical_slugify_for_unicode_and_punctuation() 
 
 
 def test_scan_headings_ignores_fenced_code_and_h1_and_deeper_levels() -> None:
-    body = (
-        "# Title (H1 is not an anchor)\n"
-        "\n"
-        "## First\n"
-        "\n"
-        "```python\n"
-        "## not a heading — inside a fence\n"
-        "```\n"
-        "\n"
-        "#### Too deep — not level 2/3\n"
-        "\n"
-        "### Second\n"
-    )
+    body = "# Title (H1 is not an anchor)\n\n## First\n\n```python\n## not a heading — inside a fence\n```\n\n#### Too deep — not level 2/3\n\n### Second\n"
     assert docs_index.scan_headings(body) == [(2, "First"), (3, "Second")]
 
 
 def test_resolve_title_prefers_frontmatter_then_h1_then_path_stem(tmp_path: Path) -> None:
     path = tmp_path / "my-page.md"
-    assert (
-        docs_index.resolve_title({"title": "  From FM  "}, "# Ignored\n", path)
-        == "From FM"
-    )
+    assert docs_index.resolve_title({"title": "  From FM  "}, "# Ignored\n", path) == "From FM"
     assert docs_index.resolve_title({}, "# From H1\n", path) == "From H1"
     assert docs_index.resolve_title({}, "No heading here.\n", path) == "my-page"
 
 
 def test_resolve_abstract_prefers_frontmatter_then_paragraph_then_empty() -> None:
-    assert (
-        docs_index.resolve_abstract({"description": "  From FM.  "}, "# H\n\nBody.\n")
-        == "From FM."
-    )
-    assert (
-        docs_index.resolve_abstract({}, "# H\n\nFirst line.\nSecond line.\n\n## More\n")
-        == "First line. Second line."
-    )
+    assert docs_index.resolve_abstract({"description": "  From FM.  "}, "# H\n\nBody.\n") == "From FM."
+    assert docs_index.resolve_abstract({}, "# H\n\nFirst line.\nSecond line.\n\n## More\n") == "First line. Second line."
     # No description and no leading prose paragraph -> "". This used to be
     # described as the "ADR/changelog exemption", pointing at
     # description_length_check.py's docs/adr/ carve-out; that carve-out was
@@ -350,9 +324,7 @@ def test_compare_index_detects_added_removed_changed() -> None:
 
 
 def test_compare_index_no_drift_when_identical() -> None:
-    rendered = render_index(
-        [DocsQueryEntry(path="docs/a.md", title="A", divio_type="reference", anchors=(), abstract="")]
-    )
+    rendered = render_index([DocsQueryEntry(path="docs/a.md", title="A", divio_type="reference", anchors=(), abstract="")])
     drift = compare_index(rendered, rendered)
     assert not drift.has_drift
     assert drift.summary() == "added=0 removed=0 changed=0"
@@ -362,15 +334,11 @@ def test_run_generate_and_compare_write_then_strict_is_clean(tmp_path: Path) -> 
     docs_root = _build_fixture_tree(tmp_path)
     index_path = tmp_path / "index.yaml"
 
-    write_report = docs_index.run_generate_and_compare(
-        docs_root, index_path, write=True, strict=True
-    )
+    write_report = docs_index.run_generate_and_compare(docs_root, index_path, write=True, strict=True)
     assert write_report.exit_code == 0
     assert index_path.exists()
 
-    strict_report = docs_index.run_generate_and_compare(
-        docs_root, index_path, write=False, strict=True
-    )
+    strict_report = docs_index.run_generate_and_compare(docs_root, index_path, write=False, strict=True)
     assert strict_report.exit_code == 0
     assert not strict_report.drift.has_drift
 
@@ -380,9 +348,7 @@ def test_run_generate_and_compare_detects_stale_index(tmp_path: Path) -> None:
     index_path = tmp_path / "index.yaml"
     index_path.write_text(render_index([]), encoding="utf-8")
 
-    report = docs_index.run_generate_and_compare(
-        docs_root, index_path, write=False, strict=True
-    )
+    report = docs_index.run_generate_and_compare(docs_root, index_path, write=False, strict=True)
     assert report.exit_code == 1
     assert report.drift.has_drift
 
@@ -394,14 +360,10 @@ def test_docs_index_store_query_matches_and_filters(tmp_path: Path) -> None:
     assert [entry.path for entry in store.query("overview")] == ["docs/alpha.md"]
     assert store.query("does-not-exist-anywhere") == []
 
-    assert [entry.path for entry in store.query("alpha", divio_type="reference")] == [
-        "docs/alpha.md"
-    ]
+    assert [entry.path for entry in store.query("alpha", divio_type="reference")] == ["docs/alpha.md"]
     assert store.query("alpha", divio_type="tutorial") == []
 
-    assert [entry.path for entry in store.query("alpha", section="overview-2")] == [
-        "docs/alpha.md"
-    ]
+    assert [entry.path for entry in store.query("alpha", section="overview-2")] == ["docs/alpha.md"]
     assert store.query("alpha", section="not-a-real-section") == []
 
 

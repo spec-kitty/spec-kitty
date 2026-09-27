@@ -22,19 +22,14 @@ to *zero* dead bare-relative body links bar the documented nav-stub gaps.
 from __future__ import annotations
 
 import re
-import sys
 import time
 from pathlib import Path
 from typing import Final
 
 import pytest
 
-_REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs._guards import GitDiffError  # noqa: E402  (sys.path bootstrap above)
-from scripts.docs.relative_link_fixer import (  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs._guards import GitDiffError
+from scripts.docs.relative_link_fixer import (
     _LINK,
     LinkTarget,
     Resolver,
@@ -47,10 +42,12 @@ from scripts.docs.relative_link_fixer import (  # noqa: E402  (sys.path bootstra
     rewrite_body,
     run,
 )
-from tests.docs.conftest import (  # noqa: E402  (sys.path bootstrap above)
+from tests.docs.conftest import (
     commit_all_changes,
     init_git_repo_with_base,
 )
+
+_REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.fast
 

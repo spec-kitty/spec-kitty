@@ -30,7 +30,7 @@ exactly the operator action issue #4908 pins. Contract:
 
 from __future__ import annotations
 
-import os
+import contextlib
 import re
 import subprocess
 from pathlib import Path
@@ -95,12 +95,8 @@ def _invoke_generate(repo: Path, *args: str) -> object:
     ``tests/charter/test_active_languages_idempotency.py``'s
     ``_invoke_generate`` helper.
     """
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(repo)
+    with contextlib.chdir(repo):
         return runner.invoke(charter_app, ["generate", *args], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _activate(repo: Path, *args: str) -> object:

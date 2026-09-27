@@ -7,15 +7,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Add the src directory to the path
-
 import pytest
+from specify_cli import gitignore_manager
 
 pytestmark = [pytest.mark.integration]
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src" / "specify_cli"))
-
-import gitignore_manager
 
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult
@@ -66,9 +61,7 @@ def test_basic_functionality():
         result = manager.protect_all_agents()
         assert result.success, "protect_all_agents failed"
         assert result.modified, "File should be modified on first run"
-        assert len(result.entries_added) == TOTAL_PROTECTED_ENTRIES, (
-            f"Expected {TOTAL_PROTECTED_ENTRIES} entries, got {len(result.entries_added)}"
-        )
+        assert len(result.entries_added) == TOTAL_PROTECTED_ENTRIES, f"Expected {TOTAL_PROTECTED_ENTRIES} entries, got {len(result.entries_added)}"
 
         # Verify file created
         assert manager.gitignore_path.exists(), ".gitignore not created"
@@ -99,16 +92,12 @@ def test_duplicate_detection():
         # First run
         result1 = manager.protect_all_agents()
         assert result1.modified, "First run should modify file"
-        assert len(result1.entries_added) == TOTAL_PROTECTED_ENTRIES, (
-            f"Should add {TOTAL_PROTECTED_ENTRIES} entries"
-        )
+        assert len(result1.entries_added) == TOTAL_PROTECTED_ENTRIES, f"Should add {TOTAL_PROTECTED_ENTRIES} entries"
 
         # Second run
         result2 = manager.protect_all_agents()
         assert not result2.modified, "Second run should not modify file"
-        assert len(result2.entries_skipped) == TOTAL_PROTECTED_ENTRIES, (
-            f"Should skip {TOTAL_PROTECTED_ENTRIES} entries"
-        )
+        assert len(result2.entries_skipped) == TOTAL_PROTECTED_ENTRIES, f"Should skip {TOTAL_PROTECTED_ENTRIES} entries"
         assert len(result2.entries_added) == 0, "Should add 0 new entries"
 
 

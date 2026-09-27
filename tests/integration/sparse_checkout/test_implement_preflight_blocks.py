@@ -8,6 +8,7 @@ with a non-zero exit and create NO worktree under ``.worktrees/``.
 from __future__ import annotations
 
 import subprocess
+from contextlib import chdir
 from pathlib import Path
 
 import pytest
@@ -55,20 +56,14 @@ def _seed_mission(repo: Path, slug: str) -> None:
 
 def _invoke_implement(repo: Path, args: list[str]) -> object:
     """Invoke the implement Typer command inside ``repo``."""
-    import os
-
     import typer
 
     app = typer.Typer()
     app.command()(implement)
     runner = CliRunner()
 
-    original_cwd = os.getcwd()
-    try:
-        os.chdir(repo)
+    with chdir(repo):
         return runner.invoke(app, args, catch_exceptions=True)
-    finally:
-        os.chdir(original_cwd)
 
 
 class TestImplementPreflightBlocks:

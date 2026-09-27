@@ -6,20 +6,17 @@ Tests T7.1 and T7.2 from WP07 mission 079-post-555-release-hardening.
 from __future__ import annotations
 
 from pathlib import Path
-import sys
 
 import pytest
 
 # Import validator functions directly from the script
+from scripts.release.validate_release import (
+    ReleaseValidatorError,
+    load_metadata_yaml_version,
+    validate_metadata_yaml_version_sync,
+)
 
 pytestmark = [pytest.mark.integration]
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "release"))
-from validate_release import (  # type: ignore[import]
-    ReleaseValidatorError,
-    validate_metadata_yaml_version_sync,
-    load_metadata_yaml_version,
-)
 
 
 def _write_kittify(tmp_path: Path, version: str) -> None:
@@ -45,9 +42,7 @@ def test_version_mismatch_fails(tmp_path: Path) -> None:
     assert issue is not None
     assert "3.1.1" in issue.message
     assert "3.1.1a3" in issue.message
-    assert "metadata.yaml" in issue.message or (
-        issue.hint and "metadata.yaml" in issue.hint
-    )
+    assert "metadata.yaml" in issue.message or (issue.hint and "metadata.yaml" in issue.hint)
 
 
 def test_version_mismatch_message_names_both_files(tmp_path: Path) -> None:

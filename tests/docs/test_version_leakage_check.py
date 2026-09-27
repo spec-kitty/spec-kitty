@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import re
 import sys
 from collections import Counter
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -40,16 +38,8 @@ pytestmark = [pytest.mark.architectural]
 
 # --- helpers ----------------------------------------------------------------
 
-
-@contextmanager
-def chdir(path: Path) -> Iterator[None]:
-    """Temporarily change cwd to ``path``."""
-    previous = Path.cwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(previous)
+#: Temporarily change cwd to ``path`` (Python 3.11+ scoped cwd context manager).
+chdir = contextlib.chdir
 
 
 def _findings_by_rule(findings: list[FreshnessFinding]) -> Counter[str]:
@@ -61,9 +51,7 @@ def _findings_by_rule(findings: list[FreshnessFinding]) -> Counter[str]:
 
 def test_load_inventory_clean(clean_workspace: Path) -> None:
     entries = load_inventory(clean_workspace / "inventory.yaml")
-    assert frozenset(e.path for e in entries) == frozenset(
-        {"docs/current/index.md", "docs/archive/legacy.md", "docs/migrations/from-2x.md"}
-    )
+    assert frozenset(e.path for e in entries) == frozenset({"docs/current/index.md", "docs/archive/legacy.md", "docs/migrations/from-2x.md"})
     assert entries[0].path == "docs/current/index.md"
     assert entries[0].tag is VersionTag.CURRENT
     assert entries[0].divio_type is DivioType.HOW_TO
@@ -111,9 +99,7 @@ def test_load_inventory_row_not_a_mapping(tmp_path: Path) -> None:
 
 def test_load_inventory_missing_keys(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yaml"
-    bad.write_text(
-        "- path: docs/x.md\n  tag: current\n", encoding="utf-8"
-    )
+    bad.write_text("- path: docs/x.md\n  tag: current\n", encoding="utf-8")
     with pytest.raises(LoadError, match="missing keys"):
         load_inventory(bad)
 
@@ -131,9 +117,7 @@ def test_load_inventory_missing_keys(tmp_path: Path) -> None:
         ("notes", 42, "notes"),
     ],
 )
-def test_load_inventory_field_validation(
-    tmp_path: Path, field: str, value: object, match: str
-) -> None:
+def test_load_inventory_field_validation(tmp_path: Path, field: str, value: object, match: str) -> None:
     row: dict[str, object] = {
         "path": "docs/x.md",
         "tag": "current",
@@ -157,13 +141,7 @@ def test_load_inventory_field_validation(
 def test_load_inventory_archival_must_not_be_current_target(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yaml"
     bad.write_text(
-        "- path: docs/x.md\n"
-        "  tag: archival\n"
-        "  divio_type: none\n"
-        "  owning_workstream: C\n"
-        "  current_target: true\n"
-        "  citation_refs: []\n"
-        "  notes: null\n",
+        "- path: docs/x.md\n  tag: archival\n  divio_type: none\n  owning_workstream: C\n  current_target: true\n  citation_refs: []\n  notes: null\n",
         encoding="utf-8",
     )
     with pytest.raises(LoadError, match="archival pages must have current_target=false"):
@@ -173,13 +151,7 @@ def test_load_inventory_archival_must_not_be_current_target(tmp_path: Path) -> N
 def test_load_inventory_current_must_be_current_target(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yaml"
     bad.write_text(
-        "- path: docs/x.md\n"
-        "  tag: current\n"
-        "  divio_type: how-to\n"
-        "  owning_workstream: E\n"
-        "  current_target: false\n"
-        "  citation_refs: []\n"
-        "  notes: null\n",
+        "- path: docs/x.md\n  tag: current\n  divio_type: how-to\n  owning_workstream: E\n  current_target: false\n  citation_refs: []\n  notes: null\n",
         encoding="utf-8",
     )
     with pytest.raises(LoadError, match="current pages must have current_target=true"):
@@ -246,9 +218,7 @@ def test_build_parser_defaults() -> None:
 
 
 @pytest.mark.parametrize("ci_flag", [False, True])
-def test_main_clean_exits_zero(
-    clean_workspace: Path, capsys: pytest.CaptureFixture[str], ci_flag: bool
-) -> None:
+def test_main_clean_exits_zero(clean_workspace: Path, capsys: pytest.CaptureFixture[str], ci_flag: bool) -> None:
     argv = [
         "--inventory",
         "inventory.yaml",
@@ -305,9 +275,7 @@ def test_main_dirty_exits_one_with_four_findings(
     capsys.readouterr()
 
 
-def test_main_missing_inventory_exits_two(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_missing_inventory_exits_two(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     workspace = tmp_path / "ws"
     workspace.mkdir()
     (workspace / "docs").mkdir()
@@ -325,9 +293,7 @@ def test_main_missing_inventory_exits_two(
     assert "not found" in captured.err.lower()
 
 
-def test_main_malformed_inventory_exits_two(
-    missing_workspace: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_malformed_inventory_exits_two(missing_workspace: Path, capsys: pytest.CaptureFixture[str]) -> None:
     with chdir(missing_workspace):
         exit_code = main(
             [
@@ -342,9 +308,7 @@ def test_main_malformed_inventory_exits_two(
     assert "malformed yaml" in captured.err.lower()
 
 
-def test_main_docs_root_missing_exits_three(
-    clean_workspace: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_docs_root_missing_exits_three(clean_workspace: Path, capsys: pytest.CaptureFixture[str]) -> None:
     with chdir(clean_workspace):
         exit_code = main(
             [
@@ -359,9 +323,7 @@ def test_main_docs_root_missing_exits_three(
     assert "does not exist" in captured.err.lower()
 
 
-def test_main_docs_root_is_file_exits_three(
-    clean_workspace: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_docs_root_is_file_exits_three(clean_workspace: Path, capsys: pytest.CaptureFixture[str]) -> None:
     sentinel = clean_workspace / "not_a_dir.txt"
     sentinel.write_text("hi", encoding="utf-8")
     with chdir(clean_workspace):
@@ -378,9 +340,7 @@ def test_main_docs_root_is_file_exits_three(
     assert "not a directory" in captured.err.lower()
 
 
-def test_main_invalid_banner_regex_exits_two(
-    clean_workspace: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_invalid_banner_regex_exits_two(clean_workspace: Path, capsys: pytest.CaptureFixture[str]) -> None:
     with chdir(clean_workspace):
         exit_code = main(
             [
@@ -397,9 +357,7 @@ def test_main_invalid_banner_regex_exits_two(
     assert "invalid --banner-regex" in captured.err.lower()
 
 
-def test_main_writes_rich_table_when_not_ci(
-    clean_workspace: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_writes_rich_table_when_not_ci(clean_workspace: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Force non-CI path even though pytest's stdout is not a TTY."""
     # _emit_output falls back to plain when stdout is not a TTY. Stub
     # isatty -> True so we exercise the rich branch.
@@ -457,9 +415,7 @@ def test_run_checks_detects_all_four_rules(dirty_workspace: Path) -> None:
     )
 
 
-def test_run_checks_unreadable_inventory_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_checks_unreadable_inventory_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An inventory row whose file cannot be read yields LEAK-MISSING-FILE."""
     workspace = tmp_path / "ws"
     (workspace / "docs").mkdir(parents=True)
@@ -467,13 +423,7 @@ def test_run_checks_unreadable_inventory_file(
     page.write_text("# page\n", encoding="utf-8")
     inventory_yaml = workspace / "inventory.yaml"
     inventory_yaml.write_text(
-        "- path: docs/page.md\n"
-        "  tag: current\n"
-        "  divio_type: how-to\n"
-        "  owning_workstream: E\n"
-        "  current_target: true\n"
-        "  citation_refs: []\n"
-        "  notes: null\n",
+        "- path: docs/page.md\n  tag: current\n  divio_type: how-to\n  owning_workstream: E\n  current_target: true\n  citation_refs: []\n  notes: null\n",
         encoding="utf-8",
     )
 
@@ -492,10 +442,7 @@ def test_run_checks_unreadable_inventory_file(
             docs_root=Path("docs"),
             banner_regex=re.compile(DEFAULT_BANNER_REGEX, re.MULTILINE),
         )
-    assert any(
-        f.rule_id == "LEAK-MISSING-FILE" and "permission denied" in f.message
-        for f in findings
-    )
+    assert any(f.rule_id == "LEAK-MISSING-FILE" and "permission denied" in f.message for f in findings)
 
 
 def test_run_checks_skips_external_and_anchor_links(tmp_path: Path) -> None:
@@ -572,9 +519,7 @@ def test_resolve_link_target_pure_anchor(tmp_path: Path) -> None:
 
 
 def test_resolve_link_target_absolute_repo_path(tmp_path: Path) -> None:
-    assert (
-        _resolve_link_target("/docs/x.md", tmp_path / "p.md") == "docs/x.md"
-    )
+    assert _resolve_link_target("/docs/x.md", tmp_path / "p.md") == "docs/x.md"
 
 
 def test_resolve_link_target_outside_cwd(tmp_path: Path) -> None:
@@ -617,13 +562,7 @@ def test_run_checks_frontmatter_drift_is_not_a_leak_rule(tmp_path: Path) -> None
     page.write_text("---\nversion_tag: archival\n---\n# body\n", encoding="utf-8")
     inventory_yaml = workspace / "inventory.yaml"
     inventory_yaml.write_text(
-        "- path: docs/p.md\n"
-        "  tag: current\n"
-        "  divio_type: how-to\n"
-        "  owning_workstream: E\n"
-        "  current_target: true\n"
-        "  citation_refs: []\n"
-        "  notes: null\n",
+        "- path: docs/p.md\n  tag: current\n  divio_type: how-to\n  owning_workstream: E\n  current_target: true\n  citation_refs: []\n  notes: null\n",
         encoding="utf-8",
     )
     with chdir(workspace):

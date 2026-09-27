@@ -117,12 +117,7 @@ def _worker_home_base(config: pytest.Config) -> Path:
     run_uid = f"serial-{os.getpid()}"
     if workerinput is not None:
         run_uid = str(workerinput.get("testrunuid", "serial"))
-    base = (
-        Path(tempfile.gettempdir())
-        / "spec-kitty-test-homes"
-        / run_uid
-        / _worker_id(config)
-    )
+    base = Path(tempfile.gettempdir()) / "spec-kitty-test-homes" / run_uid / _worker_id(config)
     base.mkdir(parents=True, exist_ok=True)
     setattr(config, _WORKER_HOME_CONFIG_ATTR, str(base))
     return base
@@ -142,6 +137,7 @@ def _apply_home_env(home_base: Path) -> None:
         target = home_base / subdir
         target.mkdir(parents=True, exist_ok=True)
         os.environ[var] = str(target)
+
 
 # ---------------------------------------------------------------------------
 # Concurrency-safe test-venv creation (FR-003, FR-004)
@@ -275,6 +271,7 @@ def pytest_configure(config: pytest.Config) -> None:
         prepare_mutants_environment_from_cwd()
     except OSError as exc:
         import warnings
+
         warnings.warn(f"Failed to prepare mutants environment: {exc}", stacklevel=1)
 
     # HARDCODED: Never open browser windows during tests.
@@ -421,11 +418,7 @@ def _isolated_worker_home(
         target.mkdir(parents=True, exist_ok=True)
         monkeypatch.setenv(var, str(target))
 
-    before_spec_kitty_env = {
-        key: value
-        for key, value in os.environ.items()
-        if key.startswith(_SPEC_KITTY_ENV_PREFIX)
-    }
+    before_spec_kitty_env = {key: value for key, value in os.environ.items() if key.startswith(_SPEC_KITTY_ENV_PREFIX)}
     try:
         yield home_base
     finally:
@@ -653,10 +646,7 @@ def reset_spec_kitty_queue_state() -> None:
             return
         try:
             with sqlite3.connect(db_path) as conn:
-                for (table_name,) in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' "
-                    "AND name NOT LIKE 'sqlite_%'"
-                ).fetchall():
+                for (table_name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall():
                     with contextlib.suppress(sqlite3.OperationalError):
                         conn.execute(f"DELETE FROM {table_name}")  # noqa: S608
                 conn.commit()
@@ -861,8 +851,7 @@ def _read_bootstrap_lease(state_path: Path) -> _BootstrapLease | None:
         )
     except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise RuntimeError(
-            f"Malformed test-venv lease state at {state_path}: {exc}. "
-            "Inspect and remove that state file only after confirming no test builder is running."
+            f"Malformed test-venv lease state at {state_path}: {exc}. Inspect and remove that state file only after confirming no test builder is running."
         ) from exc
 
 
@@ -888,20 +877,13 @@ def _lease_is_live_and_fresh(lease: _BootstrapLease, now: float) -> bool:
     pid-reused owner is never live regardless of heartbeat freshness.
     """
     current_token = _process_start_token(lease.owner_pid)
-    return (
-        current_token is not None
-        and current_token == lease.process_start_token
-        and now - lease.heartbeat_at <= lease.lease_seconds + _LIVE_OWNER_GRACE_FLOOR_S
-    )
+    return current_token is not None and current_token == lease.process_start_token and now - lease.heartbeat_at <= lease.lease_seconds + _LIVE_OWNER_GRACE_FLOOR_S
 
 
 def _expected_temp_path(temp_path: Path, final_path: Path) -> bool:
     candidate = Path(os.path.abspath(temp_path))
     final = Path(os.path.abspath(final_path))
-    return (
-        os.path.normcase(str(candidate.parent)) == os.path.normcase(str(final.parent))
-        and candidate.name.startswith(f"{final.name}.build-")
-    )
+    return os.path.normcase(str(candidate.parent)) == os.path.normcase(str(final.parent)) and candidate.name.startswith(f"{final.name}.build-")
 
 
 def _remove_path_without_following_symlinks(path: Path) -> None:
@@ -915,8 +897,7 @@ def _remove_path_without_following_symlinks(path: Path) -> None:
 def _remove_recorded_temp(lease: _BootstrapLease, final_path: Path) -> None:
     if not _expected_temp_path(lease.temp_path, final_path):
         raise RuntimeError(
-            f"Refusing to recover test venv from unsafe temp_path {lease.temp_path}; "
-            f"expected a sibling named {final_path.name}.build-* beside {final_path}."
+            f"Refusing to recover test venv from unsafe temp_path {lease.temp_path}; expected a sibling named {final_path.name}.build-* beside {final_path}."
         )
     _remove_path_without_following_symlinks(lease.temp_path)
 
@@ -1138,9 +1119,7 @@ def _seed_offline_test_venv(venv_dir: Path, source_version: str) -> None:
     site_packages = _venv_site_packages(venv_dir)
     site_packages.mkdir(parents=True, exist_ok=True)
 
-    host_site_packages = [
-        path for path in sys.path if "site-packages" in path and Path(path).exists()
-    ]
+    host_site_packages = [path for path in sys.path if "site-packages" in path and Path(path).exists()]
     if host_site_packages:
         (site_packages / "host-site-packages.pth").write_text(
             "\n".join(host_site_packages) + "\n",
@@ -1188,7 +1167,7 @@ def _create_test_venv(venv_dir: Path, source_version: str) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def test_venv() -> Path:
+def test_venv() -> Iterator[Path]:
     """Create and cache a test venv for isolated CLI execution.
 
     Delegates to ``_ensure_test_venv`` which serialises venv creation across
@@ -1199,8 +1178,9 @@ def test_venv() -> Path:
         source_version = tomllib.load(f)["project"]["version"]
 
     venv_dir = _ensure_test_venv(REPO_ROOT, source_version)
-    os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
-    return venv_dir
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("SPEC_KITTY_TEST_VENV", str(venv_dir))
+        yield venv_dir
 
 
 # ---------------------------------------------------------------------------
@@ -1208,11 +1188,16 @@ def test_venv() -> Path:
 # Builds wheel + sdist ONCE per session instead of per-test.
 # ---------------------------------------------------------------------------
 
+
 def _build_tool_available() -> bool:
-    return subprocess.run(
-        [sys.executable, "-m", "build", "--help"],
-        capture_output=True, text=True,
-    ).returncode == 0
+    return (
+        subprocess.run(
+            [sys.executable, "-m", "build", "--help"],
+            capture_output=True,
+            text=True,
+        ).returncode
+        == 0
+    )
 
 
 @pytest.fixture(scope="session")
@@ -1251,7 +1236,8 @@ def installed_wheel_venv(
 
     result = subprocess.run(
         [sys.executable, "-m", "venv", str(venv_dir)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         pytest.skip(f"Failed to create venv: {result.stderr}")
@@ -1266,7 +1252,8 @@ def installed_wheel_venv(
 
     result = subprocess.run(
         [str(pip), "install", str(wheel)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         pytest.skip(f"Failed to install wheel: {result.stderr}")
@@ -1875,11 +1862,7 @@ def _reaper_branch_names(repo_root: Path) -> frozenset[str]:
         text=True,
         check=False,
     )
-    return frozenset(
-        line.strip().lstrip("*+").strip()
-        for line in result.stdout.splitlines()
-        if line.strip()
-    )
+    return frozenset(line.strip().lstrip("*+").strip() for line in result.stdout.splitlines() if line.strip())
 
 
 def _reaper_worktree_dir_names(repo_root: Path) -> frozenset[str]:
@@ -1992,11 +1975,7 @@ class ReapResult:
 
     @property
     def is_empty(self) -> bool:
-        return not (
-            self.removed_mission_dirs
-            or self.removed_branches
-            or self.removed_worktree_dirs
-        )
+        return not (self.removed_mission_dirs or self.removed_branches or self.removed_worktree_dirs)
 
 
 def capture_reaper_snapshot(repo_root: Path) -> ReaperSnapshot:

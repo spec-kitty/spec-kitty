@@ -7,13 +7,12 @@ from pathlib import Path
 
 import pytest
 
-# Import generator under test
-import sys
+# Import generator under test via the canonical `scripts` namespace package
+# (repo root is already on sys.path via pytest's rootdir prepend, since
+# `tests/__init__.py` exists) rather than inserting `scripts/` directly.
+import scripts.generate_contextive_glossaries as gen
 
 pytestmark = [pytest.mark.integration]
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "scripts"))
-import generate_contextive_glossaries as gen
 
 
 # ---------------------------------------------------------------------------

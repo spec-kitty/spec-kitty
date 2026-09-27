@@ -51,6 +51,7 @@ mission run-snapshot I/O).
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import json
 import subprocess
@@ -230,30 +231,18 @@ def _write_input_requiring_mission(repo_root: Path, mission_type: str) -> None:
 
 def _next(repo_root: Path, agent: str, mission_slug: str, **extra: str) -> dict[str, Any]:
     """Real ``spec-kitty next --json`` CLI invocation, cwd pinned to *repo_root*."""
-    import os
-
     args = ["next", "--agent", agent, "--mission", mission_slug, "--result", "success", "--json"]
     for key, value in extra.items():
         args.extend([f"--{key.replace('_', '-')}", value])
-    prev_cwd = Path.cwd()
-    os.chdir(repo_root)
-    try:
+    with contextlib.chdir(repo_root):
         result = runner.invoke(cli_app, args)
-    finally:
-        os.chdir(prev_cwd)
     assert result.exit_code == 0, result.output
     return cast("dict[str, Any]", json.loads(result.stdout))
 
 
 def _run_answer_decision(repo_root: Path, args: list[str]) -> Result:
-    import os
-
-    prev_cwd = Path.cwd()
-    os.chdir(repo_root)
-    try:
+    with contextlib.chdir(repo_root):
         return runner.invoke(orchestrator_app, ["answer-decision", *args])
-    finally:
-        os.chdir(prev_cwd)
 
 
 def _envelope(result: Result) -> dict[str, Any]:
@@ -662,14 +651,8 @@ def _run_next_raw(repo_root: Path, args: list[str]) -> Result:
     ``--result``, unlike ``_next`` above) -- ground truth for the host CLI's
     OWN literal validation behaviour.
     """
-    import os
-
-    prev_cwd = Path.cwd()
-    os.chdir(repo_root)
-    try:
+    with contextlib.chdir(repo_root):
         return runner.invoke(cli_app, ["next", *args])
-    finally:
-        os.chdir(prev_cwd)
 
 
 def test_host_cli_rejects_invalid_result_before_no_pending_decision(tmp_path: Path) -> None:

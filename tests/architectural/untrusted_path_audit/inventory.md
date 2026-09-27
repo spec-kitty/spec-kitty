@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD037 -->
 
-Generated input: `python tests/architectural/untrusted_path_audit/audit.py`
+Generated input: `python -m tests.architectural.untrusted_path_audit.audit`
 walks `src/specify_cli` and self-asserts this table in BOTH directions —
 undercount (every discovered sink is documented) AND overcount/ghost (every
 documented row still maps to a live sink), plus known-candidate presence and the

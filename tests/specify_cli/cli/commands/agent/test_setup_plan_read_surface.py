@@ -30,7 +30,6 @@ Discipline (reviewer-renata post-tasks squad + standing memory):
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -64,9 +63,7 @@ PRIMARY_SPEC = """\
 
 
 def _git(repo_root: Path, *args: str) -> None:
-    subprocess.run(
-        ["git", "-C", str(repo_root), *args], check=True, capture_output=True, text=True
-    )
+    subprocess.run(["git", "-C", str(repo_root), *args], check=True, capture_output=True, text=True)
 
 
 def _init_repo(repo_root: Path) -> None:
@@ -110,15 +107,13 @@ def _seed_coord_topology(repo_root: Path) -> tuple[Path, Path]:
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-qm", "author primary spec")
 
-    coord_husk_dir = (
-        repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord" / "kitty-specs" / SLUG_WITH_MID8
-    )
+    coord_husk_dir = repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord" / "kitty-specs" / SLUG_WITH_MID8
     # Husk carries meta.json but NO spec.md — reading spec off the husk fails.
     _write_meta(coord_husk_dir, meta)
     return primary_dir, coord_husk_dir
 
 
-def _run_setup_plan(repo_root: Path, coord_husk_dir: Path) -> dict[str, object]:
+def _run_setup_plan(repo_root: Path, coord_husk_dir: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     """Invoke the REAL ``setup-plan`` command (pre-existing entry point).
 
     ``_find_feature_directory`` is patched to return the COORD husk — exactly what
@@ -130,48 +125,32 @@ def _run_setup_plan(repo_root: Path, coord_husk_dir: Path) -> dict[str, object]:
     """
     runner = CliRunner()
 
-    def _fake_show_branch_context(
-        _repo_root: Path, _slug: str, _json: bool
-    ) -> tuple[str, str]:
+    def _fake_show_branch_context(_repo_root: Path, _slug: str, _json: bool) -> tuple[str, str]:
         return ("main", "main")
 
-    _prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
-    os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     # Neutralize the FR-011 SaaS auth gate: this test targets the spec-read
     # surface, not hosted-sync auth. With SAAS sync enabled in the ambient env
     # setup-plan would refuse with SAAS_SYNC_UNAUTHENTICATED before ever reaching
     # the spec read, masking the divergence we assert on.
-    _prev_saas = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC")
-    os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
-    try:
-        with (
-            patch.object(mission_mod, "locate_project_root", return_value=repo_root),
-            patch.object(mission_mod, "_enforce_git_preflight"),
-            patch.object(
-                mission_mod, "_find_feature_directory", return_value=coord_husk_dir
-            ),
-            patch.object(
-                mission_mod,
-                "_show_branch_context",
-                side_effect=_fake_show_branch_context,
-            ),
-            patch.object(mission_mod, "get_current_branch", return_value="main"),
-            patch.object(
-                mission_mod, "_resolve_feature_target_branch", return_value="main"
-            ),
-        ):
-            result = runner.invoke(
-                mission_mod.app,
-                ["setup-plan", "--json", "--mission", SLUG_WITH_MID8],
-                catch_exceptions=False,
-            )
-    finally:
-        if _prev_allow is None:
-            os.environ.pop("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", None)
-        else:
-            os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = _prev_allow
-        if _prev_saas is not None:
-            os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = _prev_saas
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    with (
+        patch.object(mission_mod, "locate_project_root", return_value=repo_root),
+        patch.object(mission_mod, "_enforce_git_preflight"),
+        patch.object(mission_mod, "_find_feature_directory", return_value=coord_husk_dir),
+        patch.object(
+            mission_mod,
+            "_show_branch_context",
+            side_effect=_fake_show_branch_context,
+        ),
+        patch.object(mission_mod, "get_current_branch", return_value="main"),
+        patch.object(mission_mod, "_resolve_feature_target_branch", return_value="main"),
+    ):
+        result = runner.invoke(
+            mission_mod.app,
+            ["setup-plan", "--json", "--mission", SLUG_WITH_MID8],
+            catch_exceptions=False,
+        )
 
     output = result.output.strip()
     start = output.find("{")
@@ -184,7 +163,7 @@ def _run_setup_plan(repo_root: Path, coord_husk_dir: Path) -> dict[str, object]:
 # --------------------------------------------------------------------------- #
 # T006 — red-first repro through the REAL setup-plan entry point.
 # --------------------------------------------------------------------------- #
-def test_setup_plan_reads_primary_spec_for_coord_topology(tmp_path: Path) -> None:
+def test_setup_plan_reads_primary_spec_for_coord_topology(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """GREEN: real ``setup-plan`` reads the PRIMARY spec for a coord-topology mission.
 
     The coord husk has NO spec.md; pre-WP02 this blocked with ``SPEC_FILE_MISSING``.
@@ -194,7 +173,7 @@ def test_setup_plan_reads_primary_spec_for_coord_topology(tmp_path: Path) -> Non
     """
     _primary_dir, coord_husk_dir = _seed_coord_topology(tmp_path)
 
-    payload = _run_setup_plan(tmp_path, coord_husk_dir)
+    payload = _run_setup_plan(tmp_path, coord_husk_dir, monkeypatch)
 
     assert payload.get("error_code") != "SPEC_FILE_MISSING", payload
     # The spec gate cleared: setup-plan reached the plan-scaffolding stage. With a
@@ -202,9 +181,7 @@ def test_setup_plan_reads_primary_spec_for_coord_topology(tmp_path: Path) -> Non
     assert payload.get("error_code") != "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED", payload
 
 
-def test_setup_plan_red_when_planning_read_reverts_to_coord(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_setup_plan_red_when_planning_read_reverts_to_coord(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Non-vacuous RED: revert the PLANNING read to the coord-aware resolver and the
     real ``setup-plan`` command blocks with ``SPEC_FILE_MISSING`` (reads the husk).
 
@@ -216,9 +193,7 @@ def test_setup_plan_red_when_planning_read_reverts_to_coord(
     """
     _primary_dir, coord_husk_dir = _seed_coord_topology(tmp_path)
 
-    def _coord_routed(
-        _repo_root: Path, mission_slug: str, *, artifact_type: str
-    ) -> Path:
+    def _coord_routed(_repo_root: Path, mission_slug: str, *, artifact_type: str) -> Path:
         # The pre-WP02 behaviour: the PLANNING read resolves the coord-aware dir
         # (the materialized husk), NOT the primary surface.
         husk: Path = candidate_feature_dir_for_mission(_repo_root, mission_slug)
@@ -226,7 +201,7 @@ def test_setup_plan_red_when_planning_read_reverts_to_coord(
 
     monkeypatch.setattr(mission_mod, "_planning_read_dir", _coord_routed)
 
-    payload = _run_setup_plan(tmp_path, coord_husk_dir)
+    payload = _run_setup_plan(tmp_path, coord_husk_dir, monkeypatch)
 
     assert payload.get("error_code") == "SPEC_FILE_MISSING", payload
 
@@ -246,16 +221,14 @@ def test_setup_plan_planning_read_resolves_primary_target_branch(
     """
     primary_dir, coord_husk_dir = _seed_coord_topology(tmp_path)
 
-    resolved = mission_mod._planning_read_dir(
-        tmp_path, SLUG_WITH_MID8, artifact_type="spec"
-    )
+    resolved = mission_mod._planning_read_dir(tmp_path, SLUG_WITH_MID8, artifact_type="spec")
 
     assert resolved.resolve() == primary_dir.resolve()
     assert resolved.resolve() != coord_husk_dir.resolve()
     assert (resolved / "spec.md").read_text(encoding="utf-8") == PRIMARY_SPEC
 
 
-def test_setup_plan_flattened_mission_reads_primary(tmp_path: Path) -> None:
+def test_setup_plan_flattened_mission_reads_primary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Flattened-regression (NFR-001): a single-branch mission reads the primary spec.
 
     No coordination branch / husk — ``setup-plan`` reads ``target_branch/spec.md``
@@ -277,7 +250,7 @@ def test_setup_plan_flattened_mission_reads_primary(tmp_path: Path) -> None:
     _git(tmp_path, "commit", "-qm", "author primary spec (flattened)")
 
     # In a flattened mission the coord-aware resolver returns the primary dir itself.
-    payload = _run_setup_plan(tmp_path, primary_dir)
+    payload = _run_setup_plan(tmp_path, primary_dir, monkeypatch)
 
     assert payload.get("error_code") != "SPEC_FILE_MISSING", payload
     assert payload.get("error_code") != "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED", payload

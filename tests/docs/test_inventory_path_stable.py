@@ -20,22 +20,18 @@ The pin covers:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
-# Make ``scripts.docs`` importable (mirrors tests/docs/conftest.py).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs import (  # noqa: E402
+from scripts.docs import (
     _inventory,
     check_docs_freshness,
     inventory_lockfile,
     version_leakage_check,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # ``fast`` (gate-selected), not ``unit`` (authoring-only) — a unit-only marker
 # leaves a new file selected by zero CI gates (orphan surface).
@@ -68,6 +64,5 @@ def test_inventory_file_exists_at_canonical_path() -> None:
     """The page-inventory artifact really sits at the pinned, stable path."""
     inventory_file = _REPO_ROOT / CANONICAL_INVENTORY_PATH
     assert inventory_file.is_file(), (
-        f"page-inventory must stay put at {CANONICAL_INVENTORY_PATH}; "
-        "a re-section moved it (re-opens the freshness-gate self-block, #2054)"
+        f"page-inventory must stay put at {CANONICAL_INVENTORY_PATH}; a re-section moved it (re-opens the freshness-gate self-block, #2054)"
     )

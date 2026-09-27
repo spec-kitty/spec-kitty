@@ -15,7 +15,7 @@ import os
 import subprocess
 import tempfile
 from collections.abc import Iterator
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, chdir, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty
@@ -284,12 +284,8 @@ def _invoke_verdict(
                 "real-command topology fixture has no merged delivery branch",
             ]
         )
-    old_cwd = Path.cwd()
-    try:
-        os.chdir(fixture.repo)
+    with chdir(fixture.repo):
         result = CliRunner().invoke(agent_app, args, catch_exceptions=True)
-    finally:
-        os.chdir(old_cwd)
     return _CommandResult(reviewer, result, _json_payload(result.output))
 
 

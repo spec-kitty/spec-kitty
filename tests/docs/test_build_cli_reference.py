@@ -20,16 +20,22 @@ from typing import Any
 import pytest
 import typer
 
-# Ensure the env flags exist before importing the build module.
-# SPEC_KITTY_ENABLE_SAAS_SYNC is set collection-wide in tests/conftest.py
-# pytest_configure (#3213) — not per-module, which made the gate selection-
-# dependent.
-os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
-
 from scripts.docs import build_cli_reference as build
 from scripts.docs._typer_walker import CommandPathEntry, walk
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+@pytest.fixture(autouse=True)
+def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the upgrade-check opt-out set for every test (was a module-level ``setdefault``).
+
+    ``build_cli_reference`` itself sets this env var at its own import time
+    (SC-critical ordering it owns), so this fixture only preserves the
+    test-local guarantee for tests that read the variable directly — it no
+    longer needs to run before any import.
+    """
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
 
 
 # ---------------------------------------------------------------------------

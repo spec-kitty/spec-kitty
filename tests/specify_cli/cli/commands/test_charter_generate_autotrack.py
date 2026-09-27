@@ -10,8 +10,8 @@ and ``init``.
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -125,7 +125,7 @@ def _ls_files_stage(repo: Path) -> list[str]:
 
 
 def test_generate_then_bundle_validate_succeeds_in_fresh_git_repo(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """After ``charter generate`` in a fresh git repo, ``bundle validate``
     accepts the bundle without any intervening ``git add``.
@@ -140,29 +140,25 @@ def test_generate_then_bundle_validate_succeeds_in_fresh_git_repo(
     _write_minimal_interview(tmp_path)
     _write_curated_charter_md(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        gen_result = runner.invoke(
-            charter_app, ["generate", "--from-interview", "--json"],
-            catch_exceptions=False,
-        )
-        assert gen_result.exit_code == 0, (
-            f"generate failed: stdout={gen_result.stdout!r} "
-            f"stderr={getattr(gen_result, 'stderr', '')!r}"
-        )
+    monkeypatch.chdir(tmp_path)
+    gen_result = runner.invoke(
+        charter_app, ["generate", "--from-interview", "--json"],
+        catch_exceptions=False,
+    )
+    assert gen_result.exit_code == 0, (
+        f"generate failed: stdout={gen_result.stdout!r} "
+        f"stderr={getattr(gen_result, 'stderr', '')!r}"
+    )
 
-        # NO manual `git add` between generate and validate.
-        val_result = runner.invoke(
-            charter_bundle_app, ["validate", "--json"],
-            catch_exceptions=False,
-        )
-        assert val_result.exit_code == 0, (
-            f"bundle validate failed after generate: "
-            f"stdout={val_result.stdout!r}"
-        )
-    finally:
-        os.chdir(old_cwd)
+    # NO manual `git add` between generate and validate.
+    val_result = runner.invoke(
+        charter_bundle_app, ["validate", "--json"],
+        catch_exceptions=False,
+    )
+    assert val_result.exit_code == 0, (
+        f"bundle validate failed after generate: "
+        f"stdout={val_result.stdout!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -170,22 +166,18 @@ def test_generate_then_bundle_validate_succeeds_in_fresh_git_repo(
 # ---------------------------------------------------------------------------
 
 
-def test_generate_in_non_git_dir_fails_fast(tmp_path: Path) -> None:
+def test_generate_in_non_git_dir_fails_fast(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``charter generate`` outside a git repo MUST exit non-zero with a
     message containing both ``git`` and ``init``.
     """
     # NOT calling _git_init: tmp_path is a plain directory.
     _write_minimal_interview(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app, ["generate", "--from-interview"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--from-interview"],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code != 0, (
         f"generate must fail in non-git dir; got exit 0. output={result.stdout!r}"
@@ -205,7 +197,7 @@ def test_generate_in_non_git_dir_fails_fast(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_generate_stages_produced_files(tmp_path: Path) -> None:
+def test_generate_stages_produced_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """After ``charter generate`` succeeds, ``git ls-files --stage`` MUST
     include the generated charter commit inputs.
 
@@ -218,19 +210,15 @@ def test_generate_stages_produced_files(tmp_path: Path) -> None:
     _write_minimal_interview(tmp_path)
     _write_curated_charter_md(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app, ["generate", "--from-interview"],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0, (
-            f"generate failed: output={result.stdout!r}"
-        )
-        staged = _ls_files_stage(tmp_path)
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--from-interview"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, (
+        f"generate failed: output={result.stdout!r}"
+    )
+    staged = _ls_files_stage(tmp_path)
 
     expected = {
         ".kittify/charter/charter.md",
@@ -257,15 +245,11 @@ def test_generate_from_interview_fails_when_answers_missing(
     # that ambient ancestor instead of this fixture's repo.
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app, ["generate", "--from-interview"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--from-interview"],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code != 0
     assert "No charter interview answers found" in result.stdout
@@ -285,15 +269,11 @@ def test_generate_from_interview_missing_answers_json_is_parseable(
     # See the hermeticity note in test_generate_from_interview_fails_when_answers_missing.
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app, ["generate", "--from-interview", "--json"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--from-interview", "--json"],
+        catch_exceptions=False,
+    )
 
     payload = json.loads(result.stdout)
     assert result.exit_code != 0
@@ -317,15 +297,11 @@ def _assert_generate_refuses_symlinked_charter_before_side_effects(tmp_path: Pat
     except OSError as exc:
         pytest.skip(f"symlinks unavailable: {exc}")
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         result = runner.invoke(
             charter_app, ["generate", "--no-from-interview", "--force", "--json"],
             catch_exceptions=False,
         )
-    finally:
-        os.chdir(old_cwd)
 
     payload = json.loads(result.stdout)
     assert result.exit_code != 0
@@ -377,21 +353,17 @@ def test_status_json_error_is_parseable() -> None:
     }
 
 
-def test_generate_fails_when_auto_stage_fails(tmp_path: Path) -> None:
+def test_generate_fails_when_auto_stage_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Auto-track failures must not be reported as successful generation."""
     _git_init(tmp_path)
     _write_minimal_interview(tmp_path)
     (tmp_path / ".git" / "index.lock").write_text("locked\n", encoding="utf-8")
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app, ["generate", "--from-interview", "--json"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--from-interview", "--json"],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code != 0
     assert "Failed to stage charter file" in result.stdout
@@ -403,7 +375,7 @@ def test_generate_fails_when_auto_stage_fails(tmp_path: Path) -> None:
 
 
 def test_generate_does_not_disturb_unrelated_staged_changes(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Auto-track must not blow away the operator's pre-existing stage."""
     _git_init(tmp_path)
@@ -417,19 +389,15 @@ def test_generate_does_not_disturb_unrelated_staged_changes(
         cwd=tmp_path, check=True, capture_output=True,
     )
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app, ["generate", "--from-interview"],
-            catch_exceptions=False,
-        )
-        assert result.exit_code == 0, (
-            f"generate failed: output={result.stdout!r}"
-        )
-        staged = _ls_files_stage(tmp_path)
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--from-interview"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, (
+        f"generate failed: output={result.stdout!r}"
+    )
+    staged = _ls_files_stage(tmp_path)
 
     assert "README.md" in staged, (
         f"pre-staged README.md must remain staged; got {staged!r}"
@@ -437,7 +405,9 @@ def test_generate_does_not_disturb_unrelated_staged_changes(
     assert ".kittify/charter/charter.yaml" in staged
 
 
-def test_generic_safe_commit_commits_generated_charter_files(tmp_path: Path) -> None:
+def test_generic_safe_commit_commits_generated_charter_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """``safe-commit`` creates the charter commit without raw git commit."""
     _git_init(tmp_path)
     _git_initial_commit(tmp_path)
@@ -447,31 +417,27 @@ def test_generic_safe_commit_commits_generated_charter_files(tmp_path: Path) -> 
         cwd=tmp_path, check=True, capture_output=True, text=True,
     )
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        gen = runner.invoke(
-            charter_app, ["generate", "--from-interview"],
-            catch_exceptions=False,
-        )
-        assert gen.exit_code == 0, f"generate failed: {gen.stdout!r}"
+    monkeypatch.chdir(tmp_path)
+    gen = runner.invoke(
+        charter_app, ["generate", "--from-interview"],
+        catch_exceptions=False,
+    )
+    assert gen.exit_code == 0, f"generate failed: {gen.stdout!r}"
 
-        committed = runner.invoke(
-            cli_app,
-            [
-                "safe-commit",
-                "--message",
-                "chore: generate project charter",
-                "--json",
-                ".kittify/charter/interview/answers.yaml",
-                ".kittify/charter/charter.yaml",
-            ],
-            catch_exceptions=False,
-        )
-        assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
-        assert '"committed": true' in committed.stdout
-    finally:
-        os.chdir(old_cwd)
+    committed = runner.invoke(
+        cli_app,
+        [
+            "safe-commit",
+            "--message",
+            "chore: generate project charter",
+            "--json",
+            ".kittify/charter/interview/answers.yaml",
+            ".kittify/charter/charter.yaml",
+        ],
+        catch_exceptions=False,
+    )
+    assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
+    assert '"committed": true' in committed.stdout
 
     log = subprocess.run(
         ["git", "log", "-1", "--pretty=%s"],
@@ -485,7 +451,9 @@ def test_generic_safe_commit_commits_generated_charter_files(tmp_path: Path) -> 
     assert "spec-kitty-safe-commit" not in stash_list
 
 
-def test_generic_safe_commit_targets_current_git_worktree(tmp_path: Path) -> None:
+def test_generic_safe_commit_targets_current_git_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """``safe-commit`` must commit to the current worktree branch, not main."""
     _git_init(tmp_path)
     (tmp_path / ".kittify").mkdir()
@@ -511,22 +479,18 @@ def test_generic_safe_commit_targets_current_git_worktree(tmp_path: Path) -> Non
     )
     (worktree / "charter.txt").write_text("worktree charter change\n", encoding="utf-8")
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(worktree)
-        committed = runner.invoke(
-            cli_app,
-            [
-                "safe-commit",
-                "--message",
-                "chore: generate project charter",
-                "--json",
-                "charter.txt",
-            ],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(worktree)
+    committed = runner.invoke(
+        cli_app,
+        [
+            "safe-commit",
+            "--message",
+            "chore: generate project charter",
+            "--json",
+            "charter.txt",
+        ],
+        catch_exceptions=False,
+    )
 
     assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
     assert '"committed": true' in committed.stdout
@@ -582,27 +546,23 @@ def test_interview_then_generate_consumes_answers(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / ".home"))
     monkeypatch.setenv("SPEC_KITTY_SYNC_DISABLE", "1")
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        interview = runner.invoke(
-            charter_app,
-            [
-                "interview", "--mission-type", "software-dev",
-                "--profile", "minimal", "--defaults", "--json",
-            ],
-            catch_exceptions=False,
-        )
-        assert interview.exit_code == 0, interview.stdout
-        assert (tmp_path / ".kittify/charter/interview/answers.yaml").exists()
+    monkeypatch.chdir(tmp_path)
+    interview = runner.invoke(
+        charter_app,
+        [
+            "interview", "--mission-type", "software-dev",
+            "--profile", "minimal", "--defaults", "--json",
+        ],
+        catch_exceptions=False,
+    )
+    assert interview.exit_code == 0, interview.stdout
+    assert (tmp_path / ".kittify/charter/interview/answers.yaml").exists()
 
-        generate = runner.invoke(
-            charter_app,
-            ["generate", "--from-interview", "--mission-type", "software-dev", "--json"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    generate = runner.invoke(
+        charter_app,
+        ["generate", "--from-interview", "--mission-type", "software-dev", "--json"],
+        catch_exceptions=False,
+    )
 
     assert generate.exit_code == 0, generate.stdout
     payload = json.loads(generate.stdout)
@@ -633,15 +593,11 @@ def test_generate_from_interview_reports_malformed_answers_distinctly(
         "- not\n- a\n- mapping\n", encoding="utf-8"
     )
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app, ["generate", "--from-interview", "--json"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--from-interview", "--json"],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code != 0
     payload = json.loads(result.stdout)

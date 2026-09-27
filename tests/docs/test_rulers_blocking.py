@@ -46,27 +46,24 @@ would get wrong:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Final
 
 import pytest
 
-_REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs import check_docs_freshness as orchestrator  # noqa: E402
-from scripts.docs import description_length_check as desc_gate  # noqa: E402
-from scripts.docs import related_validator  # noqa: E402
-from scripts.docs import relative_link_fixer  # noqa: E402
-from scripts.docs._published_pages import (  # noqa: E402
+from scripts.docs import check_docs_freshness as orchestrator
+from scripts.docs import description_length_check as desc_gate
+from scripts.docs import related_validator
+from scripts.docs import relative_link_fixer
+from scripts.docs._published_pages import (
     MINIMUM_EXPECTED_PAGES as _MINIMUM_EXPECTED_PAGES,
 )
-from tests.docs.conftest import (  # noqa: E402
+from tests.docs.conftest import (
     commit_all_changes,
     init_git_repo_with_base,
 )
+
+_REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.architectural
 

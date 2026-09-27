@@ -14,8 +14,8 @@ stale — once with no env override, once with an explicit canonical
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -280,12 +280,8 @@ def _init_project(root: Path, *, version: str) -> None:
 
 
 def _run_upgrade(args: list[str], cwd: Path):
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(cwd)
+    with contextlib.chdir(cwd):
         return _cli_runner.invoke(_test_app, args, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _last_json_line(output: str) -> dict[str, object]:

@@ -13,8 +13,8 @@ The byte-exact format is pinned separately by
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import textwrap
 from pathlib import Path
 
@@ -65,12 +65,8 @@ def test_doctor_doctrine_renders_selections_header(tmp_path: Path) -> None:
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         result = runner.invoke(doctor_app, ["doctrine"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
     assert result.exit_code == 0, result.stdout
     assert "Selections (active globally-selected artifacts)" in result.stdout
@@ -81,12 +77,8 @@ def test_doctor_doctrine_empty_kinds_render_as_none(tmp_path: Path) -> None:
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         result = runner.invoke(doctor_app, ["doctrine"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
     assert result.exit_code == 0, result.stdout
     # paradigms, tactics, toolguides etc were not selected — they appear
@@ -100,12 +92,8 @@ def test_doctor_doctrine_lists_declared_project_selections(tmp_path: Path) -> No
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         result = runner.invoke(doctor_app, ["doctrine"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
     assert result.exit_code == 0, result.stdout
     # The id appears under styleguides; the source annotation MUST be one of
@@ -120,12 +108,8 @@ def test_doctor_doctrine_json_includes_selections_block(tmp_path: Path) -> None:
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         result = runner.invoke(doctor_app, ["doctrine", "--json"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)

@@ -14,7 +14,7 @@ silently producing invalid stubs.
 
 from __future__ import annotations
 
-import os
+import contextlib
 from pathlib import Path
 
 import pytest
@@ -37,14 +37,8 @@ def test_new_styleguide_writes_stub_under_project_doctrine_root(tmp_path: Path) 
     """``doctrine new styleguide foo`` lands the stub at the canonical path."""
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result = runner.invoke(
-            doctrine_app, ["new", "styleguide", "foo"], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+    with contextlib.chdir(project):
+        result = runner.invoke(doctrine_app, ["new", "styleguide", "foo"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
     target = project / ".kittify" / "doctrine" / "styleguide" / "foo.styleguide.yaml"
@@ -61,24 +55,14 @@ def test_new_validates_stub_against_schema_so_validate_passes(tmp_path: Path) ->
     """The scaffolded stub MUST pass ``doctrine validate`` on first emit."""
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result_new = runner.invoke(
-            doctrine_app, ["new", "tactic", "my-tactic"], catch_exceptions=False
-        )
+    with contextlib.chdir(project):
+        result_new = runner.invoke(doctrine_app, ["new", "tactic", "my-tactic"], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
 
-        target = (
-            project / ".kittify" / "doctrine" / "tactic" / "my-tactic.tactic.yaml"
-        )
+        target = project / ".kittify" / "doctrine" / "tactic" / "my-tactic.tactic.yaml"
         assert target.exists()
 
-        result_validate = runner.invoke(
-            doctrine_app, ["validate", str(target)], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+        result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result_validate.exit_code == 0, result_validate.stdout
     assert "OK" in result_validate.stdout
@@ -106,22 +90,14 @@ def test_new_special_kind_suffixes_validate_on_first_emit(
     """Special-kind scaffold filenames MUST match ``doctrine validate`` suffixes."""
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result_new = runner.invoke(
-            doctrine_app, ["new", kind, artifact_id], catch_exceptions=False
-        )
+    with contextlib.chdir(project):
+        result_new = runner.invoke(doctrine_app, ["new", kind, artifact_id], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
 
         target = project / ".kittify" / "doctrine" / plural / filename
         assert target.exists()
 
-        result_validate = runner.invoke(
-            doctrine_app, ["validate", str(target)], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+        result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result_validate.exit_code == 0, result_validate.stdout
     assert "OK" in result_validate.stdout
@@ -142,14 +118,8 @@ def test_new_asset_scaffolds_where_project_resolver_reads(tmp_path: Path) -> Non
 
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result = runner.invoke(
-            doctrine_app, ["new", "asset", "my-logo"], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+    with contextlib.chdir(project):
+        result = runner.invoke(doctrine_app, ["new", "asset", "my-logo"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
     resolver_dir = PROJECT_KIND_DIRS[ArtifactKind.ASSET]
@@ -166,22 +136,12 @@ def test_new_asset_stub_validates_on_first_emit(tmp_path: Path) -> None:
     """The scaffolded ASSET manifest passes ``doctrine validate`` immediately."""
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result_new = runner.invoke(
-            doctrine_app, ["new", "asset", "sample-blob"], catch_exceptions=False
-        )
+    with contextlib.chdir(project):
+        result_new = runner.invoke(doctrine_app, ["new", "asset", "sample-blob"], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
-        target = (
-            project / ".kittify" / "doctrine" / "assets" / "sample-blob.asset.yaml"
-        )
+        target = project / ".kittify" / "doctrine" / "assets" / "sample-blob.asset.yaml"
         assert target.exists()
-        result_validate = runner.invoke(
-            doctrine_app, ["validate", str(target)], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+        result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result_validate.exit_code == 0, result_validate.stdout
     assert "OK" in result_validate.stdout
@@ -196,19 +156,11 @@ def test_new_directive_scaffolds_kebab_filename_with_screaming_id_preserved(
     """
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result = runner.invoke(
-            doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+    with contextlib.chdir(project):
+        result = runner.invoke(doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
-    target = (
-        project / ".kittify" / "doctrine" / "directive" / "my-directive.directive.yaml"
-    )
+    target = project / ".kittify" / "doctrine" / "directive" / "my-directive.directive.yaml"
     assert target.exists()
     text = target.read_text(encoding="utf-8")
     assert "id: MY_DIRECTIVE" in text
@@ -236,9 +188,7 @@ def test_scaffolder_engine_and_manifest_slugs_converge_for_screaming_directive(
 
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
+    with contextlib.chdir(project):
         directive_result = runner.invoke(
             doctrine_app,
             ["new", "directive", "SCREAMING_DIRECTIVE"],
@@ -251,8 +201,6 @@ def test_scaffolder_engine_and_manifest_slugs_converge_for_screaming_directive(
             catch_exceptions=False,
         )
         assert profile_result.exit_code == 0, profile_result.stdout
-    finally:
-        os.chdir(old_cwd)
 
     for kind_token, artifact_id in (
         ("directive", "SCREAMING_DIRECTIVE"),
@@ -261,9 +209,7 @@ def test_scaffolder_engine_and_manifest_slugs_converge_for_screaming_directive(
         kind = ArtifactKind(kind_token)
         engine_slug = slug_for(kind_token, artifact_id)
         suffix = kind.glob_pattern.removeprefix("*")
-        candidates = (project / ".kittify" / "doctrine" / PROJECT_KIND_DIRS[kind]).glob(
-            f"*{suffix}"
-        )
+        candidates = (project / ".kittify" / "doctrine" / PROJECT_KIND_DIRS[kind]).glob(f"*{suffix}")
         stems = {path.name.removesuffix(suffix) for path in candidates}
         assert engine_slug in stems
 
@@ -272,28 +218,18 @@ def test_scaffolder_engine_and_manifest_slugs_converge_for_screaming_directive(
     manifest = load_yaml(project / ".kittify/charter/synthesis-manifest.yaml")
     manifest_slugs = {entry.kind: entry.slug for entry in manifest.artifacts}
     assert manifest_slugs["directive"] == slug_for("directive", "SCREAMING_DIRECTIVE")
-    assert manifest_slugs["agent_profile"] == slug_for(
-        "agent_profile", "already-kebab-profile"
-    )
+    assert manifest_slugs["agent_profile"] == slug_for("agent_profile", "already-kebab-profile")
 
 
 def test_new_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
     """Re-running ``doctrine new`` on the same id fails with a clear message."""
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        first = runner.invoke(
-            doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False
-        )
+    with contextlib.chdir(project):
+        first = runner.invoke(doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
         assert first.exit_code == 0, first.stdout
 
-        second = runner.invoke(
-            doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+        second = runner.invoke(doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
 
     assert second.exit_code == 1
     assert "Refusing to overwrite" in second.stdout
@@ -303,14 +239,8 @@ def test_new_rejects_unknown_kind(tmp_path: Path) -> None:
     """An unsupported artifact kind exits 2 with the valid-kinds list."""
     project = _make_project_root(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result = runner.invoke(
-            doctrine_app, ["new", "guideline", "foo"], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+    with contextlib.chdir(project):
+        result = runner.invoke(doctrine_app, ["new", "guideline", "foo"], catch_exceptions=False)
 
     assert result.exit_code == 2
     assert "Unknown artifact kind" in result.stdout

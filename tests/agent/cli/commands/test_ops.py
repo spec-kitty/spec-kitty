@@ -346,45 +346,32 @@ class TestDisplayFormatting:
 class TestIntegration:
     """Integration tests using real git repository."""
 
-    def test_real_git_reflog(self, runner, git_repo):
+    def test_real_git_reflog(self, runner, git_repo, monkeypatch):
         """Test ops log with real git repository."""
         from specify_cli.cli.commands import ops as ops_module
         from specify_cli.core.vcs.git import GitVCS
 
-        import os
-
-        original_dir = os.getcwd()
-        try:
-            os.chdir(git_repo)
-            # Force git backend for this test
-            with patch.object(ops_module, "get_vcs", return_value=GitVCS()):
-                result = runner.invoke(ops_module.app, ["log"])
-        finally:
-            os.chdir(original_dir)
+        monkeypatch.chdir(git_repo)
+        # Force git backend for this test
+        with patch.object(ops_module, "get_vcs", return_value=GitVCS()):
+            result = runner.invoke(ops_module.app, ["log"])
 
         assert result.exit_code == 0
         assert "git reflog" in result.output
         # Should show Initial commit or similar
         assert "commit" in result.output.lower() or "HEAD" in result.output
 
-    def test_real_git_undo_fails(self, runner, git_repo):
+    def test_real_git_undo_fails(self, runner, git_repo, monkeypatch):
         """Test that undo fails for git with helpful message."""
         from specify_cli.cli.commands import ops as ops_module
         from specify_cli.core.vcs.git import GitVCS
 
-        import os
-
-        original_dir = os.getcwd()
-        try:
-            os.chdir(git_repo)
-            # Force git backend for this test
-            with patch.object(ops_module, "get_vcs", return_value=GitVCS()):
-                result = runner.invoke(ops_module.app, ["undo"])
-        finally:
-            os.chdir(original_dir)
+        monkeypatch.chdir(git_repo)
+        # Force git backend for this test
+        with patch.object(ops_module, "get_vcs", return_value=GitVCS()):
+            result = runner.invoke(ops_module.app, ["undo"])
 
         assert result.exit_code == 1
         assert "Undo not supported" in result.output
         # Should suggest alternatives
         assert "git reset" in result.output or "git revert" in result.output
-

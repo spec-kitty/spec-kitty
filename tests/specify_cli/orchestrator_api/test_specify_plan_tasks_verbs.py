@@ -40,6 +40,7 @@ tests), mirroring ``test_transition_subtask_gate.py``'s precedent.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -243,14 +244,8 @@ def _run(repo: Path, args: list[str]) -> Result:
     this drives the genuine end-to-end path with no ``_get_main_repo_root``
     patch.
     """
-    import os
-
-    prev_cwd = Path.cwd()
-    os.chdir(repo)
-    try:
+    with contextlib.chdir(repo):
         return runner.invoke(app, args, catch_exceptions=False)
-    finally:
-        os.chdir(prev_cwd)
 
 
 def _envelope(result: Result) -> dict[str, Any]:

@@ -31,7 +31,6 @@ The six reads (``occurrence_map.yaml`` → ``status.runtime_critical_reads``):
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
@@ -41,6 +40,9 @@ from ruamel.yaml import YAML
 from charter.activation.context_renderers import render_authority_paths
 from charter.activation.context_renderers.authority_paths import DEFAULT_AUTHORITY_PATHS
 from charter.activation.schemas import DoctrineSelectionConfig
+from scripts.generate_contextive_glossaries import (
+    resolve_glossary_contexts_dir,
+)
 from specify_cli.cli.commands.doctor import _print_overdue_details
 from specify_cli.compat.doctor import (
     ShimRegistryReport,
@@ -50,15 +52,10 @@ from specify_cli.compat.doctor import (
 )
 from specify_cli.compat.registry import ShimEntry, load_registry
 
-# ``scripts`` is a PEP-420 namespace package; the repo root is placed on
-# ``sys.path`` by ``tests/docs/conftest.py`` so the script imports here.
+# ``scripts`` is a PEP-420 namespace package; the repo root is already on
+# ``sys.path`` via pytest's own rootdir-prepend (``tests/__init__.py``), so no
+# manual bootstrap is needed for the script import above.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.generate_contextive_glossaries import (  # noqa: E402
-    resolve_glossary_contexts_dir,
-)
 
 pytestmark = pytest.mark.fast
 
@@ -138,9 +135,7 @@ class TestShimRegistryReadersResolveNewHome:
         """Read 4: registry only at the NEW home → load_registry finds it."""
         _write_registry(tmp_path, NEW_SHIM_REGISTRY)
         entries = load_registry(tmp_path)
-        assert frozenset(e.legacy_path for e in entries) == frozenset(
-            {"specify_cli.old_module"}
-        )
+        assert frozenset(e.legacy_path for e in entries) == frozenset({"specify_cli.old_module"})
         assert isinstance(entries[0], ShimEntry)
 
     def test_check_shim_registry_reports_new_home(self, tmp_path: Path) -> None:
@@ -171,9 +166,7 @@ class TestShimRegistryReadersResolveNewHome:
 
 
 class TestRemediationStringNamesNewHome:
-    def test_overdue_remediation_names_docs_migrations(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_overdue_remediation_names_docs_migrations(self, capsys: pytest.CaptureFixture[str]) -> None:
         """The user-facing remediation must name the NEW shim-registry home."""
         from rich.console import Console
 
@@ -186,11 +179,7 @@ class TestRemediationStringNamesNewHome:
             grandfathered=False,
         )
         report = ShimRegistryReport(
-            entries=[
-                ShimStatusEntry(
-                    entry=entry, status=ShimStatus.OVERDUE, shim_exists=True
-                )
-            ],
+            entries=[ShimStatusEntry(entry=entry, status=ShimStatus.OVERDUE, shim_exists=True)],
             project_version="3.2.5",
             registry_path=Path("docs/migrations/shim-registry.yaml"),
         )
@@ -271,9 +260,7 @@ class TestGovernanceAuthorityPathsRepointed:
         assert "architecture/3.x/adr/" not in paths
         assert "architecture/adrs/" not in paths
 
-    def test_charter_declared_new_homes_resolve_through_renderer(
-        self, tmp_path: Path
-    ) -> None:
+    def test_charter_declared_new_homes_resolve_through_renderer(self, tmp_path: Path) -> None:
         """The real reader (render_authority_paths) resolves charter values.
 
         Feed the charter's declared authority paths into the renderer against a
@@ -281,9 +268,7 @@ class TestGovernanceAuthorityPathsRepointed:
         """
         _mkdir(tmp_path, NEW_CONTEXT_DIR)
         _mkdir(tmp_path, NEW_ADR_DIR)
-        selection = DoctrineSelectionConfig(
-            authority_paths=_charter_authority_paths()
-        )
+        selection = DoctrineSelectionConfig(authority_paths=_charter_authority_paths())
         result = render_authority_paths(tmp_path, selection)
         assert f"{NEW_CONTEXT_DIR}/" in result
         assert f"{NEW_ADR_DIR}/" in result

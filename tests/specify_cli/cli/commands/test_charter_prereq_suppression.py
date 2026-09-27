@@ -15,8 +15,8 @@ Also verifies (SC-004):
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -69,29 +69,25 @@ def _invoke_with_prereqs(
     inputs: str,
 ) -> object:
     """Invoke charter interview with a specific PrereqState injected."""
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        with (
-            patch(
-                "specify_cli.saas_client.client.SaasClient.from_env",
-                return_value=MagicMock(_token="tok"),
-            ),
-            patch("specify_cli.widen.check_prereqs", return_value=prereq),
-            patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
-        ):
-            mock_store = MagicMock()
-            mock_store.list_pending.return_value = []
-            mock_store_cls.return_value = mock_store
+    with (
+        contextlib.chdir(tmp_path),
+        patch(
+            "specify_cli.saas_client.client.SaasClient.from_env",
+            return_value=MagicMock(_token="tok"),
+        ),
+        patch("specify_cli.widen.check_prereqs", return_value=prereq),
+        patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
+    ):
+        mock_store = MagicMock()
+        mock_store.list_pending.return_value = []
+        mock_store_cls.return_value = mock_store
 
-            return runner.invoke(
-                charter_app,
-                ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
-                input=inputs,
-                catch_exceptions=False,
-            )
-    finally:
-        os.chdir(old_cwd)
+        return runner.invoke(
+            charter_app,
+            ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
+            input=inputs,
+            catch_exceptions=False,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -150,17 +146,13 @@ class TestInterviewCompletesNormallyWithoutWiden:
         """Normal interview flow works when widen is suppressed (SC-004)."""
         _setup_repo(tmp_path)
         inputs = _make_inputs([""] * _N_QUESTIONS)
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
+        with contextlib.chdir(tmp_path):
             result = runner.invoke(
                 charter_app,
                 ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
                 input=inputs,
                 catch_exceptions=False,
             )
-        finally:
-            os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
         answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
@@ -172,17 +164,13 @@ class TestInterviewCompletesNormallyWithoutWiden:
         monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
         inputs = _make_inputs([""] * _N_QUESTIONS)
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
+        with contextlib.chdir(tmp_path):
             result = runner.invoke(
                 charter_app,
                 ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
                 input=inputs,
                 catch_exceptions=False,
             )
-        finally:
-            os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
         # No error banners about missing credentials
@@ -194,17 +182,13 @@ class TestInterviewCompletesNormallyWithoutWiden:
         """answers.yaml is written correctly when [w] is suppressed (SC-004)."""
         _setup_repo(tmp_path)
         inputs = _make_inputs([""] * _N_QUESTIONS)
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
+        with contextlib.chdir(tmp_path):
             result = runner.invoke(
                 charter_app,
                 ["interview", "--profile", "minimal", "--mission-slug", MISSION_SLUG],
                 input=inputs,
                 catch_exceptions=False,
             )
-        finally:
-            os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
         answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
@@ -230,6 +214,4 @@ class TestInterviewCompletesNormallyWithoutWiden:
             except Exception:
                 pass
 
-        assert not slack_references, (
-            f"Direct Slack API references found (violates C-004): {slack_references}"
-        )
+        assert not slack_references, f"Direct Slack API references found (violates C-004): {slack_references}"

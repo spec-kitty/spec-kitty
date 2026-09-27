@@ -35,6 +35,7 @@ flip.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -237,8 +238,6 @@ def _run_setup_plan(repo: Path, mission_handle: str, *, target_branch: str = "ma
     resolver under test is exercised unpatched by ``_run_tasks_status`` /
     ``_run_decision_verify`` below).
     """
-    import os
-
     from specify_cli.cli.commands.agent import mission as mission_module
 
     feature_dir = repo / "kitty-specs" / mission_handle
@@ -246,27 +245,20 @@ def _run_setup_plan(repo: Path, mission_handle: str, *, target_branch: str = "ma
     def _fake_show_branch_context(_repo: Path, _slug: str, _json: bool) -> tuple[str, str]:
         return (target_branch, target_branch)
 
-    prev_allow = os.environ.get(_ALLOW_PROTECTED_ENV)
-    os.environ[_ALLOW_PROTECTED_ENV] = "1"
-    try:
-        with (
-            patch.object(mission_module, "locate_project_root", return_value=repo),
-            patch.object(mission_module, "_enforce_git_preflight"),
-            patch.object(mission_module, "_find_feature_directory", return_value=feature_dir),
-            patch.object(mission_module, "_show_branch_context", side_effect=_fake_show_branch_context),
-            patch.object(mission_module, "get_current_branch", return_value=target_branch),
-            patch.object(mission_module, "_resolve_feature_target_branch", return_value=target_branch),
-        ):
-            result = runner.invoke(
-                mission_module.app,
-                ["setup-plan", "--json", "--mission", mission_handle],
-                catch_exceptions=False,
-            )
-    finally:
-        if prev_allow is None:
-            os.environ.pop(_ALLOW_PROTECTED_ENV, None)
-        else:
-            os.environ[_ALLOW_PROTECTED_ENV] = prev_allow
+    with (
+        patch.dict(os.environ, {_ALLOW_PROTECTED_ENV: "1"}),
+        patch.object(mission_module, "locate_project_root", return_value=repo),
+        patch.object(mission_module, "_enforce_git_preflight"),
+        patch.object(mission_module, "_find_feature_directory", return_value=feature_dir),
+        patch.object(mission_module, "_show_branch_context", side_effect=_fake_show_branch_context),
+        patch.object(mission_module, "get_current_branch", return_value=target_branch),
+        patch.object(mission_module, "_resolve_feature_target_branch", return_value=target_branch),
+    ):
+        result = runner.invoke(
+            mission_module.app,
+            ["setup-plan", "--json", "--mission", mission_handle],
+            catch_exceptions=False,
+        )
     assert result.exit_code in (0, 1), f"unexpected exit {result.exit_code}: {result.output}"
     return _parse_json_output(result.output)
 

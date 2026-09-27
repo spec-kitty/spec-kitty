@@ -40,6 +40,7 @@ from specify_cli.compat.safety import SAFETY_REGISTRY, Safety, classify
 
 pytestmark = [pytest.mark.architectural]
 
+
 def _build_app() -> typer.Typer:
     """Return the root typer app with all commands registered.
 
@@ -51,12 +52,9 @@ def _build_app() -> typer.Typer:
     from specify_cli.cli.commands import register_commands
 
     # Ensure the full command tree is registered.
-    _saved = sys.argv[:]
-    sys.argv = ["spec-kitty", "--help"]  # prevents fast-path shortcut
-    try:
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(sys, "argv", ["spec-kitty", "--help"])  # prevents fast-path shortcut
         register_commands(app)
-    finally:
-        sys.argv = _saved
     return app
 
 
@@ -126,9 +124,7 @@ class TestSafetyRegistryCompleteness:
         for path in all_command_paths:
             if path in SAFETY_REGISTRY and SAFETY_REGISTRY[path] is None:
                 result = classify(_inv(path))
-                assert result == Safety.SAFE, (
-                    f"Registered path {path!r} (seeded None → unconditionally SAFE) classified as UNSAFE."
-                )
+                assert result == Safety.SAFE, f"Registered path {path!r} (seeded None → unconditionally SAFE) classified as UNSAFE."
 
     def test_unregistered_commands_are_unsafe(self, all_command_paths: list[tuple[str, ...]]) -> None:
         """Commands NOT in SAFETY_REGISTRY must classify as UNSAFE (fail-closed).

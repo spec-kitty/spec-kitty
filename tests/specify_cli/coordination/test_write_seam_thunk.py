@@ -17,7 +17,6 @@ real entry points (``record_baseline_merge_commit``, real ``git merge``/
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -452,7 +451,9 @@ def test_off_checkout_write_refuses_with_branch_named_recovery(tmp_path: Path) -
     assert status.stdout.strip() == "", f"expected a clean tree, got: {status.stdout!r}"
 
 
-def test_off_checkout_safe_commit_cli_exits_nonzero_with_no_checkout(tmp_path: Path) -> None:
+def test_off_checkout_safe_commit_cli_exits_nonzero_with_no_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """SC-004 (CLI level, 'surfaced through safe_commit_cmd.py'): the same
     off-checkout condition, driven through ``spec-kitty safe-commit`` on a
     classified PRIMARY artifact, exits non-zero and performs no checkout.
@@ -462,22 +463,18 @@ def test_off_checkout_safe_commit_cli_exits_nonzero_with_no_checkout(tmp_path: P
     wp_path = repo / "kitty-specs" / mission_slug / "tasks" / "WP01-scaffold.md"
     wp_path.write_text(wp_path.read_text(encoding="utf-8") + "\nEvidence.\n", encoding="utf-8")
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(repo)
-        result = runner.invoke(
-            cli_app,
-            [
-                "safe-commit",
-                "--message",
-                f"chore({mission_slug}): should refuse off-checkout",
-                "--json",
-                str(wp_path.relative_to(repo)),
-            ],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "safe-commit",
+            "--message",
+            f"chore({mission_slug}): should refuse off-checkout",
+            "--json",
+            str(wp_path.relative_to(repo)),
+        ],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code != 0, result.stdout
     payload = json.loads(result.stdout)
@@ -576,7 +573,9 @@ def test_e2_consolidated_coord_kind_write_commits_and_agrees_with_probe(
 # ---------------------------------------------------------------------------
 
 
-def test_review_post_merge_exits_zero_on_e2_mission(tmp_path: Path) -> None:
+def test_review_post_merge_exits_zero_on_e2_mission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """SC-009: the operator-facing symptom clears. ``review --mode
     post-merge`` performs no commit (C-006) -- this pins the READ-side E2
     resolution (WP03's ``SurfaceLocations.consolidated`` / lifecycle-phase
@@ -601,16 +600,12 @@ def test_review_post_merge_exits_zero_on_e2_mission(tmp_path: Path) -> None:
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({mission_slug}): add placeholder module")
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(repo)
-        result = runner.invoke(
-            cli_app,
-            ["review", "--mission", mission_slug, "--mode", "post-merge"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(repo)
+    result = runner.invoke(
+        cli_app,
+        ["review", "--mission", mission_slug, "--mode", "post-merge"],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code == 0, result.stdout
     assert "Verdict: pass" in result.stdout, result.stdout

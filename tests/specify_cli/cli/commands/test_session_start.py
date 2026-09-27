@@ -6,7 +6,6 @@ exception swallowing, and NFR-001 performance (<200ms).
 
 from __future__ import annotations
 
-import sys
 import time
 from functools import partial
 from pathlib import Path
@@ -16,21 +15,12 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from tests._perf_helpers import assert_timing_budget
-
-# ---------------------------------------------------------------------------
-# Ensure the worktree's src/ takes priority over the main-repo editable install
-# so that specify_cli.session_presence resolves to the worktree package.
-# ---------------------------------------------------------------------------
-_WORKTREE_SRC = Path(__file__).resolve().parents[5] / "src"
-if str(_WORKTREE_SRC) not in sys.path:
-    sys.path.insert(0, str(_WORKTREE_SRC))
-
-from specify_cli.cli.commands import session_start as session_start_module  # noqa: E402
-from specify_cli.cli.commands.session_start import (  # noqa: E402
+from specify_cli.cli.commands import session_start as session_start_module
+from specify_cli.cli.commands.session_start import (
     _find_project_root,
     session_start,
 )
+from tests._perf_helpers import assert_timing_budget
 
 
 def _bound_project_root_walk(monkeypatch: pytest.MonkeyPatch, stop: Path) -> None:
@@ -71,14 +61,10 @@ def spec_project(tmp_path: Path) -> Path:
 
 
 class TestSessionStartInsideProject:
-    def test_exit_0_inside_project(
-        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_exit_0_inside_project(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.chdir(spec_project)
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch("importlib.metadata.version", return_value="3.2.0"),
             patch("specify_cli.compat.plan", side_effect=Exception("no compat")),
         ):
@@ -86,16 +72,12 @@ class TestSessionStartInsideProject:
             result = runner.invoke(_app, [])
         assert result.exit_code == 0
 
-    def test_outputs_render_result_inside_project(
-        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_outputs_render_result_inside_project(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.session_presence.content import SECTION_OPEN
 
         monkeypatch.chdir(spec_project)
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch("importlib.metadata.version", return_value="3.2.0"),
             patch("specify_cli.compat.plan", side_effect=Exception("no compat")),
         ):
@@ -105,9 +87,7 @@ class TestSessionStartInsideProject:
 
 
 class TestSessionStartOutsideProject:
-    def test_exit_0_outside_project(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_exit_0_outside_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """No .kittify/ within the bounded walk region: exit 0."""
         cwd = tmp_path / "outside" / "any" / "project"
         cwd.mkdir(parents=True)
@@ -116,9 +96,7 @@ class TestSessionStartOutsideProject:
         result = runner.invoke(_app, [])
         assert result.exit_code == 0
 
-    def test_no_output_outside_project(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_output_outside_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         cwd = tmp_path / "outside" / "any" / "project"
         cwd.mkdir(parents=True)
         monkeypatch.chdir(cwd)
@@ -143,9 +121,7 @@ class TestFindProjectRoot:
         root = _find_project_root(spec_project)
         assert root == spec_project
 
-    def test_defaults_to_cwd_start(
-        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_defaults_to_cwd_start(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """No *start* given: the walk begins at the cwd (production default).
 
         Safe without a stop boundary — a project at the cwd is found on the
@@ -199,9 +175,7 @@ class TestFindProjectRoot:
 
 
 class TestExitZeroGuarantee:
-    def test_exit_0_on_build_content_exception(
-        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_exit_0_on_build_content_exception(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Exception in _build_content(): exit 0, no traceback output."""
         monkeypatch.chdir(spec_project)
         with patch(
@@ -212,9 +186,7 @@ class TestExitZeroGuarantee:
         assert result.exit_code == 0
         assert "Traceback" not in result.output
 
-    def test_exit_0_on_load_agent_config_exception(
-        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_exit_0_on_load_agent_config_exception(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Exception in load_agent_config(): exit 0, no output."""
         monkeypatch.chdir(spec_project)
         with patch(
@@ -226,15 +198,11 @@ class TestExitZeroGuarantee:
 
 
 class TestNFR001Performance:
-    def test_session_start_succeeds_with_mocked_io(
-        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_session_start_succeeds_with_mocked_io(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """session-start exits 0 with all I/O mocked (NFR-001 functional half)."""
         monkeypatch.chdir(spec_project)
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch("importlib.metadata.version", return_value="3.2.0"),
             patch("specify_cli.compat.plan", side_effect=Exception("no compat")),
         ):
@@ -244,9 +212,7 @@ class TestNFR001Performance:
         assert result.exit_code == 0
 
     @pytest.mark.performance
-    def test_session_start_completes_under_200ms(
-        self, spec_project: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_session_start_completes_under_200ms(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """NFR-001: session-start must complete in <200ms on a warm filesystem.
 
         All I/O is mocked to eliminate variability and measure only the
@@ -254,9 +220,7 @@ class TestNFR001Performance:
         """
         monkeypatch.chdir(spec_project)
         with (
-            patch(
-                "specify_cli.session_presence.manager.UpgradeChecker"
-            ) as mock_checker_cls,
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
             patch("importlib.metadata.version", return_value="3.2.0"),
             patch("specify_cli.compat.plan", side_effect=Exception("no compat")),
         ):

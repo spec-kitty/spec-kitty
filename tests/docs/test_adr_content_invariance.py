@@ -32,19 +32,18 @@ transitional gate for the move itself, self-invalidating once merged to main.
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 from typing import Final
 
 import pytest
 
-# ``conftest.py`` puts the repo root on sys.path so ``scripts.docs`` imports.
-_REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+from scripts.docs._inventory import parse_frontmatter
+from scripts.docs.adr_converter import MADR_STATUSES
 
-from scripts.docs._inventory import parse_frontmatter  # noqa: E402
-from scripts.docs.adr_converter import MADR_STATUSES  # noqa: E402
+# ``scripts.docs`` is importable without any sys.path bootstrap: pytest's own
+# rootdir-prepend (``tests/__init__.py``) already puts the repo root on
+# ``sys.path`` before this module is collected.
+_REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 
 # On-disk hygiene invariants over the assembled tree. ``architectural`` puts this
 # in the dedicated arch shard; ``git_repo`` is retained so CI's ``-m git_repo``
@@ -79,11 +78,7 @@ def _adr_files_on_disk() -> list[Path]:
 
 class TestCensus:
     def test_no_dangling_back_compat_symlinks(self) -> None:
-        dangling = [
-            p
-            for p in _DOCS_ADR.rglob("*")
-            if p.is_symlink() and not p.exists()
-        ]
+        dangling = [p for p in _DOCS_ADR.rglob("*") if p.is_symlink() and not p.exists()]
         assert dangling == [], f"dangling symlinks under docs/adr: {dangling}"
 
     def test_every_adr_has_bare_madr_status_frontmatter(self) -> None:

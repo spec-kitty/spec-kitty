@@ -10,18 +10,15 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Add the src directory to the path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "specify_cli"))
-
-import gitignore_manager
-
 import pytest
+from specify_cli import gitignore_manager
 
 pytestmark = pytest.mark.git_repo
 
 GitignoreManager = gitignore_manager.GitignoreManager
 TOTAL_PROTECTED_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
 AGENT_DIRS = [agent.directory for agent in gitignore_manager.AGENT_DIRECTORIES]
+
 
 def test_init_flow_fresh_project():
     """Test init flow with a fresh project (no .gitignore)."""
@@ -49,6 +46,7 @@ def test_init_flow_fresh_project():
             assert entry in content, f"{entry} should be in .gitignore"
 
         print("✓ test_init_flow_fresh_project")
+
 
 def test_init_flow_existing_gitignore():
     """Test init flow with existing .gitignore."""
@@ -87,6 +85,7 @@ dist/
 
         print("✓ test_init_flow_existing_gitignore")
 
+
 def test_init_flow_idempotency():
     """Test that running init multiple times is safe (idempotent)."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -119,6 +118,7 @@ def test_init_flow_idempotency():
         assert content.count("# Added by Spec Kitty CLI") == 1
 
         print("✓ test_init_flow_idempotency")
+
 
 def test_init_flow_partial_existing():
     """Test init flow when some agent directories already exist in .gitignore."""
@@ -160,6 +160,7 @@ node_modules/
             assert count == 1, f"{agent_dir} should appear exactly once, found {count}"
 
         print("✓ test_init_flow_partial_existing")
+
 
 def test_init_flow_mixed_content():
     """Test init with various types of existing gitignore content."""
@@ -215,6 +216,7 @@ npm-debug.log*
 
         print("✓ test_init_flow_mixed_content")
 
+
 def test_init_flow_readonly_gitignore():
     """Test init flow when .gitignore is read-only."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -244,6 +246,7 @@ def test_init_flow_readonly_gitignore():
             # Restore permissions for cleanup
             os.chmod(gitignore_path, 0o644)
 
+
 def test_init_flow_console_simulation():
     """Simulate the console output that would be shown during init."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -269,6 +272,7 @@ def test_init_flow_console_simulation():
         # Verify warning about .github/ is shown
 
         print("\n✓ test_init_flow_console_simulation")
+
 
 def run_integration_tests():
     """Run all integration tests."""
@@ -302,6 +306,7 @@ def run_integration_tests():
     print("=" * 40)
     print(f"Results: {passed} passed, {failed} failed")
     return failed == 0
+
 
 if __name__ == "__main__":
     success = run_integration_tests()

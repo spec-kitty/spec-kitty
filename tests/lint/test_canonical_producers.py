@@ -14,7 +14,9 @@ import importlib.util
 import subprocess
 import sys
 import textwrap
+from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -25,25 +27,33 @@ pytestmark = [pytest.mark.architectural]
 # Load the lint module by file path. The script lives in scripts/ which is
 # not a Python package on PYTHONPATH; importlib lets us treat it as a module
 # without polluting sys.path semantics.
-_SCRIPT_PATH = (
-    Path(__file__).resolve().parents[2] / "scripts" / "lint_canonical_producers.py"
-)
+_SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "lint_canonical_producers.py"
+_LINT_MODULE_NAME = "lint_canonical_producers"
+
+#: Populated by the autouse ``_lint_module`` fixture below, once per module.
+lint: ModuleType
 
 
-def _load_lint_module():
-    spec = importlib.util.spec_from_file_location(
-        "lint_canonical_producers", _SCRIPT_PATH
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    # Register in sys.modules BEFORE exec_module so that dataclass() (which
-    # looks the class up via sys.modules[cls.__module__]) can find it.
-    sys.modules["lint_canonical_producers"] = module
-    spec.loader.exec_module(module)
-    return module
+@pytest.fixture(scope="module", autouse=True)
+def _lint_module() -> Iterator[ModuleType]:
+    """Load the lint script once for this module's tests.
 
-
-lint = _load_lint_module()
+    ``dataclass()`` on a class defined in a dynamically-loaded module looks
+    the class up via ``sys.modules[cls.__module__]``, so the module must be
+    registered there before ``exec_module`` runs. A module-scoped
+    ``pytest.MonkeyPatch.context()`` — not the function-scoped ``monkeypatch``
+    fixture, which a module-scoped fixture cannot depend on — keeps that
+    registration and undoes it once every test in this module has run.
+    """
+    global lint
+    with pytest.MonkeyPatch.context() as mp:
+        spec = importlib.util.spec_from_file_location(_LINT_MODULE_NAME, _SCRIPT_PATH)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        mp.setitem(sys.modules, _LINT_MODULE_NAME, module)
+        spec.loader.exec_module(module)
+        lint = module
+        yield module
 
 
 def _write(tmp_path: Path, name: str, source: str) -> Path:
@@ -644,8 +654,7 @@ def test_lint_cli_baseline_warns_on_stale_entries(tmp_path: Path) -> None:
     baseline = tmp_path / "baseline.txt"
     # Pre-seed a stale entry pointing at a path that won't be re-found.
     baseline.write_text(
-        "# header\n"
-        f"{tmp_path / 'ghost.py'}::CP001\n",
+        f"# header\n{tmp_path / 'ghost.py'}::CP001\n",
         encoding="utf-8",
     )
     _write(

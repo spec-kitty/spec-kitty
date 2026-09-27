@@ -7,17 +7,12 @@ Covers detect/apply/dry_run/idempotency and the two key scenarios:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 pytestmark = [pytest.mark.fast]
-
-_WORKTREE_SRC = Path(__file__).resolve().parents[5] / "src"
-if str(_WORKTREE_SRC) not in sys.path:
-    sys.path.insert(0, str(_WORKTREE_SRC))
 
 import specify_cli.upgrade.migrations.m_3_2_0rc39_refresh_orientation_block  # noqa: F401
 from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN

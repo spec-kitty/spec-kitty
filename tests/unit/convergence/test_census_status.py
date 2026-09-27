@@ -15,17 +15,17 @@ _SCRIPT_PATH = _REPO_ROOT / "scripts" / "convergence" / "census_status.py"
 _MAP_PATH = _REPO_ROOT / ".kittify" / "convergence-map.json"
 
 
-def _load_module():
+def _load_module(monkeypatch: pytest.MonkeyPatch):
     spec = importlib.util.spec_from_file_location("census_status_for_tests", _SCRIPT_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     return module
 
 
-def test_seed_map_has_complete_nonpending_dispositions() -> None:
-    module = _load_module()
+def test_seed_map_has_complete_nonpending_dispositions(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_module(monkeypatch)
     census_map = module.load_map(_MAP_PATH)
 
     assert len(census_map.clusters) == 74
@@ -40,8 +40,8 @@ def test_seed_map_census_counts_match_commit_lists() -> None:
         assert cluster["census_commit_count"] == len(cluster["commits"]), cluster["id"]
 
 
-def test_status_lines_report_pending_and_triage_age() -> None:
-    module = _load_module()
+def test_status_lines_report_pending_and_triage_age(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_module(monkeypatch)
     now = datetime(2026, 8, 31, 12, 0, tzinfo=UTC)
     commits = [
         module.UpstreamCommit("a" * 40, now - timedelta(days=3), "port an upstream fix"),
@@ -62,8 +62,8 @@ def test_status_lines_report_pending_and_triage_age() -> None:
     assert lines[-1] == ("checked=2 FORBIDDEN=0 PENDING=1 PORT=1 SUPERSEDED=0 pending-older-than-1-day=1")
 
 
-def test_status_lines_pending_only_suppresses_dispositioned_commits() -> None:
-    module = _load_module()
+def test_status_lines_pending_only_suppresses_dispositioned_commits(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_module(monkeypatch)
     now = datetime(2026, 8, 31, 12, 0, tzinfo=UTC)
     commits = [
         module.UpstreamCommit("a" * 40, now, "mapped"),
@@ -85,8 +85,8 @@ def test_status_lines_pending_only_suppresses_dispositioned_commits() -> None:
     ]
 
 
-def test_load_map_rejects_a_commit_in_two_clusters(tmp_path: Path) -> None:
-    module = _load_module()
+def test_load_map_rejects_a_commit_in_two_clusters(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_module(monkeypatch)
     sha = "c" * 40
     path = tmp_path / "convergence-map.json"
     path.write_text(

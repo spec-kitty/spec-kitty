@@ -22,8 +22,8 @@ This file pins:
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -65,21 +65,13 @@ def _write_minimal_interview(repo: Path) -> None:
 
 
 def _run_generate(project: Path) -> object:
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
+    with contextlib.chdir(project):
         return runner.invoke(charter_app, ["generate", "--from-interview"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _run_synthesize(project: Path, *args: str) -> object:
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
+    with contextlib.chdir(project):
         return runner.invoke(charter_app, ["synthesize", *args], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _assert_no_generated_dir(project: Path) -> None:
@@ -238,15 +230,11 @@ def repo_with_worktree(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, 
     return root, worktree
 
 
-def test_generate_from_linked_worktree_fails_closed(repo_with_worktree: tuple[Path, Path]) -> None:
+def test_generate_from_linked_worktree_fails_closed(repo_with_worktree: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     main_root, worktree = repo_with_worktree
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(worktree)
-        result = runner.invoke(charter_app, ["generate", "--from-interview"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(worktree)
+    result = runner.invoke(charter_app, ["generate", "--from-interview"], catch_exceptions=False)
 
     assert result.exit_code != 0, f"generate must fail closed from a linked worktree; got: {result.stdout!r}"
     combined = (result.stdout or "") + (getattr(result, "output", "") or "")
@@ -255,15 +243,11 @@ def test_generate_from_linked_worktree_fails_closed(repo_with_worktree: tuple[Pa
     assert not (main_root / ".kittify" / "charter" / "charter.yaml").exists()
 
 
-def test_synthesize_from_linked_worktree_fails_closed(repo_with_worktree: tuple[Path, Path]) -> None:
+def test_synthesize_from_linked_worktree_fails_closed(repo_with_worktree: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     main_root, worktree = repo_with_worktree
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(worktree)
-        result = runner.invoke(charter_app, ["synthesize", "--json"], catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(worktree)
+    result = runner.invoke(charter_app, ["synthesize", "--json"], catch_exceptions=False)
 
     assert result.exit_code != 0, f"synthesize must fail closed from a linked worktree; got: {result.stdout!r}"
     combined = (result.stdout or "") + (getattr(result, "output", "") or "")

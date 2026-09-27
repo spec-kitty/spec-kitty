@@ -15,7 +15,7 @@ the real migration the squad's repro used.
 
 from __future__ import annotations
 
-import os
+import contextlib
 from pathlib import Path
 from typing import Any
 
@@ -279,12 +279,8 @@ _runner = CliRunner()
 
 
 def _run_upgrade(args: list[str], cwd: Path) -> object:
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(cwd)
+    with contextlib.chdir(cwd):
         return _runner.invoke(_test_app, args, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 class TestCliVerboseDisplayGuard:

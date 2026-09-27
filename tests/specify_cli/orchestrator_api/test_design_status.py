@@ -49,6 +49,7 @@ precedent.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -116,14 +117,8 @@ def _init_repo(tmp_path: Path) -> Path:
 
 def _run(repo: Path, args: list[str]) -> Result:
     """Invoke the real orchestrator-api ``app`` with cwd pinned at ``repo``."""
-    import os
-
-    prev_cwd = Path.cwd()
-    os.chdir(repo)
-    try:
+    with contextlib.chdir(repo):
         return runner.invoke(app, args, catch_exceptions=False)
-    finally:
-        os.chdir(prev_cwd)
 
 
 def _envelope(result: Result) -> dict[str, Any]:

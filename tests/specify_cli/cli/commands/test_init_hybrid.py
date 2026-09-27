@@ -8,13 +8,9 @@ Subtasks: T012, T013, T014, T015
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
-
-# Ensure src is on the path for this test module
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent / "src"))
 
 pytestmark = pytest.mark.fast
 
@@ -78,9 +74,7 @@ def _make_package_asset_root_with_templates(pkg_root: Path) -> Path:
         lines.append("---END---")
         content = "\n".join(lines)
         # Must have > 100 lines for the integration assertion
-        assert len(content.splitlines()) >= 100, (
-            f"Test template for {cmd} must have >=100 lines, got {len(content.splitlines())}"
-        )
+        assert len(content.splitlines()) >= 100, f"Test template for {cmd} must have >=100 lines, got {len(content.splitlines())}"
         (cmd_templates / f"{cmd}.md").write_text(content, encoding="utf-8")
 
     return pkg_root
@@ -100,9 +94,7 @@ def _make_package_asset_root_with_templates(pkg_root: Path) -> Path:
 class TestHybridInstallOutputShape:
     """Verify generate_agent_assets + generate_all_shims produces the hybrid layout."""
 
-    def test_generate_agent_assets_produces_full_prompts(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_generate_agent_assets_produces_full_prompts(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """generate_agent_assets() writes 9 multi-line files for a single agent."""
         pkg_root = tmp_path / "pkg"
         _make_package_asset_root_with_templates(pkg_root)
@@ -154,9 +146,7 @@ class TestHybridInstallOutputShape:
             lines = f.read_text().splitlines()
             assert len(lines) < 10, f"{f.name} is too long for a shim: {len(lines)} lines"
 
-    def test_hybrid_layout_full_prompts_plus_cli_shims(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_hybrid_layout_full_prompts_plus_cli_shims(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """After generate_agent_assets() + generate_all_shims(), directory has 16 files.
 
         Layout:
@@ -196,29 +186,21 @@ class TestHybridInstallOutputShape:
         claude_dir = project / ".claude" / "commands"
         all_files = {f.stem.removeprefix("spec-kitty."): f for f in claude_dir.glob("spec-kitty.*.md")}
 
-        assert len(all_files) == 16, (
-            f"Expected 16 files total, got {len(all_files)}: {sorted(all_files.keys())}"
-        )
+        assert len(all_files) == 16, f"Expected 16 files total, got {len(all_files)}: {sorted(all_files.keys())}"
 
         # Prompt-driven commands: full prompts (>=100 lines)
         for cmd in PROMPT_DRIVEN_COMMANDS:
             assert cmd in all_files, f"Missing prompt-driven command: {cmd}"
             lines = all_files[cmd].read_text().splitlines()
-            assert len(lines) >= 100, (
-                f"spec-kitty.{cmd}.md should have >=100 lines (full prompt), got {len(lines)}"
-            )
+            assert len(lines) >= 100, f"spec-kitty.{cmd}.md should have >=100 lines (full prompt), got {len(lines)}"
 
         # CLI-driven commands: thin shims (<10 lines)
         for cmd in CLI_DRIVEN_COMMANDS:
             assert cmd in all_files, f"Missing CLI-driven command: {cmd}"
             lines = all_files[cmd].read_text().splitlines()
-            assert len(lines) < 10, (
-                f"spec-kitty.{cmd}.md should have <10 lines (thin shim), got {len(lines)}"
-            )
+            assert len(lines) < 10, f"spec-kitty.{cmd}.md should have <10 lines (thin shim), got {len(lines)}"
 
-    def test_specify_md_has_100_plus_lines(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_specify_md_has_100_plus_lines(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """spec-kitty.specify.md must be a full prompt (>=100 lines)."""
         pkg_root = tmp_path / "pkg"
         _make_package_asset_root_with_templates(pkg_root)
@@ -246,9 +228,7 @@ class TestHybridInstallOutputShape:
         specify_file = project / ".claude" / "commands" / "spec-kitty.specify.md"
         assert specify_file.exists(), "spec-kitty.specify.md must exist"
         lines = specify_file.read_text().splitlines()
-        assert len(lines) >= 100, (
-            f"spec-kitty.specify.md should have >=100 lines, got {len(lines)}"
-        )
+        assert len(lines) >= 100, f"spec-kitty.specify.md should have >=100 lines, got {len(lines)}"
 
     def test_implement_md_is_thin_shim(self, tmp_path: Path) -> None:
         """spec-kitty.implement.md must be a thin shim (<=10 lines).
@@ -271,9 +251,7 @@ class TestHybridInstallOutputShape:
         assert implement_file.exists(), "spec-kitty.implement.md must exist"
         content = implement_file.read_text()
         lines = content.splitlines()
-        assert len(lines) <= 10, (
-            f"spec-kitty.implement.md should be a thin shim (<=10 lines), got {len(lines)}"
-        )
+        assert len(lines) <= 10, f"spec-kitty.implement.md should be a thin shim (<=10 lines), got {len(lines)}"
         # The frontmatter must be on line 1 so Claude Code's picker can read it.
         assert lines[0] == "---"
         assert lines[1].startswith("description:")
@@ -288,9 +266,7 @@ class TestHybridInstallOutputShape:
 class TestEnsureRuntimeDeploysCommandTemplates:
     """Verify ensure_runtime() copies command-templates/ to ~/.kittify/missions/."""
 
-    def test_populate_from_package_copies_command_templates(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_populate_from_package_copies_command_templates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """populate_from_package() includes command-templates/ in the missions copy.
 
         ensure_runtime() is already handles command-templates/ via recursive
@@ -308,12 +284,7 @@ class TestEnsureRuntimeDeploysCommandTemplates:
         populate_from_package(target)
 
         deployed_cmd_tmpl = target / "missions" / "software-dev" / "command-templates"
-        assert deployed_cmd_tmpl.is_dir(), (
-            "populate_from_package() must copy command-templates/ to the runtime directory"
-        )
+        assert deployed_cmd_tmpl.is_dir(), "populate_from_package() must copy command-templates/ to the runtime directory"
 
         deployed_files = list(deployed_cmd_tmpl.glob("*.md"))
-        assert len(deployed_files) == 9, (
-            f"Expected 9 command-template files deployed, got {len(deployed_files)}: "
-            f"{[f.name for f in deployed_files]}"
-        )
+        assert len(deployed_files) == 9, f"Expected 9 command-template files deployed, got {len(deployed_files)}: {[f.name for f in deployed_files]}"

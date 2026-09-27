@@ -176,7 +176,7 @@ def test_audit_passes_on_fixed_tree() -> None:
         "  (b) inventory.md is out of sync with the current source (line "
         "numbers shifted, rows removed, or a known-candidate file was deleted "
         "without updating KNOWN_CANDIDATE_FILES in audit.py).\n"
-        "Fix: run `python tests/architectural/untrusted_path_audit/audit.py` "
+        "Fix: run `python -m tests.architectural.untrusted_path_audit.audit` "
         "to identify the specific failure, then update inventory.md."
     )
 

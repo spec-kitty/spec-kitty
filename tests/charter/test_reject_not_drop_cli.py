@@ -21,7 +21,6 @@ traceback on stdout -- for both the plain-console and ``--json`` output modes:
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -67,23 +66,19 @@ def _write_stale_activation_config(repo: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_generate_json_rejects_stale_config_stem_cleanly(tmp_path: Path) -> None:
+def test_generate_json_rejects_stale_config_stem_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _git_init(tmp_path)
     _write_stale_activation_config(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        # catch_exceptions=False: if the CLI ever stops catching this error
-        # class, this test fails on the raw traceback instead of silently
-        # passing on a swallowed assertion -- proving "caught", not "dodged".
-        result = runner.invoke(
-            charter_app,
-            ["generate", "--no-from-interview", "--json"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    # catch_exceptions=False: if the CLI ever stops catching this error
+    # class, this test fails on the raw traceback instead of silently
+    # passing on a swallowed assertion -- proving "caught", not "dodged".
+    result = runner.invoke(
+        charter_app,
+        ["generate", "--no-from-interview", "--json"],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code != 0, f"generate must reject a stale activated stem; got exit 0: {result.output!r}"
     assert "Traceback" not in result.output
@@ -100,20 +95,16 @@ def test_generate_json_rejects_stale_config_stem_cleanly(tmp_path: Path) -> None
     assert not (tmp_path / ".kittify" / "charter" / "charter.md").exists()
 
 
-def test_generate_console_rejects_stale_config_stem_cleanly(tmp_path: Path) -> None:
+def test_generate_console_rejects_stale_config_stem_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _git_init(tmp_path)
     _write_stale_activation_config(tmp_path)
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        result = runner.invoke(
-            charter_app,
-            ["generate", "--no-from-interview"],
-            catch_exceptions=False,
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app,
+        ["generate", "--no-from-interview"],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code != 0
     assert "Traceback" not in result.output

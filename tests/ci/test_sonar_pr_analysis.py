@@ -35,6 +35,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -62,7 +63,7 @@ sonar.python.version=3.11
 """
 
 
-def _load_module() -> ModuleType:
+def _load_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     if not _SCRIPT_PATH.exists():
         pytest.fail(f"sonar_pr_analysis.py missing: {_SCRIPT_PATH.relative_to(_REPO_ROOT)} (WP05 not yet delivered)")
     spec = importlib.util.spec_from_file_location("sonar_pr_analysis", _SCRIPT_PATH)
@@ -71,14 +72,15 @@ def _load_module() -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     # Registered BEFORE execution: `@dataclass` resolves `cls.__module__`
     # through `sys.modules`, so a module executed while unregistered raises.
-    sys.modules[spec.name] = module
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     return module
 
 
 @pytest.fixture(scope="module")
-def module() -> ModuleType:
-    return _load_module()
+def module() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield _load_module(mp)
 
 
 def _source_payload(**overrides: Any) -> dict[str, Any]:

@@ -17,11 +17,15 @@ import os
 import pytest
 from typer.testing import CliRunner
 
-os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
-
-from specify_cli import app  # noqa: E402
+from specify_cli import app
 
 pytestmark = [pytest.mark.architectural]
+
+
+@pytest.fixture(autouse=True)
+def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the upgrade-check opt-out set for every test (was a module-level ``setdefault``)."""
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
 
 
 def test_doctrine_curate_is_unknown_command() -> None:

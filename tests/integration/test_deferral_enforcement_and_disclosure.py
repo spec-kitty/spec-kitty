@@ -57,8 +57,15 @@ def _load_script_module() -> ModuleType:
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot build an import spec for {_SCRIPT_PATH}")
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    # Registering in sys.modules only for the duration of exec_module (in case
+    # the script's own execution needs to resolve itself via sys.modules);
+    # the returned module object is used directly afterwards, so the entry is
+    # not needed to persist and pytest.MonkeyPatch.context() restores
+    # sys.modules to its prior (absent) state on exit rather than leaking it
+    # into every later test on this worker.
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setitem(sys.modules, spec.name, module)
+        spec.loader.exec_module(module)
     return module
 
 

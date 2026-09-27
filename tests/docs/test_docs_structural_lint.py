@@ -31,6 +31,7 @@ import dataclasses
 import importlib.util
 import json
 import sys
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -41,6 +42,7 @@ from ruamel.yaml import YAML
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 #: The structural lint ships as the ``common-docs-structural-lint`` doctrine
 #: asset — its single canonical copy. FR-008 (proof by first user): this
@@ -62,51 +64,71 @@ _LINT_ASSET_PATH = _resolve_lint_asset_path()
 #: is still the built-in common-docs styleguide. The asset itself no longer
 #: hard-codes this path — it is supplied explicitly (``--styleguide`` /
 #: ``SPEC_KITTY_STYLEGUIDE``), which is what makes it consumable elsewhere.
-STYLEGUIDE_PATH = (
-    _REPO_ROOT / "packs/built-in/styleguides/common-docs.styleguide.yaml"
-)
+STYLEGUIDE_PATH = _REPO_ROOT / "packs/built-in/styleguides/common-docs.styleguide.yaml"
 
 
-def _load_lint_module() -> ModuleType:
-    """Load the structural-lint asset by file path (it is not a package)."""
-    spec = importlib.util.spec_from_file_location(
-        "docs_structural_lint_asset", _LINT_ASSET_PATH
-    )
-    if spec is None or spec.loader is None:  # pragma: no cover - defensive
-        raise RuntimeError(f"cannot load lint asset from {_LINT_ASSET_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    # Register before exec: the module defines ``@dataclass(slots=True)`` types,
-    # and dataclasses resolves their string annotations via
-    # ``sys.modules[cls.__module__]`` — which must already be present.
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+_LINT_ASSET_MODULE_NAME = "docs_structural_lint_asset"
+
+#: Populated by the autouse ``_lint_module`` fixture below, once per module.
+ConfigError: type[Any]
+LintConfig: type[Any]
+PointInTimeMarker: type[Any]
+check_frontmatter_contract: Callable[..., Any]
+check_index_completeness: Callable[..., Any]
+check_point_in_time_placement: Callable[..., Any]
+check_shadow_tree_basename: Callable[..., Any]
+check_sanctioned_section_membership: Callable[..., Any]
+check_one_index_per_dir: Callable[..., Any]
+load_config: Callable[..., Any]
+main: Callable[..., Any]
+run: Callable[..., Any]
+run_extended: Callable[..., Any]
+_resolve_styleguide: Callable[..., Any]
 
 
-_lint = _load_lint_module()
+@pytest.fixture(scope="module", autouse=True)
+def _lint_module() -> Iterator[ModuleType]:
+    """Load the structural-lint asset once for this module's tests.
 
-ConfigError = _lint.ConfigError
-LintConfig = _lint.LintConfig
-PointInTimeMarker = _lint.PointInTimeMarker
-check_frontmatter_contract = _lint.check_frontmatter_contract
-check_index_completeness = _lint.check_index_completeness
-check_point_in_time_placement = _lint.check_point_in_time_placement
-check_shadow_tree_basename = _lint.check_shadow_tree_basename
-check_sanctioned_section_membership = _lint.check_sanctioned_section_membership
-check_one_index_per_dir = _lint.check_one_index_per_dir
-load_config = _lint.load_config
-main = _lint.main
-run = _lint.run
-run_extended = _lint.run_extended
-_resolve_styleguide = _lint._resolve_styleguide
+    The module defines ``@dataclass(slots=True)`` types, and dataclasses
+    resolves their string annotations via ``sys.modules[cls.__module__]`` —
+    which must already be present before ``exec_module`` runs. A module-scoped
+    ``pytest.MonkeyPatch.context()`` — not the function-scoped ``monkeypatch``
+    fixture, which a module-scoped fixture cannot depend on — keeps that
+    registration and undoes it once every test in this module has run.
+    """
+    global ConfigError, LintConfig, PointInTimeMarker
+    global check_frontmatter_contract, check_index_completeness, check_point_in_time_placement
+    global check_shadow_tree_basename, check_sanctioned_section_membership, check_one_index_per_dir
+    global load_config, main, run, run_extended, _resolve_styleguide
+    with pytest.MonkeyPatch.context() as mp:
+        spec = importlib.util.spec_from_file_location(_LINT_ASSET_MODULE_NAME, _LINT_ASSET_PATH)
+        if spec is None or spec.loader is None:  # pragma: no cover - defensive
+            raise RuntimeError(f"cannot load lint asset from {_LINT_ASSET_PATH}")
+        module = importlib.util.module_from_spec(spec)
+        mp.setitem(sys.modules, _LINT_ASSET_MODULE_NAME, module)
+        spec.loader.exec_module(module)
+        ConfigError = module.ConfigError
+        LintConfig = module.LintConfig
+        PointInTimeMarker = module.PointInTimeMarker
+        check_frontmatter_contract = module.check_frontmatter_contract
+        check_index_completeness = module.check_index_completeness
+        check_point_in_time_placement = module.check_point_in_time_placement
+        check_shadow_tree_basename = module.check_shadow_tree_basename
+        check_sanctioned_section_membership = module.check_sanctioned_section_membership
+        check_one_index_per_dir = module.check_one_index_per_dir
+        load_config = module.load_config
+        main = module.main
+        run = module.run
+        run_extended = module.run_extended
+        _resolve_styleguide = module._resolve_styleguide
+        yield module
 
 
 # --- Shared fixture helpers --------------------------------------------------
 
 
-def _write(
-    path: Path, *, frontmatter: dict[str, Any] | None = None, body: str = "# Body\n"
-) -> None:
+def _write(path: Path, *, frontmatter: dict[str, Any] | None = None, body: str = "# Body\n") -> None:
     """Write a docs page, optionally with a YAML frontmatter block."""
     path.parent.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
@@ -168,11 +190,7 @@ def _build_post_move_fixture(tmp_path: Path) -> Path:
     _write(
         docs / "architecture" / "index.md",
         frontmatter=_ACTIVE_FRONTMATTER,
-        body=(
-            "# Architecture\n\n"
-            "- [Git workflow](git-workflow.md)\n"
-            "- [Crime scene overview](assessments/code-as-a-crime-scene-overview.md)\n"
-        ),
+        body=("# Architecture\n\n- [Git workflow](git-workflow.md)\n- [Crime scene overview](assessments/code-as-a-crime-scene-overview.md)\n"),
     )
     _write(docs / "architecture" / "git-workflow.md", frontmatter=_ACTIVE_FRONTMATTER)
     _write(
@@ -189,11 +207,7 @@ def _build_post_move_fixture(tmp_path: Path) -> Path:
 
     # plans/engineering-notes/architecture-audits/ — the audits' POST-MOVE home.
     _write(
-        docs
-        / "plans"
-        / "engineering-notes"
-        / "architecture-audits"
-        / "2026-05-11-findings-vs-issues-update.md",
+        docs / "plans" / "engineering-notes" / "architecture-audits" / "2026-05-11-findings-vs-issues-update.md",
         frontmatter=_ACTIVE_FRONTMATTER,
     )
 
@@ -390,10 +404,7 @@ def test_sanctioned_section_membership_honours_nested_non_content_dir(tmp_path: 
 
     violations = check_sanctioned_section_membership([nested], docs, tmp_path, _t004_config())
 
-    assert violations == [], (
-        "a page under the nested non_content_dir templates/spec-kitty/ must be "
-        f"exempt, got: {[v.path for v in violations]}"
-    )
+    assert violations == [], f"a page under the nested non_content_dir templates/spec-kitty/ must be exempt, got: {[v.path for v in violations]}"
 
 
 def test_sanctioned_section_membership_flags_unlisted_and_shallow_nested(tmp_path: Path) -> None:
@@ -404,17 +415,12 @@ def test_sanctioned_section_membership_flags_unlisted_and_shallow_nested(tmp_pat
     match is exact and not a substring/top-level free pass.
     """
     docs = tmp_path / "docs"
-    shallow = docs / "templates" / "index.md"          # not under templates/spec-kitty/
-    bogus = docs / "bogus" / "page.md"                  # unsanctioned section
+    shallow = docs / "templates" / "index.md"  # not under templates/spec-kitty/
+    bogus = docs / "bogus" / "page.md"  # unsanctioned section
     _write(shallow, frontmatter=_ACTIVE_FRONTMATTER)
     _write(bogus, frontmatter=_ACTIVE_FRONTMATTER)
 
-    flagged = {
-        v.path
-        for v in check_sanctioned_section_membership(
-            [shallow, bogus], docs, tmp_path, _t004_config()
-        )
-    }
+    flagged = {v.path for v in check_sanctioned_section_membership([shallow, bogus], docs, tmp_path, _t004_config())}
 
     assert flagged == {"docs/templates/index.md", "docs/bogus/page.md"}
 
@@ -442,9 +448,7 @@ def test_one_index_per_dir_exempts_redirect_stub_and_curated_readme(tmp_path: Pa
     _write(docs / "guides" / "README.md", frontmatter=_ACTIVE_FRONTMATTER)
 
     md_files = sorted(docs.rglob("*.md"))
-    flagged = {
-        v.path for v in check_one_index_per_dir(md_files, docs, tmp_path, config)
-    }
+    flagged = {v.path for v in check_one_index_per_dir(md_files, docs, tmp_path, config)}
 
     assert flagged == {"docs/guides/README.md"}, flagged
 
@@ -524,11 +528,7 @@ def test_live_adr_era_dated_files_do_not_trip_point_in_time() -> None:
     """The 132 era-dated adr/** files are allowlisted, not point-in-time violations."""
     config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
-    adr_files = [
-        p
-        for p in sorted(docs_root.rglob("*.md"))
-        if p.relative_to(docs_root).as_posix().startswith("adr/")
-    ]
+    adr_files = [p for p in sorted(docs_root.rglob("*.md")) if p.relative_to(docs_root).as_posix().startswith("adr/")]
     assert len(adr_files) >= 100  # guards against a silently-empty cohort
 
     violations = check_point_in_time_placement(adr_files, docs_root, _REPO_ROOT, config)
@@ -540,11 +540,7 @@ def test_live_plans_research_and_investigations_pass_clean() -> None:
     """The plans/{research,investigations}/** STAY subtrees are allowlisted."""
     config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
-    cohort = [
-        p
-        for p in sorted(docs_root.rglob("*.md"))
-        if p.relative_to(docs_root).as_posix().startswith(("plans/research/", "plans/investigations/"))
-    ]
+    cohort = [p for p in sorted(docs_root.rglob("*.md")) if p.relative_to(docs_root).as_posix().startswith(("plans/research/", "plans/investigations/"))]
     assert cohort  # guards against a silently-empty cohort
 
     violations = check_point_in_time_placement(cohort, docs_root, _REPO_ROOT, config)
@@ -606,11 +602,7 @@ def test_live_adr_bodies_do_not_trip_frontmatter_contract() -> None:
     """
     config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
-    adr_bodies = [
-        p
-        for p in sorted((docs_root / "adr").rglob("*.md"))
-        if p.name != "README.md"
-    ]
+    adr_bodies = [p for p in sorted((docs_root / "adr").rglob("*.md")) if p.name != "README.md"]
     assert len(adr_bodies) >= 100  # guards against a silently-empty cohort
 
     violations = check_frontmatter_contract(adr_bodies, docs_root, _REPO_ROOT, config)
@@ -652,9 +644,7 @@ def test_live_real_tree_is_zero_violation_post_move() -> None:
 
     report = run(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)
 
-    assert report.violations == [], "\n".join(
-        f"{v.rule_id} {v.path}: {v.message}" for v in report.violations
-    )
+    assert report.violations == [], "\n".join(f"{v.rule_id} {v.path}: {v.message}" for v in report.violations)
     assert report.checked > 0
 
 
@@ -681,9 +671,7 @@ def test_live_real_tree_is_zero_violation_under_extended_run() -> None:
 
     report = run_extended(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)
 
-    assert report.violations == [], "\n".join(
-        f"{v.rule_id} {v.path}: {v.message}" for v in report.violations
-    )
+    assert report.violations == [], "\n".join(f"{v.rule_id} {v.path}: {v.message}" for v in report.violations)
 
 
 def test_sanctioned_section_membership_covers_convergence_via_real_config(
@@ -709,25 +697,16 @@ def test_sanctioned_section_membership_covers_convergence_via_real_config(
     md_files = [page]
 
     after = check_sanctioned_section_membership(md_files, docs, tmp_path, config)
-    assert after == [], (
-        "docs/convergence/ must be sanctioned per the shipped styleguide config, "
-        f"got: {[(v.rule_id, v.path) for v in after]}"
-    )
+    assert after == [], f"docs/convergence/ must be sanctioned per the shipped styleguide config, got: {[(v.rule_id, v.path) for v in after]}"
 
     pre_fix_config = dataclasses.replace(
         config,
-        sanctioned_content_sections=tuple(
-            section
-            for section in config.sanctioned_content_sections
-            if section != "convergence"
-        ),
+        sanctioned_content_sections=tuple(section for section in config.sanctioned_content_sections if section != "convergence"),
     )
     before = check_sanctioned_section_membership(md_files, docs, tmp_path, pre_fix_config)
     assert [v.rule_id for v in before] == ["sanctioned_section_membership"], (
-        "control: without convergence in sanctioned_content_sections the same "
-        f"page must be flagged (the issue's pre-fix 0->1), got: {before}"
+        f"control: without convergence in sanctioned_content_sections the same page must be flagged (the issue's pre-fix 0->1), got: {before}"
     )
-
 
 
 # =============================================================================
@@ -748,16 +727,13 @@ def test_load_config_matches_styleguide_block() -> None:
     assert config.point_in_time_patterns == tuple(block["point_in_time_patterns"])
     assert config.point_in_time_allowlist == tuple(block["point_in_time_allowlist"])
     assert config.frontmatter_required_fields == tuple(block["frontmatter_required_fields"])
-    assert config.frontmatter_in_scope_exclusions == tuple(
-        block["frontmatter_in_scope_exclusions"]
-    )
+    assert config.frontmatter_in_scope_exclusions == tuple(block["frontmatter_in_scope_exclusions"])
     assert config.shadow_tree_nav_exemptions == tuple(block["shadow_tree_nav_exemptions"])
     assert config.redirect_stub_description_prefix == block["redirect_stub_description_prefix"]
     assert config.concern_bucket_to_section == dict(block["concern_bucket_to_section"])
-    assert [
-        (marker.frontmatter_field, marker.frontmatter_value)
-        for marker in config.point_in_time_markers
-    ] == [(m["frontmatter_field"], m["frontmatter_value"]) for m in block["point_in_time_markers"]]
+    assert [(marker.frontmatter_field, marker.frontmatter_value) for marker in config.point_in_time_markers] == [
+        (m["frontmatter_field"], m["frontmatter_value"]) for m in block["point_in_time_markers"]
+    ]
 
 
 def test_load_config_fails_loud_on_missing_block(tmp_path: Path) -> None:
@@ -781,9 +757,7 @@ def test_load_config_rejects_malformed_block(tmp_path: Path) -> None:
         load_config(styleguide_path=stub)
 
 
-def test_load_config_resolves_absolute_path_regardless_of_cwd(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_load_config_resolves_absolute_path_regardless_of_cwd(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """An absolute styleguide path resolves the same regardless of the CWD."""
     subdir = tmp_path / "somewhere" / "else"
     subdir.mkdir(parents=True)
@@ -818,9 +792,7 @@ def test_resolve_styleguide_errors_when_unconfigured(
         _resolve_styleguide(None)
 
 
-def test_main_exits_2_when_styleguide_unconfigured(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_exits_2_when_styleguide_unconfigured(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """``main`` returns exit code 2 when no styleguide can be resolved."""
     monkeypatch.delenv("SPEC_KITTY_STYLEGUIDE", raising=False)
     docs = _build_post_move_fixture(tmp_path)
@@ -873,10 +845,7 @@ def test_schema_properties_match_lintconfig_fields() -> None:
         schema = yaml.load(handle)
     props = set(schema["definitions"]["structural_lint_config"]["properties"])
     fields = {field.name for field in dataclasses.fields(LintConfig)}
-    assert props == fields, (
-        f"schema/LintConfig drift — only-in-schema={props - fields}, "
-        f"only-in-dataclass={fields - props}"
-    )
+    assert props == fields, f"schema/LintConfig drift — only-in-schema={props - fields}, only-in-dataclass={fields - props}"
 
 
 def test_shipped_lint_asset_resolved_via_doctrine_service() -> None:
@@ -894,13 +863,9 @@ def test_shipped_lint_asset_resolved_via_doctrine_service() -> None:
     # Built by concatenation so this guard does not match its own source text.
     forbidden = "src/charter/offering/assets/" + "built-in/docs_structural_lint.py"
     assert forbidden not in source, (
-        "structural-lint test must not hard-code the shipped asset's repo path; "
-        "resolve it by id through DoctrineService.assets.resolve_path (FR-008)."
+        "structural-lint test must not hard-code the shipped asset's repo path; resolve it by id through DoctrineService.assets.resolve_path (FR-008)."
     )
 
     resolved = DoctrineService().assets.resolve_path("common-docs-structural-lint")
-    assert resolved == _LINT_ASSET_PATH, (
-        "the lint asset consumed by this suite must be the one the resolver "
-        "returns for 'common-docs-structural-lint' (FR-008)."
-    )
+    assert resolved == _LINT_ASSET_PATH, "the lint asset consumed by this suite must be the one the resolver returns for 'common-docs-structural-lint' (FR-008)."
     assert _LINT_ASSET_PATH.is_file()

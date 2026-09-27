@@ -19,37 +19,25 @@ make that impossible:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-# Make ``scripts.docs`` importable (mirrors tests/docs/conftest.py).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs import check_docs_freshness as orchestrator  # noqa: E402
-from scripts.docs import inventory_lockfile as lockfile  # noqa: E402
-from scripts.docs._inventory import (  # noqa: E402
+from scripts.docs import check_docs_freshness as orchestrator
+from scripts.docs import inventory_lockfile as lockfile
+from scripts.docs._inventory import (
     DivioType,
     PageInventoryEntry,
     VersionTag,
     load_inventory,
 )
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 pytestmark = pytest.mark.architectural
 
 PAGE_WITH_FRONTMATTER = (
-    "---\n"
-    "title: Getting Started\n"
-    "description: A how-to page.\n"
-    "type: how-to\n"
-    "version_tag: current\n"
-    "owning_workstream: E\n"
-    "---\n"
-    "\n"
-    "# Getting Started\n"
+    "---\ntitle: Getting Started\ndescription: A how-to page.\ntype: how-to\nversion_tag: current\nowning_workstream: E\n---\n\n# Getting Started\n"
 )
 
 PAGE_PLAIN = "# No frontmatter here\n\nJust prose.\n"
@@ -60,9 +48,7 @@ def _seed_docs_tree(tmp_path: Path) -> tuple[Path, Path]:
     repo_root = tmp_path
     docs_root = repo_root / "docs"
     (docs_root / "guides").mkdir(parents=True)
-    (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER, encoding="utf-8"
-    )
+    (docs_root / "guides" / "getting-started.md").write_text(PAGE_WITH_FRONTMATTER, encoding="utf-8")
     (docs_root / "index.md").write_text(PAGE_PLAIN, encoding="utf-8")
     return repo_root, docs_root
 
@@ -115,9 +101,7 @@ def test_report_only_stays_exit_zero_under_drift(tmp_path: Path) -> None:
     # Committed lockfile generated, then frontmatter diverges.
     committed_path = repo_root / "inventory.yaml"
     committed_path.write_text(
-        lockfile.render_lockfile(
-            lockfile.generate_inventory(docs_root, repo_root=repo_root)
-        ),
+        lockfile.render_lockfile(lockfile.generate_inventory(docs_root, repo_root=repo_root)),
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
@@ -139,9 +123,7 @@ def test_strict_flag_flips_drift_to_nonzero_exit(tmp_path: Path) -> None:
     repo_root, docs_root = _seed_docs_tree(tmp_path)
     committed_path = repo_root / "inventory.yaml"
     committed_path.write_text(
-        lockfile.render_lockfile(
-            lockfile.generate_inventory(docs_root, repo_root=repo_root)
-        ),
+        lockfile.render_lockfile(lockfile.generate_inventory(docs_root, repo_root=repo_root)),
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
@@ -175,11 +157,7 @@ def test_lockfile_only_handedit_is_rejected(tmp_path: Path) -> None:
         PageInventoryEntry(
             path=entry.path,
             tag=entry.tag,
-            divio_type=(
-                DivioType.TUTORIAL
-                if entry.path == "docs/guides/getting-started.md"
-                else entry.divio_type
-            ),
+            divio_type=(DivioType.TUTORIAL if entry.path == "docs/guides/getting-started.md" else entry.divio_type),
             owning_workstream=entry.owning_workstream,
             current_target=entry.current_target,
             notes=entry.notes,
@@ -200,12 +178,8 @@ def test_lockfile_only_handedit_is_rejected(tmp_path: Path) -> None:
 def test_generation_is_byte_stable_on_rerun(tmp_path: Path) -> None:
     """Re-running the generator over an unchanged tree is byte-identical."""
     repo_root, docs_root = _seed_docs_tree(tmp_path)
-    first = lockfile.render_lockfile(
-        lockfile.generate_inventory(docs_root, repo_root=repo_root)
-    )
-    second = lockfile.render_lockfile(
-        lockfile.generate_inventory(docs_root, repo_root=repo_root)
-    )
+    first = lockfile.render_lockfile(lockfile.generate_inventory(docs_root, repo_root=repo_root))
+    second = lockfile.render_lockfile(lockfile.generate_inventory(docs_root, repo_root=repo_root))
     assert first == second
 
 
@@ -220,9 +194,7 @@ def test_no_drift_when_committed_matches_generation(tmp_path: Path) -> None:
 def test_rendered_lockfile_drops_citation_refs(tmp_path: Path) -> None:
     """The rollup omits the retired ``citation_refs`` field (decision D1)."""
     repo_root, docs_root = _seed_docs_tree(tmp_path)
-    rendered = lockfile.render_lockfile(
-        lockfile.generate_inventory(docs_root, repo_root=repo_root)
-    )
+    rendered = lockfile.render_lockfile(lockfile.generate_inventory(docs_root, repo_root=repo_root))
     # The retired field is never emitted as a row key (the header comment may
     # still reference it by name when explaining the retirement).
     assert "  citation_refs:" not in rendered
@@ -231,9 +203,7 @@ def test_rendered_lockfile_drops_citation_refs(tmp_path: Path) -> None:
 def test_rendered_lockfile_roundtrips_through_load_inventory(tmp_path: Path) -> None:
     """The generated lockfile is loadable by the canonical loader."""
     repo_root, docs_root = _seed_docs_tree(tmp_path)
-    rendered = lockfile.render_lockfile(
-        lockfile.generate_inventory(docs_root, repo_root=repo_root)
-    )
+    rendered = lockfile.render_lockfile(lockfile.generate_inventory(docs_root, repo_root=repo_root))
     out = repo_root / "generated.yaml"
     out.write_text(rendered, encoding="utf-8")
     reloaded = load_inventory(out)
@@ -276,9 +246,7 @@ def test_cli_report_only_exit_zero_and_writes_report(tmp_path: Path) -> None:
     repo_root, docs_root = _seed_docs_tree(tmp_path)
     committed_path = repo_root / "inventory.yaml"
     committed_path.write_text(
-        lockfile.render_lockfile(
-            lockfile.generate_inventory(docs_root, repo_root=repo_root)
-        ),
+        lockfile.render_lockfile(lockfile.generate_inventory(docs_root, repo_root=repo_root)),
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
@@ -319,9 +287,7 @@ def test_orchestrator_lockfile_subcheck_emits_blocking_errors(tmp_path: Path) ->
     repo_root, docs_root = _seed_docs_tree(tmp_path)
     committed_path = repo_root / "inventory.yaml"
     committed_path.write_text(
-        lockfile.render_lockfile(
-            lockfile.generate_inventory(docs_root, repo_root=repo_root)
-        ),
+        lockfile.render_lockfile(lockfile.generate_inventory(docs_root, repo_root=repo_root)),
         encoding="utf-8",
     )
     # Diverge frontmatter so the regeneration drifts from the committed rollup.
@@ -329,9 +295,7 @@ def test_orchestrator_lockfile_subcheck_emits_blocking_errors(tmp_path: Path) ->
         PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: reference"),
         encoding="utf-8",
     )
-    findings = orchestrator._check_inventory_lockfile_drift(
-        committed_path, docs_root
-    )
+    findings = orchestrator._check_inventory_lockfile_drift(committed_path, docs_root)
     assert findings, "expected drift findings"
     assert all(f.rule_id == "INVENTORY-LOCKFILE-DRIFT" for f in findings)
     assert all(f.severity == "error" for f in findings)
@@ -341,7 +305,5 @@ def test_orchestrator_lockfile_subcheck_skips_missing_docs_root(
     tmp_path: Path,
 ) -> None:
     """The sub-check is a no-op when the docs root is absent."""
-    findings = orchestrator._check_inventory_lockfile_drift(
-        tmp_path / "inventory.yaml", tmp_path / "does-not-exist"
-    )
+    findings = orchestrator._check_inventory_lockfile_drift(tmp_path / "inventory.yaml", tmp_path / "does-not-exist")
     assert findings == []

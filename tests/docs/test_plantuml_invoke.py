@@ -10,20 +10,12 @@ from __future__ import annotations
 
 import concurrent.futures
 import hashlib
-import sys
 import time
 from pathlib import Path
 
 import pytest
 
-# Import the render seam the way the docs workflows do: put scripts/docs on the
-# path and import by module name (this registers it in sys.modules, which the
-# frozen @dataclass in the module needs). Mirrors glossary_linker's bootstrap.
-_DOCS_DIR = Path(__file__).resolve().parents[2] / "scripts" / "docs"
-if str(_DOCS_DIR) not in sys.path:
-    sys.path.insert(0, str(_DOCS_DIR))
-
-import plantuml_invoke  # noqa: E402  # deliberate post-bootstrap import (see above)
+from scripts.docs import plantuml_invoke
 
 pytestmark = pytest.mark.unit
 
@@ -80,9 +72,7 @@ def test_verify_jar_sha256_accepts_match(tmp_path: Path) -> None:
 def test_svg_is_error_detects_error_signatures() -> None:
     assert plantuml_invoke.svg_is_error(b"<svg><text>An error has occurred</text></svg>")
     assert plantuml_invoke.svg_is_error(b"<svg><text>Syntax Error?</text></svg>")
-    assert not plantuml_invoke.svg_is_error(
-        b'<svg><text>Agent Profile Schema</text><text>researcher-ryan</text></svg>'
-    )
+    assert not plantuml_invoke.svg_is_error(b"<svg><text>Agent Profile Schema</text><text>researcher-ryan</text></svg>")
 
 
 def test_extract_title_reads_plantuml_title() -> None:
@@ -127,9 +117,7 @@ def _slow_chunked_download(_url: str, dest: Path) -> None:
             time.sleep(0.001)
 
 
-def test_ensure_jar_is_race_safe_under_concurrent_callers(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_ensure_jar_is_race_safe_under_concurrent_callers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(plantuml_invoke, "_download_once", _slow_chunked_download)
     pins = plantuml_invoke.Pins(
         plantuml_version="race-test",

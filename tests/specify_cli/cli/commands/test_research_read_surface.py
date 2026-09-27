@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -84,9 +85,7 @@ Structure: [Document the selected structure and reference real paths]
 def _git(repo_root: Path, *args: str) -> None:
     import subprocess
 
-    subprocess.run(
-        ["git", "-C", str(repo_root), *args], check=True, capture_output=True, text=True
-    )
+    subprocess.run(["git", "-C", str(repo_root), *args], check=True, capture_output=True, text=True)
 
 
 def _init_repo(repo_root: Path) -> None:
@@ -105,20 +104,12 @@ def _init_repo(repo_root: Path) -> None:
     # generic template preserves their original intent.
     templates_dir = repo_root / ".kittify" / "templates"
     templates_dir.mkdir(parents=True, exist_ok=True)
-    (templates_dir / "research.md").write_text(
-        "# Research\n\nSeeded template content.\n", encoding="utf-8"
-    )
-    (templates_dir / "data-model.md").write_text(
-        "# Data Model\n\nSeeded template content.\n", encoding="utf-8"
-    )
+    (templates_dir / "research.md").write_text("# Research\n\nSeeded template content.\n", encoding="utf-8")
+    (templates_dir / "data-model.md").write_text("# Data Model\n\nSeeded template content.\n", encoding="utf-8")
     research_templates_dir = templates_dir / "research"
     research_templates_dir.mkdir(parents=True, exist_ok=True)
-    (research_templates_dir / "evidence-log.csv").write_text(
-        "timestamp,source_type,citation,key_finding,confidence,notes\n", encoding="utf-8"
-    )
-    (research_templates_dir / "source-register.csv").write_text(
-        "source_id,citation,url,accessed_date,relevance,status\n", encoding="utf-8"
-    )
+    (research_templates_dir / "evidence-log.csv").write_text("timestamp,source_type,citation,key_finding,confidence,notes\n", encoding="utf-8")
+    (research_templates_dir / "source-register.csv").write_text("source_id,citation,url,accessed_date,relevance,status\n", encoding="utf-8")
 
 
 def _write_meta(feature_dir: Path, meta: dict[str, object]) -> None:
@@ -150,9 +141,7 @@ def _seed_coord_topology(repo_root: Path) -> tuple[Path, Path]:
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-qm", "author primary plan")
 
-    coord_husk_dir = (
-        repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord" / "kitty-specs" / SLUG_WITH_MID8
-    )
+    coord_husk_dir = repo_root / ".worktrees" / f"{SLUG_WITH_MID8}-coord" / "kitty-specs" / SLUG_WITH_MID8
     _write_meta(coord_husk_dir, meta)
     # The husk carries an UNFILLED template plan — pre-fix research validated this.
     (coord_husk_dir / "plan.md").write_text(UNFILLED_PLAN, encoding="utf-8")
@@ -179,24 +168,17 @@ def _run_research(repo_root: Path, mission_handle: str = SLUG_WITH_MID8):  # typ
     app.command(name="research")(research_mod.research)
     runner = CliRunner()
 
-    _prev_saas = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC")
-    os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
-    try:
-        with (
-            patch.object(research_mod, "find_repo_root", return_value=repo_root),
-            patch.object(
-                research_mod, "get_project_root_or_exit", return_value=repo_root
-            ),
-        ):
-            # A single-command typer app omits the command name from argv.
-            result = runner.invoke(
-                app,
-                ["--mission", mission_handle],
-                catch_exceptions=False,
-            )
-    finally:
-        if _prev_saas is not None:
-            os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = _prev_saas
+    with (
+        mock.patch.dict(os.environ, {"SPEC_KITTY_ENABLE_SAAS_SYNC": "0"}),
+        patch.object(research_mod, "find_repo_root", return_value=repo_root),
+        patch.object(research_mod, "get_project_root_or_exit", return_value=repo_root),
+    ):
+        # A single-command typer app omits the command name from argv.
+        result = runner.invoke(
+            app,
+            ["--mission", mission_handle],
+            catch_exceptions=False,
+        )
     return result
 
 
@@ -235,9 +217,7 @@ def test_research_scaffolds_onto_primary_for_coord_topology(tmp_path: Path) -> N
 
     for rel in ("research.md", "data-model.md"):
         assert (primary_dir / rel).exists(), f"{rel} missing on PRIMARY surface"
-        assert not (coord_husk_dir / rel).exists(), (
-            f"{rel} leaked onto the COORD husk (write-twin regression)"
-        )
+        assert not (coord_husk_dir / rel).exists(), f"{rel} leaked onto the COORD husk (write-twin regression)"
     # CSV stubs also land on primary.
     assert (primary_dir / "research" / "evidence-log.csv").exists()
     assert not (coord_husk_dir / "research" / "evidence-log.csv").exists()
@@ -264,12 +244,8 @@ def test_research_resolves_bare_mid8_handle_to_primary_slug(tmp_path: Path) -> N
     # ``kitty-specs/<mid8>`` dir nor the coord husk.
     for rel in ("research.md", "data-model.md"):
         assert (primary_dir / rel).exists(), f"{rel} missing on PRIMARY surface"
-        assert not (coord_husk_dir / rel).exists(), (
-            f"{rel} leaked onto the COORD husk (#2122 regression)"
-        )
-    assert not (tmp_path / "kitty-specs" / MID8).exists(), (
-        "research composed a literal kitty-specs/<mid8> dir (handle-blind primary arm)"
-    )
+        assert not (coord_husk_dir / rel).exists(), f"{rel} leaked onto the COORD husk (#2122 regression)"
+    assert not (tmp_path / "kitty-specs" / MID8).exists(), "research composed a literal kitty-specs/<mid8> dir (handle-blind primary arm)"
 
 
 # --------------------------------------------------------------------------- #

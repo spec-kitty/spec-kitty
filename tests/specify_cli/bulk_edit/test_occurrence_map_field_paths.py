@@ -70,7 +70,7 @@ _INVENTORY_MODULE_PATH = (
 )
 
 
-def _load_inventory_module() -> types.ModuleType:
+def _load_inventory_module(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
     """Load the canonical MIGRATE/GOVERNANCE/RAW_MATERIAL measurement tool.
 
     Not on pytest's ``pythonpath`` (only ``src`` is, by design — see
@@ -85,7 +85,7 @@ def _load_inventory_module() -> types.ModuleType:
     spec = importlib.util.spec_from_file_location(module_name, _INVENTORY_MODULE_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
+    monkeypatch.setitem(sys.modules, module_name, module)
     spec.loader.exec_module(module)
     return module
 
@@ -436,7 +436,9 @@ class TestB2RealExemptionSet:
         assert omap.field_path_exceptions == []
         assert omap.categories["serialized_keys"]["action"] == "manual_review"
 
-    def test_governance_occurrences_and_files_match_sc011(self) -> None:
+    def test_governance_occurrences_and_files_match_sc011(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Re-derive SC-011's headline numbers — never hardcode them twice.
 
         The two occurrence totals below are cardinality contracts: SC-011 states
@@ -462,7 +464,7 @@ class TestB2RealExemptionSet:
         profile directive references, moving the occurrence total from 92 to 94
         without changing that file set.
         """
-        inv = _load_inventory_module()
+        inv = _load_inventory_module(monkeypatch)
         inventory = inv.collect()
 
         gov = [e for e in inventory.entries if e.disposition == inv.GOVERNANCE]
@@ -576,13 +578,14 @@ class TestB2RealExemptionSet:
 
     def test_every_real_governance_field_is_expressible_as_field_path_exception(
         self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """The central SC-011 claim: for each of B2's real (file, field)
         GOVERNANCE pairs, a field-path exception naming that exact field
         do_not_change validates against the schema — including for files
         that (per the assertion above) ALSO carry MIGRATE entries.
         """
-        inv = _load_inventory_module()
+        inv = _load_inventory_module(monkeypatch)
         inventory = inv.collect()
         gov = [e for e in inventory.entries if e.disposition == inv.GOVERNANCE]
 
@@ -603,7 +606,9 @@ class TestB2RealExemptionSet:
             result = validate_against_schema(data)
             assert result.valid, (path, field_name, result.errors)
 
-    def test_raw_field_name_collides_with_migrate_in_the_same_field(self) -> None:
+    def test_raw_field_name_collides_with_migrate_in_the_same_field(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Honest boundary, not oversold: RAW and MIGRATE share the exact same
         field name (``references``) in 5 of the 7 RAW files, so a field-path
         exception can name the FIELD for reviewer attention but — by
@@ -614,7 +619,7 @@ class TestB2RealExemptionSet:
         field CAN be named) while documenting why it is not a complete
         per-entry guarantee there.
         """
-        inv = _load_inventory_module()
+        inv = _load_inventory_module(monkeypatch)
         inventory = inv.collect()
         raw = [e for e in inventory.entries if e.disposition == inv.RAW_MATERIAL]
         migrate = [e for e in inventory.entries if e.disposition == inv.MIGRATE]

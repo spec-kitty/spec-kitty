@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -32,25 +33,36 @@ pytestmark = pytest.mark.fast
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT_PATH = _REPO_ROOT / "scripts" / "ci" / "release_nightly_gate.py"
+_SCRIPT_MODULE_NAME = "release_nightly_gate"
 
 _FAKE_TOKEN = "ghs_faketoken_should_never_be_printed"  # noqa: S105 - test sentinel, not a real credential
 _TAG = "v3.2.0rc42"
 _SHA = "0123456789abcdef0123456789abcdef01234567"
 
-
-def _load_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("release_nightly_gate", _SCRIPT_PATH)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    # Register before exec so @dataclass's KW_ONLY probe can resolve the module
-    # (it does sys.modules.get(cls.__module__)); a script run as __main__ is
-    # already registered, so this only matters for the file-path import here.
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+#: Populated by the autouse ``_release_nightly_gate_module`` fixture below.
+mod: ModuleType
 
 
-mod = _load_module()
+@pytest.fixture(scope="module", autouse=True)
+def _release_nightly_gate_module() -> Iterator[ModuleType]:
+    """Load the script once for this module's tests.
+
+    ``@dataclass``'s ``KW_ONLY`` probe resolves the module via
+    ``sys.modules.get(cls.__module__)``, so it must already be registered
+    before ``exec_module`` runs. A module-scoped ``pytest.MonkeyPatch.context()``
+    — not the function-scoped ``monkeypatch`` fixture, which a module-scoped
+    fixture cannot depend on — keeps that registration and undoes it once
+    every test in this module has run.
+    """
+    global mod
+    with pytest.MonkeyPatch.context() as mp:
+        spec = importlib.util.spec_from_file_location(_SCRIPT_MODULE_NAME, _SCRIPT_PATH)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        mp.setitem(sys.modules, _SCRIPT_MODULE_NAME, module)
+        spec.loader.exec_module(module)
+        mod = module
+        yield module
 
 
 def _run(run_id: int, status: str, conclusion: str | None = None) -> dict[str, Any]:

@@ -402,17 +402,12 @@ class TestLocationErrorMessages:
 class TestEnvVarBypass:
     """Tests for env var bypass prevention."""
 
-    def test_filesystem_overrides_env(self, mock_worktree):
+    def test_filesystem_overrides_env(self, mock_worktree, monkeypatch):
         """Filesystem detection should override SPEC_KITTY_CONTEXT env var."""
-        import os
+        monkeypatch.setenv("SPEC_KITTY_CONTEXT", "main")
 
-        os.environ["SPEC_KITTY_CONTEXT"] = "main"
-
-        try:
-            context = detect_execution_context(cwd=mock_worktree["worktree_path"])
-            assert context.location == ExecutionContext.WORKTREE
-        finally:
-            os.environ.pop("SPEC_KITTY_CONTEXT", None)
+        context = detect_execution_context(cwd=mock_worktree["worktree_path"])
+        assert context.location == ExecutionContext.WORKTREE
 
     def test_format_error_worktree_required_from_main(self, tmp_path: Path):
         """Test error message for command needing worktree, run from main repo."""

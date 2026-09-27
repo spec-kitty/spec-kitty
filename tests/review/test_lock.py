@@ -236,7 +236,7 @@ def test_isolation_config_missing(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_apply_env_var_isolation(tmp_path: Path) -> None:
+def test_apply_env_var_isolation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """_apply_env_var_isolation sets env var with correctly formatted value."""
     config = {
         "strategy": "env_var",
@@ -244,11 +244,16 @@ def test_apply_env_var_isolation(tmp_path: Path) -> None:
         "template": "{agent}_{wp_id}",
     }
 
-    try:
-        _apply_env_var_isolation(config, agent="claude", wp_id="WP05")
-        assert os.environ.get("TEST_DB_SUFFIX") == "claude_WP05"
-    finally:
-        os.environ.pop("TEST_DB_SUFFIX", None)
+    # Two-step monkeypatch sequence (setenv then delenv) so its own undo
+    # stack fully restores the pre-test os.environ["TEST_DB_SUFFIX"] state
+    # (present or absent) at teardown, regardless of what
+    # _apply_env_var_isolation's own raw os.environ[...] = ... write does in
+    # between -- a bare monkeypatch.delenv here would leave that write
+    # untracked and leaking past this test.
+    monkeypatch.setenv("TEST_DB_SUFFIX", "__wp13_sentinel__")
+    monkeypatch.delenv("TEST_DB_SUFFIX")
+    _apply_env_var_isolation(config, agent="claude", wp_id="WP05")
+    assert os.environ.get("TEST_DB_SUFFIX") == "claude_WP05"
 
 
 # ---------------------------------------------------------------------------

@@ -29,19 +29,16 @@ output — never by hand.
 from __future__ import annotations
 
 import ast
-import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
+from tests.architectural._ratchet_keys import composite_key_from_file
+
 _THIS = Path(__file__).resolve()
 _REPO_ROOT = _THIS.parents[3]
-if str(_REPO_ROOT) not in sys.path:  # script-mode import of the sibling key primitive
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from tests.architectural._ratchet_keys import composite_key_from_file
 
 pytestmark = [pytest.mark.architectural]
 

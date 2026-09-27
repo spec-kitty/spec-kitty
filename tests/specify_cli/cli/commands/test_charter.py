@@ -16,8 +16,8 @@ Tests that verify:
 
 from __future__ import annotations
 
+import contextlib
 import json
-import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -65,9 +65,7 @@ def _invoke_interview(
     extra_args: list[str] | None = None,
 ) -> object:
     """Invoke 'charter interview' with the given stdin inputs."""
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
+    with contextlib.chdir(tmp_path):
         args = ["interview", "--defaults"]
         # When we pass --defaults we skip interactive prompts; but we need
         # non-defaults to test the question loop. So we won't pass --defaults
@@ -78,8 +76,6 @@ def _invoke_interview(
         if extra_args:
             args += extra_args
         return runner.invoke(charter_app, args, input=inputs, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _make_open_response(decision_id: str = "01KTESTDECISION000000001") -> MagicMock:

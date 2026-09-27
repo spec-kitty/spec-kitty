@@ -26,7 +26,6 @@ from the entire JSON-serialised envelope.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -88,9 +87,7 @@ def minimal_doctrine_snapshot() -> dict[str, Any]:
 @pytest.fixture
 def minimal_drg_snapshot() -> dict[str, Any]:
     return {
-        "nodes": [
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive"}
-        ],
+        "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive"}],
         "edges": [],
         "schema_version": "1",
     }
@@ -147,9 +144,7 @@ def _entries_to_comparable(entries: list[Any]) -> list[tuple[str, str | None]]:
     assertion holds even if a future ordering change ships separately
     from the CLI surface.
     """
-    return sorted(
-        [(e.path, e.artifact_id) for e in entries], key=lambda t: t[0]
-    )
+    return sorted([(e.path, e.artifact_id) for e in entries], key=lambda t: t[0])
 
 
 def test_dry_run_paths_match_real_run_paths(
@@ -176,16 +171,12 @@ def test_dry_run_paths_match_real_run_paths(
     # no-op). The fixture set delivers at least one directive artifact
     # for the parity_request inputs (PROJECT_001 directive).
     assert len(entries_a) >= 1, "expected at least one staged artifact"
-    assert len(entries_b) == len(entries_a), (
-        f"entry count drifted: a={len(entries_a)} vs b={len(entries_b)}"
-    )
+    assert len(entries_b) == len(entries_a), f"entry count drifted: a={len(entries_a)} vs b={len(entries_b)}"
 
     # Per-element path + artifact_id must match (FR-004 byte-equal).
     cmp_a = _entries_to_comparable(entries_a)
     cmp_b = _entries_to_comparable(entries_b)
-    assert cmp_a == cmp_b, (
-        f"dry-run vs real-run paths drifted:\n  a={cmp_a}\n  b={cmp_b}"
-    )
+    assert cmp_a == cmp_b, f"dry-run vs real-run paths drifted:\n  a={cmp_a}\n  b={cmp_b}"
 
     # Each entry path is repo-relative POSIX (no leading '/'; uses '/'
     # separator). This nails the wire-shape contract from data-model §E-3.
@@ -201,12 +192,8 @@ def test_dry_run_paths_match_real_run_paths(
     directive_entries = [e for e in entries_a if e.kind == "directive"]
     assert directive_entries, "expected at least one directive entry"
     for entry in directive_entries:
-        assert entry.artifact_id is not None, (
-            f"directive entry lacks artifact_id (regression): {entry}"
-        )
-        assert entry.artifact_id != "PROJECT_000", (
-            f"directive surfaced placeholder PROJECT_000: {entry}"
-        )
+        assert entry.artifact_id is not None, f"directive entry lacks artifact_id (regression): {entry}"
+        assert entry.artifact_id != "PROJECT_000", f"directive surfaced placeholder PROJECT_000: {entry}"
 
 
 @pytest.mark.parametrize(
@@ -232,19 +219,27 @@ def _git_init(repo: Path) -> None:
     """Initialize a minimal git repo so ``find_repo_root`` succeeds."""
     subprocess.run(
         ["git", "init", "--initial-branch=main"],
-        cwd=repo, check=True, capture_output=True,
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
-        cwd=repo, check=True, capture_output=True,
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
-        cwd=repo, check=True, capture_output=True,
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "commit.gpgsign", "false"],
-        cwd=repo, check=True, capture_output=True,
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
 
 
@@ -268,12 +263,10 @@ def _seed_minimal_interview(repo: Path) -> None:
     # genuinely absent key that's unrelated to this test's own subject
     # (the PROJECT_000 placeholder-leak guard).
     kittify = repo / ".kittify"
-    (kittify / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (kittify / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
 
 
-def test_no_user_visible_placeholder_in_envelope(tmp_path: Path) -> None:
+def test_no_user_visible_placeholder_in_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The placeholder ``PROJECT_000`` MUST NOT appear in the envelope (FR-005).
 
     Drives the actual ``charter synthesize --json`` CLI through a fresh
@@ -289,19 +282,11 @@ def test_no_user_visible_placeholder_in_envelope(tmp_path: Path) -> None:
     _seed_minimal_interview(tmp_path)
 
     # Run charter generate to produce charter.md (fresh-seed precondition).
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        gen = runner.invoke(
-            charter_app, ["generate", "--from-interview"], catch_exceptions=False
-        )
-        assert gen.exit_code == 0, f"charter generate failed: {gen.stdout!r}"
+    monkeypatch.chdir(tmp_path)
+    gen = runner.invoke(charter_app, ["generate", "--from-interview"], catch_exceptions=False)
+    assert gen.exit_code == 0, f"charter generate failed: {gen.stdout!r}"
 
-        result = runner.invoke(
-            charter_app, ["synthesize", "--json"], catch_exceptions=False
-        )
-    finally:
-        os.chdir(old_cwd)
+    result = runner.invoke(charter_app, ["synthesize", "--json"], catch_exceptions=False)
 
     assert result.exit_code == 0, f"synthesize failed: {result.stdout!r}"
 
@@ -310,6 +295,4 @@ def test_no_user_visible_placeholder_in_envelope(tmp_path: Path) -> None:
 
     # FR-005: re-serialise and grep — covers keys, values, nested values.
     serialised = json.dumps(envelope)
-    assert "PROJECT_000" not in serialised, (
-        f"PROJECT_000 leaked into the user-visible envelope: {serialised!r}"
-    )
+    assert "PROJECT_000" not in serialised, f"PROJECT_000 leaked into the user-visible envelope: {serialised!r}"

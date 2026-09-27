@@ -31,7 +31,7 @@ this WP's task file both flag).
 from __future__ import annotations
 
 import json
-import os
+import contextlib
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -57,12 +57,8 @@ _cli_runner = CliRunner()
 def _invoke_upgrade(args: list[str], cwd: Path):
     """Invoke the real `upgrade` command from *cwd* (mirrors
     ``tests/upgrade/test_upgrade_integration.py``'s harness)."""
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(cwd)
+    with contextlib.chdir(cwd):
         return _cli_runner.invoke(_cli_app, args, catch_exceptions=False)
-    finally:
-        os.chdir(old_cwd)
 
 
 def _last_json_line(output: str) -> dict[str, Any]:

@@ -17,7 +17,6 @@ that — no version-skew risk, no PATH risk.
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import tomllib
@@ -79,9 +78,7 @@ def _build_e2e_project(tmp_path: Path) -> Path:
         check=True,
         capture_output=True,
     )
-    subprocess.run(
-        ["git", "add", "."], cwd=project, check=True, capture_output=True
-    )
+    subprocess.run(["git", "add", "."], cwd=project, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial project"],
         cwd=project,
@@ -117,7 +114,7 @@ def _build_e2e_project(tmp_path: Path) -> Path:
 
 
 @pytest.mark.e2e
-def test_feature_alias_rejected_by_agent_tasks_status(tmp_path: Path) -> None:
+def test_feature_alias_rejected_by_agent_tasks_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``--feature`` must be rejected (unknown option) by ``agent tasks status``.
 
     WP01 of codebase-sanitization-1060-1622 removed the hidden alias; after
@@ -126,23 +123,15 @@ def test_feature_alias_rejected_by_agent_tasks_status(tmp_path: Path) -> None:
     project = _build_e2e_project(tmp_path)
     runner = CliRunner()
 
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
+    monkeypatch.chdir(project)
 
-        feature_result = runner.invoke(
-            agent_app,
-            ["tasks", "status", "--feature", "any-slug", "--json"],
-        )
+    feature_result = runner.invoke(
+        agent_app,
+        ["tasks", "status", "--feature", "any-slug", "--json"],
+    )
 
-        # Typer raises exit code 2 for unknown options.
-        assert feature_result.exit_code == 2, (
-            "Expected exit 2 (unknown option) for --feature after alias removal, "
-            f"got {feature_result.exit_code}.\nOutput:\n{feature_result.output}"
-        )
-        assert "no such option" in (feature_result.output or "").lower(), (
-            "Expected 'No such option' error message for --feature.\n"
-            f"Output:\n{feature_result.output}"
-        )
-    finally:
-        os.chdir(old_cwd)
+    # Typer raises exit code 2 for unknown options.
+    assert feature_result.exit_code == 2, (
+        f"Expected exit 2 (unknown option) for --feature after alias removal, got {feature_result.exit_code}.\nOutput:\n{feature_result.output}"
+    )
+    assert "no such option" in (feature_result.output or "").lower(), f"Expected 'No such option' error message for --feature.\nOutput:\n{feature_result.output}"
