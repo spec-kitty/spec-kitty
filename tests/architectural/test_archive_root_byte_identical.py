@@ -249,16 +249,22 @@ def _changes(base: str, *, cached: bool = False) -> list[tuple[str, tuple[str, .
     return changes
 
 
-def _is_new_rename_destination(status: str, paths: tuple[str, ...], path: str, baseline: dict[str, Blob]) -> bool:
-    """True when *path* is the brand-new destination of a git R/C pairing.
+_EMPTY_BLOB_OID = "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+
+
+def _is_new_rename_destination(status: str, paths: tuple[str, ...], path: str, baseline: dict[str, Blob], index: dict[str, Blob]) -> bool:
+    """True when *path* is a brand-new empty file that git paired as an R/C destination.
 
     Git's default rename detection pairs identical blobs, so a PR that deletes an
     empty ``__init__.py`` elsewhere and adds an empty ``.gitkeep`` under an archive
-    root reports ``R100 <old> <new>``. The destination is an addition like any
-    ``A`` row; the source endpoint is still checked on its own iteration, so a
-    genuine move of archived history out of an archive root stays a violation.
+    root reports ``R100 <old> <new>``. That pairing is spurious only for the empty
+    blob: a real move of content into an archive root stays a violation, and the
+    source endpoint is still checked on its own iteration.
     """
-    return status.startswith(("R", "C")) and len(paths) == 2 and path == paths[1] and path not in baseline
+    if not (status.startswith(("R", "C")) and len(paths) == 2 and path == paths[1] and path not in baseline):
+        return False
+    staged = index.get(path)
+    return staged is not None and staged.oid == _EMPTY_BLOB_OID
 
 
 def _lifecycle_prefix(path: str, before: bytes, after: bytes) -> None:
@@ -750,26 +756,30 @@ def test_no_preexisting_archived_file_was_modified() -> None:
                 continue
             if status == "A" and path not in baseline:
                 continue
-            if _is_new_rename_destination(status, paths, path, baseline):
+            if _is_new_rename_destination(status, paths, path, baseline, index):
                 continue
             violations.append(f"{status}\t{path}: ordinary archive history changed")
     assert not violations, "Historical preservation violation under the four archive roots:\n  " + "\n  ".join(sorted(set(violations)))
 
 
 def test_new_rename_destination_is_an_addition_but_the_source_stays_checked() -> None:
-    """An R/C row's new destination is an addition; its source endpoint is not.
+    """An R/C row's new empty destination is an addition; nothing else is.
 
     Git pairs identical blobs, so deleting an empty ``tests/pkg/__init__.py``
-    while adding an empty mission ``tasks/.gitkeep`` reports ``R100``. Only the
-    destination is exempt, and only when it is absent from the baseline.
+    while adding an empty mission ``tasks/.gitkeep`` reports ``R100``. Only that
+    empty destination is exempt, and only when it is absent from the baseline; a
+    rename that carries real content into an archive root stays a violation.
     """
     archived = "kitty-specs/m/tasks/.gitkeep"
+    moved_in = "kitty-specs/m/incoming.md"
     moved_out = "kitty-specs/old/spec.md"
     baseline = {moved_out: Blob("100644", "0" * 40)}
-    assert _is_new_rename_destination("R100", ("tests/pkg/__init__.py", archived), archived, {})
-    assert not _is_new_rename_destination("R100", (moved_out, "elsewhere/spec.md"), moved_out, baseline)
-    assert not _is_new_rename_destination("R100", ("a", moved_out), moved_out, baseline)
-    assert not _is_new_rename_destination("M", (archived,), archived, {})
+    index = {archived: Blob("100644", _EMPTY_BLOB_OID), moved_in: Blob("100644", "1" * 40)}
+    assert _is_new_rename_destination("R100", ("tests/pkg/__init__.py", archived), archived, {}, index)
+    assert not _is_new_rename_destination("R100", ("outside.md", moved_in), moved_in, {}, index)
+    assert not _is_new_rename_destination("R100", (moved_out, "elsewhere/spec.md"), moved_out, baseline, index)
+    assert not _is_new_rename_destination("R100", ("a", moved_out), moved_out, baseline, index)
+    assert not _is_new_rename_destination("M", (archived,), archived, {}, index)
 
 
 def test_archive_baseline_is_non_empty() -> None:
