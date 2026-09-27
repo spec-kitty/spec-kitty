@@ -1,0 +1,37 @@
+{
+  "accept_commit": "4d5ab9a0b07505b288be0f1eef5e0448c1be5b0e",
+  "acceptance_history": [
+    {
+      "accept_commit": "4d5ab9a0b07505b288be0f1eef5e0448c1be5b0e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-27T05:30:08.117367+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "efb95c2c774873585609b752aa6ad9ba657dceaa"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-27T05:30:08.117367+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "efb95c2c774873585609b752aa6ad9ba657dceaa",
+  "baseline_merge_commit": "0a88eba8fad5354eb51670854e62e4e463271446",
+  "coordination_branch": "kitty/mission-merge-seam-test-isolation-campsite-01M3F61E",
+  "created_at": "2026-09-26T15:41:15.666349+00:00",
+  "flattened": false,
+  "friendly_name": "Merge-seam placement, test-isolation sweep & model-slot verdict",
+  "merged_at": "2026-09-27T05:38:00.557141+00:00",
+  "merged_commit": "66d303743a633f19b86393d6d2126549a938d5a3",
+  "mid8": "01M3F61E",
+  "mission_id": "01M3F61E0319MMGJFQB2G75ZF6",
+  "mission_number": null,
+  "mission_slug": "merge-seam-test-isolation-campsite-01M3F61E",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Grounding on current main confirmed three open tech-debt issues (#5119, #5118, #5117) are still real and do not collide with the in-flight ratchet mission's files. The merge domain duplicates a git blob-read helper and reaches up into the CLI adapter for merge-driver logic; 41 test sites mutate global state by hand and SonarCloud no longer watches that rule; and the agent-profile model slot looks inert to detectors although consumers author it. This mission consolidates those surfaces behind non-vacuous guards so the debt cannot silently regrow.",
+  "purpose_tldr": "Pay down three tech-debt findings: one canonical merge-driver/blob-read home in the merge domain, tests that stop leaking global state, and a recorded keep-verdict for the agent-profile model slot.",
+  "slug": "merge-seam-test-isolation-campsite-01M3F61E",
+  "status_phase": "1",
+  "target_branch": "issue-5119-merge-seam-test-isolation",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-26T16:55:45.466290+00:00"
+}

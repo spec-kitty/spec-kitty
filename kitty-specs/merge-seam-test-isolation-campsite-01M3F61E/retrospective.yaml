@@ -1,0 +1,354 @@
+schema_version: 1
+mission_id: 01M3F61E0319MMGJFQB2G75ZF6
+mission_slug: merge-seam-test-isolation-campsite-01M3F61E
+mission_number:
+friendly_name: Merge-seam placement, test-isolation sweep & model-slot verdict
+mission_type: software-dev
+target_branch: issue-5119-merge-seam-test-isolation
+created_at: '2026-09-27T05:38:32.967744+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-27T05:38:32.967744+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-019
+- id: h-002
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-019
+- id: h-003
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-019
+- id: h-004
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-019
+- id: h-005
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-019
+- id: h-006
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-019
+- id: h-007
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-019
+- id: h-008
+  category: implementation
+  summary: WP14 completed without rejection cycles
+  evidence_refs:
+  - e-019
+not_helpful:
+- id: n-019
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-038
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-013
+  category: implementation
+  summary: WP01 needed 2 implementation cycles
+  evidence_refs:
+  - e-032
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-014
+  category: implementation
+  summary: WP07 needed 2 implementation cycles
+  evidence_refs:
+  - e-033
+  details: WP WP07 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-015
+  category: implementation
+  summary: WP08 needed 2 implementation cycles
+  evidence_refs:
+  - e-034
+  details: WP WP08 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-016
+  category: implementation
+  summary: WP09 needed 2 implementation cycles
+  evidence_refs:
+  - e-035
+  details: WP WP09 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-017
+  category: implementation
+  summary: WP10 needed 2 implementation cycles
+  evidence_refs:
+  - e-036
+  details: WP WP10 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-018
+  category: implementation
+  summary: WP13 needed 2 implementation cycles
+  evidence_refs:
+  - e-037
+  details: WP WP13 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-007
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-026
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-027
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP08 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-028
+  details: WP WP08 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP09 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-029
+  details: WP WP09 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-011
+  category: process
+  summary: WP10 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-030
+  details: WP WP10 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-012
+  category: process
+  summary: WP13 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-031
+  details: WP WP13 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-020
+  details: WP WP01 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-021
+  details: WP WP07 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP08 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-022
+  details: WP WP08 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP09 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-023
+  details: WP WP09 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP10 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-024
+  details: WP WP10 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP13 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-025
+  details: WP WP13 was sent back from review/approval to an earlier lane 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP01-census-gate.md
+- id: e-006
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP02-blob-reader-dedup.md
+- id: e-007
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP03-merge-driver-goldens.md
+- id: e-008
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP04-merge-cli-rule-and-driver-relocation.md
+- id: e-009
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP05-model-slot-keep-verdict.md
+- id: e-010
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP06-sweep-s1-charter-cli.md
+- id: e-011
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP07-sweep-s2-widen-decision-cli.md
+- id: e-012
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP08-sweep-s3-doctrine-doctor-upgrade-cli.md
+- id: e-013
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP09-sweep-s4-misc-cli.md
+- id: e-014
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP10-sweep-s5-specify-cli-other.md
+- id: e-015
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP11-sweep-s6-import-hygiene.md
+- id: e-016
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP12-sweep-s7-integration-research.md
+- id: e-017
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP13-sweep-s8-remaining.md
+- id: e-018
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/tasks/WP14-seal-census-allowlist.md
+- id: e-019
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+- id: e-020
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FDGYSQGCYSDCHZQQ3A7EAF
+- id: e-021
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FH1GJ6XVKMVA59AV6BPN2V
+- id: e-022
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FG29FYW57X8C8FP4VCMHNR
+- id: e-023
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FH2YQQXHQJZJ7FVZPY614H
+- id: e-024
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FMFVGV0RSANMDXGRKBAP0M
+- id: e-025
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3GCC4151GBWBVHQP28CX8SJ
+- id: e-026
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FDGYSQGCYSDCHZQQ3A7EAF
+- id: e-027
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FH1GJ6XVKMVA59AV6BPN2V
+- id: e-028
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FG29FYW57X8C8FP4VCMHNR
+- id: e-029
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FH2YQQXHQJZJ7FVZPY614H
+- id: e-030
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3FMFVGV0RSANMDXGRKBAP0M
+- id: e-031
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: 01M3GCC4151GBWBVHQP28CX8SJ
+- id: e-032
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: implementation_cycles
+- id: e-033
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: implementation_cycles
+- id: e-034
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: implementation_cycles
+- id: e-035
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: implementation_cycles
+- id: e-036
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: implementation_cycles
+- id: e-037
+  kind: event_range
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/status.events.jsonl
+  range: implementation_cycles
+- id: e-038
+  kind: file
+  path: kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

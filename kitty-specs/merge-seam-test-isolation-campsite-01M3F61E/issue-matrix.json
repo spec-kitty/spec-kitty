@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#2633": {
+      "evidence_ref": "Context only: #5116's blocker (runtime_bridge delegate cut); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5001": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5038": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5055": {
+      "evidence_ref": "Context only: provenance PR for #5119 (driver-replay attribution, merged)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5104": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5116": {
+      "evidence_ref": "Parked: blocked on #2633 (open) and ratchet 01M3EW3Z WP11 owns test_bridge_parity.py; cited for context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5117": {
+      "evidence_ref": "KEEP verdict shipped (schema_models description + disk->advisory test, WP05). Follow-up: #5117 stays open for the code-only drift-check remainder, blocked until mission 01M3EW3Z (#5104) merges",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    },
+    "#5118": {
+      "evidence_ref": "Local census gate test_no_manual_global_state_mutation.py (red-first); full sweep 471 -> 36 justified sites; sealed caps in test_global_state_allowlist_sealed.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP14"
+    },
+    "#5119": {
+      "evidence_ref": "WP02 single blob reader; WP04 six driver bodies in merge/drivers.py shared by subprocess shell + in-process replay; TestMergeCliBoundary red-first (git_probes.py:667) then green; WP03 goldens byte-identical",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}

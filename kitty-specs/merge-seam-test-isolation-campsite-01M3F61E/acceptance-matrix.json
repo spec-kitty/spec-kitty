@@ -1,0 +1,119 @@
+{
+  "mission_slug": "merge-seam-test-isolation-campsite-01M3F61E",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_single_blob_reader.py (WP02, reviewer mutation: re-added duplicate reader -> guard fails)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:28:56.965249+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/merge/drivers.py + tests/merge/test_merge_drivers.py (WP04; all six bodies; 97% coverage; AST-identical to pre-move bodies)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:28:59.209934+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_merge_driver_goldens.py subprocess leg 25/25 byte-identical pre/post move (WP03+WP04); thin shell, six names/docstrings unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:01.531925+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_merge_driver_goldens.py in-process leg + all-six-resolve + MERGE_DRIVER_BODIES completeness test (WP04)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:03.777072+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_layer_rules.py::TestMergeCliBoundary \u2014 RED at 69efa911c1 naming git_probes.py:667, GREEN after move; self-mutation over 6 import forms (WP04)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:05.967107+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "census 471 -> 36 sites; S1-S8 transitional rows drained; junit per-test-id identical before/after per shard (WP06-WP13)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:08.124249+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_manual_global_state_mutation.py \u2014 RED at dbd46d04a3 (471 sites), GREEN over shards; alias/slice/del/setattr forms (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:20.101712+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/global_state_allowlist/*.yaml exact (file,qualname,kind) counts + tests/architectural/test_global_state_allowlist_sealed.py caps (WP01, WP14)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:22.270474+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_no_manual_global_state_mutation.py message tests: file:line in qualname, kind, scoped replacement (WP01 cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:24.381288+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/charter/offering/agent_profiles/schema_models.py description + regenerated agent-profile.schema.yaml (generate_schemas.py --check 0) (WP05)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:26.513266+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_agent_profile_model_field.py::TestModelSlotEndToEnd disk->AgentProfileRepository->_compute_recommendation; mutation proof reproduced by reviewer (WP05)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T05:29:28.686492+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
