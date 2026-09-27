@@ -359,6 +359,7 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
     assert payload["scaffold_only"] is True
     assert payload["requires_agent_authoring"] is True
     assert payload["plan_guard"] == "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED"
+    assert payload["mission_dir"] == payload["feature_dir"]
 
 
 # ---------------------------------------------------------------------------

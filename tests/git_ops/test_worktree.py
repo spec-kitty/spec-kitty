@@ -424,6 +424,7 @@ class TestValidateFeatureStructure:
         assert result["valid"] is True
         assert result["errors"] == []
         assert result["warnings"] == []
+        assert result["paths"]["mission_dir"] == result["paths"]["feature_dir"]
 
     def test_validates_tasks_md_when_requested(self, tmp_path: Path) -> None:
         """Should validate tasks.md exists when check_tasks=True."""

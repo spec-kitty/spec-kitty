@@ -1015,3 +1015,4 @@ def test_build_result_is_side_effect_free(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert outcome.payload["result"] == "success"
     assert outcome.payload["scaffold_only"] is True
     assert outcome.payload["phase_complete"] is False
+    assert outcome.payload["mission_dir"] == outcome.payload["feature_dir"]

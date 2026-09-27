@@ -30,6 +30,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def test_paths_only_payload_aliases_legacy_keys() -> None:
     validation = {
         "paths": {
+            "mission_dir": "/repo/kitty-specs/001-demo",
             "feature_dir": "/repo/kitty-specs/001-demo",
             "spec_file": "/repo/kitty-specs/001-demo/spec.md",
             "plan_file": "/repo/kitty-specs/001-demo/plan.md",
@@ -46,6 +47,7 @@ def test_paths_only_payload_aliases_legacy_keys() -> None:
     assert out["TASKS"] == "/repo/kitty-specs/001-demo/tasks.md"
     assert out["SPECS_DIR"] == "/repo/kitty-specs"
     assert out["artifact_files"] == {"x": 1}
+    assert out["mission_dir"] == out["feature_dir"] == "/repo/kitty-specs/001-demo"
 
 
 def test_paths_only_payload_empty_feature_dir() -> None:
