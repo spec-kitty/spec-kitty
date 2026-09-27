@@ -3196,6 +3196,18 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+  - path: "docs/adr/3.x/2026-09-26-2-lane-naming-keyed-on-creation-input.md"
+    title: "ADR: Lane Naming Is Keyed on Creation Input, Never on Mission Identity"
+    divio_type: "none"
+    abstract: "Lane branch and worktree names come only from the slug and lane id recorded at creation; the Mission identity is never a naming input."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "residuals-follow-ups", text: "Residuals / Follow-ups", level: 2}
+    - {slug: "links", text: "Links", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -5704,6 +5716,7 @@ pages:
     - {slug: "unreleased-4-0-0rc5", text: "[Unreleased] - 4.0.0rc5", level: 2}
     - {slug: "added", text: "Added", level: 3}
     - {slug: "changed", text: "Changed", level: 3}
+    - {slug: "upgrade-notes", text: "Upgrade Notes", level: 3}
     - {slug: "fixed", text: "Fixed", level: 3}
     - {slug: "4-0-0rc4-2026-09-21", text: "[4.0.0rc4] - 2026-09-21", level: 2}
     - {slug: "added-2", text: "Added", level: 3}
@@ -9308,6 +9321,7 @@ pages:
     - {slug: "step-2-run-the-identity-audit", text: "Step 2 — Run the identity audit", level: 2}
     - {slug: "step-3-run-the-backfill", text: "Step 3 — Run the backfill", level: 2}
     - {slug: "step-4-re-run-the-audit", text: "Step 4 — Re-run the audit", level: 2}
+    - {slug: "what-backfill-does-not-change", text: "What Backfill Does Not Change", level: 2}
     - {slug: "step-5-understanding-the-new-branch-and-worktree-naming", text: "Step 5 — Understanding the new branch and worktree naming", level: 2}
     - {slug: "step-6-what-to-do-if-a-selector-is-ambiguous", text: "Step 6 — What to do if a selector is ambiguous", level: 2}
     - {slug: "rollback-plan", text: "Rollback Plan", level: 2}
