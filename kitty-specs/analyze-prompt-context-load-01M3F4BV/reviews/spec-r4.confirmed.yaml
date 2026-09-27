@@ -1,0 +1,65 @@
+# review-findings/v1 — R3 confirmed subset (merged findings whose refute verdict was `confirmed`).
+# Source: spec-r4.merged.yaml + spec-r4-refute-1.yaml (all 3 findings confirmed, none refuted).
+schema: review-findings/v1
+complete: true
+phase: spec-r4
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R4-GOV-001
+    lens: Mission-derived (Decision 7 propagation completeness)
+    severity: 2
+    title: Orphaned FR-001 reference in the DIRECTIVE_052 compliance paragraph still lists FR-001 as a live closing item
+    evidence:
+      - artifact: "spec.md § Known residual (out of scope): governance-context budget gap, line 499"
+    claim: >
+      Line 499 reads "#5005 is the specific, narrow ticket this mission's own FR-001/002/003
+      close out (filed and evidenced against `analyze`'s prompt size specifically)". This
+      sentence was not touched by the r4 revision and still names FR-001 alongside FR-002/FR-003
+      as one of the FRs that "close out" the ticket. Per Decision 7, FR-001 is Superseded and no
+      longer executes at all.
+    remediation: >
+      Reword line 499 to "this mission's own FR-002/FR-003 close out (FR-001 no longer executes
+      per Operator Decision 7)" or equivalent.
+
+  - id: SPEC-R4-VERIFY-001
+    lens: coverage-gap check
+    severity: 4
+    title: "#5133's parity gate is not a per-PR merge-blocking check — spec/research overstate its live protection level"
+    evidence:
+      - artifact: "spec.md lines 555-559 (User Story 1 restructure note: 'a standing gate that would flag the override diverging from canonical again')"
+      - artifact: "spec.md lines 603-616 (Former Acceptance Scenario 2 removal rationale: '...the genuine coverage gap FR-001 used to fill... is closed by #5133's gate, not left open')"
+      - artifact: "spec.md line 724 (SC-001 'Current, binding status': '...a standing gate outside this mission — pins it there')"
+      - artifact: "research.md § 10.1: 'added a new gate, tests/cross_cutting/test_kittify_override_parity.py'"
+      - code: "tests/cross_cutting/test_kittify_override_parity.py:31 — pytestmark = [pytest.mark.fast]"
+      - code: ".github/ci-module-registry.yml: out_of_matrix_test_dirs entry for tests/cross_cutting (and .../dashboard) — nightly-only via performance/stress markers; git-blamed 2026-09-18, predates the parity file; no module row's test_dirs claims it"
+      - code: ".github/workflows/module-tests.yml — per-PR shard selection only ever uses registry test_dirs or the tests/<module> mirror, never bare tests/cross_cutting"
+      - code: ".github/workflows/ci-router.yml — the e2e path-filter group globs tests/cross_cutting/** as a trigger, but the gated tests-e2e job body only runs `pytest tests/e2e -q`, never touching cross_cutting content"
+      - code: ".github/workflows/ci-nightly.yml — performance/e2e/stress jobs are marker-scoped away from `fast`; schedule+workflow_dispatch triggers only, no pull_request/push trigger at all (a PR event can never start any job in this file); the single above-3.12 interpreter-matrix lane runs `pytest -m \"fast or unit\"` over the whole tree (pytest.ini testpaths=tests) and WOULD catch this file, but only once nightly on one interpreter"
+      - code: "Makefile test-full covers the whole tree but is never invoked by any workflow file (confirmed via repo-wide grep — comment-only reference)"
+    claim: >
+      The spec's and research's framing that #5133's parity gate "closes" the coverage gap
+      former Acceptance Scenario 2 used to fill, that it is "independent of this or any other
+      mission," and that it "pins" parity, all imply a live, merge-time (per-PR-blocking) safety
+      net equivalent to what a mechanically-verified Acceptance Scenario would provide. This
+      repo's own CI wiring shows that is not true: the gate is real, fast, and currently green,
+      but has no per-PR-blocking lane — its only automated home is a once-nightly,
+      one-interpreter-lane job. A future PR reintroducing a divergence would merge without this
+      gate ever running against it.
+    remediation: >
+      Reword the three spec.md passages and research.md § 10.1 to state precisely what
+      protection exists today (real, fast, currently green, but nightly-only — no per-PR lane).
+      Do not claim it "closes" or "pins" the coverage gap in the per-PR-blocking sense.
+      Optionally record a follow-up recommending the maintainer add this file to a per-PR
+      module's test_dirs (this mission's own scope does not expand to fix it, per Decision 6/7).
+
+  - id: SPEC-R4-VERIFY-002
+    lens: mission-derived (re-measurement independent verification)
+    severity: 1
+    title: "Independent re-measurement CONFIRMS the spec's claimed analyze figures exactly"
+    evidence:
+      - artifact: "spec.md 'Confirmed diagnosis' correction and research.md § 10.2: 'Result: 16,458 bytes / 367 lines / ~4,114.5 estimated tokens'"
+      - code: "Independently reproduced twice (arch lens + verify lens + refuter), each getting `analyze 16458 367 4114.5` exactly; cmp -s confirms both analyze.md copies are byte-identical at 11,555 bytes; resolve_command still returns tier=OVERRIDE; git status --porcelain unchanged before/after"
+    claim: >
+      Positive/confirming finding, not a defect — the spec's and research's re-measured figures
+      and resolve_command tier/path claim reproduce exactly, three times independently.
+    remediation: "None needed — recorded for the record; no change to the artifact required."

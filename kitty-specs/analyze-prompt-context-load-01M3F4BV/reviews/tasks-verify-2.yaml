@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: T001 now has an explicit step 4 compelling a standalone `.venv/bin/spec-kitty safe-commit` (conventional `test:` type) for the red-first test alone before T002 begins, and the Reviewer Guidance C-011 bullet now requires actually running `git log --oneline <planning_base_branch>..HEAD` to verify that distinct standalone commit exists ahead of the T002/T003 commit rather than accepting a documented claim, with the two-commit picture (T001 alone; T002+T003 together per T003 step 4) made explicit and non-contradictory against the rest of the file.

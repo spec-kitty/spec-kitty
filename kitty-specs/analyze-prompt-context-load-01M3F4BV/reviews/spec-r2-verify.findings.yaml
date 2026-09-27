@@ -1,0 +1,191 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r2
+lens_group: verify
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R2-VERIFY-001
+    lens: falsifiability
+    severity: 3
+    title: FR-005's dual "build_with_scope()/build_prompt()" citation is not a reproducible single measurement procedure
+    evidence:
+      - artifact: "spec.md § FR-005 (Falsifiable target paragraph)"
+      - artifact: "spec.md § SC-005"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/research.md § 4 vs § 9 (two different scripts, two different totals)"
+    claim: >
+      FR-005's falsifiable target says the render "measured by the same build_with_scope() /
+      build_prompt() render script documented in research.md § 4/§ 9 ... MUST NOT exceed
+      BUDGET_DEFAULT (40,000 characters)". These two scripts do NOT produce comparable totals
+      against the same 40,000 bound: build_with_scope() returns only the governance-context text
+      (ctx.text, which is exactly what _enforce_token_budget bounds), while build_prompt() adds a
+      fixed ~332-byte mission-context header PLUS the full resolved template body (up to 28,485 B
+      for tasks/specify) on top of that. Comparing research.md's own numbers confirms the constant
+      332-byte header offset across every action (e.g. specify: build_prompt "overhead" 81,808 B
+      vs build_with_scope ctx.text 81,476 B = 332; identical offset for plan/tasks/implement/
+      review). SC-005 itself avoids the ambiguity by pinning to "the research.md § 9 measurement
+      script" alone, but FR-005 (which SC-005 cross-references and which a WP implementer is
+      equally likely to read first) still cites both scripts as interchangeable. A WP author who
+      verifies via build_prompt()'s raw total (rather than doing the subtraction dance research.md
+      § 4 performed to compute "overhead") would compare a number that is off by (332 + template
+      bytes) from the quantity BUDGET_DEFAULT actually bounds, producing a false pass or false fail
+      depending on which action and how it's measured.
+    remediation: >
+      Amend FR-005's Falsifiable target to name a single, unambiguous measurement quantity: the
+      byte length of build_with_scope(...).text alone (i.e., the governance-context render, not
+      the full agent-facing prompt). If build_prompt() is also intended as an acceptable
+      measurement path, spell out the required subtraction (rendered_bytes - resolved_template_bytes
+      - 332-byte header) so the two scripts are provably equivalent measurement methods rather than
+      two different quantities compared against the same threshold.
+  - id: SPEC-R2-VERIFY-002
+    lens: silent-success
+    severity: 3
+    title: "FR-006 does not cover the two genuinely silent (zero-trailer) exit paths in _enforce_token_budget"
+    evidence:
+      - artifact: "spec.md § FR-006"
+      - code: "src/charter/activation/context_renderers/token_budget.py:624 (if not candidates: return text)"
+      - code: "src/charter/activation/context_renderers/token_budget.py:638-641 (current_text, swapped_ids = _swap_candidates_into_text(...); if swapped_ids: ... else no trailer)"
+    claim: >
+      FR-006 requires an honest over-budget trailer "when _enforce_token_budget's substitution
+      loop exhausts every eligible candidate ... and the resulting text still exceeds
+      BUDGET_DEFAULT" — this wording presumes at least one candidate was tried. The actual code
+      has two exit paths that are stricter-silent than the bug FR-006 targets: (a) line 624,
+      `if not candidates: return text` — when section_block/profile_block/selection_block yield
+      zero substitutable candidates, the function returns the untouched over-budget text with
+      NO trailer at all (not even the misleading count-only one); (b) lines 638-641 — if
+      `_swap_candidates_into_text` finds every "candidate" body already absent from the
+      running text (the documented "renderer drift" defensive skip) and `swapped_ids` ends up
+      empty, the same zero-trailer return happens even though candidates existed. Both paths are
+      strictly worse than the "N substituted (budget=B)" trailer that (at least) tells a reader
+      substitution happened; here there is no signal whatsoever that a render is over budget. This
+      is exactly the "returns None / writes unknown / truncates without saying so" failure class
+      this mission's own review brief and the repo's ledger (SK-06, SK-141 @ L2780) call out, and
+      FR-006's literal wording does not obligate a WP to close it.
+    remediation: >
+      Broaden FR-006's requirement to: "whenever the text handed back by _enforce_token_budget
+      (or its caller) exceeds BUDGET_DEFAULT for ANY reason — zero eligible candidates, all
+      candidates skipped due to drift, or candidates exhausted without meeting budget — the
+      trailer (or an equivalent emitted signal) MUST report the over-budget condition and its
+      byte excess." Add a WP-level test asserting the trailer fires even when `candidates` is
+      empty and even when every swap attempt is a no-op.
+  - id: SPEC-R2-VERIFY-003
+    lens: silent-success
+    severity: 3
+    title: SC-006 does not pin down that an over-budget render still ships (only that its trailer is honest)
+    evidence:
+      - artifact: "spec.md § FR-006"
+      - artifact: "spec.md § SC-006"
+      - code: "src/charter/activation/context_renderers/token_budget.py:624 (comment: \"so we don't silently drop content\")"
+    claim: >
+      FR-006's prose is explicit about intent — "the existing 'return the original text unchanged
+      when no candidates remain' behavior ... is preserved and made honestly visible via this
+      reporting fix, not replaced with a truncating one" — i.e., the render SHIPS with a warning,
+      it is never refused/raised. However SC-006, the actual checkable acceptance criterion, only
+      asserts two things: the trailer names the actual excess, and no truncated/dropped content is
+      found without a fetch pointer. It does not assert that the rendering call still RETURNS the
+      text to its caller (no exception) when over budget. A WP implementer inclined toward this
+      codebase's pervasive fail-closed instinct (CAS-revert-on-mismatch, refuse-on-ambiguous
+      elsewhere in this same repo) could satisfy SC-006's literal wording by raising an exception
+      that carries the honest byte-excess message, which technically "reports the excess" and
+      "drops nothing silently" (an exception is loud) but breaks FR-006's actual intent (and every
+      caller up the chain: prompt_builder, `spec-kitty next`) by turning a soft warning into a hard
+      failure with no spec text forbidding it.
+    remediation: >
+      Add an explicit SC-006 clause: "the render function returns the (over-budget, honestly
+      trailer-tagged) text string to its caller in this case; it does not raise or otherwise abort
+      the render." Require a WP test that deliberately constructs an unshrinkable-past-budget
+      input and asserts the call returns normally with a string, not an exception.
+  - id: SPEC-R2-VERIFY-004
+    lens: testability
+    severity: 4
+    title: "FR-007/SC-007's \"at least one artifact per affected action\" is satisfiable by testing the same trivially-largest artifact five times"
+    evidence:
+      - artifact: "spec.md § FR-007"
+      - artifact: "spec.md § SC-007"
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/research.md § 9.2 (near-identical pre-Action-Doctrine byte counts across specify/plan/tasks/implement/review: 23,703-24,540 B, implying heavy requires-closure overlap)"
+      - code: "src/charter/activation/context_renderers/token_budget.py:614-618 (candidates.sort(key=lambda sec: (-len(sec.body), sec.section_id)) — deterministic longest-first, ties by section_id)"
+    claim: >
+      FR-007's test obligation is "for at least one artifact per affected action that FR-005's fix
+      newly swaps to a fetch stanza ... invoke its printed selector ... confirm it returns real,
+      non-empty content." The substitution algorithm is deterministic and always swaps the
+      LONGEST substitutable candidate first (token_budget.py's own sort key). research.md § 9.2
+      shows the five bootstrap actions' pre-Action-Doctrine byte counts cluster tightly
+      (23,703-24,540 B for specify/plan/tasks, ~24,537-24,540 B for review/implement), strongly
+      indicating a large shared requires-closure across these five action nodes in the
+      software-dev DRG. Given that overlap, the single largest Action-Doctrine candidate is very
+      likely to be the SAME directive/tactic artifact across all five actions' first swap — so a
+      WP could satisfy the letter of FR-007/SC-007 ("at least one artifact per affected action")
+      by testing that one easy, always-first, always-largest artifact five times, never testing
+      an artifact of a different kind (styleguide/toolguide/procedure), never testing an artifact
+      that was swapped only after several larger ones were already exhausted (i.e., one whose
+      selector construction runs through a less-common code path), and never testing that FR-007
+      holds for a candidate that only gets swapped when the fix is genuinely under heavy pressure
+      (the vacuous-test-via-narrow-selection failure class this review is charged to check for).
+    remediation: >
+      Strengthen FR-007/SC-007 to require: (a) at least two distinct artifact KINDS are tested
+      across the five actions (not just whichever single directive is always largest), and (b)
+      for at least one action, a candidate is tested that is NOT the single first/largest swap —
+      i.e., one that only gets swapped after earlier substitutions still leave the render over
+      budget — so the reachability test actually exercises budget-pressure-dependent swaps, not
+      only the trivially-first one.
+  - id: SPEC-R2-VERIFY-005
+    lens: baseline-honesty
+    severity: 3
+    title: "Spec/research cite \"~4.5-4.9 KB\" for the bootstrap actions' already-loaded \"compact\" render, but that figure was only ever measured for a different code path/different actions"
+    evidence:
+      - artifact: "spec.md § Edge Cases, \"(Operator Decision 5 reflexivity)\" bullet, part (a)"
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/research.md line 306, line 408"
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/research.md § 9.2 table (lines 366-377) — only analyze/accept/research measured at 4,571 B each"
+      - code: "src/charter/activation/context_result_builders.py:64-89 (build_non_bootstrap_context_result / _render_compact_governance — used only by analyze/accept/research)"
+      - code: "src/charter/activation/context_result_builders.py:114-143 (build_compact_bundle_context_result / _render_compact_from_bundle — used by specify/plan/tasks/implement/review once already first-loaded; never measured in research.md)"
+    claim: >
+      Spec.md's reflexivity Edge Case argues that a checkout where specify/plan/tasks/implement/
+      review have already first-loaded "was already receiving the small ~4.5-4.9 KB 'compact'
+      render before the fix and continues to after" — i.e., these checkouts are unaffected by the
+      fix and stay small. research.md never actually measured the "already-loaded" render for
+      these five actions; the only measured 4.5-4.9 KB figures in research.md (§9.2 table,
+      "analyze/accept/research: compact, 4,571 B" and §4's 4,903 B) come from a DIFFERENT
+      function (`build_non_bootstrap_context_result` → `_render_compact_governance`) used only by
+      analyze/accept/research, which never take the bootstrap branch at all. The bootstrap
+      actions' post-first-load render uses a distinct function
+      (`build_compact_bundle_context_result` → `_render_compact_from_bundle`), which folds in the
+      resolved `doctrine_bundle` for that action and was never measured. I re-ran the live
+      measurement against this checkout's own already-loaded state (`.kittify/charter/context-
+      state.json` unchanged before/after, confirmed via diff) using
+      `build_with_scope(..., mark_loaded=True)`: specify=8,002 B, plan=8,308 B, tasks=8,354 B,
+      implement=12,614 B, review=12,492 B — 1.6x-2.7x the cited 4.5-4.9 KB figure, and
+      implement/review are closer to 12.5 KB than 4.9 KB. This does not overturn the directional
+      safety conclusion (these are still far below the 40,000-byte budget and far below the
+      81-95 KB bootstrap figures, so the fix genuinely doesn't regress already-loaded checkouts),
+      but the specific number cited is unmeasured-for-this-code-path and factually wrong by a
+      wide margin — exactly the "measure, don't assert" violation this mission's own thesis (and
+      research.md's self-correction in § 6 on the ledger-grep miscount) explicitly disavows.
+    remediation: >
+      Correct spec.md's Edge Case bullet and research.md lines 306/408 to cite the actually-
+      measured compact-bundle numbers for specify/plan/tasks/implement/review (8.0-12.6 KB, not
+      4.5-4.9 KB), sourced from `build_compact_bundle_context_result`, and keep the 4.5-4.9 KB
+      figure scoped explicitly to analyze/accept/research's unrelated `build_non_bootstrap_
+      context_result` path. The directional safety conclusion (unaffected, still far under
+      budget) is unchanged and can be restated with the corrected numbers.
+  - id: SPEC-R2-VERIFY-006
+    lens: falsifiability
+    severity: 2
+    title: "SC-005/User Story 3's \"cleared of the five actions' entries\" instruction is underspecified relative to what research.md § 9.2 actually did"
+    evidence:
+      - artifact: "spec.md § User Story 3, Independent Test"
+      - artifact: "spec.md § SC-005"
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/research.md § 9.2 (\"its actions map cleared to {}\")"
+    claim: >
+      The spec's reproduction instruction says to force first-load by having
+      ".kittify/charter/context-state.json ... cleared of the five actions' entries" — i.e.,
+      removing just those five keys. research.md § 9.2 (the section SC-005 explicitly cites)
+      actually cleared the WHOLE `actions` map to `{}`, a different operation that happens to be
+      equivalent today only because no other action currently populates that file. A WP
+      implementer following spec.md's literal wording (delete 5 specific keys) versus
+      research.md's literal method (wipe the whole map) could diverge if a future checkout also
+      has entries for other declared-node actions (e.g., if `tasks`'s sibling-action DRG wiring
+      pattern is extended to more actions later).
+    remediation: >
+      Pin the exact operation in both places: either "set `actions` to `{}` (wipe the whole
+      per-checkout first-load state)" or "delete exactly the keys `specify`, `plan`, `tasks`,
+      `implement`, `review` if present, leaving any other action's entry untouched" — state one
+      and make research.md's script match it verbatim.

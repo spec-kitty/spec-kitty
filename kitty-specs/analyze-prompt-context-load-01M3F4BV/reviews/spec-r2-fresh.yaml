@@ -1,0 +1,159 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r2
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R2-FRESH-001
+    lens: Architectural Integrity / Conceptual Alignment
+    severity: 5
+    title: "Round-4 fix only half-resolved SPEC-R2-GOV-001: it fixed the byte-arithmetic ambiguity but never reconciled FR-005 against ADR 2026-07-28-1's 'requires-eager' stability contract"
+    evidence:
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/reviews/spec-r2.confirmed.yaml — SPEC-R2-GOV-001's own `remediation` field, last sentence: \"Address whether this changes the requires-eager rendering guarantee bootstrap_text.py's docstring attributes to D2c/WP15's ADR.\""
+      - artifact: "spec.md § \"Confirmed root cause and fix plan\" — \"Honest residual, confirmed by measurement, not merely hedged\" paragraph (lines ~227-243)"
+      - artifact: "docs/adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md — Decision item 2: \"`requires` edges are followed eagerly and their targets delivered inline. A required artefact is unconditional; there is no 'when' to evaluate...\"; and \"This is the default cadence, not an opt-in mode\" (Operator ruling, 2026-07-28)"
+      - code: "src/charter/activation/progressive_disclosure.py:1-5 (module docstring): \"everything reachable is either delivered inline (`requires` — eager) or **named with the guidance that says when to fetch it** (`suggests` — a link...)\""
+      - code: "src/charter/activation/context_renderers/token_budget.py:104-111 (`_enforce_token_budget` docstring): \"Authority paths stay inline unconditionally (they are never added as a candidate at all...)\" — i.e. the codebase's own existing precedent for a genuinely-protected always-inline class, which the round-4 text explicitly does NOT extend to requires-closure entries."
+    claim: >
+      The round-4 fix commit (d1a89a33d) is titled "resolve spec-r2 squad's 8 confirmed
+      findings," including GOV-001. GOV-001's confirmed remediation had two parts: (a) state
+      precisely which requires-closure subset becomes substitutable and show the byte
+      arithmetic, and (b) address whether this change erodes the requires-eager rendering
+      guarantee that bootstrap_text.py's docstring (and, more authoritatively, ADR
+      2026-07-28-1, status Accepted) attributes to D2c/WP15. The round-4 diff does part (a)
+      thoroughly — it adds the byte-arithmetic table and states unambiguously that "under
+      budget pressure a requires-closure member degrades to the identical stub-plus-fetch-
+      stanza shape a suggests-only member already gets" and that "nothing in the Action
+      Doctrine block is exempt from substitution after this fix except the heading itself and
+      the bare stub." It does **not** do part (b) at all: nowhere in spec.md or research.md is
+      ADR 2026-07-28-1 cited, reconciled, or superseded, and nowhere does the spec engage with
+      the fact that this ADR's Decision item 2 states in Accepted, operator-ruled prose that "A
+      required artefact is unconditional; there is no 'when' to evaluate" and that this eager
+      cadence is "the default cadence, not an opt-in mode." FR-005/FR-007 as now written make
+      exactly the artefacts that ADR declares unconditional and always-inline become,
+      post-fix, sometimes fetch-linked under budget pressure — the same treatment the ADR
+      reserves exclusively for `suggests` edges. Operator Decision 5 (the binding input this
+      whole fix traces to) only authorizes "accepting collision risk with open PR #5009"; it
+      says nothing about accepting erosion of the requires/suggests eager-delivery
+      distinction ADR 2026-07-28-1 established as a load-bearing runtime contract. This is a
+      silent stability-contract break, not a disclosed, deliberately-accepted trade-off: the
+      spec frames it only as "this directly contradicts the prior round's framing" (i.e., a
+      correction to spec.md's own earlier text), never as "this contradicts an Accepted
+      architecture decision record and needs the operator's explicit sign-off or an ADR
+      supersession."
+    remediation: >
+      Before this spec can be implemented, either (1) get an explicit operator ruling (cited
+      verbatim, dated, like Decisions 4/5) that accepts eroding ADR 2026-07-28-1's
+      requires-eager guarantee under budget pressure specifically, and record it as a
+      supersession note on that ADR (or a new ADR) — not just a spec.md paragraph — or (2)
+      redesign FR-005 so it does not touch requires-closure eagerness at all (e.g., only
+      extend substitution to the `suggests`-reachable portion of the Action Doctrine block, if
+      any remains uncovered, and accept that SC-005's ≤72,000-byte target may then be
+      unreachable, surfaced honestly as a DRG-curation-only residual per the ORIGINAL "Honest
+      residual, narrowly scoped" framing this round-4 diff replaced). Either way, spec.md must
+      name and reconcile against ADR 2026-07-28-1 explicitly, not merely against its own prior
+      review round's wording.
+
+  - id: SPEC-R2-FRESH-002
+    lens: Cross-document consistency
+    severity: 3
+    title: "The stale '~4.5-4.9 KB compact render' figure for specify/plan/tasks/implement/review survives, uncorrected, in spec.md's 'Confirmed root cause and fix plan' section — contradicting the very correction the round-4 fix applied everywhere else"
+    evidence:
+      - artifact: "spec.md § \"Confirmed root cause and fix plan for the governance-context disparity\", bullet 1 (line ~187): \"Once an action is marked loaded there, every subsequent render of that same action in that same checkout falls back to a small (~4.5–4.9 KB) 'compact' render forever.\""
+      - artifact: "spec.md § Edge Cases, \"Operator Decision 5 reflexivity\" bullet (round-4-corrected, line ~480): \"live-measured, this checkout, 2026-09-26: specify=8,002 B, plan=8,308 B, tasks=8,354 B, implement=12,614 B, review=12,492 B — not the previously-cited '~4.5–4.9 KB'...\""
+      - artifact: "research.md § 9.1 (round-4-corrected): \"'compact' (small — 8.0–12.6 KB for specify/plan/tasks/implement/review once first-loaded... NOT the ~4.5–4.9 KB figure...this line previously conflated the two, corrected per round-4 fix, SPEC-R2-VERIFY-005)\""
+      - artifact: "research.md § 9.7.3: \"§9.1's earlier '~4.5–4.9 KB' citation for the general BOOTSTRAP_ACTIONS/declared-node compact case was wrong to imply this range covered these five actions too; corrected in place (see §9.1) and in spec.md's 'Operator Decision 5 reflexivity' Edge Case.\""
+    claim: >
+      SPEC-R2-VERIFY-005 (confirmed in round-r2, resolved in round-4) established that the
+      "~4.5-4.9 KB" compact-render figure was wrongly applied to the five bootstrap actions
+      (specify/plan/tasks/implement/review); their real post-first-load compact render is
+      8.0-12.6 KB, a materially different number (roughly 2x). The round-4 fix correctly
+      updated research.md §9.1/§9.7.3 and spec.md's Edge Cases bullet to say so explicitly,
+      each carrying an inline note that this was "corrected in place" / "corrected per round-4
+      fix." But an earlier paragraph in spec.md's own "Confirmed root cause and fix plan"
+      section — describing the exact same mechanism (these same five actions falling back to
+      a small compact render after first load) — was never touched by the round-4 diff and
+      still asserts the same disproven "~4.5-4.9 KB" figure for them. This is precisely the
+      kind of residual the "corrected in place" language claims was fully swept, but wasn't: a
+      reader who reaches the "Confirmed root cause and fix plan" section first (it appears
+      before the Edge Cases section) gets the wrong figure, then reads the right one ~300
+      lines later with no cross-reference tying the two together, which is confusing at best
+      and could lead a future reader/implementer to cite the wrong number in an unrelated
+      artifact (plan.md, a PR description, a follow-up issue).
+    remediation: >
+      Update the "Confirmed root cause and fix plan" bullet's parenthetical from "~4.5–4.9 KB"
+      to the corrected range for these five actions (8.0–12.6 KB, live-measured
+      specify=8,002 B / plan=8,308 B / tasks=8,354 B / implement=12,614 B / review=12,492 B,
+      per research.md §9.7.3), matching the wording already used in the Edge Cases bullet, and
+      add the same "not the ~4.5–4.9 KB figure, which applies only to analyze/accept/research"
+      caveat so the two sections no longer disagree.
+
+  - id: SPEC-R2-FRESH-003
+    lens: Verification / measurement-integrity
+    severity: 3
+    title: "FR-005's rewritten 'single measurement quantity' target conflates UTF-8 byte length with the character-count comparison `_enforce_token_budget` actually performs"
+    evidence:
+      - artifact: "spec.md § FR-005 (Requirements table): \"the byte length of `build_with_scope(...).text` ... MUST NOT exceed 72,000 characters\" — bytes and characters used interchangeably for the same quantity in one sentence."
+      - artifact: "spec.md § FR-006: \"the emitted trailer line MUST explicitly report... by how many bytes/characters it was exceeded\" — again presented as interchangeable."
+      - code: "src/charter/activation/context_renderers/token_budget.py:596 (`_enforce_token_budget`): `if len(text) <= budget: return text` — a Python `str` length comparison (Unicode code points = characters), not `len(text.encode('utf-8'))`."
+      - code: "src/charter/activation/context_renderers/token_budget.py:63-77 (`BUDGET_DEFAULT` docstring): \"Default character budget — NFR-001 pin (~10000 tokens at 4 chars/token)\" — the pin is explicitly defined and enforced in characters."
+      - artifact: "research.md §9.2/§9.7 measurement scripts: every reported figure (81,476-95,139 B baseline, 61,208-70,434 B floor, 72,000 B target) is computed via `len(text.encode(\"utf-8\"))` — UTF-8 byte length, not `len(text)`."
+    claim: >
+      `_enforce_token_budget` — the exact function FR-005 extends and the only code path that
+      decides whether a render is "over budget" — compares `len(text)` (character count)
+      against `BUDGET_DEFAULT` (also documented as a character count). Every measurement in
+      this mission's research.md, and the SC-005/FR-005 acceptance targets built from those
+      measurements (81,476-95,139 B baseline, 70,434 B floor, 72,000 B target), is instead
+      computed as UTF-8-encoded byte length. For text containing any multi-byte UTF-8
+      characters (em/en dashes, curly quotes, non-ASCII symbols — all of which appear
+      throughout this very spec's and this codebase's doctrine prose), byte length is strictly
+      greater than character length, so the two quantities diverge by an unknown, unmeasured
+      amount. This matters concretely here because: (1) the actual runtime comparison the
+      fixed code performs (`len(text) <= 40_000`) is checking a smaller number than the
+      81,476-95,139-"byte" figures suggest, so the true pre-fix "how far over BUDGET_DEFAULT"
+      magnitude is unverified against what the code itself computes; (2) the newly-set
+      72,000-byte target is a byte quantity being asserted with a "characters" label in the
+      FR-005 text itself, so a work-package implementer verifying "MUST NOT exceed 72,000
+      characters" could legitimately write a test against `len(text)` (chars) instead of
+      `len(text.encode('utf-8'))` (bytes) and satisfy a materially different, unintended
+      threshold; and (3) FR-006's "bytes/characters" trailer wording gives no guidance on
+      which unit the honest-overage number must actually be computed in, when the underlying
+      comparison in `_enforce_token_budget` is char-based. Round-4 explicitly rewrote FR-005 to
+      be "a single measurement quantity, not a dual citation" (replacing the old
+      `build_prompt()`-vs-`build_with_scope()` ambiguity) but did not notice it left a second,
+      orthogonal bytes-vs-characters ambiguity in the same sentence.
+    remediation: >
+      Pick one unit and use it consistently end-to-end: either (a) change FR-005/SC-005/FR-006
+      to state the target and trailer arithmetic in characters (`len(text)`), matching what
+      `_enforce_token_budget` and `BUDGET_DEFAULT` actually use, and re-derive the 72,000
+      figure (and the 81,476-95,139/70,434 baselines it was built from) as character counts
+      rather than UTF-8 byte counts — re-running research.md's measurement scripts with
+      `len(text)` instead of `len(text.encode("utf-8"))`; or (b) if the byte-count framing is
+      intentional (e.g. because downstream token-estimation or transport concerns care about
+      bytes), change `_enforce_token_budget`'s comparison and `BUDGET_DEFAULT`'s docstring to
+      match, and note that as an explicit, separate FR rather than folding a semantics change
+      into FR-005's candidate-collection extension. Either way, strike "characters" or "bytes"
+      wherever the other is also used for the same quantity in FR-005/FR-006's text so a WP
+      implementer has one unambiguous unit to build and test against.
+
+findings_complete_note: >
+  Checked and clean (no findings): absolute /home/<user>/ paths (grep across spec.md and
+  research.md — zero hits); FR/SC/AC numbering and section cross-references (§3, §3.1, §4,
+  §9, §9.1-§9.7.3 all resolve to real sections; SC-001 through SC-007 map 1:1 to FR-001
+  through FR-007); the resolver-tier claims in research.md §3.1 (LEGACY/ORG/GLOBAL_MISSION/
+  GLOBAL absence for analyze.md, independently re-verified live against this checkout and
+  this operator's ~/.kittify/ during this review — all four tiers confirmed empty, matching
+  the spec's claims exactly); the PR #5009 file-overlap claim (spot-checked against
+  research.md §9.5's `gh pr diff` output, internally consistent); and the tier-constant names
+  (OVERRIDE/LEGACY/ORG/GLOBAL_MISSION/GLOBAL/PACKAGE_DEFAULT) cited in SC-001/NFR-001, which
+  match `src/charter/offering/resolver.py`'s actual `ResolutionTier` enum exactly. Did not
+  re-litigate SPEC-R2-ARCH-002 (the four-intervening-tiers check), SPEC-R2-VERIFY-004/006, or
+  SPEC-R2-VERIFY-005's core figure correction (the ~4.5-4.9 KB -> 8.0-12.6 KB fix itself is
+  sound and independently re-derivable from `build_with_scope`'s mode/first_load fields) —
+  those rounds' remediations were verified as substantively applied to the sections they
+  targeted; SPEC-R2-FRESH-002 above flags only a leftover instance the same sweep should have
+  caught but didn't. SPEC-R2-GOV-002 (the "three decisions" intro sentence) was re-checked
+  directly and is genuinely fixed by round-4: spec.md's Clarifications/Decisions intro now
+  reads "The following five operator decisions..." with an explicit provenance split between
+  items 1-3 (verbatim from dispatch) and items 4-5 (later, dated 2026-09-26) — no finding
+  reopened here.

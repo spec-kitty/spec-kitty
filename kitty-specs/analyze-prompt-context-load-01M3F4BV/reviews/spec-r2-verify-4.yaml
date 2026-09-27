@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r2
+results:
+  - id: SPEC-R2-FRESH3-001
+    status: resolved
+    reason: >-
+      The tag "⚠️ BLOCKED — see \"Confirmed root cause and fix plan\" § ADR 2026-07-28-1
+      conflict (operator ruling required before implementation)" appears byte-identically
+      10 times (verified with a Python exact-substring count, not grep approximation) at
+      every location the finding named — User Story 3's opening, FR-005's requirement-cell
+      parenthetical and Status cell, NFR-002, C-002, C-003, SC-005's parenthetical, the
+      Dependencies&Sequencing FR-005/006/007 bullet, and the #5009/#4995 bullets — with no
+      wording variation anywhere; the commit 55de36936 diff shows this was pure
+      caveat insertion/de-duplication (4 pre-existing differently-worded restatements
+      replaced, 6 previously-uncaveated locations newly tagged) with zero change to any
+      FR-005/006/007 requirement text, the ADR quotes, or any measured number (spec.md is
+      still 79,027 bytes, the byte-arithmetic table and 72,000-byte target are untouched),
+      and every edited table row still has the header's exact pipe/column count, so the
+      document reads coherently with no orphaned fragments or broken tables; the only
+      wording nuance is FR-005's Status cell dropping the literal word "Open" in favor of
+      the canonical BLOCKED tag, which is the intended de-duplication, not a content
+      regression; a final grep for "/home/" across spec.md and research.md returns no
+      matches.

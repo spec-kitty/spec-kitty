@@ -1,0 +1,21 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: "Live `gh pr view 5133 --json files --repo spec-kitty/spec-kitty` shows `packs/built-in/tactic.graph.yaml` (+15/-0) in the file list while `directive.graph.yaml` is absent, exactly matching the finding and contradicting plan.md's 'zero overlap'/'only real overlap is analyze.md' claims."
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: "`src/specify_cli/runtime/migrate.py:56` confirms `command-templates` is a SHARED_ASSET_DIRS entry and `m_2_0_7_fix_stale_overrides.py`'s own docstring confirms real consumer projects got managed files (including command-templates) spuriously classified into `.kittify/overrides/` during the 2.0.6 upgrade bug, so plan.md's categorical 'consumer projects never had this override' framing is overstated as cited."
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: "Reproduced live: `find kitty-specs -maxdepth 1 -type d | wc -l` = 497 (double-counts the parent dir) vs `find kitty-specs -mindepth 1 -maxdepth 1 -type d | wc -l` = 496, identical to spec.md's ~496 — plan.md's 'grew by one' inference is a counting artifact, not evidence of growth, exactly as claimed."
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: "Confirmed `local_gate_parity.py` imports/calls only `select_gates`, `.github/workflows/ci-modules.yml` calls `select_modules`, the registry's `charter` row has `test_dirs: ['tests/charter', 'tests/doctrine']`, and running `select_modules()` in-process against the plan's own planned file list returns `frozenset({'charter'})`, not empty — the plan's 'none selected' claim is factually wrong."
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: "`tests/doctrine/test_resolver.py`'s module comment documents the dual-class-identity hazard and mandates `.name ==` comparisons, every existing tier assertion in the file uses that idiom, and plan.md's FR-001 test sketch at line 235 uses `assert result.tier is ResolutionTier.PACKAGE_DEFAULT`, contradicting the file's own documented convention exactly as claimed."

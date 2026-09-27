@@ -1,0 +1,105 @@
+# review-findings/v1 — R2 merged/deduped output (mechanical merge, no judgment applied).
+schema: review-findings/v1
+complete: true
+phase: spec-r4
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R4-GOV-001
+    lens: Mission-derived (Decision 7 propagation completeness)
+    severity: 2
+    title: Orphaned FR-001 reference in the DIRECTIVE_052 compliance paragraph still lists FR-001 as a live closing item
+    evidence:
+      - artifact: "spec.md § Known residual (out of scope): governance-context budget gap, line 499"
+    claim: >
+      Line 499 reads "#5005 is the specific, narrow ticket this mission's own FR-001/002/003
+      close out (filed and evidenced against `analyze`'s prompt size specifically)". This
+      sentence was not touched by the r4 revision (it sits inside the pre-existing
+      DIRECTIVE_052 compliance discussion carried over from the Decision 6 round, outside the
+      diff hunks) and still names FR-001 alongside FR-002/FR-003 as one of the FRs that "close
+      out" the ticket. Per Decision 7, FR-001 is Superseded and no longer executes at all — it
+      does not "close out" anything the way FR-002/FR-003 do. Every other section that
+      previously grouped FR-001 with the mission's delivered work (User Story 1, Edge Cases,
+      NFR-001, SC-001, SC-003, Dependencies & Sequencing, Key Entities, the Functional
+      Requirements table) was correctly rewritten this round to mark FR-001
+      Superseded/non-executing; this one sentence was missed, and a reader skimming only this
+      paragraph could still conclude FR-001 is one of the three build items that deliver #5005.
+    remediation: >
+      Reword line 499 to "this mission's own FR-002/FR-003 close out (FR-001 no longer executes
+      per Operator Decision 7)" or equivalent, so the DIRECTIVE_052 compliance paragraph matches
+      the "Remaining scope after Operator Decision 7" section's framing (FR-002 is the only real
+      build item; FR-003 is already done; FR-001 does not execute).
+
+  - id: SPEC-R4-VERIFY-001
+    lens: coverage-gap check
+    severity: 4
+    title: "#5133's parity gate is not a per-PR merge-blocking check — spec/research overstate its live protection level"
+    evidence:
+      - artifact: "spec.md lines 555-559 (User Story 1 restructure note: 'a standing gate that would flag the override diverging from canonical again')"
+      - artifact: "spec.md lines 603-616 (Former Acceptance Scenario 2 removal rationale: '...asserts byte parity against its canonical counterpart on every run of that test file, independent of this or any other mission... the genuine coverage gap FR-001 used to fill... is closed by #5133's gate, not left open')"
+      - artifact: "spec.md line 724 (SC-001 'Current, binding status': '...tests/cross_cutting/test_kittify_override_parity.py — a standing gate outside this mission — pins it there')"
+      - artifact: "research.md § 10.1 (lines 733-750): 'added a new gate, tests/cross_cutting/test_kittify_override_parity.py'"
+      - code: "tests/cross_cutting/test_kittify_override_parity.py:31 — pytestmark = [pytest.mark.fast]"
+      - code: ".github/ci-module-registry.yml:712-724 — out_of_matrix_test_dirs entry for `dirs: [tests/cross_cutting, tests/cross_cutting/dashboard]`: 'Real marker homes are ci-nightly.yml's performance-and-e2e job (-m performance and -m \"stress and not windows_ci\", #3595/#4698) -- no per-PR lane selects this directory.' (row last touched 2026-09-18, i.e. before #5133 added this fast-marked file into that same directory on 2026-09-26)"
+      - code: ".github/workflows/module-tests.yml:186-210 — the per-PR/per-shard module matrix runs pytest only over each registry row's declared `test_dirs`/`tests/<module>` mirror; `tests/cross_cutting` (root) is not a `test_dirs` member of any module row, so no per-PR shard collects it"
+      - code: ".github/workflows/ci-router.yml:178-181,666-683 — the `e2e` path-filter group lists `tests/cross_cutting/**` as a trigger glob, but the gated `tests-e2e` job body only runs `uv run --frozen pytest tests/e2e -q` — it never invokes `tests/cross_cutting`"
+      - code: ".github/workflows/ci-nightly.yml:95-129 (performance: `pytest -m performance`), :206-230 (e2e: `pytest -m e2e`), :295-326 (stress: `pytest -m \"stress and not windows_ci\"`) — all marker-scoped to markers other than `fast`, so none collects this fast-marked test either"
+      - code: ".github/workflows/ci-nightly.yml:529-540 (full-module-matrix) — iterates the SAME `.github/ci-module-registry.yml` rows as the per-PR matrix, so it inherits the same `tests/cross_cutting` exclusion"
+      - code: "Makefile:50-52 (`test-fast`: `$(FAST_TIER_DIRS)`, matching CLAUDE.md's `tests/unit tests/status tests/cli tests/specify_cli/runtime`) and :63-66 (`test-full`: explicit `pytest tests/`, which DOES cover it) — but no `.github/workflows/*.yml` invokes `make test-full` (confirmed via repo-wide grep), so it never runs as an automated per-PR or per-push CI job"
+      - code: ".github/workflows/ci-nightly.yml:366-416 (interpreter-matrix, above-3.12 lane only) — runs bare `pytest -m \"fast or unit\"` with no directory argument; since `pytest.ini:10` sets `testpaths = tests`, this DOES collect the whole `tests/` tree by marker and would catch this file — but only once/night, on this one interpreter lane, not per-PR"
+    claim: >
+      Independently verified on this checkout: `tests/cross_cutting/test_kittify_override_parity.py`
+      exists, is `pytest.mark.fast`, passes today (32 passed, ran locally), and does correctly assert
+      byte parity for `analyze.md` (and the other 9 overrides) against canonical with real positive
+      controls (non-vacuous). All of that supports the spec's factual premise. But the spec's and
+      research's framing that this gate "closes" the coverage gap FR-001's removed Acceptance
+      Scenario 2 used to fill, that it is "independent of this or any other mission," and that it
+      "pins" parity, all imply a live, merge-time (per-PR-blocking) safety net equivalent to what a
+      mechanically-verified Acceptance Scenario would provide. Tracing this repo's own actual CI
+      wiring shows that is not true: `tests/cross_cutting` (the directory this new file landed in)
+      is explicitly classified in `.github/ci-module-registry.yml` as having no per-PR lane at all
+      (nightly-only, and only via marker-scoped jobs that don't match this file's `fast` marker,
+      except for one above-3.12-only nightly interpreter lane). Concretely: a future PR that edits
+      only `packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md` (or the override)
+      to reintroduce a divergence would merge without this gate ever running against it in that PR's
+      own CI checks — the divergence would surface, if at all, only via the next
+      `ci-nightly.yml` `interpreter-matrix` run (once/day, Python-3.13+ lane), whose failure is
+      escalated as a nightly red, not a merge block. This directly undermines the "closed, not
+      left open" conclusion the coverage-gap-check reasoning for dropping former Acceptance
+      Scenario 2 relies on — the practical protection level is materially weaker than implied,
+      and the spec should say so rather than imply parity is continuously merge-gated.
+    remediation: >
+      Reword the three spec.md passages cited above (the User Story 1 restructure note, the
+      "Former Acceptance Scenario 2, removed" rationale block, and SC-001's "Current, binding
+      status") plus research.md § 10.1 to state precisely what protection exists today: the gate
+      is real, fast, and currently green, but per this repo's own `.github/ci-module-registry.yml`
+      disposition it is not wired into any per-PR CI lane — its only current automated execution
+      home is the nightly `interpreter-matrix` job (Python 3.13+, `pytest -m "fast or unit"` over
+      the whole `tests/` tree) or a manual `make test-full`. Do not claim it "closes" or "pins"
+      the coverage gap in the per-PR-blocking sense. Optionally, record a ledger/follow-up item
+      (this mission's own scope should not expand to fix it, per Decision 7) recommending the
+      maintainer add `tests/cross_cutting/test_kittify_override_parity.py` to a per-PR module's
+      `test_dirs` (or a new fast per-PR lane) in `.github/ci-module-registry.yml`, since it is a
+      fast test currently stranded in a directory reserved for performance/stress tests that
+      nightly-only jobs cover — the same "new fast test lands in a nightly-only directory" drift
+      class the registry's own completeness gate (`test_every_test_directory_is_claimed_once_or_recorded_out_of_matrix`)
+      does not detect (it checks directory-claim completeness, not marker-vs-reason freshness).
+
+  - id: SPEC-R4-VERIFY-002
+    lens: mission-derived (re-measurement independent verification)
+    severity: 1
+    title: "Independent re-measurement CONFIRMS the spec's claimed analyze figures exactly"
+    evidence:
+      - artifact: "spec.md 'Confirmed diagnosis' correction (lines ~150-175 of the diff) and research.md § 10.2: 'Result: 16,458 bytes / 367 lines / ~4,114.5 estimated tokens'"
+      - code: "Independently re-ran research.md § 4's unmodified build_prompt() script from a scratch file staged outside the repo (/tmp scratchpad), via .venv/bin/python from the repo root; output: `analyze 16458 367 4114.5` — exact match"
+      - code: "wc -c on both files: .kittify/overrides/missions/software-dev/command-templates/analyze.md = 11555 bytes; packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md = 11555 bytes; `cmp -s` reports IDENTICAL"
+      - code: "resolve_command(\"analyze.md\", repo_root, mission=\"software-dev\") independently re-run: returns tier=OVERRIDE at .kittify/overrides/missions/software-dev/command-templates/analyze.md — matches the spec's claim that resolution still reaches tier=override, not package_default"
+      - code: "`git status --porcelain` captured before and after the script run: identical (only the two pre-existing modified spec.md/research.md entries), confirming no repo mutation from the measurement, consistent with the addendum's claim about context-state.json being gitignored"
+    claim: >
+      This is a positive/confirming finding, not a defect: the spec's and research.md § 10's
+      re-measured figures for `analyze` (16,458 B / 367 lines / ~4,114.5 tokens) and its
+      resolve_command tier/path claim are independently reproduced exactly on this checkout.
+      § 10.3's explanation for why the "post-deletion projection" figure and the "actual current"
+      figure coincide (override content now byte-identical to canonical, even though the file was
+      never deleted and still resolves through the OVERRIDE tier) is internally consistent with
+      § 4's original numbers and my own independent measurement.
+    remediation: "None needed — recorded for the record per the review protocol's evidence requirement; no change to the artifact required."

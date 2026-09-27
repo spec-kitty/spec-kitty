@@ -1,0 +1,131 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-ARCH-001
+    lens: layering
+    severity: 3
+    title: FR-002's doctrine edits trip the pack-manifest/DRG regen gate; spec never says so
+    evidence:
+      - artifact: "spec.md § FR-002 and § Success Criteria SC-002 (no mention of a regen step)"
+      - code: "tests/architectural/test_doctrine_regenerate_graph_roundtrip.py:1-16 (golden `spec-kitty doctrine regenerate-graph --check` byte-comparison against committed `packs/built-in/**/*.graph.yaml`; hard-fails, does not skip, on staleness)"
+      - artifact: "CLAUDE.md § \"CRITICAL: Pack Tiers\": \"Editing either pack trips the pack-manifest regen gate — run `spec-kitty doctrine regenerate-graph` after.\""
+    claim: >
+      FR-002 directs edits to packs/built-in/tactics/canonical-source-unification.tactic.yaml
+      and/or packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml,
+      but spec.md never mentions that any such edit trips the DRG/pack-manifest regeneration
+      gate, verified by a golden test that hard-fails CI if the committed graph fragments are
+      stale relative to the source doctrine YAML. This is not obviously covered by the
+      mission's default test-run guidance either: CLAUDE.md's blast-radius policy calls
+      tests/architectural/ mandatory only for "cross-cutting changes (pytest.ini,
+      pyproject.toml, conftest, markers, packaging)" — a doctrine-content-only edit under
+      packs/built-in/ does not obviously qualify, so an implementer following that guidance
+      literally could skip the regen step and land a PR that fails CI on
+      test_doctrine_regenerate_graph_roundtrip.py / test_pack_manifest_no_author_edit.py.
+    remediation: >
+      Add an explicit requirement (amend FR-002 or SC-002, or add a dedicated NFR) that the
+      commit implementing FR-002 must run `spec-kitty doctrine regenerate-graph` and commit
+      the resulting `packs/built-in/**/*.graph.yaml` / pack-manifest.yaml changes alongside the
+      doctrine edit, and explicitly list
+      tests/architectural/test_doctrine_regenerate_graph_roundtrip.py and
+      tests/architectural/test_pack_manifest_no_author_edit.py as required tests for this WP
+      regardless of the default blast-radius calibration.
+
+  - id: SPEC-ARCH-002
+    lens: canonical source / contracts
+    severity: 4
+    title: FR-001/NFR-001 understate the override's real drift; "behaviour preservation" contradicts FR-001's own "gate-semantics" mandate
+    evidence:
+      - artifact: "spec.md § FR-001, § NFR-001, § Edge Cases (first bullet)"
+      - code: ".kittify/overrides/missions/software-dev/command-templates/analyze.md — Operating Constraints (\"STRICTLY READ-ONLY... Output a structured analysis report\"), step 6 \"Produce Compact Analysis Report\" (plain markdown table, no carrier), no step invoking `spec-kitty agent mission record-analysis`; step 1 invokes `spec-kitty agent mission-run check-prerequisites` and derives `mission_dir`"
+      - code: "packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md — Operating Constraints (\"NON-REMEDIATING... The only permitted file mutation is persisting this command's report ... via `spec-kitty agent mission record-analysis`\"), step 6 mandates an `analysis-findings/v1` YAML frontmatter carrier the recorder parses for verdict/counts, step 7 \"Persist Report Artifact\"; step 1 invokes `spec-kitty agent mission check-prerequisites` and derives `feature_dir`"
+      - artifact: "research.md § 6 (ledger check citing SK-06, SK-43, SK-47, SK-63, SK-141 as an existing 'record-analysis persistence/verdict-honesty' defect class)"
+    claim: >
+      Spec.md frames the override's drift narrowly — "drop the retired /memory/constitution.md
+      reference, adopt the current --mission flag convention, align checklist/gate-
+      semantics/reporting-shape structure" — while NFR-001 simultaneously requires the
+      reconciliation commit to "not change the analyze step's observable contract
+      (checklist/gate-semantics/reporting shape) beyond bringing terminology/flags current
+      with canonical." Reading the two actual files shows the drift is structural, not
+      cosmetic: the override implements a fundamentally different contract — read-only,
+      no-persistence, plain-markdown output — versus canonical's mandatory
+      `record-analysis` persistence gated on a machine-parsed `analysis-findings/v1` carrier
+      that computes the blocked/ready verdict. Actually aligning "gate-semantics/reporting-
+      shape" per FR-001 necessarily changes this checkout's observable analyze behaviour from
+      "no persistence" to "mandatory structured persistence" — exactly the kind of change
+      NFR-001 says must NOT happen "beyond terminology/flags." The CLI command name
+      (`mission-run check-prerequisites` vs `mission check-prerequisites`) and the JSON field
+      name (`mission_dir` vs `feature_dir`) also differ, additional drift FR-001's text never
+      names. An implementer who satisfies NFR-001 literally (a shallow terminology find-and-
+      replace) would leave the override still missing the `analysis-findings/v1` carrier and
+      the `record-analysis` persistence step — i.e. this repo's own `/spec-kitty.analyze`
+      would remain in the same no-persistence state the issue's evidence trace exhibits,
+      defeating FR-001's stated purpose ("this repo's agents see the same contract consumers
+      get from canonical") and perpetuating the exact "record-analysis persistence/verdict-
+      honesty" defect class research.md's own ledger check names as already recurring
+      (SK-06/43/47/63/141).
+    remediation: >
+      Rewrite FR-001 to explicitly scope in adopting the `analysis-findings/v1` carrier and
+      the mandatory `record-analysis` persistence step (not just terminology/flags), and the
+      CLI-command-name / JSON-field-name drift. Reword NFR-001's "behaviour preservation" to
+      mean "no ad-hoc rewrite of the analysis detection/severity heuristics themselves" rather
+      than "no change to gate-semantics/reporting shape" — since bringing gate-semantics/
+      reporting-shape to canonical parity is the actual fix FR-001 requires, not something it
+      must avoid.
+
+  - id: SPEC-ARCH-003
+    lens: reflexivity
+    severity: 3
+    title: No acknowledgment that the shared override file is read by every concurrently-running mission's analyze step in this checkout
+    evidence:
+      - artifact: "spec.md — the only 'concurrent'/'in-flight' language is at lines ~79-80 and ~203, scoped to the #5009/#4995 file-collision risk on `prompt_builder.py`, not to the override file itself"
+      - artifact: "research.md § 'Explicit call-out' — same PR-collision framing only"
+      - code: "research.md § 3 confirms `resolve_command` returns the OVERRIDE tier (highest of 6) for `.kittify/overrides/missions/software-dev/command-templates/analyze.md` for every agent running `/spec-kitty.analyze` in this checkout — it is not scoped per-mission"
+      - evidence: "`ls kitty-specs/ | wc -l` in this checkout returns 496 mission directories, consistent with this host routinely running many concurrent spec-kitty missions against one checkout/branch history"
+    claim: >
+      Operator Decision (3) directs landing the override reconciliation as a "behaviour-
+      preserving" campsite-clean commit, but neither spec.md nor research.md considers the
+      effect of editing `.kittify/overrides/.../analyze.md` on OTHER missions concurrently
+      mid-`/spec-kitty.analyze` (or about to invoke it) in the same checkout/branch history
+      when the commit lands — a real operating condition on this host. This risk is sharper
+      given SPEC-ARCH-002 above: the "reconciliation" is not cosmetic, it adds a mandatory
+      persistence contract that did not exist before, so a mission whose orchestrating agent
+      already loaded the old override's instructions, or that re-resolves the command
+      mid-session after a pull/rebase picks up the new override mid-run, could receive
+      contradictory instructions about whether to call `record-analysis` at all.
+    remediation: >
+      Add an edge case / sequencing note to spec.md: require the FR-001 commit to land
+      atomically (single commit, not staged partial edits), and have the operator check for
+      other missions with an in-progress `analyze` step (via `spec-kitty status` / dashboard)
+      before merging — or explicitly document why that residual risk is accepted as
+      negligible for a small, fast-landing campsite-clean commit.
+
+  - id: SPEC-ARCH-004
+    lens: doctrine pack tier correctness
+    severity: 1
+    title: C-001's built-in placement is defensible but asserts its conclusion rather than applying the CLAUDE.md pack-tier test
+    evidence:
+      - artifact: "spec.md § C-001 (\"...because the failure mode it documents ... is general product doctrine, not spec-kitty-core-team-only guidance.\")"
+      - artifact: "CLAUDE.md § \"CRITICAL: Pack Tiers\": \"Before adding doctrine, ask: 'does this govern consumers, or only how the core team works?' In-house guidance placed in built-in gets force-shipped to everyone — a real defect.\""
+      - artifact: "packs/internal/README.md § \"Why this is a separate pack\": \"Maintainer-only doctrine (how we land PRs, process the tracker, keep main honest, run our internal glossary) must not be force-shipped to consumers.\""
+      - artifact: "kitty-specs/mission-state-audit-trail-durability-01M37PWG/traces/tooling-friction.md — the sole evidence citation for FR-002, a single in-house dogfooding trace"
+    claim: >
+      Applying the CLAUDE.md test on the merits: FR-002's failure mode ("don't bypass a
+      canonical prompt/CLI surface on an unverified size assumption") describes orchestrating-
+      agent behaviour toward a canonical surface — the same class of consumer-facing rule
+      DIRECTIVE_044's existing Rules 1 and 3 already ship in `packs/built-in/` — not a
+      core-team process rule like the PR-landing/tracker-triage/internal-glossary specifics
+      packs/internal/README.md names as internal's actual content. So C-001's built-in
+      placement is justified in outcome. However, C-001 reaches that conclusion in one
+      unelaborated clause without engaging the fact that its entire evidence base is a single
+      in-house dogfooding trace — precisely the situation the CLAUDE.md test exists to catch
+      — leaving no articulated reasoning for a future doctrine reviewer to check the tier call
+      against.
+    remediation: >
+      Expand C-001 to explicitly walk the CLAUDE.md pack-tier test: state that the failure
+      mode governs any consumer's orchestrating agent against any canonical surface (agent
+      behaviour, not core-team process), and explicitly distinguish it from the
+      packs/internal/README.md examples of genuinely core-team-only doctrine, so the tier
+      decision is demonstrated rather than asserted.

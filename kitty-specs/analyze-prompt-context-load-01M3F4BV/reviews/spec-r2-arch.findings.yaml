@@ -1,0 +1,81 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r2
+lens_group: arch
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R2-ARCH-001
+    lens: reflexivity-migrations
+    severity: 4
+    title: "Edge Cases 'Operator Decision 5 reflexivity' bullet mischaracterizes the fix's blast radius: `_enforce_token_budget` is shared by the compact-render path, not confined to bootstrap"
+    evidence:
+      - artifact: "spec.md § Edge Cases, 'Operator Decision 5 reflexivity' bullet (case a)"
+      - code: "src/charter/activation/context_renderers/token_budget.py:587-643 (`_enforce_token_budget`, the function FR-005 explicitly names as the extension target)"
+      - code: "src/charter/activation/context_renderers/bootstrap_text.py:347-353 (bootstrap-path call site)"
+      - code: "src/charter/activation/context_renderers/compact_governance.py:169-177 (compact-path call site; its own comment: \"compact view shares the budget cap with the bootstrap path so prompts driven through the compact rail ... honour the same NFR-001 contract\")"
+    claim: >
+      spec.md's Edge Cases bullet asserts that a checkout which has already first-loaded a
+      bootstrap action "is entirely unaffected" by the FR-005/006/007 fix "since the fix only
+      changes what happens inside the bootstrap render path, which that mission's checkout will
+      not take again for that action." This is not what the code shows. FR-005 directs extending
+      `_enforce_token_budget` itself (token_budget.py:587), and that single function is called
+      from two independent render paths: `_render_bootstrap_text` (bootstrap_text.py:347-353) AND
+      `_render_compact_governance` (compact_governance.py:172-177), the latter with an explicit
+      comment stating the compact path deliberately shares the same NFR-001 budget contract as
+      bootstrap. `analyze`, `accept`, and `research` NEVER take the bootstrap path at all (per
+      research.md §9.1) and always render through this same shared function via the compact path;
+      every already-first-loaded specify/plan/tasks/implement/review checkout also renders through
+      it on every subsequent call. So the actual blast radius of a signature/behavior change to
+      `_enforce_token_budget` is every action's every render, not "only" the bootstrap render path
+      of the five newly-fixed actions. This also leaves a real test-coverage gap: C-002's touched
+      test-sibling list (`tests/charter/test_context_token_budget.py`,
+      `tests/charter/context_renderers/test_token_budget_sonar.py`, the two doctrine-graph tests)
+      never mentions `compact_governance.py`'s call site, and no dedicated test file for it exists
+      in the repo today (`find tests -iname "*compact_governance*"` returns nothing) — so nothing
+      in spec.md's own test plan would catch a regression to the compact path's byte-stable output
+      introduced while extending the shared function's candidate-collection signature.
+    remediation: >
+      Rewrite the Edge Cases bullet to state accurately that the fix touches a function shared by
+      both the bootstrap and compact render paths (cite both call sites), and that the practical
+      reason already-first-loaded / never-bootstrap-eligible checkouts are safe is that the compact
+      path renders no "Action Doctrine" block at all (so the new candidate source is empty/no-op
+      there) — not that the code change is scoped to the bootstrap path. Add an explicit FR-005/006
+      regression-test requirement covering `_render_compact_governance`'s call site (byte-identical
+      output for `analyze`/`accept`/`research` and for any already-loaded bootstrap action pre- and
+      post-fix), and add that requirement to C-002's test-sibling list.
+
+  - id: SPEC-R2-ARCH-002
+    lens: resolver-tier-semantics
+    severity: 3
+    title: "SC-001/NFR-001's 'resolves to tier=package_default after deletion' claim is asserted, not verified, against the two other resolver tiers that could shadow canonical for analyze.md"
+    evidence:
+      - artifact: "spec.md § Success Criteria SC-001, § Requirements NFR-001, § Acceptance Scenario 2 (User Story 1)"
+      - code: "src/charter/offering/resolver.py:151-260 (`_resolve_asset`), tiers in order: OVERRIDE (176-192) -> LEGACY (194-198) -> ORG (203-217) -> GLOBAL_MISSION (219-227) -> GLOBAL (229-231) -> PACKAGE_DEFAULT (233-260)"
+      - artifact: "research.md § 3 (only probes the OVERRIDE tier for `analyze.md`; the one package_default data point cited is for a *different* file, `research.md`'s own no-override case, not `analyze.md`)"
+    claim: >
+      resolve_command's 6-tier chain has four tiers between OVERRIDE and PACKAGE_DEFAULT (LEGACY,
+      ORG, GLOBAL_MISSION, GLOBAL) that are checked, in order, before falling through to canonical.
+      SC-001 and NFR-001 assert with certainty that deleting the OVERRIDE file makes
+      `resolve_command("analyze.md", ...)` return `tier=package_default`, but neither spec.md nor
+      research.md ever checks whether `.kittify/command-templates/analyze.md` (LEGACY),
+      `<org_root>/missions/software-dev/command-templates/analyze.md` (ORG, and this repo *does*
+      have an org pack configured — `packs/internal` per `.kittify/config.yaml`),
+      `~/.kittify/missions/software-dev/command-templates/analyze.md` (GLOBAL_MISSION), or
+      `~/.kittify/command-templates/analyze.md` (GLOBAL) exist. These are exactly the
+      operator/environment-dependent, out-of-repo-checkout files the mission's own "measure, don't
+      assert" thesis (applied everywhere else in this spec) says must be checked rather than
+      assumed. On this reviewer's checkout all four intervening tiers are empty for `analyze.md`
+      (independently verified this session), so the conclusion happens to hold here — but the
+      artifacts never state or test that, and `resolve_command`'s own docstring flags that
+      `~/.kittify/` gets populated by `spec-kitty migrate`, so a differently-provisioned
+      contributor or CI environment is not guaranteed to match. NFR-001 already hedges with "(or
+      whichever tier constant names canonical resolution)" but SC-001 states `package_default`
+      unconditionally, an inconsistency between the two.
+    remediation: >
+      Before landing FR-001, run (and record in research.md, alongside the existing tier probes)
+      an explicit check that LEGACY/ORG/GLOBAL_MISSION/GLOBAL have no `analyze.md`/`command-templates`
+      entries for the `software-dev` mission in the target checkout(s) this mission cares about
+      (at minimum: this repo's tree, and note that CI runners with a fresh `$HOME` trivially satisfy
+      GLOBAL_MISSION/GLOBAL). Align SC-001's wording with NFR-001's existing hedge so both state the
+      claim as "canonical tier, confirmed by re-running the resolver probe post-deletion" rather than
+      asserting `package_default` as a foregone conclusion.

@@ -1,0 +1,32 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+results:                    # one entry for EVERY finding in the findings file
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: "Re-ran `grep -n governance_context SPEC-KITTY-LEDGER.md` myself; it returns 2 hits at lines 350 and 5733, exactly what research.md §6 now reports (dropping the false 'zero hits' claim and correctly disposing both as unrelated Op-dispatch capsule fields, not the render-time _governance_context() this mission measures)."
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: "Verified `grep -n \"SK-141\" SPEC-KITTY-LEDGER.md` returns lines 2780 and 11172; research.md §6 now disambiguates by line number (L2780, record-analysis) and explicitly names the unrelated L11172 MigrationRunner entry, consistent with the ledger-numbering-is-unreliable condition."
+  - id: SPEC-GOV-003
+    status: resolved
+    reason: "FR-005 is now a real, binding FR (table row, High priority) requiring the orchestrator to file a GitHub issue naming root cause/actions/magnitude/#5009 dependency before wrap-up and to record the issue number in Dependencies & Sequencing — not just prose recommendation."
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: "FR-001 now explicitly scopes in (a) constitution/--mission drift, (b) CLI command-name drift, (c) JSON field-name drift, and (d) mandatory adoption of the analysis-findings/v1 carrier plus the record-analysis persistence step; NFR-001 was reworded to state persistence/gate-semantics/reporting-shape parity IS the required fix, removing the prior contradiction with FR-001."
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: "spec.md now carries a concurrent-mission risk note (Edge Cases, and a dedicated 'FR-001 landing sequencing (concurrency)' bullet in Dependencies & Sequencing) naming the ~496 concurrent mission dirs, the mid-flight record-analysis contradiction risk, and an atomic-commit + pre-merge in-progress-analyze check mitigation."
+  - id: SPEC-ARCH-004
+    status: resolved
+    reason: "C-001 now walks the CLAUDE.md pack-tier test explicitly ('does this govern consumers, or only how the core team works?'), distinguishes the failure mode from packs/internal/README.md's core-team-only examples, and names the single-trace evidence caveat instead of asserting the tier conclusion."
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: "SC-001(c)/NFR-001 now specify a concrete, reproducible command (`diff <(grep '^#' override) <(grep '^#' canonical)`) with an explicit empty-output pass condition plus byte-identical Detection-Passes/Severity-Assignment sections; verified live against both files in this checkout — grep '^#' matches only genuine markdown headings in both files, no code-block noise, so the check is sound and checkable today."
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: "User Story 1's Independent Test and Acceptance Scenario 1 now state outright that FR-002 is advisory-only doctrine prose, that no automated test can verify an agent's future prompt-following behavior, and that the scenario verifies only text existence/validity — matching the requested disclosure instead of overclaiming a behavioral fix."
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: "FR-002 now names the required companion step verbatim (regenerate-graph in WRITE mode, commit the packs/built-in/{directive,tactic}.graph.yaml diff) plus both required test files (test_doctrine_regenerate_graph_roundtrip.py, test_pack_manifest_no_author_edit.py), mirrored in SC-002's verification method."

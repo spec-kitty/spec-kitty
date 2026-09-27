@@ -1,0 +1,35 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: PLAN-FRESH-001
+    lens: fresh-eyes / structural-fix-planning
+    severity: 1
+    title: "Method correction for make ci-parity vs. select_modules() is stated twice with circular cross-references"
+    evidence:
+      - artifact: "plan.md § The gate set for this mission, 'ci-modules.yml / per-module test shards' bullet"
+      - artifact: "plan.md § The gate set for this mission, standalone '**Correction to this Method**' paragraph"
+    claim: >
+      The R4 fix round correctly identified and fixed the select_gates()/select_modules()
+      conflation (verified independently: select_modules() invoked in-process against the
+      planned FR-001+FR-002 file list does return frozenset({'charter'}), and the charter
+      module row's shard command is exactly `pytest tests/charter tests/doctrine -m "not
+      performance and not stress"` per .github/ci-module-registry.yml — both claims check
+      out). However the correction is now written out in full twice: once as a parenthetical
+      inside the "ci-modules.yml / per-module test shards" bullet ("see the correction to
+      the 'Method' note there") and again as the standalone "**Correction to this Method**"
+      paragraph later in the same section, which itself points back ("see the corrected
+      ... bullet above"). The two cross-references make correct sense on a careful read but
+      the substantive content (select_gates() answers a router/job-level question;
+      select_modules() is the complementary module-shard authority; the concrete
+      frozenset({'charter'}) result) is duplicated near-verbatim. No implementation risk —
+      this is a readability/maintainability nit only.
+    remediation: >
+      Keep the full explanation in one place (the standalone "Correction to this Method"
+      paragraph makes the most sense as the canonical location since it sits next to the
+      make ci-parity results it corrects) and reduce the parenthetical inside the
+      "ci-modules.yml" bullet to a one-line forward pointer ("see 'Correction to this
+      Method' below for why select_gates()'s selected_code_shards: [] does not contradict
+      this") instead of restating the reasoning.

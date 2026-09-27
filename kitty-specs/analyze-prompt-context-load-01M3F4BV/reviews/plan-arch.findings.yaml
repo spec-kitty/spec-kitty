@@ -1,0 +1,74 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: PLAN-ARCH-001
+    lens: blast-radius
+    severity: 3
+    title: "'Consumer projects never had this override' is overstated: the OVERRIDE tier for command-templates has demonstrably affected real consumer projects"
+    evidence:
+      - artifact: "plan.md § Technical Context (Target Platform)"
+      - artifact: "spec.md § Edge Cases (\"What happens if a downstream consumer project has no .kittify/overrides/...analyze.md at all\")"
+      - code: "src/specify_cli/runtime/migrate.py:56 (SHARED_ASSET_DIRS = {\"templates\", \"missions\", \"scripts\", \"command-templates\"})"
+      - code: "src/specify_cli/upgrade/migrations/m_2_0_7_fix_stale_overrides.py:1-11 (module docstring: \"When upgrading to 2.0.6, ensure_runtime() updated ~/.kittify/ BEFORE execute_migration() ran... every managed file from the older version differed and was misclassified as CUSTOMIZED, then moved to .kittify/overrides/\")"
+    claim: >
+      plan.md's Technical Context states "no consumer-facing runtime behavior changes
+      (consumer projects never had this override — see spec.md Edge Cases)", and spec.md's
+      own Edge Cases bullet calls a consumer project with no analyze.md override "the common
+      case ... this override is a spec-kitty-repo-local dogfooding artifact, not something
+      shipped to consumers." Read as a categorical claim ("never"), this is overstated: the
+      OVERRIDE tier for command-templates (SHARED_ASSET_DIRS explicitly includes
+      "command-templates") is a general resolver feature available to every spec-kitty
+      project, not something unique to this checkout's dogfooding config, and it has
+      concretely populated command-template overrides in real consumer projects before — the
+      entire FixStaleOverridesMigration (2.0.7) exists specifically to repair consumer
+      projects whose upgrade sequencing bug spuriously classified managed command-template
+      files (including the "command-templates" shared-asset dir) as CUSTOMIZED and moved them
+      into .kittify/overrides/. The narrow claim ("no consumer project carries THIS SPECIFIC
+      April-2026-dated stale file") is true; the broader framing used to scope Target Platform
+      and NFR-002's blast radius ("consumer projects never had this override") is not — a
+      reader could wrongly conclude the analyze.md OVERRIDE tier itself has zero
+      consumer-facing history, when a dedicated repair migration says otherwise.
+    remediation: >
+      Narrow the claim in plan.md's Technical Context (and note the same narrowing is needed
+      in spec.md's Edge Cases bullet, even though spec.md itself is out of scope for this
+      review) to: "no consumer project carries this repo's specific stale April-2026
+      analyze.md override content; the OVERRIDE tier and command-templates overrides
+      generally ARE a live consumer-facing resolver feature (see
+      FixStaleOverridesMigration/2.0.7, which repairs spuriously-created consumer overrides
+      of exactly this shared-asset class)." This does not change FR-001's mechanism or
+      correctness, only the blast-radius framing used to justify "this repository checkout
+      only."
+  - id: PLAN-ARCH-002
+    lens: blast-radius
+    severity: 2
+    title: "Plan's '497 mission directories' figure is an off-by-one counting artifact, not evidence of growth over spec.md's ~496"
+    evidence:
+      - artifact: "plan.md § Reflexivity (\"Operating-condition context\")"
+      - artifact: "spec.md § Edge Cases (\"currently has ~496 mission directories under kitty-specs/\")"
+    claim: >
+      plan.md states "this checkout currently has 497 mission directories under kitty-specs/
+      (find kitty-specs -maxdepth 1 -type d | wc -l, counted fresh during plan authoring —
+      spec.md's own figure of '~496' is one below this ... the count grows as missions are
+      scaffolded, consistent with routine concurrent-mission use)." Re-running that exact
+      command in this checkout reproduces 497, but `find kitty-specs -maxdepth 1 -type d`
+      includes `kitty-specs` itself as one of the returned directories (depth 0 satisfies
+      `-maxdepth 1`), so the figure double-counts the parent and overstates the true mission
+      count by exactly one. `find kitty-specs -mindepth 1 -maxdepth 1 -type d | wc -l` (the
+      correct incantation, excluding the parent) returns 496 — identical to spec.md's own
+      figure, not one more. The plan's narrative ("spec.md's figure is one below this,
+      consistent with routine concurrent-mission use") is therefore not evidence of missions
+      being scaffolded between spec- and plan-authoring; it is a shell-command bug producing a
+      false appearance of growth. This is exactly the kind of "measured, not asserted" claim
+      this mission's own FR-003/User-Story-2 doctrine is about, so the plan should not carry
+      an uncaught measurement error of this kind.
+    remediation: >
+      Re-run the count with `find kitty-specs -mindepth 1 -maxdepth 1 -type d | wc -l` (496)
+      and correct the Reflexivity/Operating-condition-context sentence to state 496, dropping
+      the "grew by one, consistent with routine concurrent-mission use" inference, which does
+      not hold once the counting bug is fixed. Does not change the section's substantive
+      conclusion (the OVERRIDE tier is checkout-wide and shared across hundreds of concurrent
+      mission directories, so the monotonic-deletion argument still holds) — only the specific
+      count and the growth narrative built on it.

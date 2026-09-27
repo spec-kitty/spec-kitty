@@ -1,0 +1,74 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-FRESH2-001
+    lens: structural-fix-planning
+    severity: 4
+    title: FR-001/NFR-001/SC-001's enumerated parity checks still miss several "constitution→charter" drift spots outside the sections they byte-check, so a literal implementation can pass verification while still failing FR-001's own "full contract PARITY" claim
+    evidence:
+      - artifact: "spec.md § FR-001 (line 208): \"This explicitly includes: (a)...(e)\" — items (a)-(e) name only the /memory/constitution.md path reference, the CLI/JSON field drift, the record-analysis persistence step, and the whole Operating Constraints section body"
+      - artifact: "spec.md § NFR-001 (line 218): verification requires only the '^#' heading-list diff, byte-identical Detection Passes (§4) / Severity Assignment (§5), byte-identical '## Operating Constraints', a 'STRICTLY READ-ONLY' grep of 0, and byte-identical match on the single Analysis Guidelines 'NEVER modify...' bullet"
+      - code: ".kittify/overrides/missions/software-dev/command-templates/analyze.md line 68 (\"**From constitution:**\" / \"Load `/memory/constitution.md` for principle validation\"), line 74 (\"**Constitution rule set**: Extract principle names...\"), line 137 (\"**Constitution Alignment Issues:** (if any)\"), line 237 (\"**Prioritize constitution violations** (these are always CRITICAL)\"), line 2 (frontmatter `description:` line), and line 162 (\"Would you like me to suggest concrete remediation edits for the top N issues?\") — all differ from canonical and sit OUTSIDE §4/§5/Operating Constraints/the one Analysis Guidelines bullet"
+      - code: "packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md line 71 (\"**From charter:**\"), line 82 (\"**Charter rule set**\"), line 168 (\"**Charter Alignment Issues:** (if any)\"), line 239 (\"**Prioritize charter violations**\"), line 2 (frontmatter `description: Cross-artifact consistency and quality analysis`), and line 224 (\"Should all of these findings be addressed before moving on to implementation? I can suggest concrete remediation edits for the findings you want to resolve.\")"
+    claim: >
+      A full `diff` of the override against canonical (confirmed by direct file read) shows the
+      drift is materially larger than what FR-001's five itemized bullets name and than what
+      NFR-001/SC-001's verification commands actually check. Untouched-by-any-check spots
+      include: the "Build Semantic Models" (§3) heading's "Constitution rule set" label and the
+      "Load Artifacts" (§2) "From constitution:" sub-heading / `/memory/constitution.md` load
+      instruction (item (a) only names dropping the *reference*, which §2's grep-based SC-001(a)
+      check catches, but not the parallel "Constitution rule set" wording in §3, which no check
+      covers); the "Produce Compact Analysis Report" (§6) template's "Constitution Alignment
+      Issues:" table label; the Operating Principles → Analysis Guidelines "Prioritize
+      constitution violations" bullet (NFR-001 only requires byte-identity for the *adjacent*
+      "NEVER modify..." bullet, not this one); the YAML frontmatter `description:` line (entirely
+      unmentioned); and the "Offer Remediation" step's user-facing prompt wording (also entirely
+      unmentioned). None of §2's "Constitution rule set" line, §3, §6's table label, the
+      "Prioritize constitution" bullet, the frontmatter, or the Offer Remediation wording fall
+      inside the specific byte-identical sections NFR-001 enumerates (§4, §5, Operating
+      Constraints, one Analysis Guidelines bullet), and none is covered by the '^#'/'^##' heading
+      list diff either (they are prose or bold-text labels, not headings). This is the exact
+      failure pattern NFR-001 itself was just rewritten to close for the Operating Constraints
+      section ("a heading-list diff alone cannot detect a body-level contradiction under a
+      heading both files already share") — but that same reasoning was not extended to these
+      other shared headings/prose. An implementer who satisfies FR-001(a)-(e) literally and
+      passes every command NFR-001/SC-001 name would ship an override that still says
+      "Constitution rule set," "From constitution:," "Constitution Alignment Issues:," and
+      "Prioritize constitution violations" — stale terminology of the exact same retired-source
+      class FR-001 exists to eliminate — while the spec's own gates report success, contradicting
+      FR-001's title claim of "full contract PARITY."
+    remediation: >
+      Either (preferred) change FR-001's instruction to "replace the override file's body content
+      with canonical's verbatim, keeping only file-specific differences (none currently exist)"
+      rather than enumerating a partial item list that reads as complete, or extend NFR-001's
+      verification to a true whole-file byte-identical diff (`diff .kittify/overrides/.../analyze.md
+      packs/built-in/.../analyze/prompt.md` producing no output, modulo any genuinely
+      project-specific line that must differ) instead of the current itemized subset of sections.
+
+  - id: SPEC-FRESH2-002
+    lens: review-intent-and-risk-first
+    severity: 2
+    title: User Story 1's "Independent Test" field, left unchanged by this revision, never states how FR-001's now-explicitly-named "mechanically-verified behavior change" is tested
+    evidence:
+      - artifact: "spec.md § User Story 1 body (lines 93-106, changed by this revision): \"Only FR-001 delivers a mechanically-verified behavior change (Acceptance Scenario 2); FR-002 is advisory-only prose...\""
+      - artifact: "spec.md § User Story 1 \"Independent Test\" (lines 114-125, unchanged by this revision): opens \"FR-002 is advisory-only doctrine prose...\" and its two enumerated verified items (a)/(b) are both scoped to FR-002's doctrine-text/DRG-freshness checks only; it never mentions FR-001, SC-001, or NFR-001"
+    claim: >
+      This revision sharpened User Story 1's body to explicitly draw a line between FR-001 (a
+      "mechanically-verified behavior change," pointing at Acceptance Scenario 2) and FR-002
+      (advisory-only, unverifiable). But the story's own "Independent Test" field — whose job is
+      to say how the story's P1 outcome is actually checked — was left exactly as it was before
+      this rewrite: it is framed entirely around FR-002's untestability and describes only two
+      checks, both about the FR-002 doctrine entry (existence + DRG freshness). It says nothing
+      about how FR-001's override-reconciliation behavior change (now explicitly called out in
+      the same story's body as mechanically verified) is independently tested, even though that
+      test exists elsewhere in the document (SC-001/NFR-001). A reader relying on "Independent
+      Test" as User Story 1's self-contained test definition would not learn that FR-001 has a
+      test at all.
+    remediation: >
+      Extend the "Independent Test" paragraph to also state, in one sentence, that FR-001's
+      behavior change is independently verified via SC-001/NFR-001's structural diff (pointing to
+      Acceptance Scenario 2), so the field covers both halves of the story the body text now
+      explicitly distinguishes.

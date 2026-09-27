@@ -1,0 +1,55 @@
+schema: review-refute/v1
+complete: true
+phase: spec-r3
+batch: 1
+verdicts:
+  - id: SPEC-R3-GOV-001
+    verdict: confirmed
+    reason: >-
+      Live spec.md confirms NFR-003's title still reads "Governance-context fix seam and PR
+      #5009 overlap" and its rewritten body (spelling out "FR-005/006/007", the exact SK-277
+      token-scan bait, per the local SPEC-KITTY-LEDGER.md entry) states the same "diff touches
+      only FR-001+FR-002, zero overlap with #5009/#4995" conclusion that C-002 already states in
+      full, file-by-file detail — the FR table itself only defines FR-001..FR-004, so FR-005/6/7
+      are prose-only tokens with no local requirement backing them.
+  - id: SPEC-R3-GOV-002
+    verdict: refuted
+    reason: >-
+      Both cited files (canonical-source-unification.tactic.yaml and the 044 directive) exist
+      and FR-002/C-002/SC-002 do all say "and/or" identically and deliberately three times, but
+      that phrasing is itself an explicit, satisfiable criterion (place the entry in at least one
+      of the two named files) rather than an unresolved ambiguity — it commits to "at least one,"
+      which is a spec-stated basis for what satisfies SC-002, not an absence of one.
+  - id: SPEC-R3-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Independently re-running `grep -rl "overrides/missions/software-dev/command-templates"
+      src/ packs/ docs/ tests/ scripts/` reproduces exactly 4 hits outside kitty-specs/
+      (tests/doctrine/test_resolver.py:245 docstring naming implement.md, docs/plans/testing/ci-
+      coverage-union-audit.md:92 referencing stale tasks.md node-ids, and two test-sanitation
+      census JSON files) — none affected by deleting analyze.md, but the spec's own literal
+      "zero hits outside kitty-specs/" claim (spec.md Edge Cases, line 547) is contradicted by
+      hits that are plainly inside the very src/packs/docs/tests/scripts scope it describes.
+  - id: SPEC-R3-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Live `wc -c` on all 12 packs/built-in/missions/mission-steps/software-dev/*/prompt.md
+      files reproduces the finding's exact byte counts, and only 4 siblings (research 4049,
+      accept 4267, tasks-finalize 6604, tasks-outline 9271) are smaller than analyze's 11555,
+      meaning 7 (not 6) of the other 11 are larger — spec.md line 121 and research.md lines 45/189
+      both still say "smaller than 6 of the other 11," an uncorrected off-by-one.
+  - id: SPEC-R3-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      The FR table (spec.md lines 556-559) shows FR-003's row stating only what to document and
+      a bare "Done" status with no condition under which the documentation would be judged
+      inadequate, while the real falsification bar lives in User Story 2's Independent Test
+      (reproducible measurement-script ordering) with no cross-reference back to FR-003's row.
+  - id: SPEC-R3-VERIFY-003
+    verdict: refuted
+    reason: >-
+      SC-002 (spec.md line 591) already quotes the literal failure-mode phrase in quotation marks
+      ("bypassing a canonical surface on an unverified size assumption"), so it does not permit
+      free paraphrase; Acceptance Scenario 1's "present verbatim" (line 468) reads naturally as
+      confirming the entry is actually written into the file (not merely described) rather than
+      imposing a stricter, conflicting textual-match bar than SC-002 already carries.

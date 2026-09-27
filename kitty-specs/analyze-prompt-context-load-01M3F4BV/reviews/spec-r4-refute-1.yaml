@@ -1,0 +1,14 @@
+schema: review-refute/v1
+complete: true
+phase: spec-r4
+batch: 1
+verdicts:
+  - id: SPEC-R4-GOV-001
+    verdict: confirmed
+    reason: "git diff HEAD -- spec.md shows the 'FR-001/002/003 close out' sentence (line 499, DIRECTIVE_052 compliance paragraph) is untouched by the r4 revision hunks (no 'close out' text appears anywhere in the diff), so it still groups FR-001 with FR-002/003 as closing the ticket even though Decision 7 makes FR-001 non-executing/Superseded everywhere else in the document."
+  - id: SPEC-R4-VERIFY-001
+    verdict: confirmed
+    reason: "Independently re-traced all cited files: test_kittify_override_parity.py:31 is pytest.mark.fast (added by commit c5743b78 on 2026-09-26, 32 tests pass locally); ci-module-registry.yml:723-724 classifies tests/cross_cutting as nightly-only (performance/stress markers), last touched 2026-09-18 per git blame, and no module row's test_dirs includes it; module-tests.yml only ever selects registry test_dirs or the tests/<module> mirror, never bare tests/cross_cutting; ci-router.yml's e2e path-filter globs tests/cross_cutting/** but the tests-e2e job body (line 683) runs only 'pytest tests/e2e -q'; ci-nightly.yml's performance/e2e/stress jobs are marker-scoped away from 'fast', its interpreter-matrix (single Python 3.13 lane) runs 'pytest -m \"fast or unit\"' with testpaths=tests (pytest.ini:10) so it would catch this file but only once nightly on one interpreter; and ci-nightly.yml's own header comment confirms it has schedule+workflow_dispatch triggers only, 'no pull_request / push trigger, so a PR event can never start any job defined here' — and 'make test-full' (which would cover the file) is never invoked from any workflow (grep confirms only a comment reference). All citations substantively check out: no per-PR-blocking lane exercises this parity gate."
+  - id: SPEC-R4-VERIFY-002
+    verdict: confirmed
+    reason: "Independently re-ran research.md §4's unmodified build_prompt() script from a scratch file outside the repo: got 'analyze 16458 367 4114.5' exactly, resolve_command returned tier=OVERRIDE at the .kittify override path exactly as claimed, wc -c/cmp -s confirmed both analyze.md files are 11555 bytes and byte-identical, and git status before/after showed no repo mutation — every figure in this positive finding reproduces exactly."

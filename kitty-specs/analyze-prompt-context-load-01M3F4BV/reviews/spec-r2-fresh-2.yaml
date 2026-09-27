@@ -1,0 +1,68 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r2
+lens_group: fresh2
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R2-FRESH2-001
+    lens: Cross-document / status-signaling consistency
+    severity: 3
+    title: "The round-2 fix's own new ⚠️ UNRESOLVED blocker on FR-005/SC-005 is not reflected in FR-005's machine-readable Status column or in the Dependencies & Sequencing landing note, both of which still read as if FR-005 is ready to implement"
+    evidence:
+      - artifact: "spec.md § Functional Requirements table, FR-005 row, last column: `Status` = `Open` (identical to FR-002/FR-006/FR-007, none of which carry a blocking caveat)"
+      - artifact: "spec.md § FR-005 cell text (same row): \"⚠️ UNRESOLVED per SPEC-R2-FRESH-001: this FR's requires-closure substitution has not been reconciled with ADR 2026-07-28-1's requires-eager inline guarantee, and needs an explicit operator ruling... before implementation\""
+      - artifact: "spec.md § Success Criteria, SC-005 bullet: \"⚠️ UNRESOLVED per SPEC-R2-FRESH-001 — FR-005's mechanism is contingent on an operator ruling on the ADR 2026-07-28-1 conflict, not yet given\""
+      - artifact: "spec.md § Dependencies & Sequencing, \"FR-005/006/007 landing sequencing (reflexivity)\" bullet: \"no atomicity requirement beyond ordinary single-PR landing — see the new Edge Cases bullet... for why a mid-flight mission is not put at risk by this change\" — no mention anywhere in this bullet that landing is gated on an unresolved operator ruling at all"
+      - artifact: "spec.md § FR-004 row, Status column, for contrast: `Open (constraint, not a build item)` — proving the table format already supports an annotated/qualified Status value when one FR's status differs from an ordinary ready-to-build item"
+    claim: >
+      The round-2 fix (9be07a3b2) added a genuine, correctly-worded, prominent ⚠️ UNRESOLVED flag to
+      FR-005's and SC-005's prose, explicitly stating that implementation "must not proceed until this
+      specific ADR trade-off... is resolved by the operator." That is a load-bearing gate on this
+      mission's mainline requirement. But the fix did not propagate that gate to the two other places a
+      reader or tooling would check FR-005's readiness: (1) FR-005's own `Status` table column, which
+      still reads the bare value `Open` — identical to every unblocked FR in the table, and in
+      contrast to FR-004's row, which demonstrates the table format already supports a qualified status
+      string (`Open (constraint, not a build item)`) when a status needs a caveat; and (2) the
+      "Dependencies & Sequencing" section's "FR-005/006/007 landing sequencing" bullet, which describes
+      landing as requiring "no atomicity requirement beyond ordinary single-PR landing" with zero
+      acknowledgment that landing itself is now blocked pending an operator ruling. A future
+      tasks/implement-phase agent or a tooling pass that filters FRs by Status (a realistic worry: the
+      Requirements table's whole purpose in this mission's workflow is to gate what a WP can pick up)
+      would see FR-005 as `Open` and eligible, and would read the Dependencies & Sequencing section as
+      confirming ordinary landing is fine — both readings are wrong and both directly contradict the
+      prose the same round-2 commit added two sections earlier. This is exactly the kind of
+      inconsistent mission-status signaling that undermines the very "explicit flagging, not silent
+      resolution" discipline the fix was trying to enact: a flag that only some downstream readers will
+      see is a partial flag.
+    remediation: >
+      Change FR-005's Status column value to something that visibly encodes the block, matching the
+      FR-004 precedent — e.g. `Blocked (operator ruling required — see ADR 2026-07-28-1 conflict)` or
+      `Open — BLOCKED pending operator ruling (SPEC-R2-FRESH-001)` — and apply the same treatment to
+      SC-005 if/when this mission adopts a status column for Success Criteria. Add one sentence to the
+      "FR-005/006/007 landing sequencing (reflexivity)" bullet in Dependencies & Sequencing naming the
+      same gate explicitly (e.g. "Landing is additionally gated on the unresolved ADR 2026-07-28-1
+      conflict flagged in 'Confirmed root cause and fix plan' — this sequencing note assumes that gate
+      has been cleared") so a reader who only skims Dependencies & Sequencing does not miss the
+      blocker the Requirements section already states.
+
+  - id: SPEC-R2-FRESH2-002
+    lens: Verification / measurement-integrity (spot-check of round-2's own new arithmetic)
+    severity: 1
+    title: "Minor: the round-2 fix's new FR-005 unit-distinction prose is dense enough (three units named in one sentence — UTF-8 bytes, external byte target, internal char comparison) that a fast reader could still misassign which figure belongs to which unit, though the text is technically unambiguous on close reading"
+    evidence:
+      - artifact: "spec.md § FR-005 \"Falsifiable target\" sentence: names `len(text.encode(\"utf-8\"))`, `len(text)`, `BUDGET_DEFAULT` (40,000 characters), and the 72,000-byte target all in a single ~120-word sentence with two nested parentheticals"
+    claim: >
+      This is not a correctness defect — independently re-deriving the arithmetic (token_budget.py:596,
+      596's BUDGET_DEFAULT docstring, research.md §9.2's measurement script) confirms every figure and
+      unit-attribution in the sentence is accurate, matching SPEC-R2-FRESH-003's verified resolution.
+      It is a readability nit worth a severity-1 note only: a future implementer skimming rather than
+      close-reading FR-005's target sentence has to parse two nested parenthetical asides mid-sentence
+      to extract "the target is 72,000 UTF-8 bytes, not the enforcer's own 40,000-character comparison"
+      — the same information FR-006/SC-006 state more crisply in their own shorter sentences by
+      contrast. No functional ambiguity remains; this is a clarity-of-exposition observation, not a
+      defect requiring a fix before implementation.
+    remediation: >
+      Optional: split FR-005's Falsifiable-target sentence into two sentences — one stating the target
+      and its unit, a second giving the byte-vs-character distinction and why it doesn't imply
+      BUDGET_DEFAULT compliance — for a implementer skimming the table rather than close-reading it.
+      Not blocking; no action required before this mission proceeds.

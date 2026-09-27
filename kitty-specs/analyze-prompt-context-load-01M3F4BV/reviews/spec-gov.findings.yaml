@@ -1,0 +1,102 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-GOV-001
+    lens: Ledger
+    severity: 3
+    title: "research.md's ledger-grep claim of \"zero hits\" for `governance_context` is factually inaccurate"
+    evidence:
+      - artifact: "research.md § 6 (Ledger check)"
+      - code: "SPEC-KITTY-LEDGER.md:350"
+      - code: "SPEC-KITTY-LEDGER.md:5733"
+    claim: >
+      research.md states: "Grepped SPEC-KITTY-LEDGER.md for ... \"governance_context\" ...
+      — zero hits". A literal `grep -n "governance_context" SPEC-KITTY-LEDGER.md` in fact
+      returns two hits: line 350 ("governance_context_available: true") and line 5733
+      ("the Op's `governance_context_text` is the profile's directives"). Both are
+      substring matches of an unrelated Op-dispatch flag/field, not the render-time
+      `_governance_context()` injection this mission measures, so the underlying diagnosis
+      is not invalidated — but the specific claim "zero hits" as reported did not survive
+      re-execution. This mission's own thesis is "measure, don't assert" (that is exactly
+      what FR-002 exists to enforce on future agents), so an unverified/incorrect
+      self-report of a measurement inside this mission's own research.md undercuts the
+      credibility of the diagnosis method it is trying to establish, and violates the
+      charter's research-citation-discipline standing rule (every factual claim traceable
+      to a named, accurately-reported source).
+    remediation: >
+      Correct research.md §6 to report the actual grep result precisely: note the two
+      incidental substring hits on "governance_context_available"/"governance_context_text"
+      (unrelated Op-dispatch metadata, not the prompt_builder injection path) rather than
+      claiming "zero hits" for that term. Re-run and re-report the other six grepped terms
+      with the same literal-hit precision before this claim is relied on downstream.
+
+  - id: SPEC-GOV-002
+    lens: Ledger
+    severity: 2
+    title: "SK-141 citation is ambiguous — the ledger contains two unrelated entries both numbered SK-141"
+    evidence:
+      - artifact: "research.md § 6 (Ledger check)"
+      - code: "SPEC-KITTY-LEDGER.md:2780"
+      - code: "SPEC-KITTY-LEDGER.md:11172"
+    claim: >
+      research.md cites "SK-06, SK-43, SK-47, SK-63, SK-141" as all belonging to the
+      `record-analysis` persistence/verdict-honesty bug family, distinct from this mission's
+      defect. SK-06/SK-43/SK-47/SK-63 check out. SK-141, however, is a duplicate heading in
+      SPEC-KITTY-LEDGER.md: line 2780 ("`record-analysis` silently accepts an unfenced
+      carrier...") does match the cited family, but line 11172 ("`MigrationRunner.upgrade()`
+      does not guard `migration.apply()`...") is a completely unrelated migration-atomicity
+      defect that also self-identifies as "SK-141". research.md's citation does not
+      disambiguate which SK-141 it means, so a future reader who greps "SK-141" (the
+      documented reproduction method this very mission is establishing as the norm) gets two
+      unrelated hits and no way to tell which one research.md intended.
+    remediation: >
+      In research.md §6, disambiguate the SK-141 citation by line number or by a short
+      distinguishing quote (e.g. "SK-141 (record-analysis unfenced-carrier variant,
+      SPEC-KITTY-LEDGER.md ~L2780) — not to be confused with the unrelated MigrationRunner
+      SK-141 at ~L11172"), consistent with the known ledger-numbering-is-unreliable
+      condition (duplicate headings require line-anchored citation, not bare SK-NN).
+
+  - id: SPEC-GOV-003
+    lens: Deferred-finding tracking
+    severity: 3
+    title: "The 81-95KB governance-context disparity is a diagnosed structural defect deferred as unenforced prose, with no tracked follow-up obligation in this mission"
+    evidence:
+      - artifact: "spec.md § \"Explicit call-out: what remedy scope (2) genuinely cannot absorb in this mission\""
+      - artifact: "research.md § \"Explicit call-out: the real, larger disparity is out of THIS mission's proportionate scope\""
+      - code: "packs/built-in/directives/052-prefer-durable-fixes.directive.yaml (integrity_rules: \"Deferring a structural remediation is compliant ONLY when it is recorded as a tracked follow-up behind an umbrella/epic issue with the root cause named. A structural cause that is diagnosed and then silently dropped (neither folded nor tracked) is non-compliant.\")"
+      - code: ".kittify/charter/charter.yaml:570 and :1794 (DIRECTIVE_052 is activated in this repo's charter)"
+    claim: >
+      research.md's own diagnosis surfaces a genuinely new, large, systemic finding: the
+      specify/plan/tasks/implement/review governance-context injection is 81-95KB per
+      render (17-19x analyze's 4.9KB) — squarely a "systemic cause" under DIRECTIVE_052
+      (Prefer Durable Fixes), which is activated doctrine in this repo
+      (charter.yaml:570,1794). DIRECTIVE_052's integrity_rules state that deferring such a
+      finding is compliant ONLY "when it is recorded as a tracked follow-up behind an
+      umbrella/epic issue with the root cause named" — a diagnosed-then-silently-dropped
+      structural cause (neither folded nor tracked) is explicitly non-compliant. spec.md
+      and research.md currently only "recommend" filing a follow-up issue in prose ("file a
+      separate follow-up issue... (not built here)") — no FR, AC, NFR, or task in this
+      mission obligates that the issue actually gets filed, names an umbrella/epic, or
+      records the resulting issue number back into spec.md's Dependencies & Sequencing
+      section. Once this mission closes, the only thing carrying the finding forward is a
+      paragraph of prose in a merged spec/research pair — easily missed by a future reader
+      or the mission-wrap-up-sequence's issue-matrix step (which resolves issues *referenced*
+      by the spec to a terminal verdict, but has nothing to act on here since no issue is
+      referenced for this specific finding). This is not automatically resolved by the
+      sk-review closing stage's ledger sweep either, since that sweep is scoped to what the
+      mission itself did, not to guaranteeing a new issue gets filed for a finding that
+      was only ever prose.
+    remediation: >
+      Add an explicit FR (or a hard NFR) to spec.md requiring the orchestrator to file a
+      GitHub issue — naming the root cause (`_governance_context()` / charter
+      action-scoped context resolution), the affected actions (specify/plan/tasks/
+      implement/review), the measured magnitude (81-95KB, 17-19x analyze), and the #5009
+      sequencing dependency — before this mission reaches mission-wrap-up / hand-off, and
+      to record the resulting issue number in spec.md's "Dependencies & Sequencing"
+      section (mirroring how #5009/#4995 are already tracked there). This converts the
+      current unenforced recommendation into the tracked-follow-up form DIRECTIVE_052
+      requires for a compliant deferral.

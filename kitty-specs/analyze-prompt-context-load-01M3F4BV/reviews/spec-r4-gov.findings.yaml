@@ -1,0 +1,31 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R4-GOV-001
+    lens: Mission-derived (Decision 7 propagation completeness)
+    severity: 2
+    title: Orphaned FR-001 reference in the DIRECTIVE_052 compliance paragraph still lists FR-001 as a live closing item
+    evidence:
+      - artifact: "spec.md § Known residual (out of scope): governance-context budget gap, line 499"
+    claim: >
+      Line 499 reads "#5005 is the specific, narrow ticket this mission's own FR-001/002/003
+      close out (filed and evidenced against `analyze`'s prompt size specifically)". This
+      sentence was not touched by the r4 revision (it sits inside the pre-existing
+      DIRECTIVE_052 compliance discussion carried over from the Decision 6 round, outside the
+      diff hunks) and still names FR-001 alongside FR-002/FR-003 as one of the FRs that "close
+      out" the ticket. Per Decision 7, FR-001 is Superseded and no longer executes at all — it
+      does not "close out" anything the way FR-002/FR-003 do. Every other section that
+      previously grouped FR-001 with the mission's delivered work (User Story 1, Edge Cases,
+      NFR-001, SC-001, SC-003, Dependencies & Sequencing, Key Entities, the Functional
+      Requirements table) was correctly rewritten this round to mark FR-001
+      Superseded/non-executing; this one sentence was missed, and a reader skimming only this
+      paragraph could still conclude FR-001 is one of the three build items that deliver #5005.
+    remediation: >
+      Reword line 499 to "this mission's own FR-002/FR-003 close out (FR-001 no longer executes
+      per Operator Decision 7)" or equivalent, so the DIRECTIVE_052 compliance paragraph matches
+      the "Remaining scope after Operator Decision 7" section's framing (FR-002 is the only real
+      build item; FR-003 is already done; FR-001 does not execute).

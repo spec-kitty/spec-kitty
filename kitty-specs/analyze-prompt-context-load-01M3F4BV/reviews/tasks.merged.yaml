@@ -1,0 +1,150 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: analyze-prompt-context-load-01M3F4BV
+note: >
+  R2 mechanical merge/dedup of tasks-decomp.findings.yaml, tasks-order.findings.yaml,
+  tasks-cover.findings.yaml. TASKS-DECOMP-001 and TASKS-COVER-001 both concern the same
+  artifact section (WP01's requirement_refs honesty/documentation) and make substantially
+  the same underlying claim (FR-001/FR-003/FR-005 ride along in requirement_refs without
+  WP-local per-FR documentation) — merged under TASKS-DECOMP-001's id, keeping the higher
+  severity (4) and unioning evidence/remediation from both. Original ids preserved in the
+  `merged_from` field for audit. TASKS-ORDER-001 and TASKS-COVER-002 are distinct claims
+  about distinct artifact sections and are kept as filed.
+findings:
+  - id: TASKS-DECOMP-001
+    merged_from: [TASKS-DECOMP-001, TASKS-COVER-001]
+    lens: work-package-decomposition / requirement-mapping-honesty
+    severity: 4
+    title: "requirement_refs bundles FR-001/FR-003/FR-005 (not implemented by WP01) in machine-readable metadata that this repo's own review checklist will check for test coverage, and WP01's body gives no per-FR disposition for FR-003 at all"
+    evidence:
+      - artifact: "tasks.md § WP01 (Requirement Refs: FR-002, FR-001, FR-003, FR-004, FR-005)"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/wps.yaml:9-14"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md:6-12 (frontmatter requirement_refs)"
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md § Context, 'Note on FR-005 in this WP's requirement_refs' paragraph"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md:8 (only occurrence of the literal string 'FR-003' in the entire file)"
+      - code: "docs/guides/how-to/missions/use-wps-yaml-manifest.md:82 — \"requirement_refs | No | Requirement IDs from spec.md this WP implements\""
+      - code: "packs/built-in/missions/mission-steps/software-dev/review/prompt.md:217-220 — checklist item 4: \"FR coverage: every FR in requirement_refs has at least one test assertion that references the behavior it names, not just a comment or frontmatter entry.\""
+      - code: "packs/built-in/missions/mission-steps/software-dev/review/prompt.md:248-249 — \"every FR row in this WP's requirement_refs marked *no-op passable? yes* names a control that exists in the diff.\""
+      - code: "src/specify_cli/requirement_mapping.py:81-101 (_declared_ids: bold-bullet-lead heuristic fires on any '- **FR-NNN' line regardless of in/out-of-scope wording; only the first id per line is captured, which is why FR-006/FR-007 — named on the same spec.md:543 line after FR-005 — are correctly absent from requirement_refs while FR-005 is present)"
+      - artifact: "spec.md 'Remaining scope after Operator Decision 7' section — bullets '- **FR-001 no longer executes**', '- **FR-002 (advisory doctrine entry...)**', '- **FR-003 (measurements) is already done**...', '- **FR-004...is restated**', '- **FR-005/006/007...stay out of scope**'"
+    claim: >
+      wps.yaml/tasks.md's requirement_refs field for WP01 lists FR-001, FR-003, FR-004, and
+      FR-005 alongside FR-002, the only FR this WP actually builds. Verified against spec.md's
+      own FR table: FR-001 is Superseded/no-op (Decision 7 — no code change at all, not merely
+      untested), FR-003 was already delivered by the prior research/spec phase (research.md),
+      not by this WP's diff, and FR-005 is explicitly out of scope per Decision 6 (dropped
+      entirely, no implementation). FR-004 is a negative constraint with only a manual
+      git-diff check, not a test assertion. The WP01 prompt body's Context section honestly
+      explains this is a documented workaround for a real parser limitation in
+      `finalize-tasks --validate-only`'s requirement-mapping check (confirmed by reading
+      `_declared_ids` in requirement_mapping.py). That root-cause explanation is genuine and
+      independently verified twice over (by both the decomp and cover lenses), not fabricated.
+
+      However, this repo's own review/prompt.md defines requirement_refs' review-time contract:
+      checklist item 4 requires "every FR in requirement_refs [to have] at least one test
+      assertion that references the behavior it names," and item 4b's own escape hatch requires
+      a per-FR "no-op passable? yes" marker naming "a control that exists in the diff" for any
+      ref that is exempted from that rule. WP01's wps.yaml/tasks.md/frontmatter — the
+      machine-readable surfaces a reviewer or downstream tool consults first — carry no such
+      per-FR marker for FR-001/FR-003/FR-005 anywhere in those files. FR-001 and FR-004 at
+      least get their own explicit, honest treatment in WP01's prose Context/DoD/Reviewer
+      Guidance sections; FR-003 gets none of that at all — it appears only in the frontmatter
+      list and is never mentioned again anywhere in the WP body, so a reader has no WP-local
+      explanation and must reconstruct it from spec.md's parser quirk alone. A reviewer (or any
+      future automated FR-coverage/dashboard tool) applying criterion 4/4b mechanically would
+      either wrongly FAIL this otherwise-correct WP for "FR without coverage" on refs it never
+      intended to cover, or would have to silently waive the checklist without a recorded
+      control — exactly the "documentation drifts from what other tooling trusts" failure mode
+      this WP's own C-001 analysis is careful to avoid elsewhere. This is a genuine, if
+      well-intentioned, decomposition hygiene defect distinct from the underlying tooling bug
+      (already separately tracked upstream as issue #5065, "Requirement lifecycle status").
+    remediation: >
+      Add the per-FR "no-op passable? yes — control: <cite>" annotation the review checklist's
+      §4b already recognizes directly into WP01's Definition of Done / Reviewer Guidance section
+      (or a new small "Requirement disposition" table) for each of FR-001 ("no-op passable? yes —
+      control: no diff at all, per Decision 7"), FR-003 ("no-op passable? yes — control:
+      research.md, delivered pre-WP"), FR-004 ("no-op passable? yes — control: DoD's git-diff
+      zero-bytes-changed check on analyze/prompt.md"), and FR-005 ("no-op passable? yes —
+      control: not implemented by design, Decision 6; listed only per the documented
+      finalize-tasks parser quirk"), so a reviewer applying criterion 4/4b mechanically finds
+      the disposition in the form the checklist expects instead of having to locate and
+      interpret free prose elsewhere, and so FR-003 in particular gets the same one-sentence
+      treatment already given to FR-001/FR-004/FR-005. Separately, since the underlying cause
+      is a real `finalize-tasks --validate-only` gap, cite the already-filed upstream issue
+      #5065 from WP01's Context note (it currently explains the parser quirk without pointing
+      at the tracked fix), so a future reader knows this workaround is temporary and where its
+      retirement is tracked.
+
+  - id: TASKS-ORDER-001
+    lens: Phasing (dependency order / risky work front-loaded)
+    severity: 3
+    title: "WP01's subtask presentation order and Objective wording put the doctrine edit (T001) before the red-first test (T003), contradicting the charter's ATDD-first discipline and plan.md's own worked-out red-before sequencing"
+    evidence:
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md § Objective"
+        quote: "Add one new failure-mode entry (and/or one procedure line) to the existing built-in canonical-source-unification doctrine pair... then regenerate the doctrine pack's DRG graph fragments in write mode and add a red-first content test proving the text landed."
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md § Subtask T003, step 3"
+        quote: "Before landing T001's content edit, confirm this test is genuinely RED (run it against the pre-edit files...)."
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks.md § WP01"
+        quote: "Subtasks: T001, T002, T003, T004"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/wps.yaml:11-15"
+      - code: ".kittify/charter/charter.md § ATDD-First Discipline (C-011)"
+        quote: "The WP cannot start coding until at least one failing-first ATDD test exists that pins the user-observable behaviour the WP delivers. The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commits."
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/plan.md § Red-first tests per changed behaviour"
+        quote: "A new test function... was staged into this file this pass to verify it for real, then reverted... Confirmed genuinely RED this pass... The test was then reverted from the working tree... ready to be (re-)added verbatim during FR-002's implementation phase"
+    claim: >
+      The WP's subtask numbering (T001=content edit, T002=DRG regen, T003=add red-first
+      test, T004=companion tests) and its Objective sentence both present the doctrine-source
+      edit as happening BEFORE the red-first test is authored ("then... add a red-first
+      content test proving the text landed"). This is the opposite of the charter's binding
+      C-011 ATDD-first requirement (test committed BEFORE the implementation commit) and the
+      opposite of what plan.md's own "Red-first tests" section actually did during planning
+      (staged the test FIRST, confirmed it genuinely RED against the pre-edit files, THEN
+      reverted it, intending it to be added again during implementation — test-first, edit
+      second). The only place this correct order is stated is buried inside T003 step 3
+      ("Before landing T001's content edit, confirm this test is genuinely RED"), which
+      contradicts the subtask list's own literal top-to-bottom order and the Objective's
+      wording. An implementer following the natural T001→T002→T003→T004 reading (reinforced
+      by the Objective sentence and the Definition of Done's same T001-then-T002-then-T003
+      ordering) would land the content edit as its own commit before the test exists at all,
+      violating C-011, and would then have to either fabricate a RED-before claim post-hoc or
+      redo work (revert the content edit, add the test, re-verify RED, re-apply the edit) to
+      produce the genuine RED-before/GREEN-after evidence the WP's own Reviewer Guidance
+      section demands.
+    remediation: >
+      Reorder WP01's subtasks so the red-first test subtask is listed and executed first:
+      renumber the current T003 (add red-first content test, verify RED) as the WP's first
+      subtask, followed by the content edit (current T001), then DRG regeneration (current
+      T002), then the companion-test confirmation (current T004) — matching plan.md's own
+      test-first sequence and C-011. Alternatively, if renumbering is undesirable, rewrite the
+      Objective sentence and Definition of Done to state the test-first order explicitly and
+      add an explicit note at the top of T001 pointing back to T003's red-first requirement,
+      so no reading of the WP (Objective, subtask list, or DoD) implies edit-then-test.
+
+  - id: TASKS-COVER-002
+    lens: silent-success-fakeable-dod-check
+    severity: 2
+    title: "T003's quoted test function is nested under a numbered list step and, copied byte-for-byte as its raw markdown text ('verbatim'), is not valid Python — it needs an implicit dedent the WP never states"
+    evidence:
+      - artifact: "tasks/WP01-unverified-size-assumption-doctrine.md, Subtask T003 step 2: 'Add the following test function verbatim (already verified genuinely RED...)' followed by a fenced ```python block nested inside numbered step '2.'"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md:195-196 — the fence and the `def` line both carry a 3-space list-continuation margin, while the function body/docstring lines carry 7 spaces (3-space list margin + 4-space Python indent)"
+      - artifact: "plan.md 'Red-first tests per changed behaviour' section — the same test function, NOT nested in a list, at top-level code-fence indentation (0-space margin)"
+    claim: >
+      Extracting the T003 code block's raw text exactly as it is byte-encoded in
+      WP01-unverified-size-assumption-doctrine.md raises `SyntaxError: unexpected indent` —
+      the `def` line itself carries 3 leading spaces (the markdown list-continuation margin
+      from being nested under "2. Add the following test function verbatim"), which is not
+      legal at module scope. Only after dedenting does it parse. plan.md's copy of the
+      identical test function is NOT list-nested and is directly copy-pastable as valid
+      Python without any dedent. An implementer reading the raw `.md` file as text and
+      following the explicit instruction to add it "verbatim" could paste 3 extra leading
+      spaces onto every line of the function, producing an immediate `IndentationError`. The
+      defect is self-evident and would fail loudly on the very first test run (not a
+      silent-success risk), so implementation would still come out right after one fix cycle
+      — but it is a genuine, concrete authoring defect in the WP's own quoted content that
+      plan.md's version of the same block does not share.
+    remediation: >
+      Reformat T003 step 2 in WP01 so the ```python fence is not nested inside the numbered
+      list item's indentation — move it to its own paragraph at the step's left margin
+      (matching plan.md's formatting exactly, 0-space fence/def indentation), or dedent the
+      fence block in the WP file to match plan.md byte-for-byte.

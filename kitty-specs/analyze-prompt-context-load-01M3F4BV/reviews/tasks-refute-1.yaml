@@ -1,0 +1,40 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >
+      Live checks confirm every cited artifact: WP01's frontmatter lists FR-001/003/004/005
+      alongside FR-002 (lines 6-10), review/prompt.md:217 and :248-249 literally state the
+      "FR coverage" and "no-op passable? yes" checklist criteria as quoted, requirement_mapping.py's
+      _declared_ids (lines 81-101, patterns at 60/72) does fire on any bare "- **FR-NNN" bullet
+      lead regardless of scope wording and captures only the first id per line via the documented
+      break, spec.md's Decision-7 section confirms FR-001 is superseded/no-op, FR-003 is
+      already-delivered-elsewhere, and FR-005 is out-of-scope, and grepping WP01's body confirms
+      FR-003 appears only once (frontmatter, line 8) with zero further mention anywhere in the
+      prose while FR-001/FR-004/FR-005 each get dedicated explanatory treatment — exactly the
+      asymmetry the finding describes.
+  - id: TASKS-ORDER-001
+    verdict: confirmed
+    reason: >
+      The Objective (lines 52-57) and subtask heading order (T001 line 115, T002 line 145, T003
+      line 175, T004 line 241, matching frontmatter's subtasks list) both literally present
+      edit-then-test; charter.md:622-628 confirms the C-011 quote verbatim including the
+      "committed... BEFORE any implementation commits" language; plan.md:260-267 confirms the
+      planning pass itself staged-verified-RED-then-reverted the test intending test-first
+      re-addition; and T003 step 3 (line 207) does say "Before landing T001's content edit,
+      confirm this test is genuinely RED" while positioned as the third subtask after T001 and
+      the DoD (lines 258-276) restates the same T001-then-T002-then-T003 order — a real internal
+      contradiction an implementer following the natural top-to-bottom subtask order would hit,
+      not an over-reading.
+  - id: TASKS-COVER-002
+    verdict: confirmed
+    reason: >
+      Extracted the raw byte content of the T003 step-2 code fence from
+      WP01-unverified-size-assumption-doctrine.md (lines 195-228) and ran ast.parse on it
+      unmodified — it raises "SyntaxError: unexpected indent" because the fence and every
+      contained line carry the 3-space list-continuation margin; dedenting by 3 spaces makes it
+      parse cleanly, and the same test function's code fence in plan.md (line 270 onward) is at
+      0-space margin and parses as-is without modification, exactly as the finding claims.

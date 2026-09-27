@@ -1,0 +1,29 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      NFR-001's verification now explicitly requires the reconciled override's entire "##
+      Operating Constraints" section to be byte-identical to canonical's (not just a
+      heading-list diff), adds a trivially-checkable `grep -c "STRICTLY READ-ONLY"` returns-0
+      confirmation, and separately requires the "Analysis Guidelines" bullet to match
+      canonical's persistence-aware wording; FR-001 item (e) and SC-001(c) were updated to
+      match, and a live diff of the override against canonical confirms the override still
+      says "STRICTLY READ-ONLY"/"Constitution Authority" and lacks the Issue-Matrix paragraph
+      today, which is exactly the gap the new verification text now names and would catch.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      User Story 1's title, body, and "Why this priority" text were reworded to explicitly
+      separate FR-001 ("mechanically-verified behavior change", "enforceable") from FR-002
+      ("advisory-only prose with no automated enforcement", "does not claim, and cannot test,
+      that any future agent actually changes its decision-making"), so the story no longer
+      implies a verified behavioral guarantee is delivered.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >-
+      NFR-001's title is "Heuristic preservation on override reconciliation" and its
+      requirement text now opens with "\"Heuristic preservation\" here means...", matching its
+      own current title instead of the stale "Behaviour preservation" self-quote.

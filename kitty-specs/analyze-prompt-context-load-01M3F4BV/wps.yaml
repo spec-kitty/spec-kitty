@@ -1,0 +1,23 @@
+work_packages:
+  - id: WP01
+    title: "Advisory doctrine: unverified-size-assumption failure mode"
+    dependencies: []
+    owned_files:
+      - "packs/built-in/tactics/canonical-source-unification.tactic.yaml"
+      - "packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml"
+      - "packs/built-in/tactic.graph.yaml"
+      - "packs/built-in/directive.graph.yaml"
+      - "tests/doctrine/test_directive_consistency.py"
+    requirement_refs:
+      - FR-002
+      - FR-001
+      - FR-003
+      - FR-004
+      - FR-005
+    cross_cutting: true
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+    prompt_file: "tasks/WP01-unverified-size-assumption-doctrine.md"

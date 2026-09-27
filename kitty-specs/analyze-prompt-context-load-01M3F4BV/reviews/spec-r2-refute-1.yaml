@@ -1,0 +1,53 @@
+schema: review-refute/v1
+complete: true
+phase: spec-r2
+batch: 1
+verdicts:
+  - id: SPEC-R2-GOV-001
+    verdict: confirmed
+    reason: >-
+      research.md § 9.3 confirms the measured 57.7-70.6KB Action Doctrine block is "already the
+      requires-closure-only subset" (post-D2c, suggests-items are already stanza'd elsewhere in
+      bootstrap_text.py's own _render_action_doctrine_lines), so the "Honest residual" paragraph's
+      parenthetical equating "the requires-closure alone" with "the portion substitutable=False...
+      never swapped" is in direct tension with FR-005's own plan to extend candidate collection to
+      cover exactly that same Action Doctrine block — the spec never states which subset (if any)
+      of the requires-closure remains permanently inline vs. becomes swappable, and the measured
+      requires-closure floor (57.7-70.6KB) already exceeds SC-005's 40,000-char target on its own
+      under the literal non-substitutable reading.
+  - id: SPEC-R2-GOV-002
+    verdict: confirmed
+    reason: >-
+      spec.md line 10 literally reads "The following three operator decisions... reproduced
+      verbatim" while items 1-5 are listed (items 4 and 5 added later, each marked "binding,
+      supersedes..."), a plain, directly-verified count/scope mismatch.
+  - id: SPEC-R2-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Verified _enforce_token_budget is called from both bootstrap_text.py:347 and
+      compact_governance.py:172 (whose own comment says "compact view shares the budget cap with
+      the bootstrap path"), so spec.md's edge-case justification ("the fix only changes what
+      happens inside the bootstrap render path") misstates why compact is safe — the real reason
+      (compact never assembles an Action Doctrine full-body block, only ids) is different from the
+      stated one — and no existing test (test_context_render_seams.py etc., grepped) exercises
+      budget/_enforce_token_budget behavior for the compact call site, matching the claimed
+      coverage gap.
+  - id: SPEC-R2-ARCH-002
+    verdict: confirmed
+    reason: >-
+      resolver.py:151-260 confirms the 6-tier order OVERRIDE->LEGACY->ORG->GLOBAL_MISSION->
+      GLOBAL->PACKAGE_DEFAULT exactly as cited; research.md § 3 only ever probes/reports the
+      OVERRIDE tier's current winner and never checks whether LEGACY/ORG/GLOBAL_MISSION/GLOBAL
+      would have an analyze.md entry; and SC-001 states the post-deletion tier unhedged
+      ("package_default") while NFR-001 hedges ("or whichever tier constant") for the identical
+      claim, a real internal inconsistency plus an environment-dependent (machine-local
+      ~/.kittify) unverified assumption.
+  - id: SPEC-R2-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      research.md's own numbers show build_prompt() (§4, e.g. analyze=11,891B) and
+      build_with_scope() (§9, analyze=4,571B) differ by a ~332B header plus the full template
+      body added on top for the five large actions (template bytes 14-28KB), yet FR-005's
+      falsifiable-target paragraph cites both scripts side-by-side against the same 40,000-char
+      bound without stating the required subtraction, while SC-005 quietly narrows to only the §9
+      script — a real, evidenced measurement-method ambiguity.

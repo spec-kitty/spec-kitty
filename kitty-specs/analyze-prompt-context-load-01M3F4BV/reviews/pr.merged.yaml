@@ -1,0 +1,216 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: analyze-prompt-context-load-01M3F4BV
+sources:
+- pr-boundary.findings.yaml
+- pr-contract.findings.yaml
+- pr-tests.findings.yaml
+findings:
+- id: pr-contract-001
+  lens: FR-002 fidelity / doctrine-delivery silent-success
+  severity: 4
+  title: FR-002's new failure-mode text lands in a tactic field (`failure_modes`) that no charter/doctrine
+    renderer ever inlines into agent-visible context; the artifact already exceeds the inline-body budget,
+    so in practice no automatic render path surfaces this text to an agent at all
+  evidence:
+  - artifact: 'spec.md FR-002 row (Functional Requirements table): "this FR is advisory-only doctrine
+      prose — it adds text an LLM reads at prompt-render time"'
+  - code: packs/built-in/tactics/canonical-source-unification.tactic.yaml:95-101 (T002's new failure_modes
+      entry, worktree HEAD)
+  - code: src/charter/activation/context_renderers/artifact_bodies.py:213-227 (`_format_inline_tactic_body`)
+      renders only `name`/`purpose`/`steps` for a tactic — `failure_modes` is not among the fields read
+  - code: src/charter/activation/context_renderers/profile_sections.py:155-190 (`format_inline_named_body`,
+      used by `_render_profile_tactics` at line 614-625) renders the identical `name`/`purpose`/`steps`
+      subset for profile-cited tactics — also omits `failure_modes`
+  - code: src/charter/activation/context_renderers/template_include.py:152-167 (`_render_tactic_include`)
+      is the ONLY call site that appends `_format_full_artifact_payload_body` (which does include `failure_modes`,
+      via a raw JSON dump) — and it fires only for an agent's own explicit `--include tactic:<id>` selector
+      invocation, never from automatic action/profile doctrine selection
+  - code: src/charter/activation/context_renderers/selection_block.py:122-211 (`_render_selected_artifacts`,
+      shared by `_render_selected_tactics`/`_render_selected_directives`) falls back to a fetch-stanza
+      POINTER (not the artifact body) whenever `_budget_estimate(body_lines) > _PROFILE_INLINE_BODY_LIMIT_CHARS`
+      (2,400 chars, `token_budget.py:79`)
+  - code: 'Measured directly against the worktree''s post-edit files with the real renderer functions:
+      `_format_inline_tactic_body(canonical-source-unification)` = 4,350 chars; `_format_inline_directive_body(DIRECTIVE_044)`
+      = 3,460 chars — both already over the 2,400-char inline ceiling, so both artifacts already fall
+      back to the fetch-stanza pointer in every automatic render path (profile citation, global selection,
+      Action Doctrine block), independent of which file T002 edited'
+  - code: tests/doctrine/test_directive_consistency.py:439-447 (loads YAML directly via `_load_yaml`/ruamel,
+      asserts on `tactic_data.get("failure_modes", [])` / `directive_data.get("procedures", [])` — no
+      call into the runtime rendering path)
+  - code: 'src/charter/activation/context_renderers/artifact_bodies.py:213-227 (`_format_inline_tactic_body`:
+      renders only Name, Purpose, and Steps for a tactic — no branch for `failure_modes` at all)'
+  - code: 'src/charter/activation/context_renderers/artifact_bodies.py:160-179 (`_format_inline_directive_body`:
+      DOES render a `Procedures:` section inline, alongside Integrity rules / Validation criteria)'
+  - code: 'src/charter/activation/context_renderers/template_include.py:148-168 (`_render_directive_include`/`_render_tactic_include`:
+      the FULL JSON payload — which would include `failure_modes` — is only emitted via `_format_full_artifact_payload_body`,
+      invoked ONLY for an explicit `--include tactic:<id>` / `--include directive:<id>` fetch, not the
+      default inline delivery)'
+  - artifact: 'spec.md FR-002 status/notes (line 721): ''this FR is advisory-only doctrine prose — it
+      adds text an LLM reads at prompt-render time; no automated test in this repository can verify a
+      future agent''s prompt-following behavior against it, and none is claimed'''
+  - code: diff under review touches ONLY packs/built-in/tactics/canonical-source-unification.tactic.yaml's
+      failure_modes list — packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml
+      (whose procedures field WOULD render inline) is untouched
+  - artifact: grep -rn "failure_mode" src/charter/activation/ → zero hits anywhere in the doctrine-rendering
+      package
+  claim: 'T002 appended the new "Unverified size assumption" entry to `canonical-source-unification.tactic.yaml`''s
+    `failure_modes` array. Tracing every renderer that turns a doctrine artifact into agent-visible prompt
+    text (`_format_inline_tactic_body`, `format_inline_named_body`, and the `_render_selected_artifacts`/`_render_profile_tactics`
+    call sites that use them) shows `failure_modes` is never read by any of them — only `name`, `purpose`,
+    and `steps` are rendered for a tactic. The one function that does serialize `failure_modes` (`_format_full_artifact_payload_body`)
+    is reached only through an agent''s own explicit `--include tactic:<id>` fetch (`_render_tactic_include`),
+    not through the automatic action-doctrine or profile-citation paths a mission''s implement/review/analyze
+    steps actually use. Worse, because this tactic''s rendered body (4,350 chars) and DIRECTIVE_044''s
+    rendered body (3,460 chars) already exceed the 2,400-char `_PROFILE_INLINE_BODY_LIMIT_CHARS` ceiling,
+    BOTH artifacts already fall back to a generic fetch-stanza pointer ("fetch tactic:canonical-source-unification
+    when you are about to apply a code change") in every automatic render path — so even the 3 pre-existing
+    DIRECTIVE_044 procedures, and the 6 pre-existing (now 7) failure_modes entries, are not inlined into
+    any agent''s context without a deliberate, separate fetch action the agent must choose to take, cued
+    only by a when-clause with no relation to "unverified size assumption" specifically. FR-002''s own
+    Status/notes text ("adds text an LLM reads at prompt-render time") therefore overstates what this
+    change actually does: at prompt-render time the agent receives, at most, a generic fetch pointer —
+    not the failure-mode text. The new red-first test (T001, `tests/doctrine/test_directive_consistency.py`)
+    only proves the string exists in the YAML source; it asserts nothing about whether any renderer ever
+    surfaces it, so the mission''s own acceptance evidence (SC-002) is silent about — and inadvertently
+    masks — this delivery gap. This is the doctrine-level "silent success": the mission reports FR-002
+    done and its test green, while the mechanism the FR depends on (an LLM reading this text at prompt-render
+    time) does not actually fire for this artifact.'
+  remediation: Either (a) additionally land the rule text in DIRECTIVE_044's `procedures` array (which
+    at least reaches the `_format_inline_directive_body` path used by every profile citing DIRECTIVE_044,
+    and is fully surfaced whenever an agent does fetch the directive), and/or (b) file the renderer gap
+    upstream per DIRECTIVE_044 Rule 3's own "missing/broken canonical delivery mechanism is a gap to file,
+    not silently worked around" pattern — naming specifically that `failure_modes` has no inline renderer
+    at all, and that `canonical-source-unification`/`DIRECTIVE_044` already exceed the 2,400-char per-artifact
+    inline budget so their existing procedures/failure_modes are not being delivered automatically today.
+    At minimum, correct FR-002's Status/notes claim in spec.md (or the PR description) so it does not
+    assert prompt-render delivery that the renderer code does not provide, and tighten the fetch-stanza's
+    `when_clause` for this tactic so an agent has a concrete trigger ("about to skip a canonical surface
+    because it looks too large") rather than the generic "about to apply a code change" cue currently
+    used for every profile-cited tactic.
+  merged_from:
+  - pr-contract-001
+  - pr-tests-002
+  merge_note: 'R2 dedup: pr-tests-002 (severity 3) makes substantially the same claim (tactic failure_modes
+    never rendered to agents; test checks raw YAML only). Kept the higher severity, unioned evidence.
+    pr-tests-002 claim: spec.md''s FR-002 explicitly disclaims verifying that the advisory text reaches
+    an agent''s rendered prompt, so the test satisfies the FR as literally scoped. But the diff''s actual
+    choice of landing spot has a real, verifiable, and asymmetric effect on whether the mission''s stated
+    purpose (an orchestrating agent reads this warning "at prompt-render time" so it stops routing around
+    canonical surfaces) is achieved by default: `_format_inline_tactic_body` — the renderer used for a
+    tactic''s normal inline delivery inside the "Action Doctrine" block this very mission''s own root-cause
+    section (research.md §9 / spec.md''s diagnosis) identifies as the actual token-budget/rendering seam
+    — has no code path for `failure_modes` at all, while the sibling `_format_inline_directive_body` DOES
+    render `procedures` inline. Landing the new text exclusively in the tactic''s `failure_modes` (rather
+    than the directive''s `procedures`, both allowed by spec.md''s "and/or" wording) means an agent that
+    has this tactic activated through the ordinary profile/action-doctrine path will never see the new
+    warning by default — it only surfaces via the full-JSON-payload path used for an explicit `--include
+    tactic:canonical-source-unification` fetch, which is exactly the "bypass without measuring" failure
+    mode this text exists to prevent (an agent unaware of the extra content has no reason to fetch it).
+    Neither the test, spec.md, nor plan.md surfaces this asymmetry when choosing where to land the text.'
+- id: pr-tests-001
+  lens: vacuity / assertion-specificity
+  severity: 3
+  title: test_size_assumption_bypass_failure_mode_documented passes because of an incidental duplicate
+    phrase, not the failure-mode's own title text
+  evidence:
+  - code: tests/doctrine/test_directive_consistency.py:445 (needle = "unverified size assumption", lowercase
+      'u', case-sensitive `in` check)
+  - code: packs/built-in/tactics/canonical-source-unification.tactic.yaml:101-108 (new failure_modes entry,
+      added by this diff)
+  - artifact: 'spec.md FR-002 row (line 721): ''...naming the evidenced failure mode explicitly: an agent
+      must not bypass a canonical prompt/skill/CLI surface on an unverified size assumption'''
+  claim: 'The new entry''s own title/lead is "Unverified size assumption: bypassing a canonical prompt/skill/CLI
+    surface..." (capital U). Because the needle in the test is lowercase ("unverified size assumption"),
+    a case-sensitive Python `in` check against that title alone is False (`''unverified size assumption''
+    in ''Unverified size assumption: ...''` == False — verified interactively). The test only passes because
+    the SAME entry''s closing sentence happens to restate the phrase mid-sentence in lowercase: "...file
+    an upstream gap rather than improvising a substitute — an unverified size assumption is not evidence,
+    and routing around a canonical surface...". Empirically verified in an isolated scratch worktree (git
+    worktree add off the lane HEAD, tactic file edited, worktree removed after): reverting ONLY that closing
+    clause (changing "an unverified size assumption is not evidence" to "this is not evidence") while
+    leaving the entry''s title/lead and full explanatory paragraph completely intact makes the test FAIL
+    — even though the failure mode is still clearly, explicitly documented under its own title. The test
+    is therefore coupled to an incidental restatement, not to the documented contract itself. A future
+    editor who tightens this prose (a plausible, behaviour-preserving copy-edit — e.g. removing the redundant
+    restatement, or normalizing capitalization) would see a false-red failure with no real regression,
+    or — in the opposite direction — could rephrase the redundant clause while leaving a typo''d/altered
+    title and get a false-green pass, because the assertion never actually anchors on the entry''s title.'
+  remediation: Anchor the assertion on the failure mode's stable identity, not an incidental substring.
+    Either (a) match case-insensitively AND only against the entry's leading title segment (e.g. split
+    on ":" and check the prefix), or (b) give the failure-mode entry a stable `id`/key field (mirroring
+    how directive procedures or other tactic failure_modes could be structured) and assert on that identifier
+    rather than grepping prose, or (c) at minimum use `needle.lower() in str(entry).lower()` and add a
+    comment noting the test intentionally tolerates paraphrase but still requires the concept to appear
+    verbatim near the entry's start.
+- id: pr-tests-003
+  lens: ci-shard-selection (informational — no defect found)
+  severity: 1
+  title: Confirmed the new test does run in real CI for this exact diff (not a dead shard)
+  evidence:
+  - code: scripts/ci/gate_selection.py select_modules(...) run against this diff's exact 3 changed paths
+      returns frozenset({'charter'}) — verified interactively
+  - code: '.github/ci-module-registry.yml ''charter'' module row: test_dirs includes tests/doctrine (alongside
+      tests/charter), so ci-modules.yml''s diff-scoped matrix (module-tests.yml, `-m "not performance
+      and not stress"`) selects and runs this file'
+  - code: .github/workflows/packs.yml built_in lane filters include both 'packs/built-in/**' and 'tests/doctrine/**'
+      — this diff's packs/built-in/* changes independently trigger `built-in-corpus-suite` (`pytest -m
+      "corpus and not windows_ci"`), which also collects this file (pytestmark includes pytest.mark.corpus)
+  - code: make ci-parity (scripts/ci/local_gate_parity.py) run against this diff (--base-ref 6fd106041)
+      reports job 'tests-corpus' selected via ci-router.yml's own corpus group (packs/** match), independently
+      of the module matrix
+  claim: 'The lens brief asked whether this new test might run only under a shard nothing selects on a
+    PR touching these exact paths. Verified empirically: it is actually over-selected, not under-selected
+    — it runs via (1) the `charter` module shard in ci-modules.yml/module-tests.yml (test-path-to-module
+    mapping, since tests/doctrine is that module''s declared test_dirs), (2) ci-router.yml''s `tests-corpus`
+    job (corpus marker, triggered by the packs/** path match), and (3) packs.yml''s `built-in-corpus-suite`
+    job (also `-m corpus`, triggered by both packs/built-in/** and tests/doctrine/** path matches). No
+    defect; recorded for completeness since this was an explicit named lens.'
+  remediation: None required — informational.
+- id: pr-tests-004
+  lens: diff-cover ≥90% (informational — no defect found)
+  severity: 1
+  title: This diff has zero Python lines diff-cover's critical-path gate would score
+  evidence:
+  - code: scripts/ci/aggregate_source.py:17-27 CRITICAL_PATHS tuple (src/kernel/*, src/charter/*, src/specify_cli/status/*,
+      src/specify_cli/lanes/branch_naming.py, src/specify_cli/dashboard/handlers/*, src/specify_cli/dashboard/scanner.py,
+      src/specify_cli/merge/*, src/runtime/next/*, src/mission_runtime/*) — none of this diff's 3 paths
+      (packs/built-in/pack-manifest.yaml, packs/built-in/tactics/canonical-source-unification.tactic.yaml,
+      tests/doctrine/test_directive_consistency.py) match any glob
+  - code: scripts/ci/aggregate_source.py:113-119 restricts `critical.diff.patch` to `git diff ... -- *CRITICAL_PATHS`,
+      so this diff's content is entirely absent from the patch diff-cover scores against
+  - code: 'scripts/ci/validate_diff_coverage.py:46-47 additionally skips any non-`.py` path outright (''if
+      not changed or not path.endswith(".py"): continue''), which would have excluded the two YAML files
+      even if they were under a critical path'
+  claim: 'Neither the two YAML doctrine files (not .py) nor the new test file (tests/doctrine/** is not
+    in CRITICAL_PATHS) contribute any line to the diff-cover critical-path denominator. The gate scores
+    an empty set for this diff and passes trivially. Worth recording because a broader concern was investigated
+    and ruled out along the way: none of the module-tests.yml shards ever pass `--cov=tests`, so ANY new
+    test file''s own lines are never "measured" in any coverage.xml this repo produces (coverage source
+    is always derived from top-level packages under src/, per module-tests.yml''s own documented policy
+    at ~line 277). Had this new test file been inside CRITICAL_PATHS, the diff-cover job could plausibly
+    hard-fail with "missing coverage evidence" for the test file''s own lines rather than merely scoring
+    low — that risk does not apply here only because tests/ is outside CRITICAL_PATHS, not because of
+    any explicit test-file exclusion. Flagging as informational since it did not manifest in this diff,
+    but the underlying gap (a critical-path test file''s own new lines would hard-fail diff-cover with
+    a confusing "missing coverage evidence" error rather than a normal low-score failure) is a latent
+    trap for a future PR that DOES add a test under one of the CRITICAL_PATHS-mirrored test trees.'
+  remediation: 'No action needed for this diff. Separately (out of this mission''s scope): consider whether
+    validate_diff_coverage.py should treat a `.py` path with zero measured lines in ANY coverage report
+    (not just a report that measured it partially) as "not applicable" rather than "fully missing," to
+    avoid a hard failure on a legitimately-added test file that lives under a critical-path test tree.'
+- id: pr-tests-005
+  lens: baseline honesty (empirical re-run — confirms the plan's own numbers)
+  severity: 1
+  title: Confirmed pre 46/46, post 47/47 across the four named test files
+  evidence:
+  - code: 'Re-run in an isolated scratch worktree at merge-base 6fd106041 (checkout .venv interpreter,
+      PATH-prefixed): tests/doctrine/test_directive_consistency.py + tests/architectural/test_doctrine_regenerate_graph_roundtrip.py
+      + tests/architectural/test_pack_manifest_no_author_edit.py + tests/cross_cutting/test_kittify_override_parity.py
+      → ''46 passed in 60.48s'''
+  - code: 'Re-run in the lane at HEAD (same 4 files, same interpreter): ''47 passed in 17.85s'''
+  claim: The lane's own claimed before/after counts are accurate and reproducible independent of the lane's
+    own working tree state. No discrepancy found.
+  remediation: None required — informational.

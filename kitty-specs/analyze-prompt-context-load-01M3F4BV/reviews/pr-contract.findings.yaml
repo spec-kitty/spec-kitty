@@ -1,0 +1,66 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: pr-contract-001
+    lens: FR-002 fidelity / doctrine-delivery silent-success
+    severity: 4
+    title: >-
+      FR-002's new failure-mode text lands in a tactic field (`failure_modes`) that no
+      charter/doctrine renderer ever inlines into agent-visible context; the artifact
+      already exceeds the inline-body budget, so in practice no automatic render path
+      surfaces this text to an agent at all
+    evidence:
+      - artifact: "spec.md FR-002 row (Functional Requirements table): \"this FR is advisory-only doctrine prose — it adds text an LLM reads at prompt-render time\""
+      - code: "packs/built-in/tactics/canonical-source-unification.tactic.yaml:95-101 (T002's new failure_modes entry, worktree HEAD)"
+      - code: "src/charter/activation/context_renderers/artifact_bodies.py:213-227 (`_format_inline_tactic_body`) renders only `name`/`purpose`/`steps` for a tactic — `failure_modes` is not among the fields read"
+      - code: "src/charter/activation/context_renderers/profile_sections.py:155-190 (`format_inline_named_body`, used by `_render_profile_tactics` at line 614-625) renders the identical `name`/`purpose`/`steps` subset for profile-cited tactics — also omits `failure_modes`"
+      - code: "src/charter/activation/context_renderers/template_include.py:152-167 (`_render_tactic_include`) is the ONLY call site that appends `_format_full_artifact_payload_body` (which does include `failure_modes`, via a raw JSON dump) — and it fires only for an agent's own explicit `--include tactic:<id>` selector invocation, never from automatic action/profile doctrine selection"
+      - code: "src/charter/activation/context_renderers/selection_block.py:122-211 (`_render_selected_artifacts`, shared by `_render_selected_tactics`/`_render_selected_directives`) falls back to a fetch-stanza POINTER (not the artifact body) whenever `_budget_estimate(body_lines) > _PROFILE_INLINE_BODY_LIMIT_CHARS` (2,400 chars, `token_budget.py:79`)"
+      - code: "Measured directly against the worktree's post-edit files with the real renderer functions: `_format_inline_tactic_body(canonical-source-unification)` = 4,350 chars; `_format_inline_directive_body(DIRECTIVE_044)` = 3,460 chars — both already over the 2,400-char inline ceiling, so both artifacts already fall back to the fetch-stanza pointer in every automatic render path (profile citation, global selection, Action Doctrine block), independent of which file T002 edited"
+    claim: >-
+      T002 appended the new "Unverified size assumption" entry to
+      `canonical-source-unification.tactic.yaml`'s `failure_modes` array. Tracing every
+      renderer that turns a doctrine artifact into agent-visible prompt text
+      (`_format_inline_tactic_body`, `format_inline_named_body`, and the
+      `_render_selected_artifacts`/`_render_profile_tactics` call sites that use them)
+      shows `failure_modes` is never read by any of them — only `name`, `purpose`, and
+      `steps` are rendered for a tactic. The one function that does serialize
+      `failure_modes` (`_format_full_artifact_payload_body`) is reached only through an
+      agent's own explicit `--include tactic:<id>` fetch (`_render_tactic_include`), not
+      through the automatic action-doctrine or profile-citation paths a mission's
+      implement/review/analyze steps actually use. Worse, because this tactic's rendered
+      body (4,350 chars) and DIRECTIVE_044's rendered body (3,460 chars) already exceed
+      the 2,400-char `_PROFILE_INLINE_BODY_LIMIT_CHARS` ceiling, BOTH artifacts already
+      fall back to a generic fetch-stanza pointer ("fetch tactic:canonical-source-unification
+      when you are about to apply a code change") in every automatic render path — so even
+      the 3 pre-existing DIRECTIVE_044 procedures, and the 6 pre-existing (now 7)
+      failure_modes entries, are not inlined into any agent's context without a deliberate,
+      separate fetch action the agent must choose to take, cued only by a when-clause with
+      no relation to "unverified size assumption" specifically. FR-002's own Status/notes
+      text ("adds text an LLM reads at prompt-render time") therefore overstates what this
+      change actually does: at prompt-render time the agent receives, at most, a generic
+      fetch pointer — not the failure-mode text. The new red-first test (T001,
+      `tests/doctrine/test_directive_consistency.py`) only proves the string exists in the
+      YAML source; it asserts nothing about whether any renderer ever surfaces it, so the
+      mission's own acceptance evidence (SC-002) is silent about — and inadvertently masks
+      — this delivery gap. This is the doctrine-level "silent success": the mission reports
+      FR-002 done and its test green, while the mechanism the FR depends on (an LLM reading
+      this text at prompt-render time) does not actually fire for this artifact.
+    remediation: >-
+      Either (a) additionally land the rule text in DIRECTIVE_044's `procedures` array
+      (which at least reaches the `_format_inline_directive_body` path used by every
+      profile citing DIRECTIVE_044, and is fully surfaced whenever an agent does fetch the
+      directive), and/or (b) file the renderer gap upstream per DIRECTIVE_044 Rule 3's own
+      "missing/broken canonical delivery mechanism is a gap to file, not silently worked
+      around" pattern — naming specifically that `failure_modes` has no inline renderer at
+      all, and that `canonical-source-unification`/`DIRECTIVE_044` already exceed the
+      2,400-char per-artifact inline budget so their existing procedures/failure_modes are
+      not being delivered automatically today. At minimum, correct FR-002's Status/notes
+      claim in spec.md (or the PR description) so it does not assert prompt-render delivery
+      that the renderer code does not provide, and tighten the fetch-stanza's `when_clause`
+      for this tactic so an agent has a concrete trigger ("about to skip a canonical
+      surface because it looks too large") rather than the generic "about to apply a code
+      change" cue currently used for every profile-cited tactic.

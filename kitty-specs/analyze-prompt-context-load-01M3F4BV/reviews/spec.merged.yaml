@@ -1,0 +1,249 @@
+# review-findings/v1 — R2 merged/deduped output (orchestrator, mechanical only).
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: analyze-prompt-context-load-01M3F4BV
+merge_note: >
+  Concatenation of spec-gov.findings.yaml, spec-arch.findings.yaml, spec-verify.findings.yaml.
+  One dedup applied: SPEC-ARCH-001 and SPEC-VERIFY-003 cite the same gate
+  (tests/architectural/test_doctrine_regenerate_graph_roundtrip.py) against the same FR-002
+  target files and make substantially the same claim (doctrine edit trips the DRG/pack-manifest
+  regen gate, unmentioned in spec.md). Both severity 3 (tie) — kept as SPEC-VERIFY-003 (more
+  evidence: live-verified gate is currently green, cites the regenerate-graph CLI source and the
+  charter's own documentation of the consequence); SPEC-ARCH-001's evidence and remediation
+  (naming the two specific test files as required, regardless of default blast-radius
+  calibration) folded in. No other duplicates found; all other findings address distinct claims
+  even where two findings touch the same FR/NFR text (e.g. SPEC-VERIFY-001 on AC falsifiability
+  of the diff method vs SPEC-ARCH-002 on the substance of the drift being understated — different
+  claims, kept separate). No finding dropped for disagreement; all 9 surviving findings carried
+  forward for refutation.
+findings:
+  - id: SPEC-GOV-001
+    lens_group: gov
+    lens: Ledger
+    severity: 3
+    title: "research.md's ledger-grep claim of \"zero hits\" for `governance_context` is factually inaccurate"
+    evidence:
+      - artifact: "research.md § 6 (Ledger check)"
+      - code: "SPEC-KITTY-LEDGER.md:350"
+      - code: "SPEC-KITTY-LEDGER.md:5733"
+    claim: >
+      research.md states a grep for "governance_context" returned "zero hits". A literal
+      `grep -n "governance_context" SPEC-KITTY-LEDGER.md` returns two hits (unrelated
+      Op-dispatch `governance_context_available`/`governance_context_text` fields, not the
+      render-time `_governance_context()` injection this mission measures) — the underlying
+      diagnosis is not invalidated, but the specific "zero hits" claim did not survive
+      re-execution, undercutting the mission's own "measure, don't assert" thesis inside its
+      own research.md.
+    remediation: >
+      Correct research.md §6 to report the actual grep result precisely, noting the two
+      incidental substring hits and why they are unrelated, rather than claiming "zero hits".
+
+  - id: SPEC-GOV-002
+    lens_group: gov
+    lens: Ledger
+    severity: 2
+    title: "SK-141 citation is ambiguous — the ledger contains two unrelated entries both numbered SK-141"
+    evidence:
+      - artifact: "research.md § 6 (Ledger check)"
+      - code: "SPEC-KITTY-LEDGER.md:2780"
+      - code: "SPEC-KITTY-LEDGER.md:11172"
+    claim: >
+      research.md cites "SK-141" as part of the record-analysis bug family. The ledger has two
+      unrelated entries both headed "SK-141" (L2780, record-analysis — matches; L11172, an
+      unrelated MigrationRunner atomicity bug — does not). The citation does not disambiguate,
+      so a future line-anchored reproduction (the norm this mission itself establishes) gets
+      two hits with no way to tell which was intended.
+    remediation: >
+      Disambiguate the SK-141 citation by line number or a short distinguishing quote,
+      consistent with the known ledger-numbering-is-unreliable condition.
+
+  - id: SPEC-GOV-003
+    lens_group: gov
+    lens: Deferred-finding tracking
+    severity: 3
+    title: "The 81-95KB governance-context disparity is a diagnosed structural defect deferred as unenforced prose, with no tracked follow-up obligation in this mission"
+    evidence:
+      - artifact: "spec.md § \"Explicit call-out: what remedy scope (2) genuinely cannot absorb in this mission\""
+      - artifact: "research.md § \"Explicit call-out: the real, larger disparity is out of THIS mission's proportionate scope\""
+      - code: "packs/built-in/directives/052-prefer-durable-fixes.directive.yaml (integrity_rules: deferring a structural remediation is compliant ONLY when recorded as a tracked follow-up behind an umbrella/epic issue with the root cause named)"
+      - code: ".kittify/charter/charter.yaml:570 and :1794 (DIRECTIVE_052 activated in this repo's charter)"
+    claim: >
+      research.md's own diagnosis surfaces a new, large, systemic finding (81-95KB governance
+      overhead, 17-19x analyze's) squarely under DIRECTIVE_052 (Prefer Durable Fixes), which is
+      activated doctrine here. DIRECTIVE_052 requires a deferred structural cause be recorded as
+      a tracked follow-up behind an umbrella/epic issue naming the root cause; a
+      diagnosed-then-silently-dropped cause is explicitly non-compliant. spec.md/research.md
+      currently only "recommend" filing a follow-up issue in prose — no FR/AC/NFR/task
+      obligates it actually happens or that the resulting issue number is recorded back into
+      spec.md.
+    remediation: >
+      Add an explicit FR/NFR requiring the orchestrator to file a GitHub issue — naming the
+      root cause, affected actions, measured magnitude, and the #5009 sequencing dependency —
+      before mission wrap-up, and to record the resulting issue number in spec.md's
+      "Dependencies & Sequencing" section.
+
+  - id: SPEC-ARCH-002
+    lens_group: arch
+    lens: canonical source / contracts
+    severity: 4
+    title: "FR-001/NFR-001 understate the override's real drift; \"behaviour preservation\" contradicts FR-001's own \"gate-semantics\" mandate"
+    evidence:
+      - artifact: "spec.md § FR-001, § NFR-001, § Edge Cases (first bullet)"
+      - code: ".kittify/overrides/missions/software-dev/command-templates/analyze.md — read-only, no-persistence, plain-markdown-report contract; no `record-analysis` step; uses `mission-run check-prerequisites` / `mission_dir`"
+      - code: "packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md — mandatory `analysis-findings/v1` YAML carrier, mandatory `record-analysis` persistence; uses `mission check-prerequisites` / `feature_dir`"
+      - artifact: "research.md § 6 (ledger check citing SK-06/43/47/63/141 as an existing record-analysis persistence/verdict-honesty defect class)"
+    claim: >
+      FR-001 frames the drift narrowly (terminology/flags, checklist/gate-semantics/
+      reporting-shape "alignment") while NFR-001 simultaneously bars changing "gate-semantics/
+      reporting shape... beyond terminology/flags" — a direct contradiction, since the real
+      drift is structural: the override implements a wholly different contract (no persistence)
+      versus canonical's mandatory `record-analysis` persistence gated on a machine-parsed
+      carrier. An implementer satisfying NFR-001 literally (shallow terminology find-and-
+      replace) would leave the override still missing the persistence step — this repo's own
+      `/spec-kitty.analyze` would remain in the same no-persistence state the issue's evidence
+      trace exhibits, defeating FR-001's stated purpose and perpetuating the exact
+      record-analysis defect class research.md's own ledger check names as already recurring.
+      Additional undocumented drift: CLI command name and JSON field name also differ
+      (`mission-run check-prerequisites`/`mission_dir` vs `mission check-prerequisites`/
+      `feature_dir`).
+    remediation: >
+      Rewrite FR-001 to explicitly scope in adopting the `analysis-findings/v1` carrier, the
+      mandatory `record-analysis` persistence step, and the CLI-command-name/JSON-field-name
+      drift. Reword NFR-001's "behaviour preservation" to mean "no ad-hoc rewrite of the
+      analysis detection/severity heuristics" rather than "no change to gate-semantics/
+      reporting shape" — bringing gate-semantics/reporting-shape to canonical parity is the fix,
+      not something to avoid.
+
+  - id: SPEC-ARCH-003
+    lens_group: arch
+    lens: reflexivity
+    severity: 3
+    title: "No acknowledgment that the shared override file is read by every concurrently-running mission's analyze step in this checkout"
+    evidence:
+      - artifact: "spec.md — the only 'concurrent'/'in-flight' language is scoped to the #5009/#4995 file-collision risk on `prompt_builder.py`, not the override file itself"
+      - artifact: "research.md § 'Explicit call-out' — same PR-collision framing only"
+      - code: "research.md § 3 confirms `resolve_command` returns the OVERRIDE tier for `.kittify/overrides/missions/software-dev/command-templates/analyze.md` for every agent running `/spec-kitty.analyze` in this checkout — not scoped per-mission"
+      - evidence: "`ls kitty-specs/ | wc -l` in this checkout returns 496 mission directories, consistent with routine concurrent-mission use"
+    claim: >
+      Operator Decision (3) directs a "behaviour-preserving" campsite-clean commit, but neither
+      spec.md nor research.md considers the effect of editing the shared override file on OTHER
+      missions concurrently mid-`/spec-kitty.analyze` (or re-resolving mid-session after a
+      pull/rebase) in the same checkout — a real operating condition on this host. Sharper given
+      SPEC-ARCH-002: the reconciliation is not cosmetic, it adds a mandatory persistence
+      contract that did not exist before, so a mid-flight mission could receive contradictory
+      instructions about whether to call `record-analysis`.
+    remediation: >
+      Add a sequencing note to spec.md: require the FR-001 commit to land atomically, and have
+      the operator check for other missions with an in-progress `analyze` step before merging —
+      or explicitly document why that residual risk is accepted as negligible.
+
+  - id: SPEC-ARCH-004
+    lens_group: arch
+    lens: doctrine pack tier correctness
+    severity: 1
+    title: "C-001's built-in placement is defensible but asserts its conclusion rather than applying the CLAUDE.md pack-tier test"
+    evidence:
+      - artifact: "spec.md § C-001"
+      - artifact: "CLAUDE.md § \"CRITICAL: Pack Tiers\" (\"does this govern consumers, or only how the core team works?\")"
+      - artifact: "packs/internal/README.md § \"Why this is a separate pack\""
+      - artifact: "kitty-specs/mission-state-audit-trail-durability-01M37PWG/traces/tooling-friction.md — sole evidence citation for FR-002, a single in-house dogfooding trace"
+    claim: >
+      Applying the CLAUDE.md test on the merits, C-001's built-in placement is justified in
+      outcome (the failure mode is orchestrating-agent behaviour toward a canonical surface, the
+      same class DIRECTIVE_044's existing Rules 1/3 already ship as built-in, not core-team
+      process). However C-001 reaches that conclusion in one unelaborated clause without
+      engaging that its entire evidence base is a single in-house trace — the exact situation
+      the CLAUDE.md test exists to catch.
+    remediation: >
+      Expand C-001 to explicitly walk the CLAUDE.md pack-tier test and distinguish this failure
+      mode from packs/internal/README.md's core-team-only examples, so the tier decision is
+      demonstrated rather than asserted.
+
+  - id: SPEC-VERIFY-001
+    lens_group: verify
+    lens: falsifiability
+    severity: 3
+    title: "SC-001 and NFR-001 fall back to an undefined \"manual structural diff\" with no pass/fail boundary"
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-001"
+      - artifact: "spec.md § Non-Functional Requirements, NFR-001"
+      - artifact: "spec.md § FR-001 (\"align checklist/gate-semantics/reporting-shape structure\" — no operational definition of \"aligned\")"
+    claim: >
+      The grep half of SC-001 is falsifiable; the "manual structural diff" half of SC-001, and
+      all of NFR-001, name no specific sections, tool/mode, or pass/fail criterion. Two
+      reviewers could reach opposite verdicts on the same reconciled file with no way to
+      adjudicate, likely causing rework/dispute inside the FR-001 work package.
+    remediation: >
+      Replace "manual structural diff" with an enumerated, checkable structural contract (e.g.
+      same ordered `###`/`##` heading list as canonical, diffed with `grep '^#'`, same named
+      execution steps) — a concrete diff invocation with a defined pass condition.
+
+  - id: SPEC-VERIFY-002
+    lens_group: verify
+    lens: silent-success
+    severity: 4
+    title: "FR-002's Acceptance Scenario tests doctrine-text presence, not the behavioral claim it is named for, and the spec does not disclose that no behavioral test is possible"
+    evidence:
+      - artifact: "spec.md § User Story 1, \"Independent Test\""
+      - artifact: "spec.md § Acceptance Scenarios, Scenario 1"
+      - artifact: "packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml (enforcement: required at top; no mechanism ties this to any runtime check — prose consumed by an LLM at prompt-render time)"
+      - code: "ripgrep across tests/, src/, packs/ for \"canonical.*bypass\", \"bypass.*canonical\", \"size assumption\", \"unverified size\" — zero hits"
+    claim: >
+      The Acceptance Scenario for the actual defect this mission is named to fix is satisfied
+      entirely by (a) grepping for new prose and (b) confirming the existing suite still passes
+      — neither exercises the behavioral claim (a future agent attempting to load/measure before
+      bypassing). This is the repo's dominant silent-success shape applied to doctrine: a change
+      reporting "done" while making zero verifiable difference to the reported defect. The spec
+      phrases this as "closing the specific gap" rather than disclosing it is advisory-only prose
+      with no enforcement mechanism available in-scope. Advisory-only doctrine is an accepted
+      charter category, but must be stated as such, not implied as an enforced fix; the
+      charter's ATDD-first discipline (C-011) requires a failing-first test pinning
+      user-observable behaviour, which is structurally impossible for FR-002 as scoped.
+    remediation: >
+      Either cite a real existing observable proxy that could be extended to assert the doctrine
+      text is consulted at the decision point, or (confirmed true here) state explicitly in
+      spec.md's Acceptance Scenario and FR-002's Status/notes: "This FR is advisory-only
+      doctrine prose; no automated test in this repository can verify an agent's future
+      prompt-following behavior against it; the Acceptance Scenario verifies only that the
+      failure-mode text exists and is syntactically valid doctrine."
+
+  - id: SPEC-VERIFY-003
+    lens_group: verify
+    lens: baseline-honesty
+    severity: 3
+    merged_with: [SPEC-ARCH-001]
+    title: "FR-002's target files are DRG-source inputs to a currently-green, hard-fail (never-skip) byte-comparison gate that the spec never names or accounts for"
+    evidence:
+      - artifact: "spec.md § FR-002 and § C-001: targets packs/built-in/tactics/canonical-source-unification.tactic.yaml and/or packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml; no mention of regenerate-graph/graph.yaml/pack-manifest anywhere in spec.md or research.md (grep, zero hits)"
+      - code: "src/specify_cli/cli/commands/doctrine.py:245-253 — `regenerate-graph [--check]` deterministically regenerates the shipped DRG; --check exits non-zero when the committed graph source is stale"
+      - code: "tests/architectural/test_doctrine_regenerate_graph_roundtrip.py:1-19 — byte-compares regenerated DRG against committed packs/built-in/**/*.graph.yaml fragments; hard-fail, never xfail/skip"
+      - artifact: "packs/built-in/directive.graph.yaml and packs/built-in/tactic.graph.yaml — derived fragments for exactly the two artifact kinds FR-002 proposes editing"
+      - code: "Verified live: `.venv/bin/spec-kitty doctrine regenerate-graph --check` on this checkout reports \"DRG graph is fresh\" (exit 0) today — pre-existing GREEN, so any regression from FR-002 would be self-inflicted"
+      - artifact: ".kittify/charter/charter.md § Doctrine Pack Tiers: \"Editing either pack trips the pack-manifest regen gate — run spec-kitty doctrine regenerate-graph after the edit.\""
+      - artifact: "CLAUDE.md § \"CRITICAL: Pack Tiers\" — same consequence documented"
+      - artifact: "spec.md § FR-002 and § Success Criteria SC-002 (no mention of a regen step) [from SPEC-ARCH-001]"
+    claim: >
+      Editing either target file makes `packs/built-in/directive.graph.yaml` and/or
+      `tactic.graph.yaml` stale relative to source — a currently-green, hard-fail architectural
+      gate. The mission's own Acceptance Scenario claim ("confirming no existing test or gate
+      regresses") is knowably false on the record as written unless a `regenerate-graph` (write
+      mode) + commit step is performed alongside FR-002. The spec applies exactly this class of
+      diagnostic rigor elsewhere (the #5009 file-collision analysis for prompt_builder.py) but
+      not to the two files FR-002 itself proposes touching, even though the charter it cites in
+      the same document names this exact consequence in plain language. This is also not
+      obviously covered by the mission's default blast-radius test policy: CLAUDE.md calls
+      tests/architectural/ mandatory only for cross-cutting changes (pytest.ini, pyproject.toml,
+      conftest, markers, packaging) — a doctrine-content-only edit under packs/built-in/ does
+      not obviously qualify, so an implementer following that guidance literally could skip the
+      regen step and land a PR that fails CI on test_doctrine_regenerate_graph_roundtrip.py /
+      test_pack_manifest_no_author_edit.py. [SPEC-ARCH-001, folded in]
+    remediation: >
+      Add an explicit line to FR-002 (and SC-002's verification method) naming the required
+      companion step: after editing the tactic/directive YAML, run `spec-kitty doctrine
+      regenerate-graph` (write mode) and commit the resulting `packs/built-in/{directive,
+      tactic}.graph.yaml` diff in the same commit; confirm `spec-kitty doctrine
+      regenerate-graph --check`, `tests/architectural/test_doctrine_regenerate_graph_roundtrip.py`,
+      and `tests/architectural/test_pack_manifest_no_author_edit.py` all pass afterward, and
+      list these as required tests for this WP regardless of the default blast-radius
+      calibration.

@@ -1,0 +1,52 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r2
+lens_group: fresh3
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R2-FRESH3-001
+    lens: Structural drift / recurring incomplete-propagation of a status signal
+    severity: 3
+    title: "Round-3's fix propagated the FR-005 ADR-blocker flag to 2 more locations (Status column, Dependencies bullet) but at least 6 other places in spec.md still describe FR-005/006/007 as settled, proceeding, or already-scoped work with no mention of the unresolved operator ruling — the same class of gap SPEC-R2-FRESH2-001 found, only partially closed"
+    evidence:
+      - artifact: "spec.md § User Story 3 (lines 437-493), entire section: the story body, \"Why this priority\", \"Independent Test\", and all three Acceptance Scenarios describe the FR-005/006/007 fix as something this mission delivers now (\"This story delivers the fix\", \"post-fix must show ≤72,000 bytes\", \"When ... renders ... Then the rendered byte count ... is ≤72,000\") with zero mention anywhere in the section of the ADR 2026-07-28-1 conflict or the operator-ruling gate"
+      - artifact: "spec.md § NFR-002 row (line 596): \"Confirmed to hold for both FR-001 ... and FR-005/006/007 (an internal rendering-algorithm change to _enforce_token_budget's existing candidate-collection contract...)\" — states this as a settled, confirmed property, no caveat"
+      - artifact: "spec.md § C-002 row (line 604): \"This mission's diff touches: ... src/charter/activation/context_renderers/token_budget.py + bootstrap_text.py (FR-005/006/007)\" — lists the FR-005 files as part of \"this mission's diff\" in the present/settled tense, no caveat"
+      - artifact: "spec.md § C-003 row (line 605): \"Confirmed by the Decision-5 investigation too: the governance-context budget fix (FR-005/006/007) does not require a new CLI command...\" — again framed as confirmed/decided, no caveat"
+      - artifact: "spec.md § Dependencies & Sequencing, #5009 bullet (line 630): \"Per Operator Decision 5, this mission's governance-context fix (FR-005/006/007) proceeds without waiting for #5009\" — \"proceeds\" with no cross-reference to the separate, still-open ADR-ruling blocker two bullets above it"
+      - artifact: "spec.md § Dependencies & Sequencing, #4995 bullet (line 631): \"This mission's FR-001/FR-002/FR-005/006/007 do not touch those files either\" — same no-caveat listing"
+      - artifact: "spec.md § \"Confirmed root cause and fix plan\" (lines 281-348), FR-005 Status column (line 587), SC-005 (line 624), and the Dependencies & Sequencing reflexivity bullet (line 633) — the four locations that DO now carry the blocker, each in different wording (\"⚠️ UNRESOLVED per SPEC-R2-FRESH-001\", \"Open — BLOCKED pending operator ruling...\", \"this sequencing note assumes FR-005's separate blocker has already been cleared\")"
+    claim: >
+      This is the same structural defect class SPEC-R2-FRESH2-001 identified (a load-bearing
+      blocker stated once in prose is not propagated to every place a reader checks
+      readiness), and round-3's fix treats it as a fixed set of two locations rather than the
+      underlying pattern. The blocker statement itself has now drifted into four different
+      wordings across four locations (the original "Confirmed root cause" prose, FR-005's
+      Status cell, SC-005's parenthetical, and the Dependencies & Sequencing bullet) — none
+      contradictory, but already showing the early signs of the "N places, each phrased
+      slightly differently" fragmentation the task brief specifically asked to check for, and
+      a future round-5 edit to any one of the four has three others to keep in sync with no
+      single source of truth. Worse, at least six OTHER locations in the same document —
+      including the entirety of User Story 3, which is the first and most natural place an
+      implementer would read to understand what to build — still describe FR-005/006/007 in
+      unqualified, present-tense, "this mission does X" language with no caveat at all. A
+      future implement-phase agent that reads User Story 3 (or NFR-002, or C-002/C-003, or the
+      #5009/#4995 dependency bullets) without also independently discovering the Requirements
+      table's Status column would have no textual signal that FR-005 cannot be implemented yet.
+      This is not a hypothetical: User Story 3 is exactly the kind of section a tasks-phase
+      or implement-phase agent skims first for scope, and it currently reads as fully
+      actionable.
+    remediation: >
+      Structural fix, not another point-patch: pick one canonical location for the FR-005
+      blocker statement (the existing "Confirmed root cause and fix plan" section is the
+      natural anchor, since it already has the full ADR analysis) and make every other
+      location — User Story 3's opening paragraph, NFR-002, C-002, C-003, the #5009/#4995
+      dependency bullets, FR-005's Status column, SC-005, and the Dependencies & Sequencing
+      bullet — reference it with an identical short tag (e.g. "BLOCKED — see 'Confirmed root
+      cause and fix plan' § ADR 2026-07-28-1 conflict") rather than each restating the
+      condition in its own words. At minimum, before this mission proceeds past spec phase,
+      add one sentence to the top of User Story 3 (its highest-traffic caveat-free location)
+      stating the FR-005/006/007 implementation is gated on the unresolved operator ruling,
+      and do the same for NFR-002/C-002/C-003 and the #5009/#4995 bullets so a reader
+      following any one narrative thread through the document reaches the same, consistently-
+      worded conclusion.

@@ -1,0 +1,53 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: pr-FRESH2-001
+    status: resolved
+    reason: >-
+      spec.md's SC-002 (2026-09-27 cycle-3 correction) now states plainly that only
+      architect-alphonso and doctrine-daphne were genuinely red-before/green-after,
+      implementer-ivan was already green from round 1, and python-pedro was already
+      green too — via specializes_from lineage inheritance from implementer-ivan's
+      _union_merge-shadowed citation, not its own file content — matching the honest
+      tracer account; the shipped test's docstring
+      (tests/doctrine/test_directive_consistency.py:579-612) carries the identical
+      corrected story. A new companion test,
+      test_size_assumption_bypass_failure_mode_in_each_profiles_own_source_file,
+      reads each of the four profiles' own source YAML directly (not through
+      resolve_profile) so a revert of any one profile's own hunk is caught. Verified
+      empirically in an isolated scratch worktree (git -C <lane> worktree add
+      .../5005-verify3-scratch HEAD @ c2471c9a8; reverted only python-pedro's own
+      DIRECTIVE_044 rationale hunk, the exact inverse of commit d8a8e5c75's diff for
+      that file; ran tests/doctrine/test_directive_consistency.py -k python_pedro with
+      the primary's .venv/bin/python): the new own-source-file test goes RED
+      (AssertionError: needle 'unverified size assumption' not found in python-pedro's
+      reverted rationale) while the rendered-reachability test stays GREEN (proving the
+      shadowing is real and the new test is what catches it) — worktree removed after.
+      Remedy stays within Decision 8's scope: documentation correction plus a new test,
+      no change to _union_merge.
+  - id: pr-FRESH2-002
+    status: resolved
+    reason: >-
+      Judged analysis-report.md at its current committed state (commit 9c6c6ea23,
+      HEAD's most recent commit touching the file; no uncommitted changes and no newer
+      commit exists as of this review). The Metrics section now reads "4
+      dropped/superseded (FR-001 superseded, FR-005/FR-006/FR-007 dropped), 3 live
+      (FR-002 open/build, FR-003 done, FR-004 open/constraint)" — arithmetically correct
+      (4+3=7) and consistent with spec.md's FR table (1 superseded + 3 dropped = 4
+      non-live; 3 live). The Coverage Summary Table now lists all 7 FR rows
+      (FR-001..FR-007, each with its disposition), restoring round-1's completeness and
+      reconciling against "Total Requirements: 7." The "Coverage % ... of the 3 live
+      FRs, 3/3" line is internally consistent with the corrected 3-live count. The
+      report's own verdict (blocked on F1, plan.md staleness) is a separate, unrelated
+      finding this ticket does not concern.
+  - id: WP01-C3-001
+    status: resolved
+    reason: >-
+      Identical remedy and identical empirical verification as pr-FRESH2-001 (same
+      underlying defect): spec.md's SC-002 and the test docstring no longer overclaim a
+      uniform red-before/green-after story, and the new
+      test_size_assumption_bypass_failure_mode_in_each_profiles_own_source_file
+      (parametrized over all four profiles) demonstrably fails when python-pedro's own
+      hunk is reverted in the isolated scratch worktree, closing the gap the finding
+      identified (a revert of python-pedro's own file previously went undetected).

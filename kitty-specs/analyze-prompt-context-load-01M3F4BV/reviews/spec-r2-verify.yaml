@@ -1,0 +1,86 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r2
+results:
+  - id: SPEC-R2-GOV-001
+    status: resolved
+    reason: >
+      spec.md's "Honest residual" paragraph now states precisely which subset becomes
+      budget-substitutable (every requires-closure Action Doctrine entry, at D2c's
+      per-artifact granularity) and shows a byte-arithmetic table (research.md §9.7.1,
+      independently re-derivable via the requires_closure-monkeypatch script) proving the
+      original <=40,000-byte SC-005 target is unreachable (floor 61,208-70,434B) and revising
+      SC-005/FR-005 to <=72,000B (24.5-26.0% reduction); the monkeypatch technique is valid
+      because bootstrap_text.py:141 calls `_pd.requires_closure(...)` where `_pd` is an alias
+      for the same `charter.activation.progressive_disclosure` module object the script
+      patches, so the substitution is live at the real call site, not a fabricated shortcut.
+      The revised target and its justification appear prominently (FR-005, SC-005, User Story
+      3's priority rationale, Acceptance Scenario 1), not buried.
+
+  - id: SPEC-R2-GOV-002
+    status: resolved
+    reason: >
+      spec.md line 10 now reads "The following five operator decisions are binding inputs to
+      this mission. Items 1-3 are reproduced verbatim..." — the count matches the five listed
+      items and the verbatim scoping is explicitly narrowed to items 1-3, resolving the
+      three-vs-five mismatch.
+
+  - id: SPEC-R2-ARCH-001
+    status: resolved
+    reason: >
+      The Edge Cases "Operator Decision 5 reflexivity" bullet (spec.md lines 464-502) now
+      states the real reason case (a) is safe is that "the compact render path never assembles
+      an Action Doctrine block at all" rather than claiming the fix is scoped to bootstrap, and
+      explicitly acknowledges `_enforce_token_budget` is shared code called from both
+      bootstrap_text.py and compact_governance.py; verified against source
+      (`grep -n _enforce_token_budget src/charter/activation/context_renderers/*.py` shows
+      exactly two call sites: bootstrap_text.py:347 and compact_governance.py:172, and
+      `_render_action_doctrine_lines` has exactly one invocation call site, bootstrap_text.py:314).
+      C-002's text-sibling list now explicitly requires (marked "required, not optional") a
+      regression test for `_render_compact_governance`'s call site asserting byte-identical
+      output pre/post-fix for analyze/accept/research and an already-loaded bootstrap action.
+
+  - id: SPEC-R2-VERIFY-005
+    status: resolved
+    reason: >
+      The corrected byte figures specify=8,002B, plan=8,308B, tasks=8,354B, implement=12,614B,
+      review=12,492B now appear verbatim in spec.md's Edge Cases bullet (lines 480-484) in
+      place of the old "~4.5-4.9 KB" claim, with that old figure explicitly rescoped to
+      analyze/accept/research's different code path; research.md §9.7.3 independently
+      re-reproduces the identical figures via `build_compact_bundle_context_result` and states
+      the correction was also applied to §9.1's citation.
+
+  - id: SPEC-R2-ARCH-002
+    status: resolved
+    reason: >
+      research.md §3.1 (new) checks all four intervening resolver tiers (LEGACY, ORG,
+      GLOBAL_MISSION, GLOBAL) for analyze.md rather than assuming they're empty, matching the
+      6-tier order verified directly against src/charter/offering/resolver.py:151-260; SC-001
+      is rewritten to carry the same "or whichever tier constant names canonical resolution"
+      hedge NFR-001 already used, resolving the unhedged/hedged inconsistency.
+
+  - id: SPEC-R2-VERIFY-001
+    status: resolved
+    reason: >
+      FR-005's "Falsifiable target" paragraph now names a single measurement quantity
+      (`build_with_scope(...).text` byte length) and explicitly states build_prompt() is "not
+      the quantity this target measures" because it prepends its own ~332-byte header and
+      template body, removing the prior dual-citation ambiguity; SC-005 and the User Story 3
+      Independent Test consistently cite the same single quantity.
+
+  - id: SPEC-R2-VERIFY-004
+    status: resolved
+    reason: >
+      FR-007 and SC-007 are rewritten to require (a) at least two distinct artifact KINDS and
+      (b) at least one non-first/non-largest swap reached only under deeper budget pressure,
+      closing the vacuous-test gap; verified against token_budget.py:634 ("Sort longest first,
+      ties broken on section_id") which confirms the original vacuous-test concern was real,
+      making the strengthened requirement substantive rather than cosmetic.
+
+  - id: SPEC-R2-VERIFY-006
+    status: resolved
+    reason: >
+      spec.md's FR-005 and User Story 3 Independent Test now both specify the exact operation
+      "the `actions` map has been cleared to `{}`", matching research.md §9.2's actual
+      operation verbatim, resolving the underspecified "cleared of the five actions' entries"
+      wording the finding flagged.

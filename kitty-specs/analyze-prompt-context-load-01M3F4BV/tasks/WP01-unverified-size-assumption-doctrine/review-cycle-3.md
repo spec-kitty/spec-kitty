@@ -1,0 +1,132 @@
+---
+affected_files: []
+cycle_number: 3
+mission_slug: analyze-prompt-context-load-01M3F4BV
+reproduction_command:
+reviewed_at: '2026-09-27T01:01:30Z'
+reviewer_agent: claude
+wp_id: WP01
+---
+
+schema: wp-verdict/v1
+complete: true
+wp: WP01
+cycle: 3
+mission: analyze-prompt-context-load-01M3F4BV
+verdict: rejected
+gates_observed:
+  ruff: pass
+  tests: pass
+  coverage: unknown
+  drg_check: pass
+  red_first_revert: fail
+  rendered_reachability: pass
+feedback:
+  - id: WP01-C3-001
+    severity: 3
+    claim: >
+      The parametrized test's own docstring overclaims RED-before evidence for the
+      python-pedro case, and this round's own scratch-worktree revert shows the test does
+      NOT prove python-pedro's own-file edit reaches rendered context at all.
+      tests/doctrine/test_directive_consistency.py:526-529 states: "RED before this round's
+      fix: three of the four cases (every profile except implementer-ivan, whose citation
+      the round-1 rework already edited) fail because those profiles' DIRECTIVE_044 citation
+      rationale does not yet mention the failure mode." This is false for python-pedro.
+      python-pedro `specializes_from` implementer-ivan (confirmed DRG edge,
+      packs/built-in/agent_profile.graph.yaml:623-625), and
+      AgentProfileRepository.resolve_profile's lineage union-merge
+      (src/charter/offering/agent_profiles/repository.py:190-204, `_union_merge`, dedup by
+      `code`) resolves a duplicate `code: "044"` key to the PARENT's (implementer-ivan's)
+      entry, never the child's (python-pedro's) own — parent items are seeded into `seen`
+      first, so the child's same-keyed item is filtered out. I reproduced this directly: in
+      an isolated scratch worktree (`git worktree add ... HEAD`, removed after), reverting
+      ONLY python-pedro's own hunk left all 4 parametrized cases GREEN, including
+      python-pedro's — proving python-pedro's own-file rationale edit is dead text in the
+      resolved/rendered path today (shadowed, not merely inert — it would only become live
+      if the specializes_from edge or implementer-ivan's own "044" citation were ever
+      removed). Reverting implementer-ivan's hunk instead flips BOTH implementer-ivan's AND
+      python-pedro's cases to RED, confirming python-pedro's green status is entirely
+      parasitic on implementer-ivan's citation. Spec.md's SC-002 makes the identical
+      overclaim ("red before each of the three newly-edited profiles' rationale edit, green
+      after"). To the fixer's credit, the LANE'S OWN COMMIT MESSAGES
+      (0da9a9b855309275e5d332c83016c2802c300633 and
+      d8a8e5c75aab609af5e80fba216fdf0f4af63efe) already state this exact nuance accurately
+      ("python-pedro also already passes, NOT because its own rationale mentions the failure
+      mode ... but because python-pedro specializes_from implementer-ivan ... confirmed
+      directly against real resolved-profile output, not asserted") — so the underlying
+      engineering evidence trail is honest. The defect is that this honest finding was never
+      carried into the two permanently-shipped, more-visible artifacts (the test docstring
+      and spec.md's SC-002/FR-002 prose), both of which instead assert a uniform
+      red-before/green-after story across all three newly-edited profiles that is factually
+      wrong for one of them — exactly the kind of unverified self-report this mission's own
+      DIRECTIVE_044 failure-mode text exists to guard against. The functional outcome is
+      still correct (an agent operating under python-pedro genuinely does receive the
+      warning, via inheritance), so this is a documentation/evidence-honesty gap, not a
+      broken deliverable.
+    remediation: >
+      Correct tests/doctrine/test_directive_consistency.py:526-529's docstring to state that
+      python-pedro was already green before this round's fix (via specializes_from
+      inheritance from implementer-ivan), not RED — matching the accurate account already in
+      commits 0da9a9b85/d8a8e5c75 — and make the same correction to spec.md's SC-002 sentence
+      ("red before each of the three newly-edited profiles' rationale edit, green after").
+      Optionally, since python-pedro's own DIRECTIVE_044 citation is currently unreachable
+      through resolve_profile's lineage merge, add a one-line note next to python-pedro's own
+      edit (or in FR-002's Status/notes) disclosing that the edit is a source-of-truth/fallback
+      addition rather than something the current lineage merge actually renders for
+      python-pedro today, so a future reader of the profile file alone is not misled.
+feedback_disposition:
+  - ref: WP01-C2-001
+    status: addressed
+    evidence: >
+      spec.md's User Story 1 "Independent Test" paragraph (lines 642-665), Acceptance
+      Scenario 1 (lines 667-679+), and C-002 (line 817) were all rewritten to name the
+      implementer-ivan.agent.yaml edit, the rendered-context test, and (further extended for
+      round 2) all four DIRECTIVE_044-citing profiles and Decision 8. No longer contradicts
+      FR-002/SC-002.
+  - ref: WP01-C2-002
+    status: addressed
+    evidence: >
+      Operator Decision 8 (spec.md lines 164-179, dated 2026-09-27, numbered and explicit)
+      retroactively authorizes the implementer-ivan edit and authorizes the 3 additional
+      profile edits. lanes.json/WP01's owned_files were deliberately not hand-edited, with an
+      explicit, disclosed rationale recorded in spec.md ("Authorized scope beyond WP01's
+      owned_files", line 819) — a reasoned technical constraint (no CLI surface to
+      re-derive write_scope for an already-materialized WP; the mission brief forbids
+      hand-editing spec-kitty state), not silent staleness. Accepted as legitimate,
+      consistent with cycle-1's WP01-C1-002 disposition for pack-manifest.yaml.
+  - ref: WP01-C2-003
+    status: correctly-retained-as-residual
+    evidence: >
+      spec.md's Independent Test paragraph and FR-002 Status/notes both explicitly state the
+      fix does not reach the mission-level orchestrating agent (agent_profile: null step
+      contracts) and cite WP01-C2-003 as an open, disclosed residual — never claimed as
+      closed.
+  - ref: WP01-C2-004
+    status: not-required
+    evidence: >
+      Severity-1 advisory in cycle 2; baseline count re-verified independently this cycle
+      (439 passed, 1 skipped across the 4 named files + test_shipped_profiles.py,
+      test_supply_chain_profile_bindings.py, test_package_smoke.py — matches the fixer's
+      claim exactly). No further action needed.
+  - ref: pr-FRESH-001
+    status: addressed
+    evidence: Same evidence as WP01-C2-001 (identical underlying finding).
+verification_notes: >
+  Reachability reproduced directly via _render_profile_sections/resolve_profile from the
+  lane (SPEC_KITTY_PACKS_ROOT=<lane>/packs, primary .venv/bin on PATH) for all 4 profiles —
+  needle present in all 4 rendered outputs. RED-FIRST performed in an isolated scratch
+  worktree (git worktree add .../5005-review3-scratch HEAD; each profile hunk reverted in
+  turn via saved patches, re-applied after; worktree removed at the end) — see WP01-C3-001
+  for the python-pedro anomaly; architect-alphonso, doctrine-daphne, and implementer-ivan all
+  revert to genuine RED as claimed. spec-kitty doctrine regenerate-graph --check and
+  spec-kitty regen --check both report fresh from the lane. pack validate packs/built-in:
+  0 errors (158 pre-existing unrelated advisories). Existing rationale text preserved
+  verbatim in all 4 profiles; appended clause textually consistent across all 4. ruff check
+  on the test file: clean. ruff format --check . (whole repo, from the lane): clean
+  (test_directive_consistency.py is a pre-existing, gated entry on the
+  [tool.ruff.format].exclude ratchet, pyproject.toml:1450 — not this WP's debt). No docs/api
+  agent_profiles pages or shipped agent-dir copies mirror directive-references rationale
+  prose, so none are stale. FR-004 respected: zero-byte diff on both analyze/prompt.md and
+  the .kittify override. No new CLI surface, no renderer/budget change — diff is exactly the
+  4 profile YAMLs, the tactic YAML, pack-manifest.yaml, and the test file. Lane git status
+  --porcelain clean at the end; scratch worktree removed.

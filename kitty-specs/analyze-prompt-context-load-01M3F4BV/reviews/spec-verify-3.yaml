@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      FR-001 now mandates a byte-for-byte verbatim full-file replacement rather than an
+      itemized list, NFR-001/SC-001 reduce verification to a single whole-file `diff`
+      producing no output, and a manual diff plus full read of both
+      `.kittify/overrides/missions/software-dev/command-templates/analyze.md` and
+      `packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md` confirms
+      canonical is self-contained (only generic project-relative paths/CLI invocations,
+      no shipped-package-path-specific content) so a verbatim copy into the override
+      location is coherent with nothing left over for a partial check to miss.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >-
+      User Story 1's "Independent Test" paragraph (spec.md lines 125-129) now explicitly
+      states that FR-001's mechanically-verified behavior change is independently tested via
+      SC-001/NFR-001's single full-file diff (Acceptance Scenario 2), alongside the unchanged
+      FR-002 untestability disclosure.

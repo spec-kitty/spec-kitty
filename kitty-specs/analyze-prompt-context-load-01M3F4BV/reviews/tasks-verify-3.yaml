@@ -1,0 +1,14 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >-
+      Commit 96c081e2e adds the required FILES... positional
+      (tests/doctrine/test_directive_consistency.py) ahead of -m in T001 step 4's
+      worked example, matching `.venv/bin/spec-kitty safe-commit --help`'s real
+      `Usage: spec-kitty safe-commit [OPTIONS] FILES...` signature confirmed live in
+      this checkout; a literal reading now succeeds instead of hitting a missing-argument
+      error, the cited path matches the WP's own Files section, and no new problem is
+      introduced.

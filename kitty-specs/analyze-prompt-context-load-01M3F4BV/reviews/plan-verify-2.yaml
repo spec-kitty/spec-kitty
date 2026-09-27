@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: The ci-modules.yml bullet's parenthetical is now a one-line forward pointer while the standalone "Correction to this Method" paragraph remains the sole canonical explanation with the select_gates()/select_modules() distinction and the frozenset({'charter'}) result intact, and neither cross-reference is left dangling.

@@ -1,0 +1,59 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: pr-FRESH-001
+    lens: spec-contradiction
+    severity: 3
+    title: >-
+      FR-002/SC-002's WP01-rework correction (implementer-ivan.agent.yaml edit) contradicts
+      unrevised User Story 1 / Acceptance Scenario 1 / C-002 sections in the same spec.md
+    evidence:
+      - artifact: "spec.md § FR-002 Status/notes (corrected 2026-09-27, commit 4f0e4fb4f)"
+      - artifact: "spec.md § SC-002 (extended 2026-09-27)"
+      - artifact: "spec.md § User Story 1, 'Independent Test' paragraph (unrevised)"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1 (unrevised)"
+      - artifact: "spec.md § C-002 (unrevised 'touches only' file list)"
+      - code: "packs/built-in/agent_profiles/implementer-ivan.agent.yaml:113-121"
+    claim: >-
+      The corrected FR-002 (commit 4f0e4fb4f) and the extended SC-002 now state that this
+      mission's WP01 rework "also edits packs/built-in/agent_profiles/implementer-ivan.agent.yaml's
+      DIRECTIVE_044 citation rationale" and that this profile edit is "the actual, verified
+      delivery path" — superseding the original claim that only the tactic/directive files
+      mattered. However, three other spec sections were never updated to match and now directly
+      contradict this correction: (1) User Story 1's "Independent Test" paragraph still says
+      this FR's Independent Test verifies only "(a) the new failure-mode entry exists verbatim
+      in canonical-source-unification.tactic.yaml and/or 044-canonical-sources-and-unification.
+      directive.yaml" and explicitly claims "no new CLI ... no automated test in this repository
+      can verify ... [the text] reaches rendered agent context" — the second half of that claim
+      is now false, since test_size_assumption_bypass_failure_mode_reaches_rendered_profile_context
+      does exactly that. (2) Acceptance Scenario 1 (the only Acceptance Scenario left under User
+      Story 1) still only names "the pack is loaded (regenerate-graph --check and pack
+      validation)" as the verification method and never mentions the profile edit or the
+      rendered-context test that FR-002's own corrected text calls "Its Acceptance Scenario ...
+      verifies both that the failure-mode text exists ... and that it reaches this rendered
+      surface" — that claim about what the Acceptance Scenario verifies is itself inaccurate,
+      since the Acceptance Scenario text was never edited to say so. (3) C-002's sequencing/
+      overlap section states "This mission's diff now touches only: [tactic file] and/or
+      [directive file] plus their regenerated graph fragments ... plus test siblings
+      test_doctrine_regenerate_graph_roundtrip.py and test_pack_manifest_no_author_edit.py" —
+      this list omits packs/built-in/agent_profiles/implementer-ivan.agent.yaml and
+      tests/doctrine/test_directive_consistency.py entirely, even though SC-002 (a few lines
+      below it) requires the profile edit. C-002's own "Live open-PR overlap re-check" was run
+      only against the old, narrower file set and was never re-run against
+      implementer-ivan.agent.yaml — a materially different, more central file than the tactic/
+      directive files, for the same six open PRs C-002 audited. (Live re-check performed during
+      this review against today's actual open PRs (#5161, #5137, #5028, #5009, #4995) found no
+      file-level overlap, so there is no active collision today — but C-002's own stated
+      verification method was not honored for the added file, so the spec's claim of a checked
+      sequencing risk is currently unsupported for that file.)
+    remediation: >-
+      Update User Story 1's "Independent Test" paragraph and Acceptance Scenario 1 to name the
+      implementer-ivan.agent.yaml edit and the new rendered-context test as part of FR-002's
+      verification, and correct the sentence claiming no test can verify the text reaching
+      rendered context. Update C-002's "touches only" file list to include
+      packs/built-in/agent_profiles/implementer-ivan.agent.yaml and
+      tests/doctrine/test_directive_consistency.py, and re-run (or explicitly note as re-run)
+      the live open-PR overlap check against that file for the current open-PR set.

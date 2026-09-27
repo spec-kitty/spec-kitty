@@ -1,0 +1,38 @@
+# review-findings/v1 — R2 merged/deduped output (mechanical merge, no judgment applied).
+schema: review-findings/v1
+complete: true
+phase: plan-r2
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: PLAN-R2-ARCH-001
+    lens: generated-artifacts
+    severity: 3
+    title: "'Generated artifacts' procedure wrongly implies regenerate-graph will produce a diff to commit for a failure_modes/procedures-only edit; empirically it produces none, and --check stays green even without regenerating"
+    evidence:
+      - artifact: "plan.md § Generated artifacts and their regenerating command, step 3 (\"Commit the resulting packs/built-in/{tactic,directive}.graph.yaml diff in the same commit as the source YAML edit ... a source-only commit would leave the DRG stale for one commit, tripping the freshness gate on any intermediate checkout\")"
+      - code: "src/charter/offering/drg/ (grep -rl 'failure_modes' and grep -rl 'procedures' both return zero files — neither field is consumed by the DRG extractor at all)"
+      - code: "packs/built-in/tactic.graph.yaml:71-73 (tactic node carries only urn/kind/label; no failure_modes projection) and :620-623 (edge carries only source/target/relation/when)"
+    claim: >
+      Independently reproduced in a throwaway worktree: added one new failure_modes entry to
+      packs/built-in/tactics/canonical-source-unification.tactic.yaml (the exact kind of edit
+      FR-002 makes) and, BEFORE running any regeneration, ran
+      `spec-kitty doctrine regenerate-graph --check` — it printed "DRG graph is fresh" and
+      exited 0. Running `spec-kitty doctrine regenerate-graph` in write mode afterward produced
+      a `git diff --stat` of zero lines for both `packs/built-in/tactic.graph.yaml` and
+      `packs/built-in/directive.graph.yaml`. Repeating with a new `procedures` entry on the
+      directive file produced the identical result. Neither field participates in the DRG
+      node/edge extraction schema. Plan.md's binding step 3 tells the implementer to expect a
+      graph diff and treats skipping the regenerate step as risking a "stale... tripping the
+      freshness gate" outcome — for FR-002's specific edit, this is not what happens: there is
+      no diff, and the freshness gate does not go stale even without regenerating. Following the
+      letter of the procedure (run it anyway) is harmless, but the stated rationale is factually
+      wrong for this changeset.
+    remediation: >
+      Adjust plan.md's "Generated artifacts" section to state plainly that for a
+      failure_modes/procedures-only edit, `spec-kitty doctrine regenerate-graph` in write mode
+      is expected to produce NO diff (these fields are not part of the DRG's node/edge
+      projection), and that `--check` will already report fresh immediately after the source
+      edit, with no regeneration required for this specific field set. Keep step 2 (run
+      regenerate-graph anyway) as defense-in-depth / doctrine-editing discipline consistent with
+      any doctrine-source change, but drop or correct the specific claim that skipping it "would
+      leave the DRG stale... tripping the freshness gate" for this changeset.

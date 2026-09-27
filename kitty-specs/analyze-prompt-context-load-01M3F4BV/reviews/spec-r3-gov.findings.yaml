@@ -1,0 +1,118 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r3
+lens_group: gov
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R3-GOV-001
+    lens: Scope
+    severity: 2
+    title: "NFR-003's title still names the dropped governance-context fix; its actual (post-Decision-6) content is a sequencing statement duplicating C-002, inviting an FR-token-scan false positive of the SK-277 kind"
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements, NFR-003 row title: \"Governance-context fix seam and PR #5009 overlap\""
+      - artifact: "spec.md § NFR-003 body: \"Per Decision 6, the governance-context budget fix (FR-005/006/007) this NFR originally analyzed for PR #5009 file-level overlap is not implemented in this mission ... The overlap discussion is therefore moot for this mission's actual diff, which touches only the override deletion (FR-001) and the doctrine pack files (FR-002) — neither of which overlaps PR #5009's or PR #4995's diffs.\""
+      - artifact: "spec.md § C-002 (Constraints table), which independently states the same FR-001/FR-002-vs-#5009/#4995 no-overlap conclusion in full detail"
+      - artifact: "SPEC-KITTY-LEDGER.md SK-277 (\"The terminus retrospective's FR-coverage gap check counts cross-mission FR citations as local, uncovered requirements\" — \"The gap detector treats any FR-\\d+ token in the spec as a local requirement\")"
+    claim: >
+      Decision 6 drops FR-005/006/007 from this mission's scope entirely, so the governance-context
+      fix NFR-003 was written to analyze no longer exists as a deliverable in this mission. NFR-003's
+      row title ("Governance-context fix seam and PR #5009 overlap") was not updated to match: the
+      body now explicitly says the fix "is not implemented" and the overlap discussion "is moot,"
+      leaving the row's only live content the FR-001/FR-002-vs-open-PRs sequencing check that C-002
+      already states, in more detail, under its own title. Keeping this now-vestigial row in the
+      active Non-Functional Requirements table (rather than in a historical block or folded into
+      C-002) is a real gap, not merely stylistic: SK-277 is a live, ledger-recorded defect in this
+      same tooling family (the retrospective's FR-coverage gap detector) that treats *any* `FR-\d+`
+      token appearing anywhere in a spec's prose as a local, uncovered requirement needing WP
+      coverage, regardless of context. NFR-003's body is one of several active (non-historical,
+      non-"Known residual") locations in this spec that spell out "FR-005/006/007" in full — a
+      future post-merge retrospective pass over this mission is exactly the kind of automated scan
+      SK-277 already documents as fooled by such tokens, and NFR-003 in particular no longer earns
+      its keep as a distinct, live requirement once its content is fully subsumed by C-002.
+    remediation: >
+      Either delete NFR-003 as superseded by C-002 (which already carries the identical, more
+      detailed FR-001/FR-002-vs-#5009/#4995 no-overlap conclusion) and note its removal in the same
+      place Decision 6's other supersessions are tracked, or retitle it to describe what it now
+      actually asserts (e.g. "Sequencing: FR-001/FR-002 diff has no file-level overlap with open PRs
+      #5009/#4995") so a reader scanning NFR titles is not misled into thinking the governance-context
+      fix seam is still being analyzed as live scope. Either way, this removes one more literal
+      "FR-005/006/007" occurrence from an active (non-historical) table row, reducing this spec's
+      exposure to the SK-277 false-positive pattern on the next retrospective pass.
+
+  - id: SPEC-R3-GOV-002
+    lens: Directive compliance
+    severity: 2
+    title: "FR-002/SC-002's \"and/or\" between the tactic and directive files leaves the actual doctrine-file target(s) for the companion regenerate-graph step ambiguous"
+    evidence:
+      - artifact: "spec.md § FR-002 (Requirements table): \"Add a new failure-mode entry (and/or procedure line) to the existing packs/built-in/tactics/canonical-source-unification.tactic.yaml and/or packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml\""
+      - artifact: "spec.md § SC-002: \"packs/built-in/tactics/canonical-source-unification.tactic.yaml and/or packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml contains an explicit failure-mode entry...\""
+      - code: "packs/built-in/tactics/canonical-source-unification.tactic.yaml (exists)"
+      - code: "packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml (exists)"
+    claim: >
+      FR-002 and SC-002 both leave the doctrine-file target as "tactic file and/or directive file,"
+      never committing to one, the other, or both. Both files exist and are independently editable
+      DRG-source inputs; the required companion step (regenerate-graph in write mode, committing the
+      resulting `.graph.yaml` diff) applies identically regardless of which file(s) are touched, so
+      the ambiguity does not risk a broken pipeline — but it does leave a WP implementer to decide,
+      unguided by the spec, whether editing only one file (and, if so, which) satisfies SC-002, or
+      whether both must carry the entry for "verbatim... reviewable by any future doctrine reader"
+      to hold. A reviewer checking SC-002 post-implementation has no spec-stated basis to say a
+      single-file edit is sufficient (or insufficient) versus a change that split the entry
+      inconsistently across both files.
+    remediation: >
+      Pick one (or explicitly both) before implementation: e.g., "the tactic file carries the
+      failure-mode entry; the directive file's Rule 1/Rule 3 text may optionally cross-reference it,
+      but the tactic file alone satisfies SC-002," or the converse. This is a small, single-sentence
+      fix that removes an avoidable implementation-time judgment call without touching the
+      substance of FR-002/SC-002.
+
+findings_complete_note: >
+  Decision fidelity: spec.md's Decision 6 (Clarifications / Decisions item 6) is verbatim-identical
+  to the operator text quoted in this review's brief, word for word, including the "supersedes
+  Decision 5's in-mission implementation" framing in its own heading and the explicit statement
+  that "Decisions 1-5 otherwise stand unmodified as history" (labeled as the orchestrator's own
+  gloss, not operator text, as required). Decision 5's own item text (item 5) is unaltered from its
+  original wording and only superseded by the new item 6 below it, per instructions. The intro
+  sentence now correctly says "six operator decisions" (fixing SPEC-R2-GOV-002 from the prior
+  round) and explicitly distinguishes which items are dispatch-verbatim (1-3) vs.
+  later-communication-verbatim (4-6) vs. orchestrator gloss.
+  Scope: grepped FR-005/FR-006/FR-007/SC-005/SC-006/SC-007/BLOCKED markers across spec.md; the
+  active Functional Requirements table (FR-001..FR-004), Success Criteria list (SC-001..SC-004),
+  and Constraints table (C-001..C-003) contain no FR-005/006/007 or SC-005/006/007 rows — both
+  round-2/round-4 design blocks are fully contained inside two separately-closed, clearly-labeled
+  `<details>` blocks ("Historical text (superseded, kept for audit trail — do not re-implement
+  from this)"). The retired Edge Cases bullet is explicitly marked "this bullet is retired." One
+  scope-hygiene gap is filed above (SPEC-R3-GOV-001).
+  Directive compliance: C-001's pack-tier justification for FR-002 (packs/built-in/) walks
+  CLAUDE.md's own "does this govern consumers, or only how the core team works?" test on the
+  merits (generic bypass-on-unverified-size-assumption behavior, not core-team-specific) rather
+  than asserting the conclusion, and self-flags its thin single-trace evidence base; verified the
+  cited evidence trace (kitty-specs/mission-state-audit-trail-durability-01M37PWG/traces/tooling-friction.md:7)
+  quotes the agent's actual words verbatim. FR-002's required companion step (regenerate-graph
+  write mode + the two named tests) matches real, existing tooling
+  (tests/architectural/test_doctrine_regenerate_graph_roundtrip.py,
+  tests/architectural/test_pack_manifest_no_author_edit.py, src/specify_cli/cli/commands/doctrine.py
+  regenerate-graph command all confirmed present). One doctrine-target ambiguity is filed above
+  (SPEC-R3-GOV-002).
+  Terminology: no `--feature`/`feature*` alias usage in spec.md; the sole bare "feature" hit
+  ("Key Entities *(include if feature involves data)*") is verbatim canonical spec-template
+  boilerplate (packs/built-in/missions/software-dev/templates/spec-template.md:113), not
+  mission-authored text — confirmed by direct diff against the template, consistent with round 2's
+  same finding.
+  Public-repo: `grep -rn "/home/" kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md
+  kitty-specs/analyze-prompt-context-load-01M3F4BV/research.md` returns zero hits (verified
+  directly, exit code 1/no matches). No operator/customer names appear in either artifact (the
+  ADR's "Deciders: Operator (Stijn Dejongh)" line lives in docs/adr/3.x/2026-07-28-1-...md, a
+  pre-existing file this mission only cites by path/status, never quotes that line from).
+  Ledger: SK-276 (SPEC-KITTY-LEDGER.md) matches spec.md's account exactly — "Mission #5005 deletes
+  the analyze override only (operator decision). The other nine are still shadowing," consistent
+  with spec.md's Dependencies & Sequencing "Ledger residual (Operator Decision 4)" bullet and
+  Decision 4's own text. No separate governance-context ledger entry exists yet (the two
+  `governance_context` ledger hits are an unrelated Op-dispatch capsule field, confirmed by
+  research.md § 6 and independently re-checked here); Decision 6 routes the residual to a #5005
+  comment instead of a ledger entry, which is consistent with the operator's own verbatim
+  instruction, not a contradiction of SK-276 or any other entry.
+  Mission-derived lens (orchestrator-future-action framing): all three "will post"/"orchestrator
+  will"/"orchestrator drafts" occurrences (Decision 2 gloss, Decision 6, Known residual section,
+  C-003) describe a future orchestrator action outside this mission's implementation scope, never
+  claimed as already done and never assigned to an FR or WP — confirmed clean, no finding.

@@ -1,0 +1,53 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: order
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: TASKS-ORDER-001
+    lens: Phasing (dependency order / risky work front-loaded)
+    severity: 3
+    title: WP01's subtask presentation order and Objective wording put the doctrine edit (T001) before the red-first test (T003), contradicting the charter's ATDD-first discipline and plan.md's own worked-out red-before sequencing
+    evidence:
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md § Objective"
+        quote: "Add one new failure-mode entry (and/or one procedure line) to the existing built-in canonical-source-unification doctrine pair... then regenerate the doctrine pack's DRG graph fragments in write mode and add a red-first content test proving the text landed."
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md § Subtask T003, step 3"
+        quote: "Before landing T001's content edit, confirm this test is genuinely RED (run it against the pre-edit files...)."
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks.md § WP01"
+        quote: "Subtasks: T001, T002, T003, T004"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/wps.yaml:11-15"
+      - code: ".kittify/charter/charter.md § ATDD-First Discipline (C-011)"
+        quote: "The WP cannot start coding until at least one failing-first ATDD test exists that pins the user-observable behaviour the WP delivers. The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commits."
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/plan.md § Red-first tests per changed behaviour"
+        quote: "A new test function... was staged into this file this pass to verify it for real, then reverted... Confirmed genuinely RED this pass... The test was then reverted from the working tree... ready to be (re-)added verbatim during FR-002's implementation phase"
+    claim: >
+      The WP's subtask numbering (T001=content edit, T002=DRG regen, T003=add red-first
+      test, T004=companion tests) and its Objective sentence both present the doctrine-source
+      edit as happening BEFORE the red-first test is authored ("then... add a red-first
+      content test proving the text landed"). This is the opposite of the charter's binding
+      C-011 ATDD-first requirement (test committed BEFORE the implementation commit) and the
+      opposite of what plan.md's own "Red-first tests" section actually did during planning
+      (it staged the test FIRST, confirmed it genuinely RED against the pre-edit files, THEN
+      reverted it, intending it to be added again during implementation — test-first, edit
+      second). The only place this correct order is stated is buried inside T003 step 3
+      ("Before landing T001's content edit, confirm this test is genuinely RED"), which
+      contradicts the subtask list's own literal top-to-bottom order and the Objective's
+      wording. An implementer following the natural T001→T002→T003→T004 reading (reinforced
+      by the Objective sentence and the Definition of Done's same T001-then-T002-then-T003
+      ordering) would land the content edit as its own commit before the test exists at all,
+      violating C-011's "committed as a separate commit... BEFORE any implementation commits"
+      requirement, and would then have to either fabricate a RED-before claim post-hoc or
+      redo work (revert the content edit, add the test, re-verify RED, re-apply the edit) to
+      produce the genuine RED-before/GREEN-after evidence the WP's own Reviewer Guidance
+      section demands.
+    remediation: >
+      Reorder WP01's subtasks so the red-first test subtask is listed and executed first:
+      renumber the current T003 (add red-first content test, verify RED) as the WP's first
+      subtask, followed by the content edit (current T001), then DRG regeneration (current
+      T002), then the companion-test confirmation (current T004) — matching plan.md's own
+      test-first sequence and C-011. Alternatively, if renumbering is undesirable, rewrite the
+      Objective sentence and Definition of Done to state the test-first order explicitly
+      ("first add the red-first content test and confirm it is RED against the pre-edit
+      files, then add the failure-mode entry, then regenerate the DRG graph") and add an
+      explicit note at the top of T001 pointing back to T003's red-first requirement, so no
+      reading of the WP (Objective, subtask list, or DoD) implies edit-then-test.

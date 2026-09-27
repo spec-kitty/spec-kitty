@@ -1,0 +1,65 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: TASKS-DECOMP-001
+    lens: work-package-decomposition
+    severity: 4
+    title: "requirement_refs bundles FR-001/FR-003/FR-005 (not implemented by WP01) in machine-readable metadata that this repo's own review checklist will check for test coverage"
+    evidence:
+      - artifact: "tasks.md § WP01 (Requirement Refs: FR-002, FR-001, FR-003, FR-004, FR-005)"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/wps.yaml:9-14"
+      - code: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md:6-12 (frontmatter requirement_refs)"
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md § Context, 'Note on FR-005 in this WP's requirement_refs' paragraph"
+      - code: "docs/guides/how-to/missions/use-wps-yaml-manifest.md:82 — \"requirement_refs | No | Requirement IDs from spec.md this WP implements\""
+      - code: "packs/built-in/missions/mission-steps/software-dev/review/prompt.md:217-220 — checklist item 4: \"FR coverage: every FR in requirement_refs has at least one test assertion that references the behavior it names, not just a comment or frontmatter entry.\""
+      - code: "packs/built-in/missions/mission-steps/software-dev/review/prompt.md:248-249 — \"every FR row in this WP's requirement_refs marked *no-op passable? yes* names a control that exists in the diff.\""
+      - code: "src/specify_cli/requirement_mapping.py:81-101 (_declared_ids: bold-bullet-lead heuristic fires on any '- **FR-NNN' line regardless of in/out-of-scope wording; only the first id per line is captured, which is why FR-006/FR-007 — named on the same spec.md:543 line after FR-005 — are correctly absent from requirement_refs while FR-005 is present)"
+    claim: >
+      wps.yaml/tasks.md's requirement_refs field for WP01 lists FR-001, FR-003, FR-004, and
+      FR-005 alongside FR-002, the only FR this WP actually builds. Verified against spec.md's
+      own FR table: FR-001 is Superseded/no-op (Decision 7 — no code change at all, not merely
+      untested), FR-003 was already delivered by the prior research/spec phase (research.md),
+      not by this WP's diff, and FR-005 is explicitly out of scope per Decision 6 (dropped
+      entirely, no implementation). FR-004 is a negative constraint with only a manual
+      git-diff check, not a test assertion. The WP01 prompt body's Context section honestly
+      explains this is a documented workaround for a real parser limitation in
+      `finalize-tasks --validate-only`'s requirement-mapping check (confirmed by reading
+      `_declared_ids` in requirement_mapping.py: its bold-bullet-lead pattern matches spec.md's
+      own "- **FR-005/006/007 ... stay out of scope..." line regardless of the "out of scope"
+      wording, and its documented "first id per line" `break` behavior is exactly why FR-005 —
+      not FR-006/FR-007, which sit later on the same line — ends up in requirement_refs). That
+      root-cause explanation is genuine and independently verified, not fabricated.
+
+      However, this repo's own review/prompt.md defines requirement_refs' review-time contract:
+      checklist item 4 requires "every FR in requirement_refs [to have] at least one test
+      assertion that references the behavior it names," and item 4b's own escape hatch requires
+      a per-FR "no-op passable? yes" marker naming "a control that exists in the diff" for any
+      ref that is exempted from that rule. WP01's wps.yaml/tasks.md/frontmatter — the
+      machine-readable surfaces a reviewer or downstream tool consults first — carry no such
+      per-FR marker for FR-001/FR-003/FR-005 anywhere in those files; the only explanation lives
+      in WP01.md's prose Context section, several hundred words deep, not in a form the review
+      checklist's own literal criterion recognizes. A reviewer (or any future automated
+      FR-coverage/dashboard tool) applying criterion 4/4b mechanically would either wrongly FAIL
+      this otherwise-correct WP for "FR without coverage" on three refs it never intended to
+      cover, or would have to silently waive the checklist without a recorded control — exactly
+      the "documentation drifts from what other tooling trusts" failure mode this WP's own C-001
+      analysis is careful to avoid elsewhere. This is a genuine, if well-intentioned, decomposition
+      hygiene defect distinct from the underlying tooling bug (already separately tracked
+      upstream: `docs/reports/tracer-friction-recon/2026-09-26/coverage-matrix.md` records filed
+      issue #5065, "Requirement lifecycle status," for exactly this class of gap).
+    remediation: >
+      Add the per-FR "no-op passable? yes — control: <cite>" annotation the review checklist's
+      §4b already recognizes directly into WP01's Definition of Done / Reviewer Guidance section
+      (or a new small "Requirement disposition" table) for each of FR-001 ("no-op passable? yes —
+      control: no diff at all, per Decision 7"), FR-003 ("no-op passable? yes — control:
+      research.md, delivered pre-WP"), and FR-005 ("no-op passable? yes — control: not
+      implemented by design, Decision 6; listed only per the documented finalize-tasks parser
+      quirk"), so a reviewer applying criterion 4/4b mechanically finds the disposition in the
+      form the checklist expects instead of having to locate and interpret free prose elsewhere.
+      Separately, since the underlying cause is a real `finalize-tasks --validate-only` gap, cite
+      the already-filed upstream issue #5065 from WP01's Context note (it currently explains the
+      parser quirk without pointing at the tracked fix), so a future reader knows this workaround
+      is temporary and where its retirement is tracked.

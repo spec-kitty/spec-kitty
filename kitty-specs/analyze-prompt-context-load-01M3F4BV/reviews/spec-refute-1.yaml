@@ -1,0 +1,33 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "Live grep -n \"governance_context\" SPEC-KITTY-LEDGER.md returns exactly two hits (L350, L5733, both unrelated Op-dispatch fields), contradicting research.md's stated \"zero hits\"."
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: "Live grep confirms two distinct \"### SK-141\" headings (L2780 record-analysis, matching; L11172 MigrationRunner atomicity, unrelated) and research.md's citation does not disambiguate which one it means."
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: "DIRECTIVE_052 is activated in charter.yaml and its integrity_rules verbatim state that a diagnosed-then-silently-dropped structural cause is non-compliant unless recorded as a tracked follow-up behind an umbrella issue, yet spec.md/research.md only phrase the follow-up as an unenforced prose \"Recommendation,\" with no FR/AC/NFR obligating it."
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: "Direct diff of the two files confirms the override is read-only/no-persistence/plain-markdown using \"mission-run check-prerequisites\"/mission_dir, while canonical mandates the analysis-findings/v1 carrier and record-analysis persistence using \"mission check-prerequisites\"/feature_dir — a structural drift NFR-001's \"beyond terminology/flags\" cap would block an implementer from closing under a literal reading."
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: "kitty-specs/ contains 496 mission directories confirming routine concurrent-mission use in this checkout, and spec.md/research.md's only concurrency language is scoped to the #5009/#4995 PR-collision framing, never to the shared override file's exposure to other concurrently in-flight missions' analyze steps."
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: "spec.md's C-001 is a single unelaborated clause asserting its conclusion without walking the CLAUDE.md pack-tier test or engaging packs/internal/README.md's core-team-only framing, and FR-002's sole cited evidence is indeed one in-house trace file."
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: "spec.md's SC-001 and NFR-001 text, read verbatim, name only an undefined \"manual structural diff\" / \"diffing... structural sections\" with no enumerated headings, tool, or pass/fail boundary."
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: "spec.md's Independent Test and Acceptance Scenario 1 for User Story 1 are satisfied by doctrine-text presence plus \"no existing test or gate regresses\"; DIRECTIVE_044 is enforcement:required prose with no runtime hook, a grep for the eventual failure-mode phrasing returns zero hits, and the charter's C-011 ATDD-first discipline is real and confirmed, so no behavioral test is possible as scoped and spec.md does not disclose this."
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: "Live run of .venv/bin/spec-kitty doctrine regenerate-graph --check reports \"DRG graph is fresh\" (exit 0) today, packs/built-in/directive.graph.yaml and tactic.graph.yaml exist as committed derived fragments, and spec.md/research.md contain zero mentions of regenerate-graph/graph.yaml/pack-manifest despite CLAUDE.md and charter.md both documenting that editing packs/built-in/ trips this gate."

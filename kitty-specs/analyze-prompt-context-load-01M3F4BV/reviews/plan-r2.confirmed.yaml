@@ -1,0 +1,17 @@
+# review-findings/v1 — R3 confirmed subset (merged findings whose refute verdict was `confirmed`).
+# Source: plan-r2.merged.yaml + plan-r2-refute-1.yaml.
+# PLAN-R2-ARCH-001 was REFUTED (not confirmed): the refuter independently reproduced the same
+# experiment and found regenerate-graph --check DOES report "stale" immediately after a
+# failure_modes-only edit (contradicting the arch lens's "fresh" observation), and write-mode
+# regeneration DOES produce a real diff in packs/built-in/pack-manifest.yaml (content_hash /
+# manifest_hash fields) — the artifact the freshness gate actually consults — even though
+# tactic.graph.yaml / directive.graph.yaml themselves show no diff (that narrower sub-claim was
+# correct but not the finding's headline claim). The refuter also found the arch lens's own
+# supporting grep ("procedures" returns zero files under src/charter/offering/drg/) was itself
+# inaccurate (4 files actually match). Net: plan.md's step 3 statement stands as factually
+# correct; no plan.md change is warranted. See reviews/plan-r2-refute-1.yaml for full evidence.
+schema: review-findings/v1
+complete: true
+phase: plan-r2
+mission: analyze-prompt-context-load-01M3F4BV
+findings: []

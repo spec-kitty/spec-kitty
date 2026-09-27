@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r3
+results:
+  - id: SPEC-R3-FRESH2-001
+    status: resolved
+    reason: research.md §9.7.2 now reads "(compact path)" instead of "(compact path, case (a))", and a whole-repo grep of spec.md/research.md for "case (a)"/"case (b)" returns zero hits, so the orphaned label is gone.
+  - id: SPEC-R3-FRESH2-002
+    status: resolved
+    reason: The DIRECTIVE_052 paragraph now explicitly proposes opening a new, distinct umbrella/epic issue rather than treating #5005 as its own umbrella, states plainly that "#5005 closes normally on this mission's merge," and a broad grep of every "#5005" hit in spec.md shows none contradict that closes-normally framing.

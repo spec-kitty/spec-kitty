@@ -1,0 +1,35 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r4
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R4-FRESH-001
+    lens: fresh-sweep
+    severity: 2
+    title: Decision 7's gloss cites a "SUPERSEDED banner" convention for Decision 4 that was never applied to it
+    evidence:
+      - artifact: "spec.md § Clarifications/Decisions, item 4 (\"Override handling ... binding, supersedes part of item 3/FR-001 above\")"
+      - artifact: "spec.md § Clarifications/Decisions, item 7's orchestrator gloss (\"Decision 4 is itself now superseded by this decision (kept as history, not deleted from the record, the same convention already used for Decision 5/6's \\\"SUPERSEDED\\\" banners below).\")"
+      - artifact: "spec.md, the only two literal \"### SUPERSEDED (Operator Decision N...)\" headings in the file, both under \"## Confirmed diagnosis\" (Decision 5's and Decision 6's)"
+    claim: >
+      Decision 7's gloss says Decision 4 is being kept-as-history "the same convention already
+      used for Decision 5/6's 'SUPERSEDED' banners below" — but no equivalent banner (e.g. a
+      "### SUPERSEDED (Operator Decision 7, 2026-09-26)" heading, or even an inline retraction
+      note) was actually added over Decision 4's own text (item 4 in the Clarifications list,
+      lines ~51-71). Decision 4's paragraph still reads as plain, unqualified "binding" text with
+      no marker that it is now superseded — unlike Decision 5's and 6's superseded content, which
+      each sit under an explicit "### SUPERSEDED (Operator Decision N...)" heading placed
+      immediately before them. The cited precedent doesn't actually match what was done to
+      Decision 4, so the claim is inaccurate on its own terms (a documentation-accuracy gap this
+      fix round introduces, not a scope/behavior defect — the actual remaining build scope is
+      unambiguous from the "Remaining scope after Operator Decision 7" section and the
+      FR/NFR/SC table rows, which are correctly marked "Superseded").
+    remediation: >
+      Either (a) add a one-line inline marker directly on item 4 (e.g. "**Superseded by Decision
+      7 below — kept verbatim as history.**") so a reader scanning the Clarifications list top-to-
+      bottom sees it in place, matching the literal banner convention Decision 5/6 use, or (b)
+      soften Decision 7's gloss to stop claiming an already-applied "same convention" and instead
+      say plainly that Decision 4's text is left unannotated in place (consistent with how
+      Decision 5's and 6's own itemized entries — as opposed to their expanded historical
+      sections — are also left unannotated).

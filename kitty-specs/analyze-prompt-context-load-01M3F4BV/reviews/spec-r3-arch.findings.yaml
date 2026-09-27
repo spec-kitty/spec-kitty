@@ -1,0 +1,51 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r3
+lens_group: arch
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R3-ARCH-001
+    lens: Reflexivity / FR-001 blast-radius verification
+    severity: 3
+    title: "New Edge Cases 'Read-only check' bullet's grep-scope claim is false as literally written"
+    evidence:
+      - artifact: "spec.md § Edge Cases — 'Read-only check (per mission brief): is anything else in the live codebase affected by the FR-001 deletion?'"
+      - code: "tests/doctrine/test_resolver.py:245"
+      - code: "docs/plans/testing/ci-coverage-union-audit.md:92"
+    claim: >
+      This bullet is new in round 3 (absent from HEAD~1's spec.md; confirmed via `git show
+      HEAD~1:.../spec.md | grep -n "Read-only check"` → no output). It asserts: "a repo-wide grep
+      of `src/`, `packs/`, `docs/`, `tests/`, `scripts/` for the override path found zero hits
+      outside this mission's own `kitty-specs/` directory and other, unrelated historical mission
+      directories under `kitty-specs/`." Re-running the exact grep (`grep -rl
+      "overrides/missions/software-dev/command-templates" src/ packs/ docs/ tests/ scripts/`)
+      finds FOUR hits outside `kitty-specs/`: `tests/doctrine/test_resolver.py:245` (a docstring
+      referencing the mission-scoped-override path pattern using `implement.md` as its example
+      filename, inside a `tmp_path`-fixture test — unrelated to the live `analyze.md` file being
+      deleted), `docs/plans/testing/ci-coverage-union-audit.md:92,94,96,99,101,103` (stale
+      pytest-node-id captures referencing `tasks.md`, not `analyze.md`, from an old worktree
+      path), and two JSON census files under `docs/reports/test-sanitation/...`. None of these
+      hits are actually affected by deleting `.kittify/overrides/missions/software-dev/
+      command-templates/analyze.md` — they reference a different filename or a self-contained
+      test fixture — so the bullet's ultimate conclusion (no live blast radius) still holds on
+      the merits. But the bullet's own stated verification method ("zero hits outside ...
+      kitty-specs/") is factually false as written: it did not run the grep it claims to have
+      run, or mischaracterized the result. This is exactly the "unverified assertion" defect
+      class this mission's own diagnosis criticizes (research.md § 1: "the agent's own unverified
+      assertion, not a measurement") and that the charter's Quality & Tech-Debt Standing Order #4
+      ("live evidence over 'looks fixed'") and the mission's own "measure, don't assert" thesis
+      (invoked repeatedly in research.md §§4-9, e.g. the corrected "smallest of 8 actions" claim
+      and the corrected ledger-grep claim in research.md § 6) exist to prevent. A reviewer or
+      future maintainer treating this bullet as the audit trail for "FR-001 has no other blast
+      radius" would be relying on a claim that does not survive re-execution.
+    remediation: >
+      Re-run the grep as literally described, list the actual hits found (even if each is then
+      individually dispositioned as inert — different filename, self-contained fixture, or stale
+      report artifact), and rewrite the bullet's conclusion to match the real result (e.g. "N hits
+      found outside kitty-specs/; each is either a different filename (`tasks.md`/`implement.md`,
+      not `analyze.md`) or a self-contained `tmp_path` test fixture, none referencing the live
+      `analyze.md` override path — see the classification below") rather than asserting "zero
+      hits." Alternatively, narrow the grep to the literal `analyze.md` filename
+      (`grep -rl "command-templates/analyze.md" src/ packs/ docs/ tests/ scripts/`), which would
+      genuinely return zero hits outside `kitty-specs/` and would make the bullet's claim as
+      currently worded accurate.

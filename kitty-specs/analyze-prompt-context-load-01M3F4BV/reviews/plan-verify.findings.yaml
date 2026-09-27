@@ -1,0 +1,97 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: PLAN-VERIFY-001
+    lens: gates / ci-parity reproduction
+    severity: 4
+    title: >-
+      "ci-modules.yml / per-module test shards: none selected" is factually wrong —
+      verified against the actual authority ci-modules.yml calls (select_modules),
+      not the one the plan checked (select_gates)
+    evidence:
+      - artifact: "plan.md § The gate set for this mission (\"Path/diff-scoped gates that WILL fire\" bullet: \"ci-modules.yml / per-module test shards: none selected... confirmed by direct select_gates() inspection\")"
+      - code: "scripts/ci/local_gate_parity.py:55,93 — make ci-parity (the tool the plan ran) imports and calls only select_gates(), never select_modules()"
+      - code: ".github/workflows/ci-modules.yml:20-26,236,259 — the real per-module shard matrix generator explicitly calls `from scripts.ci.gate_selection import select_modules` and `selected = select_modules(changed_files, mode=selection_mode)`; its own header comment names this as \"the SAME single gate-selection authority ci-router.yml's path routing consumes\" but it is select_modules, not select_gates"
+      - code: "scripts/ci/gate_selection.py:270-306 — select_modules() unions in `_modules_for_test_paths`, explicitly built to close spec-kitty#4454 (\"A diff confined to tests/<dir>/** matches no router glob and would otherwise select nothing... the test files run in no per-PR shard, a false green\"), by mapping a changed tests/<dir>/** path back to its owning module via the registry's `test_dirs`"
+      - code: ".github/ci-module-registry.yml:149-167 — the `charter` module row's test_dirs collection is `pytest tests/charter tests/doctrine -m \"not performance and not stress\"`, i.e. tests/doctrine/** is registered under the `charter` module"
+      - code: "ci-modules.yml is its own top-level `on: pull_request` / `on: push` workflow (not a job gated by ci-router.yml's `changes.charter` output) — it computes its own changed-path set independently, so it is NOT skipped just because ci-router.yml's src-scoped `charter` filter group (src/charter/**, src/specify_cli/charter_runtime/**) is false for this diff"
+      - command: >-
+          Ran, in this checkout, `python -c "from scripts.ci.gate_selection import select_modules;
+          print(select_modules([...the plan's own planned FR-001+FR-002 file list, verbatim...]))"`
+          — the exact planned file set from plan.md's own "make ci-parity" section, including
+          `tests/architectural/test_doctrine_regenerate_graph_roundtrip.py`,
+          `tests/architectural/test_pack_manifest_no_author_edit.py`, and
+          `tests/doctrine/test_resolver.py`. Real output: `frozenset({'charter'})` — NOT the
+          empty set the plan reports for "per-module test shards".
+    claim: >-
+      The plan's "Gate set for this mission" section states, as a confirmed/verified fact,
+      that `ci-modules.yml` selects zero per-module test shards for this mission's diff, and
+      cites "direct select_gates() inspection" as the verification method. This is the wrong
+      authority: `select_gates()`'s `selected_code_shards` field (scripts/ci/gate_selection.py:134-161)
+      is a job-router-level concept scoped to ci-router.yml's own gated jobs and deliberately
+      does NOT run the tests-only-diff-to-module mirroring logic that `select_modules()` applies —
+      that mirroring exists specifically to prevent the false-green class of bug (#4454) where a
+      diff that only touches test files (exactly this mission's diff: two new/extended files under
+      tests/architectural/ and one under tests/doctrine/) would otherwise select no shard to run
+      them. Reproducing the actual authority `ci-modules.yml` calls (`select_modules()`) against the
+      plan's own exact planned file list returns `{'charter'}`, not the empty set the plan reports.
+      This means the plan's own central, must-not-be-stale claim about which CI job matrix runs for
+      this diff is wrong — and, since it errs toward under-claiming CI coverage, it risks an
+      implementer believing (per the plan's framing) that "no CI mechanism will exercise the new
+      resolver test" and therefore treating local-only verification as sufficient, when in fact the
+      `charter` module's 5-shard `pytest tests/charter tests/doctrine` run WILL execute the new
+      FR-001 red-first test (and the FR-002 doctrine-content test) as part of this PR's own CI run.
+    remediation: >-
+      In plan.md's "The gate set for this mission" section, replace the
+      "ci-modules.yml / per-module test shards: none selected" bullet with a corrected one that
+      (a) calls `scripts.ci.gate_selection.select_modules()` — not `select_gates()` — against the
+      planned file set, (b) reports the real result (`{'charter'}`), and (c) reframes this as a
+      positive finding for FR-001's ATDD claim: the `charter` module shard (5 shards, `pytest
+      tests/charter tests/doctrine -m "not performance and not stress"`, per
+      .github/ci-module-registry.yml's `charter` row) DOES run for this diff and DOES execute the
+      new red-first resolver test and the FR-002 doctrine-content test as part of the PR's own CI,
+      independent of manual local verification. Also correct the "Method" note under "make
+      ci-parity" to state that `make ci-parity` itself (scripts/ci/local_gate_parity.py) only
+      answers the router/job-level question (via select_gates()) and does not model
+      ci-modules.yml's own module-shard selection — so a `select_gates()`-only local run is not a
+      complete proxy for "what CI actually runs" whenever the diff touches files under `tests/**`.
+
+  - id: PLAN-VERIFY-002
+    lens: red-first test design / determinism-vacuity
+    severity: 3
+    title: >-
+      The sketched FR-001 test uses `is` identity comparison on ResolutionTier, contradicting
+      test_resolver.py's own documented safe pattern for exactly this comparison
+    evidence:
+      - artifact: "plan.md § Red-first tests per changed behaviour (the `test_analyze_command_resolves_to_canonical_in_this_checkout` sketch: `assert result.tier is ResolutionTier.PACKAGE_DEFAULT`)"
+      - code: "tests/doctrine/test_resolver.py:25-36 — the file's own top-of-module comment: \"tier equality is asserted via `.name == .name` rather than `is` or `==`. Under pytest `--import-mode=importlib` combined with `pytestarch`... `ResolutionTier` can end up defined twice in-process with identical members but distinct class identities. Python enums' `==` delegates to `is` after a type check, so cross-class comparison returns False even when `.name`/`.value` match.\""
+      - code: "tests/doctrine/test_resolver.py:126,148,173,185,195,201,234,... — every one of the file's ~20 existing tier assertions uses `result.tier.name == ResolutionTier.<X>.name`, never `is` or bare `==`, consistent with that documented rationale"
+    claim: >-
+      The plan's sketch for the new FR-001 red-first test (the one concrete, fully-written test
+      body the plan hands to the implementer) asserts `result.tier is ResolutionTier.PACKAGE_DEFAULT`
+      — an identity comparison — in a test file whose own module-level comment explicitly documents
+      why every other test in that same file avoids `is`/`==` for tier comparisons and uses
+      `.name ==` instead: a documented, previously-encountered hazard where `ResolutionTier` can be
+      loaded twice in-process (under `--import-mode=importlib` combined with `pytestarch`, which
+      walks `src/` and can import `doctrine/resolver.py` under an alternate module name), producing
+      two distinct enum classes whose `is`/`==` comparisons silently return False even though the
+      members match by name and value. The plan's own "Home for the new test" reasoning explicitly
+      cites this file's established idioms (the `_REPO_ROOT = Path(__file__).resolve().parents[N]`
+      convention) as the reason to add the test here, but does not carry over this file's other,
+      more safety-critical established idiom for the exact kind of assertion the new test makes.
+      (Reproducibility note: `--import-mode=importlib` is not set anywhere this file's own CI run
+      is invoked today — grep confirms it appears only in `.github/workflows/release.yml`'s
+      `tests/release` invocation, unrelated to `tests/doctrine` — so the sketch is unlikely to
+      flake under the specific `charter` module shard command found in PLAN-VERIFY-001. The gap is
+      a real inconsistency with this file's own documented convention, not a confirmed-failing
+      assertion under today's CI invocation.)
+    remediation: >-
+      Rewrite the sketch's tier assertion to match the file's own established idiom:
+      `assert result.tier.name == ResolutionTier.PACKAGE_DEFAULT.name`, for the same reason every
+      other test in tests/doctrine/test_resolver.py already does this (documented in the file's
+      own top-of-module comment). This keeps the new test consistent with the file it is added to
+      and removes the risk entirely rather than relying on today's CI invocation happening not to
+      set `--import-mode=importlib` for this test tree.

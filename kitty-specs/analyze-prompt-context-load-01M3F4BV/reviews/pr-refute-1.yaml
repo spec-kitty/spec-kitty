@@ -1,0 +1,20 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: pr-contract-001
+    verdict: confirmed
+    reason: Traced live code (_format_inline_tactic_body, format_inline_named_body) and confirmed neither reads failure_modes (only name/purpose/steps); grep for failure_mode in src/charter/activation/ returns zero hits; _format_full_artifact_payload_body (the only path that serializes failure_modes) is reached only via _render_tactic_include's explicit --include fetch; empirically measured both the tactic (2,801 chars, not the cited 4,350 but still over budget) and DIRECTIVE_044 (3,460 chars, matches exactly) bodies exceed the 2,400-char _PROFILE_INLINE_BODY_LIMIT_CHARS, so selection_block.py's fallback to a fetch-stanza pointer fires for both in every automatic path; diff confirms only the tactic's failure_modes was edited, DIRECTIVE_044's procedures untouched; spec.md FR-002 itself asserts "an LLM reads at prompt-render time" (the exact language the review brief said would support the finding) while never acknowledging this renderer-field/budget delivery gap.
+  - id: pr-tests-001
+    verdict: confirmed
+    reason: Empirically reproduced in an isolated scratch worktree (git worktree add off lane HEAD, edited, pytest run, then git worktree remove --force) — removing only the closing-clause restatement ("an unverified size assumption is not evidence" -> "this is not evidence") while leaving the entry's capitalized title and full paragraph intact flips test_size_assumption_bypass_failure_mode_documented from pass to FAIL, confirming the case-sensitive needle only matches the incidental lowercase restatement, not the entry's own title.
+  - id: pr-tests-003
+    verdict: refuted
+    reason: Informational, no defect — independently re-ran gate_selection.select_modules() against this diff's 3 paths and got frozenset({'charter'}), and confirmed tests/doctrine is listed under the charter module's test_dirs in .github/ci-module-registry.yml:193, matching the finding's claim that the test is selected (over-selected, not a dead shard).
+  - id: pr-tests-004
+    verdict: refuted
+    reason: Informational, no defect — confirmed scripts/ci/aggregate_source.py's CRITICAL_PATHS tuple (lines 18-28) contains none of this diff's 3 paths (2 YAML files, 1 test under tests/doctrine), so the diff-cover critical-path denominator is legitimately empty for this diff; no remediation required for this PR.
+  - id: pr-tests-005
+    verdict: refuted
+    reason: Informational, no defect — independently collected the same 4 named test files at lane HEAD and got exactly 47 tests collected, consistent with the claimed post-count (47/47); no discrepancy found.

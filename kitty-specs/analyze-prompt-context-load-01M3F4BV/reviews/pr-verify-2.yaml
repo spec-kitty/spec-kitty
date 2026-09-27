@@ -1,0 +1,47 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: pr-FRESH-001
+    status: resolved
+    reason: >-
+      spec.md's User Story 1 Independent Test (lines 642-665) and Acceptance Scenario 1
+      (lines 667-681) now name the implementer-ivan (and all four profiles') rationale edit
+      and the rendered-reachability test as part of FR-002's verification, correct the
+      formerly-false "no automated test can verify reach" sentence, and C-002 (line 817) now
+      lists all four agent_profiles files, pack-manifest.yaml, and
+      tests/doctrine/test_directive_consistency.py in the touched-file set with a re-run live
+      open-PR overlap check against the widened set (zero overlap, #5161/#5137/#5028/#5009/#4995).
+  - id: WP01-C2-001
+    status: resolved
+    reason: >-
+      Same spec.md sections verified as pr-FRESH-001 (Independent Test, Acceptance Scenario 1,
+      C-002 file list and re-run overlap check) — the identified internal contradiction is gone.
+  - id: WP01-C2-002
+    status: resolved
+    reason: >-
+      Operator Decision 8 (spec.md lines 164-187) is a numbered, dated, binding decision that
+      retroactively authorizes the implementer-ivan edit and the extension to all four profiles,
+      superseding the prior self-authorization gap; lanes.json write_scope and WP01's
+      owned_files frontmatter were verified unchanged (correctly, per the binding ruling that
+      they must not be hand-edited), and spec.md carries an explicit note (line 819,
+      "Authorized scope beyond WP01's owned_files/lanes.json write_scope") recording this
+      divergence and its rationale, exactly as the operator ruling required.
+  - id: WP01-C2-003
+    status: resolved
+    reason: >-
+      spec.md now states the residual explicitly in three places (FR-002 notes, User Story 1
+      Independent Test, and a dedicated "Known residual (out of scope): mission-level
+      orchestrating agent never receives this warning" section, lines 544-560) — reach is
+      accepted as all four profiles' agents with no orchestrator reach, matching the binding
+      operator ruling for this round exactly.
+  - id: WP01-C2-004
+    status: resolved
+    reason: >-
+      Severity-1 finding's own remediation required no action beyond flagging; live re-run in
+      the lane (SPEC_KITTY_PACKS_ROOT=lane/packs, primary .venv) confirms
+      tests/doctrine/test_directive_consistency.py now collects 13 tests (51 total across the
+      four named files with the round-2 4-profile parametrization), and no current artifact
+      (spec.md, round-2 tracer entries) restates the superseded 47/47 or 48/48 figures as a
+      live fact — only historical review records (pr.merged.yaml, wp-WP01-cycle2.yaml, etc.)
+      retain the old numbers, which is expected and correct for an immutable review trail.

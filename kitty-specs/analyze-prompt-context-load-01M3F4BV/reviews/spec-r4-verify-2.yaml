@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r4
+results:
+  - id: SPEC-R4-FRESH-001
+    status: resolved
+    reason: >-
+      Decision 4's paragraph now opens with an inline "(Superseded by Operator Decision 7,
+      2026-09-26 ...)" marker (spec.md lines 51-53), and Decision 7's gloss (lines 151-156)
+      now correctly attributes this to the inline-marker convention FR-001's table row already
+      uses, explicitly distinguishing it from the "### SUPERSEDED" heading convention used for
+      Decision 5/6's diagnosis content, which remains unaffected (lines 241 and 296) and still
+      reads coherently against Decision 6's own reference to it (line 109).

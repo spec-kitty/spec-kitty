@@ -1,0 +1,41 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: TASKS-FRESH-001
+    lens: fresh-sweep
+    severity: 3
+    title: "Objective now cites C-011's separate-commit requirement verbatim, but no subtask (or the unchanged Reviewer Guidance) instructs committing T001's red test as its own commit before T002's edit"
+    evidence:
+      - artifact: "tasks/WP01-unverified-size-assumption-doctrine.md § Objective (\"...in that order, per the charter's ATDD-first discipline (C-011: the failing-first test is committed before any implementation commit).\")"
+      - artifact: ".kittify/charter/charter.md § ATDD-First Discipline (binding per C-011): \"The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commits.\""
+      - artifact: "tasks/WP01-unverified-size-assumption-doctrine.md § Subtask T001, steps 1-4 (no commit instruction anywhere in the subtask)"
+      - artifact: "tasks/WP01-unverified-size-assumption-doctrine.md § Subtask T003, step 4 (\"Commit the regenerated .graph.yaml diff in the same commit as the T002 source edit\" — the only explicit commit-boundary instruction in the whole WP, and it only fixes the T002/T003 boundary, not the T001/T002 one)"
+      - artifact: "tasks/WP01-unverified-size-assumption-doctrine.md § Reviewer Guidance (\"...that the PR description or commit message documents the RED-before/GREEN-after evidence per this repo's ATDD-first charter discipline (C-011)\" — unchanged by this fix round; checks for documented evidence, not for an actual separate red-test commit landing before the content-edit commit)"
+    claim: >
+      This fix round's revised Objective explicitly invokes C-011's commit-ordering language
+      ("the failing-first test is committed before any implementation commit") as the
+      rationale for reordering T001 ahead of the content edit. But reordering the subtask
+      *presentation* is necessary, not sufficient, for C-011 compliance: the charter's actual
+      binding text requires the ATDD test to land "as a separate commit... BEFORE any
+      implementation commits," and nothing in T001's steps, T002's steps, or the Definition of
+      Done tells the implementing agent to make a commit at the T001/T002 boundary. The only
+      explicit commit instruction anywhere in the WP (T003 step 4) governs a different
+      boundary (T002's content edit + T003's DRG regen must land together). An implementing
+      agent following every literal instruction in this WP could still do all the file edits
+      (T001 through T003) and fold them into one commit at the end — satisfying every stated
+      step while violating C-011's actual separate-commit requirement. The unchanged Reviewer
+      Guidance bullet would not catch this either: it asks for "documented evidence" of
+      RED-before/GREEN-after in the PR description or commit message, not for verification
+      that a separate red-test commit actually exists on the branch before the implementation
+      commit — so this gap could pass review as currently worded.
+    remediation: >
+      Add an explicit instruction at the end of T001 (or the start of T002) directing the
+      implementer to commit the red-first test now, as its own commit, before starting T002's
+      content edit — e.g. "Commit this test now, as a standalone commit, before starting T002
+      (C-011: the ATDD test must be committed as a separate commit before any implementation
+      commit)." Optionally strengthen the Reviewer Guidance C-011 bullet to also check
+      `git log --oneline <planning_base_branch>..HEAD` for a distinct commit that adds only the
+      test file, landing before the commit(s) that touch the doctrine source/DRG files.

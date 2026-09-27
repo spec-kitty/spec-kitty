@@ -1,0 +1,91 @@
+schema: review-findings/v1
+complete: true
+phase: plan-r2
+lens_group: arch
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: PLAN-R2-ARCH-001
+    lens: generated-artifacts
+    severity: 3
+    title: "'Generated artifacts' procedure wrongly implies regenerate-graph will produce a diff to commit for a failure_modes/procedures-only edit; empirically it produces none, and --check stays green even without regenerating"
+    evidence:
+      - artifact: "plan.md § Generated artifacts and their regenerating command, step 3 (\"Commit the resulting packs/built-in/{tactic,directive}.graph.yaml diff in the same commit as the source YAML edit ... a source-only commit would leave the DRG stale for one commit, tripping the freshness gate on any intermediate checkout\")"
+      - code: "src/charter/offering/drg/ (grep -rl 'failure_modes' and grep -rl 'procedures' both return zero files — neither field is consumed by the DRG extractor at all)"
+      - code: "packs/built-in/tactic.graph.yaml:71-73 (tactic node carries only urn/kind/label; no failure_modes projection) and :620-623 (edge carries only source/target/relation/when)"
+    claim: >
+      Independently reproduced in a throwaway worktree (git worktree add at this checkout's
+      HEAD 26e51a911, removed after the test): added one new failure_modes entry to
+      packs/built-in/tactics/canonical-source-unification.tactic.yaml (the exact kind of edit
+      FR-002 makes) and, BEFORE running any regeneration, ran
+      `spec-kitty doctrine regenerate-graph --check` — it printed "DRG graph is fresh" and
+      exited 0. Running `spec-kitty doctrine regenerate-graph` in write mode afterward produced
+      a `git diff --stat` of zero lines for both `packs/built-in/tactic.graph.yaml` and
+      `packs/built-in/directive.graph.yaml`. Repeating the same experiment with a new
+      `procedures` entry on `044-canonical-sources-and-unification.directive.yaml` produced the
+      identical result: `--check` reports fresh with no regeneration run, and write-mode
+      regeneration changes nothing. A `grep -rl "failure_modes"` / `grep -rl "procedures"`
+      over `src/charter/offering/drg/` returns no files — neither field participates in the
+      DRG node/edge extraction schema (confirmed directly in the graph fragment: tactic nodes
+      carry only `urn`/`kind`/`label`, edges only `source`/`target`/`relation`/`when`). Plan.md's
+      binding step 3 tells the implementer to expect a graph diff and treats skipping the
+      regenerate step as risking a "stale... tripping the freshness gate" outcome — for
+      FR-002's specific edit (failure_modes/procedures text only), this is not what happens:
+      there is no diff, and the freshness gate does not go stale even without regenerating.
+      Following the letter of the procedure (run it anyway) is harmless, but the reasoning
+      given for *why* the step is binding is factually wrong for this changeset, which could
+      cause an implementer to second-guess a genuinely-correct "no diff produced" outcome, or
+      to force a commit of an unchanged file believing one is required.
+    remediation: >
+      Adjust plan.md's "Generated artifacts" section to state plainly that for a
+      failure_modes/procedures-only edit, `spec-kitty doctrine regenerate-graph` in write mode
+      is expected to produce NO diff (these fields are not part of the DRG's node/edge
+      projection — verified by grep over src/charter/offering/drg/ and by direct
+      before/after-regeneration testing), and that `--check` will already report fresh
+      immediately after the source edit, with no regeneration required for this specific field
+      set. Keep step 2 (run regenerate-graph anyway) as defense-in-depth / doctrine-editing
+      discipline consistent with any doctrine-source change, but drop or correct the specific
+      claim that skipping it "would leave the DRG stale... tripping the freshness gate" for
+      this changeset, since that claim is empirically false for a failure_modes/procedures-only
+      edit.
+
+# Verification notes (not findings — recorded per the mission-derived lens instruction):
+# - Schema check: src/charter/offering/schemas/tactic.schema.yaml and directive.schema.yaml
+#   re-read in full; failure_modes and procedures are both `type: array, items: {type: string}`
+#   with no maxItems/enum/pattern constraint. Matches plan.md's claim exactly.
+# - Vacuous-test claim independently reproduced: tests/doctrine/directives/test_schema_compatibility.py
+#   BUILT_IN_DIRECTIVES_DIR points at src/charter/offering/directives/built-in, which does not
+#   exist on this checkout (confirmed via `test -d`); `pytest --collect-only` shows
+#   test_existing_built_in_directives_still_validate[NOTSET] as the only parametrized id (1
+#   vacuous case). tests/doctrine/test_tactic_compliance.py's _TACTICS_DIRS resolves through
+#   tests/doctrine/conftest.py's DOCTRINE_SOURCE_ROOT = src/charter/offering, so it targets
+#   src/charter/offering/tactics/built-in and _proposed, neither of which exists; `--collect-only`
+#   shows all 4 of its tests as [NOTSET]. Both vacuous claims independently confirmed.
+# - tests/doctrine/test_directive_consistency.py independently confirmed as a correct,
+#   non-vacuous home: its _PACKS_BUILT_IN = REPO_ROOT / "packs" / "built-in" resolves correctly,
+#   `pytest -v` shows 8 passing tests today. Staging the exact
+#   test_size_assumption_bypass_failure_mode_documented function specified in plan.md (found
+#   already present in the working tree, staged by the parallel plan-r2-verify reviewer with an
+#   equivalent docstring) and running the file reproduces exactly "8 passed, 1 failed" with the
+#   assertion error plan.md describes ("found in neither"). No edit of my own was needed or
+#   made to this file; I did not revert it, since it was not my change and another lens group
+#   was actively using it (avoiding a shared-checkout collision per the "one checkout, many
+#   agents" operating note). By the time of this writeup the file was already back to a clean
+#   `git status` (reverted by its author), consistent with plan.md's claim that this edit is
+#   staged-and-reverted, not part of the committed diff.
+# - Contracts-touched re-verification: both FR-002 target files confirmed unchanged by #5133
+#   (git log -- <path> shows no #5133-era commit touching either file; `gh pr view 5133 --json
+#   files` shows no overlap). File sizes match plan.md's cited figures exactly (tactic 6,732 B,
+#   directive 4,023 B, override/canonical analyze.md both 11,555 B, `cmp -s` clean).
+# - Required companion tests (test_doctrine_regenerate_graph_roundtrip.py,
+#   test_pack_manifest_no_author_edit.py) both re-run: 2 passed + 4 passed = 6 passed, matching
+#   plan.md's baseline table.
+# - Layering: FR-002 stays a pure doctrine-pack content change; the Seam section correctly
+#   states no seam is introduced (FR-001 has no seam at all now — no-op; FR-002 stays inside the
+#   existing doctrine-pack DRG-source tier). No CLI/kernel/service reach implied anywhere in the
+#   revised plan.
+# - Blast radius: plan.md's "no consumer-facing runtime behavior change at all" is honest and
+#   consistent with spec.md's own C-001 acknowledgment that FR-002's doctrine ships to all
+#   consumers via packs/built-in/ — the plan correctly scopes the claim to "no code/runtime
+#   change" rather than "no consumer impact at all," and does not repeat the R1-round
+#   overstatement (PLAN-ARCH-001) or the mission-count off-by-one (PLAN-ARCH-002), both of which
+#   are resolved by removal now that FR-001 is a no-op.

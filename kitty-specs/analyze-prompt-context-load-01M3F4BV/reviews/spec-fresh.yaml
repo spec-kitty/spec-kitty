@@ -1,0 +1,89 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-FRESH-001
+    lens: structural-fix-planning
+    severity: 3
+    title: NFR-001's narrowed "concrete" verification method doesn't cover the Operating Constraints prose FR-001 requires changing
+    evidence:
+      - artifact: "spec.md § NFR-001 (line 207)"
+      - artifact: "spec.md § FR-001 (line 197, item (d))"
+      - artifact: ".kittify/overrides/missions/software-dev/command-templates/analyze.md lines 17-21 (Operating Constraints: \"STRICTLY READ-ONLY: Do not modify any files\" / \"Constitution Authority\")"
+      - artifact: "packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md lines 18-30 (Operating Constraints: \"NON-REMEDIATING\" + permitted-write carve-out, \"Charter Authority\", the added \"Issue-Matrix Approval Heads-Up (#3469)\" paragraph)"
+    claim: >
+      This revision replaced NFR-001's old, broad "diffing the reconciled override's structural
+      sections against canonical" verification with a narrower, itemized one: a heading-list
+      diff (`grep '^#'`) plus byte-identical Detection Passes (§4) / Severity Assignment (§5)
+      sections. SC-001(c) delegates to this same narrower method. But FR-001 promises "full
+      contract PARITY" and item (d) explicitly requires adopting the `record-analysis`
+      persistence step — which directly contradicts the override's current Operating
+      Constraints prose ("STRICTLY READ-ONLY: Do not modify any files"). That prose lives under
+      the `## Operating Constraints` heading, which already exists verbatim in both files, so
+      the heading-list diff cannot detect that its *body* still needs to change from
+      "STRICTLY READ-ONLY"/"Constitution Authority" to "NON-REMEDIATING"/"Charter Authority",
+      nor that canonical's new "Issue-Matrix Approval Heads-Up" paragraph is entirely absent
+      from the override, nor that step 6's `analysis-findings/v1` carrier instructions (also
+      required by FR-001(d)) need to be adopted. None of that content sits inside the two
+      sections NFR-001 requires to be byte-identical (§4/§5) either. An implementer or gate that
+      satisfies NFR-001's verification literally could ship a reconciled override that still
+      declares itself read-only while its own Execution Steps mandate a persistence write —
+      a self-contradictory artifact that passes the stated check.
+    remediation: >
+      Either broaden NFR-001's verification to require the Operating Constraints section (and
+      the step-6 carrier-instructions prose) to also be byte-identical to canonical's, or add an
+      explicit line item confirming the override's Operating Constraints no longer contains
+      "STRICTLY READ-ONLY" language once the persistence step is adopted, so the objective check
+      actually matches the "full contract PARITY" FR-001 promises.
+
+  - id: SPEC-FRESH-002
+    lens: review-intent-and-risk-first
+    severity: 3
+    title: User Story 1's headline and priority rationale still assert a behavioral outcome that this revision's own Acceptance Scenario 1 disclaims as untestable/unclaimed
+    evidence:
+      - artifact: "spec.md § User Story 1 title and body (lines 93-101)"
+      - artifact: "spec.md § Independent Test / Acceptance Scenario 1 (lines 103-127)"
+    claim: >
+      User Story 1 is titled "Orchestrating agent trusts the canonical `analyze` surface without
+      a size excuse" and its body describes an agent that "loads and applies the canonical
+      command's contract ... instead of hand-rolling a substitute" — i.e., it frames actual
+      agent behavior change as the delivered outcome. This revision rewrote the Independent Test
+      and Acceptance Scenario 1 for FR-002 to explicitly and repeatedly state the opposite: FR-002
+      is "advisory-only doctrine prose," "no automated test in this repository can verify a
+      future agent's prompt-following behavior against it," and the scenario "does **not** and
+      cannot test that an agent actually changes its behavior after loading this text." The
+      revision made the FR-002 testability claim more honest, but did not correspondingly soften
+      the User Story 1 title/body/"Why this priority" text that still reads as if the mission
+      delivers (or verifies) an agent that "trusts" the canonical surface. A reader using the
+      User Story as the definition of "done" for P1 will not find that outcome actually
+      guaranteed or checked anywhere in this mission — only Acceptance Scenario 2 (FR-001,
+      override reconciliation) delivers a mechanically-enforced behavior change; Acceptance
+      Scenario 1 (FR-002) explicitly does not.
+    remediation: >
+      Reword the User Story 1 title/body to describe what is actually delivered and testable
+      (e.g., "the canonical surface carries explicit doctrine against unverified-size bypass,
+      and the override's contract — including persistence — matches canonical"), or split it
+      into two stories so the untestable, advisory-only FR-002 claim is not bundled under a
+      headline that implies a verified behavioral guarantee.
+
+  - id: SPEC-FRESH-003
+    lens: five-paradigm-parallel-debugging
+    severity: 2
+    title: NFR-001's title was renamed but its body still quotes the old title as a self-reference
+    evidence:
+      - artifact: "spec.md § NFR-001 row (line 207)"
+    claim: >
+      This revision renamed the NFR-001 title from "Behaviour preservation on override
+      reconciliation" to "Heuristic preservation on override reconciliation" (to fix the R1-R3
+      finding that the old title over-claimed full behavior preservation). However, the
+      requirement text in the same row still opens with the stale self-reference
+      "\"Behaviour preservation\" here means the FR-001 reconciliation commit must not invent or
+      ad-hoc rewrite ..." — quoting a phrase that is no longer this row's own title. This is a
+      leftover editing artifact: the quoted term should track whatever the row is actually
+      titled, or be dropped in favor of stating the requirement directly.
+    remediation: >
+      Change "\"Behaviour preservation\" here means" to "\"Heuristic preservation\" here means"
+      (or remove the quoted meta-reference entirely and state the requirement directly) so the
+      row's title and body use the same term.

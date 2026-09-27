@@ -1,0 +1,40 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r2
+results:
+  - id: SPEC-R2-FRESH2-001
+    status: resolved
+    reason: >
+      FR-005's Status column (spec.md line 587) now reads "Open — BLOCKED pending operator
+      ruling on the ADR 2026-07-28-1 conflict (SPEC-R2-FRESH-001; see \"Confirmed root cause
+      and fix plan\" above)", matching the FR-004 precedent for a qualified Status value. The
+      "FR-005/006/007 landing sequencing (reflexivity)" bullet in Dependencies & Sequencing
+      (line 633) now adds: "This sequencing note assumes FR-005's separate blocker has already
+      been cleared: landing is additionally gated on an explicit operator ruling on the ADR
+      2026-07-28-1 conflict flagged in \"Confirmed root cause and fix plan\" above
+      (SPEC-R2-FRESH-001) — FR-005 as currently scoped must not be implemented, and this
+      reflexivity analysis does not apply, until that ruling is given." Both new statements
+      are consistent with each other and with the pre-existing "Confirmed root cause and fix
+      plan" prose (lines 281-348, esp. 343-348: "implementation of FR-005 as scoped must not
+      proceed until this specific ADR trade-off... is resolved by the operator") and with
+      SC-005's existing ⚠️ UNRESOLVED note (line 624). No contradiction found across the four
+      locations — all agree FR-005 is blocked pending an explicit operator ruling distinct
+      from Operator Decision 5's #5009-collision-risk acceptance.
+  - id: SPEC-R2-FRESH2-002
+    status: resolved
+    reason: >
+      FR-005's Falsifiable-target sentence (spec.md line 587) was split into three sentences:
+      one stating what to measure and where ("measure the byte length of
+      build_with_scope(...).text ... for specify, plan, tasks, implement, and review — run
+      against a checkout whose .kittify/charter/context-state.json has its actions map
+      cleared to {}"), a second isolating the unit distinction ("That byte length is
+      len(text.encode(\"utf-8\"))... — not len(text), the Python character count
+      _enforce_token_budget compares against BUDGET_DEFAULT internally"), and a third stating
+      the numeric target ("The result MUST NOT exceed 72,000 bytes, down from the
+      currently-measured 81,476–95,139-byte baseline..."). All factual content survived
+      unchanged: the 72,000-byte target, the len(text.encode("utf-8")) measurement method, the
+      40,000-character BUDGET_DEFAULT internal-comparison distinction, the
+      81,476–95,139-byte baseline, the 20,268–24,705-byte/24.5%–26.0% reduction figures, and
+      the bytes>=chars relationship sentence immediately following are all present verbatim
+      (diff-confirmed against 9be07a3b2..HEAD — only sentence boundaries changed, no numbers
+      or claims were altered). Readability is improved without content loss.

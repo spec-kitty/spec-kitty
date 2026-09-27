@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "d8f65f63cb741fca6642c44b8a9d5b29f1980325",
+  "created_at": "2026-09-26T15:11:59.783960+00:00",
+  "flattened": false,
+  "friendly_name": "Agents route around /spec-kitty.analyze because the command prompt is too large to load",
+  "merged_at": "2026-09-27T01:58:11.295514+00:00",
+  "merged_commit": "e3f6a028d46031719d0bb720baa72dae8133dedd",
+  "mid8": "01M3F4BV",
+  "mission_id": "01M3F4BV8ZVCFT3JVFFWM9KXW0",
+  "mission_number": null,
+  "mission_slug": "analyze-prompt-context-load-01M3F4BV",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Agents route around /spec-kitty.analyze because the command prompt is too large to load on fix/analyze-prompt-context-load-5005 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Agents route around /spec-kitty.analyze because the command prompt is too large to load",
+  "slug": "analyze-prompt-context-load-01M3F4BV",
+  "status_phase": "1",
+  "target_branch": "fix/analyze-prompt-context-load-5005",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-26T22:39:52.792466+00:00"
+}

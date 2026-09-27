@@ -1,0 +1,30 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: TASKS-FRESH-002
+    lens: fresh-sweep
+    severity: 2
+    title: "T001 step 4's new safe-commit example omits the required FILES positional argument"
+    evidence:
+      - artifact: "tasks/WP01-unverified-size-assumption-doctrine.md § Subtask T001, step 4 (\"Run `.venv/bin/spec-kitty safe-commit` (never a bare `git commit`) with a conventional-commit `test:` type ... e.g. `test(doctrine): add red-first test for size-assumption-bypass failure mode (#5005)`\")"
+      - artifact: "`.venv/bin/spec-kitty safe-commit --help` (this checkout): \"Usage: spec-kitty safe-commit [OPTIONS] FILES...\" with `*  --message  -m  TEXT  Commit message. [required]` — FILES is a required positional argument distinct from the message text"
+    claim: >
+      This round's new commit instruction (added in f64a72dcf to close TASKS-FRESH-001) reads
+      as a complete worked command — it names the binary, warns against a bare `git commit`,
+      specifies the commit type, and gives the exact message string — but never states which
+      file(s) to pass as the required `FILES...` positional argument (i.e.
+      `tests/doctrine/test_directive_consistency.py`). An implementer following the example
+      literally (e.g. running `spec-kitty safe-commit -m "test(doctrine): ..."` with no file
+      argument) hits `Error: Missing argument 'FILES...'` and must stop to work out the correct
+      invocation. The gap is low-severity because the surrounding prose already states
+      unambiguously which file this commit must contain ("This commit must contain only the
+      T001 test-file change"), and the CLI's own error message points directly at the fix — but
+      it is a new, genuine gap introduced by this round's fix, not present before f64a72dcf
+      (the safe-commit instruction did not exist in 79f5a79b4).
+    remediation: >
+      Complete the worked example with the FILES argument, e.g.:
+      `.venv/bin/spec-kitty safe-commit tests/doctrine/test_directive_consistency.py -m
+      "test(doctrine): add red-first test for size-assumption-bypass failure mode (#5005)"`.

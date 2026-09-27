@@ -1,0 +1,66 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r2
+results:
+  - id: SPEC-R2-FRESH-001
+    status: resolved
+    reason: >
+      Independently re-read docs/adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md
+      in full: every quote the new spec.md bullet attributes to it (Decision item 2's "unconditional;
+      there is no 'when' to evaluate"/"87% of requires edges carry no guidance text", "This is the
+      default cadence, not an opt-in mode" + the operator-ruling withdrawal sentence, and the
+      Rationale's "Bodies are fetched, not omitted... a link keeps it addressable") is verbatim and
+      in context, not exaggerated; the ADR's own contrast of requires="delivered inline" vs.
+      suggests="emitted as links" is a real, load-bearing distinction about literal rendered shape,
+      corroborated independently by progressive_disclosure.py's requires_closure docstring
+      ("unconditional... no 'when' to evaluate (ADR: cadence follows the relation, C-011)") and
+      bootstrap_text.py's own D2c docstring — both quoted accurately in the new spec.md bullet. FR-005
+      genuinely does move every requires-closure Action Doctrine entry from always-inline to
+      budget-substitutable, which is the treatment the ADR reserves by name for suggests edges only —
+      a real, non-fabricated conflict, not a bigger one than the text supports. The new bullet
+      ("ADR 2026-07-28-1 conflict...") is genuinely present in spec.md's "Confirmed root cause and fix
+      plan" section (lines 281-348) and the "⚠️ UNRESOLVED per SPEC-R2-FRESH-001" tag is prominently
+      inlined into both FR-005's own requirement text and SC-005's target description in the
+      Requirements/Success-Criteria tables (not buried in a footnote). Judgment on the closure method:
+      explicit flagging + operator-ruling-required is the correct, honest disposition here, not a
+      cop-out. Verbatim-quoted Operator Decision 5 (spec.md lines 71-76: "FOLD INTO THIS MISSION. Fix
+      the 81-95 KB governance-context injection... accepting collision risk with open PR #5009. This
+      SUPERSEDES FR-005...") scopes its accepted risk to the #5009 file-collision question only; it
+      says nothing about an Accepted, operator-ruled ADR's requires-eager rendering guarantee, so
+      Decision 5 cannot plausibly be read as pre-authorizing that erosion. A fix session silently
+      picking either remedy path (override the ADR, or gut FR-005's scope back to the
+      DRG-curation-only residual) would itself be an undisclosed architectural/stability-contract
+      decision made without the operator authority the repo's own doctrine requires for exactly this
+      class of call; escalating with the ADR named, quoted, and reconciled against Decision 5's actual
+      (narrower) scope is the correct application of this repo's "explicit flagging over silent
+      resolution" standing order. This is a legitimate escalation of a genuine architectural question,
+      not an avoidance of a technical fix a fix session had the authority to make on its own.
+
+  - id: SPEC-R2-FRESH-002
+    status: resolved
+    reason: >
+      The "Confirmed root cause and fix plan" bullet (spec.md line ~187) now reads "8.0-12.6 KB —
+      live-measured, this checkout, 2026-09-26: specify=8,002 B, plan=8,308 B, tasks=8,354 B,
+      implement=12,614 B, review=12,492 B; not the ~4.5-4.9 KB figure, which applies only to
+      analyze/accept/research's unrelated build_non_bootstrap_context_result path... see
+      research.md §9.7.3" — the exact figures/caveat requested, matching the wording already used in
+      the Edge Cases "Operator Decision 5 reflexivity" bullet (line ~553) verbatim, and §9.7.3 exists
+      in research.md with the corrected figures. No remaining "~4.5-4.9 KB" mischaracterization for
+      the five bootstrap actions found anywhere in spec.md (the one other ~4.9 KB reference, line 515,
+      correctly describes analyze's own overhead, a different and correctly-scoped quantity).
+
+  - id: SPEC-R2-FRESH-003
+    status: resolved
+    reason: >
+      FR-005's target now says "MUST NOT exceed 72,000 bytes" (byte, not character) and explicitly
+      names the measurement as len(text.encode("utf-8")), distinguished by name from len(text) (the
+      quantity _enforce_token_budget compares against BUDGET_DEFAULT); independently re-verified
+      against token_budget.py:596 (`if len(text) <= budget: return text`, a Python str/char-count
+      comparison) and BUDGET_DEFAULT's own docstring ("Character budget cap") — the code confirms
+      spec.md's claim exactly. FR-005's new text explicitly states bytes >= chars and explicitly
+      disclaims that meeting the 72,000-byte target says nothing about meeting the separate,
+      smaller, character-based BUDGET_DEFAULT (40,000 chars) — it does not for any of the five
+      actions — so no new confusion is introduced; FR-006/SC-006 were symmetrically updated to report
+      the enforcer's own internal overage in characters, and each place explicitly cross-references
+      the other FR's different unit and purpose. One unit is used consistently per-quantity throughout
+      the touched text, with no place left where the two are used interchangeably for the same number.

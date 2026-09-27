@@ -1,0 +1,197 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r3
+lens_group: merged
+mission: analyze-prompt-context-load-01M3F4BV
+source_files:
+  - spec-r3-gov.findings.yaml
+  - spec-r3-arch.findings.yaml
+  - spec-r3-verify.findings.yaml
+findings:
+  - id: SPEC-R3-GOV-001
+    lens: Scope
+    severity: 2
+    title: "NFR-003's title still names the dropped governance-context fix; its actual (post-Decision-6) content is a sequencing statement duplicating C-002, inviting an FR-token-scan false positive of the SK-277 kind"
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements, NFR-003 row title: \"Governance-context fix seam and PR #5009 overlap\""
+      - artifact: "spec.md § NFR-003 body: \"Per Decision 6, the governance-context budget fix (FR-005/006/007) this NFR originally analyzed for PR #5009 file-level overlap is not implemented in this mission ... The overlap discussion is therefore moot for this mission's actual diff, which touches only the override deletion (FR-001) and the doctrine pack files (FR-002) — neither of which overlaps PR #5009's or PR #4995's diffs.\""
+      - artifact: "spec.md § C-002 (Constraints table), which independently states the same FR-001/FR-002-vs-#5009/#4995 no-overlap conclusion in full detail"
+      - artifact: "SPEC-KITTY-LEDGER.md SK-277 (\"The terminus retrospective's FR-coverage gap check counts cross-mission FR citations as local, uncovered requirements\" — \"The gap detector treats any FR-\\d+ token in the spec as a local requirement\")"
+    claim: >
+      Decision 6 drops FR-005/006/007 from this mission's scope entirely, so the governance-context
+      fix NFR-003 was written to analyze no longer exists as a deliverable in this mission. NFR-003's
+      row title ("Governance-context fix seam and PR #5009 overlap") was not updated to match: the
+      body now explicitly says the fix "is not implemented" and the overlap discussion "is moot,"
+      leaving the row's only live content the FR-001/FR-002-vs-open-PRs sequencing check that C-002
+      already states, in more detail, under its own title. Keeping this now-vestigial row in the
+      active Non-Functional Requirements table (rather than in a historical block or folded into
+      C-002) is a real gap, not merely stylistic: SK-277 is a live, ledger-recorded defect in this
+      same tooling family (the retrospective's FR-coverage gap detector) that treats *any* `FR-\d+`
+      token appearing anywhere in a spec's prose as a local, uncovered requirement needing WP
+      coverage, regardless of context. NFR-003's body is one of several active (non-historical,
+      non-"Known residual") locations in this spec that spell out "FR-005/006/007" in full — a
+      future post-merge retrospective pass over this mission is exactly the kind of automated scan
+      SK-277 already documents as fooled by such tokens, and NFR-003 in particular no longer earns
+      its keep as a distinct, live requirement once its content is fully subsumed by C-002.
+    remediation: >
+      Either delete NFR-003 as superseded by C-002 (which already carries the identical, more
+      detailed FR-001/FR-002-vs-#5009/#4995 no-overlap conclusion) and note its removal in the same
+      place Decision 6's other supersessions are tracked, or retitle it to describe what it now
+      actually asserts (e.g. "Sequencing: FR-001/FR-002 diff has no file-level overlap with open PRs
+      #5009/#4995") so a reader scanning NFR titles is not misled into thinking the governance-context
+      fix seam is still being analyzed as live scope. Either way, this removes one more literal
+      "FR-005/006/007" occurrence from an active (non-historical) table row, reducing this spec's
+      exposure to the SK-277 false-positive pattern on the next retrospective pass.
+
+  - id: SPEC-R3-GOV-002
+    lens: Directive compliance
+    severity: 2
+    title: "FR-002/SC-002's \"and/or\" between the tactic and directive files leaves the actual doctrine-file target(s) for the companion regenerate-graph step ambiguous"
+    evidence:
+      - artifact: "spec.md § FR-002 (Requirements table): \"Add a new failure-mode entry (and/or procedure line) to the existing packs/built-in/tactics/canonical-source-unification.tactic.yaml and/or packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml\""
+      - artifact: "spec.md § SC-002: \"packs/built-in/tactics/canonical-source-unification.tactic.yaml and/or packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml contains an explicit failure-mode entry...\""
+      - code: "packs/built-in/tactics/canonical-source-unification.tactic.yaml (exists)"
+      - code: "packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml (exists)"
+    claim: >
+      FR-002 and SC-002 both leave the doctrine-file target as "tactic file and/or directive file,"
+      never committing to one, the other, or both. Both files exist and are independently editable
+      DRG-source inputs; the required companion step (regenerate-graph in write mode, committing the
+      resulting `.graph.yaml` diff) applies identically regardless of which file(s) are touched, so
+      the ambiguity does not risk a broken pipeline — but it does leave a WP implementer to decide,
+      unguided by the spec, whether editing only one file (and, if so, which) satisfies SC-002, or
+      whether both must carry the entry for "verbatim... reviewable by any future doctrine reader"
+      to hold. A reviewer checking SC-002 post-implementation has no spec-stated basis to say a
+      single-file edit is sufficient (or insufficient) versus a change that split the entry
+      inconsistently across both files.
+    remediation: >
+      Pick one (or explicitly both) before implementation: e.g., "the tactic file carries the
+      failure-mode entry; the directive file's Rule 1/Rule 3 text may optionally cross-reference it,
+      but the tactic file alone satisfies SC-002," or the converse. This is a small, single-sentence
+      fix that removes an avoidable implementation-time judgment call without touching the
+      substance of FR-002/SC-002.
+
+  - id: SPEC-R3-ARCH-001
+    lens: Reflexivity / FR-001 blast-radius verification
+    severity: 3
+    title: "New Edge Cases 'Read-only check' bullet's grep-scope claim is false as literally written"
+    evidence:
+      - artifact: "spec.md § Edge Cases — 'Read-only check (per mission brief): is anything else in the live codebase affected by the FR-001 deletion?'"
+      - code: "tests/doctrine/test_resolver.py:245"
+      - code: "docs/plans/testing/ci-coverage-union-audit.md:92"
+    claim: >
+      This bullet is new in round 3 (absent from HEAD~1's spec.md; confirmed via `git show
+      HEAD~1:.../spec.md | grep -n "Read-only check"` → no output). It asserts: "a repo-wide grep
+      of `src/`, `packs/`, `docs/`, `tests/`, `scripts/` for the override path found zero hits
+      outside this mission's own `kitty-specs/` directory and other, unrelated historical mission
+      directories under `kitty-specs/`." Re-running the exact grep (`grep -rl
+      "overrides/missions/software-dev/command-templates" src/ packs/ docs/ tests/ scripts/`)
+      finds FOUR hits outside `kitty-specs/`: `tests/doctrine/test_resolver.py:245` (a docstring
+      referencing the mission-scoped-override path pattern using `implement.md` as its example
+      filename, inside a `tmp_path`-fixture test — unrelated to the live `analyze.md` file being
+      deleted), `docs/plans/testing/ci-coverage-union-audit.md:92,94,96,99,101,103` (stale
+      pytest-node-id captures referencing `tasks.md`, not `analyze.md`, from an old worktree
+      path), and two JSON census files under `docs/reports/test-sanitation/...`. None of these
+      hits are actually affected by deleting `.kittify/overrides/missions/software-dev/
+      command-templates/analyze.md` — they reference a different filename or a self-contained
+      test fixture — so the bullet's ultimate conclusion (no live blast radius) still holds on
+      the merits. But the bullet's own stated verification method ("zero hits outside ...
+      kitty-specs/") is factually false as written: it did not run the grep it claims to have
+      run, or mischaracterized the result. This is exactly the "unverified assertion" defect
+      class this mission's own diagnosis criticizes (research.md § 1: "the agent's own unverified
+      assertion, not a measurement") and that the charter's Quality & Tech-Debt Standing Order #4
+      ("live evidence over 'looks fixed'") and the mission's own "measure, don't assert" thesis
+      (invoked repeatedly in research.md §§4-9, e.g. the corrected "smallest of 8 actions" claim
+      and the corrected ledger-grep claim in research.md § 6) exist to prevent. A reviewer or
+      future maintainer treating this bullet as the audit trail for "FR-001 has no other blast
+      radius" would be relying on a claim that does not survive re-execution.
+    remediation: >
+      Re-run the grep as literally described, list the actual hits found (even if each is then
+      individually dispositioned as inert — different filename, self-contained fixture, or stale
+      report artifact), and rewrite the bullet's conclusion to match the real result (e.g. "N hits
+      found outside kitty-specs/; each is either a different filename (`tasks.md`/`implement.md`,
+      not `analyze.md`) or a self-contained `tmp_path` test fixture, none referencing the live
+      `analyze.md` override path — see the classification below") rather than asserting "zero
+      hits." Alternatively, narrow the grep to the literal `analyze.md` filename
+      (`grep -rl "command-templates/analyze.md" src/ packs/ docs/ tests/ scripts/`), which would
+      genuinely return zero hits outside `kitty-specs/` and would make the bullet's claim as
+      currently worded accurate.
+
+  - id: SPEC-R3-VERIFY-001
+    lens: baseline-honesty / factual-check
+    severity: 2
+    title: "analyze is smaller than 7 of the other 11 canonical siblings, not 6 — an uncorrected sibling of the 'third-smallest' error this round was meant to fix"
+    evidence:
+      - artifact: "spec.md § Confirmed diagnosis, line 121-122: \"Canonical: 11,555 B / 245 lines — smaller than 6 of the other 11 sibling command templates (`specify` 46.8 KB is 4x larger).\""
+      - artifact: "research.md § 2, line 45: \"`analyze/prompt.md` (canonical) is smaller than 6 of the other 11 sibling templates.\""
+      - code: "packs/built-in/missions/mission-steps/software-dev/*/prompt.md (live `wc -c`, re-derived during this review): research=4049, accept=4267, tasks-finalize=6604, tasks-outline=9271, analyze=11555, charter=12654, tasks-packages=12943, review=14122, implement=15726, plan=21586, tasks=33385, specify=46822"
+    claim: >
+      This round's mandatory fix corrected the "third-smallest of 8 actions measured" framing
+      (research.md § 4 / spec.md's diagnosis section), but a sibling numeric claim about the
+      *static canonical template* comparison across all 12 software-dev command templates
+      (research.md § 2 / spec.md's "Confirmed diagnosis" bullet) was not corrected and is itself
+      wrong in the same direction (undercounting how many siblings are larger than `analyze`).
+      Re-deriving directly from the live files: of the 11 other canonical templates under
+      `packs/built-in/missions/mission-steps/software-dev/*/prompt.md`, only 4 are smaller than
+      `analyze` (11,555 B) — research (4,049 B), accept (4,267 B), tasks-finalize (6,604 B),
+      tasks-outline (9,271 B) — and 7 are larger (charter, tasks-packages, review, implement,
+      plan, tasks, specify). So `analyze` is smaller than **7** of the other 11, not 6, as both
+      spec.md and research.md currently state in live, non-`<details>` prose. This does not
+      change the diagnosis (analyze is still small, if anything the corrected number makes the
+      "not oversized" case *stronger*, not weaker) and does not change any decision or FR/SC, but
+      it is exactly the class of unverified-arithmetic claim this mission's own thesis
+      ("measure, don't assert") and this round's mandate exist to eliminate, and it sits directly
+      adjacent to the claim this round was specifically tasked with fixing.
+    remediation: >
+      In spec.md's "Confirmed diagnosis" bullet (line ~121) and research.md § 2 (line ~45),
+      change "smaller than 6 of the other 11 sibling command templates/templates" to "smaller
+      than 7 of the other 11 sibling command templates" (or equivalently state "larger than only
+      4 of the other 11: research, accept, tasks-finalize, tasks-outline").
+
+  - id: SPEC-R3-VERIFY-002
+    lens: falsifiability
+    severity: 2
+    title: "FR-003 has no labeled Success Criterion or inline failure condition, unlike FR-001/FR-002/FR-004"
+    evidence:
+      - artifact: "spec.md § Functional Requirements table, FR-003 row (line 558): \"Document in `research.md` (this mission, already delivered) the reproducible `build_prompt()` render measurement... | ... | Medium | Done (delivered as part of this spec/research phase) |\" — no Status/notes falsification clause, and no SC-00x row cites FR-003."
+      - artifact: "spec.md § Success Criteria (SC-001 through SC-004, lines 590-593): SC-001 maps to FR-001/NFR-001, SC-002 maps to FR-002, SC-003/SC-004 map to FR-004/NFR-003 constraints. None is labeled as FR-003's criterion."
+      - artifact: "spec.md § User Story 2 Independent Test (line 495-497): \"research.md's measurement script is copy-pasteable and reproduces the same relative ordering ... on a clean checkout at the same commit\" — this is the de facto falsification condition for FR-003's claim, but it is not cross-referenced from the FR-003 row itself."
+    claim: >
+      FR-001 is falsified via NFR-001's explicit two-part condition; FR-002 is falsified via its
+      own Status/notes clause plus SC-002's explicit "not met if..." wording; FR-004 is falsified
+      via SC-003's diff-based check. FR-003 has none of this directly attached — its row simply
+      says "Done" with no stated condition under which the documentation would be considered
+      inadequate or wrong. The actual falsification criterion exists (User Story 2's Independent
+      Test: does the measurement script reproduce the claimed ordering on a clean checkout at the
+      same commit?), but it lives in a different section with no cross-reference, so a future
+      reader auditing FR-003 in isolation (e.g. via the FR table) would not find it.
+    remediation: >
+      Add a one-line "Status/notes" or "Verification" clause to FR-003's table row (mirroring
+      FR-002's pattern) that cross-references User Story 2's Independent Test as FR-003's
+      falsification condition, e.g.: "Verified by User Story 2's Independent Test: the
+      `build_prompt()` script above reproduces the stated relative ordering (analyze/accept/
+      research small; specify/plan/tasks/implement/review large) on a clean checkout at commit
+      da6d0af97; a re-run that fails to reproduce this ordering falsifies FR-003."
+
+  - id: SPEC-R3-VERIFY-003
+    lens: falsifiability
+    severity: 1
+    title: "SC-002 and Acceptance Scenario 1 state different bars for the FR-002 doctrine text (\"an explicit failure-mode entry\" vs. \"present verbatim\")"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1 (line 468): \"...the entry parses as valid doctrine and is present verbatim...\""
+      - artifact: "spec.md § Success Criteria, SC-002 (line 591): \"...contains an explicit failure-mode entry naming 'bypassing a canonical surface on an unverified size assumption,' reviewable by any future doctrine reader...\" — no \"verbatim\" requirement stated."
+    claim: >
+      Acceptance Scenario 1 requires the failure-mode text be "present verbatim" (implying a
+      fixed, pre-agreed wording the implementer must not paraphrase), while SC-002 — which this
+      spec elsewhere treats as authoritative for FR-002's verification — only requires "an
+      explicit failure-mode entry naming" the concept, without a verbatim requirement. An
+      implementer following SC-002 alone could reasonably paraphrase the failure-mode text and
+      still believe SC-002 is met, while an adversarial reader applying Acceptance Scenario 1's
+      "verbatim" bar would disagree. This is a wording-only gap (the substantive content required
+      is the same either way) with no effect on the mechanically-verified part of FR-002
+      (doctrine-graph regeneration + the two named test files), only on whether the prose text
+      itself must match a fixed string.
+    remediation: >
+      Pick one bar and use it consistently in both places: either drop "verbatim" from
+      Acceptance Scenario 1 (matching SC-002's looser "explicit entry naming X" standard), or add
+      "verbatim (matching the wording given in FR-002's own text above)" to SC-002 so both
+      criteria agree on whether exact wording is required.

@@ -1,0 +1,38 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r4
+results:
+  - id: SPEC-R4-GOV-001
+    status: resolved
+    reason: >-
+      spec.md line 499 now reads "...FR-002/FR-003 close out (FR-001 no longer executes
+      per Operator Decision 7; filed and evidenced against `analyze`'s prompt size
+      specifically)" — FR-001 is no longer grouped as a live closing item.
+  - id: SPEC-R4-VERIFY-001
+    status: resolved
+    reason: >-
+      All five passages (User Story 1 restructure note, Former Acceptance Scenario 2
+      removal block, SC-001's "Current, binding status", research.md § 10 intro/§10.1,
+      and the Key Entities override-entity bullet) now state accurately that
+      tests/cross_cutting/test_kittify_override_parity.py has no per-PR-blocking CI lane
+      (nightly-only via ci-nightly.yml's interpreter-matrix Python-3.13 "fast or unit"
+      lane, or a manual make test-full that no workflow invokes), and none claims the
+      gate "closes"/"pins" the coverage gap in a merge-blocking sense; independent
+      re-read of .github/ci-module-registry.yml (tests/cross_cutting listed under
+      out_of_matrix_test_dirs, no per-PR module row claims it), module-tests.yml (shard
+      selection only ever uses registry test_dirs or the tests/<module> mirror),
+      ci-router.yml (e2e path-filter globs tests/cross_cutting/** but the tests-e2e job
+      body only runs `pytest tests/e2e -q`), and ci-nightly.yml (schedule/workflow_dispatch
+      triggers only, interpreter-matrix runs `pytest -m "fast or unit"` over the whole
+      tree per pytest.ini's testpaths=tests, Python 3.13 only) confirms the new wording
+      is true, not just relabeled; grepped both files for "standing gate", "pins it", "is
+      closed by", "independent of this or any other" — zero hits, matching the fixer's
+      claimed sweep; the remaining "new gate" hits describe the test's existence
+      accurately (it would fail locally on divergence) without claiming per-PR
+      enforcement.
+  - id: SPEC-R4-VERIFY-002
+    status: resolved
+    reason: >-
+      Correctly left unchanged; research.md § 10.2 still states "16,458 bytes / 367
+      lines / ~4,114.5 estimated tokens" with resolve_command returning tier=override,
+      matching the confirmed re-measurement exactly.

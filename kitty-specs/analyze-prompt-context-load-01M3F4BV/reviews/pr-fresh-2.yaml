@@ -1,0 +1,79 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: pr-FRESH2-001
+    lens: profile-lineage-correctness
+    severity: 4
+    title: "python-pedro's own DIRECTIVE_044 rationale edit is dead text; SC-002 and the parametrized test's docstring falsely claim it was red-before-fix"
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-002 (round-2 rework, Operator Decision 8 paragraph): \"verified by the same test parametrized over all four (red before each of the three newly-edited profiles' rationale edit, green after; implementer-ivan's case was already green ...)\""
+      - artifact: "tracer-tooling-friction.md § \"`python-pedro` inherits DIRECTIVE_044 via `specializes_from`, not its own file\": \"Only two failed. `python-pedro` already passed — not because its own file's rationale mentioned the failure mode ... but because ... resolve_profile('python-pedro')'s lineage union-merge resolves the DIRECTIVE_044 citation to implementer-ivan's ... rationale text, not python-pedro's own\""
+      - code: "tests/doctrine/test_directive_consistency.py docstring for test_size_assumption_bypass_failure_mode_reaches_rendered_profile_context: \"RED before this round's fix: three of the four cases ... fail\" — contradicted by the mission's own tracer, which found only two (architect-alphonso, doctrine-daphne) were genuinely red"
+      - code: "src/charter/offering/agent_profiles/repository.py:190-204 _union_merge — parent (ancestor) list items win on a same-`code` collision; a child's own directive-reference for that code is silently discarded, never compared or reconciled (contradicts the resolve_profile docstring's own \"child replaces parent\" claim at repository.py:875-878, per independent read)"
+    claim: >-
+      packs/built-in/agent_profile.graph.yaml declares `agent_profile:python-pedro
+      specializes_from agent_profile:implementer-ivan`. Because `resolve_profile`'s
+      union-merge lets the ancestor's (implementer-ivan's) `directive-references` entry
+      win on a same-`code` collision, python-pedro's OWN edited DIRECTIVE_044 rationale
+      (this mission's round-2 diff) is never actually read through the render path the
+      parametrized test exercises — it is unreachable/dead code. This was verified
+      empirically in an isolated scratch worktree
+      (`<workspace>-fresh2-scratch`, `git -C <lane> worktree
+      add`): reverting ONLY `packs/built-in/agent_profiles/python-pedro.agent.yaml` to
+      its pre-round-2 content and re-running
+      `test_size_assumption_bypass_failure_mode_reaches_rendered_profile_context[python-pedro]`
+      still PASSES, because the resolved profile still carries implementer-ivan's
+      rationale for code "044". The mission's own `tracer-tooling-friction.md` discloses
+      this discovery honestly, but spec.md's SC-002 text and the shipped test's own
+      docstring both still assert "red before" / "three of the four cases ... fail" for
+      the pre-fix state, which is factually false for python-pedro specifically (it was
+      already green via inheritance, per the same tracer entry). A future accidental
+      revert or drift of python-pedro's own file would go completely undetected by this
+      test as long as implementer-ivan's file stays correct — the parametrized
+      `[python-pedro]` case does not validate what its own title/purpose claims to
+      validate.
+    remediation: >-
+      Correct SC-002 and the test's docstring to state precisely that only two of the
+      three newly-edited profiles (architect-alphonso, doctrine-daphne) were genuinely
+      red-before-fix, and that python-pedro's case validates the INHERITED
+      (implementer-ivan) rationale rather than python-pedro's own file content, citing
+      the union-merge parent-wins behavior. If pinning python-pedro's own file content is
+      actually the intent (as its "source-of-truth correctness" edit implies), add a
+      second, raw-YAML-level assertion for python-pedro specifically (reading
+      `packs/built-in/agent_profiles/python-pedro.agent.yaml`'s own DIRECTIVE_044
+      `rationale` directly, not through `resolve_profile`) so a revert of that file's own
+      hunk is actually caught. Separately, file an upstream doctrine gap for
+      `AgentProfileRepository._union_merge`'s same-`code` collision handling
+      contradicting its own docstring ("child replaces parent" vs. observed
+      parent-wins-on-list-item behavior) — out of this mission's scope to fix, but worth
+      recording so a future specializing profile does not assume its own
+      directive-reference edits are load-bearing when they are not.
+  - id: pr-FRESH2-002
+    lens: cross-artifact-consistency
+    severity: 3
+    title: "analysis-report.md's Metrics section inverts its own dropped/superseded vs. live FR count, and silently drops FR-001/005/006/007 from the Coverage Summary Table without updating the total"
+    evidence:
+      - artifact: "analysis-report.md § Metrics: \"Total Requirements: 7 (FR-001..FR-007; 3 dropped/superseded, 4 live)\""
+      - artifact: "analysis-report.md § Coverage Summary Table lists exactly three requirement rows (FR-002, FR-003, FR-004) — i.e. 3 live, not 4"
+      - artifact: "spec.md Functional Requirements table: FR-001 Status = Superseded, FR-005/FR-006/FR-007 Status = Dropped (4 non-live total), FR-002/FR-003/FR-004 = Open/Done (3 live total)"
+    claim: >-
+      The self-authored round-2 analysis-report.md's own Metrics line ("3
+      dropped/superseded, 4 live") is arithmetically backwards against both its own
+      Coverage Summary Table (which lists only 3 live requirements) and spec.md's FR
+      table (1 superseded + 3 dropped = 4 non-live; 3 live). This is a concrete,
+      independently-checkable defect in the very artifact the pre-merge squad is asked to
+      trust for a "ready, zero findings" verdict — produced by the same agent that had
+      just edited spec.md, and not caught by that agent's own review pass. Separately,
+      round-1's analysis-report.md itemized all 7 FRs (including non-build ones) in its
+      Coverage Summary Table; round-2's rewrite silently narrowed the table to 3 rows
+      without reconciling the "Total Requirements: 7" figure against the rows actually
+      shown, which is a completeness regression versus round 1's own report.
+    remediation: >-
+      Fix the Metrics line to read "4 dropped/superseded, 3 live" (or recompute
+      correctly), and either restore explicit rows for FR-001/FR-005/FR-006/FR-007 to the
+      Coverage Summary Table (as round 1's report did, each marked N/A with its
+      disposition) or explain in prose why only build-relevant FRs are tabulated this
+      round, so "Total Requirements: 7" is reconcilable against the table shown.

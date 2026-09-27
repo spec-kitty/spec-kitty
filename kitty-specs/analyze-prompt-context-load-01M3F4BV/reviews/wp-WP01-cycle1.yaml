@@ -1,0 +1,46 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP01
+cycle: 1
+mission: analyze-prompt-context-load-01M3F4BV
+verdict: approved
+gates_observed:
+  ruff: pass
+  tests: pass
+  coverage: unknown
+  drg_check: pass
+  red_first_revert: pass
+feedback:
+  - id: WP01-C1-001
+    severity: 1
+    claim: >
+      `ruff format --check` fails on tests/doctrine/test_directive_consistency.py, but only
+      because of pre-existing long-line drift in the file's other 8 tests (lines ~115-420,
+      e.g. the multi-line f-string asserts ruff would collapse to one line). Confirmed
+      pre-existing: `ruff format --check` on the file as it stood at base commit 6fd106041
+      (before this WP touched it) already fails identically. WP01's own added lines
+      (the new `test_size_assumption_bypass_failure_mode_documented` function) are
+      format-clean on their own — `ruff format --diff` shows zero hunks inside the added
+      block.
+    remediation: >
+      No action needed for this WP; the drift is repo-wide pre-existing debt outside this
+      WP's owned_files and outside its diff. Worth a separate cleanup ticket, not a blocker
+      here.
+  - id: WP01-C1-002
+    severity: 1
+    claim: >
+      packs/built-in/pack-manifest.yaml (2 hunks: content_hash for
+      canonical-source-unification and the top-level manifest_hash) is outside this WP's
+      lanes.json write_scope (`kitty-specs/analyze-prompt-context-load-01M3F4BV/lanes.json`
+      lists only directive.graph.yaml, the directive yaml, tactic.graph.yaml, the tactic
+      yaml, and the test file — not pack-manifest.yaml).
+    remediation: >
+      Judged legitimate, not a violation: verified the two changed hashes are exactly what
+      `spec-kitty doctrine regenerate-graph --check` computes from the T002 content edit —
+      re-running `--check` in the lane (SPEC_KITTY_PACKS_ROOT=<lane>/packs,
+      PATH=<checkout>/.venv/bin first) reports "DRG graph is fresh", i.e. the committed
+      manifest already matches a fresh tool regeneration byte-for-byte; there is no
+      hand-patched value. lanes.json's write_scope is simply stale/incomplete (it names the
+      *.graph.yaml companions but omits pack-manifest.yaml, which regenerate-graph also
+      touches on every pack-source edit) — a tooling gap, not an authoring violation. No
+      remediation required of this WP; worth fixing the write_scope predictor upstream.

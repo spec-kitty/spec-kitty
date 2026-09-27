@@ -1,0 +1,115 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r2
+lens_group: gov
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R2-GOV-001
+    lens: Scope
+    severity: 3
+    title: "FR-005's 'Honest residual' paragraph is ambiguous about whether the Action Doctrine requires-closure becomes budget-substitutable at all — under the literal reading it makes SC-005's <=40,000-byte target arithmetically unreachable"
+    evidence:
+      - artifact: "spec.md § \"Confirmed root cause and fix plan for the governance-context disparity (Operator Decision 5)\" — \"Honest residual, narrowly scoped\" paragraph"
+      - artifact: "spec.md § FR-005 (Requirements table)"
+      - artifact: "spec.md § SC-005 (Success Criteria)"
+      - artifact: "research.md § 9.2 (measured Action Doctrine byte breakdown table) and § 9.3"
+      - code: "src/charter/activation/context_renderers/bootstrap_text.py:113-131 (docstring: \"requires-eager / suggests-linked cadence\"; requires-closure items always render full verbatim body, D2c)"
+      - code: "src/charter/activation/context_renderers/token_budget.py:398-470 (_collect_section_block_candidates/_collect_profile_block_candidates mark every candidate substitutable=True; the only existing substitutable=False class is \"Authority paths\", which are never even added as a RenderedSection)"
+    claim: >
+      FR-005 states the fix "extend[s] the existing NFR-001 budget enforcer... so its
+      substitution-candidate collection also covers the 'Action Doctrine' block bodies", and
+      SC-005 sets a falsifiable target of <= 40,000 bytes for all five affected actions,
+      down from the measured 81,476-95,139-byte baseline. Immediately above FR-005 in the
+      "Confirmed root cause and fix plan" section, the "Honest residual, narrowly scoped"
+      paragraph describes "the requires-closure alone (the portion `substitutable=False`
+      per current design, i.e. never swapped)" as a thing that might, after the fix, "still
+      cannot fit under 40,000 characters for some action" (framed as an out-of-scope
+      DRG-curation residual, not a rendering defect). Read literally, this sentence equates
+      "the requires-closure" (the whole thing) with "the portion substitutable=False...
+      never swapped" — i.e., it says the requires-closure stays permanently unswappable
+      even after FR-005 ships. Research.md § 9.2 measures the Action Doctrine block (which,
+      per bootstrap_text.py's own docstring, is dominated by requires-closure content
+      because suggests-only entries already render as compact fetch stanzas via D2c/
+      progressive disclosure, independent of NFR-001) at 57,772-70,598 bytes — 71-75% of
+      the render — while the "before Action Doctrine" portion (23,703-24,540 bytes) is
+      already fully substituted today (7-11 candidates already swapped per the existing
+      trailer) and cannot shrink further under the existing mechanism. If the entire
+      requires-closure genuinely stays unswappable, the achievable floor after FR-005 is
+      still ~81,476-95,139 bytes (unchanged), making SC-005's <= 40,000-byte target
+      arithmetically impossible for all five actions, not merely "possible but rare" as the
+      residual paragraph's hedged framing implies. Under the alternative, more charitable
+      reading — that only a small always-inline residual (mirroring the existing "Authority
+      paths stay inline unconditionally" precedent) remains protected, with the bulk of
+      requires-closure becoming genuinely substitutable — the paragraph does not say so, and
+      that reading is itself in tension with bootstrap_text.py's own documented
+      "requires-eager / suggests-linked cadence" design (the WP15/D2c distinction that
+      `requires` content renders its full verbatim body precisely because it is mandatory,
+      while `suggests` content is fetch-linked). Neither reading is stated explicitly enough
+      for a WP implementer to know which candidates FR-005 actually authorizes marking
+      substitutable, and the spec does not reconcile the byte arithmetic against research.md
+      §9.2's own measured requires-closure floor to show SC-005 is achievable as scoped.
+    remediation: >
+      Before implementation, resolve this explicitly in spec.md: state precisely which
+      subset of the Action Doctrine requires-closure becomes a budget-substitution candidate
+      under FR-005 (e.g., "every requires-closure artifact body becomes substitutable except
+      <X>, mirroring the Authority-paths precedent") and which (if any) stays permanently
+      inline by design, then show the resulting byte arithmetic against research.md §9.2's
+      measured 57,772-70,598-byte requires-closure figures so SC-005's <=40,000-byte target
+      is demonstrably achievable under the actual candidate set the WP will implement — not
+      merely asserted. Also address directly whether making requires-closure content
+      budget-substitutable changes the requires-eager rendering guarantee bootstrap_text.py's
+      own docstring attributes to D2c/WP15's ADR (whether "required" doctrine can now arrive
+      as a fetch pointer instead of an inline body under budget pressure), since that is a
+      documented behavioral distinction between `requires` and `suggests` at the render
+      layer, not merely an internal implementation detail this mission can wave through as
+      "narrowly scoped."
+
+  - id: SPEC-R2-GOV-002
+    lens: Decision fidelity
+    severity: 2
+    title: "Clarifications/Decisions intro sentence still says \"three operator decisions\" though the section now lists five"
+    evidence:
+      - artifact: "spec.md § Clarifications / Decisions, opening sentence (\"The following three operator decisions are binding inputs to this mission, reproduced verbatim from the dispatch:\")"
+      - artifact: "spec.md § Clarifications / Decisions, items 1-5 (items 4 and 5 added 2026-09-26, dated and framed as superseding parts of items 3/FR-001 and FR-005 respectively)"
+    claim: >
+      The section's introductory sentence asserts "the following three operator decisions
+      ... reproduced verbatim from the dispatch," but the list that follows now contains
+      five numbered items (1-3 original, plus 4 and 5 added under Operator Decisions 4 and
+      5, 2026-09-26). The stale "three" count was not updated when items 4 and 5 were
+      appended, and the "reproduced verbatim from the dispatch" claim is not explicitly
+      re-scoped to cover items 4 and 5 (which are dated separately and read as more
+      elaborated/paraphrased text with inline citations, ledger references, and
+      cross-references not present in the terser dispatch-style wording of items 1-3). This
+      does not change any FR/NFR/SC and does not risk a wrong implementation, but it is a
+      real, checkable inaccuracy in a document this mission's own doctrine (research-citation-
+      discipline, version-governance) holds to a "cite precisely" standard, and a reader
+      relying on "reproduced verbatim" to mean "these are exact operator quotes" would be
+      misled about items 4 and 5's provenance.
+    remediation: >
+      Update the introductory sentence to reflect the actual count ("the following five
+      operator decisions...") and either extend the "reproduced verbatim from the dispatch"
+      claim explicitly to cover items 4 and 5 (if that is factually true) or reword it to
+      distinguish the verbatim-quoted original three from the elaborated/paraphrased
+      restatement of the two 2026-09-26 additions, so a future reader does not need to infer
+      the provenance distinction from the per-item dating alone.
+
+findings_complete_note: >
+  Public-repo (grep for /home/), Terminology (Mission vs Feature — only hit is unrelated
+  canonical spec-template boilerplate "Key Entities *(include if feature involves data)*"),
+  Ledger (SK-276 verified present in SPEC-KITTY-LEDGER.md, correctly scoped to the 9 other
+  overrides, framed as "a known residual, nothing more" matching the operator's own
+  framing), No-new-CLI-surface (NFR-002/C-003 verified against FR-001/002/005/006/007 —
+  holds; `spec-kitty charter context --include` / build_charter_context_include already
+  exist and are reused, not added), and Directive/canonical-sources (FR-001's delete-not-
+  copy rewrite satisfies the charter's single-canonical-authority principle at least as
+  well as, and more durably than, the superseded byte-for-byte-copy approach) all checked
+  clean — no findings. PR #5009 and #4995 file-overlap claims (NFR-003/C-002) were
+  independently verified live via `gh pr diff 5009`/`gh pr diff 4995 --name-only`: both
+  match spec.md's stated file lists exactly, including the specific `effective_root`
+  threading through `_governance_context` call sites in prompt_builder.py that PR #5009
+  makes. Code citations spot-checked against the actual source (BUDGET_DEFAULT,
+  _enforce_token_budget, the three candidate collectors, warning_line, BOOTSTRAP_ACTIONS,
+  _action_node_declared, build_charter_context, _prepare_context_state, _mark_action_loaded,
+  build_non_bootstrap_context_result, build_charter_context_include, the two cited
+  tests/architectural/ test files, and the ~496 kitty-specs/ mission-directory count) all
+  matched research.md/spec.md's line numbers and figures precisely.

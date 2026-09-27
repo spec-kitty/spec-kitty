@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "analyze-prompt-context-load-01M3F4BV",
+  "mission_id": "01M3F4BV8ZVCFT3JVFFWM9KXW0",
+  "mission_branch": "kitty/mission-analyze-prompt-context-load-01M3F4BV",
+  "target_branch": "fix/analyze-prompt-context-load-5005",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/directive.graph.yaml",
+        "packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml",
+        "packs/built-in/tactic.graph.yaml",
+        "packs/built-in/tactics/canonical-source-unification.tactic.yaml",
+        "tests/doctrine/test_directive_consistency.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-26T21:40:02.373683+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fb1e31e1eafe6df821a8b8927ff2139a99e73f22"
+}

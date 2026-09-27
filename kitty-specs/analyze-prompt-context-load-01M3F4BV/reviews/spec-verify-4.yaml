@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH3-001
+    status: resolved
+    reason: >-
+      Commit 7c645ff5f adds a blockquote clarification immediately after Operator Decision
+      (3)'s verbatim text (spec.md lines 30-41) that explicitly narrows "behaviour-preserving"
+      to scope/heuristics (matching NFR-001's "heuristic preservation" label), explicitly
+      states the override's read/write contract change (STRICTLY READ-ONLY to
+      NON-REMEDIATING write-and-persist) is intentional and in-scope, leaves the verbatim
+      operator text in item 3 untouched (says so explicitly), and extends the same narrowed
+      reading to FR-001's own citation of "Operator Decision 3" — closing the exact
+      citation-side gap the finding's evidence called out. Consistent with FR-001, NFR-001,
+      and the Edge Cases section (no new contradiction). Closing sanity pass over the full
+      current spec.md and research.md found no residual issue: no broken markdown tables (both
+      files' pipe-delimited tables verified column-consistent), no absolute /home/<user>/
+      paths (grep confirmed zero hits in spec.md and research.md), every research.md "§ N"
+      cross-reference (§3, §4, §6) resolves to an existing heading with matching content,
+      spec.md's ~496-mission-directory figure matches the live `kitty-specs/` count (496), and
+      spec.md's byte/percentage figures (11,891 B rendered payload, 6,988 B override,
+      4,903 B governance overhead for analyze/accept/research, 81-95 KB / 17-19x for the five
+      large actions) match research.md's measured tables exactly.

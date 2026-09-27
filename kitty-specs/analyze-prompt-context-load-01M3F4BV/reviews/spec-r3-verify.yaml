@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r3
+results:
+  - id: SPEC-R3-GOV-001
+    status: resolved
+    reason: "NFR-003's row (spec.md:567) was retitled to \"Sequencing: FR-001/FR-002 diff has no file-level overlap with open PRs #5009/#4995\" and its body no longer spells out FR-005/006/007, instead pointing at C-002 for the fuller conclusion — the SK-277-vulnerable tokens are gone from this row's live text."
+  - id: SPEC-R3-ARCH-001
+    status: resolved
+    reason: "The Edge Cases bullet (spec.md:547) now states the real re-run result (4 hits outside kitty-specs/: test_resolver.py, ci-coverage-union-audit.md, two census JSONs) instead of a false zero-hits claim, and re-running the exact grep myself reproduces exactly those same 4 paths, none naming analyze.md."
+  - id: SPEC-R3-VERIFY-001
+    status: resolved
+    reason: "wc -c on all 12 sibling prompt.md files confirms analyze (11,555 B) is smaller than 7 of the other 11 (only research/accept/tasks-finalize/tasks-outline are smaller); \"smaller than 6\" now has zero hits and \"smaller than 7\" appears in both spec.md and research.md."
+  - id: SPEC-R3-VERIFY-002
+    status: resolved
+    reason: "FR-003's table row (spec.md:558) now carries a \"Status/notes (falsification condition, mirroring FR-002's pattern)\" clause cross-referencing User Story 2's Independent Test, matching the FR-001/FR-002/FR-004 pattern."

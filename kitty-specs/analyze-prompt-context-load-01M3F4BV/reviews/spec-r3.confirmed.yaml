@@ -1,0 +1,117 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r3
+lens_group: confirmed
+mission: analyze-prompt-context-load-01M3F4BV
+source: reviews/spec-r3.merged.yaml + reviews/spec-r3-refute-1.yaml (4 confirmed, 2 refuted)
+findings:
+  - id: SPEC-R3-GOV-001
+    lens: Scope
+    severity: 2
+    title: "NFR-003's title still names the dropped governance-context fix; its actual (post-Decision-6) content is a sequencing statement duplicating C-002, inviting an FR-token-scan false positive of the SK-277 kind"
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements, NFR-003 row title: \"Governance-context fix seam and PR #5009 overlap\""
+      - artifact: "spec.md § NFR-003 body: \"Per Decision 6, the governance-context budget fix (FR-005/006/007) this NFR originally analyzed for PR #5009 file-level overlap is not implemented in this mission ... The overlap discussion is therefore moot for this mission's actual diff, which touches only the override deletion (FR-001) and the doctrine pack files (FR-002) — neither of which overlaps PR #5009's or PR #4995's diffs.\""
+      - artifact: "spec.md § C-002 (Constraints table), which independently states the same FR-001/FR-002-vs-#5009/#4995 no-overlap conclusion in full detail"
+      - artifact: "SPEC-KITTY-LEDGER.md SK-277 (\"The terminus retrospective's FR-coverage gap check counts cross-mission FR citations as local, uncovered requirements\" — \"The gap detector treats any FR-\\d+ token in the spec as a local requirement\")"
+    claim: >
+      Decision 6 drops FR-005/006/007 from this mission's scope entirely, so the governance-context
+      fix NFR-003 was written to analyze no longer exists as a deliverable in this mission. NFR-003's
+      row title ("Governance-context fix seam and PR #5009 overlap") was not updated to match: the
+      body now explicitly says the fix "is not implemented" and the overlap discussion "is moot,"
+      leaving the row's only live content the FR-001/FR-002-vs-open-PRs sequencing check that C-002
+      already states, in more detail, under its own title. Keeping this now-vestigial row in the
+      active Non-Functional Requirements table (rather than in a historical block or folded into
+      C-002) is a real gap, not merely stylistic: SK-277 is a live, ledger-recorded defect in this
+      same tooling family (the retrospective's FR-coverage gap detector) that treats *any* `FR-\d+`
+      token appearing anywhere in a spec's prose as a local, uncovered requirement needing WP
+      coverage, regardless of context. NFR-003's body is one of several active (non-historical,
+      non-"Known residual") locations in this spec that spell out "FR-005/006/007" in full.
+    remediation: >
+      Either delete NFR-003 as superseded by C-002 (which already carries the identical, more
+      detailed FR-001/FR-002-vs-#5009/#4995 no-overlap conclusion) and note its removal in the same
+      place Decision 6's other supersessions are tracked, or retitle it to describe what it now
+      actually asserts (e.g. "Sequencing: FR-001/FR-002 diff has no file-level overlap with open PRs
+      #5009/#4995") so a reader scanning NFR titles is not misled into thinking the governance-context
+      fix seam is still being analyzed as live scope.
+    verdict: confirmed
+    refute_reason: "NFR-003's title still names the dropped fix and its rewritten body spells out FR-005/006/007 (SK-277-vulnerable tokens) while duplicating C-002's fuller no-overlap conclusion — the FR table only defines FR-001..FR-004, so FR-005/6/7 are dangling prose tokens."
+
+  - id: SPEC-R3-ARCH-001
+    lens: Reflexivity / FR-001 blast-radius verification
+    severity: 3
+    title: "New Edge Cases 'Read-only check' bullet's grep-scope claim is false as literally written"
+    evidence:
+      - artifact: "spec.md § Edge Cases — 'Read-only check (per mission brief): is anything else in the live codebase affected by the FR-001 deletion?'"
+      - code: "tests/doctrine/test_resolver.py:245"
+      - code: "docs/plans/testing/ci-coverage-union-audit.md:92"
+    claim: >
+      This bullet asserts: "a repo-wide grep of `src/`, `packs/`, `docs/`, `tests/`, `scripts/` for
+      the override path found zero hits outside this mission's own `kitty-specs/` directory."
+      Re-running the exact grep (`grep -rl "overrides/missions/software-dev/command-templates" src/
+      packs/ docs/ tests/ scripts/`) finds FOUR hits outside `kitty-specs/`:
+      `tests/doctrine/test_resolver.py:245` (a docstring using `implement.md` as its example
+      filename, inside a `tmp_path`-fixture test), `docs/plans/testing/ci-coverage-union-audit.md`
+      (stale pytest-node-id captures referencing `tasks.md`, not `analyze.md`), and two JSON census
+      files. None of these hits are actually affected by deleting the live `analyze.md` override —
+      the bullet's ultimate conclusion (no live blast radius) still holds — but its own stated
+      verification method ("zero hits outside ... kitty-specs/") is factually false as written.
+      Independently reproduced during refutation.
+    remediation: >
+      Re-run the grep as literally described, list the actual hits found, and rewrite the bullet's
+      conclusion to match the real result (e.g. "N hits found outside kitty-specs/; each is either a
+      different filename (`tasks.md`/`implement.md`, not `analyze.md`) or a self-contained
+      `tmp_path` test fixture, none referencing the live `analyze.md` override path"). Alternatively,
+      narrow the grep to the literal `analyze.md` filename
+      (`grep -rl "command-templates/analyze.md" src/ packs/ docs/ tests/ scripts/`), which would
+      genuinely return zero hits outside `kitty-specs/` and would make the bullet's claim as
+      currently worded accurate.
+    verdict: confirmed
+    refute_reason: "Re-ran the exact grep; reproduced 4 hits outside kitty-specs/ (test_resolver.py:245, ci-coverage-union-audit.md:92, two census JSONs), none affecting the analyze.md deletion but directly contradicting spec.md's literal zero-hits claim."
+
+  - id: SPEC-R3-VERIFY-001
+    lens: baseline-honesty / factual-check
+    severity: 2
+    title: "analyze is smaller than 7 of the other 11 canonical siblings, not 6 — an uncorrected sibling of the 'third-smallest' error this round was meant to fix"
+    evidence:
+      - artifact: "spec.md § Confirmed diagnosis, line 121-122: \"Canonical: 11,555 B / 245 lines — smaller than 6 of the other 11 sibling command templates (`specify` 46.8 KB is 4x larger).\""
+      - artifact: "research.md § 2, line 45: \"`analyze/prompt.md` (canonical) is smaller than 6 of the other 11 sibling templates.\""
+      - code: "packs/built-in/missions/mission-steps/software-dev/*/prompt.md (live `wc -c`): research=4049, accept=4267, tasks-finalize=6604, tasks-outline=9271, analyze=11555, charter=12654, tasks-packages=12943, review=14122, implement=15726, plan=21586, tasks=33385, specify=46822"
+    claim: >
+      Re-deriving directly from the live files: of the 11 other canonical templates under
+      `packs/built-in/missions/mission-steps/software-dev/*/prompt.md`, only 4 are smaller than
+      `analyze` (11,555 B) — research, accept, tasks-finalize, tasks-outline — and 7 are larger
+      (charter, tasks-packages, review, implement, plan, tasks, specify). So `analyze` is smaller
+      than 7 of the other 11, not 6, as both spec.md and research.md currently state in live prose.
+      Does not change the diagnosis or any decision/FR/SC — if anything strengthens the
+      "not oversized" case — but is an uncorrected sibling of the ranking error this round fixed.
+      Independently reproduced during refutation.
+    remediation: >
+      In spec.md's "Confirmed diagnosis" bullet (line ~121) and research.md § 2 (line ~45), change
+      "smaller than 6 of the other 11 sibling command templates/templates" to "smaller than 7 of the
+      other 11 sibling command templates" (or equivalently "larger than only 4 of the other 11:
+      research, accept, tasks-finalize, tasks-outline").
+    verdict: confirmed
+    refute_reason: "wc -c on all 12 sibling prompt.md files reproduces the finding's exact byte counts — only 4 of 11 siblings are smaller than analyze, so 7 are larger, not 6."
+
+  - id: SPEC-R3-VERIFY-002
+    lens: falsifiability
+    severity: 2
+    title: "FR-003 has no labeled Success Criterion or inline failure condition, unlike FR-001/FR-002/FR-004"
+    evidence:
+      - artifact: "spec.md § Functional Requirements table, FR-003 row (line 558): \"Document in `research.md` (this mission, already delivered) the reproducible `build_prompt()` render measurement... | ... | Medium | Done (delivered as part of this spec/research phase) |\" — no Status/notes falsification clause, and no SC-00x row cites FR-003."
+      - artifact: "spec.md § Success Criteria (SC-001 through SC-004): none labeled as FR-003's criterion."
+      - artifact: "spec.md § User Story 2 Independent Test: \"research.md's measurement script is copy-pasteable and reproduces the same relative ordering ... on a clean checkout at the same commit\" — the de facto falsification condition for FR-003's claim, not cross-referenced from the FR-003 row itself."
+    claim: >
+      FR-001 is falsified via NFR-001's explicit two-part condition; FR-002 is falsified via its
+      own Status/notes clause plus SC-002's explicit "not met if..." wording; FR-004 is falsified
+      via SC-003's diff-based check. FR-003 has none of this directly attached — its row simply
+      says "Done" with no stated condition under which the documentation would be considered
+      inadequate or wrong. The actual falsification criterion exists (User Story 2's Independent
+      Test) but lives in a different section with no cross-reference.
+    remediation: >
+      Add a one-line "Status/notes" or "Verification" clause to FR-003's table row (mirroring
+      FR-002's pattern) that cross-references User Story 2's Independent Test as FR-003's
+      falsification condition.
+    verdict: confirmed
+    refute_reason: "FR-003's row has no inline falsification condition and no cross-reference to User Story 2's Independent Test, which is the actual de facto falsification bar."

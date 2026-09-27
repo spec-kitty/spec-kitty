@@ -1,0 +1,19 @@
+schema: review-refute/v1
+complete: true
+phase: plan-r2
+batch: 1
+verdicts:
+  - id: PLAN-R2-ARCH-001
+    verdict: refuted
+    reason: >-
+      Reproducing the finding's own experiment (throwaway failure_modes entry added to
+      canonical-source-unification.tactic.yaml, reverted after) gives the opposite result on
+      every empirical point claimed: `spec-kitty doctrine regenerate-graph --check` reported
+      "DRG graph is stale" (not fresh) immediately after the source edit, write-mode
+      regeneration then produced a real, non-empty diff in packs/built-in/pack-manifest.yaml
+      (the file backing the freshness gate, via a per-artifact content_hash and a manifest_hash
+      that both changed) even though tactic.graph.yaml/directive.graph.yaml themselves showed
+      no diff, and `grep -rl 'procedures' src/charter/offering/drg/` returns four files
+      (org_pack_loader.py, project_scan.py, query.py, migration/extractor.py), not the zero the
+      finding's evidence asserts — so plan.md's claim that skipping regeneration "would leave
+      the DRG stale... tripping the freshness gate" is empirically correct, not false.

@@ -1,0 +1,119 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r3
+lens_group: fresh
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R3-FRESH-001
+    lens: fresh
+    severity: 3
+    title: research.md still cross-references spec.md's "Operator Decision 5 reflexivity" Edge Case, which this round deleted
+    evidence:
+      - artifact: "research.md § 9.7.2, line 677"
+      - artifact: "research.md § 9.7.3, line 706"
+      - artifact: "spec.md § Edge Cases (diff 0bb0b671d..HEAD, the bullet removed and replaced)"
+    claim: >
+      This round's diff (0bb0b671d..HEAD) deletes spec.md's entire "(Operator Decision 5
+      reflexivity — corrected per round-4 fix, SPEC-R2-ARCH-001/VERIFY-005: ...)" Edge Cases
+      bullet outright, replacing it with two much shorter bullets (a "Read-only check" bullet
+      and a one-line "(Operator Decision 6, 2026-09-26 — this bullet is retired.)" notice). But
+      research.md § 9.7.2 ("...case (a) in spec.md's 'Operator Decision 5 reflexivity' Edge
+      Case) is unaffected by this fix...") and § 9.7.3 ("...corrected in place (see §9.1) and in
+      spec.md's 'Operator Decision 5 reflexivity' Edge Case...") were not updated in this round
+      and still point a reader at that named Edge Case as if its content (the compact-path
+      no-op argument, the byte figures, the required regression test) is live in spec.md. A
+      reader following either research.md pointer into spec.md today finds no such heading or
+      bullet text — only the one-line retirement notice. This is exactly the "pointer to a
+      heading that ... was deleted" case: the target section research.md names no longer
+      exists under that name anywhere in spec.md.
+    remediation: >
+      Update research.md § 9.7.2 and § 9.7.3 to either point at spec.md's current retirement
+      bullet/"Known residual (out of scope): governance-context budget gap" section, or drop
+      the forward pointer and state the compact-path-is-a-no-op conclusion self-containedly in
+      research.md (it already has the supporting measurement in the same subsections).
+
+  - id: SPEC-R3-FRESH-002
+    lens: fresh
+    severity: 3
+    title: SC-004 is the one Success Criterion this round left unrenovated — it still cites "NFR-003's rewrite" and points at the now-collapsed fix-plan section
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-004"
+      - artifact: "spec.md § Non-Functional Requirements, NFR-003 (current text)"
+      - artifact: "spec.md § Confirmed diagnosis, \"### Confirmed root cause and fix plan for the governance-context disparity (Operator Decision 5)\" (now inside the second, Decision-6 <details> block)"
+    claim: >
+      Every other requirement/constraint that referenced the dropped FR-005/006/007 work was
+      updated in this round to point at the new "Known residual (out of scope):
+      governance-context budget gap" section (NFR-002, NFR-003, C-002, C-003, both Key
+      Entities bullets all do this explicitly). SC-004 alone was left untouched (absent from
+      the diff) and still reads: "(Reframed per NFR-003's rewrite: this is no longer true
+      because the mission avoids that file to dodge #5009 — it is true because investigation
+      confirmed that file is not the correct seam for the FR-005/006/007 fix; see 'Confirmed
+      root cause and fix plan' above.)" Two problems: (a) "NFR-003's rewrite" it references was
+      the Decision-5-era rewrite ("collision risk with #5009," "blanket prohibition retired") —
+      the CURRENT NFR-003 (Decision 6, this round) says something materially different (a moot,
+      sequencing-only row), so the parenthetical's own citation is stale; (b) the "see
+      'Confirmed root cause and fix plan' above" pointer now resolves inside the second
+      <details>/"do not re-implement from this" historical block introduced by this round's
+      Decision-6 restructuring — a fresh reader following it lands in archived, superseded
+      text rather than the current binding scope, exactly the "heading ... collapsed into a
+      <details> block" case this round's other cross-references were fixed to avoid.
+    remediation: >
+      Update SC-004's parenthetical to reference Decision 6 and the "Known residual" section
+      the way NFR-002/NFR-003/C-002/C-003 now do (the underlying fact — zero lines changed in
+      prompt_builder.py — is unaffected and, if anything, easier to state now that
+      FR-005/006/007 are out of scope entirely rather than merely avoided pending an ADR
+      ruling).
+
+  - id: SPEC-R3-FRESH-003
+    lens: charter
+    severity: 3
+    title: Decision 6's deferral of the governance-context fix does not satisfy DIRECTIVE_052's "tracked follow-up behind an umbrella/epic issue" requirement
+    evidence:
+      - artifact: "spec.md § Clarifications / Decisions, item 6"
+      - artifact: "spec.md § \"Known residual (out of scope): governance-context budget gap\""
+      - code: "packs/built-in/directives/052-prefer-durable-fixes.directive.yaml (integrity_rules: \"Deferring a structural remediation is compliant ONLY when it is recorded as a tracked follow-up behind an umbrella/epic issue with the root cause named.\")"
+    claim: >
+      DIRECTIVE_052 (activated in this repo's charter, cited earlier in this same spec's now-
+      collapsed historical section as the authority requiring a tracked follow-up) requires a
+      deferred structural fix to be recorded "behind an umbrella/epic issue," not merely
+      mentioned in prose. Decision 6 and the new "Known residual" section both commit only to
+      "the orchestrator will post the budget-gap measurements and an ADR amendment proposal on
+      #5005 for the upstream maintainer" — i.e., a comment on the SAME issue #5005 that this
+      mission is itself closing out (FR-001/002/003 are exactly what #5005 asked for). Nothing
+      in spec.md states whether #5005 stays open specifically to track the deferred
+      governance-context fix, or whether it closes on this mission's merge (the normal
+      convention per the charter's Collaboration Strategy) leaving the deferred structural
+      defect recorded only in a comment on a closed issue — not a "tracked follow-up" a
+      maintainer would see in an open-issues triage pass. This is the same failure mode noted
+      elsewhere in project memory: humans/maintainers read PRs, not issue comments, when
+      triaging.
+    remediation: >
+      Either (a) explicitly state in spec.md/Decision 6 that #5005 will be kept open (or
+      re-labeled) specifically to track the governance-context budget-gap ADR-amendment
+      proposal until the maintainer rules, or (b) have the orchestrator file a dedicated
+      follow-up issue naming the root cause (per DIRECTIVE_052's literal requirement) and
+      record its number in spec.md's Dependencies & Sequencing, the same way Operator
+      Decision 4's SK-276 ledger residual is recorded.
+
+  - id: SPEC-R3-FRESH-004
+    lens: fresh
+    severity: 2
+    title: "Post-deletion re-measurement figure (16,458 B) is loosely called \"an order of magnitude below\" the 97,175–112,248 B group, but the actual ratio is ~5.9x–6.8x"
+    evidence:
+      - artifact: "spec.md § Confirmed diagnosis, \"Honest post-deletion figure\" sentence"
+      - artifact: "research.md § 4, \"Post-deletion re-measurement\" paragraph"
+    claim: >
+      Both spec.md and research.md's new post-deletion re-measurement text state: "This remains
+      an order of magnitude below the 97,175–112,248 B group of five and well within normal
+      LLM-context standards." 97,175 / 16,458 ≈ 5.9 and 112,248 / 16,458 ≈ 6.8 — under one order
+      of magnitude (~10x) by either bound. The phrase was carried over verbatim from the
+      pre-deletion figure's framing (11,891 B vs. the same group, a ~8.2x–9.4x ratio, itself a
+      loose but more defensible use of "order of magnitude") without being recalibrated for the
+      new, ~38% larger post-deletion number. This is a small but real quantitative overstatement
+      inside a document whose entire methodology is "measure, don't assert" — the kind of
+      unverified-round-number claim this mission's own diagnosis criticizes elsewhere (e.g. the
+      round-3 fix to the ledger-check "zero hits" claim in research.md § 6).
+    remediation: >
+      Reword to something ratio-accurate, e.g. "roughly 6x–7x smaller than the
+      97,175–112,248 B group" or "well under half the 40,000-character BUDGET_DEFAULT... and
+      6–7x smaller than the five oversized actions," rather than reusing "order of magnitude."

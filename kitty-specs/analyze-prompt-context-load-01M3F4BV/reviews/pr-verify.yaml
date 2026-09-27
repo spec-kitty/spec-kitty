@@ -1,0 +1,41 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: pr-contract-001
+    status: resolved
+    reason: >-
+      Empirically confirmed via the real pre-existing render pipeline
+      (runtime.next.prompt_builder._governance_context / build_charter_context,
+      the same function build_prompt calls for spec-kitty next), not just the
+      new isolated test: with feature_dir set to this mission's own directory
+      (mission_type=software-dev) and profile=implementer-ivan, action=implement,
+      the rendered governance text contains "unverified size assumption" and
+      only 1 of the payload's sections was budget-substituted (the Profile-Cited
+      Directives block survives because implementer-ivan's DIRECTIVE_044
+      citation rationale renders before the per-artifact body/fetch-stanza
+      check, exactly as the fix's commit message claims); confirmed the needle
+      is absent for action=analyze/profile=None (the mission-level step
+      contract, agent_profile: null in step.yaml), so the fix reaches WP work
+      done under implementer-ivan but not the top-level orchestrating agent
+      running specify/plan/tasks/analyze/review/accept -- the corrected FR-002
+      in spec.md is honest about this: it claims only "any agent operating
+      under implementer-ivan performs" and never claims analyze-step or
+      orchestrator-level reach, and the operator's binding remedy explicitly
+      forbade the analyze/prompt.md and budget/renderer changes that would be
+      needed to close that residual gap, so the narrower verified reach
+      satisfies the remedy as scoped. No new CLI, no analyze/prompt.md edit,
+      no budget/renderer change landed, matching the remedy's constraints.
+  - id: pr-tests-001
+    status: resolved
+    reason: >-
+      Reproduced in an isolated scratch worktree (git worktree add off lane
+      HEAD c1022bb57, removed after): with only the incidental closing-clause
+      restatement removed ("an unverified size assumption is not evidence" ->
+      "this is not evidence") the fixed test still PASSES (no longer
+      dependent on that phrase); with the entry's own title changed instead
+      (title reworded, closing restatement left intact -- reproducing exactly
+      the old false-pass shape) the fixed test now correctly FAILS, proving
+      the needle is genuinely anchored on the entry's stable title identity
+      via the new case-insensitive _entry_title helper, not an incidental
+      substring match.

@@ -1,0 +1,57 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M3G9B2EAG3P7HVTVZ1XHTG6M",
+  "materialized_at": "2026-09-27T01:58:11.658304+00:00",
+  "mission_number": "",
+  "mission_slug": "analyze-prompt-context-load-01M3F4BV",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3G9B2EAG3P7HVTVZ1XHTG6M",
+      "last_transition_at": "2026-09-27T01:58:11.658304+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Approved cycle 1 by independent reviewer-renata subagent; red-first proven by revert; 47/47 tests; DRG check fresh",
+        "WP01 rework: fixed pr-contract-001 (reachable render surface via implementer-ivan's DIRECTIVE_044 rationale) and pr-tests-001 (needle anchored on failure-mode title); spec.md FR-002/SC-002 corrected",
+        "Cycle-2 rejected: WP01-C2-001/002/003/004 (spec-sync, scope-authorization, residual-reach, baseline-count)",
+        "Approved cycle 4 by independent reviewer-renata subagent; pre-merge squad closed (pr-verify-3 all resolved, pr-fresh-3 clean); analyze ready (052aad609)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "kitty-specs/analyze-prompt-context-load-01M3F4BV/reviews/wp-WP01-cycle4.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    }
+  }
+}

@@ -1,0 +1,70 @@
+schema: review-refute/v1
+complete: true
+phase: spec-r2
+batch: 2
+verdicts:
+  - id: SPEC-R2-VERIFY-002
+    verdict: refuted
+    reason: >-
+      FR-006's own text explicitly names and closes both cited paths -- it quotes
+      token_budget.py's own "so we don't silently drop content" comment verbatim
+      and says the "return the original text unchanged when no candidates remain"
+      behavior "is preserved and made honestly visible via this reporting fix" (the
+      zero-candidate path at line 624), and its primary clause "the substitution
+      loop exhausts every eligible candidate ... and the resulting text still
+      exceeds BUDGET_DEFAULT" literally describes the drift-all-skipped path at
+      lines 638-641 (the loop iterates every candidate regardless of whether any
+      swap succeeds); the finding's claim that FR-006's wording does not obligate
+      closing these is contradicted by a direct read of FR-006 itself.
+  - id: SPEC-R2-VERIFY-003
+    verdict: refuted
+    reason: >-
+      Read together with its own cross-referenced FR-006 (labelled "SC-006 (new,
+      FR-006)"), the exception-satisfies-the-letter reading does not hold: FR-006
+      explicitly preserves the "return the original text unchanged" contract and
+      describes an "emitted trailer line" appended to returned text, and SC-006's
+      own wording ("a render... the emitted trailer... manual inspection... finds
+      truncated/dropped content") presupposes a returned string to inspect, which
+      an exception path would not produce -- the claimed loophole requires reading
+      SC-006 in isolation from the FR it is explicitly paired with.
+  - id: SPEC-R2-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      Live-reproduced by parsing the actual Action Doctrine block (build_with_scope,
+      mark_loaded=True, context-state.json cleared and restored byte-for-byte
+      afterward) for all five affected actions: the single largest not-yet-covered
+      candidate entry is the identical artifact ("zombies-tdd") for every one of
+      review/specify/plan/tasks/implement, and the next several largest entries
+      (refactoring-extract-class-by-responsibility-split, USE_MUTATION_TESTING_TO_
+      VALIDATE_TEST_QUALITY, USE_C4_MODEL_TECHNIQUES) are also identical across all
+      five -- concretely confirming a WP could satisfy FR-007/SC-007's letter by
+      testing the same easy artifact five times.
+  - id: SPEC-R2-VERIFY-005
+    verdict: confirmed
+    reason: >-
+      Live-reproduced the measurement myself (context-state.json cleared, script
+      run twice: first bootstrap, then immediately after to get the actual
+      post-first-load compact render, file restored byte-for-byte and diff-verified
+      afterward): specify=8,002B, plan=8,308B, tasks=8,354B, implement=12,614B,
+      review=12,492B -- matching the finding's reported numbers exactly and up to
+      2.7x the "~4.5-4.9 KB" figure spec.md cites in three places (lines 181, 408,
+      456); confirmed by code reading that the five bootstrap actions' post-first-
+      load render goes through build_compact_bundle_context_result
+      (context_result_builders.py:114-143, via _render_compact_from_bundle), a
+      different function from the one research.md actually measured at that byte
+      count (build_non_bootstrap_context_result, :64-89, used only by
+      analyze/accept/research); research.md line 306 makes the unsupported
+      generalization ("'compact' (small, ~4.5-4.9 KB) on a given call") that
+      spec.md then inherits.
+  - id: SPEC-R2-VERIFY-006
+    verdict: confirmed
+    reason: >-
+      Verified spec.md's SC-005 and User Story 3 Independent Test both literally
+      say to clear "the five actions' entries" / have "no ... entries ... for the
+      five", while research.md § 9.2's actual documented/reproducible method says
+      "its actions map cleared to {}" (the whole map); confirmed via code reading
+      (context.py's BOOTSTRAP_ACTIONS gate plus _action_node_declared) that only
+      specify/plan/tasks/implement/review can ever call _mark_action_loaded and
+      populate context-state.json today, so the two instructions are equivalent in
+      effect now but are not the same specified operation, exactly as the finding's
+      own caveat states.

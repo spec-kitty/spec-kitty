@@ -1,0 +1,40 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >
+      WP01's Context section now gives FR-003 its own explicit sentence outside frontmatter
+      ("FR-003 ... was already delivered pre-WP by research.md ... This WP does not re-measure
+      anything or add new evidence for FR-003"), alongside matching sentences for FR-001/FR-004/
+      FR-005; the new Definition of Done "Requirement disposition" table gives each of
+      FR-001/FR-003/FR-004/FR-005 a "no-op passable? yes — control: <cite>" row in the exact
+      shape review/prompt.md's checklist item 4b demands ("every FR row ... marked no-op
+      passable? yes names a control that exists in the diff", verified verbatim at
+      packs/built-in/missions/mission-steps/software-dev/review/prompt.md:248-249); and
+      upstream issue #5065 is cited in the Context section as the tracked fix for the
+      finalize-tasks parser limitation — all three remediation asks are met with real citations,
+      not restated prose.
+  - id: TASKS-ORDER-001
+    status: resolved
+    reason: >
+      The subtask content was renumbered so T001 = red-first test (was T003), T002 = content
+      edit (was T001), T003 = DRG regen (was T002), T004 = companion-test confirmation
+      (unchanged) — matching the remediation's exact prescribed order; the Objective now states
+      "First add a red-first content test ... confirm it is genuinely RED; then add one new
+      failure-mode entry ... then regenerate ... then confirm the required companion tests
+      ... in that order, per the charter's ATDD-first discipline"; a full grep of every "T00[1-4]"
+      occurrence in the file (Purpose/Steps/Validation of all four subtasks, the Risks section's
+      "T003, step 2" pointer, the Reviewer Guidance, and the DoD's per-bullet T00N tags) shows
+      100% internal consistency with the new mapping and zero leftover references to the old
+      T00N-to-content mapping; wps.yaml's `subtasks:` list (`[T001, T002, T003, T004]`) and
+      tasks.md's `Subtasks: T001, T002, T003, T004` line carry only the ID set, independently
+      re-derived here as needing no change since neither ever encoded subtask content.
+  - id: TASKS-COVER-002
+    status: resolved
+    reason: >
+      Independently extracted the relocated code fence's raw bytes (WP01 file lines 160-192,
+      0-space margin, no list-continuation indentation) and ran ast.parse() on them directly —
+      it parses as valid Python with no SyntaxError, and a byte-for-byte diff against plan.md's
+      copy of the same function (plan.md lines ~272+) shows the two are identical.

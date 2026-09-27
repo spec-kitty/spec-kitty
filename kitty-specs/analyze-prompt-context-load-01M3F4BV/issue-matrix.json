@@ -1,0 +1,149 @@
+{
+  "rows": {
+    "#4979": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/plan.md (appears only inside another open PR's title in the overlap survey; not addressed here)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4995": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md (cited as an adjacent open/merged PR for write-scope overlap only; not addressed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5005": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/reviews/wp-WP01-cycle1.yaml",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#5009": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md (cited as an adjacent open/merged PR for write-scope overlap only; not addressed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5028": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md (cited as an adjacent open/merged PR for write-scope overlap only; not addressed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5065": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/tasks/WP01-unverified-size-assumption-doctrine.md (cited as the upstream requirement-mapping parser issue behind a documented workaround; not addressed here)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5133": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md (cited as an adjacent open/merged PR for write-scope overlap only; not addressed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5135": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/plan.md (appears only inside another open PR's title in the overlap survey; not addressed here)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5136": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md (cited as an adjacent open/merged PR for write-scope overlap only; not addressed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5137": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md (cited as an adjacent open/merged PR for write-scope overlap only; not addressed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5141": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md (cited as an adjacent open/merged PR for write-scope overlap only; not addressed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5161": {
+      "evidence_ref": "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md C-002 (cited only in the open-PR write-scope overlap re-check; not addressed here)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

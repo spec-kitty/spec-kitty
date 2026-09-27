@@ -1,0 +1,44 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh3
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-FRESH3-001
+    lens: five-paradigm-parallel-debugging
+    severity: 3
+    title: Operator Decision (3)'s "behaviour-preserving" framing is never reconciled with FR-001's now-explicit read-only-to-write-and-persist contract change
+    evidence:
+      - artifact: "spec.md lines 21-28 (Clarifications / Decisions, 'reproduced verbatim from the dispatch'): '...as a separate, behaviour-preserving first commit...'"
+      - artifact: "spec.md § FR-001 (line 212): '...Landed as a separate, first commit (campsite-clean framing per Operator Decision 3), atomically...' — cites Decision 3 for the commit-sequencing framing but never addresses its 'behaviour-preserving' adjective"
+      - artifact: "diff .kittify/overrides/missions/software-dev/command-templates/analyze.md packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md (run live): override's '**STRICTLY READ-ONLY**: Do not modify any files...' becomes canonical's '**NON-REMEDIATING**: ...The only permitted file mutation is persisting this command's report to kitty-specs/<mission>/analysis-report.md via spec-kitty agent mission record-analysis.' plus a new '### 7. Persist Report Artifact' execution step and an analysis-findings/v1 YAML carrier requirement — none of which exist in the override today"
+      - artifact: "kitty-specs/analyze-prompt-context-load-01M3F4BV/reviews/spec-fresh.yaml SPEC-FRESH-003: an earlier round already renamed NFR-001's title from 'Behaviour preservation on override reconciliation' to 'Heuristic preservation on override reconciliation' specifically 'to fix the R1-R3 finding that the old title over-claimed full behavior preservation' — i.e. the squad has already established that 'behaviour preservation' is the wrong term for what FR-001 does, but only fixed it at the NFR-001 row, not at its source (Operator Decision 3's own wording, still quoted verbatim in Clarifications and still cited by name in FR-001's own body)"
+    claim: >
+      Round 3 makes FR-001 unambiguous that the reconciled override changes this checkout's
+      actual `/spec-kitty.analyze` contract from strictly read-only to write-and-persist
+      (adding the mandatory `record-analysis` call and the `analysis-findings/v1` carrier) —
+      a real, intentional, and well-justified behavior change (it closes the recurring
+      `record-analysis` persistence/verdict-honesty defect class). But spec.md still carries,
+      unreconciled, the operator's own dispatch language calling this a "behaviour-preserving"
+      commit (Clarifications § Decision 3), and FR-001's body cites Decision 3 by name for its
+      "campsite-clean framing" without ever flagging that the "behaviour-preserving" half of
+      that framing no longer holds for the override's own observable contract. This is not a
+      new problem introduced by round 3's simplification — the persistence-step addition
+      dates to round 2 — but round 3's move to "full contract PARITY by construction" makes the
+      contradiction sharper and unavoidable (there is now no way to characterize the change as
+      anything less than total content replacement), and the spec still never says so in the
+      one place (Decision 3 / FR-001's citation of it) where a reader would look for that
+      reconciliation. A future WP implementer or pre-merge reviewer checking the diff against
+      the operator's literal "behaviour-preserving" instruction could reasonably read it as
+      still meaning "must not change what the override does," and either block on or need to
+      re-litigate the intentional write-path addition FR-001 already requires.
+    remediation: >
+      Add one reconciling sentence at or near the Operator Decision (3) framing in spec.md
+      (either inline in the Clarifications section, immediately after the verbatim dispatch
+      text, or in FR-001's citation of Decision 3) stating explicitly that "behaviour-preserving"
+      in Decision 3 is read here as "preserves the analyze step's detection/severity heuristics
+      and does not silently widen scope beyond override-reconciliation" (matching NFR-001's
+      already-narrowed "heuristic preservation" framing), not as "the override's own read/write
+      contract is unchanged" — and that the mandatory `record-analysis` persistence-step
+      addition is a deliberate, in-scope behavior change to the override, not an accidental
+      violation of Decision 3's intent.

@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: spec-r3
+results:
+  - id: SPEC-R3-FRESH-001
+    status: resolved
+    reason: research.md §9.7.2 (line ~682-684) and §9.7.3 (line ~712-714) now explicitly state the "Operator Decision 5 reflexivity" bullet is retired per Decision 6 and point at spec.md's live "Known residual (out of scope) governance-context budget gap" section (spec.md line 403), which exists verbatim and is not collapsed inside a <details> block, so no new dangling pointer was introduced.
+  - id: SPEC-R3-FRESH-002
+    status: resolved
+    reason: SC-004 (spec.md line 604) now explains its zero-changed-lines claim by citing that FR-005/006/007 are dropped from scope per Decision 6, explicitly disclaims relying on the current NFR-003 text (calling it "a live PR-overlap sequencing check ... unrelated to why this criterion holds"), and points at the live "Known residual" section rather than the collapsed historical <details> block.
+  - id: SPEC-R3-FRESH-003
+    status: resolved
+    reason: the new "DIRECTIVE_052 compliance for this deferral" paragraph (spec.md lines 420-429) concretely commits to keeping #5005 itself open post-merge (no auto-closing keyword, re-labeled/annotated at merge time) specifically to track the governance-context budget-gap ADR-amendment proposal, satisfying option (a) of the remediation rather than only naming the directive.
+  - id: SPEC-R3-FRESH-004
+    status: resolved
+    reason: "both cited locations (spec.md line 139-141 and research.md §4 line 167-169) now state the arithmetically correct ratio, showing the computation inline (97,175/16,458≈5.9x; 112,248/16,458≈6.8x, i.e. 'roughly 6x-7x' / 'well within normal LLM-context standards') instead of 'an order of magnitude'; NEW OBSERVATION (not in original finding's scope, not a new finding ID): the fixer left two other 'order of magnitude' uses untouched (spec.md line 134 and research.md line 201, both tied to the pre-deletion 11,891 B figure) where the true ratios are 97,175/11,891≈8.2x and 112,248/11,891≈9.4x — also not really 'an order of magnitude' (~10x) by the same standard the fix just applied elsewhere; this is a real residual inaccuracy the original finding under-scoped (it only cited the two post-deletion-figure locations), left for the fresh-sweep session running in parallel to decide whether it warrants its own finding."

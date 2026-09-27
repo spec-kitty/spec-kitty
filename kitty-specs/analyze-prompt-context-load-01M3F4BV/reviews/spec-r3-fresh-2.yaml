@@ -1,0 +1,67 @@
+schema: review-findings/v1
+complete: true
+phase: spec-r3
+lens_group: fresh-2
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-R3-FRESH2-001
+    lens: dual-system-divergence-mapping
+    severity: 2
+    title: research.md §9.7.2's fix for the dangling spec.md xref leaves an orphaned "case (a)" label with no definition anywhere
+    evidence:
+      - artifact: "research.md § 9.7.2, line 677"
+      - artifact: "commit 7df4d2eef diff, research.md hunk"
+    claim: >
+      Commit 7df4d2eef fixed SPEC-R3-FRESH-001 (a dangling cross-reference from research.md
+      §9.7.2/§9.7.3 to spec.md's retired "Operator Decision 5 reflexivity" Edge Case bullet) by
+      removing the "in spec.md's 'Operator Decision 5 reflexivity' Edge Case" pointer from both
+      subsections. §9.7.3's fix is clean and self-contained. §9.7.2's fix is not: the sentence
+      still reads "...which is why an already-first-loaded checkout (compact path, case (a))
+      would have been unaffected by the now-dropped FR-005 fix" — the fixer deleted the pointer
+      to where "case (a)" was defined but did not remove, replace, or re-define the "case (a)"
+      label itself. Searching both spec.md and research.md end-to-end
+      (`grep -n "case (a)" spec.md research.md`) turns up exactly this one occurrence and no
+      "case (b)"/"case (c)" siblings anywhere — the retired spec.md Edge Case bullet that
+      originally enumerated cases (a)/(b)/etc. is gone (per Decision 6), so "case (a)" is now an
+      orphaned label with zero antecedent in either artifact. A reader hits a parenthetical that
+      implies a taxonomy ("case (a)" implies at least a case (b)) that no longer exists anywhere
+      in the mission's artifacts. This is a residual of the exact defect class SPEC-R3-FRESH-001
+      flagged (a stale pointer into now-retired content) — the round-3 fix addressed the pointer
+      but not the label that depended on the same retired content for its meaning.
+    remediation: >
+      In research.md § 9.7.2, replace "(compact path, case (a))" with a self-contained
+      description of what "case (a)" meant (e.g. "(the compact path — an already-first-loaded
+      checkout, as opposed to a first-load bootstrap render)") or simply drop the "case (a)"
+      parenthetical entirely, matching the clean self-contained fix already applied to § 9.7.3
+      immediately below it in the same commit.
+
+  - id: SPEC-R3-FRESH2-002
+    lens: charter-doctrine-compliance
+    severity: 3
+    title: New DIRECTIVE_052 compliance paragraph treats the issue being closed out as its own "umbrella/epic" tracking issue, a strained reading of the directive's own terminology
+    evidence:
+      - artifact: "spec.md § Known residual (out of scope): governance-context budget gap, DIRECTIVE_052 paragraph"
+      - code: "packs/built-in/directives/052-prefer-durable-fixes.directive.yaml (integrity_rules: \"Deferring a structural remediation is compliant ONLY when it is recorded as a tracked follow-up behind an umbrella/epic issue with the root cause named.\"; procedures step 1: \"Identify an existing umbrella/epic that the class belongs to, or propose one.\")"
+    claim: >
+      DIRECTIVE_052's own language distinguishes the specific defect ticket from the
+      umbrella/epic that tracks a deferred structural remediation (procedures step 1 tells the
+      investigator to find or propose a *separate* umbrella covering the defect class). The new
+      spec.md paragraph instead argues compliance is satisfied by keeping #5005 — the very issue
+      this mission's FR-001/002/003 close out, filed narrowly against `analyze`'s prompt size —
+      open indefinitely to also carry an unrelated residual about `specify`/`plan`/`tasks`/
+      `implement`/`review`'s governance-context budget overrun. #5005's own title/report has
+      nothing to do with the five-action budget gap; the paragraph's own text has to add a
+      mitigating "re-labeled or annotated at merge time to make this residual-tracking purpose
+      visible" clause, which is itself an acknowledgment that reusing #5005 this way is not
+      self-evidently within DIRECTIVE_052's "umbrella/epic issue" language. A maintainer or a
+      later doctrine reviewer applying DIRECTIVE_052 literally could reasonably reject this as
+      non-compliant (the tracked follow-up is not "behind" an umbrella/epic distinct from the
+      ticket the point-fix itself closes), reopening the same compliance question this paragraph
+      was added to close.
+    remediation: >
+      Either (a) file/propose a distinct umbrella/epic issue for the governance-context
+      budget-gap class (per DIRECTIVE_052 procedures step 1) and have #5005 close normally on
+      merge while the new issue carries the ADR-amendment proposal, or (b) if reusing #5005 is
+      the operator's deliberate choice, say so explicitly as an operator decision (the way
+      Decisions 1-6 are recorded elsewhere in this spec) rather than presenting it as a
+      straightforward reading of DIRECTIVE_052's existing text.

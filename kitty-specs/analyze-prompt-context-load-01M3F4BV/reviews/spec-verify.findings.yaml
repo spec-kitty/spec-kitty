@@ -1,0 +1,113 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: analyze-prompt-context-load-01M3F4BV
+findings:
+  - id: SPEC-VERIFY-001
+    lens: falsifiability
+    severity: 3
+    title: "SC-001 and NFR-001 fall back to an undefined \"manual structural diff\" with no pass/fail boundary"
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-001: \"...verified by grep -L \\\"memory/constitution\\\" ... (grep finds no match) and a manual structural diff against canonical.\""
+      - artifact: "spec.md § Non-Functional Requirements, NFR-001: \"...verified by diffing the reconciled override's structural sections against canonical analyze/prompt.md.\""
+      - artifact: "spec.md § FR-001: \"...align checklist/gate-semantics/reporting-shape structure...\" (no operational definition of \"aligned\")"
+    claim: >
+      The grep half of SC-001 is genuinely falsifiable (a real command with a defined
+      pass/fail result). The second half of SC-001, and the whole of NFR-001, are not:
+      "manual structural diff" and "align...structure" name no specific sections, no
+      diff tool/mode, and no criterion for what counts as passing versus failing the
+      diff (identical section headings? identical checklist item count? semantic
+      equivalence judged by a reviewer's opinion?). This is the exact vacuous-AC
+      pattern the review brief calls out by example ("verified by a manual structural
+      diff... with no defined pass/fail boundary"). Two different reviewers could
+      reach opposite verdicts on the same reconciled file with no way to adjudicate
+      between them, which is likely to cause rework/dispute inside the FR-001 work
+      package when the reviewer and implementer disagree on whether reconciliation is
+      "aligned enough."
+    remediation: >
+      Replace "manual structural diff" with an enumerated, checkable structural
+      contract: e.g. "the reconciled override MUST contain the same ordered list of
+      top-level `###`/`##` section headings as canonical analyze/prompt.md (diff the
+      heading list with `grep '^#'`), and the same named execution steps (1..N) with
+      matching titles" — a concrete diff invocation with a defined empty-diff-or-named-
+      exceptions pass condition, not an open-ended reviewer judgment call.
+
+  - id: SPEC-VERIFY-002
+    lens: silent-success
+    severity: 4
+    title: "FR-002's Acceptance Scenario tests doctrine-text presence, not the behavioral claim it is named for, and the spec does not disclose that no behavioral test is possible"
+    evidence:
+      - artifact: "spec.md § User Story 1, \"Independent Test\": \"...testable by inspecting the doctrine artifact content for the new failure-mode entry (FR-002) and by confirming no existing test or gate regresses.\""
+      - artifact: "spec.md § Acceptance Scenarios, Scenario 1: \"...the canonical doctrine it has already loaded...explicitly tells it to attempt the load/measure first and to file an upstream gap rather than improvise — closing the specific gap this mission's diagnosis found.\""
+      - artifact: "packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml (whole file, `enforcement: required` at top) — no mechanism ties `enforcement: required` to any runtime check; it is prose consumed by an LLM at prompt-render time"
+      - code: "Confirmed by search: no test or gate anywhere in the tree references \"canonical.*bypass\", \"bypass.*canonical\", \"size assumption\", or \"unverified size\" (ripgrep across tests/, src/, packs/ returned zero hits for the behavioral claim itself)."
+    claim: >
+      The stated Acceptance Scenario for the actual defect this mission is named to
+      fix (an agent routing around a canonical surface on an unverified size
+      assumption) is satisfied entirely by (a) grepping for new prose in a YAML file
+      and (b) confirming the existing test suite still passes. Neither check exercises
+      the behavioral claim in any way: nothing in this mission, nor anywhere in the
+      existing test/gate inventory, can observe whether a future orchestrating agent
+      actually attempts to load/measure a canonical surface before bypassing it on a
+      size assumption. This is the repo's dominant silent-success shape applied to
+      doctrine: a change that reports "done" (content added, tests green) while making
+      zero verifiable difference to the reported defect. The spec compounds this by
+      phrasing the scenario as "closing the specific gap this mission's diagnosis
+      found" — asserting the fix closes the gap rather than stating, honestly, that
+      this FR is advisory-only prose with no enforcement mechanism available in-scope
+      (no new CLI surface, no prompt_builder.py edits, per Operator Decision 2/NFR-003).
+      Advisory-only doctrine is an accepted charter category (e.g. the adversarial-
+      squad-cadence standing order is explicitly "advisory, never a hard gate"), but
+      the charter requires that be stated, not implied as an enforced fix — and the
+      charter's own ATDD-first discipline (C-011) requires a failing-first test that
+      "pins the user-observable behaviour" for implementation work, which is
+      structurally impossible for FR-002 as scoped (there is no user-observable
+      behavior in scope to pin; the "user" is a future LLM's prompt-following, which
+      no test in this repo's suite can assert against).
+    remediation: >
+      Either (a) find and cite a real, existing observable proxy — e.g. a specific
+      analyze-phase scenario/fixture that already exercises "agent decides whether to
+      load a canonical prompt" and could be extended to assert the doctrine text is
+      actually consulted at that decision point — or, if no such proxy exists
+      (confirmed true by the searches above), state explicitly in spec.md's
+      Acceptance Scenario and in FR-002's Status/notes column: "This FR is advisory-
+      only doctrine prose; no automated test in this repository can verify an agent's
+      future prompt-following behavior against it; the Acceptance Scenario verifies
+      only that the failure-mode text exists and is syntactically valid doctrine." That
+      sentence turns an implicit, unverifiable success claim into an honest, bounded
+      one and keeps the FR inside the charter's advisory-doctrine category instead of
+      silently overclaiming a behavioral fix.
+
+  - id: SPEC-VERIFY-003
+    lens: baseline-honesty
+    severity: 3
+    title: "FR-002's target files are DRG-source inputs to a currently-green, hard-fail (never-skip) byte-comparison gate that the spec never names or accounts for"
+    evidence:
+      - artifact: "spec.md § FR-002 and § C-001: targets `packs/built-in/tactics/canonical-source-unification.tactic.yaml` and/or `packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml`; no mention of `regenerate-graph`, `graph.yaml`, or `pack-manifest` anywhere in spec.md or research.md (confirmed via grep, zero hits in both files)"
+      - code: "src/specify_cli/cli/commands/doctrine.py:245-253 — `regenerate-graph [--check]` \"deterministically regenerate the shipped DRG from the built-in doctrine tree as per-kind packs/built-in/*.graph.yaml fragments...--check compares without writing and exits non-zero when the committed graph source is stale\""
+      - code: "tests/architectural/test_doctrine_regenerate_graph_roundtrip.py:1-19 — \"regenerate-graph --check regenerates the DRG into a temp directory and byte-compares it against the committed packs/built-in/**/*.graph.yaml fragments...exiting non-zero when stale\" and is explicitly hard-fail, never xfail/skip, \"so WP08-10's definition-of-done [is not] vacuously green\""
+      - artifact: "packs/built-in/directive.graph.yaml and packs/built-in/tactic.graph.yaml exist as the derived fragments for exactly the two artifact kinds (directives, tactics) FR-002 proposes editing"
+      - code: "Verified live: `.venv/bin/spec-kitty doctrine regenerate-graph --check` on this checkout currently reports \"DRG graph is fresh\" (exit 0) — i.e. this gate is pre-existing GREEN today, so any regression introduced by FR-002 would be newly self-inflicted, not baseline noise"
+      - artifact: ".kittify/charter/charter.md § Doctrine Pack Tiers: \"Editing either pack trips the pack-manifest regen gate — run `spec-kitty doctrine regenerate-graph` after the edit.\" — the charter itself documents this as a required consequence of exactly the edit FR-002 proposes"
+    claim: >
+      Editing either target file will make `packs/built-in/directive.graph.yaml` and/or
+      `packs/built-in/tactic.graph.yaml` stale relative to their source, and this is a
+      currently-green, hard-fail (not skippable) architectural gate — so the mission's
+      own Acceptance Scenario claim ("confirming no existing test or gate regresses")
+      is knowably false on the record as written unless a `spec-kitty doctrine
+      regenerate-graph` (write mode) + commit step is performed alongside FR-002. The
+      spec surfaces exactly this class of risk elsewhere (the whole C-002/file-
+      collision-with-#5009 analysis for `prompt_builder.py`) but did not apply the same
+      diagnostic rigor to the two files FR-002 itself proposes touching, even though
+      the charter it cites in the same document names this exact mechanical
+      consequence in plain language.
+    remediation: >
+      Add an explicit line to FR-002 (and to SC-002's verification method) naming the
+      required companion step: "after editing the tactic/directive YAML, run
+      `spec-kitty doctrine regenerate-graph` (write mode) and commit the resulting
+      `packs/built-in/{directive,tactic}.graph.yaml` diff in the same commit; confirm
+      `spec-kitty doctrine regenerate-graph --check` and
+      `tests/architectural/test_doctrine_regenerate_graph_roundtrip.py` both pass
+      afterward." This converts "no existing test or gate regresses" from an unnamed,
+      easy-to-miss claim into a named, checkable step the implementing WP cannot skip.

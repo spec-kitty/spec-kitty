@@ -1,0 +1,71 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP01
+cycle: 4
+mission: analyze-prompt-context-load-01M3F4BV
+verdict: approved
+gates_observed:
+  ruff: pass
+  tests: pass
+  coverage: unknown
+  drg_check: pass
+  red_first_revert: pass
+  rendered_reachability: pass
+feedback: []
+verification_notes: >
+  WP01-C3-001 / pr-FRESH2-001 confirmed resolved. In an isolated scratch worktree
+  (`git -C <lane> worktree add <primary>/5005-review4-scratch HEAD`, removed with
+  `worktree remove --force` at the end; lane and primary left read-only/clean throughout),
+  reverted each of the four DIRECTIVE_044-citing profiles' own hunk in turn (restoring the
+  base_commit 6fd106041 content for that one file, then `git checkout --` to restore) and
+  re-ran the two parametrized tests with `.venv/bin/python -m pytest` from the primary:
+  reverting architect-alphonso, doctrine-daphne, or implementer-ivan flips BOTH
+  test_size_assumption_bypass_failure_mode_in_each_profiles_own_source_file[<profile>] and
+  test_size_assumption_bypass_failure_mode_reaches_rendered_profile_context[<profile>] to
+  genuine RED. Reverting only python-pedro flips the new own-source-file test to RED
+  (1 failed) while the rendered-reachability test for python-pedro stays GREEN (1 passed) —
+  exactly the claimed lineage-masking behavior, and exactly what the new source-level test
+  was built to catch that the rendered-reachability test structurally cannot. Additionally
+  reverted implementer-ivan alone and confirmed BOTH implementer-ivan's AND python-pedro's
+  rendered-reachability cases go RED together, confirming python-pedro's green status is
+  parasitic on implementer-ivan's citation via specializes_from lineage, as documented.
+  Neither test is vacuous: DIRECTIVE_044_CITING_PROFILES is a hardcoded 4-tuple (not a glob),
+  each own-source-file case asserts profile_path.is_file() and a present code:"044" entry
+  before checking the needle, so a missing file or missing entry fails loudly rather than
+  passing vacuously; test_size_assumption_bypass_failure_mode_documented's title-anchor
+  (_entry_title, case-insensitive) remains a real, non-substring-drift assertion and stays
+  green. Test docstrings (test_directive_consistency.py lines ~470-620) and spec.md's SC-002
+  / User Story 1 Independent-Test prose now state accurately that python-pedro was already
+  green before this round's fix — via specializes_from inheritance from implementer-ivan,
+  never via its own file's rationale — and that only architect-alphonso and doctrine-daphne
+  were genuinely red-before/green-after; no remaining "three of four red-before" overclaim
+  found in either artifact.
+
+  Gates run from the lane (SPEC_KITTY_PACKS_ROOT=<lane>/packs, PATH prefixed with the
+  primary's .venv/bin): tests/doctrine/test_directive_consistency.py (17 passed) +
+  tests/architectural/test_doctrine_regenerate_graph_roundtrip.py +
+  tests/architectural/test_pack_manifest_no_author_edit.py +
+  tests/cross_cutting/test_kittify_override_parity.py together (55 passed); plus
+  tests/doctrine/test_shipped_profiles.py + tests/doctrine/agent_profiles/
+  test_supply_chain_profile_bindings.py + tests/doctrine/test_package_smoke.py (388 passed,
+  1 skipped). `spec-kitty doctrine regenerate-graph --check` -> "DRG graph is fresh"
+  (exit 0, after one harmless first-run cache-rebuild retry). `spec-kitty regen --check` ->
+  "All 3 generated fixtures are fresh" (exit 0). `ruff check
+  tests/doctrine/test_directive_consistency.py` -> all checks passed. Whole-repo
+  `ruff format --check .` from the lane -> "2368 files already formatted", 0 diffs.
+
+  Diff scope confirmed exactly: packs/built-in/agent_profiles/{architect-alphonso,
+  doctrine-daphne,implementer-ivan,python-pedro}.agent.yaml, packs/built-in/pack-manifest.yaml
+  (6 hash lines: 4 profile + 1 tactic content_hash + 1 manifest_hash, nothing else),
+  packs/built-in/tactics/canonical-source-unification.tactic.yaml, and
+  tests/doctrine/test_directive_consistency.py — no directive.graph.yaml/tactic.graph.yaml
+  diff (expected: this is a content-only edit with no DRG node/edge shape change, confirmed
+  by the passing regenerate-graph --check). Zero bytes changed in
+  packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md or
+  .kittify/overrides/missions/software-dev/command-templates/analyze.md (FR-004). No src/
+  file touched anywhere in the diff: no new CLI surface, no resolver/renderer/budget change.
+  Public hygiene: grepping the lane diff for the home-directory path prefix returned 0
+  matches. Lane
+  `git status --porcelain` clean before and after review; scratch worktree removed; primary
+  untouched except this verdict file and the concurrently-running verifier's own
+  reviews/pr-verify-3.yaml (not authored by this review).

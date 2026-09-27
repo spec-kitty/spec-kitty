@@ -1,0 +1,52 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >-
+      plan.md's PR-overlap section now lists packs/built-in/tactic.graph.yaml as a second
+      real file-level overlap with #5133 (with a concrete rebase/regenerate-graph resolution
+      instruction analogous to the analyze.md modify/delete guidance), and the "Net finding"
+      sentence now says "two real file-level overlaps" instead of claiming analyze.md is the
+      only one; re-ran `gh pr view 5133 --json files` live and confirmed tactic.graph.yaml is
+      indeed in #5133's diff while directive.graph.yaml is correctly still absent, matching
+      the corrected text exactly.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >-
+      Technical Context's Target Platform line now reads "no consumer project carries this
+      repo's specific stale April-2026 analyze.md override content" while explicitly stating
+      the OVERRIDE tier and command-templates overrides generally ARE a live consumer-facing
+      resolver feature, citing FixStaleOverridesMigration/2.0.7 and SHARED_ASSET_DIRS; verified
+      both cited sources (m_2_0_7_fix_stale_overrides.py and runtime/migrate.py:56) still say
+      exactly what the finding and fix claim, so the narrowed framing is accurate.
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: >-
+      The Reflexivity section now reports 496 (via the correct `find kitty-specs -mindepth 1
+      -maxdepth 1 -type d | wc -l`) matching spec.md exactly, explains the prior 497 as an
+      off-by-one from omitting -mindepth 1, and drops the erroneous "grew by one" inference;
+      re-ran both find invocations myself in the checkout and got 496 / 497 respectively,
+      confirming the corrected text and its explanation are both accurate.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >-
+      The "ci-modules.yml / per-module test shards" bullet now correctly uses select_modules()
+      (not select_gates()) and reports frozenset({'charter'}) as a positive ATDD finding, with
+      an added "Correction to this Method" note clarifying make ci-parity/select_gates() only
+      answers the router/job-level question; independently re-ran select_modules() and
+      select_gates() in-process against the exact planned FR-001+FR-002 file list plan.md
+      cites and reproduced identical output (select_modules -> frozenset({'charter'}),
+      select_gates -> matched_groups={'corpus'}, selected_code_shards=frozenset()), matching
+      the plan's corrected claims verbatim.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >-
+      The FR-001 test sketch now asserts `result.tier.name == ResolutionTier.PACKAGE_DEFAULT.name`
+      instead of an `is` identity comparison, matching test_resolver.py's own documented
+      module-level convention (confirmed still present verbatim in the file); also
+      independently re-ran resolve_command("analyze.md", ..., mission="software-dev") against
+      this checkout's real .venv and confirmed it currently returns tier=OVERRIDE, so the
+      sketch's claimed red-first behavior is genuine, not just asserted.
