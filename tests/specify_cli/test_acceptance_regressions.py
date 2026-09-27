@@ -1104,7 +1104,7 @@ class TestIntegrationBranchGuard:
         result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions + result.cleanup_instructions)
-        assert "spec-kitty merge --mission" in merged, f"Feature branch should get merge guidance. instructions={result.instructions}"
+        assert "spec-kitty consolidate --mission" in merged, f"Feature branch should get consolidation guidance. instructions={result.instructions}"
         assert "git branch -d kitty/mission-054-my-feature-lane-a" in merged, f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
 
     def test_well_known_branch_without_meta_target(self, tmp_path: Path) -> None:

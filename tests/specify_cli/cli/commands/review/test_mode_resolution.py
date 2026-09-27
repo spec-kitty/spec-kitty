@@ -73,7 +73,7 @@ class TestResolveModeMismatch:
         # Must name the missing signal
         assert "baseline_merge_commit" in message
         # Must contain 3 remediation options
-        assert "spec-kitty merge" in message
+        assert "spec-kitty consolidate" in message
         assert "--mode lightweight" in message
         assert "backfill" in message.lower() or "migrate" in message.lower()
 

@@ -413,7 +413,7 @@ class TestDeriveNextAction:
         meta = {"mission_slug": "042-foo"}
         result = scanner._derive_next_action(meta, self._stats(total=4, done=4))
         assert result is not None
-        assert "spec-kitty merge" in result
+        assert "spec-kitty consolidate" in result
         assert "042-foo" in result
 
     def test_none_when_wps_still_in_flight(self):
