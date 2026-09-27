@@ -6,7 +6,7 @@ Recurrence guards for mission ``coordination-merge-stabilization-01KTXRVR``:
   ``src/specify_cli`` outside ``git/ref_advance.py``. Any new ref-advance
   site re-inherits #1826 (a checked-out worktree left behind its own HEAD)
   unless it goes through :func:`specify_cli.git.ref_advance.advance_branch_ref`.
-* **AC-F1** — every subprocess call site in ``lanes/merge.py`` routes its
+* **AC-F1** — every subprocess call site in ``lanes/consolidation.py`` routes its
   environment through ``_make_merge_env()`` (FR-008b): no bare ``os.environ``
   copies outside the helper, and no subprocess call without an ``env=``
   keyword. Widened repo-wide for ``rebase``/``cherry-pick`` argv sites by
@@ -33,7 +33,7 @@ from specify_cli.status import Lane
 pytestmark = [pytest.mark.architectural]
 
 SRC_ROOT = Path(specify_cli.__file__).resolve().parent
-LANES_MERGE = SRC_ROOT / "lanes" / "merge.py"
+LANES_MERGE = SRC_ROOT / "lanes" / "consolidation.py"
 WORKTREE_ALLOCATOR = SRC_ROOT / "lanes" / "worktree_allocator.py"
 REF_ADVANCE_RELPATH = Path("git") / "ref_advance.py"
 
@@ -166,7 +166,7 @@ def test_is_subprocess_run_call_does_not_match_unrelated_name_call() -> None:
 
 
 def test_lanes_merge_subprocess_calls_route_env_through_helper() -> None:
-    """AC-F1 (FR-008b): every ``subprocess.run`` in ``lanes/merge.py`` carries
+    """AC-F1 (FR-008b): every ``subprocess.run`` in ``lanes/consolidation.py`` carries
     an explicit ``env=`` keyword (sourced from ``_make_merge_env``), so the
     pipeline has exactly one environment authority."""
     tree = ast.parse(LANES_MERGE.read_text(encoding="utf-8"), filename=str(LANES_MERGE))
@@ -179,13 +179,13 @@ def test_lanes_merge_subprocess_calls_route_env_through_helper() -> None:
         and not any(kw.arg == "env" for kw in node.keywords)
     ]
     assert not missing_env, (
-        "subprocess.run call(s) in lanes/merge.py without an env= keyword "
+        "subprocess.run call(s) in lanes/consolidation.py without an env= keyword "
         f"(must route through _make_merge_env, AC-F1): lines {missing_env}"
     )
 
 
 def test_lanes_merge_no_bare_os_environ_outside_helper() -> None:
-    """AC-F1 (FR-008b): no ``os.environ`` access in ``lanes/merge.py`` outside
+    """AC-F1 (FR-008b): no ``os.environ`` access in ``lanes/consolidation.py`` outside
     the ``_make_merge_env`` helper — no ad-hoc PATH/GIT_* mutations."""
     tree = ast.parse(LANES_MERGE.read_text(encoding="utf-8"), filename=str(LANES_MERGE))
     helper_spans: list[tuple[int, int]] = [
@@ -194,7 +194,7 @@ def test_lanes_merge_no_bare_os_environ_outside_helper() -> None:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         and node.name == "_make_merge_env"
     ]
-    assert helper_spans, "_make_merge_env must exist in lanes/merge.py (AC-F1)"
+    assert helper_spans, "_make_merge_env must exist in lanes/consolidation.py (AC-F1)"
 
     offenders = [
         node.lineno
@@ -206,7 +206,7 @@ def test_lanes_merge_no_bare_os_environ_outside_helper() -> None:
         and not any(start <= node.lineno <= end for start, end in helper_spans)
     ]
     assert not offenders, (
-        "bare os.environ access in lanes/merge.py outside _make_merge_env "
+        "bare os.environ access in lanes/consolidation.py outside _make_merge_env "
         f"(AC-F1): lines {offenders}"
     )
 
@@ -214,7 +214,7 @@ def test_lanes_merge_no_bare_os_environ_outside_helper() -> None:
 def test_make_merge_env_matches_historical_inline_construction() -> None:
     """T015 is refactor-only: the helper's env is byte-identical to the inline
     construction it replaced (venv-bin PATH prepend over ``os.environ``)."""
-    from specify_cli.lanes.merge import _make_merge_env
+    from specify_cli.lanes.consolidation import _make_merge_env
 
     expected = os.environ.copy()
     expected["PATH"] = (
@@ -260,7 +260,7 @@ def test_rebase_and_cherry_pick_calls_route_env_through_helper_repo_wide() -> No
     ``src/specify_cli`` whose argv contains ``"rebase"`` or ``"cherry-pick"``
     carries an explicit ``env=`` keyword.
 
-    #106's AC-F1 ratchets above only scanned ``lanes/merge.py``, so a bare
+    #106's AC-F1 ratchets above only scanned ``lanes/consolidation.py``, so a bare
     rebase/cherry-pick call anywhere else in the package could (and did,
     twice: #106 in ``core/vcs/git.py``, #87 in
     ``lanes/worktree_allocator.py``) resolve ``spec-kitty`` through the

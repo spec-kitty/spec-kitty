@@ -1,16 +1,16 @@
-"""Regression: ``merge_mission`` must envelope ``DestructiveOpRefused``, not
+"""Regression: ``consolidate_mission`` must envelope ``DestructiveOpRefused``, not
 leak it as a raw traceback (#4753 finding B).
 
-Pre-fix, ``merge_mission`` wrapped ``_execute_lane_merge`` in
+Pre-fix, ``consolidate_mission`` wrapped ``_execute_lane_merge`` in
 ``except RuntimeError`` only. ``_apply_lane_merge_cleanup`` ->
 ``guarded_worktree_remove`` raises ``DestructiveOpRefused``, a plain
 ``Exception`` subclass (C-002: deliberately NOT a ``RuntimeError``, so it is
 never conflated with ``SafeCommitHeadMismatch``) -- so a dirty lane/coord
-worktree at merge time escaped ``merge_mission`` as an unhandled exception:
+worktree at merge time escaped ``consolidate_mission`` as an unhandled exception:
 empty/broken stdout and a raw traceback, breaking this module's JSON-first
 machine contract (every command emits exactly one structured envelope).
 
-This test drives the real ``merge_mission`` entry point with
+This test drives the real ``consolidate_mission`` entry point with
 ``_execute_lane_merge`` mocked to raise the exact exception the real
 preflight raises, and asserts the command still emits exactly one valid
 JSON failure envelope with a non-zero exit -- never a traceback.
@@ -26,7 +26,7 @@ import pytest
 import typer
 
 from specify_cli.git.destructive_guard import DestructiveOpRefused
-from specify_cli.orchestrator_api.commands import _MergePreflightResult, merge_mission
+from specify_cli.orchestrator_api.commands import _MergePreflightResult, consolidate_mission
 
 pytestmark = pytest.mark.git_repo
 
@@ -63,7 +63,7 @@ def test_merge_mission_envelopes_destructive_op_refused(tmp_path: Path, capsys: 
         ),
         pytest.raises(typer.Exit) as excinfo,
     ):
-        merge_mission(mission="some-mission", target=None, strategy="merge", push=False)
+        consolidate_mission(mission="some-mission", target=None, strategy="merge", push=False)
 
     assert excinfo.value.exit_code == 1
 
@@ -86,7 +86,7 @@ def test_merge_mission_destructive_refusal_is_not_a_runtime_error_leak(tmp_path:
     """Control: confirms ``DestructiveOpRefused`` is not itself a
     ``RuntimeError`` -- the exact reason the pre-fix ``except RuntimeError``
     clause never caught it. If this assertion ever fails, the dedicated
-    ``except DestructiveOpRefused`` clause in ``merge_mission`` would become
+    ``except DestructiveOpRefused`` clause in ``consolidate_mission`` would become
     unreachable dead code and this whole regression pin would silently stop
     testing what it claims to."""
     assert not isinstance(_refusal(tmp_path / "example-lane-worktree"), RuntimeError)

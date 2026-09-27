@@ -5,9 +5,9 @@ import subprocess
 
 import pytest
 
-from specify_cli.lanes.merge import (
-    LaneMergeResult,
-    MissionMergeResult,
+from specify_cli.lanes.consolidation import (
+    LaneConsolidationResult,
+    MissionConsolidationResult,
     _ensure_info_attributes,
     _git_common_dir,
     _merge_branch_into,
@@ -17,7 +17,7 @@ from specify_cli.lanes.merge import (
     preview_mission_target_integration,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.merge.config import MergeStrategy
+from specify_cli.consolidation.config import MergeStrategy
 
 
 def _info_attributes_driver_lines(repo):
@@ -768,7 +768,7 @@ def test_ensure_merge_driver_config_raises_on_git_failure(tmp_path, monkeypatch)
     ``subprocess.CalledProcessError`` (``_set_local_git_config``'s ``check=True``)
     -- the caught type -- and nothing else.
     """
-    from specify_cli.lanes import merge as merge_module
+    from specify_cli.lanes import consolidation as merge_module
 
     repo = _make_repo(tmp_path)  # real git repo; the helper's .git guard passes
 

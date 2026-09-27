@@ -692,41 +692,51 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.lanes.lifecycle_sync::LANE_AUTO_REBASE_FAILED
         SymbolKey("LANE_AUTO_REBASE_FAILED", "ac422fb0845653d0bab1cb2449584a37ca13c9b89e1bdb6170893aa23a810630", source_module="specify_cli.lanes.lifecycle_sync"),
         SymbolKey(
-            "ClassifierRule", "e4253249c186c97ce24d24d459a758fe02f4b3ebc7f94e62d0a000edf743755f", source_module="specify_cli.merge.conflict_classifier"
-        ),  # specify_cli.merge.conflict_classifier::ClassifierRule
+            "ClassifierRule", "e4253249c186c97ce24d24d459a758fe02f4b3ebc7f94e62d0a000edf743755f", source_module="specify_cli.consolidation.conflict_classifier"
+        ),  # specify_cli.consolidation.conflict_classifier::ClassifierRule
         SymbolKey(
-            "RULES", "f2fede76cafc6c35cc093acdc068080406066dc6e5f82bf7b13575fe24359c24", source_module="specify_cli.merge.conflict_classifier"
-        ),  # specify_cli.merge.conflict_classifier::RULES
+            "RULES", "f2fede76cafc6c35cc093acdc068080406066dc6e5f82bf7b13575fe24359c24", source_module="specify_cli.consolidation.conflict_classifier"
+        ),  # specify_cli.consolidation.conflict_classifier::RULES
         SymbolKey(
-            "Resolution", "7bc793f726da67f4273d0f5ac82d13ed3141e7a53c9c2a42bbab390b64ff46b1", source_module="specify_cli.merge.conflict_classifier"
-        ),  # specify_cli.merge.conflict_classifier::Resolution
-        # specify_cli.merge.conflict_classifier::r_default_manual
-        SymbolKey("r_default_manual", "729111cef2a3601de1948651817b84123bea90eed651a9cd3b458377486e6d18", source_module="specify_cli.merge.conflict_classifier"),
-        # specify_cli.merge.conflict_classifier::r_init_imports_union
+            "Resolution", "7bc793f726da67f4273d0f5ac82d13ed3141e7a53c9c2a42bbab390b64ff46b1", source_module="specify_cli.consolidation.conflict_classifier"
+        ),  # specify_cli.consolidation.conflict_classifier::Resolution
+        # specify_cli.consolidation.conflict_classifier::r_default_manual
         SymbolKey(
-            "r_init_imports_union", "d72fa8545eb4e8df7dc80288ea3bcd1994adfb4d4e5ab1d18144aec8f4a29de1", source_module="specify_cli.merge.conflict_classifier"
+            "r_default_manual", "729111cef2a3601de1948651817b84123bea90eed651a9cd3b458377486e6d18", source_module="specify_cli.consolidation.conflict_classifier"
         ),
-        # specify_cli.merge.conflict_classifier::r_pyproject_deps_union
+        # specify_cli.consolidation.conflict_classifier::r_init_imports_union
         SymbolKey(
-            "r_pyproject_deps_union", "e3633e4ef609408e8a9d8433c080edad3cf595dac30db1ca7dba0a12cc852e64", source_module="specify_cli.merge.conflict_classifier"
+            "r_init_imports_union",
+            "d72fa8545eb4e8df7dc80288ea3bcd1994adfb4d4e5ab1d18144aec8f4a29de1",
+            source_module="specify_cli.consolidation.conflict_classifier",
         ),
-        # specify_cli.merge.conflict_classifier::r_urls_list_union
-        SymbolKey("r_urls_list_union", "483a7c2e4e5c7ec6829ed411b4f485ae141a40ff6aaaa2d07fa588c461463bfd", source_module="specify_cli.merge.conflict_classifier"),
-        # specify_cli.merge.conflict_classifier::r_uvlock_regenerate
-        SymbolKey("r_uvlock_regenerate", "00c7c15c6ac3c4eebd8a6a071b3c6157953733f7dcdcdf0f8c9b29d11fbf4b94", source_module="specify_cli.merge.conflict_classifier"),
+        # specify_cli.consolidation.conflict_classifier::r_pyproject_deps_union
         SymbolKey(
-            "display_merge_order", "305ac620b2ebbb6568c8aef92428d3c8326cbca533039995280ad367fd35dd67", source_module="specify_cli.merge.ordering"
-        ),  # specify_cli.merge.ordering::display_merge_order
-        # specify_cli.merge.state::MergeAmbiguousStateError -- RE-KEYED
+            "r_pyproject_deps_union",
+            "e3633e4ef609408e8a9d8433c080edad3cf595dac30db1ca7dba0a12cc852e64",
+            source_module="specify_cli.consolidation.conflict_classifier",
+        ),
+        # specify_cli.consolidation.conflict_classifier::r_urls_list_union
+        SymbolKey(
+            "r_urls_list_union", "483a7c2e4e5c7ec6829ed411b4f485ae141a40ff6aaaa2d07fa588c461463bfd", source_module="specify_cli.consolidation.conflict_classifier"
+        ),
+        # specify_cli.consolidation.conflict_classifier::r_uvlock_regenerate
+        SymbolKey(
+            "r_uvlock_regenerate", "00c7c15c6ac3c4eebd8a6a071b3c6157953733f7dcdcdf0f8c9b29d11fbf4b94", source_module="specify_cli.consolidation.conflict_classifier"
+        ),
+        SymbolKey(
+            "display_merge_order", "305ac620b2ebbb6568c8aef92428d3c8326cbca533039995280ad367fd35dd67", source_module="specify_cli.consolidation.ordering"
+        ),  # specify_cli.consolidation.ordering::display_merge_order
+        # specify_cli.consolidation.state::MergeAmbiguousStateError -- RE-KEYED
         # (landing/coord-read-fail-closed #5001 follow-up, PR #5020): WS2
         # changed the body; hash recomputed via resolve_symbol_key/key_tier
         # (tests/architectural/_symbol_key.py), not hand-guessed. Still
         # unwired from a second src/ module today -- external consumers land
         # with the Epic #5001 follow-ups.
-        SymbolKey("MergeAmbiguousStateError", "8cd8372b816b4d9832d81b923bb132c5a28ab45a9d64c31e8ae27356f8e87f38", source_module="specify_cli.merge.state"),
+        SymbolKey("MergeAmbiguousStateError", "8cd8372b816b4d9832d81b923bb132c5a28ab45a9d64c31e8ae27356f8e87f38", source_module="specify_cli.consolidation.state"),
         SymbolKey(
-            "detect_git_merge_state", "1ebb0846821cef8d19a05382e249a78a78e602af5c6568fcf47746664b27e1f6", source_module="specify_cli.merge.state"
-        ),  # specify_cli.merge.state::detect_git_merge_state
+            "detect_git_merge_state", "1ebb0846821cef8d19a05382e249a78a78e602af5c6568fcf47746664b27e1f6", source_module="specify_cli.consolidation.state"
+        ),  # specify_cli.consolidation.state::detect_git_merge_state
         # specify_cli.mission_brief::IntakeFileMissingError (escalated: live collision)
         SymbolKey("IntakeFileMissingError", "10c5629ceb1c89d8fa16d2dfacaac2480549638e7ce8264138959a6e9be9155c", module_path="specify_cli.mission_brief"),
         # specify_cli.mission_brief::IntakeFileUnreadableError (escalated: live collision)
@@ -1317,12 +1327,12 @@ _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[SymbolKey] = frozenset()
 
 # ---------- C. Merge god-module decomposition shim re-exports (mission #2057) ----------
 # The ``cli/commands/merge.py`` god-module was decomposed into cohesive
-# seams under ``specify_cli/merge/`` (behavior-preserving refactor). FR-006
+# seams under ``specify_cli/consolidation/`` (behavior-preserving refactor). FR-006
 # mandates the thin command shim re-export every relocated symbol so
 # existing importers keep working with zero import edits.
 #
 # relocation-hardened-dead-code-scanners-01KX958P WP02: 59 of the 65
-# pure re-export names (``specify_cli.cli.commands.merge::*``) are now
+# pure re-export names (``specify_cli.cli.commands.consolidate::*``) are now
 # covered by the T013 structural auto-exempt (``_is_reexport_shim_symbol``)
 # -- each resolves via a single-alias ``ImportFrom`` whose origin definition
 # has a live caller elsewhere. ``BaselineMergeCommitError`` stays hand-listed
@@ -1336,50 +1346,74 @@ _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[SymbolKey] = frozenset()
 
 _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
     {
-        # specify_cli.cli.commands.merge::BaselineMergeCommitError (escalated: live collision)
-        SymbolKey("BaselineMergeCommitError", "f63bb04588cfd7df1144a1e646283b39e2bcc28ae152b07a0799b34f0f91c65b", module_path="specify_cli.cli.commands.merge"),
+        # specify_cli.cli.commands.consolidate::BaselineMergeCommitError (escalated: live collision)
+        SymbolKey(
+            "BaselineMergeCommitError", "f63bb04588cfd7df1144a1e646283b39e2bcc28ae152b07a0799b34f0f91c65b", module_path="specify_cli.cli.commands.consolidate"
+        ),
         # (coord-write-placement-closure-01KYCF83 WP03 / FR-003 rehash: the
         # filename-trust check now classifies via kind_for_mission_file instead
         # of a hardcoded {filename1, filename2} membership test -- body changed,
         # content-tier hash re-pinned.)
-        # specify_cli.merge.bookkeeping_projection::_assert_status_surface_file_path_is_trusted
+        # specify_cli.consolidation.bookkeeping_projection::_assert_status_surface_file_path_is_trusted
         SymbolKey(
             "_assert_status_surface_file_path_is_trusted",
             "4849bba669d427bc0cdb0a72f77dc821f821b979edd3293e9ea5f1d6e0fe6d62",
-            source_module="specify_cli.merge.bookkeeping_projection",
+            source_module="specify_cli.consolidation.bookkeeping_projection",
         ),
-        # specify_cli.merge.bookkeeping_projection::_read_optional_bytes
+        # specify_cli.consolidation.bookkeeping_projection::_read_optional_bytes
         SymbolKey(
-            "_read_optional_bytes", "ff9a424ce926fdeb80a67f95e6350ef8b4107a3fcf9a3192f57d6fed6db076a8", source_module="specify_cli.merge.bookkeeping_projection"
+            "_read_optional_bytes",
+            "ff9a424ce926fdeb80a67f95e6350ef8b4107a3fcf9a3192f57d6fed6db076a8",
+            source_module="specify_cli.consolidation.bookkeeping_projection",
         ),
-        # specify_cli.merge.bookkeeping_projection::_restore_optional_bytes
+        # specify_cli.consolidation.bookkeeping_projection::_restore_optional_bytes
         SymbolKey(
-            "_restore_optional_bytes", "d34e2cf5f0c1325386d4747c6111cd696a89d476dde3ced2018182c0dfba6fdb", source_module="specify_cli.merge.bookkeeping_projection"
+            "_restore_optional_bytes",
+            "d34e2cf5f0c1325386d4747c6111cd696a89d476dde3ced2018182c0dfba6fdb",
+            source_module="specify_cli.consolidation.bookkeeping_projection",
+        ),
+        # Hash re-pinned (mission consolidate-canonical-terminology-01M3GSSV WP01
+        # / #3080): the MergeState -> ConsolidationState symbol rename changed this
+        # function's type annotation, changing the symbol body (content-tier key is
+        # body-hashed).
+        SymbolKey(
+            "_already_baked", "7f804f49001d93332ab0a3fad3929f8c45b6d33de06c8d7c1c875af723b87327", source_module="specify_cli.consolidation.ordering"
+        ),  # specify_cli.consolidation.ordering::_already_baked
+        # specify_cli.consolidation.ordering::_is_assigned_mission_number
+        SymbolKey(
+            "_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1", source_module="specify_cli.consolidation.ordering"
+        ),
+        # specify_cli.consolidation.ordering::_mark_mission_number_baked
+        # Hash re-pinned (mission consolidate-canonical-terminology-01M3GSSV WP01
+        # / #3080): same MergeState -> ConsolidationState rename as _already_baked above.
+        SymbolKey(
+            "_mark_mission_number_baked", "9ccd842f4e2585df0b6b53617cff16da5b6b1af747d5a4e508a0d0a887abc3db", source_module="specify_cli.consolidation.ordering"
         ),
         SymbolKey(
-            "_already_baked", "42470ebca7e82026542624079c0cbafeaa3a5dc53ca3a653b2a4c196492bd93c", source_module="specify_cli.merge.ordering"
-        ),  # specify_cli.merge.ordering::_already_baked
-        # specify_cli.merge.ordering::_is_assigned_mission_number
-        SymbolKey("_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1", source_module="specify_cli.merge.ordering"),
-        # specify_cli.merge.ordering::_mark_mission_number_baked
-        SymbolKey("_mark_mission_number_baked", "aa2e64b018e1d7ecc47f73211c291d16934d659b8f4b07b472e200225d99e72b", source_module="specify_cli.merge.ordering"),
+            "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.consolidation.push_preflight"
+        ),  # specify_cli.consolidation.push_preflight::check_push_safety
         SymbolKey(
-            "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.merge.push_preflight"
-        ),  # specify_cli.merge.push_preflight::check_push_safety
+            "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.consolidation.push_preflight"
+        ),  # specify_cli.consolidation.push_preflight::check_push_safety
         # (FR-008: the redundant trailing bare-slug regex was replaced by
         # strip_numeric_prefix + parse_lane_worktree_dir routed through the
         # naming authority -- body changed, content-tier hash re-pinned.
         # Out-of-map edit; re-pin only this one entry if another mission
         # also touches this allow-list file.)
-        # specify_cli.merge.resolve::_extract_mission_slug
+        # specify_cli.consolidation.resolve::_extract_mission_slug
         SymbolKey(
-            "_extract_mission_slug", "069b2a0bb16644081c3d0cf618a231ba3251fea4a2905c157d121d8e07d44f65", source_module="specify_cli.merge.resolve"
-        ),  # specify_cli.merge.resolve::_extract_mission_slug
-        # specify_cli.merge.resolve::_iter_merge_states_for_slug
+            "_extract_mission_slug", "069b2a0bb16644081c3d0cf618a231ba3251fea4a2905c157d121d8e07d44f65", source_module="specify_cli.consolidation.resolve"
+        ),  # specify_cli.consolidation.resolve::_extract_mission_slug
+        # specify_cli.consolidation.resolve::_iter_merge_states_for_slug
         # Hash re-pinned (#2899 landing): the cross-mission slug-scan fix folded in
-        # this PR wrapped the loop's load_state in `except MergeStateReadError:
+        # this PR wrapped the loop's load_state in `except ConsolidationStateReadError:
         # continue`, changing the symbol body (content-tier key is body-hashed).
-        SymbolKey("_iter_merge_states_for_slug", "3abf7f0536db52f2d7db2502f2721c43ea5ee73398a5c363e3ce5cbe6d87d72a", source_module="specify_cli.merge.resolve"),
+        # Re-pinned again (mission consolidate-canonical-terminology-01M3GSSV WP01 /
+        # #3080): the MergeState -> ConsolidationState rename changed this
+        # exception-handler's type reference too.
+        SymbolKey(
+            "_iter_merge_states_for_slug", "73d5f8b79b62714265c082cd21c5c356df17320208f0b35fb158957a3928cdb2", source_module="specify_cli.consolidation.resolve"
+        ),
     }
 )
 
@@ -2230,7 +2264,7 @@ _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
 # vocabulary ahead of every external caller: today each symbol is exercised
 # intra-module (the wired `route_terminus`/`VerifyResult`/claim-builder call
 # chains) and by the WP06 reconciliation test suite
-# (tests/merge/test_reconciliation.py), not yet imported from a second
+# (tests/consolidation/test_reconciliation.py), not yet imported from a second
 # src/ module. External consumers land with the Epic #5001 follow-ups.
 _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
     {
@@ -2239,23 +2273,23 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
         # WS3 wired it -- ``issue_verdict.py``'s ``resolve_for_write`` call
         # site now routes through it, so it has a real src/ caller and the
         # allowlist entry is stale.
-        # specify_cli.merge.reconciliation::TERMINUS_ENTRY_POINTS -- public
+        # specify_cli.consolidation.reconciliation::TERMINUS_ENTRY_POINTS -- public
         # vocabulary of the new reconciliation gate (the closed-world entry
         # point registry `route_terminus` consults).
         SymbolKey(
             "TERMINUS_ENTRY_POINTS",
             "8fd87d4ce8ab8b7f9a6eae7f527026fae6020db5d0f3a9820b43cc3d00475b68",
-            source_module="specify_cli.merge.reconciliation",
+            source_module="specify_cli.consolidation.reconciliation",
         ),
-        # specify_cli.merge.reconciliation::UnroutedTerminusPathError --
+        # specify_cli.consolidation.reconciliation::UnroutedTerminusPathError --
         # public vocabulary of the new reconciliation gate (raised by
         # `route_terminus` for an unrouted terminus path).
         SymbolKey(
             "UnroutedTerminusPathError",
             "6be092c657d631005f4fc08807167d8174789d3dae9f3c9d8a8eb946a2815dab",
-            source_module="specify_cli.merge.reconciliation",
+            source_module="specify_cli.consolidation.reconciliation",
         ),
-        # specify_cli.merge.reconciliation::Divergence -- public vocabulary
+        # specify_cli.consolidation.reconciliation::Divergence -- public vocabulary
         # of the new reconciliation gate (the verifier's FAIL-shaped
         # structured divergence record). body_hash refreshed (#5001 #5020;
         # #5022 terminus-reconciliation-attribution-integrity): the squash axis
@@ -2263,18 +2297,18 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "Divergence",
             "a828263627ea91b6bca3a12e26bdccacc4011309e631bdcbcf52ec13f7d4c662",
-            source_module="specify_cli.merge.reconciliation",
+            source_module="specify_cli.consolidation.reconciliation",
         ),
-        # specify_cli.merge.bookkeeping_projection::ProjectionResult -- the
+        # specify_cli.consolidation.bookkeeping_projection::ProjectionResult -- the
         # S-B/FR-004 post-checkpoint commit projection's outcome type;
         # exercised intra-module today, external consumer deferred to the
         # Epic #5001 follow-ups.
         SymbolKey(
             "ProjectionResult",
             "397a6e1caea4f4f303ad58b212bb66cd884630a556a423605e5b4866a8a66384",
-            source_module="specify_cli.merge.bookkeeping_projection",
+            source_module="specify_cli.consolidation.bookkeeping_projection",
         ),
-        # specify_cli.merge.bookkeeping_projection::project_post_checkpoint_commits_to_target
+        # specify_cli.consolidation.bookkeeping_projection::project_post_checkpoint_commits_to_target
         # -- same S-B/FR-004 projection helper; called only from within its
         # own module today (the ``__all__`` claim of cross-module export
         # keeps it caught by this gate's rules regardless). RE-KEYED
@@ -2287,13 +2321,13 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "project_post_checkpoint_commits_to_target",
             "279b256560969d15906ad220dcfde65c55f272afcbdfbac9842c0ad54a37a514",
-            source_module="specify_cli.merge.bookkeeping_projection",
+            source_module="specify_cli.consolidation.bookkeeping_projection",
         ),
-        # specify_cli.merge.git_probes::lane_integrated_by_tree_or_ancestry --
+        # specify_cli.consolidation.git_probes::lane_integrated_by_tree_or_ancestry --
         # T028 git probe (ancestry -> tree-equality integration under
         # squash); consumed by the reconciliation verifier's own body
         # (docstring cross-reference only) and exercised directly by
-        # tests/merge/test_reconciliation.py. RE-KEYED (landing/coord-read-
+        # tests/consolidation/test_reconciliation.py. RE-KEYED (landing/coord-read-
         # fail-closed #5001 follow-up, PR #5020): the body changed (WS1's
         # blob-attribution axis), so the content-tier body_hash below was
         # recomputed via ``resolve_symbol_key``/``key_tier``
@@ -2301,16 +2335,16 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "lane_integrated_by_tree_or_ancestry",
             "ab4e79f1559ad1b71468df4342fa35d3a294f525ad4304f13abbab30e4833e99",
-            source_module="specify_cli.merge.git_probes",
+            source_module="specify_cli.consolidation.git_probes",
         ),
-        # specify_cli.merge.state::read_merge_lock_owner -- FR-008
+        # specify_cli.consolidation.state::read_merge_lock_owner -- FR-008
         # owner-token lock-ownership probe; consumed only from within its
         # own module (acquire_merge_lock) and by
-        # tests/merge/test_merge_state_authority.py today.
+        # tests/consolidation/test_merge_state_authority.py today.
         SymbolKey(
             "read_merge_lock_owner",
             "152d2a612a16091432a35d186dbb9b234ad12e673816a683bf61f4bfae44f0d7",
-            source_module="specify_cli.merge.state",
+            source_module="specify_cli.consolidation.state",
         ),
     }
 )

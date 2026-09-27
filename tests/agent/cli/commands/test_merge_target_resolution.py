@@ -68,11 +68,11 @@ def _patch_merge_environment(
 ) -> None:
     _force_main_repo(monkeypatch, repo_root)
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.find_repo_root",
+        "specify_cli.cli.commands.consolidate.find_repo_root",
         lambda: repo_root,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._enforce_git_preflight",
+        "specify_cli.cli.commands.consolidate._enforce_git_preflight",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
@@ -100,9 +100,9 @@ def _patch_merge_environment(
     # ``merge.resolve`` and the lane executor from ``merge.executor``. Patch all
     # the surfaces this flow traverses so the fake git stays in effect.
     for _target in (
-        "specify_cli.merge.executor.run_command",
-        "specify_cli.merge.preflight.run_command",
-        "specify_cli.merge.resolve.run_command",
+        "specify_cli.consolidation.executor.run_command",
+        "specify_cli.consolidation.preflight.run_command",
+        "specify_cli.consolidation.resolve.run_command",
     ):
         monkeypatch.setattr(_target, fake_run_command)
 
@@ -120,7 +120,7 @@ def test_merge_without_feature_on_feature_branch_reads_meta_target(monkeypatch, 
         existing_branches={"2.x"},
     )
 
-    result = runner.invoke(cli_app, ["merge", "--dry-run", "--json"])
+    result = runner.invoke(cli_app, ["consolidate", "--dry-run", "--json"])
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
@@ -141,7 +141,7 @@ def test_merge_without_feature_on_lane_branch_validates_inferred_target(monkeypa
         existing_branches=set(),
     )
 
-    result = runner.invoke(cli_app, ["merge", "--dry-run", "--json"])
+    result = runner.invoke(cli_app, ["consolidate", "--dry-run", "--json"])
 
     assert result.exit_code == 1
     payload = _extract_json(result.stdout)
@@ -166,7 +166,7 @@ def test_explicit_target_overrides_meta_json(monkeypatch, tmp_path: Path) -> Non
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--dry-run", "--json", "--target", "main"],
+        ["consolidate", "--dry-run", "--json", "--target", "main"],
     )
 
     assert result.exit_code == 0
@@ -189,7 +189,7 @@ def test_explicit_feature_flag_reads_meta_target(monkeypatch, tmp_path: Path) ->
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--dry-run", "--json", "--mission", slug],
+        ["consolidate", "--dry-run", "--json", "--mission", slug],
     )
 
     assert result.exit_code == 0
@@ -213,7 +213,7 @@ def test_explicit_feature_flag_missing_meta_falls_back_to_primary(monkeypatch, t
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--dry-run", "--json", "--mission", slug],
+        ["consolidate", "--dry-run", "--json", "--mission", slug],
     )
 
     assert result.exit_code == 0
@@ -233,7 +233,7 @@ def test_no_feature_no_feature_branch_requires_explicit_feature(monkeypatch, tmp
         existing_branches={"main"},
     )
 
-    result = runner.invoke(cli_app, ["merge", "--dry-run", "--json"])
+    result = runner.invoke(cli_app, ["consolidate", "--dry-run", "--json"])
 
     assert result.exit_code == 1
     payload = _extract_json(result.stdout)
@@ -253,7 +253,7 @@ def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
         existing_branches={"main"},
     )
 
-    result = runner.invoke(cli_app, ["merge", "--dry-run", "--json"])
+    result = runner.invoke(cli_app, ["consolidate", "--dry-run", "--json"])
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)

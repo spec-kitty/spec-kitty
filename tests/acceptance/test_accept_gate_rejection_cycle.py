@@ -275,7 +275,7 @@ class TestMergeMissionOptionGuard:
     def test_clean_mission_option_treats_unresolved_optioninfo_as_unset(self) -> None:
         import typer
 
-        from specify_cli.cli.commands.merge import _clean_mission_option
+        from specify_cli.cli.commands.consolidate import _clean_mission_option
 
         unresolved = typer.Option(None, "--mission")
         assert _clean_mission_option(unresolved) is None
@@ -288,7 +288,7 @@ class TestMergeMissionOptionGuard:
 
         import typer
 
-        from specify_cli.cli.commands.merge import _resolve_slug_or_exit
+        from specify_cli.cli.commands.consolidate import _resolve_slug_or_exit
 
         repo = tmp_path / "repo"
         repo.mkdir()
@@ -306,7 +306,7 @@ class TestMergeMissionOptionGuard:
 
         import typer
 
-        from specify_cli.cli.commands.merge import _dispatch_resume
+        from specify_cli.cli.commands.consolidate import _dispatch_resume
 
         repo = tmp_path / "repo"
         repo.mkdir()

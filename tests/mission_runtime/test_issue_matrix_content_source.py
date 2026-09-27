@@ -135,7 +135,7 @@ def _build_post_consolidation_coord_mission(repo: Path, *, mid8: str) -> tuple[s
     ``tests/mission_runtime/test_issue_matrix_ref_read.py::
     _build_consolidated_coord_mission``.
     """
-    from specify_cli.merge.baseline import record_baseline_merge_commit
+    from specify_cli.consolidation.baseline import record_baseline_merge_commit
 
     mission_id = f"{mid8}0000000000000000"
     mission_slug = f"widget-catalog-{mid8}"

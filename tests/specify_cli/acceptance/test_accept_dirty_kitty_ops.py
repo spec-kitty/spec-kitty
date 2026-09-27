@@ -12,7 +12,7 @@ four dirty-tree gates.  This module proves:
 
 Gates covered here:
   - Accept gate:  ``acceptance._accept_dirty_gate`` (T003)
-  - Merge gate:   ``merge.git_probes._classify_porcelain_lines`` (T004 arm 1)
+  - Merge gate:   ``consolidation.git_probes._classify_porcelain_lines`` (T004 arm 1)
   - Review gate:  ``review.dirty_classifier._is_benign`` / ``classify_dirty_paths``
                   (T004 arm 2)
 
@@ -33,7 +33,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.acceptance import _ENCODING_BACKUP_SUFFIX, _accept_dirty_gate, _is_own_encoding_backup_write
-from specify_cli.merge.git_probes import _classify_porcelain_lines
+from specify_cli.consolidation.git_probes import _classify_porcelain_lines
 from specify_cli.review.dirty_classifier import _is_benign, classify_dirty_paths
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -184,7 +184,7 @@ class TestAcceptGateOwnWriteScoping:
 
 
 # ---------------------------------------------------------------------------
-# Merge gate  (merge.git_probes._classify_porcelain_lines)
+# Merge gate  (consolidation.git_probes._classify_porcelain_lines)
 # ---------------------------------------------------------------------------
 
 

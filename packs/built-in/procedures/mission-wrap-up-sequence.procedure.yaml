@@ -18,7 +18,7 @@ exit_condition: >
   Acceptance is recorded; every tracker issue referenced by the spec carries a
   terminal issue-matrix verdict; the aggregate diff has passed an independent
   review (the adversarial squad being the recommended mechanism); the lanes are
-  merged into the mission branch; the branch
+  consolidated into the mission branch; the branch
   history is compacted into a small set of readable, logically-sliced commits
   rebased onto the current upstream base; and a draft pull request is open and
   handed to the operator. The operator — not the agent — performs the merge to
@@ -61,12 +61,13 @@ steps:
       documented exception that no longer holds. Synthesize a LAND / HOLD verdict
       and resolve anything real before landing.
     actor: agent
-  - title: Merge the lanes locally
+  - title: Consolidate the lanes locally
     description: >
-      Merge the approved lanes into the mission branch with the host merge command
-      (`spec-kitty merge --mission <slug>`), which lands locally only. Resolve any
-      stale-lane conflicts on shared files. Do not push to the protected mainline
-      and never merge it yourself — the operator does that.
+      Consolidate the approved lanes into the mission branch with the host
+      consolidate command (`spec-kitty consolidate --mission <slug>`), which
+      lands locally only. Resolve any stale-lane conflicts on shared files. Do
+      not push to the protected mainline and never merge it yourself — the
+      operator does that.
     actor: agent
   - title: Compact the branch into readable history
     description: >
@@ -132,9 +133,9 @@ notes: |
   procedure makes the mission land cleanly and reviewably.
 
   Sequence summary: accept -> retire/split dev-assist tests -> resolve issue verdicts
-  -> aggregate review squad -> local merge -> compact history -> rebase onto upstream
-  -> draft PR + pre-merge squad -> hand off. The operator performs the mainline merge
-  (DIRECTIVE_045).
+  -> aggregate review squad -> local consolidation -> compact history -> rebase onto
+  upstream -> draft PR + pre-merge squad -> hand off. The operator performs the
+  mainline merge (DIRECTIVE_045).
 
   The three quality pillars this enforces are captured as a standard in the
   readable-consistent-prs directive (DIRECTIVE_046): linear, consistent/complete,

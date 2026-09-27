@@ -246,7 +246,7 @@ def _check_tracked_worktrees_content(repo_root: Path) -> list[DoctorFinding]:
 
     # H2 / I-6: keep this import FUNCTION-LOCAL — hoisting it to module scope
     # reintroduces the doctor <-> merge module-load cycle.
-    from specify_cli.cli.commands.merge import path_is_under_worktrees
+    from specify_cli.cli.commands.consolidate import path_is_under_worktrees
     from specify_cli.core.constants import WORKTREES_DIR
 
     try:
@@ -1175,7 +1175,7 @@ def _check_stranded_coord_revert(repo_root: Path) -> list[DoctorFinding]:
     """FR-007: re-verify each reconcile marker against the **committed** coord ref.
 
     Enumerate ``pending_coord_reconcile`` markers via WP02's
-    :func:`~specify_cli.merge.state.iter_pending_coord_reconcile_markers` — NOT
+    :func:`~specify_cli.consolidation.state.iter_pending_coord_reconcile_markers` — NOT
     ``load_state(mission_id=None)`` (it *raises* ``MergeAmbiguousStateError`` on
     >=2 markers) and NOT a re-implemented runtime-path scan (a second path
     authority / DIR-044 breach). Each marker is re-verified by
@@ -1185,7 +1185,7 @@ def _check_stranded_coord_revert(repo_root: Path) -> list[DoctorFinding]:
     strand or an un-parseable/unresolvable marker, and ``None`` only for a
     genuinely-stale marker (US2-S5, the load-bearing negative AC).
     """
-    from specify_cli.merge.state import iter_pending_coord_reconcile_markers
+    from specify_cli.consolidation.state import iter_pending_coord_reconcile_markers
 
     findings: list[DoctorFinding] = []
     for state in iter_pending_coord_reconcile_markers(repo_root):
@@ -1197,7 +1197,7 @@ def _check_stranded_coord_revert(repo_root: Path) -> list[DoctorFinding]:
 
 def _clear_pending_marker(repo_root: Path, mission_id: str) -> None:
     """Atomically clear a mission's ``pending_coord_reconcile`` marker after a heal."""
-    from specify_cli.merge.state import load_state, save_state
+    from specify_cli.consolidation.state import load_state, save_state
 
     state = load_state(repo_root, mission_id=mission_id)
     if state is None:

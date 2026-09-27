@@ -134,21 +134,21 @@ def _write_lanes_json(mission: object) -> None:
 
 def _patch_dry_run_git_boundaries(monkeypatch: pytest.MonkeyPatch, mission: object) -> None:
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None
+        "specify_cli.cli.commands.consolidate._enforce_git_preflight", lambda *a, **kw: None
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.find_repo_root", lambda: mission.repo_root
+        "specify_cli.cli.commands.consolidate.find_repo_root", lambda: mission.repo_root
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.get_main_repo_root",
+        "specify_cli.cli.commands.consolidate.get_main_repo_root",
         lambda _repo: mission.repo_root,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._validate_target_branch",
+        "specify_cli.cli.commands.consolidate._validate_target_branch",
         lambda *a, **kw: None,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._resolve_target_branch",
+        "specify_cli.cli.commands.consolidate._resolve_target_branch",
         lambda *a, **kw: ("main", "cli"),
     )
 
@@ -242,7 +242,7 @@ def test_dry_run_emits_rejected_review_artifact_conflict(
     import typer
     from typer.testing import CliRunner
 
-    from specify_cli.cli.commands.merge import merge
+    from specify_cli.cli.commands.consolidate import consolidate as merge
 
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
@@ -310,7 +310,7 @@ def test_dry_run_emits_review_artifact_schema_invalid(
     import typer
     from typer.testing import CliRunner
 
-    from specify_cli.cli.commands.merge import merge
+    from specify_cli.cli.commands.consolidate import consolidate as merge
 
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
@@ -360,7 +360,7 @@ def test_dry_run_human_emits_rejected_review_artifact_conflict(
     import typer
     from typer.testing import CliRunner
 
-    from specify_cli.cli.commands.merge import merge
+    from specify_cli.cli.commands.consolidate import consolidate as merge
 
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
@@ -412,7 +412,7 @@ def test_dry_run_human_emits_review_artifact_schema_invalid(
     import typer
     from typer.testing import CliRunner
 
-    from specify_cli.cli.commands.merge import merge
+    from specify_cli.cli.commands.consolidate import consolidate as merge
 
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
@@ -465,8 +465,8 @@ def test_real_merge_schema_preflight_does_not_write_merge_state(
     """
     import typer
 
-    from specify_cli.cli.commands.merge import _run_lane_based_merge_locked
-    from specify_cli.merge.state import get_state_path
+    from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation_locked
+    from specify_cli.consolidation.state import get_state_path
 
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
@@ -491,7 +491,7 @@ def test_real_merge_schema_preflight_does_not_write_merge_state(
     )
 
     with pytest.raises(typer.Exit) as exc_info:
-        _run_lane_based_merge_locked(
+        _run_lane_based_consolidation_locked(
             mission.repo_root,
             mission.mission_slug,
             mission.mission_id,  # canonical_id (path handle)

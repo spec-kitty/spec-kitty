@@ -11,8 +11,8 @@ Covers:
 - test_protected_linear_history_succeeds_default (NFR-003)
 
 Note on patching: consolidate_lane_into_mission/integrate_mission_into_target are imported locally inside
-_run_lane_based_merge, so they must be patched at the source module level
-(specify_cli.lanes.merge.*) not at specify_cli.cli.commands.merge.*.
+_run_lane_based_consolidation, so they must be patched at the source module level
+(specify_cli.lanes.consolidation.*) not at specify_cli.cli.commands.consolidate.*.
 Similarly, evaluate_merge_gates and load_policy_config are patched at their source paths.
 """
 
@@ -26,13 +26,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.cli.commands.merge import (
+from specify_cli.cli.commands.consolidate import (
     LINEAR_HISTORY_REJECTION_TOKENS,
     _emit_remediation_hint,
     _is_linear_history_rejection,
-    _run_lane_based_merge,
+    _run_lane_based_consolidation,
 )
-from specify_cli.merge.config import ConfigError, MergeStrategy, load_merge_config
+from specify_cli.consolidation.config import ConfigError, MergeStrategy, load_merge_config
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -144,7 +144,7 @@ class TestEmitRemediationHint:
 
 
 # ---------------------------------------------------------------------------
-# FR-005 / FR-006 — strategy wiring through _run_lane_based_merge
+# FR-005 / FR-006 — strategy wiring through _run_lane_based_consolidation
 # ---------------------------------------------------------------------------
 
 
@@ -221,33 +221,33 @@ def _patched_lane_based_merge_dependencies(
 ):
     """Patch heavy merge dependencies while preserving strategy call assertions."""
     with ExitStack() as stack:
-        stack.enter_context(patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest))
-        stack.enter_context(patch("specify_cli.merge.resolve.load_state", return_value=None))
-        stack.enter_context(patch("specify_cli.merge.done_bookkeeping.save_state"))
-        stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
-        stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
-        stack.enter_context(patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)))
-        stack.enter_context(patch("specify_cli.merge.executor._pre_mutation_safety_preflight"))
+        stack.enter_context(patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest))
+        stack.enter_context(patch("specify_cli.consolidation.resolve.load_state", return_value=None))
+        stack.enter_context(patch("specify_cli.consolidation.done_bookkeeping.save_state"))
+        stack.enter_context(patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path))
+        stack.enter_context(patch("specify_cli.consolidation.executor._enforce_target_branch_sync_preflight"))
+        stack.enter_context(patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)))
+        stack.enter_context(patch("specify_cli.consolidation.executor._pre_mutation_safety_preflight"))
         # #5001: the reconciliation-claim phase (terminus/merge-coord integrity
         # spine) needs real lane manifest data (string lane_id/wp_ids/slug) to
         # compute lane branch names via lane_branch_name. These tests mock the
         # lanes manifest with MagicMock, so stub the reconciliation phase here;
         # reconciliation itself is covered by tests/terminus + tests/merge/test_reconciliation.
-        stack.enter_context(patch("specify_cli.merge.executor._capture_reconciliation_claim"))
-        stack.enter_context(patch("specify_cli.merge.executor._phase_reconcile_before_teardown"))
+        stack.enter_context(patch("specify_cli.consolidation.executor._capture_reconciliation_claim"))
+        stack.enter_context(patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"))
         stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
-        mock_lane_merge = stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
-        mock_mission_merge = stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
-        stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
-        stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
+        mock_lane_merge = stack.enter_context(patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result))
+        mock_mission_merge = stack.enter_context(patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result))
+        stack.enter_context(patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"))
+        stack.enter_context(patch("specify_cli.consolidation.executor.commit_merge_bookkeeping", return_value=True))
         mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
         mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
         mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
-        stack.enter_context(patch("specify_cli.merge.executor.run_command", return_value=(0, "abc123", "")))
-        stack.enter_context(patch("specify_cli.merge.executor.has_remote", return_value=False))
-        stack.enter_context(patch("specify_cli.merge.executor.cleanup_merge_workspace"))
-        stack.enter_context(patch("specify_cli.merge.executor.clear_state"))
-        stack.enter_context(patch("specify_cli.merge.state.MergeState"))
+        stack.enter_context(patch("specify_cli.consolidation.executor.run_command", return_value=(0, "abc123", "")))
+        stack.enter_context(patch("specify_cli.consolidation.executor.has_remote", return_value=False))
+        stack.enter_context(patch("specify_cli.consolidation.executor.cleanup_merge_workspace"))
+        stack.enter_context(patch("specify_cli.consolidation.executor.clear_state"))
+        stack.enter_context(patch("specify_cli.consolidation.state.ConsolidationState"))
 
         stale_report = MagicMock()
         stale_report.findings = []
@@ -266,7 +266,7 @@ def _patched_lane_based_merge_dependencies(
 
 
 class TestStrategyFlagFlowsThrough:
-    """FR-005: --strategy squash reaches _run_lane_based_merge and is honored."""
+    """FR-005: --strategy squash reaches _run_lane_based_consolidation and is honored."""
 
     def test_strategy_squash_passed_to_integrate_mission_into_target(self, tmp_path: Path) -> None:
         """FR-005: strategy parameter is passed down to integrate_mission_into_target."""
@@ -288,7 +288,7 @@ class TestStrategyFlagFlowsThrough:
         mission_result.errors = []
 
         with _patched_lane_based_merge_dependencies(tmp_path, manifest, lane_result, mission_result) as (_mock_lane_merge, mock_mission_merge):
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=mission_slug,
                 push=False,
@@ -323,7 +323,7 @@ class TestStrategyFlagFlowsThrough:
 
         with _patched_lane_based_merge_dependencies(tmp_path, manifest, lane_result, mission_result) as (_mock_lane_merge, mock_mission_merge):
             # Call WITHOUT specifying strategy → should default to SQUASH
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=mission_slug,
                 push=False,
@@ -365,7 +365,7 @@ class TestLaneToMissionUsesMergeCommit:
 
         with _patched_lane_based_merge_dependencies(tmp_path, manifest, lane_result, mission_result) as (mock_lane_merge, _mock_mission_merge):
             # Use squash strategy — lane→mission should NOT be affected
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=mission_slug,
                 push=False,

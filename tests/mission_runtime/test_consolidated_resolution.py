@@ -25,7 +25,7 @@ C-001/002/003/005, NFR-001/004). Covers:
   state (no split-brain, NFR-001).
 
 Fixtures build REAL git repos through the actual merge-time bookkeeping entry
-point (:func:`specify_cli.merge.baseline.record_baseline_merge_commit`),
+point (:func:`specify_cli.consolidation.baseline.record_baseline_merge_commit`),
 mirroring ``tests/specify_cli/cli/commands/test_issue_3033_post_consolidation_write.py``
 (WP02) and ``tests/mission_runtime/test_lifecycle_phase.py`` (WP03 T008).
 """
@@ -47,7 +47,7 @@ from mission_runtime import (
     resolve_placement_only,
 )
 from mission_runtime.lifecycle_phase import LifecyclePhase, resolve_lifecycle_phase
-from specify_cli.merge.baseline import record_baseline_merge_commit
+from specify_cli.consolidation.baseline import record_baseline_merge_commit
 from specify_cli.mission_metadata import load_meta, write_meta
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]

@@ -23,7 +23,7 @@ _SCAFFOLD_SNAPSHOT_FUNCTION = "_list_mission_scaffolds"
 _LEGACY_WALKER_ALLOWLIST = frozenset(
     {
         "src/specify_cli/status/identity_audit.py",
-        "src/specify_cli/merge/ordering.py",
+        "src/specify_cli/consolidation/ordering.py",
         "src/specify_cli/core/paths.py",
         "src/specify_cli/charter_activate.py",
         "src/specify_cli/cli/commands/materialize.py",

@@ -70,7 +70,7 @@ def test_merge_no_mission_exits_cleanly() -> None:
 
     Authority: FR-008; no-selector-error-contract.md.
     """
-    result = runner.invoke(app, ["merge"])
+    result = runner.invoke(app, ["consolidate"])
     _assert_no_selector_contract(result)
 
 

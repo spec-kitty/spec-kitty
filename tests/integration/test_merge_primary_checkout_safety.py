@@ -14,7 +14,7 @@ Two loss shapes were possible:
    destroyed it while the merge otherwise proceeded to a false "success".
 
 WP03/T010 hoists a pre-mutation preflight into the OUTER
-``_run_lane_based_merge`` — before the global merge lock is even acquired and
+``_run_lane_based_consolidation`` — before the global merge lock is even acquired and
 long before ``_phase_merge_lanes``/the target-ref advance — so both shapes
 now refuse fail-closed with :class:`DestructiveOpRefused` and the repository
 is byte-identical to pre-invocation (NFR-001). Uses the real-git Layer 2
@@ -35,7 +35,7 @@ import pytest
 import typer
 
 from kernel.clock import now_utc_iso
-from specify_cli.cli.commands.merge import _run_lane_based_merge
+from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_PRIMARY_DIRTY,
     MERGE_UNSAFE_PRIMARY_OFF_TARGET,
@@ -43,8 +43,8 @@ from specify_cli.git.destructive_guard import (
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.merge.config import MergeStrategy
-from specify_cli.merge.state import MergeState, save_state
+from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.consolidation.state import ConsolidationState, save_state
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
@@ -157,20 +157,20 @@ def _real_merge_external_mocks(repo_root: Path):
     when that real ``reset --hard`` runs against an unsafe primary checkout.
     """
     patches = [
-        patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
-        patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
+        patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
+        patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
+        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.merge.executor.run_check"),
-        patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
         patch(
-            "specify_cli.merge.executor._bake_mission_number_into_mission_branch",
+            "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
             return_value=None,
         ),
-        patch("specify_cli.merge.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
     ]
     with contextlib.ExitStack() as stack:
         ms = [stack.enter_context(p) for p in patches]
@@ -190,7 +190,7 @@ def _real_merge_external_mocks(repo_root: Path):
 
 def _invoke_merge(tmp_path: Path, slug: str) -> None:
     with _real_merge_external_mocks(tmp_path):
-        _run_lane_based_merge(
+        _run_lane_based_consolidation(
             repo_root=tmp_path,
             mission_slug=slug,
             push=False,
@@ -263,15 +263,15 @@ class TestPrimaryCheckoutOnTargetDirtySafety:
         """US1 AC4: ``--resume`` honors the guard identically to a fresh merge.
 
         Both the fresh and the resumed CLI paths route through the same
-        outer ``_run_lane_based_merge``, so seeding an interrupted
-        ``MergeState`` (as a prior attempt would have left behind) must
+        outer ``_run_lane_based_consolidation``, so seeding an interrupted
+        ``ConsolidationState`` (as a prior attempt would have left behind) must
         refuse exactly like the fresh-merge case above.
         """
         slug = "test-primary-on-target-dirty-resume"
         _bootstrap_mission(tmp_path, slug)
 
         save_state(
-            MergeState(
+            ConsolidationState(
                 mission_id=slug,
                 mission_slug=slug,
                 target_branch="main",

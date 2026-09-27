@@ -25,7 +25,7 @@ that equivalence holds for THIS cluster's actual call shapes:
    call is confirmed to make the corresponding equivalence assertion fail.
 
 ``mission_finalize.py::finalize_tasks`` and ``merge/executor.py::
-_run_lane_based_merge_locked`` are exercised end-to-end by their own existing
+_run_lane_based_consolidation_locked`` are exercised end-to-end by their own existing
 suites (``test_feature_finalize_bootstrap.py``, ``tests/merge/``), which pass
 green against this WP's diff — not re-fixtured here to avoid duplicating a
 heavy CLI/merge harness for the same P-1 equivalence this module already pins

@@ -113,16 +113,16 @@ class TestMergeWithAllowOverride:
 
         We patch ``require_no_sparse_checkout`` at the executor seam (post-#2057
         decomposition the sparse-checkout preflight lives in
-        ``specify_cli.merge.executor._run_lane_based_merge``; the executor never
+        ``specify_cli.consolidation.executor._run_lane_based_consolidation``; the executor never
         imports the command shim — C-007 one-way-import invariant — so the
         canonical patch target is the executor module, matching every sibling
-        ``patch("specify_cli.merge.executor.require_no_sparse_checkout")`` in the
+        ``patch("specify_cli.consolidation.executor.require_no_sparse_checkout")`` in the
         suite). We assert it receives ``override_flag=True`` when the CLI is
         invoked with ``--allow-sparse-checkout``. This verifies the live wiring
         (T020) independently of any downstream merge work.
         """
-        from specify_cli.cli.commands import merge as merge_mod
-        from specify_cli.merge import executor as executor_mod
+        from specify_cli.cli.commands import consolidate as merge_mod
+        from specify_cli.consolidation import executor as executor_mod
 
         observed: dict[str, object] = {}
 
@@ -150,7 +150,7 @@ class TestMergeWithAllowOverride:
         from typer.testing import CliRunner
 
         app = typer.Typer()
-        app.command()(merge_mod.merge)
+        app.command()(merge_mod.consolidate)
         runner = CliRunner()
 
         with chdir(repo):
@@ -164,7 +164,7 @@ class TestMergeWithAllowOverride:
             f"--allow-sparse-checkout must thread through to require_no_sparse_checkout; "
             f"observed={observed}"
         )
-        assert observed.get("command") == "spec-kitty merge"
+        assert observed.get("command") == "spec-kitty consolidate"
 
     def test_override_audit_log_carries_resolved_actor_not_unknown(
         self,
@@ -180,8 +180,8 @@ class TestMergeWithAllowOverride:
         (here: the ``SPEC_KITTY_AGENT`` env var) propagates from the CLI into
         the emitted log record.
         """
-        from specify_cli.cli.commands import merge as merge_mod
-        from specify_cli.merge import executor as executor_mod
+        from specify_cli.cli.commands import consolidate as merge_mod
+        from specify_cli.consolidation import executor as executor_mod
 
         repo = tmp_path / "r"
         _init_git_repo(repo)
@@ -224,7 +224,7 @@ class TestMergeWithAllowOverride:
         from typer.testing import CliRunner
 
         app = typer.Typer()
-        app.command()(merge_mod.merge)
+        app.command()(merge_mod.consolidate)
         runner = CliRunner()
 
         with chdir(repo):

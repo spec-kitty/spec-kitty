@@ -50,7 +50,7 @@ def test_5022_default_squash_must_not_ship_unattributed_deletion(tmp_path: Path)
     assert blob_present_at(mission.repo, mission.target_branch, _KEEP_ME_PATH)
     plant_canceled_deletion(mission, canceled_wp="WP99", carrier_wp="WP01", path=_KEEP_ME_PATH)
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
 
     assert result.returncode != 0, "default squash must FAIL the content axis on an unattributed deletion and exit non-zero"
     assert mission.rev(mission.target_branch) == pre_target, "on a content-axis FAIL the target must be CAS-reverted to its pre-merge base"

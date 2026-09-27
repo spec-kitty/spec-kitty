@@ -115,7 +115,7 @@ _CONSUMER_MARKER_EXPR = "not performance and not stress"
 # a count-preserving swap (fix one module, sneak `charter` in) cannot mask a
 # real regression in the module this mission actually recaptured.
 _MISMATCH_ALLOWLIST: dict[str, str] = {
-    "merge": "committed=782 collected=804 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
+    "consolidation": "committed=782 collected=804 (2026-09-22 baseline as `merge`, renamed by #3080; predates spec-kitty#4865, never recaptured by this mission)",
     "missions": "committed=633 collected=319 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "post_merge": "committed=100 collected=123 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "release": "committed=86 collected=253 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",

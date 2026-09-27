@@ -42,7 +42,7 @@ import pytest
 import typer
 
 from specify_cli.core.worktree_topology import _read_canonical_lane_or_default
-from specify_cli.merge import done_bookkeeping as db
+from specify_cli.consolidation import done_bookkeeping as db
 from specify_cli.status import Lane
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]

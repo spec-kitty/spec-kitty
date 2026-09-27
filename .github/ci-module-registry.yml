@@ -10,25 +10,29 @@ source_scrub: tests/release/ci_retirement_scrub.json
 source_timings: .github/ci-shard-timings.json
 reusable_workflow_ceiling: 20
 modules:
-- module: merge
+- module: consolidation
   roots:
-  - src/specify_cli/merge/**
+  - src/specify_cli/consolidation/**
   cov_targets:
-  - specify_cli.merge
+  - specify_cli.consolidation
   tier: standard
-  # spec-kitty#4374 (WP03 T009): promoted tests/specify_cli/merge (the secondary
+  # spec-kitty#3080 (consolidate-canonical-terminology): renamed from `merge`
+  # -- the package/dir/tests moved from src/specify_cli/merge + tests/merge to
+  # src/specify_cli/consolidation + tests/consolidation (the lane-consolidation
+  # CLI command itself renamed spec-kitty merge -> spec-kitty consolidate).
+  # spec-kitty#4374 (WP03 T009): promoted tests/specify_cli/consolidation (the secondary
   # tests/specify_cli/** mirror) into this row's per-PR execution -- the explicit
-  # test_dirs list REPLACES the tests/merge fallback claim, so tests/merge is named
+  # test_dirs list REPLACES the tests/consolidation fallback claim, so tests/consolidation is named
   # explicitly alongside it or the guard reds. shard_count re-measured in T010.
   shard_count: 1
   # spec-kitty#5001 (terminus-merge-integrity): tests/terminus holds the real-CLI,
   # mock-free terminus reconciliation repros. The spine they exercise lives under
-  # src/specify_cli/merge/** (reconciliation.py, executor.py, ref_advance via merge),
+  # src/specify_cli/consolidation/** (reconciliation.py, executor.py, ref_advance via merge),
   # so they are claimed here and run on every merge-touching PR. Naming an explicit
-  # test_dirs list REPLACES the tests/merge fallback claim, so tests/merge stays named.
+  # test_dirs list REPLACES the tests/consolidation fallback claim, so tests/consolidation stays named.
   test_dirs:
-  - tests/merge
-  - tests/specify_cli/merge
+  - tests/consolidation
+  - tests/specify_cli/consolidation
   - tests/terminus
 - module: missions
   roots:

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from specify_cli.merge.baseline import (
+from specify_cli.consolidation.baseline import (
     ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
     ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
 )
@@ -190,13 +190,13 @@ _REASON_NEVER_MERGED = "never_merged_via_spec_kitty_merge"
 #: each recorded under the operator's explicit ``--attest-first-landing-commit``
 #: attestation (#4231 fix rounds 3–4 — neither shape is a git proof, because
 #: post-landing git history cannot show which side of a landing the target
-#: branch stood on). An ABSENT field is the ``spec-kitty merge``
+#: branch stood on). An ABSENT field is the ``spec-kitty consolidate``
 #: local-recording lane (which captures the real target tip at merge time) and
 #: scans normally; a PRESENT value outside this set means the anchor's
 #: completeness is not established, so the gate surfaces that state instead of
 #: reporting a green scan over a possibly truncated diff.
 #:
-#: Bound to the writer's own constants (``specify_cli.merge.baseline``) rather
+#: Bound to the writer's own constants (``specify_cli.consolidation.baseline``) rather
 #: than duplicating the string literals here, so the reader and the writer can
 #: never drift out of sync.
 _COMPLETE_ANCHOR_EVIDENCE = frozenset(
@@ -248,7 +248,7 @@ def _handle_missing_baseline(
             remediation = _PR_MERGE_UNRECORDED_REMEDIATION
         else:
             reason = _REASON_NEVER_MERGED
-            remediation = "Run `spec-kitty merge` to bake baseline_merge_commit into meta.json, or rerun review with `--mode post-merge` after merge."
+            remediation = "Run `spec-kitty consolidate` to bake baseline_merge_commit into meta.json, or rerun review with `--mode post-merge` after merge."
         console.print(f"  [red]✗[/red]  Dead-code scan: missing baseline_merge_commit ({MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE})")
         console.print(f"       reason: {reason}")
         console.print(f"       remediation: {remediation}")
@@ -321,7 +321,7 @@ def scan_dead_code(
     values that seam writes — ``merge-commit-parent-attested`` and
     ``corpus-parent-attested`` (a two-parent and a single-parent landing,
     each recorded under the operator's ``--attest-first-landing-commit``
-    attestation) — and an absent field (the ``spec-kitty merge``
+    attestation) — and an absent field (the ``spec-kitty consolidate``
     local-recording lane) scan normally; any other PRESENT value surfaces
     ``MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE`` instead of a green scan,
     because the anchor may not cover the whole mission.

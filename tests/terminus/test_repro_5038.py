@@ -25,7 +25,7 @@ edit ``traces/WP01.md`` from a shared baseline). ``git merge --squash`` resolves
 that overlap through the path's registered ``spec-kitty-traces`` merge driver
 (``.gitattributes``: ``kitty-specs/**/traces/*.md merge=spec-kitty-traces`` ->
 ``merge_driver_traces``, a deterministic, lossless, order-preserving union --
-see ``src/specify_cli/merge/drivers.py::run_traces_driver``, relocated there
+see ``src/specify_cli/consolidation/drivers.py::run_traces_driver``, relocated there
 from ``cli/commands/merge_driver.py`` by #5119): the resulting target
 blob equals NEITHER the checkpoint blob NOR the coord blob, but it IS the
 driver's own reproducible output. The PRE-fix proof demanded raw
@@ -57,7 +57,7 @@ NOT reproduce -- content is genuinely dropped, not merely present-but-diverged
 The sibling three-way-merge-content-divergence class Decision 5 already keeps
 an honest ``xfail(strict=True)`` for on the blob-ATTRIBUTION axis
 (``test_squash_three_way_merge_resolution_is_unattributable``,
-``tests/merge/test_reconciliation.py``, #5021 residual-2) is untouched by this
+``tests/consolidation/test_reconciliation.py``, #5021 residual-2) is untouched by this
 fix: it is a STOCK-git conflict on a path with NO registered driver, soundly
 unfixable (research.md Decision 3), and stays a distinct, narrowed xfail.
 
@@ -73,7 +73,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.merge.bookkeeping_projection import projected_content_matches_target
+from specify_cli.consolidation.bookkeeping_projection import projected_content_matches_target
 from tests.terminus.conftest import (
     CoordMission,
     build_coord_mission,
@@ -129,7 +129,7 @@ def test_5038_p1_clean_single_lane_squash_must_not_false_refuse(tmp_path: Path) 
     )
     _plant_conflicting_trace_edits(mission, baseline="baseline trace")
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
 
     assert result.returncode == 0, (
         "#5038: a squash merge whose bookkeeping-projection divergence is "

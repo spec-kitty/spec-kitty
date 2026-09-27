@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.merge import preview_mission_target_integration
-from specify_cli.merge.config import MergeStrategy
+from specify_cli.lanes.consolidation import preview_mission_target_integration
+from specify_cli.consolidation.config import MergeStrategy
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 

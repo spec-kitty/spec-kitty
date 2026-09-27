@@ -96,14 +96,14 @@ def _complete_squash_then_recreate_mid_teardown_state(mission: CoordMission, wp_
     also injected into the persisted state.json as
     ``reconciliation_passed_target_sha`` so a POST-FIX resume can recognize
     the completed-but-mid-teardown state. Written as a raw JSON key (not via
-    the ``MergeState`` constructor) so this SAME fixture is inert pre-fix
-    (``MergeState.from_dict``'s known-fields filter silently drops an
+    the ``ConsolidationState`` constructor) so this SAME fixture is inert pre-fix
+    (``ConsolidationState.from_dict``'s known-fields filter silently drops an
     unrecognised key) and load-bearing post-fix -- no fixture edit needed
     between T007 (RED) and T008 (GREEN).
     """
     from mission_runtime import MissionArtifactKind, resolve_placement_only
-    from specify_cli.merge.reconciliation import write_post_fix_marker
-    from specify_cli.merge.state import MergeState, get_state_path, save_state
+    from specify_cli.consolidation.reconciliation import write_post_fix_marker
+    from specify_cli.consolidation.state import ConsolidationState, get_state_path, save_state
 
     # --- pre-mutation anchors, captured BEFORE the REAL merge runs -----------
     pre_mutation_coord_sha = mission.rev(mission.coord_branch)
@@ -115,7 +115,7 @@ def _complete_squash_then_recreate_mid_teardown_state(mission: CoordMission, wp_
     #    (lane branches still get deleted -- ``delete_branch`` defaults True and
     #    is independent of ``--keep-worktree``'s ``remove_worktree=False``,
     #    which couples with ``delete_branch`` into ``teardown_coordination``). -
-    setup_result = run_terminus(mission, ["merge", "--mission", mission.slug, "--keep-worktree", "--yes"])
+    setup_result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--keep-worktree", "--yes"])
     assert setup_result.returncode == 0, (
         "fixture precondition: the REAL first squash merge must succeed so the "
         f"resumed state models a genuinely-completed merge. "
@@ -123,7 +123,7 @@ def _complete_squash_then_recreate_mid_teardown_state(mission: CoordMission, wp_
     )
     target_sha_at_pass = mission.rev(mission.target_branch)
 
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=mission.mission_id,
         mission_slug=mission.slug,
         target_branch=mission.target_branch,
@@ -157,7 +157,7 @@ def test_5021_r1_resume_completes_teardown_without_rerunning_content_axis(
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5021A")
     target_sha_before_resume = _complete_squash_then_recreate_mid_teardown_state(mission, "WP01", ["WP01"])
 
-    result = run_terminus(mission, ["merge", "--resume", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
     assert result.returncode == 0, (
         f"#5021 r1: --resume over a completed-but-mid-teardown squash must "
@@ -188,8 +188,8 @@ def test_5021_r2_genuinely_incomplete_merge_still_runs_full_gate(tmp_path: Path)
     mid-teardown".
     """
     from mission_runtime import MissionArtifactKind, resolve_placement_only
-    from specify_cli.merge.reconciliation import write_post_fix_marker
-    from specify_cli.merge.state import MergeState, save_state
+    from specify_cli.consolidation.reconciliation import write_post_fix_marker
+    from specify_cli.consolidation.state import ConsolidationState, save_state
 
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5021B")
 
@@ -200,7 +200,7 @@ def test_5021_r2_genuinely_incomplete_merge_still_runs_full_gate(tmp_path: Path)
     coord_wt = _coord_worktree(mission)
     git(coord_wt, "merge", "-q", "--no-edit", mission.lane_branch("WP01"))
 
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=mission.mission_id,
         mission_slug=mission.slug,
         target_branch=mission.target_branch,
@@ -218,7 +218,7 @@ def test_5021_r2_genuinely_incomplete_merge_still_runs_full_gate(tmp_path: Path)
     write_post_fix_marker(mission.repo, mission.mission_id)
     git(mission.repo, "checkout", "-q", mission.target_branch)
 
-    result = run_terminus(mission, ["merge", "--resume", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
     assert result.returncode == 0, (
         f"R2 guard: a genuinely incomplete merge must still complete via the full gate on --resume. stdout={result.stdout}\nstderr={result.stderr}"

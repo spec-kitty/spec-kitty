@@ -221,7 +221,7 @@ def _last_merge_marker_at(feature_dir: Path) -> datetime | None:
 
     ``spec-kitty mission reopen`` clears ``merged_*`` (IC-02), so after a re-open
     this is typically ``None``. A subsequent re-merge re-stamps ``merged_at`` (by
-    :func:`specify_cli.merge.baseline.record_baseline_merge_commit`); when that
+    :func:`specify_cli.consolidation.baseline.record_baseline_merge_commit`); when that
     postdates the latest re-open the mission is no longer ``reopened``. The
     ``merged_at`` marker itself is restored by #4090 — its writer had been
     deleted in #2258. Returns the datetime (not a bool) so :func:`_is_reopened`

@@ -8,7 +8,7 @@ Root cause and fix (``src/specify_cli/acceptance/matrix.py``):
 * ``AcceptanceMatrix.overall_verdict`` used to let ``pending`` DOMINATE — one
   ``pending`` row outvoted any number of ``pass`` rows.
 * The row-union reconciler ``reconcile_acceptance_matrix_documents``
-  (``src/specify_cli/merge/drivers.py`` since #5119) admits BOTH sides' rows on
+  (``src/specify_cli/consolidation/drivers.py`` since #5119) admits BOTH sides' rows on
   an add/add divergence (``#3076`` FR-008), so after a mission→target squash
   merge the merged document legitimately contains the ``finalize-tasks``
   placeholder row (``AC-001``, ``pass_fail="pending"``, ``description`` AND
@@ -32,7 +32,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER
-from specify_cli.merge.drivers import reconcile_acceptance_matrix_documents
+from specify_cli.consolidation.drivers import reconcile_acceptance_matrix_documents
 
 pytestmark = pytest.mark.unit
 

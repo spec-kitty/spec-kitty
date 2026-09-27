@@ -20,7 +20,7 @@ import typer
 
 from specify_cli.cli.commands import _coordination_doctor as cd
 from specify_cli.coordination.coherence import coord_incoherent_done_wps
-from specify_cli.merge.state import MergeState, load_state, save_state
+from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
 from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -648,7 +648,7 @@ def _save_marker_state(
         "detected_at": "2026-07-18T10:05:00+00:00",
     }
     save_state(
-        MergeState(
+        ConsolidationState(
             mission_id=_DOCTOR_MISSION_ID,
             mission_slug=_DOCTOR_MISSION_SLUG,
             target_branch="main",
@@ -1068,7 +1068,7 @@ def _seed_bare_handle_fixture(repo: Path) -> None:
         "detected_at": "2026-07-18T10:05:00+00:00",
     }
     save_state(
-        MergeState(
+        ConsolidationState(
             mission_id=_BARE_MISSION_ID,
             mission_slug=_BARE_HANDLE,  # BARE handle — no -<mid8> suffix.
             target_branch="main",
@@ -1338,7 +1338,7 @@ def _save_raw_marker(repo: Path, marker: dict[str, object]) -> None:
     """Persist a merge state carrying an arbitrary (possibly malformed) marker."""
     (repo / ".kittify").mkdir(parents=True, exist_ok=True)
     save_state(
-        MergeState(
+        ConsolidationState(
             mission_id=_DOCTOR_MISSION_ID,
             mission_slug=_DOCTOR_MISSION_SLUG,
             target_branch="main",

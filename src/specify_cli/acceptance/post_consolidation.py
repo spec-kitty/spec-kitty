@@ -22,7 +22,7 @@ Design constraints (deliberate, load-bearing — see contract C7 and WP06):
   :class:`PostConsolidationResult`; the dispatched Op maps ``result.passed`` onto
   its ``done`` / ``failed`` outcome. There is **no new CLI verb** and **no call-in
   from** ``merge/executor.py``.
-* **Zero ``merge/`` coupling.** Nothing here imports ``specify_cli.merge`` or the
+* **Zero ``merge/`` coupling.** Nothing here imports ``specify_cli.consolidation`` or the
   consolidation rollback machinery. The judging logic is reused wholesale from the
   matrix's own public :func:`enforce_negative_invariants`, so this module stays
   file-disjoint from the consolidation transaction (WP06 review guidance).

@@ -354,12 +354,11 @@ _LANE_CONSOLIDATION_PHRASE_BASELINE: frozenset[str] = frozenset(
         "docs/development/3-2-docs-retrieval-index.yaml",
         "docs/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md",
         "docs/plans/engineering-notes/naming-identity-ssot-strangler/randy-reducer-split-brain-map.md",
-        "packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml",
         "src/charter/offering/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
         "src/charter/offering/skills/spec-kitty-implement-review/SKILL.md",
-        "src/specify_cli/lanes/merge.py",
+        "src/specify_cli/consolidation/git_probes.py",
+        "src/specify_cli/lanes/consolidation.py",
         "src/specify_cli/lanes/stale_check.py",
-        "src/specify_cli/merge/git_probes.py",
     }
 )
 
@@ -506,6 +505,215 @@ def test_lane_consolidation_baseline_entries_are_currently_real() -> None:
             f"Baseline entry {rel_path!r} no longer contains any forbidden phrase -- "
             "it has already been fixed and should be REMOVED from "
             "_LANE_CONSOLIDATION_PHRASE_BASELINE (shrink-only ratchet), not left in it."
+        )
+
+
+# --------------------------------------------------------------------------- #
+# FR-009 / SC-003 -- command-surface "spec-kitty merge" drift-ratchet guard
+# --------------------------------------------------------------------------- #
+#
+# Mission #3080 (consolidate-canonical-terminology) renamed the lane-consolidation
+# CLI command from ``spec-kitty merge`` to ``spec-kitty consolidate`` and left a
+# hidden, non-functional migration-error stub under the old name (C-004). This is
+# a SEPARATE ratchet from the lane-consolidation-sense phrase guard above: that
+# guard catches descriptive phrases ("lane merge", "merging lanes"); this one
+# catches the literal COMMAND-INVOCATION phrase "spec-kitty merge" (with optional
+# flags), the exact string a caller would type or a doc would teach. It reuses
+# the same generic phrase-scan/baseline machinery (``_grep_for_phrase_ci`` /
+# ``_hits_outside_baseline``), scanning ``src``, ``docs``, **and** ``packs``
+# (SC-003 -- the lane-consolidation guard above does not scan ``packs``).
+#
+# "spec-kitty merge" is fixed-string-matched (case-insensitive) then filtered
+# through ``_COMMAND_SURFACE_PHRASE_PATTERN`` so genuine git-plumbing compounds
+# that share the substring -- ``spec-kitty merge-driver-*``, the historical
+# ``spec-kitty merge-mission`` / ``spec-kitty merge-feature`` -- are never
+# false-flagged (green-on-legit): a real command name is never followed
+# immediately by ``-``. Ordinary git-merge (``git merge --no-ff``) and
+# publish-to-origin prose never contain the "spec-kitty " prefix at all, so they
+# never match the fixed-string search in the first place.
+#
+# Baseline is a shrink-only ceiling (C-008): every path below was verified, at
+# authoring time (mission consolidate-canonical-terminology-01M3GSSV WP01), to
+# still carry the phrase via the same scan this gate runs. Deprecation-notice
+# mentions of the OLD name (the migration stub's own error message/comments) are
+# NOT baselined -- they are worded to avoid the literal contiguous phrase
+# entirely (e.g. "the `merge` command", never "spec-kitty merge"), so they never
+# need an exemption and the ratchet stays a precise drift detector rather than a
+# blanket carve-out for anything discussing the rename.
+_COMMAND_SURFACE_PHRASE: str = "spec-kitty merge"
+_COMMAND_SURFACE_PHRASE_PATTERN = re.compile(r"spec-kitty merge(?!-)", re.IGNORECASE)
+_COMMAND_SURFACE_SCAN_ROOTS: tuple[str, ...] = ("src", "docs", "packs")
+
+_COMMAND_SURFACE_PHRASE_BASELINE: frozenset[str] = frozenset(
+    {
+        "docs/api/cli-commands.md",
+        "docs/api/environment-variables.md",
+        "docs/api/skills/spk-gate-mission-review.md",
+        "docs/changelog/1x/workflow.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/changelog/release-notes-3.2.6.md",
+        "docs/context/orchestration.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/agent-fleet.md",
+        "docs/development/getting-started/onboarding-run.md",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "docs/guides/how-to/collaboration/run-an-autonomous-mission.md",
+        "docs/guides/how-to/governance/use-retrospective-learning.md",
+        "docs/guides/how-to/missions/keep-main-clean.md",
+        "docs/guides/how-to/missions/merge-mission.md",
+        "docs/guides/how-to/recovery/index.md",
+        "docs/guides/how-to/recovery/recover-from-implementation-crash.md",
+        "docs/guides/how-to/recovery/troubleshoot-merge.md",
+        "docs/guides/tutorials/claude-code-workflow.md",
+        "docs/guides/tutorials/your-first-mission.md",
+        "docs/operations/manual-test-plan.md",
+        "docs/plans/3-2-x-approach.md",
+        "docs/plans/engineering-notes/01KSMG8Y-closeout/retro.md",
+        "docs/plans/engineering-notes/2026-07-18-doctrine-driven-p0-remediation-field-report.md",
+        "docs/plans/engineering-notes/2917-runtime-state-birth-cutover-research.md",
+        "docs/plans/engineering-notes/3-2-x-goal-corroboration/SCORING-SYNTHESIS.md",
+        "docs/plans/engineering-notes/3-2-x-goal-corroboration/redteam-priti-strategy.md",
+        "docs/plans/engineering-notes/architecture-audits/2026-05-11-issue-992-984-audit-comments.md",
+        "docs/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md",
+        "docs/plans/engineering-notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md",
+        "docs/plans/engineering-notes/triage/2026-05-26-01KSF9HJ-post-mission-summary.md",
+        "docs/plans/investigations/2026-04-14-windows-compatibility-hardening-mission-review.md",
+        "docs/plans/investigations/write-path-topology-root-cause.md",
+        "docs/plans/user_journey/001-project-onboarding-bootstrap.md",
+        "docs/reports/tracer-friction-recon/2026-09-26/findings/slice-4.jsonl",
+        "src/charter/offering/skills/spec-kitty-git-workflow/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-implement-review/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-mission-review/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-program-orchestrate/SKILL.md",
+        "src/specify_cli/.contextive/orchestration.yml",
+        "src/specify_cli/_completion_manifest.json",
+        "src/specify_cli/acceptance/matrix.py",
+        "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "src/specify_cli/cli/commands/review/ERROR_CODES.md",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/coordination/workspace.py",
+        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/dossier/rebaseline.py",
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/post_merge/retrospective_terminus.py",
+        "src/specify_cli/state/contract.py",
+        "src/specify_cli/upgrade/autocommit.py",
+        "src/specify_cli/upgrade/migrations/m_3_1_1_direct_canonical_commands.py",
+    }
+)
+
+
+def _is_command_surface_phrase_hit(line: str) -> bool:
+    """True when *line*'s content genuinely contains the command-invocation phrase.
+
+    Filters out ``git grep``'s substring matches inside compound git-plumbing
+    names (``spec-kitty merge-driver-*``, ``spec-kitty merge-mission``,
+    ``spec-kitty merge-feature``) via a negative lookahead on the character
+    immediately following "merge" -- a real command name is never followed by
+    ``-``.
+    """
+    hit = _hit_parts(line)
+    content = hit[2] if hit is not None else line
+    return _COMMAND_SURFACE_PHRASE_PATTERN.search(content) is not None
+
+
+def _collect_command_surface_phrase_violations() -> dict[str, list[str]]:
+    """Real-repo scan: every command-surface "spec-kitty merge" hit outside the baseline."""
+    hits = [line for line in _grep_for_phrase_ci(_COMMAND_SURFACE_PHRASE, roots=_COMMAND_SURFACE_SCAN_ROOTS) if _is_command_surface_phrase_hit(line)]
+    return _hits_outside_baseline(hits, _COMMAND_SURFACE_PHRASE_BASELINE)
+
+
+def test_command_surface_merge_phrasing_does_not_grow_beyond_baseline() -> None:
+    """FR-009/SC-003: no NEW "spec-kitty merge" command-surface phrasing outside the baseline.
+
+    The real CI gate. ``git merge --no-ff`` and publish-to-origin prose never
+    match (no "spec-kitty " prefix); ``spec-kitty merge-driver-*`` /
+    ``-mission`` / ``-feature`` compounds are filtered by
+    ``_is_command_surface_phrase_hit`` -- see
+    ``test_command_surface_guard_green_on_legit_uses``.
+    """
+    _require_tracked_scan_roots(_COMMAND_SURFACE_SCAN_ROOTS)
+    violations = _collect_command_surface_phrase_violations()
+    if violations:
+        formatted = "\n".join(f"  {rel}:\n    " + "\n    ".join(hits) for rel, hits in sorted(violations.items()))
+        pytest.fail(
+            "New command-surface 'spec-kitty merge' phrasing detected outside the "
+            "grandfathered baseline. The command was renamed to `spec-kitty consolidate` "
+            "(#3080); `spec-kitty merge` now only reaches a non-functional migration-error "
+            "stub. Update the reference to `spec-kitty consolidate`.\n"
+            f"Offenders:\n{formatted}"
+        )
+
+
+def test_command_surface_baseline_does_not_grow() -> None:
+    """The grandfathered baseline is a ceiling to shrink, not a floor to grow.
+
+    Mirrors ``test_lane_consolidation_baseline_does_not_grow``'s regression
+    rationale for this sibling ratchet.
+    """
+    assert len(_COMMAND_SURFACE_PHRASE_BASELINE) <= 74, (
+        f"_COMMAND_SURFACE_PHRASE_BASELINE grew to {len(_COMMAND_SURFACE_PHRASE_BASELINE)} "
+        "entries (was 74 at mission consolidate-canonical-terminology-01M3GSSV WP01). "
+        "Growing the baseline re-grandfathers new drift instead of fixing it or writing new "
+        "prose with the canonical `spec-kitty consolidate` command name -- if a new entry is "
+        "genuinely unavoidable, widen this ceiling deliberately with a documented rationale, "
+        "do not just raise the number to force green."
+    )
+
+
+def test_command_surface_phrase_bite_fixture_fails_on_new_phrasing() -> None:
+    """Red-first bite (SC-003): a NEW (non-baseline) command-surface phrasing is flagged."""
+    synthetic_hits = ["src/mission_runtime/some_new_module.py:10:    # then rerun spec-kitty merge --dry-run"]
+    filtered = [line for line in synthetic_hits if _is_command_surface_phrase_hit(line)]
+    violations = _hits_outside_baseline(filtered, _COMMAND_SURFACE_PHRASE_BASELINE)
+    assert "src/mission_runtime/some_new_module.py" in violations, (
+        f"The guard must flag a new forbidden phrasing in a file outside the baseline -- got violations={violations}"
+    )
+
+
+def test_command_surface_guard_green_on_legit_uses() -> None:
+    """Green-on-legit (SC-003): git-merge / publish-to-origin / merge-driver-* survive.
+
+    ``git merge --no-ff`` and publish-to-origin prose never carry the
+    "spec-kitty " prefix, so they never even reach the filter. The compound
+    git-plumbing/legacy-orchestrator command names are the real filter test.
+    """
+    legit_lines = (
+        "src/specify_cli/consolidation/executor.py:42:    subprocess.run(['git', 'merge', '--no-ff', branch])",
+        "docs/guides/accept-and-merge.md:10:    Publish merged work to origin/main via a pull request.",
+        'src/specify_cli/cli/commands/merge_driver.py:5:    command="spec-kitty merge-driver-event-log %O %A %B"',
+        "src/specify_cli/orchestrator_api/commands.py:9:    the legacy ``spec-kitty merge-mission`` command was renamed",
+        "docs/migrations/feature-flag-deprecation.md:3:    the removed ``spec-kitty merge-feature`` alias",
+    )
+    for line in legit_lines:
+        assert not _is_command_surface_phrase_hit(line), f"Legitimate line falsely matched the command-surface phrase: {line!r}"
+
+
+def test_command_surface_guard_green_on_grandfathered_baseline() -> None:
+    """A hit inside a baseline file is treated as grandfathered, not a violation."""
+    hits_from_baseline_files = [f"{rel_path}:1:run spec-kitty merge --dry-run first" for rel_path in sorted(_COMMAND_SURFACE_PHRASE_BASELINE)]
+    violations = _hits_outside_baseline(hits_from_baseline_files, _COMMAND_SURFACE_PHRASE_BASELINE)
+    assert violations == {}, f"Baseline files must be grandfathered, got violations: {violations}"
+
+
+def test_command_surface_baseline_entries_are_currently_real() -> None:
+    """Every baseline entry still exists and still contains the command-surface phrase.
+
+    Guards against baseline staleness the same way
+    ``test_lane_consolidation_baseline_entries_are_currently_real`` does for its
+    sibling ratchet.
+    """
+    root = _repo_root()
+    for rel_path in sorted(_COMMAND_SURFACE_PHRASE_BASELINE):
+        path = root / rel_path
+        assert path.is_file(), f"Baseline entry {rel_path!r} does not exist on disk."
+        text = path.read_text(encoding="utf-8", errors="replace")
+        assert _COMMAND_SURFACE_PHRASE_PATTERN.search(text) is not None, (
+            f"Baseline entry {rel_path!r} no longer contains the command-surface phrase -- "
+            "it has already been fixed and should be REMOVED from "
+            "_COMMAND_SURFACE_PHRASE_BASELINE (shrink-only ratchet), not left in it."
         )
 
 

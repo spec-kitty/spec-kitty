@@ -354,10 +354,10 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
         "outside",
         "tracker.py:522; empty stdout; human diagnostic on stderr; Follow-up: #4664",
     ),
-    "merge": (
+    "consolidate": (
         (),
         "outside",
-        "merge.py:525; human diagnostic on stdout; Follow-up: #4664",
+        "consolidate.py:788; human diagnostic on stdout; Follow-up: #4664",
     ),
     "migrate backfill-identity": (
         (),

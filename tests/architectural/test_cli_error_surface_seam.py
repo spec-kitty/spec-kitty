@@ -88,7 +88,7 @@ _IN_SCOPE_MODULES: tuple[str, ...] = (
     "specify_cli/intake/scanner.py",
     "specify_cli/cli/commands/lifecycle.py",
     "specify_cli/decisions/service.py",
-    "specify_cli/merge/state.py",
+    "specify_cli/consolidation/state.py",
     "specify_cli/review/baseline.py",
     "specify_cli/review/lock.py",
     "specify_cli/review/artifacts.py",
@@ -149,7 +149,7 @@ _JUSTIFIED_RESIDUALS: frozenset[str] = frozenset(
         # ValueError/TypeError on the JSON decode, both returning None), so
         # wrapping it in read_guarded would turn a legitimate probe outcome
         # into a raised GuardedReadError -- a regression, not a fix.
-        "specify_cli/merge/state.py::read_merge_lock_owner",
+        "specify_cli/consolidation/state.py::read_merge_lock_owner",
     }
 )
 

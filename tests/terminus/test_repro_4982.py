@@ -62,8 +62,8 @@ def _interrupt_after_first_lane(mission: CoordMission, first_wp: str, wp_order: 
     pre-fix shape it refuses (``_enforce_resume_anchor_integrity``), so the fixture
     would model a state real code never emits."""
     from mission_runtime import MissionArtifactKind, resolve_placement_only
-    from specify_cli.merge.reconciliation import write_post_fix_marker
-    from specify_cli.merge.state import MergeState, save_state
+    from specify_cli.consolidation.reconciliation import write_post_fix_marker
+    from specify_cli.consolidation.state import ConsolidationState, save_state
 
     # --- pre-mutation anchors, captured BEFORE the simulated consolidation -----
     # Pristine coord base (before any lane merges into coord) so the reconciliation
@@ -81,7 +81,7 @@ def _interrupt_after_first_lane(mission: CoordMission, first_wp: str, wp_order: 
     coord_wt = _coord_worktree(mission)
     git(coord_wt, "merge", "-q", "--no-edit", mission.lane_branch(first_wp))
 
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=mission.mission_id,
         mission_slug=mission.slug,
         target_branch=mission.target_branch,
@@ -107,7 +107,7 @@ def test_4982_resume_preserves_already_merged_lane_commit(tmp_path: Path) -> Non
     approved = mission.approved_shas_from_lane_tips(["WP01", "WP02"])  # PRE-resume tips
     _interrupt_after_first_lane(mission, "WP01", ["WP01", "WP02"])
 
-    run_terminus(mission, ["merge", "--resume", "--yes"])
+    run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
     # Contract postcondition 1: every approved WP commit reachable by SHA from target.
     # The already-merged WP01 lane commit must survive the resume, not be reverted.

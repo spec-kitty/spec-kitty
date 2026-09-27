@@ -29,12 +29,12 @@ def test_merge_dry_run_loads_lane_manifest(monkeypatch, tmp_path) -> None:
             return 0, "main", ""
         return 0, "", ""
 
-    monkeypatch.setattr("specify_cli.cli.commands.merge.find_repo_root", lambda: repo_root)
-    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *_a, **_k: None)
-    monkeypatch.setattr("specify_cli.merge.preflight.run_command", fake_run_command)
-    monkeypatch.setattr("specify_cli.merge.resolve.run_command", fake_run_command)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate.find_repo_root", lambda: repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._enforce_git_preflight", lambda *_a, **_k: None)
+    monkeypatch.setattr("specify_cli.consolidation.preflight.run_command", fake_run_command)
+    monkeypatch.setattr("specify_cli.consolidation.resolve.run_command", fake_run_command)
 
-    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--mission", "010-feat", "--target", "main"])
+    result = runner.invoke(cli_app, ["consolidate", "--json", "--dry-run", "--mission", "010-feat", "--target", "main"])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout.strip())
@@ -53,12 +53,12 @@ def test_merge_dry_run_refuses_missing_lanes_manifest(monkeypatch, tmp_path) -> 
             return 0, "main", ""
         return 0, "", ""
 
-    monkeypatch.setattr("specify_cli.cli.commands.merge.find_repo_root", lambda: repo_root)
-    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *_a, **_k: None)
-    monkeypatch.setattr("specify_cli.merge.preflight.run_command", fake_run_command)
-    monkeypatch.setattr("specify_cli.merge.resolve.run_command", fake_run_command)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate.find_repo_root", lambda: repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._enforce_git_preflight", lambda *_a, **_k: None)
+    monkeypatch.setattr("specify_cli.consolidation.preflight.run_command", fake_run_command)
+    monkeypatch.setattr("specify_cli.consolidation.resolve.run_command", fake_run_command)
 
-    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--mission", "010-feat", "--target", "main"])
+    result = runner.invoke(cli_app, ["consolidate", "--json", "--dry-run", "--mission", "010-feat", "--target", "main"])
 
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())

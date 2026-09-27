@@ -148,8 +148,8 @@ def test_current_own_root_ratios_excludes_exempt_rows(lib: ModuleType) -> None:
 
 def test_imports_under_package_top_level(lib: ModuleType, tmp_path: Path) -> None:
     src = tmp_path / "test_top.py"
-    src.write_text("from specify_cli.merge import executor\n", encoding="utf-8")
-    assert lib.imports_under_package(src, "specify_cli.merge") is True
+    src.write_text("from specify_cli.consolidation import executor\n", encoding="utf-8")
+    assert lib.imports_under_package(src, "specify_cli.consolidation") is True
     assert lib.imports_under_package(src, "specify_cli.status") is False
 
 
@@ -168,7 +168,7 @@ def test_imports_under_package_parent_does_not_fabricate_child(lib: ModuleType, 
     src = tmp_path / "test_parent.py"
     src.write_text("import specify_cli\n", encoding="utf-8")
     assert lib.imports_under_package(src, "specify_cli") is True
-    assert lib.imports_under_package(src, "specify_cli.merge") is False
+    assert lib.imports_under_package(src, "specify_cli.consolidation") is False
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +195,7 @@ def test_resolve_test_dirs_defaults_to_tests_module(lib: ModuleType) -> None:
 
 def test_enumerate_includes_real_and_loose_modules(lib: ModuleType) -> None:
     packages = set(lib.enumerate_src_packages())
-    assert "specify_cli.merge" in packages  # real subpackage
+    assert "specify_cli.consolidation" in packages  # real subpackage
     assert "specify_cli.mission" in packages  # loose top-level *.py module
     assert "kernel" in packages
 
@@ -216,7 +216,7 @@ def test_is_data_only_package(lib: ModuleType) -> None:
     assert lib.is_data_only_package("charter.activation.corpus") is True
     assert lib.is_data_only_package("specify_cli.skills.data") is True
     # a real code package is NOT data-only
-    assert lib.is_data_only_package("specify_cli.merge") is False
+    assert lib.is_data_only_package("specify_cli.consolidation") is False
     # a non-existent dotted path is not a package
     assert lib.is_data_only_package("specify_cli.__does_not_exist__") is False
 
@@ -227,13 +227,13 @@ def test_is_data_only_package(lib: ModuleType) -> None:
 
 
 def test_own_root_ratio_is_a_fraction(lib: ModuleType) -> None:
-    row = next(r for r in lib.registry_rows() if r["module"] == "merge")
+    row = next(r for r in lib.registry_rows() if r["module"] == "consolidation")
     ratio = lib.own_root_ratio(row)
     assert 0.0 <= ratio <= 1.0
 
 
 def test_root_glob_to_pkg_maps_and_skips_non_src(lib: ModuleType) -> None:
-    assert lib.root_glob_to_pkg("src/specify_cli/merge/**") == "specify_cli.merge"
+    assert lib.root_glob_to_pkg("src/specify_cli/consolidation/**") == "specify_cli.consolidation"
     assert lib.root_glob_to_pkg("src/specify_cli/mission.py") == "specify_cli.mission"
     assert lib.root_glob_to_pkg("scripts/ci/**") is None  # non-src, recorded exemption
     assert lib.root_glob_to_pkg(".github/workflows/**") is None

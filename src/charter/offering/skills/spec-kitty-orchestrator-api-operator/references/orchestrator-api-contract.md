@@ -348,12 +348,12 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 
 ---
 
-## 9. merge-mission
+## 9. consolidate-mission
 
 Merge all work packages for a mission into the target branch.
 
 ```bash
-spec-kitty orchestrator-api merge-mission \
+spec-kitty orchestrator-api consolidate-mission \
   --mission TEXT [--target TEXT] [--strategy merge|squash|rebase] [--push]
 ```
 
@@ -901,8 +901,8 @@ transition — it never invokes the WP-loop or `next` engines.
 | `DECISION_OPERATION_FAILED` | open-decision, resolve-decision, defer-decision, cancel-decision | A decision-ledger operation failed for a reason without a more specific registered code |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal |
 | `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
-| `PREFLIGHT_FAILED` | merge-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step) |
-| `UNSUPPORTED_STRATEGY` | merge-mission | Requested `--strategy` is not one of `merge`, `squash`, `rebase` |
+| `PREFLIGHT_FAILED` | consolidate-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step) |
+| `UNSUPPORTED_STRATEGY` | consolidate-mission | Requested `--strategy` is not one of `merge`, `squash`, `rebase` |
 | `LANE_ALLOCATION_FAILED` | start-implementation, transition | Lane worktree allocation failed (dirty reuse, a dependency-lane consolidation conflict, or an unhonorable base) |
 | `ANCESTRY_NOT_ESTABLISHED` | start-implementation, transition | The recorded planning commit or an approved dependency lane's tip is not (yet) a git ancestor of the claimed workspace's HEAD, even after self-heal re-ran the reuse-path merges |
 | `SAFE_COMMIT_PATH_POLICY` | append-history | Safe commit refused to stage a path under `.worktrees/` from the primary repo root before mutating the index |
@@ -949,5 +949,5 @@ spec-kitty orchestrator-api transition \
 
 # 9. When all WPs are approved or done, accept and merge
 spec-kitty orchestrator-api accept-mission --mission 017-my-mission --actor "ci-bot"
-spec-kitty orchestrator-api merge-mission --mission 017-my-mission --strategy squash --push
+spec-kitty orchestrator-api consolidate-mission --mission 017-my-mission --strategy squash --push
 ```

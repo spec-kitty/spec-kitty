@@ -533,7 +533,7 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
     exists to close (FR-004/FR-005).
 
     The existing gate mechanism already delivers block-before-advance and
-    warn-prints-list semantics (``merge/executor.py``: block aborts via
+    warn-prints-list semantics (``consolidation/executor.py``: block aborts via
     ``MergeGateEvaluation.overall_pass`` before any mutating phase; warn
     surfaces this gate's message via ``MergeGateEvaluation.warnings``), so
     ``done_bookkeeping.py`` needs no change (de-scoped, MINOR-5) — this gate

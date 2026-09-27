@@ -1,8 +1,8 @@
-"""Repro #4991 — a resumed merge ignores the persisted ``MergeState.target_branch``.
+"""Repro #4991 — a resumed merge ignores the persisted ``ConsolidationState.target_branch``.
 
 Mechanism (DEBRIEF §4, root R4 / companion C-1): the merge target lives in FOUR
-places (meta.json / lanes.json / ``MergeState.target_branch`` / ``--target``). The
-executor drives off the meta/lanes target and ``MergeState.target_branch`` is
+places (meta.json / lanes.json / ``ConsolidationState.target_branch`` / ``--target``). The
+executor drives off the meta/lanes target and ``ConsolidationState.target_branch`` is
 write-only — never consulted on ``--resume``. So an interrupted
 ``merge --target develop`` that persisted ``target_branch="develop"`` resumes
 against meta's ``main`` instead of ``develop``. Backstopped by C-1 (WP09):
@@ -36,10 +36,10 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 def _persist_interrupted_develop_merge(mission: CoordMission, wp_ids: list[str]) -> None:
     """Persist the state an interrupted ``merge --target develop`` would leave."""
-    from specify_cli.merge.reconciliation import write_post_fix_marker
-    from specify_cli.merge.state import MergeState, save_state
+    from specify_cli.consolidation.reconciliation import write_post_fix_marker
+    from specify_cli.consolidation.state import ConsolidationState, save_state
 
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=mission.mission_id,
         mission_slug=mission.slug,
         target_branch="develop",
@@ -60,7 +60,7 @@ def test_4991_resume_honors_persisted_target_branch_not_stale_meta(tmp_path: Pat
     approved = mission.approved_shas_from_lane_tips(["WP01"])  # PRE-resume, from lane tips
     _persist_interrupted_develop_merge(mission, ["WP01"])
 
-    run_terminus(mission, ["merge", "--resume", "--yes"])
+    run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
     # The resume must honor the persisted develop target: the approved WP lands on
     # develop, never on meta's main. Pre-fix the resume re-resolves to main and the
@@ -68,5 +68,5 @@ def test_4991_resume_honors_persisted_target_branch_not_stale_meta(tmp_path: Pat
     for shas in approved.values():
         for sha in shas:
             assert sha_reachable(mission.repo, sha, "develop"), (
-                f"approved commit {sha[:10]} did NOT land on the persisted target 'develop' after --resume — resume ignored MergeState.target_branch (#4991)"
+                f"approved commit {sha[:10]} did NOT land on 'develop' after --resume — resume ignored ConsolidationState.target_branch (#4991)"
             )

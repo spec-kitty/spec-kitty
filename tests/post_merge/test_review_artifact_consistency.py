@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 import typer
 
-from specify_cli.cli.commands.merge import _enforce_review_artifact_consistency
+from specify_cli.cli.commands.consolidate import _enforce_review_artifact_consistency
 from specify_cli.post_merge.review_artifact_consistency import (
     _event_sourced_gate_verdict,
     find_rejected_review_artifact_conflicts,

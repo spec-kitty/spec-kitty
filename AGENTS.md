@@ -73,7 +73,7 @@ The hosted product is **Team Kitty**; the live transport is **Zeitgeist**, a vol
 This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate. GitHub Actions are live here: the reinstated lean, modular CI (`#3995`) runs on public `main` — a path router (`ci-router.yml`) feeding the single `gate_selection.py` authority, a per-module test matrix (`module-tests.yml` / `ci-modules.yml`), coverage/xunit aggregation with a diff-cover ≥90% gate (`ci-aggregate.yml`), a packs lane (`packs.yml`), a nightly full/performance/interpreter run (`ci-nightly.yml`), and a fork-safe SonarCloud workflow (`sonar.yml`). These replaced the archived EXPERIMENTAL Blacksmith producer.
 
 - **Never push to `main`.** Create a topic branch from the current `main`, open a PR targeting `main`, and let the repository merge controls handle publication.
-- `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
+- `spec-kitty consolidate` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
 - If your GitHub CLI installation cannot use issue or pull-request commands in a restricted environment, use the GitHub web interface or an authenticated GitHub API client.
 
 ### Convergence ports
@@ -96,7 +96,7 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 - `Feature` / `Features` are prohibited in canonical, operator, and user-facing language for active systems.
 - Do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
 - Historical archived artifacts may retain legacy wording only as immutable snapshots, explicitly marked legacy.
-- **Overloaded terms `primary` and `merge` — footgun.** `primary` carries four senses (PRIMARY partition / Primary Branch / repository-root checkout / Target Ref) and `merge` three operations (lane consolidation / branch integration / publish to origin). The load-bearing trap is reading a **PRIMARY-partition** verdict as a **Primary-Branch (`main`)** instruction — and treating `spec-kitty merge` (local lane consolidation) as a **publish to origin**. Always name the sense; the canonical definitions and "Do NOT use when" guards live in the glossary: [`docs/context/orchestration.md`](docs/context/orchestration.md) (`#primary-partition`, `#primary-branch`, `#target-ref--commit-target`, `#lane-consolidation`, `#branch-integration--git-merge`, `#publish-to-originmain`) and [`docs/context/execution.md`](docs/context/execution.md#repository-root-checkout).
+- **Overloaded terms `primary` and `merge` — footgun.** `primary` carries four senses (PRIMARY partition / Primary Branch / repository-root checkout / Target Ref) and `merge` three operations (lane consolidation / branch integration / publish to origin). The load-bearing trap is reading a **PRIMARY-partition** verdict as a **Primary-Branch (`main`)** instruction — and treating `spec-kitty consolidate` (local lane consolidation) as a **publish to origin**. Always name the sense; the canonical definitions and "Do NOT use when" guards live in the glossary: [`docs/context/orchestration.md`](docs/context/orchestration.md) (`#primary-partition`, `#primary-branch`, `#target-ref--commit-target`, `#lane-consolidation`, `#branch-integration--git-merge`, `#publish-to-originmain`) and [`docs/context/execution.md`](docs/context/execution.md#repository-root-checkout).
 - **Overloaded term `routing` — footgun (cf. #2653, the `primary`/`merge` disambiguation this entry extends).** "Routing" names at least six distinct, governed decisions — placement (kind + topology → surface), branch-target (which branch a change commits to), commit (coord-worktree materialization inside `commit_for_mission`), dispatch/profile (`invocation/router.py`), model/task (`src/charter/offering/model_task_routing/`), and scope routing — plus infrastructural senses named explicitly out of scope (event routing, HTTP request routing, significance routing bands). The sync-fan-out sense (`sync/routing.py`) was retired with the sync transport (issue #115) and is no longer a live governed decision. Never write bare "routing"; name the sense. Full disambiguation with "do NOT use when" guards: [`docs/context/orchestration.md#routing`](docs/context/orchestration.md#routing). Placement-sense explanation: [`docs/architecture/artifact-placement-seam.md`](docs/architecture/artifact-placement-seam.md).
 
 ---
@@ -214,7 +214,7 @@ src/charter/      # Governance authority; absorbed former src/doctrine/ at src/c
 src/glossary/     # Glossary semantic-integrity pipeline + DRG glossary bridge
 src/mission_runtime/ # Artifact-placement seam (PlacementSeam, resolver port, identity, lifecycle_phase)
 src/runtime/      # Canonical mission control loop — runtime/next/_internal_runtime/
-src/specify_cli/  # Top adapter/application layer: CLI, status, merge, lanes, workspace, tracker clients
+src/specify_cli/  # Top adapter/application layer: CLI, status, consolidation, lanes, workspace, tracker clients
 tests/            # Test suite
 kitty-specs/      # Mission specs (dogfooding)
 docs/             # User documentation
@@ -391,42 +391,42 @@ topologies; primary otherwise), not the open worktree.
 
 ---
 
-## Merge & Preflight Patterns (0.11.0+)
+## Consolidation & Preflight Patterns (0.11.0+)
 
-Merge progress saved in `.kittify/merge-state.json` for resumable operations.
+Consolidation progress saved in `.kittify/runtime/merge/<mission_id>/state.json` for resumable operations.
 
-**MergeState fields** (`src/specify_cli/merge/state.py`):
+**ConsolidationState fields** (`src/specify_cli/consolidation/state.py`):
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `feature_slug` | `str` | Feature identifier |
-| `target_branch` | `str` | Branch being merged into |
+| `target_branch` | `str` | Branch being consolidated into |
 | `wp_order` | `list[str]` | Ordered WP IDs |
-| `completed_wps` | `list[str]` | Successfully merged WPs |
-| `current_wp` | `str\|None` | WP currently being merged |
+| `completed_wps` | `list[str]` | Successfully consolidated WPs |
+| `current_wp` | `str\|None` | WP currently being consolidated |
 | `has_pending_conflicts` | `bool` | Unresolved git conflicts |
 | `strategy` | `str` | "merge", "squash", or "rebase" |
 | `started_at` / `updated_at` | `str` | ISO timestamps |
 
-Properties: `remaining_wps`, `progress_percent`. Import from `specify_cli.merge`: `MergeState`, `save_state`, `load_state`, `clear_state`, `has_active_merge`.
+Properties: `remaining_wps`, `progress_percent`. Import from `specify_cli.consolidation`: `ConsolidationState`, `save_state`, `load_state`, `clear_state`, `has_active_consolidation`.
 
-**Pre-flight validation (corrected, #3131/C-005):** there is no merge-domain `PreflightResult`/`run_preflight()`/`WPStatus` — that shape does not exist in `src/specify_cli/merge/`. It was removed in the #2057 merge-god-module decomposition; the only `PreflightResult` class in the codebase belongs to the unrelated sync daemon-ownership preflight. `src/specify_cli/merge/preflight.py` DOES exist, but exposes a different API: git-state, target-branch, and review-artifact preflights consumed by the merge executor and the dry-run forecast — not a WP-worktree-cleanliness checker. Retention conflicts (below) are surfaced through the merge-gates render path (operator-visible warnings/notices printed during a real merge) and the `--dry-run` forecast payload (which threads the raw tri-state flags into `resolve_merge_retention` and reports the resolved retain/delete decision + a `retention` provenance object), not through a `PreflightResult`.
+**Pre-flight validation (corrected, #3131/C-005):** there is no consolidation-domain `PreflightResult`/`run_preflight()`/`WPStatus` — that shape does not exist in `src/specify_cli/consolidation/`. It was removed in the #2057 merge-god-module decomposition; the only `PreflightResult` class in the codebase belongs to the unrelated sync daemon-ownership preflight. `src/specify_cli/consolidation/preflight.py` DOES exist, but exposes a different API: git-state, target-branch, and review-artifact preflights consumed by the consolidation executor and the dry-run forecast — not a WP-worktree-cleanliness checker. Retention conflicts (below) are surfaced through the merge-gates render path (operator-visible warnings/notices printed during a real consolidation) and the `--dry-run` forecast payload (which threads the raw tri-state flags into `resolve_merge_retention` and reports the resolved retain/delete decision + a `retention` provenance object), not through a `PreflightResult`.
 
-**Post-merge retention policy (#3131):** a mission's `meta.json` can carry `retain_branches: bool` / `retain_worktrees: bool` (flat fields, absent by default — non-retaining missions are never default-written). `spec-kitty merge` resolves effective cleanup via `resolve_merge_retention()` (`core/paths.py`), precedence **explicit CLI flag > meta.json retention > default (delete/remove)**, fail-closed toward retention on any ambiguity (corrupt `meta.json` aborts; a present-but-non-boolean value retains + warns, never truthiness-coerced). Resolution happens once, off the PRIMARY partition, in the unlocked `_run_lane_based_merge` (`merge/executor.py`) — both a fresh and a `--resume`d merge honor it identically. Mapping to the long-standing cleanup flags: `retain_branches` resolves to an effective `--keep-branch`; `retain_worktrees` resolves to an effective `--keep-worktree`. The coordination branch/worktree/marker are torn down (or retained) as ONE coupled decision — `teardown_coordination = delete_branch AND remove_worktree` — so partial lane-level retention can never half-tear the coord triple; `merge --abort`'s coordination teardown honors the same coupled decision. The internal merge scratch worktree (`cleanup_merge_workspace`, `.kittify/runtime/merge/<id>/workspace`) is NOT a retained resource and always cleans up unconditionally. Mint retention at creation with `spec-kitty agent mission create --retain-branches --retain-worktrees`.
+**Post-consolidation retention policy (#3131):** a mission's `meta.json` can carry `retain_branches: bool` / `retain_worktrees: bool` (flat fields, absent by default — non-retaining missions are never default-written). `spec-kitty consolidate` resolves effective cleanup via `resolve_merge_retention()` (`core/paths.py`), precedence **explicit CLI flag > meta.json retention > default (delete/remove)**, fail-closed toward retention on any ambiguity (corrupt `meta.json` aborts; a present-but-non-boolean value retains + warns, never truthiness-coerced). Resolution happens once, off the PRIMARY partition, in the unlocked `_run_lane_based_consolidation` (`consolidation/executor.py`) — both a fresh and a `--resume`d consolidation honor it identically. Mapping to the long-standing cleanup flags: `retain_branches` resolves to an effective `--keep-branch`; `retain_worktrees` resolves to an effective `--keep-worktree`. The coordination branch/worktree/marker are torn down (or retained) as ONE coupled decision — `teardown_coordination = delete_branch AND remove_worktree` — so partial lane-level retention can never half-tear the coord triple; `consolidate --abort`'s coordination teardown honors the same coupled decision. The internal merge scratch worktree (`cleanup_merge_workspace`, `.kittify/runtime/merge/<id>/workspace`) is NOT a retained resource and always cleans up unconditionally. Mint retention at creation with `spec-kitty agent mission create --retain-branches --retain-worktrees`.
 
 **Common commands:**
 ```bash
-spec-kitty merge --resume          # resume interrupted
-spec-kitty merge --abort           # start fresh
-spec-kitty merge --dry-run         # conflict forecast
-spec-kitty merge --feature 017-my-feature
+spec-kitty consolidate --resume          # resume interrupted
+spec-kitty consolidate --abort           # start fresh
+spec-kitty consolidate --dry-run         # conflict forecast
+spec-kitty consolidate --mission 017-my-mission
 ```
 
-**Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/resolve.py`, `merge/retention.py`, `merge/bookkeeping_projection.py`, `cli/commands/merge.py`, `core/paths.py` (`resolve_merge_retention`, `read_retention_from_meta`), `core/mission_creation.py` (create-time mint)
+**Implementation files:** `consolidation/state.py`, `consolidation/preflight.py`, `consolidation/executor.py`, `consolidation/forecast.py`, `consolidation/resolve.py`, `consolidation/retention.py`, `consolidation/bookkeeping_projection.py`, `cli/commands/consolidate.py`, `core/paths.py` (`resolve_merge_retention`, `read_retention_from_meta`), `core/mission_creation.py` (create-time mint)
 
-**Forward ref advance is compare-and-swap (terminus-merge-integrity / #4996).** The forward merge advance `advance_branch_ref` (`git/ref_advance.py`) now performs a 3-arg `git update-ref <ref> <new_sha> <expected_old_sha>` and **fails closed** (raises) when the ref moved since it was read — it never falls back to a 2-arg write and never silently retries. This matches the compare-and-swap discipline `restore_branch_ref` (rollback) always had; the two are no longer opposite (the pre-fix `advance_branch_ref` was a non-CAS 2-arg write, the #4996 smoking gun). The coord teardown additionally re-checks the coordination tip via a compare-and-swap gate (`coordination/teardown.py::ProjectionTeardownGate`) before destroying the coordination triple, so a commit that landed after the projection window is never silently torn down.
+**Forward ref advance is compare-and-swap (terminus-merge-integrity / #4996).** The forward consolidation advance `advance_branch_ref` (`git/ref_advance.py`) now performs a 3-arg `git update-ref <ref> <new_sha> <expected_old_sha>` and **fails closed** (raises) when the ref moved since it was read — it never falls back to a 2-arg write and never silently retries. This matches the compare-and-swap discipline `restore_branch_ref` (rollback) always had; the two are no longer opposite (the pre-fix `advance_branch_ref` was a non-CAS 2-arg write, the #4996 smoking gun). The coord teardown additionally re-checks the coordination tip via a compare-and-swap gate (`coordination/teardown.py::ProjectionTeardownGate`) before destroying the coordination triple, so a commit that landed after the projection window is never silently torn down.
 
-**The DEFAULT squash merge now runs a content axis (terminus-integrity-followups / #5013).** The reconciliation gate no longer early-returns PASS under the default `squash` strategy before the content checks. `MergeOutcomeVerifier.verify` runs a squash-sound **blob-attribution axis** (`_unattributable_content_squash`): every non-bookkeeping content path of the squashed diff `B..T` is attributed against the union of approved lanes' **first-parent authored blobs** (`ApprovedWpCommitSet.authored_blobs` — the *final* blob per `(lane, path)`, content identity rather than the lane-tip SHAs/patch-ids squash destroys); an unattributable path FAILs the gate and CAS-reverts the target. It is fail-closed: an empty authored set while approved WPs resolved commits, an unresolved window base, or any git-probe error REFUSE rather than passing vacuously (`git/git_probes.py::blob_id_at`/`changed_paths_in_range` raise `GitProbeError`). `merge --resume` honors the persisted `MergeState.strategy` and anchors the claim to a read-persisted-first `pre_mutation_coord_sha` + `pre_interrupt_lane_tips` (never the poisoned resume-start checkpoint), preserving an already-merged lane's commit by SHA; the per-lane tip is a CAS expectation (`state.lane_tip_cas_ok`) that tolerates the behind-HEAD window but REFUSEs true divergence. Honest residual remains `xfail`: the 3-way merge-resolution content case (a target blob equal to neither parent). (#4997 — the resume behind-own-HEAD staged-deletion window — was closed by PR #5031: a `--resume` now recovers a *provably pure* behind-own-HEAD primary in place and the MERGE-strategy no-op is adjudicated like the squash no-op.)
+**The DEFAULT squash merge now runs a content axis (terminus-integrity-followups / #5013).** The reconciliation gate no longer early-returns PASS under the default `squash` strategy before the content checks. `MergeOutcomeVerifier.verify` runs a squash-sound **blob-attribution axis** (`_unattributable_content_squash`): every non-bookkeeping content path of the squashed diff `B..T` is attributed against the union of approved lanes' **first-parent authored blobs** (`ApprovedWpCommitSet.authored_blobs` — the *final* blob per `(lane, path)`, content identity rather than the lane-tip SHAs/patch-ids squash destroys); an unattributable path FAILs the gate and CAS-reverts the target. It is fail-closed: an empty authored set while approved WPs resolved commits, an unresolved window base, or any git-probe error REFUSE rather than passing vacuously (`consolidation/git_probes.py::blob_id_at`/`changed_paths_in_range` raise `GitProbeError`). `consolidate --resume` honors the persisted `ConsolidationState.strategy` and anchors the claim to a read-persisted-first `pre_mutation_coord_sha` + `pre_interrupt_lane_tips` (never the poisoned resume-start checkpoint), preserving an already-consolidated lane's commit by SHA; the per-lane tip is a CAS expectation (`state.lane_tip_cas_ok`) that tolerates the behind-HEAD window but REFUSEs true divergence. Honest residual remains `xfail`: the 3-way merge-resolution content case (a target blob equal to neither parent). (#4997 — the resume behind-own-HEAD staged-deletion window — was closed by PR #5031: a `--resume` now recovers a *provably pure* behind-own-HEAD primary in place and the MERGE-strategy no-op is adjudicated like the squash no-op.)
 
 ---
 
@@ -434,7 +434,7 @@ spec-kitty merge --feature 017-my-feature
 
 Append-only event log (`status.events.jsonl`) is the **sole authority** for WP lane state. Frontmatter `lane` is retired (migration-only). Phase 2 is the only active model as of 3.0.
 
-> **Reducer duality — two reducers ship (`#4990` closed 2026-09-25 for the rejection-after-approval case; residual wall-clock ordering bug tracked by `#4941`).** "Deterministic event → snapshot" holds ONLY for the **Lamport** reduction wrapper (`status.reducer.materialize` / `reduce_shared_state`, `status/reducer.py:371`), which honors ADR [`2026-02-09-3`](docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md) (Lamport-primary, causal ordering). A **second** reducer also ships — the wall-clock LWW `reduce_parsed` (`spec_kitty_events.diary`, sorts `(at, event_id)`) — and the merge/terminus reconciliation gate deliberately sources its own approved/canceled WP-membership claim through the **Lamport** wrapper (`merge/reconciliation.py::build_approved_wp_set`) so a wall-clock-later approval cannot green-wash a committed rejection *in the gate's claim*. The general LWW split-brain (a later wall-clock event overriding a causally-earlier one in `reduce_parsed`) is **not** fixed by the terminus-merge-integrity mission — the rejection-after-approval case was closed via `#4990` (spec_kitty_events 10.4.0), and the remaining wall-clock ordering bug is tracked as the open sibling **#4941** (a `spec_kitty_events` change, out of scope / C-002). Do not read "sole authority / deterministic reducer" as a claim that only one reducer ships or that #4941 is resolved.
+> **Reducer duality — two reducers ship (`#4990` closed 2026-09-25 for the rejection-after-approval case; residual wall-clock ordering bug tracked by `#4941`).** "Deterministic event → snapshot" holds ONLY for the **Lamport** reduction wrapper (`status.reducer.materialize` / `reduce_shared_state`, `status/reducer.py:371`), which honors ADR [`2026-02-09-3`](docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md) (Lamport-primary, causal ordering). A **second** reducer also ships — the wall-clock LWW `reduce_parsed` (`spec_kitty_events.diary`, sorts `(at, event_id)`) — and the merge/terminus reconciliation gate deliberately sources its own approved/canceled WP-membership claim through the **Lamport** wrapper (`consolidation/reconciliation.py::build_approved_wp_set`) so a wall-clock-later approval cannot green-wash a committed rejection *in the gate's claim*. The general LWW split-brain (a later wall-clock event overriding a causally-earlier one in `reduce_parsed`) is **not** fixed by the terminus-merge-integrity mission — the rejection-after-approval case was closed via `#4990` (spec_kitty_events 10.4.0), and the remaining wall-clock ordering bug is tracked as the open sibling **#4941** (a `spec_kitty_events` change, out of scope / C-002). Do not read "sole authority / deterministic reducer" as a claim that only one reducer ships or that #4941 is resolved.
 
 **Event format:**
 ```json
@@ -485,14 +485,14 @@ snapshot = materialize(feature_dir)
 
 ## Mission Identity Model (083+)
 
-Every mission carries a ULID-based `mission_id` in `meta.json`. `mission_number` is display-only, assigned at merge time. Fixes `NNN-` prefix collision on selectors, branches, and dashboards.
+Every mission carries a ULID-based `mission_id` in `meta.json`. `mission_number` is display-only, assigned at consolidation time. Fixes `NNN-` prefix collision on selectors, branches, and dashboards.
 
 | Field | Type | Role | When assigned |
 |-------|------|------|---------------|
 | `mission_id` | ULID (26 chars) | Canonical machine identity (immutable) | At `mission create` |
 | `mid8` | First 8 chars | Branch/worktree disambiguator | Derived |
 | `mission_slug` | kebab slug | Human handle | At `mission create` |
-| `mission_number` | `int\|None` | Display-only, `null` pre-merge | At merge via `max+1` |
+| `mission_number` | `int\|None` | Display-only, `null` pre-merge | At consolidation via `max+1` |
 | `friendly_name` | string | Human display | At `mission create` |
 
 `mission_id` is the only runtime identity. `mission_number` is never used for lookup, locking, or routing.
@@ -595,7 +595,7 @@ These issues predate the 2026-09-07 org move that made this repository `spec-kit
 
 ## Branches and CI
 
-GitHub branch protection and review requirements enforce the repository workflow. `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via a topic branch and a PR targeting `main`.
+GitHub branch protection and review requirements enforce the repository workflow. `spec-kitty consolidate` still consolidates into **local** `main` only — do NOT use `spec-kitty consolidate --push` or `git push origin main`; publish via a topic branch and a PR targeting `main`.
 
 Live GitHub Actions are part of that workflow. The reinstated lean modular CI (`ci-router.yml` → `module-tests.yml` / `ci-modules.yml` → `ci-aggregate.yml`, plus `packs.yml`, `ci-nightly.yml`, and `sonar.yml`) is the sole/primary public producer, replacing the archived EXPERIMENTAL Blacksmith producer (`#3995`). `ci-quality.yml` and `protect-main.yml` are [#830 Phase-1](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830) infrastructure; `ci-quality.yml` carried a per-PR `sonarcloud` job ([#3993](https://github.com/spec-kitty/spec-kitty/issues/3993)) until mission `sonar-per-pr-coverage-reuse` ([#4334](https://github.com/spec-kitty/spec-kitty/issues/4334)) retired it: it re-ran the fast tier under `pytest --cov` to build a coverage report the `CI Modules` shards had already produced for the same commit. The per-change report is now the **`sonar-pr` job in `ci-aggregate.yml`**, which consumes that measurement instead of re-measuring. It keeps the same posture — **reported, not required**: `continue-on-error`, and excluded from the terminal `aggregate-gate` job by a `needs:` set-equality assertion. `ci-windows.yml`, `docs-pages.yml`, and `check-spec-kitty-events-alignment.yml` are also live.
 
@@ -678,7 +678,7 @@ When user's request matches a skill, invoke via Skill tool. When in doubt, invok
 **Spec Kitty v3.2.7rc1** — project: spec-kitty (healthy)
 
 Two usage patterns:
-- **Full mission** (spec → plan → tasks → implement → review → merge):
+- **Full mission** (spec → plan → tasks → implement → review → consolidate):
   trigger: "spec out", "create a mission", "write a spec", "plan this"
   → run `/spec-kitty.specify`
 - **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):

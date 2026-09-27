@@ -32,10 +32,10 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _persist_interrupted_merge(mission: CoordMission, wp_ids: list[str], target: str) -> None:
-    from specify_cli.merge.reconciliation import write_post_fix_marker
-    from specify_cli.merge.state import MergeState, save_state
+    from specify_cli.consolidation.reconciliation import write_post_fix_marker
+    from specify_cli.consolidation.state import ConsolidationState, save_state
 
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=mission.mission_id,
         mission_slug=mission.slug,
         target_branch=target,
@@ -59,7 +59,7 @@ def test_4985_explicit_target_wins_over_stale_meta_on_resume(tmp_path: Path) -> 
     _persist_interrupted_merge(mission, ["WP01"], target="develop")
 
     # The operator re-states the explicit target on resume; it must win over stale meta.
-    run_terminus(mission, ["merge", "--resume", "--target", "develop", "--yes"])
+    run_terminus(mission, ["consolidate", "--resume", "--target", "develop", "--yes"])
 
     for shas in approved.values():
         for sha in shas:

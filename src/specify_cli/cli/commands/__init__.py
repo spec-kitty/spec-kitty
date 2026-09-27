@@ -326,10 +326,23 @@ def _register_regen(app: typer.Typer) -> None:
     )(regen_module.regen)
 
 
-def _register_merge(app: typer.Typer) -> None:
-    from . import merge as merge_module
+def _register_consolidate(app: typer.Typer) -> None:
+    from . import consolidate as consolidate_module
 
-    app.command()(merge_module.merge)
+    app.command(name="consolidate")(consolidate_module.consolidate)
+    # #3080 / C-004: ``merge`` is renamed to ``consolidate``. The old name stays
+    # registered as a HIDDEN, deprecated migration-error stub (no working body,
+    # no alias, no shared consolidation logic) so a caller still typing
+    # ``spec-kitty`` invocation of the removed name gets a loud, actionable message instead of a
+    # Click "no such command" error. ``ignore_unknown_options`` +
+    # ``allow_extra_args`` let every former ``merge`` flag
+    # (--resume/--abort/--dry-run/...) parse through to the stub uncomplained.
+    app.command(
+        name="merge",
+        hidden=True,
+        deprecated=True,
+        context_settings={"ignore_unknown_options": True, "allow_extra_args": True},
+    )(consolidate_module.merge_removed_stub)
 
 
 def _register_commit_guard_hook(app: typer.Typer) -> None:
@@ -574,7 +587,7 @@ _ALL_COMMAND_REGISTRARS: tuple[_CommandRegistrar, ...] = (
     _register_lint,
     _register_materialize,
     _register_regen,
-    _register_merge,
+    _register_consolidate,
     _register_commit_guard_hook,
     _register_merge_driver,
     _register_migrate,
@@ -632,7 +645,8 @@ _COMMAND_REGISTRARS: dict[str, _CommandRegistrar] = {
     "lint": _register_lint,
     "materialize": _register_materialize,
     "regen": _register_regen,
-    "merge": _register_merge,
+    "consolidate": _register_consolidate,
+    "merge": _register_consolidate,
     "commit-guard-hook": _register_commit_guard_hook,
     "merge-driver-event-log": _register_merge_driver,
     "merge-driver-meta": _register_merge_driver,

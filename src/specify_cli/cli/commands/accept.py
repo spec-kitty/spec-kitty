@@ -34,7 +34,7 @@ from specify_cli.core.owned_mission import (
 )
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.migration.verdict_provenance_backfill import stranded_verdict_findings
-from specify_cli.merge.baseline import (
+from specify_cli.consolidation.baseline import (
     PrMergeEvidence,
     PrMergeEvidenceError,
     verify_pr_merge_evidence,
@@ -273,7 +273,7 @@ def _stamp_birth_cutover_for_accept(
     """Auto-stamp the birth-cutover into the mission branch at the terminal
     ``accept`` seam (WP02 / FR-001 / FR-004 / FR-005 / FR-006 / NFR-003).
 
-    Mirrors ``merge/executor.py::_run_birth_cutover``'s shape (resolve PRIMARY
+    Mirrors ``consolidation/executor.py::_run_birth_cutover``'s shape (resolve PRIMARY
     + COORD legs -> the single-authority
     :func:`~specify_cli.migration.runtime_state_cutover.cutover_mission`, via
     :func:`~specify_cli.migration.runtime_state_cutover.stamp_accept_cutover`
@@ -374,13 +374,13 @@ def _record_pr_merge_for_accept(
     """Record the PR's real merge commit as the post-merge review baseline (#4231).
 
     A mission accepted through ``--mode pr`` never passes through
-    ``spec-kitty merge``, so without this recording its ``meta.json`` never
+    ``spec-kitty consolidate``, so without this recording its ``meta.json`` never
     carries ``baseline_merge_commit`` and both ``spec-kitty review --mode
     post-merge`` (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight
     dead-code gate (``dead_code_baseline_missing``) misreport a cleanly
     merged mission. This records the merge the mission ACTUALLY had, through
     the shared single seam
-    (:func:`specify_cli.merge.baseline.record_pr_merge_baseline_for_mission`
+    (:func:`specify_cli.consolidation.baseline.record_pr_merge_baseline_for_mission`
     — the same one ``migrate backfill-merge-commit`` uses), which verifies the
     commit against git before writing anything — no fabricated evidence.
 
@@ -393,7 +393,7 @@ def _record_pr_merge_for_accept(
     rather than silently landing a mission whose baseline was never recorded
     — the exact silent-gap defect #4231 reports.
     """
-    from specify_cli.merge.baseline import record_pr_merge_baseline_for_mission
+    from specify_cli.consolidation.baseline import record_pr_merge_baseline_for_mission
 
     return record_pr_merge_baseline_for_mission(
         repo_root,
@@ -895,7 +895,7 @@ def accept(
             error_msg = (
                 f"--merge-commit is only valid with --mode pr (resolved mode: "
                 f"{actual_mode}). A {actual_mode} acceptance records its "
-                "baseline_merge_commit through `spec-kitty merge`, not here."
+                "baseline_merge_commit through `spec-kitty consolidate`, not here."
             )
             if json_output:
                 print(json.dumps({"error": error_msg}))

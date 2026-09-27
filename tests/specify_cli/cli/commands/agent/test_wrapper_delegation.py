@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app
 from specify_cli.cli.commands.agent import workflow
-from specify_cli.merge.config import MergeStrategy
+from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
@@ -183,7 +183,7 @@ def test_merge_delegation_kwargs_bind_to_real_merge_signature(
     """
     import inspect
 
-    from specify_cli.cli.commands.merge import merge as real_merge
+    from specify_cli.cli.commands.consolidate import consolidate as real_merge
 
     mock_locate_project_root.return_value = tmp_path
     mock_get_feature_target_branch.return_value = "main"

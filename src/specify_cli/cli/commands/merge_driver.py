@@ -1,7 +1,7 @@
 """Hidden git merge-driver entrypoints for Spec Kitty repositories.
 
 Six custom drivers keep mission bookkeeping semantic under the mission→target
-``git merge --squash`` in ``lanes/merge.py::_merge_branch_into`` (#4892 dropped
+``git merge --squash`` in ``lanes/consolidation.py::_merge_branch_into`` (#4892 dropped
 the old ``-X theirs``; ordinary source paths now fail closed on conflict). A
 custom driver takes over conflict resolution on the paths it is registered for,
 so target-newer canonical state is reconciled rather than clobbered or
@@ -22,7 +22,7 @@ hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
   base-aware (3-way) merge over ``rows``, keyed by canonicalized ``issue_ref``.
 - ``merge-driver-review-cycle``      — ``tasks/<wp>/review-cycle-*.md``
   best-effort, non-aborting reconciliation of a two-verdict collision (see
-  ``specify_cli.merge.drivers.run_review_cycle_driver``'s docstring for the
+  ``specify_cli.consolidation.drivers.run_review_cycle_driver``'s docstring for the
   full history).
 
 Git invokes a driver with ``%O %A %B`` = base / ours / theirs and expects the
@@ -31,17 +31,17 @@ integration ``ours`` is the target checkout (e.g. ``main``) and ``theirs`` is th
 mission branch.
 
 **Placement (#5119 / FR-002/FR-003/C-001).** This module is a THIN adapter
-over ``specify_cli.merge.drivers`` — the single owner of every driver's
+over ``specify_cli.consolidation.drivers`` — the single owner of every driver's
 file-level body, reconciliation logic, and serialization (moved there so the
-in-process driver replay, ``merge/git_probes.py``, executes the exact SAME
+in-process driver replay, ``consolidation/git_probes.py``, executes the exact SAME
 body a real ``git merge --squash`` subprocess invocation would). Every
 function here keeps its pre-move name, parameters, and ``typer.Argument``
 declarations (the registrar at ``cli/commands/__init__.py:341
 _register_merge_driver`` binds them by attribute; C-001 holds — no
 user-facing behavior, argument order, or exit code changed) and does nothing
 but call its body and translate the body's
-:class:`~specify_cli.merge.drivers.MergeDriverError` /
-:class:`~specify_cli.merge.drivers.MergeDriverOutcome` into
+:class:`~specify_cli.consolidation.drivers.MergeDriverError` /
+:class:`~specify_cli.consolidation.drivers.MergeDriverOutcome` into
 ``typer.echo``/``typer.Exit``.
 """
 
@@ -49,7 +49,7 @@ from __future__ import annotations
 
 import typer
 
-from specify_cli.merge.drivers import (
+from specify_cli.consolidation.drivers import (
     MERGE_DRIVER_BODIES,
     MergeDriverBody,
     MergeDriverError,
@@ -101,9 +101,9 @@ def merge_driver_traces(
     3-way base-aware: reads ``%O`` so a section theirs left UNCHANGED from
     base, while ours edited the same section, is recognized as stale and
     dropped rather than resurrected alongside ours' edit (see
-    :func:`specify_cli.merge.drivers._drop_stale_theirs_trace_blocks`). The
+    :func:`specify_cli.consolidation.drivers._drop_stale_theirs_trace_blocks`). The
     remaining union is still section-granularity and append-only via
-    :func:`specify_cli.merge.drivers.union_trace_texts` -- never a lossy
+    :func:`specify_cli.consolidation.drivers.union_trace_texts` -- never a lossy
     line-level global dedup, never fail-closed on an ordinary repeat.
     """
     _run(MERGE_DRIVER_BODIES["merge-driver-traces"], base_path, ours_path, theirs_path)
@@ -136,8 +136,8 @@ def merge_driver_review_cycle(
 
     Two distinct verdict documents colliding under the same filename are
     NEVER unioned/field-merged/interleaved into one document -- see the
-    module-level design-decision comment in ``specify_cli.merge.drivers``,
-    immediately above :func:`specify_cli.merge.drivers.run_review_cycle_driver`,
+    module-level design-decision comment in ``specify_cli.consolidation.drivers``,
+    immediately above :func:`specify_cli.consolidation.drivers.run_review_cycle_driver`,
     for the full reasoning (embed both verbatim, never fabricate a blended
     verdict). Unlike WP18's original T077 driver, a divergent collision no
     longer aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is

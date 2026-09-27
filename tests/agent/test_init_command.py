@@ -239,7 +239,7 @@ def test_init_tolerates_merge_driver_git_config_failure(
     git_failure: OSError | subprocess.CalledProcessError | UnicodeError,
 ) -> None:
     """Regression #4159: optional git-config wiring must not abort init."""
-    from specify_cli.lanes import merge as merge_module
+    from specify_cli.lanes import consolidation as merge_module
 
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
@@ -276,7 +276,7 @@ def test_init_gitattributes_merge_driver_keys_have_git_config_registrations(
 ):
     """FIX-M2-01 / Finding 1: every ``merge=<key>`` driver ``init`` declares in
     ``.gitattributes`` must have a matching git-config *definition* -- the
-    ``specify_cli.lanes.merge._MERGE_DRIVERS`` registry that
+    ``specify_cli.lanes.consolidation._MERGE_DRIVERS`` registry that
     ``_ensure_merge_driver_git_config`` (the self-heal every real merge path
     now calls: ``lanes/worktree_allocator.py``, ``lanes/auto_rebase.py``,
     ``lanes/merge.py::_merge_branch_into``) turns into real
@@ -295,7 +295,7 @@ def test_init_gitattributes_merge_driver_keys_have_git_config_registrations(
     ``tests/lanes/test_worktree_allocator_merge_driver_selfheal.py`` (real
     git, per this module's own no-real-git scope note).
     """
-    from specify_cli.lanes.merge import _MERGE_DRIVERS
+    from specify_cli.lanes.consolidation import _MERGE_DRIVERS
 
     app, console, outputs = cli_app
     monkeypatch.chdir(tmp_path)
@@ -335,7 +335,7 @@ def test_init_gitattributes_merge_driver_keys_have_git_config_registrations(
     missing = declared_keys - registered_keys
     assert not missing, (
         f".gitattributes declares merge driver key(s) {sorted(missing)} with no "
-        "matching specify_cli.lanes.merge._MERGE_DRIVERS entry -- the "
+        "matching specify_cli.lanes.consolidation._MERGE_DRIVERS entry -- the "
         "git-config self-heal (_ensure_merge_driver_git_config) can never "
         "register them, so any real merge routed through this attribute falls "
         "back to a plain 3-way merge and conflicts (FIX-M2-01)."

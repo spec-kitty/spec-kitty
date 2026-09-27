@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-09-20'
+updated: '2026-09-27'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -18,7 +18,7 @@ Terminology note:
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
 - As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug. `--feature` was a hidden deprecated alias; as of 3.2.x it has been **removed everywhere** — from the internal/agent command cluster (#1060-A) and from the user-facing top-level commands (#1060). `--mission` is now the sole selector; passing `--feature` exits with `No such option`.
-- `mission-state`/`accept-mission`/`merge-mission` are the canonical orchestrator-api command names
+- `mission-state`/`accept-mission`/`consolidate-mission` are the canonical orchestrator-api command names
 
 ## Getting Started
 
@@ -444,52 +444,7 @@ _Charter bundle validation commands._
 ## spec-kitty charter context
 
 ```
- Usage: spec-kitty charter context [OPTIONS]
 
- Render charter context for a specific workflow action.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --action                                TEXT  Workflow action                │
-│                                               (specify|plan|implement|revie… │
-│ --include                               TEXT  Fetch selector, e.g.           │
-│                                               agent-profile:<id>,            │
-│                                               template:<mission>/<name>,     │
-│                                               directive:<id>,                │
-│                                               section:<slug>.                │
-│ --mark-loaded       --no-mark-loaded          Persist first-load state       │
-│                                               [default: mark-loaded]         │
-│ --mission-type                          TEXT  Canonical mission type (e.g.   │
-│                                               documentation|research|plan|s… │
-│                                               for the action doctrine grain. │
-│                                               Required when rendering action │
-│                                               context from the repo root —   │
-│                                               without it, and without a      │
-│                                               mission's meta.json, the       │
-│                                               action grain is typeless and   │
-│                                               never inherits software-dev    │
-│                                               (#883).                        │
-│ --json                                        Output JSON.                   │
-│                                               `context_schema_version`       │
-│                                               stamps the top-level payload   │
-│                                               shape (#2787, tracking         │
-│                                               contract -- not yet frozen).   │
-│                                               `directives` is action-scoped; │
-│                                               `all_directives` and           │
-│                                               `project_charter` describe the │
-│                                               project-local charter, while   │
-│                                               `org_charter` describes        │
-│                                               imported org packs.            │
-│ --include-all                                 Escape hatch: materialise the  │
-│                                               entire reachable closure       │
-│                                               inline in the structured       │
-│                                               (--json) payload instead of    │
-│                                               the default progressive        │
-│                                               disclosure (requires eager,    │
-│                                               suggests linked). Output is a  │
-│                                               superset of the progressive    │
-│                                               render for the same grain.     │
-│ --help          -h                            Show this message and exit.    │
-╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter deactivate
@@ -658,26 +613,7 @@ _Charter bundle validation commands._
 _List activated doctrine artifacts by kind._
 
 ```
- Usage: spec-kitty charter list [OPTIONS] COMMAND [ARGS]...
 
- List activated doctrine artifacts by kind.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --show-available            Also show available-but-not-activated artifacts. │
-│ --all                       Show every available artifact per kind across    │
-│                             the built-in, org, and project layers (annotated │
-│                             by source layer), including the template kind.   │
-│                             Supersedes --show-available.                     │
-│ --json                      Output JSON. Every kind row always carries an    │
-│                             'available' key and the payload always carries a │
-│                             top-level 'templates' key — both are null unless │
-│                             requested (available: null without               │
-│                             --show-available/--all; templates: null without  │
-│                             --all) rather than absent, so callers can rely   │
-│                             on key presence and branch on the value instead  │
-│                             of on which flags were passed.                   │
-│ --help            -h        Show this message and exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter mission-type
@@ -1182,6 +1118,155 @@ _Charter pack management commands._
 │ --mission      -m      TEXT  Mission to resolve assets for                   │
 │                              [default: software-dev]                         │
 │ --help         -h            Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty consolidate
+
+```
+ Usage: spec-kitty consolidate [OPTIONS]
+
+ Consolidate a lane-based mission into its target branch.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --strategy                                [merge|squash|r  Strategy for the  │
+│                                           ebase]           branch-integrati… │
+│                                                            step (git merge   │
+│                                                            of                │
+│                                                            mission→target):  │
+│                                                            merge | squash |  │
+│                                                            rebase. Default:  │
+│                                                            squash.           │
+│ --delete-branch        --keep-branch                       Delete lane       │
+│                                                            branches after    │
+│                                                            merge. Unset (the │
+│                                                            default) defers   │
+│                                                            to the mission's  │
+│                                                            meta.json         │
+│                                                            retention policy  │
+│                                                            (#3131), falling  │
+│                                                            back to delete    │
+│                                                            when no policy is │
+│                                                            recorded. Passing │
+│                                                            either flag       │
+│                                                            explicitly always │
+│                                                            wins over the     │
+│                                                            mission's policy. │
+│ --remove-worktree      --keep-worktree                     Remove lane       │
+│                                                            worktrees after   │
+│                                                            merge. Unset (the │
+│                                                            default) defers   │
+│                                                            to the mission's  │
+│                                                            meta.json         │
+│                                                            retention policy  │
+│                                                            (#3131), falling  │
+│                                                            back to remove    │
+│                                                            when no policy is │
+│                                                            recorded. Passing │
+│                                                            either flag       │
+│                                                            explicitly always │
+│                                                            wins over the     │
+│                                                            mission's policy. │
+│ --push                                                     Publish to origin │
+│                                                            after the local   │
+│                                                            merge (the        │
+│                                                            operator publish  │
+│                                                            step; distinct    │
+│                                                            from local lane   │
+│                                                            consolidation)    │
+│ --target                                  TEXT             Target branch for │
+│                                                            the               │
+│                                                            branch-integrati… │
+│                                                            step              │
+│                                                            (auto-detected)   │
+│ --dry-run                                                  Show what would   │
+│                                                            be done without   │
+│                                                            executing         │
+│ --json                                                     Output            │
+│                                                            deterministic     │
+│                                                            JSON (dry-run     │
+│                                                            mode)             │
+│ --mission                                 TEXT             Mission slug when │
+│                                                            merging from main │
+│                                                            branch            │
+│ --resume                                                   Resume an         │
+│                                                            interrupted merge │
+│                                                            from the last     │
+│                                                            incomplete WP     │
+│ --abort                                                    Abort an          │
+│                                                            in-progress       │
+│                                                            merge, cleaning   │
+│                                                            up state and      │
+│                                                            worktrees         │
+│ --context                                 TEXT             Unused            │
+│                                                            compatibility     │
+│                                                            flag              │
+│ --keep-workspace                                           Unused            │
+│                                                            compatibility     │
+│                                                            flag              │
+│ --allow-sparse-c…                                          Proceed even if   │
+│                                                            legacy            │
+│                                                            sparse-checkout   │
+│                                                            state is          │
+│                                                            detected. Use of  │
+│                                                            this override is  │
+│                                                            logged. Does not  │
+│                                                            bypass the        │
+│                                                            commit-time       │
+│                                                            data-loss         │
+│                                                            backstop.         │
+│ --yes              -y                                      Proceed after     │
+│                                                            merge warnings    │
+│                                                            without prompts   │
+│ --skip-review-ar…                                          Bypass the        │
+│                                                            review-artifact   │
+│                                                            consistency gate  │
+│                                                            (the #2959 escape │
+│                                                            hatch). Requires  │
+│                                                            --note; the skip  │
+│                                                            is recorded as    │
+│                                                            durable override  │
+│                                                            evidence in the   │
+│                                                            status log, never │
+│                                                            a silent bypass.  │
+│ --note                                    TEXT             Reason recorded   │
+│                                                            as override       │
+│                                                            evidence when     │
+│                                                            using             │
+│                                                            --skip-review-ar… │
+│                                                            (required with    │
+│                                                            it).              │
+│ --skip-lanes,--n…                                          Complete a        │
+│                                                            merge-ready       │
+│                                                            direct-on-target  │
+│                                                            mission that has  │
+│                                                            no lane branch    │
+│                                                            (#2745, FR-012):  │
+│                                                            when lanes.json   │
+│                                                            is genuinely      │
+│                                                            absent,           │
+│                                                            synthesize a      │
+│                                                            no-lane manifest  │
+│                                                            instead of        │
+│                                                            hard-failing with │
+│                                                            the missing-lanes │
+│                                                            error. A mission  │
+│                                                            that has real     │
+│                                                            lanes is          │
+│                                                            unaffected -- an  │
+│                                                            existing          │
+│                                                            lanes.json is     │
+│                                                            always honored    │
+│                                                            as-is. Does NOT   │
+│                                                            bypass the        │
+│                                                            merge-ready       │
+│                                                            precondition: a   │
+│                                                            not-merge-ready   │
+│                                                            mission still     │
+│                                                            refuses before    │
+│                                                            any mutation.     │
+│ --help             -h                                      Show this message │
+│                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3060,155 +3145,6 @@ _Live Work harness capture: tools, files, tests and delegation as live relay fra
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty merge
-
-```
- Usage: spec-kitty merge [OPTIONS]
-
- Merge a lane-based mission into its target branch.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --strategy                                [merge|squash|r  Strategy for the  │
-│                                           ebase]           branch-integrati… │
-│                                                            step (git merge   │
-│                                                            of                │
-│                                                            mission→target):  │
-│                                                            merge | squash |  │
-│                                                            rebase. Default:  │
-│                                                            squash.           │
-│ --delete-branch        --keep-branch                       Delete lane       │
-│                                                            branches after    │
-│                                                            merge. Unset (the │
-│                                                            default) defers   │
-│                                                            to the mission's  │
-│                                                            meta.json         │
-│                                                            retention policy  │
-│                                                            (#3131), falling  │
-│                                                            back to delete    │
-│                                                            when no policy is │
-│                                                            recorded. Passing │
-│                                                            either flag       │
-│                                                            explicitly always │
-│                                                            wins over the     │
-│                                                            mission's policy. │
-│ --remove-worktree      --keep-worktree                     Remove lane       │
-│                                                            worktrees after   │
-│                                                            merge. Unset (the │
-│                                                            default) defers   │
-│                                                            to the mission's  │
-│                                                            meta.json         │
-│                                                            retention policy  │
-│                                                            (#3131), falling  │
-│                                                            back to remove    │
-│                                                            when no policy is │
-│                                                            recorded. Passing │
-│                                                            either flag       │
-│                                                            explicitly always │
-│                                                            wins over the     │
-│                                                            mission's policy. │
-│ --push                                                     Publish to origin │
-│                                                            after the local   │
-│                                                            merge (the        │
-│                                                            operator publish  │
-│                                                            step; distinct    │
-│                                                            from local lane   │
-│                                                            consolidation)    │
-│ --target                                  TEXT             Target branch for │
-│                                                            the               │
-│                                                            branch-integrati… │
-│                                                            step              │
-│                                                            (auto-detected)   │
-│ --dry-run                                                  Show what would   │
-│                                                            be done without   │
-│                                                            executing         │
-│ --json                                                     Output            │
-│                                                            deterministic     │
-│                                                            JSON (dry-run     │
-│                                                            mode)             │
-│ --mission                                 TEXT             Mission slug when │
-│                                                            merging from main │
-│                                                            branch            │
-│ --resume                                                   Resume an         │
-│                                                            interrupted merge │
-│                                                            from the last     │
-│                                                            incomplete WP     │
-│ --abort                                                    Abort an          │
-│                                                            in-progress       │
-│                                                            merge, cleaning   │
-│                                                            up state and      │
-│                                                            worktrees         │
-│ --context                                 TEXT             Unused            │
-│                                                            compatibility     │
-│                                                            flag              │
-│ --keep-workspace                                           Unused            │
-│                                                            compatibility     │
-│                                                            flag              │
-│ --allow-sparse-c…                                          Proceed even if   │
-│                                                            legacy            │
-│                                                            sparse-checkout   │
-│                                                            state is          │
-│                                                            detected. Use of  │
-│                                                            this override is  │
-│                                                            logged. Does not  │
-│                                                            bypass the        │
-│                                                            commit-time       │
-│                                                            data-loss         │
-│                                                            backstop.         │
-│ --yes              -y                                      Proceed after     │
-│                                                            merge warnings    │
-│                                                            without prompts   │
-│ --skip-review-ar…                                          Bypass the        │
-│                                                            review-artifact   │
-│                                                            consistency gate  │
-│                                                            (the #2959 escape │
-│                                                            hatch). Requires  │
-│                                                            --note; the skip  │
-│                                                            is recorded as    │
-│                                                            durable override  │
-│                                                            evidence in the   │
-│                                                            status log, never │
-│                                                            a silent bypass.  │
-│ --note                                    TEXT             Reason recorded   │
-│                                                            as override       │
-│                                                            evidence when     │
-│                                                            using             │
-│                                                            --skip-review-ar… │
-│                                                            (required with    │
-│                                                            it).              │
-│ --skip-lanes,--n…                                          Complete a        │
-│                                                            merge-ready       │
-│                                                            direct-on-target  │
-│                                                            mission that has  │
-│                                                            no lane branch    │
-│                                                            (#2745, FR-012):  │
-│                                                            when lanes.json   │
-│                                                            is genuinely      │
-│                                                            absent,           │
-│                                                            synthesize a      │
-│                                                            no-lane manifest  │
-│                                                            instead of        │
-│                                                            hard-failing with │
-│                                                            the missing-lanes │
-│                                                            error. A mission  │
-│                                                            that has real     │
-│                                                            lanes is          │
-│                                                            unaffected -- an  │
-│                                                            existing          │
-│                                                            lanes.json is     │
-│                                                            always honored    │
-│                                                            as-is. Does NOT   │
-│                                                            bypass the        │
-│                                                            merge-ready       │
-│                                                            precondition: a   │
-│                                                            not-merge-ready   │
-│                                                            mission still     │
-│                                                            refuses before    │
-│                                                            any mutation.     │
-│ --help             -h                                      Show this message │
-│                                                            and exit.         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty migrate
 
 _Migration commands: update .kittify/ layout and backfill identity fields in legacy missions._
@@ -3304,7 +3240,7 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  Record a GitHub PR's real merge commit as a mission's review baseline (#4231).
 
  A mission accepted through ``acceptance_mode: pr`` never passes through
- ``spec-kitty merge``, so its ``meta.json`` never carried
+ ``spec-kitty consolidate``, so its ``meta.json`` never carried
  ``baseline_merge_commit`` — leaving ``spec-kitty review --mode post-merge``
  unreachable (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight
  dead-code gate failing a cleanly merged mission. This command repairs
@@ -3316,7 +3252,7 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  refused) before ``baseline_merge_commit`` (the first parent) and the
  provenance pair ``pr_merge_commit`` (the landing commit itself) /
  ``pr_merge_evidence`` (what the anchor's completeness rests on) are
- written through the same canonical seam ``spec-kitty merge`` and
+ written through the same canonical seam ``spec-kitty consolidate`` and
  ``accept --mode pr --merge-commit`` use.
 
  **What the anchor proves depends on the landing shape — and on your
@@ -4555,7 +4491,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │ append-history        Append a history entry via an ``InnerStateChanged``    │
 │                       ``note`` annotation.                                   │
 │ accept-mission        Accept a mission after all WPs are approved or done.   │
-│ merge-mission         Merge a lane-based mission into target.                │
+│ consolidate-mission   Consolidate a lane-based mission into target.          │
 │ specify               Create a mission scaffold, matching the host CLI's     │
 │                       enriched ``specify --json`` contract.                  │
 │ plan                  Scaffold plan.md for a mission -- an unenriched        │
@@ -4716,6 +4652,24 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty orchestrator-api consolidate-mission
+
+```
+ Usage: spec-kitty orchestrator-api consolidate-mission [OPTIONS]
+
+ Consolidate a lane-based mission into target.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission           TEXT  Mission slug [required]                         │
+│    --target            TEXT  Target branch to merge into (auto-detected from │
+│                              meta.json)                                      │
+│    --strategy          TEXT  Merge strategy: merge, squash, or rebase        │
+│                              [default: merge]                                │
+│    --push                    Push target branch after merge                  │
+│    --help      -h            Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty orchestrator-api contract-version
 
 ```
@@ -4783,24 +4737,6 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission          TEXT  Mission slug [required]                          │
 │    --help     -h            Show this message and exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty orchestrator-api merge-mission
-
-```
- Usage: spec-kitty orchestrator-api merge-mission [OPTIONS]
-
- Merge a lane-based mission into target.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission           TEXT  Mission slug [required]                         │
-│    --target            TEXT  Target branch to merge into (auto-detected from │
-│                              meta.json)                                      │
-│    --strategy          TEXT  Merge strategy: merge, squash, or rebase        │
-│                              [default: merge]                                │
-│    --push                    Push target branch after merge                  │
-│    --help      -h            Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

@@ -826,11 +826,11 @@ def _execute_planning_only_merge(
     """Run the hardened CLI closeout path while preserving JSON-only stdout."""
     import typer
 
-    from specify_cli.cli.commands import merge as merge_command
+    from specify_cli.cli.commands import consolidate as merge_command
 
     try:
         with merge_command.console.capture():
-            merge_command._run_lane_based_merge(
+            merge_command._run_lane_based_consolidation(
                 repo_root=main_repo_root,
                 mission_slug=mission_slug,
                 push=push,
@@ -872,7 +872,7 @@ def _resolve_lane_merge_retention(
     merged through orchestrator-api therefore leaves the ``coordination_branch``
     marker/worktree un-torn-down (a pre-existing orchestrator-api limitation,
     tracked separately, NOT introduced by #3131). Full coord teardown is the
-    executor/CLI ``spec-kitty merge`` path's responsibility.
+    executor/CLI ``spec-kitty consolidate`` path's responsibility.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.core.paths import resolve_merge_retention
@@ -978,12 +978,12 @@ def _execute_lane_merge(
     remove_worktree: bool | None,
 ) -> None:
     """Execute the lane-based merge flow without emitting console prose."""
-    from specify_cli.cli.commands.merge import _mark_wp_merged_done
+    from specify_cli.cli.commands.consolidate import _mark_wp_merged_done
     from specify_cli.core.git_ops import has_remote, run_command
     from specify_cli.lanes.compute import is_planning_artifact_only
-    from specify_cli.lanes.merge import consolidate_lane_into_mission, integrate_mission_into_target
+    from specify_cli.lanes.consolidation import consolidate_lane_into_mission, integrate_mission_into_target
     from specify_cli.lanes.persistence import require_lanes_json
-    from specify_cli.merge.config import MergeStrategy
+    from specify_cli.consolidation.config import MergeStrategy
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
 
@@ -2123,18 +2123,22 @@ def accept_mission(
     _emit(envelope)
 
 
-# ── Command 9: merge-mission ───────────────────────────────────────────────
+# ── Command 9: consolidate-mission ──────────────────────────────────────────
+# #3080 (post-plan A4): renamed from ``merge-mission`` for canonical-word
+# consistency with the host CLI's ``spec-kitty consolidate``. The lane-
+# consolidation semantics are unchanged; only the command/function names and
+# the envelope's ``command`` field moved.
 
 
-@app.command(name="merge-mission")
-def merge_mission(
+@app.command(name="consolidate-mission")
+def consolidate_mission(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
     target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
 ) -> None:
-    """Merge a lane-based mission into target."""
-    cmd = "merge-mission"
+    """Consolidate a lane-based mission into target."""
+    cmd = "consolidate-mission"
 
     _SUPPORTED_STRATEGIES = frozenset(["merge", "squash", "rebase"])
     if strategy not in _SUPPORTED_STRATEGIES:

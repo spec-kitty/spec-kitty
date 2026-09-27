@@ -593,7 +593,7 @@ class TestWorktreeNestingPrevention:
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
 
-        from specify_cli.cli.commands.merge import merge
+        from specify_cli.cli.commands.consolidate import consolidate as merge
 
         with pytest.raises(typer.Exit) as exc_info:
             merge()

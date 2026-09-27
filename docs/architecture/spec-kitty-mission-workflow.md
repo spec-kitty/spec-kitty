@@ -72,29 +72,29 @@ Run acceptance after the final WP is approved:
 /spec-kitty.accept
 ```
 
-Acceptance checks mission readiness. Merge still performs its own pre-flight
+Acceptance checks mission readiness. Consolidation still performs its own pre-flight
 validation.
 
-## Phase 6: Merge Preview
+## Phase 6: Consolidation Preview
 
-Preview the merge before mutating the target branch:
+Preview the consolidation before mutating the target branch:
 
 ```bash
-spec-kitty merge --mission <mission-slug> --dry-run
+spec-kitty consolidate --mission <mission-slug> --dry-run
 ```
 
 Resolve dirty worktrees, missing worktrees, and dependency ordering issues
 before continuing.
 
-## Phase 7: Merge or Open a Focused PR
+## Phase 7: Consolidate or Open a Focused PR
 
-If the target branch is synchronized with its tracking branch, merge normally:
+If the target branch is synchronized with its tracking branch, consolidate normally:
 
 ```bash
-spec-kitty merge --mission <mission-slug> --push
+spec-kitty consolidate --mission <mission-slug> --push
 ```
 
-If `spec-kitty merge` stops with this diagnostic, use the focused-PR path
+If `spec-kitty consolidate` stops with this diagnostic, use the focused-PR path
 instead of trying to make local `main` publishable:
 
 ```text

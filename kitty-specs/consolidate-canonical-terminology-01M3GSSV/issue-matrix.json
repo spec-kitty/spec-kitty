@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#2057": {
+      "evidence_ref": "Context/precedent citation only: the #2057 merge-god-module decomposition + byte-stable public __all__ contract that WP01 respected (grew __all__, never shrank). This mission owes #2057 no fix.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3080": {
+      "evidence_ref": "a7f61346ef consolidate rename (command+code+guard+contract); docs/agents/templates in WP02-04",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

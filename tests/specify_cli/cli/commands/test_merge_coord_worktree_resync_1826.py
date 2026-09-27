@@ -54,7 +54,7 @@ import typer
 # this regression test importable under ``PYTHONPATH=src``.
 import specify_cli.status  # noqa: F401  # import-order guard (see comment above)
 
-from specify_cli.cli.commands.merge import _run_lane_based_merge
+from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
@@ -62,7 +62,7 @@ from specify_cli.git.ref_advance import (
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.merge.config import MergeStrategy
+from specify_cli.consolidation.config import MergeStrategy
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -286,38 +286,38 @@ def _merge_external_mocks():
     ``_assert_merged_wps_reached_done``.
     """
     patches = {
-        "run_check": patch("specify_cli.merge.executor.run_check"),
-        "sparse": patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-        "preflight": patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        "run_check": patch("specify_cli.consolidation.executor.run_check"),
+        "sparse": patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+        "preflight": patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         "review_consistency": patch(
-            "specify_cli.merge.executor._enforce_review_artifact_consistency"
+            "specify_cli.consolidation.executor._enforce_review_artifact_consistency"
         ),
         "status_history": patch(
-            "specify_cli.merge.executor._enforce_canonical_status_history"
+            "specify_cli.consolidation.executor._enforce_canonical_status_history"
         ),
-        "hollow": patch("specify_cli.merge.executor._warn_or_confirm_hollow_reviews"),
+        "hollow": patch("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews"),
         "baseline_record": patch(
-            "specify_cli.merge.executor._record_baseline_merge_commit",
+            "specify_cli.consolidation.executor._record_baseline_merge_commit",
         ),
         "baseline_assert": patch(
-            "specify_cli.merge.executor._assert_baseline_merge_commit_on_target"
+            "specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"
         ),
         "done_on_target": patch(
-            "specify_cli.merge.executor._assert_merged_wps_done_on_target"
+            "specify_cli.consolidation.executor._assert_merged_wps_done_on_target"
         ),
-        "safe_commit": patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
+        "safe_commit": patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
         "refresh_primary": patch(
-            "specify_cli.merge.executor._refresh_primary_checkout_after_merge"
+            "specify_cli.consolidation.executor._refresh_primary_checkout_after_merge"
         ),
         # Post-merge working-tree invariant fires on test-only files; the merge
         # has already run through real git by the time this would raise.
         "porcelain": patch(
-            "specify_cli.merge.executor._classify_porcelain_lines",
+            "specify_cli.consolidation.executor._classify_porcelain_lines",
             return_value=([], 0),
         ),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.merge.executor.has_remote", return_value=False),
+        "remote": patch("specify_cli.consolidation.executor.has_remote", return_value=False),
     }
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}
@@ -367,7 +367,7 @@ def _merge_external_mocks():
 
 
 def _run_merge(repo: Path) -> None:
-    _run_lane_based_merge(
+    _run_lane_based_consolidation(
         repo_root=repo,
         mission_slug=MISSION_SLUG,
         push=False,
@@ -465,7 +465,7 @@ def test_final_bookkeeping_commit_failure_restores_uncommitted_surfaces(
     assert coord_status.exists()
     assert _git(_coord_worktree(tmp_path), "status", "--porcelain").stdout == ""
 
-    from specify_cli.merge.state import load_state
+    from specify_cli.consolidation.state import load_state
 
     state = load_state(tmp_path, MISSION_ID)
     assert state is not None
@@ -513,7 +513,7 @@ def test_post_target_invariant_failure_keeps_coord_resume_state_truthful(
     assert coord_status.exists()
     assert _git(_coord_worktree(tmp_path), "status", "--porcelain").stdout == ""
 
-    from specify_cli.merge.state import load_state
+    from specify_cli.consolidation.state import load_state
 
     state = load_state(tmp_path, MISSION_ID)
     assert state is not None
@@ -546,7 +546,7 @@ def test_dirty_coord_worktree_refuses_loudly_and_preserves_data(tmp_path: Path) 
     )
 
     # The merge stays resumable: the persisted merge state was preserved.
-    from specify_cli.merge.state import load_state
+    from specify_cli.consolidation.state import load_state
 
     resumable = load_state(tmp_path)
     assert resumable is not None and resumable.mission_slug == MISSION_SLUG, (

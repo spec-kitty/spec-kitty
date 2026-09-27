@@ -1,0 +1,109 @@
+{
+  "mission_slug": "consolidate-canonical-terminology-01M3GSSV",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 a7f61346ef: `consolidate` primary command, full former flag set; tests/specify_cli/cli/commands/test_merge.py 54 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:30.986889+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: `merge` hidden migration-error stub (exit!=0); test_merge_command_is_removed_migration_stub passes (MINOR-1 fold)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:33.441683+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: consolidation behavior preserved; tests/consolidation/ 1024 passed, 1 xfail",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:35.934890+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: git mv merge->consolidation package + lanes/consolidation.py + MergeState->ConsolidationState; ~120 importers repointed, imports resolve",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:38.459453+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/reviewer-verified frozen KEEPS intact: MergeStrategy \"merge\" value, baseline_merge_commit key (lifecycle_phase.py:237-239), state.json, merge-drivers",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:40.960028+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 37a7d93890: command_installer consolidate + spk-gate-consolidate skill; tests/doctrine 3241 passed, slash-command freshness 14 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:43.458083+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "manual_verification",
+      "evidence": "WP03 3ddd20b0ad: packs prompt templates + toolguides converted (Sense-1 only); git grep confirms 0 residual spec-kitty merge in packs",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:45.948587+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "manual_verification",
+      "evidence": "WP04 5d08255b2b: glossary/docs + CLAUDE.md(AGENTS.md) MAJOR-2 block converted; docs/api & immutable trees untouched",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:48.445275+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: drift-ratchet command-surface guard added; tests/architectural/test_no_legacy_terminology.py 96 passed (red-first bite + green-on-legit)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:50.928771+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "manual_verification",
+      "evidence": "WP01: post-merge prose converged in consolidation/baseline.py; landed CONSOLIDATED/PRE_CONSOLIDATION naming (no POST_CONSOLIDATION reintroduced)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-27T12:50:53.439956+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

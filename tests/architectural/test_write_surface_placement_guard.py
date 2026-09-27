@@ -723,7 +723,7 @@ def _build_e2_review_cycle_mission(tmp_path: Path) -> tuple[Path, str]:
     branch has ALSO been retired (0-of-45 shape, ADR 2026-08-03-1) -- returns
     ``(repo_root, mission_slug)``. ``main`` is the resolved Primary Branch.
     """
-    from specify_cli.merge.baseline import record_baseline_merge_commit
+    from specify_cli.consolidation.baseline import record_baseline_merge_commit
     from specify_cli.mission_metadata import load_meta, write_meta
 
     repo = tmp_path / "repo"

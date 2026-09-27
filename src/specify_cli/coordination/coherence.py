@@ -15,7 +15,7 @@ Two load-bearing layering rules keep this module clean:
   empty (the rollback restores primary paths, not the coord worktree) and would
   silently drop the strand.
 * The repair (:func:`repair_coord_strand`) imports ``_make_merge_env``
-  **function-locally**. A module-top ``from specify_cli.lanes.merge import
+  **function-locally**. A module-top ``from specify_cli.lanes.consolidation import
   _make_merge_env`` creates the cycle ``merge.executor -> coordination.coherence
   -> lanes.merge -> merge.config``. There is intentionally **no** module-top
   ``coordination -> merge`` / ``coordination -> lanes`` import in this file.
@@ -653,10 +653,10 @@ def repair_coord_strand(
         # Already coherent (or nothing to heal): no-op — never revert the revert.
         return CoordRepairOutcome(healed=False, stranded_wp_ids=[])
 
-    # Function-local import: a module-top ``from specify_cli.lanes.merge import
+    # Function-local import: a module-top ``from specify_cli.lanes.consolidation import
     # _make_merge_env`` would create the cycle merge.executor ->
     # coordination.coherence -> lanes.merge -> merge.config.
-    from specify_cli.lanes.merge import _make_merge_env
+    from specify_cli.lanes.consolidation import _make_merge_env
 
     env = _make_merge_env()
     head_sha = _rev_parse_head(coord_worktree, env)

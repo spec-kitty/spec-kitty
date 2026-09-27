@@ -1,0 +1,79 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-27T06:48:09.969929Z",
+      "decision_id": "01M3GSY0ZHFVXK540NN721Y628",
+      "final_answer": "Physically rename files (lanes/merge.py, merge/state.py module names) to consolidation, updating all importers + tests; re-export shims only where an external consumer requires one.",
+      "input_key": "lanes_merge_filename",
+      "mission_id": "01M3GSSVSVH0CNBPQVME3KY7GA",
+      "mission_slug": "consolidate-canonical-terminology-01M3GSSV",
+      "opened_by": "cli",
+      "options": [
+        "symbols-in-place-keep-filenames",
+        "physically-rename-files",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Rename the lanes/merge.py file (and MergeState-style module names) physically, or rename only the lane-consolidation-sense symbols in place and keep filenames?",
+      "rationale": null,
+      "resolved_at": "2026-09-27T06:51:55.776597Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.lanes-merge-filename",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-27T06:48:11.879659Z",
+      "decision_id": "01M3GSY2V7RP396K6A3XWHTFX0",
+      "final_answer": "Remove 'spec-kitty merge' now as a clean rename in the 4.x rc cycle (no back-compat working alias); leave a hidden stub that exits with a 'renamed to consolidate' migration error. NOTE: overrides issue #3080 AC which mandated a deprecated alias \u2014 justified by pre-stable 4.0.0rc timing.",
+      "input_key": "merge_alias_horizon",
+      "mission_id": "01M3GSSVSVH0CNBPQVME3KY7GA",
+      "mission_slug": "consolidate-canonical-terminology-01M3GSSV",
+      "opened_by": "cli",
+      "options": [
+        "until-next-major",
+        "one-release-then-remove",
+        "indefinite",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "How long should 'spec-kitty merge' survive as a deprecated warning-emitting alias?",
+      "rationale": null,
+      "resolved_at": "2026-09-27T06:51:57.723295Z",
+      "resolved_by": null,
+      "slot_key": "specify.deprecation.merge-alias-horizon",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-27T06:48:13.817717Z",
+      "decision_id": "01M3GSY4QS5NHGWENER2TQTNER",
+      "final_answer": "Core + high-value docs: command, code identifiers, gate-step, prompt templates, drift guard, ~5 high-value doc files; defer long-tail/archival prose (grandfathered by shrink-only guard), boyscout over time.",
+      "input_key": "conversion_breadth",
+      "mission_id": "01M3GSSVSVH0CNBPQVME3KY7GA",
+      "mission_slug": "consolidate-canonical-terminology-01M3GSSV",
+      "opened_by": "cli",
+      "options": [
+        "all-active-prose-and-identifiers",
+        "core-plus-highvalue-docs-defer-longtail",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Conversion breadth for v1: convert all active lane-consolidation-sense prose/docs + boyscout baseline_merge_commit code identifiers, or restrict v1 to command+code+guard+high-value docs and defer long-tail prose?",
+      "rationale": null,
+      "resolved_at": "2026-09-27T06:51:59.699268Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.conversion-breadth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3GSSVSVH0CNBPQVME3KY7GA",
+  "version": 1
+}

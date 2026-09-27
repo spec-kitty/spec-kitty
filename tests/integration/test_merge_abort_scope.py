@@ -20,10 +20,10 @@ from pathlib import Path
 
 import pytest
 
-import specify_cli.cli.commands.merge as merge_mod
-from specify_cli.cli.commands.merge import _dispatch_abort
-from specify_cli.merge.state import MergeState, load_state, save_state
-from specify_cli.merge.workspace import get_merge_workspace_path
+import specify_cli.cli.commands.consolidate as merge_mod
+from specify_cli.cli.commands.consolidate import _dispatch_abort
+from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
+from specify_cli.consolidation.workspace import get_merge_workspace_path
 
 pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
 
@@ -128,7 +128,7 @@ class TestAbortActiveStateParity:
         mission_slug = "abort-scope-parity-01M2XQF8"
         mission_id = "01M2XQF8ULIDABORTSCOPE0000"
         save_state(
-            MergeState(
+            ConsolidationState(
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 target_branch="main",
@@ -164,7 +164,7 @@ class TestAbortActiveStateParity:
         mission_slug = "abort-scope-workspace-01M2XQF8"
         mission_id = "01M2XQF8ULIDABORTWORKSPACE0"
         save_state(
-            MergeState(
+            ConsolidationState(
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 target_branch=branch,

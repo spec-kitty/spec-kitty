@@ -414,7 +414,7 @@ def backfill_merge_commit_cmd(
     """Record a GitHub PR's real merge commit as a mission's review baseline (#4231).
 
     A mission accepted through ``acceptance_mode: pr`` never passes through
-    ``spec-kitty merge``, so its ``meta.json`` never carried
+    ``spec-kitty consolidate``, so its ``meta.json`` never carried
     ``baseline_merge_commit`` — leaving ``spec-kitty review --mode post-merge``
     unreachable (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight
     dead-code gate failing a cleanly merged mission. This command repairs
@@ -426,7 +426,7 @@ def backfill_merge_commit_cmd(
     refused) before ``baseline_merge_commit`` (the first parent) and the
     provenance pair ``pr_merge_commit`` (the landing commit itself) /
     ``pr_merge_evidence`` (what the anchor's completeness rests on) are
-    written through the same canonical seam ``spec-kitty merge`` and
+    written through the same canonical seam ``spec-kitty consolidate`` and
     ``accept --mode pr --merge-commit`` use.
 
     **What the anchor proves depends on the landing shape — and on your
@@ -465,7 +465,7 @@ def backfill_merge_commit_cmd(
     """
     from specify_cli.cli.selector_resolution import resolve_mission_handle
     from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
-    from specify_cli.merge.baseline import (
+    from specify_cli.consolidation.baseline import (
         ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
         BaselineMergeCommitError,
         PrMergeEvidenceError,

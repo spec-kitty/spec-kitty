@@ -25,9 +25,9 @@ from specify_cli.coordination.coherence import (
     coord_incoherent_done_wps,
     repair_coord_strand,
 )
-from specify_cli.merge.state import (
+from specify_cli.consolidation.state import (
     MergeAmbiguousStateError,
-    MergeState,
+    ConsolidationState,
     iter_pending_coord_reconcile_markers,
     load_state,
     save_state,
@@ -496,8 +496,8 @@ def _marker() -> dict[str, object]:
     }
 
 
-def _make_state(mission_id: str, *, marker: dict[str, object] | None) -> MergeState:
-    return MergeState(
+def _make_state(mission_id: str, *, marker: dict[str, object] | None) -> ConsolidationState:
+    return ConsolidationState(
         mission_id=mission_id,
         mission_slug=mission_id,
         target_branch="main",
@@ -539,7 +539,7 @@ def test_pending_coord_reconcile_round_trips_and_old_files_rehydrate_to_none(tmp
     old = _make_state("01MIDOLD0000000000000000A0", marker=None)
     data = old.to_dict()
     del data["pending_coord_reconcile"]
-    from specify_cli.merge.workspace import get_merge_runtime_dir
+    from specify_cli.consolidation.workspace import get_merge_runtime_dir
 
     runtime_dir = get_merge_runtime_dir(old.mission_id, repo)
     runtime_dir.mkdir(parents=True, exist_ok=True)

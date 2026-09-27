@@ -26,9 +26,9 @@ import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app as mission_app
-from specify_cli.cli.commands.merge import merge
+from specify_cli.cli.commands.consolidate import consolidate as merge
 from specify_cli.coordination import CoordinationWorkspace
-from specify_cli.merge.state import MergeState, load_state, save_state
+from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -142,7 +142,7 @@ def cli_created_coord_mission(tmp_path: Path) -> tuple[Path, str, str, str]:
 def _invoke_abort(repo: Path, mission_slug: str) -> Any:
     app = typer.Typer()
     app.command()(merge)
-    with patch("specify_cli.cli.commands.merge.find_repo_root", return_value=repo):
+    with patch("specify_cli.cli.commands.consolidate.find_repo_root", return_value=repo):
         return CliRunner().invoke(app, ["--abort", "--mission", mission_slug])
 
 
@@ -178,7 +178,7 @@ def test_real_abort_tears_down_without_completion_provenance(
     head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
     ledger_before = ledger.read_bytes()
     save_state(
-        MergeState(
+        ConsolidationState(
             mission_id=mission_id,
             mission_slug=mission_slug,
             target_branch="main",

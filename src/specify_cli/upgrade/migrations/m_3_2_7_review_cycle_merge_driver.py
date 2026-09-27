@@ -20,7 +20,7 @@ for a user upgrading to the current release candidate.
 
 Unlike its siblings, the driver this migration seeds does NOT union or
 field-merge -- ``run_review_cycle_driver`` (see that function's docstring
-in ``merge/drivers.py``, moved there from ``cli/commands/merge_driver.py``
+in ``consolidation/drivers.py``, moved there from ``cli/commands/merge_driver.py``
 by #5119) resolves a genuine two-verdict collision under one
 ``review-cycle-N.md`` filename by embedding both raw documents verbatim
 inside conflict markers rather than fabricating a blended verdict --
@@ -34,7 +34,7 @@ it points at.
 **Command form (T079 design question -- what a real, non-dev-clone consumer
 sees):** this migration writes the bare ``spec-kitty merge-driver-review-cycle
 %O %A %B`` command, byte-identical in shape to every existing driver's
-``command=`` string in ``specify_cli.lanes.merge._MERGE_DRIVERS``, and
+``command=`` string in ``specify_cli.lanes.consolidation._MERGE_DRIVERS``, and
 deliberately does NOT hardcode a ``.venv``-relative or otherwise
 environment-specific interpreter path. A migration cannot know a consumer's
 install layout at write time, but it does not need to: a real consumer
@@ -44,7 +44,7 @@ consumer's own ``PATH`` -- there is no shadow-clone collision to route
 around outside this repository's own multi-clone development setup. The
 PATH-shadowing hazard this mission's own dev environment hit (a second local
 clone's editable install pre-empting this one on ``PATH``) is addressed at
-merge-execution time instead, by ``lanes/merge.py::_make_merge_env`` (which
+merge-execution time instead, by ``lanes/consolidation.py::_make_merge_env`` (which
 prepends the CURRENT process's ``sys.executable``-derived venv ``bin/`` to
 ``PATH`` for every merge subprocess) -- not by this migration baking in an
 absolute path that would be wrong on every machine except the one that

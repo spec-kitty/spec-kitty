@@ -45,7 +45,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.merge.baseline import record_baseline_merge_commit
+from specify_cli.consolidation.baseline import record_baseline_merge_commit
 from specify_cli.mission_metadata import load_meta, write_meta
 from specify_cli.policy.config import MergeGateConfig
 from specify_cli.policy.merge_gates import GateVerdict, evaluate_merge_gates

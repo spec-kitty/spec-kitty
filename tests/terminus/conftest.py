@@ -163,7 +163,7 @@ def output_names_content_fail(result: subprocess.CompletedProcess[str]) -> bool:
     renata: absence is trivially true on any abort/refusal, so it cannot distinguish
     the content axis from an unrelated early error). A correct default-squash gate
     FAILs with the operator-facing ``Reconciliation FAILED: … un-attributable …``
-    recovery line (``VerifyResult.recovery_guidance`` in ``merge/reconciliation.py``).
+    recovery line (``VerifyResult.recovery_guidance`` in ``consolidation/reconciliation.py``).
 
     Whitespace is collapsed to single spaces first so a rich-console line-wrap
     (``Reconciliation\\nFAILED``) still matches; the ``attributable`` token matches
@@ -675,7 +675,7 @@ def fold_lanes_into_mission_branch(mission: CoordMission, wp_ids: Sequence[str])
     each other's OWN branch (terminus-merge-resolution-attribution / #5051-
     adjacent, WP01 T004 real-CLI repro).
 
-    ``spec-kitty merge``'s lane-based fold (``lanes/merge.py::
+    ``spec-kitty merge``'s lane-based fold (``lanes/consolidation.py::
     consolidate_lane_into_mission``) processes lanes SEQUENTIALLY and refuses
     (``lanes/stale_check.py``) a later lane whose OWN branch overlaps a file
     the mission branch already advanced on, UNLESS that lane's branch first

@@ -136,7 +136,7 @@ def test_5051_adjacent_clean_disjoint_hunk_merge_must_pass(tmp_path: Path) -> No
     # stale-lane overlap gate on the second lane -- before the reconciliation
     # gate this WP touches ever runs. This persists the pre-fold coordination
     # tip to .kittify/merge-state.json (terminus-integrity-followups WP05).
-    first = run_terminus(mission, ["merge", "--mission", mission.slug, "--yes"])
+    first = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
     assert first.returncode != 0, f"expected the first attempt to hit the stale-lane gate: {first.stdout!r}"
     assert "stale" in first.stdout.lower(), f"expected a stale-lane refusal, got: {first.stdout!r}"
 
@@ -148,7 +148,7 @@ def test_5051_adjacent_clean_disjoint_hunk_merge_must_pass(tmp_path: Path) -> No
     # Step 3: resume -- the reconciliation claim anchors to the PERSISTED
     # pre-fold coordination tip, so ``multi_lane_paths`` sees each lane's
     # genuinely disjoint, never-combined contribution.
-    result = run_terminus(mission, ["merge", "--resume", "--mission", mission.slug, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
 
     assert result.returncode == 0, (
         "a clean, DISJOINT-hunk 2-lane merge resolution must PASS the default "

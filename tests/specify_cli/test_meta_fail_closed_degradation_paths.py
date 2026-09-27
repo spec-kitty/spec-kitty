@@ -101,7 +101,7 @@ def test_slug_resolver_degrades_on_corrupt_meta(tmp_path: Path) -> None:
 
 
 def test_merge_baseline_recorded_working_meta_degrades_on_corrupt_meta(tmp_path: Path) -> None:
-    from specify_cli.merge.baseline import _recorded_baseline_from_working_meta
+    from specify_cli.consolidation.baseline import _recorded_baseline_from_working_meta
 
     mission_dir = tmp_path / KITTY_SPECS_DIR / "corrupt-merge-baseline-mission"
     _seed_corrupt_meta(mission_dir)

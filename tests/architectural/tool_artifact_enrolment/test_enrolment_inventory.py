@@ -21,7 +21,7 @@ enrols each site, its disposition moves ``pending`` → ``enrolled``.
 
 Scope boundary (documented, like untrusted's RULESET): the surfaces are the generated-
 write **owner** surfaces — ``coordination/transaction.py`` (the transaction owner) and
-``merge/bookkeeping_projection.py`` (the bookkeeping projector). As the owner grows to
+``consolidation/bookkeeping_projection.py`` (the bookkeeping projector). As the owner grows to
 enrol further sinks, add its surface here and re-freshen the inventory from the tool
 output — never by hand.
 """
@@ -49,7 +49,7 @@ INVENTORY_PATH = _THIS.parent / "inventory.md"
 #: inventory — the owner surfaces whose write sinks a transaction must enrol.
 ENROLMENT_SURFACES: tuple[str, ...] = (
     "src/specify_cli/coordination/transaction.py",
-    "src/specify_cli/merge/bookkeeping_projection.py",
+    "src/specify_cli/consolidation/bookkeeping_projection.py",
 )
 
 #: Path-method write sinks (``<path>.write_bytes(...)`` etc.).

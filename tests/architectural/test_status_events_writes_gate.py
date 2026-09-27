@@ -115,7 +115,7 @@ EXPECTED_UNRESOLVED_EVENT_NAMED_WRITE_SITES: frozenset[tuple[str, str, str]] = f
         # Merge-time union projection: writes source-union-original bytes of
         # the log onto the trusted target checkout. The path comes from a
         # trust helper called with several filenames, so callers disagree.
-        ("specify_cli.merge.bookkeeping_projection", "write_bytes", "trusted_target_events_path"),
+        ("specify_cli.consolidation.bookkeeping_projection", "write_bytes", "trusted_target_events_path"),
         # Workflow-commit rollback truncate (keyword-only parameter; the
         # in-module callers pass a path the scanner cannot trace).
         ("specify_cli.cli.commands.agent.workflow", "Path.open", "events_path"),
@@ -137,7 +137,7 @@ KNOWN_DYNAMIC_EVENT_LOG_WRITE_SITES: frozenset[tuple[str, str, str]] = frozenset
         ("specify_cli.status.event_log_merge", "Path.open", "target"),
         # #2804 gate-artifact restore after a squash merge (the log is one of
         # the preserved gate artifacts).
-        ("specify_cli.merge.executor", "write_bytes", "path"),
+        ("specify_cli.consolidation.executor", "write_bytes", "path"),
     }
 )
 

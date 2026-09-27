@@ -34,7 +34,7 @@ from typing import Annotated, cast
 from specify_cli.cli.console import console
 import typer
 
-from specify_cli.merge.config import MergeStrategy
+from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.workspace.context import resolve_feature_worktree
 
 

@@ -438,7 +438,7 @@ def _write_lanes_json(repo: Path) -> None:
 def test_merge_resolve_mission_slug_returns_canonical_slug(
     repo: Path, handle: str
 ) -> None:
-    from specify_cli.cli.commands.merge import _resolve_mission_slug
+    from specify_cli.cli.commands.consolidate import _resolve_mission_slug
 
     assert _resolve_mission_slug(repo, handle) == _FULL_SLUG, (
         f"merge --mission {handle!r} must canonicalize at the boundary so "
@@ -450,7 +450,7 @@ def test_merge_resolve_mission_slug_returns_canonical_slug(
 def test_merge_resolve_mission_slug_preserves_unresolvable_handle(repo: Path) -> None:
     """Handles that resolve to nothing keep their raw form so the historical
     no-lanes / not-found error behaviour downstream is unchanged."""
-    from specify_cli.cli.commands.merge import _resolve_mission_slug
+    from specify_cli.cli.commands.consolidate import _resolve_mission_slug
 
     assert _resolve_mission_slug(repo, "no-such-mission") == "no-such-mission"
 
@@ -471,7 +471,7 @@ def test_merge_resolve_mission_slug_fail_closed_window_does_not_raise(
     the real ``<slug>-<mid8>`` dir name (exactly what ``_resolve_mission_slug`` wants
     downstream: never the raw operator handle). The old ``== _COORD_MID8`` pin was a
     pre-Option-B artifact (the raise→raw-handle fallback) — re-pointed, not retried."""
-    from specify_cli.cli.commands.merge import _resolve_mission_slug
+    from specify_cli.cli.commands.consolidate import _resolve_mission_slug
 
     (repo / ".worktrees" / f"{_COORD_SLUG}-coord").mkdir(parents=True)
 
@@ -488,7 +488,7 @@ def test_merge_dry_run_mission_slug_identical_across_handle_forms(
     import typer
     from typer.testing import CliRunner
 
-    from specify_cli.cli.commands import merge as merge_mod
+    from specify_cli.cli.commands import consolidate as merge_mod
 
     _write_lanes_json(repo)
     monkeypatch.chdir(repo)
@@ -502,7 +502,7 @@ def test_merge_dry_run_mission_slug_identical_across_handle_forms(
     monkeypatch.setattr(merge_mod, "_validate_target_branch", lambda *a, **kw: None)
 
     app = typer.Typer()
-    app.command()(merge_mod.merge)
+    app.command()(merge_mod.consolidate)
     result = CliRunner().invoke(app, ["--mission", handle, "--dry-run", "--json"])
 
     assert result.exit_code == 0, result.output

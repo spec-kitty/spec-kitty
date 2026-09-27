@@ -39,7 +39,7 @@ def test_4977_canceled_code_via_dependent_lane_must_not_reach_target(tmp_path: P
     canceled_sha, canceled_pid, _planted = plant_canceled_commit(mission, canceled_wp="WP77", carrier_wp="WP01")
     approved = mission.approved_shas_from_lane_tips(["WP01"])  # PRE-merge, from lane tips
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--strategy", "merge", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--strategy", "merge", "--yes"])
 
     if result.returncode == 0:
         # Approved work must still be present (never sacrificed to close the leak).
@@ -71,7 +71,7 @@ def test_4977_default_squash_must_not_ship_canceled_file(tmp_path: Path) -> None
     pre_target = mission.rev(mission.target_branch)
     _canceled_sha, _canceled_pid, planted_path = plant_canceled_commit(mission, canceled_wp="WP77", carrier_wp="WP01")
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
 
     # RED expectation the fix will flip (squash-sound: blob/tree presence).
     assert not blob_present_at(mission.repo, mission.target_branch, planted_path), (

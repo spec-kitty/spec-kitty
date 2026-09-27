@@ -29,7 +29,7 @@ pytestmark = [pytest.mark.integration]
 # contract is at risk and this is a regression.
 _HEAVY_MODULES = (
     "specify_cli.cli.commands.init",
-    "specify_cli.cli.commands.merge",
+    "specify_cli.cli.commands.consolidate",
     "specify_cli.cli.commands.upgrade",
     "specify_cli.upgrade",
     "specify_cli.status.reducer",

@@ -20,7 +20,7 @@ NFR-002/NFR-003). Covers:
   SAME fixture (the carve-out is not vacuous).
 
 Fixtures build REAL git repos through the actual merge-time bookkeeping entry point
-(:func:`specify_cli.merge.baseline.record_baseline_merge_commit`), mirroring
+(:func:`specify_cli.consolidation.baseline.record_baseline_merge_commit`), mirroring
 ``tests/mission_runtime/test_consolidated_resolution.py`` and
 ``tests/mission_runtime/test_lifecycle_phase.py``.
 """
@@ -42,7 +42,7 @@ from mission_runtime.resolution import (
     resolve_artifact_surface,
 )
 from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
-from specify_cli.merge.baseline import record_baseline_merge_commit
+from specify_cli.consolidation.baseline import record_baseline_merge_commit
 from specify_cli.mission_metadata import load_meta, write_meta
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]

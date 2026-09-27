@@ -6,7 +6,7 @@ mechanisms — NOT a re-run of the WP01 outcome repro. Precedent for the AST /
 per-registry lint home: ``tests/architectural/test_merge_pipeline_ratchets.py``.
 
 * **T012 — no-blind-copy AST lint** over the ``merge/`` projection path. The
-  FR-005 regression is ``merge/bookkeeping_projection.py`` blind-``write_bytes``-ing
+  FR-005 regression is ``consolidation/bookkeeping_projection.py`` blind-``write_bytes``-ing
   a *foreign* status/meta/trace source straight onto the *authoritative*
   target-surface artifact (event log / ``meta.json`` / ``traces/*.md``) instead of
   reconciling it (``_union_event_logs`` / rematerialize). The lint fires on that
@@ -18,7 +18,7 @@ per-registry lint home: ``tests/architectural/test_merge_pipeline_ratchets.py``.
 * **T013 — driver-registry-completeness lint** (the primary #2709 ``-X theirs``
   vector, blind to the projection lint). Two independent assertions:
     - **sync**: every driver DECLARED in the in-code registry
-      (``specify_cli.lanes.merge._MERGE_DRIVERS``) is REGISTERED in root
+      (``specify_cli.lanes.consolidation._MERGE_DRIVERS``) is REGISTERED in root
       ``.gitattributes`` and vice-versa — catches *dropping* an existing
       ``.gitattributes`` driver line;
     - **completeness (non-tautology)**: every both-sides-divergent canonical
@@ -48,7 +48,7 @@ from mission_runtime.artifacts import (
     kind_for_mission_file,
 )
 from specify_cli.cli.commands import init as _init_command
-from specify_cli.lanes.merge import _MERGE_DRIVERS
+from specify_cli.lanes.consolidation import _MERGE_DRIVERS
 from specify_cli.upgrade.migrations import (
     m_3_1_1_event_log_merge_driver as _event_log_migration,
 )
@@ -188,7 +188,7 @@ def test_declared_merge_drivers_are_registered_in_gitattributes() -> None:
         if registered.get(pattern) != key
     ]
     assert not unregistered, (
-        "Merge driver declared in specify_cli.lanes.merge._MERGE_DRIVERS but not "
+        "Merge driver declared in specify_cli.lanes.consolidation._MERGE_DRIVERS but not "
         f"registered in root .gitattributes (#2709 re-inheritance risk): {unregistered}"
     )
 
@@ -274,7 +274,7 @@ def _canonical_artifact_file_globs() -> dict[str, MissionArtifactKind]:
 # appends, which IS both-sides-divergent bookkeeping (the exact #2709 shape
 # a blind ``-X theirs`` would clobber). This is why the pre-existing
 # ``spec-kitty-traces`` order-preserving union merge driver
-# (``merge/drivers.py::run_traces_driver``, behind the
+# (``consolidation/drivers.py::run_traces_driver``, behind the
 # ``cli/commands/merge_driver.py::merge_driver_traces`` shell since #5119)
 # already covers
 # ``kitty-specs/**/traces/*.md`` across all four seeding surfaces (registry /
@@ -311,7 +311,7 @@ def _canonical_artifact_file_globs() -> dict[str, MissionArtifactKind]:
 # ``tasks/*.md`` glob, which would wrongly union-merge single-writer WP task
 # files too) and why WP04 recorded it as a cross-WP dependency rather than landed
 # in this WP: registering it touches ``.gitattributes`` /
-# ``specify_cli.lanes.merge._MERGE_DRIVERS`` / the ``init`` seed / an upgrade
+# ``specify_cli.lanes.consolidation._MERGE_DRIVERS`` / the ``init`` seed / an upgrade
 # migration, all OUTSIDE this WP's ``owned_files``.
 _NON_DIVERGENT_COORD_RESIDUE_DIRS: frozenset[str] = frozenset(
     {
@@ -407,7 +407,7 @@ def test_both_sides_divergent_canonical_artifacts_carry_merge_driver() -> None:
 # DIFFERENT verdicts under the SAME filename must not be interleaved into one
 # nonsensical document; the correct reconciliation needs to coordinate with
 # WP09's numbering rework, not just union bytes) PLUS (2) registration across
-# FOUR surfaces (`.gitattributes`, `specify_cli.lanes.merge._MERGE_DRIVERS`,
+# FOUR surfaces (`.gitattributes`, `specify_cli.lanes.consolidation._MERGE_DRIVERS`,
 # the `init` command seed, an upgrade migration) that are ALL outside this
 # WP's `owned_files`. Recorded as an explicit, cited, time-critical cross-WP
 # dependency in WP04's review findings instead of
@@ -583,7 +583,7 @@ def test_init_seed_is_superset_of_registry_merge_drivers() -> None:
     registry driver has no matching init constant."""
     missing = _registry_attribute_lines() - _init_seed_attribute_lines()
     assert not missing, (
-        "Merge driver(s) declared in specify_cli.lanes.merge._MERGE_DRIVERS but NOT "
+        "Merge driver(s) declared in specify_cli.lanes.consolidation._MERGE_DRIVERS but NOT "
         "seeded by the init command (fresh repos re-inherit #2709 — no .gitattributes "
         f"mapping). Add the entry in specify_cli/cli/commands/init.py: {sorted(missing)}"
     )
@@ -596,7 +596,7 @@ def test_migration_seed_is_superset_of_registry_merge_drivers() -> None:
     artifact. RED when a registry driver is in neither migration."""
     missing = _registry_attribute_lines() - _migration_seed_attribute_lines()
     assert not missing, (
-        "Merge driver(s) declared in specify_cli.lanes.merge._MERGE_DRIVERS but NOT "
+        "Merge driver(s) declared in specify_cli.lanes.consolidation._MERGE_DRIVERS but NOT "
         "seeded by any upgrade migration (upgraded repos re-inherit #2709). Add the "
         f"driver to an m_*_meta_traces / event-log migration: {sorted(missing)}"
     )

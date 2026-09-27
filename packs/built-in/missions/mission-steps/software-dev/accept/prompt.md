@@ -97,15 +97,15 @@ For each blocker reported:
 - Re-run `spec-kitty accept --mission <handle>` and confirm the gate is now
   clean. Do **not** force acceptance past an unresolved blocker.
 
-### 5. Proceed to Merge
+### 5. Proceed to Consolidate
 
 Only after the acceptance gate passes:
 
 ```bash
-spec-kitty merge --mission <handle>
+spec-kitty consolidate --mission <handle>
 ```
 
-Follow the merge instructions printed by the acceptance command (and any
+Follow the consolidate instructions printed by the acceptance command (and any
 cleanup steps it lists).
 
 ## Output
@@ -114,7 +114,7 @@ After completing this step:
 
 - The acceptance gate has passed for `<handle>`.
 - All blocking diagnostics have been resolved (or none were present).
-- Merge instructions have been surfaced to the operator.
+- Consolidate instructions have been surfaced to the operator.
 
-**Next step**: `spec-kitty next --agent <name>` will advance to merge, or run
-`spec-kitty merge --mission <handle>` directly.
+**Next step**: `spec-kitty next --agent <name>` will advance to consolidate, or run
+`spec-kitty consolidate --mission <handle>` directly.

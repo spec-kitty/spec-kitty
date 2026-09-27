@@ -48,13 +48,13 @@
       "exit_code": 0,
       "producer": "scripts/ci/capture_shard_timings.py"
     },
-    "merge": {
+    "consolidation": {
       "run_id": "wp02-durations-20260918T185654Z",
-      "command": "python scripts/ci/capture_shard_timings.py --module merge --run-id wp02-durations-20260918T185654Z --write  # pytest tests/merge tests/specify_cli/merge -m not performance -p no:randomly -q",
+      "command": "python scripts/ci/capture_shard_timings.py --module merge --run-id wp02-durations-20260918T185654Z --write  # pytest tests/merge tests/specify_cli/merge -m not performance -p no:randomly -q (module renamed merge->consolidation, mission #3080, after this capture)",
       "captured_at": "2026-09-18T18:58:10.095155+00:00",
       "test_dirs": [
-        "tests/merge",
-        "tests/specify_cli/merge"
+        "tests/consolidation",
+        "tests/specify_cli/consolidation"
       ],
       "selection": "not performance",
       "unique_tests_measured": 782,
@@ -163,7 +163,7 @@
     "glossary": 0.11,
     "kernel": 0.059,
     "lanes": 37.218,
-    "merge": 73.408,
+    "consolidation": 73.408,
     "missions": 23.953,
     "next": 193.684,
     "post_merge": 0.94,
@@ -186,7 +186,7 @@
     "glossary": 149,
     "kernel": 270,
     "lanes": 318,
-    "merge": 782,
+    "consolidation": 782,
     "missions": 633,
     "next": 1588,
     "post_merge": 100,
@@ -19818,7 +19818,7 @@
       0.0907,
       0.0829
     ],
-    "merge": [
+    "consolidation": [
       0.0254,
       0.0276,
       0.0026,

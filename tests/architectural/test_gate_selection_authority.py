@@ -77,9 +77,9 @@ def test_corpus_only_diff_selects_zero_code_shards(router: Router) -> None:
 
 def test_src_group_diff_selects_its_shard_and_heavy_arch(router: Router) -> None:
     """A change confined to one src group selects that group's shard + the heavy battery."""
-    selection = select_gates(["src/specify_cli/merge/executor.py"], router=router)
-    assert selection.matched_groups == frozenset({"merge"})
-    assert "tests-merge" in selection.selected_code_shards
+    selection = select_gates(["src/specify_cli/consolidation/executor.py"], router=router)
+    assert selection.matched_groups == frozenset({"consolidation"})
+    assert "tests-consolidation" in selection.selected_code_shards
     assert "architectural-heavy" in selection.selected_code_shards
 
 
@@ -131,21 +131,21 @@ def test_authority_parses_the_yaml_not_a_hardcoded_map(tmp_path: Path) -> None:
     parsing, deleting a group from the YAML would not change its answer. Proving
     the answer tracks the file proves there is one authority: the file, parsed.
     """
-    baseline = select_gates(["src/specify_cli/merge/x.py"])
-    assert "tests-merge" in baseline.selected_code_shards
+    baseline = select_gates(["src/specify_cli/consolidation/x.py"])
+    assert "tests-consolidation" in baseline.selected_code_shards
 
-    # Remove the whole `merge` filter block from a temp copy → `merge` no longer matches.
+    # Remove the whole `consolidation` filter block from a temp copy → `consolidation` no longer matches.
     text = DEFAULT_ROUTER_PATH.read_text(encoding="utf-8")
-    mutated = text.replace("            merge:\n              - 'src/specify_cli/merge/**'\n", "")
+    mutated = text.replace("            consolidation:\n              - 'src/specify_cli/consolidation/**'\n", "")
     assert mutated != text, "mutation fixture no longer matches the router — update it"
     router_copy = tmp_path / "ci-router.yml"
     router_copy.write_text(mutated, encoding="utf-8")
 
     mutated_router = load_router(router_copy)
-    after = select_gates(["src/specify_cli/merge/x.py"], router=mutated_router)
-    # merge/** now matches only the `any_src` probe → unmatched → run-all,
-    # but crucially the `merge` group is no longer among matched groups.
-    assert "merge" not in after.matched_groups
+    after = select_gates(["src/specify_cli/consolidation/x.py"], router=mutated_router)
+    # consolidation/** now matches only the `any_src` probe → unmatched → run-all,
+    # but crucially the `consolidation` group is no longer among matched groups.
+    assert "consolidation" not in after.matched_groups
     assert after.unmatched_src is True
 
 
@@ -157,7 +157,7 @@ def test_non_vacuity_floor(router: Router) -> None:
     against an empty or truncated parse.
     """
     # Representative code groups must be present (content check, not a count).
-    assert {"merge", "status", "cli", "charter", "kernel"} <= router.src_backed_groups
+    assert {"consolidation", "status", "cli", "charter", "kernel"} <= router.src_backed_groups
     # The non-src data groups must be present and classified as non-code.
     assert {"docs", "corpus"} <= (router.routing_groups - router.src_backed_groups)
     assert router.code_shard_jobs  # at least one code shard is wired
@@ -209,8 +209,8 @@ def test_select_modules_selects_the_ci_module_on_ci_infra_change(router: Router)
 
 def test_select_modules_single_src_group_selects_only_that_module(router: Router) -> None:
     """A change confined to one src group selects exactly that module."""
-    selected = select_modules(["src/specify_cli/merge/executor.py"], router=router)
-    assert selected == frozenset({"merge"})
+    selected = select_modules(["src/specify_cli/consolidation/executor.py"], router=router)
+    assert selected == frozenset({"consolidation"})
 
 
 def test_select_modules_docs_only_selects_zero_modules(router: Router) -> None:
@@ -225,10 +225,10 @@ def test_select_modules_multi_group_diff_selects_each_matched_module(router: Rou
     src/specify_cli/status/** too) — select_modules preserves the router's
     real overlapping ownership, never narrows to a single "owning" module."""
     selected = select_modules(
-        ["src/specify_cli/merge/executor.py", "src/specify_cli/status/store.py"],
+        ["src/specify_cli/consolidation/executor.py", "src/specify_cli/status/store.py"],
         router=router,
     )
-    assert selected == frozenset({"merge", "status", "core_misc", "unit", "execution_context"})
+    assert selected == frozenset({"consolidation", "status", "core_misc", "unit", "execution_context"})
 
 
 def test_select_modules_returns_frozenset(router: Router) -> None:
@@ -268,7 +268,7 @@ def test_select_modules_tests_only_diff_is_never_narrower_than_its_src_twin(rout
     tests-only change is never a strict subset of (narrower than) the module
     set its corresponding src change selects."""
     cases = {
-        "tests/merge/test_x.py": "src/specify_cli/merge/executor.py",
+        "tests/consolidation/test_x.py": "src/specify_cli/consolidation/executor.py",
         "tests/coordination/test_x.py": "src/specify_cli/coordination/x.py",
         "tests/core/test_x.py": "src/specify_cli/core/x.py",
     }

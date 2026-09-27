@@ -29,7 +29,7 @@ from specify_cli.core.errors import StructuredError
 from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
-from specify_cli.lanes.merge import (
+from specify_cli.lanes.consolidation import (
     _ephemeral_merge_driver_activation,
     _make_merge_env,
     reconcile_derived_status_snapshot_conflicts,

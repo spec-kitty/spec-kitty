@@ -7,7 +7,7 @@ branch:
   bookkeeping that persists status events before worktree teardown (INV-5);
 * the **retrospective terminus** (``post_merge/retrospective_terminus.py``) —
   which commits the auto-captured ``retrospective.yaml`` + its event-log append
-  and runs from BOTH the ``spec-kitty merge`` path AND the ``mission close``
+  and runs from BOTH the ``spec-kitty consolidate`` path AND the ``mission close``
   path; and
 * the **birth-cutover coord seed** (``merge/executor.py`` again) — the
   ``STATUS_STATE`` coord-partition seed-events reconcile.
@@ -93,7 +93,7 @@ def commit_merge_bookkeeping(
             The placement port resolves ``PRIMARY_METADATA`` from the mission's
             ``meta.json`` ``target_branch``, which is STALE for a merge whose
             resolved target differs (an explicit ``--target develop`` /
-            persisted ``MergeState.target_branch`` beating meta's ``main``). On a
+            persisted ``ConsolidationState.target_branch`` beating meta's ``main``). On a
             non-default-target merge the post-merge checkout HEAD is on the
             resolved target, so the meta-resolved destination triggers
             ``SafeCommitHeadMismatch`` and aborts the housekeeping commit before

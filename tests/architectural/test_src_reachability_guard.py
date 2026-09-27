@@ -100,7 +100,7 @@ def test_data_only_packages_are_excluded(lib: ModuleType) -> None:
 def test_enumeration_includes_real_packages_and_loose_modules(lib: ModuleType) -> None:
     """Enumeration is non-vacuous: real packages AND loose top-level modules."""
     packages = set(lib.enumerate_src_packages())
-    assert "specify_cli.merge" in packages  # a real subpackage
+    assert "specify_cli.consolidation" in packages  # a real subpackage
     assert "specify_cli.mission" in packages  # a loose top-level *.py module
     assert len(packages) > 200, "enumeration collapsed — too few packages found"
 

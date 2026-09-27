@@ -214,7 +214,7 @@ def test_every_row_has_required_fields() -> None:
 
 
 def test_cov_targets_are_dotted_form() -> None:
-    """``cov_targets`` stay dotted (``specify_cli.merge``), never path form (C-005)."""
+    """``cov_targets`` stay dotted (``specify_cli.consolidation``), never path form (C-005)."""
     registry = _load_registry()
     bad: list[str] = []
     for row in _modules(registry):

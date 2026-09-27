@@ -54,7 +54,7 @@ jobs:
   changes:
     runs-on: ubuntu-24.04
     outputs:
-      merge: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.merge }}
+      consolidation: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.consolidation }}
       auth: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.auth }}
       missions: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.missions }}
       post_merge: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.post_merge }}
@@ -100,8 +100,8 @@ jobs:
         id: filter
         with:
           filters: |
-            merge:
-              - 'src/specify_cli/merge/**'
+            consolidation:
+              - 'src/specify_cli/consolidation/**'
             auth:
               - 'src/specify_cli/auth/**'
             missions:
@@ -218,7 +218,7 @@ jobs:
           # Union of the SRC-BACKED filter groups ONLY (docs/corpus/e2e are non-src,
           # excluded so a data-only path can never mask an unmapped src/** change).
           for group_hit in \
-            "${{ steps.filter.outputs.merge }}" \
+            "${{ steps.filter.outputs.consolidation }}" \
             "${{ steps.filter.outputs.auth }}" \
             "${{ steps.filter.outputs.missions }}" \
             "${{ steps.filter.outputs.post_merge }}" \
@@ -525,7 +525,7 @@ jobs:
     timeout-minutes: 30
     needs: [changes, prose-scan]
     if: >-
-      (needs.changes.outputs.merge == 'true' ||
+      (needs.changes.outputs.consolidation == 'true' ||
       needs.changes.outputs.auth == 'true' ||
       needs.changes.outputs.missions == 'true' ||
       needs.changes.outputs.post_merge == 'true' ||
@@ -576,12 +576,12 @@ jobs:
   # Code shards (group -> job, authority #2). Representative per-group shards;
   # the full per-module matrix over the committed module registry is WP08 (T2).
   # ===========================================================================
-  tests-merge:
-    name: tests (merge)
+  tests-consolidation:
+    name: tests (consolidation)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [changes, prose-scan]
-    if: ${{ needs.changes.outputs.merge == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
+    if: ${{ needs.changes.outputs.consolidation == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
@@ -589,7 +589,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv run --frozen pytest tests/merge -q
+          uv run --frozen pytest tests/consolidation -q
 
   tests-status:
     name: tests (status)
@@ -722,7 +722,7 @@ jobs:
       - layer-rules
       - archive-freeze
       - architectural-heavy
-      - tests-merge
+      - tests-consolidation
       - tests-status
       - tests-cli
       - tests-docs

@@ -48,7 +48,7 @@ INSCOPE_FEATURE_FREE_FILES: tuple[str, ...] = (
     # 8 user-facing command files de-aliased in mission feature-alias-removal-
     # 01KW0N87 WP01–WP03.  Authority: spec.md FR-007.
     "src/specify_cli/cli/commands/implement.py",
-    "src/specify_cli/cli/commands/merge.py",
+    "src/specify_cli/cli/commands/consolidate.py",
     "src/specify_cli/cli/commands/next_cmd.py",
     "src/specify_cli/cli/commands/research.py",
     "src/specify_cli/cli/commands/context.py",
@@ -315,7 +315,7 @@ def test_no_removed_orchestrator_api_command_names_in_live_docs() -> None:
                 line = _line_number(content, match.start())
                 pytest.fail(
                     f"{path.relative_to(REPO_ROOT)}:{line}: doc teaches removed orchestrator-api command. "
-                    "Authority: spec.md FR-010/FR-022. Fix: use mission-state/accept-mission/merge-mission."
+                    "Authority: spec.md FR-010/FR-022. Fix: use mission-state/accept-mission/consolidate-mission."
                 )
 
 

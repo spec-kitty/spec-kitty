@@ -13,10 +13,14 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 4.0.0rc5
+## [Unreleased] - 4.0.0rc6
 
-_4.0.0rc5 candidate cycle. Entries land here until the release chore finalizes
+_4.0.0rc6 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
+
+### Changed
+
+- **`spec-kitty merge` is renamed to `spec-kitty consolidate`** (#3080). **Before:** `merge` was overloaded across three distinct senses — lane consolidation (the local, LOCAL-only operation this command performs), branch integration (`git merge`), and publish-to-origin (`--push`) — so the command name itself invited misreading a local lane-consolidation run as a publish. **After:** the lane-consolidation command is `spec-kitty consolidate`, carrying the exact same flag set (`--resume`/`--abort`/`--dry-run`/`--keep-branch`/`--keep-worktree`/`--mission`/`--target`/`--push`/…) and behavior, unchanged. `spec-kitty merge` still exists as a hidden, deprecated command but now only prints a migration message naming `spec-kitty consolidate` and exits non-zero — it never performs consolidation, silently or otherwise. The `orchestrator-api merge-mission` verb is renamed to `orchestrator-api consolidate-mission` for the same reason. **Frozen, unchanged:** the `baseline_merge_commit` meta.json key, the `MergeStrategy` enum and its `"merge"`/`"squash"`/`"rebase"` serialized values, the `state.json` resume-state filename and its `.kittify/runtime/merge/<id>/` directory, and every `spec-kitty merge-driver-*` git merge-driver subcommand — none of these name the CLI command, and none moved. **Migration:** replace `spec-kitty merge` with `spec-kitty consolidate` (same flags) in scripts, aliases, and CI steps; replace `orchestrator-api merge-mission` with `orchestrator-api consolidate-mission`.
 
 ### Added
 

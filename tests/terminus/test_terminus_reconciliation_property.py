@@ -67,7 +67,7 @@ def test_terminus_reconciliation_property_clean_merge(tmp_path: Path) -> None:
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5001C")
     approved = mission.approved_shas_from_lane_tips(["WP01", "WP02"])  # captured PRE-merge
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--strategy", "merge", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--strategy", "merge", "--yes"])
     assert result.returncode == 0, f"clean merge should exit 0:\n{result.stdout}\n{result.stderr}"
 
     # A clean merge lands every approved WP's lane-tip commit on the target.
@@ -91,7 +91,7 @@ def test_terminus_reconciliation_property_clean_squash(tmp_path: Path) -> None:
     their paired no-false-fail guard."""
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5001Q")
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
     assert result.returncode == 0, f"clean default squash should exit 0:\n{result.stdout}\n{result.stderr}"
 
     # Every approved WP's authored file must be present on the target (content
@@ -153,7 +153,7 @@ def test_terminus_reconciliation_property_no_excluded_commit_reachable(tmp_path:
     canceled_sha, canceled_pid, _planted = plant_canceled_commit(mission, canceled_wp="WP99", carrier_wp="WP01")
     approved = mission.approved_shas_from_lane_tips(["WP01", "WP02"])  # captured PRE-merge
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--strategy", strategy, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--strategy", strategy, "--yes"])
 
     # Contract: verify() must hold *before teardown* for any exit-0 command.
     if result.returncode == 0:

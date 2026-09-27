@@ -68,7 +68,7 @@ _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
 # coord-write-placement-closure-01KYCF83 WP06: decisions.events.jsonl reuses
 # the SAME event-log union driver (structurally identical append-only JSONL
-# envelope) -- see specify_cli/lanes/merge.py's _MERGE_DRIVERS comment.
+# envelope) -- see specify_cli/lanes/consolidation.py's _MERGE_DRIVERS comment.
 _DECISION_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log"
 # C-006 (#2709): the meta.json field-merge and traces union drivers register on
 # the same surfaces as the event-log driver.
@@ -1437,7 +1437,7 @@ def init(  # noqa: C901
     # first lane claim, not only after the first merge/auto-rebase self-heals
     # it. No-op (by the helper's own guard) when the target is not a git
     # repository yet -- that case keeps relying on the merge-path self-heal.
-    from specify_cli.lanes.merge import _ensure_merge_driver_git_config
+    from specify_cli.lanes.consolidation import _ensure_merge_driver_git_config
 
     try:
         _ensure_merge_driver_git_config(project_path)

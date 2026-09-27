@@ -576,6 +576,11 @@
    "hidden": false,
    "deprecated": false
   },
+  "consolidate": {
+   "help": "Consolidate a lane-based mission into its target branch.",
+   "hidden": false,
+   "deprecated": false
+  },
   "context": {
    "help": "Query workspace context information",
    "hidden": false,
@@ -978,9 +983,9 @@
    "deprecated": false
   },
   "merge": {
-   "help": "Merge a lane-based mission into its target branch.",
-   "hidden": false,
-   "deprecated": false
+   "help": "[REMOVED] Renamed to ``spec-kitty consolidate`` -- this stub always fails.",
+   "hidden": true,
+   "deprecated": true
   },
   "merge-driver-acceptance-matrix": {
    "help": "Row-aware, 3-way merge of ``acceptance-matrix.json``; write result to ``ours`` (FR-008).",
@@ -1003,12 +1008,12 @@
    "deprecated": false
   },
   "merge-driver-review-cycle": {
-   "help": "Reconcile a ``review-cycle-N.md`` collision, best-effort, non-aborting.\n\nTwo distinct verdict documents colliding under the same filename are\nNEVER unioned/field-merged/interleaved into one document -- see the\nmodule-level design-decision comment in ``specify_cli.merge.drivers``,\nimmediately above :func:`specify_cli.merge.drivers.run_review_cycle_driver`,\nfor the full reasoning (embed both verbatim, never fabricate a blended\nverdict). Unlike WP18's original T077 driver, a divergent collision no\nlonger aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is\nnon-authoritative, unread prose now that ``status.events.jsonl``'s\n``review_result`` event slot is the sole verdict authority, so refusing\nthe merge over it is no longer justified.\n\nIdentical content on both sides (byte-for-byte) is the trivial fast path:\nresolves cleanly, exit 0, never reported as a conflict. Otherwise, both\nraw documents are embedded verbatim inside standard git-style conflict\nmarkers (never blended field-by-field -- a review verdict has no safely\nmergeable sub-fields the way a JSON matrix row does) and the driver\nexits 0, so ``git merge --squash`` treats the path as resolved\nand the squash proceeds.",
+   "help": "Reconcile a ``review-cycle-N.md`` collision, best-effort, non-aborting.\n\nTwo distinct verdict documents colliding under the same filename are\nNEVER unioned/field-merged/interleaved into one document -- see the\nmodule-level design-decision comment in ``specify_cli.consolidation.drivers``,\nimmediately above :func:`specify_cli.consolidation.drivers.run_review_cycle_driver`,\nfor the full reasoning (embed both verbatim, never fabricate a blended\nverdict). Unlike WP18's original T077 driver, a divergent collision no\nlonger aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is\nnon-authoritative, unread prose now that ``status.events.jsonl``'s\n``review_result`` event slot is the sole verdict authority, so refusing\nthe merge over it is no longer justified.\n\nIdentical content on both sides (byte-for-byte) is the trivial fast path:\nresolves cleanly, exit 0, never reported as a conflict. Otherwise, both\nraw documents are embedded verbatim inside standard git-style conflict\nmarkers (never blended field-by-field -- a review verdict has no safely\nmergeable sub-fields the way a JSON matrix row does) and the driver\nexits 0, so ``git merge --squash`` treats the path as resolved\nand the squash proceeds.",
    "hidden": true,
    "deprecated": false
   },
   "merge-driver-traces": {
-   "help": "Union conflicting ``traces/*.md`` documents; write result to ``ours`` (#4894).\n\n3-way base-aware: reads ``%O`` so a section theirs left UNCHANGED from\nbase, while ours edited the same section, is recognized as stale and\ndropped rather than resurrected alongside ours' edit (see\n:func:`specify_cli.merge.drivers._drop_stale_theirs_trace_blocks`). The\nremaining union is still section-granularity and append-only via\n:func:`specify_cli.merge.drivers.union_trace_texts` -- never a lossy\nline-level global dedup, never fail-closed on an ordinary repeat.",
+   "help": "Union conflicting ``traces/*.md`` documents; write result to ``ours`` (#4894).\n\n3-way base-aware: reads ``%O`` so a section theirs left UNCHANGED from\nbase, while ours edited the same section, is recognized as stale and\ndropped rather than resurrected alongside ours' edit (see\n:func:`specify_cli.consolidation.drivers._drop_stale_theirs_trace_blocks`). The\nremaining union is still section-granularity and append-only via\n:func:`specify_cli.consolidation.drivers.union_trace_texts` -- never a lossy\nline-level global dedup, never fail-closed on an ordinary repeat.",
    "hidden": true,
    "deprecated": false
   },
@@ -1023,7 +1028,7 @@
      "deprecated": false
     },
     "backfill-merge-commit": {
-     "help": "Record a GitHub PR's real merge commit as a mission's review baseline (#4231).\n\nA mission accepted through ``acceptance_mode: pr`` never passes through\n``spec-kitty merge``, so its ``meta.json`` never carried\n``baseline_merge_commit`` — leaving ``spec-kitty review --mode post-merge``\nunreachable (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight\ndead-code gate failing a cleanly merged mission. This command repairs\nthat state from REAL evidence: the merge commit you supply is verified\nagainst git (it must resolve in this repository, carry the mission's\n``kitty-specs/<slug>/meta.json``, its first parent must not — proving it\nis the commit that introduced the mission corpus — and it must have\nlanded on the target branch, so an unmerged mission-branch commit is\nrefused) before ``baseline_merge_commit`` (the first parent) and the\nprovenance pair ``pr_merge_commit`` (the landing commit itself) /\n``pr_merge_evidence`` (what the anchor's completeness rests on) are\nwritten through the same canonical seam ``spec-kitty merge`` and\n``accept --mode pr --merge-commit`` use.\n\n**What the anchor proves depends on the landing shape — and on your\nattestation, never on git.** Checks 1–6 prove the commit landed on the\ntarget branch and introduced the mission corpus; they cannot prove its\nfirst parent is the PRE-LANDING TARGET TIP for any shape. A two-parent\nmerge commit's first parent is the tip only if the merge was performed\non the target branch — an internal merge (the corpus branch merged into\nthe implementation branch, the target then fast-forwarded to the\nresult) is graph-identical and its first parent is an implementation\ncommit. A single-parent landing commit (squash, or a corpus-first stack)\nhas the tip as its parent only if it was the first commit of the\nlanding. Both shapes therefore require ``--attest-first-landing-commit``\n— your explicit attestation — and record it as the anchor's evidence\nclass (``pr_merge_evidence: merge-commit-parent-attested`` /\n``corpus-parent-attested``), so the anchor's completeness rests on a\nrecorded operator attestation, never on a claim git did not make.\nAnchoring at the wrong tip would silently under-scan the dead-code\ngate. Full forge commit-list evidence, which would prove the tip\noutright, is tracked in #4277.\n\n**Idempotent**: a mission whose ``meta.json`` already carries a\n``baseline_merge_commit`` is skipped and never overwritten.\n\nExit codes:\n\n- ``0`` — recorded, skipped (already recorded), or ``--dry-run``\n- ``1`` — the merge evidence could not be verified, or the mission handle\n  is unknown\n\nExamples:\n\n    spec-kitty migrate backfill-merge-commit --mission 321-mission --merge-commit <sha> --dry-run\n\n    spec-kitty migrate backfill-merge-commit --mission 321-mission --merge-commit <sha>",
+     "help": "Record a GitHub PR's real merge commit as a mission's review baseline (#4231).\n\nA mission accepted through ``acceptance_mode: pr`` never passes through\n``spec-kitty consolidate``, so its ``meta.json`` never carried\n``baseline_merge_commit`` — leaving ``spec-kitty review --mode post-merge``\nunreachable (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight\ndead-code gate failing a cleanly merged mission. This command repairs\nthat state from REAL evidence: the merge commit you supply is verified\nagainst git (it must resolve in this repository, carry the mission's\n``kitty-specs/<slug>/meta.json``, its first parent must not — proving it\nis the commit that introduced the mission corpus — and it must have\nlanded on the target branch, so an unmerged mission-branch commit is\nrefused) before ``baseline_merge_commit`` (the first parent) and the\nprovenance pair ``pr_merge_commit`` (the landing commit itself) /\n``pr_merge_evidence`` (what the anchor's completeness rests on) are\nwritten through the same canonical seam ``spec-kitty consolidate`` and\n``accept --mode pr --merge-commit`` use.\n\n**What the anchor proves depends on the landing shape — and on your\nattestation, never on git.** Checks 1–6 prove the commit landed on the\ntarget branch and introduced the mission corpus; they cannot prove its\nfirst parent is the PRE-LANDING TARGET TIP for any shape. A two-parent\nmerge commit's first parent is the tip only if the merge was performed\non the target branch — an internal merge (the corpus branch merged into\nthe implementation branch, the target then fast-forwarded to the\nresult) is graph-identical and its first parent is an implementation\ncommit. A single-parent landing commit (squash, or a corpus-first stack)\nhas the tip as its parent only if it was the first commit of the\nlanding. Both shapes therefore require ``--attest-first-landing-commit``\n— your explicit attestation — and record it as the anchor's evidence\nclass (``pr_merge_evidence: merge-commit-parent-attested`` /\n``corpus-parent-attested``), so the anchor's completeness rests on a\nrecorded operator attestation, never on a claim git did not make.\nAnchoring at the wrong tip would silently under-scan the dead-code\ngate. Full forge commit-list evidence, which would prove the tip\noutright, is tracked in #4277.\n\n**Idempotent**: a mission whose ``meta.json`` already carries a\n``baseline_merge_commit`` is skipped and never overwritten.\n\nExit codes:\n\n- ``0`` — recorded, skipped (already recorded), or ``--dry-run``\n- ``1`` — the merge evidence could not be verified, or the mission handle\n  is unknown\n\nExamples:\n\n    spec-kitty migrate backfill-merge-commit --mission 321-mission --merge-commit <sha> --dry-run\n\n    spec-kitty migrate backfill-merge-commit --mission 321-mission --merge-commit <sha>",
      "hidden": false,
      "deprecated": false
     },
@@ -1282,8 +1287,8 @@
      "hidden": false,
      "deprecated": false
     },
-    "merge-mission": {
-     "help": "Merge a lane-based mission into target.",
+    "consolidate-mission": {
+     "help": "Consolidate a lane-based mission into target.",
      "hidden": false,
      "deprecated": false
     },

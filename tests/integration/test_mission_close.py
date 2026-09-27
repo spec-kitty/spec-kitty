@@ -14,7 +14,7 @@ that:
 
 We deliberately do NOT drive the full ``spec-kitty merge`` Typer command
 end-to-end here. The full command has a heavy dependency surface
-(MergeState lifecycle, merge lock, dossier sync, SaaS event sinks, the
+(ConsolidationState lifecycle, merge lock, dossier sync, SaaS event sinks, the
 WP01 commit backstop, the WP05 sparse-checkout preflight, mission_number
 baking, etc.) — exercising it in-process would require fixturing all of
 that, and the lane-integration semantics it implements are already
@@ -113,7 +113,7 @@ def test_coordination_worktree_teardown_after_successful_close(
     """SC-10: After a successful mission close, the coordination worktree
     directory and its per-worktree gitdir are gone.
 
-    This isolates the teardown step that ``_run_lane_based_merge_locked``
+    This isolates the teardown step that ``_run_lane_based_consolidation_locked``
     now invokes at the end of a successful Stage 2.
     """
     repo = repo_with_coord_artifacts

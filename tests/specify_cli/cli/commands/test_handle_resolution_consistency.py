@@ -82,7 +82,7 @@ _FIXED_COMMANDS = [
     pytest.param(["research", "--mission", _HANDLE], id="research"),
     pytest.param(["agent", "mission", "setup-plan", "--mission", _HANDLE], id="plan"),
     pytest.param(["agent", "mission", "check-prerequisites", "--mission", _HANDLE], id="tasks"),
-    pytest.param(["merge", "--mission", _HANDLE], id="merge-fresh"),
+    pytest.param(["consolidate", "--mission", _HANDLE], id="merge-fresh"),
 ]
 
 

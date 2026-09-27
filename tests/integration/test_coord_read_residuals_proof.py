@@ -158,7 +158,7 @@ def _revert_resolver_to_coord_aware(monkeypatch: pytest.MonkeyPatch) -> None:
     ``placement_seam(...).read_dir(<kind>)``. Patching the class method (rather
     than a per-module ``placement_seam`` binding) reverts every routed site
     uniformly, whether the module imported the factory at module scope
-    (``specify_cli.merge.forecast``, ``specify_cli.lanes.recovery``) or
+    (``specify_cli.consolidation.forecast``, ``specify_cli.lanes.recovery``) or
     function-locally (``materialize_worktree_topology``) — so the helper needs no
     per-call-site targeting argument.
 
@@ -283,8 +283,8 @@ def test_dry_run_forecast_returns_primary_wp_set(
     ``typer.Exit(1)`` and an ``error`` payload, with NO ``lanes`` key — the WP set
     is never produced.
     """
-    from specify_cli.merge import forecast
-    from specify_cli.merge.config import MergeStrategy
+    from specify_cli.consolidation import forecast
+    from specify_cli.consolidation.config import MergeStrategy
 
     ctx = coord_topology_mission_sentinel_meta
     _assert_divergence_triad(ctx)
@@ -438,7 +438,7 @@ def test_executor_status_feature_dir_stays_coord_aware(
     coord_topology_mission_sentinel_meta: CoordTopologyContext,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``_run_lane_based_merge`` binds its STATUS ``feature_dir`` off the COORD husk.
+    """``_run_lane_based_consolidation`` binds its STATUS ``feature_dir`` off the COORD husk.
 
     The executor threads ``feature_dir`` (the seam's kind-aware
     ``read_dir(STATUS_STATE)`` projection) into ``status_feature_dir`` (the C-001
@@ -451,7 +451,7 @@ def test_executor_status_feature_dir_stays_coord_aware(
     in the very same call, which a kind-blind stub would have flattened away.
     """
     from mission_runtime import MissionArtifactKind
-    from specify_cli.merge import executor
+    from specify_cli.consolidation import executor
 
     ctx = coord_topology_mission_sentinel_meta
     _assert_divergence_triad(ctx)
@@ -466,7 +466,7 @@ def test_executor_status_feature_dir_stays_coord_aware(
     monkeypatch.setattr(executor, "_effective_push_requested", _stop)
 
     with pytest.raises(_StopProbe):
-        executor._run_lane_based_merge(
+        executor._run_lane_based_consolidation(
             ctx.repo,
             ctx.slug,
             push=False,
@@ -507,8 +507,8 @@ def test_flat_topology_forecast_is_noop(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """On a flat mission the dry-run forecast reads the single-surface lanes.json."""
-    from specify_cli.merge import forecast
-    from specify_cli.merge.config import MergeStrategy
+    from specify_cli.consolidation import forecast
+    from specify_cli.consolidation.config import MergeStrategy
 
     ctx = flat_topology_mission
     # See test_dry_run_forecast_returns_primary_wp_set: empty the (single-surface)

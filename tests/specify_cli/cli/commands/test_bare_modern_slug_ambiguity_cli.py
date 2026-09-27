@@ -88,7 +88,7 @@ class TestResearchBareSlugAmbiguity:
 
 class TestMergeBareSlugAmbiguity:
     def test_ambiguous_bare_slug_exits_cleanly_not_traceback(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.merge import _resolve_slug_or_exit
+        from specify_cli.cli.commands.consolidate import _resolve_slug_or_exit
 
         _seed_two_colliding_missions(tmp_path)
 

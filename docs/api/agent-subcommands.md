@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-08-30'
+updated: '2026-09-27'
 ---
 # Agent Subcommand Reference
 
@@ -382,6 +382,9 @@ _Manage project AI agent configuration (add, remove, list agents)_
 │ --sync-hooks                                Update AI harness hook           │
 │                                             configurations (Claude, Cursor,  │
 │                                             etc.)                            │
+│ --json                                      Emit a JSON summary listing      │
+│                                             every tracked-manifest mutation  │
+│                                             (#2691).                         │
 │ --help             -h                       Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1150,13 +1153,15 @@ _Mission lifecycle commands for AI agents_
  Persist `/spec-kitty.analyze` output as `analysis-report.md`.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission             TEXT  Mission slug (e.g., '020-my-mission')            │
-│ --input-file          TEXT  Markdown report path, or '-' to read report from │
-│                             stdin                                            │
-│                             [default: -]                                     │
-│ --agent               TEXT  Agent name that produced the analysis report     │
-│ --json                      Output JSON format                               │
-│ --help        -h            Show this message and exit.                      │
+│ --mission              TEXT  Mission slug (e.g., '020-my-mission')           │
+│ --input-file           TEXT  Markdown report path, or '-' to read report     │
+│                              from stdin                                      │
+│                              [default: -]                                    │
+│ --agent                TEXT  Agent name that produced the analysis report    │
+│ --json                       Output JSON format                              │
+│ --report-only                Commit only the report while preserving         │
+│                              unrelated work; require clean material inputs   │
+│ --help         -h            Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1266,23 +1271,7 @@ _Release packaging commands for AI agents_
 ## spec-kitty agent release prep
 
 ```
- Usage: spec-kitty agent release prep [OPTIONS]
 
- Prepare release artifacts (changelog draft, version bump, structured inputs).
-
- Reads kitty-specs/ artifacts and local git tags. No network calls.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --channel          [alpha|beta|stable]  Release channel: alpha | beta |   │
-│                                            stable                            │
-│                                            [required]                        │
-│    --repo             PATH                 Repository root (default: current │
-│                                            directory)                        │
-│                                            [default: .]                      │
-│    --json                                  Emit JSON instead of              │
-│                                            human-readable text               │
-│    --help     -h                           Show this message and exit.       │
-╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent retrospect
@@ -1343,38 +1332,7 @@ _Cross-mission retrospective summary._
 _Apply staged proposals from a mission's retrospective record._
 
 ```
- Usage: spec-kitty agent retrospect synthesize [OPTIONS]
 
- Apply staged proposals from a mission's retrospective record.
-
- --dry-run is the default; pass --apply to mutate project state.
- flag_not_helpful is the only auto-applied kind (Q2-A).
- Conflict detection is fail-closed: any conflict blocks the whole batch.
-
- When no retrospective.yaml exists, the command errors with
- RETROSPECTIVE_RECORD_MISSING (exit 1) and points to 'spec-kitty retrospect
- create'.
- Pass --fabricate-empty to use the legacy auto-fabrication path instead.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                  TEXT  Mission handle (mission_id / mid8 /      │
-│                                     mission_slug)                            │
-│                                     [required]                               │
-│    --apply                          Execute application after checks pass    │
-│                                     (default is dry-run)                     │
-│    --proposal-id              TEXT  Restrict batch to specific proposal ids  │
-│                                     (repeatable)                             │
-│    --json-out                 PATH  Write JSON envelope to PATH in addition  │
-│                                     to other output                          │
-│    --json                           Emit JSON to stdout (suppresses Rich     │
-│                                     rendering)                               │
-│    --actor-id                 TEXT  Override provenance actor id (default:   │
-│                                     inferred from environment)               │
-│    --fabricate-empty                Legacy: auto-fabricate an empty record   │
-│                                     when none exists (synthesize_fabricate   │
-│                                     provenance)                              │
-│    --help             -h            Show this message and exit.              │
-╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent status
@@ -1507,24 +1465,7 @@ _Canonical status management commands_
 ## spec-kitty agent status materialize
 
 ```
- Usage: spec-kitty agent status materialize [OPTIONS]
 
- Rebuild status.json from the canonical event log.
-
- Reads all events from status.events.jsonl, applies the deterministic
- reducer to produce a snapshot, writes status.json, and updates legacy
- compatibility views.
-
- Examples:
-     spec-kitty agent status materialize
-     spec-kitty agent status materialize --mission 034-my-feature
-     spec-kitty agent status materialize --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (required in multi-mission repos)      │
-│ --json                   Machine-readable JSON output                        │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent status migrate

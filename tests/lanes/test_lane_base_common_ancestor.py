@@ -38,7 +38,7 @@ from specify_cli.lanes.worktree_allocator import (
     _merge_recorded_planning_commit,
     allocate_lane_worktree,
 )
-from specify_cli.merge.ordering import get_merge_order
+from specify_cli.consolidation.ordering import get_merge_order
 
 pytestmark = [pytest.mark.git_repo]
 

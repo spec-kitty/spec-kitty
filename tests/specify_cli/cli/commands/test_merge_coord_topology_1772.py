@@ -6,7 +6,7 @@ coordination-topology mission and, on retry, silently produced a zero-code
 squash-merge while reporting success:
 
 - Bug 3 (FR-037): the retry gated lane integration on the per-WP ``done``
-  status (already recorded before the abort, so ``MergeState.completed_wps``
+  status (already recorded before the abort, so ``ConsolidationState.completed_wps``
   listed every WP), skipped all lanes, and squashed ZERO code while reporting
   success. The fix gates integration on the actual lane tree-diff vs. the
   mission branch and fails loudly when a squash would integrate zero diffs.
@@ -45,12 +45,12 @@ import typer
 # this regression test importable under ``PYTHONPATH=src``.
 import specify_cli.status  # noqa: F401  # import-order guard (see comment above)
 
-from specify_cli.cli.commands.merge import _run_lane_based_merge
+from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.merge.config import MergeStrategy
-from specify_cli.merge.state import MergeState, save_state
+from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.consolidation.state import ConsolidationState, save_state
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -215,7 +215,7 @@ def _bootstrap_coord_mission(
     # need to `git checkout COORD_BRANCH` in the MAIN worktree AFTER bootstrap
     # to seed further commits directly onto it — a materialized worktree of
     # the same branch would make that checkout fail ("already checked out in
-    # another worktree"). Consumers that drive a real `_run_lane_based_merge`
+    # another worktree"). Consumers that drive a real `_run_lane_based_consolidation`
     # and need the coord STATUS_STATE read to succeed (post-#4959,
     # `CoordinationWorktreeUnmaterialized` otherwise) call
     # `_materialize_coord_worktree` themselves, once any direct COORD_BRANCH
@@ -240,7 +240,7 @@ def _bootstrap_coord_mission(
 def _materialize_coord_worktree(repo: Path) -> Path:
     """Materialize the coordination worktree for ``COORD_BRANCH`` at its CURRENT tip.
 
-    Post-#4959, a coord-topology ``_run_lane_based_merge`` STATUS_STATE read
+    Post-#4959, a coord-topology ``_run_lane_based_consolidation`` STATUS_STATE read
     raises ``CoordinationWorktreeUnmaterialized`` when the declared
     coordination branch exists in git but its worktree was never
     materialized — ``_bootstrap_coord_mission`` deliberately leaves it bare
@@ -274,32 +274,32 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
     ``meta.json``.
     """
     baseline_recording_targets = {
-        "specify_cli.merge.executor._record_baseline_merge_commit",
-        "specify_cli.merge.executor._assert_baseline_merge_commit_on_target",
-        "specify_cli.merge.executor.commit_merge_bookkeeping",
+        "specify_cli.consolidation.executor._record_baseline_merge_commit",
+        "specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target",
+        "specify_cli.consolidation.executor.commit_merge_bookkeeping",
     }
     patch_specs: list[tuple[str, dict[str, object]]] = [
-        ("specify_cli.merge.done_bookkeeping._mark_wp_merged_done", {}),
-        ("specify_cli.merge.executor._record_merged_wps_done_for_merge", {}),
-        ("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done", {}),
-        ("specify_cli.merge.executor._assert_merged_wps_done_on_target", {}),
-        ("specify_cli.merge.executor._record_baseline_merge_commit", {"return_value": None}),
-        ("specify_cli.merge.executor._assert_baseline_merge_commit_on_target", {}),
-        ("specify_cli.merge.executor.commit_merge_bookkeeping", {}),
-        ("specify_cli.merge.executor.run_check", {}),
-        ("specify_cli.merge.executor.require_no_sparse_checkout", {}),
-        ("specify_cli.cli.commands.merge._enforce_git_preflight", {}),
-        ("specify_cli.merge.executor._enforce_review_artifact_consistency", {}),
-        ("specify_cli.merge.executor._enforce_canonical_status_history", {}),
-        ("specify_cli.merge.executor._warn_or_confirm_hollow_reviews", {}),
-        ("specify_cli.merge.executor._bake_mission_number_into_mission_branch", {"return_value": None}),
-        ("specify_cli.merge.executor._refresh_primary_checkout_after_merge", {}),
+        ("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done", {}),
+        ("specify_cli.consolidation.executor._record_merged_wps_done_for_merge", {}),
+        ("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done", {}),
+        ("specify_cli.consolidation.executor._assert_merged_wps_done_on_target", {}),
+        ("specify_cli.consolidation.executor._record_baseline_merge_commit", {"return_value": None}),
+        ("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target", {}),
+        ("specify_cli.consolidation.executor.commit_merge_bookkeeping", {}),
+        ("specify_cli.consolidation.executor.run_check", {}),
+        ("specify_cli.consolidation.executor.require_no_sparse_checkout", {}),
+        ("specify_cli.cli.commands.consolidate._enforce_git_preflight", {}),
+        ("specify_cli.consolidation.executor._enforce_review_artifact_consistency", {}),
+        ("specify_cli.consolidation.executor._enforce_canonical_status_history", {}),
+        ("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews", {}),
+        ("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", {"return_value": None}),
+        ("specify_cli.consolidation.executor._refresh_primary_checkout_after_merge", {}),
         # Post-merge working-tree invariant fires on test-only files; the merge
         # has already run through real git by the time this would raise.
-        ("specify_cli.merge.executor._classify_porcelain_lines", {"return_value": ([], 0)}),
+        ("specify_cli.consolidation.executor._classify_porcelain_lines", {"return_value": ([], 0)}),
         ("specify_cli.policy.merge_gates.evaluate_merge_gates", {}),
         ("specify_cli.policy.config.load_policy_config", {}),
-        ("specify_cli.merge.executor.has_remote", {"return_value": False}),
+        ("specify_cli.consolidation.executor.has_remote", {"return_value": False}),
     ]
     with contextlib.ExitStack() as stack:
         mocks: dict[str, MagicMock] = {}
@@ -316,7 +316,7 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
         mocks["specify_cli.policy.config.load_policy_config"].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        mocks["specify_cli.merge.executor.run_check"].return_value = stale_report
+        mocks["specify_cli.consolidation.executor.run_check"].return_value = stale_report
         yield mocks
 
 
@@ -326,7 +326,7 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
 
 
 def test_retry_after_abort_integrates_lane_code_or_fails_loudly(tmp_path: Path) -> None:
-    """#1772 Bug 3 / FR-037: a retry whose MergeState marks every WP ``done``
+    """#1772 Bug 3 / FR-037: a retry whose ConsolidationState marks every WP ``done``
     (an aborted-merge state) must NOT skip the lane and squash zero code while
     reporting success. It must integrate the real lane diff OR fail loudly.
 
@@ -341,7 +341,7 @@ def test_retry_after_abort_integrates_lane_code_or_fails_loudly(tmp_path: Path) 
     lane_code = "src/feature_code.py"
 
     # Pre-existing aborted-merge state: every WP already marked completed.
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=MISSION_ID,
         mission_slug=MISSION_SLUG,
         target_branch="main",
@@ -359,7 +359,7 @@ def test_retry_after_abort_integrates_lane_code_or_fails_loudly(tmp_path: Path) 
     failed_loudly = False
     with _real_merge_external_mocks():
         try:
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=MISSION_SLUG,
                 push=False,
@@ -387,7 +387,7 @@ def test_retry_after_abort_integrates_lane_code_or_fails_loudly(tmp_path: Path) 
 
 
 def test_fresh_merge_integrates_lane_code(tmp_path: Path) -> None:
-    """Healthy-merge path (NFR-001): with no aborted MergeState, a fresh merge
+    """Healthy-merge path (NFR-001): with no aborted ConsolidationState, a fresh merge
     integrates the lane code onto the target branch."""
     _init_git_repo(tmp_path)
     _bootstrap_coord_mission(tmp_path)
@@ -395,7 +395,7 @@ def test_fresh_merge_integrates_lane_code(tmp_path: Path) -> None:
     lane_code = "src/feature_code.py"
 
     with _real_merge_external_mocks():
-        _run_lane_based_merge(
+        _run_lane_based_consolidation(
             repo_root=tmp_path,
             mission_slug=MISSION_SLUG,
             push=False,
@@ -450,7 +450,7 @@ def test_merge_records_baseline_merge_commit_on_target(tmp_path: Path) -> None:
     pre_merge_target_sha = _git(tmp_path, "rev-parse", "main").stdout.strip()
 
     with _real_merge_external_mocks(real_baseline_recording=True):
-        _run_lane_based_merge(
+        _run_lane_based_consolidation(
             repo_root=tmp_path,
             mission_slug=MISSION_SLUG,
             push=False,
@@ -480,7 +480,7 @@ def test_merge_records_baseline_merge_commit_on_target(tmp_path: Path) -> None:
 
 def test_squash_applied_branch_is_integrated_by_tree_not_ancestry(tmp_path: Path) -> None:
     """FR-037: squash-resume idempotency must use content, not ancestry."""
-    from specify_cli.cli.commands.merge import (
+    from specify_cli.cli.commands.consolidate import (
         _branch_trees_equal,
         _lane_already_integrated,
     )
@@ -551,7 +551,7 @@ def test_post_merge_validation_reads_in_branch_status_path(tmp_path: Path) -> No
     """#1772 Bug 4 / FR-038: post-merge target validation must resolve the
     in-branch tracked ``kitty-specs/<m>/status.events.jsonl`` path, never a
     ``.worktrees/`` worktree path (``git show <branch>:.worktrees/…``)."""
-    from specify_cli.cli.commands.merge import _assert_merged_wps_done_on_target
+    from specify_cli.cli.commands.consolidate import _assert_merged_wps_done_on_target
 
     _init_git_repo(tmp_path)
     feature_dir = _bootstrap_coord_mission(tmp_path)
@@ -561,7 +561,7 @@ def test_post_merge_validation_reads_in_branch_status_path(tmp_path: Path) -> No
     # WP08 (#2057): _assert_merged_wps_done_on_target moved to the
     # ``done_bookkeeping`` seam, so its ``run_command`` collaborator must be
     # spied there (patching the shim no longer intercepts the call).
-    import specify_cli.merge.done_bookkeeping as db_mod
+    import specify_cli.consolidation.done_bookkeeping as db_mod
 
     real_run_command = db_mod.run_command
 

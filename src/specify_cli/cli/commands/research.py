@@ -119,7 +119,7 @@ def _read_mission_dir_or_exit(repo_root: Path, mission_slug: str, kind: MissionA
     try:
         return placement_seam(repo_root, mission_slug).read_dir(kind)
     except UnsafePathSegmentError as exc:
-        from specify_cli.merge._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
+        from specify_cli.consolidation._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
 
         console.print(f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}")
         raise typer.Exit(2) from exc

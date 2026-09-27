@@ -7,7 +7,7 @@ mission's :class:`~mission_runtime.lifecycle_phase.LifecyclePhase` from
 durable signals alone (``baseline_merge_commit`` + Target Ref branch
 existence + terminal-completion evidence). These tests build REAL git repos
 (never mocked) through the actual merge-time bookkeeping entry point
-(:func:`specify_cli.merge.baseline.record_baseline_merge_commit`) so the
+(:func:`specify_cli.consolidation.baseline.record_baseline_merge_commit`) so the
 fixtures are the same shape ``spec-kitty merge`` produces, mirroring the
 WP02 red-pin fixtures (``tests/regression/test_issue_3033_post_consolidation_
 write.py``).
@@ -32,7 +32,7 @@ from mission_runtime.lifecycle_phase import (
     resolve_lifecycle_phase,
 )
 from specify_cli.mission_metadata import load_meta, write_meta
-from specify_cli.merge.baseline import record_baseline_merge_commit
+from specify_cli.consolidation.baseline import record_baseline_merge_commit
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 

@@ -212,7 +212,7 @@ _SANCTIONED_EXCLUSION_QUALNAMES: frozenset[str] = frozenset(
 # would let that executor residual escape.
 _STATUS_BEARING_MODULES: tuple[str, ...] = (
     "src/specify_cli/lanes/recovery.py",
-    "src/specify_cli/merge/executor.py",
+    "src/specify_cli/consolidation/executor.py",
 )
 _STATUS_READ_FUNCS: frozenset[str] = frozenset({"read_events"})
 
@@ -551,7 +551,7 @@ def test_fr003_sanctioned_exclusions_are_read_func_scoped_for_status() -> None:
         "merge/executor.py must be inside an identity scan dir (FR-002 unify) so its "
         "identity reads are in-scope despite being a STATUS-bearing module."
     )
-    assert "src/specify_cli/merge/executor.py" in _STATUS_BEARING_MODULES, (
+    assert "src/specify_cli/consolidation/executor.py" in _STATUS_BEARING_MODULES, (
         "executor.py must remain a STATUS-bearing module for the read-func-scoped "
         "read_events exclusion."
     )

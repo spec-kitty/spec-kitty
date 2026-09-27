@@ -32,7 +32,7 @@ def test_resume_refuses_and_preserves_a_genuine_edit_in_the_behind_head_window(t
     sentinel = "GENUINE OPERATOR EDIT — must survive the resume\n"
     readme.write_text(readme.read_text(encoding="utf-8") + sentinel, encoding="utf-8")
 
-    result = run_terminus(mission, ["merge", "--resume", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
     assert result.returncode != 0, (
         f"merge --resume must REFUSE (fail-closed) when the behind-own-HEAD window also carries a genuine edit, got rc=0\nstdout:\n{result.stdout}"
@@ -56,7 +56,7 @@ def test_resume_refuses_and_preserves_an_untracked_file_colliding_with_a_restore
     sentinel = "PRECIOUS UNTRACKED OPERATOR CONTENT — must survive the resume\n"
     collide.write_text(sentinel, encoding="utf-8")
 
-    result = run_terminus(mission, ["merge", "--resume", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
     assert result.returncode != 0, (
         f"merge --resume must REFUSE when an untracked file would be clobbered by the behind-own-HEAD reset, got rc=0\nstdout:\n{result.stdout}"
@@ -103,7 +103,7 @@ def test_resume_refuses_and_preserves_a_gitignored_file_the_mission_force_added(
     sentinel = "OPERATOR'S OWN GITIGNORED SECRET — must survive the resume\n"
     secret.write_text(sentinel, encoding="utf-8")
 
-    result = run_terminus(mission, ["merge", "--resume", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
     assert result.returncode != 0, (
         f"merge --resume must REFUSE when a gitignored file the operator owns collides "

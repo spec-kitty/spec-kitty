@@ -25,7 +25,7 @@ from mission_runtime import CommitTarget, MissionArtifactKind
 from runtime.next._internal_runtime.events import NullEmitter
 from specify_cli.events.decision_log import DecisionGitLog
 from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
-from specify_cli.merge import bookkeeping_projection as bp
+from specify_cli.consolidation import bookkeeping_projection as bp
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

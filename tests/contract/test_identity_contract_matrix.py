@@ -17,7 +17,7 @@ Surfaces covered
    (Legacy events without ``mission_id`` survive as compatibility; the field
    is simply omitted.  That case is covered by a separate negative assertion.)
 
-3. **Merge state** — ``MergeState.to_dict()``:
+3. **Merge state** — ``ConsolidationState.to_dict()``:
    the persisted merge state at
    ``.kittify/runtime/merge/<mission_id>/state.json`` is keyed by
    ``mission_id`` (WP02 + WP10).
@@ -49,7 +49,7 @@ from typing import Any
 import pytest
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.merge.state import MergeState
+from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.status.models import (
     Lane,
     StatusEvent,
@@ -101,8 +101,8 @@ def _build_wp_status_event() -> dict[str, Any]:
 
 
 def _build_merge_state() -> dict[str, Any]:
-    """Surface 3: MergeState.to_dict() is keyed by mission_id."""
-    state = MergeState(
+    """Surface 3: ConsolidationState.to_dict() is keyed by mission_id."""
+    state = ConsolidationState(
         mission_id=ULID_CANONICAL,
         mission_slug=MISSION_SLUG,
         target_branch="main",

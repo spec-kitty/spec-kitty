@@ -51,7 +51,7 @@ def test_default_squash_must_not_ship_removed_wp_code_named_like_bookkeeping(tmp
         path="src/config/meta.json",
     )
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
 
     assert not blob_present_at(mission.repo, mission.target_branch, planted_path), (
         f"removed WP03 file {planted_path} SHIPPED to {mission.target_branch} at exit "

@@ -158,7 +158,7 @@ def test_init_registers_merge_driver_git_config_in_existing_repo(
     until the first merge/auto-rebase happened to self-heal the config -- by
     which time a lane claim could already have conflicted.
     """
-    from specify_cli.lanes.merge import _MERGE_DRIVERS
+    from specify_cli.lanes.consolidation import _MERGE_DRIVERS
 
     repo = tmp_path / "driver-config-repo"
     repo.mkdir()

@@ -28,7 +28,7 @@ SPK_SKILLS = {
     "spk-doctrine-semantic-compression",
     "spk-doctrine-spdd-reasons",
     "spk-gate-accept",
-    "spk-gate-merge",
+    "spk-gate-consolidate",
     "spk-gate-mission-review",
     "spk-gate-retrospective",
     "spk-integrate-orchestrator-api",

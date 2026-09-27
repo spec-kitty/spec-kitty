@@ -42,7 +42,7 @@ ALL_COMMANDS = [
     "implement",
     "review",
     "accept",
-    "merge",
+    "consolidate",
     "status",
     "dashboard",
     "tasks-finalize",

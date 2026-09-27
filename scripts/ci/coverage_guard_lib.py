@@ -261,7 +261,7 @@ def enumerate_src_packages() -> list[str]:
 def root_glob_to_pkg(root: str) -> str | None:
     """Convert a registry ``roots`` glob to its src package prefix, or ``None``.
 
-    ``src/specify_cli/merge/**`` -> ``specify_cli.merge``;
+    ``src/specify_cli/consolidation/**`` -> ``specify_cli.consolidation``;
     ``src/specify_cli/mission.py`` -> ``specify_cli.mission``. A non-``src/``
     root (``scripts/ci/**``, ``.github/workflows/**``) has no importable prefix
     and returns ``None`` (recorded exemption, research D1).

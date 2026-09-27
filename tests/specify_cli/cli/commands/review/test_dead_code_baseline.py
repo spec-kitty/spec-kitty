@@ -40,7 +40,7 @@ from specify_cli.cli.commands.review._dead_code import (
     scan_dead_code,
 )
 from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
-from specify_cli.merge.baseline import (
+from specify_cli.consolidation.baseline import (
     ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
     ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
 )
@@ -222,7 +222,7 @@ def test_non_pr_missing_baseline_keeps_never_merged_reason(tmp_path: Path) -> No
         finding = findings[0]
         assert finding["type"] == "dead_code_baseline_missing"
         assert finding["reason"] == "never_merged_via_spec_kitty_merge"
-        assert "spec-kitty merge" in finding["remediation"]
+        assert "spec-kitty consolidate" in finding["remediation"]
         assert "backfill-merge-commit" not in finding["remediation"]
 
 
@@ -330,7 +330,7 @@ def test_complete_anchor_evidence_is_bound_to_the_writer_constants() -> None:
     """The reader's accepted-evidence set can never drift from the writer's own constants.
 
     ``_COMPLETE_ANCHOR_EVIDENCE`` used to hardcode the two evidence-class
-    string literals independently of ``specify_cli.merge.baseline`` (the
+    string literals independently of ``specify_cli.consolidation.baseline`` (the
     module that actually writes ``pr_merge_evidence``). Pinning it against
     the imported constants here means a future rename of either constant's
     VALUE breaks this test immediately, instead of silently desynchronizing

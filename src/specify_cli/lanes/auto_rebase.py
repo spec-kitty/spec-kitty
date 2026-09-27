@@ -7,7 +7,7 @@ Drives the auto-rebase pipeline described in
 2. If the merge succeeds cleanly, return :class:`AutoRebaseReport` with
    ``succeeded=True``.
 3. If conflicts surface, classify each conflicted region via
-   :mod:`specify_cli.merge.conflict_classifier`. Any ``Manual`` classification
+   :mod:`specify_cli.consolidation.conflict_classifier`. Any ``Manual`` classification
    aborts the merge and returns ``succeeded=False``.
 4. For ``Auto`` classifications, splice the merged text back into the file
    and stage it. Run post-merge validation (TOML parse / AST parse).
@@ -21,7 +21,7 @@ Drives the auto-rebase pipeline described in
    [<rule_ids>]"`` per ADR §Operator-visible-behavior.
 
 This module performs all subprocess and filesystem I/O. The classifier in
-:mod:`specify_cli.merge.conflict_classifier` is pure.
+:mod:`specify_cli.consolidation.conflict_classifier` is pure.
 """
 
 from __future__ import annotations
@@ -34,12 +34,12 @@ from pathlib import Path
 
 from kernel.locks import MachineFileLock
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.lanes.merge import (
+from specify_cli.lanes.consolidation import (
     _ensure_merge_driver_git_config,
     _make_merge_env,
 )
 from specify_cli.lanes.models import ExecutionLane
-from specify_cli.merge.conflict_classifier import (
+from specify_cli.consolidation.conflict_classifier import (
     RULE_ID_INIT_IMPORTS,
     RULE_ID_UVLOCK,
     Auto,

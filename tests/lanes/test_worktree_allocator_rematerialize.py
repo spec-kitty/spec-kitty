@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.branch_naming import lane_branch_name
-from specify_cli.lanes.merge import _make_merge_env, reconcile_derived_status_snapshot_conflicts
+from specify_cli.lanes.consolidation import _make_merge_env, reconcile_derived_status_snapshot_conflicts
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,

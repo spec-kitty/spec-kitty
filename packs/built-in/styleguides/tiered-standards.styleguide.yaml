@@ -17,7 +17,7 @@ patterns:
       Load-bearing state, orchestration, and runtime logic whose correctness
       determines mission execution outcomes. A bug here can corrupt mission state
       or silently drop transitions.
-      Packages: src/specify_cli/status/, src/specify_cli/merge/, src/specify_cli/core/,
+      Packages: src/specify_cli/status/, src/specify_cli/consolidation/, src/specify_cli/core/,
       src/mission_runtime/, src/doctrine/drg/.
     good_example: |
       # Core tier rigour applied to src/specify_cli/status/reducer.py
@@ -36,7 +36,7 @@ patterns:
       Packages: src/specify_cli/cli/, src/specify_cli/upgrade/,
       src/specify_cli/diagnostics/, src/specify_cli/runtime/.
     good_example: |
-      # Glue tier rigour applied to src/specify_cli/cli/commands/merge.py
+      # Glue tier rigour applied to src/specify_cli/cli/commands/consolidate.py
       # coverage  : >=70% line coverage for new code; integration tests preferred over unit stubs
       # duplication: Extract repeated argument-parsing or output-formatting helpers;
       #              tolerate minor cosmetic duplication

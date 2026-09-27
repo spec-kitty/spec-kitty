@@ -167,9 +167,9 @@ def test_ci_group_gates_no_router_job_and_stays_out_of_the_catch_all(router: Rou
 
 def test_ci_infra_diff_alongside_src_change_keeps_the_src_routing(router: Router) -> None:
     """A mixed CI-infra + src diff selects both families' routing unchanged."""
-    selection = select_gates(["scripts/ci/gate_selection.py", "src/specify_cli/merge/executor.py"], router=router)
-    assert selection.matched_groups == frozenset({"ci", "merge"})
-    assert "tests-merge" in selection.selected_code_shards
+    selection = select_gates(["scripts/ci/gate_selection.py", "src/specify_cli/consolidation/executor.py"], router=router)
+    assert selection.matched_groups == frozenset({"ci", "consolidation"})
+    assert "tests-consolidation" in selection.selected_code_shards
     assert not selection.unmatched_src
 
 
@@ -213,14 +213,14 @@ def test_reduced_paths_keeps_a_mixed_diff_unreduced(router: Router) -> None:
     change) is NOT collapsed -- only the proven-prose path is dropped, the
     real code path is kept and still selects its module."""
     prose_path = "src/specify_cli/cli/help_text.py"
-    code_path = "src/specify_cli/merge/executor.py"
+    code_path = "src/specify_cli/consolidation/executor.py"
     blobs = {
         prose_path: (_PROSE_ONLY_BASE_SRC, _PROSE_ONLY_HEAD_SRC),
         code_path: (_REAL_CODE_BASE_SRC, _REAL_CODE_HEAD_SRC),
     }
     reduced = reduced_paths([prose_path, code_path], _fixed_blob_getter(blobs))
     assert reduced == [code_path]
-    assert "merge" in select_modules(reduced, router=router)
+    assert "consolidation" in select_modules(reduced, router=router)
 
 
 @pytest.fixture(scope="module")
@@ -328,10 +328,10 @@ _ALWAYS_ON_JOB_NAMES = (
     "archive-freeze",
 )
 
-_CODE_SHARD_JOB_NAMES = ("tests-merge", "tests-status", "tests-cli")
+_CODE_SHARD_JOB_NAMES = ("tests-consolidation", "tests-status", "tests-cli")
 
 _BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
-    "changes.merge": False,
+    "changes.consolidation": False,
     "changes.auth": False,
     "changes.missions": False,
     "changes.post_merge": False,
@@ -377,7 +377,7 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     # context where merge/status/cli are all lit (as a multi-group
     # prose-only diff would) and prose_only is proven true.
     context = dict(_BASE_CONTEXT_ALL_FALSE)
-    context["changes.merge"] = True
+    context["changes.consolidation"] = True
     context["changes.status"] = True
     context["changes.cli"] = True
     context["prose-scan.prose_only"] = True
@@ -430,11 +430,11 @@ def test_golden_non_prose_pr_lane_set_is_byte_identical_to_today(router_workflow
     """
     jobs = router_workflow["jobs"]
     context = dict(_BASE_CONTEXT_ALL_FALSE)
-    context["changes.merge"] = True
+    context["changes.consolidation"] = True
     context["prose-scan.prose_only"] = False
 
     assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-merge"]["if"], context) is True
+    assert _eval_gh_if(jobs["tests-consolidation"]["if"], context) is True
     assert _eval_gh_if(jobs["tests-status"]["if"], context) is False
     assert _eval_gh_if(jobs["tests-cli"]["if"], context) is False
     assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False

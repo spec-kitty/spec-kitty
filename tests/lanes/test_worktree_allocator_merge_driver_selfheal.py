@@ -6,7 +6,7 @@ Root cause (docs/triage-TEST-M2-02-recent-ticket-decision-moment.md, Finding
 ``.gitattributes`` entries mapping ``kitty-specs/**/status.events.jsonl`` (and
 siblings) to custom git merge drivers, but never registers the matching
 ``git config --local merge.<key>.driver`` entries. The only self-heal path
-(:func:`specify_cli.lanes.merge._ensure_merge_driver_git_config`) was wired
+(:func:`specify_cli.lanes.consolidation._ensure_merge_driver_git_config`) was wired
 into the mission->target squash merge (``_merge_branch_into``) and stale-lane
 auto-rebase (``attempt_auto_rebase``), but NOT into
 ``worktree_allocator._merge_recorded_planning_commit`` /

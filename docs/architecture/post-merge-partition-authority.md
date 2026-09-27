@@ -43,9 +43,9 @@ half) nor be read as their post-merge **home** (read half).
 
 ## Track A — the write seam (which bytes win)
 
-**Seam:** `src/specify_cli/lanes/merge.py::_merge_branch_into` (the squash step)
+**Seam:** `src/specify_cli/lanes/consolidation.py::_merge_branch_into` (the squash step)
 plus the pure three-way recency helper
-`src/specify_cli/merge/planning_recency.py::target_newer_primary_artifacts`.
+`src/specify_cli/consolidation/planning_recency.py::target_newer_primary_artifacts`.
 
 The mission→target squash runs `git merge --squash -X theirs <mission_branch>`.
 `-X theirs` makes the **source** (mission branch) win every add/add conflict.
@@ -80,7 +80,7 @@ conflict resolution off `mission_runtime.kind_for_mission_file` — the #2709
 from meta **fields** (the `_TARGET_AUTHORITATIVE_META_FIELDS` driver) to
 primary-artifact-kind **files**. This is the #2709 → #3942 lineage. It also
 establishes the disposition of the dead module
-`src/specify_cli/merge/conflict_resolver.py` (`ConflictType` /
+`src/specify_cli/consolidation/conflict_resolver.py` (`ConflictType` /
 `classify_conflict` / `resolve_owned_conflicts`): it is a **competing** conflict
 taxonomy, reachable only through the `merge/__init__.py` re-export (the live
 auto-rebase classifier is the different module `merge/conflict_classifier.py`).
@@ -90,7 +90,7 @@ part of #2907's taxonomy consolidation, so the classifier authority stays single
 ## Track B — the read seam (which surface a reader trusts)
 
 **Seam:** the `merged_at` completion marker, written by
-`src/specify_cli/merge/baseline.py::record_baseline_merge_commit`, and consumed by
+`src/specify_cli/consolidation/baseline.py::record_baseline_merge_commit`, and consumed by
 `src/specify_cli/status/lifecycle.py::is_mission_merged`, which the surface
 resolver's primary re-anchor (`coordination/surface_resolver.py`
 `_primary_mission_is_completed`) and the runtime bootstrap short-circuit

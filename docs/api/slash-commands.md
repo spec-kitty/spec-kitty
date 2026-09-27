@@ -1,6 +1,6 @@
 ---
 title: Spec Kitty slash commands reference — CLI quick reference
-description: Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and merge within AI coding agents.
+description: Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and consolidate within AI coding agents.
 doc_status: active
 updated: '2026-08-15'
 ---
@@ -223,7 +223,7 @@ overlay is absent or invalid. See [Handoff Packet v1](../contracts/handoff-packe
 **Prerequisites**:
 - Run from any checkout or branch where mission auto-detection works.
 - All WPs should be `approved` or `done`, with review feedback resolved.
-- Run this after the implement-review loop and before `/spec-kitty.merge`.
+- Run this after the implement-review loop and before `/spec-kitty.consolidate`.
 
 **What it does**:
 - Auto-detects mission slug and validation commands when possible.
@@ -233,23 +233,23 @@ overlay is absent or invalid. See [Handoff Packet v1](../contracts/handoff-packe
 **Creates/updates**:
 - Acceptance output in the mission directory (and optional commits depending on mode)
 
-**Related**: `/spec-kitty.review`, `/spec-kitty.merge`
+**Related**: `/spec-kitty.review`, `/spec-kitty.consolidate`
 
 ---
 
-## /spec-kitty.merge
+## /spec-kitty.consolidate
 
-**Syntax**: `/spec-kitty.merge [options]`
+**Syntax**: `/spec-kitty.consolidate [options]`
 
-**Purpose**: Merge an accepted mission into the target branch and clean up worktrees.
+**Purpose**: Consolidate an accepted mission into the target branch and clean up worktrees.
 
 **Prerequisites**:
 - Run from any checkout where the mission can be resolved (repository root checkout or execution workspace).
-- By default, merge lands in the mission's recorded target branch; use `--target <branch>` only when you intentionally want to override it.
+- By default, consolidation lands in the mission's recorded target branch; use `--target <branch>` only when you intentionally want to override it.
 - Mission must pass `/spec-kitty.accept`.
 
 **What it does**:
-- Executes `spec-kitty merge` with selected strategy and cleanup flags.
+- Executes `spec-kitty consolidate` with selected strategy and cleanup flags.
 - Optionally pushes to origin and deletes worktrees/branches.
 - After merge, run `/spec-kitty-mission-review`, then surface the retrospective
   captured at the runtime terminus. Canonical post-merge sequence (FR-019):

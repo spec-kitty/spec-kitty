@@ -35,7 +35,7 @@ _SRC = _REPO_ROOT / "src"
 # import chain, and the charter resolution chain cli.helpers used to pull at
 # module scope.
 _HEAVY_MODULES = (
-    "specify_cli.cli.commands.merge",
+    "specify_cli.cli.commands.consolidate",
     "specify_cli.cli.commands.init",
     "specify_cli.cli.commands.upgrade",
     "specify_cli.migration.gate",
@@ -117,7 +117,7 @@ def test_live_work_other_subcommands_still_register_the_full_live_work_surface()
         "app = typer.Typer()\n"
         "register_commands(app)\n"
         "assert 'specify_cli.cli.commands.live_work' in sys.modules\n"
-        "assert 'specify_cli.cli.commands.merge' not in sys.modules\n"
+        "assert 'specify_cli.cli.commands.consolidate' not in sys.modules\n"
         "groups = app.registered_groups\n"
         "assert [g.name for g in groups] == ['live-work'], groups\n"
         "live_work_group = groups[0]\n"

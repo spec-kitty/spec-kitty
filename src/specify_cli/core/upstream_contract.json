@@ -89,7 +89,7 @@
       "transition",
       "append-history",
       "accept-mission",
-      "merge-mission",
+      "consolidate-mission",
       "specify",
       "plan",
       "tasks",

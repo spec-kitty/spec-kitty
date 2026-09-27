@@ -388,7 +388,7 @@ def test_merge_done_evidence_reads_unmaterialized_coord_branch(
         "specify_cli.coordination.status_transition.emit_status_transition_transactional",
         emit_mock,
     )
-    from specify_cli.merge.done_bookkeeping import _mark_wp_merged_done
+    from specify_cli.consolidation.done_bookkeeping import _mark_wp_merged_done
 
     _mark_wp_merged_done(repo, MISSION_SLUG, "WP01", "main")
 

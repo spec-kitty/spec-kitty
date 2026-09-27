@@ -6,7 +6,7 @@ colliding under one filename do NOT abort a real mission->target squash merge.
 Context: ``review-cycle-verdict-seam-rebuild-01KZ2W7W`` WP18 registered
 ``merge_driver_review_cycle`` as a REFUSE-fail-closed driver (T077) -- a
 genuine two-verdict collision made ``git merge --squash -X theirs`` report
-the path as an unresolved conflict, so ``specify_cli.lanes.merge.
+the path as an unresolved conflict, so ``specify_cli.lanes.consolidation.
 _merge_branch_into`` aborted the squash and raised ``RuntimeError``. That was
 correct while the ``.md`` render was the authoritative verdict record.
 
@@ -21,7 +21,7 @@ verbatim behind conflict markers (never blended/fabricated), but the driver
 no longer raises -- the squash proceeds.
 
 This test drives the REAL squash-merge path
-(``specify_cli.lanes.merge._merge_branch_into``, the same function
+(``specify_cli.lanes.consolidation._merge_branch_into``, the same function
 ``spec-kitty merge`` calls for mission->target integration) so the proof is
 against the actual git merge-driver contract, not just the in-process
 function. It is RED against the pre-WP09 fail-closed driver (the squash
@@ -37,8 +37,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.merge import _merge_branch_into
-from specify_cli.merge.config import MergeStrategy
+from specify_cli.lanes.consolidation import _merge_branch_into
+from specify_cli.consolidation.config import MergeStrategy
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 

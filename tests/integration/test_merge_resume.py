@@ -35,9 +35,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.cli.commands.merge import _run_lane_based_merge
-from specify_cli.merge.config import MergeStrategy
-from specify_cli.merge.state import MergeState, save_state
+from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
+from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.consolidation.state import ConsolidationState, save_state
 from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_mission_meta
 
@@ -121,7 +121,7 @@ def _patches(
     *,
     tmp_path: Path,
     manifest: MagicMock,
-    initial_state: MergeState | None,
+    initial_state: ConsolidationState | None,
     mark_done_calls: list[str],
     lane_merge_calls: list[str],
     integrated_lane_ids: frozenset[str] = frozenset(),
@@ -163,34 +163,34 @@ def _patches(
         mark_done_calls.append(wp_id)
 
     return [
-        patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest),
-        patch("specify_cli.merge.resolve.load_state", return_value=initial_state),
-        patch("specify_cli.merge.done_bookkeeping.save_state"),
-        patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
-        patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-        patch("specify_cli.lanes.merge.consolidate_lane_into_mission", side_effect=fake_lane_merge),
-        patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
-        patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_done),
-        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
+        patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
+        patch("specify_cli.consolidation.resolve.load_state", return_value=initial_state),
+        patch("specify_cli.consolidation.done_bookkeeping.save_state"),
+        patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
+        patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+        patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", side_effect=fake_lane_merge),
+        patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
+        patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_done),
+        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+        patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.merge.executor.run_command", side_effect=fake_run_command),
+        patch("specify_cli.consolidation.executor.run_command", side_effect=fake_run_command),
         # WP10 (#2057): the lane-integration check (_lane_already_integrated)
         # runs in the git_probes seam; spy it with the same fake git.
-        patch("specify_cli.merge.git_probes.run_command", side_effect=fake_run_command),
-        patch("specify_cli.merge.executor.has_remote", return_value=False),
-        patch("specify_cli.merge.executor.cleanup_merge_workspace"),
-        patch("specify_cli.merge.executor.clear_state"),
-        patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
+        patch("specify_cli.consolidation.git_probes.run_command", side_effect=fake_run_command),
+        patch("specify_cli.consolidation.executor.has_remote", return_value=False),
+        patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
+        patch("specify_cli.consolidation.executor.clear_state"),
+        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"),
         # WP10 (#2057): mission-branch preflight moved to the preflight seam;
         # appended last to keep positional mock indices stable.
-        patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
+        patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
         # WP10 (#2057): target-history asserts moved to the done_bookkeeping /
         # baseline seams; the executor binds them — patch there.
-        patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
-        patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+        patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
+        patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
     ]
 
 
@@ -220,7 +220,7 @@ class TestMergeResumeIdempotence:
         _write_done_events(feature_dir, ["WP01", "WP02", "WP03"])
 
         # State says all three WPs are completed already.
-        existing = MergeState(
+        existing = ConsolidationState(
             mission_id=slug,
             mission_slug=slug,
             target_branch="main",
@@ -258,7 +258,7 @@ class TestMergeResumeIdempotence:
             policy.merge_gates = []
             mocks[12].return_value = policy  # load_policy_config
 
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -302,7 +302,7 @@ class TestMergeResumeAfterInterruption:
             feature_dir, {"WP01": "done", "WP02": "approved", "WP03": "approved"}
         )
         # WP01 completed; WP02 and WP03 remaining.
-        existing = MergeState(
+        existing = ConsolidationState(
             mission_id=slug,
             mission_slug=slug,
             target_branch="main",
@@ -339,7 +339,7 @@ class TestMergeResumeAfterInterruption:
             policy.merge_gates = []
             mocks[12].return_value = policy
 
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -387,7 +387,7 @@ def _run_bounded_merge_fixture(tmp_path: Path) -> tuple[float, list[str], list[s
     # lets this full-resume fixture proceed to the code under test.
     _write_status_events(feature_dir, dict.fromkeys(wp_ids, "approved"))
 
-    existing = MergeState(
+    existing = ConsolidationState(
         mission_id=slug,
         mission_slug=slug,
         target_branch="main",
@@ -422,7 +422,7 @@ def _run_bounded_merge_fixture(tmp_path: Path) -> tuple[float, list[str], list[s
         policy.merge_gates = []
         mocks[12].return_value = policy
 
-        _run_lane_based_merge(
+        _run_lane_based_consolidation(
             repo_root=tmp_path,
             mission_slug=slug,
             push=False,

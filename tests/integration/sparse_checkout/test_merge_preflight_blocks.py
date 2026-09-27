@@ -21,8 +21,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands import merge as merge_module
-from specify_cli.cli.commands.merge import merge
+from specify_cli.cli.commands import consolidate as merge_module
+from specify_cli.cli.commands.consolidate import consolidate as merge
 from specify_cli.git.sparse_checkout import _reset_session_warning_state
 from specify_cli.task_utils import find_repo_root
 
@@ -141,7 +141,7 @@ class TestMergePreflightBlocks:
 
         merge_state_path = repo / ".kittify" / "runtime" / "merge-state.json"
         assert not merge_state_path.exists(), (
-            "MergeState must not be written when preflight aborts (FR-006)."
+            "ConsolidationState must not be written when preflight aborts (FR-006)."
         )
 
         head_after = _run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()
@@ -163,7 +163,7 @@ class TestMergePreflightBlocks:
         2. if ever added, the sparse-checkout preflight still blocks.
 
         Either outcome is a non-zero exit WITH no HEAD movement and no
-        MergeState write. A successful merge under sparse-checkout with
+        ConsolidationState write. A successful merge under sparse-checkout with
         ``--force`` would be the regression this test catches.
         """
         repo = tmp_path / "r"
@@ -185,7 +185,7 @@ class TestMergePreflightBlocks:
 
         merge_state_path = repo / ".kittify" / "runtime" / "merge-state.json"
         assert not merge_state_path.exists(), (
-            "MergeState must not be written when --force is passed under sparse-checkout."
+            "ConsolidationState must not be written when --force is passed under sparse-checkout."
         )
 
         head_after = _run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()

@@ -240,7 +240,7 @@ def _build_post_consolidation_coord_mission(repo: Path, *, mid8: str) -> tuple[s
     stale ``in-mission`` residue; the retained-but-unmaterialized coordination
     branch carries the real ``fixed`` verdict.
     """
-    from specify_cli.merge.baseline import record_baseline_merge_commit
+    from specify_cli.consolidation.baseline import record_baseline_merge_commit
 
     mission_id = f"{mid8}0000000000000000"
     mission_slug = f"widget-partition-postmerge-{mid8}"

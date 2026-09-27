@@ -1515,7 +1515,7 @@ class TestMergeMission:
             result = runner.invoke(
                 app,
                 [
-                    "merge-mission",
+                    "consolidate-mission",
                     "--mission",
                     mission_slug,
                     "--target",
@@ -1552,7 +1552,7 @@ class TestMergeMission:
             result = runner.invoke(
                 app,
                 [
-                    "merge-mission",
+                    "consolidate-mission",
                     "--mission",
                     mission_slug,
                     "--target",
@@ -1596,7 +1596,7 @@ class TestMergeMission:
             result = runner.invoke(
                 app,
                 [
-                    "merge-mission",
+                    "consolidate-mission",
                     "--mission",
                     mission_slug,
                     "--target",
@@ -1638,7 +1638,7 @@ class TestMergeMission:
         mock_preflight.errors = []
 
         def noisy_hardened_merge(**_kwargs):
-            from specify_cli.cli.commands import merge as merge_command
+            from specify_cli.cli.commands import consolidate as merge_command
 
             merge_command.console.print("this must not reach orchestrator stdout")
 
@@ -1656,14 +1656,14 @@ class TestMergeMission:
                 return_value=manifest,
             ),
             patch(
-                "specify_cli.cli.commands.merge._run_lane_based_merge",
+                "specify_cli.cli.commands.consolidate._run_lane_based_consolidation",
                 side_effect=noisy_hardened_merge,
             ) as hardened_merge,
         ):
             result = runner.invoke(
                 app,
                 [
-                    "merge-mission",
+                    "consolidate-mission",
                     "--mission",
                     mission_slug,
                     "--target",
@@ -1695,7 +1695,7 @@ class TestMergeMission:
             result = runner.invoke(
                 app,
                 [
-                    "merge-mission",
+                    "consolidate-mission",
                     "--mission",
                     mission_slug,
                     "--target",

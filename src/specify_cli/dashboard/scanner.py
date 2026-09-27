@@ -269,7 +269,7 @@ def _derive_next_action(meta_data: dict[str, Any], kanban_stats: dict[str, Any])
     if not kanban_stats.get("error") and kanban_stats.get("total", 0) > 0:
         in_flight = kanban_stats.get("doing", 0) + kanban_stats.get("for_review", 0) + kanban_stats.get("approved", 0) + kanban_stats.get("planned", 0)
         if in_flight == 0 and kanban_stats.get("done", 0) > 0:
-            return f"Run: spec-kitty merge --mission {slug}"
+            return f"Run: spec-kitty consolidate --mission {slug}"
     return None
 
 

@@ -41,9 +41,9 @@ class TestCanonicalCommand:
         cmd = _canonical_command("status", "claude", "$ARGUMENTS")
         assert cmd == "spec-kitty agent tasks status $ARGUMENTS"
 
-    def test_merge(self) -> None:
-        cmd = _canonical_command("merge", "claude", "$ARGUMENTS")
-        assert cmd == "spec-kitty merge $ARGUMENTS"
+    def test_consolidate(self) -> None:
+        cmd = _canonical_command("consolidate", "claude", "$ARGUMENTS")
+        assert cmd == "spec-kitty consolidate $ARGUMENTS"
 
     def test_dashboard(self) -> None:
         cmd = _canonical_command("dashboard", "claude", "$ARGUMENTS")

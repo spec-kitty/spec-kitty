@@ -148,7 +148,7 @@ class RefAdvanceDirtyWorktreeError(RuntimeError):
             f"(#1826 / NFR-002).\n"
             f"  Dirty entries:\n{entries}\n"
             f"  Commit, stash, or revert these changes in {worktree_path}, "
-            f"then resume the merge (`spec-kitty merge --resume`)."
+            f"then resume the consolidation (`spec-kitty consolidate --resume`)."
         )
 
 
@@ -381,7 +381,7 @@ def reset_would_obstruct_untracked(
     entries matching :data:`_RESET_OBSTRUCTION_MARKER`), ignoring tracked-change
     entries: this seam answers only "would the reset clobber untracked/ignored
     local state", not "is the worktree dirty" in general -- callers that also
-    need the tracked-change question (e.g. :func:`specify_cli.merge.preflight
+    need the tracked-change question (e.g. :func:`specify_cli.consolidation.preflight
     .is_pure_behind_head_lag`) answer it separately (``git diff --quiet``
     against their own base). No new ``git status --porcelain``-parsing
     predicate is introduced (T019 of

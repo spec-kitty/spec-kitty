@@ -439,7 +439,7 @@ def test_orchestrator_error_payloads_emit_canonical_mission_fields(tmp_path: Pat
         return_value=mock_preflight,
     ):
         preflight = _invoke_orchestrator(
-            ["merge-mission", "--mission", mission_dir.name, "--target", "main"],
+            ["consolidate-mission", "--mission", mission_dir.name, "--target", "main"],
             repo_root,
         )
     preflight_payload = preflight["data"]

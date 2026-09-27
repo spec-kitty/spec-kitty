@@ -136,7 +136,7 @@ def test_resolve_lane_manifest_reads_primary_lane_set(
     husk (no ``lanes.json``) → ``read_lanes_json`` returns ``None`` → ``manifest``
     is ``None`` and the ``.lanes`` deref AttributeErrors / the assertion fails.
     """
-    from specify_cli.lanes.merge import _resolve_lane_manifest
+    from specify_cli.lanes.consolidation import _resolve_lane_manifest
 
     ctx = coord_topology_mission_sentinel_meta
     manifest = _resolve_lane_manifest(ctx.repo, ctx.slug, None)
@@ -158,7 +158,7 @@ def test_integrate_mission_into_target_reads_primary_lanes(
     returns ``None`` → the function returns early with the "No lanes.json found"
     error BEFORE ``_branch_exists`` is ever called → ``_StopProbe`` never raised.
     """
-    from specify_cli.lanes import merge as merge_mod
+    from specify_cli.lanes import consolidation as merge_mod
 
     ctx = coord_topology_mission_sentinel_meta
     captured: dict[str, Any] = {}

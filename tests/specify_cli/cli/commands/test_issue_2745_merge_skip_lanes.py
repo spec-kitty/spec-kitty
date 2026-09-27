@@ -3,12 +3,12 @@ CLI-surface regression.
 
 Mission ``terminus-safety-invariant-01M2XFT7`` / WP05, T015/T016. WP02 built
 the executor-side ``skip_lanes`` capability (``_MergeRunState.skip_lanes``,
-``_run_lane_based_merge(..., skip_lanes=...)``,
+``_run_lane_based_consolidation(..., skip_lanes=...)``,
 ``_synthesize_no_lane_manifest``) that lets a merge-ready direct-on-target
 mission (a WP committed directly on the target branch, no lane branch, no
 ``lanes.json``) complete transactionally instead of hard-failing with
 ``MissingLanesError``. This module is WP05's CLI half: it drives the real
-``spec-kitty merge`` Typer command (never ``_run_lane_based_merge`` directly)
+``spec-kitty merge`` Typer command (never ``_run_lane_based_consolidation`` directly)
 to prove the ``--skip-lanes``/``--no-lanes`` option is actually wired onto
 that capability end-to-end.
 
@@ -49,7 +49,7 @@ from kernel.clock import now_utc_iso
 
 import specify_cli.status  # noqa: F401  # import-order guard
 
-from specify_cli.cli.commands.merge import merge
+from specify_cli.cli.commands.consolidate import consolidate as merge
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -183,15 +183,15 @@ def _external_mocks() -> Iterator[dict[str, MagicMock]]:
     """Mock only side effects outside git/status bookkeeping — same seam set
     WP02 uses in ``tests/merge/test_merge_rollback_resume_coherence.py``."""
     patches = {
-        "run_check": patch("specify_cli.merge.executor.run_check"),
-        "sparse": patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-        "preflight": patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
-        "review_consistency": patch("specify_cli.merge.executor._enforce_review_artifact_consistency"),
-        "status_history": patch("specify_cli.merge.executor._enforce_canonical_status_history"),
-        "hollow": patch("specify_cli.merge.executor._warn_or_confirm_hollow_reviews"),
+        "run_check": patch("specify_cli.consolidation.executor.run_check"),
+        "sparse": patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+        "preflight": patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
+        "review_consistency": patch("specify_cli.consolidation.executor._enforce_review_artifact_consistency"),
+        "status_history": patch("specify_cli.consolidation.executor._enforce_canonical_status_history"),
+        "hollow": patch("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews"),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.merge.executor.has_remote", return_value=False),
+        "remote": patch("specify_cli.consolidation.executor.has_remote", return_value=False),
     }
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}
@@ -223,7 +223,7 @@ def _invoke_merge(repo: Path, args: list[str], monkeypatch: pytest.MonkeyPatch) 
     app = typer.Typer()
     app.command()(merge)
     runner = CliRunner()
-    with _external_mocks(), patch("specify_cli.cli.commands.merge.find_repo_root", return_value=repo):
+    with _external_mocks(), patch("specify_cli.cli.commands.consolidate.find_repo_root", return_value=repo):
         return runner.invoke(app, args)
 
 
@@ -318,7 +318,7 @@ def test_skip_lanes_completion_rolls_back_on_post_mutation_failure(tmp_path: Pat
     pre_run_tip = _branch_tip(repo, TARGET_BRANCH)
 
     with patch(
-        "specify_cli.merge.executor._project_status_bookkeeping_to_target",
+        "specify_cli.consolidation.executor._project_status_bookkeeping_to_target",
         side_effect=RuntimeError("injected post-mutation failure (WP05 rollback regression)"),
     ):
         failing_result = _invoke_merge(repo, ["--mission", rollback_slug, "--skip-lanes", "--yes"], monkeypatch)
@@ -346,7 +346,7 @@ def test_skip_lanes_completion_rolls_back_on_post_mutation_failure(tmp_path: Pat
 @pytest.mark.regression
 def test_resume_without_reflagging_skip_lanes_auto_honors_persisted_choice(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``_MergeRunState.skip_lanes`` was transient (never persisted to
-    ``MergeState``), so ``merge --resume`` of a genuinely-lanes.json-absent
+    ``ConsolidationState``), so ``merge --resume`` of a genuinely-lanes.json-absent
     mission defaulted ``skip_lanes=False`` and ``require_lanes_json`` raised
     ``MissingLanesError`` mid-resume — reading as a regression on a mission
     that was never going to have a lanes manifest.
@@ -364,7 +364,7 @@ def test_resume_without_reflagging_skip_lanes_auto_honors_persisted_choice(tmp_p
     pre_run_tip = _branch_tip(repo, TARGET_BRANCH)
 
     with patch(
-        "specify_cli.merge.executor._project_status_bookkeeping_to_target",
+        "specify_cli.consolidation.executor._project_status_bookkeeping_to_target",
         side_effect=RuntimeError("injected post-mutation failure (FOLD-F2 resume regression)"),
     ):
         failing_result = _invoke_merge(repo, ["--mission", resume_slug, "--skip-lanes", "--yes"], monkeypatch)

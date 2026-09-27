@@ -10,12 +10,12 @@
   ],
   "groups": [
     {
-      "group": "merge",
+      "group": "consolidation",
       "roots": [
-        "src/specify_cli/merge/**"
+        "src/specify_cli/consolidation/**"
       ],
       "cov_targets": [
-        "specify_cli.merge"
+        "specify_cli.consolidation"
       ],
       "census_evidence": "known-live"
     },

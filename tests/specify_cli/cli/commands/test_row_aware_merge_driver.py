@@ -32,7 +32,7 @@ from specify_cli.cli.commands.merge_driver import (
     merge_driver_acceptance_matrix,
     merge_driver_issue_matrix,
 )
-from specify_cli.merge.drivers import (
+from specify_cli.consolidation.drivers import (
     RowMatrixMergeError,
     _canonicalize_issue_ref,
     _resolve_merge_driver_paths,
@@ -595,7 +595,7 @@ def test_merge_driver_acceptance_matrix_writes_result_to_ours(tmp_path: Path) ->
 # registered driver FUNCTION (in-process; the underlying reconciliation logic
 # is identical whether invoked via the CLI subprocess or in-process -- the
 # subprocess boundary is exercised separately by the real ``git merge``
-# integration coverage in ``tests/merge/test_event_log_merge_driver_
+# integration coverage in ``tests/consolidation/test_event_log_merge_driver_
 # integration.py`` and the #2804 regression). No dependency on WP01: %O is
 # drawn from the matrix's own git lineage, never a lane base SHA.
 

@@ -98,7 +98,7 @@ def test_next_json_preserves_unrelated_resolution_error_contract(tmp_path: pathl
 
 
 def test_merge_does_not_relabel_unrelated_value_error(tmp_path: pathlib.Path) -> None:
-    from specify_cli.cli.commands import merge
+    from specify_cli.cli.commands import consolidate as merge
 
     message = "No resolved location for surface 'spec'"
     with (

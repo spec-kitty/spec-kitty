@@ -4,7 +4,7 @@ Consolidates the ``git rev-parse --verify`` branch/ref existence idiom that
 was reimplemented across :mod:`specify_cli.coordination.status_transition`,
 :mod:`specify_cli.missions._create`,
 :mod:`specify_cli.lanes.worktree_allocator`, and
-:mod:`specify_cli.lanes.merge` (issue #1904).
+:mod:`specify_cli.lanes.consolidation` (issue #1904).
 
 Scope is deliberately narrow: this is the existence-CHECK idiom only. Branch
 *name* composition stays in :mod:`specify_cli.lanes.branch_naming` (topology

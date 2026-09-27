@@ -52,7 +52,7 @@ def _blob_on_ref(repo: Path, ref: str, path: str) -> bool:
 
 
 def test_4973_strand_heal_must_not_revert_third_party_later_event(tmp_path: Path) -> None:
-    from specify_cli.merge.state import MergeState, save_state
+    from specify_cli.consolidation.state import ConsolidationState, save_state
 
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M4973A")
     coord_wt = mission.repo / ".worktrees" / f"{mission.slug}-coord"
@@ -87,7 +87,7 @@ def test_4973_strand_heal_must_not_revert_third_party_later_event(tmp_path: Path
     _git(coord_wt, "commit", "-qm", "third-party later event")
 
     # The marker a real interrupted merge would have persisted for the resume heal.
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=mission.mission_id,
         mission_slug=mission.slug,
         target_branch=mission.target_branch,
@@ -104,7 +104,7 @@ def test_4973_strand_heal_must_not_revert_third_party_later_event(tmp_path: Path
     }
     save_state(state, mission.repo)
 
-    result = run_terminus(mission, ["merge", "--resume", "--mission", mission.slug, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
 
     # Corrected invariant: the third party's later event survives the heal — either
     # it reached the target (exit 0) or it is still on the coord branch (refusal).

@@ -280,7 +280,7 @@ constituents:
   kind: directive
   path: directives/044-canonical-sources-and-unification.directive.yaml
   provenance_path:
-- content_hash: d1d8110a3433d5f2fdd48eb5c4916d7bfd0b71e60151a6a89f835005427b8e19
+- content_hash: f36c71bc8c3beb2429715819849b8c7dede100162b92b77a00748e84b3f3fe85
   id: DIRECTIVE_045
   kind: directive
   path: directives/045-prs-only-and-read-intent.directive.yaml
@@ -495,7 +495,7 @@ constituents:
   kind: procedure
   path: procedures/mission-tracer-files.procedure.yaml
   provenance_path:
-- content_hash: 5953f523241a27de44ae7da310de84dade44a9e0676f6ecccfdb8a186b6cb5e5
+- content_hash: e35fecdfaf07654d1b1ca306e733eca3be71dea5cddf534cd64353dbc6aad508
   id: mission-wrap-up-sequence
   kind: procedure
   path: procedures/mission-wrap-up-sequence.procedure.yaml
@@ -660,7 +660,7 @@ constituents:
   kind: styleguide
   path: styleguides/testing-principles.styleguide.yaml
   provenance_path:
-- content_hash: 2a2f7aef8fffa1ea96b7d1eb31c702c7e6ea8e1b20197baddd6af55d301fcb30
+- content_hash: feed0010223b140eb9b755d73b5aa0d82613049d2e150d3abecce891b1bcf97e
   id: tiered-standards
   kind: styleguide
   path: styleguides/tiered-standards.styleguide.yaml
@@ -1385,7 +1385,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 096cbc5fca54877b9ca454a35938246777d39130792d11c9d982497b0b50da1a
+manifest_hash: badbf1a04f6c7e48bc76d2d6f84fd9cd1bc883002fd55070b1ab676cce6c840d
 schema_version: '1'
 source_type: built-in
 source_url:

@@ -109,7 +109,7 @@ As an operator, I want merge progress saved so I can resume.
 
 ### Key Entities
 
-- **MergeState**: the resumable merge progress for a mission, with the ordered WP
+- **ConsolidationState**: the resumable merge progress for a mission, with the ordered WP
   list, completed WPs, and the current WP.
 - **WPStatus**: per-work-package preflight status with worktree path and cleanliness.
 

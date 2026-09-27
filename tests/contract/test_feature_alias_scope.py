@@ -102,7 +102,7 @@ def test_merge_rejects_feature_alias() -> None:
 
     Offline: no network call; the command exits at the parser level.
     """
-    result = runner.invoke(app, ["merge", "--feature", "some-mission-slug"])
+    result = runner.invoke(app, ["consolidate", "--feature", "some-mission-slug"])
 
     # Exit 2 means Click/Typer rejected the flag ("No such option") — expected.
     assert result.exit_code == 2, (
@@ -127,8 +127,8 @@ def test_merge_mission_accepted_feature_rejected() -> None:
 
     Authority: WP01 hard-removal contract.
     """
-    result_mission = runner.invoke(app, ["merge", "--mission", "some-mission-slug"])
-    result_feature = runner.invoke(app, ["merge", "--feature", "some-mission-slug"])
+    result_mission = runner.invoke(app, ["consolidate", "--mission", "some-mission-slug"])
+    result_feature = runner.invoke(app, ["consolidate", "--feature", "some-mission-slug"])
 
     # --mission must be accepted (not a parse error / exit 2)
     assert result_mission.exit_code != 2, (
@@ -314,7 +314,7 @@ def test_merge_has_no_feature_param_in_cli_introspection() -> None:
     from typer.main import get_command
 
     cli: click.Group = get_command(app)  # type: ignore[assignment]
-    merge_cmd = cli.commands.get("merge")
+    merge_cmd = cli.commands.get("consolidate")
     assert merge_cmd is not None, "merge command not found in CLI app"
 
     feature_params = [

@@ -4,7 +4,7 @@ Realises **NFR-006** / **IC-09** (plan.md — read the risk block, it is the
 crux this WP10 mission closes): after FR-008's authoring retirement
 (WP04/WP05) most missions never carry frontmatter runtime state, so their
 ``status_phase`` flip happens *forward*, live, at merge time via WP09's
-``_run_birth_cutover`` hook (``specify_cli.merge.executor``). A legacy
+``_run_birth_cutover`` hook (``specify_cli.consolidation.executor``). A legacy
 deployment's pre-existing corpus still needs the *backward*, one-time
 ``spec-kitty migrate backfill-runtime-state`` cutover
 (:class:`~specify_cli.upgrade.migrations.m_zz_runtime_state_backfill.RuntimeStateBackfillMigration`).

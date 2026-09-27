@@ -30,10 +30,10 @@ WP02 ROUTE / KEEP map (re-resolved on the lane-b tree, verified)
 |-------------------------------------------------------------|---------|-----------------|
 | forecast.py `require_lanes_json` (dry-run)                  | ROUTE   | LANE_STATE      |
 | forecast.py review-artifact preflight `feature_dir_for_preview` | ROUTE | WORK_PACKAGE_TASK |
-| executor.py `_run_lane_based_merge` preflight identity      | ROUTE   | PRIMARY_METADATA|
-| executor.py `_run_lane_based_merge` `require_lanes_json`    | ROUTE   | LANE_STATE      |
-| executor.py `_run_lane_based_merge` canonical identity      | ROUTE   | PRIMARY_METADATA|
-| executor.py `_run_lane_based_merge_locked` `target_feature_dir` (:887) | KEEP (pre-routed) | PRIMARY |
+| executor.py `_run_lane_based_consolidation` preflight identity      | ROUTE   | PRIMARY_METADATA|
+| executor.py `_run_lane_based_consolidation` `require_lanes_json`    | ROUTE   | LANE_STATE      |
+| executor.py `_run_lane_based_consolidation` canonical identity      | ROUTE   | PRIMARY_METADATA|
+| executor.py `_run_lane_based_consolidation_locked` `target_feature_dir` (:887) | KEEP (pre-routed) | PRIMARY |
 | executor.py `_phase_baseline_and_surface` `baseline_mission_id` (:324) | ROUTE | PRIMARY_METADATA (#2186 cross-fn residual) |
 | executor.py `run.feature_dir` / `status_feature_dir` STATUS legs | KEEP | coord-aware (C-001) |
 | resolve.py `_merge_state_key_candidates` identity (:98)     | ROUTE   | PRIMARY_METADATA|
@@ -49,8 +49,8 @@ from typing import Any, NoReturn
 
 import pytest
 
-from specify_cli.merge.config import MergeStrategy
-from specify_cli.merge.state import MergeState
+from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.consolidation.state import ConsolidationState
 from tests.integration.coord_topology_fixture import (
     SENTINEL_HUSK_MISSION_ID,
     CoordTopologyContext,
@@ -114,7 +114,7 @@ def test_dry_run_forecast_reads_primary_lane_set(
     husk (no ``lanes.json``) → ``MissingLanesError`` → ``typer.Exit(1)`` BEFORE the
     preflight, so the set is never captured and ``_StopProbe`` is never raised.
     """
-    from specify_cli.merge import forecast
+    from specify_cli.consolidation import forecast
 
     ctx = coord_topology_mission_sentinel_meta
     captured: dict[str, Any] = {}
@@ -147,7 +147,7 @@ def test_dry_run_forecast_reads_primary_lane_set(
 
 
 # ---------------------------------------------------------------------------
-# executor.py — _run_lane_based_merge preflight identity (PRIMARY_METADATA)
+# executor.py — _run_lane_based_consolidation preflight identity (PRIMARY_METADATA)
 # ---------------------------------------------------------------------------
 
 
@@ -162,7 +162,7 @@ def test_executor_preflight_identity_reads_primary_mission_id(
     Routed → PRIMARY id. RED-first: reverting the preflight identity read to the
     coord-aware ``feature_dir`` surfaces the husk sentinel id.
     """
-    from specify_cli.merge import executor
+    from specify_cli.consolidation import executor
 
     ctx = coord_topology_mission_sentinel_meta
     captured: dict[str, Any] = {}
@@ -176,7 +176,7 @@ def test_executor_preflight_identity_reads_primary_mission_id(
     )
 
     with pytest.raises(_StopProbe):
-        executor._run_lane_based_merge(
+        executor._run_lane_based_consolidation(
             ctx.repo,
             ctx.slug,
             push=False,
@@ -193,7 +193,7 @@ def test_executor_preflight_identity_reads_primary_mission_id(
 
 
 # ---------------------------------------------------------------------------
-# executor.py — _run_lane_based_merge lanes (LANE_STATE) + canonical id (META)
+# executor.py — _run_lane_based_consolidation lanes (LANE_STATE) + canonical id (META)
 # ---------------------------------------------------------------------------
 
 
@@ -213,7 +213,7 @@ def test_executor_lanes_and_canonical_id_read_primary(
     (husk has no ``lanes.json``) before capture; reverting the identity leg captures
     the husk sentinel id.
     """
-    from specify_cli.merge import executor
+    from specify_cli.consolidation import executor
 
     ctx = coord_topology_mission_sentinel_meta
     captured: dict[str, Any] = {}
@@ -233,7 +233,7 @@ def test_executor_lanes_and_canonical_id_read_primary(
     )
 
     with pytest.raises(_StopProbe):
-        executor._run_lane_based_merge(
+        executor._run_lane_based_consolidation(
             ctx.repo,
             ctx.slug,
             push=False,
@@ -264,7 +264,7 @@ def test_merge_state_key_candidates_use_primary_mission_id(
     reverting the identity read to ``candidate_feature_dir_for_mission`` lands on the
     husk and returns ``[SENTINEL_id, slug]``.
     """
-    from specify_cli.merge.resolve import _merge_state_key_candidates
+    from specify_cli.consolidation.resolve import _merge_state_key_candidates
 
     ctx = coord_topology_mission_sentinel_meta
 
@@ -298,7 +298,7 @@ def test_mark_wp_merged_done_locates_primary_wp_task(
     (no ``tasks/``) → ``_resolve_wp_path`` returns ``None`` → the function returns
     early, the spy observes ``None``, and no primary WP path is captured.
     """
-    from specify_cli.merge import done_bookkeeping
+    from specify_cli.consolidation import done_bookkeeping
 
     ctx = coord_topology_mission_sentinel_meta
     real_resolve = done_bookkeeping._resolve_wp_path
@@ -342,7 +342,7 @@ def test_abort_teardown_reads_primary_meta_not_husk_sentinel(
     neutralised to avoid filesystem side-effects.
     """
     from specify_cli import mission_metadata
-    from specify_cli.cli.commands.merge import _teardown_coordination_for_abort
+    from specify_cli.cli.commands.consolidate import _teardown_coordination_for_abort
 
     ctx = coord_topology_mission_sentinel_meta
     real_load = mission_metadata.load_meta
@@ -362,7 +362,7 @@ def test_abort_teardown_reads_primary_meta_not_husk_sentinel(
         lambda *args, **kwargs: None,
     )
 
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=ctx.mission_id,
         mission_slug=ctx.slug,
         target_branch="main",
@@ -385,7 +385,7 @@ def test_abort_teardown_reads_primary_meta_not_husk_sentinel(
 #
 # Cross-function residual the census + same-function call-shape arm MISSED
 # (#2186): ``run.feature_dir`` is the coord-aware STATUS dir bound in
-# ``_run_lane_based_merge`` (one function up) and threaded onto the run; the
+# ``_run_lane_based_consolidation`` (one function up) and threaded onto the run; the
 # baseline phase consumed it for an IDENTITY read. Same-function-binding checks
 # never flagged it. BEHAVIORAL backstop with an executed RED-on-revert.
 # ---------------------------------------------------------------------------
@@ -409,13 +409,13 @@ def test_executor_baseline_identity_reads_primary_mission_id(
     ``run.feature_dir``): reading off the coord-aware STATUS leg lands on the husk
     sentinel meta → the captured id is ``6KERGF2ZNFBPR91YEZMARG99KS`` ≠ the PRIMARY id.
     """
-    from specify_cli.merge import executor
+    from specify_cli.consolidation import executor
 
     ctx = coord_topology_mission_sentinel_meta
     captured: dict[str, Any] = {}
 
     # Neutralise the heavy phases that precede the baseline phase. The run is still
-    # CONSTRUCTED by production ``_run_lane_based_merge_locked`` (so target_feature_dir
+    # CONSTRUCTED by production ``_run_lane_based_consolidation_locked`` (so target_feature_dir
     # is the real primary anchor); only the gate/merge work is skipped.
     monkeypatch.setattr(executor, "require_no_sparse_checkout", lambda **kwargs: None)
     # The review-artifact preflight (run BEFORE the phases) materializes the coord
@@ -437,7 +437,7 @@ def test_executor_baseline_identity_reads_primary_mission_id(
     )
 
     with pytest.raises(_StopProbe):
-        executor._run_lane_based_merge(
+        executor._run_lane_based_consolidation(
             ctx.repo,
             ctx.slug,
             push=False,

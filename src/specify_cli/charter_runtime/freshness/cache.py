@@ -37,7 +37,7 @@ Location: a per-repo, gitignored runtime cache sidecar under
 ``.kittify/runtime/`` — the repo's existing per-repo runtime-state
 convention (already gitignored; see e.g. ``.kittify/runtime/contexts/`` in
 ``specify_cli.context.store`` and ``.kittify/runtime/merge/`` in
-``specify_cli.merge.state``). No new top-level directory is introduced.
+``specify_cli.consolidation.state``). No new top-level directory is introduced.
 """
 
 from __future__ import annotations

@@ -241,8 +241,8 @@ _DYNAMIC_IMPORT_CALLABLE_NAMES: frozenset[str] = frozenset({"import_module", "__
 def _pkg_parts(rel: str) -> tuple[str, ...]:
     """The dotted package (as path parts) that *owns* the module at *rel*.
 
-    ``specify_cli/merge/git_probes.py`` -> ``("specify_cli", "merge")``;
-    ``specify_cli/merge/__init__.py`` -> ``("specify_cli", "merge")`` too (an
+    ``specify_cli/consolidation/git_probes.py`` -> ``("specify_cli", "consolidation")``;
+    ``specify_cli/consolidation/__init__.py`` -> ``("specify_cli", "consolidation")`` too (an
     ``__init__`` module's *own* package is one level up from its file name,
     same as any other module's -- both cases drop exactly the last part).
     """
@@ -572,7 +572,7 @@ class TestRuntimeBoundary:
 # TestMergeCliBoundary: merge -> cli.commands rule
 # ---------------------------------------------------------------------------
 #
-# ``specify_cli/merge/**`` must not import the CLI command layer (the
+# ``specify_cli/consolidation/**`` must not import the CLI command layer (the
 # upward leak this rule closes). The one sanctioned exception is
 # ``specify_cli.cli.console`` — a presentation-only singleton — imported by
 # the named ledger below. The same upward leak also exists in
@@ -585,17 +585,17 @@ class TestRuntimeBoundary:
 # mechanism, mirroring the sibling mission_runtime/runtime ledgers but
 # without touching the ratchet-owned baseline file.
 
-_MERGE_ROOT = _SRC / "specify_cli" / "merge"
+_MERGE_ROOT = _SRC / "specify_cli" / "consolidation"
 
 _MERGE_CLI_CONSOLE_IMPORTERS: frozenset[str] = frozenset(
     {
-        "specify_cli/merge/done_bookkeeping.py",
-        "specify_cli/merge/ordering.py",
-        "specify_cli/merge/forecast.py",
-        "specify_cli/merge/push_preflight.py",
-        "specify_cli/merge/git_probes.py",
-        "specify_cli/merge/preflight.py",
-        "specify_cli/merge/executor.py",
+        "specify_cli/consolidation/done_bookkeeping.py",
+        "specify_cli/consolidation/ordering.py",
+        "specify_cli/consolidation/forecast.py",
+        "specify_cli/consolidation/push_preflight.py",
+        "specify_cli/consolidation/git_probes.py",
+        "specify_cli/consolidation/preflight.py",
+        "specify_cli/consolidation/executor.py",
     }
 )
 
@@ -633,17 +633,17 @@ def _merge_cli_boundary_offenders(sites: Iterable[ImportSite]) -> list[str]:
 
 
 class TestMergeCliBoundary:
-    """``specify_cli/merge/**`` must not import the CLI command layer."""
+    """``specify_cli/consolidation/**`` must not import the CLI command layer."""
 
     def test_merge_does_not_import_cli_command_layer(self) -> None:
-        """No ``specify_cli/merge/**`` module may import the CLI command
-        layer; the driver body lives in ``merge/drivers.py`` instead."""
+        """No ``specify_cli/consolidation/**`` module may import the CLI command
+        layer; the driver body lives in ``consolidation/drivers.py`` instead."""
         sites = _collect_specify_cli_import_sites(_MERGE_ROOT)
         offenders = _merge_cli_boundary_offenders(sites)
         assert not offenders, (
-            "specify_cli/merge/** must not import specify_cli.cli / "
+            "specify_cli/consolidation/** must not import specify_cli.cli / "
             "specify_cli.cli.* other than specify_cli.cli.console — move "
-            "the driver body into merge/drivers.py instead:\n  " + "\n  ".join(offenders)
+            "the driver body into consolidation/drivers.py instead:\n  " + "\n  ".join(offenders)
         )
 
     def test_console_importers_within_ledger(self) -> None:
@@ -652,7 +652,7 @@ class TestMergeCliBoundary:
         importers = {site.rel for site in sites if site.module == "specify_cli.cli.console"}
         unlisted = importers - _MERGE_CLI_CONSOLE_IMPORTERS
         assert not unlisted, (
-            f"unlisted specify_cli.cli.console importer(s) under specify_cli/merge/: "
+            f"unlisted specify_cli.cli.console importer(s) under specify_cli/consolidation/: "
             f"{sorted(unlisted)!r}. Add them to _MERGE_CLI_CONSOLE_IMPORTERS with a reason."
         )
 
@@ -671,7 +671,7 @@ class TestMergeCliBoundary:
         """Build a minimal ``specify_cli/{merge,cli/commands}`` tree under
         *tmp_path* for the self-mutation forms below. Returns
         ``(merge_pkg, probe_path)``."""
-        merge_pkg = tmp_path / "specify_cli" / "merge"
+        merge_pkg = tmp_path / "specify_cli" / "consolidation"
         merge_pkg.mkdir(parents=True)
         (merge_pkg / "__init__.py").write_text("", encoding="utf-8")
         cli_pkg = tmp_path / "specify_cli" / "cli"

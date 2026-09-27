@@ -31,7 +31,7 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 ## Gate
 
 - `spk-gate-accept`: final readiness gate.
-- `spk-gate-merge`: merge gate.
+- `spk-gate-consolidate`: consolidation gate.
 - `spk-gate-mission-review`: post-merge mission review.
 - `spk-gate-retrospective`: post-merge retrospective.
 

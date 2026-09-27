@@ -22,7 +22,7 @@ Verifies that:
 - _validate_mission_slug_path_segment delegates to assert_safe_path_segment
 - _MISSION_SLUG_PATH_SEGMENT_RE dead constant is removed
 - FR-003: _assert_status_path_within_target_surface rejects malformed slug (sibling :828)
-- FR-003: _run_lane_based_merge target_feature_dir path rejects malformed slug (sibling :2382)
+- FR-003: _run_lane_based_consolidation target_feature_dir path rejects malformed slug (sibling :2382)
 - T015: dry-run/abort with malformed slug emits "single safe path segment" diagnostic
 - T016: _assert_status_path_within_target_surface delegates to ensure_within_any
 - T017: _assert_bookkeeping_snapshot_path_is_trusted trusted-set pin (3 dirs + file)
@@ -40,14 +40,15 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.merge import (
+from specify_cli.cli.commands.consolidate import (
     _assert_merged_wps_reached_done,
     _assert_status_path_within_target_surface,
     _assert_status_surface_path_is_trusted,
     _mark_wp_merged_done,
     _target_bookkeeping_status_paths,
     _validate_mission_slug_path_segment,
-    merge,
+    consolidate as merge,
+    merge_removed_stub,
 )
 
 # WP09 (T048): the merge-side snapshot-trust helper + capture were retired; the
@@ -55,7 +56,7 @@ from specify_cli.cli.commands.merge import (
 # is the executor's thin adapter that supplies the identical merge trusted-set
 # (3 dirs + merge-state.json) to the owner's containment, so the T017 containment
 # regressions below re-point onto it (same accept/reject semantics).
-from specify_cli.merge.executor import _capture_merge_snapshots
+from specify_cli.consolidation.executor import _capture_merge_snapshots
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
@@ -420,7 +421,7 @@ def test_abort_clears_lock_and_state(tmp_path: Path) -> None:
     app.command()(merge)
 
     runner = CliRunner()
-    with patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path):
+    with patch("specify_cli.cli.commands.consolidate.find_repo_root", return_value=tmp_path):
         result = runner.invoke(app, ["--abort"])
 
     # Both files must be gone
@@ -438,11 +439,35 @@ def test_abort_idempotent(tmp_path: Path) -> None:
     app.command()(merge)
 
     runner = CliRunner()
-    with patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path):
+    with patch("specify_cli.cli.commands.consolidate.find_repo_root", return_value=tmp_path):
         result = runner.invoke(app, ["--abort"])
 
     assert result.exit_code == 0, (
         f"Expected exit 0 on idempotent abort, got {result.exit_code}\nOutput: {result.output}"
+    )
+
+
+def test_merge_command_is_removed_migration_stub() -> None:
+    """FR-002/SC-001: the former ``merge`` command is a migration-error stub.
+
+    It must NOT perform consolidation — invoking it exits non-zero and points the
+    user at ``spec-kitty consolidate`` (paired non-vacuously with the consolidate
+    happy-path golden so a no-op change cannot pass both)."""
+    app = typer.Typer()
+    # Mirror the real registration so former flags still parse yet never consolidate.
+    app.command(
+        name="merge",
+        context_settings={"ignore_unknown_options": True, "allow_extra_args": True},
+    )(merge_removed_stub)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["merge", "--dry-run"])
+
+    assert result.exit_code != 0, (
+        f"merge stub must exit non-zero, got {result.exit_code}\nOutput: {result.output}"
+    )
+    assert "renamed" in result.output and "consolidate" in result.output, (
+        f"merge stub must name the consolidate migration, got:\n{result.output}"
     )
 
 
@@ -586,7 +611,7 @@ def test_validate_mission_slug_accepts_real_format_slugs() -> None:
 
 def test_dead_constant_mission_slug_re_removed() -> None:
     """_MISSION_SLUG_PATH_SEGMENT_RE dead constant must be absent from merge.py (grep-gate)."""
-    import specify_cli.cli.commands.merge as merge_module
+    import specify_cli.cli.commands.consolidate as merge_module
 
     assert not hasattr(merge_module, "_MISSION_SLUG_PATH_SEGMENT_RE"), (
         "_MISSION_SLUG_PATH_SEGMENT_RE must be removed from merge.py after delegating to "
@@ -632,15 +657,15 @@ def test_fr003_assert_status_path_within_target_surface_rejects_backslash_slug(
 
 # ---------------------------------------------------------------------------
 # WP04 / T014 FR-003: :2382 path — _validate_mission_slug_path_segment called before
-# primary_feature_dir_for_mission is used in _run_lane_based_merge.
-# We test the validator directly since _run_lane_based_merge requires lanes.json.
+# primary_feature_dir_for_mission is used in _run_lane_based_consolidation.
+# We test the validator directly since _run_lane_based_consolidation requires lanes.json.
 # ---------------------------------------------------------------------------
 
 
 def test_fr003_validator_rejects_slug_that_would_reach_2382_path(tmp_path: Path) -> None:
     """FR-003 sibling-seam :2382 — validates that the slug guard fires for the target_feature_dir path.
 
-    _run_lane_based_merge calls primary_feature_dir_for_mission(main_repo, mission_slug) at :2382.
+    _run_lane_based_consolidation calls primary_feature_dir_for_mission(main_repo, mission_slug) at :2382.
     After T014, _validate_mission_slug_path_segment is the canonical guard that fires BEFORE
     any primary_feature_dir_for_mission composition — proven here by calling it directly.
     This test is NOT satisfiable via _target_bookkeeping_status_paths.
@@ -672,7 +697,7 @@ def test_abort_with_malformed_mission_slug_emits_clean_diagnostic(tmp_path: Path
     app.command()(merge)
 
     runner = CliRunner()
-    with patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path):
+    with patch("specify_cli.cli.commands.consolidate.find_repo_root", return_value=tmp_path):
         result = runner.invoke(app, ["--abort", "--mission", "../x"])
 
     # Must exit non-zero (the malformed slug is detected and rejected)
@@ -691,7 +716,7 @@ def test_abort_with_slash_mission_slug_emits_clean_diagnostic(tmp_path: Path) ->
     app.command()(merge)
 
     runner = CliRunner()
-    with patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path):
+    with patch("specify_cli.cli.commands.consolidate.find_repo_root", return_value=tmp_path):
         result = runner.invoke(app, ["--abort", "--mission", "a/b"])
 
     assert result.exit_code != 0, (
@@ -1002,16 +1027,16 @@ def _invoke_merge_with_corrupt_target(tmp_path: Path, *extra_args: str) -> Any:
 
     boom = MissionMetaReadError(tmp_path / "meta.json", ValueError("Expecting value"))
     with (
-        patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path),
-        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
-        patch("specify_cli.cli.commands.merge.load_merge_config", return_value=Mock(strategy=None)),
-        patch("specify_cli.cli.commands.merge._resolve_slug_or_exit", return_value="corrupt-mission"),
+        patch("specify_cli.cli.commands.consolidate.find_repo_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
+        patch("specify_cli.cli.commands.consolidate.load_merge_config", return_value=Mock(strategy=None)),
+        patch("specify_cli.cli.commands.consolidate._resolve_slug_or_exit", return_value="corrupt-mission"),
         # Newer flow gates on mission-dir existence (FR-004/FR-005) BEFORE the
         # target-branch read; the real corrupt-meta case has an existing dir with
         # a corrupt meta.json, so stub the dir check True to reach _resolve_target_branch.
-        patch("specify_cli.cli.commands.merge._resolved_mission_dir_exists", return_value=True),
-        patch("specify_cli.cli.commands.merge.load_state", return_value=None),
-        patch("specify_cli.cli.commands.merge._resolve_target_branch", side_effect=boom),
+        patch("specify_cli.cli.commands.consolidate._resolved_mission_dir_exists", return_value=True),
+        patch("specify_cli.cli.commands.consolidate.load_state", return_value=None),
+        patch("specify_cli.cli.commands.consolidate._resolve_target_branch", side_effect=boom),
     ):
         return runner.invoke(app, ["--mission", "corrupt-mission", *extra_args])
 

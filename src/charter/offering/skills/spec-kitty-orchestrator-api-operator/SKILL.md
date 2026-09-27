@@ -73,7 +73,7 @@ results. No command returns prose or mixed text/JSON.
 | `transition` | Explicit single lane change | Yes |
 | `append-history` | Add note to WP activity log | Yes |
 | `accept-mission` | Mark mission as accepted without closing approved WPs | Yes |
-| `merge-mission` | Merge lane branches into the mission branch, then land the mission branch | Yes |
+| `consolidate-mission` | Merge lane branches into the mission branch, then land the mission branch | Yes |
 
 ### Policy Metadata (Required for Run-Affecting Lanes)
 
@@ -282,7 +282,7 @@ spec-kitty orchestrator-api append-history \
 spec-kitty orchestrator-api accept-mission --mission <slug> --actor "ci-bot"
 
 # Merge mission
-spec-kitty orchestrator-api merge-mission \
+spec-kitty orchestrator-api consolidate-mission \
   --mission <slug> --target main --strategy squash --push
 ```
 
@@ -293,7 +293,7 @@ graph is not `approved` or `done`.
 `merge_pending_wps`. It does not move WPs from `approved` to `done`; merge owns
 that transition.
 
-`merge-mission` runs **4 preflight checks** before merging:
+`consolidate-mission` runs **4 preflight checks** before merging:
 1. All expected WPs have worktrees
 2. All worktrees are clean (no uncommitted changes)
 3. Target branch is not behind origin

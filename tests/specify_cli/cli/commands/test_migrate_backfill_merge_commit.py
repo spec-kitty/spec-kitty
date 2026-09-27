@@ -434,7 +434,7 @@ def test_backfill_write_leg_baseline_error_fails_clean(tmp_path: Path, monkeypat
     uncaught traceback instead of the same ``action: error`` + ``Exit(1)``
     shape every other verification failure produces.
     """
-    import specify_cli.merge.baseline as baseline_module
+    import specify_cli.consolidation.baseline as baseline_module
 
     repo_root, feature_dir, merge_commit, _pre_merge_parent = _pr_merged_repo(tmp_path)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))

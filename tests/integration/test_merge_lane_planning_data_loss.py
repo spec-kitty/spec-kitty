@@ -3,14 +3,14 @@
 This file holds two layers of regression pins:
 
 1. ``TestMergeIncludesPlanningLane`` — the **bookkeeping** assertion: every WP
-   from every lane (planning + code) must appear in ``MergeState.wp_order``
+   from every lane (planning + code) must appear in ``ConsolidationState.wp_order``
    and reach the per-WP ``_mark_wp_merged_done`` pass. This layer mocks out
    ``consolidate_lane_into_mission`` / ``integrate_mission_into_target`` so the merge plan
    can be inspected without a real on-disk merge.
 
 2. ``TestPlanningArtifactReachesTarget`` — the **load-bearing** assertion:
    the planning-artifact file MUST be present on the target branch (``main``)
-   after ``_run_lane_based_merge`` returns. This layer drives the **real**
+   after ``_run_lane_based_consolidation`` returns. This layer drives the **real**
    ``consolidate_lane_into_mission`` / ``integrate_mission_into_target`` / ``_merge_branch_into``
    functions against a real on-disk git repository. It mocks ONLY the side
    effects that touch state outside git (status emit, dossier sync, SaaS
@@ -38,10 +38,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
-from specify_cli.cli.commands.merge import _run_lane_based_merge
+from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.merge.config import MergeStrategy
+from specify_cli.consolidation.config import MergeStrategy
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -126,7 +126,7 @@ def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str]) -
 
 
 class TestMergeIncludesPlanningLane:
-    """FR-001 bookkeeping: planning-lane WPs MUST appear in MergeState wp_order
+    """FR-001 bookkeeping: planning-lane WPs MUST appear in ConsolidationState wp_order
     and must reach the per-WP mark-done pass.
 
     This layer mocks ``consolidate_lane_into_mission`` and ``integrate_mission_into_target``
@@ -169,29 +169,29 @@ class TestMergeIncludesPlanningLane:
             return (0, "", "")
 
         patches = [
-            patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest),
-            patch("specify_cli.merge.resolve.load_state", return_value=None),
-            patch("specify_cli.merge.done_bookkeeping.save_state", side_effect=fake_save_state),
-            patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
-            patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
-            patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-            patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
+            patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
+            patch("specify_cli.consolidation.resolve.load_state", return_value=None),
+            patch("specify_cli.consolidation.done_bookkeeping.save_state", side_effect=fake_save_state),
+            patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+            patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result),
+            patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
+            patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
+            patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+            patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
             patch("specify_cli.post_merge.stale_assertions.run_check"),
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
             patch("specify_cli.policy.config.load_policy_config"),
-            patch("specify_cli.merge.executor.run_command", side_effect=fake_run_command),
-            patch("specify_cli.merge.executor.has_remote", return_value=False),
-            patch("specify_cli.merge.executor.cleanup_merge_workspace"),
-            patch("specify_cli.merge.executor.clear_state"),
-            patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
+            patch("specify_cli.consolidation.executor.run_command", side_effect=fake_run_command),
+            patch("specify_cli.consolidation.executor.has_remote", return_value=False),
+            patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
+            patch("specify_cli.consolidation.executor.clear_state"),
+            patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"),
             # WP10 (#2057): branch preflight + target asserts moved to seams;
             # appended last to keep positional mock indices stable.
-            patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
-            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
+            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
         ]
         with contextlib.ExitStack() as stack:
             mocks = [stack.enter_context(p) for p in patches]
@@ -212,7 +212,7 @@ class TestMergeIncludesPlanningLane:
             policy.merge_gates = []
             mock_policy.return_value = policy
 
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -226,7 +226,7 @@ class TestMergeIncludesPlanningLane:
         assert captured_states, "save_state was never called — merge state never persisted"
         first_state = captured_states[0]
         assert set(first_state) == {"WP01", "WP02", "WP03", "WP04"}, (
-            f"FR-001 regression: MergeState.wp_order does not contain every WP "
+            f"FR-001 regression: ConsolidationState.wp_order does not contain every WP "
             f"from every lane. Got {first_state!r}, expected all of WP01..WP04 "
             f"(WP04 is in lane-planning and must NOT be silently dropped)."
         )
@@ -386,26 +386,26 @@ def _real_merge_external_mocks(repo_root: Path):
     """
     patches = [
         # External side effects (status emit, dossier, SaaS, stale-assertion check)
-        patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
-        patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
+        patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
+        patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
+        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.merge.executor.run_check"),
+        patch("specify_cli.consolidation.executor.run_check"),
         # Preflight / gates / policy / sparse-checkout — out of scope for
         # this data-loss regression
-        patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
         # mission_number assignment scans kitty-specs/ and rewrites meta.json on
         # the mission branch via a temp worktree — not the focus of the
         # data-loss regression.  Keep it out of the way.
-        patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
         # Post-merge invariant fires on `git status --porcelain` output that
         # includes the test-only files — short-circuit it for this test.
         # The merge has already run through real git by the time this would
         # raise.
-        patch("specify_cli.merge.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
     ]
     with contextlib.ExitStack() as stack:
         ms = [stack.enter_context(p) for p in patches]
@@ -454,17 +454,17 @@ def _real_invariant_external_mocks(repo_root: Path):
     so the first dirty line — whatever sorts first — is classified correctly.
     """
     patches = [
-        patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
-        patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
+        patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
+        patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
+        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.merge.executor.run_check"),
-        patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch", return_value=None),
-        patch("specify_cli.merge.executor._refresh_primary_checkout_after_merge"),
+        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.consolidation.executor._refresh_primary_checkout_after_merge"),
         # NOTE: _classify_porcelain_lines is intentionally NOT mocked here —
         # the real post-merge working-tree invariant must run so the F2 fix
         # (meta.json in expected_paths) is exercised.
@@ -578,7 +578,7 @@ class TestLegacyPlanningOnlyMetaInvariant:
             # Must NOT raise typer.Exit — the real post-merge invariant runs
             # against RAW porcelain and must tolerate the dirtied meta.json
             # (the F2 fix: meta.json ∈ expected_paths).
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -633,7 +633,7 @@ class TestLegacyPlanningOnlyMetaInvariant:
         # WP10 (#2057): the post-merge porcelain invariant runs in the executor
         # seam, reading _classify_porcelain_lines from its own module binding.
         import specify_cli.coordination.coherence as coherence_mod
-        import specify_cli.merge.executor as merge_mod
+        import specify_cli.consolidation.executor as merge_mod
 
         slug = "legacy-planning-only-meta-loadbearing"
         _init_git_repo(tmp_path)
@@ -677,7 +677,7 @@ class TestLegacyPlanningOnlyMetaInvariant:
             ),
             pytest.raises(typer.Exit),
         ):
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -733,7 +733,7 @@ class TestPostMergePorcelainHole:
         (tmp_path / unexpected_rel).write_text("unexpected v2\n", encoding="utf-8")
 
         with _real_invariant_external_mocks(tmp_path), pytest.raises(typer.Exit):
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -839,15 +839,15 @@ def _real_persistence_external_mocks(repo_root: Path):
     ``TestLegacyPlanningOnlyMetaInvariant`` (F2).
     """
     patches = [
-        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
+        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.merge.executor.run_check"),
-        patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch", return_value=None),
-        patch("specify_cli.merge.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
         # NOTE: _mark_wp_merged_done and _assert_merged_wps_reached_done are
         # intentionally NOT mocked — the real done-marking persistence runs.
     ]
@@ -884,13 +884,13 @@ def _real_bookkeeping_commit_external_mocks(repo_root: Path):
     """
     patches = [
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.merge.executor.run_check"),
-        patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
+        patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch", return_value=None),
-        patch("specify_cli.merge.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
         # NOTE: commit_merge_bookkeeping, _mark_wp_merged_done, and
         # _assert_merged_wps_done_on_target are intentionally NOT mocked — the
         # real bookkeeping commit lands on the target branch and the executor's
@@ -971,7 +971,7 @@ class TestPlanningOnlyDoneMarkingPersists:
         )
 
         with _real_persistence_external_mocks(tmp_path):
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -1001,7 +1001,7 @@ class TestPlanningOnlyDoneMarkingPersists:
 
 class TestPlanningArtifactReachesTarget:
     """FR-001 load-bearing: planning-artifact files MUST end up on the target
-    branch after ``_run_lane_based_merge`` runs against real git.
+    branch after ``_run_lane_based_consolidation`` runs against real git.
 
     These tests do NOT mock consolidate_lane_into_mission, integrate_mission_into_target,
     or _merge_branch_into — they exercise real ``git merge``, real branch
@@ -1087,7 +1087,7 @@ class TestPlanningArtifactReachesTarget:
         # Drive the real merge.  No mocks of consolidate_lane_into_mission /
         # integrate_mission_into_target / _merge_branch_into.
         with _real_merge_external_mocks(tmp_path):
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -1182,7 +1182,7 @@ class TestPlanningArtifactReachesTarget:
         assert missing_branch.returncode != 0
 
         with _real_persistence_external_mocks(tmp_path) as mocks:
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -1269,7 +1269,7 @@ class TestPlanningArtifactReachesTarget:
         )
 
         with _real_bookkeeping_commit_external_mocks(tmp_path):
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -1364,7 +1364,7 @@ class TestPlanningArtifactReachesTarget:
         _git(tmp_path, "checkout", "main")
 
         with _real_merge_external_mocks(tmp_path):
-            _run_lane_based_merge(
+            _run_lane_based_consolidation(
                 repo_root=tmp_path,
                 mission_slug=slug,
                 push=False,
@@ -1432,12 +1432,12 @@ def _write_coord_retaining_meta(feature_dir: Path, slug: str) -> None:
 
 def _invoke_merge_cli(repo: Path, extra_args: list[str]) -> object:
     """Invoke the real ``merge`` Typer command (CLI layer where the tri-state
-    cleanup flags' default lives) — NOT ``_run_lane_based_merge`` directly,
+    cleanup flags' default lives) — NOT ``_run_lane_based_consolidation`` directly,
     whose ``delete_branch``/``remove_worktree`` params have no default of
     their own."""
     from typer.testing import CliRunner
 
-    from specify_cli.cli.commands.merge import merge
+    from specify_cli.cli.commands.consolidate import consolidate as merge
 
     app = typer.Typer()
     app.command()(merge)
@@ -1538,8 +1538,8 @@ class TestRetentionConstraintSurvivesCleanup:
             # committed status.events.jsonl this test's mocked done-marking
             # never produces. That WP-bookkeeping durability is out of scope
             # for this branch/worktree-retention regression.
-            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
         ):
             # NO --delete-branch/--keep-branch/--remove-worktree/--keep-worktree:
             # the CLI's own default resolves the cleanup decision.
@@ -1635,8 +1635,8 @@ class TestRetentionConstraintSurvivesCleanup:
 
         with (
             _real_merge_external_mocks(tmp_path),
-            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
         ):
             result = _invoke_merge_cli(
                 tmp_path,
@@ -1736,8 +1736,8 @@ class TestRetentionConstraintSurvivesCleanup:
 
         with (
             _real_merge_external_mocks(tmp_path),
-            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
         ):
             result = _invoke_merge_cli(
                 tmp_path,

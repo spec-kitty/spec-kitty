@@ -41,7 +41,7 @@ MERGE_UNSAFE_PRIMARY_OFF_TARGET = "MERGE_UNSAFE_PRIMARY_OFF_TARGET"
 MERGE_UNSAFE_PRIMARY_DIRTY = "MERGE_UNSAFE_PRIMARY_DIRTY"
 MERGE_UNSAFE_WORKTREE_DIRTY = "MERGE_UNSAFE_WORKTREE_DIRTY"
 
-_RESUME_NOTE = "then resume the operation (e.g. `spec-kitty merge --resume`)"
+_RESUME_NOTE = "then resume the operation (e.g. `spec-kitty consolidate --resume`)"
 
 
 class DestructiveOpRefused(Exception):
@@ -123,7 +123,7 @@ def _current_branch(repo_root: Path, env: dict[str, str] | None) -> str:
     """Reuse the rev-parse logic of ``merge/preflight._enforce_planning_artifact_target_branch``.
 
     Mirrored rather than imported: that function lives in
-    ``specify_cli.merge.preflight`` (the application layer, not git
+    ``specify_cli.consolidation.preflight`` (the application layer, not git
     plumbing) and this module must not import it (C-005).
     """
     result = _run_git(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"], env=env)

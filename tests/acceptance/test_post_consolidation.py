@@ -293,7 +293,7 @@ def test_module_has_zero_merge_or_rollback_coupling() -> None:
     """T034/WP06: the module imports nothing from ``merge/`` or the rollback seam.
 
     Enforced by a static AST scan of the module source, so a future edit that adds a
-    ``from specify_cli.merge`` / rollback import is caught here rather than at
+    ``from specify_cli.consolidation`` / rollback import is caught here rather than at
     review. Keeping the module file-disjoint from the consolidation transaction is
     the load-bearing decoupling (C7).
     """

@@ -1,6 +1,6 @@
 """Shared machinery for migrations that seed git merge drivers (DIRECTIVE_044).
 
-Every merge driver declared in ``specify_cli.lanes.merge._MERGE_DRIVERS`` needs
+Every merge driver declared in ``specify_cli.lanes.consolidation._MERGE_DRIVERS`` needs
 three seeding surfaces or an upgraded repo silently re-inherits the clobbering
 behavior the driver exists to prevent (guarded by
 ``tests/architectural/test_merge_reconciliation_class_guard.py``):

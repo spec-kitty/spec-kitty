@@ -657,7 +657,7 @@ def close_cmd(
                     f"[bold]{mission_slug}[/bold] has not been merged.\n"
                     "[dim]Remediation: this mission has no recorded merge "
                     "baseline. Use `--discard` to abandon it mid-flight, or "
-                    "merge it first (`spec-kitty merge`) before closing.[/dim]",
+                    "consolidate it first (`spec-kitty consolidate`) before closing.[/dim]",
                     code="mission_not_merged",
                     json_output=json_output,
                 )

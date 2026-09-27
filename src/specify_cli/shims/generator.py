@@ -33,7 +33,7 @@ SHIM_DESCRIPTIONS: dict[str, str] = {
     "implement": "Execute a work package implementation",
     "review": "Review a work package implementation",
     "accept": "Validate an approved mission before merge",
-    "merge": "Merge an accepted mission",
+    "consolidate": "Consolidate an accepted mission",
     "status": "Show mission and work package status",
     "dashboard": "Open the mission dashboard",
     "tasks-finalize": "Finalize a mission's work packages",
@@ -84,7 +84,7 @@ def _canonical_command(command: str, agent_name: str, arg_placeholder: str) -> s
         "review": "spec-kitty agent action review {args} --agent {agent}",
         "accept": "spec-kitty agent mission accept {args}",
         "status": "spec-kitty agent tasks status {args}",
-        "merge": "spec-kitty merge {args}",
+        "consolidate": "spec-kitty consolidate {args}",
         "dashboard": "spec-kitty dashboard {args}",
         "tasks-finalize": "spec-kitty agent mission finalize-tasks {args}",
     }

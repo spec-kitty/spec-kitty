@@ -98,7 +98,7 @@ def _all_cov_targets(scrub: dict[str, Any]) -> list[str]:
 def _root_to_dotted(root: str) -> str | None:
     """Dotted src surface a filter-group root glob names, or ``None`` if non-src.
 
-    ``src/specify_cli/merge/**`` -> ``specify_cli.merge``;
+    ``src/specify_cli/consolidation/**`` -> ``specify_cli.consolidation``;
     ``src/specify_cli/mission.py`` -> ``specify_cli.mission``;
     ``src/runtime/next/**`` -> ``runtime.next``. Non-``src/`` roots (tests, packs,
     docs, workflow YAML) are not coverage subjects and return ``None``.

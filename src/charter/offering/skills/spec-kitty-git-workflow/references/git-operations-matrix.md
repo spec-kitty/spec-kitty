@@ -14,14 +14,14 @@ command agents are expected to run.
 | `git add <wp-file>` | Lane transition safe-commit | `git/commit_helpers.py` | `safe_commit()` |
 | `git commit -m "chore: Start WP##..."` | Lane transition safe-commit | `git/commit_helpers.py` | `safe_commit()` |
 | `git stash pop` | Lane transition safe-commit | `git/commit_helpers.py` | `safe_commit()` |
-| `git worktree add --detach <path> <target-branch>` | Target-branch merge workspace creation | `lanes/merge.py` | `_merge_refs_detached()` |
-| `git merge --no-ff <lane-branch>` | Lane merged into mission branch | `lanes/merge.py` | `merge_lane_into_mission()` |
-| `git merge --no-ff <mission-branch>` | Mission merged into target branch | `lanes/merge.py` | `_merge_refs_detached()` |
-| `git update-ref refs/heads/<target> <sha>` | Advance target branch to detached merge result | `lanes/merge.py` | `_merge_refs_detached()` |
-| `git push origin <target>` | Merge execution (opt-in `--push`) | `cli/commands/merge.py` | `merge_command()` |
-| `git worktree remove <path> --force` | After successful merge | `cli/commands/merge.py` | `_cleanup_merged_lanes()` |
-| `git branch -d <lane-branch>` | After successful merge | `cli/commands/merge.py` | `_cleanup_merged_lanes()` |
-| `git branch -d <mission-branch>` | After successful merge | `cli/commands/merge.py` | `_cleanup_merged_lanes()` |
+| `git worktree add --detach <path> <target-branch>` | Target-branch merge workspace creation | `lanes/consolidation.py` | `_merge_refs_detached()` |
+| `git merge --no-ff <lane-branch>` | Lane merged into mission branch | `lanes/consolidation.py` | `merge_lane_into_mission()` |
+| `git merge --no-ff <mission-branch>` | Mission merged into target branch | `lanes/consolidation.py` | `_merge_refs_detached()` |
+| `git update-ref refs/heads/<target> <sha>` | Advance target branch to detached merge result | `lanes/consolidation.py` | `_merge_refs_detached()` |
+| `git push origin <target>` | Merge execution (opt-in `--push`) | `cli/commands/consolidate.py` | `merge_command()` |
+| `git worktree remove <path> --force` | After successful merge | `cli/commands/consolidate.py` | `_cleanup_merged_lanes()` |
+| `git branch -d <lane-branch>` | After successful merge | `cli/commands/consolidate.py` | `_cleanup_merged_lanes()` |
+| `git branch -d <mission-branch>` | After successful merge | `cli/commands/consolidate.py` | `_cleanup_merged_lanes()` |
 | `git rev-list --count <base>..HEAD` | Topology analysis (read-only) | `core/worktree_topology.py` | `_count_commits_ahead()` |
 | `git worktree list` | Worktree discovery | `core/worktree_topology.py` | `discover_worktrees()` |
 | `git rev-parse --show-toplevel` | Repo root detection | Multiple files | Various |

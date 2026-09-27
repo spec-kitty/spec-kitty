@@ -248,7 +248,7 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
         "it exactly once."
     ),
     ("ci-router.yml", "architectural-heavy"): "Path-routed lane: the architectural pole.",
-    ("ci-router.yml", "tests-merge"): "Path-routed lane: tests/merge.",
+    ("ci-router.yml", "tests-consolidation"): "Path-routed lane: tests/consolidation.",
     ("ci-router.yml", "tests-status"): "Path-routed lane: tests/status.",
     ("ci-router.yml", "tests-cli"): "Path-routed lane: tests/cli.",
     ("ci-router.yml", "tests-docs"): "Path-routed lane: tests/docs.",

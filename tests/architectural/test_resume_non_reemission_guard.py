@@ -16,14 +16,14 @@ which drives the full merge executor with an injected target-advance failure:
 that test proves the end-to-end *outcome* on ONE fixed scenario. This guard
 instead pins the *invariant* the Option-A fix rests on — resume derives progress
 from the durable committed event log, never from the roll-backable
-``MergeState.completed_wps`` bytes — and quantifies it over an ARBITRARY committed
+``ConsolidationState.completed_wps`` bytes — and quantifies it over an ARBITRARY committed
 coordination log crossed with an arbitrary (possibly rolled-back / stale)
-``MergeState``. No merge executor, no injected failure: just the real resume
+``ConsolidationState``. No merge executor, no injected failure: just the real resume
 progress-derivation seam over a git-backed committed coordination ref.
 
 Binding property (identity-idempotence, spec FR-008 / SC-005 / US3):
     For any committed coordination log whose durably-``done`` WP set is ``D`` and
-    any ``MergeState`` whose ``completed_wps`` is arbitrary, the resume derivation
+    any ``ConsolidationState`` whose ``completed_wps`` is arbitrary, the resume derivation
     re-emits ``done`` for **no** WP already recorded ``done`` on the durable ref:
 
         ``resume_reemit(log, state) ∩ D == ∅``.
@@ -62,12 +62,12 @@ import pytest
 # test module reaches ``merge`` first.
 import specify_cli.status  # noqa: F401  # import-order guard (see comment above)
 
-from specify_cli.merge.done_bookkeeping import (
+from specify_cli.consolidation.done_bookkeeping import (
     _durable_done_wps_on_coordination_ref,
     _has_transition_to,
     _reconcile_completed_wps_for_resume,
 )
-from specify_cli.merge.state import MergeState
+from specify_cli.consolidation.state import ConsolidationState
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: subprocess git
 
@@ -213,7 +213,7 @@ def _committed_done_ground_truth(repo: Path) -> set[str]:
 
 
 def _resume_reemit_set(
-    *, feature_dir: Path, repo: Path, merge_state: MergeState
+    *, feature_dir: Path, repo: Path, merge_state: ConsolidationState
 ) -> set[str]:
     """The WPs the resume WOULD re-emit ``done`` for — the real skip decision.
 
@@ -239,7 +239,7 @@ def _resume_reemit_set(
 
 
 def _completed_wps_variants(done_subset: tuple[str, ...]) -> list[list[str]]:
-    """Arbitrary (possibly rolled-back / stale) ``MergeState.completed_wps`` values.
+    """Arbitrary (possibly rolled-back / stale) ``ConsolidationState.completed_wps`` values.
 
     Covers the #2711 trigger (``[]`` — the "0/N already done" full rollback), the
     coherent hint (matches the durable set), and the whole wp_order (a maximal
@@ -267,7 +267,7 @@ def test_resume_never_reemits_a_durably_recorded_done(
 
     Property over an arbitrary committed coordination log (``done`` set == the
     parametrized ``done_subset``) crossed with arbitrary rolled-back / stale
-    ``MergeState.completed_wps`` values. The Option-A resume derives progress from
+    ``ConsolidationState.completed_wps`` values. The Option-A resume derives progress from
     the durable committed ref, so:
 
     * (fidelity) reconcile confirms exactly the listed-AND-durably-done WPs — it
@@ -305,7 +305,7 @@ def test_resume_never_reemits_a_durably_recorded_done(
     )
 
     for completed_wps in _completed_wps_variants(done_subset):
-        merge_state = MergeState(
+        merge_state = ConsolidationState(
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             target_branch="main",

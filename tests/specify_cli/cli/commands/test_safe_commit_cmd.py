@@ -16,7 +16,7 @@ from mission_runtime import (
     resolve_placement_only,
 )
 from specify_cli import app as cli_app
-from specify_cli.merge.baseline import record_baseline_merge_commit
+from specify_cli.consolidation.baseline import record_baseline_merge_commit
 from specify_cli.mission_metadata import load_meta, write_meta
 
 

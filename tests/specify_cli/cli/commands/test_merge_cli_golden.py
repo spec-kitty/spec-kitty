@@ -10,8 +10,8 @@ WP must keep this green. Any drift in help text, flags/defaults, the dry-run JSO
 key set, or the headline error/exit-code paths is a behavior change and must fail.
 
 The command is exercised through the **real registered command object**
-(``merge_module.merge``), registered exactly as ``cli/commands/__init__.py:216``
-does (``app.command()(merge_module.merge)``) — NOT a hand-rolled re-wrap of the
+(``merge_module.consolidate``), registered exactly as ``cli/commands/__init__.py:216``
+does (``app.command()(merge_module.consolidate)``) — NOT a hand-rolled re-wrap of the
 inner logic. This pins registration alongside the surface.
 """
 
@@ -27,7 +27,7 @@ from typer.testing import CliRunner
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli import commands as commands_module
-from specify_cli.cli.commands import merge as merge_module
+from specify_cli.cli.commands import consolidate as merge_module
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
 )
@@ -46,7 +46,7 @@ pytestmark = pytest.mark.fast
 # --- Frozen contract data (cli-surface-contract.md) -------------------------
 
 # The one-line help (docstring) must be byte-identical.
-EXPECTED_ONE_LINE_HELP = "Merge a lane-based mission into its target branch."
+EXPECTED_ONE_LINE_HELP = "Consolidate a lane-based mission into its target branch."
 
 # The EXACT set of every long option the parser exposes. This is the
 # load-bearing flag-surface contract (#2057): byte-identity of the parser option
@@ -110,13 +110,13 @@ EXPECTED_DRY_RUN_PAYLOAD_KEYS = frozenset(
 def _build_merge_app() -> typer.Typer:
     """Register the real ``merge`` command object exactly as the host CLI does.
 
-    Mirrors ``cli/commands/__init__.py`` ``app.command()(merge_module.merge)``
+    Mirrors ``cli/commands/__init__.py`` ``app.command()(merge_module.consolidate)``
     (the registration call asserted by the surface contract). We register the
     canonical command object, not a re-wrap, so the registered command and its
     parsed options are pinned.
     """
     app = typer.Typer()
-    app.command()(merge_module.merge)
+    app.command()(merge_module.consolidate)
     return app
 
 
@@ -131,7 +131,7 @@ def _live_parser_long_flags() -> frozenset[str]:
     remaining options are visible.
     """
     app = typer.Typer(add_completion=False)
-    app.command()(merge_module.merge)
+    app.command()(merge_module.consolidate)
     command = typer.main.get_command(app)
     if isinstance(command, click.Group):
         command = next(iter(command.commands.values()))
@@ -155,7 +155,7 @@ def _live_parser_visibility_partition() -> tuple[frozenset[str], frozenset[str]]
     ``hidden`` moves it between the two sets and breaks the assertion.
     """
     app = typer.Typer(add_completion=False)
-    app.command()(merge_module.merge)
+    app.command()(merge_module.consolidate)
     command = typer.main.get_command(app)
     if isinstance(command, click.Group):
         command = next(iter(command.commands.values()))
@@ -326,13 +326,13 @@ def test_unresolved_mission_slug_exits_one(monkeypatch: pytest.MonkeyPatch) -> N
     branch is not a mission branch (slug resolution yields ``None``). We pin that
     resolution outcome and the resulting headline error/exit-code.
     """
-    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None)
-    monkeypatch.setattr("specify_cli.cli.commands.merge._resolve_mission_slug", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._enforce_git_preflight", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._resolve_mission_slug", lambda *a, **kw: None)
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._resolve_target_branch",
+        "specify_cli.cli.commands.consolidate._resolve_target_branch",
         lambda *a, **kw: ("main", "cli"),
     )
-    monkeypatch.setattr("specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._validate_target_branch", lambda *a, **kw: None)
     runner = CliRunner()
     result = runner.invoke(_build_merge_app(), ["--dry-run"])
     assert result.exit_code == 1
@@ -346,13 +346,13 @@ def test_unresolved_mission_slug_non_dry_run_exits_two(monkeypatch: pytest.Monke
     must produce exit code 2 — the canonical "no selector" signal — not 1.
     This pin guards against regression of that specific branch.
     """
-    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None)
-    monkeypatch.setattr("specify_cli.cli.commands.merge._resolve_mission_slug", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._enforce_git_preflight", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._resolve_mission_slug", lambda *a, **kw: None)
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._resolve_target_branch",
+        "specify_cli.cli.commands.consolidate._resolve_target_branch",
         lambda *a, **kw: ("main", "cli"),
     )
-    monkeypatch.setattr("specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._validate_target_branch", lambda *a, **kw: None)
     runner = CliRunner()
     result = runner.invoke(_build_merge_app(), [])
     assert result.exit_code == 2
@@ -363,18 +363,18 @@ def test_unresolved_mission_slug_non_dry_run_exits_two(monkeypatch: pytest.Monke
 
 
 def _patch_dry_run_git_boundaries(monkeypatch: pytest.MonkeyPatch, mission: MissionFixture) -> None:
-    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None)
-    monkeypatch.setattr("specify_cli.cli.commands.merge.find_repo_root", lambda: mission.repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate._enforce_git_preflight", lambda *a, **kw: None)
+    monkeypatch.setattr("specify_cli.cli.commands.consolidate.find_repo_root", lambda: mission.repo_root)
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.get_main_repo_root",
+        "specify_cli.cli.commands.consolidate.get_main_repo_root",
         lambda _repo: mission.repo_root,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._validate_target_branch",
+        "specify_cli.cli.commands.consolidate._validate_target_branch",
         lambda *a, **kw: None,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._resolve_target_branch",
+        "specify_cli.cli.commands.consolidate._resolve_target_branch",
         lambda *a, **kw: ("main", "cli"),
     )
 

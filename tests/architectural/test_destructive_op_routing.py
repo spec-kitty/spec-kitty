@@ -188,7 +188,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "the reset is now dirty/ahead-guarded, not unguarded."
     ),
     CensusKey(
-        rel="src/specify_cli/merge/git_probes.py", qualname="_refresh_primary_checkout_after_merge", token_line="[ , , , ] ,", op="reset_hard", op_ordinal=0
+        rel="src/specify_cli/consolidation/git_probes.py", qualname="_refresh_primary_checkout_after_merge", token_line="[ , , , ] ,", op="reset_hard", op_ordinal=0
     ): (
         "guarded by WP03/T011 (#4752): refuses via assert_checkout_on_target "
         "before this reset runs whenever expected_branch is supplied; the "
@@ -223,7 +223,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "arbitrary destroy of operator state."
     ),
     CensusKey(
-        rel="src/specify_cli/merge/executor.py", qualname="_recover_behind_head_primary_on_resume", token_line="[ , , , ] ,", op="reset_hard", op_ordinal=0
+        rel="src/specify_cli/consolidation/executor.py", qualname="_recover_behind_head_primary_on_resume", token_line="[ , , , ] ,", op="reset_hard", op_ordinal=0
     ): (
         "#4997 behind-own-HEAD resume recovery (_recover_behind_head_primary_on_resume): "
         "runs ONLY after a provably-pure-lag proof -- classify_resume_dirty_remedy == "
@@ -246,21 +246,21 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "chokepoint (guarded_worktree_remove is)."
     ),
     CensusKey(
-        rel="src/specify_cli/merge/ordering.py",
+        rel="src/specify_cli/consolidation/ordering.py",
         qualname="_compute_next_mission_number_or_none",
         token_line="[ , , , str ( tmp_path ) , ] ,",
         op="worktree_remove_force",
         op_ordinal=0,
     ): ("ephemeral detached scan worktree, torn down in the same function's own finally block; never operator-visible state."),
     CensusKey(
-        rel="src/specify_cli/merge/ordering.py",
+        rel="src/specify_cli/consolidation/ordering.py",
         qualname="_write_mission_number_to_branch",
         token_line="[ , , , str ( mission_tmp_path ) , ] ,",
         op="worktree_remove_force",
         op_ordinal=0,
     ): ("ephemeral detached scan worktree (mission-number bake), same class as the sibling ordering.py:329 site."),
     CensusKey(
-        rel="src/specify_cli/merge/workspace.py",
+        rel="src/specify_cli/consolidation/workspace.py",
         qualname="cleanup_merge_workspace",
         token_line="[ , , , , str ( workspace_path ) ] ,",
         op="worktree_remove_force",
@@ -288,7 +288,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op_ordinal=0,
     ): ("the chokepoint's OWN inline implementation (_remove_worktree_force, called only from guarded_worktree_remove) -- this IS the guard, not a bypass of it."),
     CensusKey(
-        rel="src/specify_cli/lanes/merge.py",
+        rel="src/specify_cli/lanes/consolidation.py",
         qualname="preview_mission_target_integration",
         token_line="[ , , , str ( tmp_path ) , ] ,",
         op="worktree_remove_force",
@@ -301,7 +301,11 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "earlier in the file); same site/rationale, confirmed by a direct read."
     ),
     CensusKey(
-        rel="src/specify_cli/lanes/merge.py", qualname="_merge_branch_into", token_line="[ , , , str ( tmp_path ) , ] ,", op="worktree_remove_force", op_ordinal=0
+        rel="src/specify_cli/lanes/consolidation.py",
+        qualname="_merge_branch_into",
+        token_line="[ , , , str ( tmp_path ) , ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
     ): ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
     CensusKey(
         rel="src/specify_cli/lanes/worktree_allocator.py",
@@ -329,7 +333,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "own docstring, not an unrouted/unexplained raw force-remove."
     ),
     # --- merge --abort (6) --------------------------------------------------
-    CensusKey(rel="src/specify_cli/merge/state.py", qualname="abort_git_merge", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
+    CensusKey(rel="src/specify_cli/consolidation/state.py", qualname="abort_git_merge", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
         "abort_git_merge's own generic primitive; its one live caller "
         "(cli.commands.merge._dispatch_abort, WP04/#4754) passes only the "
         "scoped merge-workspace path, never repo_root (INV-5). Re-pinned "
@@ -337,10 +341,10 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "the reconciliation_passed_target_sha resume-anchor field shifted the "
         "line, same primitive/rationale."
     ),
-    CensusKey(rel="src/specify_cli/lanes/merge.py", qualname="_merge_branch_into", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
+    CensusKey(rel="src/specify_cli/lanes/consolidation.py", qualname="_merge_branch_into", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
         "scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."
     ),
-    CensusKey(rel="src/specify_cli/lanes/merge.py", qualname="_merge_branch_into", token_line="[ , , ] ,", op="merge_abort", op_ordinal=1): (
+    CensusKey(rel="src/specify_cli/lanes/consolidation.py", qualname="_merge_branch_into", token_line="[ , , ] ,", op="merge_abort", op_ordinal=1): (
         "scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."
     ),
     CensusKey(
@@ -410,7 +414,7 @@ def test_allowlisted_files_exist() -> None:
 # known routed sites are not merely "absent because the file doesn't exist".
 # ---------------------------------------------------------------------------
 _ROUTED_WORKTREE_REMOVE_SITES: tuple[str, ...] = (
-    "specify_cli/merge/executor.py",
+    "specify_cli/consolidation/executor.py",
     "specify_cli/coordination/workspace.py",
     "specify_cli/orchestrator_api/commands.py",
 )
@@ -430,7 +434,7 @@ def test_live_worktree_removal_sites_route_through_the_guard() -> None:
 
 _DIRTY_PREDICATE_SEAM_DIRS: tuple[Path, ...] = (
     SPECIFY_CLI_ROOT / "git",
-    SPECIFY_CLI_ROOT / "merge",
+    SPECIFY_CLI_ROOT / "consolidation",
     SPECIFY_CLI_ROOT / "coordination",
     SPECIFY_CLI_ROOT / "core" / "vcs",
 )
@@ -445,8 +449,8 @@ _DIRTY_PREDICATE_SEAM_DIRS: tuple[Path, ...] = (
 #: against.
 _KNOWN_DIRTY_PREDICATES: frozenset[str] = frozenset(
     {
-        "specify_cli/merge/git_probes.py::_raw_porcelain_status",
-        "specify_cli/merge/git_probes.py::_paths_have_status_changes",
+        "specify_cli/consolidation/git_probes.py::_raw_porcelain_status",
+        "specify_cli/consolidation/git_probes.py::_paths_have_status_changes",
         "specify_cli/git/ref_advance.py::_dirty_entries",
         "specify_cli/coordination/transaction.py::BookkeepingTransaction._worktree_has_pending_changes",
         "specify_cli/coordination/commit_router.py::_paths_uncommitted_in_primary",
@@ -641,7 +645,7 @@ def test_removing_a_known_predicate_reproduces_a_gate_failure() -> None:
 # Line-drift tolerance (NFR-001) and non-widening (FR-006) through the seam.
 # ---------------------------------------------------------------------------
 
-_NON_WIDENING_REL = "src/specify_cli/lanes/merge.py"
+_NON_WIDENING_REL = "src/specify_cli/lanes/consolidation.py"
 
 
 def _site_linenos(rel: str, op: str | None = None) -> list[int]:
@@ -743,7 +747,7 @@ def _twin_merge_abort_keys() -> list[CensusKey]:
 
 
 def test_duplicating_the_twin_merge_abort_reports_op_ordinal_2() -> None:
-    """``lanes/merge.py::_merge_branch_into`` holds the two exempted
+    """``lanes/consolidation.py::_merge_branch_into`` holds the two exempted
     ``merge --abort`` twins (``op_ordinal`` 0 and 1). A third identical one is
     ``op_ordinal=2``: not in the allowlist, so the gate reports it."""
     twins = _twin_merge_abort_keys()

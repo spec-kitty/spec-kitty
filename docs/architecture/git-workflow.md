@@ -24,12 +24,12 @@ Understanding this boundary matters because crossing it causes breakage. An agen
 | `git commit` (lane transitions) | Python | WP moves to doing / for_review |
 | `git commit` (implementation code) | **Agent** | After writing code in worktree |
 | `git rebase` (stale lane sync) | **Agent** | When the mission branch advanced and the lane must resync |
-| `git merge` (lane into mission, mission into target) | Python | `spec-kitty merge` |
-| `git push` | Python (opt-in) | `spec-kitty merge --push` only |
+| `git merge` (lane into mission, mission into target) | Python | `spec-kitty consolidate` |
+| `git push` | Python (opt-in) | `spec-kitty consolidate --push` only |
 | `git push` | **Agent** | Any other push scenario |
 | Conflict resolution | **Agent** | During rebase or manual merge |
-| `git worktree remove` | Python | After successful merge |
-| `git branch -d` (cleanup) | Python | After successful merge |
+| `git worktree remove` | Python | After successful consolidation |
+| `git branch -d` (cleanup) | Python | After successful consolidation |
 
 The pattern is straightforward: Python owns the lifecycle scaffolding. Agents own the work that happens inside that scaffolding.
 
@@ -51,7 +51,7 @@ For dependent WPs, rely on task finalization to place the work in the correct ex
 spec-kitty agent action implement WP02 --agent <name>
 ```
 
-If WP01 and WP02 share a lane, the same workspace is reused sequentially. If they do not share a lane, each lane branches from the mission branch and integrates through the lane-only merge flow.
+If WP01 and WP02 share a lane, the same workspace is reused sequentially. If they do not share a lane, each lane branches from the mission branch and integrates through the lane-only consolidation flow.
 
 ### 2. Active
 
@@ -74,14 +74,14 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
 
 Python auto-commits the WP frontmatter change to record the lane transition. Before accepting the transition, it validates that the worktree has at least one commit ahead of the base branch. If there are zero implementation commits, the transition is rejected.
 
-### 4. Merged
+### 4. Consolidated
 
 ```bash
 spec-kitty accept --mission 042-feature
-spec-kitty merge --mission 042-feature
+spec-kitty consolidate --mission 042-feature
 ```
 
-Acceptance validates that all WPs are approved or done before merge. Python
+Acceptance validates that all WPs are approved or done before consolidation. Python
 then merges execution branches into the target branch in dependency order. In
 lane mode, it first merges lane branches into the mission branch, then merges
 the mission branch into the target branch. For each execution worktree:
@@ -90,11 +90,11 @@ the mission branch into the target branch. For each execution worktree:
 2. `git worktree remove` (cleaning up the directory)
 3. `git branch -d` (removing the branch)
 
-The `--push` flag is opt-in. Without it, the merge stays local.
+The `--push` flag is opt-in. Without it, the consolidation stays local.
 
 ### 5. Cleaned Up
 
-After merge, the worktree directory is gone, the branch is deleted, and the workspace context file is removed. The WP's work now lives on the target branch.
+After consolidation, the worktree directory is gone, the branch is deleted, and the workspace context file is removed. The WP's work now lives on the target branch.
 
 ## Auto-Commit Behavior
 
@@ -178,11 +178,11 @@ Task finalization resolves multi-dependency lane ownership before implementation
 
 ### Pushing
 
-`spec-kitty merge --push` is the only automated push. All other push operations are the agent's responsibility. Never push unprompted.
+`spec-kitty consolidate --push` is the only automated push. All other push operations are the agent's responsibility. Never push unprompted.
 
 ### Conflict Resolution
 
-If `spec-kitty merge` encounters conflicts, it stops and reports the conflicting files. The agent must resolve them manually, then complete the merge. Python does not attempt auto-resolution.
+If `spec-kitty consolidate` encounters conflicts, it stops and reports the conflicting files. The agent must resolve them manually, then complete the consolidation. Python does not attempt auto-resolution.
 
 ## Anti-Patterns
 
@@ -215,7 +215,7 @@ The repository root checkout is for planning artifacts only. Implementation comm
 git push origin <resolved workspace branch>
 ```
 
-Never push unless the user explicitly requests it or you are using `spec-kitty merge --push`. Unexpected pushes can trigger CI pipelines, interfere with other agents, and make rollbacks difficult.
+Never push unless the user explicitly requests it or you are using `spec-kitty consolidate --push`. Unexpected pushes can trigger CI pipelines, interfere with other agents, and make rollbacks difficult.
 
 ### Modifying Other WPs From a Worktree
 

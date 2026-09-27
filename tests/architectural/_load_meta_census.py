@@ -200,9 +200,9 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     # best-effort bookkeeping that runs after the lanes have already landed,
     # so a fail-closed raise would abort a merge that has nothing left to
     # protect. silent-by-contract is the correct accounting, not a reroute.
-    ("src/specify_cli/merge/ordering.py", "_bake_mission_number_on_primary_tree"): (1, "silent-by-contract"),
-    ("src/specify_cli/merge/ordering.py", "_compute_next_mission_number_or_none"): (1, "silent-by-contract"),
-    ("src/specify_cli/merge/ordering.py", "_write_mission_number_to_branch"): (1, "silent-by-contract"),
+    ("src/specify_cli/consolidation/ordering.py", "_bake_mission_number_on_primary_tree"): (1, "silent-by-contract"),
+    ("src/specify_cli/consolidation/ordering.py", "_compute_next_mission_number_or_none"): (1, "silent-by-contract"),
+    ("src/specify_cli/consolidation/ordering.py", "_write_mission_number_to_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_synthesize_claim_anchor"): (1, "silent-by-contract"),
     # #3212: the pre-flip authority probe is a read-only verdict input on the

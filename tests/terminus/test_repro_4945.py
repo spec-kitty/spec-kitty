@@ -40,7 +40,7 @@ def test_4945_re_lettered_lane_must_not_ship_removed_wp_code(tmp_path: Path) -> 
     removed_sha, removed_pid, _planted = plant_canceled_commit(mission, canceled_wp="WP03", carrier_wp="WP02")
     approved = mission.approved_shas_from_lane_tips(["WP01", "WP02"])  # PRE-merge tips
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--strategy", "merge", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--strategy", "merge", "--yes"])
 
     if result.returncode == 0:
         for shas in approved.values():
@@ -68,7 +68,7 @@ def test_4945_default_squash_must_not_ship_removed_wp_code(tmp_path: Path) -> No
     pre_target = mission.rev(mission.target_branch)
     _removed_sha, _removed_pid, planted_path = plant_canceled_commit(mission, canceled_wp="WP03", carrier_wp="WP02")
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
 
     assert not blob_present_at(mission.repo, mission.target_branch, planted_path), (
         f"removed WP03 file {planted_path} SHIPPED to {mission.target_branch} under the DEFAULT squash at exit {result.returncode} (#5013)"

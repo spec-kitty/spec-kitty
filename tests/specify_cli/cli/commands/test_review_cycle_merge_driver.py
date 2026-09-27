@@ -12,7 +12,7 @@ Covers:
   unrelated ``.gitattributes`` content).
 - T080 (C-011, red-first): reproduces the create-window clobber (ADR
   2026-08-03-1 / #2804 shape) through the REAL mission->target squash merge
-  path (``specify_cli.lanes.merge._merge_branch_into`` -> real
+  path (``specify_cli.lanes.consolidation._merge_branch_into`` -> real
   ``git merge --squash -X theirs``), first WITHOUT the driver registered
   (RED: the target's genuine cycle-1 verdict is destroyed) and then WITH it
   (GREEN: both verdicts survive, embedded behind conflict markers, and the
@@ -47,8 +47,8 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.merge_driver import merge_driver_review_cycle
-from specify_cli.lanes.merge import _MERGE_DRIVERS, _merge_branch_into
-from specify_cli.merge.config import MergeStrategy
+from specify_cli.lanes.consolidation import _MERGE_DRIVERS, _merge_branch_into
+from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.upgrade.migrations.m_3_2_7_review_cycle_merge_driver import (
     ReviewCycleMergeDriverMigration,
 )
@@ -363,7 +363,7 @@ def test_create_window_collision_fails_closed_without_driver_registered(
         "sanity: the review-cycle driver must actually be registered in "
         "_MERGE_DRIVERS for excluding it to mean anything"
     )
-    monkeypatch.setattr("specify_cli.lanes.merge._MERGE_DRIVERS", without_review_cycle)
+    monkeypatch.setattr("specify_cli.lanes.consolidation._MERGE_DRIVERS", without_review_cycle)
 
     with pytest.raises(RuntimeError) as excinfo:
         _merge_branch_into(repo, mission_branch, "main", strategy=MergeStrategy.SQUASH)

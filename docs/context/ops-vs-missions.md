@@ -1,6 +1,6 @@
 ---
 title: Ops vs. Missions
-description: 'What separates a lightweight, governed ad-hoc Op from a full spec-to-merge Mission, and a concrete rule for choosing between them.'
+description: 'What separates a lightweight, governed ad-hoc Op from a full spec-to-consolidate Mission, and a concrete rule for choosing between them.'
 doc_status: active
 updated: '2026-07-20'
 type: explanation
@@ -41,11 +41,11 @@ That command appends a `completed` event to the same JSONL file (see
 `src/specify_cli/invocation/executor.py`'s `ProfileInvocationExecutor.invoke()` /
 `complete_invocation()`). Unclosed Ops are surfaced by `spec-kitty doctor ops` and
 eventually swept to `abandoned`. There is no lane, no `for_review` state, and no
-merge step — an Op is a single governed unit of work with a start event and an
+consolidation step — an Op is a single governed unit of work with a start event and an
 end event, nothing else.
 
-**A Mission** is the canonical product term for a full spec-to-merge workflow
-unit: specify → plan → tasks → implement → review → merge (accept, for some
+**A Mission** is the canonical product term for a full spec-to-consolidate workflow
+unit: specify → plan → tasks → implement → review → consolidate (accept, for some
 mission types). Starting one (`spec-kitty.specify` / `mission create`) creates a
 persistent mission directory under `kitty-specs/<mission-slug>/` with `spec.md`,
 `plan.md`, `tasks.md`, work-package files, and a `meta.json` carrying a durable
@@ -54,7 +54,7 @@ persistent mission directory under `kitty-specs/<mission-slug>/` with `spec.md`,
 → `done`, with `blocked`/`canceled` as side states), each transition is an
 append-only event in `status.events.jsonl`, and `spec-kitty implement` creates
 dedicated git worktrees/branches per work package. A Mission is designed to
-survive across many sessions, multiple agents, and a review/merge gate; an Op is
+survive across many sessions, multiple agents, and a review/consolidation gate; an Op is
 designed to be opened and closed inside a single turn of work.
 
 ## Decision rule
@@ -66,7 +66,7 @@ Use this table to decide before you start:
 | A one-off question, review, or piece of advice with no lasting spec/plan/code artifact to track | **Op** (`spec-kitty dispatch`) |
 | A small fix or task that doesn't need a spec, a review gate, or multi-session tracking | **Op** (`spec-kitty dispatch`) |
 | You want the governance context (Charter, doctrine) injected once, synchronously, without opening a multi-step workflow | **Op** (`spec-kitty dispatch`) |
-| The work needs a written spec, an implementation plan, discrete reviewable work packages, or will span more than one sitting | **Mission** (`spec-kitty.specify` → `plan` → `tasks` → `implement` → `review` → `merge`) |
+| The work needs a written spec, an implementation plan, discrete reviewable work packages, or will span more than one sitting | **Mission** (`spec-kitty.specify` → `plan` → `tasks` → `implement` → `review` → `consolidate`) |
 | The work needs to be resumable by name/slug across sessions or by a different agent | **Mission** |
 | The work needs an explicit review/approval gate before it lands | **Mission** |
 
@@ -106,7 +106,7 @@ sessions:
 /spec-kitty.tasks      # -> tasks.md + tasks/WP*.md
 spec-kitty implement WP01   # creates a lane worktree, work begins
 # ... review, approve, repeat per WP ...
-spec-kitty merge       # lane consolidation into local main
+spec-kitty consolidate   # lane consolidation into local main
 ```
 
 For the mechanism behind governed dispatch in more depth, see

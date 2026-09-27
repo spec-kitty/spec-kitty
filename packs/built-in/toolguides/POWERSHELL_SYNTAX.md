@@ -52,7 +52,7 @@ double-dash flags, from PowerShell exactly as you would from Bash.
 - `spec-kitty agent action implement <WPID> --agent <name> --mission <handle>` - Start implementing a work package (moves it to `in_progress`)
 - `spec-kitty agent action review <WPID> --agent <name> --mission <handle>` - Start reviewing a work package
 - `spec-kitty agent tasks move-task <WPID> --to for_review --mission <handle>` - Complete implementation (move to review)
-- `spec-kitty merge` - Merge completed mission
+- `spec-kitty consolidate` - Consolidate completed mission
 
 ### Parameter Naming Convention
 

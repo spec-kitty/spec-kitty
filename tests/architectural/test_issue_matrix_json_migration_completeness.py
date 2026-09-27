@@ -116,7 +116,7 @@ class TestLiveConsumersRouteThroughCanonicalReader:
 # hermetic tmp_path, with only the git-write-seam plumbing stubbed out, and
 # assert neither ever materializes issue-matrix.md. A legacy mission's
 # EXISTING .md is still read via failover (issue_matrix_migration.py) and
-# the #2804 legacy merge driver (merge/drivers.py::run_issue_matrix_driver,
+# the #2804 legacy merge driver (consolidation/drivers.py::run_issue_matrix_driver,
 # relocated there from merge_driver.py::merge_driver_issue_matrix by #5119)
 # still resolves conflicts on an ALREADY-EXISTING .md file for a
 # not-yet-migrated mission -- neither of those is "emission" of a fresh

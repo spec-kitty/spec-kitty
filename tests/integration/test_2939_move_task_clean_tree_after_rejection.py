@@ -232,7 +232,7 @@ def test_skip_review_artifact_evidence_is_committed_on_coord(tmp_path: Path) -> 
     non-transactional ``emit_inner_state_changed``, leaving the coord status tree
     dirty (evidence written + materialized, never committed) — porcelain NON-empty.
     """
-    from specify_cli.merge.preflight import _record_review_artifact_skip_evidence
+    from specify_cli.consolidation.preflight import _record_review_artifact_skip_evidence
     from specify_cli.post_merge.review_artifact_consistency import (
         ReviewArtifactFinding,
     )

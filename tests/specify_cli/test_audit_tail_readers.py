@@ -403,19 +403,19 @@ def test_load_wps_manifest_schema_invalid_still_raises_plain_validation_error(
 
 
 # ---------------------------------------------------------------------------
-# 4. merge/state.py::_load_state_file — via load_state()/has_active_merge()
+# 4. merge/state.py::_load_state_file — via load_state()/has_active_consolidation()
 #
 # Reader-level, documented: the real reachable command (`spec-kitty merge`,
 # `spec-kitty doctor coordination`) requires a genuine git repo, branches,
 # and lanes.json scaffold disproportionate to this read-guard regression
-# test. `load_state`/`has_active_merge` ARE the public API `_load_state_file`
+# test. `load_state`/`has_active_consolidation` ARE the public API `_load_state_file`
 # exists to serve -- never the private reader itself.
 # ---------------------------------------------------------------------------
 
 
 def test_load_state_returns_none_when_state_file_absent(tmp_path: Path) -> None:
     """D5: an absent state.json still returns None for an explicit mission_id."""
-    from specify_cli.merge.state import load_state
+    from specify_cli.consolidation.state import load_state
 
     assert load_state(tmp_path, "some-mission") is None
 
@@ -427,15 +427,15 @@ def test_load_state_explicit_mission_id_raises_typed_error_on_corrupt_json(
     """WP07/#4746: pre-fix, `_load_state_file` silently collapsed corrupt
     JSON into `None` -- indistinguishable from "no merge in progress", a
     fail-open bug (a corrupt RESUMABLE merge state masquerading as nothing
-    to resume). Now raises the typed `MergeStateReadError` for the
+    to resume). Now raises the typed `ConsolidationStateReadError` for the
     explicit-mission_id (fail-closed) path."""
-    from specify_cli.merge.state import MergeStateReadError, load_state
+    from specify_cli.consolidation.state import ConsolidationStateReadError, load_state
 
     state_file = tmp_path / ".kittify" / "runtime" / "merge" / "057-test" / "state.json"
     state_file.parent.mkdir(parents=True)
     state_file.write_text("not valid json{", encoding="utf-8")
 
-    with pytest.raises(MergeStateReadError):
+    with pytest.raises(ConsolidationStateReadError):
         load_state(tmp_path, "057-test")
 
 
@@ -444,13 +444,13 @@ def test_load_state_non_utf8_bytes_raises_typed_error(tmp_path: Path) -> None:
     """WP07/#4746: non-UTF-8 bytes were fully unguarded pre-fix (the old
     `except (JSONDecodeError, TypeError, KeyError)` never caught
     `UnicodeDecodeError`) -- now collapsed into the same typed error."""
-    from specify_cli.merge.state import MergeStateReadError, load_state
+    from specify_cli.consolidation.state import ConsolidationStateReadError, load_state
 
     state_file = tmp_path / ".kittify" / "runtime" / "merge" / "057-test" / "state.json"
     state_file.parent.mkdir(parents=True)
     state_file.write_bytes(b"\xff\xfe\x00not utf-8")
 
-    with pytest.raises(MergeStateReadError):
+    with pytest.raises(ConsolidationStateReadError):
         load_state(tmp_path, "057-test")
 
 
@@ -463,13 +463,13 @@ def test_load_state_scan_all_skips_a_corrupt_mission_and_still_finds_the_valid_o
     corrupt state.json block resolving another mission's active merge --
     unlike the explicit-mission_id path above, which fails closed. Skips
     the corrupt one and still returns the valid state."""
-    from specify_cli.merge.state import MergeState, load_state, save_state
+    from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
 
     corrupt_dir = tmp_path / ".kittify" / "runtime" / "merge" / "corrupt-mission"
     corrupt_dir.mkdir(parents=True)
     (corrupt_dir / "state.json").write_text("not valid json{", encoding="utf-8")
 
-    valid_state = MergeState(
+    valid_state = ConsolidationState(
         mission_id="valid-mission",
         mission_slug="valid-mission",
         target_branch="main",
@@ -488,8 +488,8 @@ def test_iter_pending_coord_reconcile_markers_skips_a_corrupt_state_file(
     """Same resilience contract as the scan-all test above, for the
     coordination doctor's enumeration seam (its own docstring already
     promised "unparseable state files are skipped")."""
-    from specify_cli.merge.state import (
-        MergeState,
+    from specify_cli.consolidation.state import (
+        ConsolidationState,
         iter_pending_coord_reconcile_markers,
         save_state,
     )
@@ -498,7 +498,7 @@ def test_iter_pending_coord_reconcile_markers_skips_a_corrupt_state_file(
     corrupt_dir.mkdir(parents=True)
     (corrupt_dir / "state.json").write_bytes(b"\xff\xfe\x00not utf-8")
 
-    marked_state = MergeState(
+    marked_state = ConsolidationState(
         mission_id="marked-mission",
         mission_slug="marked-mission",
         target_branch="main",

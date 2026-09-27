@@ -8,7 +8,7 @@
 
      Registered 2026-08-07 as a landing-pass fix for PR #3245
      (verdict-seam-write-unification): the R-014 negative scan is scoped to
-     `src/specify_cli/merge/executor.py` (a CHURN_SURFACE_MODULES member) and
+     `src/specify_cli/consolidation/executor.py` (a CHURN_SURFACE_MODULES member) and
      discovered this pre-existing #2804/FR-009 (write-surface-coherence WP08)
      literal, which predates the tool_artifact_enrolment ratchet's own WP10
      landing census and was never enumerated. This row is `status:
@@ -17,7 +17,7 @@
 
 
 - mechanism: `_GATE_ARTIFACT_FILENAMES`
-- module: `src/specify_cli/merge/executor.py`
+- module: `src/specify_cli/consolidation/executor.py`
 - literals: `_GATE_ARTIFACT_FILENAMES`
 - symbol: `_GATE_ARTIFACT_FILENAMES`
 - retirement-wp: `n/a — pre-existing #2804/WP08 mechanism, landing-pass registration`

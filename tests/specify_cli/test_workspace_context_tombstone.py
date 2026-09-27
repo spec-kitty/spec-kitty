@@ -32,8 +32,8 @@ from specify_cli.coordination.status_service import (
     append_event_log,
 )
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
-from specify_cli.merge import executor as _executor
-from specify_cli.merge.state import MergeState
+from specify_cli.consolidation import executor as _executor
+from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 
 # The cancel-hook tests drive real git via subprocess (``_git`` helper), so the
@@ -250,7 +250,7 @@ def _make_merge_run(tmp_path: Path, *, lane_ids: list[str], remove_worktree: boo
         mission_branch="kitty/mission-m",
         lanes=[SimpleNamespace(lane_id=lane_id, wp_ids=["WP01"]) for lane_id in lane_ids],
     )
-    state = MergeState(mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"])
+    state = ConsolidationState(mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"])
     run = _executor._MergeRunState(
         main_repo=tmp_path,
         mission_slug="m",

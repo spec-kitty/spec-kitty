@@ -33,7 +33,7 @@ from specify_cli.coordination.write_seam import (
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.git.protection_policy import ProtectionPolicy
-from specify_cli.merge.baseline import record_baseline_merge_commit
+from specify_cli.consolidation.baseline import record_baseline_merge_commit
 from specify_cli.mission_metadata import load_meta, write_meta
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]

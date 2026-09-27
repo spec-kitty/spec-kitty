@@ -10,7 +10,7 @@ demands (see ``tracers/design-decisions.md`` for the full IC-08 analysis):
   through the REAL event-sourced status-emit pipeline (never a ``tasks.md``
   checkbox edit / frontmatter ``shell_pid``/``agent`` write — the WP04/WP05
   dependency this WP inherits), then merged via the REAL
-  ``_run_lane_based_merge``. Asserts the birth-cutover fires at the bake
+  ``_run_lane_based_consolidation``. Asserts the birth-cutover fires at the bake
   stage with NO manual backfill invocation: ``status_phase>=1`` +
   ``verify_backfill().ok`` + a non-empty snapshot, and the resolved-partition
   split (``status_phase`` lands PRIMARY-only; never written to the COORD
@@ -342,11 +342,11 @@ def _bootstrap_born_mission(
 
 
 def _run_real_merge(repo: Path, slug: str) -> None:
-    from specify_cli.merge.config import MergeStrategy
-    from specify_cli.cli.commands.merge import _run_lane_based_merge
+    from specify_cli.consolidation.config import MergeStrategy
+    from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 
     with _claim_allocation_patched(repo, repo / "kitty-specs" / slug), _real_merge_external_mocks(repo):
-        _run_lane_based_merge(
+        _run_lane_based_consolidation(
             repo_root=repo,
             mission_slug=slug,
             push=False,
@@ -1014,7 +1014,7 @@ def _coord_seed_run(tmp_path: Path):
     import types
     from typing import cast
 
-    from specify_cli.merge.executor import _MergeRunState
+    from specify_cli.consolidation.executor import _MergeRunState
 
     slug = "coord-seed-mission-01KYCF83TEST00000000000000"
     main_repo = tmp_path / "repo"
@@ -1050,7 +1050,7 @@ def _coord_seed_run(tmp_path: Path):
 def test_coord_seed_commit_targets_coord_branch_no_head_mismatch(tmp_path: Path) -> None:
     """F1: the seed events commit lands on the COORD branch via real safe_commit
     (no SafeCommitHeadMismatch), not the PRIMARY target branch."""
-    from specify_cli.merge.executor import _commit_coord_seed_events
+    from specify_cli.consolidation.executor import _commit_coord_seed_events
 
     run, coord_worktree, status_feature_dir, coord_branch = _coord_seed_run(tmp_path)
 
@@ -1086,7 +1086,7 @@ def _coord_seed_run_real_meta(
     """
     from specify_cli.core.mission_creation import create_mission_core
     from specify_cli.coordination.workspace import CoordinationWorkspace
-    from specify_cli.merge.executor import _MergeRunState
+    from specify_cli.consolidation.executor import _MergeRunState
     from specify_cli.missions._create import ensure_coordination_branch
 
     repo = _init_project(tmp_path)
@@ -1170,7 +1170,7 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
     explicit permission, with this coordination note).
     """
     from mission_runtime import MissionArtifactKind, resolve_placement_only, write_target_degrade
-    from specify_cli.merge.executor import _commit_coord_seed_events
+    from specify_cli.consolidation.executor import _commit_coord_seed_events
 
     run, coord_worktree, status_feature_dir, coord_branch, main_repo, slug = (
         _coord_seed_run_real_meta(tmp_path, monkeypatch)
@@ -1242,7 +1242,7 @@ def test_coord_seed_commit_is_resume_safe_noop_when_clean(tmp_path: Path) -> Non
     """F2: a second invocation (events already committed, tree clean) is a no-op
     — gated on dirty-state, not the per-run seeded_count, so resume heals without
     duplicating."""
-    from specify_cli.merge.executor import _commit_coord_seed_events
+    from specify_cli.consolidation.executor import _commit_coord_seed_events
 
     run, coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
     _commit_coord_seed_events(run, status_feature_dir)
@@ -1259,7 +1259,7 @@ def test_coord_seed_commit_best_effort_never_raises(tmp_path: Path) -> None:
     import types
     from typing import cast
 
-    from specify_cli.merge.executor import _MergeRunState, _commit_coord_seed_events
+    from specify_cli.consolidation.executor import _MergeRunState, _commit_coord_seed_events
 
     run, _coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
     # Drop the coord ref -> the helper must no-op, not raise.

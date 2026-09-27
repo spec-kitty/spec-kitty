@@ -29,7 +29,7 @@ from specify_cli.git.sparse_checkout import _ManagedLanePolicy
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.live_work.bindings import _resolve_mission_from_worktree
-from specify_cli.merge.resolve import _extract_mission_slug
+from specify_cli.consolidation.resolve import _extract_mission_slug
 from specify_cli.policy.commit_guard import is_implementation_branch
 from specify_cli.status.doctor import check_orphan_workspaces
 

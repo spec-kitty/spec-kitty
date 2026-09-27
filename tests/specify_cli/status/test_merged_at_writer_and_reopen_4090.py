@@ -2,7 +2,7 @@
 
 WP04 couples two changes into one behavioural contract:
 
-* **Writer restored** — :func:`specify_cli.merge.baseline.record_baseline_merge_commit`
+* **Writer restored** — :func:`specify_cli.consolidation.baseline.record_baseline_merge_commit`
   (the meta-write authority the merge executor already invokes) now stamps
   ``merged_at`` (+ ``merged_commit``) onto the mission ``meta.json``. Its
   production writer had been deleted in #2258, leaving the surface resolver's
@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 from runtime.next.runtime_bridge import _primary_mission_is_completed
-from specify_cli.merge.baseline import record_baseline_merge_commit
+from specify_cli.consolidation.baseline import record_baseline_merge_commit
 from specify_cli.status import is_mission_merged
 from specify_cli.status.lifecycle_events import emit_mission_reopened
 

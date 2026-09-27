@@ -103,7 +103,7 @@ def test_single_leaf_command_imports_only_its_own_module() -> None:
     deliberately leaves untouched.
     """
     mods = _run_register_commands(["merge", "--help"])
-    assert mods == {"specify_cli.cli.commands.merge"}, f"`merge --help` imported unexpected command modules: {sorted(mods)}"
+    assert mods == {"specify_cli.cli.commands.consolidate"}, f"`merge --help` imported unexpected command modules: {sorted(mods)}"
 
 
 def test_a_second_unrelated_leaf_command_stays_isolated_too() -> None:
@@ -118,7 +118,7 @@ def test_a_second_unrelated_leaf_command_stays_isolated_too() -> None:
     assert "specify_cli.cli.commands.doctor" in mods
 
     other_command_modules = {
-        "specify_cli.cli.commands.merge",
+        "specify_cli.cli.commands.consolidate",
         "specify_cli.cli.commands.merge_driver",
         "specify_cli.cli.commands.upgrade",
         "specify_cli.cli.commands.zeitgeist",
@@ -151,7 +151,7 @@ def test_top_level_help_still_imports_every_command_module() -> None:
     mods = _run_register_commands(["--help"])
     for expected in (
         "specify_cli.cli.commands.doctor",
-        "specify_cli.cli.commands.merge",
+        "specify_cli.cli.commands.consolidate",
         "specify_cli.cli.commands.merge_driver",
         "specify_cli.cli.commands.zeitgeist",
         "specify_cli.cli.commands.charter",
@@ -169,7 +169,7 @@ def test_unrecognized_command_still_imports_every_command_module() -> None:
     """
     mods = _run_register_commands(["not-a-real-command"])
     assert "specify_cli.cli.commands.doctor" in mods
-    assert "specify_cli.cli.commands.merge" in mods
+    assert "specify_cli.cli.commands.consolidate" in mods
 
 
 def test_next_and_live_work_hook_fast_paths_are_unchanged() -> None:

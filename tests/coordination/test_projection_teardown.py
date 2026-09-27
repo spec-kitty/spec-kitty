@@ -121,7 +121,7 @@ def _append_coord_commit(repo: Path, coord_branch: str, rel_path: str, content: 
 
 def test_post_checkpoint_verdict_commit_is_projected_onto_target(tmp_path: Path) -> None:
     """A concurrent verdict commit on the coord ref lands on the target (not lost)."""
-    from specify_cli.merge.bookkeeping_projection import (
+    from specify_cli.consolidation.bookkeeping_projection import (
         project_post_checkpoint_commits_to_target,
     )
 
@@ -159,7 +159,7 @@ def test_post_checkpoint_verdict_commit_is_projected_onto_target(tmp_path: Path)
 
 def test_projection_excludes_status_files_from_general_projection(tmp_path: Path) -> None:
     """Status byte-sets stay owned by the union path — the general projection skips them."""
-    from specify_cli.merge.bookkeeping_projection import (
+    from specify_cli.consolidation.bookkeeping_projection import (
         project_post_checkpoint_commits_to_target,
     )
 
@@ -192,7 +192,7 @@ def test_projection_excludes_status_files_from_general_projection(tmp_path: Path
 
 def test_projection_is_a_noop_when_nothing_changed_since_checkpoint(tmp_path: Path) -> None:
     """No post-checkpoint commit ⇒ nothing projected (bounded, no-op)."""
-    from specify_cli.merge.bookkeeping_projection import (
+    from specify_cli.consolidation.bookkeeping_projection import (
         project_post_checkpoint_commits_to_target,
     )
 
@@ -214,7 +214,7 @@ def test_projection_is_a_noop_when_nothing_changed_since_checkpoint(tmp_path: Pa
 
 def test_status_projection_call_site_signature_is_backward_compatible(tmp_path: Path) -> None:
     """The existing 3-arg call (no checkpoint/coord kwargs) keeps its behavior + return."""
-    from specify_cli.merge.bookkeeping_projection import (
+    from specify_cli.consolidation.bookkeeping_projection import (
         _project_status_bookkeeping_to_target,
     )
 
@@ -235,7 +235,7 @@ def test_status_projection_call_site_signature_is_backward_compatible(tmp_path: 
 
 def test_projected_content_matches_target_after_projection(tmp_path: Path) -> None:
     """The content proof holds once the projected paths are committed onto the target."""
-    from specify_cli.merge.bookkeeping_projection import (
+    from specify_cli.consolidation.bookkeeping_projection import (
         project_post_checkpoint_commits_to_target,
         projected_content_matches_target,
     )
@@ -263,7 +263,7 @@ def test_projected_content_matches_target_after_projection(tmp_path: Path) -> No
 
 def test_projected_content_proof_fails_when_target_diverges(tmp_path: Path) -> None:
     """The proof is non-vacuous: a target that never received the content fails it."""
-    from specify_cli.merge.bookkeeping_projection import projected_content_matches_target
+    from specify_cli.consolidation.bookkeeping_projection import projected_content_matches_target
 
     repo = _init_repo(tmp_path)
     coord = _make_coord_branch(repo)

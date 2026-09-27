@@ -250,7 +250,7 @@ def test_transaction_enrolled_byproduct_survives_commit(coord_repo: Path) -> Non
 
 def test_executor_capture_restore_uses_owner_compensator(tmp_path: Path) -> None:
     """The merge executor's snapshot/restore routes through the owner compensator."""
-    from specify_cli.merge.executor import _capture_merge_snapshots
+    from specify_cli.consolidation.executor import _capture_merge_snapshots
 
     main_repo = tmp_path / "repo"
     events = main_repo / "kitty-specs" / "m" / "status.events.jsonl"

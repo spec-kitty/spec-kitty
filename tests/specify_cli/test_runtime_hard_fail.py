@@ -303,7 +303,7 @@ class TestMergePreflightHardFail:
 
     def test_mark_wp_merged_done_skips_without_event_log(self, tmp_path: Path) -> None:
         """_mark_wp_merged_done should not invent done state without canonical history."""
-        from specify_cli.cli.commands.merge import _mark_wp_merged_done
+        from specify_cli.cli.commands.consolidate import _mark_wp_merged_done
 
         feature_dir = _make_feature_dir(tmp_path)
         _mark_wp_merged_done(

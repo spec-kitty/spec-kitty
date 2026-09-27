@@ -5,13 +5,13 @@ production call sites previously each open-coded a
 ``CoordinationWorkspace.teardown(...)`` inside a best-effort
 ``except Exception`` swallow:
 
-* merge cleanup  — ``cli/commands/merge.py`` (``_run_lane_based_merge_locked``)
+* merge cleanup  — ``cli/commands/merge.py`` (``_run_lane_based_consolidation_locked``)
 * merge ``--abort`` — ``cli/commands/merge.py`` (the ``--abort`` branch)
 * mission close / ``--discard`` — ``cli/commands/mission_type.py``
   (``_teardown_coordination_worktree``)
 
 That duplication is exactly why the ordering bug existed in one path (merge:
-the coordination worktree was destroyed inside ``_run_lane_based_merge_locked``
+the coordination worktree was destroyed inside ``_run_lane_based_consolidation_locked``
 *before* ``run_retrospective_postcondition`` fired in the outer ``merge()``) and
 was absent in another (close/abort: no persist step at all). Consolidating the
 three sites onto this one seam makes the invariant attachable once and provable
@@ -113,7 +113,7 @@ class ProjectionTeardownAbort(RuntimeError):
         super().__init__(
             f"Refusing coordination teardown for {coord_ref!r}: {reason}{moved}. "
             "Nothing was torn down and no refs/worktrees were mutated. Resolve the "
-            "coordination-surface issue, then re-run the merge (`spec-kitty merge "
+            "coordination-surface issue, then re-run the merge (`spec-kitty consolidate "
             "--resume`)."
         )
 

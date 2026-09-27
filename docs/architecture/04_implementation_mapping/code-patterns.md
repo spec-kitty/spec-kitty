@@ -99,7 +99,7 @@ Properties:
 **Canonical implementation:** `src/specify_cli/status/` —
 `store.py` (JSONL I/O), `reducer.py` (event → snapshot),
 `transitions.py` (legality matrix), `emit.py` (orchestration).
-Per-merge state at `src/specify_cli/merge/state.py` uses the same event-log
+Per-merge state at `src/specify_cli/consolidation/state.py` uses the same event-log
 shape for resumable merge operations.
 
 **Reach for it when:** you need an audit trail, resumable operations after a
@@ -158,7 +158,7 @@ Properties:
   so the user can see *which* item failed without re-running.
 - Preflight is idempotent and side-effect-free.
 
-**Canonical implementations:** `src/specify_cli/merge/preflight.py`
+**Canonical implementations:** `src/specify_cli/consolidation/preflight.py`
 (`PreflightResult`, `WPStatus`); the same shape extends to
 `src/specify_cli/post_merge/` and the bulk-edit gate.
 

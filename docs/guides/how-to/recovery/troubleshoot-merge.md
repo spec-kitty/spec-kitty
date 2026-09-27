@@ -210,7 +210,7 @@ the real merge, not the forecast; the real merge still stops safely on it):
 diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT
 mission_branch: kitty/mission-017-my-feature
 target_branch: main
-conflicting_path: src/specify_cli/lanes/merge.py
+conflicting_path: src/specify_cli/lanes/consolidation.py
 ```
 
 This protects target-branch hotfixes and concurrent mission landings. Spec Kitty

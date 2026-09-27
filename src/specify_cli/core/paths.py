@@ -867,15 +867,15 @@ def resolve_merge_target_branch(
 
     Thin adapter over :func:`load_meta_fail_closed`.
 
-    The single source of truth shared by ``spec-kitty merge`` and
-    ``orchestrator-api merge-mission`` so the two never disagree.
+    The single source of truth shared by ``spec-kitty consolidate`` and
+    ``orchestrator-api consolidate-mission`` so the two never disagree.
 
-    Order: explicit ``--target`` > persisted ``MergeState.target_branch`` >
+    Order: explicit ``--target`` > persisted ``ConsolidationState.target_branch`` >
     primary-meta ``merge_target_branch`` > primary-meta ``target_branch`` >
     repo default.
 
     terminus-merge-integrity-01M380R6 WP09 (C-1, FR-007, D5, #4985/#4991): the
-    landing branch is resolved ONCE and persisted into ``MergeState``; every
+    landing branch is resolved ONCE and persisted into ``ConsolidationState``; every
     later phase and every ``--resume`` reads that single authority. The
     ``persisted_target`` argument is the merge-state value the caller
     (``merge/resolve.py``) loads — it ranks BELOW an explicit ``--target`` (the

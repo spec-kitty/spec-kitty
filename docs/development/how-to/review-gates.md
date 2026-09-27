@@ -1,6 +1,6 @@
 ---
-title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Merge Gate'
-description: The review-cycle-artifact and merge-gate mechanics, the --skip-review-artifact-check override, and the issue-matrix discovery surface, so review and merge focus on substance.
+title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate'
+description: The review-cycle-artifact and consolidation-gate mechanics, the --skip-review-artifact-check override, and the issue-matrix discovery surface, so review and consolidation focus on substance.
 doc_status: active
 updated: '2026-09-08'
 audience: docs/context/audience/internal/lead-developer.md
@@ -10,12 +10,12 @@ related:
 - docs/development/how-to/pr-landing.md
 - docs/development/contributing.md
 ---
-# Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Merge Gate
+# Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate
 
 This page documents (1) the small set of hygiene steps a contributor should
 run locally before requesting review or opening a PR, so the actual review
 focuses on the substance of the change and not on confusing failures
-unrelated to it; and (2) the mechanics of the review-cycle artifact / merge
+unrelated to it; and (2) the mechanics of the review-cycle artifact / consolidation
 gate and the issue-matrix discovery surface that a WP actually has to
 satisfy to reach `approved`/`done`. The verdict vocabulary, JSON schema, and
 `in-mission` semantics for the issue matrix are **already documented** in
@@ -109,7 +109,7 @@ half A). In the Spec-Kitty source tree the built-in `software-dev/review`
 step-contract binds the `spec-kitty-pre-review` handler, which derives the CI
 shards covering the WP's changed files and re-runs them — so a WP that broke a
 shared contract pinned by a test *outside* its `owned_files` is caught at review
-time instead of only at merge (#572, #1979). By default the gate is
+time instead of only at consolidation (#572, #1979). By default the gate is
 **warn-only** -- it reports a new failure but the move still proceeds.
 
 **How the impl is selected.** Activation, not repo shape, decides whether the
@@ -154,7 +154,7 @@ Configuration (`.kittify/config.yaml`, under `review:`):
 > separately and must not be mistaken for a fix or flagged as a regression. Only
 > the `for_review` pre-review facet of the repo-shape coupling is inverted here.
 
-## Review-cycle artifacts and the merge gate
+## Review-cycle artifacts and the consolidation gate
 
 Every WP that reaches a terminal review lane (`approved` or `done` —
 `TERMINAL_REVIEW_LANES` in
@@ -164,10 +164,10 @@ checked against one invariant:
 implemented by `find_rejected_review_artifact_conflicts` in
 [`post_merge/review_artifact_consistency.py`](../../../src/specify_cli/post_merge/review_artifact_consistency.py)
 and is the **single shared implementation** behind three call sites:
-`spec-kitty merge`
-([`merge/preflight.py`](../../../src/specify_cli/merge/preflight.py)),
-`spec-kitty merge --dry-run`
-([`merge/forecast.py`](../../../src/specify_cli/merge/forecast.py)), and
+`spec-kitty consolidate`
+([`consolidation/preflight.py`](../../../src/specify_cli/consolidation/preflight.py)),
+`spec-kitty consolidate --dry-run`
+([`consolidation/forecast.py`](../../../src/specify_cli/consolidation/forecast.py)), and
 `spec-kitty review`'s Gate 1 lane check
 ([`cli/commands/review/_lane_gate.py`](../../../src/specify_cli/cli/commands/review/_lane_gate.py))
 — so the three surfaces cannot drift from one another.
@@ -183,7 +183,7 @@ open on missing data, never fabricates a block.
 
 **No hand-authored artifact can satisfy the gate.** Because the gate never
 reads the on-disk file, hand-editing a `review-cycle-N.md` to read
-`verdict: approved` has no effect on whether merge or review passes — only
+`verdict: approved` has no effect on whether consolidation or review passes — only
 a genuine `move-task` transition can change the event-sourced verdict:
 
 - An ordinary `move-task --to approved` (or `--to done`) out of `in_review`
@@ -268,7 +268,7 @@ same issue number appears in more than one file, the **first** file+line it
 appears in (in scan order) wins both the context snippet and the recorded
 `source_file` — never re-derived independently later.
 
-**The merge-time completeness gate.**
+**The consolidation-time completeness gate.**
 `_evaluate_issue_matrix_completeness_gate`
 ([`policy/merge_gates.py`](../../../src/specify_cli/policy/merge_gates.py))
 diffs `discover_issue_references`'s output against

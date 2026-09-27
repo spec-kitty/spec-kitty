@@ -44,7 +44,7 @@ def test_5018_mixed_lane_survivor_commits_must_not_be_excluded(tmp_path: Path) -
     survivor_shas = mission.approved_shas_from_lane_tips(["WP01"])["WP01"]
     assert survivor_shas, "the fixture must plant at least one real survivor commit"
 
-    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--strategy", "merge", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--strategy", "merge", "--yes"])
 
     assert result.returncode == 0, (
         f"a mixed approved+canceled lane must PASS the reconciliation gate under "

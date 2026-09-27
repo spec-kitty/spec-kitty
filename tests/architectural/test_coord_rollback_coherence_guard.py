@@ -58,13 +58,13 @@ import pytest
 import specify_cli.status  # noqa: F401  # import-order guard
 
 from specify_cli.coordination.coherence import coord_incoherent_done_wps
-from specify_cli.merge import executor as ex
-from specify_cli.merge.state import load_state
+from specify_cli.consolidation import executor as ex
+from specify_cli.consolidation.state import load_state
 
 # --- Reused bake-strand (#2367-B / WP01) harness ----------------------------
 # (relocated from tests/regression/ in the 2026-08 landing fold; see
 # tests/merge/test_issue_2367_bake_strand.py's module docstring)
-from tests.merge.test_issue_2367_bake_strand import (
+from tests.consolidation.test_issue_2367_bake_strand import (
     COHERENT_WP,
     COORD_BRANCH,
     MISSION_ID,
@@ -77,7 +77,7 @@ from tests.merge.test_issue_2367_bake_strand import (
 # ``_init_git_repo`` is DEFINED in the #2711 harness and only re-exported by the
 # #2367-B module; import it from its definition site so mypy's strict
 # no-implicit-reexport check is satisfied.
-from tests.merge.test_issue_2711_merge_rollback_resume_coherence import (
+from tests.consolidation.test_issue_2711_merge_rollback_resume_coherence import (
     _init_git_repo,
 )
 

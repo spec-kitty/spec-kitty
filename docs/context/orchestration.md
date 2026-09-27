@@ -491,7 +491,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The git branch on which a mission's code, planning artifacts, and status events must ultimately land. Persisted in `meta.json` under the key `target_branch` at `mission create` time and never overwritten. Read by `resolve_planning_branch_from_meta()` as the canonical key; `merge_target_branch` is its legacy alias in older `meta.json` fixtures. Since WP07 (FR-012), all downstream commands — `finalize-tasks`, `implement`, `review`, `merge` — derive the branch contract from this stored value, not from `current_branch` at invocation time. In branch-context JSON output, `target_branch` and `base_branch` carry the same value at the mission level. |
+| **Definition** | The git branch on which a mission's code, planning artifacts, and status events must ultimately land. Persisted in `meta.json` under the key `target_branch` at `mission create` time and never overwritten. Read by `resolve_planning_branch_from_meta()` as the canonical key; `merge_target_branch` is its legacy alias in older `meta.json` fixtures. Since WP07 (FR-012), all downstream commands — `finalize-tasks`, `implement`, `review`, `consolidate` — derive the branch contract from this stored value, not from `current_branch` at invocation time. In branch-context JSON output, `target_branch` and `base_branch` carry the same value at the mission level. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
@@ -565,11 +565,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The `spec-kitty merge` operation: LOCAL consolidation of completed lane branches into the mission branch, with **no** push to any remote. Realized by the internal helper `consolidate_lane_into_mission`. This is `merge` **Sense 1** — the first of three distinct "merge" operations. It stops at local main; it never publishes. |
+| **Definition** | The `spec-kitty consolidate` operation (renamed from `spec-kitty merge` by #3080): LOCAL consolidation of completed lane branches into the mission branch, with **no** push to any remote. Realized by the internal helper `consolidate_lane_into_mission`. This is `merge` **Sense 1** — the first of three distinct "merge" operations. It stops at local main; it never publishes. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Canonical term (2026-07-30)** | `consolidate` / `consolidation` is the **canonical word** for this sense (ADR [2026-07-30-1](../adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md), #3080 foundation). The bare word "merge" for lane consolidation is now a **legacy alias**: existing occurrences are grandfathered (not rewritten by this ADR), but NEW code, new symbols, and touched prose must say "consolidate" / "consolidation" for this sense (boyscouting, C-012). Existing public symbols (`spec-kitty merge`, `MergeState`, `baseline_merge_commit`, `consolidate_lane_into_mission`'s own name) are renamed only by the full #3080 rename, not by this entry. |
+| **Canonical term (2026-07-30, renamed 2026-09 by #3080)** | `consolidate` / `consolidation` is the **canonical word** for this sense (ADR [2026-07-30-1](../adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md)). The bare word "merge" for lane consolidation is now a **legacy alias**: pre-#3080 occurrences are grandfathered, but NEW code, new symbols, and touched prose must say "consolidate" / "consolidation" for this sense (boyscouting, C-012). The full #3080 rename has landed: the CLI command is `spec-kitty consolidate` (`merge` now exits with a migration-error stub), the state class is `ConsolidationState`, and the package is `specify_cli.consolidation`. `baseline_merge_commit` (the `meta.json` wire-key) and `consolidate_lane_into_mission`'s own name are unaffected — they were frozen KEEPs, not part of the rename. |
 | **Do NOT use when** | The concept is the `git merge` that integrates the mission branch into its target branch — use [Branch Integration / Git Merge](#branch-integration--git-merge). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). Never write bare "merge"; name the operation. In NEW code or prose, prefer "consolidate" / "consolidation" over "merge" for this sense — see **Canonical term** above; a CI drift-ratchet guard (`tests/architectural/test_no_legacy_terminology.py`, `_LANE_CONSOLIDATION_FORBIDDEN_PHRASES`) blocks the specific legacy lane-plus-merge-verb phrasings from growing beyond their grandfathered baseline (FR-016). |
 | **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge target branch](#merge-target-branch), [Lane](#lane), [Topology Surface](#topology-surface) |
 
@@ -583,7 +583,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). |
+| **Do NOT use when** | The concept is `spec-kitty consolidate`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). |
 | **Related terms** | [Lane Consolidation](#lane-consolidation), [Publish to origin/main](#publish-to-originmain), [target branch](#target-branch), [Merge target branch](#merge-target-branch) |
 
 ---
@@ -592,11 +592,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The operator-only act of publishing merged mission work to `origin/main`, always through a pull request — never a direct push. Represented in the merge flow by `push_requested`. `spec-kitty merge` deliberately does **not** perform this step; it stops at LOCAL consolidation. This is `merge` **Sense 3** — the publish operation, sometimes called "operator merge". |
+| **Definition** | The operator-only act of publishing merged mission work to `origin/main`, always through a pull request — never a direct push. Represented in the merge flow by `push_requested`. `spec-kitty consolidate` deliberately does **not** perform this step; it stops at LOCAL consolidation. This is `merge` **Sense 3** — the publish operation, sometimes called "operator merge". |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is the `git merge` branch-integration step — use [Branch Integration / Git Merge](#branch-integration--git-merge). |
+| **Do NOT use when** | The concept is `spec-kitty consolidate`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is the `git merge` branch-integration step — use [Branch Integration / Git Merge](#branch-integration--git-merge). |
 | **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [primary branch](#primary-branch) |
 
 ---

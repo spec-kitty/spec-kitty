@@ -609,7 +609,7 @@ def scan_recovery_state(
     # backing a WP's event log was deleted, rather than silently reading a
     # stale/absent surface". See docs/development/read-side-seam-classification.md
     # (`lanes/recovery.py` row) and the acceptance test
-    # tests/specify_cli/merge/test_read_seam_migration_merge_lanes.py
+    # tests/specify_cli/consolidation/test_read_seam_migration_merge_lanes.py
     # ::test_recovery_scan_fails_loud_when_coordination_branch_was_deleted.
     #
     # Tracked follow-up (do not "fix" here): reviewers argue `implement --recover`

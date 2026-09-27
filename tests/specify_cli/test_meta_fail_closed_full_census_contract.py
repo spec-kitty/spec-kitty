@@ -61,9 +61,9 @@ _MISSION_ID = "01JABCDEFGHJKMNPQRSTVWXYZ"
 #: may still contain are ``silent-by-contract`` ones.
 _WP09_OWNED_FILES: frozenset[str] = frozenset(
     {
-        "src/specify_cli/merge/baseline.py",
-        "src/specify_cli/merge/executor.py",
-        "src/specify_cli/merge/ordering.py",
+        "src/specify_cli/consolidation/baseline.py",
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/ordering.py",
         "src/specify_cli/dashboard/diagnostics.py",
         "src/specify_cli/dashboard/scanner.py",
         "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
@@ -127,13 +127,13 @@ def _seed_mission(tmp_path: Path, payload: str) -> Path:
 
 
 def _drive_merge_baseline(feature_dir: Path) -> Any:
-    from specify_cli.merge.baseline import record_baseline_merge_commit
+    from specify_cli.consolidation.baseline import record_baseline_merge_commit
 
     return record_baseline_merge_commit(feature_dir, "deadbeef", mission_id=_MISSION_ID)
 
 
 def _drive_merge_baseline_soft(feature_dir: Path) -> Any:
-    from specify_cli.merge.baseline import _recorded_baseline_from_working_meta
+    from specify_cli.consolidation.baseline import _recorded_baseline_from_working_meta
 
     return _recorded_baseline_from_working_meta(feature_dir)
 
@@ -247,7 +247,7 @@ def _drive_acceptance(feature_dir: Path) -> Any:
 
 
 def _routed_readers() -> list[RoutedReader]:
-    from specify_cli.merge.baseline import BaselineMergeCommitError
+    from specify_cli.consolidation.baseline import BaselineMergeCommitError
     from specify_cli.tracker.origin import OriginBindingError
 
     return [

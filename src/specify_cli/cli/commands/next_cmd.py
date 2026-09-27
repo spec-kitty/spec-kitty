@@ -799,7 +799,7 @@ def _emit_unsafe_mission_slug_error(exc: UnsafePathSegmentError, json_output: bo
     (``next --help``, tests/specify_cli/next/test_next_import_footprint.py)
     never pays the merge package's import graph.
     """
-    from specify_cli.merge._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
+    from specify_cli.consolidation._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
 
     message = f"{_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}"
     if json_output:

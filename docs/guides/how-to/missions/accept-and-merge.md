@@ -1,6 +1,6 @@
 ---
-title: How to Accept and Merge a Mission
-description: "How to accept and merge a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and merge to the mission's target branch."
+title: How to Accept and Consolidate a Mission
+description: "How to accept and consolidate a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and consolidate into the mission's target branch."
 doc_status: active
 updated: '2026-07-04'
 audience: docs/context/audience/external/project-owner.md
@@ -14,9 +14,9 @@ related:
 - docs/guides/how-to/recovery/troubleshoot-merge.md
 - docs/guides/how-to/governance/use-retrospective-learning.md
 ---
-# How to Accept and Merge a Mission
+# How to Accept and Consolidate a Mission
 
-Use this guide to validate mission readiness and merge to the mission's target branch.
+Use this guide to validate mission readiness and consolidate into the mission's target branch.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ Use this guide to validate mission readiness and merge to the mission's target b
 ## Accept the Mission
 
 Run acceptance after the implement-review loop approves every WP and before
-merge. This is a readiness nudge for humans and LLMs; merge still performs its
+consolidation. This is a readiness nudge for humans and LLMs; consolidation still performs its
 own gates and remains the mission-close operation.
 
 In your agent:
@@ -53,7 +53,7 @@ To run a read-only checklist (in your terminal):
 spec-kitty accept --mode checklist
 ```
 
-### Negative Invariants That Assert the Merged Post-State
+### Negative Invariants That Assert the Consolidated Post-State
 
 The accept gate **re-runs each acceptance negative-invariant `verification_command`
 live** against the working tree at accept time — it does not trust a stored
@@ -64,26 +64,26 @@ live** against the working tree at accept time — it does not trust a stored
   overwritten the moment accept runs; the invariant's `verification_command` is
   the single source of truth, and it must actually pass in the checkout accept
   runs from.
-- **Merged-post-state invariants must be verified after merge.** If an invariant
-  asserts a state that only exists **once the mission is merged** — for example,
+- **Consolidated-post-state invariants must be verified after consolidation.** If an invariant
+  asserts a state that only exists **once the mission is consolidated** — for example,
   "`shell: bash` is present in `ci-quality.yml`" when that line is added by the
-  merge — it cannot pass while the mission still lives on its lane branch. For
-  such missions, run `spec-kitty merge` (into **local** `main`) **before**
+  consolidation — it cannot pass while the mission still lives on its lane branch. For
+  such missions, run `spec-kitty consolidate` (into **local** `main`) **before**
   `spec-kitty accept`, so the working tree accept inspects already carries the
-  merged post-state:
+  consolidated post-state:
 
   ```bash
-  spec-kitty merge          # land into LOCAL main first
+  spec-kitty consolidate    # land into LOCAL main first
   spec-kitty accept         # now the post-state invariants can verify live
   ```
 
-  This inverts the usual accept-then-merge order and is only needed for missions
-  whose negative invariants assert the post-merge result. Missions whose
+  This inverts the usual accept-then-consolidate order and is only needed for missions
+  whose negative invariants assert the post-consolidation result. Missions whose
   invariants describe the lane's own diff verify fine in the normal order.
 
   If you prefer not to re-order, scope the invariant to a path that exists on the
   lane branch (see `NegativeInvariant.scope`) or express it as a `custom_command`
-  that is meaningful pre-merge.
+  that is meaningful pre-consolidation.
 
 ### Deferred Invariants and the Post-Consolidation Gate
 
@@ -104,7 +104,7 @@ outstanding.
   immediately, in the same run, as a `negative_invariants_deferred` entry under
   "Skipped checks" — look for it in the console output or the JSON summary.
 - **What verifies it instead** is the **post-consolidation verification op** —
-  dispatched after `spec-kitty merge` (lane consolidation) completes, against
+  dispatched after `spec-kitty consolidate` (lane consolidation) completes, against
   the consolidated mission tree. It re-judges every `deferred_to_consolidation`
   invariant on that tree and records a terminal result
   (`confirmed_absent` / `still_present` / `verification_error`) stamped with the
@@ -112,7 +112,7 @@ outstanding.
   already-completed consolidation — see
   [post-consolidation / `CONSOLIDATED`](../../../context/orchestration.md#topology-surface)
   in the terminology glossary for how this surface relates to `spec-kitty
-  merge`'s three overloaded "merge" senses.
+  consolidate`'s three overloaded "merge" senses.
 - **What your repository needs**: a CI check on the pull request that fails when
   any `kitty-specs/*/acceptance-matrix.json` still carries an unresolved
   `deferred_to_consolidation` invariant. This project's own gate is
@@ -122,7 +122,7 @@ outstanding.
   gap is visible rather than silently assumed away (ADR
   [2026-07-23-2](../../../adr/3.x/2026-07-23-2-post-consolidation-deferral-and-external-enforcement.md)).
 
-## Merge to the target branch
+## Consolidate into the target branch
 
 In your agent:
 
@@ -133,17 +133,17 @@ In your agent:
 Or in your terminal:
 
 ```bash
-spec-kitty merge --push
+spec-kitty consolidate --push
 ```
 
-By default, `spec-kitty merge` lands in the mission's recorded target branch. Use `spec-kitty merge --target <branch>` only when you intentionally need to override that destination.
+By default, `spec-kitty consolidate` lands in the mission's recorded target branch. Use `spec-kitty consolidate --target <branch>` only when you intentionally need to override that destination.
 
-For detailed merge options including dry-run, strategies, and cleanup flags, see [Merge a Mission](merge-mission.md).
+For detailed consolidation options including dry-run, strategies, and cleanup flags, see [Merge a Mission](merge-mission.md).
 
 ### When Local `main` Is Not Publishable
 
 Autonomous local runs can leave `main` ahead of or diverged from `origin/main`
-with planning, status, review, and orchestration commits. If merge refuses with
+with planning, status, review, and orchestration commits. If consolidation refuses with
 `TARGET_BRANCH_NOT_SYNCHRONIZED`, do not reset, rebase, force-push, or push
 local `main` only to satisfy the pre-flight.
 
@@ -166,11 +166,11 @@ Prefer squash-merge when the autonomous run accumulated many orchestration
 commits. For the full end-to-end path, see
 [Run an Autonomous Mission](../collaboration/run-an-autonomous-mission.md).
 
-## After Merge
+## After Consolidation
 
 Complete the following three steps before declaring the mission done.
 
-**1. Mission review** — run the post-merge mission review to confirm spec→code fidelity and FR
+**1. Mission review** — run the post-consolidation mission review to confirm spec→code fidelity and FR
 coverage:
 
 ```bash
@@ -182,7 +182,7 @@ spec-kitty agent mission review --mission <handle>
 ```
 
 **2. Author or verify the retrospective** — under default policy the record was already written
-during merge. Verify with:
+during consolidation. Verify with:
 
 ```bash
 cat .kittify/missions/$(jq -r .mission_id kitty-specs/<slug>/meta.json)/retrospective.yaml
@@ -213,24 +213,24 @@ spec-kitty agent retrospect synthesize --mission <handle> --apply <proposal-id>
 For full details on each command, see
 [How to Use Retrospective Learning](../governance/use-retrospective-learning.md).
 
-## Merge Strategies
+## Consolidation Strategies
 
-- **Default (merge commit)**: `spec-kitty merge`
-- **Squash**: `spec-kitty merge --strategy squash`
+- **Default (merge commit)**: `spec-kitty consolidate`
+- **Squash**: `spec-kitty consolidate --strategy squash`
 
 Note: Rebase is not supported for multi-workspace missions. Use `merge` or `squash` instead.
 
 ## Cleanup
 
-By default, merge removes resolved execution worktrees and deletes the mission branch. Use these flags to keep them (in your terminal):
+By default, consolidation removes resolved execution worktrees and deletes the mission branch. Use these flags to keep them (in your terminal):
 
 ```bash
-spec-kitty merge --keep-worktree --keep-branch
+spec-kitty consolidate --keep-worktree --keep-branch
 ```
 
 ## Abandon a Mission (Manual Cleanup)
 
-If you decide to drop a mission without merging, remove its execution worktrees and branches manually.
+If you decide to drop a mission without consolidating, remove its execution worktrees and branches manually.
 These steps are safe and reversible until you delete the branch and commit the cleanup.
 
 1. List worktrees to find all workspaces for the mission:
@@ -265,11 +265,11 @@ git commit -m "Remove abandoned mission <mission-slug>"
 ## Troubleshooting
 
 - **Accept reports blockers**: Resolve the listed issues, then rerun `/spec-kitty.accept`.
-- **Merge fails**: Ensure your current checkout is clean and the mission resolves correctly.
-- **Merge reports `TARGET_BRANCH_NOT_SYNCHRONIZED`**: Use the focused-PR path when local `main` contains autonomous-run history that should not be published directly.
-- **Merge is heading to the wrong branch**: Inspect the mission's recorded target branch before retrying, and use `spec-kitty merge --target <branch>` only if you intend to override it.
+- **Consolidation fails**: Ensure your current checkout is clean and the mission resolves correctly.
+- **Consolidation reports `TARGET_BRANCH_NOT_SYNCHRONIZED`**: Use the focused-PR path when local `main` contains autonomous-run history that should not be published directly.
+- **Consolidation is heading to the wrong branch**: Inspect the mission's recorded target branch before retrying, and use `spec-kitty consolidate --target <branch>` only if you intend to override it.
 
-For detailed troubleshooting including pre-flight failures, conflict resolution, and merge recovery, see [Troubleshoot Merge Issues](../recovery/troubleshoot-merge.md).
+For detailed troubleshooting including pre-flight failures, conflict resolution, and consolidation recovery, see [Troubleshoot Merge Issues](../recovery/troubleshoot-merge.md).
 
 ---
 

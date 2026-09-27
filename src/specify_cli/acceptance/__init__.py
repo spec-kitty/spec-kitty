@@ -1744,7 +1744,7 @@ def _build_acceptance_instructions(
             instructions.extend(
                 [
                     f"Review the acceptance commit on branch `{branch}`.",
-                    f"Run the mission merge when ready: `spec-kitty merge --mission {summary.feature}`",
+                    f"Run the mission consolidation when ready: `spec-kitty consolidate --mission {summary.feature}`",
                     "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
                 ]
             )
@@ -1754,12 +1754,12 @@ def _build_acceptance_instructions(
         else:
             instructions.extend(
                 [
-                    f"Acceptance passed. Run the mission merge: `spec-kitty merge --mission {summary.feature}`",
+                    f"Acceptance passed. Run the mission consolidation: `spec-kitty consolidate --mission {summary.feature}`",
                     "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
                 ]
             )
     else:  # checklist
-        instructions.append(f"All checks passed. Recommended next step: `spec-kitty merge --mission {summary.feature}`.")
+        instructions.append(f"All checks passed. Recommended next step: `spec-kitty consolidate --mission {summary.feature}`.")
 
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`")

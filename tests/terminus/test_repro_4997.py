@@ -65,8 +65,8 @@ def _interrupt_behind_own_head(mission: CoordMission, wp_order: list[str]) -> st
     SHA for assertions.
     """
     from mission_runtime import MissionArtifactKind, resolve_placement_only
-    from specify_cli.merge.reconciliation import write_post_fix_marker
-    from specify_cli.merge.state import MergeState, save_state
+    from specify_cli.consolidation.reconciliation import write_post_fix_marker
+    from specify_cli.consolidation.state import ConsolidationState, save_state
 
     # --- pre-mutation anchors, captured BEFORE the simulated consolidation/advance -----
     pre_mutation_target_sha = mission.rev(mission.target_branch)  # pre-advance target tip
@@ -84,7 +84,7 @@ def _interrupt_behind_own_head(mission: CoordMission, wp_order: list[str]) -> st
         git(coord_wt, "merge", "-q", "--no-edit", mission.lane_branch(wp))
     advanced_sha = mission.rev(mission.coord_branch)
 
-    state = MergeState(
+    state = ConsolidationState(
         mission_id=mission.mission_id,
         mission_slug=mission.slug,
         target_branch=mission.target_branch,
@@ -115,7 +115,7 @@ def test_4997_resume_over_staged_deletions_does_not_revert_merge(tmp_path: Path)
     approved = mission.approved_shas_from_lane_tips(["WP01", "WP02"])  # PRE-resume tips
     _interrupt_behind_own_head(mission, ["WP01", "WP02"])
 
-    result = run_terminus(mission, ["merge", "--resume", "--yes"])
+    result = run_terminus(mission, ["consolidate", "--resume", "--yes"])
 
     assert result.returncode == 0, (
         f"merge --resume over a pure behind-own-HEAD primary must recover and exit 0, got "

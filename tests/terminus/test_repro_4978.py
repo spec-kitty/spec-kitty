@@ -79,7 +79,7 @@ def test_4978_dirty_planning_artifact_not_reset_as_coord_residue(tmp_path: Path)
     )
     residue_kind.write_text(_DIRTY_SENTINEL, encoding="utf-8")  # now dirty, uncommitted
 
-    run_terminus(mission, ["merge", "--mission", mission.slug, "--strategy", "merge", "--yes"])
+    run_terminus(mission, ["consolidate", "--mission", mission.slug, "--strategy", "merge", "--yes"])
 
     # The dirty uncommitted work must NOT have been silently reset --hard away.
     surviving = residue_kind.read_text(encoding="utf-8") if residue_kind.exists() else ""

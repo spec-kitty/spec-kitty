@@ -115,7 +115,7 @@ def test_next_fast_path_registers_only_next_command() -> None:
         "sys.argv = ['spec-kitty', 'next', '--help']\n"
         "app = typer.Typer()\n"
         "register_commands(app)\n"
-        "heavy = [m for m in sys.modules if m == 'specify_cli.cli.commands.merge' "
+        "heavy = [m for m in sys.modules if m == 'specify_cli.cli.commands.consolidate' "
         "or m == 'specify_cli.cli.commands.init' or m == 'specify_cli.cli.commands.upgrade']\n"
         "sys.stderr.write('HEAVY=' + repr(sorted(heavy)))\n"
     )

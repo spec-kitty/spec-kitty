@@ -48,7 +48,7 @@ from specify_cli.cli.selector_resolution import resolve_mission_handle as resolv
 # never import the accept/merge graph at module scope) and the historical
 # ``mission.top_level_accept`` / ``mission.top_level_merge`` patch targets.
 from specify_cli.cli.commands.accept import accept as _accept
-from specify_cli.cli.commands.merge import merge as _merge
+from specify_cli.cli.commands.consolidate import consolidate as _merge
 from specify_cli.core.git_ops import get_current_branch as get_current_branch
 from specify_cli.core.git_ops import is_git_repo as is_git_repo
 from specify_cli.core.git_preflight import (

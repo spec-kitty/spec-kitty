@@ -18,10 +18,10 @@ procedures:
   - All changes to origin/main must go through pull requests; never run
     `git push origin main` or `gh pr merge` without explicit operator
     instruction. The operator always merges to origin/main manually.
-  - After `spec-kitty merge` (which merges to local main only and does NOT
-    push to origin/main), create a PR branch (`git checkout -b pr/<slug>`)
-    and open a pull request (`gh pr create`). Do not push to origin/main
-    directly.
+  - After `spec-kitty consolidate` (which consolidates to local main only and
+    does NOT push to origin/main), create a PR branch (`git checkout -b
+    pr/<slug>`) and open a pull request (`gh pr create`). Do not push to
+    origin/main directly.
   - Recovery if origin/main is accidentally pushed to — do NOT force-push
     (branch protection blocks it). Create a `revert/<slug>` branch from
     origin/main, commit a revert, open a PR to merge it, then open the
@@ -38,8 +38,8 @@ procedures:
 integrity_rules:
   - Agents must not run `git push origin main`, `git push --force`, or `gh pr
     merge` without explicit operator instruction.
-  - "`spec-kitty merge` is permitted — it operates on local main only. The
-    prohibition applies to pushing the result to origin/main without a PR."
+  - "`spec-kitty consolidate` is permitted — it operates on local main only.
+    The prohibition applies to pushing the result to origin/main without a PR."
   - Every high-risk git operation must be preceded by a documented intent
     check (reading mission spec/context). "The task title said to do it" is
     not sufficient justification.
@@ -48,9 +48,9 @@ integrity_rules:
     idiom that must be quoted and marked when it appears in examples;
     it must not appear unquoted in canonical agent instructions.
 validation_criteria:
-  - Agent guidance for merge operations explicitly states that `spec-kitty
-    merge` targets local main only and that a PR branch must be opened before
-    the result reaches origin/main.
+  - Agent guidance for consolidate operations explicitly states that
+    `spec-kitty consolidate` targets local main only and that a PR branch must
+    be opened before the result reaches origin/main.
   - High-risk operation checklists require a mission-spec/context read step
     before execution.
   - No agent workflow example uses `git push origin main` or `gh pr merge`

@@ -17,12 +17,12 @@ pytestmark = pytest.mark.fast
 
 accept_module = importlib.import_module("specify_cli.cli.commands.accept")
 dashboard_module = importlib.import_module("specify_cli.cli.commands.dashboard")
-merge_module = importlib.import_module("specify_cli.cli.commands.merge")
+merge_module = importlib.import_module("specify_cli.cli.commands.consolidate")
 # Mission #2057 relocated target-branch validation into the merge ``preflight``
 # seam; ``_validate_target_branch`` resolves ``run_command`` from that module's
 # namespace, so the dry-run tests patch the seam (the merge shim re-exports
 # ``run_command`` for patch-target stability, but the live call resolves here).
-merge_preflight_module = importlib.import_module("specify_cli.merge.preflight")
+merge_preflight_module = importlib.import_module("specify_cli.consolidation.preflight")
 research_module = importlib.import_module("specify_cli.cli.commands.research")
 lifecycle_module = importlib.import_module("specify_cli.cli.commands.lifecycle")
 verify_module = importlib.import_module("specify_cli.cli.commands.verify")
@@ -334,7 +334,7 @@ def test_merge_dry_run_outputs_lane_payload(monkeypatch, tmp_path: Path) -> None
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--json", "--dry-run", "--mission", "010-test-feature", "--target", "main"],
+        ["consolidate", "--json", "--dry-run", "--mission", "010-test-feature", "--target", "main"],
     )
     assert result.exit_code == 0
     payload = json.loads(result.stdout.strip())
@@ -382,7 +382,7 @@ def test_merge_json_dry_run_requires_lane_manifest(monkeypatch, tmp_path: Path) 
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--json", "--dry-run", "--mission", "010-test-feature", "--target", "main"],
+        ["consolidate", "--json", "--dry-run", "--mission", "010-test-feature", "--target", "main"],
     )
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())
@@ -416,7 +416,7 @@ def test_merge_json_not_found_mission_emits_json_error(monkeypatch, tmp_path: Pa
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--json", "--mission", "010-test-feature", "--target", "main"],
+        ["consolidate", "--json", "--mission", "010-test-feature", "--target", "main"],
     )
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())
@@ -433,7 +433,7 @@ def test_merge_git_preflight_json_payload_includes_cli_version(
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
 
-    # ``_enforce_git_preflight`` lives in ``specify_cli.merge.preflight`` (mission
+    # ``_enforce_git_preflight`` lives in ``specify_cli.consolidation.preflight`` (mission
     # #2057 decomposition) and resolves ``run_git_preflight`` /
     # ``build_git_preflight_failure_payload`` in *that* module's namespace, so the
     # stubs must be installed there — patching the ``merge`` shim is dead (mirrors
@@ -485,7 +485,7 @@ def test_merge_json_dry_run_requires_feature_resolution(monkeypatch, tmp_path: P
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--json", "--dry-run", "--target", "main"],
+        ["consolidate", "--json", "--dry-run", "--target", "main"],
     )
 
     assert result.exit_code == 1
@@ -518,7 +518,7 @@ def test_merge_json_dry_run_honors_keep_flags(monkeypatch, tmp_path: Path) -> No
     result = runner.invoke(
         cli_app,
         [
-            "merge",
+            "consolidate",
             "--json",
             "--dry-run",
             "--mission",
@@ -543,7 +543,7 @@ def test_merge_resume_without_state_errors(monkeypatch, tmp_path: Path) -> None:
     (repo_root / ".git").mkdir()
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
     monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
-    result = runner.invoke(cli_app, ["merge", "--resume"])
+    result = runner.invoke(cli_app, ["consolidate", "--resume"])
     # Resume without existing state should fail (but no longer with old "removed" error)
     assert result.exit_code == 1
     assert "Resume/abort merge flows were removed" not in result.stdout
