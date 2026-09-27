@@ -1159,7 +1159,24 @@ def implement_try_render_fix_mode_prompt(
         print()
         return fix_prompt_file
     except Exception as fix_mode_err:
+        # FR-006/SC-003 (#5024): a fix-mode render failure must be
+        # OPERATOR-VISIBLE on the surface the implementer actually reads (the
+        # CLI console), never a silent logger-only fall-through. The full
+        # prompt remains a legitimate fallback -- it must simply never be
+        # substituted quietly. Escaped via ``rich.markup.escape`` because
+        # ``fix_mode_err`` carries arbitrary exception text that may itself
+        # contain bracketed substrings Rich would otherwise parse as markup.
+        from rich.markup import escape
+
+        from specify_cli.cli.console import console
+
         logger.warning("Fix-mode prompt generation failed, falling through to full prompt: %s", fix_mode_err)
+        console.print(
+            f"[bold red]⚠️  Fix-mode prompt generation failed for {escape(normalized_wp_id)}[/bold red]: "
+            f"{escape(str(fix_mode_err))}\n"
+            "[bold red]Falling back to the FULL prompt — it will NOT contain the review feedback "
+            "summary above.[/bold red] Re-run with --review-feedback-file if the artifact is missing."
+        )
         return None
 
 

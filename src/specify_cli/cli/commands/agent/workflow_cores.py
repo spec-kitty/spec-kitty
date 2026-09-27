@@ -308,6 +308,52 @@ def read_wp_events(feature_dir: Path, wp_id: str) -> list[StatusEvent]:
         return []
 
 
+def _resolve_status_state_read_dir(feature_dir: Path) -> Path:
+    """Resolve the STATUS_STATE-authoritative dir for reading *feature_dir*'s
+    canonical status-event log (``status.events.jsonl``).
+
+    coord-authority-trio-degod (WP02, T010 / FR-007 / SC-004): mirrors
+    :func:`~specify_cli.cli.commands.agent.tasks_verdict_persistence.
+    _resolve_verdict_read_feature_dir`'s own convention -- the event log is
+    COORD-partition under a coordination topology, PRIMARY otherwise.
+    Resolving through the kind-aware placement seam (rather than trusting
+    *feature_dir* itself, the PRIMARY dir every caller of this function
+    holds) is what makes the read agree with wherever
+    :func:`~specify_cli.status.emit_status_transition` actually wrote the
+    event.
+
+    Degrades to *feature_dir* unchanged when no workspace root is derivable
+    (a bare non-git test fixture) -- the same degrade
+    ``_resolve_verdict_read_feature_dir`` uses for the identical edge case.
+    Single-branch/flat topologies collapse PRIMARY == COORD == repo_root, so
+    this re-route is a no-op there.
+
+    **This is a SPLIT, not a whole-``feature_dir`` swap (WP02 scout finding
+    -- do not regress it).** ONLY the event-log read routes through this
+    function. The review-cycle ARTIFACT pointer resolution
+    (:func:`review_feedback_root` / :func:`resolve_review_feedback_pointer`
+    and ``_review_cycle_wp_dir`` in :func:`has_prior_rejection`) MUST stay on
+    the PRIMARY ``feature_dir`` unchanged -- swapping the whole tree would
+    resolve the pointer against the coord tree and silently mask the coord
+    render defect (SC-004: the feedback file would resolve to ``None`` even
+    though the record is genuinely present).
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+
+    try:
+        main_repo_root = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return feature_dir
+
+    mission_slug = feature_dir.name
+    resolved: Path = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
+    return resolved
+
+
 def latest_review_feedback_reference(
     feature_dir: Path,
     wp_id: str,
@@ -321,11 +367,18 @@ def latest_review_feedback_reference(
     ``auto-approval:<WP>:<date>``) are skipped the same way -- they are markers
     for a verdict that left no feedback artifact (an approved WP was never
     rejected), not paths to resolve and then misreport as "missing".
+
+    T010 (FR-007/SC-004): the event-log read routes through
+    :func:`_resolve_status_state_read_dir` (STATUS_STATE, COORD-partition
+    under coord topology) while the artifact-pointer resolution below stays
+    on the PRIMARY *feature_dir* -- see that function's docstring for why
+    this must be a split, not a whole-dir swap.
     """
     # Review feedback artifacts are committed under kitty-specs/ inside
     # whichever tree feature_dir lives in (coord worktree or main repo).
     feedback_root = review_feedback_root(feature_dir)
-    wp_events = read_wp_events(feature_dir, wp_id)
+    status_state_read_dir = _resolve_status_state_read_dir(feature_dir)
+    wp_events = read_wp_events(status_state_read_dir, wp_id)
     for index in range(len(wp_events) - 1, -1, -1):
         event = wp_events[index]
         if event.review_ref is None:
@@ -411,6 +464,13 @@ def has_prior_rejection(
 
     Returns:
         True iff both artifact files and a rejection event are present.
+
+    T010 (FR-007/SC-004): the event-log read below routes through
+    :func:`_resolve_status_state_read_dir` (STATUS_STATE) while
+    ``_resolve_review_cycle_sub_artifact_dir`` above stays on the PRIMARY
+    *feature_dir* -- the same split :func:`latest_review_feedback_reference`
+    applies, kept consistent here since this function reads the event log
+    independently (not only via the call below).
     """
     sub_artifact_dir = _resolve_review_cycle_sub_artifact_dir(feature_dir, wp_slug)
     if not sub_artifact_dir.exists():
@@ -418,7 +478,8 @@ def has_prior_rejection(
     if not list(sub_artifact_dir.glob("review-cycle-*.md")):
         return False
 
-    wp_events = read_wp_events(feature_dir, normalized_wp_id)
+    status_state_read_dir = _resolve_status_state_read_dir(feature_dir)
+    wp_events = read_wp_events(status_state_read_dir, normalized_wp_id)
     if not wp_events:
         return False
 
