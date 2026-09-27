@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "19722b0000561c09b8ddc47afc27f3b555597a8c",
+  "created_at": "2026-09-27T14:53:03.636565+00:00",
+  "flattened": false,
+  "friendly_name": "Single STATUS_STATE read-dir resolver with phantom-coord degrade",
+  "merged_at": "2026-09-27T15:47:46.180599+00:00",
+  "merged_commit": "735541db6067e4684502833dab2e3e3ac2fa5197",
+  "mid8": "01M3HNNV",
+  "mission_id": "01M3HNNV440TPM8DEXCYF2FYFB",
+  "mission_number": null,
+  "mission_slug": "status-state-read-dir-dedup-01M3HNNV",
+  "mission_type": "software-dev",
+  "purpose_context": "Two CLI-layer copies of the STATUS_STATE read-dir resolution lack the canonical resolver's phantom-path .exists() degrade; under an unmaterialized/phantom coord dir the render and verdict reads silently see an empty event log and drop review feedback. This mission dedups them onto one public authority.",
+  "purpose_tldr": "Collapse three STATUS_STATE feature-dir resolvers onto one that degrades to PRIMARY on a phantom coord dir, so review feedback is never silently masked (#5180).",
+  "slug": "status-state-read-dir-dedup-01M3HNNV",
+  "status_phase": "1",
+  "target_branch": "claude/project-thread-5t7sqy",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-27T14:59:02.732916+00:00"
+}

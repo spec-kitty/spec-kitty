@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "mission_slug": "status-state-read-dir-dedup-01M3HNNV",
+  "mission_id": "01M3HNNV440TPM8DEXCYF2FYFB",
+  "mission_branch": "kitty/mission-status-state-read-dir-dedup-01M3HNNV",
+  "target_branch": "claude/project-thread-5t7sqy",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/agent/test_status_state_phantom_degrade.py",
+        "tests/specify_cli/missions/test_partition_read_dir.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py",
+        "src/specify_cli/cli/commands/agent/workflow_cores.py",
+        "src/specify_cli/post_merge/review_artifact_consistency.py",
+        "tests/architectural/test_status_state_read_dir_single_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-27T14:58:45.034010+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "779f6b2cecb5b5e1b0edbc3576d5ff97c4f6d117"
+}
