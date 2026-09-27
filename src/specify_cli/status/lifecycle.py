@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -352,18 +352,35 @@ def derive_mission_lifecycle(
     *,
     now: datetime | None = None,
     clock: Clock = DEFAULT_CLOCK,
+    snapshot: StatusSnapshot | None = None,
 ) -> MissionLifecycleResult:
     """Return canonical lifecycle state for one mission directory.
 
     ``clock``: injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
     FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`. Used only when
     ``now`` (an explicit value) is omitted.
+
+    ``snapshot``: when given, use it directly instead of building one from
+    the event log (interface symmetry with :func:`generate_progress_json`/
+    :func:`write_derived_views`'s ``snapshot=`` parameter, C1). This function
+    already builds its own snapshot write-free via ``reduce(read_events(...))``
+    -- it does NOT call the writing ``materialize()`` and so does not carry
+    the F-4 single-writer defect those two share; the parameter is added
+    purely so all three derived-view generators share one call shape.
     """
     now = (now if now is not None else clock.now()).astimezone(UTC)
     identity = resolve_mission_identity(feature_dir)
     has_event_log = (feature_dir / EVENTS_FILENAME).exists()
 
-    if has_event_log:
+    if snapshot is not None:
+        if not snapshot.mission_slug:
+            # N2 (review cycle 1): never mutate the caller's snapshot object --
+            # refresh_execution_projection shares ONE snapshot instance across
+            # all three generators, so writing through `snapshot.mission_slug =
+            # ...` here would leak into write_derived_views/generate_progress_json
+            # too. `replace()` gives this function its own copy to backfill.
+            snapshot = replace(snapshot, mission_slug=identity.mission_slug or feature_dir.name)
+    elif has_event_log:
         from specify_cli.status.reducer import reduce
 
         snapshot = reduce(read_events(feature_dir))
@@ -454,9 +471,13 @@ def generate_lifecycle_json(
     *,
     now: datetime | None = None,
     clock: Clock = DEFAULT_CLOCK,
+    snapshot: StatusSnapshot | None = None,
 ) -> None:
-    """Write ``lifecycle.json`` for one mission under ``.kittify/derived``."""
-    lifecycle = derive_mission_lifecycle(feature_dir, now=now, clock=clock)
+    """Write ``lifecycle.json`` for one mission under ``.kittify/derived``.
+
+    ``snapshot``: threaded through to :func:`derive_mission_lifecycle` (C1).
+    """
+    lifecycle = derive_mission_lifecycle(feature_dir, now=now, clock=clock, snapshot=snapshot)
     mission_slug = lifecycle.mission_slug or feature_dir.name
     output_dir = derived_dir / mission_slug
     output_dir.mkdir(parents=True, exist_ok=True)

@@ -193,6 +193,128 @@ def test_coord_fallback_holds_lock_through_commit_and_restore_but_not_fanout(
         assert restored == [] and announced == [True]
 
 
+@pytest.mark.parametrize("commit_fails", [False, True])
+def test_coord_fallback_refreshes_projection_only_after_commit_never_on_failure(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    commit_fails: bool,
+) -> None:
+    """B1 (review cycle 1): the coord fallback's flat shell
+    (``_fallback_emit_single._coord`` / ``_fallback_emit_batch._coord``) runs
+    the flat shell INSIDE ``_emit_on_coord_then_commit``'s bounded L1, BEFORE
+    the coord commit. Before this fix, WP05's F-3 projection-refresh hook
+    fired unconditionally from that pre-commit call (it did not key on
+    ``fan_out=False``), producing:
+
+    * a double refresh on success (once pre-commit under L1, once more from
+      the post-commit ``_fan_out_committed_coord_tail`` hook), and
+    * a phantom projection on a commit failure -- ``.kittify/derived/<slug>/
+      status.json`` would show the rolled-back event, the same hazard SC-002
+      forbids for SaaS fan-out.
+
+    The fix threads a separate ``refresh_projection=False`` through the flat
+    shell (independent of ``fan_out``), so the ONLY refresh is the one
+    ``_fan_out_committed_coord_tail`` runs after commit, outside L1.
+    """
+    from specify_cli.status.locking import _get_thread_locks, feature_status_lock_path
+    from specify_cli.status.views import refresh_execution_projection as real_refresh
+
+    _seed_planned_on_coord(repo)
+    _force_fallback_path(monkeypatch)
+    key = str(feature_status_lock_path(repo, MISSION_DIRNAME))
+    real_commit = st._commit_status_artifacts_to_coord
+    refreshed: list[bool] = []
+
+    def commit(**kwargs: Any) -> None:
+        if commit_fails:
+            raise RuntimeError("injected commit failure")
+        real_commit(**kwargs)
+
+    def counting_refresh(feature_dir: Path, repo_root: Path) -> bool:
+        assert key not in _get_thread_locks(), "projection refresh must run outside the mission status lock"
+        refreshed.append(True)
+        return real_refresh(feature_dir, repo_root)
+
+    monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", commit)
+    # Patch BOTH call sites the flat shell and the coord-tail hook reach
+    # through their own module-local bindings of refresh_execution_projection
+    # (`status/emit.py`'s `_refresh_projection_if_ledger_on` and this
+    # module's `_fan_out_committed_coord_tail`) -- patching only one would
+    # hide a double refresh: on the pre-fix code the flat shell's own
+    # (buggy) refresh routes through `_emit`'s binding, not this module's.
+    monkeypatch.setattr(st._emit, "refresh_execution_projection", counting_refresh)
+    monkeypatch.setattr(st, "_refresh_execution_projection", counting_refresh)
+    monkeypatch.setattr(st._emit, "_saas_fan_out", lambda *a, **k: None)
+
+    derived_status = repo / ".kittify" / "derived" / MISSION_SLUG / "status.json"
+
+    if commit_fails:
+        with pytest.raises(RuntimeError, match="injected commit failure"):
+            _emit_single(repo)
+        assert refreshed == [], "no refresh may happen when the commit fails (no phantom projection)"
+        assert not derived_status.exists(), "no derived file may be written when the commit fails"
+    else:
+        _emit_single(repo)
+        assert refreshed == [True], "exactly one refresh must happen, after commit, outside the lock"
+        assert derived_status.exists()
+
+
+@pytest.mark.parametrize("commit_fails", [False, True])
+def test_coord_fallback_batch_refreshes_projection_only_after_commit_never_on_failure(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    commit_fails: bool,
+) -> None:
+    """Batch sibling of
+    ``test_coord_fallback_refreshes_projection_only_after_commit_never_on_failure``:
+    ``_fallback_emit_batch``'s ``_flat_shell`` must thread the SAME
+    ``refresh_projection=False`` through ``emit_status_transition_batch`` as
+    the single door threads through ``emit_status_transition`` -- without it,
+    the batch coord arm would double-refresh on success and leave a phantom
+    projection behind a rolled-back commit failure, exactly like the single
+    door's pre-fix B1 defect.
+    """
+    from specify_cli.status.locking import _get_thread_locks, feature_status_lock_path
+    from specify_cli.status.views import refresh_execution_projection as real_refresh
+
+    _seed_planned_on_coord(repo)
+    _force_fallback_path(monkeypatch)
+    key = str(feature_status_lock_path(repo, MISSION_DIRNAME))
+    real_commit = st._commit_status_artifacts_to_coord
+    refreshed: list[bool] = []
+
+    def commit(**kwargs: Any) -> None:
+        if commit_fails:
+            raise RuntimeError("injected commit failure")
+        real_commit(**kwargs)
+
+    def counting_refresh(feature_dir: Path, repo_root: Path) -> bool:
+        assert key not in _get_thread_locks(), "projection refresh must run outside the mission status lock"
+        refreshed.append(True)
+        return real_refresh(feature_dir, repo_root)
+
+    monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", commit)
+    # Same double-boundary patch as the single-door test: the flat shell and
+    # the coord-tail hook reach refresh through their own module-local
+    # bindings (`status/emit.py`'s `_refresh_projection_if_ledger_on` and this
+    # module's `_fan_out_committed_coord_tail`).
+    monkeypatch.setattr(st._emit, "refresh_execution_projection", counting_refresh)
+    monkeypatch.setattr(st, "_refresh_execution_projection", counting_refresh)
+    monkeypatch.setattr(st._emit, "_saas_fan_out", lambda *a, **k: None)
+
+    derived_status = repo / ".kittify" / "derived" / MISSION_SLUG / "status.json"
+
+    if commit_fails:
+        with pytest.raises(RuntimeError, match="injected commit failure"):
+            _emit_batch(repo)
+        assert refreshed == [], "no refresh may happen when the commit fails (no phantom projection)"
+        assert not derived_status.exists(), "no derived file may be written when the commit fails"
+    else:
+        _emit_batch(repo)
+        assert refreshed == [True], "exactly one refresh must happen, after commit, outside the lock"
+        assert derived_status.exists()
+
+
 @pytest.mark.parametrize("commit_landed", [False, True])
 def test_coord_recovery_failure_preserves_only_landed_status(
     repo: Path,

@@ -175,6 +175,7 @@ from .views import (
     generate_status_view,
     git_operation_in_progress,
     materialize_if_stale,
+    refresh_execution_projection,
     write_derived_views,
 )
 from .progress import (
@@ -560,6 +561,7 @@ __all__ = [
     "get_all_wp_snapshots",
     "get_wp_lane",
     "git_operation_in_progress",
+    "refresh_execution_projection",
     "has_event_log",
     "is_terminal",
     "materialize",

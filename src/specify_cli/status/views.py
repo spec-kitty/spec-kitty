@@ -11,6 +11,7 @@ when human-readable or machine-readable output is needed.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -19,8 +20,10 @@ from specify_cli.mission_metadata import resolve_mission_identity
 
 from .lifecycle import DERIVED_LIFECYCLE_FILENAME, generate_lifecycle_json
 from .models import Lane, StatusSnapshot
-from .reducer import materialize, reduce
+from .reducer import materialize, materialize_snapshot, reduce
 from .store import EVENTS_FILENAME, read_events
+
+logger = logging.getLogger(__name__)
 
 BOARD_SUMMARY_FILENAME = "board-summary.json"
 DERIVED_STATUS_FILENAME = "status.json"
@@ -68,6 +71,8 @@ def generate_status_view(feature_dir: Path) -> dict[str, Any]:
 def write_derived_views(
     feature_dir: Path,
     derived_dir: Path,
+    *,
+    snapshot: StatusSnapshot | None = None,
 ) -> None:
     """Generate and write derived views from the event log.
 
@@ -86,8 +91,14 @@ def write_derived_views(
         feature_dir: Path to the feature directory
             (e.g. ``kitty-specs/034-feature/``).
         derived_dir: Root directory for derived artefacts.
+        snapshot: When given, use this write-free snapshot instead of
+            calling the *writing* :func:`materialize` (F-4, campsite fix:
+            regenerating a derived view must not also rewrite the tracked
+            ``status.json`` a second time). Omitted, this preserves the
+            exact prior behaviour of calling :func:`materialize`.
     """
-    snapshot = materialize(feature_dir)
+    if snapshot is None:
+        snapshot = materialize(feature_dir)
     mission_slug = snapshot.mission_slug or feature_dir.name
 
     output_dir = derived_dir / mission_slug
@@ -292,9 +303,14 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     # event log, so callers get a correct in-memory view without clobbering the
     # on-disk derived files mid-rebase/-merge/-cherry-pick.
     if _is_stale() and not git_operation_in_progress(repo_root):
-        write_derived_views(feature_dir, derived_dir)
-        generate_progress_json(feature_dir, derived_dir)
-        generate_lifecycle_json(feature_dir, derived_dir)
+        # C1 (F-4 campsite fix): build the write-free snapshot ONCE and share
+        # it across all three generators, so this on-demand-but-stale-
+        # triggered path stops rewriting tracked ``status.json`` a second
+        # time via the writing `materialize()`.
+        snapshot_for_refresh = materialize_snapshot(feature_dir)
+        write_derived_views(feature_dir, derived_dir, snapshot=snapshot_for_refresh)
+        generate_progress_json(feature_dir, derived_dir, snapshot=snapshot_for_refresh)
+        generate_lifecycle_json(feature_dir, derived_dir, snapshot=snapshot_for_refresh)
 
     # Return snapshot without writing (T002 covers any write needed by derived views)
     snapshot = reduce(read_events(feature_dir))
@@ -306,6 +322,51 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     )
     snapshot.mission_type = identity.mission_type
     return snapshot
+
+
+def refresh_execution_projection(feature_dir: Path, repo_root: Path) -> bool:
+    """Best-effort, write-free refresh of the derived execution-state projection.
+
+    Reads the event log, reduces a snapshot without writing it back to the
+    tracked ``status.json``, and refreshes ``.kittify/derived/<slug>/`` under
+    the REPOSITORY ROOT (never a coord/lane worktree copy). The ``<slug>``
+    directory name is resolved from ``snapshot.mission_slug`` inside
+    :func:`write_derived_views` (``snapshot.mission_slug or feature_dir.name``)
+    -- the same resolution ``spec-kitty materialize`` uses -- rather than by
+    calling :func:`_stale_check_slug` a second time here; the two agree for
+    every mission that has a ``meta.json``, and matching ``materialize``'s
+    own path keeps the parity guarantee (T021 case (b2)) exact by
+    construction. Returns ``True`` when files were written, ``False`` on a
+    no-op (git operation in progress, or a caught failure). Never raises into
+    the caller — this sits on the hot path of every lane transition and
+    fan-out hook, so both the git-operation probe and the write path are
+    guarded by the same ``try`` below.
+    """
+    derived_dir = repo_root / ".kittify" / "derived"
+
+    try:
+        if git_operation_in_progress(repo_root):
+            return False
+
+        # C1: the write-free snapshot that `materialize()` writes, minus the
+        # write -- byte-compatible with `spec-kitty materialize` output.
+        snapshot = materialize_snapshot(feature_dir)
+        from .progress import generate_progress_json  # local import to avoid circular
+
+        write_derived_views(feature_dir, derived_dir, snapshot=snapshot)
+        generate_progress_json(feature_dir, derived_dir, snapshot=snapshot)
+        generate_lifecycle_json(feature_dir, derived_dir, snapshot=snapshot)
+    except Exception:  # noqa: BLE001 -- FR-009: a projection refresh must never
+        # affect the caller's lane transition. Log and swallow; the next
+        # transition (or an on-demand `spec-kitty materialize`) recovers.
+        logger.warning(
+            "Execution-state projection refresh failed for %s; run 'spec-kitty materialize' to recover",
+            feature_dir,
+            exc_info=True,
+        )
+        return False
+
+    return True
 
 
 def format_post_mission_events(

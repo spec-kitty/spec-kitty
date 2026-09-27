@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from specify_cli.coordination.outbound import queue_saas_emission
+from specify_cli.core import hosted_posture
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.errors import StructuredError
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -75,6 +76,7 @@ from specify_cli.status.store import read_event_stream_from_text as _read_event_
 from specify_cli.status.store import read_events as _read_raw_events
 from specify_cli.status.transition_pipeline import PreparedTransition, prepare_transition
 from specify_cli.status.views import DERIVED_STATUS_FILENAME as _DERIVED_STATUS_FILENAME
+from specify_cli.status.views import refresh_execution_projection as _refresh_execution_projection
 from specify_cli.status.transitions import is_terminal, resolve_lane_alias
 from specify_cli.status.wp_state import annotate as _annotate
 from specify_cli.workspace import canonicalize_feature_dir, delete_context
@@ -413,12 +415,19 @@ def _fan_out_committed_coord_tail(
     mission_slug: str,
     repo_root: Path | None,
     ensure_sync_daemon: bool,
+    coord_feature_dir: Path | None = None,
 ) -> None:
     """Announce only the rows captured for the successful coord commit.
 
     The stream is captured under L1 before the commit. Fan-out happens after
     commit and lock release, so another writer cannot enter this operation's
     announcements and outbound I/O cannot hold the status lock.
+
+    F-3: also refreshes the derived execution-state projection (gated on
+    :func:`hosted_posture.ledger_posture`), from ``coord_feature_dir`` -- the
+    coord worktree's on-disk feature dir the commit just landed on -- against
+    ``repo_root``. Skipped when either is ``None`` (no coord feature dir was
+    resolved, or no repository root is known).
     """
     for event in stream.transitions:
         _emit._saas_fan_out(
@@ -430,6 +439,8 @@ def _fan_out_committed_coord_tail(
         )
     for annotation in stream.annotations:
         _emit._resolved_binding_fan_out(annotation, mission_slug)
+    if coord_feature_dir is not None and repo_root is not None and hosted_posture.ledger_posture(repo_root).enabled:
+        _refresh_execution_projection(coord_feature_dir, repo_root)
 
 
 _CoordEmitResult = TypeVar("_CoordEmitResult")
@@ -501,6 +512,7 @@ def _emit_on_coord_then_commit(
         mission_slug=mission_slug,
         repo_root=repo_root,
         ensure_sync_daemon=ensure_sync_daemon,
+        coord_feature_dir=coord_fd,
     )
     return result, coord_fd
 
@@ -533,10 +545,17 @@ def _fallback_emit_single(
 
     def _coord(coord_worktree: Path) -> StatusEvent:
         def _flat_shell(coord_fd: Path) -> StatusEvent:
+            # B1 fix: this call runs BEFORE the coord commit, under
+            # _emit_on_coord_then_commit's bounded L1 -- refresh_projection
+            # must be False here (independent of fan_out=False) or the
+            # projection would refresh twice on success (again post-commit
+            # via _fan_out_committed_coord_tail) and show a phantom
+            # projection (a rolled-back event) on a commit failure.
             event: StatusEvent = _emit.emit_status_transition(
                 replace(request, feature_dir=coord_fd, mission_dir=None),
                 ensure_sync_daemon=ensure_sync_daemon,
                 fan_out=False,
+                refresh_projection=False,
             )
             return event
 
@@ -581,10 +600,12 @@ def _fallback_emit_batch(
 
     def _coord(coord_worktree: Path) -> list[StatusEvent]:
         def _flat_shell(coord_fd: Path) -> list[StatusEvent]:
+            # B1 fix: same reasoning as _fallback_emit_single's _flat_shell.
             events: list[StatusEvent] = _emit.emit_status_transition_batch(
                 [replace(req, feature_dir=coord_fd, mission_dir=None) for req in requests],
                 ensure_sync_daemon=ensure_sync_daemon,
                 fan_out=False,
+                refresh_projection=False,
             )
             return events
 
@@ -1045,6 +1066,11 @@ def _defer_fan_out(
         repo_root=repo_root,
         ensure_sync_daemon=ensure_sync_daemon,
     )
+    # F-3: register the projection refresh as a post-commit deferred outbound
+    # (never called synchronously inside the transaction) -- the shared choke
+    # point for both the single-door (~1534) and batch-door (~1773) callers.
+    if hosted_posture.ledger_posture(txn.repo_root).enabled:
+        txn.defer_outbound(_deferred_execution_projection_refresh(txn.feature_dir, txn.repo_root))
 
 
 def _collapse_alias_in_transaction(
@@ -1097,6 +1123,18 @@ def _deferred_resolved_binding_fan_out(
         _emit._resolved_binding_fan_out(annotation, mission_slug)
 
     return emit
+
+
+def _deferred_execution_projection_refresh(
+    feature_dir: Path,
+    repo_root: Path,
+) -> Callable[[], None]:
+    """Return a typed post-commit execution-state projection refresh callback (F-3)."""
+
+    def refresh() -> None:
+        _refresh_execution_projection(feature_dir, repo_root)
+
+    return refresh
 
 
 def _read_events_from_transaction_target(
@@ -1644,6 +1682,11 @@ def emit_inner_state_changed_transactional(
         ) as txn:
             txn.append_events([annotation])
             txn.defer_outbound(_deferred_resolved_binding_fan_out(annotation, mission_slug))
+            # F-3: this path persists an InnerStateChanged annotation rather
+            # than a lane-transition StatusEvent -- still a durably persisted
+            # change worth reflecting in the projection.
+            if hosted_posture.ledger_posture(txn.repo_root).enabled:
+                txn.defer_outbound(_deferred_execution_projection_refresh(txn.feature_dir, txn.repo_root))
     except BookkeepingWorktreeMissing:
         if effective_root is not None:
             raise

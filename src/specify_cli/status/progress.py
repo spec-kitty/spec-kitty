@@ -206,7 +206,12 @@ def compute_weighted_progress(
     )
 
 
-def generate_progress_json(feature_dir: Path, derived_dir: Path) -> None:
+def generate_progress_json(
+    feature_dir: Path,
+    derived_dir: Path,
+    *,
+    snapshot: StatusSnapshot | None = None,
+) -> None:
     """Materialise snapshot, compute progress, and write ``progress.json``.
 
     Writes to ``derived_dir / <mission_slug> / progress.json`` atomically
@@ -217,8 +222,12 @@ def generate_progress_json(feature_dir: Path, derived_dir: Path) -> None:
         feature_dir: Path to the feature directory
             (e.g. ``kitty-specs/034-feature/``).
         derived_dir: Root directory for derived artefacts.
+        snapshot: When given, use this write-free snapshot instead of
+            calling the *writing* :func:`materialize` (F-4, campsite fix).
+            Omitted, this preserves the exact prior behaviour.
     """
-    snapshot = materialize(feature_dir)
+    if snapshot is None:
+        snapshot = materialize(feature_dir)
     mission_slug = snapshot.mission_slug or feature_dir.name
     result = compute_weighted_progress(snapshot)
 
