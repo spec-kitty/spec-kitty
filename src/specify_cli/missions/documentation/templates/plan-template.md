@@ -1,7 +1,7 @@
 # Implementation Plan: [DOCUMENTATION PROJECT]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
+**Branch**: `[###-mission-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Mission specification from `/kitty-specs/[###-mission-name]/spec.md`
 
 **Note**: This template is filled in by the `/spec-kitty.plan` command. See mission command templates for execution workflow.
 
@@ -30,10 +30,10 @@
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (this mission)
 
 ```
-kitty-specs/[###-feature]/
+kitty-specs/[###-mission]/
 ├── spec.md              # Documentation goals and user scenarios
 ├── plan.md              # This file
 ├── research.md          # Phase 0 output (gap analysis, framework research)

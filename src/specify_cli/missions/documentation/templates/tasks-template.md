@@ -1,10 +1,10 @@
 ---
-description: "Work package task list template for feature implementation"
+description: "Work package task list template for mission implementation"
 ---
 
-# Work Packages: [FEATURE NAME]
+# Work Packages: [MISSION NAME]
 
-**Inputs**: Design documents from `/kitty-specs/[###-feature-name]/`
+**Inputs**: Design documents from `/kitty-specs/[###-mission-name]/`
 **Prerequisites**: plan.md (required), spec.md (user stories), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Only include explicit testing work when stakeholders request it.
