@@ -1336,8 +1336,14 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.merge.push_preflight"
         ),  # specify_cli.merge.push_preflight::check_push_safety
+        # (FR-008: the redundant trailing bare-slug regex was replaced by
+        # strip_numeric_prefix + parse_lane_worktree_dir routed through the
+        # naming authority -- body changed, content-tier hash re-pinned.
+        # Out-of-map edit; re-pin only this one entry if another mission
+        # also touches this allow-list file.)
+        # specify_cli.merge.resolve::_extract_mission_slug
         SymbolKey(
-            "_extract_mission_slug", "834a3e235860c64046504604c6f21d21f5a8c2e8443ef33b8c4ad6ad07c2e934", source_module="specify_cli.merge.resolve"
+            "_extract_mission_slug", "069b2a0bb16644081c3d0cf618a231ba3251fea4a2905c157d121d8e07d44f65", source_module="specify_cli.merge.resolve"
         ),  # specify_cli.merge.resolve::_extract_mission_slug
         # specify_cli.merge.resolve::_iter_merge_states_for_slug
         # Hash re-pinned (#2899 landing): the cross-mission slug-scan fix folded in

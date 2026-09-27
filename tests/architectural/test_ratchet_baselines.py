@@ -284,6 +284,35 @@ _SIZE_RATCHETS: tuple[_SizeRatchet, ...] = (
         "tests.architectural.test_mutation_ownership_routing",
         "_ALLOWLIST",
     ),
+    # #5108 four-leg worktree-name gate: each leg's allow-list is the surface
+    # an author would edit to silence that leg, so growing it must cost the
+    # same visible diff. Registered here (not the retired `single_baselines`
+    # list #5104 replaced with this table) so every _baselines.yaml leaf is
+    # enforced by a size ratchet (FR-011).
+    _SizeRatchet(
+        "test_no_worktree_name_guess",
+        "signature_allowlist",
+        "tests.architectural.test_no_worktree_name_guess",
+        "_SIGNATURE_ALLOWLIST",
+    ),
+    _SizeRatchet(
+        "test_no_worktree_name_guess",
+        "compose_allowlist",
+        "tests.architectural.test_no_worktree_name_guess",
+        "_COMPOSE_ALLOWLIST",
+    ),
+    _SizeRatchet(
+        "test_no_worktree_name_guess",
+        "match_allowlist",
+        "tests.architectural.test_no_worktree_name_guess",
+        "_MATCH_ALLOWLIST",
+    ),
+    _SizeRatchet(
+        "test_no_worktree_name_guess",
+        "def_use_allowlist",
+        "tests.architectural.test_no_worktree_name_guess",
+        "_DEF_USE_ALLOWLIST",
+    ),
 )
 
 

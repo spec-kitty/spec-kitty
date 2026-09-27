@@ -385,3 +385,36 @@ test_mutation_ownership_routing:
   # each individually rationalized in the allowlist (same ephemeral-temp/empty-only-rmdir
   # classes already rationalized above).
   destructive_op_allowlist: 61
+
+# tests/architectural/test_no_worktree_name_guess.py — four NEW
+# legs (signature, compose, match, def-use) extend the existing name-compose
+# gate so the class it closes STAYS closed (FR-008/FR-009/NFR-003). Each
+# allow-list is the surface an author would edit to silence its leg, so
+# growing it must cost this same visible diff.
+test_no_worktree_name_guess:
+  # justification: 0 entries -- every `mission_id`-carrying call to the
+  # seam was removed; empty by construction, pinned so a re-grown entry
+  # costs a visible diff.
+  signature_allowlist: 0
+  # justification: 1 entry -- `lanes/compute.py::_next_free_lane_id`'s
+  # `f"lane-{chr(letter)}"` mints a lane ID (the next free positional slot),
+  # not a worktree/branch/dir NAME; the composed value never reaches a
+  # filesystem or git sink here.
+  compose_allowlist: 1
+  # justification: 1 entry (deviation from the original caps-table cap
+  # of 5 -- see the mission's Activity Log): only
+  # recovery.py's `git branch --list` enumeration glob is a live scanner hit
+  # (also a compose-leg raw hit, exempted once here per the caps table). The
+  # other 4 named prose sites (an operator remediation hint, a `--workspace`
+  # console example, an exception-message placeholder, and a `next_step` ref
+  # example) suppress NO live offender -- keeping them would be an
+  # unverifiable, file-unqualified false-negative window this ratchet does
+  # not require (prose that no heuristic reaches needs no allow-list entry at
+  # all). Shrunk 5 -> 1; shrinking below a cap is always allowed.
+  match_allowlist: 1
+  # justification: 1 entry -- `coordination/surface_resolver.py::_coord_mid8`'s
+  # `.worktrees`-shaped `coord_candidate` Path composed ONLY to populate a
+  # fail-closed diagnostic `raise` payload; no git worktree/branch sink is
+  # ever reached (same site already dispositioned DIAG by the existing
+  # idiom-1 carve-out above).
+  def_use_allowlist: 1
