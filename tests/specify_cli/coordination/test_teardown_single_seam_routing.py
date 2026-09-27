@@ -81,7 +81,7 @@ def test_seam_file_exists_and_calls_the_primitive() -> None:
 def test_zero_production_teardown_calls_outside_the_seam() -> None:
     """No production code calls CoordinationWorkspace.teardown( except the seam.
 
-    Re-adding a direct call at any former production site (``merge.py``,
+    Re-adding a direct call at any former production site (``consolidate.py``,
     ``mission_type.py``) FAILS this test.
     """
     offenders = _production_teardown_call_sites()
@@ -96,14 +96,14 @@ def test_zero_production_teardown_calls_outside_the_seam() -> None:
 
 def test_former_production_sites_route_through_the_seam() -> None:
     """The three former production sites import the seam, not the primitive call."""
-    merge_py = (_REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "merge.py").read_text(
+    consolidate_py = (_REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "consolidate.py").read_text(
         encoding="utf-8"
     )
     mission_type_py = (
         _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "mission_type.py"
     ).read_text(encoding="utf-8")
 
-    for name, text in (("merge.py", merge_py), ("mission_type.py", mission_type_py)):
+    for name, text in (("consolidate.py", consolidate_py), ("mission_type.py", mission_type_py)):
         assert "teardown_coordination_topology" in text, (
             f"{name} must route coordination teardown through the shared seam "
             "teardown_coordination_topology"
