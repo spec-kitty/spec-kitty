@@ -285,8 +285,11 @@ def allowlist() -> Allowlist:
 
 
 def test_no_parse_failures(scan_result: gss.ScanResult) -> None:
-    """Verdict 5: every non-excluded ``*.py`` under ``tests/`` must parse."""
-    assert scan_result.parse_failures == (), f"file(s) under tests/ failed to parse: {scan_result.parse_failures}"
+    """Verdict 5: every non-excluded ``*.py`` under ``tests/`` must parse.
+
+    :func:`gss.scan` raises on the first unparseable file, so reaching a
+    non-empty scan here is the proof."""
+    assert scan_result.scanned_files > 0
 
 
 def test_scanned_files_floor(scan_result: gss.ScanResult) -> None:
@@ -479,12 +482,11 @@ def test_detector_does_not_bite_on_scoped_facilities(tmp_path: Path, relpath: st
     assert result.sites == (), f"expected zero sites, found {result.sites}"
 
 
-def test_detector_records_a_parse_failure(tmp_path: Path) -> None:
-    """An unparseable file shows up in ``parse_failures``, not as a silent skip."""
+def test_detector_fails_closed_on_a_parse_failure(tmp_path: Path) -> None:
+    """An unparseable file raises out of the scan instead of being silently skipped."""
     _materialise(tmp_path, "broken.py", "def f(:\n    pass\n")
-    result = gss.scan(tmp_path)
-    assert len(result.parse_failures) == 1
-    assert result.parse_failures[0][0] == "tests/broken.py"
+    with pytest.raises(SyntaxError, match="broken.py"):
+        gss.scan(tmp_path)
 
 
 def test_detector_keys_by_content_not_by_line(tmp_path: Path) -> None:

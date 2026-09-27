@@ -133,7 +133,6 @@ class ScanResult:
     """The outcome of one :func:`scan` call."""
 
     sites: tuple[Site, ...]
-    parse_failures: tuple[tuple[str, str], ...]
     scanned_files: int
 
 
@@ -376,10 +375,8 @@ def scan(root: Path) -> ScanResult:
     all_files = sorted(p for p in tests_dir.rglob("*.py") if "__pycache__" not in p.parts)
     files = [p for p in all_files if not _is_excluded(p.relative_to(root).as_posix())]
     sites: list[Site] = []
-    failures: list[tuple[str, str]] = []
     for path in files:
-        try:
-            sites.extend(scan_file(path, root))
-        except SyntaxError as exc:
-            failures.append((path.relative_to(root).as_posix(), f"{type(exc).__name__}: {exc}"))
-    return ScanResult(tuple(sites), tuple(failures), len(files))
+        # Fail closed: an unparseable file raises SyntaxError out of the scan
+        # rather than dropping silently out of the census.
+        sites.extend(scan_file(path, root))
+    return ScanResult(tuple(sites), len(files))
