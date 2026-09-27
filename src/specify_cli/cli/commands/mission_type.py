@@ -518,7 +518,7 @@ def close_cmd(
     (e.g. every work package cancelled) still refuses here; use ``--discard``
     to abandon it. Once merged: runs the merge-completion teardown — persists
     the mission retrospective to its durable home and tears down the
-    coordination worktree. Idempotent after a successful ``spec-kitty merge``
+    coordination worktree. Idempotent after a successful ``spec-kitty consolidate``
     (which already ran the same teardown); useful when the teardown was
     skipped (e.g. the legacy plain-git/GitHub merge path) or interrupted.
     NOTE: on a merged mission without a retrospective, this generates one

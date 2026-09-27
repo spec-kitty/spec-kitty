@@ -1281,7 +1281,7 @@ def coordination_health(
     without mutating when the coord worktree is on another branch, detached,
     or not a worktree of this repository. ``Fast-forwarded`` is printed only
     once the coord branch really matches the target. Safe to run on
-    100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.
+    100%-done missions before ``spec-kitty next`` or ``spec-kitty consolidate``.
 
     With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
     staleness (FR-008) — non-blocking either way.

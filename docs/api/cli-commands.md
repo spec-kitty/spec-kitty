@@ -444,7 +444,52 @@ _Charter bundle validation commands._
 ## spec-kitty charter context
 
 ```
+ Usage: spec-kitty charter context [OPTIONS]
 
+ Render charter context for a specific workflow action.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --action                                TEXT  Workflow action                │
+│                                               (specify|plan|implement|revie… │
+│ --include                               TEXT  Fetch selector, e.g.           │
+│                                               agent-profile:<id>,            │
+│                                               template:<mission>/<name>,     │
+│                                               directive:<id>,                │
+│                                               section:<slug>.                │
+│ --mark-loaded       --no-mark-loaded          Persist first-load state       │
+│                                               [default: mark-loaded]         │
+│ --mission-type                          TEXT  Canonical mission type (e.g.   │
+│                                               documentation|research|plan|s… │
+│                                               for the action doctrine grain. │
+│                                               Required when rendering action │
+│                                               context from the repo root —   │
+│                                               without it, and without a      │
+│                                               mission's meta.json, the       │
+│                                               action grain is typeless and   │
+│                                               never inherits software-dev    │
+│                                               (#883).                        │
+│ --json                                        Output JSON.                   │
+│                                               `context_schema_version`       │
+│                                               stamps the top-level payload   │
+│                                               shape (#2787, tracking         │
+│                                               contract -- not yet frozen).   │
+│                                               `directives` is action-scoped; │
+│                                               `all_directives` and           │
+│                                               `project_charter` describe the │
+│                                               project-local charter, while   │
+│                                               `org_charter` describes        │
+│                                               imported org packs.            │
+│ --include-all                                 Escape hatch: materialise the  │
+│                                               entire reachable closure       │
+│                                               inline in the structured       │
+│                                               (--json) payload instead of    │
+│                                               the default progressive        │
+│                                               disclosure (requires eager,    │
+│                                               suggests linked). Output is a  │
+│                                               superset of the progressive    │
+│                                               render for the same grain.     │
+│ --help          -h                            Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter deactivate
@@ -613,7 +658,26 @@ _Charter bundle validation commands._
 _List activated doctrine artifacts by kind._
 
 ```
+ Usage: spec-kitty charter list [OPTIONS] COMMAND [ARGS]...
 
+ List activated doctrine artifacts by kind.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --show-available            Also show available-but-not-activated artifacts. │
+│ --all                       Show every available artifact per kind across    │
+│                             the built-in, org, and project layers (annotated │
+│                             by source layer), including the template kind.   │
+│                             Supersedes --show-available.                     │
+│ --json                      Output JSON. Every kind row always carries an    │
+│                             'available' key and the payload always carries a │
+│                             top-level 'templates' key — both are null unless │
+│                             requested (available: null without               │
+│                             --show-available/--all; templates: null without  │
+│                             --all) rather than absent, so callers can rely   │
+│                             on key presence and branch on the value instead  │
+│                             of on which flags were passed.                   │
+│ --help            -h        Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter mission-type
@@ -1694,15 +1758,19 @@ _Project health diagnostics_
  Exits with code 1 if any ``error`` finding is emitted; ``warning``
  findings exit 0 but are still printed.
 
- With ``--fix``, automatically flattens missions that have a stale
- ``coordination_branch`` key (branch never created or already deleted),
- re-derives topology, and attempts the Gap-1 coord-vs-target fast-forward
- (FR-009) -- which fails loud with a unified diff and mutates nothing when
+ With ``--fix``, automatically materializes a missing coordination worktree
+ whose declared branch still exists in git (#5113 / FR-014, via the
+ canonical ``materialize_coord_surface_for_write`` helper — idempotent, and
+ it refuses rather than crashing when the branch is remote-only), flattens
+ missions that have a stale ``coordination_branch`` key (branch never
+ created or already deleted), re-derives topology, and attempts the Gap-1
+ coord-vs-target fast-forward (FR-009) -- which fails loud with a unified
+ diff and mutates nothing when
  the coord branch has diverged or its worktree is dirty, and refuses
  without mutating when the coord worktree is on another branch, detached,
  or not a worktree of this repository. ``Fast-forwarded`` is printed only
  once the coord branch really matches the target. Safe to run on
- 100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.
+ 100%-done missions before ``spec-kitty next`` or ``spec-kitty consolidate``.
 
  With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
  staleness (FR-008) — non-blocking either way.
@@ -1719,10 +1787,12 @@ _Project health diagnostics_
      spec-kitty doctor coordination --mission 083-my-mission
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix                            Remove stale coordination_branch keys from  │
-│                                  meta.json for missions whose coord branch   │
-│                                  was never created, then re-derive topology  │
-│                                  via `migrate backfill-topology`.            │
+│ --fix                            Repair coordination topology: materialize a │
+│                                  missing coordination worktree whose branch  │
+│                                  exists, remove stale `coordination_branch`  │
+│                                  keys for never-created branches (then       │
+│                                  `migrate backfill-topology`), and revert    │
+│                                  stranded coordination state.                │
 │ --json                           Machine-readable JSON output                │
 │ --check-staleness                Also report coord-branch-vs-target-branch   │
 │                                  staleness (Gap-1, FR-008): non-blocking,    │
@@ -3797,7 +3867,8 @@ _Inspect mission types for this project._
  (e.g. every work package cancelled) still refuses here; use ``--discard``
  to abandon it. Once merged: runs the merge-completion teardown — persists
  the mission retrospective to its durable home and tears down the
- coordination worktree. Idempotent after a successful ``spec-kitty merge``
+ coordination worktree. Idempotent after a successful ``spec-kitty
+ consolidate``
  (which already ran the same teardown); useful when the teardown was
  skipped (e.g. the legacy plain-git/GitHub merge path) or interrupted.
  NOTE: on a merged mission without a retrospective, this generates one
@@ -4073,7 +4144,8 @@ _Inspect mission types for this project._
  (e.g. every work package cancelled) still refuses here; use ``--discard``
  to abandon it. Once merged: runs the merge-completion teardown — persists
  the mission retrospective to its durable home and tears down the
- coordination worktree. Idempotent after a successful ``spec-kitty merge``
+ coordination worktree. Idempotent after a successful ``spec-kitty
+ consolidate``
  (which already ran the same teardown); useful when the teardown was
  skipped (e.g. the legacy plain-git/GitHub merge path) or interrupted.
  NOTE: on a merged mission without a retrospective, this generates one
