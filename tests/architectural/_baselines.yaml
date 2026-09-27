@@ -418,3 +418,12 @@ test_no_worktree_name_guess:
   # ever reached (same site already dispositioned DIAG by the existing
   # idiom-1 carve-out above).
   def_use_allowlist: 1
+
+# tests/architectural/test_hosted_drain_gate.py — the non-vacuous hosted drain
+# gate (mission hosted-opt-in-drain-ledger-01M3FFEV WP04, NFR-002). The
+# `_UNGATED_EDGE_ALLOWLIST` is the surface an author would edit to exempt a
+# hosted relay/gateway edge from the drain check, so growing it must cost this
+# same visible diff. Empty at authoring time: an ungated edge is a drain-contract
+# defect to fix, never an exemption to record.
+test_hosted_drain_gate:
+  ungated_edge_allowlist: 0

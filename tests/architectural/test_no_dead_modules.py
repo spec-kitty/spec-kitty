@@ -328,13 +328,18 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # `specify_cli.status.migrate_lifecycle_envelope` was removed from
         # Category 7 above -- it now has a real src/ caller: this module.)
         "specify_cli.upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope",
-        # #4259: machine-scoped, idempotent rewrite of a stale
-        # config.toml [sync].server_url naming the retired first-party
-        # app endpoint to the canonical hosted target. Auto-discovered
-        # via pkgutil.iter_modules + @MigrationRegistry.register; never
-        # statically imported by runtime code -- same sibling shape as
-        # the m_zz_* backfill migrations above.
-        "specify_cli.upgrade.migrations.m_4_0_0_retired_hosted_target",
+        # (m_4_0_0_retired_hosted_target removed from this category by
+        # hosted-opt-in-drain-ledger WP07: its `home_config_path()` now has a
+        # real src/ caller -- the D-6 backfill sibling below imports it.)
+        # hosted-opt-in-drain-ledger WP07 (D-6, FR-016): backfills
+        # config.toml [sync].server_url from a stored auth session's
+        # issuer_url when no endpoint is configured. A NEW migration_id
+        # (never folded into m_4_0_0_retired_hosted_target -- see that
+        # module's docstring for the already-applied-migration skip trap
+        # this avoids). Auto-discovered via pkgutil.iter_modules +
+        # @MigrationRegistry.register; never statically imported by runtime
+        # code -- same sibling shape as the m_zz_* backfill migrations above.
+        "specify_cli.upgrade.migrations.m_4_0_0rc5_hosted_endpoint_session_backfill",
     }
 )
 

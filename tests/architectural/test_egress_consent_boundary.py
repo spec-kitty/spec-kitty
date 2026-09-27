@@ -177,6 +177,15 @@ Spec: FR-002, FR-003, FR-019, FR-025-FR-032, C-003. `#3113` (FR-013, FR-014,
 FR-015) adds limit 8 above; cross-referenced one-directionally against
 ``kitty-specs/journal-project-consent-3030-01KYKWQS/egress-inventory.md``,
 which belongs to a closed mission and is not edited by this change (C-010).
+
+Sibling gate: ``tests/architectural/test_hosted_drain_gate.py`` (mission
+``hosted-opt-in-drain-ledger-01M3FFEV``, NFR-002) requires every hosted
+relay/gateway edge -- ``ZeitgeistClient.offer``, the ``FilteredStream`` snapshot
+and watch GETs, ``history.read_history``, ``SaasCapabilityGateway``'s admission
+and mint calls, and the widen prereq probe -- to call the drain check before it
+opens. That is a *gate-call* scan over named functions, narrower than this
+module's sink vocabulary (which by design does not see the relay opener's
+``opener.open(req)`` shape at all); the two are complementary, not redundant.
 """
 
 from __future__ import annotations
@@ -592,7 +601,14 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
             "owner/repo key the admission GET one call earlier already carries, and "
             "the gate here is team membership over Bearer auth (SaasCapabilityGateway), "
             "not FR-019's per-project consent — presence broadcast must neither queue "
-            "nor consult hosted-sync consent (design page ephemeral-team-status)."
+            "nor consult hosted-sync consent (design page ephemeral-team-status). "
+            "Drain (mission hosted-opt-in-drain-ledger-01M3FFEV) is a narrower "
+            "precondition layered in front of this same consent answer, not a "
+            "replacement for it: tests/architectural/test_hosted_drain_gate.py "
+            "additionally requires check_repo_admission and mint_capability to call "
+            "hosted_posture.require_drain before this HTTP client is used. That gate "
+            "scans named relay/gateway functions for the drain call; this one reasons "
+            "about every sink-bearing file under src/ — complementary, not redundant."
         ),
     ),
     # specify_cli/dashboard/handlers/api.py RETIRED (E4 re-homing, planning epic #4):
@@ -1644,14 +1660,24 @@ def _scan_project_sinks(
     return tuple(sorted(sites))
 
 
+#: WP06 (hosted-opt-in-drain-ledger, S2 campsite extraction): the three
+#: ``self._request`` calls that used to live directly inside
+#: ``_physical_request_with_retry`` (401-retry, 429-retry, initial call) were
+#: split into ``_retry_on_unauthorized``/``_retry_on_rate_limit`` helpers to
+#: bring that function's C901 complexity from 15 to 2. Total transport-call
+#: sinks reaching the network is unchanged (still 3 ``self._request`` calls,
+#: now attributed across 3 symbols instead of 1) — a behaviour-preserving
+#: refactor, not new egress.
 _KNOWN_PROJECT_SINK_COUNTS: Counter[str] = Counter(
     line.strip()
     for line in """
 specify_cli/saas_client/client.py::SaasClient._exchange::http-verb::self._http.post
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request::http-verb::client.request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._retry_on_unauthorized
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._retry_on_rate_limit
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._retry_on_unauthorized::transport-call::self._request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._retry_on_rate_limit::transport-call::self._request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry
 specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_confirm::transport-call::self._request_with_retry
 specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_mission_origin::transport-call::self._request_with_retry
@@ -1707,7 +1733,14 @@ def test_hosted_sender_census_is_exact_per_symbol_not_per_file() -> None:
 _T034_DURABLE_ADAPTER_SINK_COUNTS: Counter[str] = Counter(
     {
         "specify_cli/saas_client/client.py::SaasClient._exchange::http-verb::self._http.post": 1,
-        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request": 3,
+        # WP06 S2 campsite extraction (see _KNOWN_PROJECT_SINK_COUNTS above):
+        # the sole remaining direct self._request call inside
+        # _physical_request_with_retry is the initial request; the 401/429
+        # retry requests moved into their own helper methods, each with its
+        # own self._request sink.
+        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request": 1,
+        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._retry_on_unauthorized::transport-call::self._request": 1,
+        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._retry_on_rate_limit::transport-call::self._request": 1,
         "specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry": 1,
     }
 )
@@ -1726,14 +1759,16 @@ def test_t034_durable_adapter_sender_census_is_exact() -> None:
 def test_t034_durable_adapter_sender_census_rejects_extra_retry_mutant(
     tmp_path: Path,
 ) -> None:
+    # WP06 S2 campsite extraction moved the honest baseline for this key to
+    # 1 (see _T034_DURABLE_ADAPTER_SINK_COUNTS above) — the synthetic mutant
+    # writes one call beyond that baseline (2 total) to prove the exact-count
+    # gate still catches a single rogue extra retry call.
     tracker = tmp_path / "specify_cli" / "tracker" / "saas_client.py"
     tracker.parent.mkdir(parents=True)
     tracker.write_text(
         "class SaaSTrackerClient:\n"
         "    def _physical_request_with_retry(self, payload):\n"
         "        self._request('POST', '/one', json=payload, headers={})\n"
-        "        self._request('POST', '/two', json=payload, headers={})\n"
-        "        self._request('POST', '/three', json=payload, headers={})\n"
         "        self._request('POST', '/mutant', json=payload, headers={})\n",
         encoding="utf-8",
     )
@@ -2056,7 +2091,15 @@ class TestIssuerTargetFence:
         floor_callers_with_a_real_reference = {
             "specify_cli/auth/flows/device_code.py",
             "specify_cli/auth/flows/authorization_code.py",
-            "specify_cli/auth/http/transport.py",
+            # WP06 T028 item 13 (D4): auth/http/transport.py no longer
+            # references get_saas_base_url() -- it resolves the comparison
+            # host through resolve_server_target_or_none() instead, so a
+            # config.toml-only-configured user keeps the stdlib fallback
+            # (get_saas_base_url() is now env-only-and-raising, endpoint
+            # opt-in FR-011). Removed from this witness set; the two flow
+            # modules above still hold a real reference (item 14's dead
+            # constructor-fallback path), so the detector's non-vacuity
+            # proof still stands.
         }
         for relpath in floor_callers_with_a_real_reference:
             assert _references_symbol(_SRC / relpath, _ISSUER_TARGET_SYMBOL), (
