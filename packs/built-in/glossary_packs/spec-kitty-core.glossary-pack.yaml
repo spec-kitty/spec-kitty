@@ -68,15 +68,17 @@ terms:
     complexity.\nBacktracking engines (Python `re`, JavaScript, Java, .NET) attempt
     every possible\npartition of the input when a match fails; patterns with nested
     or consecutive\nnon-possessive repetitions can produce O(2^N) or O(N^c) retry
-    storms. The\n`secure-regex-catastrophic-backtracking` tactic\n\
+    storms. The\n`secure-regex-catastrophic-backtracking` tactic at\n`src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml`\n\
     codifies the four dangerous-shape patterns, the rewrite ladder (bound quantifier
     →\nrefactor nested → possessive/atomic group → negated char class), and the escape\n\
     hatches (drop the regex, re2, multi-pass, bounded-input cap). Every fix requires
     a\nwall-clock regression test asserting linear runtime on an adversarial input\n\
-    (default budget: ≤100 ms for 100 000 chars). Synonym \"ReDoS\"\n(Regular-expression
+    (default budget: ≤100 ms for 100 000 chars), per FR-008. Synonym \"ReDoS\"\n(Regular-expression
     Denial of Service) is acceptable only as a parenthetical.\n"
   see_also:
-  - 'tactic: secure-regex-catastrophic-backtracking'
+  - 'tactic: secure-regex-catastrophic-backtracking, path: src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml'
+  - 'fr: FR-008, description: Wall-clock regression test requirement for every regex
+    change'
   status: active
   surface: catastrophic backtracking
 - confidence: 1.0

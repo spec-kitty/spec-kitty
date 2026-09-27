@@ -26,8 +26,8 @@ directives/041-tests-as-scaffold-not-friction.directive.yaml:
 directives/044-canonical-sources-and-unification.directive.yaml:
   repo_paths: 3
 glossary_packs/spec-kitty-core.glossary-pack.yaml:
-  repo_paths: 4
-  provenance: 13
+  repo_paths: 6
+  provenance: 15
 missions/built_in_step_contracts/documentation-accept.step-contract.yaml:
   provenance: 1
 missions/built_in_step_contracts/documentation-audit.step-contract.yaml:
