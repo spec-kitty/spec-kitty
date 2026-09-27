@@ -1,4 +1,5 @@
 """Tests for RuntimeRoot and get_runtime_root() platform dispatch."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -8,10 +9,11 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.paths import RuntimeRoot, get_runtime_root
+from specify_cli.paths import RuntimeRoot, get_runtime_config_toml_path, get_runtime_root
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def test_get_runtime_root_on_windows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "platform", "win32")
@@ -63,3 +65,14 @@ def test_runtime_root_is_frozen() -> None:
     # Attempting mutation must raise FrozenInstanceError
     with pytest.raises(dataclasses.FrozenInstanceError):
         root.base = Path("/nonexistent/other")  # type: ignore[misc]
+
+
+def test_get_runtime_config_toml_path_is_the_one_canonical_derivation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """DIRECTIVE_044: every "config.toml path" consumer (hosted_posture's
+    personal_config_path, auth.config's endpoint-unconfigured message,
+    auth.server_target's configured-URL reader, and the retired-target
+    migration) now derives from this one helper instead of re-deriving
+    ``get_runtime_root().base / "config.toml"`` independently."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+    assert get_runtime_config_toml_path() == tmp_path / "config.toml"
+    assert get_runtime_config_toml_path() == get_runtime_root().base / "config.toml"

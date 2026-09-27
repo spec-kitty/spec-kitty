@@ -458,9 +458,6 @@ exclude = [
     "src/specify_cli/audit/shape_registry.py",
     "src/specify_cli/auth/device_flow/poller.py",
     "src/specify_cli/auth/flows/_session_payload.py",
-    "src/specify_cli/auth/flows/authorization_code.py",
-    "src/specify_cli/auth/flows/device_code.py",
-    "src/specify_cli/auth/http/transport.py",
     "src/specify_cli/auth/loopback/callback_handler.py",
     "src/specify_cli/auth/loopback/callback_server.py",
     "src/specify_cli/auth/loopback/state_manager.py",
@@ -484,7 +481,6 @@ exclude = [
     "src/specify_cli/charter_runtime/lint/findings.py",
     "src/specify_cli/charter_runtime/preflight/cli.py",
     "src/specify_cli/charter_runtime/preflight/runner.py",
-    "src/specify_cli/cli/commands/_auth_login.py",
     "src/specify_cli/cli/commands/_auth_recovery.py",
     "src/specify_cli/cli/commands/_branch_strategy_gate.py",
     "src/specify_cli/cli/commands/_channel_doctor.py",
@@ -1194,8 +1190,6 @@ exclude = [
     "tests/charter/test_worktree_charter_via_canonical_root.py",
     "tests/ci/test_sonarcloud_branch_review.py",
     "tests/cli/commands/test_agent_config_coverage.py",
-    "tests/cli/commands/test_auth_login.py",
-    "tests/cli/commands/test_auth_logout.py",
     "tests/cli/commands/test_charter_bundle_coverage.py",
     "tests/cli/commands/test_charter_io.py",
     "tests/cli/commands/test_charter_orchestration.py",
@@ -1738,7 +1732,6 @@ exclude = [
     "tests/paths/test_render_runtime_path.py",
     "tests/paths/test_runtime_root_spec_kitty_home.py",
     "tests/paths/test_windows_migrate.py",
-    "tests/paths/test_windows_paths.py",
     "tests/perf/test_loader_perf.py",
     "tests/perf/test_tasks_status_baseline.py",
     "tests/policy/test_audit.py",
@@ -2446,7 +2439,6 @@ exclude = [
     "tests/status/test_store.py",
     "tests/status/test_sync_lane_mapping.py",
     "tests/status/test_uninitialized_hint.py",
-    "tests/status/test_views.py",
     "tests/status/test_views_gitop_guard.py",
     "tests/stress/test_concurrent_emits.py",
     "tests/tasks/conftest.py",
@@ -2485,7 +2477,6 @@ exclude = [
     "tests/test_template/test_renderer.py",
     "tests/test_test_venv_bootstrap.py",
     "tests/test_worker_home_isolation.py",
-    "tests/tracker/test_server_target_fail_closed.py",
     "tests/unit/git/test_sparse_checkout_detection.py",
     "tests/unit/git/test_sparse_checkout_remediation.py",
     "tests/unit/intake/test_missing_vs_corrupt.py",
@@ -2710,6 +2701,29 @@ module = ["specify_cli.cli.commands._test_env_check"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]
+# core.paths.locate_project_root's concrete ``Path | None`` return type is
+# needed by specify_cli.core.hosted_posture (WP01)'s repo-root resolution;
+# under the ``specify_cli.*`` skip above it resolves as ``Any`` and a narrow
+# ``mypy --strict`` check on a caller reports "Returning Any from function
+# declared to return ...". Same shape/precedent as the protection_policy and
+# asset_preservation.backup entries above (issue #3719) — must stay after the
+# ``specify_cli.*`` skip. Its own import graph (core.constants, kernel.errors)
+# is limited, so following it cannot drag bootstrap errors into a narrow
+# check.
+module = ["specify_cli.core.paths"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+# core.toml_table.write_toml_table_key's concrete ``Path`` return type is
+# needed by specify_cli.core.hosted_posture.set_personal_drain (WP01) and by
+# zeitgeist_client/moments.py::write_agents_mode; same shape/precedent as the
+# overrides above — must stay after the ``specify_cli.*`` skip. It imports
+# only stdlib (tomllib, tomli_w), so following it cannot drag bootstrap
+# errors into a narrow check.
+module = ["specify_cli.core.toml_table"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
 # core.errors defines the StructuredError base every typed error family
 # subclasses; under the ``specify_cli.*`` skip above it resolves as ``Any`` and
 # every subclass declaration reads "Class cannot subclass StructuredError (has
@@ -2718,6 +2732,18 @@ follow_imports = "normal"
 # into a narrow check — same shape as the protection_policy entry (issue
 # #3719), and it must likewise stay after the ``specify_cli.*`` skip.
 module = ["specify_cli.core.errors"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+# auth.errors defines the AuthenticationError family every auth-subsystem
+# error subclasses (e.g. server_target.py's HostedEndpointUnconfigured);
+# under the ``specify_cli.*`` skip above it resolves as ``Any`` and every
+# cross-module subclass declaration reads "Class cannot subclass
+# ConfigurationError (has type Any)". It imports only ``__future__``, so
+# following it cannot drag bootstrap errors into a narrow check — same shape
+# as the core.errors entry above (issue #3719), and it must likewise stay
+# after the ``specify_cli.*`` skip.
+module = ["specify_cli.auth.errors"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]

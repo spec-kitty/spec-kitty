@@ -181,6 +181,12 @@ MERGE_BASE_DEFINITION_NAMES: tuple[str, ...] = (
     "_finalize_test_home_atexit_targets",
     "pytest_sessionstart",
     "pytest_sessionfinish",
+    # Regenerated per the recipe above for mission hosted-opt-in-drain-ledger-01M3FFEV/WP01: a
+    # reviewed, intentional conftest change (the root autouse drain-posture fixture + its
+    # non-autouse drain_off sibling, appended after pytest_sessionfinish -- neither sits between
+    # the owner's ANCHOR_BEFORE/ANCHOR_AFTER, so the ordering assertion below is unaffected).
+    "_drain_posture_enabled",
+    "drain_off",
 )
 
 

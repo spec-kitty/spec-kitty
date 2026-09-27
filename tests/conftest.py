@@ -295,6 +295,10 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line(
         "markers",
+        "real_drain_posture: opt out of the autouse drain-enabled fixture; the real file-based drain_posture reader runs",
+    )
+    config.addinivalue_line(
+        "markers",
         "architectural: Architectural enforcement tests (layer rules, import-graph invariants)",
     )
     config.addinivalue_line(
@@ -2223,3 +2227,81 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
             reporter.write_line(str(exc), red=True, bold=True)
         session.exitstatus = 1
         mark_session_outcome(config, succeeded=False)
+
+
+@pytest.fixture(autouse=True)
+def _drain_posture_enabled(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP01/T004: pin every test's effective hosted-drain posture to enabled.
+
+    Downstream WPs (WP02 relay edges, WP03 capability + fan-out, WP05's
+    status→ledger hook) gate a previously-unconditional path on
+    ``hosted_posture.require_drain`` / ``hosted_posture.drain_posture``. Once
+    those land, any pre-existing test exercising a now-gated path would flip
+    red unless drain is pinned enabled -- so this ONE root-level autouse
+    fixture lands here now, ahead of the edges that will consult it (at WP01
+    time it is inert: nothing outside WP01's own tests reads
+    ``drain_posture`` yet). A per-directory conftest would miss every test
+    outside that directory; this fixture, being root-level and autouse,
+    cannot.
+
+    It is a pure ``monkeypatch`` of the ``drain_posture`` MODULE ATTRIBUTE on
+    :mod:`specify_cli.core.hosted_posture` -- imported lazily here so
+    collection cost stays flat. It performs no I/O and writes nothing under
+    ``SPEC_KITTY_HOME``: it never sets ``os.environ["SPEC_KITTY_HOME"]``,
+    never writes a file under a runtime-root path, and never calls
+    ``set_personal_drain``/``set_repo_drain`` -- so it cannot collide with
+    ``canonical_home``'s single-owner contract or the ``_home_pin_scan.py``
+    guard.
+
+    A test that carries the ``real_drain_posture`` marker opts out entirely,
+    so its real, file-based ``drain_posture`` reader runs (WP01's own
+    ``test_hosted_posture.py``; WP04's real-default and matrix tests use it
+    too). A test that needs drain OFF instead uses the ``drain_off`` fixture
+    below, which depends on this one by name and re-patches on top of it, so
+    it wins regardless of fixture ordering.
+    """
+    if request.node.get_closest_marker("real_drain_posture") is not None:
+        return
+
+    from specify_cli.core import hosted_posture
+
+    monkeypatch.setattr(
+        hosted_posture,
+        "drain_posture",
+        lambda *args, **kwargs: hosted_posture.DrainPosture(
+            enabled=True,
+            repo_value=True,
+            repo_source="test",
+            personal_value=True,
+            personal_source="test",
+            narrowed_by=None,
+            reason="drain enabled (test fixture)",
+        ),
+    )
+
+
+@pytest.fixture()
+def drain_off(_drain_posture_enabled: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Re-patch ``hosted_posture.drain_posture`` to an OFF posture.
+
+    Depends on ``_drain_posture_enabled`` by name so it always applies AFTER
+    the autouse fixture's patch, regardless of fixture resolution order --
+    the last ``monkeypatch.setattr`` on the same attribute wins. Like the
+    autouse fixture, it is a pure attribute patch: no I/O, no
+    ``SPEC_KITTY_HOME`` write.
+    """
+    from specify_cli.core import hosted_posture
+
+    monkeypatch.setattr(
+        hosted_posture,
+        "drain_posture",
+        lambda *args, **kwargs: hosted_posture.DrainPosture(
+            enabled=False,
+            repo_value=None,
+            repo_source="test",
+            personal_value=None,
+            personal_source="test",
+            narrowed_by=None,
+            reason="repository scope is off (test fixture)",
+        ),
+    )

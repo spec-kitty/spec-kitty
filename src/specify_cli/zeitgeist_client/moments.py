@@ -37,12 +37,12 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
-import tomli_w
 from spec_kitty_events.zeitgeist_attrs import VOLATILE_EVENT_TYPES
 
 from kernel.paths import get_kittify_home
+from specify_cli.core.toml_table import write_toml_table_key
 
 
 class MomentsMode(StrEnum):
@@ -170,7 +170,7 @@ def locate_repo_root(cwd: Path | None = None) -> Path | None:
     project_root = locate_project_root(cwd if cwd is not None else Path.cwd())
     if project_root is None or not (project_root / REPO_CONFIG_DIRNAME).is_dir():
         return None
-    return cast(Path, project_root)
+    return project_root
 
 
 def _read_section(path: Path) -> tuple[dict[str, Any], str | None]:
@@ -384,6 +384,12 @@ def write_agents_mode(
     a hand-edited config are not preserved. That is the accepted cost of one
     writer for both scopes — the alternative is a second TOML dependency for
     a table this CLI owns.
+
+    The atomic load-mutate-dump-rename mechanics are shared with
+    :mod:`specify_cli.core.hosted_posture`'s personal-drain writer via
+    :func:`specify_cli.core.toml_table.write_toml_table_key` (WP01/T002) —
+    this function keeps its own ``scope`` ⇒ ``path`` resolution and its
+    return-path contract, and calls that shared primitive for the write.
     """
     if scope == "repo":
         if project_root is None:
@@ -393,23 +399,7 @@ def write_agents_mode(
         path = global_config_path(home=home)
     else:
         raise ValueError(f"unknown scope {scope!r} (expected 'global' or 'repo')")
-    try:
-        with path.open("rb") as fh:
-            document: dict[str, Any] = tomllib.load(fh)
-    except (FileNotFoundError, tomllib.TOMLDecodeError, OSError):
-        document = {}
-
-    section = document.get(CONFIG_SECTION)
-    section = dict(section) if isinstance(section, Mapping) else {}
-    section["agents"] = mode.value
-    document[CONFIG_SECTION] = section
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    with tmp_path.open("wb") as fh:
-        tomli_w.dump(document, fh)
-    tmp_path.replace(path)  # atomic on POSIX and Windows (same volume)
-    return path
+    return write_toml_table_key(path, table=CONFIG_SECTION, key="agents", value=mode.value)
 
 
 def local_missions(project_root: Path | None) -> frozenset[str]:

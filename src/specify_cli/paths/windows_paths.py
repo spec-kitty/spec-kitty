@@ -91,6 +91,29 @@ def get_runtime_root() -> RuntimeRoot:
     return RuntimeRoot(platform=platform, base=base)
 
 
+#: The one runtime-root config file name every "config.toml path" consumer
+#: derives from — DIRECTIVE_044: this filename used to be duplicated as a
+#: literal in four call sites (``hosted_posture.personal_config_path``,
+#: ``auth.config.format_endpoint_unconfigured_message``,
+#: ``auth.server_target._read_configured_server_url``,
+#: ``m_4_0_0_retired_hosted_target.home_config_path``) that each re-derived
+#: ``get_runtime_root().base / "config.toml"`` independently.
+_CONFIG_TOML_FILENAME = "config.toml"
+
+
+def get_runtime_config_toml_path() -> Path:
+    """The machine-scoped ``<runtime-root>/config.toml`` path.
+
+    Pure -- no I/O, no directory creation -- so every caller (auth's
+    endpoint resolver, the hosted-posture reader, the retired-target
+    migration) gets the identical path this module's leaf position already
+    made the natural single owner: they all depend on
+    :func:`get_runtime_root` here already, so collapsing onto this helper
+    adds no new edge to the module graph (DIRECTIVE_044).
+    """
+    return get_runtime_root().base / _CONFIG_TOML_FILENAME
+
+
 def ensure_runtime_root() -> Path:
     """Create (or re-harden) the shared runtime-state root at ``0o700``.
 

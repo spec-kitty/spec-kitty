@@ -10,6 +10,7 @@ from __future__ import annotations
 from specify_cli.paths.windows_paths import (
     RuntimeRoot,
     ensure_runtime_root,
+    get_runtime_config_toml_path,
     get_runtime_root,
     render_runtime_path,
 )
@@ -17,6 +18,7 @@ from specify_cli.paths.windows_paths import (
 __all__ = [
     "RuntimeRoot",
     "ensure_runtime_root",
+    "get_runtime_config_toml_path",
     "get_runtime_root",
     "render_runtime_path",
 ]
