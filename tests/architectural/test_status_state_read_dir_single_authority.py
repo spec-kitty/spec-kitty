@@ -11,7 +11,8 @@ This gate keeps it that way: none of the three modules may resolve a
 ``STATUS_STATE`` read dir through the seam directly (``resolve_artifact_surface``
 or ``placement_seam(...).read_dir``), and each named entry point must reach the
 authority. The poison arms prove the scan reds on a re-introduced copy of
-either seam form.
+each seam form. A kind bound to a local alias first is not caught; the
+delegation check below is the backstop for that shape.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ pytestmark = pytest.mark.architectural
 
 _SRC = Path(__file__).resolve().parents[2] / "src" / "specify_cli"
 _AUTHORITY = "resolve_partition_read_dir"
+_SEAM_ATTRS = frozenset({"read_dir", "resolve_artifact_surface", "artifact"})
 
 #: module path -> the function that must delegate to the authority.
 _CONSUMERS: dict[Path, str] = {
@@ -43,9 +45,11 @@ def _is_direct_status_state_seam_read(call: ast.Call) -> bool:
     func = call.func
     if isinstance(func, ast.Name) and func.id == "resolve_artifact_surface":
         return _names_status_state(call)
-    if isinstance(func, ast.Attribute) and func.attr == "read_dir":
-        # Any receiver: ``placement_seam(...).read_dir(...)`` and the two-step
-        # ``seam = placement_seam(...); seam.read_dir(...)`` idiom alike.
+    if isinstance(func, ast.Attribute) and func.attr in _SEAM_ATTRS:
+        # Any receiver: ``placement_seam(...).read_dir(...)``, the two-step
+        # ``seam = placement_seam(...); seam.read_dir(...)`` idiom, the
+        # module-qualified ``mission_runtime.resolve_artifact_surface(...)`` and
+        # the context-surface ``ctx.artifact(STATUS_STATE)`` form alike.
         return _names_status_state(call)
     return False
 
@@ -96,6 +100,18 @@ def _resolve_copy(feature_dir):
     return seam.read_dir(MissionArtifactKind.STATUS_STATE)
 """
 
+_POISON_QUALIFIED_SURFACE = """
+def _resolve_copy(feature_dir):
+    import mission_runtime
+    return mission_runtime.resolve_artifact_surface(feature_dir.parent, feature_dir.name, mission_runtime.MissionArtifactKind.STATUS_STATE).path
+"""
+
+_POISON_CONTEXT_ARTIFACT = """
+def _resolve_copy(ctx):
+    from mission_runtime import MissionArtifactKind
+    return ctx.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+"""
+
 _BENIGN_OTHER_KIND = """
 def _planning_dir(feature_dir):
     from mission_runtime import MissionArtifactKind, placement_seam
@@ -105,8 +121,8 @@ def _planning_dir(feature_dir):
 
 @pytest.mark.parametrize(
     "poison",
-    [_POISON_PLACEMENT_SEAM, _POISON_ARTIFACT_SURFACE, _POISON_TWO_STEP_SEAM],
-    ids=["placement_seam", "resolve_artifact_surface", "two_step_seam"],
+    [_POISON_PLACEMENT_SEAM, _POISON_ARTIFACT_SURFACE, _POISON_TWO_STEP_SEAM, _POISON_QUALIFIED_SURFACE, _POISON_CONTEXT_ARTIFACT],
+    ids=["placement_seam", "resolve_artifact_surface", "two_step_seam", "qualified_surface", "context_artifact"],
 )
 def test_scan_reds_on_a_reintroduced_copy(poison: str) -> None:
     assert direct_status_state_seam_reads(poison) == [4]
