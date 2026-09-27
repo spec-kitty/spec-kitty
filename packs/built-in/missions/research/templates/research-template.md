@@ -4,7 +4,7 @@ Document the outcomes of Phase 0 discovery work. Capture every clarification you
 
 ## Summary
 
-- **Feature**: <!-- e.g., 001-pii-detection-market -->
+- **Mission**: <!-- e.g., pii-detection-market-01KQ7X2M -->
 - **Date**: <!-- YYYY-MM-DD -->
 - **Researchers**: <!-- Primary collaborators -->
 - **Open Questions**: <!-- Items still unanswered after Phase 0 -->

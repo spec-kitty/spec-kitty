@@ -115,7 +115,7 @@ spec-kitty agent context resolve --action implement --mission <handle> --json
 ```
 
 Then execute the returned `check_prerequisites` command and capture
-`feature_dir`. All paths must be absolute.
+`mission_dir`. All paths must be absolute.
 
 The output of `spec-kitty agent action implement ...` is the authoritative work
 package prompt and execution context. Do **not** separately call
@@ -126,7 +126,7 @@ guaranteed to carry.
 
 ### 2. Load Work Package Prompt
 
-Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
+Read the WP prompt file from `mission_dir/tasks/WPxx-slug.md`.
 Parse frontmatter for:
 - `owned_files` -- prefer to modify files matching these globs; out-of-map edits are allowed when small and well-justified (record a one-line rationale)
 - `authoritative_surface` -- primary directory for this WP
@@ -201,7 +201,7 @@ If this mission has `change_mode: bulk_edit` in its `meta.json`, an occurrence
 classification artifact is required before implementation can begin.
 
 **What to check**:
-1. Read `meta.json` in the feature directory — look for `"change_mode": "bulk_edit"`
+1. Read `meta.json` in the mission directory — look for `"change_mode": "bulk_edit"`
 2. If present, verify `occurrence_map.yaml` exists in the same directory
 3. The occurrence map classifies the target term by semantic category with
    per-category actions: `rename`, `manual_review`, `do_not_change`, `rename_if_user_visible`
@@ -306,7 +306,7 @@ After completing bulk renames:
 
 Before moving this WP to `for_review`, update the `agent_profile` field in the WP
 prompt frontmatter to a reviewer profile so the reviewing agent loads the correct
-persona automatically.
+agent profile automatically.
 
 1. Identify the appropriate reviewer profile:
    ```bash

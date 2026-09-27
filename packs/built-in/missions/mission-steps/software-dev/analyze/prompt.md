@@ -33,11 +33,11 @@ informational only — it does not gate `/spec-kitty.analyze`.
 
 ### 1. Initialize Analysis Context
 
-Run `spec-kitty agent mission check-prerequisites --json --include-tasks --mission <mission-slug>` once from repo root and parse JSON for feature_dir, available_docs, target_branch, and base_branch. Derive absolute paths:
+Run `spec-kitty agent mission check-prerequisites --json --include-tasks --mission <mission-slug>` once from repo root and parse JSON for mission_dir, available_docs, target_branch, and base_branch. Derive absolute paths:
 
-- SPEC = feature_dir/spec.md
-- PLAN = feature_dir/plan.md
-- TASKS = feature_dir/tasks.md
+- SPEC = mission_dir/spec.md
+- PLAN = mission_dir/plan.md
+- TASKS = mission_dir/tasks.md
 
 Abort with an error message if any required file is missing (instruct the user to run missing prerequisite command).
 

@@ -313,7 +313,8 @@ def _emit_spec_missing(spec_file: Path, feature_dir: Path, mission_slug: str, *,
         "error_code": "SPEC_FILE_MISSING",
         "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
         "mission_slug": mission_slug,
-        "feature_dir": str(feature_dir.resolve()),
+        "mission_dir": str(feature_dir.resolve()),
+        "feature_dir": str(feature_dir.resolve()),  # legacy alias of mission_dir (#5206)
         "spec_file": str(spec_file.resolve()),
         "remediation": [
             f"Restore the missing spec file at {spec_file.resolve()}",
@@ -416,7 +417,8 @@ def _evaluate_spec_gate(
             "error_code": "SPEC_FILE_MISSING",
             "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
             "mission_slug": mission_slug,
-            "feature_dir": str(feature_dir.resolve()),
+            "mission_dir": str(feature_dir.resolve()),
+            "feature_dir": str(feature_dir.resolve()),  # legacy alias of mission_dir (#5206)
             "spec_file": str(spec_file.resolve()),
             "remediation": [
                 f"Restore the missing spec file at {spec_file.resolve()}",
@@ -454,7 +456,8 @@ def _evaluate_spec_gate(
         "blocked_reason": blocked_reason,
         "error_code": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
         "mission_slug": mission_slug,
-        "feature_dir": str(feature_dir.resolve()),
+        "mission_dir": str(feature_dir.resolve()),
+        "feature_dir": str(feature_dir.resolve()),  # legacy alias of mission_dir (#5206)
         "spec_file": str(spec_file.resolve()),
         "spec_committed": spec_is_committed,
         "spec_substantive": spec_is_substantive,
@@ -920,7 +923,8 @@ def _build_setup_plan_result(
         "phase_complete": plan_is_substantive,
         "mission_slug": mission_slug,
         "plan_file": str(plan_file),
-        "feature_dir": str(feature_dir),
+        "mission_dir": str(feature_dir),
+        "feature_dir": str(feature_dir),  # legacy alias of mission_dir (#5206)
         "spec_file": str(spec_file),
         "plan_substantive": plan_is_substantive,
     }

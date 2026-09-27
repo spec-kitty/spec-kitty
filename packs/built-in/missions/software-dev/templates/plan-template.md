@@ -1,7 +1,7 @@
 # Implementation Plan: [MISSION]
 
 **Branch**: `[###-mission-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-mission-name]/spec.md`
+**Input**: Mission specification from `kitty-specs/[mission-slug]/spec.md`
 
 **Note**: This template is filled in by the `/spec-kitty.plan` command. See `packs/built-in/missions/mission-steps/software-dev/plan/prompt.md` for the execution workflow.
 

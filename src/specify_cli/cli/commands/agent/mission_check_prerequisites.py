@@ -168,7 +168,8 @@ def _resume_probe_candidate_summary(feature_dir: Path) -> dict[str, object]:
     return {
         "mission_slug": feature_dir.name,
         "mission_id": str(meta.get("mission_id", "")),
-        "feature_dir": str(feature_dir),
+        "mission_dir": str(feature_dir),
+        "feature_dir": str(feature_dir),  # legacy alias of mission_dir (#5206)
     }
 
 
@@ -321,7 +322,8 @@ def _build_resume_probe_payload(repo_root: Path, handle: str) -> dict[str, objec
         "topology": str(meta.get("topology", "")),
         "pr_bound": bool(meta.get("pr_bound", False)),
         "created_at": str(meta.get("created_at", "")),
-        "feature_dir": str(feature_dir),
+        "mission_dir": str(feature_dir),
+        "feature_dir": str(feature_dir),  # legacy alias of mission_dir (#5206)
         "spec_file": str(spec_file),
         "meta_file": str(feature_dir / "meta.json"),
     }
@@ -349,7 +351,8 @@ def _build_resume_probe_payload(repo_root: Path, handle: str) -> dict[str, objec
             "resume_state": "malformed",
             "handle": handle,
             "mission_slug": feature_dir.name,
-            "feature_dir": str(feature_dir),
+            "mission_dir": str(feature_dir),
+            "feature_dir": str(feature_dir),  # legacy alias of mission_dir (#5206)
             "problems": invalid,
             "remediation": "Repair or remove the partial scaffold explicitly; do not create through it.",
         }

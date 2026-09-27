@@ -38,11 +38,11 @@ spec-kitty agent context resolve --action tasks_packages --mission <mission-slug
 ```
 
 Then execute the returned `check_prerequisites` command and capture
-`feature_dir`. All paths must be absolute.
+`mission_dir`. All paths must be absolute.
 
 ### 2. Load `wps.yaml`
 
-Read `feature_dir/wps.yaml`. This is the manifest written in the previous step.
+Read `mission_dir/wps.yaml`. This is the manifest written in the previous step.
 Each entry defines a WP with its `id`, `title`, `dependencies`, and partial metadata.
 
 Parse all work package entries. The YAML structure is:
@@ -64,11 +64,11 @@ Parse all WP definitions from `wps.yaml`. Each WP prompt file is independent —
 dispatch one sub-agent per WP in a **single message** so they run concurrently
 rather than generating all WP content in one serial response.
 
-**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `feature_dir/tasks/`
+**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `mission_dir/tasks/`
 directory, NOT in subdirectories!
 
-- Correct: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
-- WRONG: `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY status subdirectories
+- Correct: `mission_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
+- WRONG: `mission_dir/tasks/planned/`, `mission_dir/tasks/doing/`, or ANY status subdirectories
 
 **Batching for large missions**: If there are more than 6 WPs, dispatch in groups
 of 4. Send all agents in a group in one message, wait for all to complete, then
@@ -81,8 +81,8 @@ start the next group.
 You are writing a single Work Package prompt file for the spec-kitty planning
 pipeline. Write exactly one file and return the filename and final line count.
 
-**Feature directory**: `{feature_dir}` (absolute path)
-**Write to**: `{feature_dir}/tasks/{wp_id}-{slug}.md`
+**Mission directory**: `{mission_dir}` (absolute path)
+**Write to**: `{mission_dir}/tasks/{wp_id}-{slug}.md`
 
 **Work Package** (from wps.yaml):
 - id: `{wp_id}`
@@ -93,7 +93,7 @@ pipeline. Write exactly one file and return the filename and final line count.
 - requirement_refs: `{requirement_refs}`
 - subtasks: `{subtasks}`
 
-**Read for context** (all from `feature_dir`):
+**Read for context** (all from `mission_dir`):
 - `plan.md` (required — tech architecture, stack)
 - `spec.md` (required — user stories, acceptance criteria)
 - `data-model.md`, `research.md` (read if present)
@@ -260,9 +260,9 @@ After all sub-agents complete, verify each generated prompt:
 ## Output
 
 After completing this step:
-- `feature_dir/tasks/WP*.md` prompt files exist for all work packages
+- `mission_dir/tasks/WP*.md` prompt files exist for all work packages
 - Each has proper frontmatter with `work_package_id`, `dependencies`, `owned_files`, `authoritative_surface`, `execution_mode`
-- `feature_dir/wps.yaml` is fully populated: all `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file` fields are set
+- `mission_dir/wps.yaml` is fully populated: all `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file` fields are set
 
 **Next step**: `spec-kitty next --agent <name>` will advance to finalization.
 

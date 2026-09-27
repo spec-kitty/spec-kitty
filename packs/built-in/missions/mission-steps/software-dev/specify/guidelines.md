@@ -15,8 +15,8 @@ These guidelines govern the quality and authorship standards for mission specifi
 
 ## Section Requirements
 
-- **Mandatory sections**: Must be completed for every feature.
-- **Optional sections**: Include only when relevant to the feature.
+- **Mandatory sections**: Must be completed for every mission.
+- **Optional sections**: Include only when relevant to the mission.
 - When a section doesn't apply, remove it entirely — do not leave it as "N/A".
 
 ---

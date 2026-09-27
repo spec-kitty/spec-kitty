@@ -11,7 +11,7 @@ provenance: built-in
 terms:
 - confidence: 0.95
   definition: Aggregated runtime information resolved for a specific agent 
-    action, including feature slug, work package ID, base branch, workspace 
+    action, including mission slug, work package ID, base branch, workspace 
     path, and dependency state. Passed to agents at step boundaries.
   status: active
   surface: action context
@@ -177,11 +177,11 @@ terms:
     harness can reason about when generating doctrine artifacts.
   status: draft
   surface: evidence bundle
-- confidence: 0.95
-  definition: Human-readable, kebab-cased identifier for a feature, used in 
-    branch names, directory paths, and artifact keys. Derived from mission_slug 
-    in feature missions.
-  status: active
+- confidence: 1.0
+  definition: DEPRECATED. The Terminology Canon prohibits 'feature' for the 
+    Mission domain object. Use `mission_slug` (see the canonical `mission_slug` 
+    entry).
+  status: deprecated
   surface: feature slug
 - confidence: 0.95
   definition: "A dedicated git branch for PR-bound mission planning and implementation

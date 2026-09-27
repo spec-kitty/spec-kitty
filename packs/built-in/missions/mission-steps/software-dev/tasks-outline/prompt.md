@@ -51,7 +51,7 @@ Before proceeding, resolve canonical command context:
 spec-kitty agent context resolve --action tasks_outline --mission <mission-slug> --json
 ```
 
-Treat that JSON as canonical for feature slug, feature directory, and target branch.
+Treat that JSON as canonical for mission slug, mission directory, and target branch.
 Do not probe git branch state manually inside the prompt.
 
 ## Steps
@@ -59,13 +59,13 @@ Do not probe git branch state manually inside the prompt.
 ### 1. Setup
 
 Run the exact `check_prerequisites` command returned by the resolver. Capture
-`feature_dir` plus `available_docs`. All paths must be absolute.
+`mission_dir` plus `available_docs`. All paths must be absolute.
 
-**CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path. **YOU MUST USE THIS PATH** for ALL subsequent file operations.
+**CRITICAL**: The command returns JSON with `mission_dir` as an ABSOLUTE path. **YOU MUST USE THIS PATH** for ALL subsequent file operations.
 
 ### 2. Load Design Documents
 
-Read from `feature_dir` (only those present):
+Read from `mission_dir` (only those present):
 - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
 - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
 
@@ -111,7 +111,7 @@ declare itself cross-cutting.
 
 ### 5. Write `wps.yaml`
 
-Write to `feature_dir/wps.yaml` following the schema below. This is the **single
+Write to `mission_dir/wps.yaml` following the schema below. This is the **single
 authoritative source** for WP metadata in the planning pipeline.
 
 **Do NOT write `tasks.md` — it is generated automatically by `finalize-tasks` from `wps.yaml`.**
@@ -179,7 +179,7 @@ work_packages:
 - `plan_concern_refs`: Implementation concern IDs from `plan.md` (IC-##) addressed by this WP. Use `cross_cutting: true` instead if the WP is shared infrastructure with no specific concern.
 - `cross_cutting`: Set to `true` for infrastructure WPs that span all concerns and have no specific IC-## ref.
 - `subtasks`: Ordered list of subtask IDs included in this WP.
-- `prompt_file`: Relative path (from `feature_dir`) to the WP prompt file — set by `tasks-packages` in the next step.
+- `prompt_file`: Relative path (from `mission_dir`) to the WP prompt file — set by `tasks-packages` in the next step.
 
 **IMPORTANT**: Leave `prompt_file` as `null` or omit it — `tasks-packages` fills this field.
 
@@ -206,7 +206,7 @@ Rules:
 ## Output
 
 After completing this step:
-- `feature_dir/wps.yaml` exists with all work package definitions
+- `mission_dir/wps.yaml` exists with all work package definitions
 - Each WP has `id`, `title`, `dependencies`, `owned_files`, `requirement_refs`, `subtasks`
 - `prompt_file` fields are absent or `null` (filled by `tasks-packages`)
 - No WP prompt files have been created yet

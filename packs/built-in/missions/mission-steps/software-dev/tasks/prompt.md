@@ -77,7 +77,7 @@ spec-kitty agent context resolve --action tasks --mission <mission-slug> --json
 
 Treat the resolver JSON as canonical for:
 - `mission_slug`
-- `feature_dir`
+- `mission_dir`
 - `current_branch`
 - `target_branch`
 - `planning_base_branch`
@@ -85,12 +85,12 @@ Treat the resolver JSON as canonical for:
 - `branch_matches_target`
 - exact follow-up commands (`check_prerequisites`, `finalize_tasks`)
 
-Prompts do not rediscover feature context. Commands do.
+Prompts do not rediscover mission context. Commands do.
 
 ## Outline
 
 1. **Setup**: Run the exact `check_prerequisites` command returned by the resolver and capture:
-   - `feature_dir`
+   - `mission_dir`
    - `artifact_files` / `artifact_dirs` (if present)
    - `available_docs`
    - `current_branch`
@@ -101,22 +101,22 @@ Prompts do not rediscover feature context. Commands do.
 
    If `branch_matches_target` is false, stop and tell the user the checkout is on the wrong planning branch instead of probing git manually in the prompt.
 
-   **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path. It also returns `runtime_vars.now_utc_iso` (`NOW_UTC_ISO`) for deterministic timestamp fields.
+   **CRITICAL**: The command returns JSON with `mission_dir` as an ABSOLUTE path. It also returns `runtime_vars.now_utc_iso` (`NOW_UTC_ISO`) for deterministic timestamp fields.
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
    ```
-   feature_dir = "/path/to/project/kitty-specs/001-a-simple-hello"
-   tasks.md location: feature_dir + "/tasks.md"
-   prompt location: feature_dir + "/tasks/WP01-slug.md"
+   mission_dir = "/path/to/project/kitty-specs/a-simple-hello-01KQ7X2M"
+   tasks.md location: mission_dir + "/tasks.md"
+   prompt location: mission_dir + "/tasks/WP01-slug.md"
    ```
 
    **DO NOT CREATE** paths like:
-   - ❌ `tasks/WP01-slug.md` (missing feature_dir prefix)
+   - ❌ `tasks/WP01-slug.md` (missing mission_dir prefix)
    - ❌ `/tasks/WP01-slug.md` (wrong root)
-   - ❌ `feature_dir/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
+   - ❌ `mission_dir/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
    - ❌ `WP01-slug.md` (wrong directory)
 
-3. **Load design documents** from `feature_dir` (only those present):
+3. **Load design documents** from `mission_dir` (only those present):
    - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
    - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
    - Scale your effort to the feature: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
@@ -176,7 +176,7 @@ Prompts do not rediscover feature context. Commands do.
    - Record metadata: priority, success criteria, risks, dependencies, included subtasks
 
 6. **Write `tasks.md`** following the tasks template structure defined below in this prompt (**do NOT write instructions to read a template file from `.kittify/`**):
-   - **Location**: Write to `feature_dir/tasks.md` (use the absolute feature_dir path from step 1)
+   - **Location**: Write to `mission_dir/tasks.md` (use the absolute mission_dir path from step 1)
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
      - Summary (goal, priority, independent test)
@@ -186,16 +186,16 @@ Prompts do not rediscover feature context. Commands do.
    - Keep the reference-list style; implementers record progress with `spec-kitty agent tasks mark-status`, not by ticking boxes
 
 7. **Generate prompt files (one per work package)**:
-   - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `feature_dir/tasks/` directory, NOT in subdirectories!
-   - Correct structure: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
-   - WRONG (do not create): `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY status subdirectories
-   - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under feature_dir
+   - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `mission_dir/tasks/` directory, NOT in subdirectories!
+   - Correct structure: `mission_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
+   - WRONG (do not create): `mission_dir/tasks/planned/`, `mission_dir/tasks/doing/`, or ANY status subdirectories
+   - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under mission_dir
    - Use `artifact_dirs.tasks_dir` when available.
    - Do **not** shell out with `mkdir -p`; `create` already creates `tasks/` in normal flow.
    - If `tasks/` is missing unexpectedly, report the mismatch instead of improvising shell directory setup.
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
-     - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
+     - Full path example: `mission_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from mission_dir variable)
      - Follow the WP prompt template structure defined below in this prompt (**do NOT write instructions to read a template file from `.kittify/`**) to capture:
      - Frontmatter with `work_package_id`, `subtasks` array, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, `owned_files`, `authoritative_surface`, `execution_mode`, `agent_profile`, `role`, `agent`, `model` (optional), and history entry
        - **`## ⚡ Do This First: Load Agent Profile`** — REQUIRED, must be the first body section (before Objective). Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. See `task-prompt-template.md` for the exact block.
@@ -417,7 +417,7 @@ verdict. This is informational only — it does not gate `/spec-kitty.tasks`.
 
 ## Task Generation Rules
 
-**Tests remain optional**. Only include testing tasks/steps if the feature spec or user explicitly demands them.
+**Tests remain optional**. Only include testing tasks/steps if the mission spec or user explicitly demands them.
 
 1. **Subtask derivation**:
    - Assign IDs `Txxx` sequentially in execution order.
@@ -458,19 +458,19 @@ verdict. This is informational only — it does not gate `/spec-kitty.tasks`.
 
 ## Step-by-Step Process
 
-### Step 1: Detect Feature Context
+### Step 1: Detect Mission Context
 
-Resolve the feature slug from explicit user direction, current branch, or current directory path.
+Resolve the mission slug from explicit user direction, current branch, or current directory path.
 
 If ambiguous, run `check-prerequisites` once without `--mission`, parse the JSON candidate list, and select one explicit mission slug.
 
 ### Step 2: Setup
 
-Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks --mission <mission-slug>` and capture `feature_dir`.
+Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks --mission <mission-slug>` and capture `mission_dir`.
 
 ### Step 3: Load Design Documents
 
-Read from `feature_dir`:
+Read from `mission_dir`:
 - spec.md (required)
 - plan.md (required)
 - data-model.md (optional)
@@ -531,7 +531,7 @@ Create work package sections with:
 
 ### Step 7: Generate WP Prompt Files
 
-For each WP, generate `feature_dir/tasks/WPxx-slug.md` using the template.
+For each WP, generate `mission_dir/tasks/WPxx-slug.md` using the template.
 
 **CRITICAL VALIDATION**: After generating each prompt:
 1. Count lines in the prompt

@@ -587,7 +587,8 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         "friendly_name": str(result.meta.get("friendly_name", "")),
         "purpose_tldr": str(result.meta.get("purpose_tldr", "")),
         "purpose_context": str(result.meta.get("purpose_context", "")),
-        "feature_dir": str(feature_dir),
+        "mission_dir": str(feature_dir),
+        "feature_dir": str(feature_dir),  # legacy alias of mission_dir (#5206)
         "spec_file": str(spec_file),
         "meta_file": str(meta_file),
         "created_at": str(result.meta.get("created_at", "")),

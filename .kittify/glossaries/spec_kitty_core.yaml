@@ -4,7 +4,7 @@
 terms:
 
   - surface: action context
-    definition: Aggregated runtime information resolved for a specific agent action, including feature slug, work package ID, base branch, workspace path, and dependency state. Passed to agents at step boundaries.
+    definition: Aggregated runtime information resolved for a specific agent action, including mission slug, work package ID, base branch, workspace path, and dependency state. Passed to agents at step boundaries.
     confidence: 0.95
     status: active
 
@@ -167,9 +167,9 @@ terms:
     status: draft
 
   - surface: feature slug
-    definition: Human-readable, kebab-cased identifier for a feature, used in branch names, directory paths, and artifact keys. Derived from mission_slug in feature missions.
-    confidence: 0.95
-    status: active
+    definition: "DEPRECATED. The Terminology Canon prohibits 'feature' for the Mission domain object. Use `mission_slug` (see the canonical `mission_slug` entry)."
+    confidence: 1.0
+    status: deprecated
 
   - surface: feature branch
     definition: >

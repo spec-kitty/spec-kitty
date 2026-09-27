@@ -94,7 +94,7 @@ spec-kitty agent context resolve --action review --mission <handle> --json
 ```
 
 Then execute the returned `check_prerequisites` command and capture
-`feature_dir`. All paths must be absolute.
+`mission_dir`. All paths must be absolute.
 
 The output of `spec-kitty agent action review ...` is the authoritative work
 package prompt and review context. Do **not** separately call
@@ -104,7 +104,7 @@ above documents what the prompt is guaranteed to carry.
 
 ### 2. Load Work Package Prompt
 
-Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
+Read the WP prompt file from `mission_dir/tasks/WPxx-slug.md`.
 Parse frontmatter for:
 - `owned_files` -- the expected modification surface; out-of-map edits are acceptable when small and accompanied by a one-line rationale
 - `authoritative_surface` -- primary directory for this WP
@@ -255,7 +255,7 @@ passable? yes* names a control that exists in the diff.
 
 If this mission has `change_mode: bulk_edit` in `meta.json`:
 
-1. **Verify occurrence map exists**: `occurrence_map.yaml` must be present in the feature directory
+1. **Verify occurrence map exists**: `occurrence_map.yaml` must be present in the mission directory
 2. **Reference during review**: The occurrence map is the governing artifact for this bulk edit
 3. **Check category compliance**:
    - Verify changes respect `do_not_change` categories — reject if these were modified
@@ -310,6 +310,6 @@ implementer profile so the next implementation cycle starts with the right conte
    one is accepted locally but never propagates to the team (see `move-task --help`).
 
 The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
-and resume work with the proper persona and self-review gates.
+and resume work with the proper agent profile and self-review gates.
 
 **Next step**: `spec-kitty next --agent <name>` will advance to the next phase.

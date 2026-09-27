@@ -1,7 +1,7 @@
 ---
 description: Generate research documents for the current mission
 ---
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission_slug>/tasks/`). Never refer to a folder by name alone.
 
 **In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
@@ -30,18 +30,18 @@ git branch --show-current
 
 ⛔ **STOP - You are in the wrong location!**
 
-This command creates research artifacts in your feature directory. You must be in the repository root checkout.
+This command creates research artifacts in your mission directory. You must be in the repository root checkout.
 
 **Correct the issue:**
 1. Navigate to your repository root checkout: `cd /path/to/project/root`
-2. Verify you're on the correct feature branch: `git branch --show-current`
+2. Verify you're on the correct mission branch: `git branch --show-current`
 3. Then run this research command again
 
 ---
 
 ## What This Command Creates
 
-When you run `spec-kitty research`, the following files are generated in your feature directory:
+When you run `spec-kitty research`, the following files are generated in your mission directory:
 
 **Generated files**:
 - **research.md** – Decisions, rationale, and supporting evidence
@@ -49,7 +49,7 @@ When you run `spec-kitty research`, the following files are generated in your fe
 - **research/evidence-log.csv** – Sources and findings audit trail
 - **research/source-register.csv** – Reference tracking for all sources
 
-**Location**: All files go in `kitty-specs/<feature-slug>/`
+**Location**: All files go in `kitty-specs/<mission_slug>/`
 
 ---
 
@@ -85,7 +85,7 @@ Create `research.md`, `data-model.md`, and supporting CSV stubs based on the act
 
 ## Success Criteria
 
-- `kitty-specs/<feature>/research.md` explains every major decision with references to evidence.
-- `kitty-specs/<feature>/data-model.md` lists the entities and relationships needed for implementation.
+- `kitty-specs/<mission_slug>/research.md` explains every major decision with references to evidence.
+- `kitty-specs/<mission_slug>/data-model.md` lists the entities and relationships needed for implementation.
 - CSV logs exist (even if partially filled) so evidence gathering is traceable.
 - Outstanding questions from the research phase are tracked and ready for follow-up during planning or execution.

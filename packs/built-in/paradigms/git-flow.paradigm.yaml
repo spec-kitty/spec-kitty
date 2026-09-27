@@ -3,7 +3,7 @@ id: git-flow
 name: Git Flow
 summary: >
   A branch-management paradigm built around long-lived integration and release
-  branches, with feature and hotfix branches feeding controlled release points.
+  branches, with Git Flow "feature" and "hotfix" branches feeding controlled release points.
   In Spec Kitty this exists as a resolvable compatibility paradigm for projects
   whose charter already requires Git Flow. It is not the default implementation
   workspace model; execution-lane worktrees remain the supported default when no

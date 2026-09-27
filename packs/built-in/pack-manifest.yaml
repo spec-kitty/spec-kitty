@@ -345,7 +345,7 @@ constituents:
   kind: directive
   path: directives/use-mutation-testing-to-validate-test-quality.directive.yaml
   provenance_path:
-- content_hash: 44da909ebe77d5078b64b0baf833b6ce035c9a1f47477c225cf2176497d3e6e0
+- content_hash: d093cd55645a52f35999f2a08c935198e9cf1193342d0baff8e7daf8bd0b678d
   id: spec-kitty-core
   kind: glossary_pack
   path: glossary_packs/spec-kitty-core.glossary-pack.yaml
@@ -390,7 +390,7 @@ constituents:
   kind: paradigm
   path: paradigms/extract-then-publish-separation.paradigm.yaml
   provenance_path:
-- content_hash: 7937c5112717b74d604e49900bcde93d6c1a0c8b75e0458f895aafcef04eadde
+- content_hash: 7a6e88e4b3bf109c2a9808afe9d6046f411c7d8177f0fae469d72982fa273620
   id: git-flow
   kind: paradigm
   path: paradigms/git-flow.paradigm.yaml
@@ -505,7 +505,7 @@ constituents:
   kind: procedure
   path: procedures/onboard-external-agent-to-pack.procedure.yaml
   provenance_path:
-- content_hash: 851126ccbd3fb3259cf80d80ff2472edd80d2cbbb481ef42ce47e07fa2ec14fb
+- content_hash: 517a07e0a21449c8958c230f3d00de743ebc21158c2e1b936bc6173050d2c1cc
   id: post-merge-arch-gate-adjudication
   kind: procedure
   path: procedures/post-merge-arch-gate-adjudication.procedure.yaml
@@ -990,7 +990,7 @@ constituents:
   kind: tactic
   path: tactics/testing/no-parallel-duplicate-test-runs.tactic.yaml
   provenance_path:
-- content_hash: f3561e4c6463cbc0d86f697257cf6f6d4e22e3d3b712b3717c4abf07e93fce3b
+- content_hash: 5ec95f1b3b522517c867b21349d113461f3698308740cb13f8e6a682b71cde0b
   id: occurrence-classification-workflow
   kind: tactic
   path: tactics/occurrence-classification-workflow.tactic.yaml
@@ -1287,7 +1287,7 @@ constituents:
   kind: tactic
   path: tactics/communication/usage-examples-sync.tactic.yaml
   provenance_path:
-- content_hash: d35abc55764928060efe140d6eebf09010f74098a0ebbeb689d8577ea61b9aed
+- content_hash: 4e5dde8298b90449d7befa2e2318924936a7f041d98743ce4ff7ffa68eaf2e23
   id: work-package-completion-validation
   kind: tactic
   path: tactics/work-package-completion-validation.tactic.yaml
@@ -1385,7 +1385,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 51f7443323fcd98dccd7ca4878f28f60812de84d63b97c665fa41dfd26575a0a
+manifest_hash: 096cbc5fca54877b9ca454a35938246777d39130792d11c9d982497b0b50da1a
 schema_version: '1'
 source_type: built-in
 source_url:

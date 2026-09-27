@@ -800,8 +800,10 @@ def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> 
             artifact_files["tasks_file"] = tasks_file_str
             available_docs.append("tasks.md")
 
-    # Always include feature_dir in paths
+    # Always include the mission directory in paths; ``feature_dir`` is the
+    # legacy alias key kept for older prompts (#5206).
     feature_dir_str = str(feature_dir)
+    paths["mission_dir"] = feature_dir_str
     paths["feature_dir"] = feature_dir_str
     artifact_dirs["feature_dir"] = feature_dir_str
 
@@ -827,6 +829,7 @@ def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> 
         "artifact_files": artifact_files,
         "artifact_dirs": artifact_dirs,
         "available_docs": available_docs,
+        "mission_dir": feature_dir_str,
         # Compatibility aliases for older templates/prompts
         "FEATURE_DIR": feature_dir_str,
         "AVAILABLE_DOCS": available_docs,

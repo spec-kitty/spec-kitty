@@ -107,7 +107,7 @@ an issue genuinely owes the mission no work, it can later be recorded with the
 Before asking planning questions or generating artifacts, you must make the branch contract explicit.
 
 - Never describe the landing branch vaguely. Always name the actual branch value.
-- If the user says the feature should land somewhere else, stop and resolve that before writing `plan.md`.
+- If the user says the mission should land somewhere else, stop and resolve that before writing `plan.md`.
 - You must repeat the branch contract twice during this command:
   1. immediately after parsing `setup-plan --json`
   2. again in the final report before suggesting `/spec-kitty.tasks`
@@ -284,10 +284,10 @@ Apply this section whenever the plan adds, upgrades, or removes a dependency, in
 3. **Setup**: Run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `scaffold_only`: `true` only on the first happy-path scaffold write (plan.md freshly copied from the template, untouched). This is `result: "success"` and NOT an error — populate the Technical Context and re-run `setup-plan` to commit. `phase_complete` stays `false` until then.
-   - `mission_slug`: Resolved feature slug
+   - `mission_slug`: Resolved mission slug
    - `spec_file`: Absolute path to resolved spec.md
    - `plan_file`: Absolute path to the created plan.md
-   - `feature_dir`: Absolute path to the feature directory
+   - `mission_dir`: Absolute path to the mission directory (`feature_dir` is a legacy alias key)
    - `current_branch`: branch checked out when planning started
    - `target_branch` / `base_branch` (deterministic branch contract for downstream commands)
    - `planning_base_branch` / `merge_target_branch`: explicit aliases for planning and merge intent
@@ -338,9 +338,9 @@ Apply this section whenever the plan adds, upgrades, or removes a dependency, in
 2. **Generate and dispatch research agents**:
    ```
    For each unknown in Technical Context:
-     Task: "Research {unknown} for {feature context}"
+     Task: "Research {unknown} for {mission context}"
    For each unresolved domain rule:
-     Task: "Clarify invariant, state transition, or event behavior for {feature context}"
+     Task: "Clarify invariant, state transition, or event behavior for {mission context}"
    For each technology choice:
      Task: "Find best practices for {tech} in {domain}"
    ```
@@ -356,7 +356,7 @@ Apply this section whenever the plan adds, upgrades, or removes a dependency, in
 
 **Prerequisites:** `research.md` complete
 
-1. **Extract entities from feature spec** → `data-model.md`:
+1. **Extract entities from mission spec** → `data-model.md`:
    - Entity name, fields, relationships
    - Validation rules from requirements
    - Invariants or atomicity boundaries if applicable

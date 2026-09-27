@@ -125,7 +125,7 @@
 | C-002 | [Short title] | [Required boundary or limitation] | Business | Medium | Open |
 | C-003 | [Short title] | [Required boundary or limitation] | Regulatory | Medium | Open |
 
-### Key Entities *(include if feature involves data)*
+### Key Entities *(include if the mission involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
