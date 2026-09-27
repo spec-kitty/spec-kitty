@@ -61,7 +61,9 @@ Two predicates, mechanically decidable (no fragile heuristic):
 flagged site in :data:`_POSITIONAL_ANCHOR_EXEMPTIONS` (94 rows: join 6, kernel
 2, destructive 22, mutation 56, overwrite 2, os-detect text 6); WP02-WP04
 migrated the underlying allow-lists to content identity; WP13 deleted every row
-and pinned the set to ``frozenset()`` (SC-001). A stale row now FAILS.
+and pinned the set to ``frozenset()`` (SC-001). A stale row now FAILS. Row
+matching is not hand-rolled here: :func:`_partition_exemptions` feeds the
+D-OP-9 matcher :func:`tests.architectural._content_identity.partition_findings`.
 
 **Out of scope (#5085), each with a negative fixture below**: ``{path: int}``
 dicts (the ints in ``test_timing_coverage_invariant.py::BASELINE_FUNCTIONAL_
@@ -117,6 +119,7 @@ from specify_cli.contracts.anchoring import (
     is_file_line_anchor,
 )
 from tests.architectural._ast_scan import parse_source, read_source
+from tests.architectural._content_identity import partition_findings
 
 # FR-006: `fast` marks this sub-second gate for the fast tier; `architectural`
 # is retained as the gate's home marker. Dual-marking adds a home.
@@ -809,24 +812,34 @@ def _all_positional_anchor_findings() -> list[LineSinkViolation]:
     return findings
 
 
+def _row_budget(rows: frozenset[tuple[str, str, str, str]]) -> Counter[tuple[str, str, str]]:
+    """The exemption rows as a multiset of ``(relpath, symbol, site)`` keys."""
+    return Counter((relpath, symbol, site) for relpath, symbol, site, _ in rows)
+
+
+def _partition_exemptions(
+    findings: Sequence[LineSinkViolation], rows: frozenset[tuple[str, str, str, str]]
+) -> tuple[list[LineSinkViolation], list[tuple[str, str, str]]]:
+    """``(unexpected, stale)`` via the D-OP-9 matcher
+    :func:`tests.architectural._content_identity.partition_findings`.
+
+    Multiset (FR-003): one row suppresses exactly ONE finding with the same
+    ``(relpath, symbol, site)``; ``lineno`` never participates, so two
+    textually identical sites in one symbol need two rows. ``stale`` is every
+    row key left unconsumed, sorted.
+    """
+    unexpected, unused = partition_findings(((f.exemption_key, f) for f in findings), _row_budget(rows))
+    return unexpected, sorted(unused.elements())
+
+
 def _unexempted(findings: Sequence[LineSinkViolation], rows: frozenset[tuple[str, str, str, str]]) -> list[LineSinkViolation]:
-    """Multiset filter (FR-003): one row suppresses exactly ONE finding with the
-    same ``(relpath, symbol, site)``; ``lineno`` never participates. Two
-    textually identical sites in one symbol therefore need two rows."""
-    budget = Counter((relpath, symbol, site) for relpath, symbol, site, _ in rows)
-    unexpected: list[LineSinkViolation] = []
-    for finding in findings:
-        if budget[finding.exemption_key] > 0:
-            budget[finding.exemption_key] -= 1
-        else:
-            unexpected.append(finding)
-    return unexpected
+    """Findings no exemption row suppresses (see :func:`_partition_exemptions`)."""
+    return _partition_exemptions(findings, rows)[0]
 
 
 def _stale_exemption_rows(findings: Sequence[LineSinkViolation], rows: frozenset[tuple[str, str, str, str]]) -> list[tuple[str, str, str]]:
-    """Row keys with no live finding left to suppress (multiset difference)."""
-    stale = Counter((relpath, symbol, site) for relpath, symbol, site, _ in rows) - Counter(f.exemption_key for f in findings)
-    return sorted(stale.elements())
+    """Row keys with no live finding left to suppress (see :func:`_partition_exemptions`)."""
+    return _partition_exemptions(findings, rows)[1]
 
 
 def _per_symbol_breakdown(findings: Sequence[LineSinkViolation]) -> str:
@@ -965,9 +978,8 @@ def _assert_exemptions_exact(findings: Sequence[LineSinkViolation], rows: frozen
     for row in rows:
         assert len(row) == 4 and all(row[:3]), f"malformed exemption row {row!r}"
         assert row[3].strip(), f"exemption row without a reason: {row!r}"
-    unexpected = _unexempted(findings, rows)
+    unexpected, stale = _partition_exemptions(findings, rows)
     assert not unexpected, "live positional-anchor finding(s) with no exemption row:\n" + "\n".join(f"  - {v}" for v in unexpected)
-    stale = _stale_exemption_rows(findings, rows)
     assert not stale, "#5085 exemption row(s) no longer match a live finding — delete them:\n" + "\n".join(f"  - {row!r}" for row in stale)
 
 
@@ -1355,6 +1367,12 @@ class TestExemptionMultiset:
     def test_stale_row_reported(self) -> None:
         rows = frozenset({("t/a.py", "_SEED", "('a.py', 3)", "reason")})
         assert _stale_exemption_rows([], rows) == [("t/a.py", "_SEED", "('a.py', 3)")]
+
+    def test_partition_reports_unexpected_and_stale_together(self) -> None:
+        rows = frozenset({("t/a.py", "_OTHER", "('b.py', 4)", "reason")})
+        unexpected, stale = _partition_exemptions([self._finding()], rows)
+        assert unexpected == [self._finding()]
+        assert stale == [("t/a.py", "_OTHER", "('b.py', 4)")]
 
 
 class TestYamlIntFieldViolations:
