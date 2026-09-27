@@ -416,7 +416,7 @@ def test_golden_architectural_only_pr_runs_the_heavy_battery_and_no_code_shard(r
     context["prose-scan.prose_only"] = False
 
     assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-merge"]["if"], context) is False
+    assert _eval_gh_if(jobs["tests-consolidation"]["if"], context) is False
     assert _eval_gh_if(jobs["tests-status"]["if"], context) is False
     assert _eval_gh_if(jobs["tests-cli"]["if"], context) is False
     assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
