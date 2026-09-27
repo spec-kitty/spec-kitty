@@ -16,14 +16,7 @@ if TYPE_CHECKING:
     # attributes (PR-CONTRACT-001) -- see _LayeredMissionTypesResolver below.
     from functools import _CacheInfo, _CacheParameters
 
-# MissionCacheLockError: imported for completeness/future-proofing
-# (plan.md Section 6c) -- both fix sites' lock/cache-error raise paths
-# share this ONE exception type, defined at the primary fix site
-# (mission_step_repository.py). This design adds no lock-timeout/
-# corrupted-cache/retry-exhaustion path (CL-008), so THIS site has no
-# local raise call site for it today; unused import is intentional.
 from .mission_step_repository import (
-    MissionCacheLockError,  # noqa: F401
     MissionStepRepository,
     _lock_for,
     _PackContextLike,

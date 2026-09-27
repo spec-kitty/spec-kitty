@@ -119,20 +119,6 @@ def _get_yaml() -> YAML:
 # ---------------------------------------------------------------------------
 
 
-class MissionCacheLockError(ValueError):
-    """Raised by lock/cache-population code in this package on an unrecoverable
-    population failure.
-
-    Neither fix site's lock/cache-population code ever converts a failure into
-    a degraded (``None``/empty/partial) result -- CL-006's raise-never-degrade
-    contract. This mission's design (plan.md Section 6c) adds no lock-timeout,
-    corrupted-cache, or retry-exhaustion path, so nothing in THIS mission's own
-    diff raises it yet; it exists so a future bounded-wait/retry addition at
-    either fix site has one shared, typed failure to raise instead of
-    improvising a second exception class.
-    """
-
-
 _locks_guard = threading.Lock()
 _locks: dict[tuple[Any, ...], threading.Lock] = {}
 
