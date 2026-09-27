@@ -7205,6 +7205,16 @@ pages:
     - {slug: "how-to-use-it", text: "How to use it", level: 2}
     - {slug: "the-priming-prompt", text: "The priming prompt", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/add-architectural-gate-exemption.md"
+    title: "Add an exemption to an architectural gate"
+    divio_type: "how-to"
+    abstract: "How to exempt a source site from a tests/architectural gate by content, never by line number, for hand-curated allowlists and census gates."
+    anchors:
+    - {slug: "1-identify-which-kind-of-allowlist-the-gate-uses", text: "1. Identify which kind of allowlist the gate uses", level: 2}
+    - {slug: "2a-hand-curated-gate-add-a-content-descriptor", text: "2a. Hand-curated gate: add a content descriptor", level: 2}
+    - {slug: "2b-census-gate-add-a-censuskey", text: "2b. Census gate: add a `CensusKey`", level: 2}
+    - {slug: "3-verify", text: "3. Verify", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/compress-mission-history.md"
     title: "Compress mission history: path-bucket snapshot-chain recipe"
     divio_type: "how-to"
