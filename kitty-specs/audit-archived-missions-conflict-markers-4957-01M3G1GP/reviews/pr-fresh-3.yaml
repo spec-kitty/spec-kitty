@@ -1,0 +1,28 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-3
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: PR-FRESH3-001
+    lens: reverse-speccing / mutation-verified non-vacuity (reviewer-renata / directive 041 tests-as-scaffold, Standing Order #5)
+    severity: 1
+    title: "test_no_conflict_markers_in_tracked_files enumerates tracked files twice via two independent git ls-files subprocess calls"
+    evidence:
+      - code: "tests/architectural/test_archive_root_byte_identical.py:815-819 (test_no_conflict_markers_in_tracked_files) — `_scan_tracked_files_for_conflict_markers(REPO_ROOT, ...)` internally calls `_enumerate_tracked_files(root)` once, then the test calls `_enumerate_tracked_files(REPO_ROOT)` a second, independent time to check `scanned_count == len(...)`"
+    claim: >
+      The FR-004 ground-truth-tie assertion re-invokes `git ls-files -z` a second time
+      rather than reusing the list `_scan_tracked_files_for_conflict_markers` already
+      enumerated. In the extremely unlikely event the working tree's tracked-file set
+      changes between the two calls (not possible in a single CI job step, only a
+      theoretical local-dev race), the two counts could diverge and flake the test.
+      No effect on implementation correctness or the guard's actual non-vacuity, which
+      is independently and adequately proven by the separate hardcoded-fixture-subtree
+      assertions in the same test (`fixture_scanned_count == 3`).
+    remediation: >
+      Optional: have `_scan_tracked_files_for_conflict_markers` also return the raw
+      `tracked` list (or thread `_enumerate_tracked_files(REPO_ROOT)`'s result into
+      both call sites) so the ground-truth comparison is structural rather than a second
+      live git invocation. Not worth doing as a standalone change; fold in only if this
+      file is touched again.

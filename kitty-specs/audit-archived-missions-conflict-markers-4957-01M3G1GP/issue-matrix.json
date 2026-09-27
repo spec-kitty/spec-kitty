@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#4928": {
+      "evidence_ref": "Cited only as context/precedent in spec/plan prose; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4936": {
+      "evidence_ref": "Cited only as the originating precedent for the _OPERATOR_SANCTIONED_CORRECTIONS mechanism; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4954": {
+      "evidence_ref": "Precedent that originated the carve-out (ledger SK-249); its commit-time prevention is deliberately not implemented here (this guard is CI-time)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4956": {
+      "evidence_ref": "Follow-up: #4956 removes the _OPERATOR_SANCTIONED_CORRECTIONS mechanism, incl. this mission's entry, once baseline (C-003)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4957": {
+      "evidence_ref": "This mission's own issue; WP01 repair approved, WP02 guard pending; flip to fixed with the PR link once opened",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#4972": {
+      "evidence_ref": "Cited only as the second precedent that extended the same carve-out mechanism; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

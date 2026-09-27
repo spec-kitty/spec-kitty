@@ -1,0 +1,103 @@
+schema: review-verify/v1
+phase: pr
+round: 3
+reviewer: anchored-verifier-r5a-round3
+profile: debugger-debbie
+profile_directives_applied:
+  - "001 Architectural Integrity Standard: checked the fix closes the whole bypass class (any stale/un-rebased branch), not just the reported repro"
+  - "003 Decision Documentation Requirement: falsified/confirmed hypotheses recorded as evidence below, independent of the shipped test"
+  - "030 Test and Typecheck Quality Gate: re-derived the producer-conformance gate from a fresh fixture, mutation-tested for vacuity"
+  - "032 Conceptual Alignment: verified CI's and a local clone's candidate-ref resolution agree (both single-source to origin/main for a same-repo PR)"
+checkout: <checkout>
+head: 0dfbfc90c
+diff_range: 7d975494a..0dfbfc90c
+verifications:
+  - id: PR-FRESH2-001
+    status: resolved
+    evidence: >-
+      (a) Independently reproduced the sweeper's stale-branch bypass from scratch (own script,
+      not the shipped test): built a throwaway fixture repo with real git branches -- "main"
+      landing _CONFLICT_MARKER_SCAN_EXEMPTIONS={"legit.txt"}, "contributor" forked from the
+      pre-landing commit growing a malicious live set {"legit.txt","malicious/hides_a_marker.py"}.
+      Ran the REAL, imported _resolve_exemption_baseline against a worktree checked out at the
+      pre-fix commit a4907deb1 (constant hoist only, baseline logic still old two-outcome
+      design): baseline collapsed to the malicious live set and
+      _assert_exemption_set_is_shrink_only passed vacuously -- confirmed RED exactly as claimed.
+      Ran the identical fixture-construction script (adapted for the new kwarg) against the
+      post-fix worktree at 0dfbfc90c: baseline correctly resolved to main's real landed
+      {"legit.txt"} and _assert_exemption_set_is_shrink_only raised on the malicious entry --
+      GREEN. Also ran the shipped regression
+      test_conflict_marker_exemption_baseline_checks_landed_ref_when_base_predates_constant
+      as part of the full 24-test file run -- passes.
+      (b) Traced _port_base_candidate_refs -> _select_port_base_refs -> _live_remote_urls
+      live in the post-fix worktree: this checkout's only remote is
+      origin=https://github.com/spec-kitty/spec-kitty.git (canonical slug), so
+      candidate_refs()==["origin/main"] and port_base_rev() resolves via that same ref. In
+      CI (ci-router.yml archive-freeze job, fetch-depth:0, standard actions/checkout), a
+      same-repo PR's origin is likewise spec-kitty/spec-kitty, so the candidate list is
+      identical in CI and locally -- one ref, always fetched, never missing. Structurally,
+      _resolve_landed_exemption_baseline uses the SAME candidate list _port_base_rev already
+      used to resolve base_rev, in the same process -- so a candidate can only be "missing" in
+      a way that also makes base_rev itself unreachable, which routes to outcome (d) (fail
+      closed / skip) before _resolve_exemption_baseline is ever called, not a silent bypass.
+      Order is canonical remotes first (origin prioritized, then alphabetical), legacy
+      "origin/main" appended only if absent. _resolve_landed_exemption_baseline loops in that
+      order and returns the first ref whose OWN TIP has the constant, correctly skipping (not
+      stopping at) a ref that lacks it -- verified by construction: the mutation fixture in (a)
+      passes a single-element candidate list; the loop logic (tests/architectural/test_archive_root_byte_identical.py:944-954)
+      has no early-return-on-None inside the loop, only continue-by-falling-through, so a mixed
+      list (first ref missing, second ref landed) resolves to the second ref's value, not to
+      "never landed."
+      (c) ast-parse failure: called the real _parse_frozenset_of_str_constant with a
+      syntactically invalid source string (unclosed paren) -- raised SyntaxError uncaught, not
+      swallowed anywhere in the call chain (_parse_exemption_constant_at_rev /
+      _resolve_landed_exemption_baseline / _resolve_exemption_baseline carry no try/except
+      around this path). Renamed-constant: edited the scratch worktree's live
+      _CONFLICT_MARKER_SCAN_EXEMPTIONS assignment to
+      _CONFLICT_MARKER_SCAN_EXEMPTIONS_RENAMED (leaving the lookup string
+      _CONFLICT_MARKER_EXEMPTION_CONSTANT_NAME unchanged, simulating exactly the forgotten-
+      rename scenario the module comment warns about) and ran
+      test_conflict_marker_exemption_constant_name_matches_live_identifier directly: FAILED
+      loudly with the expected AssertionError message. Mutation reverted via `git checkout --`
+      in the scratch worktree only (never in <checkout>).
+      (d) Unreachable base: built a second throwaway fixture repo with zero remotes and no
+      origin/main ref, monkeypatched the post-fix module's REPO_ROOT/_run_git to point at it,
+      set CI=true, and called the real _require_port_base_rev() directly: raised
+      pytest.Failed with "EXP port base (merge-base HEAD 'origin/main') is not reachable;
+      archive freeze cannot run" -- fails closed under CI as designed. Confirmed by code
+      reading that _require_conflict_marker_exemption_baseline calls _require_port_base_rev()
+      first and unconditionally, so this failure propagates before _resolve_exemption_baseline
+      is ever reached (also covered by the shipped
+      test_conflict_marker_exemption_baseline_fails_closed_when_base_is_unreachable, which
+      passed in the full 24-test run).
+  - id: PR-FRESH2-002
+    status: resolved
+    evidence: >-
+      grep across the whole file confirms exactly one _GIT_SUBPROCESS_ENV_OVERRIDES
+      module-level constant (lines 197-200) and exactly three usages of
+      `**_GIT_SUBPROCESS_ENV_OVERRIDES` -- _git_bytes (line 209), _read_file_at_rev (line 892),
+      _run_ls_files (line 1003) -- with no remaining verbatim duplication of the three-key
+      literal anywhere else in the file. `_run_git` (line 184) keeps its own distinct,
+      narrower two-var env ({"GIT_NO_REPLACE_OBJECTS","SPEC_KITTY_ENABLE_SAAS_SYNC"}, no
+      GIT_OPTIONAL_LOCKS) untouched, exactly as the diff's own comment states. Behaviour
+      unchanged: constant's values are byte-identical to the prior duplicated literals; the
+      full 24-test file run and the two targeted regression files (tests/git_ops/test_git.py,
+      tests/architectural/test_no_duplicate_suite_execution.py) pass with no new failures;
+      ruff check and ruff format --check both pass clean on the file.
+new_findings: []
+regressions:
+  ruff_check: "All checks passed! (tests/architectural/test_archive_root_byte_identical.py)"
+  ruff_format_check: "1 file already formatted"
+  owned_file_full_run: "24 passed, 2 warnings (expected 24; warnings are pre-existing binary-skip notices, not failures)"
+  git_ops_test_git_plus_no_duplicate_suite_execution: "90 passed, 1 skipped, 0 failed"
+  sc_002_three_file_bundle: "56 passed (>= 48 baseline required by SC-002); 8 unrelated failures in tests/upgrade/preview_support/test_public_witnesses.py, a file outside C-002's two-file blast radius and untouched by this diff -- not attributable to this PR"
+  ci_archive_freeze_invocation:
+    command: "pytest tests/architectural/test_archive_root_byte_identical.py -q (CI equivalent of `uv run --frozen pytest ...`, executed via <checkout>/.venv/bin/python -m pytest per this verifier's tooling constraint; CI checkout uses fetch-depth:0, matched by this worktree's own full-history clone)"
+    run_1: "24 passed, 2 warnings in 3.50s (pytest-reported; 4.05s wall including interpreter startup)"
+    run_2: "24 passed, 2 warnings in 3.35s (pytest-reported; 3.93s wall)"
+scratch_worktree:
+  path: <checkout>/../_review-scratch/4957-r5a3
+  extra_worktree_for_prefix_comparison: <checkout>/../_review-scratch/4957-r5a3-prefix (pinned a4907deb1, used only to reproduce the pre-fix bypass for comparison)
+  removed: true
+  verification: "git worktree list after cleanup shows only <checkout> itself and an unrelated 4957-r5b3 worktree left by a different verifier's session -- both this verifier's worktrees are gone"
+complete: true

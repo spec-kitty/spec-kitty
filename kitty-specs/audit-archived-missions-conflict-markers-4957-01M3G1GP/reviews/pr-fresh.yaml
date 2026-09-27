@@ -1,0 +1,89 @@
+schema: review-findings/v1
+complete: false
+phase: pr
+lens_group: fresh
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: PR-FRESH-001
+    lens: test-non-vacuity
+    severity: 4
+    title: "Self-mutation coverage only proves the '<<<<<<<' half of the marker alternation; '>>>>>>>' detection is untested and can silently break"
+    evidence:
+      - artifact: "spec.md FR-006, Clarification (g) — Standing Order #5: 'a gate-unmask cannot self-validate'"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:782 (_CONFLICT_MARKER_PATTERN = re.compile(r\"^(<<<<<<<|>>>>>>>) \"))"
+      - code: "tests/architectural/test_archive_root_byte_identical.py: test_conflict_marker_guard_self_mutation_catches_synthetic_marker, test_conflict_marker_guard_scans_non_ascii_tracked_filenames, test_conflict_marker_guard_scans_text_file_with_stray_non_utf8_byte — every planted fixture line is '<<<<<<< HEAD'; none plants a '>>>>>>> branch' line"
+    claim: >
+      Verified by mutation in a throwaway worktree: changing the pattern from
+      re.compile(r"^(<<<<<<<|>>>>>>>) ") to re.compile(r"^(<<<<<<<) ") (dropping the
+      ">>>>>>>" alternative entirely) leaves every conflict-marker test in the file
+      passing (`pytest ... -k conflict_marker` -> "9 passed, 8 deselected", no failures).
+      FR-006 requires "a companion test that plants a synthetic conflict-marker line in
+      a non-exempted fixture and asserts the guard catches it, so the guard's pass ...
+      is proven to be a real negative rather than a probe that cannot see anything" —
+      but every self-mutation/positive-control fixture in this diff plants only the
+      opening '<<<<<<< HEAD' marker. A future edit that silently breaks or removes the
+      '>>>>>>>' arm of the regex (or a real '>>>>>>>'-only corruption artifact, e.g. from
+      a hand-edited partial conflict resolution that strips '<<<<<<<' and '=======' but
+      leaves a stray closing marker) would ship with zero test failures. This is exactly
+      the "gate-unmask cannot self-validate" failure mode Standing Order #5 and FR-006
+      exist to rule out, and it is provable by mutation, not merely theoretical.
+    remediation: >
+      Add a planted-marker fixture (in test_conflict_marker_guard_self_mutation_catches_synthetic_marker
+      or a new dedicated test) using a bare '>>>>>>> some-branch' line with no accompanying
+      '<<<<<<<' line, asserting the guard reports it as a violation — mirroring the existing
+      '<<<<<<< HEAD'-only fixtures but for the closing marker, so both alternation arms have
+      an independent self-mutation proof.
+  - id: PR-FRESH-002
+    lens: ci-maintainability
+    severity: 2
+    title: "Real-tree scan emits ~30 UserWarnings on every single green run of the always-on archive-freeze job, permanently"
+    evidence:
+      - artifact: "spec.md Edge Cases ('the skipped file is still counted ... while the skip itself is separately logged for visibility')"
+      - code: "tests/architectural/test_archive_root_byte_identical.py: _warn_skipped_file (logger.warning + warnings.warn), test_no_conflict_markers_in_tracked_files"
+      - code: ".github/workflows/ci-router.yml:502 (archive-freeze job: uv run --frozen pytest tests/architectural/test_archive_root_byte_identical.py -q)"
+    claim: >
+      Measured directly: running the CI job's exact invocation in a clean worktree at
+      this mission's HEAD produces "17 passed, 31 warnings" — 30 of those are
+      _warn_skipped_file's UserWarning for the repo's known, legitimate binary/image
+      files (docs/assets/*.png, *.jpeg, *.webp, and fixture logos under tests/doctrine/),
+      none of which is a conflict-marker corruption. Since this job is described as
+      "always-on" (runs on every PR, per the CI comment), every single green PR from
+      now on will print this same ~30-line UserWarning block, unconditionally and
+      indefinitely, for content that is expected and never changes. pytest.ini has no
+      filterwarnings entry, so this does not fail CI, but it is permanent, unactionable
+      noise on the one gate this mission bills as "fast, always-on" — the kind of
+      warning-volume growth that erodes signal in exactly the CI surface Standing Order
+      #5 wants trustworthy. No mechanism (a known-binary allowlist, or scoping the
+      warning to genuinely unreadable/first-seen files) distinguishes "expected binary,
+      nothing to see" from "new unscanned path, worth a human's attention."
+    remediation: >
+      Either suppress/summarize the binary-skip warning (e.g. emit one aggregate warning
+      with a count, or only warn when a *previously unknown* path is skipped, via a
+      small tracked allowlist analogous to the marker exemption) or downgrade the binary
+      case to logger-only (keep warnings.warn reserved for the unreadable/OSError case,
+      which is the actually-actionable one), so the always-on job's output stays
+      near-silent on a clean pass.
+  - id: PR-FRESH-003
+    lens: false-positive-risk
+    severity: 2
+    title: "Exemption for tests/git_ops/test_git.py is whole-file, not line-scoped, so any future real corruption elsewhere in that file is silently invisible to the guard"
+    evidence:
+      - artifact: "spec.md Clarification (d) — 'The one exemption is tests/git_ops/test_git.py, added to a frozenset-keyed-by-relative-path allowlist'"
+      - code: "tests/architectural/test_archive_root_byte_identical.py: _CONFLICT_MARKER_SCAN_EXEMPTIONS = frozenset({\"tests/git_ops/test_git.py\"}); _scan_tracked_files_for_conflict_markers: 'if rel_path in exemptions: continue'"
+    claim: >
+      The exemption skips the entire file by path, not just its lines 452-457
+      (the documented conflict_content fixture). Any future botched merge or
+      accidental copy-paste that lands real, unresolved conflict markers anywhere
+      else in tests/git_ops/test_git.py (a file that itself heavily manipulates git
+      merge/conflict content, making this more plausible than an arbitrary file) would
+      be completely invisible to the new guard, since the whole path is excluded rather
+      than a line range. This mirrors the existing _APPEND_ONLY_SPINE_EXCEPTIONS shape
+      (also whole-file), so it is a consistent, documented precedent rather than an
+      oversight, and the risk is bounded to one file — but it is a real, avoidable gap
+      in a guard whose entire purpose is catching exactly this defect class.
+    remediation: >
+      If low-cost, scope the exemption to the specific fixture line range (e.g. skip
+      only lines matching a documented pattern/line-number window inside that one file)
+      rather than excluding the whole file from the scan; at minimum, note in the code
+      comment that this is a known, accepted residual risk rather than leaving it implicit.
+complete: true

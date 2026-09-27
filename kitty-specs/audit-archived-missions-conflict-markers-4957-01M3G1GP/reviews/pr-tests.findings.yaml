@@ -1,0 +1,110 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: PR-TESTS-001
+    lens: Would these tests catch it (contrasted against an established sibling precedent)
+    severity: 4
+    title: "New _run_ls_files omits -z, so a non-ASCII/special-char tracked filename is quoted by git and silently drops out of content-scanning, contradicting the sibling guard's own documented fix for this exact class"
+    evidence:
+      - artifact: "spec.md FR-003/FR-004 (\"scans tracked repository content for lines matching ... a concrete, ground-truth-tied floor\")"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:187-196 (_run_ls_files uses [\"git\", \"-C\", str(root), \"ls-files\"], no -z)"
+      - code: "tests/architectural/test_no_invalid_windows_filenames.py:44-50 (_tracked_paths uses [\"git\", \"ls-files\", \"-z\"] with the comment: \"-z yields NUL-separated, verbatim paths — this disables git's default core.quotePath C-quoting, which would otherwise wrap a non-ASCII path like café.txt as \\\"caf\\\\303\\\\251.txt\\\" and inject a spurious \\\"/\\\\ that false-reds the Windows-illegal guard\")"
+    claim: >
+      Without ``-z``, ``git ls-files`` applies default ``core.quotePath`` C-style
+      quoting to any tracked path containing a non-ASCII byte or a shell-special
+      character: the path is emitted as a single double-quoted, octal-escaped
+      literal (e.g. ``"caf\303\251.txt"``) rather than the real filesystem path.
+      ``_enumerate_tracked_files`` takes each output line verbatim as ``rel_path``,
+      so ``(root / rel_path).read_text(...)`` in
+      ``_scan_tracked_files_for_conflict_markers`` then looks for a literal path
+      containing the quote/backslash characters, which does not exist on disk —
+      raising ``FileNotFoundError`` (an ``OSError`` subclass). That is caught by
+      the same ``except (UnicodeDecodeError, OSError)`` branch used for genuine
+      binary files and logged as "skipping unreadable/binary tracked file
+      <mangled-quoted-name>" — the file is never actually content-scanned for
+      conflict markers, even though it is correctly counted toward the FR-004
+      floor (so the floor stays non-vacuous while the *content* guarantee
+      silently doesn't hold for that one path). The sibling architectural test in
+      the same directory, ``test_no_invalid_windows_filenames.py``, already hit
+      and fixed this exact defect class with an inline comment describing the
+      identical mechanism, and this diff's new call site does not follow that
+      established convention. Confirmed via ``git ls-files | grep -cP
+      '[^\x00-\x7f]'`` → 0 in the current tree, so this is currently latent, not
+      yet triggered — but it is a real, precedented, reachable gap in exactly
+      the guarantee FR-003 exists to provide (repo-wide content scanning), and it
+      degrades in the fail-silent direction (mislabeled "binary" skip) rather
+      than fail-closed.
+    remediation: >
+      Change ``_run_ls_files`` to ``["git", "-C", str(root), "ls-files", "-z"]``
+      and split ``result.stdout`` on ``"\0"`` (matching
+      ``test_no_invalid_windows_filenames.py``'s ``_tracked_paths()`` exactly),
+      so tracked paths arrive verbatim regardless of ``core.quotePath``. Add a
+      fixture-repo test with a non-ASCII tracked filename (mirroring the
+      existing binary-file fixture) proving it is actually content-scanned, not
+      silently skipped.
+  - id: PR-TESTS-002
+    lens: Runtime (NFR)
+    severity: 3
+    title: "NFR-001's \"a few seconds\" budget is measurably false: the new real-tree scan alone adds ~44-48s wall-clock, not a few seconds, to the fast always-on archive-freeze job"
+    evidence:
+      - artifact: "spec.md NFR-001 (\"adds no more than a few seconds ... measured baseline ... so the always-on archive-freeze CI job's cost profile does not materially change\")"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:883 test_no_conflict_markers_in_tracked_files"
+      - code: ".github/workflows/ci-router.yml:489-503 (archive-freeze job comment: \"This gate runs the one freeze file unconditionally (~6 s plus setup)\")"
+    claim: >
+      Measured twice on two independent cold runs of the lane's own interpreter
+      (once filtered to the new tests, once isolated to just this one test),
+      ``test_no_conflict_markers_in_tracked_files`` alone took 48.48s and then
+      44.26s of "call" wall-clock — reading and regex-scanning the content of
+      all ~21,944 tracked files (~483 MB) in the repository. That is roughly an
+      order of magnitude beyond NFR-001's stated "a few seconds," and it directly
+      undercuts the ``archive-freeze`` job's own designed premise
+      (``ci-router.yml``'s comment: "FAST always-on archive freeze ... runs the
+      one freeze file unconditionally (~6 s plus setup) so every PR shape meets
+      the archive freeze" — the entire reason this job is split out from the
+      code-scoped heavy battery). The 10-minute job timeout absorbs this without
+      failing CI, so it is not a functional break, but the explicit, numeric NFR
+      acceptance criterion in spec.md is not met and nothing in the diff
+      re-measures or corrects it.
+    remediation: >
+      Either (a) re-measure and update NFR-001/the ci-router.yml comment with the
+      real number so the stated budget is honest, or (b) reduce the cost — e.g.
+      cheap pre-filter tracked paths by extension/mime before attempting
+      ``read_text`` on binary-heavy trees (docs/assets/*.png etc. are already
+      known-binary), or read files in a streaming/short-circuit fashion instead
+      of loading full content — so the always-on gate's "fast" framing stays
+      true as the repository grows.
+  - id: PR-TESTS-003
+    lens: Revert test / error-path non-vacuity (ratchet's shrink direction)
+    severity: 3
+    title: "The shrink-only ratchet's actual 'shrink' permission (FR-005's namesake behaviour) has zero test coverage — only the 'never grow' and 'stays-equal' cases are exercised"
+    evidence:
+      - artifact: "spec.md FR-005 (\"enforced as a shrink-only ratchet ... so the exemption set can shrink over time but never silently grow\")"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:861-866 (_assert_exemption_set_is_shrink_only)"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:930-936 (test_conflict_marker_exemption_allowlist_is_shrink_only, asserts subset AND == baseline)"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:938-945 (test_conflict_marker_exemption_shrink_only_ratchet_has_positive_control, only exercises growth)"
+    claim: >
+      Verified directly (throwaway detached worktree, discarded after): changing
+      ``_assert_exemption_set_is_shrink_only``'s body from a subset check
+      (``unexpected = candidate - baseline; assert not unexpected``) to a
+      strict-equality check (``assert not unexpected and candidate == baseline``)
+      — i.e. silently deleting the "shrink" capability the function's own name
+      and FR-005 promise — leaves every test in the file passing (ran
+      ``-k "shrink or ratchet"``: 2 passed, and the full file's other tests are
+      independent of this helper). The two tests that exercise this helper only
+      ever call it with (a) the live set exactly equal to baseline (today's
+      state) and (b) a live set that is a strict *superset* of baseline (FR-008's
+      growth positive-control, expected to raise). Neither passes a live set
+      that is a strict, non-empty-diff *subset* of baseline, so nothing proves
+      the ratchet actually tolerates a shrink — the "shrink-only" name is half
+      unproven by test, the untested half being the one word that distinguishes
+      this from a plain equality/no-drift gate.
+    remediation: >
+      Add a dedicated positive-control test asserting
+      ``_assert_exemption_set_is_shrink_only(frozenset(), _CONFLICT_MARKER_EXEMPTION_BASELINE)``
+      (or ``baseline - {"tests/git_ops/test_git.py"}``) does *not* raise,
+      proving the shrink direction is genuinely permitted and not merely
+      untested-and-coincidentally-working alongside the growth-detection test.

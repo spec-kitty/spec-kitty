@@ -1,0 +1,96 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: false
+phase: pr
+lens_group: contract
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: PR-CONTRACT-001
+    lens: Contract vs implementation / Fakeable DoD (shrink-only ratchet)
+    severity: 4
+    title: Shrink-only exemption ratchet is co-located and vacuous-by-construction; its exact-equality assertion also contradicts FR-005's stated shrink allowance
+    evidence:
+      - artifact: "spec.md FR-005, NFR-003"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:787 (_CONFLICT_MARKER_SCAN_EXEMPTIONS)"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:791 (_CONFLICT_MARKER_EXEMPTION_BASELINE)"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:930-935 (test_conflict_marker_exemption_allowlist_is_shrink_only)"
+    claim: >
+      `_CONFLICT_MARKER_EXEMPTION_BASELINE` (line 791) is not an externally-anchored
+      baseline the way `_baselines.yaml`'s registered modules are — it is a second
+      module-level frozenset literal, defined four lines below the live exemption set
+      (line 787) in the same file, with the identical value. The ratchet test
+      `test_conflict_marker_exemption_allowlist_is_shrink_only` (line 930) only fails
+      if a contributor edits the live set without also editing the baseline; the
+      natural way to add a new exemption is to edit both together in one PR, which
+      this mechanism cannot distinguish from a legitimate operator re-baseline.
+      NFR-003's promise that unauthorized growth "must fail a dedicated shrink-only
+      test... until an explicit code review re-baselines it" is therefore enforced
+      only socially (a reviewer must notice two frozensets moved together), not
+      technically — the same failure mode Standing Order #5 exists to close by
+      construction. FR-008's positive-control test only proves the comparator
+      helper (`_assert_exemption_set_is_shrink_only`, line 861) detects an
+      artificially-augmented candidate against a *held-fixed* baseline; it never
+      exercises the real risk (both real constants edited together in one diff).
+      Separately, line 935 (`assert _CONFLICT_MARKER_SCAN_EXEMPTIONS ==
+      _CONFLICT_MARKER_EXEMPTION_BASELINE`) requires *exact* equality, not subset,
+      so a legitimate future *shrink* (e.g. removing `tests/git_ops/test_git.py`
+      once that fixture no longer needs the exemption) would false-red this test
+      unless the baseline constant is edited in the same commit — directly
+      contradicting FR-005's own text: "the exemption set can shrink over time but
+      never silently grow." A shrink should never need a "re-baseline."
+    remediation: >
+      Anchor the baseline independently of the live exemption set — e.g. read the
+      previous value from a source that is not trivially co-edited in the same diff
+      hunk (a separate reviewed constants file, or wiring into
+      `tests/architectural/_baselines.yaml`'s existing growth/shrink machinery per
+      spec.md Clarification (k)'s own noted future path) — so a reviewer sees the
+      two values move on genuinely distinct lines/commits rather than assuming
+      adjacency is safe. At minimum, drop line 935's exact-equality assertion
+      (subset-only, as `_assert_exemption_set_is_shrink_only` already implements,
+      is the actual shrink-only contract FR-005 specifies) so a legitimate shrink
+      does not fail this test.
+
+  - id: PR-CONTRACT-002
+    lens: Silent success — per-file decode skip
+    severity: 3
+    title: Per-file decode skip is broader than "legitimate binary blobs" and its visibility promise does not hold in the real CI invocation
+    evidence:
+      - artifact: "spec.md Edge Cases (binary/non-text tracked files); NFR-002"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:846-854"
+      - code: ".github/workflows/ci-router.yml:500-502 (archive-freeze job)"
+      - artifact: "kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/reviews/wp-WP02-cycle2.yaml WP02-R-002 resolution"
+    claim: >
+      The except clause at line 848 catches `(UnicodeDecodeError, OSError)` for
+      *any* tracked file, not only "legitimate binary blobs" as spec.md's Edge
+      Cases rationale frames it. A genuine text file with one stray non-UTF-8 byte
+      anywhere (a plausible symptom of the exact kind of botched-merge corruption
+      this guard exists to catch) is silently excluded from the marker scan too,
+      even though its ASCII `<<<<<<< `/`>>>>>>> ` marker bytes would otherwise match
+      `_CONFLICT_MARKER_PATTERN` fine on an otherwise-valid line. The skip is only
+      surfaced via `logger.warning` (line 853); the actual archive-freeze CI
+      invocation (`.github/workflows/ci-router.yml:502`: `uv run --frozen pytest
+      tests/architectural/test_archive_root_byte_identical.py -q`) passes no
+      `--log-cli-level`/`--log-cli-format`, and no `log_cli`/`log_level` setting
+      exists in pytest.ini or pyproject.toml, so pytest's logging plugin captures
+      but does not print WARNING records for a *passing* test in that invocation.
+      wp-WP02-cycle2.yaml's WP02-R-002 resolution asserts the skip is "visible via
+      caplog or --log-cli-level=WARNING in CI," but the cited CI job does not pass
+      that flag, so the claim does not hold for the transcript anyone reviewing a
+      green archive-freeze run would actually see. Net effect: a real corruption
+      landing in a non-UTF-8-decodable tracked file produces a green run with a
+      scanned-file count that looks like a clean floor, and a warning nobody sees.
+    remediation: >
+      Decode with `errors="replace"` (or `"surrogateescape"`) instead of strict
+      UTF-8 for the content scan, so a file is skipped only for a true OSError
+      (unreadable, permission, dangling symlink) rather than for any encoding
+      wrinkle — the anchored regex only needs clean ASCII at a line start, which
+      survives lossy decoding of the surrounding bytes, so this closes the
+      false-negative gap directly instead of relying on log visibility. If a
+      narrower binary/decode-skip path is still wanted for true binary blobs
+      (e.g. detect via a NUL-byte heuristic before attempting decode), keep the
+      warning but also assert on it in the test (fail if the skipped-file set is
+      non-empty and none of the skipped paths match a maintained
+      known-non-text-extension allowlist), so a skip is provably visible in the
+      gate's own pass/fail signal rather than only in an unread log stream.
+
+complete: true

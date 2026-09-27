@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "audit-archived-missions-conflict-markers-4957-01M3G1GP",
+  "mission_id": "01M3G1GPR5K5J3Z57ZQC45Z93V",
+  "mission_branch": "kitty/mission-audit-archived-missions-conflict-markers-4957-01M3G1GP",
+  "target_branch": "issue-4957-archived-conflict-markers",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/test_archive_root_byte_identical.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-planning"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-27T01:47:02.425175+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01"
+  ],
+  "planning_commit_sha": "97101b85997d4a6502517f07808ad7d4ffaf84a9"
+}

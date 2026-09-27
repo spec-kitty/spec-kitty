@@ -1,0 +1,62 @@
+work_packages:
+  - id: WP01
+    title: "Repair WP01 conflict-marker corruption (archived, planning-artifact-confined)"
+    dependencies: []
+    owned_files:
+      - "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md"
+    requirement_refs:
+      - FR-001
+      - C-002
+      - C-003
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+    prompt_file: "tasks/WP01-repair-archived-conflict-markers.md"
+    execution_mode: planning_artifact
+    authoritative_surface: "kitty-specs/025-cli-event-log-integration/tasks/"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: "claude-sonnet-4-6"
+
+  - id: WP02
+    title: "Register carve-out entry and add non-vacuous conflict-marker guard + shrink-only ratchet"
+    dependencies:
+      - WP01
+    owned_files:
+      - "tests/architectural/test_archive_root_byte_identical.py"
+    requirement_refs:
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-009
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-002
+      - C-003
+    plan_concern_refs:
+      - IC-01
+      - IC-02
+      - IC-03
+    subtasks:
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+      - T007
+      - T008
+    prompt_file: "tasks/WP02-conflict-marker-guard-and-carveout.md"
+    execution_mode: code_change
+    authoritative_surface: "tests/architectural/"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: "claude-sonnet-4-6"

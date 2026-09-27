@@ -1,0 +1,55 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-CONTRACT-001
+    verdict: confirmed
+    reason: >-
+      Verified directly at lines 787/791/930-935: the baseline is a second module-level
+      frozenset literal 4 lines below the live set with an identical value (co-editable in
+      one diff hunk), and line 935's `assert _CONFLICT_MARKER_SCAN_EXEMPTIONS ==
+      _CONFLICT_MARKER_EXEMPTION_BASELINE` requires exact equality, which would hard-FAIL any
+      legitimate future shrink unless the baseline constant is edited in lockstep -- directly
+      contradicting FR-005's "the exemption set can shrink over time" and NFR-003's own cited
+      Burn-down Policy analogy ("growth ... FAILS CI, shrinkage WARNS").
+  - id: PR-CONTRACT-002
+    verdict: confirmed
+    reason: >-
+      Confirmed the except clause at lines 846-854 catches (UnicodeDecodeError, OSError) for
+      any tracked file with no binary/mime pre-check, so a genuinely corrupted text file with
+      one stray non-UTF-8 byte is silently skipped, not just true binaries; also confirmed
+      ci-router.yml:502 runs `pytest ... -q` with no --log-cli-level and neither pytest.ini nor
+      pyproject.toml sets log_cli/log_level, so a WARNING on a passing test is not printed in
+      that exact invocation -- the cycle-2 reviewer's resolution rationale ("visible via ...
+      --log-cli-level=WARNING in CI") is factually wrong for this specific job, so its ruling is
+      outweighed by the evidence.
+  - id: PR-TESTS-001
+    verdict: confirmed
+    reason: >-
+      Reproduced live in a throwaway /tmp git repo: `git ls-files` (no -z) C-quotes a non-ASCII
+      tracked filename as a literal octal-escaped string (confirmed core.quotePath defaults to
+      true), which `_run_ls_files` (no -z, line 794-809) would feed verbatim into
+      `(root/rel_path).read_text()`, raising FileNotFoundError (an OSError) caught by the same
+      except used for binaries -- silently skipping content-scan on that path while still
+      counting it toward the floor; the sibling `test_no_invalid_windows_filenames.py:44-50`
+      documents this exact mechanism as the reason it uses `-z`, confirmed verbatim by reading
+      it.
+  - id: PR-TESTS-002
+    verdict: refuted
+    reason: >-
+      Measured directly with the lane's own .venv (cwd=lane): `test_no_conflict_markers_in_tracked_files`
+      alone took 3.93s then 1.35s "call" time across repeated runs, and the entire 14-test file
+      (all 5 new guard tests plus the pre-existing 9) ran in 3.22s total; the comparison
+      pre-existing freeze test alone measured 1.72-1.90s, matching spec.md's own 1.99s baseline
+      figure. The tracked corpus is 21,944 files but only ~21MB on disk (`git ls-files -z | xargs
+      du -ch`), not the finding's claimed "~483 MB" -- the claimed ~44-48s wall-clock does not
+      reproduce by roughly an order of magnitude; NFR-001's "a few seconds" budget is met.
+  - id: PR-TESTS-003
+    verdict: confirmed
+    reason: >-
+      Grepped every call site of `_assert_exemption_set_is_shrink_only` (lines 934 and 944
+      only): one passes candidate==baseline (today's live set), the other passes a strict
+      superset (FR-008's growth positive control) -- no call site ever passes a candidate that
+      is a strict, non-empty-diff subset of baseline, so the function's own namesake "shrink"
+      permission has zero direct test coverage, exactly as claimed.

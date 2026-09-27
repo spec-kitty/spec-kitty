@@ -1,0 +1,126 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 1
+verifications:
+  - id: PR-TESTS-001
+    status: resolved
+    evidence: >-
+      Post-fix diff (117c55ebb..45717050f) shows `_run_ls_files` now runs `["git", "-C", str(root),
+      "ls-files", "-z"]` and `_enumerate_tracked_files` splits on `"\0"` instead of `.splitlines()`,
+      matching `test_no_invalid_windows_filenames.py`'s precedent. Ran the new
+      `test_conflict_marker_guard_scans_non_ascii_tracked_filenames` on the real checkout:
+      `.venv/bin/python -m pytest tests/architectural/test_archive_root_byte_identical.py -k "non_ascii or stray_non_utf8" -q`
+      -> `2 passed`. Reproduced pre-fix red in a throwaway detached worktree at 117c55ebb
+      (`git worktree add --detach .../4957-r5a 117c55ebb`): appended a probe test adapted to the
+      pre-fix 2-tuple return signature (same café.txt fixture + planted marker) and ran it there
+      -> `1 failed`, with the captured warning showing the exact defect: `skipping unreadable/binary
+      tracked file "caf\303\251.txt" ([Errno 2] No such file or directory: '.../"caf\\303\\251.txt"')`
+      -- the literal C-quoted, non-existent path, exactly as PR-TESTS-001 claimed. Worktree removed
+      afterward.
+  - id: PR-CONTRACT-002
+    status: resolved
+    evidence: >-
+      `_decode_tracked_file_for_scan` now reads raw bytes, skips only on a real `OSError` or a
+      NUL-byte heuristic (genuine binary), and otherwise decodes with `errors="replace"` instead of
+      strict UTF-8, so an isolated non-UTF-8 byte no longer binary-skips a file with a real ASCII
+      marker line. Verified via the new `test_conflict_marker_guard_scans_text_file_with_stray_non_utf8_byte`
+      (passes on this checkout, part of the same 2-passed run above). Visibility: ran CI's exact
+      invocation, `.venv/bin/python -m pytest tests/architectural/test_archive_root_byte_identical.py -q`,
+      from the repo root -> `17 passed, 31 warnings`, and the warnings-summary footer (printed by
+      pytest's default plugin with no `--log-cli-level`/`--log-cli-format` and no `log_cli`/`log_level`
+      anywhere) lists every skipped path with its reason, e.g. `UserWarning: conflict-marker scan:
+      skipping tracked file not content-scanned: docs/assets/logo_large.jpeg (binary (NUL byte
+      present))`. This is a functional gate (a warning fires whether or not anyone reads logs), not
+      only a log line -- confirmed `.github/workflows/ci-router.yml:502` runs exactly this command
+      with no extra flags. Confirmed no `filterwarnings`/`-W` config exists in `pytest.ini`,
+      `pyproject.toml` ([tool.pytest.ini_options] is explicitly disclaimed dead there), or any
+      `tests/**/conftest.py`, and no CI workflow passes `-W`, so the 31 warnings cannot turn into a
+      failure in any current job -- the "buried signal" worst case (a genuine corruption
+      binary-skipped and unnoticed) does not apply because `warnings.warn` is unconditionally
+      visible in the exact CI transcript.
+  - id: PR-CONTRACT-001
+    status: unresolved
+    evidence: >-
+      Read Clarification (k) in full (spec.md lines ~350-380). It is entirely an argument for NOT
+      wiring the new exemption allowlist into `_baselines.yaml`'s centralized registration mechanism
+      (because that would require editing a third file, `test_ratchet_baselines.py`, conflicting
+      with C-002's two-file blast radius) -- it never discusses anti-co-edit anchoring, never
+      addresses the risk of a live set and its baseline being edited together in one diff, and never
+      says a co-located baseline literal is an acceptable substitute for that concern. The fixer's
+      claim that Clarification (k) accepts this specific gap as out of scope is not supported by the
+      spec text. The fix's own new source comment (line ~792) concedes the defect verbatim: "This
+      buys shrink-only enforcement but not anti-co-edit anchoring: a reviewer must still notice if
+      this literal and `_CONFLICT_MARKER_SCAN_EXEMPTIONS` above are edited together in the same diff
+      to add a new exemption." The baseline is still a second frozenset literal four lines below the
+      live set, still trivially co-editable in one hunk -- the fix did not anchor it externally (the
+      remediation's primary ask) and only applied the remediation's fallback ("at minimum, drop the
+      exact-equality assertion"). That fallback IS done and verified correct: mutated
+      `_assert_exemption_set_is_shrink_only` in a throwaway worktree at 45717050f to
+      `assert not unexpected and candidate == baseline` (restoring exact equality) and ran
+      `pytest -k "shrink or ratchet" -q` -> the new `test_conflict_marker_exemption_allowlist_permits_a_shrink`
+      failed exactly as designed (`AssertionError: Exemption allowlist grew beyond baseline`), while
+      `test_conflict_marker_exemption_allowlist_is_shrink_only` and the growth positive control still
+      passed. So the FR-005 contradiction (exact equality rejecting a legitimate shrink) is fixed and
+      test-proven, but the finding's primary, severity-4 claim -- the ratchet is vacuous-by-construction
+      against a lockstep same-diff edit -- stands unaddressed, and is misattributed to a spec
+      clarification that does not say what the fix claims it says. Worktree removed afterward.
+  - id: PR-TESTS-003
+    status: resolved
+    evidence: >-
+      New `test_conflict_marker_exemption_allowlist_permits_a_shrink` (lines ~1076-1084) exercises
+      `_assert_exemption_set_is_shrink_only` with a genuine strict, non-empty-diff subset
+      (`baseline - {"tests/git_ops/test_git.py"}`) and with `frozenset()`, both asserted not to
+      raise. Confirmed this is a real negative, not coincidental: same mutation as above (comparator
+      tightened to strict equality in a throwaway worktree at 45717050f) makes this specific test
+      fail while leaving the other two ratchet-adjacent tests passing, proving the shrink-direction
+      coverage is genuinely exercised rather than untested-and-coincidentally-working.
+new_findings:
+  - id: PR-VERIFY-001
+    lens: Provenance / misattributed spec authority in source comment
+    severity: 3
+    title: New source comment at _CONFLICT_MARKER_EXEMPTION_BASELINE cites spec.md Clarification (k)
+      for a scope claim the clarification does not make
+    evidence:
+      - artifact: spec.md Clarification (k) (full text, lines ~350-380)
+      - code: tests/architectural/test_archive_root_byte_identical.py:792-800 (comment above
+          _CONFLICT_MARKER_EXEMPTION_BASELINE)
+    claim: >-
+      The fix (commit 45717050f) added a comment reading "spec.md Clarification (k) documents this
+      bespoke, in-file mechanism as the accepted choice given C-002's binding two-file blast
+      radius." Clarification (k) documents only the decision not to register the exemption set in
+      `_baselines.yaml` (a three-file-edit problem under C-002); it says nothing about accepting a
+      co-located, trivially co-editable baseline as an adequate anti-tamper design, and nothing about
+      anti-co-edit anchoring being out of scope. A future reviewer or contributor reading only this
+      comment (not re-deriving the distinction independently, as this verification round did) would
+      reasonably conclude the residual PR-CONTRACT-001 gap is spec-blessed and closed, when it is
+      neither. The comment's own next two sentences correctly describe the residual gap in plain
+      terms ("this buys shrink-only enforcement but not anti-co-edit anchoring") -- the citation to
+      Clarification (k) is the part that overreaches.
+    remediation: >-
+      Narrow the comment to cite Clarification (k) only for the `_baselines.yaml`-registration
+      decision it actually covers, and state plainly (without spec attribution) that the
+      co-location/anti-co-edit gap is a known, accepted residual risk of this mission's chosen
+      design -- or, better, resolve it per the original remediation (anchor the baseline
+      independently, e.g. reading a previous value from git history or a separate reviewed
+      constant) so the comment does not need to explain away a gap at all.
+    source_group: contract
+warnings_assessment: >-
+  Running CI's exact invocation (`pytest tests/architectural/test_archive_root_byte_identical.py -q`)
+  produces 31 `UserWarning`s in the default warnings-summary footer, all naming a real skipped path
+  and a "binary (NUL byte present)" reason. 30 correspond to tracked repository files (one is the
+  fixture-created `binary.bin` from `test_no_conflict_markers_in_tracked_files`'s own synthetic
+  subtree); of the 30 real files, most are unambiguous binary assets (PNG/JPEG/WEBP images under
+  docs/assets, src/specify_cli/dashboard/static, and test doctrine fixtures). Three are `.md` files
+  (`kitty-specs/003-auto-protect-agent/data-model.md`, `kitty-specs/004-modular-code-refactoring/research.md`,
+  `kitty-specs/005-refactor-mission-system/data-model.md`) that individually inspected do contain
+  genuine embedded NUL bytes (mangled box-drawing tree-diagram characters, unrelated pre-existing
+  corpus corruption, not conflict-marker text) and were confirmed to carry zero
+  `^(<<<<<<<|>>>>>>>) ` lines via a direct grep -- so the NUL-byte heuristic classified them
+  correctly and no signal is buried today. The noise is real but low-volume (31 lines against a
+  ~22k-file corpus) and every entry is independently checkable by path; no `filterwarnings = error`
+  or `-W` config exists anywhere in pytest.ini, pyproject.toml, any tests/**/conftest.py, or the CI
+  workflows, so these warnings cannot silently flip a job to red in any job observed. The remaining
+  risk is purely human-attention: 31 lines in a passing job's tail is easy to skim past, but that is
+  an acceptable trade against the alternative (failing the build on legitimate binary assets), and
+  the mechanism is provably non-silent per PR-CONTRACT-002's resolution.

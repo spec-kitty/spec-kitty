@@ -1,0 +1,18 @@
+wp_id: WP01
+reviewer_profile: reviewer-renata
+directives_applied:
+  - "024: Locality of Change — checked the repair diff and bookkeeping commits touch nothing outside owned_files/tooling-managed state"
+  - "030: Test and Typecheck Quality Gate — ran the architectural test file directly rather than trusting the implementer's report of the expected single red"
+  - "032: Conceptual Alignment — verified terminology/side-choice reasoning (HEAD vs 5eda48f7) against actual git ancestry, not the WP's prose claim alone"
+  - "code-review-incremental tactic — read intent (spec FR-001/C-002/C-003, plan Section D) before judging the diff"
+diff_reviewed: 687dcebf6
+verdict: approved
+findings: []
+checks:
+  scope_only_marker_block: pass
+  side_choice: pass
+  no_residual_markers: pass
+  expected_red_only: pass
+  state_not_hand_edited: pass
+  public_hygiene: pass
+complete: true
