@@ -134,6 +134,8 @@ from typing import Literal
 
 from pydantic import ValidationError
 
+from kernel.resolution import resolve_rejecting_loops
+
 # Q7: **reuse one existing ULID regex, do not write a fourth.** Three exist —
 # ``decisions/verify.py`` (a sentinel-comment matcher, not an anchored id
 # matcher), ``context/mission_resolver.py`` (``^[0-9A-Z]{26}$``, which admits the
@@ -444,7 +446,7 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> _MissionScan:
         # stats fine and *then* fails containment is a different verdict, and the
         # silent skip is right for it — nothing was hidden from us there.
         try:
-            resolved = candidate.resolve()
+            resolved = resolve_rejecting_loops(candidate)
             if not S_ISDIR(resolved.stat().st_mode) or not resolved.is_relative_to(
                 specs_root
             ):
@@ -509,7 +511,7 @@ def _read_ledger(mission_dir: Path, acting_root: Path) -> _LedgerRead:
     # root, containment holds, and MISSING is decided below by `open()` exactly as
     # before. A resolve that *does* raise is a read failure, i.e. UNREADABLE.
     try:
-        if not index_file.resolve().is_relative_to(acting_root):
+        if not resolve_rejecting_loops(index_file).is_relative_to(acting_root):
             return _LedgerRead(index=None, unreadable=True)
     except OSError:
         return _LedgerRead(index=None, unreadable=True)

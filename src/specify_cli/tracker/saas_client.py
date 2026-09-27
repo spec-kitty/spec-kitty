@@ -22,6 +22,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from kernel.clock import datetime, now_utc, timedelta
+from kernel.resolution import resolve_rejecting_loops
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
@@ -307,7 +308,7 @@ class SaaSTrackerClient:
             self._project_root = None
         else:
             try:
-                self._project_root = Path(project_root).resolve()
+                self._project_root = resolve_rejecting_loops(Path(project_root))
             except (OSError, RuntimeError) as exc:
                 raise SaaSTrackerClientError(
                     f"Cannot resolve project root {project_root}: {exc}",

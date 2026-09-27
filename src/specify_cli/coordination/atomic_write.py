@@ -41,6 +41,7 @@ from pathlib import Path
 
 import ulid as _ulid_mod
 
+from kernel.resolution import resolve_rejecting_loops
 from specify_cli.core.no_follow import fd_relative_dir_ops_supported
 from specify_cli.core.utils import ensure_within_any
 
@@ -65,7 +66,7 @@ def _confine_path_to_worktree(worktree_root: Path, path: Path) -> Path:
     candidate = path if path.is_absolute() else worktree_root / path
     try:
         resolved_worktree = worktree_root.resolve()
-        resolved_candidate = candidate.resolve(strict=False)
+        resolved_candidate = resolve_rejecting_loops(candidate)
     except OSError as exc:
         raise ValueError(f"Path {candidate} could not be resolved under worktree {worktree_root}: {exc}") from exc
     if not resolved_candidate.is_relative_to(resolved_worktree):
@@ -219,7 +220,10 @@ def _resolve_confined_artifact_path(worktree_root: Path, path: Path) -> Path:
     """Return a canonical artifact path that remains inside ``worktree_root``."""
     candidate = _confine_path_to_worktree(worktree_root, path)
     resolved_worktree = worktree_root.resolve()
-    resolved_path = candidate.resolve(strict=False)
+    try:
+        resolved_path = resolve_rejecting_loops(candidate)
+    except OSError as exc:
+        raise ValueError(f"Path {candidate} could not be resolved under worktree {worktree_root}: {exc}") from exc
     if resolved_path == resolved_worktree:
         raise ValueError(f"Refusing to write artifact outside coordination worktree (target is worktree root): {path}")
     if not resolved_path.is_relative_to(resolved_worktree):

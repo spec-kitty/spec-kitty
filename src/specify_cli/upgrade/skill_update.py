@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 
+from kernel.resolution import resolve_rejecting_loops
 from specify_cli.core.utils import ensure_within_directory, write_text_within_directory
 
 logger = logging.getLogger(__name__)
@@ -242,7 +243,7 @@ def is_external_symlink(dest: Path, project_root: Path) -> bool:
     if not _has_symlink_component(dest, project_root):
         return False
     try:
-        target = dest.resolve(strict=False)
+        target = resolve_rejecting_loops(dest)
         project_root_resolved = project_root.resolve()
         try:
             target.relative_to(project_root_resolved)
