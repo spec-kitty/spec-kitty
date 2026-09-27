@@ -301,7 +301,7 @@ below.
 | `domain:cli` | `src/specify_cli/cli/` — control-plane / CLI command surface |
 | `domain:invocation` | `src/specify_cli/invocation/` — dispatch & profile-invocation routing (Op lifecycle) |
 | `domain:status` | `src/specify_cli/status/` + `lanes/` + `coordination/` + `workspace/` + `state/` — status event-log & lane state machine; `state/` is the project-scoped state-surface contract and `doctor` state-root checks |
-| `domain:merge` | `src/specify_cli/merge/` — mission merge / lane consolidation, retention, preflight |
+| `domain:merge` | `src/specify_cli/consolidation/` — mission merge / lane consolidation, retention, preflight |
 | `domain:skills` | `src/specify_cli/skills/` — command/skill rendering, install, and the command-skills manifest |
 | `domain:upgrade` | `src/specify_cli/upgrade/` (incl. `upgrade/migrations/`) + `cli/commands/upgrade.py` — `spec-kitty upgrade`: version detection, migration registry/runner, redeploying generated commands and skills |
 | `domain:review` | `src/specify_cli/review/` + `cli/commands/review/` — WP review cycle, verdicts, arbiter, the pre-review transition gate (`gate_registry`, `pre_review_gate`), and the `spec-kitty review` mission-review gates |

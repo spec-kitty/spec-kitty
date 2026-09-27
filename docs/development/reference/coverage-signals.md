@@ -67,7 +67,7 @@ src/specify_cli/status/*
 src/specify_cli/lanes/branch_naming.py
 src/specify_cli/dashboard/handlers/*
 src/specify_cli/dashboard/scanner.py
-src/specify_cli/merge/*
+src/specify_cli/consolidation/*
 src/runtime/next/*
 src/mission_runtime/*
 ```

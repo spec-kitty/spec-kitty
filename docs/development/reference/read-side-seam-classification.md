@@ -768,7 +768,7 @@ consumed this row) · `rationale`.
 | `cli/commands/validate_tasks.py` | `resolve_planning_read_dir` | 1 (:120) | kind-aware | migrate-fail-loud | `WORK_PACKAGE_TASK` | WP04 | `scan_all_tasks_for_mismatches` WP-frontmatter read; already kind-annotated, explicit prior bugfix (coord husk silently returned `{}`). |
 | `cli/commands/verify.py` | `candidate_feature_dir_for_mission` | 1 (:33) | kind-blind | migrate-fail-loud | `PRIMARY_METADATA` | WP04 | Existence-gated presentation adapter (`spec-kitty verify` environment check) — a pure existence probe. **Exception axis:** no-op — `PRIMARY_METADATA` never raises `CoordinationBranchDeleted`. **Anchoring axis:** the seam adds a `get_main_repo_root` hop that `candidate_feature_dir_for_mission` did not perform, so `_existing_feature_dir` becomes CWD-invariant — a worktree `project_root` now resolves `<main repo>/kitty-specs/<slug>` where it previously returned `None`. Both production callers (`verify_setup` via `find_repo_root`/`get_project_root_or_exit`; `_run_diagnostics_mode` via `locate_project_root`) already pass a main-repo-anchored root, so the hop is idempotent and the migration is observationally a no-op **for the production paths** — but not for a direct call on a raw worktree path. Accepted as the intended contract on 2026-07-27; pinned by `tests/specify_cli/test_active_mission_removal.py::test_existing_feature_dir_is_cwd_invariant`. |
 
-### WP05 — merge+lanes (`src/specify_cli/merge/**` + `src/specify_cli/lanes/**`)
+### WP05 — merge+lanes (`src/specify_cli/consolidation/**` + `src/specify_cli/lanes/**`)
 
 | file | symbol(s) | sites | family | verdict | kind | cluster | rationale |
 |---|---|---|---|---|---|---|---|
