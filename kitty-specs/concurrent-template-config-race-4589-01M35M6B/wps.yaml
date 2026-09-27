@@ -1,0 +1,34 @@
+work_packages:
+  - id: WP01
+    title: "Concurrent YAML/cache race: thread-local instances + single-flight lock at both fix sites"
+    dependencies: []
+    owned_files:
+      - "src/charter/offering/missions/mission_step_repository.py"
+      - "src/charter/offering/missions/mission_type_repository.py"
+      - "tests/core/test_mission_creation_identity.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-008
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-002
+      - C-003
+      - C-004
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+      - T007
+    prompt_file: "tasks/WP01-concurrent-yaml-cache-race-fix.md"
+    cross_cutting: true

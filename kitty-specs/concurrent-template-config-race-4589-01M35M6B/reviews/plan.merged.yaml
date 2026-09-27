@@ -1,0 +1,309 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: concurrent-template-config-race-4589-01M35M6B
+source_files:
+  - reviews/plan.gov.findings.yaml
+  - reviews/plan.arch.findings.yaml
+  - reviews/plan.verify.findings.yaml
+dedup_note: >
+  Mechanical R2 merge. All 7 findings across gov/arch/verify are distinct claims
+  (different artifact sections and/or different file:line evidence, no two findings
+  make substantially the same claim about the same location) — no dedup was needed,
+  nothing was dropped. Ids and severities kept exactly as each lens group wrote them.
+findings:
+  - id: PLAN-GOV-001
+    lens_group: gov
+    lens: directive (canonical-sources / verify-every-cited-path)
+    severity: 1
+    title: Several file:line citations in plan.md Section 10 (and one in Section 1) are off by 2-5 lines from the actual code
+    evidence:
+      - artifact: "plan.md § 10 (commit-msg, uv-lock, import-linter gate citations)"
+      - code: ".github/workflows/ci-router.yml:391 (job start; plan cites 390-397, run step is at line 399)"
+      - code: ".github/workflows/ci-router.yml:409-418 (uv-lock job; plan cites 406-412, so the cited range overlaps the preceding markdownlint job's run line at 407 rather than uv-lock's own body)"
+      - code: ".github/workflows/ci-router.yml:420-435 (import-linter job; plan cites 418-433, so line 418 actually falls inside the uv-lock job, not import-linter)"
+      - artifact: "plan.md § 1 (step_projection.py scope-fence citation)"
+      - code: "src/charter/offering/missions/step_projection.py:21-29 (Scope fence paragraph; plan cites lines 24-30)"
+    claim: >
+      The charter's canonical-sources standing order ("verify every cited path") and this
+      mission's own C-004 bind plan.md to checkout-verified citations. All paths cited are real
+      and every substantive claim tied to these citations was independently re-verified as
+      correct (commit-msg and markdownlint are genuinely non-blocking `|| true` steps; Bandit/
+      pip-audit are genuinely absent from .github/workflows/*.yml). However, several specific
+      line-number ranges are off by a few lines from the actual job/paragraph boundaries — most
+      notably the import-linter citation (ci-router.yml:418-433), whose starting line 418 is
+      actually the uv-lock job's own `run: uv lock --check` step, not import-linter's. A reviewer
+      following the citation literally would land one job too early before scrolling to the
+      right block. This does not change any conclusion in the plan and does not affect
+      implementation, so it is filed as a nit rather than a higher severity.
+    remediation: >
+      Re-grep the four cited ranges against the current file state before or during
+      implementation and tighten the line numbers (commit-msg ~391-399, uv-lock ~409-418,
+      import-linter ~420-435, step_projection.py scope-fence ~21-29) so a reviewer following the
+      citation lands directly on the described content.
+
+  - id: PLAN-ARCH-001
+    lens_group: arch
+    lens: mission-derived (second fix-site parity)
+    severity: 4
+    title: >-
+      Second fix site (_LAYERED_YAML/resolve_layered_mission_types) is treated
+      as "identical shape" to the primary site without examining a material
+      error-handling difference, and Section 8's red-first test plan only
+      constructs the interleave for the primary site
+    evidence:
+      - artifact: "plan.md § Summary, § 6 header, § 8a"
+      - artifact: "research.md § 'A second, previously uncatalogued instance of the identical defect shape' (lines 299-340)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:132-135 (`try: raw = _YAML.load(...) except Exception: return None`)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:388-391 (`try: raw = _LAYERED_YAML.load(...) except YAMLError as exc: raise ValueError(...) from exc`)"
+    claim: >-
+      Plan.md's Section 6 calls the two fixes "identical shape" and Section 8a's
+      Barrier-synchronized red-first regression test is written entirely in
+      terms of the primary site's mechanics (monkeypatching "the thread-local
+      YAML accessor... or, for the pre-fix RED run only, the pre-fix shared
+      _YAML.load", pinning the interleave "immediately after self.reader.stream
+      = stream is set, reachable by patching at the _load_step_yaml/_YAML.load
+      call boundary", racing two threads on two different "step file[s]").
+      Nowhere in Section 8 does the plan describe a distinct forced-interleave
+      construction for resolve_layered_mission_types's cache-miss path (racing
+      _load_layered_mission_type_file/scan_mission_types_dir on two mission-type
+      YAML files for the same (mission_types_dirs, pack_context) key). This
+      matters because the two sites' failure modes on corrupted/racing parse
+      output are NOT identical: _load_step_yaml (primary) swallows every
+      exception via a blanket `except Exception: return None`, turning
+      corruption into a silently-dropped MissionStep -- the exact mechanism
+      that produces the observed TemplateConfigurationError symptom.
+      _load_layered_mission_type_file (secondary) only catches
+      ruamel.yaml.error.YAMLError and re-raises it as a named ValueError; any
+      other corruption (e.g. a parse that "succeeds" on garbled
+      reader/scanner state, producing wrong-but-valid-looking YAML) propagates
+      as whatever exception pydantic/the id-mismatch check raises, uncaught.
+      Neither research.md nor plan.md examines this asymmetry -- both simply
+      assert "same defect shape" and mirror Section 6's fix onto the second
+      site by analogy. CL-002 explicitly requires the hypothesis not be
+      treated as established, and CL-003's severity-4 bar requires a red-first
+      test that demonstrably fails pre-fix through the actual mechanism for
+      what it claims to fix -- as written, Section 8 does not commit to
+      proving the second site's race is real, reachable, and closed by the
+      fix; it only proves this for the primary site. Shipping the second
+      fix site's lock/thread-local change without its own red-first evidence
+      is exactly the "looks fixed" pattern Standing Order 4 forbids.
+    remediation: >-
+      Add an explicit second Barrier-synchronized red-first test in Section 8
+      (or an 8a-ii) that forces the same interleaving inside
+      resolve_layered_mission_types's cache-miss body -- patching
+      _load_layered_mission_type_file's YAML-load call boundary (or the
+      post-fix thread-local accessor at the mission_type_repository.py call
+      site) so two threads race a cache miss on the same
+      (mission_types_dirs, pack_context) key across two distinct mission-type
+      YAML files -- and asserts it fails pre-fix, passes post-fix. Separately,
+      have research.md or plan.md § Research summary explicitly reconcile the
+      swallow-vs-raise asymmetry between _load_step_yaml and
+      _load_layered_mission_type_file (e.g. state what corrupted-parse outcome
+      is actually expected/observed at the second site pre-fix, and confirm
+      the fix's raise-never-degrade contract, CL-006/FR-006, is met there too)
+      rather than asserting "identical shape" without analysis.
+
+  - id: PLAN-ARCH-002
+    lens_group: arch
+    lens: layering
+    severity: 2
+    title: >-
+      Plan.md's Section 1 claim that "no caller in the traced chain touches
+      src/kernel/ at any point" is contradicted by two files in that same
+      traced chain, though the fix's actual diff (and thus the substantive
+      layering claim) is unaffected
+    evidence:
+      - artifact: "plan.md § 1 (lines 104-110)"
+      - code: "src/specify_cli/core/mission_creation.py:48 (`from kernel.clock import now_utc_iso`)"
+      - code: "src/charter/offering/missions/repository.py:13 (`from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN`)"
+    claim: >-
+      Plan.md states, "No CLI command reaches past a service/repository seam
+      into kernel internals for this fix. src/kernel/** is not touched -- no
+      caller in the traced create_mission_core -> resolve_mission_type_context
+      -> _resolve_template_set_slot/_resolve_action_slot ->
+      MissionStepRepository/MissionTypeRepository chain touches src/kernel/ at
+      any point." This overstates the evidence: create_mission_core's own
+      module imports kernel.clock.now_utc_iso, and
+      MissionTemplateRepository (reached via
+      MissionStepRepository.default()/MissionTypeRepository.default(), both
+      inside the traced chain) imports kernel.paths.MISSION_ASSETS_SIBLING_PATTERN.
+      Both are legitimate, pre-existing service-to-kernel-primitives reads
+      (proper layering, not a violation) -- but the plan's literal claim that
+      "no caller... touches src/kernel/ at any point" is factually false as
+      written. The claim this mission actually needs -- that this fix's own
+      diff neither edits nor adds a new src/kernel/ dependency -- is true and
+      unaffected by this correction.
+    remediation: >-
+      Reword plan.md § 1 to the claim that is actually true and actually
+      matters: "this fix's diff does not add, remove, or modify any
+      src/kernel/** file or import; the traced chain's existing, pre-existing
+      reads of kernel.clock/kernel.paths are unrelated to and untouched by
+      this change" -- rather than the broader, falsifiable "no caller...
+      touches src/kernel/ at any point."
+
+  - id: PLAN-ARCH-003
+    lens_group: arch
+    lens: blast radius
+    severity: 3
+    title: >-
+      The module-level, unsynchronized ruamel.yaml.YAML(typ="safe") singleton
+      anti-pattern recurs at three other call sites in the same package
+      family; the plan fixes two instances in place rather than closing the
+      defect class by construction or flagging the residual exposure
+    evidence:
+      - artifact: "plan.md § 1 (Seam), § 6 (Fix mechanism)"
+      - code: "src/charter/activation/neutrality/lint.py:66 (`_YAML = YAML(typ=\"safe\")`, module level, consumed by `_load_banned_terms` at line 99)"
+      - code: "src/charter/offering/agent_profiles/operating_procedures.py:41 (`_YAML = YAML(typ=\"safe\")`, module level, consumed by `collect_operating_procedure_entries` at line 92)"
+      - code: "src/charter/offering/drg/migration/extractor.py:51 (`_yaml = YAML(typ=\"safe\")`, module level)"
+    claim: >-
+      Grepping every module-level (unindented) `YAML(typ=` assignment across
+      src/ confirms plan.md's "two singletons, two fix sites" framing IS
+      exhaustive for the exact live defect shape this mission targets (a
+      module-level YAML singleton feeding a @functools.cache-wrapped
+      function whose cache-miss path is unserialized) -- no third such pair
+      exists. However, three other module-level YAML(typ="safe") singletons
+      exist in the same offering/activation package tree with the identical
+      first half of the anti-pattern (a shared, non-thread-safe YAML instance
+      assigned once at import time and reused across all calls), just without
+      today's second ingredient (a functools.cache-wrapped consumer). None of
+      their current callers (collect_operating_procedure_entries,
+      _load_banned_terms, and extractor.py's helpers) run under
+      ThreadPoolExecutor/threading.Thread in this checkout today, so they are
+      not live concurrency defects right now -- but the plan neither
+      extracts the fix's thread-local-YAML accessor into a small, reusable
+      helper the package could converge on, nor flags this residual exposure
+      as a follow-up, leaving the same anti-pattern free to reappear the
+      moment any of these three functions (or a new one copied from them)
+      gains a threaded or cached caller. This is exactly the class of gap
+      DIRECTIVE_043 ("Close Defect Classes by Construction... a design that
+      requires discipline reminders to enforce a constraint is structurally
+      incomplete") flags as architecturally incomplete.
+    remediation: >-
+      Either (a) factor the Section 6a thread-local-YAML accessor into a
+      small shared helper (e.g. in a common doctrine-offering utility module)
+      that both fix sites import, so the safe pattern is the path of least
+      resistance for any future module-level YAML(typ="safe") call site in
+      this package tree, or (b) if keeping the fix minimal/local per the
+      charter's smallest-viable-diff discipline, add one sentence to plan.md
+      § 1 or § 11 (Campsite-clean) naming the three other module-level
+      YAML(typ="safe") singletons as an acknowledged, currently-dormant
+      instance of the same anti-pattern and recommending a follow-up tracker
+      issue if any of them ever grows a threaded or memoized caller.
+
+  - id: PLAN-VERIFY-001
+    lens_group: verify
+    lens: mission-derived (lock/exception design concreteness)
+    severity: 4
+    title: "Section 6c's raise-path exception choice, as literally phrased, steers toward violating the charter->specify_cli architectural import-boundary gate"
+    evidence:
+      - artifact: "plan.md § 6 (\"Both fix sites raise, never degrade (CL-006/FR-006)\")"
+      - artifact: "plan.md § 8b (SC-006 test)"
+      - code: "src/specify_cli/runtime/resolver.py:71 (class TemplateConfigurationError, defined in specify_cli, not charter)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:72 (_YAML singleton, the primary fix site, lives under src/charter/)"
+      - code: "tests/architectural/test_charter_no_specify_cli_import.py:1-103 (test_charter_never_imports_specify_cli asserts zero src/charter/** -> specify_cli import edges, at any scope, module-level or in-function; docstring states the binding direction 'kernel <- doctrine <- charter <- glossary/runtime <- specify_cli')"
+      - code: ".github/workflows/ci-router.yml:510-560 (architectural-heavy job runs the full tests/architectural tree, deselecting only 4 unrelated files -- test_charter_no_specify_cli_import.py is not among them -- and is triggered whenever needs.changes.outputs.charter == 'true')"
+    claim: >
+      Section 6c names the raise target as "TemplateConfigurationError (or, for
+      mission_type_repository.py's roster-level cache ... a new, equally
+      explicit typed exception, e.g. a MissionStepCacheError/reuse of
+      TemplateConfigurationError with the caller supplying context)". For the
+      PRIMARY fix site (mission_step_repository.py, Section 1), the only
+      option the sentence actually names is reusing the existing
+      TemplateConfigurationError; the "new typed exception" alternative is
+      offered only, explicitly, "for mission_type_repository.py's roster-level
+      cache". TemplateConfigurationError is defined in
+      src/specify_cli/runtime/resolver.py -- one layer above src/charter/** in
+      the project's own documented dependency direction. Raising it from
+      inside mission_step_repository.py or mission_type_repository.py (both
+      under src/charter/) requires importing it from specify_cli.runtime.resolver,
+      which is exactly the edge tests/architectural/test_charter_no_specify_cli_import.py
+      asserts never exists, at any scope -- an always-on, PR-blocking gate
+      (ci-router.yml's architectural-heavy job, triggered here because this
+      diff is entirely under src/charter/**, feeding router-gate). Section 8b
+      compounds this: it describes the SC-006 test as monkeypatching "the
+      per-key lock (Section 6b) ... or the cache-population body" -- a vague
+      either/or with no concrete target, so two implementers could write the
+      test against two different seams and assert two different exception
+      types, one of which (the literal Section 6c reading for the primary
+      site) is a live CI-breaking architecture violation. For a High-priority,
+      "silent-success is prohibited" FR (FR-006/CL-006), leaving this
+      unresolved at plan phase risks the implementer either breaking the
+      architectural gate or inventing an inconsistent ad hoc fix mid-WP.
+    remediation: >
+      Resolve Section 6c to one concrete decision before implementation:
+      define a single NEW exception class owned by
+      src/charter/offering/missions/ for both fix sites' new lock/cache-error
+      raise paths (there is existing local precedent to follow --
+      MalformedManifestError in repository.py:39 and ActionIndexError in
+      action_index.py:12 -- both module-local typed exceptions, neither
+      imported from specify_cli). Never import TemplateConfigurationError
+      into src/charter/**; if a caller above the charter/specify_cli boundary
+      needs to surface the failure as TemplateConfigurationError, that
+      translation belongs on the specify_cli side of the boundary (e.g. in
+      mission_type_profiles.py or the runtime resolver), not inside charter.
+      Then update Section 8b to name the concrete monkeypatch target against
+      that one exception type (e.g. "monkeypatch _lock_for to return a lock
+      whose .acquire() raises <NewChartExceptionName> directly; assert it
+      propagates unmodified") so every implementer writes the same test.
+
+  - id: PLAN-VERIFY-002
+    lens_group: verify
+    lens: gates
+    severity: 3
+    title: "Section 10's Gate Set omits the always-on architectural-heavy battery, which this diff triggers and which enforces the exact boundary at risk in PLAN-VERIFY-001"
+    evidence:
+      - artifact: "plan.md § 10"
+      - code: ".github/workflows/ci-router.yml:505-560 (architectural-heavy: 'HEAVY architectural battery ... CODE-SCOPED', if: OR of every src-backed changes filter including needs.changes.outputs.charter == 'true'; runs `pytest tests/architectural -q` minus 4 explicitly deselected files, none of which is test_charter_no_specify_cli_import.py)"
+      - code: ".github/workflows/ci-router.yml:706-717 (router-gate's `needs:` list includes architectural-heavy; `if: always() && !cancelled()` -- a failed/timed-out architectural-heavy fails router-gate)"
+    claim: >
+      Section 10 enumerates diff-cover, import-linter, uv-lock, markdownlint,
+      commit-msg (found non-blocking), the absence of bandit/pip-audit, and
+      SonarCloud's non-applicability -- all correctly verified against the
+      workflows -- but never mentions the `architectural-heavy` job. This
+      mission's diff is entirely under src/charter/offering/missions/**, so
+      needs.changes.outputs.charter will be 'true' and this job runs and
+      gates the PR via router-gate. It runs the FULL tests/architectural tree,
+      which includes test_charter_no_specify_cli_import.py -- directly
+      load-bearing for this mission given the exception-design choice named in
+      Section 6c (PLAN-VERIFY-001). A reviewer relying on Section 10 alone
+      would not know to specifically watch for this gate or this test.
+    remediation: >
+      Add `architectural-heavy` ("architectural battery (heavy, code-scoped)")
+      to Section 10's enforced-gate list, name its trigger condition
+      (needs.changes.outputs.charter == 'true', since the diff is under
+      src/charter/**), and cross-reference
+      tests/architectural/test_charter_no_specify_cli_import.py explicitly,
+      given Section 6c's exception-type decision is the one place this
+      mission's new code could trip it.
+
+  - id: PLAN-VERIFY-003
+    lens_group: verify
+    lens: revert discipline
+    severity: 3
+    title: "No test in Section 8 fails specifically if the per-key lock (Section 6b) is reverted while the thread-local YAML fix (6a) is kept"
+    evidence:
+      - artifact: "plan.md § 6b (\"this is not a correctness bug post-6a\")"
+      - artifact: "plan.md § 8a, § 8d"
+    claim: >
+      Section 6b is one of the two concrete production changes this plan
+      makes at each fix site (alongside 6a), but the plan's own text
+      concedes that, once 6a is in place, "[n]either of those two computed
+      results would now be corrupt ... this is not a correctness bug
+      post-6a" -- 6b's only claimed effect is avoiding redundant concurrent
+      filesystem walks and non-deterministic cache-write ordering. None of
+      8a-8d names a test whose pass/fail depends specifically on the
+      per-key lock's presence: 8a's Barrier test's monkeypatch target is
+      `_get_yaml`/`_YAML.load` (6a's seam), not `_lock_for` (6b's seam); 8c
+      is the pre-existing natural test, unmodified; 8d exercises
+      `cache_clear()` racing an in-flight population, which tests NFR-003,
+      not the lock's redundant-work-prevention property. If an implementer
+      omits 6b, or acquires/releases the lock incorrectly, no test in
+      Section 8 as written would go red.
+    remediation: >
+      Add an explicit test to Section 8 that asserts the per-key lock's
+      actual effect -- e.g., instrument (count or Barrier-gate) calls to the
+      cache-miss filesystem-walk body and assert that two threads racing a
+      cold miss on the identical (mission_type_id, pack_context) key result
+      in exactly one execution of that body, failing this assertion if the
+      per-key lock is removed while 6a is kept.

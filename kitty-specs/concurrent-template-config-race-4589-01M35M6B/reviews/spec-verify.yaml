@@ -1,0 +1,32 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: "CL-006 now cites resolve_configured_template (verified at resolver.py:440) with TemplateConfigurationError raise sites at ~474-526 (verified raises at lines 474,483,491,499,505,516,526), replacing the nonexistent _resolve_template_filename name; no stray reference to the old name remains anywhere in spec.md."
+
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: "NFR-003 and FR-003 now name MissionStepRepository.cache_clear() (verified public @staticmethod at mission_step_repository.py:324-333) as the preserved contract surface, describing the private _resolve_all_for_mission_type_cached.cache_clear() only as the internal mechanism it wraps, matching the docstring's own prohibition (verified at lines 464-465) against calling it directly."
+
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: "Readiness Findings and the 'These files carry...' paragraph now cite mission_step_repository.py:324-333 alongside the existing mission_type_repository.py:68-96 citation, and require the plan phase to explicitly confirm or consciously revise the parallel cache-safety argument, matching the remediation's intent."
+
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: "Origin & Framing now reads 'This is a suspected latent production-side thread-safety defect — not yet empirically reproduced, and the causal mechanism itself is an unproven hypothesis (see CL-002)', matching CL-002's hedge and cross-referencing it directly."
+
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: "User Story 2 AC1/AC2 and User Story 3 AC1 each now carry an explicit falsifiable clause, and the 'within minutes' phrasing has been fully removed and replaced with a checkable artifact-based condition (verified via grep — zero remaining hits)."
+
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: "A new SC-006 requires a dedicated test that a forced lock-timeout/corrupted-cache/retry-exhaustion condition in the new concurrency-safety code raises TemplateConfigurationError rather than returning None/an empty mapping/a partial template_set, closing the FR-006/CL-006 coverage gap with a falsifiable criterion."
+
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: "User Story 1 AC1 now names the red-first-test-committed-but-fix-not-yet-landed commit per CL-004's commit-ordering intent and explicitly disclaims planning_base_branch as a fixed pre-mission baseline, removing the ambiguity."

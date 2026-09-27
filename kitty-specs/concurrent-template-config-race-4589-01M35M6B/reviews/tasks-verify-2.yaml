@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: Objective (line 63) now reads "OBL-3, no synchronization needed), OBL-2 driven via threading.Barrier for simultaneous entry and OBL-1 via a monkeypatch-forced pause"; an independent whole-file scan of every Barrier/synchroniz/OBL-1/OBL-3 mention (lines 151,159,163,164,173-176,182,186,245,264-335,367-397) found no other place misattributing Barrier-synchronization to OBL-1 or OBL-3 — all remaining Barrier references correctly scope to OBL-2 only.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: All three locations (T006 step 6 line 335, DoD line 371, Reviewer Guidance bullet 397) now consistently specify "N (e.g. 10-50, or at least 50 total invocations across varied seeds — tracking spec.md NFR-001's literal '50 times in a row' bar)", which matches spec.md line 435's exact NFR-001 wording "run the new test 50 times in a row".

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "concurrent-template-config-race-4589-01M35M6B",
+  "mission_id": "01M35M6BYKHV6ZY3JVYD8BXWJC",
+  "mission_branch": "kitty/mission-concurrent-template-config-race-4589-01M35M6B",
+  "target_branch": "fix/concurrent-template-config-race-4589",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/offering/missions/mission_step_repository.py",
+        "src/charter/offering/missions/mission_type_repository.py",
+        "tests/core/test_mission_creation_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-23T14:42:01.419292+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8cc7dfeeda68faa0f55d7389a64e956c142337e7"
+}

@@ -1,0 +1,18 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      Commit b2db66589 reworded SC-003 (spec.md lines 446-455) to name
+      MissionStepRepository.cache_clear() (verified live at
+      mission_step_repository.py:323-333, a @staticmethod wrapper) as the
+      preserved/verified public seam, describing
+      _resolve_all_for_mission_type_cached.cache_clear() only as the internal
+      mechanism the wrapper calls, matching FR-003 (line 389) and NFR-003
+      (line 402) verbatim; a full-document sweep found no remaining place
+      that names the private cache_clear as a directly-preserved or
+      test-verified seam (the Readiness Findings section at lines 185-194
+      already used the correct internal-mechanism framing before this fix).

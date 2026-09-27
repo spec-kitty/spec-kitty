@@ -1,0 +1,85 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: SPEC-ARCH-001
+    lens: Cache-contract preservation (mission-derived L2)
+    severity: 4
+    title: "NFR-003/FR-003 name a private cache-clear seam the codebase's own docstring forbids calling directly, and that no test actually calls"
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements (NFR-003)"
+      - artifact: "spec.md § Functional Requirements (FR-003)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:464-465"
+      - code: "src/charter/offering/missions/mission_step_repository.py:324-333"
+      - code: "tests/doctrine/missions/test_mission_step_resolver.py:512,515,565"
+    claim: >
+      NFR-003 says "`MissionTypeRepository.default.cache_clear()` and
+      `_resolve_all_for_mission_type_cached.cache_clear()` must remain
+      synchronous, side-effect-free ... and must be callable repeatedly
+      without error," naming `_resolve_all_for_mission_type_cached.cache_clear()`
+      (the private, module-internal `functools.cache`-wrapped function at
+      mission_step_repository.py:446-447) as a contract surface to preserve.
+      But that function's own docstring at mission_step_repository.py:464-465
+      explicitly states: "Cleared via :meth:`MissionStepRepository.cache_clear`
+      (test seam) -- never call `.cache_clear()` on this private function
+      directly from outside this module." The actual, exercised test seam is
+      the public `MissionStepRepository.cache_clear()` staticmethod
+      (mission_step_repository.py:324-333, itself carrying the "production
+      never mutates the bundled `mission-steps/` tree mid-process" cache-safety
+      docstring) — confirmed by grep, only this public wrapper is called from
+      tests (tests/doctrine/missions/test_mission_step_resolver.py:512,515,565);
+      no test anywhere calls `_resolve_all_for_mission_type_cached.cache_clear()`
+      directly. A plan/implementation reviewer following NFR-003 literally
+      could write a new test or "preserve" the wrong surface by reaching past
+      the module's own documented encapsulation boundary, contradicting
+      existing code's explicit contract.
+    remediation: >
+      Reword NFR-003 (and the FR-003 seam list) to name the actual public,
+      tested seam: `MissionStepRepository.cache_clear()`
+      (mission_step_repository.py:324-333) as the required-preserved
+      surface, with `_resolve_all_for_mission_type_cached.cache_clear()`
+      described only as the internal mechanism that wrapper calls — not as
+      an independently-preserved external contract point. This keeps the
+      plan phase from proposing a test or fix that calls the private
+      function's cache_clear directly from outside the module.
+
+  - id: SPEC-ARCH-002
+    lens: Cache-contract preservation (mission-derived L2)
+    severity: 3
+    title: "Readiness Findings omits file:line for the parallel cache-safety docstring in the primary-suspect file (mission_step_repository.py), anchoring the 'preserve or consciously revise' directive only to the other file"
+    evidence:
+      - artifact: "spec.md § Readiness Findings (paragraph beginning 'These files carry NFR-002/NFR-003/CL-001-style cache-contract docstrings')"
+      - code: "src/charter/offering/missions/mission_type_repository.py:68-101 (docstring; 'Production never mutates' at lines 84-86)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:324-333 ('Production never mutates the bundled ``mission-steps/`` tree mid-process, so the cache is safe there')"
+    claim: >
+      The spec's must-preserve directive ("must keep the documented
+      'production never mutates the bundled trees mid-process' cache-safety
+      argument intact ... or explicitly and consciously revise it") is
+      anchored, by file:line, only to
+      `mission_type_repository.py:68-96`'s `default()` docstring. The
+      identical cache-safety argument ("Production never mutates the bundled
+      ``mission-steps/`` tree mid-process, so the cache is safe there")
+      also appears in `mission_step_repository.py` — the file the spec
+      itself names as the "primary suspect: shared YAML singleton +
+      cache-miss race" — at `MissionStepRepository.cache_clear()`,
+      lines 324-333. That docstring is never cited by file:line anywhere
+      in the spec. Because this mission's fix is expected to add
+      per-key locking or otherwise change how `_resolve_all_for_mission_type_cached`
+      populates concurrently, this second docstring's "production never
+      mutates ... so the cache is safe" claim is exactly the kind of
+      cache-safety argument the fix could invalidate or need to extend
+      (e.g. concurrent *reads/populations*, not just mid-process
+      *mutation*, are now the safety question) — yet a reviewer checking
+      the spec's own citations for "did we look at every cache-safety
+      docstring in the file being patched" would not find it named.
+    remediation: >
+      Add an explicit Readiness Finding / Key Entity citation for
+      `mission_step_repository.py:324-333`
+      (`MissionStepRepository.cache_clear()`), alongside the existing
+      `mission_type_repository.py:68-96` citation, so the plan phase is
+      required to state explicitly whether that docstring's cache-safety
+      argument still holds after the concurrency fix (or is consciously
+      revised with rationale), rather than only the one in the other file.

@@ -1,0 +1,68 @@
+schema: review-verify/v1
+complete: false
+phase: plan
+round: 3
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >
+      plan.md §8a's `_cold_cache()` (lines 522-532) is now the single
+      pre-test cold-cache list and names all three seams explicitly:
+      `MissionStepRepository.cache_clear()` (524),
+      `MissionTypeRepository.default.cache_clear()` (525), and
+      `MissionTypeRepository.cache_clear()  # no .default` (526), with an
+      inline comment citing research.md's eager-call-chain finding as the
+      reason the third seam is required. Lines 534-538 state every
+      parametrized test in 8b/8c/8e/8f calls this same helper, "whichever
+      `_FixSiteCase` it is instantiated with" — resolving the composition
+      gap by construction rather than by re-wording the old list. Spot-check
+      against source (`mission_type_repository.py:189`
+      `MissionTypeRepository.cache_clear()` vs `:80`
+      `MissionTypeRepository.default.cache_clear()`) confirms the
+      distinction is real, not invented.
+
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >
+      plan.md §8b, lines 592-628, gives a mechanically specified,
+      per-thread-captured assertion: each thread appends its own outcome
+      into a `dict[str, tuple | Exception]` keyed by thread label
+      ("paused"/"uncontended", lines 594-598), mirroring
+      `tests/core/test_mission_creation_identity.py:138-144`'s
+      `create_and_capture` try/except-append pattern (confirmed by direct
+      read of that file). The assertion explicitly checks both threads are
+      present (603-606), checks both threads' own captured outcomes
+      field-by-field against a known-good pre-race reference (607-616), and
+      explicitly forbids a post-join cache re-read (617-622), directly
+      resolving the vacuous-pass risk. Lines 623-628 go further than the
+      remediation required by explaining why the "paused" thread's own
+      result is the one that demonstrates the defect while still asserting
+      the "uncontended" thread's own result for regression coverage.
+      Observation (no regression found, noted per the task's sanity check):
+      the swallow-vs-raise asymmetry this finding's class of issue depends
+      on is still given separate, concrete, per-site RED reasoning at lines
+      629-661 (PRIMARY_SITE's `except Exception: return None` swallow path
+      vs SECOND_SITE's YAMLError-only catch-and-reraise), spot-checked
+      against `mission_step_repository.py:134` and
+      `mission_type_repository.py:390` — the rewrite did not blur this into
+      a single generic "it fails" statement across the two parametrized
+      cases.
+
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: >
+      plan.md §8e (lines 706-723) is now explicitly parametrized over
+      `[PRIMARY_SITE, SECOND_SITE]` via the shared `_FixSiteCase` harness,
+      satisfying the remediation's "single parametrized test covering both,
+      said so explicitly" branch — line 709 states this "resolves
+      PLAN-FRESH2-003 by construction," and lines 715-717 name the concrete,
+      distinct `case.site_cache_clear()` call for each site
+      (`MissionStepRepository.cache_clear()` vs
+      `MissionTypeRepository.cache_clear()` with no `.default`, matching
+      §5's seam distinction). §13's commit-phasing (lines 986-988)
+      correctly places "the parametrized `cache_clear()`-mid-population
+      test (Section 8e, both cases)" in the production-fix commit, so the
+      second-site coverage is not just described but scheduled to actually
+      be committed. No second-site counterpart is missing.
+
+complete: true

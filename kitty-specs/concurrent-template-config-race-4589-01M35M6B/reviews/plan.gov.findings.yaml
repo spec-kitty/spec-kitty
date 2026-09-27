@@ -1,0 +1,34 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-GOV-001
+    lens: directive (canonical-sources / verify-every-cited-path)
+    severity: 1
+    title: Several file:line citations in plan.md Section 10 (and one in Section 1) are off by 2-5 lines from the actual code
+    evidence:
+      - artifact: "plan.md § 10 (commit-msg, uv-lock, import-linter gate citations)"
+      - code: ".github/workflows/ci-router.yml:391 (job start; plan cites 390-397, run step is at line 399)"
+      - code: ".github/workflows/ci-router.yml:409-418 (uv-lock job; plan cites 406-412, so the cited range overlaps the preceding markdownlint job's run line at 407 rather than uv-lock's own body)"
+      - code: ".github/workflows/ci-router.yml:420-435 (import-linter job; plan cites 418-433, so line 418 actually falls inside the uv-lock job, not import-linter)"
+      - artifact: "plan.md § 1 (step_projection.py scope-fence citation)"
+      - code: "src/charter/offering/missions/step_projection.py:21-29 (Scope fence paragraph; plan cites lines 24-30)"
+    claim: >
+      The charter's canonical-sources standing order ("verify every cited path") and this
+      mission's own C-004 bind plan.md to checkout-verified citations. All paths cited are real
+      and every substantive claim tied to these citations was independently re-verified as
+      correct (commit-msg and markdownlint are genuinely non-blocking `|| true` steps; Bandit/
+      pip-audit are genuinely absent from .github/workflows/*.yml). However, several specific
+      line-number ranges are off by a few lines from the actual job/paragraph boundaries — most
+      notably the import-linter citation (ci-router.yml:418-433), whose starting line 418 is
+      actually the uv-lock job's own `run: uv lock --check` step, not import-linter's. A reviewer
+      following the citation literally would land one job too early before scrolling to the
+      right block. This does not change any conclusion in the plan and does not affect
+      implementation, so it is filed as a nit rather than a higher severity.
+    remediation: >
+      Re-grep the four cited ranges against the current file state before or during
+      implementation and tighten the line numbers (commit-msg ~391-399, uv-lock ~409-418,
+      import-linter ~420-435, step_projection.py scope-fence ~21-29) so a reviewer following the
+      citation lands directly on the described content.

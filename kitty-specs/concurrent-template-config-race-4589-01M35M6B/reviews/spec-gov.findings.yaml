@@ -1,0 +1,77 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: SPEC-GOV-001
+    lens: orchestrator-only-boundary
+    severity: 3
+    title: SC-005 places an orchestrator-only GitHub action inside the mission's Success Criteria / Measurable Outcomes list
+    evidence:
+      - artifact: "spec.md § Success Criteria › Measurable Outcomes, SC-005"
+      - artifact: "spec.md § CL-001, § C-003 (contrast)"
+    claim: >
+      CL-001 and C-003 correctly and explicitly state that relabelling GitHub
+      issue #4589 is the orchestrator's job, never a mission agent's. But
+      SC-005 ("The GitHub issue #4589 is relabelled `type:fix` by the
+      orchestrator at PR time (not by a mission agent) once the fix and its
+      regression test are accepted.") is listed as a numbered item inside
+      "Success Criteria / Measurable Outcomes" alongside SC-001..SC-004, which
+      are all mission-verifiable, agent-produced outcomes (the regression
+      test, the baseline comparison, the cache-clear seams, the <2s
+      performance bar). A tasks-phase author mechanically walking the
+      Success-Criteria list to derive acceptance checks or WP-closing tasks
+      (a common spec-kitty tasks-authoring pattern) can read SC-005 as "this
+      mission's Success Criteria are not met until the issue is relabelled,"
+      producing a plan/tasks item that has a mission agent poll or verify the
+      GitHub issue's label state — the exact GitHub-API-touching behavior
+      CL-001/C-003 forbid. The inline parenthetical ("not by a mission agent")
+      mitigates but does not remove this: it is the only one of the five SCs
+      that describes an action outside the mission's own deliverable, and its
+      placement in the mechanically-consumed SC list is inconsistent with
+      C-003's own boundary.
+    remediation: >
+      Remove SC-005 from the "Measurable Outcomes" numbered list (which tasks
+      authors treat as a source of verifiable mission deliverables) and
+      relocate the same content to a clearly out-of-mission-scope note — e.g.
+      fold it into CL-001 (where the relabelling decision is already stated)
+      or add a short "Out of mission scope" subsection directly under
+      Success Criteria that lists orchestrator-only follow-ups separately
+      from SC-001..SC-004. This keeps the Success Criteria list 1:1 with
+      things a mission agent can and should verify, and removes the
+      structural cue that could seed a stray task.
+
+  - id: SPEC-GOV-002
+    lens: directive (canonical-sources / cite-checkout-verified-paths)
+    severity: 2
+    title: CL-006 cites a function name that does not exist in the checkout
+    evidence:
+      - artifact: "spec.md § CL-006"
+      - code: "src/specify_cli/runtime/resolver.py:471 (function is `resolve_configured_template`, not `_resolve_template_filename`)"
+    claim: >
+      CL-006 says "This applies to both the existing raise sites in
+      `src/specify_cli/runtime/resolver.py` (`_resolve_template_filename`,
+      `TemplateConfigurationError` construction around lines 474–526)".
+      `grep -rn "_resolve_template_filename"` across the entire checkout
+      returns zero matches. The actual function occupying that line range
+      (verified: lines 470-526 cover the mission_type-None,
+      unsafe-path-segment, template_set-None, mapped_filename-None, and
+      blank/unsafe-filename raise sites) is `resolve_configured_template`.
+      This is the same class of citation defect the spec itself calls out
+      and corrects elsewhere (the "Corrected path note" about
+      `src/doctrine/missions/` vs the real
+      `src/charter/offering/missions/`), and it violates this mission's own
+      C-004 ("Any path named in plan/tasks/implementation artifacts must be
+      verified to exist on the checkout with `ls` (or equivalent) before
+      being cited") and the charter's canonical-sources governing principle.
+      The correct line numbers limit the practical impact — a reader can
+      still locate the real raise sites — but a plan/tasks author who greps
+      for the named symbol to scope changes will get a false negative.
+    remediation: >
+      Correct CL-006 to name `resolve_configured_template` (the function
+      actually at that line range) instead of `_resolve_template_filename`,
+      and re-verify every other bare symbol/function name cited in the spec
+      (not just file paths) against the live checkout before the next
+      revision, consistent with C-004's existing path-verification bar.

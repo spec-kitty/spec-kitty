@@ -1,0 +1,119 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH3-DEBBIE-001
+    status: resolved
+    reason: >-
+      plan.md §6b (lines 326-437) was rewritten to a single-flight design: the
+      lock now wraps the whole cached call (resolve_all_for_mission_type /
+      resolve_layered_mission_types), so a losing thread's call becomes a
+      functools.cache hit instead of a second walk, and lines 399-412 argue
+      population count is provably 1. §5 (lines 237-277) and §7 (lines
+      593-600, "a warm hit's lock touch, honestly stated") are reconciled to
+      this design rather than repeating the old "warm hit never touches a
+      lock" claim. §8a's fact table (line 657) and §9 (lines 752-762)
+      explicitly correct the counting unit to the whole per-key walk, never
+      _load_layered_mission_type_file, and OBL-2's revert-matrix row
+      (§8b/§8c) makes the property testable in both the 6a+6b and
+      6b-reverted states.
+  - id: PLAN-FRESH3-DEBBIE-002
+    status: resolved
+    reason: >-
+      §8d items 1, 2, 6 (lines 713-737) state the required obligations as
+      constraints: pin by file identity inside the shared load window, never
+      call/iteration order; the timing seam survives both the red and green
+      commit; NFR-001 verified across separate processes with varied
+      PYTHONHASHSEED. §9 "Timing seam, surviving both commits" (lines
+      764-783) additionally states the pause must land strictly inside the
+      shared instance's load window (after self.reader.stream is assigned,
+      before composition completes) and names a class-level ruamel.yaml.main.YAML
+      hook + path-aware predicate as the WP spike's starting point, matching
+      the ruling's disposition almost verbatim.
+  - id: PLAN-FRESH3-ARCH-001
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      §11 (lines 979-1009) now runs select_modules and gets exactly
+      ['charter','core_misc','missions','specify_cli_runtime','unit'] —
+      verified independently by re-running the same command in this
+      checkout, and git diff --stat 288aef2f9 -- src tests is confirmed
+      empty, substantiating the pre-change-baseline claim. §10 records real
+      results for tests/core, tests/missions, tests/doctrine, tests/charter,
+      tests/unit and tests/specify_cli/runtime — covering the ruling's
+      explicitly named minimum set. However, core_misc's registry row lists
+      9 test_dirs (tests/core, tests/specify_cli/core, tests/coordination,
+      tests/specify_cli/coordination, tests/decisions,
+      tests/doctrine_synthesizer, tests/specify_cli/tool_surface,
+      tests/specify_cli/asset_preservation, tests/zeitgeist_client); the plan
+      runs only tests/core and never mentions, runs, or gives a "not run and
+      why" note for the other 8, which the convergence criterion's literal
+      text ("§9 covers every selected module's test_dirs") and the
+      disposition's "extend ... to every selected module's test_dirs" both
+      call for. This does not threaten the fix's correctness (those dirs
+      share no import surface with charter/offering/missions), so it is a
+      completeness gap in the baseline record, not a wrong-implementation
+      risk.
+  - id: PLAN-FRESH3-ARCH-002
+    status: resolved
+    reason: >-
+      §7 (lines 496-576) is re-derived per site with a distinct "Per-site key
+      shape and contention surface" subsection: PRIMARY_SITE key
+      (builtin_root, mission_type_id, pack_context) vs SECOND_SITE key
+      (mission_types_dirs, pack_context), correctly stating that
+      _resolve_action_slot always passes the same fixed mission_types_dirs
+      (verified against mission_type_profiles.py:952-953) so same-key
+      contention is the default at SECOND_SITE, not a narrow case. The
+      NFR-002 "rare contention" conclusion is re-derived separately per site
+      (lines 534-576), stating SECOND_SITE's conclusion honestly ("bounded to
+      one small walk's duration, paid at most once... not... rare") rather
+      than copying PRIMARY_SITE's framing.
+  - id: ARB-001
+    status: resolved
+    reason: >-
+      Same disposition as PLAN-FRESH3-DEBBIE-001/PLAN-VERIFY-003: §6b's lock
+      now wraps the entire cached call so a second racer on the same key gets
+      a functools.cache hit rather than re-running the walk, giving 6b a
+      coherent, testable "exactly once" property in both its green (6a+6b
+      applied, OBL-2 green count==1) and reverted (6b reverted/6a kept, OBL-2
+      red count==2) states per the §8c revert matrix.
+  - id: ARB-002
+    status: resolved
+    reason: >-
+      §8c (lines 692-706) has the exact required shape (Base / 6a+6b applied
+      / 6a reverted+6b kept / 6b reverted+6a kept), each with a stated
+      result. OBL-1 (the 6a-proof, §8b line 669) explicitly races distinct
+      cache keys — a configuration §6b's per-key lock structurally cannot
+      serialize — so it isolates 6a without contending 6b's lock. §8d.3 and
+      §9's "No lock held across a barrier the other thread needs" (lines
+      830-839) state by construction that no harness pauses a thread while
+      holding _lock_for(key) against another thread on the same key, and
+      that OBL-2 (same-key) only needs a threading.Barrier for simultaneous
+      entry, not a held-lock pause, since the single-flight design resolves
+      same-key races without deadlock. The same-key/no-deadlock edge case is
+      traced to OBL-2 ("spec.md Edge Cases", line 670), not to OBL-1. The
+      _run_create process-global mock.patch caution is preserved and
+      verified against tests/core/test_mission_creation_identity.py:54-70.
+  - id: NIT-001
+    status: resolved
+    reason: >-
+      plan.md's Research summary (lines 83-98) now states the interpreter
+      uses the C _functools accelerator, not the pure-Python fallback,
+      verified independently in this checkout
+      (functools._lru_cache_wrapper is _functools._lru_cache_wrapper ==
+      True), and explicitly preserves the underlying conclusion (miss path
+      not serialized, store happens after body returns) as unchanged by the
+      correction. research.md itself is unmodified this round and still
+      cites only the pure-Python functools.py source, but plan.md's
+      correction supersedes it in-place and names research.md explicitly as
+      the artifact being corrected; since this is a sev-1, non-counted nit
+      and the plan-level correction is substantively present, this is
+      treated as satisfying the disposition.
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: >-
+      Reopened only via ARB-001/DEBBIE-001; closes on the same basis — §6b's
+      single-flight redesign gives OBL-2 a green state under 6a+6b and a red
+      state under 6b-reverted/6a-kept (§8c revert matrix), so the obligation
+      §8f/OBL-2 used to justify this finding's original resolution is now
+      actually reachable in both states.

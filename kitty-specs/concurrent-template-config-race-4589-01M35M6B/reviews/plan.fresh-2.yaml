@@ -1,0 +1,127 @@
+schema: review-findings/v1
+complete: false
+phase: plan
+lens_group: fresh-2
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-FRESH2-001
+    lens: cache-clear seam consistency (§5/§8a-ii's corrected discipline vs the rest of the document)
+    severity: 3
+    title: "§8a's cold-cache-clear list omits the second fix site's seam (MissionTypeRepository.cache_clear(), no .default) even though create_mission_core hits it on every call"
+    evidence:
+      - artifact: "plan.md § 8a, lines 476-483 (\"Two threads\" bullet)"
+      - artifact: "plan.md § 5, lines 204-216 (round-2-added seam-distinction paragraph)"
+      - artifact: "research.md lines 314-323 (\"_resolve_action_slot is called eagerly ... which runs on every create_mission_core call, unconditionally, on the same hot path the failing test exercises\")"
+      - code: "src/charter/activation/mission_type_profiles.py:662-667 (resolve_mission_type_context calls _resolve_action_slot unconditionally when is_registered)"
+      - code: "src/charter/activation/mission_type_profiles.py:948-953 (_resolve_action_slot imports and calls resolve_layered_mission_types(mission_types_dirs, pack_context))"
+    claim: >
+      Section 8a's regression test drives the primary fix site
+      (mission_step_repository.py) through create_mission_core, and its own
+      text claims this "starts the test from a guaranteed-cold cache and
+      never depends on ambient test-ordering" — but its cache-clear list is
+      only `MissionStepRepository.cache_clear()` and
+      `MissionTypeRepository.default.cache_clear()`. Per research.md and the
+      source, every create_mission_core call also runs
+      resolve_mission_type_context -> _resolve_action_slot ->
+      resolve_layered_mission_types eagerly and unconditionally — the
+      SECOND fix site's cache, which Section 5's own newly-added paragraph
+      establishes is cleared only by `MissionTypeRepository.cache_clear()`
+      (no `.default`), a seam §8a's list never calls. So §8a's own
+      "guaranteed-cold-cache, never depends on ambient test-ordering" claim
+      is false for one of the two caches its own create_mission_core call
+      exercises: whether that cache is warm or cold at §8a's test start
+      depends entirely on what earlier tests in the same session did.
+      Section 8e's primary-site variant explicitly inherits the same
+      incomplete list ("the same cold-start discipline as 8a —
+      MissionStepRepository.cache_clear()"), propagating the same gap.
+      This is exactly the kind of composition failure the round-2 fix's own
+      new seam-distinction text (§5) was supposed to make unmissable, but it
+      was applied only to §8a-ii/§8e's second-site bullets, not back-checked
+      against §8a itself.
+    remediation: >
+      Add `MissionTypeRepository.cache_clear()` (no `.default`) to §8a's
+      (and §8e's primary-site variant's) pre-test cache-clear list alongside
+      `MissionStepRepository.cache_clear()` and
+      `MissionTypeRepository.default.cache_clear()`, so every cache
+      create_mission_core's call graph actually touches is provably cold
+      before the test body runs, matching the "guaranteed-cold-cache" claim
+      the bullet itself makes.
+
+  - id: PLAN-FRESH2-002
+    lens: do the round-2 cache-clear-seam fix and the round-2 content-correctness assertion actually compose (same lens the task calls out)
+    severity: 4
+    title: "§8a-ii's content-correctness assertion does not say which thread's returned roster to check, and the corruption is asymmetric across the two threads by the test's own construction"
+    evidence:
+      - artifact: "plan.md § 8a-ii, lines 513-522 (\"Forced interleave construction\": the FIRST thread is the one paused-then-resumed on a corrupted .load(); the SECOND thread completes its own .load() for a different file to completion, uncontended, first)"
+      - artifact: "plan.md § 8a-ii, lines 535-543 (\"Content-correctness assertion\": \"assert that both raced mission-type YAML files' resolved MissionType entries in the returned roster have field values matching a known-good ... resolution\")"
+      - artifact: "plan.md Summary, lines 62-66 (round-2-added text: \"a silently wrong roster entry — guaranteed to be caught by Section 8a-ii's own explicit content-correctness assertion rather than assumed to fail some other way\")"
+      - code: "tests/core/test_mission_creation_identity.py:143-158 (test_concurrent_creates_no_collision — the established pattern: each thread appends its OWN result into a shared results list; correctness is checked per-thread, not via a single downstream cache read)"
+    claim: >
+      §8a-ii's own construction (mirroring §8a's) establishes an asymmetric
+      race: the "first" thread is paused mid-.load() and resumes reading
+      from state the "second" thread has since overwritten, so only the
+      first thread's own locally-computed roster is at risk of the
+      "silently wrong roster entry" corruption; the second thread runs its
+      own full walk to completion, uncontended, before either is released,
+      so its own returned roster should come out correct even pre-fix. Both
+      threads independently execute resolve_layered_mission_types' full,
+      whole-directory body (functools.cache's cache-miss path has no
+      per-thread coordination pre-fix), so there are two distinct,
+      independently-returned rosters, not one. The content-correctness
+      assertion text says to check "the returned roster" (singular) without
+      specifying that it must inspect BOTH threads' own independently
+      captured return values (as the file's existing pattern does via a
+      results list), or — if only one is checked — that it must be the
+      "first" (at-risk) thread's result specifically. An implementation that
+      captures only one thread's outcome, or that re-reads the roster via a
+      subsequent resolve_layered_mission_types(key) call after both threads
+      join (racing on whichever thread's write to cache[key] landed last,
+      which per research.md's "cache-poisoning" analysis is itself
+      non-deterministic), could end up asserting against the "second"
+      (clean) thread's roster and pass vacuously pre-fix — silently failing
+      CL-003/CL-004's red-first bar despite the Summary's round-2-added
+      claim that this outcome is "guaranteed to be caught."
+    remediation: >
+      In §8a-ii, state explicitly that the content-correctness assertion
+      must run against each thread's own individually-captured return value
+      (mirroring test_concurrent_creates_no_collision's per-thread results
+      list, not a subsequent, separately-raced re-read through the memoized
+      cache), and that both threads' captured outcomes must be checked — or,
+      if the plan intends to check only the "first" (paused-then-resumed)
+      thread specifically, say so and explain why the second thread's
+      outcome does not also need checking.
+
+  - id: PLAN-FRESH2-003
+    lens: FR/NFR coverage symmetry across the two fix sites (§5/§6c's "identically at both sites" contract vs the test plan's actual per-site pairing pattern)
+    severity: 3
+    title: "§8d (NFR-003 cache_clear()-mid-population test) only covers the primary fix site; no counterpart exists for MissionTypeRepository.cache_clear() racing an in-flight resolve_layered_mission_types population"
+    evidence:
+      - artifact: "plan.md § 8d, lines 589-600 (\"the same monkeypatch/Barrier instrumentation as 8a\" — explicitly scoped to the primary site only; no second-site variant is named)"
+      - artifact: "plan.md § 5, lines 227-242 (the mid-population edge-case walkthrough is written entirely in terms of MissionStepRepository.cache_clear(); no equivalent walkthrough exists for MissionTypeRepository.cache_clear() racing resolve_layered_mission_types's own in-flight population)"
+      - artifact: "plan.md § 6c, line 68 (\"the raise-never-degrade contract ... are intended to hold identically at both sites\") and § 1 (both singletons named as equally in-scope fix sites, not optional)"
+      - artifact: "plan.md § 8a-ii and § 8e (both explicitly pair a primary-site test with a named second-site counterpart, e.g. \"8a-ii\" and 8e's dual primary/second-site variants)"
+    claim: >
+      Every other test in § 8 that targets one fix site is given an explicit
+      counterpart for the other (8a/8a-ii for the red-first regression;
+      8e's own text splits into an explicit primary-site variant and
+      second-site variant). § 8d — the NFR-003 falsifiable test for
+      "cache_clear() racing an in-flight cache-miss population" — is the one
+      exception: it is defined only in terms of § 8a's primary-site
+      instrumentation, and Section 5's structural argument for why this is
+      safe is likewise argued only through the MissionStepRepository.cache_clear()
+      example. Since Section 5 (round 2) now treats
+      MissionTypeRepository.cache_clear() as a seam every bit as
+      independent and load-bearing as MissionStepRepository.cache_clear(),
+      and the two fix sites' locking mechanisms (§6b) are structurally
+      identical, NFR-003's falsifiable guarantee is left asserted for only
+      one of the two cache_clear() seams that matter to this mission's fix,
+      not both.
+    remediation: >
+      Either add an explicit second-site variant of §8d (mirroring §8a-ii's
+      relationship to §8a) that pauses an in-flight
+      resolve_layered_mission_types population and calls
+      MissionTypeRepository.cache_clear() (no `.default`) mid-flight, or, if
+      one shared/parametrized test is intended to cover both sites, say so
+      explicitly in §8d's text the way §8b already does ("one instance per
+      fix site, or a single parametrized test covering both").
+complete: true

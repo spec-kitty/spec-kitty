@@ -1,0 +1,65 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PR-TESTS-001
+    lens: FLAKINESS/DETERMINISM (threads not joined)
+    severity: 3
+    title: >
+      OBL-1/OBL-2 race tests never verify BOTH threads actually finished --
+      only one side's outcome is checked after a timed join, so a future
+      deadlock in the very `_lock_for` code this WP introduces could hang
+      or false-green instead of failing loudly.
+    evidence:
+      - artifact: "plan.md Section 8d item 3 (\"no lock is held across a barrier the other thread needs (ARB-002)\") and Section 8b's OBL-1/OBL-2 rows -- both frame lock/deadlock risk as the central hazard this WP's harness must avoid triggering, which implies the harness should also be able to CATCH a hang if a future regression introduces one"
+      - code: "tests/core/test_mission_creation_identity.py:385-389 (test_obl1_primary_site_forced_interleave_distinct_keys)"
+      - code: "tests/core/test_mission_creation_identity.py:458-461 (test_obl1_second_site_forced_interleave_distinct_pack_contexts)"
+      - code: "tests/core/test_mission_creation_identity.py:554-558 (test_obl2_primary_site_redundant_population_count)"
+      - code: "tests/core/test_mission_creation_identity.py:628-632 (test_obl2_second_site_redundant_population_count)"
+      - code: "tests/core/test_mission_creation_identity.py:769-770 (test_obl5_primary_site_cache_clear_mid_population_no_deadlock) -- the CORRECT pattern this WP already uses elsewhere: `clear_thread.join(timeout=5)` is immediately followed by `assert not clear_thread.is_alive(), \"cache_clear() deadlocked while a population was in flight\"`"
+    claim: >
+      In all four OBL-1/OBL-2 tests, `t1.join(timeout=30)` and
+      `t2.join(timeout=30)` are called back-to-back with no `is_alive()`
+      check on either thread afterward. The OBL-1 tests only assert
+      `t1.ident in captured` (the paused thread's own result) -- the racer
+      thread (`t2`) has no completion check at all: if it hangs past the
+      30s join timeout without raising, the test still passes as long as
+      `t1` finished and was captured. The OBL-2 tests check only
+      `errors` (populated solely on an exception, never on a hang) and
+      `counter.count == 1` -- if one thread acquires `_lock_for(key)` and
+      completes while the other deadlocks trying to acquire the SAME lock
+      (e.g. a future regression in the lock-release path this WP
+      introduces, such as an exception path that fails to release the
+      lock, or a reentrancy bug), `counter.count` can still legitimately
+      read 1 while a thread is permanently stuck -- the test would report
+      PASS (or, at worst, an opaque process hang at interpreter exit
+      rather than a clear, fast, named assertion failure). This is exactly
+      the ARB-002 deadlock hazard class plan.md Section 8d explicitly
+      designs the harness to avoid TRIGGERING, but the harness itself does
+      not verify it can DETECT a deadlock if one is introduced later --
+      unlike the OBL-5 tests in the same file (line 769-770 and the
+      equivalent SECOND_SITE OBL-5 test), which correctly pair every timed
+      join with an explicit `assert not thread.is_alive()`. Independently
+      confirmed by re-running the WP test file 20x (`-p no:randomly`), in
+      reverse collection order, and across 7 `PYTHONHASHSEED` values
+      (0,1,2,3,4,7,13) in separate subprocesses -- all runs green,
+      consistent with the current implementation not deadlocking (this is
+      a coverage/robustness gap in the test harness for a future
+      regression class, not evidence that today's code is broken).
+    remediation: >
+      Add `assert not t1.is_alive()` and `assert not t2.is_alive()`
+      (with a message naming which side of the obligation deadlocked)
+      immediately after each `.join(timeout=30)` pair in
+      test_obl1_primary_site_forced_interleave_distinct_keys,
+      test_obl1_second_site_forced_interleave_distinct_pack_contexts,
+      test_obl2_primary_site_redundant_population_count, and
+      test_obl2_second_site_redundant_population_count -- mirroring the
+      `clear_thread.is_alive()` pattern already used correctly for OBL-5
+      at tests/core/test_mission_creation_identity.py:769-770 and the
+      equivalent SECOND_SITE OBL-5 test. This converts a silent 30s hang
+      (or a false green if the surviving thread's data already satisfied
+      the assertion) into a fast, clearly-named assertion failure that
+      correctly attributes the fault to a deadlock rather than leaving a
+      confusing opaque timeout for whoever debugs the CI run.

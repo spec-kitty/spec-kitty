@@ -1,0 +1,68 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 2
+results:
+  - id: PR-FRESH1-001
+    status: resolved
+    remaining_severity: 0
+    evidence: >-
+      Commit 0fcf8e583 assigns `_resolve_layered_mission_types.__name__` and
+      `.__qualname__` to "resolve_layered_mission_types" before the
+      `cast()`/module-level bind at
+      src/charter/offering/missions/mission_type_repository.py:759-761, and
+      rewrites the adjacent comment (742-757) to state accurately that call
+      behavior and the docstring are unchanged but `__name__`/`__qualname__`
+      are explicitly corrected -- no more overclaiming "runtime identity ...
+      unchanged". Verified at runtime in the anchored checkout: `.venv/bin/python
+      -c "from charter.offering.missions.mission_type_repository import
+      resolve_layered_mission_types; print(resolve_layered_mission_types.__name__,
+      resolve_layered_mission_types.__qualname__)"` both print
+      "resolve_layered_mission_types", matching origin/main's (be136d701) directly
+      defined `def resolve_layered_mission_types(...)` identity. mypy --strict
+      on both src/charter/offering/missions/mission_step_repository.py and
+      mission_type_repository.py: "Success: no issues found in 2 source files".
+      No `# type: ignore` added by the fix diff (git diff 419c21064..HEAD on
+      those two files has zero `type: ignore` hits; the one repo hit is an
+      unrelated pre-existing docstring reference from PR-CONTRACT-001).
+      Non-vacuous test check in a throwaway worktree
+      (<scratch-worktree>,
+      `git worktree add --detach` off HEAD, confirmed
+      `PYTHONPATH=<wt>/src .venv/bin/python -c "import charter;
+      print(charter.__file__)"` resolved inside the worktree): with
+      mission_type_repository.py replaced by its 419c21064 content and HEAD's
+      test file kept, `test_public_name_reports_public_identity` FAILED (1
+      failed); restoring HEAD's mission_type_repository.py made it PASS (1
+      passed). Worktree removed after (`git worktree remove --force`;
+      `git worktree list` now shows only the anchored checkout and the
+      pre-existing lane-a worktree).
+new_findings: []
+out_of_scope_notes:
+  - >-
+    Sweep for side effects of renaming the private function object found
+    none: no code looks up `_resolve_layered_mission_types` by its
+    `__name__`/`__qualname__` string (grep across src/tests shows only direct
+    object references and docstring/comment prose); `functools.cache` is
+    applied to the separate `_resolve_layered_mission_types_cached` function,
+    whose name/identity this diff does not touch, so the cache key
+    (call-args based, not name based) is unaffected; no pickling of this
+    object exists in the codebase.
+  - >-
+    tests/architectural/test_no_dead_symbols.py is AST/source-level (walks
+    `from module import name` sites), not runtime-`__name__`-based, so it is
+    unaffected by this fix; ran it directly (part of the required pytest
+    invocation) and it passes.
+  - >-
+    tests/architectural/test_ruff_format_exclude_ratchet.py exists in this
+    checkout; ran it directly (6 passed) -- unaffected by this diff (it does
+    not touch the ruff-format exclude list).
+  - >-
+    tests/doctrine/missions IS selected by CI for this diff:
+    .github/ci-module-registry.yml's `charter` module (roots
+    `src/charter/**`, `src/specify_cli/charter_runtime/**`) declares explicit
+    `test_dirs: [tests/charter, tests/doctrine]` (the documented "DUAL test
+    tree" carve-out per CLAUDE.md Modularity SSOT, spec-kitty#4369), and
+    `tests/doctrine/missions` is a subdirectory of `tests/doctrine`, so
+    scripts/ci/gate_selection.py's `_modules_for_test_paths`/`select_modules`
+    path resolves a change under `src/charter/offering/missions/**` to the
+    `charter` module and its declared `test_dirs` cover this test file.

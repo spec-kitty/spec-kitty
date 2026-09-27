@@ -1,0 +1,151 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-ARCH-001
+    lens: mission-derived (second fix-site parity)
+    severity: 4
+    title: >-
+      Second fix site (_LAYERED_YAML/resolve_layered_mission_types) is treated
+      as "identical shape" to the primary site without examining a material
+      error-handling difference, and Section 8's red-first test plan only
+      constructs the interleave for the primary site
+    evidence:
+      - artifact: "plan.md § Summary, § 6 header, § 8a"
+      - artifact: "research.md § 'A second, previously uncatalogued instance of the identical defect shape' (lines 299-340)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:132-135 (`try: raw = _YAML.load(...) except Exception: return None`)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:388-391 (`try: raw = _LAYERED_YAML.load(...) except YAMLError as exc: raise ValueError(...) from exc`)"
+    claim: >-
+      Plan.md's Section 6 calls the two fixes "identical shape" and Section 8a's
+      Barrier-synchronized red-first regression test is written entirely in
+      terms of the primary site's mechanics (monkeypatching "the thread-local
+      YAML accessor... or, for the pre-fix RED run only, the pre-fix shared
+      _YAML.load", pinning the interleave "immediately after self.reader.stream
+      = stream is set, reachable by patching at the _load_step_yaml/_YAML.load
+      call boundary", racing two threads on two different "step file[s]").
+      Nowhere in Section 8 does the plan describe a distinct forced-interleave
+      construction for resolve_layered_mission_types's cache-miss path (racing
+      _load_layered_mission_type_file/scan_mission_types_dir on two mission-type
+      YAML files for the same (mission_types_dirs, pack_context) key). This
+      matters because the two sites' failure modes on corrupted/racing parse
+      output are NOT identical: _load_step_yaml (primary) swallows every
+      exception via a blanket `except Exception: return None`, turning
+      corruption into a silently-dropped MissionStep -- the exact mechanism
+      that produces the observed TemplateConfigurationError symptom.
+      _load_layered_mission_type_file (secondary) only catches
+      ruamel.yaml.error.YAMLError and re-raises it as a named ValueError; any
+      other corruption (e.g. a parse that "succeeds" on garbled
+      reader/scanner state, producing wrong-but-valid-looking YAML) propagates
+      as whatever exception pydantic/the id-mismatch check raises, uncaught.
+      Neither research.md nor plan.md examines this asymmetry -- both simply
+      assert "same defect shape" and mirror Section 6's fix onto the second
+      site by analogy. CL-002 explicitly requires the hypothesis not be
+      treated as established, and CL-003's severity-4 bar requires a red-first
+      test that demonstrably fails pre-fix through the actual mechanism for
+      what it claims to fix -- as written, Section 8 does not commit to
+      proving the second site's race is real, reachable, and closed by the
+      fix; it only proves this for the primary site. Shipping the second
+      fix site's lock/thread-local change without its own red-first evidence
+      is exactly the "looks fixed" pattern Standing Order 4 forbids.
+    remediation: >-
+      Add an explicit second Barrier-synchronized red-first test in Section 8
+      (or an 8a-ii) that forces the same interleaving inside
+      resolve_layered_mission_types's cache-miss body -- patching
+      _load_layered_mission_type_file's YAML-load call boundary (or the
+      post-fix thread-local accessor at the mission_type_repository.py call
+      site) so two threads race a cache miss on the same
+      (mission_types_dirs, pack_context) key across two distinct mission-type
+      YAML files -- and asserts it fails pre-fix, passes post-fix. Separately,
+      have research.md or plan.md § Research summary explicitly reconcile the
+      swallow-vs-raise asymmetry between _load_step_yaml and
+      _load_layered_mission_type_file (e.g. state what corrupted-parse outcome
+      is actually expected/observed at the second site pre-fix, and confirm
+      the fix's raise-never-degrade contract, CL-006/FR-006, is met there too)
+      rather than asserting "identical shape" without analysis.
+
+  - id: PLAN-ARCH-002
+    lens: layering
+    severity: 2
+    title: >-
+      Plan.md's Section 1 claim that "no caller in the traced chain touches
+      src/kernel/ at any point" is contradicted by two files in that same
+      traced chain, though the fix's actual diff (and thus the substantive
+      layering claim) is unaffected
+    evidence:
+      - artifact: "plan.md § 1 (lines 104-110)"
+      - code: "src/specify_cli/core/mission_creation.py:48 (`from kernel.clock import now_utc_iso`)"
+      - code: "src/charter/offering/missions/repository.py:13 (`from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN`)"
+    claim: >-
+      Plan.md states, "No CLI command reaches past a service/repository seam
+      into kernel internals for this fix. src/kernel/** is not touched -- no
+      caller in the traced create_mission_core -> resolve_mission_type_context
+      -> _resolve_template_set_slot/_resolve_action_slot ->
+      MissionStepRepository/MissionTypeRepository chain touches src/kernel/ at
+      any point." This overstates the evidence: create_mission_core's own
+      module imports kernel.clock.now_utc_iso, and
+      MissionTemplateRepository (reached via
+      MissionStepRepository.default()/MissionTypeRepository.default(), both
+      inside the traced chain) imports kernel.paths.MISSION_ASSETS_SIBLING_PATTERN.
+      Both are legitimate, pre-existing service-to-kernel-primitives reads
+      (proper layering, not a violation) -- but the plan's literal claim that
+      "no caller... touches src/kernel/ at any point" is factually false as
+      written. The claim this mission actually needs -- that this fix's own
+      diff neither edits nor adds a new src/kernel/ dependency -- is true and
+      unaffected by this correction.
+    remediation: >-
+      Reword plan.md § 1 to the claim that is actually true and actually
+      matters: "this fix's diff does not add, remove, or modify any
+      src/kernel/** file or import; the traced chain's existing, pre-existing
+      reads of kernel.clock/kernel.paths are unrelated to and untouched by
+      this change" -- rather than the broader, falsifiable "no caller...
+      touches src/kernel/ at any point."
+
+  - id: PLAN-ARCH-003
+    lens: blast radius
+    severity: 3
+    title: >-
+      The module-level, unsynchronized ruamel.yaml.YAML(typ="safe") singleton
+      anti-pattern recurs at three other call sites in the same package
+      family; the plan fixes two instances in place rather than closing the
+      defect class by construction or flagging the residual exposure
+    evidence:
+      - artifact: "plan.md § 1 (Seam), § 6 (Fix mechanism)"
+      - code: "src/charter/activation/neutrality/lint.py:66 (`_YAML = YAML(typ=\"safe\")`, module level, consumed by `_load_banned_terms` at line 99)"
+      - code: "src/charter/offering/agent_profiles/operating_procedures.py:41 (`_YAML = YAML(typ=\"safe\")`, module level, consumed by `collect_operating_procedure_entries` at line 92)"
+      - code: "src/charter/offering/drg/migration/extractor.py:51 (`_yaml = YAML(typ=\"safe\")`, module level)"
+    claim: >-
+      Grepping every module-level (unindented) `YAML(typ=` assignment across
+      src/ confirms plan.md's "two singletons, two fix sites" framing IS
+      exhaustive for the exact live defect shape this mission targets (a
+      module-level YAML singleton feeding a @functools.cache-wrapped
+      function whose cache-miss path is unserialized) -- no third such pair
+      exists. However, three other module-level YAML(typ="safe") singletons
+      exist in the same offering/activation package tree with the identical
+      first half of the anti-pattern (a shared, non-thread-safe YAML instance
+      assigned once at import time and reused across all calls), just without
+      today's second ingredient (a functools.cache-wrapped consumer). None of
+      their current callers (collect_operating_procedure_entries,
+      _load_banned_terms, and extractor.py's helpers) run under
+      ThreadPoolExecutor/threading.Thread in this checkout today, so they are
+      not live concurrency defects right now -- but the plan neither
+      extracts the fix's thread-local-YAML accessor into a small, reusable
+      helper the package could converge on, nor flags this residual exposure
+      as a follow-up, leaving the same anti-pattern free to reappear the
+      moment any of these three functions (or a new one copied from them)
+      gains a threaded or cached caller. This is exactly the class of gap
+      DIRECTIVE_043 ("Close Defect Classes by Construction... a design that
+      requires discipline reminders to enforce a constraint is structurally
+      incomplete") flags as architecturally incomplete.
+    remediation: >-
+      Either (a) factor the Section 6a thread-local-YAML accessor into a
+      small shared helper (e.g. in a common doctrine-offering utility module)
+      that both fix sites import, so the safe pattern is the path of least
+      resistance for any future module-level YAML(typ="safe") call site in
+      this package tree, or (b) if keeping the fix minimal/local per the
+      charter's smallest-viable-diff discipline, add one sentence to plan.md
+      § 1 or § 11 (Campsite-clean) naming the three other module-level
+      YAML(typ="safe") singletons as an acknowledged, currently-dormant
+      instance of the same anti-pattern and recommending a follow-up tracker
+      issue if any of them ever grows a threaded or memoized caller.

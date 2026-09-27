@@ -1,0 +1,104 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-FRESH-001
+    lens: cross-artifact fact-check of the fix round's new second-fix-site test seams (8a-ii, 8e) against the actual repository cache API
+    severity: 4
+    title: "8a-ii and 8e's second-site variant name the wrong cache_clear() seam to force a cold miss on the exact cache they race, risking a vacuous (never-red) regression test"
+    evidence:
+      - artifact: "plan.md § 8a-ii ('...with explicit `MissionStepRepository.cache_clear()` and `MissionTypeRepository.default.cache_clear()` calls before the test body, same cold-cache discipline as 8a')"
+      - artifact: "plan.md § 8e ('...after the same `MissionStepRepository.cache_clear()`/`MissionTypeRepository.default.cache_clear()` cold-start discipline as 8a...')"
+      - code: "src/charter/offering/missions/mission_type_repository.py:189-206 (`MissionTypeRepository.cache_clear()` staticmethod docstring: 'clears **only** the new, SEPARATE, module-level `resolve_layered_mission_types` cache... Does **NOT** touch `default`'s own `functools.cache`... The two caches are deliberately independent'; body is `resolve_layered_mission_types.cache_clear()`)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:67-69 (`@classmethod @functools.cache def default(cls) -> MissionTypeRepository`, a separate, `cls`-keyed cache of the repository singleton, unrelated to the `(mission_types_dirs, pack_context)`-keyed `resolve_layered_mission_types` cache)"
+    claim: >-
+      8a-ii and 8e's second-fix-site variant both race `resolve_layered_mission_types`
+      (`mission_type_repository.py:477`) — the second fix site's own `@functools.cache`-wrapped
+      function — and both state they reset state to "the same cold-cache discipline as 8a" by
+      calling `MissionStepRepository.cache_clear()` and `MissionTypeRepository.default.cache_clear()`.
+      But per the source code's own docstring, `MissionTypeRepository.default.cache_clear()` clears
+      only `.default()`'s own, separate, `cls`-keyed cache (the built-in-only repository singleton) —
+      it explicitly, by design, does **not** touch `resolve_layered_mission_types`'s cache. The
+      seam that actually clears `resolve_layered_mission_types`'s cache is the sibling static method
+      `MissionTypeRepository.cache_clear()` (no `.default`), which the plan never names anywhere.
+      If any earlier test in the same pytest session (including 8a itself, or `test_concurrent_creates_no_collision`)
+      already resolved the same `(mission_types_dirs, pack_context)` key before 8a-ii/8e run, the
+      layered cache stays warm going into 8a-ii/8e's own test body — since neither test clears it —
+      and the two racing threads would hit `resolve_layered_mission_types`'s fast cache-hit path
+      instead of its cache-miss body, meaning the Barrier-pinned interleave and the lock-count
+      assertion never exercise the intended code path at all. For 8a-ii specifically this is a direct
+      CL-003/CL-004 violation risk: a red-first test that does not reliably fail pre-fix through the
+      real mechanism (it could pass vacuously by never reaching the raced body), which CL-003's
+      severity-4 bar explicitly treats as unacceptable ("must stop and re-investigate rather than
+      treat a passing 'red-first' test as proof").
+    remediation: >-
+      In both § 8a-ii and § 8e's second-site variant, replace (or add alongside)
+      `MissionTypeRepository.default.cache_clear()` with `MissionTypeRepository.cache_clear()`
+      (the staticmethod that actually clears `resolve_layered_mission_types`'s own cache, per
+      `mission_type_repository.py:189-206`), since that is the specific cache these two tests need
+      to be cold before racing it. Also add one sentence to Section 5 or Section 8 distinguishing
+      the two same-named-looking seams (`MissionTypeRepository.default.cache_clear()` vs
+      `MissionTypeRepository.cache_clear()`) so implementers do not conflate them, since the
+      module's own docstring flags them as "deliberately independent."
+
+  - id: PLAN-FRESH-002
+    lens: weakened/vacuous acceptance criteria in the fix round's new second-fix-site test description
+    severity: 4
+    title: "8a-ii accepts a 'silently wrong roster entry' as a valid red-first failure mode without requiring the test to assert on roster-entry correctness, so that specific failure mode would not actually turn the test red"
+    evidence:
+      - artifact: "plan.md § Summary ('...propagates as whatever exception `MissionType.model_validate`/the id-mismatch check raises... a silently wrong roster entry, or something else...')"
+      - artifact: "plan.md § 8a-ii ('...either failure mode satisfies CL-003's red-first bar, because the bar is \"fails pre-fix, passes post-fix through the real code path,\" not \"fails with a specific exception type.\"')"
+      - code: "src/charter/offering/missions/mission_type_repository.py:394-404 (`mission_type = MissionType.model_validate(payload)`; `expected_id = yaml_file.stem`; raises only if `mission_type.id != expected_id` — a corrupted-but-schema-valid parse whose `id` field happens to still equal the filename stem would validate and return silently, with no exception anywhere in the call chain)"
+    claim: >-
+      Section 8a-ii (and the Summary paragraph it points back to) explicitly lists three possible
+      pre-fix failure shapes for the second site's race — a raised `ValueError`/`pydantic.ValidationError`,
+      an uncaught propagation, or "a silently wrong roster entry" — and asserts "either failure mode
+      satisfies CL-003's red-first bar." That claim is only true for the first two shapes, which
+      involve an actual raised exception the test can observe without any extra assertion. The third
+      shape — a corrupted parse that still validates and still carries the correct `id` (so
+      `model_validate` and the `mission_type.id != expected_id` check both pass) — produces no
+      exception and no crash at all; `resolve_layered_mission_types` would simply return a
+      dict containing a `MissionType` object with wrong-but-valid fields (e.g. corrupted
+      `action_sequence`/`layer` data from the interleaved parse). Nothing in 8a-ii's bullet list
+      describes an assertion that inspects the resulting roster's field values for correctness, so
+      if this is the failure shape the forced interleave actually produces, the test would run to
+      completion without raising and without failing any assertion — i.e. it would be GREEN pre-fix,
+      not RED — directly failing FR-004/CL-004's red-first requirement while the plan text asserts
+      the opposite ("either failure mode satisfies CL-003's red-first bar").
+    remediation: >-
+      Add an explicit content-correctness assertion to § 8a-ii's test description for the
+      "silently wrong roster entry" branch — e.g. assert the resulting `MissionType` for each of
+      the two raced mission-type ids has fields matching a known-good, un-raced resolution (or that
+      neither entry contains data belonging to the other file) — so that this specific failure mode
+      is guaranteed to make the pre-fix test fail rather than pass silently. Alternatively, if
+      implementation discovers the corrupted-parse race can only ever manifest as an exception at
+      this site (never a validating-but-wrong parse), state that as a verified finding with the
+      supporting reasoning, rather than listing "a silently wrong roster entry" as an
+      equally-acceptable red-first outcome without a matching assertion.
+
+  - id: PLAN-FRESH-003
+    lens: broken cross-reference introduced by the fix round's new Section 10 gate entry
+    severity: 2
+    title: "Section 10's new architectural-heavy gate entry cites 'Section 6c' twice, but plan.md has no heading numbered 6c — the referenced content is an unlabeled subsection under Section 6"
+    evidence:
+      - artifact: "plan.md § 10 ('...is directly load-bearing here given Section 6c's exception-design decision (below): the new exception class this mission introduces must stay inside `src/charter/**`...')"
+      - artifact: "plan.md § 6 actual headings: '## 6. Fix mechanism (FR-002)', '### 6a. Thread-local YAML instances...', '### 6b. Per-key lock around each cache's miss path...', '### Both fix sites raise, never degrade (CL-006/FR-006)' (no '6c' heading anywhere in the document)"
+    claim: >-
+      The new Section 10 paragraph this fix round adds (the `architectural-heavy` gate entry)
+      twice refers to "Section 6c's exception-design decision" as the thing that makes the gate
+      load-bearing. `plan.md` numbers Section 6's subsections `6a` and `6b`, but the subsection that
+      actually defines `MissionCacheLockError` and the "never import `TemplateConfigurationError`
+      into `src/charter/**`" rule is titled only "### Both fix sites raise, never degrade
+      (CL-006/FR-006)" — it carries no "6c" label anywhere in the document. This label appears to
+      be inherited verbatim from the prior review round's informal shorthand for that subsection
+      (which also called it "Section 6c" without plan.md ever defining that number), and the fix
+      round's new text propagates the same undefined label into the plan itself, rather than either
+      adding an actual "### 6c." heading or citing the subsection by its real title.
+    remediation: >-
+      Either add an explicit "### 6c." heading to the "Both fix sites raise, never degrade
+      (CL-006/FR-006)" subsection (making the existing "Section 6c" references in Section 10
+      resolve correctly), or change Section 10's two "Section 6c" citations to reference the
+      subsection by its actual heading text ("the 'Both fix sites raise, never degrade' subsection
+      of Section 6"), so a reader following the cross-reference lands on defined content.

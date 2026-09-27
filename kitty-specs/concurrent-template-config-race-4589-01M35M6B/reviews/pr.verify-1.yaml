@@ -1,0 +1,132 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 1
+results:
+  - id: PR-CONTRACT-001
+    status: resolved
+    evidence: >-
+      `env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 .venv/bin/python -m mypy --strict
+      src/charter/offering/missions/mission_step_repository.py
+      src/charter/offering/missions/mission_type_repository.py` -> "Success: no
+      issues found in 2 source files" (all 6 originally-cited errors gone). Fix
+      is by construction, not suppression: no new `# type: ignore` appears
+      anywhere in either file's diff (grep confirms only pre-existing `raw: Any`
+      yaml-load annotations, unrelated to this fix, and one docstring mention of
+      "zero # type: ignore"). Site 1
+      (mission_step_repository.py/_YamlLocal, mission_type_repository.py/_LayeredYamlLocal):
+      both now subclass threading.local with __init__ assigning a typed
+      `self.instance = YAML(typ="safe")`, mirroring the repo's own canonical
+      idiom (kernel.locks._ReentrancyState) -- eliminates the no-any-return
+      finding without changing the once-per-thread lazy-build semantics
+      (threading.local calls __init__ once per thread on first attribute
+      access, same as the prior try/except AttributeError). Site 2
+      (resolve_layered_mission_types): implementation renamed to
+      `_resolve_layered_mission_types`; the public name
+      `resolve_layered_mission_types` is now bound via
+      `cast(_LayeredMissionTypesResolver, _resolve_layered_mission_types)`
+      where `_LayeredMissionTypesResolver` is a `Protocol` declaring the call
+      signature plus `cache_clear`/`cache_info`/`cache_parameters` typed as
+      Callable -- same runtime function object, only a widened static type, so
+      the three forwarding-attribute assignments and
+      MissionTypeRepository.cache_clear()'s call site both type-check.
+      Runtime verified in-place (PYTHONPATH=src .venv/bin/python -c ...):
+      `resolve_layered_mission_types` is importable from
+      charter.offering.missions.mission_type_repository,
+      `.cache_info()` -> CacheInfo(hits=0, misses=0, maxsize=None, currsize=0),
+      `.cache_clear()` runs without error, `.cache_parameters()` ->
+      {'maxsize': None, 'typed': False}, and
+      MissionTypeRepository.cache_clear() runs without error -- all four calls
+      succeed against the live object, confirming the cast did not break the
+      forwarded attributes. `__all__` in mission_type_repository.py is
+      untouched by this diff (resolve_layered_mission_types was already listed
+      pre-fix and remains so). tests/charter/test_charter_import_time_io.py:
+      2 passed. Broader regression sweep run in-workspace (not just the two
+      files): `pytest tests/core/test_mission_creation_identity.py
+      tests/doctrine/missions tests/charter/test_charter_import_time_io.py
+      tests/charter/test_mission_type_path_layout_ssot.py
+      tests/architectural/test_charter_no_specify_cli_import.py
+      tests/architectural/test_no_dead_symbols.py -q` -> 512 passed; `make
+      lint` -> "All checks passed!"; `make format-check` -> "2259 files
+      already formatted". PRIVATE-NAME JUDGMENT: the `functools._CacheInfo` /
+      `functools._CacheParameters` names are imported only under `if
+      TYPE_CHECKING:`, so they are NEVER evaluated at runtime on any
+      interpreter -- zero runtime risk regardless of which Python executes
+      the code. For mypy's own resolution: pyproject.toml pins
+      `requires-python = ">=3.11"`; the repo's CI runs Python 3.11
+      (ci-windows.yml), 3.12 and 3.13 (ci-quality.yml) -- no workflow in
+      .github/workflows/ currently runs mypy at all (confirmed by grep; the
+      Makefile `typecheck` target only covers two unrelated specify_cli
+      files, consistent with PR-CONTRACT-001's own original claim that this
+      is not yet a CI-blocking gate for these files). Inspected the bundled
+      typeshed stub actually used by this repo's pinned mypy
+      (.venv/lib/python3.11/site-packages/mypy/typeshed/stdlib/functools.pyi):
+      `class _CacheInfo(NamedTuple)` and `@type_check_only class
+      _CacheParameters(TypedDict)` are both declared unconditionally, with no
+      `sys.version_info` guard around them (unlike e.g. the `reduce`
+      overloads a few lines above, which ARE version-guarded at 3.14) -- so
+      mypy resolves these two names identically no matter which
+      `--python-version` target (3.11/3.12/3.13/3.14, all confirmed present
+      as interpreters in this environment) is passed. There is no public
+      stdlib alternative: functools does not export public names for
+      functools.cache's forwarded introspection types, so referencing the
+      typeshed-internal names under TYPE_CHECKING (rather than laundering
+      through Any, or scattering four `# type: ignore[attr-defined]`
+      comments as the finding's own remediation offered as an alternative)
+      is the accepted idiom for typing a functools.cache wrapper's
+      attributes under --strict. Worst case if a future typeshed release
+      ever renamed these: a visible mypy import error at dev/lint time, not
+      a runtime break, since the import is TYPE_CHECKING-gated. Judgment:
+      safe and stable across the repo's full supported version range.
+  - id: PR-TESTS-001
+    status: resolved
+    evidence: >-
+      All four cited sites now pair `assert not t1.is_alive()` /
+      `assert not t2.is_alive()` immediately after their respective
+      `.join(timeout=30)` calls, with messages naming which obligation/thread
+      deadlocked, mirroring the pre-existing OBL-5 pattern the original
+      finding cited as correct (tests/core/test_mission_creation_identity.py
+      lines 385-389, 458-461, 554-558, 628-632 in the diff). RED-FIRST
+      verified in a throwaway `git worktree add --detach` under
+      <scratch-worktree> (removed after use; `import
+      charter; charter.__file__` confirmed it resolved inside the worktree
+      before testing). With both src files reset to `origin/main` content
+      (git show origin/main:<path> > <path>) and HEAD's test file kept: `pytest
+      .../test_mission_creation_identity.py -k "obl1 or obl2" -q` -> 4
+      failed, 8 deselected (test_obl1_primary_site_forced_interleave_distinct_keys,
+      test_obl1_second_site_forced_interleave_distinct_pack_contexts,
+      test_obl2_primary_site_redundant_population_count,
+      test_obl2_second_site_redundant_population_count all fail -- OBL-1
+      fails on pre-existing assertions (unexpected errors / IndexError from
+      the race), OBL-2 fails on counter.count == 1, i.e. the new
+      is_alive() assertions are not even needed to prove red-first here
+      because the underlying race is exercised, but the is_alive() lines
+      are present and would also fire correctly on a hang). With src files
+      restored to HEAD (git checkout --): same filtered run -> 4 passed; full
+      file `pytest .../test_mission_creation_identity.py -q` -> 12 passed.
+      This matches the required 4-failed/12-passed split exactly. The tests
+      still prove the same underlying contracts (OBL-1 distinct-keys/distinct-pack-context
+      interleave, OBL-2 redundant-population-count == 1) -- only an
+      additional, strictly-narrower-failure-mode assertion (thread
+      liveness) was inserted after each join; no existing assertion was
+      weakened, removed, or reworded. Worktree confirmed removed via `git
+      worktree remove --force` and `git worktree list` no longer shows it.
+out_of_scope_notes:
+  - >-
+    resolve_layered_mission_types.__name__ now reads
+    "_resolve_layered_mission_types" at runtime (was
+    "resolve_layered_mission_types" pre-fix), a side effect of casting a
+    renamed implementation function to the public Protocol type rather than
+    keeping the def under the public name. Grepped src/ and tests/ for any
+    reliance on this function's __name__/__qualname__ and found none, so no
+    observed behavioral regression -- noted only because it is a minor,
+    unremarked introspection-visible identity change from the pre-fix
+    function object's own __name__.
+  - >-
+    pr.confirmed.yaml's PR-CONTRACT-001 claim is explicit that mypy --strict
+    on these two files is not currently wired into any CI workflow (confirmed
+    independently: no .github/workflows/*.yml invokes mypy at all, and the
+    Makefile typecheck target only covers two unrelated specify_cli files).
+    This gap predates and is unchanged by this fix round; flagged for the
+    mission owner's awareness only, not scored as part of either finding
+    under verification.

@@ -1,0 +1,152 @@
+# review-findings/v1 — R3 output: merged findings whose verdict is `confirmed`
+# in reviews/spec-refute-1.yaml. Refuted findings (SPEC-GOV-001) stay in
+# spec.merged.yaml for the audit trail and are not sent to the fixer.
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: SPEC-VERIFY-002
+    duplicate_of: [SPEC-GOV-002]
+    lens: Silent-success / directive (canonical-sources / cite-checkout-verified-paths)
+    severity: 4
+    title: "CL-006 cites a function name (`_resolve_template_filename`) that does not exist anywhere in the codebase"
+    evidence:
+      - artifact: "spec.md § CL-006 (\"the existing raise sites in src/specify_cli/runtime/resolver.py (_resolve_template_filename, TemplateConfigurationError construction around lines 474–526)\")"
+      - code: "src/specify_cli/runtime/resolver.py:440 (def resolve_configured_template(...) — the actual function containing the raise sites at ~474-526)"
+    claim: >
+      `grep -rn "_resolve_template_filename"` across the entire checkout
+      returns zero matches. The actual function at that location is
+      `resolve_configured_template`, defined at line 440. This violates this
+      mission's own C-004 ("cite only checkout-verified paths") inside the
+      very clarification meant to keep the silent-success guarantee
+      checkable.
+    remediation: >
+      Correct CL-006 to name `resolve_configured_template` (line 440, raise
+      sites at ~474-526) instead of `_resolve_template_filename`, and
+      re-verify every other bare symbol/function name cited in the spec
+      against the live checkout, consistent with C-004.
+
+  - id: SPEC-ARCH-001
+    lens: Cache-contract preservation (mission-derived L2)
+    severity: 4
+    title: "NFR-003/FR-003 name a private cache-clear seam the codebase's own docstring forbids calling directly, and that no test actually calls"
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements (NFR-003)"
+      - artifact: "spec.md § Functional Requirements (FR-003)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:464-465"
+      - code: "src/charter/offering/missions/mission_step_repository.py:324-333"
+      - code: "tests/doctrine/missions/test_mission_step_resolver.py:512,515,565"
+    claim: >
+      NFR-003 names `_resolve_all_for_mission_type_cached.cache_clear()`
+      (the private, module-internal `functools.cache`-wrapped function) as a
+      contract surface to preserve. That function's own docstring explicitly
+      forbids calling `.cache_clear()` on it directly from outside the
+      module. The actual, exercised test seam is the public
+      `MissionStepRepository.cache_clear()` staticmethod
+      (mission_step_repository.py:324-333); no test anywhere calls the
+      private function's cache_clear directly.
+    remediation: >
+      Reword NFR-003 (and the FR-003 seam list) to name the actual public,
+      tested seam: `MissionStepRepository.cache_clear()`
+      (mission_step_repository.py:324-333) as the required-preserved
+      surface, with the private function's cache_clear described only as
+      the internal mechanism that wrapper calls.
+
+  - id: SPEC-ARCH-002
+    lens: Cache-contract preservation (mission-derived L2)
+    severity: 3
+    title: "Readiness Findings omits file:line for the parallel cache-safety docstring in the primary-suspect file (mission_step_repository.py)"
+    evidence:
+      - artifact: "spec.md § Readiness Findings (paragraph beginning 'These files carry NFR-002/NFR-003/CL-001-style cache-contract docstrings')"
+      - code: "src/charter/offering/missions/mission_type_repository.py:68-101 (docstring; 'Production never mutates' at lines 84-86)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:324-333 ('Production never mutates the bundled mission-steps/ tree mid-process, so the cache is safe there')"
+    claim: >
+      The spec's must-preserve directive is anchored, by file:line, only to
+      `mission_type_repository.py:68-96`. The identical cache-safety
+      argument also appears in `mission_step_repository.py` — the file the
+      spec itself names as the "primary suspect" — at
+      `MissionStepRepository.cache_clear()`, lines 324-333, never cited by
+      file:line anywhere in the spec.
+    remediation: >
+      Add an explicit Readiness Finding / Key Entity citation for
+      `mission_step_repository.py:324-333`
+      (`MissionStepRepository.cache_clear()`), alongside the existing
+      `mission_type_repository.py:68-96` citation, so the plan phase must
+      state explicitly whether that docstring's cache-safety argument still
+      holds after the fix (or is consciously revised with rationale).
+
+  - id: SPEC-VERIFY-001
+    lens: Hypothesis-vs-fact discipline
+    severity: 3
+    title: "Origin & Framing asserts the defect as settled fact, contradicting CL-002's hypothesis framing"
+    evidence:
+      - artifact: "spec.md § Origin & Framing (\"This is a latent production-side thread-safety defect, not (yet) an empirically reproduced one.\")"
+      - artifact: "spec.md § CL-002 (\"The YAML-singleton-corruption-drops-a-template-key causal chain below is a hypothesis, not a confirmed root cause.\")"
+    claim: >
+      Origin & Framing states flatly that a production defect exists, and
+      only hedges on whether it has been empirically reproduced — not on
+      whether the causal mechanism itself is real, contradicting CL-002's
+      explicit hypothesis framing a few paragraphs later.
+    remediation: >
+      Reword the Origin & Framing sentence to match CL-002's hedge, e.g.:
+      "This is a *suspected* latent production-side thread-safety defect —
+      not yet empirically reproduced, and the causal mechanism itself is an
+      unproven hypothesis (see CL-002)." Cross-reference CL-002 directly.
+
+  - id: SPEC-VERIFY-003
+    lens: Falsifiability
+    severity: 3
+    title: "User Story 2 and User Story 3 Acceptance Scenarios omit the falsifiability clause present in User Story 1's"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios 1-3 (each ends with an explicit \"(falsifiable: ...)\" clause)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenarios 1-2 (no falsifiability clause)"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 1 (\"within minutes\" is not a checkable bound)"
+    claim: >
+      None of User Story 2's two scenarios or User Story 3's one scenario
+      carry a falsifiability clause equivalent to User Story 1's. This is
+      particularly load-bearing for User Story 2, whose entire premise is
+      preventing "looks fixed" review drift.
+    remediation: >
+      Add an explicit falsifiability clause to each of User Story 2 AC1,
+      AC2, and User Story 3 AC1, replacing "within minutes" with a concrete
+      artifact check.
+
+  - id: SPEC-VERIFY-004
+    lens: Silent-success
+    severity: 4
+    title: "CL-006's silent-success prohibition for new lock/cache code (FR-006) has no corresponding Acceptance Scenario or Success Criterion"
+    evidence:
+      - artifact: "spec.md § CL-006 (\"a lock timeout, a corrupted-cache detection, or a retry-exhaustion path must all raise, not degrade\")"
+      - artifact: "spec.md § FR-006 (\"Fail loudly on every cache/lock error path\")"
+      - artifact: "spec.md § Success Criteria (SC-001 through SC-005 — none test a lock-timeout/corrupted-cache raise path)"
+    claim: >
+      CL-003's red-first bar is fully operationalized (severity-4 rule, User
+      Story 1 AC1/AC2, SC-001). CL-006's silent-success prohibition gets no
+      equivalent treatment — an "FR without coverage" gap per the rubric.
+    remediation: >
+      Add an Acceptance Scenario or a sixth Success Criterion (SC-006)
+      stating that a forced lock-timeout or corrupted-cache condition must
+      raise `TemplateConfigurationError` (never return None/an empty
+      mapping/a partial template_set), falsifiable, with a dedicated test
+      required in FR-006/CL-006's own terms.
+
+  - id: SPEC-VERIFY-005
+    lens: Red-first-by-construction honesty (mission-derived L3)
+    severity: 3
+    title: "User Story 1 AC1's 'pre-fix code on this mission's planning_base_branch' is ambiguous once planning_base_branch is the mission's own single branch"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1"
+      - artifact: "spec.md § CL-004 (\"A failing-first test is committed before the production fix, as a distinct commit\")"
+      - artifact: "kitty-specs/concurrent-template-config-race-4589-01M35M6B/tasks/README.md:26 (planning_base_branch: fix/concurrent-template-config-race-4589)"
+      - artifact: "kitty-specs/concurrent-template-config-race-4589-01M35M6B/meta.json (topology: single_branch, target_branch: fix/concurrent-template-config-race-4589)"
+    claim: >
+      `planning_base_branch` is this mission's own single working branch,
+      which per CL-004 accumulates both the red-first test commit and the
+      production-fix commit. AC1's phrase cannot mean "the tip of
+      planning_base_branch" by mission end, but does not cross-reference
+      CL-004's commit-ordering intent, risking a wrong-ref check.
+    remediation: >
+      Reword AC1 to name the commit precisely per CL-004's commit-ordering
+      intent, removing the implicit assumption that "planning_base_branch"
+      denotes a fixed pre-mission baseline.

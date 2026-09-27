@@ -1,0 +1,81 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH5-001
+    status: resolved
+    reason: >
+      §6b's subsection is retitled "Preserving the public `.cache_clear()`/`.cache_info()`
+      seam across the split (PLAN-FRESH4-ARCH-001, sev 4; PLAN-FRESH5-001, sev 4)"
+      (plan.md ~line 405) and its binding requirement now reads "the new public
+      `resolve_layered_mission_types` wrapper must expose `.cache_clear`, `.cache_info`,
+      and `.cache_parameters` attributes that forward to
+      `_resolve_layered_mission_types_cached`'s own", with the code block adding all
+      three binding lines (`.cache_clear`, `.cache_info`, `.cache_parameters`, ~lines
+      455-457) — matching the remediation's "at minimum ... plus .cache_parameters if
+      needed" instruction by including all three. `tests/charter/test_charter_import_time_io.py:231`'s
+      live `resolve_layered_mission_types.cache_info()` call is cited twice as driving
+      evidence (in the retitled subsection body and again in the closing paragraph). The
+      "zero test-file edits" claim is preserved and is verifiably still true: `git status
+      --porcelain` and `git diff --stat` for the whole checkout show only `plan.md`
+      changed — no test file was touched. §14's production-fix commit step (~lines
+      1446-1449) now explicitly names `tests/charter/test_charter_import_time_io.py` as
+      part of the fix's own verification list, tied back to PLAN-FRESH5-001. The actual
+      chosen mechanism (three explicit attribute-binding lines, not `functools.update_wrapper`)
+      is correct Python and was empirically verified: `resolve_layered_mission_types.cache_clear
+      = _resolve_layered_mission_types_cached.cache_clear` (and the `.cache_info`/
+      `.cache_parameters` siblings) unconditionally copies a working reference to the
+      target attribute regardless of how that attribute is implemented on the source
+      object, so the fix works. One caveat noted for completeness, not blocking
+      resolution: the plan's aside claiming `functools.update_wrapper` would copy "never
+      `cache_clear`/`cache_info`/`cache_parameters`" is only accurate for `cache_clear`/
+      `cache_info` (verified empirically: these are C-level type methods on the standard
+      CPython `functools.cache` wrapper, absent from its `__dict__`) — `cache_parameters`
+      is actually set as a plain instance attribute by `functools.lru_cache()` and *would*
+      land in `wrapped.__dict__`, so `update_wrapper`'s `__dict__.update()` step would in
+      fact copy it. This is a minor inaccuracy in a rejected-alternative justification, not
+      in the operative binding requirement or code block, which is explicit, unambiguous,
+      and does not rely on `update_wrapper` at all — it does not change the fix's
+      correctness or reopen the finding.
+  - id: PLAN-FRESH5-002
+    status: resolved
+    reason: >
+      §11's `charter` module bullet (~line 1259) now reads "`tests/doctrine` 3204
+      passed/13 skipped/0 errors" and the "Per-module test matrix" gate bullet (~lines
+      1370-1374) now reads "all five are fully green in the pre-fix baseline (Section 10
+      — there is no remaining pre-existing red anywhere in this baseline, per Section
+      10's round-5 correction)", with the "modulo the three environment-only ... setup
+      errors" hedge fully dropped. A whole-file grep for "3201", "3 errors", "setup
+      errors", and "environment-only" turns up hits only inside §10 itself (lines
+      1059, 1129, 1134-1141, 1198, 1202), all of which are §10's own historical narrative
+      correctly recounting the round-4 figure before immediately correcting it to "3204
+      passed ... 0 errors" and "there is no remaining pre-existing red anywhere in this
+      baseline" (lines 1134-1141, 1193-1196) — no live, non-historical, non-§10-labelled
+      stale baseline statement survives anywhere else in the plan.
+  - id: PLAN-FRESH5-003
+    status: resolved
+    reason: >
+      §6b's "Second-site structural note" cost sentence (~lines 391-398) now reads "at
+      the cost of one internal rename (the previously-public cached function becomes the
+      new private `_resolve_layered_mission_types_cached` name) plus the
+      `.cache_clear`/`.cache_info`/`.cache_parameters` attribute-forwarding bindings
+      detailed just below: no `__all__` change and no import-site update, since the
+      public name `resolve_layered_mission_types` is preserved unchanged and every
+      existing caller keeps working as-is" — matching the remediation exactly (one
+      internal rename plus the forwarding bindings; explicitly no `__all__` change, no
+      import-site update) and no longer in tension with the section's own
+      `.cache_clear()`-forwarding analysis immediately below it.
+  - id: PLAN-VERIFY6-SCOPE-001
+    status: resolved
+    reason: >
+      `git status --porcelain` and `git diff --stat` for the whole checkout show only
+      `kitty-specs/concurrent-template-config-race-4589-01M35M6B/plan.md` changed (69
+      insertions, 35 deletions, no other file touched). Reading the full diff, every
+      hunk maps cleanly to one of the three findings: the §6b "Second-site structural
+      note" cost-sentence hunk → PLAN-FRESH5-003; the §6b subsection retitle plus
+      binding-requirement/code-block/closing-paragraph hunk → PLAN-FRESH5-001; the §11
+      `charter` module bullet and "Per-module test matrix" bullet hunks → PLAN-FRESH5-002;
+      and the §14 production-fix commit step hunk (naming
+      `tests/charter/test_charter_import_time_io.py`) → PLAN-FRESH5-001's own
+      verification-list requirement. No section renumbering, no unrelated wording
+      changes, and no scope creep found.

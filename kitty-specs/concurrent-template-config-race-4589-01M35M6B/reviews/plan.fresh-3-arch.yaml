@@ -1,0 +1,163 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-3-arch
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-FRESH3-ARCH-001
+    lens: second-fix-site parity — gate set / baseline blast radius
+    severity: 4
+    title: >-
+      §10's Gate Set incorrectly excludes the "charter" module (and thus
+      tests/doctrine), the ONLY module whose test_dirs covers the
+      pre-existing dedicated regression suites for BOTH fix sites; §9's
+      baseline never runs them either
+    evidence:
+      - artifact: "plan.md § 10, lines 842-848 (\"charter\" module marked NOT selected)"
+      - artifact: "plan.md § 10, lines 820-830 (\"core_misc\" module marked Selected via the SAME overlapping-root reasoning that would also select \"charter\")"
+      - artifact: "plan.md § 9, lines 749-803 (baseline runs tests/core/test_mission_creation_identity.py, tests/missions, tests/core only — never tests/doctrine)"
+      - code: ".github/ci-module-registry.yml:143-160 (module: charter; roots: src/charter/**; test_dirs: tests/charter, tests/doctrine)"
+      - code: ".github/ci-module-registry.yml:207-243 (module: core_misc; test_dirs list has no tests/doctrine entry)"
+      - code: ".github/ci-module-registry.yml:27-39 (module: missions; no explicit test_dirs -> canonical mirror is tests/missions only)"
+      - code: "scripts/ci/gate_selection.py:270-317 (select_modules matches changed paths against router glob filters derived verbatim from registry roots via fnmatch; docstring explicitly states \"overlapping glob ownership between groups ... is preserved exactly as the router already encodes it — never narrowed to a single owning module\")"
+      - code: "scripts/ci/gate_selection.py:188-204 (_canonical_test_mirror: leaf of src/charter/offering/missions/** is \"missions\" -> tests/missions, confirming tests/doctrine is NOT reached this way)"
+      - code: "tests/doctrine/missions/test_mission_type_repository.py:28,543-752 (dedicated resolve_layered_mission_types / MissionTypeRepository.cache_clear() suite — the SECOND fix site's own regression tests, including test_same_key_is_a_cache_hit at line 660)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:503-508 (this exact test — test_same_key_is_a_cache_hit — is cited by name in the second fix site's own docstring as pinning its cache-staleness contract)"
+      - code: "tests/doctrine/missions/test_mission_step_resolver.py:1-27 (dedicated MissionStepRepository / resolve_all_for_mission_type suite — the PRIMARY fix site's own regression tests)"
+    claim: >
+      This fix's diff (src/charter/offering/missions/mission_step_repository.py,
+      mission_type_repository.py) trivially matches the "charter" module's
+      root glob src/charter/** — the same fnmatch-based, overlap-preserving
+      mechanism (scripts/ci/gate_selection.py:select_modules/select_gates)
+      the plan itself invokes to justify selecting "core_misc" for its
+      overlapping src/charter/offering/** root. §10 nonetheless asserts
+      "charter" is NOT selected, reasoning "this fix's diff stays inside
+      src/charter/offering/missions/** (already covered by missions/core_misc
+      above)" — but that same reasoning, applied consistently, would also
+      exclude core_misc, whose root (src/charter/offering/**) is likewise
+      strictly broader than the diff. "charter" is the ONLY registry module
+      whose test_dirs includes tests/doctrine — the actual home of the
+      pre-existing, dedicated regression suites for BOTH fix sites:
+      tests/doctrine/missions/test_mission_type_repository.py (second site:
+      resolve_layered_mission_types, MissionTypeRepository.cache_clear(),
+      including test_same_key_is_a_cache_hit, which mission_type_repository.py's
+      own docstring at lines 503-508 names as the pin for its cache-staleness
+      contract) and tests/doctrine/missions/test_mission_step_resolver.py
+      (primary site). "missions" module's own canonical test mirror defaults
+      to tests/missions only (confirmed directly via
+      scripts/ci/gate_selection.py:_canonical_test_mirror — leaf "missions"
+      -> "tests/missions"), which contains neither file; "core_misc"'s own
+      explicit test_dirs list also omits tests/doctrine. Consequently §9's
+      baseline never runs tests/doctrine either, so §9's claim "everything in
+      the scoped surface passes cleanly, there are no pre-existing failures
+      to distinguish from mission-introduced ones" is not actually backed by
+      evidence for the test suites that most directly exercise the two files
+      this mission changes — exactly the kind of blast-radius gap the
+      second-fix-site-parity lens exists to catch, since it silently drops
+      coverage for both sites at once via one wrong module-exclusion, not
+      just the second site alone.
+    remediation: >
+      Correct §10: mark "charter" Selected (its root src/charter/** matches
+      this diff by the identical overlap-preserving logic already applied to
+      core_misc), and add tests/doctrine (at minimum
+      tests/doctrine/missions/) to §9's fresh baseline run so
+      test_mission_type_repository.py and test_mission_step_resolver.py are
+      provably green before any code changes land, per CL-005. If the intent
+      is instead to argue "charter" genuinely need not be selected, that
+      argument must show, by direct grep against the registry (as this
+      finding did), that the pre-existing tests for both fix sites are
+      otherwise covered by the modules that ARE selected — which, per the
+      module definitions read directly above, they are not.
+
+  - id: PLAN-FRESH3-ARCH-002
+    lens: second-fix-site parity — §7 performance/contention reasoning
+    severity: 3
+    title: >-
+      §7's "different mission types never contend on the same lock" claim
+      is written in PRIMARY_SITE's per-mission-type key shape and does not
+      hold for SECOND_SITE's actual, mission-type-independent cache key
+    evidence:
+      - artifact: "plan.md § 7, lines 417-425 (\"because the lock is per-key (mission_type_id + pack_context, mirroring the cache's own key), two concurrent requests for different mission types never contend on the same lock and proceed fully in parallel\")"
+      - artifact: "plan.md § 8b, lines 585-591 (SECOND_SITE's race framed as \"the narrower same-key case, not just the existing test's distinct-slug case\")"
+      - code: "src/charter/offering/missions/mission_type_repository.py:477-480 (resolve_layered_mission_types(mission_types_dirs, pack_context) — no mission_type_id parameter in the cache key at all)"
+      - code: "src/charter/activation/mission_type_profiles.py:952-953 (_resolve_action_slot always builds mission_types_dirs = (MissionTemplateRepository.default_missions_root() / \"mission_types\",), independent of the mission_type argument, before calling resolve_layered_mission_types)"
+    claim: >
+      §7's contention analysis states the per-key lock mirrors "the cache's
+      own key" as (mission_type_id, pack_context) and concludes concurrent
+      requests for different mission types never contend. That is accurate
+      only for PRIMARY_SITE's cache key (builtin_root, mission_type_id,
+      pack_context). SECOND_SITE's actual cache/lock key is
+      (mission_types_dirs, pack_context) — resolve_layered_mission_types
+      resolves the WHOLE mission-type roster in one call and is never keyed
+      on which specific mission_type_id the caller wants;
+      _resolve_action_slot passes the identical fixed mission_types_dirs
+      tuple regardless of mission_type. So at the second site, two
+      concurrent create_mission_core calls for DIFFERENT mission types
+      (e.g. "software-dev" and "documentation") in the same pack_context DO
+      contend on the identical per-key lock — the "different mission types
+      never contend" claim is false for this site, and its actual
+      contention surface is broader than the primary site's (any two
+      concurrent cold resolutions in the same pack_context/process, not
+      just same-mission-type ones). §8b's parallel framing of the SECOND_SITE
+      race as needing to target "the narrower same-key case" is similarly
+      misleading: at the second site, hitting the same key is the default
+      outcome for any two concurrent resolutions, not a narrow case
+      requiring deliberate construction the way it does at the primary site.
+    remediation: >
+      Rewrite §7 to state SECOND_SITE's key shape explicitly
+      (mission_types_dirs + pack_context, roster-wide, not per-mission-type)
+      and its broader, mission-type-independent contention surface, then
+      explicitly reconcile whether the NFR-002 "rare contention" conclusion
+      still holds for that site (plausibly yes, since a process resolves its
+      roster once and warms almost immediately — but the plan must say so
+      with the correct reasoning, not reuse the primary site's narrower
+      per-mission-type framing verbatim).
+
+  - id: PLAN-FRESH3-ARCH-003
+    lens: second-fix-site parity — §8f per-key-lock-effect test granularity
+    severity: 4
+    title: >-
+      §8f instruments SECOND_SITE's cache_miss_body at the wrong
+      granularity (a per-file helper called multiple times per cache miss),
+      making its "executed exactly once" assertion false even on correctly
+      fixed code
+    evidence:
+      - artifact: "plan.md § 8a, lines 479-514 (_FixSiteCase.cache_miss_body field; SECOND_SITE sets race_target_a=\"<mission_types_dir>/software-dev.yaml\", race_target_b=\"<mission_types_dir>/documentation.yaml\" — two distinct files under one mission_types_dir shared by 8b/8c/8e/8f)"
+      - artifact: "plan.md § 8f, lines 725-747 (\"case.cache_miss_body ... is instrumented with a call-counting wrapper ... the test asserts the instrumented body executed exactly once, not twice, for that case\")"
+      - code: "src/charter/offering/missions/mission_type_repository.py:351-405 (_load_layered_mission_type_file — a per-FILE helper, SECOND_SITE's chosen cache_miss_body)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:456-474 (scan_mission_types_dir calls _load_layered_mission_type_file once per *.yaml file found in a directory listing)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:477-601 (resolve_layered_mission_types — the actual @functools.cache-wrapped function whose single body loops scan_mission_types_dir over every mission_types_dirs entry, invoking _load_layered_mission_type_file once per file across all layers)"
+    claim: >
+      PRIMARY_SITE's cache_miss_body is
+      MissionStepRepository._resolve_all_for_mission_type_uncached — the
+      entire body @functools.cache wraps, called exactly once per genuine
+      cache miss, so "executed exactly once" correctly detects whether 6b's
+      per-key lock prevented a redundant second full walk. SECOND_SITE's
+      cache_miss_body is instead set to _load_layered_mission_type_file, a
+      much lower-level per-file helper invoked once per YAML file inside
+      resolve_layered_mission_types' own loop (via scan_mission_types_dir)
+      — not the function functools.cache actually decorates. Given the SAME
+      shared _FixSiteCase fixture used across 8a/8b/8c/8e/8f names two
+      distinct target files for SECOND_SITE (software-dev.yaml and
+      documentation.yaml under one mission_types_dir), a single, correctly
+      non-redundant call to resolve_layered_mission_types — i.e. the exact
+      post-6b-fix, only-one-thread-runs-the-miss-body outcome 8f exists to
+      prove — would still call _load_layered_mission_type_file at least
+      TWICE (once per file). §8f's "executed exactly once, not twice"
+      assertion is therefore false even on correctly fixed code for
+      SECOND_SITE, making the test either vacuously red on the very code it
+      is meant to prove green, or (if the intent was to count calls for one
+      specific file only) underspecified, since the plan never states that
+      narrowing.
+    remediation: >
+      Change SECOND_SITE's cache_miss_body to the function functools.cache
+      actually wraps — resolve_layered_mission_types itself (e.g. via
+      .__wrapped__, or an extracted _resolve_layered_mission_types_uncached
+      helper mirroring the primary site's own naming/shape) — so "executed
+      exactly once" means one call to the actual cache-miss population body,
+      matching PRIMARY_SITE's semantics exactly. If the per-file helper is
+      intentionally what should be counted instead, §8f must say so
+      explicitly and restrict the assertion to calls matching one named
+      target file, not the whole-body call count the current wording
+      implies.
+

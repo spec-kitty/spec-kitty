@@ -1,0 +1,14 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: concurrent-template-config-race-4589-01M35M6B
+# Severity rubric (governs the `severity` field on any finding below):
+# 1 nit      - Wording/style; no effect on implementation
+# 2 minor    - Small gap; implementation would still come out right
+# 3 moderate - Ambiguity or gap likely to cause rework inside one work package
+# 4 high     - Would produce a wrong implementation: untestable/vacuous AC,
+#              FR without coverage, contradicts existing code, tenancy/permission gap
+# 5 critical - Charter or scope violation, breaks a stability contract, a
+#              production-safety breach, or a security/credential hazard
+findings: []

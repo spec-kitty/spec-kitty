@@ -1,0 +1,168 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: AMEND-SC006-001
+    status: resolved
+    reason: >-
+      The amended SC-006 (spec.md ~line 495-503) requires an exception raised
+      "during cache population (e.g., a fault injected into the step-loader
+      or mission-type loader)" to propagate unchanged, with nothing partial
+      cached. Checked against plan.md's actual §6b/§6c code sketch (lines
+      326-495), not against plan.md's own (stale) prose about SC-006/OBL-3:
+      a genuine production raise path exists at SECOND_SITE —
+      `_load_layered_mission_type_file` re-raises `ruamel.yaml.error.YAMLError`
+      as a `ValueError` and lets any other non-YAMLError corruption propagate
+      uncaught (plan.md §8a fact table, "Loader's catch semantics" row, line
+      658) — and §6b's lock-wrapping call site (lines 370-379) is a bare
+      `with _lock_for(key): return _resolve_all_for_mission_type_cached(...)`
+      with no try/except, so that exception propagates through the lock
+      release to the caller unchanged. Standard `functools.cache` semantics
+      (relied on throughout §6b, e.g. lines 403-412) never store a result for
+      a call that raised, so the next call is a genuine re-attempt, not a
+      poisoned hit — this substantiates SC-006's "nothing partial is cached
+      ... next call re-attempts and succeeds" clause without inventing any
+      mechanism beyond what §6b already specifies. This is a real,
+      testable code path reachable via `create_mission_core`, and the new
+      SC-006 does not require the design to add a new exception type,
+      timeout, or retry logic to satisfy it — unlike the original SC-006.
+      CAVEAT (see AMEND-SC006-006): plan.md itself (§7 lines 569-580, §8b
+      OBL-3 row line 671) still describes the *old*, since-debunked
+      fault-injection framing ("forcing the per-key concurrency-control seam
+      Section 6b adds to fail deterministically" / raising
+      `MissionCacheLockError`) that PLAN-FRESH4-DEBBIE-001 itself flagged as
+      having no real call site. plan.md has not been touched by this
+      amendment (git diff --stat HEAD -- plan.md is empty) and
+      reviews/plan.verify-4.yaml carries no result for
+      PLAN-FRESH4-DEBBIE-001 or -002. The new SC-006's own wording is sound
+      and satisfiable by the design; plan.md's prose describing how to test
+      it is not yet consistent with that new wording. Rated resolved for
+      spec.md's own content; the plan-level gap is tracked separately below
+      so it is not lost.
+  - id: AMEND-SC006-002
+    status: resolved
+    reason: >-
+      The amended SC-006 states two explicit, checkable failure modes: "(a)
+      the propagation is replaced with a silent-degrade return, or (b) the
+      failed population is cached, i.e., a second call made after the fault
+      does not re-attempt population" (spec.md ~line 501-503). Both are
+      concrete, assertable test predicates (exception type/propagation on
+      the first call; a second call after the fault must still attempt
+      population, not return a stale/absent result silently). This is more
+      specific than the original SC-006, which only named one failure mode
+      (raise replaced with a silent-degrade return) — the amendment adds a
+      second failure mode (cache poisoning by a failed population) without
+      losing the first. Not vague; both modes name an observable, single
+      assertion each.
+  - id: AMEND-SC006-003
+    status: resolved
+    reason: >-
+      The amended SC-006 preserves the original's core prohibition nearly
+      verbatim: "never converted into `None`, an empty mapping, or a partial
+      `template_set`" (spec.md ~line 497-498) matches the original's "never
+      returns `None`, an empty mapping, or a partial `template_set`" word
+      for word in substance. CL-006 (spec.md lines 135-150), which SC-006
+      cites, likewise still requires raising "on every failure path" and
+      still forbids `None`/empty-mapping/partial-`template_set` returns, and
+      was explicitly broadened ("including, but not limited to, a lock
+      timeout, a corrupted-cache detection, or a retry-exhaustion path,
+      should any of those specifically be introduced") rather than narrowed.
+      The amendment does not restrict the guarantee to only the three
+      originally-named (and design-absent) mechanisms — SC-006 now reads "an
+      exception raised during cache population (e.g., ... step-loader or
+      mission-type loader)," which is broader than the original's
+      lock-timeout/corrupted-cache/retry-exhaustion framing, and CL-008
+      states this explicitly ("from any source, not limited to the three
+      originally-named mechanisms"). The "never None/empty/partial" language
+      is present in both SC-006 and CL-006 and was not dropped.
+  - id: AMEND-SC006-004
+    status: resolved
+    reason: >-
+      (a) CL-006 (spec.md lines 135-150): reworded text reads coherently and
+      does not contradict SC-006 or CL-008 — it still requires raise-not-degrade
+      "on any failure encountered during cache population" and explicitly
+      defers to CL-008 for why the three original mechanisms are absent from
+      the design ("see CL-008: the approved design introduces none of those
+      three named mechanisms"). (b) FR-006 (spec.md line 427): reworded to
+      "any exception encountered during cache population in the fix's new
+      lock/cache code (e.g., ... if any such mechanism is ever introduced;
+      the approved design (CL-008) introduces none of the three)" plus a new
+      "never leave a partial result cached" clause matching SC-006(b) —
+      consistent with both CL-006 and the new SC-006, no contradiction found.
+      (c) CL-008 (spec.md lines 170-196) accurately cites
+      PLAN-FRESH4-DEBBIE-001 by id and severity (severity 4, confirmed
+      against reviews/plan.fresh-4-debbie.yaml verbatim), accurately restates
+      the original SC-006's three named conditions, and accurately restates
+      the new SC-006's substance (fault propagation, nothing cached, next
+      call re-attempts) matching the actual SC-006 text in the table.
+      (d) grep of spec.md for "lock-timeout|corrupted-cache|retry-exhaustion"
+      (case-insensitive) returns only lines 144-183 and 427 — all inside
+      CL-006's, CL-008's, and FR-006's own explanatory text describing *why*
+      those mechanisms are absent from the design; no straggler reference
+      to the old framing exists elsewhere in spec.md (e.g. Edge Cases, User
+      Stories, other FR/SC rows were checked and contain none). (e) FR-008
+      ("CL-001 through CL-007 present and substantively unchanged") was not
+      itself edited in this diff and does not mention CL-008. Checked this
+      reasoning rather than accepting it: CL-008 is the amendment record
+      itself (an operator-approved change), so FR-008's "substantively
+      unchanged" bar for CL-001..CL-007 does not logically need to cover it,
+      and CL-006's wording *was* touched by this diff but CL-008 explicitly
+      asserts its substance is unchanged ("The underlying prohibition on
+      silent success (CL-006, FR-006) is unchanged"), which is accurate on
+      inspection (same raise-not-degrade guarantee, only the design-absent
+      mechanisms are reframed as non-exhaustive examples) and does not
+      violate FR-008. One minor (severity 1-2, not blocking) completeness
+      gap: FR-008's literal text does not obligate CL-008 itself to persist
+      through plan/tasks/implement the way CL-001..CL-007 must — a future
+      edit that silently dropped CL-008 would not literally violate FR-008
+      as worded. Not rated as a standalone unresolved finding because CL-008
+      is the operator's own decision record and is very unlikely to be
+      silently dropped, but noted for completeness.
+  - id: AMEND-SC006-005
+    status: resolved
+    reason: >-
+      `git diff --stat HEAD -- kitty-specs/concurrent-template-config-race-4589-01M35M6B/spec.md`
+      shows exactly one file changed (45 insertions, 9 deletions). Full diff
+      confirms exactly four edit sites, all within spec.md and all described
+      in the task background: (1) CL-006's trailing sentence reworded
+      (lines ~141-150), (2) a new CL-008 section inserted after CL-007
+      (lines ~170-196), (3) FR-006's table row reworded (line 427), and
+      (4) SC-006 reworded (lines ~495-503). No other file changed
+      (plan.md, tasks/*, reviews/* are all untouched — `git diff --stat
+      HEAD -- plan.md` is empty), and no other section of spec.md (User
+      Stories, other CL/FR/SC entries, Edge Cases, Readiness Findings) was
+      touched.
+  - id: AMEND-SC006-006
+    status: unresolved
+    remaining_severity: 4
+    reason: >-
+      Not one of the 5 requested checks, but surfaced while verifying
+      AMEND-SC006-001 and worth recording so it is not lost: plan.md was NOT
+      updated as part of this amendment (`git diff --stat HEAD -- plan.md`
+      is empty), and `reviews/plan.verify-4.yaml` contains no result entry
+      for `PLAN-FRESH4-DEBBIE-001` (or `-002`) at all — the finding that
+      motivated this spec amendment is still formally open at the plan
+      level. plan.md §7 (lines 569-580) still states the SC-006 obligation
+      "exercises the lock/cache-error raise via fault injection (forcing the
+      per-key concurrency-control seam Section 6b adds to fail
+      deterministically) ... while still exercising FR-006's raise contract
+      under the injected-fault condition the test forces," and §8b's OBL-3
+      row (line 671) still reads "Forcing the per-key concurrency-control
+      seam (Section 6b) to fail raises `MissionCacheLockError` through
+      `create_mission_core`." This is precisely the framing
+      PLAN-FRESH4-DEBBIE-001 (severity 4) found unsatisfiable ("does not
+      name what code in Section 6's design would catch an injected fault and
+      translate it into MissionCacheLockError... none of the sketched code
+      ... contains a try/except of any kind") — that finding's own
+      remediation required BOTH a spec.md fix AND a rewrite of plan.md's
+      OBL-3 row/revert-matrix "to state honestly what it actually verifies."
+      Only the spec.md half has been done. If tasks are authored from
+      plan.md's current §7/§8b text as written, they would target the wrong
+      mechanism (forcing the lock seam itself, asserting a
+      `MissionCacheLockError` type) instead of the new SC-006's actual
+      requirement (injecting a loader fault at SECOND_SITE and asserting
+      propagation + no-cache-poisoning, per AMEND-SC006-001's reasoning) —
+      recreating the same severity-4 problem at the next phase. This blocks
+      moving cleanly to tasks without a plan.md correction pass; it is not a
+      defect in the spec.md diff itself (AMEND-SC006-001 through -005 all
+      resolved on spec.md's own merits).

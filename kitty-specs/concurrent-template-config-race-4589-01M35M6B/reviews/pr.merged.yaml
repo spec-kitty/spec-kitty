@@ -1,0 +1,135 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: concurrent-template-config-race-4589-01M35M6B
+sources:
+- pr.boundary.findings.yaml (0 findings)
+- pr.contract.findings.yaml (1 findings)
+- pr.tests.findings.yaml (1 findings)
+findings:
+- id: PR-CONTRACT-001
+  lens: 'static-analysis gate (reviewer-renata directive 030 Test and Typecheck Quality Gate; charter
+    Technical Standards > Testing Requirements: ''mypy --strict must pass (no type errors)'')'
+  severity: 3
+  title: 6b's new code introduces 6 new mypy --strict errors in both fix-site files (clean on origin/main);
+    WP01 review's checks_run list ran ruff but never mypy
+  evidence:
+  - artifact: 'AGENTS.md ''Technical Standards > Testing Requirements'': ''**mypy** - Type checking (strict
+      mode)'' / ''**mypy --strict** must pass (no type errors)'''
+  - artifact: 'packs/built-in/agent_profiles/reviewer-renata.agent.yaml directive-references code 030
+      ''Test and Typecheck Quality Gate: Verify tests pass and static analysis gates are green before
+      approving'''
+  - artifact: 'reviews/wp-WP01.yaml checks_run: lists ''ruff check'' but never runs mypy anywhere in the
+      recorded evidence'
+  - code: 'src/charter/offering/missions/mission_step_repository.py:88-95 (_get_yaml) -> mypy: ''Returning
+      Any from function declared to return "YAML"'' [no-any-return]'
+  - code: 'src/charter/offering/missions/mission_type_repository.py:338-346 (_get_layered_yaml) -> mypy:
+      same ''Returning Any from function declared to return "YAML"'' [no-any-return]'
+  - code: 'src/charter/offering/missions/mission_type_repository.py:219 (MissionTypeRepository.cache_clear
+      -> resolve_layered_mission_types.cache_clear()) -> mypy: ''"Callable[[tuple[Path, ...], _PackContextLike
+      | None], dict[str, Any]]" has no attribute "cache_clear"'' [attr-defined]'
+  - code: 'src/charter/offering/missions/mission_type_repository.py:696-698 (the three forwarding assignments:
+      resolve_layered_mission_types.cache_clear/.cache_info/.cache_parameters = _resolve_layered_mission_types_cached.cache_clear/.cache_info/.cache_parameters)
+      -> mypy: same ''has no attribute'' error on each of the three lines'
+  - code: src/kernel/locks.py:647-660 (_ReentrancyState(threading.local)) -- the existing, canonical,
+      mypy-clean in-repo idiom for a typed threading.local subclass that this diff's _get_yaml()/_get_layered_yaml()
+      did not follow
+  claim: 'Running `env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 .venv/bin/python -m mypy src/charter/offering/missions/mission_step_repository.py
+    src/charter/offering/missions/mission_type_repository.py` against this checkout produces 6 errors,
+    all attributable to this mission''s own new code (never pre-existing): (1) `_get_yaml()`/`_get_layered_yaml()`
+    return `_yaml_local.instance`/`_layered_yaml_local.instance`, which mypy types as `Any` because a
+    bare `threading.local()` instance has no typed attributes -- `--strict`''s `no-any-return` check fires
+    on the declared `-> YAML` return type. (2) The Section 6b "public/private split" at `resolve_layered_mission_types`
+    deliberately assigns `.cache_clear`, `.cache_info`, `.cache_parameters` onto a plain function object
+    by dynamic attribute assignment (plan.md Section 6b''s own explicit design, chosen over `functools.update_wrapper`)
+    -- mypy infers `resolve_layered_mission_types`''s type as a plain `Callable[...]`, which has no such
+    attributes, so it errors at both the three assignment sites (mission_type_repository.py:696-698) and
+    the one pre-existing call site that now exercises the new wrapper (`MissionTypeRepository.cache_clear()`
+    at line 219, whose body was NOT touched by this diff but now type-checks against the new wrapper''s
+    inferred type). I confirmed these are net-new by running the identical `mypy --strict` invocation
+    against the `origin/main` copies of both files in a throwaway `git worktree` (removed after use):
+    `Success: no issues found in 2 source files`. Neither the plan (Section 6b/6c) nor the WP01 task file
+    nor the WP01 per-WP review (`reviews/wp-WP01.yaml`, whose `checks_run` list runs `ruff check --select
+    TID251,F401` but never `mypy`) mentions or verifies mypy strictness for these two files, despite the
+    charter''s own Testing Requirements stating `mypy --strict` "must pass (no type errors)" and reviewer-renata''s
+    own directive 030 calling for static-analysis gates to be verified green before approval. This is
+    not currently a CI-blocking gate for these specific files (the repo''s mypy enforcement is narrow:
+    the Makefile `typecheck` target only checks `src/specify_cli/runtime/agent_commands.py` and `src/specify_cli/git/commit_helpers.py`;
+    the one CI-enforced mypy pytest gate, `tests/cross_cutting/test_mypy_strict_mission_step_contracts.py`,
+    targets a different, similarly-named module, `src/specify_cli/mission_step_contracts/executor.py`,
+    not `charter/offering/missions/*`) -- so it will not fail CI today. It is, however, a real, reproducible
+    regression from a clean-under-strict-mypy baseline, in a package (`src/charter/offering/missions/`)
+    this very mission is fixing for correctness, and the in-repo canonical idiom for this exact problem
+    already exists (`src/kernel/locks.py:647`''s `_ReentrancyState(threading.local)` typed subclass) but
+    was not reused, contrary to the charter''s "canonical sources, never improvise" governing principle.
+
+    '
+  remediation: 'Type the two thread-local accessors properly, mirroring `src/kernel/locks.py:647`''s `_ReentrancyState(threading.local)`
+    pattern (a typed `threading.local` subclass with a declared attribute, or an explicit `cast(YAML,
+    ...)` / `# type: ignore[no-any-return]` at the single return site with a comment explaining why) so
+    `_get_yaml()`/`_get_layered_yaml()` type-check under `--strict`. For the `resolve_layered_mission_types`
+    attribute-forwarding wrapper, either give the public name a `Protocol`-typed alias/cast that declares
+    `cache_clear`/`cache_info`/`cache_parameters` (so both the assignment site and `MissionTypeRepository.cache_clear()`''s
+    call site type-check), or add an explicit, commented `# type: ignore[attr-defined]` on each of the
+    four affected lines (696, 697, 698, and 219) recording that this is the deliberate dynamic-attribute-forwarding
+    design from plan.md Section 6b. Re-run `mypy --strict` on both files and record a zero-error result
+    in the PR notes, closing the gap between the charter''s stated requirement and what was actually verified
+    before this WP''s approval.
+
+    '
+- id: PR-TESTS-001
+  lens: FLAKINESS/DETERMINISM (threads not joined)
+  severity: 3
+  title: 'OBL-1/OBL-2 race tests never verify BOTH threads actually finished -- only one side''s outcome
+    is checked after a timed join, so a future deadlock in the very `_lock_for` code this WP introduces
+    could hang or false-green instead of failing loudly.
+
+    '
+  evidence:
+  - artifact: plan.md Section 8d item 3 ("no lock is held across a barrier the other thread needs (ARB-002)")
+      and Section 8b's OBL-1/OBL-2 rows -- both frame lock/deadlock risk as the central hazard this WP's
+      harness must avoid triggering, which implies the harness should also be able to CATCH a hang if
+      a future regression introduces one
+  - code: tests/core/test_mission_creation_identity.py:385-389 (test_obl1_primary_site_forced_interleave_distinct_keys)
+  - code: tests/core/test_mission_creation_identity.py:458-461 (test_obl1_second_site_forced_interleave_distinct_pack_contexts)
+  - code: tests/core/test_mission_creation_identity.py:554-558 (test_obl2_primary_site_redundant_population_count)
+  - code: tests/core/test_mission_creation_identity.py:628-632 (test_obl2_second_site_redundant_population_count)
+  - code: 'tests/core/test_mission_creation_identity.py:769-770 (test_obl5_primary_site_cache_clear_mid_population_no_deadlock)
+      -- the CORRECT pattern this WP already uses elsewhere: `clear_thread.join(timeout=5)` is immediately
+      followed by `assert not clear_thread.is_alive(), "cache_clear() deadlocked while a population was
+      in flight"`'
+  claim: 'In all four OBL-1/OBL-2 tests, `t1.join(timeout=30)` and `t2.join(timeout=30)` are called back-to-back
+    with no `is_alive()` check on either thread afterward. The OBL-1 tests only assert `t1.ident in captured`
+    (the paused thread''s own result) -- the racer thread (`t2`) has no completion check at all: if it
+    hangs past the 30s join timeout without raising, the test still passes as long as `t1` finished and
+    was captured. The OBL-2 tests check only `errors` (populated solely on an exception, never on a hang)
+    and `counter.count == 1` -- if one thread acquires `_lock_for(key)` and completes while the other
+    deadlocks trying to acquire the SAME lock (e.g. a future regression in the lock-release path this
+    WP introduces, such as an exception path that fails to release the lock, or a reentrancy bug), `counter.count`
+    can still legitimately read 1 while a thread is permanently stuck -- the test would report PASS (or,
+    at worst, an opaque process hang at interpreter exit rather than a clear, fast, named assertion failure).
+    This is exactly the ARB-002 deadlock hazard class plan.md Section 8d explicitly designs the harness
+    to avoid TRIGGERING, but the harness itself does not verify it can DETECT a deadlock if one is introduced
+    later -- unlike the OBL-5 tests in the same file (line 769-770 and the equivalent SECOND_SITE OBL-5
+    test), which correctly pair every timed join with an explicit `assert not thread.is_alive()`. Independently
+    confirmed by re-running the WP test file 20x (`-p no:randomly`), in reverse collection order, and
+    across 7 `PYTHONHASHSEED` values (0,1,2,3,4,7,13) in separate subprocesses -- all runs green, consistent
+    with the current implementation not deadlocking (this is a coverage/robustness gap in the test harness
+    for a future regression class, not evidence that today''s code is broken).
+
+    '
+  remediation: 'Add `assert not t1.is_alive()` and `assert not t2.is_alive()` (with a message naming which
+    side of the obligation deadlocked) immediately after each `.join(timeout=30)` pair in test_obl1_primary_site_forced_interleave_distinct_keys,
+    test_obl1_second_site_forced_interleave_distinct_pack_contexts, test_obl2_primary_site_redundant_population_count,
+    and test_obl2_second_site_redundant_population_count -- mirroring the `clear_thread.is_alive()` pattern
+    already used correctly for OBL-5 at tests/core/test_mission_creation_identity.py:769-770 and the equivalent
+    SECOND_SITE OBL-5 test. This converts a silent 30s hang (or a false green if the surviving thread''s
+    data already satisfied the assertion) into a fast, clearly-named assertion failure that correctly
+    attributes the fault to a deadlock rather than leaving a confusing opaque timeout for whoever debugs
+    the CI run.
+
+    '
+dedup_note: 'No duplicates: PR-CONTRACT-001 (mypy --strict typing of thread-local accessors and forwarded
+  cache attributes) and PR-TESTS-001 (missing is_alive() checks after thread joins) cite different code
+  and claims.'

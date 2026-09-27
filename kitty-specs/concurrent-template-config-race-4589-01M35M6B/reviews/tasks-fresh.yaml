@@ -1,0 +1,65 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: TASKS-FRESH-001
+    lens: conceptual-alignment (harness-mechanic mischaracterization)
+    severity: 2
+    title: Objective still calls OBL-1/OBL-2/OBL-3 collectively "all Barrier-synchronized", which
+      contradicts OBL-1's actual pause-based construction and OBL-3's no-concurrency construction
+      stated everywhere else in the same file
+    evidence:
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md § Objective, line 63: \"...landing a red-first regression test pair (OBL-1, OBL-2) plus a green-at-Base construction-invariant regression guard (OBL-3), all Barrier-synchronized and committed together...\""
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md § Binding constraints, item 3 (line 182): \"...never pair a long paused-while-holding-the-lock thread with another thread racing the SAME key (that pairing belongs only to OBL-2, which needs only a threading.Barrier for simultaneous entry, not a long pause)\" — OBL-1 is explicitly the long-pause construction, not the Barrier one."
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md § Risks (line 384): \"reserving same-key racing for OBL-2's Barrier-only (no long pause) construction\" — again ties Barrier usage to OBL-2 only."
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md § OBL-3 table row (line 165): a single fault-injected call asserting propagate/no-partial-cache/retry-succeeds — no second thread, no Barrier, no synchronization primitive of any kind."
+    claim: The Objective's summary sentence asserts all three obligations in the red-first/green-at-Base
+      commit are "Barrier-synchronized". Every detailed section of the same file (binding constraint 3,
+      the Risks section, and OBL-3's own obligation-table row) describes a different picture — OBL-2 alone
+      is Barrier-based (simultaneous entry, no pause), OBL-1 is a long-pause/monkeypatch construction, and
+      OBL-3 needs no thread synchronization at all since it is a single, non-concurrent fault-injection
+      call. This is the same class of per-obligation fact-blurring the plan-phase arbiter ruling
+      (reviews/plan.ruling.md) closed for per-site facts, recurring here at the harness-mechanic level in
+      the Objective's own headline sentence. This exact "Barrier-synchronized" phrase originates verbatim
+      from TASKS-DECOMP-001's own accepted remediation text (reviews/tasks.confirmed.yaml lines 35-38), so
+      the fixer applied the confirmed remediation faithfully — the imprecision was already present in the
+      remediation instruction itself, not introduced independently by this round, but it still stands
+      uncorrected in the current artifact.
+    remediation: >
+      In the Objective, drop "all Barrier-synchronized" (or scope it correctly), e.g. "...plus
+      a green-at-Base construction-invariant regression guard (OBL-3, no synchronization needed), OBL-2
+      driven via threading.Barrier for simultaneous entry and OBL-1 via a monkeypatch-forced pause,
+      committed together for review-diff cohesion...".
+
+  - id: TASKS-FRESH-002
+    lens: fakeable-DoD / NFR quantitative-bar fidelity
+    severity: 3
+    title: T006's new NFR-001 cross-process determinism step/DoD/Reviewer-Guidance bullet specifies
+      "N (e.g. 10-20)" subprocess invocations, silently narrower than both spec.md's literal "50 times"
+      falsifiable bar and the confirmed finding's own remediation text ("N (e.g. 10-50)") that this fix
+      round was implementing
+    evidence:
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md § T006 step 6 (line 335): \"Run OBL-1's PRIMARY_SITE and SECOND_SITE test cases as N (e.g. 10-20) separate python -m pytest subprocess invocations...\""
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md § Definition of Done, T006 line (371): \"...across N (e.g. 10-20) separate subprocess python -m pytest invocations of OBL-1...\""
+      - artifact: "spec.md line 435 (NFR-001): \"Falsifiable: run the new test 50 times in a row — it must produce the same red/green verdict every time relative to the code under test.\""
+      - artifact: "reviews/tasks.confirmed.yaml TASKS-VERIFY-001 remediation (line 132): \"...runs the OBL-1 test suite as N (e.g. 10-50) separate python -m pytest subprocess invocations with PYTHONHASHSEED varied across runs...\" — the exact confirmed finding this fix round was closing."
+    claim: TASKS-VERIFY-001 (sev 4, one of the 5 findings this fix round addresses per the commit message)
+      was correctly wired into an executable T006 step, a DoD checkbox, and a Reviewer Guidance bullet —
+      but the illustrative invocation count it carries ("10-20") was silently narrowed from the confirmed
+      finding's own suggested remediation range ("10-50") with no stated rationale, and both numbers sit
+      well below spec.md NFR-001's explicit, literal falsifiable bar of running the test 50 times. Neither
+      plan.md §8d/§9 nor the confirmed finding explains why 10-20 invocations (spread across only a
+      handful of explicit seeds plus one random) would satisfy the spirit of a "50 times, identical
+      verdict" requirement rather than merely gesturing at it. A reviewer holding the WP to spec.md's
+      literal bar, or to the confirmed finding's own remediation text, has grounds to reject T006's
+      evidence as insufficient, causing rework inside this one WP.
+    remediation: Either raise the example count to match the confirmed finding's own remediation ("N
+      (e.g. 10-50)", or explicitly "at least 50 total invocations across varied seeds") to track spec.md's
+      literal bar, or add one sentence explaining why fewer, seed-targeted subprocess invocations are
+      judged equivalent-or-stronger evidence than 50 same-process reps (e.g. because determinism here is
+      a property of hash-seed sensitivity, not flaky OS scheduling, so a handful of distinct fixed seeds
+      plus one random seed already exercises the failure mode a same-seed 50-rep loop cannot detect) —
+      and reflect whichever choice is made consistently in T006 step 6, the DoD line, and the Reviewer
+      Guidance bullet.
