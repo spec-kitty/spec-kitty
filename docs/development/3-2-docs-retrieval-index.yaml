@@ -3216,6 +3216,30 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "residuals-follow-ups", text: "Residuals / Follow-ups", level: 2}
     - {slug: "links", text: "Links", level: 2}
+  - path: "docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md"
+    title: "ADR: pack skills — share and co-maintain agent commands through charter packs"
+    divio_type: "none"
+    abstract: "Proposed: a charter-activatable `skill` doctrine kind so teams share and co-maintain agent commands through pack tiers, not private per-user copies."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "shape-of-the-artifact", text: "Shape of the artifact", level: 3}
+    - {slug: "tiers-merge-and-activation", text: "Tiers, merge, and activation", level: 3}
+    - {slug: "rendering-and-installation", text: "Rendering and installation", level: 3}
+    - {slug: "namespaces-and-trust", text: "Namespaces and trust", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "delivery-slices", text: "Delivery slices", level: 2}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-1-new-kind-command", text: "Option 1: new kind `command`", level: 3}
+    - {slug: "option-2-pack-skills-without-a-kind", text: "Option 2: pack skills without a kind", level: 3}
+    - {slug: "option-3-new-kind-skill-chosen", text: "Option 3: new kind `skill` (chosen)", level: 3}
+    - {slug: "option-4-invocable-procedures", text: "Option 4: invocable procedures", level: 3}
+    - {slug: "option-5-tool-native-plugin-marketplaces", text: "Option 5: tool-native plugin marketplaces", level: 3}
+    - {slug: "open-questions", text: "Open questions", level: 2}
+    - {slug: "related-drift-found-during-research", text: "Related drift found during research", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
