@@ -97,9 +97,7 @@ def _matrix_read_dir(repo_root: Path, mission_slug: str) -> Path:
     """
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    return placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.ACCEPTANCE_MATRIX
-    )
+    return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.ACCEPTANCE_MATRIX)
 
 
 def _resolve_criterion_update(
@@ -164,9 +162,7 @@ def _register_negative_invariant(
     matrix.negative_invariants.append(new_ni)
 
 
-def _replace_or_append_negative_invariant(
-    matrix: AcceptanceMatrix, judged: NegativeInvariant
-) -> None:
+def _replace_or_append_negative_invariant(matrix: AcceptanceMatrix, judged: NegativeInvariant) -> None:
     """Splice an ALREADY-JUDGED row into ``matrix`` (insert-if-absent).
 
     #4858 (FR-002/C-4858-modes): unlike :func:`_register_negative_invariant`
@@ -185,9 +181,7 @@ def _replace_or_append_negative_invariant(
     matrix.negative_invariants.append(judged)
 
 
-def _splice_criterion_update(
-    matrix: AcceptanceMatrix, criterion_id: str, updated: AcceptanceCriterion
-) -> None:
+def _splice_criterion_update(matrix: AcceptanceMatrix, criterion_id: str, updated: AcceptanceCriterion) -> None:
     """Splice ``updated`` into ``matrix.criteria`` by id (insert-if-absent).
 
     #4858 (FR-002/C-4858-modes): the index is recomputed against the
@@ -235,9 +229,7 @@ def _locked_reread_splice_and_write(
     translates it into a structured, non-zero exit rather than falling back
     to an unlocked write.
     """
-    with feature_status_lock(
-        repo_root, matrix_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
-    ):
+    with feature_status_lock(repo_root, matrix_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
         fresh_matrix = read_acceptance_matrix(matrix_dir)
         if fresh_matrix is None:
             # The matrix vanished between the pre-lock existence check and
@@ -257,9 +249,7 @@ def _locked_reread_splice_and_write(
     return fresh_matrix, write_result
 
 
-def _emit_write_outcome(
-    write_result: WriteSeamResult, *, mission_slug: str, json_output: bool
-) -> None:
+def _emit_write_outcome(write_result: WriteSeamResult, *, mission_slug: str, json_output: bool) -> None:
     """Report a refused/error write outcome and exit; a no-op on success.
 
     Shared by both the criterion and the negative-invariant mode — the two
@@ -268,15 +258,13 @@ def _emit_write_outcome(
     """
     if write_result.status == "refused":
         _emit_error(
-            f"Could not route the acceptance-verdict write for {mission_slug!r}: "
-            f"{write_result.diagnostic or 'unroutable target'}",
+            f"Could not route the acceptance-verdict write for {mission_slug!r}: {write_result.diagnostic or 'unroutable target'}",
             json_output=json_output,
         )
         raise typer.Exit(1)
     if write_result.status == "error":
         _emit_error(
-            f"Failed to commit acceptance verdict for {mission_slug!r}: "
-            f"{write_result.diagnostic or 'unknown error'}",
+            f"Failed to commit acceptance verdict for {mission_slug!r}: {write_result.diagnostic or 'unknown error'}",
             json_output=json_output,
         )
         raise typer.Exit(1)
@@ -321,9 +309,7 @@ def _validate_mode_selection(
             raise typer.Exit(2)
     if negative_invariant is not None:
         if description is None:
-            _emit_error(
-                "--description is required with --negative-invariant", json_output=json_output
-            )
+            _emit_error("--description is required with --negative-invariant", json_output=json_output)
             raise typer.Exit(2)
         if verification_method is None:
             _emit_error(
@@ -350,8 +336,7 @@ def _run_criterion_mode(
     if criterion not in index_by_id:
         available = ", ".join(sorted(index_by_id)) or "(none)"
         _emit_error(
-            f"Unknown criterion {criterion!r} for mission {mission_slug!r}. "
-            f"Available criteria: {available}",
+            f"Unknown criterion {criterion!r} for mission {mission_slug!r}. Available criteria: {available}",
             json_output=json_output,
         )
         raise typer.Exit(1)
@@ -394,8 +379,7 @@ def _run_criterion_mode(
         _emit_json(payload)
     else:
         console.print(
-            f"[green]✓[/green] {criterion}={result} recorded for {mission_slug} "
-            f"(overall_verdict={fresh_matrix.overall_verdict}, write={write_result.status})"
+            f"[green]✓[/green] {criterion}={result} recorded for {mission_slug} (overall_verdict={fresh_matrix.overall_verdict}, write={write_result.status})"
         )
 
 
@@ -436,9 +420,7 @@ def _run_negative_invariant_mode(
         # judged row is used below — every sibling result the check happens
         # to (re-)compute here is discarded in favour of the fresh re-read
         # (FR-001: a verdict write changes only the row it owns).
-        matrix.negative_invariants = enforce_negative_invariants(
-            repo_root, matrix.negative_invariants
-        )
+        matrix.negative_invariants = enforce_negative_invariants(repo_root, matrix.negative_invariants)
 
     judged = next(ni for ni in matrix.negative_invariants if ni.invariant_id == invariant_id)
 
@@ -480,9 +462,7 @@ def acceptance_verdict(
             help="Acceptance criterion id (e.g. FR-001); mutually exclusive with --negative-invariant",
         ),
     ] = None,
-    result: Annotated[
-        str | None, typer.Option("--result", help="pass | fail | pending (required with --criterion)")
-    ] = None,
+    result: Annotated[str | None, typer.Option("--result", help="pass | fail | pending (required with --criterion)")] = None,
     verification_method: Annotated[
         str | None,
         typer.Option(
@@ -509,9 +489,7 @@ def acceptance_verdict(
     ] = None,
     verification_command: Annotated[
         str | None,
-        typer.Option(
-            "--verification-command", help="grep pattern or command verifying the invariant's absence"
-        ),
+        typer.Option("--verification-command", help="grep pattern or command verifying the invariant's absence"),
     ] = None,
     scope: Annotated[
         str | None,
@@ -551,8 +529,7 @@ def acceptance_verdict(
     matrix = read_acceptance_matrix(matrix_dir)
     if matrix is None:
         _emit_error(
-            f"No acceptance-matrix.json found for mission {mission_slug!r}. "
-            "Run `spec-kitty agent mission finalize-tasks` to scaffold it first.",
+            f"No acceptance-matrix.json found for mission {mission_slug!r}. Run `spec-kitty agent mission finalize-tasks` to scaffold it first.",
             json_output=json_output,
         )
         raise typer.Exit(1)
@@ -595,8 +572,7 @@ def acceptance_verdict(
         # unlocked fallback write ever occurs. Translated into a structured,
         # non-zero exit rather than an unhandled traceback.
         _emit_error(
-            f"Could not acquire the acceptance-matrix lock for mission "
-            f"{mission_slug!r} within {exc.timeout}s: {exc}",
+            f"Could not acquire the acceptance-matrix lock for mission {mission_slug!r} within {exc.timeout}s: {exc}",
             json_output=json_output,
         )
         raise typer.Exit(1) from None

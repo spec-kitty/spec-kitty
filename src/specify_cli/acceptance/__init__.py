@@ -154,8 +154,7 @@ _ACTIONABLE_LANE_BLOCKER_HINTS = {
     "in_review": "review is still in progress; complete the review and move the work package to approved or done",
     "blocked": "work package is blocked; resolve the blocker and move the work package to approved or done",
     "canceled": (
-        "work package is canceled; operator-authored cancellation provenance required "
-        "— reopen or replace it, then move the work package to approved or done"
+        "work package is canceled; operator-authored cancellation provenance required — reopen or replace it, then move the work package to approved or done"
     ),
 }
 
@@ -223,7 +222,10 @@ def _is_accept_pipeline_own_write(path: str, *, mission_slug: str) -> bool:
 
 
 def _encoding_backup_scope_prefix(
-    repo_root: Path, feature: str, *, effective_root: Path | None = None,
+    repo_root: Path,
+    feature: str,
+    *,
+    effective_root: Path | None = None,
 ) -> str | None:
     """The posix-relative ``<primary-feature-dir>/`` prefix a backup must fall under.
 
@@ -396,7 +398,9 @@ def _accept_dirty_gate(
         and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
     ]
     return _filter_coordination_residue(
-        git_dirty, repo_root=repo_root, feature=feature,
+        git_dirty,
+        repo_root=repo_root,
+        feature=feature,
         **effective_root_kwargs(effective_root),
     )
 
@@ -425,7 +429,9 @@ def _filter_coordination_residue(
     from specify_cli.coordination.coherence import is_coord_residue_churn
 
     if not _mission_routes_through_coordination(
-        repo_root, feature, **effective_root_kwargs(effective_root),
+        repo_root,
+        feature,
+        **effective_root_kwargs(effective_root),
     ):
         return dirty_lines
     return [line for line in dirty_lines if not is_coord_residue_churn(_porcelain_dirty_path(line), mission_slug=feature)]
@@ -719,7 +725,9 @@ def _iter_work_packages(repo_root: Path, feature: str, *, effective_root: Path |
     # the PRIMARY surface (where they live), not the materialized -coord husk
     # whose tasks/ dir is absent (closeout N+1 — debbie §3).
     feature_path = _wp_tasks_read_dir(
-        repo_root, feature, **effective_root_kwargs(effective_root),
+        repo_root,
+        feature,
+        **effective_root_kwargs(effective_root),
     )
     tasks_dir = feature_path / "tasks"
     if not tasks_dir.exists():
@@ -882,9 +890,7 @@ def _approved_lane_source_roots(
         lane_wps = set(getattr(lane, "wp_ids", ()) or ())
         if not lane_wps or not lane_wps <= accepted_wps:
             continue
-        candidate, _lane_branch = predict_lane_worktree(
-            repo_root, manifest.mission_slug, lane.lane_id
-        )
+        candidate, _lane_branch = predict_lane_worktree(repo_root, manifest.mission_slug, lane.lane_id)
         if candidate.is_dir():
             roots.append(candidate)
     return tuple(roots)
@@ -1018,7 +1024,9 @@ def normalize_feature_encoding(repo_root: Path, feature: str, *, effective_root:
     # §3). ``_planning_read_dir`` resolves the PRIMARY surface via the same
     # kind-aware seam; behavior-neutral for a FLATTENED mission.
     feature_dir = _planning_read_dir(
-        repo_root, feature, **effective_root_kwargs(effective_root),
+        repo_root,
+        feature,
+        **effective_root_kwargs(effective_root),
     )
     if not feature_dir.exists():
         return []
@@ -1098,7 +1106,11 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
 
 
 def _status_read_feature_dir(
-    repo_root: Path, feature: str, feature_dir: Path, *, effective_root: Path | None = None,
+    repo_root: Path,
+    feature: str,
+    feature_dir: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Path:
     """Return canonical status read path for acceptance lane validation.
 
@@ -1187,7 +1199,9 @@ def _planning_read_dir(repo_root: Path, feature: str, *, effective_root: Path | 
     # ``Any``; the annotation re-narrows it (the method IS typed ``-> Path``) so the
     # chokepoint return is not an ``Any`` leak — matching ``mission.py::_planning_read_dir``.
     read_dir: Path = placement_seam(
-        repo_root, feature, **effective_root_kwargs(effective_root),
+        repo_root,
+        feature,
+        **effective_root_kwargs(effective_root),
     ).read_dir(kinds[_spec_file()])
     return read_dir
 
@@ -1230,13 +1244,19 @@ def _wp_tasks_read_dir(repo_root: Path, feature: str, *, effective_root: Path | 
             "against its current partition (closeout N+1 / data-model.md)."
         )
     read_dir: Path = placement_seam(
-        repo_root, feature, **effective_root_kwargs(effective_root),
+        repo_root,
+        feature,
+        **effective_root_kwargs(effective_root),
     ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return read_dir
 
 
 def _primary_anchor_feature_dir(
-    repo_root: Path, feature: str, read_dir: Path, *, effective_root: Path | None = None,
+    repo_root: Path,
+    feature: str,
+    read_dir: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Path:
     """Return the primary-checkout mission dir anchoring ``AcceptanceSummary``.
 
@@ -1272,7 +1292,9 @@ def _primary_anchor_feature_dir(
     from mission_runtime import MissionArtifactKind, placement_seam
 
     primary_candidate: Path = placement_seam(
-        repo_root, feature, **effective_root_kwargs(effective_root),
+        repo_root,
+        feature,
+        **effective_root_kwargs(effective_root),
     ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     if primary_candidate.exists():
         return primary_candidate
@@ -1427,10 +1449,7 @@ def collect_feature_summary(
     # operator-authored, so decide it here from the per-WP data and thread the
     # authoritative flag into ``_normalized_unchecked_tasks``. Mirrors the
     # ``_all_work_packages_terminal`` "no tracked WP → not terminal" guard.
-    all_packages_acceptable = bool(work_packages) and all(
-        is_acceptable_ending(state.lane, has_provenance=state.has_operator_provenance)
-        for state in work_packages
-    )
+    all_packages_acceptable = bool(work_packages) and all(is_acceptable_ending(state.lane, has_provenance=state.has_operator_provenance) for state in work_packages)
 
     # FR-002 (#2085): PLANNING reads (spec/plan/tasks/research/data-model/quickstart)
     # resolve the PRIMARY surface via the WP01 kind-aware seam; the STATUS reads above
@@ -1501,9 +1520,7 @@ def collect_feature_summary(
         mutate_matrix=mutate_matrix,
         **scope,
     )
-    normalized_unchecked_tasks = _normalized_unchecked_tasks(
-        unchecked_tasks, lanes, all_packages_acceptable=all_packages_acceptable
-    )
+    normalized_unchecked_tasks = _normalized_unchecked_tasks(unchecked_tasks, lanes, all_packages_acceptable=all_packages_acceptable)
     recommended_fix_order = _build_recommended_fix_order(
         lanes=lanes,
         metadata_issues=metadata_issues,

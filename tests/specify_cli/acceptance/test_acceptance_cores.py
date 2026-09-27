@@ -97,9 +97,7 @@ class TestBuildWorkPackageState:
         )
 
         assert issues == [
-            "WP01: missing agent in canonical runtime state "
-            "(never claimed; run `spec-kitty agent tasks move-task WP01 "
-            "--to in_progress --agent <name>` to repair)",
+            "WP01: missing agent in canonical runtime state (never claimed; run `spec-kitty agent tasks move-task WP01 --to in_progress --agent <name>` to repair)",
             "WP01: missing assignee in canonical runtime state",
             "WP01: missing shell_pid in canonical runtime state",
         ]
@@ -126,14 +124,10 @@ class TestBuildWorkPackageState:
     def test_terminal_lane_still_requires_canonical_runtime_agent(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent="authored-only")
 
-        _state, issues = build_work_package_state(
-            wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True
-        )
+        _state, issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True)
 
         assert issues == [
-            "WP01: missing agent in canonical runtime state "
-            "(never claimed; run `spec-kitty agent tasks move-task WP01 "
-            "--to approved --agent <name>` to repair)"
+            "WP01: missing agent in canonical runtime state (never claimed; run `spec-kitty agent tasks move-task WP01 --to approved --agent <name>` to repair)"
         ]
 
     def test_non_strict_metadata_suppresses_all_issues(self, tmp_path: Path) -> None:
@@ -181,9 +175,7 @@ class TestBuildWorkPackageState:
     def test_canonical_lane_none_buckets_to_planned(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md")
 
-        state, _issues = build_work_package_state(
-            wp, "WP01", None, repo_root=tmp_path, strict_metadata=True
-        )
+        state, _issues = build_work_package_state(wp, "WP01", None, repo_root=tmp_path, strict_metadata=True)
 
         assert state.lane == "planned"
         assert state.has_lane_entry is False
@@ -193,18 +185,14 @@ class TestBuildWorkPackageState:
         wp_path = tmp_path / "kitty-specs" / "trio-mission" / "tasks" / "WP01.md"
         wp = _wp(path=wp_path)
 
-        state, _issues = build_work_package_state(
-            wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True
-        )
+        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True)
 
         assert state.path == str(Path("kitty-specs") / "trio-mission" / "tasks" / "WP01.md")
 
     def test_title_strips_surrounding_quotes(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "WP01.md", title='"Quoted Title"')
 
-        state, _issues = build_work_package_state(
-            wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True
-        )
+        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True)
 
         assert state.title == "Quoted Title"
 
@@ -255,9 +243,7 @@ class TestEvaluatePathConventions:
             ),
         )
 
-        violations, warning, dedup_tokens = evaluate_path_conventions(
-            mission, tmp_path, tmp_path, tmp_path, strict_metadata=True
-        )
+        violations, warning, dedup_tokens = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=True)
 
         assert violations == ["missing src/"]
         assert warning is None
@@ -274,9 +260,7 @@ class TestEvaluatePathConventions:
             ),
         )
 
-        violations, warning, dedup_tokens = evaluate_path_conventions(
-            mission, tmp_path, tmp_path, tmp_path, strict_metadata=False
-        )
+        violations, warning, dedup_tokens = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=False)
 
         assert violations == []
         assert warning == "missing src/ (advisory)"
@@ -293,9 +277,7 @@ class TestEvaluatePathConventions:
             ),
         )
 
-        violations, _warning, dedup_tokens = evaluate_path_conventions(
-            mission, tmp_path, tmp_path, tmp_path, strict_metadata=True
-        )
+        violations, _warning, dedup_tokens = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=True)
 
         assert violations == ["Path conventions not satisfied."]
         assert dedup_tokens == frozenset()
@@ -455,9 +437,7 @@ class TestEvaluateAcceptanceMatrix:
         assert len(blocked) == 1 and blocked[0].check == "acceptance_matrix"
         assert len(skipped) == 3
 
-    def test_missing_matrix_message_names_regenerate_command(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_missing_matrix_message_names_regenerate_command(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Field report: the missing-file message gave no next step, so an
         operator hand-authored a matrix by copying an unrelated mission's file.
         The message must name the actual regenerate command."""
@@ -489,18 +469,14 @@ class TestEvaluateAcceptanceMatrix:
 
         assert enforce_calls and write_calls
 
-    def test_populate_criteria_from_review_evidence_called_when_mutate_true(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_populate_criteria_from_review_evidence_called_when_mutate_true(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """FR-008 (IC-04, T3): ``_evaluate_acceptance_matrix`` threads the
         matrix's ``criteria`` and the coord-resolved status surface into
         :func:`~specify_cli.acceptance.matrix.populate_criteria_from_review_
         evidence` BEFORE the verdict is read, when ``mutate_matrix=True``."""
         original_criteria = [SimpleNamespace(criterion_id="AC-001")]
         populated_criteria = [SimpleNamespace(criterion_id="AC-001", pass_fail="pass")]
-        matrix = SimpleNamespace(
-            criteria=original_criteria, negative_invariants=[], overall_verdict="pass"
-        )
+        matrix = SimpleNamespace(criteria=original_criteria, negative_invariants=[], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
         monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
@@ -510,9 +486,7 @@ class TestEvaluateAcceptanceMatrix:
             populate_calls.append((status_dir, criteria))
             return populated_criteria
 
-        monkeypatch.setattr(
-            "specify_cli.acceptance.matrix.populate_criteria_from_review_evidence", _populate
-        )
+        monkeypatch.setattr("specify_cli.acceptance.matrix.populate_criteria_from_review_evidence", _populate)
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, [], [], [], mutate_matrix=True)
 
@@ -520,16 +494,12 @@ class TestEvaluateAcceptanceMatrix:
         assert populate_calls[0][1] is original_criteria
         assert matrix.criteria is populated_criteria
 
-    def test_populate_criteria_from_review_evidence_skipped_when_mutate_false(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_populate_criteria_from_review_evidence_skipped_when_mutate_false(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Diagnose mode (``mutate_matrix=False``) never mutates the matrix --
         the population call must not fire either, symmetric with the
         negative-invariants arm."""
         original_criteria = [SimpleNamespace(criterion_id="AC-001")]
-        matrix = SimpleNamespace(
-            criteria=original_criteria, negative_invariants=[], overall_verdict="pass"
-        )
+        matrix = SimpleNamespace(criteria=original_criteria, negative_invariants=[], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
 
