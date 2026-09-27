@@ -36,6 +36,7 @@ from specify_cli.lanes.merge import (
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.mission_metadata import load_meta
+from specify_cli.status import SNAPSHOT_FILENAME, reconcile_status_snapshot
 
 if TYPE_CHECKING:
     # #4889: type-only -- the runtime import lives inside
@@ -982,6 +983,58 @@ def _wp_task_file_conflict_paths(merge_stdout: str) -> list[str]:
     )
 
 
+def _unmerged_paths(worktree_path: Path, env: dict[str, str]) -> list[str]:
+    """Repo-relative paths left unmerged (conflicted) by an in-progress merge."""
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=U"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _resolve_derived_status_snapshot_conflicts(worktree_path: Path, env: dict[str, str]) -> bool:
+    """Resolve a conflicted merge whose ONLY unmerged paths are derived ``status.json``.
+
+    #5160 friction 1: ``status.json`` is a derived, disposable reduced snapshot of
+    the append-only ``status.events.jsonl`` (the sole authority per the Status
+    Model). The event log union-merges via its ``spec-kitty-event-log`` driver, but
+    the snapshot has no driver and so conflicts on a both-sides divergence — a
+    routine, safe divergence that must NOT block lane allocation. When every
+    unmerged path is a ``status.json`` snapshot, regenerate each from its
+    (now union-merged) event log via the single canonical authority
+    (:func:`specify_cli.status.reconcile_status_snapshot`) and stage it, so the
+    caller can complete the merge.
+
+    Returns ``True`` when all conflicts were derived snapshots and were resolved
+    (staged); ``False`` when there is nothing to resolve OR any unmerged path is a
+    non-derived (human-authored) artifact — in which case the caller MUST fail
+    closed (no green-washing of a genuine conflict).
+    """
+    unmerged = _unmerged_paths(worktree_path, env)
+    if not unmerged:
+        return False
+    if any(Path(rel).name != SNAPSHOT_FILENAME for rel in unmerged):
+        return False
+    for rel in unmerged:
+        feature_dir = (worktree_path / rel).parent
+        reconcile_status_snapshot(feature_dir)
+        add = subprocess.run(
+            ["git", "add", "--", rel],
+            cwd=str(worktree_path),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        if add.returncode != 0:
+            return False
+    return True
+
+
 def _merge_recorded_planning_commit(
     repo_root: Path,
     worktree_path: Path,
@@ -1106,6 +1159,20 @@ def _merge_recorded_planning_commit(
         # the conflict markers only exist in ``merge.stdout`` while the merge
         # is still open.
         wp_task_conflicts = _wp_task_file_conflict_paths(merge.stdout)
+        # #5160 friction 1: a both-sides-divergent DERIVED ``status.json`` is not a
+        # real conflict — regenerate it from the union-merged event log and
+        # complete the merge, instead of failing closed on a disposable snapshot.
+        # Genuine (human-authored) conflicts still fall through to abort + raise.
+        if not wp_task_conflicts and _resolve_derived_status_snapshot_conflicts(worktree_path, env):
+            completed = subprocess.run(
+                ["git", "commit", "--no-edit"],
+                cwd=str(worktree_path),
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            if completed.returncode == 0:
+                return
         subprocess.run(
             ["git", "merge", "--abort"],
             cwd=str(worktree_path),
@@ -1276,6 +1343,20 @@ def _merge_dependency_lane_tips(
                 env=env,
             )
             if merge.returncode != 0:
+                # #5160 friction 1: a both-sides-divergent DERIVED ``status.json`` is
+                # not a real conflict — regenerate it from the union-merged event log
+                # and complete THIS dep merge, then carry on. Genuine conflicts still
+                # fail closed atomically below.
+                if _resolve_derived_status_snapshot_conflicts(worktree_path, env):
+                    completed = subprocess.run(
+                        ["git", "commit", "--no-edit"],
+                        cwd=str(worktree_path),
+                        capture_output=True,
+                        text=True,
+                        env=env,
+                    )
+                    if completed.returncode == 0:
+                        continue
                 # Fail closed AND atomic (#1915): abort the half-merge, then reset
                 # hard to the pre-loop ref so no EARLIER clean dep merge survives
                 # this LATER conflict. The worktree is left exactly as it was before
