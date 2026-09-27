@@ -645,13 +645,103 @@ jobs:
           echo "integration+next suite passed (exit 0)."
 
   # ---------------------------------------------------------------------------
+  # specify-cli-out-of-matrix (#5201): the tests/specify_cli/** trees that
+  # .github/ci-module-registry.yml records under out_of_matrix_test_dirs
+  # (deferred-promotion #4732, lift-invariant, secondary-tree dispositions)
+  # had no lane that reaches a verdict: full-module-matrix above expands only
+  # modules[] rows, and interpreter-matrix (the one directory-agnostic lane)
+  # is cancelled by its cap every night (#4951). Deterministic reds there
+  # (#4916) therefore never reddened main. This job runs tests/specify_cli BY
+  # DIRECTORY, minus every subdir a modules[] row already claims via
+  # test_dirs -- computed from the registry at run time, so a #4732 promotion
+  # drops its tree from this lane automatically and nothing double-runs.
+  # `stress`/`timing` are deselected: both are parallel-unsafe and have their
+  # own serial homes (the stress job above; make test-full's -n0 timing pass).
+  # Same if: always() + set +e + exit-into-$GITHUB_ENV + terminal fail-loud
+  # (#4212) + FR-007 escalation pattern as integration-next, including its
+  # zero-collected floor (a directory lane never exempts exit 5, FIND-2 #5034).
+  # ---------------------------------------------------------------------------
+  specify-cli-out-of-matrix:
+    name: specify_cli out-of-matrix trees (nightly-only, #5201)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
+      - name: Run out-of-matrix tests/specify_cli trees by directory (full-mode, run-all-regardless)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mapfile -t ignores < <(uv run --frozen python - <<'PY'
+          import yaml
+
+          with open(".github/ci-module-registry.yml", encoding="utf-8") as fh:
+              registry = yaml.safe_load(fh)
+          claimed = {d for row in registry["modules"] for d in row.get("test_dirs", []) if d.startswith("tests/specify_cli/")}
+          for directory in sorted(claimed):
+              print(f"--ignore={directory}")
+          PY
+          )
+          echo "::notice::ignoring ${#ignores[@]} registry-claimed tests/specify_cli subdirs: ${ignores[*]}"
+          uv run --frozen pytest tests/specify_cli "${ignores[@]}" -m "not stress and not timing" -q -n auto --dist loadfile --junitxml=out/reports/xunit-nightly-specify-cli-out-of-matrix.xml
+          code=$?
+          echo "SPECIFY_CLI_OOM_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::specify_cli out-of-matrix suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
+
+      - name: Upload nightly specify_cli out-of-matrix reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-specify-cli-out-of-matrix-reports
+          path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007), scoped to the
+      # `specify-cli-out-of-matrix` suite key. Fail-closed, if: always(); the
+      # `:-1` default (FIND-1) treats an unset/timeout-killed exit as failure.
+      - name: Escalate specify_cli out-of-matrix red -> deduped P0 (fail-closed)
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${SPECIFY_CLI_OOM_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key specify-cli-out-of-matrix --conclusion "$conclusion" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      # Terminal fail-loud gate (#4212): only exit 0 passes. Exit 5 (zero
+      # collected) and an unset/timeout-killed exit (`:-1`) both fail -- this
+      # is a directory lane (FIND-2, #5034).
+      - name: Fail the job if the specify_cli out-of-matrix suite was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          if [ "${SPECIFY_CLI_OOM_EXIT:-1}" -ne 0 ]; then
+            echo "::error::specify_cli out-of-matrix suite exited ${SPECIFY_CLI_OOM_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
+            exit 1
+          fi
+          echo "specify_cli out-of-matrix suite passed (exit 0)."
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, interpreter-matrix, integration-next, full-module-matrix]
+    needs: [performance, e2e, stress, interpreter-matrix, integration-next, specify-cli-out-of-matrix, full-module-matrix]
     if: always()
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -662,4 +752,5 @@ jobs:
           echo "stress: ${{ needs.stress.result }}"
           echo "interpreter-matrix: ${{ needs.interpreter-matrix.result }}"
           echo "integration-next: ${{ needs.integration-next.result }}"
+          echo "specify-cli-out-of-matrix: ${{ needs.specify-cli-out-of-matrix.result }}"
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"

@@ -50,10 +50,14 @@ _MARKER_LANES = {
     "stress": ("STRESS_EXIT", "stress"),
     "interpreter": ("INTERPRETER_EXIT", "interpreter-matrix"),
 }
-_DIRECTORY_LANE_JOB = "integration-next"
-_DIRECTORY_LANE_VAR = "INTEGRATION_EXIT"
+# directory-lane job name -> $GITHUB_ENV exit variable. #5201 added the
+# specify_cli out-of-matrix lane alongside integration-next.
+_DIRECTORY_LANES = {
+    "integration-next": "INTEGRATION_EXIT",
+    "specify-cli-out-of-matrix": "SPECIFY_CLI_OOM_EXIT",
+}
 
-_ALL_EXIT_VARS = [var for var, _job in _MARKER_LANES.values()] + [_DIRECTORY_LANE_VAR]
+_ALL_EXIT_VARS = [var for var, _job in _MARKER_LANES.values()] + list(_DIRECTORY_LANES.values())
 
 
 def _load_workflow() -> dict[str, Any]:
@@ -97,10 +101,11 @@ class TestUnsetExitNeverDefaultsToSuccess:
             assert f"${{{var}:-1}}" in run_text, (
                 f"expected the {suite_key!r} lane ({job_name!r}) to default an unset {var} to the failure sentinel `1`; run text: {run_text!r}"
             )
-        integration_run_text = _run_text_for_job(workflow, _DIRECTORY_LANE_JOB)
-        assert f"${{{_DIRECTORY_LANE_VAR}:-1}}" in integration_run_text, (
-            f"expected {_DIRECTORY_LANE_JOB!r} to default an unset {_DIRECTORY_LANE_VAR} to the failure sentinel `1`; run text: {integration_run_text!r}"
-        )
+        for job_name, var in _DIRECTORY_LANES.items():
+            directory_run_text = _run_text_for_job(workflow, job_name)
+            assert f"${{{var}:-1}}" in directory_run_text, (
+                f"expected {job_name!r} to default an unset {var} to the failure sentinel `1`; run text: {directory_run_text!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -109,14 +114,14 @@ class TestUnsetExitNeverDefaultsToSuccess:
 # marker selection legitimately produces it.
 # ---------------------------------------------------------------------------
 class TestZeroCollectedFloorScopedToDirectoryLane:
-    def test_integration_next_does_not_exempt_exit_five_from_failure(self) -> None:
+    @pytest.mark.parametrize("job_name", sorted(_DIRECTORY_LANES))
+    def test_directory_lane_does_not_exempt_exit_five_from_failure(self, job_name: str) -> None:
         workflow = _load_workflow()
-        run_text = _run_text_for_job(workflow, _DIRECTORY_LANE_JOB)
+        run_text = _run_text_for_job(workflow, job_name)
         assert "-ne 5" not in run_text, (
-            f"{_DIRECTORY_LANE_JOB!r} runs pytest BY DIRECTORY "
-            "(tests/integration tests/next), so exit 5 ('no tests collected') "
-            "means the corpus vanished or was fully deselected -- never a "
-            "legitimate skip. This job must not exempt it from failure "
+            f"{job_name!r} runs pytest BY DIRECTORY, so exit 5 ('no tests "
+            "collected') means the corpus vanished or was fully deselected -- "
+            "never a legitimate skip. This job must not exempt it from failure "
             f"(FIND-2, #5034); run text: {run_text!r}"
         )
 
@@ -130,3 +135,34 @@ class TestZeroCollectedFloorScopedToDirectoryLane:
         for suite_key, (_var, job_name) in _MARKER_LANES.items():
             run_text = _run_text_for_job(workflow, job_name)
             assert "-ne 5" in run_text, f"the {suite_key!r} lane ({job_name!r}) must still exempt pytest exit 5 (marker-empty) from failure; run text: {run_text!r}"
+
+
+# ---------------------------------------------------------------------------
+# #5201: the specify_cli out-of-matrix lane must stay wired into the nightly
+# verdict and keep deriving its exclusions from the module registry.
+# ---------------------------------------------------------------------------
+class TestSpecifyCliOutOfMatrixLane:
+    _JOB = "specify-cli-out-of-matrix"
+
+    def test_lane_feeds_the_nightly_summary(self) -> None:
+        workflow = _load_workflow()
+        needs = workflow["jobs"]["nightly-summary"]["needs"]
+        assert self._JOB in needs, f"{self._JOB!r} must be in nightly-summary.needs so its verdict is reported; needs: {needs!r}"
+
+    def test_lane_runs_specify_cli_minus_registry_claimed_dirs(self) -> None:
+        run_text = _run_text_for_job(_load_workflow(), self._JOB)
+        assert "pytest tests/specify_cli " in run_text, run_text
+        assert ".github/ci-module-registry.yml" in run_text, (
+            "the ignore list must be computed from the registry at run time, never hardcoded, "
+            f"so a #4732 promotion drops its tree from this lane; run text: {run_text!r}"
+        )
+        assert '"${ignores[@]}"' in run_text, run_text
+
+    def test_lane_deselects_parallel_unsafe_markers(self) -> None:
+        run_text = _run_text_for_job(_load_workflow(), self._JOB)
+        assert '-m "not stress and not timing"' in run_text, run_text
+        assert "--dist loadfile" in run_text, run_text
+
+    def test_lane_escalates_under_its_own_suite_key(self) -> None:
+        run_text = _run_text_for_job(_load_workflow(), self._JOB)
+        assert f"--suite-key {self._JOB}" in run_text, run_text
