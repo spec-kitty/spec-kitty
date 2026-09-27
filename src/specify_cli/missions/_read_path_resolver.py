@@ -1707,8 +1707,15 @@ def resolve_partition_read_dir(feature_dir: Path, kind: MissionArtifactKind) -> 
     ``follow_imports=skip`` boundary on ``specify_cli.*``; the ``.path`` result
     is bound explicitly so the declared ``Path`` narrows back. The import is
     lazy because ``mission_runtime.resolution`` imports this module.
+
+    ``RETROSPECTIVE`` is refused: its home has its own single authority
+    (``specify_cli.retrospective.writer.resolve_retrospective_home``), and composing it through
+    the generic surface here would mint a second, divergent answer.
     """
-    from mission_runtime import resolve_artifact_surface
+    from mission_runtime import MissionArtifactKind, resolve_artifact_surface
+
+    if kind is MissionArtifactKind.RETROSPECTIVE:
+        raise ValueError("resolve_partition_read_dir does not resolve RETROSPECTIVE; use specify_cli.retrospective.writer.resolve_retrospective_home")
 
     try:
         repo_root = resolve_canonical_root(feature_dir)

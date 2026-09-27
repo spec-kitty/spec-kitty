@@ -124,3 +124,9 @@ def test_deleted_coord_branch_raises(coord_topology_mission: CoordTopologyContex
 
     with pytest.raises(CoordinationBranchDeleted):
         resolve_partition_read_dir(ctx.primary_feature_dir, _STATUS)
+
+
+def test_retrospective_kind_is_refused(tmp_path: Path) -> None:
+    """RETROSPECTIVE has its own home authority; the handed-dir resolver must not mint a second one."""
+    with pytest.raises(ValueError, match="RETROSPECTIVE"):
+        resolve_partition_read_dir(tmp_path, MissionArtifactKind.RETROSPECTIVE)
