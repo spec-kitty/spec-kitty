@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "mission_slug": "python-interpreter-surface-honesty-01M3JCW8",
+  "mission_id": "01M3JCW8KAWHKMAGEGED0SWXGK",
+  "mission_branch": "kitty/mission-python-interpreter-surface-honesty-01M3JCW8",
+  "target_branch": "claude/project-thread-hjiqjz",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/README.md",
+        "src/kernel/resolution.py",
+        "tests/kernel/test_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/utils.py",
+        "src/specify_cli/dashboard/handlers/features.py",
+        "src/specify_cli/skills/command_installer.py",
+        "tests/specify_cli/core/test_containment_symlink_loops.py",
+        "tests/specify_cli/skills/test_command_installer_symlink_loops.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/path_guard.py",
+        "src/charter/offering/drg/org_pack_config.py",
+        "src/specify_cli/analysis_report.py",
+        "src/specify_cli/coordination/atomic_write.py",
+        "src/specify_cli/decisions/ownership.py",
+        "src/specify_cli/tracker/saas_client.py",
+        "src/specify_cli/upgrade/skill_update.py",
+        "tests/charter/test_symlink_loop_guards.py",
+        "tests/specify_cli/coordination/test_atomic_write_symlink_loops.py",
+        "tests/specify_cli/decisions/test_ownership_symlink_loops.py",
+        "tests/specify_cli/test_analysis_report_symlink_loops.py",
+        "tests/specify_cli/upgrade/test_skill_update_symlink_loops.py",
+        "tests/tracker/test_saas_client_symlink_loops.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_loop_aware_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-27T21:57:13.441299+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "17b8e1c9808f9907874cdc4e8e8bc7d7f857ed9b"
+}

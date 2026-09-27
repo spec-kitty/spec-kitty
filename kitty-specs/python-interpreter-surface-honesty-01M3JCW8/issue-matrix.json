@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#3189": {
+      "evidence_ref": "Product-code interpreter divergence fixed in this mission; the advisory 3.14 CI canary and declared-vs-tested guard are Follow-up: #5250 (after #5244); the wider resolve-then-contain audit is #5251.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#4866": {
+      "evidence_ref": "Context citation only (evidence source / sequencing dependency); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4951": {
+      "evidence_ref": "Context citation only (evidence source / sequencing dependency); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5244": {
+      "evidence_ref": "Context citation only (evidence source / sequencing dependency); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

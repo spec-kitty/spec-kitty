@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-27T21:39:54.982563Z",
+      "decision_id": "01M3JCYVZ6TBD6HZZF4CDEHRBE",
+      "final_answer": "Advisory 3.14 canary + guard test (operator choice 2026-09-27); sequenced after #5244 because it edits the same nightly workflow and helpers",
+      "input_key": "py314_surface_strategy",
+      "mission_id": "01M3JCW8KAWHKMAGEGED0SWXGK",
+      "mission_slug": "python-interpreter-surface-honesty-01M3JCW8",
+      "opened_by": "cli",
+      "options": [
+        "Advisory 3.14 canary + guard test",
+        "Upper-bound requires-python <3.14",
+        "Guard test only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should the declared and tested Python surfaces agree for 3.14?",
+      "rationale": null,
+      "resolved_at": "2026-09-27T22:17:18.160259Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.py314-surface",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3JCW8KAWHKMAGEGED0SWXGK",
+  "version": 1
+}
