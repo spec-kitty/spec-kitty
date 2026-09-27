@@ -160,4 +160,4 @@ Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-ta
 
 ### Optional Phase Subdirectories
 
-For large features, organize prompts under `tasks/` to keep bundles grouped while maintaining lexical ordering.
+For large missions, organize prompts under `tasks/` to keep bundles grouped while maintaining lexical ordering.

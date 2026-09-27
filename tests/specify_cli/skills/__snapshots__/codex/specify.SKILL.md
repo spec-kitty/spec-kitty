@@ -230,8 +230,8 @@ When `current_is_primary` is `true`, you **must** have an explicit branching-str
    ```
 
    Use the full `create` command in the Outline section below; the example here only shows the required branch flags. Do not run a separate raw `git switch` for this flow.
-3. **If they do not expect a PR:** a dedicated mission branch is still required
-   for specify. Planning artifacts do not fall back to the coordination branch,
+3. **If they do not expect a PR:** a dedicated non-protected topic (PR) branch
+   is still required for specify. Planning artifacts do not fall back to the coordination branch,
    and `spec-commit` refuses a protected primary ref. Explain that invariant,
    propose a non-protected `feat/<slug>` or `fix/<slug>` branch, and use
    `--start-branch`. If the user declines, stop before `create` rather than
@@ -264,7 +264,7 @@ Workflow:
      <mission_dir>/spec.md <mission_dir>/meta.json
    ```
    Planning/spec artifacts stay in the primary partition and never transit the
-   coordination worktree. On the dedicated non-protected mission branch this
+   coordination worktree. On the dedicated non-protected topic (PR) branch this
    commit is direct. If routing reports a protected-ref refusal, stop and repair
    branch placement; do not retry against the protected ref or claim that the
    coordination branch is a fallback.
