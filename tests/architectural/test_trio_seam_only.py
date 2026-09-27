@@ -156,10 +156,17 @@ _READ_PATH_RESOLVER_MODULE = "specify_cli.missions._read_path_resolver"
 # blessed ``placement_seam`` wrapper -- the same shape #241 already landed at
 # the two sibling ``_find_mission_slug`` call sites outside the trio
 # (tasks_shared.py, status.py).
+# #5180: ``resolve_partition_read_dir`` is added deliberately, not a silent
+# widening -- it is the single handed-dir partition read AUTHORITY (a seam
+# wrapper over ``resolve_artifact_surface`` with the #154 phantom-partition
+# degrade), not a leaf path-composing primitive. workflow_cores.py's STATUS_STATE
+# event-log read delegates to it so the render path, the move-task verdict read
+# and the post-merge gate share one resolver instead of private copies.
 _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES: frozenset[str] = frozenset(
     {
         "resolve_handle_to_read_path",
         "MissionSelectorAmbiguous",
+        "resolve_partition_read_dir",
     }
 )
 

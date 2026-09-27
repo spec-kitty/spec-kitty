@@ -694,34 +694,23 @@ def resolve_review_verdict_facts(
 def _resolve_verdict_read_feature_dir(wp_path: Path) -> Path:
     """Resolve the STATUS_STATE-authoritative feature dir for *wp_path*'s mission.
 
-    Mirrors ``post_merge/review_artifact_consistency.py::
-    _resolve_lane_state_read_dir``'s own convention: the event log
-    (``status.events.jsonl``) is COORD-partition under a coordination
-    topology, PRIMARY otherwise — resolving it through the kind-aware
-    placement seam (rather than trusting ``wp_path.parent.parent`` — the
-    PRIMARY mission dir every caller of this function happens to hold) is
-    what makes the read agree with wherever
+    A thin adapter (``wp_path`` -> its PRIMARY mission dir,
+    ``wp_path.parent.parent``) onto the single handed-dir authority
+    :func:`~specify_cli.missions._read_path_resolver.resolve_partition_read_dir`
+    (#5180), shared with the implement/fix render reads and the post-merge
+    review-artifact gate. The event log (``status.events.jsonl``) is
+    COORD-partition under a coordination topology, PRIMARY otherwise; resolving
+    it through the kind-aware seam (rather than trusting the PRIMARY dir every
+    caller holds) makes the read agree with wherever
     :func:`~specify_cli.status.emit_status_transition` actually wrote the
-    ``review_result`` slot.
-
-    Degrades to the PRIMARY ``feature_dir`` unchanged when no workspace root
-    is derivable (a bare non-git test fixture) — the same "flat self-home"
-    degrade :func:`_resolve_verdict_wp_dir` uses for the identical edge case.
+    ``review_result`` slot. The authority also degrades to the handed dir on a
+    phantom partition or with no derivable workspace root.
     """
-    from mission_runtime import MissionArtifactKind, placement_seam
+    from mission_runtime import MissionArtifactKind
 
-    from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+    from specify_cli.missions._read_path_resolver import resolve_partition_read_dir
 
-    feature_dir = wp_path.parent.parent
-    try:
-        main_repo_root = resolve_canonical_root(feature_dir)
-    except WorkspaceRootNotFound:
-        return feature_dir
-
-    mission_slug = feature_dir.name
-    resolved: Path = placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    resolved: Path = resolve_partition_read_dir(wp_path.parent.parent, MissionArtifactKind.STATUS_STATE)
     return resolved
 
 
@@ -749,7 +738,7 @@ def _resolve_verdict_wp_dir(wp_path: Path) -> Path:
     (a bare test fixture with no git ancestor -- this module's own
     ``tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py``
     exercises exactly this shape) -- the SAME "flat self-home" degrade
-    ``post_merge/review_artifact_consistency.py::_resolve_partition_read_dir``
+    ``missions/_read_path_resolver.py::resolve_partition_read_dir``
     uses for the identical edge case, and byte-identical to this function's
     own pre-fix behaviour for that case, so those pre-existing tests are
     unaffected.
