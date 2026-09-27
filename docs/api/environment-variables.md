@@ -7,7 +7,7 @@ related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
 - docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
-- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+- docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 - docs/context/team-kitty.md
 ---
 # Environment Variables Reference
@@ -212,7 +212,7 @@ Configures the hosted endpoint; there is no built-in default (#4971) — set thi
 print setup guidance. Configuring an endpoint here is independent of whether live drain is
 on: even with an endpoint configured, no hosted traffic is sent automatically unless both drain
 scopes are also on (`spec-kitty moments drain status`; see
-[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)).
+[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)).
 
 An explicitly exported value is always a real opinion (#4259): it wins over
 `config.toml [sync].server_url` regardless of what that file holds.
@@ -229,7 +229,7 @@ variable:**
   already-logged-in machine is not stranded by the removal of the packaged default. It never
   backfills the retired first-party address, and it never touches drain posture (`[hosted] drain`
   lives in the same file but is a separate, independently-gated opt-in — see
-  [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)).
+  [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)).
 
 **Scope**: machine-global when **exported**; repo-scoped when set in a per-repo
 `.kitty.env` (see the warning at the top of this section). Exporting this in a
@@ -250,7 +250,7 @@ spec-kitty auth login
   -- background on the pre-launch opt-in era; this variable is now one of the
   two primary ways any operator configures a hosted endpoint, not an
   internal-only dev/staging tool.
-- [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)
+- [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)
   -- the decision record for the no-packaged-default / two-scope-drain model this
   variable now operates under.
 

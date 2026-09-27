@@ -138,7 +138,7 @@
       "criterion_id": "FR-014",
       "description": "Verify FR-014 is satisfied",
       "proof_type": "manual_review",
-      "evidence": "docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md (WP08, reviewed cycle 2: records D-1..D-6, R-1..R-4, #3980 D-5 reversal, C-005)",
+      "evidence": "docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md (WP08, reviewed cycle 2: records D-1..D-6, R-1..R-4, #3980 D-5 reversal, C-005)",
       "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
       "verified_at": "2026-09-27T04:49:26.895530+00:00",

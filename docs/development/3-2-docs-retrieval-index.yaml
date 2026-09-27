@@ -3216,6 +3216,14 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "residuals-follow-ups", text: "Residuals / Follow-ups", level: 2}
     - {slug: "links", text: "Links", level: 2}
+  - path: "docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md"
+    title: "ADR: hosted interaction is opt-in, twice, with no packaged endpoint"
+    divio_type: "none"
+    abstract: "Reverses the #3980 packaged hosted-endpoint default and records the two-scope live-drain consent model plus the ledger-projection flag this mission ships (#4971)."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md"
     title: "ADR: pack skills — share and co-maintain agent commands through charter packs"
     divio_type: "none"
@@ -3238,6 +3246,7 @@ pages:
     - {slug: "option-3-new-kind-skill-chosen", text: "Option 3: new kind `skill` (chosen)", level: 3}
     - {slug: "option-4-invocable-procedures", text: "Option 4: invocable procedures", level: 3}
     - {slug: "option-5-tool-native-plugin-marketplaces", text: "Option 5: tool-native plugin marketplaces", level: 3}
+    - {slug: "option-6-alias-layer-in-the-command-skill-pipeline-2470", text: "Option 6: alias layer in the command-skill pipeline (#2470)", level: 3}
     - {slug: "open-questions", text: "Open questions", level: 2}
     - {slug: "related-drift-found-during-research", text: "Related drift found during research", level: 2}
   - path: "docs/adr/3.x/README.md"
@@ -3789,6 +3798,10 @@ pages:
     - {slug: "spec-kitty-mission-type-show", text: "spec-kitty mission-type show", level: 2}
     - {slug: "spec-kitty-mission-type-switch", text: "spec-kitty mission-type switch", level: 2}
     - {slug: "spec-kitty-moments", text: "spec-kitty moments", level: 2}
+    - {slug: "spec-kitty-moments-drain", text: "spec-kitty moments drain", level: 2}
+    - {slug: "spec-kitty-moments-drain-off", text: "spec-kitty moments drain off", level: 2}
+    - {slug: "spec-kitty-moments-drain-on", text: "spec-kitty moments drain on", level: 2}
+    - {slug: "spec-kitty-moments-drain-status", text: "spec-kitty moments drain status", level: 2}
     - {slug: "spec-kitty-moments-off", text: "spec-kitty moments off", level: 2}
     - {slug: "spec-kitty-moments-on", text: "spec-kitty moments on", level: 2}
     - {slug: "spec-kitty-moments-status", text: "spec-kitty moments status", level: 2}
@@ -3895,6 +3908,8 @@ pages:
     - {slug: "toc-yml-table-of-contents", text: "toc.yml (Table of Contents)", level: 2}
     - {slug: "charter-md-project-principles", text: "charter.md (Project Principles)", level: 2}
     - {slug: "mission-configuration-advanced", text: "Mission Configuration (Advanced)", level: 2}
+    - {slug: "hosted-repository-opt-in-for-live-drain", text: "hosted (repository opt-in for live drain)", level: 2}
+    - {slug: "ledger-local-execution-state-projection-refresh", text: "ledger (local execution-state projection refresh)", level: 2}
     - {slug: "vcs-configuration", text: "VCS configuration", level: 2}
     - {slug: "project-level-vcs-settings", text: "Project-Level VCS Settings", level: 3}
     - {slug: "checking-current-vcs", text: "Checking Current VCS", level: 3}
@@ -7051,6 +7066,7 @@ pages:
     abstract: "Glossary context for the hosted product: how the CLI, its Zeitgeist client, the per-team relay, and the Team Kitty SaaS fit together, and why 'sync' is a dead word."
     anchors:
     - {slug: "the-one-paragraph-model", text: "The one-paragraph model", level: 2}
+    - {slug: "drain-the-client-side-opt-in", text: "Drain: the client-side opt-in", level: 2}
     - {slug: "sync-is-dead", text: "\"Sync\" is dead", level: 2}
     - {slug: "canonical-vocabulary", text: "Canonical vocabulary", level: 2}
     - {slug: "sequence-one-lane-transition", text: "Sequence: one lane transition", level: 2}

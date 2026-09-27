@@ -10,7 +10,7 @@ audience: launch coordinators
 
 > **Status (2026-09-27): the packaged-default half of the flip was reversed
 > (endpoint opt-in, ADR
-> [`2026-09-26-2`](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)).**
+> [`2026-09-26-3`](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)).**
 > The #3980 flip below briefly landed a packaged default
 > `https://team.spec-kitty.ai` baked into the CLI; that default has since
 > been **removed** — there is no built-in fallback endpoint any more, and
@@ -45,7 +45,7 @@ describe behavior that will ship at the launch milestone.**
 | Dimension | Today (pre-launch) | At launch |
 |---|---|---|
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | **Opt-in gate.** Unset / falsy = local-first; truthy = hidden hosted-readiness mode for internal operators. | **Override only.** Hosted readiness is on by default; the variable becomes an internal escape hatch (e.g., `SPEC_KITTY_ENABLE_SAAS_SYNC=0` to force local-only). |
-| Default SaaS URL | Operators must set `SPEC_KITTY_SAAS_URL` explicitly to dial dev / staging. There is no user-facing default. | **Reversed, see banner above.** ~~A user-facing default URL ships baked into the CLI. End users do not set `SPEC_KITTY_SAAS_URL`.~~ Endpoint opt-in (ADR `2026-09-26-2`) means this never shipped as permanent behavior: there is no packaged default, at launch or since — every user configures `SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url` explicitly. |
+| Default SaaS URL | Operators must set `SPEC_KITTY_SAAS_URL` explicitly to dial dev / staging. There is no user-facing default. | **Reversed, see banner above.** ~~A user-facing default URL ships baked into the CLI. End users do not set `SPEC_KITTY_SAAS_URL`.~~ Endpoint opt-in (ADR `2026-09-26-3`) means this never shipped as permanent behavior: there is no packaged default, at launch or since — every user configures `SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url` explicitly. |
 | Sync default | Sync commands no-op unless hosted mode is explicitly enabled. | Sync runs by default for Teamspace-connected repos. The same suppression contract still applies (interactive / non-interactive / machine-output). |
 | Tracker discovery | Tracker calls only happen behind the opt-in gate. | Tracker discovery happens by default for Teamspace-connected repos; unreachable-tracker states surface via the readiness coordinator. |
 | `spec-kitty auth login` | Documented as the canonical hosted login flow for internal operators dogfooding the hidden mode. | Documented as the canonical hosted login flow for **all** users joining a Teamspace. |

@@ -159,7 +159,7 @@ sequenceDiagram
 - This diagram describes the retired sync architecture; see [Team Kitty and Zeitgeist](../context/team-kitty.md) for the current transport.
   **Stale claim removed (2026-09-27):** this section used to say the hosted endpoint defaults
   to `https://team.spec-kitty.ai`. Endpoint opt-in (ADR
-  [`2026-09-26-2`](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md)) removed that packaged
+  [`2026-09-26-3`](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)) removed that packaged
   default — there is no built-in fallback any more. OAuth login resolves its target through
   `src/specify_cli/auth/server_target.py`, which now raises `HostedEndpointUnconfigured` unless
   `SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url` is explicitly set; see

@@ -10,7 +10,7 @@ related:
 - docs/api/file-structure.md
 - docs/api/missions.md
 - docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
-- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+- docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 - docs/context/team-kitty.md
 ---
 # Configuration Reference
@@ -296,7 +296,7 @@ two-scope live-drain opt-in (moments, presence, capability minting, relay). Effe
 requires this **and** the developer's personal runtime-root `config.toml` `[hosted] drain` to both
 be `true`; either off or absent is off, and no environment variable can turn either scope on —
 managed via `spec-kitty moments drain`, see
-[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md).
+[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md).
 
 ```yaml
 hosted:

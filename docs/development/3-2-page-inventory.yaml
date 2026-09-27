@@ -1118,6 +1118,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md
   tag: current
   divio_type: none

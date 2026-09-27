@@ -47,7 +47,7 @@ Three independent seams:
 | ATDD-first (C-011) | PASS | Each WP opens with a failing acceptance test, committed separately. |
 | Terminology canon | PASS | Mission, not feature. "Drain" is used, never "sync". |
 | Credentials discipline (DIRECTIVE_050) | PASS | Guidance messages never echo tokens. |
-| ADR for policy reversal | PASS | New ADR `docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md` (FR-014). |
+| ADR for policy reversal | PASS | New ADR `docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md` (FR-014). |
 | CLI↔SaaS contract file | N/A | No wire change. The CLI simply stops calling by default. |
 
 ## Design
@@ -219,7 +219,7 @@ src/specify_cli/auth/http/transport.py            # _targets_configured_saas via
 src/specify_cli/upgrade/migrations/m_4_0_0_retired_hosted_target.py (+ new m_4_0_0rc5_hosted_endpoint_session_backfill.py)
 tests/conftest.py                                 # root autouse drain fixture + real_drain_posture marker
 tests/architectural/test_hosted_drain_gate.py     # NEW non-vacuous gate
-docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md, docs/api/*, docs/context/team-kitty.md, CHANGELOG
+docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md, docs/api/*, docs/context/team-kitty.md, CHANGELOG
 ```
 
 ## Complexity Tracking

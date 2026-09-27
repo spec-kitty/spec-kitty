@@ -125,7 +125,7 @@ work_packages:
     owned_files:
       - "src/specify_cli/cli/commands/moments.py"
       - "tests/cli/commands/test_moments_drain.py"
-      - "docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md"
+      - "docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md"
       - "docs/api/configuration.md"
       - "docs/api/environment-variables.md"
       - "docs/context/team-kitty.md"

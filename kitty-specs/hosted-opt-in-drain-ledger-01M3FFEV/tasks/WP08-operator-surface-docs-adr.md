@@ -23,13 +23,13 @@ agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/commands/moments.py
 create_intent:
 - tests/cli/commands/test_moments_drain.py
-- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+- docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
 - src/specify_cli/cli/commands/moments.py
 - tests/cli/commands/test_moments_drain.py
-- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+- docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 - docs/api/configuration.md
 - docs/api/environment-variables.md
 - docs/context/team-kitty.md
@@ -246,7 +246,7 @@ docstring).
 all green; `ruff check src/specify_cli/cli/commands/moments.py`, `mypy` on the same file, zero
 issues.
 
-### Subtask T036: ADR — `docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md`
+### Subtask T036: ADR — `docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md`
 
 **Purpose**: Write the governance record for the whole mission: the reversal of #3980's packaged
 hosted-endpoint default (D-5) and the new two-scope drain consent model, filling the gap research.md
@@ -258,7 +258,7 @@ R4 identified (the ADR mission `team-kitty-launch-defaults-01M1XJ4Y` WP01 planne
    `docs/adr/3.x/2026-09-26-1-ci-coverage-honesty.md` for the frontmatter shape (`title`,
    `description`, `status: Accepted`, `date`) and section order (`## Context and Problem
    Statement`, `## Decision`, `## Consequences`).
-2. Write `docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md` with:
+2. Write `docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md` with:
    - **Frontmatter**: `title: 'ADR: hosted interaction is opt-in, twice, with no packaged
      endpoint'` (or similar), `description` summarizing the reversal + consent model,
      `status: Accepted`, `date: '2026-09-26'`.
@@ -282,14 +282,14 @@ R4 identified (the ADR mission `team-kitty-launch-defaults-01M1XJ4Y` WP01 planne
      live-publish retry must sit behind the same drain gate, drain-off is a clean skip never a
      diagnostic-as-error; forward-reference the follow-up to rename `[sync].server_url` (D-4, out
      of scope here).
-3. Run `python -m scripts.docs.freshen_adr_inventory docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md`
+3. Run `python -m scripts.docs.freshen_adr_inventory docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md`
    from the repository root (not the `scripts/docs/...py` file-path form — it fails with
    `ModuleNotFoundError` per the index page's own warning) to update the page-inventory lockfile
    and add the new row to `docs/adr/3.x/index.md`'s table.
 4. If the generated index row's summary line needs hand-editing for accuracy, edit it directly in
    `docs/adr/3.x/index.md` afterward — do not fight the generator, just correct its output.
 
-**Files**: `docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md` (new, ~90–150 lines);
+**Files**: `docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md` (new, ~90–150 lines);
 `docs/adr/3.x/index.md` (modified — new row, generated then possibly hand-corrected);
 `docs/development/3-2-page-inventory.yaml` (modified by the freshen script — the generated
 inventory lockfile; both files are in this WP's `owned_files`).
@@ -309,7 +309,7 @@ model, per FR-015.
    new `ledger:` section (`ledger.projection`: type bool, default `true`, "gates only the automatic
    refresh of the derived, gitignored execution-state projection; never the lane ledger, the
    decision ledger, or the committed status snapshot — see FR-010"). Cross-link the new ADR
-   (`docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md`) and `docs/context/team-kitty.md` in
+   (`docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md`) and `docs/context/team-kitty.md` in
    the `related:` frontmatter list, matching this file's existing pattern of relative links to
    `docs/adr/3.x/...`.
 2. **`docs/api/environment-variables.md`**:
@@ -346,7 +346,7 @@ model, per FR-015.
    a bold one-line summary, the issue reference `(#4971)`, then **Before:** / **After:** paragraphs.
    For example (adapt wording, keep the shape):
    ```markdown
-   - **Hosted interaction (moments, presence, capability minting, relay) is now off by default and requires an explicit, two-scope opt-in; there is no packaged hosted endpoint** (#4971). **Before:** the CLI shipped a hard-coded live SaaS default (`https://team.spec-kitty.ai`, #3980) and automatically fanned status/lifecycle/runtime moments out to it whenever an endpoint resolved, with no per-developer or per-repository consent step. **After:** live drain requires both the repository (`.kittify/config.yaml` `hosted.drain`) and the developer's personal runtime-root `config.toml` (`[hosted] drain`) to be on — `spec-kitty moments drain on|off|status` manages both; no environment variable can enable drain, only narrow it; a fresh install resolves no hosted endpoint at all (`SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url` only) and every explicit hosted command stops with setup guidance instead of a traceback when unconfigured; the local execution-state projection continues to refresh automatically (`ledger.projection`, default on) with zero effect on the lane ledger, the decision ledger, or the committed status snapshot. See `docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md`.
+   - **Hosted interaction (moments, presence, capability minting, relay) is now off by default and requires an explicit, two-scope opt-in; there is no packaged hosted endpoint** (#4971). **Before:** the CLI shipped a hard-coded live SaaS default (`https://team.spec-kitty.ai`, #3980) and automatically fanned status/lifecycle/runtime moments out to it whenever an endpoint resolved, with no per-developer or per-repository consent step. **After:** live drain requires both the repository (`.kittify/config.yaml` `hosted.drain`) and the developer's personal runtime-root `config.toml` (`[hosted] drain`) to be on — `spec-kitty moments drain on|off|status` manages both; no environment variable can enable drain, only narrow it; a fresh install resolves no hosted endpoint at all (`SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url` only) and every explicit hosted command stops with setup guidance instead of a traceback when unconfigured; the local execution-state projection continues to refresh automatically (`ledger.projection`, default on) with zero effect on the lane ledger, the decision ledger, or the committed status snapshot. See `docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md`.
    ```
 5. **Frontmatter freshness**: bump `updated:` to `'2026-09-26'` in every doc file you actually
    modified in this subtask (`configuration.md`, `environment-variables.md`, `team-kitty.md`); the
@@ -382,7 +382,7 @@ ADR can correctly describe the two-scope opt-in model without reading source.
 - `spec-kitty moments drain status [--json]` reports effective posture, both scopes' values and
   source files, active narrowers, and all four hosted-posture file paths (plan §F-7 minors).
 - Help text states plainly that both scopes must be on and that no env var can enable drain (R-1).
-- `docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md` exists, follows the 3.x ADR convention,
+- `docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md` exists, follows the 3.x ADR convention,
   records D-1..D-6 and R-1..R-4, explicitly notes the never-written prior ADR gap (research.md R4),
   and is indexed via `freshen_adr_inventory` in `docs/adr/3.x/index.md`.
 - `docs/api/configuration.md` has new `hosted:`/`ledger:` sections; `docs/api/environment-variables.md`'s

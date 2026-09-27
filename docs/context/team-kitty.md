@@ -11,7 +11,7 @@ related:
 - docs/api/environment-variables.md
 - docs/api/configuration.md
 - docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
-- docs/adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md
+- docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 ---
 # Context: Team Kitty and Zeitgeist
 
@@ -57,7 +57,7 @@ status [--json]`. The full truth table lives in
 `kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/contracts/hosted-posture.md`; the governing
 decision record (including the reversal of the earlier packaged-default behavior this section used
 to describe) is
-[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-2-hosted-interaction-opt-in.md).
+[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md).
 
 Drain is distinct from — and does not itself change — whether a hosted **endpoint** is configured
 at all (`SPEC_KITTY_SAAS_URL` / `config.toml [sync].server_url`, still no built-in default). With
