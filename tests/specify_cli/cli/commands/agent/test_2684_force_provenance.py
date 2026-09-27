@@ -174,6 +174,11 @@ def test_in_review_to_in_progress_stays_force_free_with_review_ref(
     feature_dir = _seed_wp_in_lane(
         tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_review"
     )
+    # #4899: in_review -> in_progress is a review-rejection edge (the
+    # re-implement edge) and now durably requires reviewer feedback, exactly
+    # like in_review -> planned — a bare CLI flag with no feedback file is
+    # refused rather than silently accepted.
+    feedback = _feedback_file(tmp_path)
 
     result = _invoke(
         tmp_path,
@@ -183,6 +188,8 @@ def test_in_review_to_in_progress_stays_force_free_with_review_ref(
             wp_id,
             "--to",
             "in_progress",
+            "--review-feedback-file",
+            str(feedback),
             "--mission",
             mission_slug,
             "--no-auto-commit",

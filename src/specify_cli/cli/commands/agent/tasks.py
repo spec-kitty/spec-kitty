@@ -453,6 +453,10 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # ``SKIPPED`` verdict builder join the family surface like every other def.
     _mt_not_declared_skip_verdict as _mt_not_declared_skip_verdict,
     _mt_owned_file_patterns as _mt_owned_file_patterns,
+    # #4899 (WP01, review-feedback-to-implementer-01M3GKZ8, T004 campsite
+    # tidy-first): the rejection-cycle persist helper extracted out of
+    # ``_mt_finalize_plan`` joins the family surface like every other def.
+    _mt_persist_rejection_cycle as _mt_persist_rejection_cycle,
     _mt_persist_wp_file as _mt_persist_wp_file,
     _mt_post_transition_diagnostic as _mt_post_transition_diagnostic,
     _mt_pre_review_block_enabled as _mt_pre_review_block_enabled,

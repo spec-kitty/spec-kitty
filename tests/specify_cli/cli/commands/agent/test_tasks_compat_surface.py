@@ -193,6 +193,10 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_fire_arbiter_persist",
     "_mt_run_decision",
     "_mt_finalize_plan",
+    # #4899 (WP01, review-feedback-to-implementer-01M3GKZ8, T004 campsite
+    # tidy-first): the pointer-restore-and-persist block extracted out of
+    # ``_mt_finalize_plan`` into its own named, unit-tested helper.
+    "_mt_persist_rejection_cycle",
     "_mt_current_event_lane",
     "_mt_hop_review_result",
     "_mt_hop_actor",
@@ -595,7 +599,10 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     main's WP05 status-renderer pair and #4670 resolver). #4758 (WP02,
     FR-002/FR-006) then added the planned-boundary lanes.json guard,
     ``_mt_guard_planned_boundary_lanes``, as a native move-task seam def —
-    golden count 184 -> 185."""
+    golden count 184 -> 185. #4899 (WP01, review-feedback-to-implementer-
+    01M3GKZ8, T004 campsite tidy-first) then added
+    ``_mt_persist_rejection_cycle`` (the extracted rejection-cycle persist
+    helper) as a native move-task seam def — golden count 185 -> 186."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -603,4 +610,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether this file's own hardcoded-count guard should be
     # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 185  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 186  # golden-count: cardinality-is-contract

@@ -34,6 +34,9 @@ import pytest
 from specify_cli import acceptance as acceptance_module
 from specify_cli.acceptance import AcceptanceCheckDiagnostic, collect_feature_summary
 from specify_cli.cli.commands.agent import workflow as workflow_module
+from specify_cli.cli.commands.agent.tasks_transition_core import (
+    is_review_rejection_edge,
+)
 from specify_cli.cli.commands.agent.workflow import (
     _has_prior_rejection,
     _resolve_review_context,
@@ -1125,3 +1128,59 @@ class TestNormalizedUncheckedTasksHelper:
         result = acceptance_module._normalized_unchecked_tasks(["- [ ] leftover"], {"planned": []})
 
         assert result == ["- [ ] leftover"]
+
+
+# ===========================================================================
+# Section G -- ``is_review_rejection_edge`` truth table (#4899, WP01 T001)
+#
+# ``contracts/is-review-rejection-edge.md`` (FROZEN):
+#     resolve_lane_alias(old) == IN_REVIEW and resolve_lane_alias(target) == IN_PROGRESS
+#         OR
+#     resolve_lane_alias(target) == PLANNED
+#
+# The union is load-bearing: the re-implement edge (``in_review -> in_progress``)
+# is a NEW True case this WP introduces; every ``* -> planned`` edge that
+# returns True today must keep returning True (non-regression of
+# ``_planned_rollback_message``'s Arm A/Arm B guard); the arbiter-forward
+# edges (``in_review -> {approved, done}``) must stay False (NFR-003).
+# ===========================================================================
+
+
+@pytest.mark.regression
+class TestIsReviewRejectionEdge:
+    """Direct truth-table pin for the pure predicate (issue #4899)."""
+
+    @pytest.mark.parametrize(
+        ("old_lane", "target_lane", "expected"),
+        [
+            # The re-implement edge this WP introduces (True) -- canonical
+            # spelling and the "doing" alias on both sides.
+            ("in_review", "in_progress", True),
+            ("in_review", "doing", True),
+            ("doing", "doing", False),  # old resolves in_progress, not in_review
+            # Any-source -> planned (True), preserved from today's behaviour.
+            ("in_review", "planned", True),
+            ("in_progress", "planned", True),
+            ("for_review", "planned", True),
+            ("approved", "planned", True),
+            ("genesis", "planned", True),
+            ("blocked", "planned", True),
+            # Arbiter-forward edges (NFR-003) -- untouched, must stay False.
+            ("in_review", "approved", False),
+            ("in_review", "done", False),
+            # Other non-rejection edges -- False.
+            ("planned", "claimed", False),
+            ("claimed", "in_progress", False),
+            ("in_progress", "for_review", False),
+            ("for_review", "in_review", False),
+        ],
+    )
+    def test_truth_table(self, old_lane: str, target_lane: str, expected: bool) -> None:
+        assert is_review_rejection_edge(old_lane, target_lane) is expected
+
+    def test_pure_and_deterministic(self) -> None:
+        """Same inputs -> same output, called repeatedly (no hidden state/I/O)."""
+        first = is_review_rejection_edge("in_review", "in_progress")
+        second = is_review_rejection_edge("in_review", "in_progress")
+
+        assert first is second is True

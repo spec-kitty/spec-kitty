@@ -99,6 +99,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     _effective_note_text,
     arbiter_persist_signal,
     build_transition_plan,
+    is_review_rejection_edge,
 )
 from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
     VerdictDurabilitySignal,
@@ -612,7 +613,7 @@ def _mt_resolve_feedback(st: _MoveTaskState) -> tuple[str | None, bool, bool, st
     content: str | None = None
     if exists and is_file:
         st.resolved_feedback_source = candidate
-        if st.target_lane == Lane.PLANNED:
+        if is_review_rejection_edge(str(st.old_lane), str(st.target_lane)):
             content = candidate.read_text(encoding="utf-8").strip()
     return source_str, exists, is_file, content
 
@@ -2283,6 +2284,32 @@ def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
 # --- phase D: finalize emit plan --------------------------------------------
 
 
+def _mt_persist_rejection_cycle(st: _MoveTaskState, ports: TasksPorts) -> None:
+    """Persist the rejection review cycle for a review-rejection edge (#4899).
+
+    Campsite tidy-first extraction (WP01 T004) of the pointer-restore-and-
+    persist block formerly inline in :func:`_mt_finalize_plan`. Behaviour-
+    preserving: the caller (``decision.is_review_rejection and
+    st.resolved_feedback_source is not None``) is unchanged; this is the
+    unconditional body only.
+
+    `persist_rejected_review_cycle_for_rollback` (tasks_verdict_persistence,
+    frozen boundary) writes the rejected artifact's ``reviewer_agent`` from
+    ``st.agent`` alone, which ignores a caller-declared ``--reviewer`` that
+    differs from ``--agent`` (the WP actor driving this CLI invocation, not
+    necessarily the reviewer). Thread the already-resolved reviewer identity
+    through ``st.agent`` for just this call, then restore it immediately so
+    every OTHER consumer of ``st.agent`` (the real actor/agent facts) is
+    unaffected.
+    """
+    declared_agent = st.agent
+    st.agent = _mt_resolve_reviewer_identity(st)
+    try:
+        st.pending_verdict_write = persist_rejected_review_cycle_for_rollback(st, ports)
+    finally:
+        st.agent = declared_agent
+
+
 def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Execute the decision's authorised side-effect *inputs* and finalize the plan.
 
@@ -2331,21 +2358,8 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     st.actor = st.agent or _mt_resolve_active_reviewer_identity(st) or "user"
     st.canonical_lane = decision.plan.canonical_lane
 
-    if decision.planned_rollback and st.resolved_feedback_source is not None:
-        # `persist_rejected_review_cycle_for_rollback` (tasks_verdict_persistence,
-        # frozen boundary) writes the rejected artifact's ``reviewer_agent`` from
-        # ``st.agent`` alone, which ignores a caller-declared ``--reviewer`` that
-        # differs from ``--agent`` (the WP actor driving this CLI invocation, not
-        # necessarily the reviewer). Thread the already-resolved reviewer identity
-        # through ``st.agent`` for just this call, then restore it immediately so
-        # every OTHER consumer of ``st.agent`` below (the real actor/agent facts)
-        # is unaffected.
-        declared_agent = st.agent
-        st.agent = _mt_resolve_reviewer_identity(st)
-        try:
-            st.pending_verdict_write = persist_rejected_review_cycle_for_rollback(st, ports)
-        finally:
-            st.agent = declared_agent
+    if decision.is_review_rejection and st.resolved_feedback_source is not None:
+        _mt_persist_rejection_cycle(st, ports)
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
         st.pending_verdict_write = _persist_approved_review_cycle(st, ports)
         durability_signal = st.pending_verdict_write
@@ -2368,7 +2382,7 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     # seam) — the FSM then accepts those backward edges force-free instead of
     # promoting ``emit_force=True``.
     st.plan_review_result = _mt_plan_review_result(st)
-    if decision.planned_rollback or decision.arbiter_forward or (st.old_lane == Lane.IN_REVIEW and st.target_lane in (Lane.PLANNED, Lane.IN_PROGRESS)):
+    if decision.is_review_rejection or decision.arbiter_forward:
         # FR-006 (IC-04) NOTE: a forward ``in_review -> {approved,done}`` edge
         # is deliberately NOT added to this trigger. An earlier attempt widened
         # it here and threaded ``st.plan_review_result.reference`` into
@@ -2536,7 +2550,7 @@ def _mt_hop_review_result(
     rejected = st.rejected_review_result
     in_review = (event is not None and event.to_lane == Lane.IN_REVIEW) or (event is None and current_event_lane == Lane.IN_REVIEW)
     durability_signal = st.pending_verdict_write
-    if target == Lane.PLANNED and rejected is not None:
+    if is_review_rejection_edge(st.old_lane, target) and rejected is not None:
         if in_review:
             return rejected
         if durability_signal is not None and durability_signal.durably_persisted and durability_signal.review_cycle is not None:
@@ -3060,6 +3074,16 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
         # ``PLANNED`` target is suppressed (lets the release take effect); a
         # DIFFERING identity on a ``PLANNED`` target is a real re-plant and
         # still wins over the release, exactly as before.
+        #
+        # #4899 (WP01, Fold 5 -- KEEP AS-IS, deliberately NOT routed through
+        # ``is_review_rejection_edge``): the re-implement edge (in_review ->
+        # in_progress) intentionally RETAINS the implementer's runtime claim
+        # (resume-in-place) rather than releasing it to the pool -- routing
+        # this restamp-suppress check through the rejection-edge predicate
+        # would widen the release to the re-implement edge too and regress
+        # resume-in-place. Only the ``PLANNED`` target release-suppress
+        # window is in scope here; see the truth-table cell in
+        # ``test_tasks_move_task_seam.py`` asserting the claim survives.
         if st.agent and not (st.target_lane == Lane.PLANNED and _actor_key(st.agent) == _actor_key(st.current_agent)):
             fields["agent"] = st.agent
             fields.update(_mt_reassignment_binding_fields(st))
@@ -3080,6 +3104,11 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
         fields["note"] = st.note_text
     if st.tracker_ref_values:
         fields["tracker_refs"] = list(st.tracker_ref_values)
+    # #4899 (WP01, Fold 5 -- KEEP AS-IS): claim-review-override stays scoped
+    # to the ``PLANNED`` target only. The re-implement edge (in_review ->
+    # in_progress) does not release the runtime claim to the pool -- it
+    # resumes in place with the SAME implementer -- so this is deliberately
+    # NOT routed through ``is_review_rejection_edge``.
     if st.target_lane == Lane.PLANNED:
         fields.update(_build_claim_review_override(st, ports))
 
@@ -3141,9 +3170,18 @@ def _mt_release_review_lock(st: _MoveTaskState) -> None:
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
+    # #4899 (WP01, Fold 4): the re-implement edge (in_review -> in_progress)
+    # also terminates review and must release the lock, or a stuck lock
+    # blocks the WP's next for_review -> in_review claim. Extended via the
+    # SAME rejection-edge predicate rather than adding Lane.IN_PROGRESS to
+    # ``release_to`` outright -- that would also (wrongly) release the lock
+    # for an ordinary claimed -> in_progress / for_review -> in_progress
+    # move; the predicate scopes the extra release to exactly the
+    # in_review-sourced re-implement edge.
     release_from = (Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.IN_PROGRESS)
     release_to = (Lane.APPROVED, Lane.PLANNED)
-    if not (st.old_lane in release_from and st.target_lane in release_to):
+    releases_lock = st.target_lane in release_to or is_review_rejection_edge(st.old_lane, st.target_lane)
+    if not (st.old_lane in release_from and releases_lock):
         return
     try:
         from specify_cli.review.lock import ReviewLock

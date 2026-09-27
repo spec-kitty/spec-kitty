@@ -124,7 +124,7 @@ def test_plain_forward_move_emits() -> None:
     assert outcome.plan.emit_force is False
     assert outcome.evidence_dict is None
     assert outcome.authorize_review_override is False
-    assert outcome.planned_rollback is False
+    assert outcome.is_review_rejection is False
     assert outcome.arbiter_forward is False
 
 
@@ -503,7 +503,7 @@ def test_planned_with_valid_feedback_is_planned_rollback(tmp_path: Path) -> None
         )
     )
     assert isinstance(outcome, Emit)
-    assert outcome.planned_rollback is True
+    assert outcome.is_review_rejection is True
 
 
 # ---------------------------------------------------------------------------
@@ -576,7 +576,7 @@ def test_blocked_resume_hint_is_fsm_gated_not_hardcoded(monkeypatch: pytest.Monk
 
     monkeypatch.setattr(core, "wp_state_for", _fake_wp_state_for)
 
-    message = core._planned_rollback_message("WP01", "blocked")
+    message = core._planned_rollback_message("WP01", "blocked", "planned")
     assert "--to in_progress" not in message
     assert "Legal targets from 'blocked': --to canceled." in message
 
@@ -602,6 +602,28 @@ def test_planned_rollback_from_reachable_source_keeps_review_feedback_text(sourc
     assert isinstance(outcome, RefuseExit1)
     assert "requires review feedback" in outcome.error
     assert "cannot be bypassed with --force" in outcome.error
+
+
+@pytest.mark.regression
+def test_reimplement_edge_refusal_names_the_actual_target_not_planned() -> None:
+    """F1 (#4899 pre-PR fold): on the ``in_review -> in_progress`` re-implement edge,
+    the no-feedback refusal must name the operator's ACTUAL target (``in_progress``),
+    not hard-code ``planned`` — the misleading-refusal class F-51 this helper prevents.
+    """
+    outcome = decide_transition(
+        _base_request(
+            target_lane="in_progress",
+            old_lane="in_review",
+            force=False,
+            feedback_provided=False,
+        )
+    )
+    assert isinstance(outcome, RefuseExit1)
+    assert "requires review feedback" in outcome.error  # Arm A (planned reachable from in_review)
+    assert "to 'in_progress' requires review feedback" in outcome.error
+    assert "--to in_progress --review-feedback-file" in outcome.error
+    # must NOT misdirect the operator to the wrong edge
+    assert "--to planned" not in outcome.error
 
 
 def test_planned_rollback_from_done_flagless_emits_no_forced_rewind() -> None:
@@ -638,7 +660,7 @@ def test_planned_rollback_positive_control_valid_feedback_passes(tmp_path: Path)
         )
     )
     assert isinstance(outcome, Emit)
-    assert outcome.planned_rollback is True
+    assert outcome.is_review_rejection is True
 
 
 # ---------------------------------------------------------------------------

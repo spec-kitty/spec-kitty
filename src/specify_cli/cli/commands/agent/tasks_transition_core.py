@@ -92,6 +92,26 @@ _APPROVAL_LANES: tuple[str, ...] = (Lane.APPROVED, Lane.DONE)
 _REVIEW_GATE_LANES: tuple[str, ...] = (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE)
 
 
+def is_review_rejection_edge(old_lane: str, target_lane: str) -> bool:
+    """True iff this edge must durably record reviewer feedback (#4899).
+
+    FROZEN contract: ``kitty-specs/review-feedback-to-implementer-01M3GKZ8/
+    contracts/is-review-rejection-edge.md``. Pure, no I/O, alias-normalizing.
+    The union is load-bearing: ``target == PLANNED`` from ANY source is
+    preserved unconditionally (non-regression of ``_planned_rollback_
+    message``'s Arm A/Arm B guard, and of every existing ``* -> planned``
+    caller); narrowing that half to the ``in_review`` family would regress
+    it. ``old == IN_REVIEW and target == IN_PROGRESS`` is the re-implement
+    edge this predicate newly recognizes. Returns ``False`` for the
+    arbiter-forward edges ``in_review -> {approved, done}`` (NFR-003 --
+    untouched by construction, since neither resolves to ``planned`` or
+    ``in_progress``).
+    """
+    old = resolve_lane_alias(old_lane)
+    target = resolve_lane_alias(target_lane)
+    return bool(target == Lane.PLANNED or (old == Lane.IN_REVIEW and target == Lane.IN_PROGRESS))
+
+
 # ---------------------------------------------------------------------------
 # Request (pre-read facts) + outcome value objects
 # ---------------------------------------------------------------------------
@@ -195,7 +215,7 @@ class Emit:
     evidence_dict: dict[str, Any] | None
     note_text: str | None
     authorize_review_override: bool = False
-    planned_rollback: bool = False
+    is_review_rejection: bool = False
     arbiter_forward: bool = False
     done_override_note: bool = False
 
@@ -293,7 +313,7 @@ def build_transition_plan(
     canonical_lane = resolve_lane_alias(target_lane)
 
     emit_review_ref: str | None = None
-    if target_lane == Lane.PLANNED and review_feedback_pointer:
+    if is_review_rejection_edge(old_lane, target_lane) and review_feedback_pointer:
         emit_review_ref = review_feedback_pointer
     elif old_lane == Lane.FOR_REVIEW and resolve_lane_alias(target_lane) in (Lane.IN_PROGRESS, Lane.PLANNED) and force:
         emit_review_ref = "force-override"
@@ -547,8 +567,14 @@ def _guard_feedback_file(req: MoveTaskRequest) -> RefuseExit1 | None:
     return None
 
 
-def _planned_rollback_message(task_id: str, old_lane: str) -> str:
-    """Source-aware refusal text for a ``--to planned`` move lacking feedback.
+def _planned_rollback_message(task_id: str, old_lane: str, target_lane: str) -> str:
+    """Source-aware refusal text for a review-rejection move lacking feedback.
+
+    The guard fires for the whole review-rejection family (any ``*→planned``
+    rollback AND the ``in_review→in_progress`` re-implement edge, #4899), so the
+    message must name the operator's ACTUAL ``target_lane`` — never hard-code
+    ``planned`` on the re-implement edge (the misleading-refusal class F-51 this
+    helper exists to prevent, one layer up).
 
     PURE and message-only (F-51 / #3937): it reads the source lane's FSM
     adjacency solely to SHAPE the string; it never decides whether to refuse
@@ -569,14 +595,15 @@ def _planned_rollback_message(task_id: str, old_lane: str) -> str:
     misleading-refusal class F-51 exists to prevent, one layer down.
     """
     source = Lane(resolve_lane_alias(old_lane))
+    target = Lane(resolve_lane_alias(target_lane))
     state = wp_state_for(source)
     if Lane.PLANNED in state.allowed_targets():
         return (
-            f"❌ Moving {task_id} to 'planned' requires review feedback.\n\n"
+            f"❌ Moving {task_id} to '{target.value}' requires review feedback.\n\n"
             "Please provide feedback:\n"
             "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
             f"  2. Run: spec-kitty agent tasks move-task {task_id} "
-            "--to planned --review-feedback-file feedback.md\n\n"
+            f"--to {target.value} --review-feedback-file feedback.md\n\n"
             "This requirement cannot be bypassed with --force."
         )
     source_value = source.value
@@ -593,10 +620,10 @@ def _planned_rollback_message(task_id: str, old_lane: str) -> str:
 
 
 def _guard_planned_rollback(req: MoveTaskRequest) -> RefuseExit1 | None:
-    if req.target_lane != Lane.PLANNED:
+    if not is_review_rejection_edge(req.old_lane, req.target_lane):
         return None
     if not (req.feedback_provided and req.feedback_exists and req.feedback_is_file):
-        return RefuseExit1(_planned_rollback_message(req.task_id, req.old_lane))
+        return RefuseExit1(_planned_rollback_message(req.task_id, req.old_lane, req.target_lane))
     if not (req.feedback_content or "").strip():
         return RefuseExit1(f"Review feedback file is empty: {req.feedback_source}")
     return None
@@ -826,7 +853,7 @@ def decide_transition(req: MoveTaskRequest) -> TransitionOutcome:
         evidence_dict=_approval_evidence(req),
         note_text=note_text,
         authorize_review_override=_authorize_review_override(req),
-        planned_rollback=req.target_lane == Lane.PLANNED,
+        is_review_rejection=is_review_rejection_edge(req.old_lane, req.target_lane),
         arbiter_forward=req.is_arbiter_override,
         done_override_note=done_override_note,
     )

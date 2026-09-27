@@ -238,11 +238,17 @@ def test_multihop_transition_offers_exactly_once_per_emitted_event(tmp_path: Pat
 
 @pytest.mark.regression
 def test_rejection_from_in_review_with_overlong_note_broadcasts_pointer_ref(tmp_path: Path, offer_recorder: OfferRecorder) -> None:
-    """#4327 T3: the ``in_review -> in_progress`` review-rejection edge
-    requires a ``review_ref`` on the wire; with a >240-byte ``--note`` and no
-    review-feedback pointer, the slot takes the synthetic ``review:<WP>``
-    token (never the note) and the moment still broadcasts."""
+    """#4327 T3 (repointed by #4899): the ``in_review -> in_progress``
+    review-rejection edge (the re-implement edge) now durably requires a
+    real review-feedback file (#4899 closes the silent-no-rationale gap this
+    test used to rely on) -- with one supplied, a >240-byte ``--note`` still
+    never reaches the wire ``review_ref`` (it carries the resolvable
+    ``review-cycle://`` pointer instead of the note OR the synthetic
+    ``review:<WP>`` fallback token this edge used to fall back to), the note
+    is preserved whole in ``reason``, and the moment still broadcasts."""
     feature_dir = _seed_wp_in_lane(tmp_path, mission_slug=_MISSION, wp_id="WP01", lane="in_review")
+    feedback_file = tmp_path / "feedback.md"
+    feedback_file.write_text("**Issue**: fix the widget alignment.\n", encoding="utf-8")
 
     result = _invoke(
         tmp_path,
@@ -252,6 +258,8 @@ def test_rejection_from_in_review_with_overlong_note_broadcasts_pointer_ref(tmp_
             "WP01",
             "--to",
             "doing",
+            "--review-feedback-file",
+            str(feedback_file),
             "--note",
             _LONG_PROSE_NOTE,
             "--mission",
@@ -265,7 +273,9 @@ def test_rejection_from_in_review_with_overlong_note_broadcasts_pointer_ref(tmp_
     moments = offer_recorder.moment_offers()
     assert len(moments) == 1, f"expected exactly one moment offer, got {len(moments)}: {moments}"
     wire_review_ref = moments[0][1]["attrs"]["review_ref"]
-    assert _POINTER_SHAPED_RE.match(wire_review_ref), f"wire review_ref must be the review pointer or synthetic review:<WP> token, got: {wire_review_ref!r}"
+    assert wire_review_ref.startswith("review-cycle://"), (
+        f"wire review_ref must be the resolvable review-cycle pointer now that real feedback is supplied, got: {wire_review_ref!r}"
+    )
     assert _LONG_PROSE_NOTE not in wire_review_ref
 
     persisted = _persisted_events(feature_dir, "WP01")
