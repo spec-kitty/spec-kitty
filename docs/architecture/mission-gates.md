@@ -1,8 +1,8 @@
 ---
 title: Mission transition gates — declarative, asset-backed, trust-gated
-description: The declarative model for transition gates — a first-class gate artefact whose check ships as an asset, runs at a topology-resolved surface, fail-closed by default.
+description: 'The declarative model for transition gates: a gate artefact whose check ships as an asset, trust-checked before it runs, with severity-typed outcomes.'
 doc_status: active
-updated: '2026-08-13'
+updated: '2026-09-27'
 type: explanation
 related:
 - docs/architecture/mission-type-resolution.md
@@ -16,11 +16,15 @@ related:
 ---
 # Mission transition gates — declarative, asset-backed, trust-gated
 
-> **Status: the gate mechanism is design (Proposed); the structural decision it builds on is
-> Accepted.** The declarative gate-mechanism ADRs ([2026-08-13-2](../adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md)
-> … [-6](../adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md))
-> are **Proposed** — this page is the design of record for them, hardened before implementation, not
-> a description of shipped behaviour. The structural decision underneath it — the built-in mission
+> **Status: the gate mechanism is an accepted design, not yet shipped behaviour.** The
+> definition, trust and severity ADRs ([2026-08-13-2](../adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md),
+> [-4](../adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md),
+> [-6](../adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md))
+> were amended and **Accepted** together on 2026-09-27; [-3](../adr/3.x/2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md)
+> and [-5](../adr/3.x/2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md)
+> keep their own status. This page is the design of record, not a description of shipped
+> behaviour: today the only gate is the `spec-kitty-pre-review` code gate, and every gate fault
+> fails open. The structural decision underneath it — the built-in mission
 > subtree stays nested and the legacy `MissionStepContract` surface is retired
 > ([ADR 2026-08-13-1](../adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md))
 > — is **Accepted**.
@@ -35,10 +39,10 @@ named-Python-handler registry.
 | Concern | Answer | ADR |
 |---|---|---|
 | **What a gate is** | A first-class doctrine `gate` artefact kind (declarative YAML), reusable by id, tiered like every other kind. | [-2](../adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md) |
-| **What the check is** | Code shipped as an `asset` (inert blob, resolved by id), invoked by the gate's `entrypoint` oneliner. | [-2](../adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md) |
+| **What the check is** | Code shipped as an `asset` (inert blob, resolved by id), run as an allowlisted `interpreter` plus an `args` list (no shell string). | [-2](../adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md) |
 | **Where it runs** | An `executionTarget` surface selector (doctrine-owned token set) resolved through the existing stamped `GateExecutionContext` via the topology placement seam's `execute_dir` verb. | [-3](../adr/3.x/2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md) |
-| **Whether it may run** | Trust: built-in trusted (release-signed target); org/project packs are trust-on-first-use, keyed on operator coordinate + content-hash. | [-4](../adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md) |
-| **What its outcome does** | The outcome carries a typed severity (`BLOCKING`/`RECOVERABLE`/`WARN`/`INFO`); the operator's error-handling strategy (`block_above(threshold)` in `.kittify`) decides the CLI effect. | [-6](../adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md) |
+| **Whether it may run** | Trust: built-in trusted by install position; org/project packs are trust-on-first-use, keyed on the operator coordinate plus a locally computed hash of the executable surface. Consent lives in the user home; the repo may only pin hashes. Release signing is deferred. | [-4](../adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md) |
+| **What its outcome does** | The outcome carries a typed severity (`BLOCKING`/`RECOVERABLE`/`WARN`/`INFO`); the operator's error-handling strategy (`block_above(threshold)` in `.kittify`) decides the CLI effect. The default blocks at `BLOCKING` only; trust/tamper outcomes are always `BLOCKING`. | [-6](../adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md) |
 | **How fast (later)** | *Open.* Parse-amortization is sound (content-addressed parse cache, no daemon); a deterministic *verdict* cache is contested and held open. | [-5](../adr/3.x/2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md) |
 
 ## Diagrams
@@ -53,7 +57,7 @@ named-Python-handler registry.
 @startuml
 title Gate distribution & consumer value (ArchiMate)
 archimate #Business "Operator" as op <<business-role>>
-archimate #Technology "built-in pack\n(signed - trusted)" as builtin <<technology-artifact>>
+archimate #Technology "built-in pack\n(trusted by position)" as builtin <<technology-artifact>>
 archimate #Technology "org / project pack\n(TOFU)" as orgpack <<technology-artifact>>
 archimate #Technology "gate defs + assets" as gates <<technology-artifact>>
 archimate #Technology "Operator machine\n(CLI - optional daemon)" as machine <<node>>
@@ -127,14 +131,14 @@ participant "Policy" as Pol
 Runtime -> Charter : transition WP on_transition
 Charter -> D : dispatch bound gates
 D -> Doc : gate id to definition and asset
-D -> Trust : trusted publisher?
-alt untrusted
-  Trust --> D : could-not-run severity
+D -> Trust : trusted? re-hash executable surface
+alt untrusted or tampered
+  Trust --> D : could-not-run BLOCKING
 else trusted
   D -> Seam : executionTarget to execute_dir
   Seam --> D : stamped GateExecutionContext
-  D -> Run : interpreter args, network=none
-  Run --> D : exit or JSON outcome
+  D -> Run : allowlisted interpreter + args, confined
+  Run --> D : JSON verdict or could-not-run RECOVERABLE
 end
 D -> Pol : outcome and severity
 Pol --> Charter : effect via block_above strategy
@@ -142,7 +146,7 @@ Charter --> Runtime : allowed or blocked or degraded
 == 2. Internal resolution and files ==
 note over Doc: packs/built-in/gates/ID.gate.yaml then asset blob then executionTarget token
 note over Seam: token + MissionTopology then surface then workdir (stamped)
-note over Trust: .kittify trust store: operator coord + content-hash
+note over Trust: user-home consent store: operator coord + executable-surface hash; repo may pin hashes only
 note over Pol: .kittify strategy then ERROR_SEVERITY ladder (kernel)
 @enduml
 ```
@@ -152,7 +156,8 @@ note over Pol: .kittify strategy then ERROR_SEVERITY ladder (kernel)
 Two separated concerns:
 
 - **Definition** — the `gate` artefact says *what the check is*: which asset holds the code,
-  the `entrypoint`, the `executionTarget`, the timeout, and the fail disposition.
+  the `interpreter` and `args`, the `executionTarget`, the timeout, and the severity of a
+  detected violation.
 - **Binding** — the `MissionStep` says *when it fires*: an `on_transition` edge plus the gate
   id. Definition is reusable across steps and mission types; binding is per-step and ships in
   the per-type mission bundle.
@@ -187,24 +192,36 @@ gates:
 2. The dispatcher resolves the gate's `executionTarget` selector through the placement seam,
    given the mission's `MissionTopology`, to a **stamped `GateExecutionContext`** (not a bare
    path — the stamp is what refuses a surface that cannot hold the artifact).
-3. It resolves the pack's **trust** (operator coordinate + content-hash). An untrusted pack is a
-   *could-not-run* outcome carrying a severity — it is **not** a silent skip.
-4. If trusted, it resolves the referenced asset to a path and runs `interpreter` + `args` in the
-   resolved context under a bounded, network-denied sandbox. The structured outcome (pass /
-   failed / could-not-run) carries a **severity**; the operator's error-handling strategy
-   (`block_above(threshold)`) maps that severity to the CLI effect (block vs proceed-degraded).
+3. It checks the pack's **trust** before resolving or running anything: built-in is trusted by
+   install position; any other pack needs a consent entry in the user-home trust store matching
+   the executable-surface hash, which is **re-computed now**, at dispatch. Untrusted, a hash
+   mismatch, or tampering is a *could-not-run* outcome at `BLOCKING` — never a silent skip.
+4. If trusted, it resolves the referenced asset to a path and runs the allowlisted `interpreter`
+   with `args` in the resolved context under the refuse-unconfinable baseline (env allowlist,
+   process-group kill + `setrlimit`, path confinement, capped verdict channel). A host that cannot
+   apply the baseline, a crash, a timeout, or a missing interpreter is a *could-not-run* outcome
+   at `RECOVERABLE`; a detected violation carries the gate's declared severity.
+5. The operator's error-handling strategy (`block_above(threshold)`, default: block at `BLOCKING`
+   only) maps that severity to the CLI effect (block vs proceed-degraded). Repository config
+   cannot demote trust outcomes below `BLOCKING`, and every verdict records the effective
+   strategy.
 
 ## Invariants
 
 - Gates are **deterministic and side-effect-free** — pure checks, never mutate mission state.
-  This must be **enforced by the sandbox** (network-denied, bounded), not merely asserted.
+  This is **enforced** by the refuse-unconfinable baseline (#2540), not merely asserted; OS-level
+  network denial is follow-on work (#2541).
 - The `asset` kind stays inert — resolved to a path, never self-executing. The gate is the
   only thing that turns a path into an invocation.
-- Trust is only ever consulted for **executing code**; inert doctrine needs no trust decision.
-- There is **one disposition model**: every outcome (pass / failed / could-not-run, the last
-  including *untrusted*) carries a severity, and the operator's error-handling strategy decides
-  the effect uniformly — so a security gate fails **closed by default** regardless of *why* it
-  did not pass, and a missing CI trust seed **blocks loudly** rather than silently no-ops.
+- Trust is only ever consulted for **executing code**; inert doctrine needs no trust decision,
+  and an edit to inert doctrine never changes the trust hash.
+- Nothing is resolved or executed before the trust check passes. Trust is not containment: a
+  trusted gate still runs under the baseline.
+- There is **one disposition model**: every outcome (pass / failed / could-not-run) carries a
+  severity, and the operator's error-handling strategy decides the effect. Trust and tamper
+  failures are fixed at `BLOCKING`, so a missing CI trust seed **blocks loudly** rather than
+  silently no-ops; machinery faults are fixed at `RECOVERABLE`, so they proceed degraded and on
+  the record (this keeps C-003, "never break `move-task`").
 
 ## Relationship to the mission subtree
 

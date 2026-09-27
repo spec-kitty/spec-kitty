@@ -2796,15 +2796,15 @@ pages:
   - path: "docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md"
     title: "ADR: Transition gates are declarative, asset-backed, first-class doctrine artefacts"
     divio_type: "none"
-    abstract: "Replaces the named-Python-handler gate registry with a first-class declarative `gate` kind whose check ships as an asset invoked via an entrypoint, fail-closed by default."
+    abstract: "Replaces the named-Python-handler gate registry with a declarative `gate` kind whose asset runs as an allowlisted interpreter plus argv, confined, after the trust check."
     anchors:
-    - {slug: "post-dialectics-revision-2026-08-13", text: "Post-dialectics revision (2026-08-13)", level: 2}
+    - {slug: "amendment-note-2026-09-27", text: "Amendment note (2026-09-27)", level: 2}
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "consequences", text: "Consequences", level: 3}
-    - {slug: "open-questions-for-the-dialectics-squad", text: "Open questions (for the dialectics squad)", level: 3}
+    - {slug: "resolved-and-open-questions", text: "Resolved and open questions", level: 3}
   - path: "docs/adr/3.x/2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md"
     title: "ADR: Gate execution targets a surface through a kernel selector and the topology placement seam"
     divio_type: "none"
@@ -2818,17 +2818,24 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "open-questions-for-the-dialectics-squad", text: "Open questions (for the dialectics squad)", level: 3}
   - path: "docs/adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md"
-    title: "ADR: Executable doctrine runs only from trusted publishers (signed built-in; TOFU for the rest)"
+    title: "ADR: Executable doctrine runs only from trusted publishers (built-in trusted by position; TOFU for the rest)"
     divio_type: "none"
-    abstract: "Gate assets execute only from trusted publishers: built-in is release-signed and trusted; org/project packs use trust-on-first-use; untrusted gates are skipped with a warning."
+    abstract: "Gate assets run only from trusted packs: built-in by install position; others via a user-home TOFU store keyed on a local executable-surface hash. Untrusted is BLOCKING."
     anchors:
-    - {slug: "post-dialectics-revision-2026-08-13", text: "Post-dialectics revision (2026-08-13)", level: 2}
+    - {slug: "amendment-note-2026-09-27", text: "Amendment note (2026-09-27)", level: 2}
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "tiers", text: "Tiers", level: 3}
+    - {slug: "trust-key-and-what-is-hashed", text: "Trust key and what is hashed", level: 3}
+    - {slug: "where-consent-and-pins-live", text: "Where consent and pins live", level: 3}
+    - {slug: "when-trust-is-checked", text: "When trust is checked", level: 3}
+    - {slug: "first-fetch-and-updates", text: "First fetch and updates", level: 3}
+    - {slug: "outcomes", text: "Outcomes", level: 3}
+    - {slug: "signing-deferred", text: "Signing (deferred)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 3}
-    - {slug: "open-questions-for-the-dialectics-squad", text: "Open questions (for the dialectics squad)", level: 3}
+    - {slug: "resolved-and-open-questions", text: "Resolved and open questions", level: 3}
   - path: "docs/adr/3.x/2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md"
     title: "ADR: A local loopback daemon amortizes doctrine parse and caches deterministic gate verdicts (direction)"
     divio_type: "none"
@@ -2843,13 +2850,14 @@ pages:
   - path: "docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md"
     title: "ADR: Gate outcomes carry a typed severity; an operator-configured error-handling strategy decides the CLI effect"
     divio_type: "none"
-    abstract: "Gate outcomes emit a typed severity (BLOCKING / RECOVERABLE / WARN / INFO); an operator-configured error-handling strategy in .kittify maps severities to the CLI effect."
+    abstract: "Gate outcomes carry a typed severity; an operator strategy maps it to the CLI effect. The default blocks at BLOCKING only; trust failures are always BLOCKING."
     anchors:
+    - {slug: "amendment-note-2026-09-27", text: "Amendment note (2026-09-27)", level: 2}
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "consequences", text: "Consequences", level: 3}
-    - {slug: "open-questions-for-scoping-a-later-pass", text: "Open questions (for scoping / a later pass)", level: 3}
+    - {slug: "resolved-and-open-questions", text: "Resolved and open questions", level: 3}
   - path: "docs/adr/3.x/2026-08-15-1-handoff-packet-intake-contract.md"
     title: "ADR: Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract"
     divio_type: "none"
@@ -5126,7 +5134,7 @@ pages:
   - path: "docs/architecture/mission-gates.md"
     title: "Mission transition gates — declarative, asset-backed, trust-gated"
     divio_type: "explanation"
-    abstract: "The declarative model for transition gates — a first-class gate artefact whose check ships as an asset, runs at a topology-resolved surface, fail-closed by default."
+    abstract: "The declarative model for transition gates: a gate artefact whose check ships as an asset, trust-checked before it runs, with severity-typed outcomes."
     anchors:
     - {slug: "the-moving-parts", text: "The moving parts", level: 2}
     - {slug: "diagrams", text: "Diagrams", level: 2}

@@ -2,7 +2,7 @@
 title: '3.x Architectural Decision Records'
 description: 'Index and era history for every Spec Kitty 3.x architectural decision record, with the dated naming convention, the status vocabulary, and how to register a new entry.'
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-09-27'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -178,7 +178,7 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-13 | [The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface](2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md) |
 | 2026-08-13 | [Transition gates are declarative, asset-backed, first-class doctrine artefacts](2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md) |
 | 2026-08-13 | [Gate execution targets a surface through a kernel selector and the topology placement seam](2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md) |
-| 2026-08-13 | [Executable doctrine runs only from trusted publishers (signed built-in; TOFU for the rest)](2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md) |
+| 2026-08-13 | [Executable doctrine runs only from trusted publishers (built-in trusted by position; TOFU for the rest)](2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md) |
 | 2026-08-13 | [A local loopback daemon amortizes doctrine parse and caches deterministic gate verdicts (direction)](2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md) |
 | 2026-08-13 | [Gate outcomes carry a typed severity; an operator-configured error-handling strategy decides the CLI effect](2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md) |
 | 2026-08-13 | [Mission-Type Roster Layering Is the Availability Slice, Not the Kind-Promotion Slice](2026-08-13-1-mission-type-roster-layering-seam.md) |
