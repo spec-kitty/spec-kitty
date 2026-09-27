@@ -1706,6 +1706,14 @@ def resolve_placement_only(
 # built this way can never diverge from where the verdict was written.
 
 _ISSUE_MATRIX_FILENAME = "issue-matrix.json"
+# Legacy markdown failover (FR-013, #5222/F3), mirroring the dir-based
+# reader's JSON-first-then-``.md`` probe order
+# (:func:`~specify_cli.tasks.issue_matrix_migration.load_issue_matrix`). The
+# canonical name lives on ``specify_cli.tasks.issue_matrix.
+# ISSUE_MATRIX_MD_FILENAME``; it is re-declared here (not imported) because
+# ``mission_runtime``'s ``specify_cli`` outbound ledger
+# (tests/architectural/test_layer_rules.py) does not carry a "tasks" entry.
+_ISSUE_MATRIX_MD_FILENAME = "issue-matrix.md"
 
 _ISSUE_MATRIX_REF_ABSENT_CODE = "ISSUE_MATRIX_REF_ABSENT"
 _ISSUE_MATRIX_PROBE_ERROR_CODE = "ISSUE_MATRIX_PROBE_ERROR"
@@ -1751,19 +1759,22 @@ def _issue_matrix_object_path(
     mission_slug: str,
     *,
     resolver: MissionResolver | None,
+    filename: str = _ISSUE_MATRIX_FILENAME,
 ) -> str:
-    """The ``<KITTY_SPECS_DIR>/<canonical-mission-dir>/issue-matrix.json`` git object path.
+    """The ``<KITTY_SPECS_DIR>/<canonical-mission-dir>/<filename>`` git object path.
 
     The relative path is IDENTICAL across the primary tree, the coordination
     worktree, and the consolidated-primary tree (all three lay the mission
     dir out at ``KITTY_SPECS_DIR/<slug-mid8>/...`` — ``coord_feature_dir``'s
     own layout), so one canonicalization serves every resolved ref.
+    ``filename`` selects between the structured (``.json``) object and the
+    legacy markdown failover (``.md``, FR-013, #5222/F3) at the SAME ref.
     """
     from specify_cli.core.constants import KITTY_SPECS_DIR
     from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 
     candidate_dir = candidate_feature_dir_for_mission(primary_root, mission_slug, resolver=resolver)
-    return f"{KITTY_SPECS_DIR}/{candidate_dir.name}/{_ISSUE_MATRIX_FILENAME}"
+    return f"{KITTY_SPECS_DIR}/{candidate_dir.name}/{filename}"
 
 
 def _ensure_issue_matrix_ref_exists(repo_root: Path, ref: str) -> None:
@@ -1883,6 +1894,16 @@ def read_issue_matrix_ref_content(
     * the authored content is empty — ``ISSUE_MATRIX_EMPTY_CONTENT`` (an
       empty matrix is never read as "nothing to enforce").
 
+    Legacy markdown failover (FR-013, #5222/F3): probes ``issue-matrix.json``
+    at the ref first; when that specific object is absent (a probe-error,
+    never a deleted-ref) it probes the legacy ``issue-matrix.md`` at the SAME
+    ref before giving up — mirroring the dir-based reader's JSON-first-then-
+    ``.md`` failover (:func:`~specify_cli.tasks.issue_matrix_migration.
+    load_issue_matrix`). The returned content carries no separate format tag;
+    callers sniff it (:func:`~specify_cli.tasks.issue_matrix.
+    looks_like_json_issue_matrix_content`) since the two formats are
+    unambiguous by their leading character.
+
     Args:
         repo_root: Repository root (may be a worktree; canonicalized
             internally by the shared resolvers, so the result is
@@ -1906,9 +1927,18 @@ def read_issue_matrix_ref_content(
 
     main_root = get_main_repo_root(repo_root)
     ref = _issue_matrix_ref(repo_root, mission_slug, resolver=resolver)
-    object_path = _issue_matrix_object_path(main_root, mission_slug, resolver=resolver)
     _ensure_issue_matrix_ref_exists(main_root, ref)
-    content = _read_issue_matrix_ref_content(main_root, ref, object_path)
+
+    json_object_path = _issue_matrix_object_path(main_root, mission_slug, resolver=resolver)
+    try:
+        content = _read_issue_matrix_ref_content(main_root, ref, json_object_path)
+        object_path = json_object_path
+    except IssueMatrixRefReadError as exc:
+        if exc.code != _ISSUE_MATRIX_PROBE_ERROR_CODE:
+            raise
+        object_path = _issue_matrix_object_path(main_root, mission_slug, resolver=resolver, filename=_ISSUE_MATRIX_MD_FILENAME)
+        content = _read_issue_matrix_ref_content(main_root, ref, object_path)
+
     _ensure_issue_matrix_content_authored(content, ref=ref, object_path=object_path)
     return content
 

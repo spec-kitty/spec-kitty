@@ -63,6 +63,27 @@ ISSUE_MATRIX_JSON_FILENAME = "issue-matrix.json"
 ISSUE_MATRIX_MD_FILENAME = "issue-matrix.md"
 ISSUE_MATRIX_SCHEMA_VERSION = 1
 
+
+def looks_like_json_issue_matrix_content(content: str) -> bool:
+    """Sniff whether ref/coord-ref CONTENT is the structured ``.json`` format.
+
+    #5222 (F3): :func:`~mission_runtime.resolution.read_issue_matrix_ref_content`
+    probes ``issue-matrix.json`` then, on a probe-error, the legacy
+    ``issue-matrix.md`` at the SAME ref (mirroring the dir-based reader's
+    JSON-first-then-``.md`` failover, FR-013) and hands back whichever text
+    existed -- there is no second explicit format tag threaded through the
+    ``Path | str`` split (:mod:`mission_runtime.issue_matrix_partition`), so
+    every content-source consumer (:func:`~specify_cli.tasks.
+    issue_matrix_migration.load_issue_matrix`, :func:`~specify_cli.cli.
+    commands.review._issue_matrix.validate_issue_matrix`) dispatches on this
+    sniff instead. The structured document is always a JSON *object*
+    (``{"rows": {...}}``); the legacy markdown document never starts with
+    ``{`` once leading whitespace is stripped, so this is unambiguous for the
+    two formats this codebase ever authors at this content source.
+    """
+    return content.lstrip().startswith("{")
+
+
 # Scaffold placeholders (T021) -- unchanged wording from the retired markdown
 # scaffold so the "fill this in" signal stays familiar to operators/agents.
 _SCAFFOLD_VERDICT_PLACEHOLDER = "unknown"

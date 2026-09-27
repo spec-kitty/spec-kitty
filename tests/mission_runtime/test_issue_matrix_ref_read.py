@@ -497,6 +497,64 @@ def test_issue_matrix_ref_read_error_importable_from_package_root() -> None:
     assert mission_runtime.IssueMatrixRefReadError is IssueMatrixRefReadError
 
 
+# ---------------------------------------------------------------------------
+# #5222 (F3): legacy markdown failover at the SAME ref, mirroring the
+# dir-based reader's JSON-first-then-``.md`` probe order (FR-013).
+# ---------------------------------------------------------------------------
+
+
+def test_legacy_markdown_failover_reads_when_json_absent_at_ref(repo: Path) -> None:
+    """A coord mission whose ref-committed matrix is the LEGACY ``.md`` format
+    (no ``issue-matrix.json`` ever committed there) must resolve via the
+    ``.md`` failover, not refuse with a JSON-only probe error."""
+    mission_slug, feature_dir, _target, coordination_branch = _build_consolidated_coord_mission(
+        repo, mid8="01KZM1MM", coord_matrix_content=None, branch_coordination_before_scaffold=True
+    )
+    md_text = "| issue | verdict | evidence_ref |\n|---|---|---|\n| #1234 | fixed | PR #1 |\n"
+    _git(repo, "checkout", "-q", coordination_branch)
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "issue-matrix.md").write_text(md_text, encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", f"chore({mission_slug}): author legacy issue-matrix.md")
+    _git(repo, "checkout", "-q", f"kitty/mission-{mission_slug}")
+
+    content = read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert content == md_text
+
+
+def test_legacy_markdown_failover_json_still_wins_when_both_present(repo: Path) -> None:
+    """JSON-first is preserved: when BOTH formats exist at the ref, the
+    structured ``.json`` is read, never the legacy ``.md`` (mirrors the
+    dir-based reader's own precedence)."""
+    mission_slug, feature_dir, _target, coordination_branch = _build_consolidated_coord_mission(
+        repo, mid8="01KZM1NN", coord_matrix_content='{"rows": {"#1234": {"verdict": "fixed", "evidence_ref": "PR #1"}}}'
+    )
+    _git(repo, "checkout", "-q", coordination_branch)
+    (feature_dir / "issue-matrix.md").write_text("| issue | verdict | evidence_ref |\n|---|---|---|\n| #1234 | in-mission | PR #1 |\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", f"chore({mission_slug}): also author legacy issue-matrix.md")
+    _git(repo, "checkout", "-q", f"kitty/mission-{mission_slug}")
+
+    content = read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert content.strip().startswith("{")
+    assert "fixed" in content
+
+
+def test_neither_format_at_ref_still_refuses_with_probe_error(repo: Path) -> None:
+    """Neither ``.json`` nor ``.md`` committed at the ref -> still a probe
+    error (the ``.md`` failover attempt's own absence), never a silent pass."""
+    mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(
+        repo, mid8="01KZM1OO", coord_matrix_content=None, branch_coordination_before_scaffold=True
+    )
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == "ISSUE_MATRIX_PROBE_ERROR"
+
+
 def test_4959_issue_matrix_post_consolidation_served_by_standalone_read(repo: Path) -> None:
     """Non-vacuity: on the IDENTICAL fixture the parametrized test above uses,
     ``resolve_artifact_surface`` for ISSUE_MATRIX STILL raises

@@ -228,17 +228,30 @@ def load_issue_matrix(feature_dir: Path, *, content: str | None = None) -> list[
     directory, so this function collapses only the ``.json``-then-``.md``
     filename fork, uniformly, in one place).
 
-    Content source (IC-01b, T007): when ``content`` is supplied (WP01's
-    coordination-ref content read, :func:`~mission_runtime.resolution.
-    read_issue_matrix_ref_content`, for the case where the artifact has no
-    on-disk worktree), it is parsed DIRECTLY as structured ``issue-matrix.json``
-    content -- ``feature_dir`` is not touched at all in this arm (no
-    ``.exists()`` probe against a directory the content source has already
-    proven has no on-disk representation).
+    Content source (IC-01b, T007; legacy failover #5222/F3): when ``content``
+    is supplied (WP01's coordination-ref content read, :func:`~mission_runtime.
+    resolution.read_issue_matrix_ref_content`, for the case where the artifact
+    has no on-disk worktree), it mirrors the SAME JSON-first-then-``.md``
+    dispatch as the dir-based fast path above -- the ref-content reader probes
+    ``.json`` then the legacy ``.md`` at the SAME ref and hands back whichever
+    text existed with no separate format tag, so this sniffs the content
+    itself (:func:`~specify_cli.tasks.issue_matrix.
+    looks_like_json_issue_matrix_content`) rather than always assuming JSON.
+    ``feature_dir`` is not touched at all in this arm (no ``.exists()`` probe
+    against a directory the content source has already proven has no on-disk
+    representation); it is used only as a label when delegating to the legacy
+    markdown validator.
     """
     if content is not None:
-        rows, _diagnostics = _parse_structured_rows_text(content)
-        return rows
+        from specify_cli.tasks.issue_matrix import looks_like_json_issue_matrix_content
+
+        if looks_like_json_issue_matrix_content(content):
+            rows, _diagnostics = _parse_structured_rows_text(content)
+            return rows
+
+        from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
+
+        return validate_issue_matrix(feature_dir / ISSUE_MATRIX_MD_FILENAME, content=content).rows
 
     json_path = feature_dir / ISSUE_MATRIX_JSON_FILENAME
     if json_path.exists():

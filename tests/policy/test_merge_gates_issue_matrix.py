@@ -468,5 +468,56 @@ class TestZeroGatingReferencesNeverProbesCoordination:
         assert overall_pass is True
 
 
+# ---------------------------------------------------------------------------
+# #5222 (F3) -- legacy ``.md`` matrix committed at the coord ref (no ``.json``
+# ever authored there) must resolve through the failover, not fail closed.
+# ---------------------------------------------------------------------------
+
+
+class TestLegacyMarkdownAtCoordRef:
+    def test_legacy_md_only_at_coord_ref_passes_both_gates(self, repo: Path) -> None:
+        mission_slug, feature_dir = _build_coord_mission(repo, mid8="01KZR198", primary_matrix=None, coord_matrix=None)
+        coordination_branch = f"kitty/mission-{mission_slug}-coord"
+        target_branch = f"kitty/mission-{mission_slug}"
+
+        _git(repo, "checkout", "-q", coordination_branch)
+        (feature_dir / "issue-matrix.md").write_text(
+            f"| issue | verdict | evidence_ref |\n|---|---|---|\n| {_ISSUE_KEY} | fixed | PR #1 |\n",
+            encoding="utf-8",
+        )
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-m", "author legacy issue-matrix.md")
+        _git(repo, "checkout", "-q", target_branch)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+
+        completeness = _gate(gates, _COMPLETENESS_GATE)
+        terminality = _gate(gates, _TERMINALITY_GATE)
+        assert completeness.verdict == GateVerdict.PASS, completeness.details
+        assert terminality.verdict == GateVerdict.PASS, terminality.details
+        assert overall_pass is True
+
+    def test_legacy_md_only_at_coord_ref_with_in_mission_verdict_fails(self, repo: Path) -> None:
+        mission_slug, feature_dir = _build_coord_mission(repo, mid8="01KZR198b", primary_matrix=None, coord_matrix=None)
+        coordination_branch = f"kitty/mission-{mission_slug}-coord"
+        target_branch = f"kitty/mission-{mission_slug}"
+
+        _git(repo, "checkout", "-q", coordination_branch)
+        (feature_dir / "issue-matrix.md").write_text(
+            f"| issue | verdict | evidence_ref |\n|---|---|---|\n| {_ISSUE_KEY} | in-mission | PR #1 |\n",
+            encoding="utf-8",
+        )
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-m", "author legacy issue-matrix.md with a non-terminal verdict")
+        _git(repo, "checkout", "-q", target_branch)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+
+        assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS
+        terminality = _gate(gates, _TERMINALITY_GATE)
+        assert terminality.verdict == GateVerdict.FAIL
+        assert overall_pass is False
+
+
 def _fmt_warnings(gates: list) -> list[str]:
     return [f"{g.gate_name}: {g.details}" for g in gates if g.verdict == GateVerdict.FAIL and not g.blocking]

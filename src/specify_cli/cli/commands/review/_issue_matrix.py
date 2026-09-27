@@ -15,6 +15,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
+from specify_cli.tasks.issue_matrix import looks_like_json_issue_matrix_content
 
 # ---------------------------------------------------------------------------
 # Closed-set vocabulary (NFR-007 single source of truth)
@@ -215,12 +216,20 @@ def validate_issue_matrix(path: Path, *, content: str | None = None) -> IssueMat
     load_issue_matrix`) and NO markdown parsing happens. Otherwise falls back
     to the legacy markdown parser below (FR-013 back-compat).
 
-    Content source (IC-01b, T008): when ``content`` is supplied (WP01's
-    coordination-ref content read, for the case where the artifact has no
-    on-disk worktree), it is validated DIRECTLY as structured
-    ``issue-matrix.json`` content -- ``path`` is used only as the result's
-    ``path`` label (never touched on disk) and the dir-based JSON/markdown
-    probes below are skipped entirely.
+    Content source (IC-01b, T008; legacy failover #5222/F3): when ``content``
+    is supplied (WP01's coordination-ref content read, for the case where the
+    artifact has no on-disk worktree), it mirrors the SAME JSON-first-then-
+    ``.md`` dispatch as the dir-based probes below -- the ref-content reader
+    (:func:`~mission_runtime.resolution.read_issue_matrix_ref_content`) probes
+    ``.json`` then the legacy ``.md`` at the SAME ref and hands back whichever
+    text existed with no separate format tag, so this sniffs the content
+    itself (:func:`~specify_cli.tasks.issue_matrix.
+    looks_like_json_issue_matrix_content`) instead of always assuming JSON.
+    Structured content skips the dir-based probes entirely and goes straight
+    to the JSON validator; markdown content falls through into the SAME
+    markdown-parsing tail the dir-based ``.md`` path uses below. ``path`` is
+    used only as the result's ``path`` label in both content arms (never
+    touched on disk).
 
     Parameters
     ----------
@@ -242,20 +251,23 @@ def validate_issue_matrix(path: Path, *, content: str | None = None) -> IssueMat
     result = IssueMatrixValidationResult(path=path, passed=True)
 
     if content is not None:
-        return _validate_structured_issue_matrix(path, result, content=content)
+        if looks_like_json_issue_matrix_content(content):
+            return _validate_structured_issue_matrix(path, result, content=content)
+        text = content
+    else:
+        json_path = path if path.name == "issue-matrix.json" else path.parent / "issue-matrix.json"
+        if json_path.exists():
+            return _validate_structured_issue_matrix(json_path, result)
 
-    json_path = path if path.name == "issue-matrix.json" else path.parent / "issue-matrix.json"
-    if json_path.exists():
-        return _validate_structured_issue_matrix(json_path, result)
+        if not path.exists():
+            result.add_diagnostic(
+                MissionReviewDiagnostic.ISSUE_MATRIX_MISSING,
+                f"issue-matrix.md not found at {path}",
+            )
+            return result
 
-    if not path.exists():
-        result.add_diagnostic(
-            MissionReviewDiagnostic.ISSUE_MATRIX_MISSING,
-            f"issue-matrix.md not found at {path}",
-        )
-        return result
+        text = path.read_text(encoding="utf-8")
 
-    text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
 
     # -----------------------------------------------------------------------
