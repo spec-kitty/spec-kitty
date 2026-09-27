@@ -83,6 +83,7 @@ from tests.architectural._destructive_op_census import (
     assert_second_identical_op_is_unexpected,
     census_keys,
     census_keys_for_sources,
+    census_partition,
     describe_unexpected,
     diff_against_allowlist,
     drop_one_entry,
@@ -355,15 +356,8 @@ _ALLOWLIST: dict[CensusKey, str] = {
 
 
 def _census_partition(sources: Mapping[str, str]) -> tuple[set[CensusKey], set[CensusKey]]:
-    """The gate's one detection + matching path: ``(unexpected, suppressed)``.
-
-    Runs the REAL finder over *sources* (``rel -> source``, possibly mutated in
-    memory) and partitions the keyed hits against ``_ALLOWLIST``. The gate, the
-    line-drift tests and the non-widening tests all go through this seam.
-    """
-    live = _census_keys(sources)
-    unexpected, _stale = diff_against_allowlist(live, _ALLOWLIST)
-    return unexpected, live.keys() & _ALLOWLIST.keys()
+    """This gate's binding of :func:`census_partition` (finder + ``_ALLOWLIST``)."""
+    return census_partition(_census_keys(sources), _ALLOWLIST)
 
 
 #: Files-scanned floor (NFR-002): the finder scanned 1013 files on the planning
@@ -780,3 +774,11 @@ def test_gate_failure_message_renders_identity_line_and_tokens() -> None:
 
     assert rendered.startswith(f"{_NON_WIDENING_REL}::{_TWIN_QUALNAME}::{_MERGE_ABORT}#2 (line ")
     assert rendered.endswith(f"tokens={twin.token_line}")
+
+
+def test_census_partition_splits_unexpected_from_suppressed() -> None:
+    """The shared seam: a live key absent from the allowlist is unexpected, a
+    live allowlisted key is suppressed, and a stale allowlist key is neither."""
+    live = {"kept": 10, "new": 20}
+    allowlist = {"kept": "rationale", "gone": "rationale"}
+    assert census_partition(live, allowlist) == ({"new"}, {"kept"})

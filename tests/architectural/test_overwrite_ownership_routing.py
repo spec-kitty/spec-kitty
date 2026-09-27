@@ -71,6 +71,7 @@ from tests.architectural._destructive_op_census import (
     assert_second_identical_op_is_unexpected,
     census_keys,
     census_keys_for_sources,
+    census_partition,
     describe_unexpected,
     diff_against_allowlist,
     drop_one_entry,
@@ -350,15 +351,8 @@ def _live_routed_modules() -> set[str]:
 
 
 def _census_partition(sources: Mapping[str, str]) -> tuple[set[CensusKey], set[CensusKey]]:
-    """The gate's one detection + matching path: ``(unexpected, suppressed)``.
-
-    Runs the REAL finder over *sources* (``rel -> source``, possibly mutated in
-    memory) and partitions the keyed hits against ``_ALLOWLIST``. The gate, the
-    line-drift tests and the non-widening tests all go through this seam.
-    """
-    live = _census_keys(sources)
-    unexpected, _stale = diff_against_allowlist(live, _ALLOWLIST)
-    return unexpected, live.keys() & _ALLOWLIST.keys()
+    """This gate's binding of :func:`census_partition` (finder + ``_ALLOWLIST``)."""
+    return census_partition(_census_keys(sources), _ALLOWLIST)
 
 
 #: Files-scanned floor (NFR-002): the finder scanned 3 files on the planning

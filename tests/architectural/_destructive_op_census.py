@@ -242,6 +242,20 @@ def diff_against_allowlist(live_flat: Iterable[_K], allowlist: Mapping[_K, str])
     return set(unexpected), set(unused)
 
 
+def census_partition(live: Mapping[_K, int], allowlist: Mapping[_K, str]) -> tuple[set[_K], set[_K]]:
+    """A census gate's one detection + matching path: ``(unexpected, suppressed)``.
+
+    *live* is the gate's keyed census (``{key: lineno}`` from the REAL finder,
+    possibly over in-memory mutated sources); ``unexpected`` is what
+    :func:`diff_against_allowlist` fails on and ``suppressed`` is every live key
+    *allowlist* blesses. Each gate binds its own finder and ``_ALLOWLIST`` in a
+    one-line ``_census_partition``; the gate, the line-drift tests and the
+    non-widening tests all go through this seam.
+    """
+    unexpected, _stale = diff_against_allowlist(live, allowlist)
+    return unexpected, live.keys() & allowlist.keys()
+
+
 def scan_planted_source(tmp_path: Path, name: str, source: str, finder: Callable[[Path], _T]) -> _T:
     """Write *source* to ``tmp_path/name`` and run *finder* over it.
 
