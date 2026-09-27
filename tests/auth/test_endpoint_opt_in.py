@@ -75,6 +75,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import os
+
 import pytest
 
 from specify_cli.auth.config import ENDPOINT_UNCONFIGURED_GUIDANCE, get_saas_base_url
@@ -307,6 +309,7 @@ def test_saas_auth_json_saas_url_resolves_without_raising(
 
 def test_kitty_env_sourced_saas_url_resolves_without_raising(
     unconfigured_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """R-2 source 2: a ``SPEC_KITTY_SAAS_URL`` value sourced from a committed
     ``.kittify/.kitty.env`` file (not a real shell env var) still resolves
@@ -332,15 +335,13 @@ def test_kitty_env_sourced_saas_url_resolves_without_raising(
 
     # Prove the real production entry point (os.environ, repo root found by
     # walking up from `start`) resolves it too, end to end.
-    import os
-
+    # monkeypatch records the variable as absent, so teardown removes the
+    # value load_operator_env_file writes into the real os.environ.
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     load_operator_env_file(start=unconfigured_root)
-    try:
-        assert os.environ["SPEC_KITTY_SAAS_URL"] == "https://kitty-env-configured.example"
-        assert resolve_server_target().resolved_server_url == "https://kitty-env-configured.example"
-        assert get_saas_base_url() == "https://kitty-env-configured.example"
-    finally:
-        os.environ.pop("SPEC_KITTY_SAAS_URL", None)
+    assert os.environ["SPEC_KITTY_SAAS_URL"] == "https://kitty-env-configured.example"
+    assert resolve_server_target().resolved_server_url == "https://kitty-env-configured.example"
+    assert get_saas_base_url() == "https://kitty-env-configured.example"
 
 
 # ---------------------------------------------------------------------------

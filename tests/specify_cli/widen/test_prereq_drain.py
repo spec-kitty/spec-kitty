@@ -26,7 +26,6 @@ passing unmodified.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -107,25 +106,21 @@ def _charter_inputs() -> str:
 class TestCharterInterviewPrereqDrainGate:
     def test_drain_off_never_touches_credentials_or_auth(self, tmp_path: Path, drain_off: None, monkeypatch: pytest.MonkeyPatch) -> None:
         _setup_charter_repo(tmp_path)
-        old_cwd = os.getcwd()
         from_env = MagicMock(name="SaasClient.from_env")
         load_auth_context = MagicMock(name="load_auth_context")
         check_prereqs_mock = MagicMock(name="check_prereqs")
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch("specify_cli.saas_client.client.SaasClient.from_env", from_env),
-                patch("specify_cli.saas_client.auth.load_auth_context", load_auth_context),
-                patch("specify_cli.widen.check_prereqs", check_prereqs_mock),
-            ):
-                result = runner.invoke(
-                    charter_app,
-                    ["interview", "--profile", "minimal", "--mission-slug", _CHARTER_MISSION_SLUG],
-                    input=_charter_inputs(),
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+        monkeypatch.chdir(tmp_path)
+        with (
+            patch("specify_cli.saas_client.client.SaasClient.from_env", from_env),
+            patch("specify_cli.saas_client.auth.load_auth_context", load_auth_context),
+            patch("specify_cli.widen.check_prereqs", check_prereqs_mock),
+        ):
+            result = runner.invoke(
+                charter_app,
+                ["interview", "--profile", "minimal", "--mission-slug", _CHARTER_MISSION_SLUG],
+                input=_charter_inputs(),
+                catch_exceptions=False,
+            )
         assert result.exit_code == 0, result.output
         assert "[w]iden" not in result.output
         from_env.assert_not_called()
@@ -168,27 +163,23 @@ class TestSpecifyInterviewPrereqDrainGate:
         monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
         _setup_specify_repo(tmp_path)
         inputs = "\n".join([""] * _SPECIFY_N_QUESTIONS) + "\n"
-        old_cwd = os.getcwd()
         from_env = MagicMock(name="SaasClient.from_env")
         load_auth_context = MagicMock(name="load_auth_context")
         check_prereqs_mock = MagicMock(name="check_prereqs")
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch("specify_cli.cli.commands.lifecycle.agent_feature.create_mission", return_value=None),
-                patch("specify_cli.cli.commands.lifecycle.locate_project_root", return_value=tmp_path),
-                patch("specify_cli.saas_client.client.SaasClient.from_env", from_env),
-                patch("specify_cli.saas_client.auth.load_auth_context", load_auth_context),
-                patch("specify_cli.widen.check_prereqs", check_prereqs_mock),
-            ):
-                result = runner.invoke(
-                    _specify_app,
-                    [_SPECIFY_MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+        monkeypatch.chdir(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.lifecycle.agent_feature.create_mission", return_value=None),
+            patch("specify_cli.cli.commands.lifecycle.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.saas_client.client.SaasClient.from_env", from_env),
+            patch("specify_cli.saas_client.auth.load_auth_context", load_auth_context),
+            patch("specify_cli.widen.check_prereqs", check_prereqs_mock),
+        ):
+            result = runner.invoke(
+                _specify_app,
+                [_SPECIFY_MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
         assert result.exit_code == 0, result.output
         assert "[w]iden" not in result.output
         from_env.assert_not_called()
@@ -227,27 +218,23 @@ class TestPlanInterviewPrereqDrainGate:
         monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
         _setup_plan_repo(tmp_path)
         inputs = "\n".join([""] * _PLAN_N_QUESTIONS) + "\n"
-        old_cwd = os.getcwd()
         from_env = MagicMock(name="SaasClient.from_env")
         load_auth_context = MagicMock(name="load_auth_context")
         check_prereqs_mock = MagicMock(name="check_prereqs")
-        try:
-            os.chdir(tmp_path)
-            with (
-                patch("specify_cli.cli.commands.lifecycle.agent_feature.setup_plan", return_value=None),
-                patch("specify_cli.cli.commands.lifecycle.locate_project_root", return_value=tmp_path),
-                patch("specify_cli.saas_client.client.SaasClient.from_env", from_env),
-                patch("specify_cli.saas_client.auth.load_auth_context", load_auth_context),
-                patch("specify_cli.widen.check_prereqs", check_prereqs_mock),
-            ):
-                result = runner.invoke(
-                    _plan_app,
-                    ["--mission", _PLAN_MISSION_SLUG],
-                    input=inputs,
-                    catch_exceptions=False,
-                )
-        finally:
-            os.chdir(old_cwd)
+        monkeypatch.chdir(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.lifecycle.agent_feature.setup_plan", return_value=None),
+            patch("specify_cli.cli.commands.lifecycle.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.saas_client.client.SaasClient.from_env", from_env),
+            patch("specify_cli.saas_client.auth.load_auth_context", load_auth_context),
+            patch("specify_cli.widen.check_prereqs", check_prereqs_mock),
+        ):
+            result = runner.invoke(
+                _plan_app,
+                ["--mission", _PLAN_MISSION_SLUG],
+                input=inputs,
+                catch_exceptions=False,
+            )
         assert result.exit_code == 0, result.output
         assert "[w]iden" not in result.output
         from_env.assert_not_called()
