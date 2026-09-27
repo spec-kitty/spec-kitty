@@ -7,11 +7,23 @@ an unknown key is silently dropped. This test asserts the value is present
 on the *loaded* ``AgentProfile`` object.
 
 NFR-003 back-compat: existing profiles without the field must load unchanged.
+
+#5117 (FR-011): the class at the bottom of this module, ``TestModelSlotEndToEnd``,
+additionally pins the one link nothing else tests -- consumer YAML on disk ->
+``AgentProfileRepository`` load -> ``_compute_recommendation``'s dispatch
+routing advisory. That is the evidence for the #5117 KEEP verdict recorded on
+``schema_models.py``'s ``preferred_model`` field.
 """
 
-import pytest
+from pathlib import Path
 
+import pytest
+from ruamel.yaml import YAML
+
+import charter.model_routing as charter_model_routing
+from charter.model_routing import CatalogLoadResult
 from charter.offering.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.repository import AgentProfileRepository
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -146,3 +158,68 @@ class TestDeprecatedScalarRoleStandaloneValid:
             profile = AgentProfile.model_validate(data)
 
         assert profile.roles == ["implementer"]
+
+
+def _write_consumer_profile_yaml(path: Path, *, model_id: str) -> None:
+    """Write a minimal, valid consumer profile YAML declaring ``model:``.
+
+    Matches the repository's ``*.agent.yaml`` glob (``repository.py:37``) and
+    reuses the ``_BASE`` shape plus the ``model`` alias key under test.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {**_BASE, "profile-id": "consumer-model-profile", "model": model_id}
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.dump(data, fh)
+
+
+class TestModelSlotEndToEnd:
+    """Disk -> ``AgentProfileRepository`` -> dispatch routing advisory.
+
+    The alias/mapping half of the chain (YAML ``model:`` -> ``AgentProfile.
+    preferred_model``) is already pinned above by ``TestAgentProfileModelEffortField``,
+    and the evaluator's dual-candidate emission is pinned by
+    ``test_model_task_routing_evaluator.py``. The one untested link is this
+    one: a profile YAML written to disk, loaded through the repository, and
+    carried all the way to ``_compute_recommendation``'s advisory.
+    """
+
+    _MODEL_ID = "claude-test-model-id"
+
+    def test_disk_profile_model_reaches_dispatch_advisory(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Charter model-task-routing catalogue is not guaranteed to be
+        # non-stale forever; force a fresh, non-stale wrapper around the real
+        # loaded catalog so this test never depends on wall-clock freshness.
+        real = charter_model_routing.load()
+        assert real is not None, "shipped model-to-task_type catalog failed to load"
+        monkeypatch.setattr(
+            charter_model_routing,
+            "load",
+            lambda *a, **k: CatalogLoadResult(catalog=real.catalog, is_stale=False),
+        )
+
+        profiles_dir = tmp_path / "profiles"
+        _write_consumer_profile_yaml(profiles_dir / "consumer-model.agent.yaml", model_id=self._MODEL_ID)
+
+        repo = AgentProfileRepository(project_dir=profiles_dir)
+        profile = repo.get("consumer-model-profile")
+
+        assert profile is not None, "consumer profile failed to load"
+        skipped_paths = {entry.path for entry in repo.skipped_profiles()}
+        consumer_path = str(profiles_dir / "consumer-model.agent.yaml")
+        assert consumer_path not in skipped_paths, "consumer profile was silently skipped -- the test would be vacuous"
+        assert profile.preferred_model == self._MODEL_ID
+
+        from specify_cli.invocation.executor import _compute_recommendation
+        from specify_cli.invocation.task_class_map import task_type_for_verb
+
+        task_type = task_type_for_verb("implement")
+        assert task_type == "code-implementation"
+
+        rec = _compute_recommendation(profile, "implement")
+
+        assert rec is not None
+        assert rec.profile_candidate is not None
+        assert rec.profile_candidate.model_id == self._MODEL_ID
+        assert rec.profile_candidate.source == "profile"

@@ -263,6 +263,8 @@ class AgentProfile(BaseModel):
     # Optional model/effort routing hint (FR-005). ``preferred_model`` avoids
     # Pydantic v2's ``model_`` protected namespace; the YAML author writes
     # the kebab-free ``model:`` key via the alias.
+    # #5117 KEEP verdict: consumer-authored, wired end-to-end to the dispatch
+    # routing advisory — not an inert slot.
     preferred_model: str | None = Field(default=None, alias="model")
     effort: str | None = Field(default=None, alias="effort")
 

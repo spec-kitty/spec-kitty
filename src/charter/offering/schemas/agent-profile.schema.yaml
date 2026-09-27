@@ -273,6 +273,8 @@ properties:
       type: string
   model:
     type: string
+    description: Consumer-authored preferred model id for this profile's routing preference. Built-in profiles 
+      deliberately leave it unset; the dispatch routing advisory surfaces it as the profile-preference candidate.
   effort:
     type: string
   specialization:
