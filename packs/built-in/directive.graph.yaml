@@ -366,9 +366,6 @@ edges:
 - source: directive:DIRECTIVE_044
   target: tactic:reviewer-implementer-role-separation
   relation: suggests
-- source: directive:DIRECTIVE_044
-  target: toolguide:terminology-guard
-  relation: suggests
 - source: directive:DIRECTIVE_045
   target: procedure:mission-tracer-files
   relation: suggests

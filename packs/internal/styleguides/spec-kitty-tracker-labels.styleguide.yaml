@@ -1,0 +1,91 @@
+schema_version: "1.0"
+id: spec-kitty-tracker-labels
+title: Spec Kitty Tracker Label Scheme
+scope: operations
+applies_to_languages: []
+
+principles:
+  - "This styleguide is the Spec Kitty core team's concrete label scheme for spec-kitty/spec-kitty. It refines the tracker-neutral built-in planning-and-tracking styleguide, which states the hierarchy and hygiene principles without naming labels."
+  - "Priority is one `priority:P0`..`priority:P3` label; `priority:P2` is the canonical provisional default, paired with `triage:needs-revision` when the priority is a guess."
+  - "Community precedence on duplicates keys off GitHub author association NONE."
+
+patterns:
+  - name: Single canonical priority label
+    description: >
+      Use exactly one priority label per ticket from the canonical
+      `priority:P0`..`priority:P3` scale. The legacy Px-description labels
+      (P0-critical, P1-bug, P2-enhancement, P3-future, P4-wontfix) conflated
+      priority with type and are retired. Priority is orthogonal to issue type.
+    bad_example: |
+      Labels on one ticket: priority:P1, P1-bug, P2-enhancement
+      (dual/conflicting priority + type smuggled into a priority label)
+    good_example: |
+      Labels on one ticket: priority:P1
+      (one canonical priority; kind expressed via the native issue type, not a label)
+
+  - name: Native issue type carries the kind of work
+    description: >
+      The kind of work is expressed by the native GitHub issue type
+      (Bug / Feature / Task), not by a kind label. The `bug` kind-label has been
+      retired in favor of the native Bug type — a defect is typed Bug, an epic or
+      new capability is typed Feature, everything else is typed Task. Type is
+      derived objectively from the conventional-commit prefix
+      (`fix:` -> Bug, `feat:`/epic -> Feature, else Task).
+    bad_example: |
+      Defect left untyped, or its kind smuggled into a label; epic left untyped.
+    good_example: |
+      Defect typed Bug (no kind label); every epic typed Feature.
+
+  - name: Triage namespace for pending disposition
+    description: >
+      Mark a ticket's pending disposition with the cross-priority `triage:*`
+      namespace rather than overloading priority. `triage:stale` (reproduce and
+      close if no longer valid), `triage:needs-revision` (scope/spec needs
+      rework), `triage:maybe-duplicate` (suspected duplicate pending
+      confirmation — distinct from the confirmed `duplicate` label). Use the
+      `usability` label for operator/UX-ergonomics concerns and `future` for
+      explicitly-deferred work.
+    good_example: |
+      A suspected-but-unconfirmed dup: add `triage:maybe-duplicate`
+      (NOT `duplicate`, which asserts a confirmed, closeable duplicate).
+
+  - name: Triage-snapshot label reconciliation
+    description: >
+      When a ticket carries a bespoke triage-snapshot label scheme from a
+      prior pass (e.g. `p1:verified`, `p1-decision:keep|split|defer|close-if-stale`),
+      reconcile it into the canonical namespaces or explicitly bless it as an
+      immutable audit snapshot. Migration map:
+      `p1-decision:close-if-stale` → `triage:stale`;
+      `p1-decision:defer` → `future`;
+      `p1:verified` → remove (disposition is captured by the canonical priority label).
+      If the snapshot predates the current canonical scheme and the owning team
+      treats it as an audit artefact, document the decision and leave it
+      untouched — but add the canonical `priority:Px` and `triage:*` labels
+      alongside so the quality-test can answer its question in one pass.
+    good_example: |
+      Ticket carrying `p1-decision:split` migrated: label removed, `triage:needs-revision`
+      added alongside existing `priority:P1`. Quality-test can answer in one pass.
+    bad_example: |
+      Ticket carries `p1:verified` + `p1-decision:keep` with no canonical
+      `priority:Px` label. The quality-test cannot answer its question and the
+      canonical triage namespace is bypassed.
+
+  - name: Secondary-label coexistence
+    description: >
+      Secondary labels (`usability`, `future`, `bug`, `epic`, `enhancement`)
+      coexist with the `priority:Px` primary label and with `triage:*` disposition
+      labels. They are orthogonal dimensions: `bug` expresses kind, `priority:P1`
+      expresses urgency, `triage:stale` expresses triage state. No label from one
+      dimension replaces a label from another. A ticket may carry at most one
+      `priority:Px` label (the single-canonical-priority invariant), any number of
+      kind labels, and at most one `triage:*` label per triage cycle.
+    good_example: |
+      Labels: priority:P1, bug, triage:needs-revision
+      (one priority, one kind, one triage state — all orthogonal)
+    bad_example: |
+      Labels: P1-bug, triage:stale
+      (conflated priority+kind; missing canonical priority:Px)
+
+quality_test: >
+  For any open ticket on spec-kitty/spec-kitty, does it carry exactly one
+  `priority:Px` label, a native issue type, and at most one `triage:*` label?

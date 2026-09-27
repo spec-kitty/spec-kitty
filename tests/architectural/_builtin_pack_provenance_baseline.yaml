@@ -1,0 +1,249 @@
+# Frozen shrink-only census of in-house residue in packs/built-in (#5203).
+# Maintained by tests/architectural/test_builtin_pack_provenance_ratchet.py:
+# entries may only go DOWN. Never add a file or raise a count; move
+# repository-specific doctrine to packs/internal/ instead.
+agent_profiles/doctrine-daphne.agent.yaml:
+  repo_paths: 1
+agent_profiles/implementer-ivan.agent.yaml:
+  repo_paths: 1
+agent_profiles/planner-priti.agent.yaml:
+  repo_paths: 1
+agent_profiles/researcher-robbie.agent.yaml:
+  repo_paths: 1
+agent_profiles/retrospective-facilitator.agent.yaml:
+  provenance: 1
+assets/docs_structural_lint.py:
+  repo_paths: 4
+  provenance: 20
+directives/030-test-and-typecheck-quality-gate.directive.yaml:
+  provenance: 2
+directives/034-test-first-development.directive.yaml:
+  provenance: 2
+directives/038-structured-prompt-boundary.directive.yaml:
+  repo_paths: 1
+directives/041-tests-as-scaffold-not-friction.directive.yaml:
+  provenance: 2
+directives/044-canonical-sources-and-unification.directive.yaml:
+  repo_paths: 3
+glossary_packs/spec-kitty-core.glossary-pack.yaml:
+  repo_paths: 4
+  provenance: 13
+missions/built_in_step_contracts/documentation-accept.step-contract.yaml:
+  provenance: 1
+missions/built_in_step_contracts/documentation-audit.step-contract.yaml:
+  repo_paths: 2
+  provenance: 1
+missions/built_in_step_contracts/documentation-design.step-contract.yaml:
+  repo_paths: 2
+  provenance: 1
+missions/built_in_step_contracts/documentation-discover.step-contract.yaml:
+  repo_paths: 2
+  provenance: 1
+missions/built_in_step_contracts/documentation-generate.step-contract.yaml:
+  repo_paths: 2
+  provenance: 1
+missions/built_in_step_contracts/documentation-publish.step-contract.yaml:
+  repo_paths: 2
+  provenance: 1
+missions/built_in_step_contracts/documentation-validate.step-contract.yaml:
+  repo_paths: 2
+  provenance: 1
+missions/built_in_step_contracts/plan.step-contract.yaml:
+  repo_paths: 2
+missions/built_in_step_contracts/research-methodology.step-contract.yaml:
+  repo_paths: 2
+missions/built_in_step_contracts/research-output.step-contract.yaml:
+  repo_paths: 2
+missions/built_in_step_contracts/research-scoping.step-contract.yaml:
+  repo_paths: 2
+missions/built_in_step_contracts/research-synthesis.step-contract.yaml:
+  repo_paths: 2
+missions/built_in_step_contracts/review.step-contract.yaml:
+  provenance: 1
+missions/built_in_step_contracts/specify.step-contract.yaml:
+  repo_paths: 2
+missions/documentation/actions/accept/index.yaml:
+  provenance: 1
+missions/documentation/actions/discover/index.yaml:
+  provenance: 1
+missions/documentation/actions/validate/index.yaml:
+  provenance: 1
+missions/documentation/expected-artifacts.yaml:
+  repo_paths: 1
+  provenance: 1
+missions/documentation/governance-profile.yaml:
+  repo_paths: 1
+  provenance: 12
+missions/documentation/templates/documentation-plan-template.md:
+  repo_paths: 2
+  provenance: 10
+missions/documentation/templates/documentation-spec-template.md:
+  provenance: 11
+missions/documentation/templates/task-prompt-template.md:
+  repo_paths: 3
+missions/documentation/templates/tasks-template.md:
+  repo_paths: 1
+  provenance: 14
+missions/mission-steps/documentation/accept/prompt.md:
+  repo_paths: 1
+missions/mission-steps/documentation/audit/prompt.md:
+  repo_paths: 2
+missions/mission-steps/documentation/design/prompt.md:
+  repo_paths: 2
+missions/mission-steps/documentation/discover/prompt.md:
+  repo_paths: 2
+missions/mission-steps/documentation/publish/prompt.md:
+  repo_paths: 2
+missions/mission-steps/documentation/validate/prompt.md:
+  repo_paths: 2
+missions/mission-steps/plan/plan/prompt.md:
+  repo_paths: 1
+missions/mission-steps/plan/research/prompt.md:
+  repo_paths: 1
+missions/mission-steps/plan/review/prompt.md:
+  repo_paths: 1
+missions/mission-steps/plan/specify/prompt.md:
+  repo_paths: 1
+missions/mission-steps/research/gathering/prompt.md:
+  repo_paths: 5
+missions/mission-steps/research/methodology/prompt.md:
+  repo_paths: 6
+missions/mission-steps/research/output/prompt.md:
+  repo_paths: 4
+missions/mission-steps/research/scoping/prompt.md:
+  repo_paths: 4
+missions/mission-steps/research/synthesis/prompt.md:
+  repo_paths: 3
+missions/mission-steps/software-dev/analyze/prompt.md:
+  repo_paths: 2
+  provenance: 1
+missions/mission-steps/software-dev/charter/prompt.md:
+  repo_paths: 1
+missions/mission-steps/software-dev/implement/guidelines.md:
+  repo_paths: 1
+missions/mission-steps/software-dev/implement/prompt.md:
+  repo_paths: 3
+  provenance: 1
+missions/mission-steps/software-dev/plan/prompt.md:
+  repo_paths: 6
+  provenance: 2
+missions/mission-steps/software-dev/research/prompt.md:
+  repo_paths: 4
+missions/mission-steps/software-dev/review/prompt.md:
+  repo_paths: 1
+missions/mission-steps/software-dev/specify/prompt.md:
+  repo_paths: 5
+  provenance: 3
+missions/mission-steps/software-dev/tasks/guidelines.md:
+  repo_paths: 2
+missions/mission-steps/software-dev/tasks/prompt.md:
+  repo_paths: 9
+  provenance: 57
+missions/mission-steps/software-dev/tasks-finalize/prompt.md:
+  repo_paths: 2
+missions/mission-steps/software-dev/tasks-outline/prompt.md:
+  repo_paths: 4
+  provenance: 18
+missions/mission-steps/software-dev/tasks-packages/prompt.md:
+  repo_paths: 5
+  provenance: 12
+missions/plan/actions/plan/index.yaml:
+  provenance: 2
+missions/plan/actions/research/index.yaml:
+  provenance: 2
+missions/plan/actions/review/index.yaml:
+  provenance: 2
+missions/plan/actions/specify/index.yaml:
+  provenance: 2
+missions/plan/expected-artifacts.yaml:
+  repo_paths: 2
+missions/plan/governance-profile.yaml:
+  repo_paths: 1
+  provenance: 5
+missions/research/expected-artifacts.yaml:
+  repo_paths: 1
+missions/research/governance-profile.yaml:
+  repo_paths: 1
+  provenance: 3
+missions/research/templates/research-plan-template.md:
+  repo_paths: 5
+missions/research/templates/task-prompt-template.md:
+  repo_paths: 2
+missions/research/templates/tasks-template.md:
+  repo_paths: 1
+  provenance: 13
+missions/software-dev/actions/implement/guidelines.md:
+  repo_paths: 1
+missions/software-dev/actions/tasks/guidelines.md:
+  repo_paths: 2
+missions/software-dev/expected-artifacts.yaml:
+  repo_paths: 1
+missions/software-dev/governance-profile.yaml:
+  repo_paths: 1
+  provenance: 1
+missions/software-dev/mission-runtime.yaml:
+  provenance: 1
+missions/software-dev/templates/plan-template.md:
+  repo_paths: 2
+missions/software-dev/templates/spec-template.md:
+  provenance: 6
+missions/software-dev/templates/task-prompt-template.md:
+  repo_paths: 6
+missions/software-dev/templates/tasks-template.md:
+  repo_paths: 1
+  provenance: 30
+pack.md:
+  repo_paths: 1
+pack.yaml:
+  repo_paths: 2
+  provenance: 4
+paradigms/brownfield-onboarding.paradigm.yaml:
+  provenance: 2
+procedures/development-assist-test-cleanup.procedure.yaml:
+  provenance: 4
+procedures/legacy-codebase-triage.procedure.yaml:
+  provenance: 6
+procedures/mission-tracer-files.procedure.yaml:
+  repo_paths: 1
+  provenance: 1
+styleguides/docs-accessibility.styleguide.yaml:
+  provenance: 10
+styleguides/publication-authority.styleguide.yaml:
+  provenance: 2
+styleguides/test-desiderata-and-boundaries.styleguide.yaml:
+  provenance: 4
+styleguides/testing-principles.styleguide.yaml:
+  repo_paths: 4
+  provenance: 1
+tactics/architecture/paula-patterns-architecture-scout-review.tactic.yaml:
+  provenance: 3
+tactics/canonical-source-unification.tactic.yaml:
+  repo_paths: 1
+tactics/common-docs-curation.tactic.yaml:
+  provenance: 2
+tactics/common-docs-find.tactic.yaml:
+  provenance: 2
+tactics/communication/glossary-curation-interview.tactic.yaml:
+  repo_paths: 3
+tactics/communication/usage-examples-sync.tactic.yaml:
+  provenance: 1
+tactics/ownership-map-leeway.tactic.yaml:
+  provenance: 2
+tactics/reasons-canvas-fill.tactic.yaml:
+  repo_paths: 1
+tactics/reviewer-implementer-role-separation.tactic.yaml:
+  provenance: 3
+tactics/secure-regex-catastrophic-backtracking.tactic.yaml:
+  repo_paths: 1
+tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml:
+  provenance: 1
+tactics/testing/test-scaffolding-as-design-smell.tactic.yaml:
+  repo_paths: 1
+tactics/work-package-completion-validation.tactic.yaml:
+  provenance: 1
+toolguides/MERMAID_DIAGRAMMING.md:
+  provenance: 5
+toolguides/POWERSHELL_SYNTAX.md:
+  provenance: 4
+toolguides/PYTHON_REVIEW_CHECKS.md:
+  repo_paths: 3

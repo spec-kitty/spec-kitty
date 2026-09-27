@@ -1,0 +1,39 @@
+schema_version: "1.0"
+id: spec-kitty-package-tiers
+title: Spec Kitty Package-to-Tier Map
+scope: code
+applies_to_languages: []
+
+principles:
+  - "This styleguide is the Spec Kitty repository's concrete instance of the built-in tiered-standards styleguide. The built-in artefact states the tier principles with placeholder paths; this one names the packages in this tree. On conflict the enforced layer rules (tests/architectural/test_layer_rules.py) win."
+
+patterns:
+  - name: Core tier packages
+    description: >
+      Load-bearing state, orchestration, and runtime logic:
+      src/specify_cli/status/, src/specify_cli/merge/, src/specify_cli/core/,
+      src/mission_runtime/, src/runtime/, src/charter/offering/drg/.
+    good_example: |
+      # src/specify_cli/status/reducer.py: >=85% line coverage for new code,
+      # mypy --strict clean, ruff clean, complexity <= 15.
+
+  - name: Glue tier packages
+    description: >
+      Wiring from core logic to CLI surfaces, upgrade pipelines and diagnostics:
+      src/specify_cli/cli/, src/specify_cli/upgrade/,
+      src/specify_cli/diagnostics/, src/specify_cli/runtime/.
+    good_example: |
+      # src/specify_cli/cli/commands/merge.py: integration coverage at the
+      # command boundary, ruff clean, mypy --strict on new code.
+
+  - name: Scripting tier packages
+    description: >
+      Non-production shims and one-off scripts (src/specify_cli/shims/). They consume core behaviour
+      through the published `spec-kitty` CLI, never by importing core modules.
+    good_example: |
+      # A one-off script calls `spec-kitty agent tasks status` via subprocess
+      # instead of importing specify_cli.status.reducer.
+
+quality_test: >
+  Given a changed module path in this repository, can a reviewer name its tier
+  from this map in one look?

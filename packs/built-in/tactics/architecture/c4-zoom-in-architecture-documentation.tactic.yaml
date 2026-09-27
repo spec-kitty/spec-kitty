@@ -113,5 +113,5 @@ notes: >
   draw.io, or whiteboard photos are all valid renderings. The value is in the
   abstraction hierarchy and the discipline of labelling, not in the rendering
   tool. When working in a Spec Kitty project, prefer the Mermaid C4 templates
-  in src/doctrine/templates/architecture/ for consistency with existing
-  architecture documentation in docs/architecture/.
+  that ship with the doctrine (resolved through the template chain) for
+  consistency with the project's existing architecture documentation.

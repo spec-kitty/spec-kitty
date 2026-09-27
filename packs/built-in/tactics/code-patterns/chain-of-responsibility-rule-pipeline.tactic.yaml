@@ -17,11 +17,10 @@ purpose: >
   readable as a sequence, and lets new rules slot in without re-reading the
   whole pipeline.
 
-  This is the codebase's accepted way of dealing with stacks of related but
-  independent rules — validators, classifiers, canonicalizers, scorers, audit
-  detectors. The shape recurs in `src/specify_cli/audit/`,
-  `src/specify_cli/charter_runtime/lint/checks/`, `src/specify_cli/migration/`, and
-  `src/doctrine/agent_profiles/repository.py` (DDR-011 scoring). New code that
+  This is an accepted way of dealing with stacks of related but independent
+  rules — validators, classifiers, canonicalizers, scorers, audit detectors.
+  The shape typically recurs in audit detectors, lint check registries,
+  migration canonicalizers and candidate scorers. New code that
   composes 4+ independent decisions over the same input should reach for this
   pattern by default.
 
@@ -143,31 +142,26 @@ notes: >
   dataclasses carrying a code, severity, artifact path, and detail. Runner
   accumulates with `findings.extend(rule(...))`; order is usually free; no
   short-circuit on first failure (the goal is to surface every issue).
-  Examples in tree: `src/specify_cli/audit/detectors.py`,
-  `src/specify_cli/audit/classifiers/*`, `src/specify_cli/charter_runtime/lint/checks/*`.
-  Reuse `MissionFinding` / `LintFinding`; do not introduce a third finding
-  type unless it carries genuinely new fields.
+  Typical homes: audit detectors, classifiers, lint check registries.
+  Reuse the project's existing finding types; do not introduce another
+  finding type unless it carries genuinely new fields.
 
   ── Transformer (chained) ──
   Per-rule contract:
   `(state, ctx) -> StepResult(state', actions: tuple[str, ...], error: str | None)`.
   Order matters; runner short-circuits on `error`. Actions log is part of
   the contract — callers consume it to render migration manifests, audit
-  trails, or diffs. The motivating example is `_canonicalize_status_row` in
-  `src/specify_cli/migration/mission_state.py`; the pattern lifts onto
-  `src/specify_cli/migration/canonicalization.py::CanonicalRule` and is
-  reused by `rebuild_state.py`. State type should be generic via TypeVar so
-  the same Protocol covers status rows, frontmatter dicts, and future
-  migration shapes.
+  trails, or diffs. A typical example is canonicalizing persisted state
+  rows during a migration, lifted onto a reusable `CanonicalRule` protocol.
+  State type should be generic via TypeVar so the same Protocol covers
+  status rows, frontmatter dicts, and future migration shapes.
 
   ── Scorer (weighted) ──
   Per-rule contract: `(candidate, ctx) -> float` in `[0.0, 1.0]`. Runner
   performs a weighted sum and applies global adjustments (workload penalty,
-  complexity modifier) outside the rule set. The canonical implementation
-  is DDR-011 profile matching in
-  `src/doctrine/agent_profiles/repository.py::_score_profile`. Defer
-  generalization until a second scorer arrives (e.g. mission template
-  auto-selection).
+  complexity modifier) outside the rule set. A typical example is matching
+  candidate profiles to a task by weighted criteria. Defer generalization
+  until a second scorer arrives.
 
   ── Choosing a flavor ──
   - If rules can emit zero, one, or many independent observations of the

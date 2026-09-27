@@ -17,10 +17,11 @@ patterns:
       Load-bearing state, orchestration, and runtime logic whose correctness
       determines mission execution outcomes. A bug here can corrupt mission state
       or silently drop transitions.
-      Packages: src/specify_cli/status/, src/specify_cli/consolidation/, src/specify_cli/core/,
-      src/mission_runtime/, src/doctrine/drg/.
+      Typical members: domain state machines and reducers, merge or
+      transaction orchestration, dependency resolution, the runtime loop.
+      The project maps its own packages to tiers (for example in its charter).
     good_example: |
-      # Core tier rigour applied to src/specify_cli/status/reducer.py
+      # Core tier rigour applied to <project>/<core-package>/reducer.py
       # coverage : >=85% line coverage for new code; no new untested public functions
       # duplication: No copy-paste duplication of business logic; extract shared helpers
       # smell    : Complexity ceiling 15 (ruff C901 / Sonar S3776); no dead code paths
@@ -33,10 +34,10 @@ patterns:
       agent interfaces, upgrade pipelines, and external tooling. Correctness matters
       but the risk profile is lower: failures here surface quickly as CLI errors
       rather than silent state corruption.
-      Packages: src/specify_cli/cli/, src/specify_cli/upgrade/,
-      src/specify_cli/diagnostics/, src/specify_cli/runtime/.
+      Typical members: CLI command shells, upgrade or migration pipelines,
+      diagnostics, adapters to external tooling.
     good_example: |
-      # Glue tier rigour applied to src/specify_cli/cli/commands/consolidate.py
+      # Glue tier rigour applied to <project>/cli/commands/consolidate.py
       # coverage  : >=70% line coverage for new code; integration tests preferred over unit stubs
       # duplication: Extract repeated argument-parsing or output-formatting helpers;
       #              tolerate minor cosmetic duplication
@@ -49,9 +50,9 @@ patterns:
       Shims, one-off scripts, and exploratory utilities not on the production
       execution path. Code here must clearly be marked as non-production and must
       never be imported by core or glue packages.
-      Packages: src/specify_cli/shims/, src/specify_cli/scripts/.
+      Typical members: compatibility shims, one-off scripts, spikes.
     good_example: |
-      # Scripting tier rigour applied to src/specify_cli/scripts/one_off_migration.py
+      # Scripting tier rigour applied to <project>/scripts/one_off_migration.py
       # coverage  : No mandatory coverage gate; smoke test if the script has a CLI entry point
       # duplication: No constraint; scripts are often intentionally self-contained
       # smell     : No automated gate; flag egregious issues during review
@@ -70,7 +71,7 @@ anti_patterns:
       # — results in over-mocked unit tests for thin command shells that provide
       # no real confidence.
     good_example: |
-      # Core modules (status/, merge/) require >=85% and mypy --strict.
+      # Core modules (state, merge) require >=85% and mypy --strict.
       # CLI command shells require integration-level coverage at the command boundary,
       # not unit tests of every argument-parsing branch.
 
@@ -81,12 +82,12 @@ anti_patterns:
       core's invariants. Shims and scripts must consume core behaviour via the
       published CLI or public API, not by direct import.
     bad_example: |
-      # src/specify_cli/shims/legacy_bridge.py
-      from specify_cli.status.reducer import materialize  # direct core import
+      # <project>/shims/legacy_bridge.py
+      from myproject.state.reducer import materialize  # direct core import
     good_example: |
-      # src/specify_cli/shims/legacy_bridge.py
+      # <project>/shims/legacy_bridge.py
       import subprocess
-      result = subprocess.run(["spec-kitty", "agent", "tasks", "status"], capture_output=True)
+      result = subprocess.run(["myproject", "status"], capture_output=True)
 
   - name: Hiding Pre-existing Debt in New Work
     description: >
@@ -94,7 +95,7 @@ anti_patterns:
       same commit without noting the pre-existing state. Reviewers cannot tell which
       failures are new without archaeology.
     bad_example: |
-      # PR adds 200 lines to src/specify_cli/status/reducer.py
+      # PR adds 200 lines to <project>/state/reducer.py
       # and silently inherits 3 pre-existing mypy errors.
       # Reviewer cannot distinguish new from old.
     good_example: |

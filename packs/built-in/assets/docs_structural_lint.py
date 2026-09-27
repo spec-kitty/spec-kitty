@@ -749,8 +749,7 @@ def check_sanctioned_section_membership(
     :func:`_under_non_content_dir`, so **nested** scaffolding zones (e.g.
     ``templates/spec-kitty/``) are honoured — not only single-segment ones.
     Pages that sit directly at ``docs_root`` map to the implicit ``index``
-    section. Reads the T004 config lists (no inlined literals). WP13 flips it
-    blocking as terminal verification (OB-2).
+    section. Reads the config lists (no inlined literals).
     """
     sanctioned = set(config.sanctioned_content_sections)
     non_content = tuple(entry.rstrip("/") for entry in config.non_content_dirs)

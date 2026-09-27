@@ -1,0 +1,44 @@
+schema_version: "1.0"
+id: spec-kitty-gate-non-vacuity-exemplar
+name: Spec Kitty Gate Non-Vacuity Exemplar Audit
+purpose: >
+  Maps the built-in architectural-gate-non-vacuity tactic's four elements onto
+  the live gate in this repository, so maintainers can see which elements are
+  demonstrated and which remain aspirational here.
+steps:
+  - title: Read the exemplar audit before extending the gate
+    description: |
+      Live exemplar: tests/architectural/test_protection_resolver_call_sites.py
+      (FR-010 / #1868). Shrink-only numeric ratchet companion:
+      tests/architectural/_baselines.yaml (#2159).
+
+      Four-element exemplar mapping (T007 audit — each element mapped to the live
+      exemplar or marked aspirational where not yet demonstrated):
+
+      1. Concrete floor — ASPIRATIONAL. The exemplar asserts only that
+         non-allowlisted violations are zero (violations dict is empty). It does
+         not assert that the allowlisted modules collectively contain a minimum
+         number of compliant calls. The complete pattern requires an explicit
+         minimum-count assertion.
+
+      2. Self-mutation test — ASPIRATIONAL. The exemplar scans _SRC_ROOT
+         (src/ subtree only). The gate module itself lives in
+         tests/architectural/, which is outside the scan boundary. A bare
+         protected_branches() call added to the gate file would not be caught.
+         Resolving this requires either including tests/ in the scan scope or
+         structuring the gate so its own module is scanned.
+
+      3. Shrink-only allowlist — DEMONSTRATED. _ALLOWLIST (frozenset, defined
+         at module level) names exactly the two sanctioned files. The gate
+         loop at "if rel in _ALLOWLIST: continue" skips sanctioned files and
+         flags all others. Adding a new call site in a non-allowlisted file
+         triggers a failure; extending the allowlist is a deliberate code
+         change requiring review. For numeric ratchets, tests/architectural/
+         _baselines.yaml (#2159) is the frozen baseline; test_ratchet_baselines.py
+         compares live allowlist sizes to it and fails on growth.
+
+      4. Routed-count floor — ASPIRATIONAL. The exemplar does not assert that
+         the allowlisted modules (protection_policy.py, commit_helpers.py)
+         contain any calls to protected_branches(). An allowlist could in
+         principle reference modules that no longer call the function; the gate
+         would still pass.

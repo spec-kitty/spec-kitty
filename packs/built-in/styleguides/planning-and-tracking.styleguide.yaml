@@ -9,90 +9,37 @@ principles:
   - "No open ticket lives under a closed or superseded parent. Open tickets parented under a closed or split epic look tracked but are invisible. Sweep closed epics for open children and rehome them to a live functional epic."
   - "Collapse passthrough tiers. An epic that has become a one-child passthrough is a redundant tier — close it as superseded and promote the child to the surviving parent."
   - "Tiered granularity: root -> coherent buckets -> leaves. A root epic holds buckets (sub-epics for distinct sub-classes), not a flat pile of mixed-granularity tickets. A root that mixes sub-epics, loose bugs, and unrelated tickets has drifted into a catch-all and must be re-sliced."
-  - "Community-precedence on duplicates. When two non-umbrella tickets duplicate, keep the community-authored one (author association NONE) and close the core-team duplicate — but only after migrating its evidence into the survivor. Never greet a contributor with a bare duplicate-closed. Verify a stale community ticket is truly dead, and comment inviting confirmation, before closing."
+  - "Community-precedence on duplicates. When two non-umbrella tickets duplicate, keep the community-authored one (opened by someone outside the core team) and close the core-team duplicate — but only after migrating its evidence into the survivor. Never greet a contributor with a bare duplicate-closed. Verify a stale community ticket is truly dead, and comment inviting confirmation, before closing."
   - "Reuse canonical epics; do not fork near-duplicates. Before creating an epic, search for an existing one whose charter already covers the domain and nest a focused slice under it rather than spawning a sibling."
   - "Read scope, flag overlaps. Read a ticket body before re-parenting it — do not keyword-match blindly. When one concern spans several epics, flag the overlap for an owner rather than silently picking one parent."
   - "Create a bucket when a coherent orphan cluster appears. Roughly four or more orphan tickets sharing a concern with no owning epic justify a new functional epic. Name it for the user value it delivers, not internal jargon."
   - "An epic body carries Purpose, Scope, and Out-of-scope — never a list of child ticket numbers. The native sub-issue graph is the single source of truth for parent/child membership; a hand-maintained checklist of numbers drifts and is invisible to tooling."
-  - "Hygiene invariants for every open ticket: it resolves to a functional epic (not an orphan, not meta-rooted, not under a closed epic); it carries an issue type; and it carries a priority label. Type is objective — derive it from the conventional-commit prefix and labels. Priority is triage — assign `priority:P2` as the canonical provisional default and add `triage:needs-revision` as the flag, rather than silently guessing. Two operators applying this rule will converge on the same labels."
+  - "Hygiene invariants for every open ticket: it resolves to a functional epic (not an orphan, not meta-rooted, not under a closed epic); it carries an issue type; and it carries a priority label. Type is objective — derive it from the conventional-commit prefix and labels. Priority is triage — assign the project's canonical provisional default priority and add a needs-revision triage flag, rather than silently guessing. Two operators applying this rule will converge on the same labels."
   - "Issue-matrix discipline. At spec time, for ticket-based missions, every issue the mission addresses must be listed in the issue-matrix with a verdict: in-scope, out-of-scope, or deferred. In-scope issues receive a claim — assigned to the operator — and a tracker comment naming the mission. This is the canonical location for this discipline; it is the operationalized form of the tracker-hygiene standing order: at spec time, every addressed issue → issue-matrix row + claim (assign operator) + tracker comment naming the mission."
 
 patterns:
-  - name: Single canonical priority label
+  - name: Single canonical priority per ticket
     description: >
-      Use exactly one priority label per ticket from the canonical
-      `priority:P0`..`priority:P3` scale. The legacy Px-description labels
-      (P0-critical, P1-bug, P2-enhancement, P3-future, P4-wontfix) conflated
-      priority with type and are retired. Priority is orthogonal to issue type.
+      Use exactly one priority label per ticket from one canonical scale the
+      project defines. Priority is orthogonal to the kind of work: do not
+      smuggle the kind (bug, enhancement) into the priority label, and express
+      the kind through the tracker's native issue type where it has one.
     bad_example: |
-      Labels on one ticket: priority:P1, P1-bug, P2-enhancement
+      Labels on one ticket: two priority labels, one of them carrying the kind
       (dual/conflicting priority + type smuggled into a priority label)
     good_example: |
-      Labels on one ticket: priority:P1
-      (one canonical priority; kind expressed via the native issue type, not a label)
+      Labels on one ticket: one canonical priority label
+      (kind expressed via the native issue type, not a label)
 
-  - name: Native issue type carries the kind of work
+  - name: Separate triage state from priority
     description: >
-      The kind of work is expressed by the native GitHub issue type
-      (Bug / Feature / Task), not by a kind label. The `bug` kind-label has been
-      retired in favor of the native Bug type — a defect is typed Bug, an epic or
-      new capability is typed Feature, everything else is typed Task. Type is
-      derived objectively from the conventional-commit prefix
-      (`fix:` -> Bug, `feat:`/epic -> Feature, else Task).
-    bad_example: |
-      Defect left untyped, or its kind smuggled into a label; epic left untyped.
+      Mark a ticket's pending disposition (stale, needs revision, suspected
+      duplicate) with a dedicated triage namespace rather than overloading the
+      priority label. Priority, kind and triage state are orthogonal dimensions;
+      no label from one dimension replaces a label from another.
     good_example: |
-      Defect typed Bug (no kind label); every epic typed Feature.
-
-  - name: Triage namespace for pending disposition
-    description: >
-      Mark a ticket's pending disposition with the cross-priority `triage:*`
-      namespace rather than overloading priority. `triage:stale` (reproduce and
-      close if no longer valid), `triage:needs-revision` (scope/spec needs
-      rework), `triage:maybe-duplicate` (suspected duplicate pending
-      confirmation — distinct from the confirmed `duplicate` label). Use the
-      `usability` label for operator/UX-ergonomics concerns and `future` for
-      explicitly-deferred work.
-    good_example: |
-      A suspected-but-unconfirmed dup: add `triage:maybe-duplicate`
-      (NOT `duplicate`, which asserts a confirmed, closeable duplicate).
-
-  - name: Triage-snapshot label reconciliation
-    description: >
-      When a ticket carries a bespoke triage-snapshot label scheme from a
-      prior pass (e.g. `p1:verified`, `p1-decision:keep|split|defer|close-if-stale`),
-      reconcile it into the canonical namespaces or explicitly bless it as an
-      immutable audit snapshot. Migration map:
-      `p1-decision:close-if-stale` → `triage:stale`;
-      `p1-decision:defer` → `future`;
-      `p1:verified` → remove (disposition is captured by the canonical priority label).
-      If the snapshot predates the current canonical scheme and the owning team
-      treats it as an audit artefact, document the decision and leave it
-      untouched — but add the canonical `priority:Px` and `triage:*` labels
-      alongside so the quality-test can answer its question in one pass.
-    good_example: |
-      Ticket carrying `p1-decision:split` migrated: label removed, `triage:needs-revision`
-      added alongside existing `priority:P1`. Quality-test can answer in one pass.
-    bad_example: |
-      Ticket carries `p1:verified` + `p1-decision:keep` with no canonical
-      `priority:Px` label. The quality-test cannot answer its question and the
-      canonical triage namespace is bypassed.
-
-  - name: Secondary-label coexistence
-    description: >
-      Secondary labels (`usability`, `future`, `bug`, `epic`, `enhancement`)
-      coexist with the `priority:Px` primary label and with `triage:*` disposition
-      labels. They are orthogonal dimensions: `bug` expresses kind, `priority:P1`
-      expresses urgency, `triage:stale` expresses triage state. No label from one
-      dimension replaces a label from another. A ticket may carry at most one
-      `priority:Px` label (the single-canonical-priority invariant), any number of
-      kind labels, and at most one `triage:*` label per triage cycle.
-    good_example: |
-      Labels: priority:P1, bug, triage:needs-revision
-      (one priority, one kind, one triage state — all orthogonal)
-    bad_example: |
-      Labels: P1-bug, triage:stale
-      (conflated priority+kind; missing canonical priority:Px)
+      A suspected-but-unconfirmed duplicate carries a "maybe duplicate" triage
+      label, not the confirmed "duplicate" label that asserts it can be closed.
 
   - name: Value-named epic with a Purpose/Scope body
     description: >
@@ -100,7 +47,7 @@ patterns:
       The body states Purpose, Scope, and Out-of-scope and stops there — child
       membership is read from the native sub-issue graph.
     bad_example: |
-      Title: "Proof Surface"; body lists "- #1201 - #1202 - #1203 ...".
+      Title: "Proof Surface"; body lists "- <issue-a> - <issue-b> - <issue-c> ...".
     good_example: |
       Title: "CLI user experience"; body: Purpose / Scope / Out-of-scope only.
 
@@ -125,7 +72,7 @@ anti_patterns:
       of sync with the native sub-issue graph and is invisible to tooling that
       reads parent/child via the API. The graph is the source of truth.
     bad_example: |
-      Epic body: "## Children\n- [ ] #1101\n- [x] #1102\n- [ ] #1103"
+      Epic body: "## Children\n- [ ] <issue-a>\n- [x] <issue-b>\n- [ ] <issue-c>"
     good_example: |
       Epic body: Purpose / Scope / Out-of-scope. Children linked as native
       sub-issues; the body lists none.

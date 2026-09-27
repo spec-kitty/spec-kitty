@@ -15,9 +15,9 @@ the spec, populate or update these REASONS canvas sections:
 - **Requirements** — problem statement, acceptance criteria, definition of done.
 - **Entities** — domain concepts, relationships, canonical glossary terms.
 
-Reference: `kitty-specs/<mission>/reasons-canvas.md` if present. Use the
-template at `src/doctrine/templates/fragments/reasons-canvas-template.md` if
-the canvas does not yet exist.
+Reference: `kitty-specs/<mission>/reasons-canvas.md` if present. If the canvas
+does not yet exist, author it with the section headings listed above (see the
+`reasons-canvas-writing` styleguide).
 
 Charter directives take precedence over canvas content.
 

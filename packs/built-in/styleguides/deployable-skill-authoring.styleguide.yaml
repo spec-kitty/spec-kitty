@@ -56,6 +56,5 @@ anti_patterns:
     good_example: "Apply DIRECTIVE_024 and ADR-2026-04-11 before adding a new flag."
 quality_test: "Can a new maintainer read the skill description and know when it triggers, then read only SKILL.md to complete the common workflow without loading unrelated provider detail?"
 references:
-  - "src/doctrine/skills/README.md"
   - "docs/host-surface-parity.md"
   - "docs/adr/3.x/2026-04-14-2-agent-skills-renderer-for-codex-and-vibe.md"

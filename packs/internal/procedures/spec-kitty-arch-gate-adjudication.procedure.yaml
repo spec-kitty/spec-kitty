@@ -1,0 +1,46 @@
+schema_version: "1.0"
+id: spec-kitty-arch-gate-adjudication
+name: Spec Kitty Arch-Gate Adjudication (repository specifics)
+purpose: >
+  The Spec Kitty repository's concrete commands for the built-in
+  post-merge-arch-gate-adjudication procedure. The built-in procedure is
+  repository-agnostic ("the project's architectural gate set"); this refinement
+  names the Spec Kitty gate paths and reconciles the procedure with
+  NO_FULL_HEAVY_SUITES_IN_MISSION, so a mission agent never runs
+  `tests/architectural/` as a whole during fold/closeout. Distilled from
+  docs/development/reference/quality-and-tech-debt-standing-orders.md §5b.
+entry_condition: >
+  The built-in post-merge-arch-gate-adjudication procedure has been entered in
+  the Spec Kitty repository: one or more architectural gates are failing on a
+  merged coordination or target branch.
+exit_condition: >
+  The built-in procedure's exit condition holds, and every local test command
+  run for the adjudication named specific gate files rather than a bare
+  heavy-suite directory.
+steps:
+  - title: Build the failure inventory from CI, then run named gates
+    actor: agent
+    description: >
+      Take the failing gate inventory from the CI run on the merged branch (the
+      `ci-aggregate.yml` cross-cutting lane and the module matrix own the full
+      `tests/architectural/` sweep). Locally, run only the named failing gate
+      files plus the gate files that guard the same surface, for example:
+
+      ```bash
+      PWHEADLESS=1 pytest tests/architectural/test_layer_rules.py -q
+      ```
+
+      Never `pytest tests/architectural/` as a whole during mission work unless
+      the operator asks for that run by name (NO_FULL_HEAVY_SUITES_IN_MISSION).
+  - title: Reproduce CI-only shards by file, not by directory
+    actor: agent
+    description: >
+      CI-only shards in this repository include `tests/integration/` and
+      `tests/git/`. Reproduce a CI-only failure by running the specific test
+      files the failing CI job names, never a full `tests/integration/` sweep.
+  - title: Record against the tracker
+    actor: agent
+    description: >
+      File or cite the tracking issue for each pre-existing failure on
+      spec-kitty/spec-kitty and classify reds with the baseline-red gotcha from
+      CLAUDE.md (pre-existing known-P0, CI-environment, stale install, stale venv).

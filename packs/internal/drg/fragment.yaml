@@ -45,6 +45,37 @@ nodes:
     kind: procedures
     title: "Agent-Memory Curation and Knowledge Escalation (classify, place, escalate)"
     body_path: procedures/memory-curation-and-escalation.procedure.yaml
+  # Maintainer-only refinements and residue moved out of packs/built-in (#5203):
+  # the built-in artefacts stay repository-agnostic; the Spec Kitty specifics
+  # live here and refine them.
+  - id: terminology-guard
+    kind: toolguides
+    title: "Terminology Guard (Spec Kitty legacy-terminology test)"
+    body_path: toolguides/terminology-guard.toolguide.yaml
+  - id: spec-kitty-arch-gate-adjudication
+    kind: procedures
+    title: "Spec Kitty Arch-Gate Adjudication (repository specifics)"
+    body_path: procedures/spec-kitty-arch-gate-adjudication.procedure.yaml
+  - id: spec-kitty-red-main-policy
+    kind: procedures
+    title: "Spec Kitty Red-Main Policy (repository specifics)"
+    body_path: procedures/spec-kitty-red-main-policy.procedure.yaml
+  - id: spec-kitty-package-tiers
+    kind: styleguides
+    title: "Spec Kitty Package-to-Tier Map"
+    body_path: styleguides/spec-kitty-package-tiers.styleguide.yaml
+  - id: spec-kitty-tracker-labels
+    kind: styleguides
+    title: "Spec Kitty Tracker Label Scheme"
+    body_path: styleguides/spec-kitty-tracker-labels.styleguide.yaml
+  - id: spec-kitty-docs-lint-config
+    kind: styleguides
+    title: "Spec Kitty Docs Structural-Lint Config"
+    body_path: styleguides/spec-kitty-docs-lint-config.styleguide.yaml
+  - id: spec-kitty-gate-non-vacuity-exemplar
+    kind: tactics
+    title: "Spec Kitty Gate Non-Vacuity Exemplar Audit"
+    body_path: tactics/spec-kitty-gate-non-vacuity-exemplar.tactic.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
@@ -66,6 +97,12 @@ edges:
   - source: NO_FULL_HEAVY_SUITES_IN_MISSION
     target: "procedure:red-main-release-discipline"
     relation: refines
+  # The built-in post-merge adjudication procedure inventories failing gates;
+  # this directive bounds how a mission agent runs them locally (named gate
+  # files, never the whole architectural directory).
+  - source: NO_FULL_HEAVY_SUITES_IN_MISSION
+    target: "procedure:post-merge-arch-gate-adjudication"
+    relation: refines
   # Postmortem authoring chain (all targets are local nodes declared above).
   # The procedure suggests the writing styleguide and the branded-deliverable
   # tactic; the tactic requires the generation toolguide; the toolguide requires
@@ -82,3 +119,36 @@ edges:
   - source: branded-document-generation
     target: "asset:spec-kitty-branded-pdf"
     relation: requires
+  # Repository-specific refinements of repository-agnostic built-in doctrine
+  # (#5203). Each internal node refines the built-in artefact it specialises.
+  - source: spec-kitty-arch-gate-adjudication
+    target: "procedure:post-merge-arch-gate-adjudication"
+    relation: refines
+  - source: spec-kitty-arch-gate-adjudication
+    target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
+    relation: requires
+  - source: spec-kitty-red-main-policy
+    target: "procedure:red-main-release-discipline"
+    relation: refines
+  - source: spec-kitty-package-tiers
+    target: "styleguide:tiered-standards"
+    relation: refines
+  - source: spec-kitty-tracker-labels
+    target: "styleguide:planning-and-tracking"
+    relation: refines
+  # The terminology guard moved here from built-in with its outbound edges.
+  - source: terminology-guard
+    target: "directive:DIRECTIVE_044"
+    relation: suggests
+  - source: terminology-guard
+    target: "tactic:canonical-source-unification"
+    relation: suggests
+  - source: terminology-guard
+    target: "tactic:occurrence-classification-workflow"
+    relation: suggests
+  - source: spec-kitty-docs-lint-config
+    target: "styleguide:common-docs"
+    relation: refines
+  - source: spec-kitty-gate-non-vacuity-exemplar
+    target: "tactic:architectural-gate-non-vacuity"
+    relation: refines

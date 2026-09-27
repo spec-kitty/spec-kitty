@@ -35,8 +35,7 @@ scope: >
   Maven/Gradle for Java, and others as applicable). It governs the checks an
   implementer must perform before accepting a new or changed dependency and
   the evidence a reviewer must require before approving a change that touches
-  the dependency tree. Per NFR-003/C-003 of the supply-chain-security-checks-layer
-  mission, this directive is advisory at the transition-gate level in v1: it
+  the dependency tree. This directive is advisory at the transition-gate level in v1: it
   does not introduce a new fail-closed transition-gate handler, and workflow
   wiring must not silently hard-block on it. It DOES require visibility and
   explicit evidence — silence or an unexamined default is not compliance.
@@ -71,8 +70,8 @@ procedures:
     install scripts, credential or token exfiltration attempts, or
     self-propagating (worm-style) install behavior. This directive encodes
     the threat classes to check for; it does not embed a static list of
-    incident package names/versions as core doctrine, per C-004 (no live
-    external denylist sync in core)."
+    incident package names/versions as core doctrine (no live external
+    denylist sync in core)."
   - "Record evidence, not just a pass/fail impression: implementer and
     reviewer outputs must capture what was checked (registry, freshness,
     scripts, Node LTS, incident/IoC posture) and the resulting decision, so a
@@ -91,9 +90,9 @@ integrity_rules:
   - "This directive must remain threat-class based. Hardcoding specific
     incident package names or version numbers as core doctrine truth is
     prohibited — cite CAS/vendor incident lists as the external authority
-    instead, per C-004."
+    instead."
   - "This directive does not introduce a new fail-closed transition-gate
-    handler in v1 (C-003/NFR-003). Workflow wiring that consumes this
+    handler in v1. Workflow wiring that consumes this
     directive must keep it advisory at the gate level while still requiring
     explicit visibility and evidence — omitting the check entirely is not an
     acceptable interpretation of 'advisory'."

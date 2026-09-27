@@ -983,7 +983,7 @@ edges:
 - source: tactic:pr-agent-worktree-isolation
   target: directive:DIRECTIVE_045
   relation: suggests
-  when: This tactic operationalizes the §7 worktree-isolation and no-version rules that DIRECTIVE_045 makes binding. Consult the directive for the enforcement context and scope; consult this tactic for the procedural how-to. The `requires` edge from this tactic to DIRECTIVE_045 is a forward reference until WP06 lands; the DRG generator validates the edge at WP12 graph regeneration time.
+  when: This tactic operationalizes the §7 worktree-isolation and no-version rules that DIRECTIVE_045 makes binding. Consult the directive for the enforcement context and scope; consult this tactic for the procedural how-to.
 - source: tactic:pr-agent-worktree-isolation
   target: tactic:clean-linear-commit-history
   relation: suggests

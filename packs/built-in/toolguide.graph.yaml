@@ -44,9 +44,6 @@ nodes:
 - urn: toolguide:sonar
   kind: toolguide
   label: SonarQube Static Analysis and Quality Gate
-- urn: toolguide:terminology-guard
-  kind: toolguide
-  label: Terminology Guard
 - urn: toolguide:typescript-mutation-tools
   kind: toolguide
   label: TypeScript Mutation Testing with Stryker
@@ -72,16 +69,3 @@ edges:
 - source: toolguide:git-worktree-pr-workflow
   target: tactic:pr-agent-worktree-isolation
   relation: suggests
-- source: toolguide:terminology-guard
-  target: directive:DIRECTIVE_044
-  relation: suggests
-- source: toolguide:terminology-guard
-  target: tactic:canonical-source-unification
-  relation: suggests
-  when: enforcing the single-canonical-authority rule at the commit level -- a CI gate that rejects a superseded (non-canonical) term reappearing in active source, the terminology instance of the tactic's 'add a gate to enforce the canonical route' step
-  reason: "The terminology guard is a CI gate that 'enforces canonical naming at the commit level' and references DIRECTIVE_044 -- the exact directive canonical-source-unification operationalizes, whose step 4 calls for 'an architectural gate ... that rejects future non-canonical routing'. The guard is that gate for terminology, so it supports the tactic. INERT: terminology-guard is action-unreachable."
-- source: toolguide:terminology-guard
-  target: tactic:occurrence-classification-workflow
-  relation: suggests
-  when: verifying a classified bulk terminology change (e.g. a rename) is complete and stays complete -- the guard fails CI if a superseded term reappears anywhere in active source after the rename
-  reason: "occurrence-classification-workflow governs bulk terminology edits (its own example is a 'constitution -> charter (rename)'), and the terminology guard is precisely the gate that 'catches superseded terms that have reappeared in active source and fails CI' -- the enforcement that the classified rename left no un-renamed occurrence. It supports the workflow. INERT: terminology-guard is action-unreachable."

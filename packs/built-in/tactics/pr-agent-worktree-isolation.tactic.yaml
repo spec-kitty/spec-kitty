@@ -19,12 +19,12 @@ steps:
       and cross-contaminates the active mission's working tree.
 
       Canonical failure class: a non-isolated review agent leaks a PR's changes
-      into an unrelated mission's worktree. Documented instance: PR #2151 leaked
-      into the respec of #2119 because the review agent ran in the active mission
-      checkout rather than a dedicated worktree.
+      into an unrelated mission's worktree. Typical instance: a PR under review
+      leaks into another mission's respec because the review agent ran in the
+      active mission checkout rather than a dedicated worktree.
     examples:
-      - "Correct: Agent(description='Review PR #2151', prompt='...', isolation='worktree')"
-      - "Incorrect: Agent(description='Review PR #2151', prompt='...') — no isolation parameter, runs in the caller's checkout and stages the PR diff"
+      - "Correct: Agent(description='Review PR <number>', prompt='...', isolation='worktree')"
+      - "Incorrect: Agent(description='Review PR <number>', prompt='...') — no isolation parameter, runs in the caller's checkout and stages the PR diff"
   - title: Avoid version-number prescriptions in scope documents
     description: >
       Scope documents, spec files, planning artifacts, and work package
@@ -56,9 +56,7 @@ references:
       This tactic operationalizes the §7 worktree-isolation and no-version
       rules that DIRECTIVE_045 makes binding. Consult the directive for the
       enforcement context and scope; consult this tactic for the procedural
-      how-to. The `requires` edge from this tactic to DIRECTIVE_045 is a forward
-      reference until WP06 lands; the DRG generator validates the edge at WP12
-      graph regeneration time.
+      how-to.
   - name: Clean Linear Commit History via Snapshot Chain
     type: tactic
     id: clean-linear-commit-history
@@ -92,9 +90,3 @@ notes: >
   Terminology: "PR branch" and "mission branch" are the canonical terms for
   branches associated with a pull request. Do not use "feature branch" in
   canonical voice.
-
-  The `requires` edge to DIRECTIVE_045 and the `refines` edge to
-  `clean-linear-commit-history` are inline DRG declarations; they will be
-  materialised in `graph.yaml` at WP12's graph regeneration step. Until then,
-  the DIRECTIVE_045 reference is a forward reference that dangles but does not
-  invalidate this tactic's schema.

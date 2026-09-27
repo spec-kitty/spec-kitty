@@ -1826,14 +1826,15 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # SOURCE artefact's OWN text so a reviewer can verify it is not a topic-
     # adjacency invention. Family E authors NO new artefact files -- every
     # endpoint already exists -- so node count / `_EXPECTED_NODE_COUNT` stay
-    # unchanged; all nine edges are overlay-authored `suggests`.
+    # unchanged; all nine edges were overlay-authored `suggests` (seven remain
+    # here since the two terminology-guard edges moved to `packs/internal`).
     #
     # Family E is INERT under today's traversal (composition-only) -- measured
     # with the WP08 helper, not assumed. Every source is either
     # `agent_profile:architect-alphonso` (a profile: the profile channel walks
     # {requires, specializes_from} only, so profile--suggests-->X is inert) or an
-    # action-UNREACHABLE tactic/toolguide (`terminology-extraction-mapping`,
-    # `contextive`, `terminology-guard` are all in the pinned
+    # action-UNREACHABLE tactic/toolguide (`terminology-extraction-mapping` and
+    # `contextive` are both in the pinned
     # `_ACTION_UNREACHABLE_D1`/`D2` sets, and `resolve_context` walks `suggests`
     # only FROM scope-resolved artifacts, never from an unreachable source). The
     # reinforcement edges (E-group-1) point INTO already-reachable paradigms,
@@ -1977,44 +1978,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # operator: "Terminology-guard and contextive are suggested tools linking to
     # the tactics/techniques they support." Authored where the tool genuinely
     # supports the tactic's workflow (verified per-tactic); see the EXCLUDED audit
-    # for the candidates left out.
-    DRGEdge(
-        source="toolguide:terminology-guard",
-        target="tactic:canonical-source-unification",
-        relation=Relation.SUGGESTS,
-        when=(
-            "enforcing the single-canonical-authority rule at the commit level -- a "
-            "CI gate that rejects a superseded (non-canonical) term reappearing in "
-            "active source, the terminology instance of the tactic's 'add a gate to "
-            "enforce the canonical route' step"
-        ),
-        reason=(
-            "The terminology guard is a CI gate that 'enforces canonical naming at "
-            "the commit level' and references DIRECTIVE_044 -- the exact directive "
-            "canonical-source-unification operationalizes, whose step 4 calls for "
-            "'an architectural gate ... that rejects future non-canonical routing'. "
-            "The guard is that gate for terminology, so it supports the tactic. "
-            "INERT: terminology-guard is action-unreachable."
-        ),
-    ),
-    DRGEdge(
-        source="toolguide:terminology-guard",
-        target="tactic:occurrence-classification-workflow",
-        relation=Relation.SUGGESTS,
-        when=(
-            "verifying a classified bulk terminology change (e.g. a rename) is "
-            "complete and stays complete -- the guard fails CI if a superseded term "
-            "reappears anywhere in active source after the rename"
-        ),
-        reason=(
-            "occurrence-classification-workflow governs bulk terminology edits (its "
-            "own example is a 'constitution -> charter (rename)'), and the "
-            "terminology guard is precisely the gate that 'catches superseded terms "
-            "that have reappeared in active source and fails CI' -- the enforcement "
-            "that the classified rename left no un-renamed occurrence. It supports "
-            "the workflow. INERT: terminology-guard is action-unreachable."
-        ),
-    ),
+    # for the candidates left out. The two terminology-guard edges moved to the
+    # maintainer-only `packs/internal/drg/fragment.yaml` together with the
+    # toolguide itself: the guard names a test that exists only in this
+    # repository, so it no longer ships in the built-in tier.
     DRGEdge(
         source=_URN_TOOLGUIDE_CONTEXTIVE,
         target=_URN_TACTIC_TERMINOLOGY_EXTRACTION_MAPPING,

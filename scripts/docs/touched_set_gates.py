@@ -72,7 +72,7 @@ __all__ = [
 
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
 DEFAULT_STYLEGUIDE: Final[str] = (
-    "packs/built-in/styleguides/common-docs.styleguide.yaml"
+    "packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml"
 )
 DEFAULT_CATALOG_ROOT: Final[str] = "docs/context/audience"
 _CONFIG_KEY: Final[str] = "structural_lint_config"

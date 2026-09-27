@@ -9,7 +9,7 @@ or code, CI fails and the change is rejected before merge.
 
 ## When to Run
 
-Before pushing any changes to `src/doctrine/` or user-facing prose. The test runs in the
+Before pushing any changes to `src/charter/offering/` or user-facing prose. The test runs in the
 `tests/architectural/` suite, which is a CI-only shard — it does not run with the default
 `fast-tests-*` filter. Run it explicitly before pushing:
 

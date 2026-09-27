@@ -1,0 +1,14 @@
+schema_version: "1.0"
+id: terminology-guard
+tool: pytest
+title: Terminology Guard
+guide_path: packs/internal/toolguides/TERMINOLOGY_GUARD.md
+applies_to_languages: []
+summary: >
+  Describes when and how to invoke Spec Kitty's own legacy-terminology guard
+  (tests/architectural/test_no_legacy_terminology.py) before pushing changes to
+  src/charter/offering/ or user-facing prose. The guard catches superseded terms
+  that have reappeared in active source and fails CI if any are found.
+  Maintainer-only: it names a test that exists only in the Spec Kitty repository.
+commands:
+  - pytest

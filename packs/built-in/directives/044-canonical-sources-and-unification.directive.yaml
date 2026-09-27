@@ -51,8 +51,6 @@ validation_criteria:
 references:
   - type: tactic
     id: canonical-source-unification
-  - type: toolguide
-    id: terminology-guard
   - type: styleguide
     id: planning-and-tracking
   - type: tactic

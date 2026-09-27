@@ -25,9 +25,8 @@ steps:
   - title: Consult the model-to-task_type catalog
     description: >
       Resolve the task's judgment weight against the packaged
-      model-to-task_type catalog at
-      `src/doctrine/model_task_routing/catalog/model-to-task_type.yaml`
-      (loaded via `doctrine.model_task_routing.loader.load()`). The catalog's
+      model-to-task_type catalog that ships with Spec Kitty (resolved through
+      the doctrine chain, not a source-tree path). The catalog's
       `task_fit` scores, `routing_policy.objective`, and `tier_constraints`
       determine the recommended model for the classified task type.
     examples:

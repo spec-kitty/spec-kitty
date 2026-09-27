@@ -54,7 +54,7 @@ patterns:
       value is a resolvable repo-relative .md path (or a list of paths) into
       docs/context/audience/, validated by the audience resolver, rather than a
       free-text audience note that nothing can check. Required on touched pages
-      only (C-012).
+      only.
     bad_example: |
       ---
       title: Merge Workflow
@@ -91,20 +91,19 @@ anti_patterns:
       # Frontmatter is SSOT; page-inventory.yaml is regenerated from it
       # and a freshness gate asserts the committed rollup is in sync.
 
-# Rule -> check mapping table (T008). Every documentation rule names the ONE live
+# Rule -> check mapping table. Every documentation rule names the ONE live
 # check that enforces it. Zero rows carry check = none — that is what makes this
-# styleguide a checkable artifact rather than narrative. The named gates are
-# delivered by sibling work packages of the Common Docs consolidation mission.
+# styleguide a checkable artifact rather than narrative.
 tooling:
   structure-single-root-13-section: "the common-docs-structural-lint doctrine asset (the structural lint shipped with this pack) — the durable successor to the retired ratchet. Its shadow_tree_basename check asserts no shared non-nav content basename across section subtrees; its self-test also asserts DIRECTIVE_042 resolves to a loaded directive. The single-root / all-13-sections-present structure itself remains subject to periodic bulk curation and review, not a per-PR mechanical count."
   adr-era-layout: "the common-docs-structural-lint doctrine asset (the structural lint shipped with this pack) — its point_in_time_placement check allowlists adr/** (era-dated ADRs) so ADRs resolve under adr/<era>/ without churn; the living architecture/ being unversioned is maintained by periodic bulk curation and review."
   naming-kebab-case: "Maintained by periodic bulk curation and review (the retired per-PR docs ratchet asserted this mechanically; the common-docs-structural-lint doctrine asset does not currently assert kebab-case naming)."
   curation-delete-stale: "Maintained by periodic bulk curation and review; the common-docs-structural-lint doctrine asset's shadow_tree_basename and point_in_time_placement checks catch two concrete drift classes (duplicated non-nav basenames and misplaced dated/point-in-time files) but curation itself remains a review-time practice."
-  frontmatter-doc-status: "WP04 page-inventory lockfile freshness gate reads frontmatter REPORT-ONLY (it regenerates the rollup FROM frontmatter and reds on drift). It does NOT yet assert the doc_status controlled vocabulary or reject a bare status key; that vocabulary enforcement is deferred to Mission B (lands with the frontmatter backfill)."
-  frontmatter-ssot-lockfile: "WP04 page-inventory lockfile freshness gate (asserts the rollup is regenerated FROM frontmatter and the committed lockfile is in sync)."
-  frontmatter-seo-description: "WP04 page-inventory lockfile freshness gate (asserts every description is 50-180 characters)."
-  related-resolvable-paths: "WP03 related: path validator (asserts every related: entry resolves to an existing repo-relative .md path)."
-  audience-resolvable: "WP02 audience: path resolver (scripts/docs/audience_resolver.py or an extension of related_validator) — asserts every audience: value on a touched page resolves to an existing repo-relative .md persona under docs/context/audience/. Non-vacuous: reuses assert_examined_floor (min_files >= the count of audience-tagged pages; fails on 0 examined) and emits checked_count; runs --strict on PR in docs-freshness.yml (exit 1 on any dangling reference). Scoped to touched pages only — never added to frontmatter_required_fields (C-012)."
+  frontmatter-doc-status: "The page-inventory lockfile freshness gate reads frontmatter REPORT-ONLY (it regenerates the rollup FROM frontmatter and reds on drift). It does not yet assert the doc_status controlled vocabulary or reject a bare status key."
+  frontmatter-ssot-lockfile: "The page-inventory lockfile freshness gate (asserts the rollup is regenerated FROM frontmatter and the committed lockfile is in sync)."
+  frontmatter-seo-description: "The page-inventory lockfile freshness gate (asserts every description is 50-180 characters)."
+  related-resolvable-paths: "The related: path validator (asserts every related: entry resolves to an existing repo-relative .md path)."
+  audience-resolvable: "The audience: path resolver — asserts every audience: value on a touched page resolves to an existing repo-relative .md persona under docs/context/audience/. Non-vacuous: reuses assert_examined_floor (min_files >= the count of audience-tagged pages; fails on 0 examined) and emits checked_count; runs strict on pull requests (exit 1 on any dangling reference). Scoped to touched pages only — never added to frontmatter_required_fields."
 
 quality_test: >
   A documentation change satisfies this styleguide when: the
@@ -114,135 +113,73 @@ quality_test: >
   placement under plans/** honoring the adr/**, plans/research/**, and
   plans/investigations/** allowlist, no shared non-nav content basename across
   section subtrees, and required frontmatter on in-scope pages; the
-  page-inventory lockfile freshness gate (WP04) is green — the rollup regenerates
+  page-inventory lockfile freshness gate is green — the rollup regenerates
   FROM frontmatter with no drift, and every description is within 50-180
   characters (the doc_status controlled vocabulary and the bare-status rejection
-  are read REPORT-ONLY in Mission A; that enforcement is deferred to Mission B);
-  and the related: path validator (WP03) resolves every cross-reference.
+  are read REPORT-ONLY); and the related: path validator resolves every
+  cross-reference.
 
 # Machine-parseable policy store the docs structural lint LOADS as its single
-# source of truth (FR-011, C-005). The common-docs-structural-lint doctrine
-# asset reads this exact block — the wrapper key structural_lint_config: is a
-# pinned interface contract with that asset; do not rename it without updating
-# the lint. Plain YAML scalars/lists only — no anchors, no custom tags.
+# source of truth. The common-docs-structural-lint doctrine asset reads this
+# exact block — the wrapper key structural_lint_config: is a pinned interface
+# contract with that asset; do not rename it without updating the lint. Plain
+# YAML scalars/lists only — no anchors, no custom tags.
+#
+# This is a repository-agnostic DEFAULT. A project that needs different
+# sections, allowlists or exclusions keeps its own styleguide carrying a
+# structural_lint_config: block and points the lint at it (--styleguide PATH or
+# SPEC_KITTY_STYLEGUIDE).
 structural_lint_config:
   # Sections whose index.md is checked for completeness (index_completeness).
-  # All other section indexes are landing pages and are exempt. Growing this
-  # list beyond architecture/ is a future extension, not implied by this block.
+  # All other section indexes are landing pages and are exempt.
   curated_complete_sections:
     - architecture
-  # Concern-bucket -> canonical section home (data-model.md "Canonical section").
-  # RATIONALE (T003, FR-009, research D2): how_to routing is AUDIENCE-BASED, not
-  # a single fixed home. The retired ratchet routed all how_to -> development/
-  # and forbade guides/ as a how_to target, but guides/ already holds ~21
-  # user-facing how-tos. Splitting how_to by audience (contributor/maintainer
-  # -> development/, user -> guides/) reconciles the config with reality and ties
-  # the routing to the audience catalog (internal -> development/, external ->
-  # guides/). Expressed as two audience-scoped string entries so this block stays
-  # a flat dict[str, str] — the lint loads it via _require_str_dict, so a nested
-  # value here would break config load. All other buckets keep a single home.
-  # This is the single routing edit every mover WP consumes.
+  # Concern-bucket -> canonical section home. how_to routing is audience-based:
+  # contributor/maintainer how-tos go to development/, user-facing how-tos go to
+  # guides/. The lint loads this as a flat dict[str, str].
   concern_bucket_to_section:
-    how_to_internal: development/   # contributor/maintainer (internal-audience) how-tos
-    how_to_external: guides/        # user-facing (external-audience) how-tos
+    how_to_internal: development/
+    how_to_external: guides/
     reference_policy: development/
     point_in_time: plans/engineering-notes/
     ops_runbook: operations/
     generated_report: reports/
-    generated_nav: pinned  # stays at its pinned path (e.g. 3-2-page-inventory.yaml, toc.yml); C-004
-    doctrine_artifact: src/doctrine/
+    generated_nav: pinned
   # Dated-filename patterns identifying a point-in-time document
   # (point_in_time_placement). Regex, matched against the file basename.
   point_in_time_patterns:
     - "^\\d{4}-\\d{2}"
-  # Machine-checkable signals a file self-declares point-in-time/closeout even
-  # when its basename does not match point_in_time_patterns (e.g. the 883-*
-  # dossiers). Each entry is a frontmatter field:value pair OR an exact
-  # description-substring the lint can match against the file's frontmatter.
+  # Frontmatter signals that a file self-declares point-in-time/closeout even
+  # when its basename does not match point_in_time_patterns.
   point_in_time_markers:
     - frontmatter_field: doc_status
       frontmatter_value: point_in_time
     - frontmatter_field: doc_status
       frontmatter_value: closeout
-  # Path globs exempt from point_in_time_placement even though they live
-  # outside plans/engineering-notes/ — the lint's allow-zone is plans/**
-  # broadly, plus these STAY subtrees.
+  # Path globs exempt from point_in_time_placement.
   point_in_time_allowlist:
     - "adr/**"
-    - "plans/research/**"
-    - "plans/investigations/**"
     - "plans/**"
   # Frontmatter fields every in-scope page must carry (frontmatter_contract).
-  # Mirrors what this directive/styleguide already binds — no new fields.
   frontmatter_required_fields:
     - doc_status
     - updated
-  # Pages excluded from frontmatter_required_fields even though they are
-  # otherwise in-scope: section README.md landing pages (the 3
-  # frontmatter-less docs/adr/{1.x,2.x,3.x}/README.md are deferred to #2227).
+  # Pages excluded from frontmatter_required_fields: section README.md landing
+  # pages, and ADRs (DIRECTIVE_042: ADR frontmatter uses the MADR `status`).
   frontmatter_in_scope_exclusions:
     - "**/README.md"
-    # DIRECTIVE_042 MADR exemption (directive 042 lines 49-50): "ADR frontmatter
-    # is exempt — it uses `status` for the MADR decision status (Proposed /
-    # Accepted / Deprecated / Superseded)". ADR bodies carry MADR `status`/`date`,
-    # NOT `doc_status`/`updated`, so they are out-of-scope for frontmatter_contract.
-    # Backfilling doc_status/updated onto an ADR would VIOLATE the directive — the
-    # correct fix is this exclusion, not a backfill. (WP01 only excluded README.md;
-    # WP05 reconciles the full ADR cohort here — see the WP05 activity log.)
     - "adr/**"
-    # Frozen historical program evidence (docs/archive/program-evidence/**): these
-    # pages are an IMMUTABLE record byte-frozen by
-    # tests/architectural/test_archive_root_byte_identical.py (they must stay
-    # byte-identical to the reviewed convergence-port proof). Backfilling
-    # doc_status/updated frontmatter onto them would break that freeze, so — like
-    # the ADR cohort above — the correct fix is this exclusion, not a backfill.
-    # (#3995 CI-reinstatement landing: the two gates conflicted on these files;
-    # the byte-freeze is authoritative for frozen evidence.)
-    - "archive/program-evidence/**"
-  # Basenames exempt from shadow_tree_basename because they are navigation
-  # scaffolding or sanctioned era files, not duplicated content.
+  # Basenames exempt from shadow_tree_basename (navigation scaffolding).
   shadow_tree_nav_exemptions:
     - index.md
     - README.md
     - toc.yml
-    - "README-*.x.md"
-    - 00-SYNTHESIS.md
-  # A page whose frontmatter `description` begins with this prefix is a REDIRECT
-  # STUB: a legitimate old-path placeholder retained at the pre-move location so
-  # existing links/URLs keep resolving, whose body points at the file's canonical
-  # relocated home. A stub SHARES the moved file's basename by design, so
-  # shadow_tree_basename must skip it rather than flag the stub + its canonical
-  # twin as duplicated content. Deleting the stub would break old-path continuity;
-  # the correct fix is this config-declared signal. (e.g.
-  # docs/retrospective-learning-loop.md -> docs/architecture/retrospective-learning-loop.md.)
+  # A page whose frontmatter `description` begins with this prefix is a redirect
+  # stub kept at a pre-move location; shadow_tree_basename skips it.
   redirect_stub_description_prefix: "Redirect stub:"
-  # Guides-section boundary, reconciled with the audience-based how_to routing
-  # above (T003, FR-009, research D2). docs/guides/ is the canonical home for
-  # USER-FACING (external-audience) how-tos ONLY; contributor/maintainer
-  # (internal-audience) how-tos and all reference_policy content route to
-  # development/. guides/ therefore remains NOT a relocation target for
-  # internal-audience how_to content or for any reference_policy content moved by
-  # this mission.
-  guides_boundary: "docs/guides/ is the canonical home for user-facing (external-audience) how-tos only; internal-audience (contributor/maintainer) how_to content and all reference_policy content route to development/. guides/ is not a relocation target for internal-audience how_to or reference_policy content moved by this mission (FR-009, research D2)."
-
-  # --- T004 invariant fields (WP01 audience/routing above + WP04 fields below;
-  #     3-way merge reconciled at WP13) --------------------------------------
-  # The four fields below are the config surface the extended structural-lint
-  # check-fns (one_index_per_dir, sanctioned-section membership) and the
-  # touched-set root-allowlist gate consume. They land here together with the
-  # LintConfig dataclass + check-fns so the three-way schema/LintConfig/YAML
-  # parity guard (test_schema_properties_match_lintconfig_fields) stays green.
-  # (WP01 carries the placeholder comment marking this insertion point. The
-  # mission spec's Definitions section — `kitty-specs/common-docs-convergence-
-  # 01KZMTR9/spec.md` — is the HISTORICAL starting point for the two lists
-  # below, not a live parity guarantee: both lists are extended in-place by
-  # PR as new sections/dirs are sanctioned, and this shipped styleguide — the
-  # config the lint actually loads via `load_config` — is the SSOT going
-  # forward. No test asserts the two stay in sync; do not assume they do.)
-  #
-  # The sanctioned CONTENT sections under docs/. A page whose top-level
-  # section is not one of these (and not covered by non_content_dirs) is
-  # off-structure. Advisory now; WP13 flips it blocking (OB-2).
+  # Guides-section boundary, consistent with the audience-based how_to routing.
+  guides_boundary: "docs/guides/ is the canonical home for user-facing (external-audience) how-tos only; internal-audience (contributor/maintainer) how_to content and all reference_policy content route to development/."
+  # The sanctioned content sections under docs/ (the 13-section structure).
   sanctioned_content_sections:
     - index
     - context
@@ -257,56 +194,20 @@ structural_lint_config:
     - operations
     - migrations
     - changelog
-    - development
-    - reports
-    # Convergence analyses (epic #399): curated documentation pages, not
-    # scaffolding — belongs here, not in non_content_dirs (planning#583).
-    - convergence
-    # Frozen historical program evidence (docs/archive/**): curated,
-    # point-in-time documentation pages kept as an immutable record — content,
-    # not scaffolding, so the section belongs here (registered during the #3995
-    # CI-reinstatement landing, surfaced as unsanctioned by the structural lint's
-    # extended runner). Its program-evidence pages are byte-frozen by
-    # test_archive_root_byte_identical, so they are exempt from the frontmatter
-    # contract via the archive/program-evidence/** entry in
-    # frontmatter_in_scope_exclusions above (backfilling frontmatter would break
-    # the freeze); their README landing pages are additionally exempt via
-    # **/README.md.
-    - archive
-  # Sanctioned NON-content directories under docs/ — nav/scaffolding zones that
-  # are exempt from sanctioned-section membership (they hold assets/templates,
-  # not curated documentation pages).
+  # Sanctioned non-content directories under docs/ (assets/templates zones).
   non_content_dirs:
     - "assets/"
-    - "contracts/"
     - "templates/"
-    # ``templates/spec-kitty/`` is the DocFX template zone; the broader
-    # ``templates/`` above subsumes it (incl. the templates/ landing). Entries
-    # are matched as full path prefixes (nested-dir aware), so a two-segment
-    # entry like this one is honoured — the prior top-level-only comparison
-    # silently never matched it (WP04 reviewer bug, fixed in the lint's
-    # _under_non_content_dir).
-    - "templates/spec-kitty/"
-  # The closed allowlist of documentation-bearing files permitted at the
-  # repository root (outside docs/). The root-allowlist gate (touched_set_gates)
-  # fails on any doc-bearing root file not in this set. Advisory now; WP13 T040
-  # flips it blocking (NFR-006/SC-002).
+  # Documentation-bearing files permitted at the repository root.
   root_allowlist:
     - README.md
     - LICENSE
     - CHANGELOG.md
     - CONTRIBUTING.md
-    - CLAUDE.md
-    - AGENTS.md
     - CODE_OF_CONDUCT.md
-    - SECURITY-POSITION.md
-    - CONTRIBUTORS.md
-    - RELEASE_CHECKLIST.md
-    - .all-contributorsrc
-    - ascii-art.txt
+    - SECURITY.md
+    - AGENTS.md
   # When true, a directory carries at most one index/landing page (index.md).
-  # Advisory now; WP13 flips it blocking once the movers consolidate the
-  # README.md/index.md pairs that currently coexist in a handful of dirs.
   one_index_per_dir: true
 
 references:

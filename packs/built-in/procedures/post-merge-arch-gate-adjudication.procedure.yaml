@@ -19,17 +19,16 @@ exit_condition: >
   proceeds. The classification rationale is recorded in the work package or PR
   activity log.
 steps:
-  - title: Run the full architectural gate suite on the merged branch
+  - title: Inventory the architectural gate failures on the merged branch
     actor: agent
     description: >
-      Run the complete `tests/architectural/` suite on the merged coordination or
-      target branch — not just the shard that surfaced in CI. A single-shard run
-      can miss related gate failures that share the same root cause. Record every
-      failing test by name and shard.
-
-      ```bash
-      PWHEADLESS=1 pytest tests/architectural/ -q 2>&1 | tee /tmp/arch-gate-run.txt
-      ```
+      Build the full inventory of failing architectural gates on the merged
+      coordination or target branch — not just the shard that surfaced in CI. A
+      single-shard view can miss related gate failures that share the same root
+      cause. Use the project's architectural gate set as the project defines it
+      (its charter or contributing guide names which gates to run, and whether a
+      full local sweep or the CI run of that set is authoritative). Record every
+      failing gate by name and shard.
 
       Do not investigate root cause yet — collect the full failure inventory first.
     on_failure: >
@@ -52,10 +51,10 @@ steps:
       # Identify the mission base branch (from meta.json or lanes.json)
       MISSION_BASE=$(spec-kitty agent mission branch-context --json | jq -r '.target_branch')
 
-      # Run only the failing tests against the mission base branch
+      # Run only the failing gates against the mission base branch
       git stash  # or use a worktree for clean isolation
       git checkout "$MISSION_BASE"
-      PWHEADLESS=1 pytest <failing-test-paths> -q 2>&1 | tee /tmp/arch-gate-baseline.txt
+      <project test runner> <failing-gate-paths>
       git checkout -  # return to merged branch
       ```
 
@@ -69,32 +68,22 @@ steps:
       worktree: `git worktree add /tmp/base-check "$MISSION_BASE"` and run the
       failing tests there.
 
-  - title: Run CI-only shards locally before concluding
+  - title: Reproduce CI-only failures locally before concluding
     actor: agent
     description: >
-      Some architectural and integration test shards run only in CI (for example,
-      the `integration-tests-core-misc` job) and are absent from the local
-      `fast-tests-*` suites. A failure that appears only in CI may belong to one
-      of these shards, not to the `tests/architectural/` suite you ran locally.
+      Some architectural and integration test shards run only in CI and are
+      absent from the project's fast local tier. A failure that appears only in
+      CI may belong to one of these shards rather than to the gates you
+      inventoried in Step 1.
 
       Before concluding that a CI failure is a flake or an unexplained anomaly,
-      run the following locally:
+      run the specific failing CI-only tests locally (the test files the failing
+      CI job names), not a broader sweep.
 
-      ```bash
-      # Integration tests (CI-only shard equivalent)
-      PWHEADLESS=1 pytest tests/integration/ -q
-
-      # Git / worktree integration tests
-      PWHEADLESS=1 pytest tests/git/ -q
-
-      # Architectural guard suite (already run in Step 1; re-run if needed)
-      PWHEADLESS=1 pytest tests/architectural/ -q
-      ```
-
-      A failure that only appears in CI and cannot be reproduced against any of
-      these local shards is a candidate flake — file it separately and do not
-      block the merge on it. A failure that reproduces locally is a genuine
-      regression or a pre-existing issue; proceed to adjudication.
+      A failure that only appears in CI and cannot be reproduced locally is a
+      candidate flake — file it separately and do not block the merge on it. A
+      failure that reproduces locally is a genuine regression or a pre-existing
+      issue; proceed to adjudication.
     on_failure: >
       If a local shard cannot run (missing dependency, environment gap), document
       why and escalate rather than assuming the CI failure is a flake.
@@ -116,8 +105,8 @@ steps:
       **Regression:**
       1. Fix the regression before merging further. A regression introduced by this
          merge must be corrected in the same merge cycle.
-      2. Re-run the full `tests/architectural/` suite after the fix to confirm
-         it passes.
+      2. Re-run the failing gates (and any gate guarding the same surface)
+         after the fix to confirm they pass.
       3. Record the fix in the commit message and activity log.
 
       In both cases, write the classification rationale into the PR description or
@@ -142,9 +131,9 @@ anti_patterns:
       verdict when the failure was in fact introduced by an earlier lane.
   - name: Concluding flake without running CI-only shards locally
     description: >
-      Dismissing a CI-only failure as a flake without first running
-      `tests/integration/`, `tests/git/`, and `tests/architectural/` locally.
-      CI-only shards reveal real failures that never appear in fast-tests runs.
+      Dismissing a CI-only failure as a flake without first reproducing the
+      failing CI-only tests locally. CI-only shards reveal real failures that
+      never appear in the fast local tier.
   - name: Blocking a merge on a confirmed pre-existing failure
     description: >
       Treating a gate failure that existed on the mission base branch as a
@@ -163,9 +152,6 @@ notes: >
   coordination target. The `target_branch` in `meta.json` is the mission base;
   the lane's own `base` field in `lanes.json` is the lane base. These may
   differ. Always use `meta.json`'s `target_branch` as the pre-existing baseline.
-
-  Adapted from the post-merge arch-gate adjudication standing order in
-  docs/development/quality-and-tech-debt-standing-orders.md §5b.
 references:
   - type: directive
     id: DIRECTIVE_043

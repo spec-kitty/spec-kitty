@@ -165,6 +165,5 @@ tooling:
 quality_test: "Can a new contributor read one test and understand what behavior it validates, what preconditions it requires, and what a failure means — without reading the production code?"
 
 references:
-  - "src/doctrine/agent_profiles/_proposed/python-implementer.agent.yaml"
   - "packs/built-in/tactics/testing/tdd-red-green-refactor.tactic.yaml"
   - "packs/built-in/directives/030-test-and-typecheck-quality-gate.directive.yaml"

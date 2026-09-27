@@ -25,9 +25,6 @@ principles:
     Hard-wiring a squad run as a required gate contradicts the shipped procedure's optional
     invariant and is named as an anti-pattern in that procedure. No enforcement of squad
     participation is permitted.
-  - >
-    This styleguide folds experiment #2094 (multi-squad pre-flight cadence; closed on land
-    with a tracker comment referencing mission doctrine-catfooding-2196).
 
 patterns:
   - name: Post-tasks anti-laziness squad

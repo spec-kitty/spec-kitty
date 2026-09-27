@@ -7,9 +7,9 @@ purpose: >
   hide by reverting an honest failure or declining a bug's reproduction test.
   Mainline CI status is the single authoritative release gate; expensive QA and
   manual testing are not spent on a known-broken base; and red main is worked
-  down as top priority. Consensus policy (CEO/product owner, QA lead,
-  maintainers); governing decision ADR 2026-07-17-1, operational guide
-  docs/development/red-main-and-release-readiness.md.
+  down as top priority. Adopt it as a team-wide agreement (product owner, QA,
+  and maintainers) and record the project's own decision and runbook alongside
+  it.
 entry_condition: >
   A development mission is running, or a P0 bug is being filed or accepted, or
   a release is being considered, or mainline CI has gone red.
@@ -57,7 +57,7 @@ steps:
     description: >
       Green main is the goal; a red main is not an acceptable resting state — it
       pulls to the front of the maintainer queue. Land the fix through the normal
-      PR flow (no-direct-push is unchanged). Use the landing-pass red
-      classification (docs/development/pr-landing.md) to distinguish a genuine P0 red
-      from a flake or pre-existing breakage while working the queue.
+      PR flow (no-direct-push is unchanged). Classify each red before acting on
+      it, to distinguish a genuine P0 red from a flake or pre-existing breakage
+      while working the queue.
     actor: agent

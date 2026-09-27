@@ -25,10 +25,10 @@ has lnav ncdu bat
 Examples:
 
 ```bash
-rg -n "Directive" src/doctrine
+rg -n "Directive" docs
 rg --type py "validate_" src
-rg -l "TODO" tests/doctrine
-fd '\.directive\.yaml$' src/doctrine
+rg -l "TODO" tests
+fd '\.directive\.yaml$' .kittify
 fd prompt src .kittify | fzf
 ```
 
@@ -67,7 +67,7 @@ Examples:
 
 ```bash
 jq '.project.version' package.json
-yq '.id' src/doctrine/directives/_proposed/028-search-tool-discipline.directive.yaml
+yq '.agents.available' .kittify/config.yaml
 ```
 
 ## Logs and disk usage

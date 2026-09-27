@@ -61,10 +61,13 @@ def _resolve_lint_asset_path() -> Path:
 _LINT_ASSET_PATH = _resolve_lint_asset_path()
 
 #: In THIS repo the styleguide carrying the ``structural_lint_config:`` block
-#: is still the built-in common-docs styleguide. The asset itself no longer
-#: hard-codes this path — it is supplied explicitly (``--styleguide`` /
+#: is the maintainer-only internal-pack styleguide; the built-in common-docs
+#: styleguide carries only a repository-agnostic default. The asset itself does
+#: not hard-code this path — it is supplied explicitly (``--styleguide`` /
 #: ``SPEC_KITTY_STYLEGUIDE``), which is what makes it consumable elsewhere.
-STYLEGUIDE_PATH = _REPO_ROOT / "packs/built-in/styleguides/common-docs.styleguide.yaml"
+STYLEGUIDE_PATH = (
+    _REPO_ROOT / "packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml"
+)
 
 
 _LINT_ASSET_MODULE_NAME = "docs_structural_lint_asset"

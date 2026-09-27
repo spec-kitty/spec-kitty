@@ -1,0 +1,30 @@
+schema_version: "1.0"
+id: spec-kitty-red-main-policy
+name: Spec Kitty Red-Main Policy (repository specifics)
+purpose: >
+  Binds the built-in red-main-release-discipline procedure to Spec Kitty's own
+  governance: the consensus policy (CEO/product owner, QA lead, maintainers),
+  the governing decision ADR 2026-07-17-1
+  (docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
+  the operational guide docs/development/reference/red-main-and-release-readiness.md,
+  and the landing-pass red classification in docs/development/how-to/pr-landing.md.
+entry_condition: >
+  The built-in red-main-release-discipline procedure has been entered in the
+  Spec Kitty repository.
+exit_condition: >
+  The built-in procedure's exit condition holds, and every red on main is
+  traceable to a `priority:P0` issue on spec-kitty/spec-kitty.
+steps:
+  - title: Trace every red on main to a P0 issue
+    actor: agent
+    description: >
+      A red main must trace to an issue labelled `priority:P0` on
+      spec-kitty/spec-kitty, ideally with a failing reproduction test. Cite the
+      issue in the PR that lands the reproduction.
+  - title: Classify reds with the landing-pass rules
+    actor: agent
+    description: >
+      While working the queue, use the landing-pass red classification in
+      docs/development/how-to/pr-landing.md and the baseline-red gotcha in
+      CLAUDE.md to separate a genuine P0 red from a flake, a CI-environment
+      failure, or pre-existing breakage.

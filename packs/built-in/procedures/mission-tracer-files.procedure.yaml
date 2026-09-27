@@ -21,9 +21,8 @@ steps:
   - title: Seed — create the three tracer files at mission start
     description: >
       Create the directory traces/ under the mission's kitty-specs/ directory.
-      Copy the three doctrine templates (tooling-friction.md, approach.md,
-      design-decisions.md from src/doctrine/templates/mission-tracer-files/)
-      into it. Fill in the initial context for each file: what tooling the
+      Create the three tracer files in it (tooling-friction.md, approach.md,
+      design-decisions.md). Fill in the initial context for each file: what tooling the
       mission touches, what approach is being tried (as stated in the spec or
       plan), and what design decisions have already been made in the spec or
       plan. The initial entries should take under five minutes per file.
@@ -69,10 +68,6 @@ notes: |
   These tracer files are optional experiment infrastructure — their absence
   does not block acceptance. They support the adversarial-squad cadence
   and post-planning review, but skipping them is not a mission-gate violation.
-
-  Provenance: folds experiment #2095 — multi-tracer pre-flight cadence.
-  Close issue #2095 on land with a reference to mission
-  doctrine-catfooding-2196-01KWE16N.
 
   Lifecycle summary: seed (at mission start) -> append (during implementation)
   -> assess (at mission close). Three files, three phases.
