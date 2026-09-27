@@ -49,7 +49,7 @@ from tests.architectural._ratchet_keys import composite_key
 # qualname algorithm; this module deliberately has none of its own.
 from tests.architectural._ratchet_keys import enclosing_qualname as enclosing_qualname
 
-from tests.architectural._ast_scan import parse_file
+from tests.architectural._ast_scan import parse_file, read_and_parse
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / "src"
@@ -77,13 +77,9 @@ def parse(path: Path) -> _ast.Module:
     return parse_file(path)
 
 
-def parse_with_source(path: Path) -> tuple[str, _ast.Module] | None:
-    """``(source, tree)`` for *path*; ``None`` on a read/decode/syntax failure."""
-    try:
-        source = path.read_text(encoding="utf-8")
-        return source, _ast.parse(source)
-    except (SyntaxError, UnicodeDecodeError, OSError):
-        return None
+def parse_with_source(path: Path) -> tuple[str, _ast.Module]:
+    """``(source, tree)`` for *path*; fails closed (``UnparseableSourceError``) on a read/decode/syntax failure (#5139)."""
+    return read_and_parse(path)
 
 
 def module_string_constants(tree: _ast.Module) -> dict[str, str]:

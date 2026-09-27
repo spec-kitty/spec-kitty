@@ -466,10 +466,7 @@ def _status_porcelain_hits(path: Path) -> list[tuple[int, str]]:
     literal in *path* -- deliberately NOT ``git worktree list --porcelain``
     (a different subcommand, listing worktrees rather than checking
     dirtiness), tagged with its enclosing function/method's qualname."""
-    parsed = parse_with_source(path)
-    if parsed is None:
-        return []
-    source, tree = parsed
+    source, tree = parse_with_source(path)
     consts = module_string_constants(tree)
     hits: list[tuple[int, str]] = []
     for node in _ast.walk(tree):
