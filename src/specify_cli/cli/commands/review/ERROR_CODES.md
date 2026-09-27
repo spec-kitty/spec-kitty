@@ -156,6 +156,27 @@ MISSION_REVIEW_ISSUE_MATRIX_DEFERRED_WITHOUT_HANDLE: Row for issue '#789': verdi
 
 ---
 
+## ISSUE_MATRIX_REF_READ_FAILED
+
+**Code**: `MISSION_REVIEW_ISSUE_MATRIX_REF_READ_FAILED`
+
+**When it fires**: The mission references gating GitHub issues, its coordination worktree is no longer materialized (consolidated away or a published mission whose Target Ref was deleted), and reading the issue-matrix content directly from the coordination branch ref failed — a deleted ref, a git probe error, or an empty authored matrix (`IssueMatrixRefReadError`, #5222).
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
+
+**Remediation**:
+1. Confirm the mission's coordination branch still exists (`git branch --list 'kitty/mission-<slug>-coord'`) — a deleted branch means the authored verdicts are gone and must be re-authored.
+2. If the branch exists, check that `kitty-specs/<slug>/issue-matrix.json` (or the legacy `issue-matrix.md`) was actually committed on it — an empty or never-committed matrix fails closed rather than reporting "nothing to enforce".
+3. Re-run `spec-kitty review --mode post-merge` once the coordination ref is restored or the matrix is re-authored.
+
+**Body example**:
+
+```text
+MISSION_REVIEW_ISSUE_MATRIX_REF_READ_FAILED: could not resolve the coordination issue-matrix source: git show 'kitty/mission-widget-catalog-01KZR198-coord:kitty-specs/widget-catalog-01KZR198/issue-matrix.json' failed: fatal: path does not exist
+```
+
+---
+
 ## GATE_RECORD_MISSING
 
 **Code**: `MISSION_REVIEW_GATE_RECORD_MISSING`

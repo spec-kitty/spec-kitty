@@ -487,12 +487,32 @@ def check_issue_matrix(
     from specify_cli.tasks.issue_matrix import ISSUE_MATRIX_MD_FILENAME
     from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
 
-    matrix_dir, matrix_content = _resolve_check_issue_matrix_source(
-        feature_dir,
-        issue_matrix_dir=issue_matrix_dir,
-        repo_root=repo_root,
-        mission_slug=mission_slug,
-    )
+    # #5222 (F1/leg 2): the coord-ref probe below (via ``_resolve_check_
+    # issue_matrix_source`` -> ``resolve_issue_matrix_partition`` ->
+    # ``read_issue_matrix_ref_content``) fails closed with
+    # ``IssueMatrixRefReadError`` when GATING references exist but neither
+    # partition ever authored a matrix at all -- a materialized-worktree-free
+    # coord mission with no row anywhere. That is a real doctor finding
+    # (WARNING, matching the "missing" leg below), never a crash.
+    from mission_runtime import IssueMatrixRefReadError
+
+    try:
+        matrix_dir, matrix_content = _resolve_check_issue_matrix_source(
+            feature_dir,
+            issue_matrix_dir=issue_matrix_dir,
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+        )
+    except IssueMatrixRefReadError as exc:
+        return [
+            Finding(
+                severity=Severity.WARNING,
+                category=Category.ISSUE_MATRIX,
+                wp_id=None,
+                message=f"issue-matrix could not be read from the coordination partition: {exc}",
+                recommended_action="Fix the issue-matrix check before approval/merge.",
+            )
+        ]
     if not issue_matrix_artifact_present(matrix_dir, content=matrix_content):
         issue_list = ", ".join(f"#{ref.number}" for ref in gating_refs)
         return [

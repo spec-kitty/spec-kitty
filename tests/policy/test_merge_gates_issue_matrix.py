@@ -427,5 +427,46 @@ class TestTerminalVerdictEnforcement:
         assert overall_pass is False
 
 
+# ---------------------------------------------------------------------------
+# #5222 (F1) -- zero gating references on a coord mission must never probe
+# the coordination partition at all (RED before the fix: both gates FAILed
+# blocking with ``ISSUE_MATRIX_PROBE_ERROR`` instead of PASSing "nothing to
+# enforce", because ``resolve_issue_matrix_partition`` was called eagerly,
+# before gating discovery, on a freshly-scaffolded coord mission with no
+# matrix committed at the coord ref at all).
+# ---------------------------------------------------------------------------
+
+
+class TestZeroGatingReferencesNeverProbesCoordination:
+    def test_coord_mission_zero_refs_completeness_and_terminality_pass(self, repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import sys
+
+        this_module = sys.modules[__name__]
+        monkeypatch.setattr(this_module, "_GATING_SPEC_TEXT", "# Spec\n\nNo issue references here.\n")
+        mission_slug, _feature_dir = _build_coord_mission(repo, mid8="01KZR199", primary_matrix=None, coord_matrix=None)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+
+        completeness = _gate(gates, _COMPLETENESS_GATE)
+        terminality = _gate(gates, _TERMINALITY_GATE)
+        assert completeness.verdict == GateVerdict.PASS, completeness.details
+        assert terminality.verdict == GateVerdict.PASS, terminality.details
+        assert "nothing to enforce" in completeness.details.lower()
+        assert overall_pass is True
+
+    def test_lanes_mission_zero_refs_also_passes(self, repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import sys
+
+        this_module = sys.modules[__name__]
+        monkeypatch.setattr(this_module, "_GATING_SPEC_TEXT", "# Spec\n\nNo issue references here.\n")
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR199b", primary_matrix=None)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+
+        assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS
+        assert _gate(gates, _TERMINALITY_GATE).verdict == GateVerdict.PASS
+        assert overall_pass is True
+
+
 def _fmt_warnings(gates: list) -> list[str]:
     return [f"{g.gate_name}: {g.details}" for g in gates if g.verdict == GateVerdict.FAIL and not g.blocking]

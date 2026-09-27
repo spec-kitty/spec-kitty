@@ -20,20 +20,23 @@ should PASS. This file is RED on base and GREEN once T010 lands the partition sp
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import typer
 
 from mission_runtime import MissionTopology
 from mission_runtime.issue_matrix_partition import resolve_issue_matrix_partition
-from specify_cli.cli.commands.review import MissionReviewMode
+from specify_cli.cli.commands.review import MissionReviewMode, review_mission
 from specify_cli.cli.commands.review import _evaluate_issue_matrix as evaluate_issue_matrix
 from specify_cli.core.mission_creation import MissionCreationResult, create_mission_core
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.mission_metadata import load_meta, write_meta
+from tests.policy import test_merge_gates_issue_matrix as merge_gate_fixtures
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -296,3 +299,61 @@ def test_post_consolidation_worktree_gone_reads_ref_content_via_helper(tmp_path:
 
     assert verdict is True, f"expected PASS via ref-content dispatch, got {verdict!r} / {findings!r}"
     assert findings == []
+
+
+# ---------------------------------------------------------------------------
+# #5222 (F1) -- end-to-end ``review_mission()``: a coord mission with zero
+# gating references (RED before the fix: ``resolve_issue_matrix_partition``
+# was called unconditionally in POST_MERGE mode, so a freshly-scaffolded coord
+# mission with no matrix committed anywhere crashed with an uncaught
+# ``IssueMatrixRefReadError`` traceback instead of reporting Gate 4 as
+# ``not_applicable``).
+# ---------------------------------------------------------------------------
+
+
+def test_review_mission_coord_zero_refs_reports_not_applicable_never_crashes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.cli.commands.review as review_module
+
+    repo = tmp_path / "repo"
+    merge_gate_fixtures._init_git_repo(repo)
+    monkeypatch.setattr(merge_gate_fixtures, "_GATING_SPEC_TEXT", "# Spec\n\nNo issue references here.\n")
+    mission_slug, feature_dir = merge_gate_fixtures._build_coord_mission(repo, mid8="01KZR5AA", primary_matrix=None, coord_matrix=None)
+    # The lane/dead-code/ble001 gates are orthogonal to this fix and, on this
+    # minimal fixture, the lane gate itself hits an UNRELATED unmaterialized-
+    # coord-worktree error (a separate, pre-existing gap outside #5222's
+    # scope) -- no-op them so this test isolates Gate 4's issue-matrix
+    # behaviour, which is the only thing #5222 changed.
+    monkeypatch.setattr(review_module, "_run_lane_gate", lambda *a, **kw: None)
+    monkeypatch.setattr(review_module, "_run_dead_code_gate", lambda *a, **kw: None)
+    monkeypatch.setattr(review_module, "_run_ble001_gate", lambda *a, **kw: None)
+
+    monkeypatch.chdir(repo)
+    with contextlib.suppress(typer.Exit):
+        review_mission(mission=mission_slug, mode="post-merge")
+
+    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
+    assert "issue_matrix_present: not_applicable" in report_text
+    assert "IssueMatrixRefReadError" not in report_text
+
+
+def test_review_mission_coord_gating_refs_no_matrix_anywhere_fails_gate4_not_crash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Gating references exist but no matrix was ever authored on EITHER
+    partition -- the coord-ref probe fails closed with
+    ``IssueMatrixRefReadError``; Gate 4 must record it as a FAIL finding, not
+    let it escape as an unhandled exception."""
+    import specify_cli.cli.commands.review as review_module
+
+    repo = tmp_path / "repo"
+    merge_gate_fixtures._init_git_repo(repo)
+    mission_slug, feature_dir = merge_gate_fixtures._build_coord_mission(repo, mid8="01KZR5BB", primary_matrix=None, coord_matrix=None)
+    monkeypatch.setattr(review_module, "_run_lane_gate", lambda *a, **kw: None)
+    monkeypatch.setattr(review_module, "_run_dead_code_gate", lambda *a, **kw: None)
+    monkeypatch.setattr(review_module, "_run_ble001_gate", lambda *a, **kw: None)
+
+    monkeypatch.chdir(repo)
+    with pytest.raises(typer.Exit):
+        review_mission(mission=mission_slug, mode="post-merge")
+
+    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
+    assert "issue_matrix_present: false" in report_text
+    assert "MISSION_REVIEW_ISSUE_MATRIX_REF_READ_FAILED" in report_text

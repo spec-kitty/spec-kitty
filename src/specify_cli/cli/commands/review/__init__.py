@@ -447,22 +447,51 @@ def review_mission(
     # matters, so it never pays for -- or can be broken by -- a coord probe.
     matrix_dir: Path | None = None
     matrix_content: str | None = None
-    if review_mode is MissionReviewMode.POST_MERGE:
-        from mission_runtime import resolve_issue_matrix_partition
+    # #5222 (F1/leg 1): never touch the coordination partition for a mission
+    # that references zero GATING issues -- ``gating_issue_numbers`` is the
+    # SAME shared authority ``_evaluate_issue_matrix`` itself checks below
+    # (#3469), so this mirrors that gate's own "nothing to enforce" verdict
+    # instead of resolving the coord source unconditionally, which crashed
+    # with an uncaught ``IssueMatrixRefReadError`` for a freshly-scaffolded
+    # coord mission with no matrix at all (either zero refs, or refs with no
+    # row on either partition -- there is simply nothing at the ref to read).
+    ref_read_error: str | None = None
+    if review_mode is MissionReviewMode.POST_MERGE and gating_issue_numbers(feature_dir):
+        from mission_runtime import IssueMatrixRefReadError, resolve_issue_matrix_partition
 
-        _primary_discovery_dir, matrix_source = resolve_issue_matrix_partition(repo_root, mission_slug)
-        if isinstance(matrix_source, str):
-            matrix_content = matrix_source
+        try:
+            _primary_discovery_dir, matrix_source = resolve_issue_matrix_partition(repo_root, mission_slug)
+        except IssueMatrixRefReadError as exc:
+            ref_read_error = str(exc)
         else:
-            matrix_dir = matrix_source
-    issue_matrix_present = _evaluate_issue_matrix(
-        feature_dir=feature_dir,
-        matrix_dir=matrix_dir,
-        matrix_content=matrix_content,
-        review_mode=review_mode,
-        console=console,
-        findings=findings,
-    )
+            if isinstance(matrix_source, str):
+                matrix_content = matrix_source
+            else:
+                matrix_dir = matrix_source
+
+    issue_matrix_present: bool | Literal["not_applicable"]
+    if ref_read_error is not None:
+        console.print(
+            f"  [red]✗[/red]  Issue matrix: {MissionReviewDiagnostic.ISSUE_MATRIX_REF_READ_FAILED}: "
+            f"could not resolve the coordination issue-matrix source: {ref_read_error}"
+        )
+        findings.append(
+            {
+                "type": "issue_matrix_violation",
+                "diagnostic_code": str(MissionReviewDiagnostic.ISSUE_MATRIX_REF_READ_FAILED),
+                "message": f"could not resolve the coordination issue-matrix source: {ref_read_error}",
+            }
+        )
+        issue_matrix_present = False
+    else:
+        issue_matrix_present = _evaluate_issue_matrix(
+            feature_dir=feature_dir,
+            matrix_dir=matrix_dir,
+            matrix_content=matrix_content,
+            review_mode=review_mode,
+            console=console,
+            findings=findings,
+        )
     mission_exception_present: bool | Literal["not_applicable"] = (
         (feature_dir / "mission-exception.md").exists() if review_mode is MissionReviewMode.POST_MERGE else "not_applicable"
     )

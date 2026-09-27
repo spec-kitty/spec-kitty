@@ -438,13 +438,25 @@ def _evaluate_issue_matrix_completeness_gate(
     the sibling gate, :func:`_evaluate_issue_matrix_verdict_terminality_gate`).
     """
     try:
-        from mission_runtime import resolve_issue_matrix_partition
+        from mission_runtime import (
+            MissionArtifactKind,
+            resolve_artifact_surface,
+            resolve_issue_matrix_partition,
+        )
 
         from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
 
-        primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
-            repo_root, mission_slug
-        )
+        # #5222 leg 1 (FR-001): resolve the CHEAP primary-only surface first
+        # and discover gating references off it before ever touching the
+        # coordination partition. A mission with zero gating references has
+        # no coord matrix to enforce, so it must never pay for -- or be
+        # broken by -- a coord probe (materialized-dir lookup or the
+        # post-consolidation ref-content read, which raises
+        # ``IssueMatrixRefReadError`` when neither exists, e.g. a
+        # freshly-scaffolded coord mission with no matrix at all).
+        primary_discovery_dir = resolve_artifact_surface(
+            repo_root, mission_slug, MissionArtifactKind.PRIMARY_METADATA
+        ).path
 
         referenced_issues = gating_issue_numbers(primary_discovery_dir)
         if not referenced_issues:
@@ -454,6 +466,10 @@ def _evaluate_issue_matrix_completeness_gate(
                 details="No gating issue references discovered — nothing to enforce",
                 blocking=False,
             )
+
+        primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
+            repo_root, mission_slug
+        )
 
         matrix_issues = {row.issue for row in _load_issue_matrix_rows(coord_matrix_source)}
         missing_issues = sorted(referenced_issues - matrix_issues)
@@ -523,12 +539,33 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
     only needs to report the correct verdict/blocking.
     """
     try:
-        from mission_runtime import resolve_issue_matrix_partition
+        from mission_runtime import (
+            MissionArtifactKind,
+            resolve_artifact_surface,
+            resolve_issue_matrix_partition,
+        )
 
         from specify_cli.cli.commands.agent.tasks_parsing_validation import (
             _issue_matrix_approval_blocker,
         )
         from specify_cli.status import Lane
+        from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
+
+        # #5222 leg 1 (FR-001): same cheap-first discovery order as the
+        # completeness gate's sibling fix above -- never probe the
+        # coordination partition for a mission that references zero gating
+        # issues (see that gate's comment for the failure this closes).
+        primary_discovery_dir = resolve_artifact_surface(
+            repo_root, mission_slug, MissionArtifactKind.PRIMARY_METADATA
+        ).path
+
+        if not gating_issue_numbers(primary_discovery_dir):
+            return GateResult(
+                gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
+                verdict=GateVerdict.PASS,
+                details="No gating issue references discovered — nothing to enforce",
+                blocking=False,
+            )
 
         primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
             repo_root, mission_slug

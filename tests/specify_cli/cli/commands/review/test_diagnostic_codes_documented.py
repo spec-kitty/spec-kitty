@@ -71,7 +71,7 @@ class TestNFR008CrossReference:
         assert "ERROR_CODES.md" in docstring, "MissionReviewDiagnostic class docstring must contain 'ERROR_CODES.md' per the NFR-008 cross-reference contract."
 
     def test_member_count(self) -> None:
-        """Exactly 14 diagnostic codes defined, including #2987's and #4231's fail-closed verdicts."""
-        assert len(list(MissionReviewDiagnostic)) == 14, (
-            f"Expected 14 MissionReviewDiagnostic members, got {len(list(MissionReviewDiagnostic))}: {list(MissionReviewDiagnostic)}"
+        """Exactly 15 diagnostic codes defined, including #2987's, #4231's, and #5222's fail-closed verdicts."""
+        assert len(list(MissionReviewDiagnostic)) == 15, (
+            f"Expected 15 MissionReviewDiagnostic members, got {len(list(MissionReviewDiagnostic))}: {list(MissionReviewDiagnostic)}"
         )
