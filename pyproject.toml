@@ -2755,6 +2755,20 @@ module = ["specify_cli.tasks.issue_matrix_migration"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]
+# _test_env_check hosts assert_typer_click_lock_parity / PackageSkew, whose
+# concrete ``-> list[PackageSkew]`` return type is consumed by
+# review/__init__.py's ``_check_env_skew`` (#5222, F6). Under the
+# ``specify_cli.*`` skip above it resolves as ``Any``, so a narrow-file check
+# on review/__init__.py reports "Returning Any from function declared to
+# return list[Any]" (pre-existing on origin/main, not introduced by #5222).
+# It imports only stdlib (os/subprocess/sys/tomllib/dataclasses/importlib/
+# pathlib/typing), so following it cannot drag bootstrap errors into a narrow
+# check -- same shape/precedent as the entries above; must stay after the
+# specify_cli.* skip.
+module = ["specify_cli.cli.commands._test_env_check"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
 # core.errors defines the StructuredError base every typed error family
 # subclasses; under the ``specify_cli.*`` skip above it resolves as ``Any`` and
 # every subclass declaration reads "Class cannot subclass StructuredError (has
