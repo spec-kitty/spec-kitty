@@ -13,7 +13,7 @@ date: '2026-09-27'
 architecture squad: `researcher-robbie` (prior art), `architect-alphonso` (design),
 `doctrine-daphne` (doctrine integrity), `paula-patterns` (second-opinion adjudication).
 
-**Technical Story:** tracker issue to follow (filed by `planner-priti`, referencing this ADR).
+**Technical Story:** [#5193](https://github.com/spec-kitty/spec-kitty/issues/5193) (implementation tracking, under epic [#2466](https://github.com/spec-kitty/spec-kitty/issues/2466)).
 
 ---
 
@@ -79,6 +79,9 @@ into someone else's account.
    (adjudicated synthesis of 1 and 2).
 4. Make procedures directly invocable (`invocable: true` on `procedure`).
 5. Tool-native plugin marketplaces (for example Claude Code plugins).
+6. An alias layer inside the command-skill pipeline (`shortcodes.yaml` per pack, resolved in
+   `command_renderer.render()`), as sketched in
+   [#2470](https://github.com/spec-kitty/spec-kitty/issues/2470).
 
 ## Decision Outcome
 
@@ -288,6 +291,13 @@ merged DRG + activated_skills
 
 - Bad: tied to one tool; loses the single cross-tool source. It can stay a later projection
   target.
+
+### Option 6: alias layer in the command-skill pipeline (#2470)
+
+- Good: small, reuses the existing renderer and manifest.
+- Bad: widens the closed `spec-kitty.*` command-skill owner and its `CONSUMER_SKILLS` parity
+  invariant; aliases only, so no home for full prompt skills; no DRG edge to the procedure it
+  shortcuts, and no charter activation. If this ADR is accepted, #2470 is superseded by #5193.
 
 ## Open questions
 
