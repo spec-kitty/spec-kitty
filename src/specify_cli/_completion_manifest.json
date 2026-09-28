@@ -661,7 +661,7 @@
      "deprecated": false
     },
     "provenance": {
-     "help": "Flag committed absolute built-in-pack source_path leaks (C-PRV-5).\n\nScans .kittify/charter/charter.yaml's catalog and\n.kittify/agent_profiles_manifest.json for a source_path that should\nbe a ${SPEC_KITTY_PACKS_ROOT}/built-in/... token but is not, and\nprints a heal hint for each. Read-only -- never mutates state.\n\nExamples:\n    spec-kitty doctor provenance\n    spec-kitty doctor provenance --json",
+     "help": "Flag committed absolute built-in-pack leaks and ambiguous template sources (C-PRV-5).\n\nScans .kittify/charter/charter.yaml's catalog and\n.kittify/agent_profiles_manifest.json for source_path values that\nshould be portable pack tokens. Read-only -- never mutates state;\nambiguous former-checkout paths are reported without a heal hint.\n\nExamples:\n    spec-kitty doctor provenance\n    spec-kitty doctor provenance --json",
      "hidden": false,
      "deprecated": false
     },
