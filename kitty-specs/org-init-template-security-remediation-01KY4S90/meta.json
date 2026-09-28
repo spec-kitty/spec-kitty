@@ -25,6 +25,7 @@
   "purpose_context": "Maintainer review on PR #2719 labeled pr:needs-revision. Blocking fixes for GIT_TOKEN injection on arbitrary template HTTPS URLs, symlink-following copy, and undetected {{tokens}} in file/dir names; plus HTTPS-only URLs and related hardening. Lands on feat/doctrine-org-init-from-template. Does not clear pr:deferred or merge to main.",
   "purpose_tldr": "Harden doctrine org init --template against token leak, symlink exfil, and path-token gaps per PR #2719 review.",
   "slug": "org-init-template-security-remediation-01KY4S90",
+  "status_phase": "1",
   "target_branch": "feat/doctrine-org-init-from-template",
   "topology": "lanes",
   "vcs": "git",

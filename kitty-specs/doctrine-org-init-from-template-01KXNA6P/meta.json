@@ -27,6 +27,7 @@
   "purpose_tldr": "Extend doctrine org init so operators creating their own doctrine can render from a local or git template with validated ORG_NAME, LOCAL_PATH, and .templateignore.",
   "slug": "doctrine-org-init-from-template-01KXNA6P",
   "source_description": "Extend spec-kitty doctrine org init for operators who create their own doctrine: optional TEMPLATE (local/git), ORG_NAME validation, LOCAL_PATH substitution, .templateignore, PACK_PATH as distinct destination; minimal scaffold when TEMPLATE omitted.",
+  "status_phase": "1",
   "target_branch": "feat/doctrine-org-init-from-template",
   "topology": "coord",
   "vcs": "git"

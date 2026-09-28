@@ -165,12 +165,39 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   Follow-up: once this correction is in main's baseline, this entry is dead
 #   weight and should be removed to restore the byte-freeze on the corrected
 #   file (#4956).
+#
+# - kitty-specs/doctrine-org-init-from-template-01KXNA6P/meta.json
+#   kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl
+#   kitty-specs/org-init-template-security-remediation-01KY4S90/meta.json
+#   kitty-specs/org-init-template-security-remediation-01KY4S90/status.events.jsonl
+#   (2026-09-28, operator decision by stijn-dejongh during the
+#   nightly-drift-reds-01M3M14S landing pass, #5258): both dogfood missions
+#   were born on a long-lived branch (2026-07-16 / 2026-07-22) before the
+#   birth-cutover seam (71a1bba98, 2026-07-27) and merged un-flipped on
+#   2026-09-15 (60fffe824, 52bd6048f), so their runtime-state records predate
+#   the cutover and `tests/specify_cli/migration/test_dogfood_corpus_backfilled.py`
+#   is red. WP07 of this mission rewrites the four files above by running the
+#   canonical `spec-kitty migrate backfill-runtime-state` cutover.
+#   The derived org-init-template-security-remediation-01KY4S90/status.json
+#   is regenerated through the canonical `spec-kitty agent status materialize`
+#   so it matches the new log. doctrine-org-init-from-template-01KXNA6P's
+#   status.json is deliberately left as-is: its meta.json still declares a
+#   coordination branch that was deleted after merge, so materialize refuses
+#   until the mission is flattened (#5286).
+#   Follow-up: once this correction is in main's baseline, this entry is dead
+#   weight and should be removed to restore the byte-freeze on the corrected
+#   files (#5288).
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
     {
         "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json",
         "kitty-specs/coord-read-fail-closed-01M38VVH/status.json",
         "kitty-specs/silent-write-hardening-residuals-01M37QN4/status.json",
         "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md",
+        "kitty-specs/doctrine-org-init-from-template-01KXNA6P/meta.json",
+        "kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl",
+        "kitty-specs/org-init-template-security-remediation-01KY4S90/meta.json",
+        "kitty-specs/org-init-template-security-remediation-01KY4S90/status.events.jsonl",
+        "kitty-specs/org-init-template-security-remediation-01KY4S90/status.json",
     }
 )
 
