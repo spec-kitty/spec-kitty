@@ -119,6 +119,26 @@ def test_reject_fix_next_retrospect_smoke(tmp_path: Path) -> None:
     progress = _compute_wp_progress(feature_dir)
     assert _finalized_task_board_override_step(feature_dir, progress) == "implement"
 
+    # Causal rework after the rejection: planned -> claimed -> in_progress ->
+    # for_review, so the approval below extends the WP's actual history.
+    for idx, (src, dst) in enumerate(
+        [(Lane.PLANNED, Lane.CLAIMED), (Lane.CLAIMED, Lane.IN_PROGRESS), (Lane.IN_PROGRESS, Lane.FOR_REVIEW)],
+        start=11,
+    ):
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id=f"seed-rework-{idx}",
+                mission_slug=MISSION_SLUG,
+                wp_id="WP01",
+                from_lane=src,
+                to_lane=dst,
+                at=f"2026-01-01T00:00:{idx}+00:00",
+                actor="fixture",
+                force=False,
+                execution_mode="worktree",
+            ),
+        )
     append_event(
         feature_dir,
         StatusEvent(
