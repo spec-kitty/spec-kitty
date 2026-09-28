@@ -86,9 +86,16 @@ def _resolve_research_template(
 ) -> Path | None:
     """Resolve one research template through the canonical 6-tier resolver
     (FR-006, Decision 2), or ``None`` when no tier has it."""
-    resolution_mission = mission_type if mission_type != _TYPELESS_MISSION_TYPE else _TEMPLATE_SELECTION_DEFAULT_MISSION
+    resolution_mission = (mission_type
+                         if mission_type != _TYPELESS_MISSION_TYPE
+                         else _TEMPLATE_SELECTION_DEFAULT_MISSION)
+    # Fix #5303: resolve through the canonical mission directory,
+    # not relative to the workspace root only.
+    canonical_dir = (project_root / "missions" / mission_type
+                     if mission_type != _TYPELESS_MISSION_TYPE
+                     else project_root / "missions" / _TEMPLATE_SELECTION_DEFAULT_MISSION)
     try:
-        result = resolve_template(str(template_rel), project_root, mission=resolution_mission)
+        result = resolve_template(str(template_rel), canonical_dir, mission=resolution_mission)
     except FileNotFoundError:
         return None
     resolved_path: Path = result.path
