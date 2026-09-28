@@ -3,6 +3,7 @@ required_procedures:
   - landing-contributor-prs
   - project-evolution-postmortem
   - memory-curation-and-escalation
+  - executive-debrief-generation
 required_directives:
   - NO_FULL_HEAVY_SUITES_IN_MISSION
 required_glossary_packs:

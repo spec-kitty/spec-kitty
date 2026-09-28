@@ -41,6 +41,17 @@ nodes:
     kind: procedures
     title: "Project-Evolution Postmortem (research squads + branded report)"
     body_path: procedures/project-evolution-postmortem.procedure.yaml
+  # Executive-debrief doctrine: the data-driven "WTF happened / WTF is up"
+  # one-pager. A lighter, recurring cousin of the postmortem; refines
+  # report-writing and reuses the branded-deliverable discipline.
+  - id: executive-debrief
+    kind: styleguides
+    title: "Executive Debrief Styleguide (WTF-happened one-pagers)"
+    body_path: styleguides/executive-debrief.styleguide.yaml
+  - id: executive-debrief-generation
+    kind: procedures
+    title: "Executive Debrief Generation (collect → synthesize → render)"
+    body_path: procedures/executive-debrief-generation.procedure.yaml
   - id: memory-curation-and-escalation
     kind: procedures
     title: "Agent-Memory Curation and Knowledge Escalation (classify, place, escalate)"
@@ -113,6 +124,18 @@ edges:
   - source: project-evolution-postmortem
     target: "tactic:branded-deliverable"
     relation: suggests
+  # Executive-debrief chain: the generation procedure suggests its styleguide and
+  # reuses the branded-deliverable discipline; the styleguide refines the general
+  # report-writing styleguide rather than restating its voice rules.
+  - source: executive-debrief-generation
+    target: "styleguide:executive-debrief"
+    relation: suggests
+  - source: executive-debrief-generation
+    target: "tactic:branded-deliverable"
+    relation: suggests
+  - source: executive-debrief
+    target: "styleguide:report-writing"
+    relation: refines
   - source: branded-deliverable
     target: "toolguide:branded-document-generation"
     relation: requires

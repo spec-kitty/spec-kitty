@@ -1,0 +1,85 @@
+schema_version: "1.0"
+id: executive-debrief
+title: Executive Debrief Styleguide (WTF-happened one-pagers)
+scope: docs
+applies_to_languages: []
+
+principles:
+  - "This styleguide refines report-writing for one deliverable: the single-page executive debrief — a 'WTF happened / WTF is up' one-pager over a repository scope. It adds only what is specific to that shape; the voice, the least-technical-first ordering, the honest hedging, and the anti-machine-prose discipline all come from report-writing and are not restated here."
+  - "Two modes, one shape. A window debrief answers 'what landed since <T>' from merged PRs and closed issues; a scope debrief answers 'what is open in <milestone/label>'. Both use the same fixed grammar; only the scope selector and the tile set differ."
+  - "The facts are collected, never composed. A deterministic collector owns every count, author tally, SHA and issue/PR reference; the writer clusters, narrates and labels those facts and does nothing else. A number that did not come from the collector does not appear — this is report-writing's attribute-every-number rule made mechanical."
+  - "Every reference must exist in the collected set. Each `#NNNN` in the debrief must be one the collector returned (its `valid_refs`); the renderer fails closed on any other. The writer may cluster and prioritise, never invent an issue or a PR."
+  - "Name the failure class. The house framing for the most damaging defects is 'silent and exit 0' — a command that destroys, mis-lands, or erases work while reporting success. Use it; it is the through-line of 4.x hardening and it orients a reader faster than a per-issue description."
+  - "Keep the Method footer honest. State the exact scope and as-of, generated from the collector, never typed. Distinguish 'closed' (GitHub's state_reason) from 'verified fixed' (a linked closing PR); in scope mode mark impact/cluster labels as a preliminary read until verified against the code."
+
+patterns:
+  - name: Fixed layout grammar
+    description: >
+      Order is fixed so two debriefs are comparable: brand mark, eyebrow
+      (SPEC KITTY · EXECUTIVE OVERVIEW / RELEASE STATE), title (the question
+      answered), a generated meta line (scope, as-of, main SHA), a one-to-three
+      sentence lede, a row of metric tiles, a highlights list (The bottom line /
+      Key takeaways), four-to-six clustered sections, an optional decision table
+      (window: What's next; release: What it takes to tag), and a footer with
+      author attribution and the generated Method line.
+  - name: Pill vocabulary
+    description: >
+      Status is carried by a small pill on each highlight, drawn from the design
+      system's sk-tag. SHIPPED (green tint) for what landed; WATCH (red on sky)
+      for an open risk or a red gate; P0 (red) for a release blocker. Yellow is
+      the brand signature and stays an accent (title bow, tile top-accent), never
+      a status colour. Status is green-good / red-attention only.
+  - name: Cluster to four-to-six themes
+    description: >
+      Group the collected items into four to six clusters that tell the cycle's
+      or the scope's real story, each a card with a mono title, a right-aligned
+      count, a one-line intro, and ref-bearing bullets. Never one bullet per
+      issue in a flat list, and never more than six clusters — the point is the
+      shape of the work, not the backlog dump.
+  - name: Tiles carry the headline metrics
+    description: >
+      One bordered card row of the numbers a reader needs first — PRs merged,
+      issues closed, P0 closed/open, epics — every value straight from the
+      collector's metrics. The attention number (open P0s / release-blocking)
+      takes the red alert treatment.
+
+anti_patterns:
+  - name: Hand-counted or invented figures
+    description: >
+      Typing a count from memory, or citing an issue the collector did not
+      return, breaks the debrief's core guarantee and its Method footer's
+      promise. Every number and every ref traces to the collected JSON, or it
+      does not ship.
+    bad_example: >
+      "About 50 PRs landed (#5301 was the big one)" — the count is estimated and
+      #5301 is not in the collected window.
+    good_example: >
+      "54 PRs merged" from the collector's metrics; every cited #ref present in
+      valid_refs so the renderer's guard passes.
+  - name: Dark chrome or a white print margin
+    description: >
+      These are printed one-pagers: use the light cream/paper treatment, never
+      the dark website surface, and let the cream reach every page edge. A white
+      band at a page top (from an @page margin) is a defect — Chromium paints the
+      page-margin box white; shift continuation-page content down in flow with a
+      transparent top border instead, so the background stays cream.
+    bad_example: >
+      A dark-mode debrief, or pages 2+ with a white strip above the content.
+    good_example: >
+      Cream full-bleed on every page; continuation pages inset in-flow so content
+      sits lower and the background never turns white.
+  - name: Restating report-writing here
+    description: >
+      Voice, em-dash rationing, buzzword avoidance, progressive disclosure and
+      number attribution are report-writing's job. Duplicating them here would
+      drift the two apart. Reference report-writing and add only debrief shape.
+    bad_example: >
+      Re-listing "ration the em-dash" and "drop the LLM buzzwords" in this file.
+    good_example: >
+      "Follow report-writing for voice and anti-AI-prose; this file governs the
+      debrief's structure, pills, ref-guard and print treatment."
+
+references:
+  - "packs/internal/styleguides/report-writing.styleguide.yaml"
+  - "docs/development/reporting/debrief-styleguide.md"
+  - "packs/internal/tactics/branded-deliverable.tactic.yaml"

@@ -1,0 +1,81 @@
+schema_version: "1.0"
+id: executive-debrief-generation
+name: Executive Debrief Generation
+purpose: >
+  The maintainer workflow for producing a single-page executive debrief — a
+  "WTF happened since <T>" window report or a "WTF is up with <milestone>"
+  scope report — over one or more repositories. It is a three-stage pipeline:
+  a deterministic collector reads the facts from GitHub, the maintainer
+  synthesizes them into a fixed slot contract under the executive-debrief
+  styleguide, and a renderer produces the branded one-pager. It is lighter and
+  more data-driven than the project-evolution-postmortem, and it is run as a
+  governed dispatch Op, not a Mission (DIRECTIVE_053).
+entry_condition: >
+  A maintainer has been asked what happened over a window, or what the state of
+  a milestone/label is. The scope is expressible as either a time window (since
+  a date/tag, converted to UTC) or a milestone/label/query, and the target
+  repositories are known.
+exit_condition: >
+  A branded single-page debrief PDF exists whose every count and every issue/PR
+  reference traces to the collector output (the renderer's ref-guard passed),
+  whose Method footer states the exact scope and as-of, and which follows the
+  executive-debrief styleguide for shape and report-writing for voice. The Op is
+  closed with its real outcome; scratch inputs live in the gitignored work/ dir.
+steps:
+  - title: Fix the scope and pick the mode
+    description: >
+      Decide window mode (a time range: "since Friday", a tag, a quarter) or
+      scope mode (a milestone, a label, a query). For window mode convert the
+      local time to UTC — Brussels is CEST/UTC+2 until late October. Name the
+      target repositories; add the planning repo only when the request covers it.
+      Open the work as a governed dispatch Op; a debrief is an Op, not a Mission.
+    actor: agent
+  - title: Collect the facts deterministically
+    description: >
+      Run the collector (scripts/reporting/collect_debrief.py) in the chosen
+      mode with GITHUB_TOKEN unset so it uses the keyring token. It emits one
+      JSON document — metrics, authors, pull_requests, closed_issues,
+      open_issues, and valid_refs — which is the sole input to synthesis. Never
+      count by hand; the collector owns every number and every reference. If a
+      gh query fails, it fails closed; do not paper over a missing count.
+    actor: agent
+    on_failure: >
+      If a metric or query cannot be gathered, record it as unavailable with the
+      reason in the Method footer rather than estimating it.
+  - title: Synthesize into the slot contract
+    description: >
+      Read only the collector JSON. Apply the customer-impact and
+      issue-valuation lenses and the executive-debrief styleguide: write the
+      lede, the tiles (from metrics), the SHIPPED/WATCH highlights, four-to-six
+      clustered sections, and — window mode: the decision table, release mode:
+      "what it takes to tag". Name the "silent and exit 0" class where it fits.
+      Every #ref written must be in the collector's valid_refs.
+    actor: agent
+    on_failure: >
+      If a load-bearing claim cannot be tied to a collected fact, cut it rather
+      than shipping an unattributed assertion.
+  - title: Render the branded one-pager
+    description: >
+      Fill the debrief template with the renderer (scripts/reporting/render_debrief.py),
+      which enforces the ref-guard and fails closed on any invented reference,
+      then print to PDF with the design-repo fonts and logo alongside. Follow the
+      branded-deliverable tactic's decision-and-review discipline — this is an
+      audience-facing branded deliverable. The debrief uses its own structured
+      renderer rather than the Markdown spec-kitty-branded-pdf generator because
+      its dashboard layout (metric tiles, pill-tagged cluster cards) is not
+      Markdown prose; converging the two brand treatments onto one token/font/logo
+      source is tracked as a follow-up, not a blocker.
+    actor: agent
+  - title: Verify, review, and hand off
+    description: >
+      Do not ship on a zero exit code alone. Confirm the PDF renders (pdfinfo),
+      rasterise and inspect the pages, and for an audience-facing debrief run a
+      designer review pass on the light cream/paper treatment led by the
+      signature yellow. Fold findings back into the synthesis or the renderer and
+      re-render until it reads on-brand, then send the PDF to the operator. Close
+      the Op with its real outcome and keep the collector JSON and synthesis in
+      the gitignored work/ directory.
+    actor: agent
+    on_failure: >
+      A brand or accuracy fault found in review goes back to the synthesis or the
+      renderer, never into the shipped PDF.
