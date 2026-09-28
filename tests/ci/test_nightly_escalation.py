@@ -290,6 +290,11 @@ _NON_MAIN_REFS = (
     "refs/pull/5300/merge",
     "main",
     "refs/heads/Main",
+    # Shell-metacharacter refs: make the injection-safety claim explicit. The
+    # value flows env -> single argparse token -> exact `==`, never a shell, so
+    # these are refused like any other non-main ref (no execution).
+    "refs/heads/x; rm -rf /",
+    "refs/heads/$(touch pwned)",
     "",
     None,
 )
