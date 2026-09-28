@@ -97,10 +97,7 @@ def test_doctor_py_source_never_hand_imports_the_provenance_sibling() -> None:
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "command":
             for keyword in node.keywords:
                 if keyword.arg == "name" and isinstance(keyword.value, ast.Constant):
-                    assert keyword.value.value != "provenance", (
-                        "doctor.py must not hand-write an @app.command(name='provenance') "
-                        "shell (discovery seam regression)"
-                    )
+                    assert keyword.value.value != "provenance", "doctor.py must not hand-write an @app.command(name='provenance') shell (discovery seam regression)"
 
 
 def test_register_is_idempotent_safe_to_call_directly() -> None:
@@ -141,6 +138,22 @@ class TestRunProvenanceAudit:
             _provenance_doctor.run_provenance_audit(tmp_path, json_output=False)
         assert exc_info.value.exit_code == 1
 
+    def test_template_set_leak_exits_one(self, tmp_path: Path, packs_root: Path) -> None:
+        abs_source = packs_root / "built-in" / "missions" / "software-dev" / "mission.yaml"
+        refs = (
+            "  - id: TEMPLATE_SET:software-dev-default\n"
+            "    kind: template_set\n"
+            "    title: software-dev-default\n"
+            "    summary: x\n"
+            f"    source_path: {abs_source}\n"
+            "    local_path: _LIBRARY/template-set-software-dev-default.md\n"
+        )
+        _write(_charter_yaml_path(tmp_path), _charter_yaml_with_catalog(refs))
+
+        with pytest.raises(typer.Exit) as exc_info:
+            _provenance_doctor.run_provenance_audit(tmp_path, json_output=False)
+        assert exc_info.value.exit_code == 1
+
 
 # ---------------------------------------------------------------------------
 # CLI surface (human + --json)
@@ -156,9 +169,7 @@ class TestDoctorProvenanceCli:
         assert result.exit_code == 0, result.output
         assert "no absolute built-in-pack" in result.output.lower()
 
-    def test_human_output_with_leak_includes_heal_hint(
-        self, tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_human_output_with_leak_includes_heal_hint(self, tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         abs_source = packs_root / "built-in" / "paradigms" / "atomic-design.paradigm.yaml"
         refs = (
             "  - id: PARADIGM:atomic-design\n"

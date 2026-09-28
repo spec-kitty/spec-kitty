@@ -1,5 +1,6 @@
 """Material dependency closure is stable across incidental runtime writes."""
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -116,6 +117,75 @@ def test_catalog_source_and_library_content_are_material(tmp_path: Path):
     assert "material:.kittify/charter/_LIBRARY/ref.md" in before
     (tmp_path / "source.md").write_text("changed source")
     assert collect_material_inputs(mission, tmp_path) != before
+
+
+def _generated_charter_in_second_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
+    """Compile from this checkout, then write the generated catalog into another checkout."""
+    from charter.activation.compiler import compile_charter, write_compiled_charter
+    from charter.activation.interview import default_interview
+
+    monkeypatch.delenv("SPEC_KITTY_PACKS_ROOT", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+
+    checkout_b = tmp_path / "checkout-b"
+    kittify = checkout_b / ".kittify"
+    kittify.mkdir(parents=True)
+    subprocess.run(["git", "init", "--quiet", str(checkout_b)], check=True)
+    (kittify / "config.yaml").write_text("charter: .kittify/charter/charter.yaml\n", encoding="utf-8")
+
+    checkout_a = Path(__file__).resolve().parents[2]
+    compiled = compile_charter(
+        mission="software-dev",
+        interview=default_interview(mission="software-dev", profile="minimal"),
+        repo_root=checkout_a,
+    )
+    charter_dir = kittify / "charter"
+    write_compiled_charter(charter_dir, compiled, repo_root=checkout_b)
+    return checkout_b, charter_dir / "charter.yaml"
+
+
+def test_charter_generated_from_checkout_a_collects_in_checkout_b(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A generated catalog refers to the current package, never checkout A's home path."""
+    from ruamel.yaml import YAML
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    checkout_b, charter_path = _generated_charter_in_second_checkout(tmp_path, monkeypatch)
+    charter = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
+    template_ref = next(ref for ref in charter["catalog"]["references"] if ref["kind"] == "template_set")
+
+    assert template_ref["source_path"] == ("${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml")
+    inputs = collect_material_inputs(checkout_b / "kitty-specs" / "second-checkout", checkout_b)
+    assert "package:built-in" in inputs
+
+
+def test_external_mutable_catalog_source_still_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Portable bundled references do not weaken rejection of external mutable sources."""
+    from specify_cli.analysis_inputs import MaterialInputError, collect_material_inputs
+    from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
+
+    checkout_b, charter_path = _generated_charter_in_second_checkout(tmp_path, monkeypatch)
+    mission = checkout_b / "kitty-specs" / "second-checkout"
+    collect_material_inputs(mission, checkout_b)
+
+    external_source = tmp_path / "external-authority" / "custom.yaml"
+    external_source.parent.mkdir()
+    external_source.write_text("id: external\n", encoding="utf-8")
+
+    catalog = load_charter_yaml(charter_path)["catalog"]
+    catalog["references"].append(
+        {
+            "id": "DIRECTIVE:external",
+            "kind": "directive",
+            "title": "External mutable authority",
+            "summary": "test control",
+            "source_path": str(external_source),
+            "local_path": "_LIBRARY/external.md",
+        }
+    )
+    update_charter_yaml_section(charter_path, "catalog", catalog)
+
+    with pytest.raises(MaterialInputError, match="External mutable analysis authority is unsupported"):
+        collect_material_inputs(mission, checkout_b)
 
 
 def test_malformed_wp_definition_is_refused(tmp_path: Path):

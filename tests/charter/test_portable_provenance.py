@@ -1,11 +1,9 @@
 """Portable provenance integration tests (T016, C-PRV-1..6).
 
-Exercises the normalizer at BOTH real emit call sites -- the charter catalog
-(``charter.activation.compiler._doctrine_yaml_reference``) and the agent-profile
-projection manifest (``specify_cli.tool_surface.profiles.projection.
-_manifest_source_path``) -- plus the two deliberately-excluded callers
-(the mission-template reference and the manifest ``output_path`` field),
-which must stay byte-unchanged (contracts/provenance-and-channel.md C-PRV-6).
+Exercises the normalizer at the charter catalog emit call sites and the
+agent-profile projection manifest, plus the deliberately-excluded manifest
+``output_path`` field, which must stay repo-relative (contract
+``provenance-and-channel.md`` C-PRV-6 and issue #5253).
 """
 
 from __future__ import annotations
@@ -57,9 +55,7 @@ class TestCatalogSourceBecomesToken:
 class TestReBakeGate:
     """C-PRV-2: SPEC_KITTY_PACKS_ROOT set at emit time never leaks into the token."""
 
-    def test_source_path_byte_identical_with_packs_root_exported(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_source_path_byte_identical_with_packs_root_exported(self, monkeypatch: pytest.MonkeyPatch) -> None:
         baseline = _compile_default()
         baseline_ref = _paradigm_reference(baseline, "PARADIGM:atomic-design")
 
@@ -74,22 +70,33 @@ class TestReBakeGate:
         assert rebaked_ref.source_path == baseline_ref.source_path == _ATOMIC_DESIGN_TOKEN
 
 
-class TestExcludedCallersByteUnchanged:
-    """C-PRV-6: mission-template + manifest output_path stay untouched."""
+class TestMissionTemplateSourceBecomesToken:
+    """Issue #5253: built-in template-set provenance is portable at emit time."""
 
-    def test_mission_template_source_path_stays_absolute(self) -> None:
-        """``_template_reference`` keeps using ``_trim_source_path`` (excluded)."""
+    def test_mission_template_source_path_is_token_not_absolute(self) -> None:
         compiled = _compile_default()
         template_refs = [r for r in compiled.references if r.kind == "template_set"]
 
         assert template_refs, "expected a template_set reference in compiled catalog"
         source_path = template_refs[0].source_path
-        # Post-relocation, the mission.yaml source has no "src/charter/offering/"
-        # marker for _trim_source_path to trim on, so it is returned
-        # UNCHANGED -- i.e. still the full absolute path, never a token.
-        assert Path(source_path).is_absolute()
-        assert not source_path.startswith("${SPEC_KITTY_PACKS_ROOT}")
-        assert source_path.endswith("packs/built-in/missions/software-dev/mission.yaml")
+        assert source_path == ("${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml")
+        assert str(_REPO_ROOT) not in source_path
+        assert f"- Source: `{source_path}`" in template_refs[0].content
+
+    def test_mission_template_source_path_is_stable_when_packs_root_is_exported(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        baseline = _compile_default()
+        baseline_ref = _paradigm_reference(baseline, "TEMPLATE_SET:software-dev-default")
+
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(_REPO_ROOT / "packs"))
+        rebaked = _compile_default()
+        rebaked_ref = _paradigm_reference(rebaked, "TEMPLATE_SET:software-dev-default")
+
+        assert rebaked_ref.source_path == baseline_ref.source_path
+        assert rebaked_ref.source_path == ("${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml")
+
+
+class TestExcludedCallersByteUnchanged:
+    """The manifest output_path keeps its distinct repo-relative contract."""
 
     def test_manifest_output_path_stays_repo_relative(self, tmp_path: Path) -> None:
         """``manifest.py``'s ``output_path`` (``relativize_under_root``) is untouched."""
