@@ -958,6 +958,8 @@ def _parse_frozenset_of_str_constant(source: str, constant_name: str) -> frozens
             literal: object = ast.literal_eval(value.args[0]) if value.args else frozenset()
         else:
             literal = ast.literal_eval(value)
+        if not isinstance(literal, (set, frozenset, list, tuple)) or not all(isinstance(item, str) for item in literal):
+            raise TypeError(f"{constant_name} is not a literal collection of paths: {literal!r}")
         return frozenset(literal)
     return None
 
