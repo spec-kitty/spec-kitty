@@ -113,6 +113,14 @@ Fill `scripts/reporting/debrief_template.html` from the Stage-B object
 headless browser if a PDF is wanted. The template is light-theme, print-sized;
 do not restyle per report — the consistency is the point.
 
+The look is the **design system's**, not ad-hoc: tokens (colours, type, pills)
+come from `@spec-kitty/tokens` in the sibling `spec-kitty-design` repo. The
+house style — palette, typography, layout grammar, pill vocabulary and the
+voice/Method-honesty rules — is documented in
+[`docs/development/reporting/debrief-styleguide.md`](../../../docs/development/reporting/debrief-styleguide.md).
+Follow it; re-sync the template's token subset from the package rather than
+forking values.
+
 ## Guardrails checklist (run before handing over the report)
 
 - [ ] Every tile number came from `metrics` — none typed by hand.
@@ -124,10 +132,11 @@ do not restyle per report — the consistency is the point.
 
 ## Deferred (do after this has been used a few times)
 
-Once the shape has proven itself on real reports, promote the **house style**
-of these debriefs (the section grammar, the SHIPPED/WATCH vocabulary, the
-Method-footer honesty rules, the "silent and exit 0" framing) into a
-**styleguide artifact in the internal doctrine pack** (`packs/internal/`, NOT
-`built-in` — this governs how *we* report, not consumers), then run
-`spec-kitty doctrine regenerate-graph`. This SKILL orchestrates; that
-styleguide will be the authored doctrine it points at.
+The **initial house style** already exists —
+[`docs/development/reporting/debrief-styleguide.md`](../../../docs/development/reporting/debrief-styleguide.md),
+seeded from `@spec-kitty/tokens` (spec-kitty-design). What remains: once the
+shape has proven itself on real reports, **promote that styleguide into the
+internal doctrine pack** (`packs/internal/`, NOT `built-in` — it governs how
+*we* report, not consumers) as an activatable styleguide artifact, then run
+`spec-kitty doctrine regenerate-graph`. This SKILL orchestrates; that artifact
+will be the durable doctrine it points at.

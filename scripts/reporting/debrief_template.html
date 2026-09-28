@@ -2,79 +2,115 @@
 <!--
   Stage C template for "WTF happened" executive debriefs.
 
+  House style seeded from the @spec-kitty/tokens package in the sibling
+  spec-kitty-design repo (ADR-003 `--sk-*` naming). Colours, type, spacing,
+  radius and the pill vocabulary are the design system's, not ad-hoc. See
+  docs/development/reporting/debrief-styleguide.md for the rationale and the
+  full token provenance.
+
   This is the canonical LOOK. The synthesis stage (Stage B) produces the
   structured slots defined in scripts/reporting/skill/SKILL.md; the render step
-  fills this template from those slots. Placeholders use {{ SNAKE_CASE }} for
-  scalars and <!-- @each NAME --> ... <!-- @end --> for repeated blocks so a
-  trivial substitution renderer (or the model itself) can fill it.
+  fills this template from those slots. Placeholders: {{ SNAKE_CASE }} scalars,
+  <!-- @each NAME --> ... <!-- @end --> repeats, <!-- @if NAME --> ... <!-- @end -->.
 
-  Print-optimised (A4/Letter) so it exports cleanly to PDF via a headless
-  browser print. Light theme only — these are printed one-pagers.
+  Light-first and print-sized (A4/Letter) so it exports cleanly to PDF — these
+  are printed one-pagers, rendered on the design system's warm-cream light theme.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <title>{{ TITLE }}</title>
+<!-- JetBrains Mono (design-system mono) via the same CDN @spec-kitty/tokens uses -->
 <style>
-  :root {
-    --ink: #1a1a1a; --muted: #6b7280; --line: #e5e7eb; --card: #fafafa;
-    --accent: #b60205;        /* P0 / WATCH red */
-    --ok: #0e8a16;            /* SHIPPED green */
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-    --sans: -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
-  }
-  * { box-sizing: border-box; }
-  body { font-family: var(--sans); color: var(--ink); margin: 0; padding: 48px 56px;
-         font-size: 15px; line-height: 1.5; max-width: 920px; }
-  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .14em;
-             text-transform: uppercase; color: var(--muted); }
-  h1 { font-size: 40px; font-weight: 800; margin: 6px 0 10px; letter-spacing: -.01em; }
-  .meta { font-family: var(--mono); font-size: 12.5px; color: var(--muted);
-          margin-bottom: 20px; }
-  .lede { font-size: 17px; line-height: 1.55; margin: 0 0 28px; }
-  hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap');
 
-  /* metric tiles */
-  .tiles { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 10px;
-           overflow: hidden; margin-bottom: 32px; }
-  .tile { flex: 1; padding: 18px 20px; border-right: 1px solid var(--line); }
-  .tile:last-child { border-right: 0; }
-  .tile .n { font-size: 34px; font-weight: 800; line-height: 1; }
-  .tile .n.alert { color: var(--accent); }
-  .tile .lbl { color: var(--muted); font-size: 13px; margin-top: 8px; }
+/* ── Brand tokens (curated subset of @spec-kitty/tokens, light theme) ──────
+   To ship a fully-branded PDF, embed the Falling Sky OTFs from
+   spec-kitty-design/packages/tokens/fonts via @font-face; without them the
+   display face degrades gracefully to the system sans stack. */
+:root {
+  --sk-color-yellow:        #F5C518;   /* signature primary */
+  --sk-color-green:         #8FCB8F;   /* success / SHIPPED */
+  --sk-color-red:           #E97373;   /* alert / WATCH / P0 */
+  --sk-color-sage:          #4F8F4F;   /* light-mode link/accent */
+  --sk-surface-page:        #F8F5EC;   /* warm cream page */
+  --sk-surface-card:        #FFFFFF;   /* white card */
+  --sk-surface-pill:        #ECE7D8;   /* chip rail */
+  --sk-surface-tint-mint:   #E8F4E8;   /* SHIPPED pill bg */
+  --sk-surface-tint-sky:    #E4EDF8;   /* WATCH/breaking pill bg */
+  --sk-surface-tint-butter: #FFF6D9;   /* emphasis pill bg */
+  --sk-on-tint-mint:        #2D5A2D;
+  --sk-on-tint-sky:         #2E4A6B;
+  --sk-fg-default:          #1A1A14;   /* headline ink */
+  --sk-fg-body:             #2A2A22;   /* body */
+  --sk-fg-muted:            #5C5C52;   /* secondary */
+  --sk-fg-subtle:           #8A8A7E;   /* labels / eyebrow */
+  --sk-border-default:      #EAE4D2;   /* hairline */
+  --sk-border-strong:       #D6CFB9;   /* card border */
+  --sk-link:                var(--sk-color-sage);
+  --sk-font-display: 'Falling Sky', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --sk-font-sans:    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --sk-font-mono:    'JetBrains Mono', ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sk-text-xs: .75rem; --sk-text-sm: .875rem; --sk-text-lg: 1.125rem;
+  --sk-space-1: .25rem; --sk-space-2: .5rem; --sk-space-3: .75rem; --sk-space-4: 1rem;
+  --sk-radius-sm: .5rem; --sk-radius-lg: 1rem; --sk-radius-pill: 999px;
+  --sk-shadow-card: 0 1px 2px rgba(20,20,15,.04), 0 1px 1px rgba(20,20,15,.06);
+}
+* { box-sizing: border-box; }
+body { font-family: var(--sk-font-sans); color: var(--sk-fg-body);
+       background: var(--sk-surface-page); margin: 0; padding: 48px 56px;
+       font-size: 15px; line-height: 1.5; max-width: 940px; }
+.eyebrow { font-family: var(--sk-font-mono); font-size: var(--sk-text-xs); letter-spacing: .14em;
+           text-transform: uppercase; color: var(--sk-fg-subtle); }
+h1 { font-family: var(--sk-font-display); font-size: 40px; font-weight: 800; color: var(--sk-fg-default);
+     margin: 6px 0 10px; letter-spacing: -.01em; }
+h2 { font-family: var(--sk-font-display); font-size: 24px; font-weight: 800; color: var(--sk-fg-default);
+     margin: 34px 0 14px; }
+.meta { font-family: var(--sk-font-mono); font-size: 12.5px; color: var(--sk-fg-subtle); margin-bottom: 20px; }
+.lede { font-size: 17px; line-height: 1.55; color: var(--sk-fg-body); margin: 0 0 28px; }
 
-  h2 { font-size: 24px; font-weight: 800; margin: 34px 0 14px; }
-  .section { border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px;
-             margin-bottom: 18px; }
-  .section .head { display: flex; justify-content: space-between; align-items: baseline; }
-  .section h3 { font-family: var(--mono); font-size: 15px; margin: 0 0 4px; }
-  .section .count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  .section .intro { color: var(--muted); font-size: 14px; margin: 4px 0 12px; }
-  ul { margin: 0; padding-left: 20px; }
-  li { margin: 7px 0; }
+/* metric tiles */
+.tiles { display: flex; gap: 0; border: 1px solid var(--sk-border-strong); border-radius: var(--sk-radius-lg);
+         overflow: hidden; margin-bottom: 32px; background: var(--sk-surface-card); box-shadow: var(--sk-shadow-card); }
+.tile { flex: 1; padding: 18px 20px; border-right: 1px solid var(--sk-border-default); }
+.tile:last-child { border-right: 0; }
+.tile .n { font-family: var(--sk-font-display); font-size: 34px; font-weight: 800; line-height: 1; color: var(--sk-fg-default); }
+.tile .n.alert { color: var(--sk-color-red); }
+.tile .lbl { color: var(--sk-fg-muted); font-size: 13px; margin-top: 8px; }
 
-  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em;
-          text-transform: uppercase; padding: 2px 7px; border-radius: 4px; margin-right: 6px; }
-  .pill.shipped { background: #e7f5ea; color: var(--ok); }
-  .pill.watch   { background: #fde8e8; color: var(--accent); }
-  .pill.p0      { background: #fde8e8; color: var(--accent); }
+.section { border: 1px solid var(--sk-border-strong); border-radius: var(--sk-radius-lg); padding: 20px 22px;
+           margin-bottom: 18px; background: var(--sk-surface-card); box-shadow: var(--sk-shadow-card); }
+.section .head { display: flex; justify-content: space-between; align-items: baseline; }
+.section h3 { font-family: var(--sk-font-mono); font-size: 15px; color: var(--sk-fg-default); margin: 0 0 4px; }
+.section .count { font-family: var(--sk-font-mono); font-size: 12px; color: var(--sk-fg-subtle); }
+.section .intro { color: var(--sk-fg-muted); font-size: 14px; margin: 4px 0 12px; }
+ul { margin: 0; padding-left: 20px; }
+li { margin: 7px 0; }
 
-  table { width: 100%; border-collapse: collapse; margin: 6px 0 4px; font-size: 14px; }
-  th { text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
-       text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line);
-       padding: 8px 10px; }
-  td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  a { color: #0b5fff; text-decoration: none; }
-  code { font-family: var(--mono); font-size: .92em; background: var(--card);
-         padding: 1px 4px; border-radius: 3px; }
-  .footer { color: var(--muted); font-size: 12.5px; margin-top: 32px; line-height: 1.5; }
-  @media print { body { padding: 24px 28px; } .section, .tiles { break-inside: avoid; } }
+/* pill vocabulary — the design system's .sk-tag, mapped to debrief semantics */
+.sk-tag { display: inline-flex; align-items: center; padding: var(--sk-space-1) var(--sk-space-3);
+          background: var(--sk-surface-pill); border-radius: var(--sk-radius-pill);
+          font-family: var(--sk-font-sans); font-size: var(--sk-text-xs); font-weight: 500;
+          color: var(--sk-fg-muted); line-height: 1.5; margin-right: 6px; white-space: nowrap; }
+.sk-tag--shipped { background: var(--sk-surface-tint-mint); color: var(--sk-on-tint-mint); }
+.sk-tag--watch   { background: var(--sk-surface-tint-sky);  color: var(--sk-color-red); }
+.sk-tag--p0      { background: var(--sk-surface-tint-sky);  color: var(--sk-color-red); }
+
+table { width: 100%; border-collapse: collapse; margin: 6px 0 4px; font-size: 14px; background: var(--sk-surface-card); }
+th { text-align: left; font-family: var(--sk-font-mono); font-size: 11px; letter-spacing: .06em;
+     text-transform: uppercase; color: var(--sk-fg-subtle); border-bottom: 1px solid var(--sk-border-strong); padding: 8px 10px; }
+td { padding: 10px; border-bottom: 1px solid var(--sk-border-default); vertical-align: top; }
+a { color: var(--sk-link); text-decoration: none; }
+code { font-family: var(--sk-font-mono); font-size: .92em; background: var(--sk-surface-pill); padding: 1px 4px; border-radius: 3px; }
+.footer { color: var(--sk-fg-muted); font-size: 12.5px; margin-top: 32px; line-height: 1.5;
+          border-top: 1px solid var(--sk-border-default); padding-top: 16px; }
+@media print { body { padding: 24px 28px; } .section, .tiles { break-inside: avoid; } }
 </style>
 </head>
 <body>
   <div class="eyebrow">{{ EYEBROW }}</div>   <!-- e.g. SPEC KITTY · EXECUTIVE OVERVIEW -->
   <h1>{{ TITLE }}</h1>                        <!-- e.g. What landed since Friday morning -->
-  <div class="meta">{{ META_LINE }}</div>     <!-- window / main SHA / repos, generated from meta -->
+  <div class="meta">{{ META_LINE }}</div>     <!-- window / main SHA / repos, from meta -->
 
   <p class="lede">{{ LEDE }}</p>              <!-- Stage B narrative synthesis -->
 
@@ -87,7 +123,7 @@
   <h2>{{ HIGHLIGHTS_HEADING }}</h2>           <!-- "The bottom line" / "Key takeaways" -->
   <ul>
     <!-- @each HIGHLIGHT -->
-    <li><span class="pill {{ HL_PILL_CLASS }}">{{ HL_PILL }}</span>{{ HL_TEXT }}</li>
+    <li><span class="sk-tag sk-tag--{{ HL_PILL_CLASS }}">{{ HL_PILL }}</span>{{ HL_TEXT }}</li>
     <!-- @end -->
   </ul>
 
