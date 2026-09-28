@@ -1,0 +1,384 @@
+{
+  "version": 1,
+  "mission_slug": "squad-doctrine-single-owner-01M3KBP7",
+  "mission_id": "01M3KBP7F188SNG2QRJE46EAQB",
+  "mission_branch": "kitty/mission-squad-doctrine-single-owner-01M3KBP7",
+  "target_branch": "claude/squad-doctrine-single-owner-rzqpvw",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/_retired_activation.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_6_retire_rtk_search_tooling.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc5_retire_single_owner_doctrine_ids.py",
+        "tests/architectural/charter_path_literal_allowlist.yaml",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc5_retire_single_owner_doctrine_ids.py",
+        "tests/specify_cli/upgrade/migrations/test_retired_activation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/04_implementation_mapping/README.md",
+        "packs/built-in/missions/documentation/actions/*/guidelines.md",
+        "packs/built-in/missions/mission-steps/software-dev/implement/guidelines.md",
+        "packs/built-in/missions/mission-steps/software-dev/plan/guidelines.md",
+        "packs/built-in/missions/mission-steps/software-dev/review/guidelines.md",
+        "packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md",
+        "packs/built-in/missions/research/actions/*/guidelines.md",
+        "packs/built-in/missions/software-dev/actions/*/guidelines.md",
+        "src/charter/offering/missions/repository.py",
+        "tests/architectural/_builtin_pack_provenance_baseline.yaml",
+        "tests/doctrine/missions/test_guidelines_single_owner.py",
+        "tests/doctrine/missions/test_referential_integrity.py",
+        "tests/doctrine/missions/test_repository.py",
+        "tests/doctrine/test_wp_authoring_contract_roundtrip.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_commit_recipes.py",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/cli/commands/charter/_synthesis.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "tests/agent/test_build_implement_prompt_lines.py",
+        "tests/specify_cli/cli/commands/test_commit_recipes.py",
+        "tests/specify_cli/cli/commands/test_implement_writeside.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "packs/built-in/agent_profiles/debugger-debbie.agent.yaml",
+        "packs/built-in/agent_profiles/paula-patterns.agent.yaml",
+        "packs/built-in/directives/040-recurring-bug-structural-intervention.directive.yaml",
+        "packs/built-in/directives/043-close-defect-class-by-construction.directive.yaml",
+        "packs/built-in/directives/052-prefer-durable-fixes.directive.yaml",
+        "packs/built-in/paradigms/brownfield-onboarding.paradigm.yaml",
+        "packs/built-in/procedures/adversarial-squad-deployment.procedure.yaml",
+        "packs/built-in/procedures/mission-tracer-files.procedure.yaml",
+        "packs/built-in/styleguides/adversarial-squad-cadence.styleguide.yaml",
+        "packs/built-in/tactics/architecture/paula-patterns-architecture-scout-review.tactic.yaml",
+        "packs/built-in/tactics/five-paradigm-parallel-debugging.tactic.yaml",
+        "packs/built-in/tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml",
+        "src/charter/offering/skills/adversarial-squad/SKILL.md",
+        "tests/doctrine/_single_owner_detectors.py",
+        "tests/doctrine/test_activation_squad_lenses.py",
+        "tests/doctrine/test_squad_doctrine_single_owner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "packs/built-in/directives/030-test-and-typecheck-quality-gate.directive.yaml",
+        "packs/built-in/directives/034-test-first-development.directive.yaml",
+        "packs/built-in/directives/036-black-box-integration-testing.directive.yaml",
+        "packs/built-in/directives/use-mutation-testing-to-validate-test-quality.directive.yaml",
+        "packs/built-in/paradigms/behaviour-driven-development.paradigm.yaml",
+        "packs/built-in/procedures/bdd-scenario-lifecycle.procedure.yaml",
+        "packs/built-in/procedures/disciplined-defect-diagnosis.procedure.yaml",
+        "packs/built-in/procedures/test-first-bug-fixing.procedure.yaml",
+        "packs/built-in/styleguides/mutation-aware-test-design.styleguide.yaml",
+        "packs/built-in/styleguides/test-desiderata-and-boundaries.styleguide.yaml",
+        "packs/built-in/styleguides/testing-principles.styleguide.yaml",
+        "packs/built-in/tactics/architecture/development-bdd.tactic.yaml",
+        "packs/built-in/tactics/behavior-driven-development.tactic.yaml",
+        "packs/built-in/tactics/testing/bdd-scenario-formulation.tactic.yaml",
+        "packs/built-in/tactics/testing/bug-fixing-checklist.tactic.yaml",
+        "packs/built-in/tactics/testing/mutation-testing-workflow.tactic.yaml",
+        "packs/built-in/tactics/testing/tdd-red-green-refactor.tactic.yaml",
+        "packs/built-in/tactics/testing/test-to-system-reconstruction.tactic.yaml",
+        "packs/built-in/toolguides/GHERKIN.md",
+        "packs/built-in/toolguides/PYTHON_MUTATION_TOOLS.md",
+        "packs/built-in/toolguides/TYPESCRIPT_MUTATION_TOOLS.md",
+        "packs/built-in/toolguides/gherkin.toolguide.yaml",
+        "tests/doctrine/test_testing_doctrine_single_owner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "packs/built-in/assets/docs_structural_lint.config.yaml",
+        "packs/built-in/assets/docs_structural_lint.py",
+        "packs/built-in/assets/docs_structural_lint.py.asset.yaml",
+        "packs/built-in/directives/037-living-documentation-sync.directive.yaml",
+        "packs/built-in/directives/042-common-docs.directive.yaml",
+        "packs/built-in/missions/documentation/governance-profile.yaml",
+        "packs/built-in/missions/mission-steps/documentation/publish/guidelines.md",
+        "packs/built-in/missions/mission-steps/documentation/publish/prompt.md",
+        "packs/built-in/missions/mission-steps/documentation/validate/guidelines.md",
+        "packs/built-in/missions/mission-steps/documentation/validate/prompt.md",
+        "packs/built-in/styleguides/common-docs.styleguide.yaml",
+        "packs/built-in/styleguides/docs-freshness-sla.styleguide.yaml",
+        "packs/built-in/styleguides/publication-authority.styleguide.yaml",
+        "packs/built-in/tactics/common-docs-curation.tactic.yaml",
+        "packs/built-in/tactics/common-docs-find.tactic.yaml",
+        "packs/built-in/tactics/common-docs-scaffold.tactic.yaml",
+        "packs/built-in/tactics/common-docs-write.tactic.yaml",
+        "packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml",
+        "tests/docs/test_doc_status_durable.py",
+        "tests/docs/test_docs_structural_lint.py",
+        "tests/docs/test_touched_set_gates.py",
+        "tests/doctrine/styleguides/test_models.py",
+        "tests/doctrine/test_common_docs_single_owner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "packs/built-in/directives/024-locality-of-change.directive.yaml",
+        "packs/built-in/directives/025-boy-scout-rule.directive.yaml",
+        "packs/built-in/directives/039-lynn-cole-engineering-culture.directive.yaml",
+        "packs/built-in/directives/reconcile-change-scope-tensions.directive.yaml",
+        "packs/built-in/procedures/tracker-organisation-workflow.procedure.yaml",
+        "packs/built-in/styleguides/boring-code-review.styleguide.yaml",
+        "packs/built-in/tactics/architecture/deepening-opportunity-assessment.tactic.yaml",
+        "packs/built-in/tactics/avoid-gold-plating.tactic.yaml",
+        "packs/built-in/tactics/boring-code-review.tactic.yaml",
+        "packs/built-in/tactics/change-apply-smallest-viable-diff.tactic.yaml",
+        "packs/built-in/tactics/code-review-incremental.tactic.yaml",
+        "packs/built-in/tactics/easy-to-change.tactic.yaml",
+        "packs/built-in/tactics/iterative-deepening-review.tactic.yaml",
+        "packs/built-in/tactics/locality-of-change.tactic.yaml",
+        "packs/built-in/tactics/review-intent-and-risk-first.tactic.yaml",
+        "packs/internal/drg/fragment.yaml",
+        "packs/internal/procedures/tracker-organisation-workflow.procedure.yaml",
+        "packs/internal/tactics/tracker-backlog-iterative-deepening.tactic.yaml",
+        "tests/doctrine/test_change_scope_review_single_owner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "packs/built-in/directives/051-supply-chain-install-safety.directive.yaml",
+        "packs/built-in/tactics/architecture/dependency-hygiene.tactic.yaml",
+        "packs/built-in/tactics/security/supply-chain-install-safety.tactic.yaml",
+        "packs/built-in/toolguides/JAVASCRIPT_SUPPLY_CHAIN.md",
+        "packs/built-in/toolguides/JAVA_SUPPLY_CHAIN.md",
+        "packs/built-in/toolguides/PYTHON_SUPPLY_CHAIN.md",
+        "packs/built-in/toolguides/java-supply-chain.toolguide.yaml",
+        "packs/built-in/toolguides/javascript-supply-chain.toolguide.yaml",
+        "packs/built-in/toolguides/python-supply-chain.toolguide.yaml",
+        "tests/doctrine/test_supply_chain_single_owner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "packs/built-in/agent_profiles/architect-alphonso.agent.yaml",
+        "packs/built-in/agent_profiles/drupal-dries.agent.yaml",
+        "packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
+        "packs/built-in/agent_profiles/implementer-ivan.agent.yaml",
+        "packs/built-in/agent_profiles/java-jenny.agent.yaml",
+        "packs/built-in/agent_profiles/node-norris.agent.yaml",
+        "packs/built-in/agent_profiles/python-pedro.agent.yaml",
+        "packs/built-in/agent_profiles/reviewer-renata.agent.yaml",
+        "packs/built-in/missions/built_in_step_contracts/*.step-contract.yaml",
+        "packs/built-in/missions/mission-steps/software-dev/*/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/*/step.yaml",
+        "tests/doctrine/agent_profiles/test_supply_chain_profile_bindings.py",
+        "tests/doctrine/test_served_prompts_single_owner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d",
+        "lane-e",
+        "lane-h"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09",
+        "WP10"
+      ],
+      "write_scope": [
+        ".kittify/charter/**",
+        ".kittify/metadata.yaml",
+        "docs/api/agent_profiles/implementer-ivan.md",
+        "docs/architecture/doctrine-relationships.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/agent-fleet.md",
+        "docs/development/reference/quality-and-tech-debt-standing-orders.md",
+        "packs/built-in/*.graph.yaml",
+        "packs/built-in/directives/001-architectural-integrity-standard.directive.yaml",
+        "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml",
+        "packs/built-in/missions/*/actions/*/index.yaml",
+        "packs/built-in/pack-manifest.yaml",
+        "packs/internal/glossary_packs/spk-internal.glossary-pack.yaml",
+        "src/charter/activation/packs/default.yaml",
+        "src/charter/activation/packs/minimal.yaml",
+        "src/charter/offering/drg/migration/extractor.py",
+        "src/charter/offering/drg/migration/hand_authored_overlay.py",
+        "src/charter/offering/drg/models.py",
+        "tests/charter/test_context.py",
+        "tests/charter/test_profile_channel_delivery.py",
+        "tests/doctrine/agent_profiles/fixtures/agent_profile_edges_before_consolidation.json",
+        "tests/doctrine/agent_profiles/test_context_sources_migration.py",
+        "tests/doctrine/drg/**",
+        "tests/doctrine/test_acceptance_criteria_non_vacuity_wiring.py",
+        "tests/doctrine/test_dogfood_single_owner.py",
+        "tests/doctrine/test_owner_delivery.py",
+        "tests/doctrine/test_paula_patterns_artifacts.py",
+        "tests/doctrine/test_retired_ids_absent.py",
+        "tests/doctrine/test_retirement_table_consistency.py",
+        "tests/specify_cli/test_documentation_drg_nodes.py",
+        "tests/specify_cli/upgrade/test_normalize_activation_absence.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-h",
+        "lane-j"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-09-28T07:24:39.952294+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0029483fde9d21b9fd820b779d4a0918b3dbffb0",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP10",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'packs/built-in/pack-manifest.yaml' vs 'packs/built-in/pack-manifest.yaml'; WP10 depends on WP09"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 1
+    }
+  }
+}

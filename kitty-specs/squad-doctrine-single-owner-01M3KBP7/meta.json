@@ -1,0 +1,21 @@
+{
+  "coordination_branch": "kitty/mission-squad-doctrine-single-owner-01M3KBP7",
+  "created_at": "2026-09-28T06:36:59.051539+00:00",
+  "flattened": false,
+  "friendly_name": "Squad doctrine: single owner and profile-per-task rule",
+  "mid8": "01M3KBP7",
+  "mission_id": "01M3KBP7F188SNG2QRJE46EAQB",
+  "mission_number": null,
+  "mission_slug": "squad-doctrine-single-owner-01M3KBP7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Squad guidance is split across a procedure, a styleguide, a harness skill, directives, tactics and profiles, and the copies contradict each other on point-cuts, squad size and casting. This mission consolidates the playbook into the procedure, deletes the redundant styleguide with a consumer-safe migration, shrinks the skill to a pointer, and repoints every inbound reference so consumers receive one consistent rule.",
+  "purpose_tldr": "Make the adversarial-squad-deployment procedure the single owner of squad doctrine and state the profile-per-task rule; sizes become examples.",
+  "slug": "squad-doctrine-single-owner-01M3KBP7",
+  "target_branch": "claude/squad-doctrine-single-owner-rzqpvw",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T07:26:47.931575+00:00",
+  "retain_branches": true,
+  "retain_worktrees": true
+}
