@@ -46,37 +46,37 @@ cited correctly as-is; no mapping needed.
 
 | Old SHA | One-line subject | Maps to |
 |---|---|---|
-| `9fb510b5f` | feat(...): squash merge of mission (WP01/WP02/WP03 lane squash-merges) | Split across `chore(tests): fix mypy no-any-return in _resolve_test_dirs (WP01 T007)`, `test(architectural): red-first tests for the #5240 shard-timings drift demotion (WP01)`, `feat(ci): recapture charter shard timings script and coverage (WP02)`, `ci(shard-timings): schedule the charter recapture workflow (WP03)`, `test(architectural): register the charter recapture workflow in the CI gates` |
-| `17493143c` | feat(ci): add charter shard-timings recapture decision script (WP02) | `feat(ci): recapture charter shard timings script and coverage (WP02)` |
-| `0e8e7ad9a` | test(architectural): isolate warning-emission tests from strict shard-timings env | `test(architectural): red-first tests for the #5240 shard-timings drift demotion (WP01)` (isolation fix folded in) |
-| `186143daf` | test(ci): cover a subprocess failure at every push/open step | `fix(ci): fail loudly on malformed gh CLI output and subprocess failures` |
-| `d6a225c69` | test(architectural): register ci-charter-shard-recapture.yml in the workflow registries | `test(architectural): register the charter recapture workflow in the CI gates` |
-| `054b6434d` | docs(friction): note per-pr shard-timings friction superseded by #5189 | `ci(shard-timings): schedule the charter recapture workflow (WP03)` |
-| `4a0e0cde1` | spec: per-PR charter shard-timings recapture friction (#5189) | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `7fafd7e35` | fix(spec): round 2 — final allowlist-count sweep, marker consistency, secret-check timing | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `cfb79841e` | fix(spec): round 2 — final allowlist-count sweep, marker consistency, secret-check timing | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `b0dda19ea` | fix(spec): round 3 — resolve FR-007/FR-010 marker-identity tension | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `c00c97591` | test(review): commit round-3 fresh-sweep + verify trail (HALT — SPEC-FRESH3-001 sev4 survives) | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `a117695b5` | docs(plan): author per-pr-shard-timings-recapture-friction plan; close out ruling-2 re-entry (PASSED) | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `b893ce5c7` | Add tasks for feature per-pr-shard-timings-recapture-friction-01M3H7V8 | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `ac925fffc` | fix(tasks): engage subtask-ceiling guideline for WP01, fix T011 gh pr list json fields, recount WP02 line total | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `9efd2ec77` | fix(tasks): supersede plan.md's stale gh pr list sample, add WP01 prompt-file line count | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `4983c561d` | fix(tasks): run WP03 recapture job in the synced uv environment (AMENDMENT-FRESH-001) | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `423463a10` | docs(record-analysis): record analysis report for mission per-pr-shard-timings-recapture-friction-01M3H7V8 | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `f8dcce82a` | docs(record-analysis): record analysis report for mission per-pr-shard-timings-recapture-friction-01M3H7V8 | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `14a7ef69c` | docs(tracer): record WP01's global_assets race (ledger SK-243) | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
-| `7cc42e945` | docs(tracer): record WP02 tooling friction | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` (net-zero, folded — see below) |
-| `472616135` | Revert "docs(tracer): record WP02 tooling friction" | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` (net-zero, folded — see below) |
-| `90f6c2645` | chore: remove planning artifacts from lane branch | `spec(5189): mission design — spec, plan, tasks, analysis and review trail` (bookkeeping, folded) |
+| `9fb510b5f` | feat(...): squash merge of mission (WP01/WP02/WP03 lane squash-merges) | Split across `e6b9c0f78` `chore(tests): fix mypy no-any-return in _resolve_test_dirs (WP01 T007)`, `a439f4ed2` `test(architectural): red-first tests for the #5240 shard-timings drift demotion (WP01)`, `5bc6623e1` `feat(ci): recapture charter shard timings script and coverage (WP02)`, `227ff46ab` `ci(shard-timings): schedule the charter recapture workflow (WP03)`, `05ba48e7a` `test(architectural): register the charter recapture workflow in the CI gates` |
+| `17493143c` | feat(ci): add charter shard-timings recapture decision script (WP02) | `5bc6623e1` `feat(ci): recapture charter shard timings script and coverage (WP02)` |
+| `0e8e7ad9a` | test(architectural): isolate warning-emission tests from strict shard-timings env | `a439f4ed2` `test(architectural): red-first tests for the #5240 shard-timings drift demotion (WP01)` (isolation fix folded in) |
+| `186143daf` | test(ci): cover a subprocess failure at every push/open step | `4615ee291` `fix(ci): fail loudly on malformed gh CLI output and subprocess failures` |
+| `d6a225c69` | test(architectural): register ci-charter-shard-recapture.yml in the workflow registries | `05ba48e7a` `test(architectural): register the charter recapture workflow in the CI gates` |
+| `054b6434d` | docs(friction): note per-pr shard-timings friction superseded by #5189 | `227ff46ab` `ci(shard-timings): schedule the charter recapture workflow (WP03)` |
+| `4a0e0cde1` | spec: per-PR charter shard-timings recapture friction (#5189) | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `7fafd7e35` | fix(spec): round 2 — final allowlist-count sweep, marker consistency, secret-check timing | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `cfb79841e` | fix(spec): round 2 — final allowlist-count sweep, marker consistency, secret-check timing | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `b0dda19ea` | fix(spec): round 3 — resolve FR-007/FR-010 marker-identity tension | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `c00c97591` | test(review): commit round-3 fresh-sweep + verify trail (HALT — SPEC-FRESH3-001 sev4 survives) | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `a117695b5` | docs(plan): author per-pr-shard-timings-recapture-friction plan; close out ruling-2 re-entry (PASSED) | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `b893ce5c7` | Add tasks for feature per-pr-shard-timings-recapture-friction-01M3H7V8 | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `ac925fffc` | fix(tasks): engage subtask-ceiling guideline for WP01, fix T011 gh pr list json fields, recount WP02 line total | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `9efd2ec77` | fix(tasks): supersede plan.md's stale gh pr list sample, add WP01 prompt-file line count | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `4983c561d` | fix(tasks): run WP03 recapture job in the synced uv environment (AMENDMENT-FRESH-001) | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `423463a10` | docs(record-analysis): record analysis report for mission per-pr-shard-timings-recapture-friction-01M3H7V8 | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `f8dcce82a` | docs(record-analysis): record analysis report for mission per-pr-shard-timings-recapture-friction-01M3H7V8 | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `14a7ef69c` | docs(tracer): record WP01's global_assets race (ledger SK-243) | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` |
+| `7cc42e945` | docs(tracer): record WP02 tooling friction | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` (net-zero, folded — see below) |
+| `472616135` | Revert "docs(tracer): record WP02 tooling friction" | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` (net-zero, folded — see below) |
+| `90f6c2645` | chore: remove planning artifacts from lane branch | `148d5d22a` `spec(5189): mission design — spec, plan, tasks, analysis and review trail` (bookkeeping, folded) |
 | `353c6742b` | chore: merge origin/main into issue-5189 branch before pre-merge review | compacted out — superseded by rebasing the new branch directly onto the current `origin/main` |
-| `d3169133b` | test(review): record pre-merge squad trail (R1-R3, 5 confirmed findings) | `test(review): implementation review trail and mission bookkeeping` |
-| `0026722d9` | chore(review): persist WP03 approval review-cycle record and status | `test(review): implementation review trail and mission bookkeeping` (bookkeeping, folded) |
-| `9d83c7ed1` | chore(spec-kitty): status transition WP03 | `test(review): implementation review trail and mission bookkeeping` (bookkeeping, folded) |
+| `d3169133b` | test(review): record pre-merge squad trail (R1-R3, 5 confirmed findings) | `3edf9cf79` `test(review): implementation review trail and mission bookkeeping` |
+| `0026722d9` | chore(review): persist WP03 approval review-cycle record and status | `3edf9cf79` `test(review): implementation review trail and mission bookkeeping` (bookkeeping, folded) |
+| `9d83c7ed1` | chore(spec-kitty): status transition WP03 | `3edf9cf79` `test(review): implementation review trail and mission bookkeeping` (bookkeeping, folded) |
 
 Every `chore(spec-kitty): status transition WP0*` / `chore(review): persist WP0*
 approval review-cycle record` commit on the old branch not individually listed
 above is the same kind of bookkeeping, folded the same way into
-`test(review): implementation review trail and mission bookkeeping`.
+`3edf9cf79` `test(review): implementation review trail and mission bookkeeping`.
 
 ## Net-zero pair: `7cc42e945` / `472616135`
 
