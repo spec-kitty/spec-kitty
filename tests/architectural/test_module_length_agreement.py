@@ -166,6 +166,12 @@ class ShardTimingsDriftWarning(UserWarning):
 
 
 def _strict_mode() -> bool:
+    """True only when ``SPEC_KITTY_STRICT_SHARD_TIMINGS`` is exactly ``"1"``.
+
+    Any other value -- ``"true"``, ``"yes"``, ``"1 "``, ``"0"``, empty, or unset -- keeps
+    the non-blocking warn-by-default behaviour. Set exactly ``1`` to restore the hard
+    failure (as ``ci-charter-shard-recapture.yml``'s ``strict-shard-timings-check`` does).
+    """
     return os.environ.get(_STRICT_ENV_VAR) == "1"
 
 

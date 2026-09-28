@@ -62,6 +62,14 @@
 # recapture branch and open a PR from it into `main`. A topic-branch dispatch
 # still runs `strict-shard-timings-check` (read-only) but skips the recapture.
 #
+# Known limitations (see the script's module docstring for detail):
+#   * an already-open recapture PR is NOT refreshed -- while one is open the
+#     publish step skips (it never force-pushes a branch with an open PR),
+#     so further `charter` drift waits until that PR merges or is closed;
+#   * the capture selects `-m "not performance"` while the length gate
+#     collects `-m "not performance and not stress"` -- equivalent today only
+#     because no charter/doctrine test is `stress`-marked (latent risk).
+#
 # The `schedule` trigger firing on its own, and the recapture job actually
 # opening a PR against the real `main` and running normal per-PR CI, are only
 # confirmable post-merge (GitHub only evaluates `schedule` triggers on the

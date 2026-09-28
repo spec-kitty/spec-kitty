@@ -49,6 +49,24 @@ the ~18-minute in-process pytest capture or the preceding ``uv sync``:
   ``CalledProcessError`` message), never a persisted git config write -- and ``gh`` gets
   ``GH_TOKEN``. ``git add``/``git commit`` get no credential at all.
 
+Known limitations (#5271 landing pass)
+--------------------------------------
+* An already-open recapture PR is **not refreshed**. When a PR from
+  :data:`RECAPTURE_BRANCH` is open, the publish phase skips entirely (it never
+  force-pushes a branch with an open PR), so if ``charter`` drifts further before
+  that PR merges, the open PR still carries the older length. The next scheduled run
+  after it merges (or is closed) recaptures from scratch; until then the strict
+  ``strict-shard-timings-check`` job stays red. Refresh by closing the stale PR.
+* Latent selection mismatch: the capture mechanism selects with
+  ``capture_shard_timings.SELECTION_MARKER_EXPR`` (``-m "not performance"``) while the
+  per-PR length-agreement gate collects with ``_CONSUMER_MARKER_EXPR``
+  (``-m "not performance and not stress"``,
+  ``tests/architectural/test_module_length_agreement.py``). They agree today only
+  because no ``tests/charter``/``tests/doctrine`` test carries the ``stress`` marker;
+  the first one that does would make every recapture record a length the gate never
+  collects, so the drift could never converge. Align the two expressions before
+  marking any ``charter`` test ``stress``.
+
 Every decision is a pure, injectable function, unit-tested red-first with no real
 ``gh``/``git``/network call: :func:`has_drift` (FR-006, length-only -- a raw file diff
 would false-positive on ``--write``'s routine ``run_id``/``captured_at``/duration-value
