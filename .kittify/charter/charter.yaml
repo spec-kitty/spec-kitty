@@ -1658,6 +1658,12 @@ catalog:
     summary: "Transform conceptual and architectural structures into clear, semantically aligned diagrams using Mermaid, PlantUML, and Graphviz.\n"
     source_path: ''
     local_path: _LIBRARY/agent_profile-diagram-daisy.md
+  - id: AGENT_PROFILE:doctrine-daphne
+    kind: agent_profile
+    title: Doctrine Daphne
+    summary: External-agent onboarding and doctrine artifact curation specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-doctrine-daphne.md
   - id: AGENT_PROFILE:frontend-freddy
     kind: agent_profile
     title: frontend-freddy
@@ -2008,5 +2014,6 @@ activated_agent_profiles:
 - minutes-mahad
 - scribe-sally
 - synthesizer-sam
+- doctrine-daphne
 activated_mission_step_contracts: []
 activated_glossary_packs: []
