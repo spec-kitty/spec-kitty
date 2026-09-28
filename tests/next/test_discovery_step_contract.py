@@ -276,13 +276,6 @@ def test_discovery_prompt_is_fully_executable_for_software_dev(tmp_path: Path, m
     assert prompt_file, "kind='step' must carry a non-empty prompt_file"
     prompt_text = Path(prompt_file).read_text(encoding="utf-8")
 
-    # FR-002: no STOP location pre-flight survives into the issued prompt.
-    # Each token is checked independently — the old assertion's ``or`` passed
-    # as long as either one was merely absent, which is vacuous.
-    assert "STOP" not in prompt_text.upper()
-    assert "NOT main" not in prompt_text
-    assert "⛔" not in prompt_text
-
     # FR-001: the prompt names research.md as create-or-extend.
     assert "research.md" in prompt_text
     assert "create" in prompt_text.lower() and "extend" in prompt_text.lower()
@@ -294,6 +287,13 @@ def test_discovery_prompt_is_fully_executable_for_software_dev(tmp_path: Path, m
     # with a local regex.
     template_body = _RESEARCH_PROMPT.read_text(encoding="utf-8")
     assert template_body in prompt_text, "the issued prompt must carry the template file verbatim"
+
+    # FR-002: no STOP location pre-flight survives in the step's own template.
+    # Scoped to the template body so an unrelated word in the governance banner
+    # cannot trip it; each token is checked independently.
+    assert re.search(r"\bSTOP\b", template_body) is None
+    assert "NOT main" not in template_body
+    assert "⛔" not in template_body
     invocations = extract_invocations(template_body, include_research_only=False)
     assert invocations, "the issued discovery prompt must name at least one runnable command"
 
