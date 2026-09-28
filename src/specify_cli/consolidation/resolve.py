@@ -25,7 +25,8 @@ from specify_cli.consolidation.state import (
     load_state,
     save_state,
 )
-from specify_cli.consolidation.workspace import cleanup_merge_workspace
+from specify_cli.consolidation.reconciliation import write_post_fix_marker
+from specify_cli.consolidation.workspace import cleanup_merge_workspace, post_fix_marker_path
 from specify_cli.mission_metadata import resolve_mission_identity
 from mission_runtime import MissionArtifactKind, placement_seam
 
@@ -246,6 +247,10 @@ def _load_or_create_merge_state(
         if state.mission_id != canonical_id:
             state.mission_id = canonical_id
             state.mission_slug = mission_slug
+            # #5111 / FR-012: a migrated state keeps its own provenance -- never
+            # let an orphan marker already sitting in the canonical dir (e.g. from
+            # a pre-#5111 ``--abort``, which left markers behind) vouch for it.
+            post_fix_marker_path(canonical_id, main_repo).unlink(missing_ok=True)
             save_state(state, main_repo)
             if source_key is not None and source_key != canonical_id:
                 clear_state(main_repo, source_key)
@@ -259,6 +264,13 @@ def _load_or_create_merge_state(
         push_requested=push_requested,
         skip_lanes=skip_lanes,
     )
+    # #5111 / FR-012: the reconciliation marker is part of the fresh transaction
+    # record and is written BEFORE ``state.json``, so a state on disk always
+    # implies its marker (a crash in between leaves only a harmless orphan
+    # marker, which the next fresh run re-stamps). Stamping it later, after the
+    # merge gates, let any pre-mutation exit leave a marker-less state that the
+    # next plain run then refused as "pre-fix in-flight".
+    write_post_fix_marker(main_repo, canonical_id)
     save_state(state, main_repo)
     return state, False
 

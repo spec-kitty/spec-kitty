@@ -17,7 +17,7 @@ from typing import Any
 from kernel.clock import now_utc_iso
 from kernel.errors import GuardedReadError
 from kernel.guarded_read import read_guarded
-from specify_cli.consolidation.workspace import get_merge_runtime_dir
+from specify_cli.consolidation.workspace import POST_FIX_MARKER_FILENAME, get_merge_runtime_dir
 
 __all__ = [
     "MergeAmbiguousStateError",
@@ -332,17 +332,26 @@ def _load_state_file(state_path: Path) -> ConsolidationState | None:
 
 
 def clear_state(repo_root: Path, mission_id: str | None = None) -> bool:
-    """Remove merge state file.
+    """Remove a merge transaction record: ``state.json`` and its reconciliation marker.
+
+    The FR-012 marker is created with a fresh ``state.json`` and must never
+    outlive it (#5111): a leftover marker would vouch for a later, unrelated
+    state, and a marker-less state is refused as pre-fix. Clearing both here
+    makes ``--abort``, the pre-mutation refusal clear, and finalize consistent
+    by construction.
 
     Args:
         repo_root: Repository root path
         mission_id: If given, clear only that mission's state.
 
     Returns:
-        True if a file was removed, False if it didn't exist
+        True if a state file was removed, False if it didn't exist (an orphan
+        marker is still removed, but does not count as cleared state)
     """
     if mission_id is not None:
-        state_path = get_state_path(repo_root, mission_id)
+        runtime_dir = get_merge_runtime_dir(mission_id, repo_root)
+        (runtime_dir / POST_FIX_MARKER_FILENAME).unlink(missing_ok=True)
+        state_path = runtime_dir / _STATE_FILE
         if state_path.exists():
             state_path.unlink()
             return True
@@ -354,6 +363,7 @@ def clear_state(repo_root: Path, mission_id: str | None = None) -> bool:
         for candidate in sorted(runtime_merge_dir.iterdir()):
             state_file = candidate / _STATE_FILE
             if state_file.exists():
+                (candidate / POST_FIX_MARKER_FILENAME).unlink(missing_ok=True)
                 state_file.unlink()
                 return True
 

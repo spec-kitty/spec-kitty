@@ -67,7 +67,7 @@ from specify_cli.consolidation.git_probes import (
     sha_reachable_from,
     three_way_merge_blob,
 )
-from specify_cli.consolidation.workspace import get_merge_runtime_dir
+from specify_cli.consolidation.workspace import post_fix_marker_path
 
 # Lanes that count as "approved" (an acceptable, merge-ready ending) for claim
 # membership. ``done`` is included so a resume that already baked ``done`` for a
@@ -89,11 +89,6 @@ TERMINUS_ENTRY_POINTS: frozenset[str] = frozenset(
         "doctor coordination --fix",
     }
 )
-
-# FR-012: the marker a post-fix merge writes at transaction start. Its ABSENCE
-# on an in-flight (resumed) merge means the state was created by pre-fix code,
-# whose shape the new guarantees cannot be retro-applied to (D6) — refuse.
-_POST_FIX_MARKER_FILENAME = "reconciliation.post-fix"
 
 # Fail-closed REFUSE reasons (hoisted per Sonar S1192 — the window-base reason is
 # shared by the merge/rebase reachability path and the squash blob-attribution
@@ -883,8 +878,11 @@ def route_terminus(entry_point: str) -> None:
 
 
 def _post_fix_marker_path(repo_root: Path, mission_id: str) -> Path:
-    marker: Path = get_merge_runtime_dir(mission_id, repo_root) / _POST_FIX_MARKER_FILENAME
-    return marker
+    # FR-012: the marker a post-fix merge writes at transaction start (#5111: with
+    # its fresh ``state.json``). Its ABSENCE on an in-flight (resumed) merge means
+    # the state was created by pre-fix code, whose shape the new guarantees cannot
+    # be retro-applied to (D6) — refuse.
+    return post_fix_marker_path(mission_id, repo_root)
 
 
 def write_post_fix_marker(repo_root: Path, mission_id: str) -> None:
@@ -906,8 +904,8 @@ def detect_legacy_in_flight_state(repo_root: Path, mission_id: str, *, is_resume
     post-fix marker. The new tree-authoritative guarantees cannot be
     retro-applied to that unknown-shape state (D6, operator-confirmed), so the
     command must REFUSE with a recovery instruction rather than auto-heal.
-    A fresh (non-resume) merge is never legacy — it writes the marker itself at
-    transaction start. Returns ``None`` when the state is post-fix (safe to
+    A fresh (non-resume) merge is never legacy — it writes the marker together
+    with its ``state.json`` at transaction start (#5111). Returns ``None`` when the state is post-fix (safe to
     proceed).
     """
     if not is_resume:
