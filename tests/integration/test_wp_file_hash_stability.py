@@ -310,11 +310,18 @@ def test_sc007_in_review_to_in_progress_is_force_free(
     repo, feature_dir = _build_mission(
         tmp_path, monkeypatch, seed_up_to=Lane.IN_REVIEW, wp_agent="reviewer"
     )
+    # #4899 (operator verdict on #5044: stale test, contract stands):
+    # in_review -> in_progress is a review-rejection edge and durably requires
+    # reviewer feedback. SC-007's invariant -- the persisted ``force`` stays
+    # falsy on this evidence-gated edge -- is unchanged.
+    feedback = tmp_path / "review-feedback.md"
+    feedback.write_text("**Issue**: rework requested.\n", encoding="utf-8")
 
     result = _move(
         [
             "WP01", "--to", "in_progress", "--mission", _MISSION_SLUG,
             "--agent", "reviewer", "--note", "reviewer sends it back",
+            "--review-feedback-file", str(feedback),
             "--no-auto-commit", "--json",
         ]
     )
@@ -324,3 +331,4 @@ def test_sc007_in_review_to_in_progress_is_force_free(
     assert last.from_lane == Lane.IN_REVIEW
     assert last.to_lane == Lane.IN_PROGRESS
     assert not last.force, "in_review -> in_progress persisted force=True (SC-007 violated)"
+    assert last.review_ref, "the rejection edge must record a pointer to the reviewer feedback"
