@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from kernel.text_decode import normalize_newlines
 from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
@@ -307,8 +308,18 @@ def ensure_skill_frontmatter(content: str, skill_name: str) -> str:
     Canonical skill-pack installers and repair paths use this helper for older
     generated skills that were authored as plain Markdown, including the
     ``spec-kitty`` repro from #964. Existing frontmatter is preserved
-    byte-for-byte.
+    byte-for-byte (modulo the CRLF/lone-CR normalisation below).
+
+    Newlines are normalised to LF first (D5 / #4998): the installer decodes
+    raw source bytes and keeps CRLF, but :data:`_RE_LEADING_FRONTMATTER`
+    matches ``\\n`` only. Without this normalisation, CRLF-terminated
+    frontmatter is never recognised as present, so a second, bogus
+    frontmatter block is prepended ahead of the untouched CRLF original on
+    every CRLF-source install/repair. Normalising here (rather than only in
+    the regex) covers every caller uniformly: installer (both call sites),
+    verifier, and ``runtime/agent_skills.py``.
     """
+    content = normalize_newlines(content)
     if _RE_LEADING_FRONTMATTER.match(content):
         return content
 
@@ -432,8 +443,17 @@ def render(
         raise SkillRenderError("template_not_found", path=str(template_path))
 
     raw_bytes = template_path.read_bytes()
-    source_hash = hashlib.sha256(raw_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     raw_text = raw_bytes.decode("utf-8")
+    # Normalise newlines right after decoding (D5 / #4998), before any
+    # frontmatter/body parsing sees the text: a CRLF-source template's
+    # frontmatter would otherwise never match ``_RE_FRONTMATTER`` (``\n``
+    # only) downstream. ``source_hash`` is hashed on the *normalised* bytes
+    # rather than ``raw_bytes`` -- it has no production consumer (only a
+    # test reads it), so this keeps CRLF/LF renders of the same template
+    # indistinguishable and leaves existing LF hashes unchanged (normalising
+    # LF input is a no-op).
+    raw_text = normalize_newlines(raw_text)
+    source_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
     # Apply the SPDD/REASONS conditional prompt fragment renderer before any
     # downstream processing so block visibility is consistent across the

@@ -2742,6 +2742,45 @@ module = ["charter.*"]
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
+# skills.paths hosts get_primary_project_skill_root / get_primary_global_skill_root,
+# whose concrete ``str | None`` / ``Path | None`` return types are needed by
+# skills/installer.py's _valid_skill_entry and _managed_link (WP06, #4998).
+# Under the ``specify_cli.*`` skip above they resolve as ``Any``, so a
+# narrow-file check on installer.py reports "Returning Any from function
+# declared to return bool" at both call sites. It imports only
+# specify_cli.tool_surface.operations and specify_cli.core.config, so
+# following it cannot drag bootstrap errors into a narrow check — same
+# shape/precedent as the core.paths/asset_preservation.backup entries above
+# (issue #3719) — must stay after the ``specify_cli.*`` skip.
+module = ["specify_cli.skills.paths"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+# skills.manifest hosts compute_content_hash, whose concrete ``-> str``
+# return type is needed by skills/verifier.py's _expected_content_hash
+# (WP06, #4998). Under the ``specify_cli.*`` skip above it resolves as
+# ``Any``, so a narrow-file check on verifier.py reports "Returning Any from
+# function declared to return str". It imports specify_cli.core.atomic,
+# kernel.clock and specify_cli.skills.paths (itself overridden above), so
+# following it cannot drag bootstrap errors into a narrow check — same
+# shape/precedent as the entries above; must stay after the
+# ``specify_cli.*`` skip.
+module = ["specify_cli.skills.manifest"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+# skills.registry hosts SkillRegistry, subclassed by
+# installer.py::_CapturedSkillRegistry (WP06, #4998). Under the
+# ``specify_cli.*`` skip above it resolves as ``Any`` and the subclass
+# declaration reads "Class cannot subclass SkillRegistry (has type Any)".
+# It imports only specify_cli.skills.paths (itself overridden above), so
+# following it cannot drag bootstrap errors into a narrow check — same
+# shape as the core.errors/auth.errors entries above (issue #3719); must
+# stay after the ``specify_cli.*`` skip.
+module = ["specify_cli.skills.registry"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
 # Transitional quarantine for legacy modules that are still being migrated to strict typing.
 module = [
     "specify_cli.agent_utils.status",

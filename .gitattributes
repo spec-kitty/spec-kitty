@@ -1,3 +1,11 @@
+# Pin doctrine-skill and command-mission-step sources to LF (#4998 / WP06):
+# a CRLF checkout of these trees (e.g. Windows without core.autocrlf=input)
+# defeats the ``\n``-only frontmatter regexes in skills/command_renderer.py,
+# doubling frontmatter blocks on install/render. eol=lf normalises the
+# working-tree line ending regardless of platform checkout config.
+src/charter/offering/skills/** text eol=lf
+packs/built-in/missions/mission-steps/** text eol=lf
+
 kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log
 kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log
 kitty-specs/**/meta.json merge=spec-kitty-meta
