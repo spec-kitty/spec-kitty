@@ -506,10 +506,18 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # ``suggests`` throughout — all advisory pointers (DIRECTIVE_052 is
     # ``enforcement: advisory``), each following an existing
     # (directive -> {directive,styleguide}, suggests) pattern in the shipped
-    # graph. All five targets are already edge-incident, so no orphan set moves;
-    # the directive itself is de-orphaned by these five outbound edges. Ledgered
-    # as composition entry (22) in
-    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    # graph. All five targets are already edge-incident. Ledgered as
+    # composition entry (22) in ``tests/doctrine/drg/migration/
+    # test_extractor_projection.py``.
+    # These five are OUTBOUND-only, so they do NOT de-orphan DIRECTIVE_052
+    # itself — ``charter lint``'s ``OrphanChecker`` (checks/orphan.py) flags a
+    # directive that has no INCOMING scope/requires/suggests/applies/refines
+    # edge, and none of these five point *at* DIRECTIVE_052. That gap was
+    # caught post-spec (nightly-drift-reds-01M3M14S R7): DIRECTIVE_052 showed
+    # up as orphaned in ``tests/specify_cli/charter_lint/checks/test_orphan.py``
+    # on every consumer install. The inbound edge below (procedure:disciplined-
+    # defect-diagnosis --suggests--> DIRECTIVE_052) is what actually resolves
+    # that lint finding; see composition entry (24) in the same file.
     (
         "directive:DIRECTIVE_052",
         "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
@@ -533,6 +541,24 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     (
         "directive:DIRECTIVE_052",
         "styleguide:adversarial-squad-cadence",
+        Relation.SUGGESTS,
+    ),
+    # DIRECTIVE_052 lint-orphan fix (nightly-drift-reds-01M3M14S, R7 / WP04):
+    # the five edges above are all OUTBOUND from DIRECTIVE_052, so the
+    # ``charter lint`` ``OrphanChecker`` (which requires an INCOMING scope/
+    # requires/suggests/applies/refines edge) still flagged DIRECTIVE_052 as
+    # orphaned on every consumer install. This curated inbound edge follows
+    # the ``DISCIPLINED_REFACTORING`` precedent (``procedure:refactoring
+    # --suggests--> directive:DISCIPLINED_REFACTORING`` above): the procedure
+    # that diagnoses a defect's root cause is the natural inbound pointer to
+    # the directive that then asks for a durable (not a symptomatic) fix of
+    # it. ``suggests``, advisory, no cascade: it stays consistent with
+    # DIRECTIVE_052's own ``enforcement: advisory`` and pulls in no dependents.
+    # Ledgered as composition entry (24) in
+    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    (
+        "procedure:disciplined-defect-diagnosis",
+        "directive:DIRECTIVE_052",
         Relation.SUGGESTS,
     ),
     # DIRECTIVE_053 (Choose Op or Mission Before Starting) and its heuristic

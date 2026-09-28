@@ -732,6 +732,42 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     entry (22), and join the live ``dead`` partition, which asserts no frozen
 #:     membership. The directive is charter-activated in this repository's
 #:     ``.kittify``.
+#: (24) DIRECTIVE_052 lint-orphan fix (mission ``nightly-drift-reds-01M3M14S``,
+#:     R7/WP04, #5258): entry (22)'s five ``directive:DIRECTIVE_052 --suggests-->``
+#:     edges are all OUTBOUND from DIRECTIVE_052. That satisfies THIS module's
+#:     pure-orphan notion (``_orphan_urns`` counts edge incidence in *either*
+#:     direction, so DIRECTIVE_052 was never a ``_SHIPPED_ORPHANS`` member), but
+#:     not ``charter lint``'s ``OrphanChecker`` (``specify_cli/charter_lint/
+#:     checks/orphan.py``), which requires an INCOMING scope/requires/suggests/
+#:     applies/refines edge. Entry (22)'s own prose ("the directive itself is
+#:     de-orphaned by these five outbound edges") was therefore wrong for the
+#:     lint checker's stricter reading, and DIRECTIVE_052 showed up in
+#:     ``tests/specify_cli/charter_lint/checks/test_orphan.py::
+#:     TestOrphanCheckerBuiltInGraphExactSet::
+#:     test_orphaned_directive_findings_exact_set`` on every consumer install.
+#:     ONE new curated (pure) edge in ``_CURATED_ARTIFACT_EDGES``:
+#:     ``procedure:disciplined-defect-diagnosis --suggests--> directive:
+#:     DIRECTIVE_052``, following the ``procedure:refactoring --suggests-->
+#:     directive:DISCIPLINED_REFACTORING`` precedent (edge 1 of #3009 family, near
+#:     the top of ``_CURATED_ARTIFACT_EDGES``) rather than a profile ``requires``
+#:     edge. No new node (both endpoints already exist), so PURE golden counts
+#:     move +0 NODES / +1 edge: ``_EXPECTED_NODE_COUNT`` UNCHANGED (auto-tracked
+#:     via ``pure_builtin_node_count()``), ``_EXPECTED_EDGE_COUNT`` not frozen
+#:     (floor holds). Relation histogram: ``suggests`` +1, ``requires``/``scope``/
+#:     ``in_tension_with``/``reconciles_tension`` UNCHANGED -- the ``requires``
+#:     histogram is explicitly unaffected (R7/R8 both require it stay put).
+#:     ``suggests`` stays a test-unenforced prose count in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     left as-is per the ledger entry (19)/(22) precedent for a small curated
+#:     ``suggests`` add. ORPHAN SETS (this module's) UNCHANGED: both endpoints
+#:     were already edge-incident, so ``_SHIPPED_ORPHANS`` stays at 21.
+#:     ``charter lint``'s ``orphaned_directive`` finding set (a DIFFERENT,
+#:     stricter notion, asserted only in
+#:     ``tests/specify_cli/charter_lint/checks/test_orphan.py``) drops
+#:     DIRECTIVE_052 and returns to the frozen ``{DIRECTIVE_035, DIRECTIVE_039}``.
+#:     REACHABILITY: DIRECTIVE_052 remains action-unreachable, the same INERT
+#:     shape as entries (22)/(23); it joins the live action-unreachable ``dead``
+#:     partition, which asserts no frozen membership, so nothing there moves.
 #: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
 #: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
 #: shipped source file across the file-backed kinds, plus the structurally-derived

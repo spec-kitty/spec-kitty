@@ -124,6 +124,9 @@ edges:
   relation: requires
   reason: The fix is not complete until relevant quality gates pass.
 - source: procedure:disciplined-defect-diagnosis
+  target: directive:DIRECTIVE_052
+  relation: suggests
+- source: procedure:disciplined-defect-diagnosis
   target: procedure:test-first-bug-fixing
   relation: requires
   reason: Once the defect is minimized, the fix follows the test-first bug-fixing procedure.

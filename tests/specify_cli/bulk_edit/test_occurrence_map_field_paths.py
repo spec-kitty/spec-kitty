@@ -463,6 +463,27 @@ class TestB2RealExemptionSet:
         ``directive-references``. The minutes-mahad enhancement then adds two
         profile directive references, moving the occurrence total from 92 to 94
         without changing that file set.
+
+        NOTE (mission nightly-drift-reds-01M3M14S, R8/WP04, #5258): re-derived
+        against the current corpus, two more independent drifts landed on top
+        of the drupal-pack baseline (94 -> 100 / 14 -> 21) recorded above:
+        ``3e3bcb4da`` added a ``directive-references: [..., "053"]`` entry to
+        ``planner-priti`` (DIRECTIVE_053's inbound edge, ledger entry (23) in
+        ``test_extractor_projection.py``) — GOVERNANCE 100 -> 101, file set
+        UNCHANGED (``planner-priti`` already carried ``directive-references``).
+        ``414bbe89b`` (#5203) removed dead ``src/doctrine`` path references from
+        ``python-conventions.styleguide.yaml`` and
+        ``deployable-skill-authoring.styleguide.yaml`` — RAW_MATERIAL 21 -> 19;
+        ``python-conventions`` loses its only RAW_MATERIAL entry entirely and
+        drops out of both the file set and the RAW/MIGRATE overlap below (it
+        still carries MIGRATE entries, so it stays in ``migrate_files``, just
+        not in ``raw_files`` any more). This WP's own R7 fix — the curated
+        ``procedure:disciplined-defect-diagnosis --suggests--> DIRECTIVE_052``
+        edge added in ``_CURATED_ARTIFACT_EDGES`` — touches neither surface:
+        it is a pure DRG edge between an already-shipped procedure and an
+        already-shipped directive, not a profile ``directive-references`` entry
+        or a styleguide/toolguide path reference, so GOVERNANCE/RAW_MATERIAL
+        are unaffected by it.
         """
         inv = _load_inventory_module(monkeypatch)
         inventory = inv.collect()
@@ -480,9 +501,11 @@ class TestB2RealExemptionSet:
         # additional directive references, then the drupal doctrine pack
         # (drupal-dries profile + drupal-conventions/drupal-security-performance
         # styleguides + drupal-review-checks toolguide) moved GOVERNANCE 94 -> 100
-        # and RAW_MATERIAL 14 -> 21.
-        assert len(gov) == 100
-        assert len(raw) == 21
+        # and RAW_MATERIAL 14 -> 21, then planner-priti -> DIRECTIVE_053
+        # (``3e3bcb4da``) moved GOVERNANCE 100 -> 101, then #5203
+        # (``414bbe89b``) moved RAW_MATERIAL 21 -> 19.
+        assert len(gov) == 101
+        assert len(raw) == 19
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
         assert gov_files == {
@@ -524,13 +547,18 @@ class TestB2RealExemptionSet:
                 "drupal-security-performance",
                 "plain-language",
                 "planning-and-tracking",
-                "python-conventions",
                 "test-desiderata-and-boundaries",
                 "writing/kitty-glossary-writing",
             )
         } | {
             "toolguides/drupal-review-checks.toolguide.yaml",
-        }, "the RAW_MATERIAL file set moved — SC-011's built-in styleguides plus the drupal doctrine pack (2 styleguides + 1 toolguide)"
+        }, (
+            "the RAW_MATERIAL file set moved — SC-011's built-in styleguides plus "
+            "the drupal doctrine pack (2 styleguides + 1 toolguide), minus "
+            "python-conventions (#5203, 414bbe89b, removed its only dead "
+            "src/doctrine path reference; it still carries MIGRATE entries, so "
+            "it survives in migrate_files, just not here)"
+        )
         # Post-consolidation (mission doctrine-drg-silent-drop-boundary): the
         # retired ``context-sources.directives`` used to add a MIGRATE entry to
         # EVERY governed profile, so the original "every GOVERNANCE file also
@@ -571,10 +599,13 @@ class TestB2RealExemptionSet:
                 "drupal-security-performance",
                 "plain-language",
                 "planning-and-tracking",
-                "python-conventions",
                 "test-desiderata-and-boundaries",
             )
-        }, "the RAW_MATERIAL/MIGRATE overlap moved"
+        }, (
+            "the RAW_MATERIAL/MIGRATE overlap moved — python-conventions dropped "
+            "out (#5203, 414bbe89b): it lost its only RAW_MATERIAL entry, so it "
+            "is no longer in raw_files at all and cannot be in this intersection"
+        )
 
     def test_every_real_governance_field_is_expressible_as_field_path_exception(
         self,
