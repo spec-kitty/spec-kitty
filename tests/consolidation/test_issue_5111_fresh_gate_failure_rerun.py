@@ -288,3 +288,30 @@ def test_5111_clear_state_deletes_state_before_marker(tmp_path: Path, monkeypatc
     clear_state(tmp_path, MISSION_ID)
 
     assert unlinked == ["state.json", _MARKER_FILENAME]
+
+
+def test_5111_stateless_abort_drops_an_orphan_marker(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A marker with no state (e.g. a kill between the two creation writes) is cleared by ``--abort`` too."""
+    write_post_fix_marker(approved_repo, MISSION_ID)
+    assert not get_state_path(approved_repo, MISSION_ID).exists()
+
+    monkeypatch.chdir(approved_repo)
+    abort = CliRunner().invoke(cli_app, ["consolidate", "--mission", MISSION_SLUG, "--abort"])
+    assert abort.exit_code == 0, abort.output
+
+    assert not _marker_path(approved_repo).exists(), "a state-less --abort left the orphan marker behind"
+
+
+def test_5111_strategy_persist_failure_clears_the_fresh_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The first write after record creation is inside the guard: its failure clears the record too."""
+    from specify_cli.consolidation import executor
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(executor, "_persist_executed_strategy", _boom)
+    code, out, _ = _consolidate(approved_repo, monkeypatch, gates_pass=True)
+    assert code != 0, out
+
+    assert not get_state_path(approved_repo, MISSION_ID).exists(), "a failed strategy persist left a zero-progress state"
+    assert not _marker_path(approved_repo).exists()

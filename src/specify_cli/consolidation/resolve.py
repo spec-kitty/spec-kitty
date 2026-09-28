@@ -314,6 +314,12 @@ def _cleanup_merge_workspaces_for_state(
         cleanup_keys.append(mission_slug)
 
     for key in dict.fromkeys(key for key in cleanup_keys if key):
+        if state_entry is None:
+            # #5111: no state exists for this mission, so a reconciliation marker
+            # left here is an orphaned half of a transaction record (the marker
+            # survives workspace cleanup like state.json). Drop it through the
+            # single record-clear owner so the runtime dir can be removed.
+            clear_state(repo_root, key)
         cleanup_merge_workspace(key, repo_root)
 
 

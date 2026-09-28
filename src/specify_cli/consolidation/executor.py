@@ -3225,14 +3225,6 @@ def _run_lane_based_consolidation_locked(
     # NFR-004) that establishes the consumption seam. Flagged to WP09.
     lanes_manifest.target_branch = state.target_branch
 
-    # terminus-integrity-followups WP05 (T020, FR-003, F14): mirror the C-1 target
-    # reseed above for strategy — persist the strategy attempt-1 ACTUALLY executes
-    # (the CLI-resolved value threaded in here) so a ``--resume`` reads a truthful
-    # authority instead of the inert ``ConsolidationState.strategy`` default. Fresh-only; a
-    # resume's persisted value already sourced this run's strategy (WP04 CLI
-    # precedence) and must never be re-stamped.
-    _persist_executed_strategy(state, strategy, is_resume=is_resume, main_repo=main_repo)
-
     run = _MergeRunState(
         main_repo=main_repo,
         mission_slug=mission_slug,
@@ -3263,6 +3255,15 @@ def _run_lane_based_consolidation_locked(
         _heal_pending_coord_reconcile(run)
 
     with _clear_fresh_record_on_pre_mutation_exit(run):
+        # terminus-integrity-followups WP05 (T020, FR-003, F14): mirror the C-1 target
+        # reseed above for strategy — persist the strategy attempt-1 ACTUALLY executes
+        # (the CLI-resolved value threaded in here) so a ``--resume`` reads a truthful
+        # authority instead of the inert ``ConsolidationState.strategy`` default. Fresh-only; a
+        # resume's persisted value already sourced this run's strategy (WP04 CLI
+        # precedence) and must never be re-stamped. Inside the #5111 guard: it is the
+        # first write after the fresh record is created, so an I/O failure here
+        # clears that record too instead of leaving a zero-progress resume behind.
+        _persist_executed_strategy(run.state, run.strategy, is_resume=run.is_resume, main_repo=run.main_repo)
         _phase_gates_and_state(run)
         # T008 (FR-007/008): capture the pre-mutation checkpoint strictly before the
         # first mutating phase. Consumed by the narrow backstop immediately below
