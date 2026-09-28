@@ -383,3 +383,67 @@ def test_preflight_with_recovery_reports_and_exits_when_still_refused_after_reco
     # #4933: see the sibling assertion's comment above -- same re-pin, no state.json here.
     mock_report.assert_called_once_with(exc_after, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
     assert exc_info.value.exit_code == 1
+
+
+# --- pre-PR fold N6: a corrupt state.json never masks the refusal ------------
+
+
+def _write_corrupt_state(repo: Path, mission_id: str = "01ID") -> Path:
+    from specify_cli.consolidation.state import get_state_path
+
+    state_path = get_state_path(repo, mission_id)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text("{this is not json", encoding="utf-8")
+    return state_path
+
+
+def test_preflight_with_recovery_corrupt_state_still_reports_original_refusal(tmp_path: Path) -> None:
+    """N6: a corrupt ``state.json`` read on the refusal path must not raise
+    ``ConsolidationStateReadError`` over the dirty-tree refusal -- the original
+    refusal is reported (fail-closed ``base_sha=None``) and the run exits 1."""
+    manifest, retention = _manifest_and_retention()
+    exc = _refusal()
+    _write_corrupt_state(tmp_path)
+
+    with (
+        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=exc),
+        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=False),
+        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        pytest.raises(typer.Exit) as exc_info,
+    ):
+        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
+
+    mock_report.assert_called_once_with(exc, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
+    assert exc_info.value.exit_code == 1
+
+
+def test_preflight_with_recovery_corrupt_state_after_retry_still_reports(tmp_path: Path) -> None:
+    """N6 (second refusal site): same fail-closed tolerance after a recovery retry."""
+    manifest, retention = _manifest_and_retention()
+    exc = _refusal()
+    exc_after = _refusal()
+    _write_corrupt_state(tmp_path)
+
+    with (
+        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=[exc, exc_after]),
+        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=True),
+        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        pytest.raises(typer.Exit) as exc_info,
+    ):
+        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
+
+    mock_report.assert_called_once_with(exc_after, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
+    assert exc_info.value.exit_code == 1
+
+
+def test_recover_false_on_corrupt_state(tmp_path: Path) -> None:
+    """N6: the recovery probe itself treats an unreadable ``state.json`` as
+    "no provable resume state" (fail-closed False, no auto-reset) instead of
+    raising over the refusal it is trying to adjudicate."""
+    _write_corrupt_state(tmp_path)
+
+    with patch.object(ex, "run_command") as mock_run_command:
+        result = ex._recover_behind_head_primary_on_resume(_refusal(), tmp_path, "01ID", mission_branch="kitty/mission-m")
+
+    assert result is False
+    mock_run_command.assert_not_called()

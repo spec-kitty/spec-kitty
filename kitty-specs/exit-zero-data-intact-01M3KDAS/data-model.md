@@ -20,7 +20,7 @@ No new persisted schemas. This mission changes how existing records are read, fo
 ## Mission number
 
 - Field: `mission_number` in `kitty-specs/<mission>/meta.json` on the **target branch**.
-- "Assigned" means an integer ≥1 (`_is_assigned_mission_number`). `null`, missing and non-integer values are unassigned.
+- "Assigned" means an integer ≥1 (`is_assigned_mission_number`, the shared leaf in `consolidation/mission_number.py`). `null`, missing and non-integer values are unassigned.
 - Assignment: `max(assigned numbers on target) + 1`, under the consolidation lock.
 - Invariant: the number printed by `spec-kitty consolidate` equals the number read back from the target branch after the bake. Otherwise the command exits non-zero.
 - Merge-driver rule: an assigned target value wins; an unassigned target value never overrides an assigned mission-side value.

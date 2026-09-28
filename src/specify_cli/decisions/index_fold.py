@@ -59,7 +59,6 @@ from specify_cli.decisions.models import (
 
 __all__ = [
     "FoldError",
-    "ALLOWED_TERMINAL_REOPEN",
     "is_allowed_terminal_reopen",
     "build_opened_entry",
     "apply_terminal",
@@ -270,7 +269,31 @@ def _select_terminal_event(
     raise FoldError(f"unfoldable combination of {len(resolved_events)} DecisionPointResolved events for one decision_point_id: outcomes={outcomes}")
 
 
+#: Errors a malformed on-disk PAYLOAD raises inside the fold (a missing key,
+#: an out-of-enum value, a wrong-typed field, a pydantic ``ValidationError``
+#: -- itself a ``ValueError``). :func:`fold_events` re-raises them as
+#: :class:`FoldError` so every consumer handles ONE malformed-input type.
+_PAYLOAD_ERRORS: tuple[type[Exception], ...] = (KeyError, TypeError, ValueError, AttributeError)
+
+
 def fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
+    """Fold one decision's event envelopes, raising only :class:`FoldError` on bad input.
+
+    Delegates to :func:`_fold_events`; a malformed payload (e.g. an opened
+    event missing ``origin_flow``, or ``terminal_outcome: "bogus"``) surfaces
+    as ``FoldError(...) from <original>`` instead of a bare
+    ``KeyError``/``ValueError``, so the read-only ``doctor decisions`` reports
+    it as a malformed fold rather than crashing (pre-PR fold N1, #4919).
+    """
+    try:
+        return _fold_events(events)
+    except FoldError:
+        raise
+    except _PAYLOAD_ERRORS as exc:
+        raise FoldError(f"malformed decision event payload ({type(exc).__name__}: {exc})") from exc
+
+
+def _fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
     """Fold one decision's ordered event envelopes into an ``IndexEntry``.
 
     Order-independent (#4919, plan D3): the event-log git merge driver

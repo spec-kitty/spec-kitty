@@ -722,17 +722,20 @@ class MergeOutcomeVerifier:
         basename match — closing a silent-data-loss defect (Epic #5001 landing
         remediation): this method used to delegate to
         :func:`~specify_cli.coordination.coherence.is_toolchain_generated_churn`,
-        a DIRTY-STATE-gate classifier that is CORRECT for its own callers but
-        matches by bare basename anywhere in the repository
-        (``PurePosixPath(path).name == "meta.json"`` matches ``src/config/
-        meta.json`` just as readily as the mission's own ``kitty-specs/<slug>/
-        meta.json``). In the squash content axis a path this classifier calls
-        bookkeeping is skipped BEFORE authored-blob attribution, so a removed/
-        canceled WP's commit touching an ordinary product-source file merely
-        NAMED like a toolchain artifact rode a carrier lane onto the target and
-        shipped at exit 0. ``coherence.py`` itself is intentionally UNCHANGED —
-        its whole-tree breadth is correct for the dirty-state gates that consume
-        it; only this axis's classification is narrowed.
+        a DIRTY-STATE-gate classifier that, at the time, matched by bare
+        basename anywhere in the repository (``PurePosixPath(path).name ==
+        "meta.json"`` matched ``src/config/meta.json`` just as readily as the
+        mission's own ``kitty-specs/<slug>/meta.json``). In the squash content
+        axis a path that classifier called bookkeeping was skipped BEFORE
+        authored-blob attribution, so a removed/canceled WP's commit touching an
+        ordinary product-source file merely NAMED like a toolchain artifact rode
+        a carrier lane onto the target and shipped at exit 0. #4933 (WP04) has
+        since made ``coherence.py``'s ``meta.json`` leg depth-exact
+        (``kitty-specs/<mission>/meta.json`` at any monorepo prefix, plus the
+        legacy ``.kittify/meta.json``), but it is still not anchored to THIS
+        claim's slug — it exempts ANY mission's ``meta.json`` — and it remains a
+        dirty-state-gate predicate with its own consumers. This axis therefore
+        keeps its own, narrower classification rather than delegating to it.
 
         A path counts as bookkeeping only when it is anchored to:
 

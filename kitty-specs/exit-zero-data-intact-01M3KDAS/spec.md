@@ -106,7 +106,7 @@ A developer installs or upgrades Spec Kitty from a source checkout with Windows 
 
 1. **Given** doctrine skill sources with CRLF line endings, **When** the user installs or upgrades, **Then** each installed skill has exactly one frontmatter block and matches an LF-source install.
 2. **Given** command templates with CRLF line endings, **When** the user installs command skills, **Then** each installed command skill has exactly one frontmatter block and matches an LF-source install.
-3. **Given** an install already corrupted with doubled frontmatter, whose files still match what the install manifest recorded, **When** the user runs `spec-kitty upgrade` or the skills repair (`doctor --fix`), **Then** every such file is restored to the clean content, and a second run reports nothing to repair.
+3. **Given** an install already corrupted with doubled frontmatter, whose files still match what the install manifest recorded, **When** the user runs `spec-kitty upgrade` or the skills repair (`spec-kitty doctor tool-surfaces --kind doctrine-skill --fix` for doctrine skills, `spec-kitty doctor skills --fix` for command skills), **Then** every such file is restored to the clean content, and a second run reports nothing to repair.
 4. **Given** a corrupted file the user has edited since installation, so it no longer matches the manifest, **When** the user runs repair, **Then** it is not overwritten silently; it is reported as needing the user's consent, as happens today.
 5. **Given** a fresh clone of the Spec Kitty repository on any platform, **When** it is checked out, **Then** shipped skill sources and command templates arrive with LF line endings.
 
@@ -171,7 +171,7 @@ A developer runs `spec-kitty migrate --dry-run <subcommand>`, putting the flag b
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Red-first proof per issue | Each of the six issues has at least one regression test that fails on the pre-fix code and passes after. It runs through the CLI entry point the issue names: `agent decision` + `doctor decisions`, `consolidate`, `agent config sync --sync-hooks`, `upgrade` / `doctor --fix`, `migrate`. Coverage: 6 of 6 issues. | Reliability | High | Open |
+| NFR-001 | Red-first proof per issue | Each of the six issues has at least one regression test that fails on the pre-fix code and passes after. It runs through the CLI entry point the issue names: `agent decision` + `doctor decisions`, `consolidate`, `agent config sync --sync-hooks`, `upgrade` / `doctor tool-surfaces --kind doctrine-skill --fix`, `migrate`. Coverage: 6 of 6 issues. | Reliability | High | Open |
 | NFR-002 | Destructive-fixture invariant | For each of the six entry points above, a test over its destructive fixture asserts that the exit code is non-zero, or that the user's data is present and unchanged. Each such test carries a same-fixture positive control. | Reliability | High | Open |
 | NFR-003 | Actionable failures | Every new non-zero exit (100%) prints the affected path or identifier and at least one concrete next action. | Usability | High | Open |
 | NFR-004 | Code quality gates | New and changed code passes `ruff check`, `ruff format --check` and `mypy` with zero new findings. Each changed function stays at cyclomatic complexity ≤15, with no new suppressions. | Maintainability | High | Open |

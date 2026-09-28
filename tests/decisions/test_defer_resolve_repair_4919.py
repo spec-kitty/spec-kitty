@@ -44,7 +44,7 @@ from specify_cli.cli.commands._decisions_doctor import (
     run_decisions_reconciliation,
 )
 from specify_cli.decisions import store as _store
-from specify_cli.decisions.models import OriginFlow
+from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
 from specify_cli.decisions.service import defer_decision, open_decision, resolve_decision
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -613,3 +613,308 @@ def test_healthy_open_resolve_decision_stays_clean(tmp_path: Path) -> None:
 
     after = index_path.read_bytes()
     assert after == before, "a healthy corpus must be a no-op, even under --repair"
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR fold B2: ``--repair`` must never wipe a non-wire field of an entry it
+# rebuilds. ``summary_json`` (widen-review provenance, C-005) is never placed
+# on the wire, so the fold always yields ``summary_json=None``; a repair
+# triggered by ONE stale status rebuilt EVERY entry from the log and silently
+# erased every other decision's provenance, exit 0.
+# ---------------------------------------------------------------------------
+
+
+def _set_index_status(repo_root: Path, decision_id: str, status: DecisionStatus) -> None:
+    """Hand-edit one index entry's status -- a stale index the log disagrees with."""
+    ledger_dir = _ledger_dir(repo_root, MISSION_SLUG)
+    index = _store.load_index(ledger_dir)
+    entries = tuple(e.model_copy(update={"status": status}) if e.decision_id == decision_id else e for e in index.entries)
+    _store.save_index(ledger_dir, index.model_copy(update={"entries": entries}))
+
+
+def _entry(repo_root: Path, decision_id: str) -> IndexEntry:
+    ledger_dir = _ledger_dir(repo_root, MISSION_SLUG)
+    return next(e for e in _store.load_index(ledger_dir).entries if e.decision_id == decision_id)
+
+
+def test_b2_repair_of_one_stale_status_keeps_other_decisions_summary_json(tmp_path: Path) -> None:
+    _setup_project(tmp_path)
+    provenance_resp = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="b2-provenance-step",
+        input_key="b2-provenance-input",
+        question="Provenance?",
+        actor="alice",
+    )
+    resolve_decision(
+        tmp_path,
+        MISSION_SLUG,
+        provenance_resp.decision_id,
+        final_answer="widened",
+        summary_json={"k": "provenance"},
+        actor="alice",
+    )
+    stale_id = _open_defer_resolve(tmp_path, step_id="b2-stale-step", final_answer="done")
+    _set_index_status(tmp_path, stale_id, DecisionStatus.DEFERRED)
+    provenance_before = _entry(tmp_path, provenance_resp.decision_id)
+    assert provenance_before.summary_json == {"k": "provenance"}
+
+    repair_result = _invoke_doctor(["decisions", "--mission", MISSION_SLUG, "--repair", "--json"], tmp_path)
+
+    assert repair_result.exit_code == 0, repair_result.output
+    payload = json.loads(repair_result.output)
+    assert payload["repaired"] is True, payload
+    assert payload["clean"] is True, payload
+    assert _entry(tmp_path, stale_id).status is DecisionStatus.RESOLVED
+    assert _entry(tmp_path, provenance_resp.decision_id) == provenance_before, "repair wiped a non-wire field"
+
+
+def test_b2_stale_entry_itself_keeps_its_summary_json(tmp_path: Path) -> None:
+    """The entry whose status IS rewritten takes wire fields from the fold
+    but carries its own non-wire ``summary_json`` forward."""
+    _setup_project(tmp_path)
+    resp = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="b2-self-step",
+        input_key="b2-self-input",
+        question="Self?",
+        actor="alice",
+    )
+    resolve_decision(tmp_path, MISSION_SLUG, resp.decision_id, final_answer="yes", summary_json={"k": "mine"}, actor="alice")
+    _set_index_status(tmp_path, resp.decision_id, DecisionStatus.OPEN)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=True, repair=True)
+
+    assert exc_info.value.exit_code == 0
+    healed = _entry(tmp_path, resp.decision_id)
+    assert healed.status is DecisionStatus.RESOLVED
+    assert healed.summary_json == {"k": "mine"}
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR fold N1: a malformed PAYLOAD (not just a malformed event set) must
+# be reported as a malformed fold, never crash the read-only doctor.
+# ---------------------------------------------------------------------------
+
+
+def _corrupt_payload(repo_root: Path, decision_id: str, event_type: str, mutate: Any) -> None:
+    lines = _read_events(repo_root)
+    for event in lines:
+        if event.get("event_type") == event_type and event.get("payload", {}).get("decision_point_id") == decision_id:
+            mutate(event["payload"])
+    _events_path(repo_root).write_text("\n".join(json.dumps(e) for e in lines) + "\n", encoding="utf-8")
+
+
+def _drop_origin_flow(payload: dict[str, Any]) -> None:
+    del payload["origin_flow"]
+
+
+def _bogus_outcome(payload: dict[str, Any]) -> None:
+    payload["terminal_outcome"] = "bogus"
+
+
+_PAYLOAD_CORRUPTIONS = [
+    pytest.param("DecisionPointOpened", _drop_origin_flow, id="opened-missing-origin_flow"),
+    pytest.param("DecisionPointResolved", _bogus_outcome, id="resolved-bogus-terminal_outcome"),
+]
+
+
+def _open_and_resolve(repo_root: Path, step_id: str) -> str:
+    resp = open_decision(
+        repo_root,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id=step_id,
+        input_key=f"{step_id}-input",
+        question=f"{step_id}?",
+        actor="alice",
+    )
+    resolve_decision(repo_root, MISSION_SLUG, resp.decision_id, final_answer="a", actor="alice")
+    return str(resp.decision_id)
+
+
+@pytest.mark.parametrize(("event_type", "mutate"), _PAYLOAD_CORRUPTIONS)
+def test_n1_malformed_payload_is_reported_not_crashed(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    event_type: str,
+    mutate: Any,
+) -> None:
+    _setup_project(tmp_path)
+    bad_id = _open_and_resolve(tmp_path, "n1-bad-step")
+    good_id = _open_and_resolve(tmp_path, "n1-good-step")
+    _corrupt_payload(tmp_path, bad_id, event_type, mutate)
+    bad_entry_before = _entry(tmp_path, bad_id)
+
+    with pytest.raises(typer.Exit) as diag_exc:
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=True, repair=False)
+    assert diag_exc.value.exit_code == 0
+    diag_payload = json.loads(capsys.readouterr().out)
+    assert diag_payload["clean"] is False, diag_payload
+    assert diag_payload["malformed_folds"] == [bad_id], diag_payload
+
+    with pytest.raises(typer.Exit) as repair_exc:
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=False, repair=True)
+    assert repair_exc.value.exit_code == 1
+    out = capsys.readouterr().out
+    assert bad_id in out
+    assert "left in place" in out
+    assert _entry(tmp_path, bad_id) == bad_entry_before, "the malformed decision's entry must be kept"
+    assert _entry(tmp_path, good_id).status is DecisionStatus.RESOLVED
+
+
+@pytest.mark.parametrize(("event_type", "mutate"), _PAYLOAD_CORRUPTIONS)
+def test_n1_fold_events_wraps_payload_errors_as_folderror(tmp_path: Path, event_type: str, mutate: Any) -> None:
+    from specify_cli.decisions.index_fold import FoldError, fold_events
+
+    _setup_project(tmp_path)
+    decision_id = _open_and_resolve(tmp_path, "n1-unit-step")
+    _corrupt_payload(tmp_path, decision_id, event_type, mutate)
+
+    with pytest.raises(FoldError, match="malformed") as exc_info:
+        fold_events(_events_for_decision(tmp_path, decision_id))
+    assert isinstance(exc_info.value.__cause__, (KeyError, ValueError))
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR fold N2: a slot_key-origin decision's STATUS is on the wire, so a
+# stale status must be reported and repaired even though its attribution
+# (step_id/slot_key split) cannot be rebuilt from the log.
+# ---------------------------------------------------------------------------
+
+
+def test_n2_slot_key_origin_stale_status_is_reported_and_repaired(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _setup_project(tmp_path)
+    resp = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        slot_key="n2-slot",
+        input_key="n2-input",
+        question="Slot?",
+        actor="alice",
+    )
+    defer_decision(tmp_path, MISSION_SLUG, resp.decision_id, rationale="later", actor="alice")
+    resolve_decision(tmp_path, MISSION_SLUG, resp.decision_id, final_answer="slot answer", actor="alice")
+    _set_index_status(tmp_path, resp.decision_id, DecisionStatus.DEFERRED)
+
+    with pytest.raises(typer.Exit) as diag_exc:
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=True, repair=False)
+    assert diag_exc.value.exit_code == 0
+    diag_payload = json.loads(capsys.readouterr().out)
+    assert diag_payload["status_mismatch"] == [{"decision_id": resp.decision_id, "index_status": "deferred", "folded_status": "resolved"}]
+
+    with pytest.raises(typer.Exit) as repair_exc:
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=True, repair=True)
+    assert repair_exc.value.exit_code == 0
+    repair_payload = json.loads(capsys.readouterr().out)
+    assert repair_payload["clean"] is True, repair_payload
+    assert repair_payload["lossy_attribution"] == [resp.decision_id]
+
+    healed = _entry(tmp_path, resp.decision_id)
+    assert healed.status is DecisionStatus.RESOLVED
+    assert healed.final_answer == "slot answer"
+    assert healed.slot_key == "n2-slot", "attribution must be kept, not rebuilt from the collapsed wire field"
+    assert healed.step_id is None
+
+
+# ---------------------------------------------------------------------------
+# Coverage fold: the human-text ``stale status`` line.
+# ---------------------------------------------------------------------------
+
+
+def test_diagnose_human_output_names_stale_status(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _setup_project(tmp_path)
+    decision_id = _open_defer_resolve(tmp_path, step_id="human-stale-step")
+    _set_index_status(tmp_path, decision_id, DecisionStatus.DEFERRED)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=False, repair=False)
+
+    assert exc_info.value.exit_code == 0
+    out = " ".join(capsys.readouterr().out.split())
+    assert "stale status" in out
+    assert f"{decision_id} (index=deferred, log=resolved)" in out
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR fold B2/N2: ``_reconcile_entry`` branch-level unit tests.
+# ---------------------------------------------------------------------------
+
+
+def _index_entry(**overrides: Any) -> IndexEntry:
+    from kernel.clock import parse_iso
+
+    fields: dict[str, Any] = {
+        "decision_id": "01KRECONCILE0000000000000A",
+        "origin_flow": OriginFlow.CHARTER,
+        "step_id": "step-a",
+        "input_key": "in",
+        "question": "Q?",
+        "status": DecisionStatus.RESOLVED,
+        "final_answer": "yes",
+        "created_at": parse_iso("2026-09-01T00:00:00+00:00"),
+        "resolved_at": parse_iso("2026-09-02T00:00:00+00:00"),
+        "resolved_by": "alice",
+        "opened_by": "alice",
+        "mission_id": MISSION_ID,
+        "mission_slug": MISSION_SLUG,
+    }
+    fields.update(overrides)
+    return IndexEntry(**fields)
+
+
+def test_reconcile_entry_without_existing_takes_the_fold() -> None:
+    from specify_cli.cli.commands._decisions_doctor import _reconcile_entry
+
+    folded = _index_entry()
+    assert _reconcile_entry(None, folded) is folded
+
+
+def test_reconcile_entry_keeps_wire_agreeing_entry_verbatim() -> None:
+    """Emission-normalised fields (``resolved_by``/``rationale``) and
+    non-wire fields never count as disagreement."""
+    from specify_cli.cli.commands._decisions_doctor import _reconcile_entry
+
+    existing = _index_entry(resolved_by=None, rationale=None, summary_json={"k": "v"}, slot_key="also")
+    folded = _index_entry(resolved_by="alice", rationale="no rationale")
+    assert _reconcile_entry(existing, folded) is existing
+
+
+def test_reconcile_entry_carries_slot_key_beside_agreeing_step_id() -> None:
+    from specify_cli.cli.commands._decisions_doctor import _reconcile_entry
+
+    existing = _index_entry(status=DecisionStatus.DEFERRED, final_answer=None, slot_key="side-slot", summary_json={"k": "v"})
+    folded = _index_entry()
+    merged = _reconcile_entry(existing, folded)
+    assert merged.status is DecisionStatus.RESOLVED
+    assert merged.slot_key == "side-slot"
+    assert merged.summary_json == {"k": "v"}
+
+
+def test_reconcile_entry_takes_fold_step_id_when_it_disagrees() -> None:
+    from specify_cli.cli.commands._decisions_doctor import _reconcile_entry
+
+    existing = _index_entry(step_id="hand-edited", slot_key="stale-slot")
+    folded = _index_entry(step_id="step-a")
+    merged = _reconcile_entry(existing, folded)
+    assert merged.step_id == "step-a"
+    assert merged.slot_key is None
+
+
+def test_reconcile_entry_keeps_slot_key_origin_attribution() -> None:
+    from specify_cli.cli.commands._decisions_doctor import _reconcile_entry
+
+    existing = _index_entry(step_id=None, slot_key="origin-slot", status=DecisionStatus.DEFERRED, final_answer=None)
+    folded = _index_entry(step_id="origin-slot")
+    merged = _reconcile_entry(existing, folded)
+    assert (merged.step_id, merged.slot_key) == (None, "origin-slot")
+    assert merged.status is DecisionStatus.RESOLVED

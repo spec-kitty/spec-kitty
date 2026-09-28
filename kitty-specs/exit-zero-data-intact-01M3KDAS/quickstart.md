@@ -17,8 +17,8 @@ Run every recipe in a scratch repository with an isolated `HOME`/`XDG_*`. Use `s
 4. **#4940:**
    - `agent config set lint_on_edit true`, then write `.claude/settings.json` with permissions, env `"OWNER":"José"`, a user `PreToolUse` hook and the `SessionStart`/`Stop` hooks, encoded as (a) UTF-8 BOM, (b) UTF-16 BOM and (c) cp1252. Run `agent config sync --sync-hooks`.
    - Expected: (a) and (b) are merged with every entry kept and the original bytes backed up; (c) is byte-identical, exit 1.
-   - Repeat (c) with `live-work install`.
+   - Repeat (c) with `live-work install claude`.
 5. **#4998:**
-   - Monkeypatch `SkillRegistry.from_package` to CRLF copies of the skill sources, and render CRLF command templates. Install into a scratch project. Expected: byte-identical to the LF install, and `doctor --fix` / verifier report 0 drifts.
+   - Monkeypatch `SkillRegistry.from_package` to CRLF copies of the skill sources, and render CRLF command templates. Install into a scratch project. Expected: byte-identical to the LF install, and `doctor tool-surfaces --kind doctrine-skill --fix` / `doctor skills --fix` / verifier report 0 drifts.
    - Seed a doubled-frontmatter install whose manifest records the corrupted hash, then run `upgrade`. Expected: files restored, and the second run is a no-op.
 6. **#4964:** for each registered migrate subcommand, run `migrate --dry-run <sub>` on a legacy fixture. Expected: the tree is unchanged, and `repin-hooks` → exit 2. Also `migrate --force <sub>` → exit 2.

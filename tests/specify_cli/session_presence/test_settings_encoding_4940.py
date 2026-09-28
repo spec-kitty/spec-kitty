@@ -570,3 +570,96 @@ class TestDoctorProbe:
         with pytest.raises(SettingsNotDecodableError) as excinfo:
             ClaudeCodeWriter().has_presence(tmp_path)
         _assert_refusal(excinfo, path)
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR coverage fold: the batch prepare/apply seam and the read helper.
+# ---------------------------------------------------------------------------
+
+
+def _user_only_settings_dict() -> dict[str, Any]:
+    """User entries only -- no spec-kitty lifecycle hooks, so a prepare changes it."""
+    data = _fixture_settings_dict()
+    del data["hooks"][SESSION_START_EVENT]
+    del data["hooks"][STOP_EVENT]
+    return data
+
+
+_BATCH_COMMANDS = ((SESSION_START_EVENT, SESSION_START_CMD), (STOP_EVENT, SESSION_STOP_CMD))
+
+
+class TestPreparedBatchApply:
+    def test_utf16_apply_prepared_backs_up_original_bytes_and_rewrites_utf8(self, tmp_path: Path) -> None:
+        """``apply_prepared`` on a provably-decodable non-UTF-8 source (UTF-16
+        BOM) writes a byte-exact backup sidecar BEFORE the UTF-8 rewrite, and
+        the rewrite keeps every user entry."""
+        path = _write_settings_bytes(tmp_path, _utf16_le_bom_bytes(_user_only_settings_dict()))
+        original = path.read_bytes()
+
+        reg = ClaudeCodeHookRegistrar()
+        prepared = reg.prepare_commands(tmp_path, _BATCH_COMMANDS)
+        assert prepared.changed
+        ClaudeCodeHookRegistrar().apply_prepared(tmp_path, prepared)
+
+        backups = _backups(tmp_path)
+        assert len(backups) == 1, backups
+        assert backups[0].read_bytes() == original
+
+        rewritten = path.read_bytes()
+        assert not rewritten.startswith((b"\xff\xfe", b"\xfe\xff", b"\xef\xbb\xbf"))
+        data = json.loads(rewritten.decode("utf-8"))
+        _assert_fixture_entries_present(data)
+        assert any(h.get("command") == SESSION_START_CMD for e in data["hooks"][SESSION_START_EVENT] for h in e.get("hooks", []))
+        assert any(h.get("command") == SESSION_STOP_CMD for e in data["hooks"][STOP_EVENT] for h in e.get("hooks", []))
+
+    def test_plain_utf8_apply_prepared_writes_without_backup(self, tmp_path: Path) -> None:
+        path = _write_settings_bytes(tmp_path, json.dumps(_user_only_settings_dict()).encode("utf-8"))
+
+        reg = ClaudeCodeHookRegistrar()
+        reg.apply_prepared(tmp_path, reg.prepare_commands(tmp_path, _BATCH_COMMANDS))
+
+        assert not _backups(tmp_path)
+        _assert_fixture_entries_present(json.loads(path.read_text(encoding="utf-8")))
+
+    def test_apply_prepared_refuses_when_source_became_undecodable(self, tmp_path: Path) -> None:
+        """A file that turned undecodable between prepare and apply refuses
+        (bytes untouched, no backup) rather than being overwritten."""
+        path = _write_settings_bytes(tmp_path, json.dumps(_user_only_settings_dict()).encode("utf-8"))
+        reg = ClaudeCodeHookRegistrar()
+        prepared = reg.prepare_commands(tmp_path, _BATCH_COMMANDS)
+        cp1252 = _cp1252_bytes(_user_only_settings_dict())
+        path.write_bytes(cp1252)
+
+        with pytest.raises(SettingsNotDecodableError) as excinfo:
+            reg.apply_prepared(tmp_path, prepared)
+
+        _assert_refusal(excinfo, path)
+        assert path.read_bytes() == cp1252
+        assert not _backups(tmp_path)
+
+
+class TestReadSettingsTextHelper:
+    def test_missing_file_returns_none(self, tmp_path: Path) -> None:
+        """FileNotFoundError (incl. the exists()/read race) maps to ``None``."""
+        assert ClaudeCodeHookRegistrar()._read_settings_text(_settings_path(tmp_path)) is None
+
+    def test_load_treats_vanished_file_as_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The benign race where the file vanishes after ``exists()``: ``_load`` yields ``{}``."""
+        _write_settings_bytes(tmp_path, b"{}")
+        reg = ClaudeCodeHookRegistrar()
+        monkeypatch.setattr(reg, "_read_settings_text", lambda _path: None)
+        assert reg._load(_settings_path(tmp_path)) == {}
+
+    def test_decodable_non_utf8_returns_text_and_source_encoding(self, tmp_path: Path) -> None:
+        path = _write_settings_bytes(tmp_path, _utf16_be_bom_bytes(_user_only_settings_dict()))
+        result = ClaudeCodeHookRegistrar()._read_settings_text(path)
+        assert result is not None
+        text, source_encoding = result
+        assert source_encoding != "utf-8"
+        _assert_fixture_entries_present(json.loads(text))
+
+    def test_undecodable_raises_naming_the_file(self, tmp_path: Path) -> None:
+        path = _write_settings_bytes(tmp_path, _cp1252_bytes(_user_only_settings_dict()))
+        with pytest.raises(SettingsNotDecodableError) as excinfo:
+            ClaudeCodeHookRegistrar()._read_settings_text(path)
+        _assert_refusal(excinfo, path)

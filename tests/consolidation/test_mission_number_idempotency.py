@@ -234,8 +234,10 @@ class TestPartialMergeResumeIsIdempotent:
         assert loaded is not None
         assert loaded.mission_number_baked is False
 
-        # The function returns None (not the number) when skipping.
-        assert result is None
+        # Pre-PR fold N3: the skipped (idempotent) branch write no longer
+        # discards the decided number -- it is returned so the executor's
+        # target-tree write + read-back verification still runs.
+        assert result == 1
 
 
 # ---------------------------------------------------------------------------

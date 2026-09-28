@@ -157,6 +157,7 @@ from specify_cli.consolidation.resolve import _load_or_create_merge_state
 from specify_cli.consolidation.state import (
     MergeLockError,
     ConsolidationState,
+    ConsolidationStateReadError,
     acquire_merge_lock,
     clear_state,
     get_state_path,
@@ -758,14 +759,22 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
     # target-tree write + read-back in ``_phase_capture_and_baseline`` /
     # ``_phase_commit_and_assert`` has it, instead of depending on the
     # squash + merge-driver reconciliation alone.
-    run.assigned_mission_number = _bake_mission_number_into_mission_branch(
-        main_repo=run.main_repo,
-        mission_slug=run.mission_slug,
-        mission_branch=lanes_manifest.mission_branch,
-        target_branch=lanes_manifest.target_branch,
-        dry_run=False,
-        merge_state=run.state,
-    )
+    try:
+        run.assigned_mission_number = _bake_mission_number_into_mission_branch(
+            main_repo=run.main_repo,
+            mission_slug=run.mission_slug,
+            mission_branch=lanes_manifest.mission_branch,
+            target_branch=lanes_manifest.target_branch,
+            dry_run=False,
+            merge_state=run.state,
+        )
+    except BaselineMergeCommitError as exc:
+        # Pre-PR fold N3: no mission_number can be determined at all (the
+        # bake refused before writing anything, strictly before the target is
+        # touched) -- surface it and exit 1 instead of finishing with a
+        # ``null`` target and exit 0.
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
     # #4764 FOLD-F1: detect + re-anchor past a primary-tree bake commit that
     # just landed directly on target_branch (see field docstring above).
     _reanchor_baseline_past_primary_tree_bake(run)
@@ -1501,6 +1510,53 @@ def _resolve_expected_mission_number(run: _MergeRunState) -> int | None:
     return _read_mission_number_from_ref(run.main_repo, lanes_manifest.mission_branch, run.mission_slug)
 
 
+def _record_mission_number_on_target_tree(run: _MergeRunState) -> None:
+    """Write the decided mission_number onto the TARGET-tree meta.json (#4900 / D2c).
+
+    Planning-only closeout assigns directly on the target; the lane path writes
+    the number the mission-branch bake decided (or the target already carries).
+    Either way ``run.assigned_mission_number`` is set, so
+    :func:`_verify_and_announce_mission_number` reads it back from the committed
+    target and only THEN announces it (queued WP03 fold: the planning-only path
+    no longer prints an unverified "Assigned" line).
+
+    Lane path: the write happens UNCONDITIONALLY, after the mission->target
+    squash has already run -- this guarantee never depends on squash ordering
+    or on whether git invoked ``merge-driver-meta`` for this squash at all.
+    ``_resolve_expected_mission_number`` picks the number (target wins over a
+    stale mission-branch value, FR-007). ``None`` means mission_number
+    assignment was never engaged for this mission at all (not a git repo, the
+    resume short-circuit with nothing recorded anywhere, or the caller mocking
+    the bake out entirely, which many existing non-mission_number-focused tests
+    do). A mission-branch write that failed or was skipped no longer lands here:
+    the bake returns its computed number regardless (pre-PR fold N3), and an
+    undeterminable number raises instead. D2e's "never skip verification"
+    concern -- a run that DID decide a number and then lost track of it on
+    resume -- is closed by reading TARGET first, via an independent
+    (working-tree, not ``git show``) seam.
+
+    Raises ``MissionMetaReadError`` (corrupt target meta.json) or
+    ``MissionNumberVerificationError`` (absent target meta.json); the caller
+    restores the final snapshots and exits 1.
+    """
+    if run.planning_artifact_only:
+        planning_number = _assign_planning_only_mission_number_if_needed(
+            run.main_repo,
+            run.feature_dir,
+        )
+        if planning_number is not None:
+            run.assigned_mission_number = planning_number
+            run.mission_number_meta_path = run.feature_dir / "meta.json"
+        return
+    expected_number = _resolve_expected_mission_number(run)
+    if expected_number is not None:
+        run.assigned_mission_number = expected_number
+        run.mission_number_meta_path = _bake_mission_number_onto_target_tree(
+            run.target_feature_dir,
+            expected_number,
+        )
+
+
 def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     """Refresh checkout, capture final snapshots, plan mission_number, RECORD #1827 baseline."""
     # -- WP05/T006 FR-013: Post-merge working-tree refresh --
@@ -1538,37 +1594,17 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     run.target_events_path = target_events_path
     run.target_status_path = target_status_path
 
-    if run.planning_artifact_only:
-        run.mission_number_meta_path = _assign_planning_only_mission_number_if_needed(
-            run.main_repo,
-            run.feature_dir,
-        )
-    else:
-        # #4900 / D2c: write the already-decided mission_number onto the
-        # TARGET tree UNCONDITIONALLY, after the mission->target squash has
-        # already run -- this guarantee never depends on squash ordering or
-        # on whether git invoked ``merge-driver-meta`` for this squash at
-        # all. ``_resolve_expected_mission_number`` picks the number (target
-        # wins over a stale mission-branch value, FR-007). ``None`` means
-        # mission_number assignment was never engaged for this mission at
-        # all -- the SAME pre-existing, intentional degrade path
-        # ``_bake_mission_number_into_mission_branch`` already documents
-        # (missing branch, missing/malformed meta.json, not a git repo, or
-        # the caller mocking the bake out entirely, which many existing
-        # non-mission_number-focused tests do). D2e's "never skip
-        # verification" concern is about a run that DID decide a number and
-        # then lost track of it on resume -- closed by reading TARGET first,
-        # via an independent (working-tree, not ``git show``) seam, which
-        # finds the number the coord-topology primary-tree fallback commits
-        # directly onto target even when the mission branch never carried it
-        # -- not by refusing this pre-existing "nothing to bake" no-op.
-        expected_number = _resolve_expected_mission_number(run)
-        if expected_number is not None:
-            run.assigned_mission_number = expected_number
-            run.mission_number_meta_path = _bake_mission_number_onto_target_tree(
-                run.target_feature_dir,
-                expected_number,
-            )
+    # Pre-PR fold N4: the target-tree mission_number read/write gets the SAME
+    # restore-then-``Exit(1)`` handling as the baseline record below -- a
+    # corrupt target meta.json (``MissionMetaReadError``) or an absent one
+    # (``MissionNumberVerificationError``, never a fabricated stub) must not
+    # escape as a raw traceback with the final snapshots left un-restored.
+    try:
+        _record_mission_number_on_target_tree(run)
+    except (BaselineMergeCommitError, MissionMetaReadError) as exc:
+        _restore_and_guard_coord_coherence(run, run.final_bookkeeping_snapshots, error=exc)
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     # INV-5: record the #1827 baseline AFTER the target merge, BEFORE the
     # bookkeeping commit. On failure restore the final snapshots then exit.
@@ -3481,6 +3517,24 @@ def _report_pre_mutation_refusal(
     console.print("[yellow]Merge aborted before any state change.[/yellow] Resolve the reported condition, then re-run [bold]spec-kitty consolidate[/bold].")
 
 
+def _load_state_on_refusal_path(main_repo: Path, canonical_id: str) -> ConsolidationState | None:
+    """Read the persisted merge state on a pre-mutation REFUSAL path, fail-closed (N6).
+
+    A corrupt ``state.json`` raises :class:`ConsolidationStateReadError`; on the
+    refusal path that exception would REPLACE the dirty-tree refusal the operator
+    needs to see. Treat it as "no provable resume state" instead: ``None`` means no
+    auto-recovery and no reset-to-HEAD guidance (the safe commit/stash/revert remedy
+    already in the refusal message stands). The corruption is still surfaced as a
+    warning so it is not silently lost; a later ``--resume`` hits the loud
+    fail-closed read on its own normal path.
+    """
+    try:
+        return load_state(main_repo, canonical_id)
+    except ConsolidationStateReadError as exc:
+        console.print(f"[yellow]Warning:[/yellow] ignoring unreadable merge state while reporting the refusal: {exc}")
+        return None
+
+
 def _recover_behind_head_primary_on_resume(
     exc: DestructiveOpRefused,
     main_repo: Path,
@@ -3512,9 +3566,9 @@ def _recover_behind_head_primary_on_resume(
     """
     if getattr(exc, "error_code", None) != MERGE_UNSAFE_PRIMARY_DIRTY:
         return False
-    state = load_state(main_repo, canonical_id)
+    state = _load_state_on_refusal_path(main_repo, canonical_id)
     if state is None:
-        return False  # fresh merge: a dirty primary is genuine, never auto-reset.
+        return False  # fresh merge (or unreadable state): a dirty primary is genuine, never auto-reset.
     from specify_cli.consolidation.preflight import (
         ResumeRemedyKind,
         classify_resume_dirty_remedy,
@@ -3575,7 +3629,7 @@ def _pre_mutation_safety_preflight_with_recovery(
             # #4933: the persisted ``pre_mutation_target_sha`` (absent on a fresh
             # consolidation) is the only proof `_report_pre_mutation_refusal` will
             # accept for the reset-to-HEAD guidance -- see its docstring.
-            state = load_state(main_repo, canonical_id)
+            state = _load_state_on_refusal_path(main_repo, canonical_id)
             _report_pre_mutation_refusal(
                 exc,
                 main_repo,
@@ -3586,7 +3640,7 @@ def _pre_mutation_safety_preflight_with_recovery(
         try:
             _run()
         except DestructiveOpRefused as exc_after:
-            state = load_state(main_repo, canonical_id)
+            state = _load_state_on_refusal_path(main_repo, canonical_id)
             _report_pre_mutation_refusal(
                 exc_after,
                 main_repo,

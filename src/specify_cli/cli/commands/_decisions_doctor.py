@@ -209,23 +209,83 @@ def _is_unrecoverable_slot_key_origin(entry: IndexEntry) -> bool:
     return entry.step_id is None and entry.slot_key is not None
 
 
+#: ``IndexEntry`` fields the log cannot reproduce faithfully, so they are
+#: never evidence that an on-disk entry disagrees with the fold (pre-PR fold
+#: B2): ``summary_json`` is never emitted; ``slot_key`` is collapsed into the
+#: wire's single ``step_id``; ``rationale`` and ``resolved_by`` are
+#: normalised on emission (``None`` -> ``"no rationale"`` / the acting
+#: actor, ``decisions/emit.py``).
+_NOT_WIRE_FAITHFUL_FIELDS: frozenset[str] = frozenset({"summary_json", "slot_key", "rationale", "resolved_by"})
+
+
+def _agrees_on_wire(existing: IndexEntry, folded: IndexEntry) -> bool:
+    """True when *existing* matches *folded* on every wire-faithful field."""
+    excluded = set(_NOT_WIRE_FAITHFUL_FIELDS)
+    if _is_unrecoverable_slot_key_origin(existing):
+        excluded.add("step_id")
+    existing_wire: dict[str, Any] = existing.model_dump(exclude=excluded)
+    folded_wire: dict[str, Any] = folded.model_dump(exclude=excluded)
+    return existing_wire == folded_wire
+
+
+def _reconcile_entry(existing: IndexEntry | None, folded: IndexEntry) -> IndexEntry:
+    """The entry ``--repair`` writes for one log-backed decision (pre-PR folds B2/N2).
+
+    - No PRE-repair entry: the fold stands.
+    - The PRE-repair entry agrees with the fold on every wire-faithful field
+      (:func:`_agrees_on_wire`): it is kept VERBATIM -- a repair triggered by
+      some other decision must not rewrite a healthy entry.
+    - Otherwise (e.g. a stale status): the wire fields come from the fold,
+      while the fields the wire never carries are carried from the PRE-repair
+      entry -- ``summary_json`` always, and the ``step_id``/``slot_key``
+      attribution for an unrecoverable slot_key-origin entry
+      (:func:`_is_unrecoverable_slot_key_origin`) or a ``slot_key`` beside an
+      agreeing ``step_id``.
+
+    Before this, the rebuild wrote every entry straight from the fold, so a
+    repair of ONE stale status erased every other decision's
+    ``summary_json`` (widen-review provenance, C-005) and exited 0.
+    """
+    if existing is None:
+        return folded
+    if _agrees_on_wire(existing, folded):
+        return existing
+    carried: dict[str, Any] = {"summary_json": existing.summary_json}
+    if _is_unrecoverable_slot_key_origin(existing):
+        carried["step_id"] = existing.step_id
+        carried["slot_key"] = existing.slot_key
+    elif existing.step_id == folded.step_id:
+        carried["slot_key"] = existing.slot_key
+    return folded.model_copy(update=carried)
+
+
 def _rebuild_index_from_log(
     current: DecisionIndex,
     grouped: dict[str, list[dict]],  # type: ignore[type-arg]
 ) -> tuple[DecisionIndex, list[str], list[str]]:
     """Rebuild the FULL index from the log via the T008 canonical fold.
 
-    Fold A (review-feedback-2, cycle 2): for each decision_id, if *current*
-    (the PRE-repair on-disk index) already holds an entry that is
-    unrecoverable slot_key-origin evidence
-    (:func:`_is_unrecoverable_slot_key_origin`), that entry is KEPT
-    UNCHANGED instead of being rebuilt from the log -- membership is
-    preserved (the decision stays in the index) but its attribution, which
-    the log cannot prove, is never silently fabricated. The decision_id is
-    recorded in the returned refused-list so the caller can warn loudly. A
-    decision with NO pre-repair on-disk copy at all cannot be checked this
-    way (the same undetectable case the module docstring documents) and
-    folds from the log as before.
+    Every folded entry goes through :func:`_reconcile_entry` (pre-PR fold
+    B2): a PRE-repair entry that already agrees with the fold on the wire is
+    kept verbatim; a disagreeing one takes the wire fields from the fold and
+    carries the fields the wire never holds -- ``summary_json``
+    (widen-review provenance, C-005) and the step_id/slot_key attribution
+    split -- from the PRE-repair entry. Before this, a repair triggered by
+    ONE stale status rebuilt every entry from the log and erased every other
+    decision's ``summary_json``, exit 0.
+
+    Fold A (review-feedback-2, cycle 2) / pre-PR fold N2: for each
+    decision_id, if *current* (the PRE-repair on-disk index) already holds
+    an entry that is unrecoverable slot_key-origin evidence
+    (:func:`_is_unrecoverable_slot_key_origin`), its attribution
+    (``step_id``/``slot_key``) is KEPT from that entry -- the log cannot
+    prove it, so it is never silently fabricated -- while its status and
+    terminal fields, which ARE on the wire, still come from the fold (a
+    stale status is repaired). The decision_id is recorded in the returned
+    refused-list so the caller can warn loudly. A decision with NO
+    pre-repair on-disk copy at all cannot be checked this way (the same
+    undetectable case the module docstring documents) and folds from the
+    log as before.
 
     Fold C (#470 dead-symbol gate + robustness): if folding a decision_id's
     event group instead raises ``index_fold.FoldError`` (a malformed group
@@ -249,16 +309,16 @@ def _rebuild_index_from_log(
     rebuilt_entries: list[IndexEntry] = []
     for decision_id, events in sorted(grouped.items()):
         existing = current_by_id.get(decision_id)
-        if existing is not None and _is_unrecoverable_slot_key_origin(existing):
-            rebuilt_entries.append(existing)
-            lossy_ids.append(decision_id)
-            continue
         try:
-            rebuilt_entries.append(_index_fold.fold_events(events))
+            folded = _index_fold.fold_events(events)
         except _index_fold.FoldError:
             malformed_ids.append(decision_id)
             if existing is not None:
                 rebuilt_entries.append(existing)
+            continue
+        if existing is not None and _is_unrecoverable_slot_key_origin(existing):
+            lossy_ids.append(decision_id)
+        rebuilt_entries.append(_reconcile_entry(existing, folded))
     mission_id = rebuilt_entries[0].mission_id if rebuilt_entries else current.mission_id
     return DecisionIndex(mission_id=mission_id, entries=tuple(rebuilt_entries)), lossy_ids, malformed_ids
 
@@ -283,21 +343,17 @@ def _fold_diagnostics(
     folded here too (to catch malformed folds regardless of index
     membership) but has no index entry to compare a status against.
 
-    Mirrors the ``_rebuild_index_from_log`` loop shape (T009): a decision
-    whose PRE-repair on-disk entry is unrecoverable slot_key-origin evidence
-    (:func:`_is_unrecoverable_slot_key_origin`) is skipped here too -- the
-    log-side fold would reconstruct ``step_id`` from the wire's collapsed
-    field, which never affects ``status`` (harmless for THIS comparison),
-    but the wire cannot faithfully attribute that entry either way, so it is
-    left out of both the malformed and the status-mismatch verdicts, same as
-    ``--repair`` leaves it out of the rebuild.
+    A decision whose PRE-repair on-disk entry is unrecoverable slot_key-origin
+    evidence (:func:`_is_unrecoverable_slot_key_origin`) is compared too
+    (pre-PR fold N2): the wire collapses its step_id/slot_key attribution,
+    but ``status`` IS on the wire, so a stale status is reported -- and
+    ``--repair`` fixes the status while keeping the attribution
+    (:func:`_reconcile_entry`).
     """
     malformed_ids: list[str] = []
     status_mismatch: list[dict[str, str]] = []
     for decision_id in sorted(grouped):
         existing = index_by_id.get(decision_id)
-        if existing is not None and _is_unrecoverable_slot_key_origin(existing):
-            continue
         try:
             folded = _index_fold.fold_events(grouped[decision_id])
         except _index_fold.FoldError:

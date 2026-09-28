@@ -41,6 +41,8 @@ Usage examples::
 from __future__ import annotations
 
 import json
+import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -126,6 +128,51 @@ _GROUP_FORWARDABLE_PARAMS: tuple[str, ...] = ("dry_run", "verbose", "force")
 _GROUP_FLAG_FORWARDING_HELP = "Before a subcommand, forwarded if the subcommand declares it, else rejected (exit 2) — place it after the subcommand when unsure."
 
 
+#: The ``ParameterSource`` member name for a value typed on the command line.
+#: Compared by ``.name`` rather than against ``click.core.ParameterSource``:
+#: typer 0.26+ vendors its own click (``typer._click``) whose enum shares no
+#: identity with the real ``click`` package's (#4964 pre-PR fold B1).
+_COMMANDLINE_SOURCE = "COMMANDLINE"
+
+
+def _usage_error_class(ctx: Any) -> Callable[..., Exception]:
+    """Return the ``UsageError`` of the click universe that built ``ctx``.
+
+    ``typer>=0.24.1,<0.28`` spans two click eras: typer <=0.25 runs on the
+    real ``click`` package, typer 0.26+ on its vendored ``typer._click``. A
+    real-click ``UsageError`` raised inside a vendored-click dispatch is not
+    caught by typer's standalone handler (it escapes as a traceback instead
+    of a clean exit 2), so the class is resolved from the context's own
+    ``<click>.core.Context`` base: its sibling ``<click>.exceptions`` module
+    is already imported by ``core``. Falls back to the real ``click`` when
+    no such base is found.
+    """
+    for klass in type(ctx).__mro__:
+        module_name = klass.__module__
+        if klass.__name__ != "Context" or not module_name.endswith(".core"):
+            continue
+        exceptions_module = sys.modules.get(f"{module_name.rsplit('.', 1)[0]}.exceptions")
+        candidate = getattr(exceptions_module, "UsageError", None)
+        if isinstance(candidate, type) and issubclass(candidate, Exception):
+            return candidate
+    return click.UsageError
+
+
+def _given_on_command_line(ctx: Any, name: str) -> bool:
+    """True when ``name`` was typed on the command line (click-era agnostic)."""
+    source = ctx.get_parameter_source(name)
+    return getattr(source, "name", None) == _COMMANDLINE_SOURCE
+
+
+def _flag_display(opts: list[str]) -> str:
+    """Every spelling of a flag, short form first (``-v/--verbose``).
+
+    Click does not record which spelling the user typed, so naming them all
+    guarantees the token the user actually gave appears in the message.
+    """
+    return "/".join(sorted(opts, key=len))
+
+
 def _forward_or_refuse_group_flags(ctx: typer.Context) -> None:
     """Forward group-level flags to the invoked subcommand, or refuse them.
 
@@ -134,43 +181,50 @@ def _forward_or_refuse_group_flags(ctx: typer.Context) -> None:
     line before a subcommand is silently dropped by Click's own dispatch —
     the group callback returns before the subcommand ever sees it. This
     closes that gap: for each group flag actually typed on the command line
-    (``ctx.get_parameter_source(name) == COMMANDLINE``) with a truthy value,
-    look up the invoked subcommand's own declared params
+    (its parameter source is ``COMMANDLINE``) with a truthy value, look up
+    the invoked subcommand's own declared params
     (``ctx.command.get_command(ctx, sub).params``). If the subcommand
     declares the same flag name, forward the value via ``ctx.default_map``
     — Click builds the subcommand's own context AFTER this callback
     returns, so a flag given directly after the subcommand still wins over
     a forwarded one (FR-022). If the subcommand does not declare it, refuse
-    with a ``click.UsageError`` (exit 2) *before* the subcommand runs, so
-    nothing is ever silently dropped (FR-021) — the message names the flag,
-    the subcommand, and the supported (trailing) position (NFR-003).
+    with a usage error (exit 2) *before* the subcommand runs, so nothing is
+    ever silently dropped (FR-021) — the message names the flag, the
+    subcommand, and the next action (NFR-003).
+
+    Every click touchpoint is duck-typed (``get_command``, the parameter
+    source's ``.name``, :func:`_usage_error_class`) so the helper works in
+    both the real-click and the vendored ``typer._click`` eras (fold B1).
     """
     sub_name = ctx.invoked_subcommand
     if sub_name is None:
         return
-    if not isinstance(ctx.command, click.Group):  # pragma: no cover - the migrate group always is one
+    get_command = getattr(ctx.command, "get_command", None)
+    if get_command is None:
         return
-    sub_command = ctx.command.get_command(ctx, sub_name)
-    if sub_command is None:  # pragma: no cover - Click guarantees a match here
+    sub_command = get_command(ctx, sub_name)
+    if sub_command is None:
         return
     sub_param_names = {param.name for param in sub_command.params}
 
     forwarded: dict[str, Any] = {}
     for name in _GROUP_FORWARDABLE_PARAMS:
-        if ctx.get_parameter_source(name) != click.core.ParameterSource.COMMANDLINE:
+        if not _given_on_command_line(ctx, name):
             continue
         value = ctx.params.get(name)
         if not value:
             continue
-        group_param = next(p for p in ctx.command.params if p.name == name)
-        flag = group_param.opts[0]
         if name in sub_param_names:
             forwarded[name] = value
-        else:
-            raise click.UsageError(
-                f"'{flag}' is not supported by 'migrate {sub_name}'. Place supported flags after the subcommand, e.g. 'spec-kitty migrate {sub_name} {flag}'.",
-                ctx=ctx,
-            )
+            continue
+        group_param = next(p for p in ctx.command.params if p.name == name)
+        flag = _flag_display(list(group_param.opts))
+        raise _usage_error_class(ctx)(
+            f"'{flag}' is not supported by 'migrate {sub_name}': that subcommand declares no such option, "
+            f"so it cannot be forwarded. Drop the flag, or run 'spec-kitty migrate {sub_name} --help' "
+            "to see the options it supports.",
+            ctx=ctx,
+        )
 
     if forwarded:
         default_map = ctx.default_map or {}

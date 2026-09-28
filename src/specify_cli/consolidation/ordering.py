@@ -31,6 +31,7 @@ from specify_cli.core.paths import (
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.consolidation._constants import logger as _merge_logger
+from specify_cli.consolidation.baseline import MissionNumberVerificationError
 from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, path_is_under_worktrees
 from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.consolidation.state import ConsolidationState
@@ -686,6 +687,24 @@ def _write_mission_number_to_branch(
         )
 
 
+def _refuse_unassignable_mission_slug(mission_slug: str) -> None:
+    """Pre-PR fold N3: refuse LOUDLY when no mission_number can be determined.
+
+    An unsafe (traversal-shaped) slug makes both the target scan and the
+    mission-branch write refuse, so no number could ever be decided. That used
+    to degrade to a logger-only warning and a ``null`` target with exit 0;
+    raise the typed verification error instead so the executor prints
+    ``Error:`` and exits 1 (the legitimate "already assigned on target" no-op
+    never reaches this).
+    """
+    try:
+        assert_safe_path_segment(mission_slug)
+    except ValueError as exc:
+        raise MissionNumberVerificationError(
+            f"cannot determine a mission_number for mission {mission_slug!r}: the mission slug is unsafe ({exc}); no number was assigned or recorded on the target."
+        ) from exc
+
+
 def _bake_mission_number_into_mission_branch(
     main_repo: Path,
     mission_slug: str,
@@ -753,10 +772,19 @@ def _bake_mission_number_into_mission_branch(
     ``meta.json`` is overwritten.
 
     Returns:
-        The assigned integer if a fresh number was written; ``None`` when
-        the target branch already had one, when dry-run is set, when the
-        idempotency check matched, or when any precondition (missing branch,
-        missing meta.json, malformed JSON, git failure) caused a skip.
+        The decided integer whenever one was computed and dry-run is off --
+        including when the mission-branch write itself was skipped or failed
+        (pre-PR fold N3: the executor's target-tree write + read-back is the
+        authority, so the number must reach it). ``None`` only when the
+        target branch already had one (the executor then reads it from the
+        target), when dry-run is set, on the resume short-circuit, or when
+        ``main_repo`` is not a git repository.
+
+    Raises:
+        MissionNumberVerificationError: when no number can be determined at
+            all because the mission slug is unsafe (traversal guard). The
+            executor surfaces this as ``Error:`` + exit 1 instead of a
+            silent ``mission_number: null`` on the target.
     """
     if _already_baked(merge_state):
         _merge_logger.debug(
@@ -773,6 +801,8 @@ def _bake_mission_number_into_mission_branch(
         )
         return None
 
+    _refuse_unassignable_mission_slug(mission_slug)
+
     next_number = _compute_next_mission_number_or_none(main_repo, mission_slug, target_branch)
     if next_number is None:
         return None
@@ -781,8 +811,14 @@ def _bake_mission_number_into_mission_branch(
         console.print(f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}")
         return None
 
-    if not _write_mission_number_to_branch(main_repo, mission_branch, mission_slug, next_number):
-        return None
+    # #4900 / D2c (pre-PR fold N3): the mission-branch write is only a
+    # CANDIDATE carrier -- the executor writes the number onto the TARGET tree
+    # unconditionally and verifies it there. A failed/skipped branch write
+    # (worktree-add failure, non-object meta.json, idempotency hit, the
+    # coord-topology primary-tree fallback's surfaced paths) therefore must
+    # NOT discard ``next_number``: returning ``None`` here used to leave the
+    # target at ``null`` with exit 0. The number is returned either way.
+    wrote = _write_mission_number_to_branch(main_repo, mission_branch, mission_slug, next_number)
 
     # #4900 / D2e: the "Assigned" announcement moves to AFTER the target-tree
     # read-back verification (``baseline.assert_mission_number_on_target``,
@@ -791,10 +827,11 @@ def _bake_mission_number_into_mission_branch(
     # pre-fix announcement untruthful. This mission-branch write is only ever
     # a candidate value until the executor verifies it landed on the target.
     _merge_logger.info(
-        "Writing mission_number=%d to mission branch %s for %s (pending target verification)",
+        "mission_number=%d for %s: mission branch %s write %s (pending target-tree write + verification)",
         next_number,
-        mission_branch,
         mission_slug,
+        mission_branch,
+        "applied" if wrote else "skipped",
     )
     # #4900 / D2e: no longer marks ``mission_number_baked`` here -- see the
     # NOTE above. The executor marks it only after target-side verification.
@@ -805,8 +842,15 @@ def _bake_mission_number_into_mission_branch(
 def _assign_planning_only_mission_number_if_needed(
     main_repo: Path,
     feature_dir: Path,
-) -> Path | None:
-    """Assign mission_number directly on target for planning-only closeout."""
+) -> int | None:
+    """Assign mission_number directly on target for planning-only closeout.
+
+    Returns the number written onto ``feature_dir/meta.json`` (``None`` when no
+    assignment was needed). Deliberately prints NOTHING (queued WP03 fold,
+    #4900 / D2e): the "Assigned" line is announced by
+    ``executor._verify_and_announce_mission_number`` only AFTER the target
+    read-back verification, exactly as on the lane-merge path.
+    """
     from specify_cli.consolidation.state import needs_number_assignment
 
     if not needs_number_assignment(feature_dir):
@@ -823,8 +867,7 @@ def _assign_planning_only_mission_number_if_needed(
     meta = load_meta_fail_closed(feature_dir) or {}
     meta["mission_number"] = next_number
     write_meta(feature_dir, meta, validate=False)
-    console.print(f"  [green]✓[/green] Assigned mission_number={next_number} on target branch")
-    return feature_dir / "meta.json"
+    return next_number
 
 
 def _bake_mission_number_onto_target_tree(
@@ -849,8 +892,19 @@ def _bake_mission_number_onto_target_tree(
     Idempotent: writing the same *number* twice (e.g. on ``--resume``) is a
     content no-op that the bookkeeping commit's own ``git status``-based
     change detection naturally skips.
+
+    Raises:
+        MissionNumberVerificationError: the target ``meta.json`` is absent
+            (pre-PR fold N4) -- refuse rather than fabricate a one-key
+            ``{"mission_number": N}`` stub meta.json on the target.
+        MissionMetaReadError: the target ``meta.json`` is corrupt.
     """
-    meta = load_meta_fail_closed(target_feature_dir) or {}
+    meta = load_meta_fail_closed(target_feature_dir)
+    if meta is None:
+        raise MissionNumberVerificationError(
+            f"cannot record mission_number={number}: the target meta.json is missing at "
+            f"{target_feature_dir / 'meta.json'}; refusing to fabricate a stub meta.json on the target."
+        )
     meta["mission_number"] = number
     write_meta(target_feature_dir, meta, validate=False)
     return target_feature_dir / "meta.json"

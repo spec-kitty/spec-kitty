@@ -8,8 +8,9 @@ so ``spec-kitty migrate --dry-run backfill-runtime-state`` silently dropped
 
 Design decision **D7** / research **R6**: the group callback now forwards a
 group flag to the subcommand via ``ctx.default_map`` when the subcommand
-declares the same flag name, or refuses with ``click.UsageError`` (exit 2)
-before the subcommand runs.
+declares the same flag name, or refuses with a usage error (exit 2) before
+the subcommand runs — raised from the click universe typer actually uses
+(real ``click`` on typer <=0.25, vendored ``typer._click`` on 0.26+).
 
 Test strategy (two tiers, per the WP07 prompt's three endorsed proof methods —
 "the ``(dry-run)`` output prefix, a ``dry_run: true`` JSON field, or a spy on
@@ -24,7 +25,7 @@ the backend function's ``dry_run`` kwarg"):
   flag, its own CLI entry-point function is spied and must receive the
   flag's value truthily (the "spy on the backend function's kwarg" method);
   when it does not, the group must refuse with exit 2 and a message naming
-  the flag, the subcommand, and the supported position (NFR-003). Because
+  the flag, the subcommand, and a ``--help`` next action (NFR-003). Because
   this discovers subcommands and their declared params from the live
   ``typer.Typer`` app rather than a hardcoded list, a future subcommand is
   covered automatically.
@@ -38,8 +39,12 @@ the backend function's ``dry_run`` kwarg"):
 
 from __future__ import annotations
 
+import enum
 import json
 import re
+import subprocess
+import sys
+import types
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -53,6 +58,7 @@ from click.testing import Result
 from typer.main import get_command
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands import migrate_cmd
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
 from tests.unit.migration._backfill_fixture import build_mission
 
@@ -227,8 +233,8 @@ def _flatten(text: str) -> str:
 #: the param name it binds to on both the group and a declaring subcommand).
 _GROUP_FLAG_CASES: tuple[tuple[str, str, str], ...] = (
     ("--dry-run", "--dry-run", "dry_run"),
-    ("--verbose", "--verbose", "verbose"),
-    ("-v", "--verbose", "verbose"),
+    ("--verbose", "-v/--verbose", "verbose"),
+    ("-v", "-v/--verbose", "verbose"),
     ("--force", "--force", "force"),
 )
 
@@ -270,13 +276,17 @@ def test_group_flag_forwarded_or_refused(sub_name: str, cli_token: str, canonica
         assert calls[0].get(param_name) is True, calls[0]
     else:
         # FR-021: refused before anything runs. NFR-003: message names the
-        # flag, the subcommand, and the supported (trailing) position.
+        # flag (every spelling, so the one typed is present), the subcommand,
+        # and a concrete next action — never a trailing form the subcommand
+        # does not declare (it cannot: this is the refusal branch).
         assert result.exit_code == 2, result.output
         assert calls == [], f"{sub_name!r} must not run when a group flag it does not declare is refused"
         flat_output = _flatten(result.output)
-        assert canonical_flag in flat_output, result.output
+        assert f"'{canonical_flag}'" in flat_output, result.output
+        assert cli_token in flat_output, result.output
         assert sub_name in flat_output, result.output
-        assert f"migrate {sub_name} {canonical_flag}" in flat_output, result.output
+        assert f"spec-kitty migrate {sub_name} --help" in flat_output, result.output
+        assert f"migrate {sub_name} {cli_token}" not in flat_output, result.output
 
 
 def test_dry_run_declaring_census_matches_documented_set() -> None:
@@ -424,3 +434,231 @@ def test_verbose_short_flag_before_backfill_runtime_state_is_refused() -> None:
     flat_output = _flatten(result.output)
     assert "--verbose" in flat_output
     assert "backfill-runtime-state" in flat_output
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR fold B1: the helper must be click-universe agnostic.
+#
+# ``pyproject`` allows ``typer>=0.24.1,<0.28``; typer 0.26+ vendors its own
+# click (``typer._click``), whose ``Group``/``ParameterSource``/``UsageError``
+# share no classes with the real ``click`` package. A helper that checks
+# ``isinstance(ctx.command, click.Group)`` or compares against
+# ``click.core.ParameterSource.COMMANDLINE`` silently no-ops under a vendored
+# click, so ``migrate --dry-run <sub>`` ran the REAL migration with exit 0.
+# The fakes below are deliberately NOT real-click objects: they stand in for
+# a vendored click universe, proving the duck-typed path offline.
+# ---------------------------------------------------------------------------
+
+_FAKE_CLICK = "fakevendoredclick"
+
+
+class _FakeParameterSource(enum.Enum):
+    COMMANDLINE = enum.auto()
+    DEFAULT = enum.auto()
+
+
+class _FakeUsageError(Exception):
+    def __init__(self, message: str, ctx: Any = None) -> None:
+        super().__init__(message)
+        self.ctx = ctx
+
+
+class _FakeClickContext:
+    """Stand-in for ``typer._click.core.Context`` (a non-real-click base)."""
+
+
+_FakeUsageError.__module__ = f"{_FAKE_CLICK}.exceptions"
+_FakeClickContext.__module__ = f"{_FAKE_CLICK}.core"
+_FakeClickContext.__name__ = "Context"
+_FakeClickContext.__qualname__ = "Context"
+
+
+class _FakeParam:
+    def __init__(self, name: str, opts: list[str]) -> None:
+        self.name = name
+        self.opts = opts
+
+
+class _FakeCommand:
+    def __init__(self, params: list[_FakeParam], subcommands: dict[str, _FakeCommand] | None = None) -> None:
+        self.params = params
+        self._subcommands = subcommands or {}
+
+    def get_command(self, _ctx: Any, name: str) -> _FakeCommand | None:
+        return self._subcommands.get(name)
+
+
+class _FakeTyperContext(_FakeClickContext):
+    def __init__(
+        self,
+        *,
+        sub_name: str | None,
+        command: Any,
+        params: dict[str, Any],
+        sources: dict[str, _FakeParameterSource | None],
+    ) -> None:
+        self.invoked_subcommand = sub_name
+        self.command = command
+        self.params = params
+        self._sources = sources
+        self.default_map: dict[str, Any] | None = None
+
+    def get_parameter_source(self, name: str) -> _FakeParameterSource | None:
+        return self._sources.get(name)
+
+
+_GROUP_PARAMS = [
+    _FakeParam("dry_run", ["--dry-run"]),
+    _FakeParam("verbose", ["--verbose", "-v"]),
+    _FakeParam("force", ["--force"]),
+]
+
+
+@pytest.fixture()
+def fake_vendored_click(monkeypatch: pytest.MonkeyPatch) -> None:
+    exceptions_module = types.ModuleType(f"{_FAKE_CLICK}.exceptions")
+    exceptions_module.__dict__["UsageError"] = _FakeUsageError
+    monkeypatch.setitem(sys.modules, f"{_FAKE_CLICK}.exceptions", exceptions_module)
+
+
+def _fake_ctx(
+    sub_name: str | None,
+    sub_params: list[_FakeParam],
+    *,
+    given: dict[str, Any],
+    source: _FakeParameterSource | None = _FakeParameterSource.COMMANDLINE,
+) -> _FakeTyperContext:
+    subs = {} if sub_name is None else {sub_name: _FakeCommand(sub_params)}
+    group = _FakeCommand(_GROUP_PARAMS, subs)
+    params = {"dry_run": False, "verbose": False, "force": False, **given}
+    sources = {name: (source if name in given else _FakeParameterSource.DEFAULT) for name in params}
+    return _FakeTyperContext(sub_name=sub_name, command=group, params=params, sources=sources)
+
+
+def _forward(ctx: Any) -> None:
+    """Call the helper with a deliberately non-real-click context."""
+    migrate_cmd._forward_or_refuse_group_flags(ctx)
+
+
+@pytest.mark.usefixtures("fake_vendored_click")
+def test_vendored_click_dry_run_is_forwarded_to_declaring_subcommand() -> None:
+    ctx = _fake_ctx("backfill-identity", [_FakeParam("dry_run", ["--dry-run"])], given={"dry_run": True})
+    _forward(ctx)
+    assert ctx.default_map == {"backfill-identity": {"dry_run": True}}
+
+
+@pytest.mark.usefixtures("fake_vendored_click")
+def test_vendored_click_undeclared_flag_raises_the_vendored_usage_error() -> None:
+    ctx = _fake_ctx("repin-hooks", [], given={"dry_run": True})
+    with pytest.raises(_FakeUsageError) as excinfo:
+        _forward(ctx)
+    assert excinfo.value.ctx is ctx
+    message = str(excinfo.value)
+    assert "'--dry-run'" in message
+    assert "migrate repin-hooks" in message
+    assert "spec-kitty migrate repin-hooks --help" in message
+    assert "migrate repin-hooks --dry-run" not in message
+    assert ctx.default_map is None
+
+
+@pytest.mark.usefixtures("fake_vendored_click")
+def test_vendored_click_short_verbose_is_reported_with_its_short_form() -> None:
+    ctx = _fake_ctx("repin-hooks", [], given={"verbose": True})
+    with pytest.raises(_FakeUsageError) as excinfo:
+        _forward(ctx)
+    assert "'-v/--verbose'" in str(excinfo.value)
+
+
+@pytest.mark.usefixtures("fake_vendored_click")
+def test_vendored_click_non_commandline_sources_are_ignored() -> None:
+    for source in (_FakeParameterSource.DEFAULT, None):
+        ctx = _fake_ctx("repin-hooks", [], given={"dry_run": True}, source=source)
+        _forward(ctx)
+        assert ctx.default_map is None
+
+
+def test_no_subcommand_is_a_no_op() -> None:
+    ctx = _fake_ctx(None, [], given={"dry_run": True})
+    _forward(ctx)
+    assert ctx.default_map is None
+
+
+def test_command_without_get_command_is_a_no_op() -> None:
+    ctx = _fake_ctx("repin-hooks", [], given={"dry_run": True})
+    ctx.command = object()
+    _forward(ctx)
+    assert ctx.default_map is None
+
+
+def test_unknown_subcommand_is_a_no_op() -> None:
+    ctx = _fake_ctx("repin-hooks", [], given={"dry_run": True})
+    ctx.invoked_subcommand = "not-registered"
+    _forward(ctx)
+    assert ctx.default_map is None
+
+
+def test_usage_error_class_falls_back_to_real_click_without_a_click_context() -> None:
+    assert migrate_cmd._usage_error_class(object()) is click.UsageError
+
+
+def test_usage_error_class_resolves_the_real_click_for_a_real_context() -> None:
+    ctx = click.Context(_click_group())
+    assert migrate_cmd._usage_error_class(ctx) is click.UsageError
+
+
+def test_usage_error_class_skips_a_core_module_without_exceptions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delitem(sys.modules, f"{_FAKE_CLICK}.exceptions", raising=False)
+    assert migrate_cmd._usage_error_class(_fake_ctx(None, [], given={})) is click.UsageError
+
+
+def test_dry_run_before_undeclaring_subcommand_names_help_not_a_trailing_flag() -> None:
+    result = _invoke(["--dry-run", "repin-hooks"])
+    assert result.exit_code == 2, result.output
+    flat_output = _flatten(result.output)
+    assert "spec-kitty migrate repin-hooks --help" in flat_output
+    assert "migrate repin-hooks --dry-run" not in flat_output
+
+
+def test_short_verbose_refusal_names_the_short_form() -> None:
+    result = _invoke(["-v", "backfill-runtime-state"])
+    assert result.exit_code == 2, result.output
+    assert "-v/--verbose" in _flatten(result.output)
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR fold B1: the same contract through the real CLI entry point in the
+# session test venv. ``tests/conftest.py::test_venv`` builds that venv with
+# ``pip install -e`` — i.e. the freshest typer the declared range admits
+# (0.27.x, vendored ``typer._click``) whenever the index is reachable, and an
+# offline shim over the host interpreter's packages otherwise. The in-process
+# tests above run under the locked typer; this subprocess pair is what
+# exercises the vendored-click era whenever that venv has it.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.non_sandbox
+def test_real_cli_refuses_group_dry_run_before_repin_hooks(tmp_path: Path, run_cli: Any) -> None:
+    project = tmp_path / "proj"
+    project.mkdir()
+    subprocess.run(["git", "init", "-q", str(project)], check=True)
+    (project / ".kittify").mkdir()
+    hook = project / ".git" / "hooks" / "pre-commit"
+
+    result = run_cli(project, "migrate", "--dry-run", "repin-hooks")
+
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "repin-hooks" in _flatten(result.stdout + result.stderr)
+    assert not hook.exists(), "a refused group --dry-run must write nothing"
+
+
+@pytest.mark.non_sandbox
+def test_real_cli_forwards_group_dry_run_to_backfill_runtime_state(tmp_path: Path, run_cli: Any) -> None:
+    feature_dir = build_mission(tmp_path)
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    meta_before = (feature_dir / "meta.json").read_bytes()
+
+    result = run_cli(tmp_path, "migrate", "--dry-run", "backfill-runtime-state", "--json")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout)["dry_run"] is True
+    assert (feature_dir / "meta.json").read_bytes() == meta_before

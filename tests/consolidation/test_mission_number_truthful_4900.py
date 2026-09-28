@@ -26,6 +26,7 @@ established in ``tests/consolidation/test_merge_drivers.py`` /
 from __future__ import annotations
 
 import contextlib
+import subprocess
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -592,3 +593,236 @@ def test_assign_next_mission_number_control(tmp_path: Path) -> None:
             encoding="utf-8",
         )
     assert assign_next_mission_number(tmp_path, specs_dir) == 2
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR fold N3: a mission-branch write failure must not discard the number.
+# ---------------------------------------------------------------------------
+
+
+def _failing_numwrite_worktree_add(real_run):  # noqa: ANN001, ANN202 -- test double factory
+    """Wrap ``subprocess.run`` so ONLY the mission-branch bake's detached
+    ``git worktree add`` (the ``kitty-numwrite-`` temp dir) fails; every other
+    call (the target scan worktree, the squash, the merge driver, the
+    bookkeeping commit) runs for real."""
+
+    def _run(args, *a, **kw):  # noqa: ANN001, ANN002, ANN003, ANN202
+        if isinstance(args, list) and args[:4] == ["git", "worktree", "add", "--detach"] and "kitty-numwrite-" in str(args[4]):
+            return subprocess.CompletedProcess(args, 128, stdout="", stderr="fatal: injected worktree-add failure")
+        return real_run(args, *a, **kw)
+
+    return _run
+
+
+def test_mission_branch_write_failure_still_records_number_on_target(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """N3 / D2c: when the mission-branch write fails (``git worktree add``
+    refused), the already-computed ``next_number`` must still be written onto
+    the TARGET tree and read back -- never discarded so the consolidation exits
+    0 with ``mission_number: null`` on the target."""
+    slug = "mission-4900-branch-write-fails"
+    _init_git_repo(tmp_path)
+    _bootstrap_lanes_mission(tmp_path, slug)
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "bootstrap branch-write-failure mission")
+    _cut_mission_and_lane_branches(tmp_path, slug, code_relpath="src/branch_write_fails.py")
+
+    with patch("subprocess.run", side_effect=_failing_numwrite_worktree_add(subprocess.run)):
+        _consolidate(tmp_path, slug)
+
+    meta = _target_meta(tmp_path, slug)
+    assert meta.get("mission_number") == 1, (
+        f"N3 regression: a failed mission-branch write discarded the computed mission_number; target carries {meta.get('mission_number')!r}."
+    )
+    output = capsys.readouterr().out
+    assert output.count("Assigned mission_number=1") == 1, output
+
+
+def test_unassignable_mission_number_exits_nonzero(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """N3: when no number can be determined at all (the bake refuses the
+    assignment), the consolidation surfaces it and exits non-zero instead of
+    finishing with ``mission_number: null``."""
+    from specify_cli.consolidation.baseline import MissionNumberVerificationError
+
+    slug = "mission-4900-unassignable"
+    _init_git_repo(tmp_path)
+    _bootstrap_lanes_mission(tmp_path, slug)
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "bootstrap unassignable mission")
+    _cut_mission_and_lane_branches(tmp_path, slug, code_relpath="src/unassignable.py")
+
+    refusal = MissionNumberVerificationError(f"cannot determine a mission_number for {slug!r}")
+    with (
+        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", side_effect=refusal),
+        pytest.raises(typer.Exit) as exc_info,
+    ):
+        _consolidate(tmp_path, slug)
+
+    assert exc_info.value.exit_code == 1
+    output = capsys.readouterr().out
+    assert "Error:" in output
+    assert "cannot determine a mission_number" in output
+    assert "Assigned" not in output
+
+
+# ---------------------------------------------------------------------------
+# Pre-PR fold N4: the target-tree write/read must never fabricate or crash raw.
+# ---------------------------------------------------------------------------
+
+
+def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """N4: if the target meta.json is absent when the number is written onto
+    the target tree, refuse (``Error:`` + exit 1) and restore the snapshots --
+    never write a one-key ``{"mission_number": N}`` stub meta.json."""
+    from specify_cli.consolidation import executor as ex
+
+    slug = "mission-4900-absent-target-meta"
+    _init_git_repo(tmp_path)
+    _bootstrap_lanes_mission(tmp_path, slug)
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "bootstrap absent-target-meta mission")
+    _cut_mission_and_lane_branches(tmp_path, slug, code_relpath="src/absent_meta.py")
+
+    meta_path = tmp_path / "kitty-specs" / slug / "meta.json"
+    real_read = ex._read_target_tree_mission_number
+
+    def _delete_then_read(target_feature_dir: Path) -> int | None:
+        original_bytes.append(meta_path.read_bytes())
+        meta_path.unlink()
+        return real_read(target_feature_dir)
+
+    original_bytes: list[bytes] = []
+    with (
+        _mission_number_merge_mocks(tmp_path),
+        patch.object(ex, "_read_target_tree_mission_number", side_effect=_delete_then_read),
+        pytest.raises(typer.Exit) as exc_info,
+    ):
+        _run_lane_based_consolidation(
+            repo_root=tmp_path,
+            mission_slug=slug,
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+            strategy=MergeStrategy.SQUASH,
+            allow_sparse_checkout=True,
+        )
+
+    assert exc_info.value.exit_code == 1
+    output = capsys.readouterr().out
+    assert "Error:" in output
+    assert "Assigned" not in output
+    # The restore-then-exit handler put the pre-phase bytes back: no stub.
+    assert meta_path.read_bytes() == original_bytes[0]
+
+
+def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """N4: a corrupt target meta.json surfacing ``MissionMetaReadError`` from the
+    target-tree mission_number read takes the SAME restore-then-``Exit(1)``
+    handling as the baseline record, not a raw traceback."""
+    from specify_cli.consolidation import executor as ex
+
+    slug = "mission-4900-corrupt-target-meta"
+    _init_git_repo(tmp_path)
+    _bootstrap_lanes_mission(tmp_path, slug)
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "bootstrap corrupt-target-meta mission")
+    _cut_mission_and_lane_branches(tmp_path, slug, code_relpath="src/corrupt_meta.py")
+
+    meta_path = tmp_path / "kitty-specs" / slug / "meta.json"
+    real_read = ex._read_target_tree_mission_number
+    original_bytes: list[bytes] = []
+
+    def _corrupt_then_read(target_feature_dir: Path) -> int | None:
+        original_bytes.append(meta_path.read_bytes())
+        meta_path.write_text("{not json", encoding="utf-8")
+        return real_read(target_feature_dir)
+
+    with (
+        _mission_number_merge_mocks(tmp_path),
+        patch.object(ex, "_read_target_tree_mission_number", side_effect=_corrupt_then_read),
+        pytest.raises(typer.Exit) as exc_info,
+    ):
+        _run_lane_based_consolidation(
+            repo_root=tmp_path,
+            mission_slug=slug,
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+            strategy=MergeStrategy.SQUASH,
+            allow_sparse_checkout=True,
+        )
+
+    assert exc_info.value.exit_code == 1
+    output = capsys.readouterr().out
+    assert "Error:" in output
+    assert "Assigned" not in output
+    assert meta_path.read_bytes() == original_bytes[0]
+
+
+# ---------------------------------------------------------------------------
+# Queued WP03 fold: the planning-only path announces only AFTER read-back.
+# ---------------------------------------------------------------------------
+
+
+def _bootstrap_planning_only_mission(repo: Path, slug: str) -> None:
+    feature_dir = repo / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    _write_meta(feature_dir, slug)  # legacy: no mission_id, mission_number null
+    _write_lanes_manifest(feature_dir, slug, code_wp_ids=[], planning_wp_ids=["WP01"])
+    _write_wp_file(feature_dir, "WP01")
+    _seed_wp_approved(feature_dir, slug, "WP01")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", f"chore({slug}): bootstrap planning-only mission")
+
+
+def test_planning_only_readback_failure_never_prints_assigned(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Queued WP03 fold: on the planning-only closeout the "Assigned" line must
+    not print before the target read-back verification; a failed read-back
+    exits non-zero with no "Assigned" line at all."""
+    slug = "mission-4900-planning-only-mismatch"
+    _init_git_repo(tmp_path)
+    _bootstrap_planning_only_mission(tmp_path, slug)
+
+    def _fake_read_committed_meta_json(main_repo, target_branch, meta_rel, mission_slug):  # noqa: ANN001
+        return {"mission_number": 999}
+
+    with (
+        _mission_number_merge_mocks(tmp_path),
+        patch(
+            "specify_cli.consolidation.baseline._read_committed_meta_json",
+            side_effect=_fake_read_committed_meta_json,
+        ),
+        pytest.raises(typer.Exit) as exc_info,
+    ):
+        _consolidate_unwrapped(tmp_path, slug)
+
+    assert exc_info.value.exit_code == 1
+    output = capsys.readouterr().out
+    assert "Error:" in output
+    assert "999" in output
+    assert "Assigned" not in output, f"planning-only path printed an unverified 'Assigned' line: {output!r}"
+
+
+def test_planning_only_announces_once_after_verification(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Queued WP03 fold control: the planning-only closeout records the number
+    on the target and announces it exactly once (after verification)."""
+    slug = "mission-4900-planning-only-ok"
+    _init_git_repo(tmp_path)
+    _bootstrap_planning_only_mission(tmp_path, slug)
+
+    _consolidate(tmp_path, slug)
+
+    assert _target_meta(tmp_path, slug).get("mission_number") == 1
+    output = capsys.readouterr().out
+    assert output.count("Assigned mission_number=1") == 1, output
+
+
+def _consolidate_unwrapped(repo: Path, slug: str) -> None:
+    _run_lane_based_consolidation(
+        repo_root=repo,
+        mission_slug=slug,
+        push=False,
+        delete_branch=False,
+        remove_worktree=False,
+        strategy=MergeStrategy.SQUASH,
+        allow_sparse_checkout=True,
+    )
