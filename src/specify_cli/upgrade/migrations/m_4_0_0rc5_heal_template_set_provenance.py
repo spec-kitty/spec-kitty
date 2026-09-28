@@ -314,7 +314,7 @@ def describe_template_set_ambiguities(project_path: Path) -> list[str]:
 
 
 @MigrationRegistry.register
-class HealTemplateSetProvenanceMigration(BaseMigration):  # type: ignore[misc]  # follow_imports=skip erases BaseMigration's ABC type in narrow checks
+class HealTemplateSetProvenanceMigration(BaseMigration):
     """Rewrite legacy built-in template-set source paths to portable tokens."""
 
     migration_id = MIGRATION_ID
