@@ -31,6 +31,10 @@ _RECONCILER_ID = "RECONCILE_CHANGE_SCOPE_TENSIONS"
 _ADDED_REQUIRED_DIRECTIVES = {
     "ACTION_ITEM_ATTRIBUTION",
     "MINUTES_STAND_ALONE",
+    # DIRECTIVE_053 "Choose Op or Mission Before Starting" ships required: it
+    # is the binding Op-vs-Mission choice rule promoted from
+    # docs/context/ops-vs-missions.md.
+    "DIRECTIVE_053",
 }
 # Advisory directives added to the shipped corpus after the SC-005 baseline
 # snapshot (post-FR-003). DIRECTIVE_052 "Prefer Durable Fixes" ships advisory
@@ -82,7 +86,7 @@ def test_shipped_corpus_enforcement_histogram() -> None:
     added_advisory = {directive.id for directive in directives if directive.id in _ADDED_ADVISORY_DIRECTIVES and directive.enforcement == Enforcement.ADVISORY}
     assert added_advisory == _ADDED_ADVISORY_DIRECTIVES
     assert histogram[Enforcement.REQUIRED] == (_BASELINE_HISTOGRAM[Enforcement.REQUIRED] + len(_ADDED_REQUIRED_DIRECTIVES)), (
-        "Only the two new minutes directives may increase the required count."
+        "Only the directives in _ADDED_REQUIRED_DIRECTIVES may increase the required count."
     )
     assert histogram[Enforcement.LENIENT_ADHERENCE] == (_BASELINE_HISTOGRAM[Enforcement.LENIENT_ADHERENCE] + 1)
     assert histogram[Enforcement.ADVISORY] == (_BASELINE_HISTOGRAM[Enforcement.ADVISORY] - 1 + len(_ADDED_ADVISORY_DIRECTIVES))

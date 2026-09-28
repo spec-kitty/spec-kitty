@@ -702,6 +702,36 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     only totality/disjointness (no frozen membership), so nothing there
 #:     moves. It is charter-activated in this repository's ``.kittify`` but not
 #:     in any pinned pack-default reachability universe.
+#: (23) Op-vs-Mission doctrine (promoted from ``docs/context/ops-vs-missions.md``):
+#:     TWO new nodes, each extractor-minted from its own file:
+#:     ``directive:DIRECTIVE_053`` (``directives/053-choose-op-or-mission-before-
+#:     starting.directive.yaml``, the binding choice rule) and
+#:     ``tactic:op-or-mission-selection`` (``tactics/op-or-mission-selection.
+#:     tactic.yaml``, the decision heuristic). Neither carries inline
+#:     ``references``, and ``HAND_AUTHORED_NODES``/``HAND_AUTHORED_EDGES`` are
+#:     UNCHANGED. THREE new pure edges:
+#:       * ``directive:DIRECTIVE_053 --requires--> tactic:op-or-mission-
+#:         selection``, curated in ``_CURATED_ARTIFACT_EDGES`` (the directive
+#:         mandates the tactic, the ``DIRECTIVE_035`` shape);
+#:       * ``tactic:op-or-mission-selection --suggests--> procedure:adversarial-
+#:         squad-deployment``, curated (the tactic's "place side modes" step
+#:         names the procedure);
+#:       * ``agent_profile:planner-priti --requires--> directive:DIRECTIVE_053``,
+#:         extractor-minted from a new ``directive-references`` entry (code
+#:         ``053``) on the profile, through the entry (21) projection.
+#:     PURE golden counts move +2 NODES / +3 edges. ``_EXPECTED_NODE_COUNT``
+#:     auto-tracks via ``pure_builtin_node_count()``, and no edge count is
+#:     frozen. Relation histogram: ``requires`` +2, ``suggests`` +1, ``scope``
+#:     UNCHANGED (neither node is action-scoped, so no action's calibrated
+#:     surface moves). ORPHAN SETS UNCHANGED: both new nodes are edge-incident,
+#:     and both pre-existing endpoints (``planner-priti``,
+#:     ``adversarial-squad-deployment``) already were, so ``_SHIPPED_ORPHANS``
+#:     stays at 21. REACHABILITY: both new nodes are reachable through the
+#:     profile channel (``planner-priti --requires--> DIRECTIVE_053
+#:     --requires--> op-or-mission-selection``). They are action-unreachable, like
+#:     entry (22), and join the live ``dead`` partition, which asserts no frozen
+#:     membership. The directive is charter-activated in this repository's
+#:     ``.kittify``.
 #: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
 #: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
 #: shipped source file across the file-backed kinds, plus the structurally-derived

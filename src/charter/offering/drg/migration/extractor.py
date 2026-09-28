@@ -535,6 +535,28 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "styleguide:adversarial-squad-cadence",
         Relation.SUGGESTS,
     ),
+    # DIRECTIVE_053 (Choose Op or Mission Before Starting) and its heuristic
+    # tactic ``op-or-mission-selection``, both promoted from
+    # docs/context/ops-vs-missions.md. Like DIRECTIVE_052, neither carries
+    # inline ``references``, so their relationships are curated edges.
+    # ``requires``: the directive MANDATES applying the tactic (its first
+    # procedure step), the DIRECTIVE_035 -> occurrence-classification-workflow
+    # shape. ``suggests``: the tactic's "place side modes" step names the
+    # adversarial-squad procedure as the method for a squad, an advisory
+    # pointer (the existing tactic -> procedure suggests shape). The inbound
+    # edge to the directive is extractor-minted from planner-priti's
+    # ``directive-references``. Ledgered as composition entry (23) in
+    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    (
+        "directive:DIRECTIVE_053",
+        "tactic:op-or-mission-selection",
+        Relation.REQUIRES,
+    ),
+    (
+        "tactic:op-or-mission-selection",
+        "procedure:adversarial-squad-deployment",
+        Relation.SUGGESTS,
+    ),
 )
 
 

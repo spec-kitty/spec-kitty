@@ -60,6 +60,12 @@ _PRE_MIGRATION_CS = _FIXTURES / "shipped_context_sources_pre_migration.json"
 #: ``specializes_from`` lineage edge plus the ``requires`` edges minted from
 #: its ``directive-references``/``tactic-references`` — 11 edges in total, none
 #: of which touch any pre-existing profile's edge set.
+#:
+#: Op-vs-Mission doctrine (``test_extractor_projection.py`` ledger entry (23)):
+#: ``agent_profile:planner-priti`` gains a ``directive-references`` entry for
+#: the new ``DIRECTIVE_053`` (Choose Op or Mission Before Starting), minting one
+#: ``requires`` edge. It is the only edge added to a pre-existing profile, and
+#: nothing is removed.
 _LEDGERED_ADDED: frozenset[tuple[str, str, str]] = frozenset(
     {
         ("agent_profile:python-pedro", "directive:DIRECTIVE_034", "requires"),
@@ -84,6 +90,7 @@ _LEDGERED_ADDED: frozenset[tuple[str, str, str]] = frozenset(
         ("agent_profile:drupal-dries", "tactic:dependency-hygiene", "requires"),
         ("agent_profile:drupal-dries", "tactic:supply-chain-install-safety", "requires"),
         ("agent_profile:drupal-dries", "tactic:tdd-red-green-refactor", "requires"),
+        ("agent_profile:planner-priti", "directive:DIRECTIVE_053", "requires"),
     }
 )
 _LEDGERED_REMOVED: frozenset[tuple[str, str, str]] = frozenset(

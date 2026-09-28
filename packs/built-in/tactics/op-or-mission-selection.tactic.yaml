@@ -1,0 +1,74 @@
+schema_version: "1.0"
+id: op-or-mission-selection
+name: Op-or-Mission Selection
+purpose: >
+  Decide quickly and repeatably whether a piece of governed work should run as
+  an Op or as a Mission. An Op is a lightweight `spec-kitty dispatch`
+  invocation that is opened and closed in one sitting. A Mission is the full
+  spec-to-consolidate workflow with reviewable work packages and a review
+  gate. The rule of thumb: if the whole task fits in one sentence and one
+  sitting, it is an Op. If it needs a spec, reviewable work packages or a
+  review gate, or if it will span more than one sitting, it is a Mission.
+steps:
+  - title: State the work in one sentence
+    description: >
+      Write the request as a single sentence that names the outcome. If one
+      sentence cannot describe the whole task without "and then", the work
+      probably has several reviewable parts, so lean towards a Mission.
+    examples:
+      - "Op-shaped: \"Review this retry-logic approach for failure modes.\""
+      - "Mission-shaped: \"Add per-tenant rate limiting, migrate the config format, and document the new limits.\""
+  - title: Check the Mission triggers
+    description: |
+      Choose a Mission if ANY of these holds:
+        - the work needs a written spec or implementation plan;
+        - it splits into discrete work packages that should each be reviewed;
+        - it needs an explicit review or approval gate before it lands;
+        - it will span more than one sitting;
+        - it must be resumable by name, or picked up by a different agent.
+      If none holds, the work is an Op candidate.
+    examples:
+      - "\"Let's continue this tomorrow\" makes sense -> Mission."
+      - "You would naturally want to write a spec for it -> Mission."
+      - "A one-off question, review or piece of advice with no lasting artifact to track -> Op."
+      - "A small fix that needs no spec, review gate or multi-session tracking -> Op."
+  - title: Place side modes correctly
+    description: >
+      An adversarial squad is not a third unit of work. At an SDD point-cut
+      (post-spec, post-plan or post-tasks) it runs inside the Mission. For an
+      ad-hoc design or decision check it runs as an Op. Its method is
+      procedure:adversarial-squad-deployment. A trivial edit that nobody
+      has asked Spec Kitty to govern needs neither unit.
+  - title: Start the chosen unit through its entry point
+    description: >
+      For an Op, run `spec-kitty dispatch "<request>"`, adding
+      `--profile <id>` when you already know the right profile. For a
+      Mission, run `/spec-kitty.specify`, then choose the Mission type. Note
+      the choice and the trigger that decided it, so a reviewer can check the
+      unit against the work.
+  - title: Re-check at every natural pause
+    description: >
+      While working in an Op, ask the trigger questions again whenever new
+      scope appears. If the remaining work is too large to finish cleanly
+      now, or needs its own design pass (a spec, an ADR or an operator
+      decision), stop extending the Op. Close it with the outcome of what was
+      actually done. Then carry the remainder into a Mission, or into a
+      tracked follow-up that names it.
+  - title: Close every Op
+    description: >
+      Finish an Op with `spec-kitty profile-invocation complete
+      --invocation-id <id> --outcome <done|failed|abandoned>`, using the real
+      outcome. An Op that is never closed is later reported by
+      `spec-kitty doctor ops` and swept to abandoned, which hides what
+      happened.
+failure_modes:
+  - "Op creep: an Op grows, one small step at a time, into a multi-part change
+    that no spec describes and no review gate checks."
+  - "Chaining Ops to avoid a Mission: splitting Mission-sized work into many
+    small Ops so that each one looks trivial."
+  - "Excess overhead: starting a full Mission, with spec, plan and work
+    packages, for a one-sentence, one-sitting fix."
+  - "Unclosed Ops: finishing the work but never recording the outcome, so the
+    Op is swept to abandoned and the record misstates what happened."
+  - "Deciding by habit: always dispatching, or always specifying, without
+    checking the triggers for this piece of work."

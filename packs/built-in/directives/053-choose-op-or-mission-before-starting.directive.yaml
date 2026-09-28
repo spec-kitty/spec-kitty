@@ -1,0 +1,83 @@
+schema_version: "1.0"
+id: DIRECTIVE_053
+title: Choose Op or Mission Before Starting
+intent: >
+  Spec Kitty has two units of governed work, and each piece of governed work
+  must be placed in exactly one of them BEFORE work starts. An Op is a
+  lightweight, governed ad-hoc invocation, opened with `spec-kitty dispatch`.
+  It creates no spec, plan, work package, branch or worktree, and it is
+  opened and closed within one sitting. A Mission is the full
+  specify -> plan -> tasks -> implement -> review -> consolidate workflow. It
+  keeps a persistent mission directory, reviewable work packages on the lane
+  state machine, and a review gate before anything lands. Choosing late, or
+  not at all, causes the most common "why was this not tracked, reviewed or
+  landed?" failure. Two cases produce it. An Op quietly grows into
+  Mission-sized work, and so skips the spec and the review gate. Or a one-line
+  task is given full Mission overhead. This directive makes the choice
+  explicit and keeps it honest while the work runs. The decision heuristic
+  that applies it is tactic:op-or-mission-selection.
+enforcement: required
+scope: >
+  Applies to every request that is to be handled under Spec Kitty governance,
+  whether a human operator or an agent receives it. It governs the choice of
+  work unit and the lifecycle discipline of an Op: open it, re-check it and
+  close it. It does not govern which Mission type to start once a Mission is
+  chosen, and it does not govern the steps inside a running Mission.
+procedures:
+  - "Before starting, classify the work as an Op or a Mission by applying
+    tactic:op-or-mission-selection. If ANY Mission trigger holds, choose a
+    Mission. The triggers are: the work needs a written spec or
+    implementation plan; it splits into discrete, reviewable work packages;
+    it needs an explicit review or approval gate before it lands; it will
+    span more than one sitting; or it must be resumable by name, or by a
+    different agent."
+  - "Otherwise, choose an Op. Typical Ops are a one-off question, review or
+    piece of advice; a small fix that needs no spec, review gate or
+    multi-session tracking; or a request that only needs the governance
+    context injected once."
+  - "Start the chosen unit through its canonical entry point. Start an Op with
+    `spec-kitty dispatch \"<request>\"`, adding `--profile <id>` when the
+    right profile is already known. Start a Mission with `/spec-kitty.specify`.
+    Never approximate either one by hand."
+  - "Re-check the choice while the work runs. If an Op surfaces a Mission
+    trigger, stop extending the Op. Two examples: the remaining scope is too
+    large to finish cleanly in this sitting, or it needs its own design pass
+    (a spec, an ADR or an operator decision) before any code changes. Close
+    the Op with the outcome of the work actually done. Then carry the rest
+    into a Mission, or into a tracked follow-up that names it."
+  - "Close every Op explicitly with `spec-kitty profile-invocation complete
+    --invocation-id <id> --outcome <done|failed|abandoned>`, using the real
+    outcome."
+integrity_rules:
+  - "Handling Mission-sized work as an Op is non-compliant. Mission-sized work
+    needs a spec, reviewable work packages, a review gate, or more than one
+    sitting. Handling it as an Op, or as a chain of Ops, to avoid the spec or
+    the review gate breaks this directive, even when the resulting change is
+    correct."
+  - "An Op left open after its work has stopped is non-compliant. Closing it
+    with an outcome that differs from what happened is also non-compliant. A
+    swept-to-abandoned Op is a lapse, not a completion."
+  - "Starting a Mission for work that meets none of the Mission triggers is
+    excess overhead. It is not a violation, but reviewers should flag it, and
+    the operator may collapse it into an Op."
+  - "The choice is re-checked, never assumed. A trigger that appears
+    mid-Op obliges escalation. It does not license growing the Op until
+    the work is finished."
+validation_criteria:
+  - "For any governed change, a reviewer can tell which unit carried it (an Op
+    record or a Mission directory) and can see that the unit matches the
+    triggers: every Mission-trigger case ran as a Mission."
+  - "Every Op opened for the work carries a completed event whose outcome
+    matches what happened; no Op is left open or swept to abandoned."
+  - "When an Op escalated, the hand-off is visible. The Op was closed, and the
+    remaining scope sits in a named Mission or tracked follow-up, not in a
+    growing Op."
+explicit_allowances:
+  - "A trivial edit made when nobody has asked for Spec Kitty involvement
+    may skip both units. This directive binds only work handled under Spec
+    Kitty governance."
+  - "Several short Ops may be opened in one session for independent questions
+    or fixes. The rule is one unit per piece of work, not one Op per session."
+  - "An ad-hoc Op may be opened while a Mission is in flight, for example a
+    governed question or a single review lens, provided it does not carry
+    that Mission's scoped work outside its review gate."

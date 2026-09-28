@@ -105,3 +105,6 @@ directive-references:
   - code: "003"
     name: Decision Documentation Requirement
     rationale: Work package decisions, dependency choices, and prioritisation rationale must be documented for traceability
+  - code: "053"
+    name: Choose Op or Mission Before Starting
+    rationale: Deciding whether a goal needs a Mission with work packages at all, or is a single Op, comes before any decomposition, and an over- or under-sized unit invalidates the plan built on it

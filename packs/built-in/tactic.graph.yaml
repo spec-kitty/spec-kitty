@@ -200,6 +200,9 @@ nodes:
 - urn: tactic:occurrence-classification-workflow
   kind: tactic
   label: Occurrence Classification Workflow
+- urn: tactic:op-or-mission-selection
+  kind: tactic
+  label: Op-or-Mission Selection
 - urn: tactic:ownership-map-leeway
   kind: tactic
   label: Ownership Map Leeway
@@ -956,6 +959,9 @@ edges:
   target: toolguide:typescript-mutation-tools
   relation: suggests
   when: Use when applying the mutation testing workflow to TypeScript projects.
+- source: tactic:op-or-mission-selection
+  target: procedure:adversarial-squad-deployment
+  relation: suggests
 - source: tactic:ownership-map-leeway
   target: styleguide:planning-and-tracking
   relation: suggests

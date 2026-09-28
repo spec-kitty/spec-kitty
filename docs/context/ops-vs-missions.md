@@ -2,7 +2,7 @@
 title: Ops vs. Missions
 description: 'What separates a lightweight, governed ad-hoc Op from a full spec-to-consolidate Mission, and a concrete rule for choosing between them.'
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-09-28'
 type: explanation
 related:
 - docs/context/mission-types.md
@@ -59,6 +59,22 @@ designed to be opened and closed inside a single turn of work.
 
 ## Decision rule
 
+The binding rule is shipped doctrine, not this page:
+[DIRECTIVE_053 — Choose Op or Mission Before Starting](../../packs/built-in/directives/053-choose-op-or-mission-before-starting.directive.yaml)
+requires the choice to be made before work starts and re-checked while it runs.
+It also requires every Op to be closed. The step-by-step heuristic that applies
+the rule is the
+[`op-or-mission-selection` tactic](../../packs/built-in/tactics/op-or-mission-selection.tactic.yaml).
+Activate both in a project with:
+
+```bash
+spec-kitty charter activate directive 053-choose-op-or-mission-before-starting
+spec-kitty charter activate tactic op-or-mission-selection
+```
+
+The table and heuristic below explain that rule. If they ever disagree with
+the artifacts, the artifacts win.
+
 Use this table to decide before you start:
 
 | If your situation is... | Use |
@@ -73,6 +89,12 @@ Use this table to decide before you start:
 A useful heuristic: if you can describe the entire task in one sentence and
 expect it done in one sitting, it's an Op. If you'd naturally want to write a
 spec for it, or if "let's continue this tomorrow" makes sense, it's a Mission.
+
+The choice can change while you work. If an Op turns up work that is too
+large to finish cleanly now, or that needs its own design pass (a spec, an
+ADR or an operator decision), stop extending the Op. Close it with the
+outcome of what you actually did, then carry the rest into a Mission or a
+tracked follow-up. Don't let the Op grow until the work is done.
 
 Ops and Missions are not mutually exclusive: a governed mission action (e.g.
 `spec-kitty next --agent <name> --mission <slug>`) uses the same governed-context

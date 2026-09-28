@@ -98,6 +98,9 @@ nodes:
 - urn: directive:DIRECTIVE_052
   kind: directive
   label: Prefer Durable Fixes
+- urn: directive:DIRECTIVE_053
+  kind: directive
+  label: Choose Op or Mission Before Starting
 - urn: directive:DISCIPLINED_REFACTORING
   kind: directive
   label: Disciplined Refactoring
@@ -435,6 +438,9 @@ edges:
 - source: directive:DIRECTIVE_052
   target: styleguide:adversarial-squad-cadence
   relation: suggests
+- source: directive:DIRECTIVE_053
+  target: tactic:op-or-mission-selection
+  relation: requires
 - source: directive:DISCIPLINED_REFACTORING
   target: tactic:refactoring-encapsulate-record
   relation: suggests

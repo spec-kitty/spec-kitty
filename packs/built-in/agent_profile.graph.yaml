@@ -618,6 +618,9 @@ edges:
   target: directive:DIRECTIVE_003
   relation: requires
 - source: agent_profile:planner-priti
+  target: directive:DIRECTIVE_053
+  relation: requires
+- source: agent_profile:planner-priti
   target: procedure:adversarial-squad-deployment
   relation: requires
 - source: agent_profile:python-pedro

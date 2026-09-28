@@ -90,7 +90,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/paula-patterns.agent.yaml
   provenance_path:
-- content_hash: ff91fb7d097934f17e9b2d3fb8b782c2fdc7afde8aef0f96648c2efe10394d41
+- content_hash: 1fa915e4c9874cd8135d9a324d95ae55686f68895f7b827858cc98bf49db86d4
   id: planner-priti
   kind: agent_profile
   path: agent_profiles/planner-priti.agent.yaml
@@ -319,6 +319,11 @@ constituents:
   id: DIRECTIVE_052
   kind: directive
   path: directives/052-prefer-durable-fixes.directive.yaml
+  provenance_path:
+- content_hash: 3bd93b86398966208678cc9c76f0453d7639984b91cb13330fe38e6b1e592a1f
+  id: DIRECTIVE_053
+  kind: directive
+  path: directives/053-choose-op-or-mission-before-starting.directive.yaml
   provenance_path:
 - content_hash: a5690a9024a46b48be8b95149de83eb34f608a5e8c80153bf7e6595ffad4ec9e
   id: DISCIPLINED_REFACTORING
@@ -995,6 +1000,11 @@ constituents:
   kind: tactic
   path: tactics/occurrence-classification-workflow.tactic.yaml
   provenance_path:
+- content_hash: 0920d4ccf653696160d8e722c4835198fcfe9f802060fec22275ec2f7499860d
+  id: op-or-mission-selection
+  kind: tactic
+  path: tactics/op-or-mission-selection.tactic.yaml
+  provenance_path:
 - content_hash: c06ae2ae60735ff97828c120f9a562b48df4110c5a2097d897f21d56b0e8d256
   id: ownership-map-leeway
   kind: tactic
@@ -1380,7 +1390,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 5b45ca6d5b03a3e5736efebe782f65ee94e84888846bca9dd91928b285a04a37
+manifest_hash: c11ed69fb8e1605fa7a5910222210c5230b65b7af4ba3caf117c42eae43f376a
 schema_version: '1'
 source_type: built-in
 source_url:
