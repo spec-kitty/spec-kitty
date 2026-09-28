@@ -61,6 +61,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -107,14 +108,24 @@ class DecisionsReconciliationReport:
     lossy_attribution: list[str] = field(default_factory=list)
     #: Fold C (#470 dead-symbol gate + robustness): decision_ids whose
     #: grouped event envelopes raised ``index_fold.FoldError`` -- a
-    #: malformed event-log group, not a programmer error -- during
-    #: ``--repair``. Empty on every non-repair run and on a run with no
-    #: malformed groups.
+    #: malformed event-log group, not a programmer error. #4919 (FR-003):
+    #: unlike Fold A/lossy_attribution, this is now populated on EVERY run
+    #: (read-only diagnose included, not just ``--repair``) -- :func:`_diagnose`
+    #: runs the canonical fold itself so a genuinely unfoldable decision is
+    #: reported (``clean: false``) even when no repair is requested.
     malformed_folds: list[str] = field(default_factory=list)
+    #: #4919 (FR-003, plan D3): decision_ids present in BOTH the log and the
+    #: index whose event-log-folded status disagrees with the index's
+    #: on-disk status -- a stale index entry that a clean id-set comparison
+    #: alone would miss (e.g. the index still says ``deferred`` after a
+    #: ``resolve`` landed in the log). Each item is
+    #: ``{"decision_id", "index_status", "folded_status"}``. Empty on a
+    #: healthy corpus.
+    status_mismatch: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def clean(self) -> bool:
-        return not self.missing_from_index and not self.orphaned_in_index
+        return not self.missing_from_index and not self.orphaned_in_index and not self.malformed_folds and not self.status_mismatch
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
@@ -151,7 +162,7 @@ def _events_path(mission_dir: Path) -> Path:
 
 
 def _decisions_lock_path(ledger_dir: Path) -> Path:
-    return _store.decisions_dir(ledger_dir) / _LOCK_FILENAME
+    return Path(_store.decisions_dir(ledger_dir) / _LOCK_FILENAME)
 
 
 def _read_decision_events(events_path: Path) -> dict[str, list[dict]]:  # type: ignore[type-arg]
@@ -252,23 +263,85 @@ def _rebuild_index_from_log(
     return DecisionIndex(mission_id=mission_id, entries=tuple(rebuilt_entries)), lossy_ids, malformed_ids
 
 
+def _fold_diagnostics(
+    grouped: dict[str, list[dict[str, Any]]],
+    index_by_id: dict[str, IndexEntry],
+) -> tuple[list[str], list[dict[str, str]]]:
+    """Run the canonical fold over every log-backed decision_id and report
+    what the id-set comparison alone cannot see (#4919, FR-003, plan D3):
+
+    - ``malformed_folds``: decision_ids whose grouped event envelopes raise
+      ``index_fold.FoldError`` (e.g. a genuinely unfoldable combination of
+      ``DecisionPointResolved`` outcomes) -- reported on EVERY run, not just
+      ``--repair``, so a read-only ``doctor decisions`` surfaces the problem.
+    - ``status_mismatch``: decision_ids present in BOTH the log and the
+      index whose folded status disagrees with the on-disk index status (a
+      stale entry -- e.g. the index still says ``deferred`` after a
+      ``resolve`` landed in the log).
+
+    A decision missing from the index entirely (``missing_from_index``) is
+    folded here too (to catch malformed folds regardless of index
+    membership) but has no index entry to compare a status against.
+
+    Mirrors the ``_rebuild_index_from_log`` loop shape (T009): a decision
+    whose PRE-repair on-disk entry is unrecoverable slot_key-origin evidence
+    (:func:`_is_unrecoverable_slot_key_origin`) is skipped here too -- the
+    log-side fold would reconstruct ``step_id`` from the wire's collapsed
+    field, which never affects ``status`` (harmless for THIS comparison),
+    but the wire cannot faithfully attribute that entry either way, so it is
+    left out of both the malformed and the status-mismatch verdicts, same as
+    ``--repair`` leaves it out of the rebuild.
+    """
+    malformed_ids: list[str] = []
+    status_mismatch: list[dict[str, str]] = []
+    for decision_id in sorted(grouped):
+        existing = index_by_id.get(decision_id)
+        if existing is not None and _is_unrecoverable_slot_key_origin(existing):
+            continue
+        try:
+            folded = _index_fold.fold_events(grouped[decision_id])
+        except _index_fold.FoldError:
+            malformed_ids.append(decision_id)
+            continue
+        if existing is not None and existing.status != folded.status:
+            status_mismatch.append(
+                {
+                    "decision_id": decision_id,
+                    "index_status": existing.status.value,
+                    "folded_status": folded.status.value,
+                }
+            )
+    return malformed_ids, status_mismatch
+
+
 def _diagnose(events_dir: Path, ledger_dir: Path, mission_slug: str) -> tuple[DecisionsReconciliationReport, dict[str, list[dict]]]:  # type: ignore[type-arg]
     """Diagnose log/index divergence.
 
     ``events_dir`` (COORD/``STATUS_STATE``) and ``ledger_dir`` (PRIMARY/
     ``PRIMARY_METADATA``) are resolved separately (#4966 AC-D2) -- the event
     log and the ledger content no longer share one directory.
+
+    #4919 (FR-003, plan D3): beyond the id-set comparison (missing/orphaned),
+    this now ALSO runs the canonical fold per decision_id
+    (:func:`_fold_diagnostics`) so a genuinely unfoldable decision or a stale
+    index status is caught by the read-only path too, not just ``--repair``.
     """
     grouped = _read_decision_events(_events_path(events_dir))
     index = _store.load_index(ledger_dir)
     log_ids = set(grouped)
     index_ids = {e.decision_id for e in index.entries}
+    index_by_id = {e.decision_id: e for e in index.entries}
+
+    malformed_ids, status_mismatch = _fold_diagnostics(grouped, index_by_id)
+
     report = DecisionsReconciliationReport(
         mission_slug=mission_slug,
         log_decision_ids=sorted(log_ids),
         index_decision_ids=sorted(index_ids),
         missing_from_index=sorted(log_ids - index_ids),
         orphaned_in_index=sorted(index_ids - log_ids),
+        malformed_folds=sorted(malformed_ids),
+        status_mismatch=status_mismatch,
     )
     return report, grouped
 
@@ -319,17 +392,46 @@ def _emit_lossy_attribution_warning(report: DecisionsReconciliationReport) -> No
     )
 
 
-def _emit_malformed_fold_warning(report: DecisionsReconciliationReport) -> None:
-    """Fold C (#470 dead-symbol gate + robustness): report -- rather than
-    crash on -- a decision_id whose event group could not be folded."""
+def _malformed_fold_remedy_text(report: DecisionsReconciliationReport) -> str | None:
+    """#4919 (NFR-003, contract ``failure-surface.md`` row 1): the ONE remedy
+    sentence for a malformed-fold refusal -- "left in place" plus how to
+    inspect the decision further. Shared by :func:`_emit_malformed_fold_warning`
+    (human mode, embedded in the printed line) and :func:`_emit_json` (its own
+    ``remedy`` field) so both surfaces carry identical remedy text, never two
+    independently-worded copies. ``None`` when there is nothing to remedy."""
     if not report.malformed_folds:
+        return None
+    return (
+        "left in place: the pre-repair index entry is kept unchanged where one existed, "
+        "otherwise the decision_id stays out of the index (never invented). Inspect with "
+        f"'spec-kitty agent decision list --mission {report.mission_slug}' and the raw event log "
+        "(status.events.jsonl)."
+    )
+
+
+def _emit_malformed_fold_warning(report: DecisionsReconciliationReport) -> None:
+    """Fold C (#470 dead-symbol gate + robustness) / #4919 FR-003/FR-004:
+    report -- rather than crash on -- a decision_id whose event group could
+    not be folded. Names each id and appends the shared remedy text (NFR-003:
+    "left in place" plus how to inspect further)."""
+    remedy = _malformed_fold_remedy_text(report)
+    if remedy is None:
         return
     console.print(
         f"  [red]could not fold[/red] ({len(report.malformed_folds)}) decision(s) from a malformed event-log group -- "
         "the DecisionPointOpened/Resolved envelopes for these decision_ids do not satisfy the canonical fold's "
-        "invariants (index_fold.FoldError); kept the pre-repair index entry unchanged where one existed, otherwise "
-        f"omitted the decision_id from the rebuilt index: {', '.join(report.malformed_folds)}"
+        f"invariants (index_fold.FoldError); {remedy} Affected: {', '.join(report.malformed_folds)}"
     )
+
+
+def _emit_status_mismatch_warning(report: DecisionsReconciliationReport) -> None:
+    """#4919 (FR-003, plan D3): report a stale index status -- the id set
+    agrees with the log, but the recorded status does not (e.g. the index
+    still says ``deferred`` after a ``resolve`` landed in the log)."""
+    if not report.status_mismatch:
+        return
+    detail = ", ".join(f"{item['decision_id']} (index={item['index_status']}, log={item['folded_status']})" for item in report.status_mismatch)
+    console.print(f"  [red]stale status[/red] ({len(report.status_mismatch)}) index entry disagrees with the folded event log: {detail}")
 
 
 def _emit_human(report: DecisionsReconciliationReport) -> None:
@@ -344,9 +446,15 @@ def _emit_human(report: DecisionsReconciliationReport) -> None:
             console.print(f"  orphaned in index, no backing event ({len(report.orphaned_in_index)}): {', '.join(report.orphaned_in_index)}")
     _emit_lossy_attribution_warning(report)
     _emit_malformed_fold_warning(report)
+    _emit_status_mismatch_warning(report)
 
 
 def _emit_json(report: DecisionsReconciliationReport) -> None:
+    """#4919 (NFR-003, contract ``failure-surface.md`` row 1): when
+    ``malformed_folds`` is non-empty, the single JSON document carries a
+    ``remedy`` field (:func:`_malformed_fold_remedy_text`) -- the SAME
+    "left in place" + inspection-pointer text the human-mode warning prints
+    -- so a ``--json`` refusal is not silently poorer than the human one."""
     payload = {
         "mission_slug": report.mission_slug,
         "clean": report.clean,
@@ -357,6 +465,8 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
         "repaired": report.repaired,
         "lossy_attribution": report.lossy_attribution,
         "malformed_folds": report.malformed_folds,
+        "status_mismatch": report.status_mismatch,
+        "remedy": _malformed_fold_remedy_text(report),
     }
     console.print_json(json.dumps(payload, indent=2))
 
@@ -372,15 +482,22 @@ def run_decisions_reconciliation(
     ``contracts/decisions-doctor.md``).
 
     Diagnose (default): read-only report of log/index divergence — entries
-    in the log missing from the index, and index entries with no backing
-    event.
+    in the log missing from the index, index entries with no backing event,
+    a decision_id whose event group cannot be folded at all
+    (``malformed_folds``), and an index entry whose status disagrees with
+    the folded log (``status_mismatch``). Always exits 0, even when the
+    report is not clean (report-only, matching the ``doctor
+    review-cycle-reconcile`` precedent) -- C-007.
 
     ``--repair``: rebuild ``index.json`` from the log via the canonical fold,
     under the sidecar lock. A no-op (no write) when the log and index
-    already agree.
-
-    Informational only, matching the ``doctor review-cycle-reconcile``
-    precedent: always exits 0.
+    already agree. #4919 (FR-004): repair never drops a decision it cannot
+    fold -- a malformed decision's pre-repair index entry is left unchanged
+    (or stays absent if it never had one) and named in ``malformed_folds``.
+    When any decision remains malformed after a repair attempt, the command
+    reports it (exactly one report — human or JSON, never a second document)
+    and then exits **1**; it exits 0 only when every decision the repair
+    touched folds cleanly.
     """
     # Function-local (H2/I-6 precedent, ``_review_cycle_reconcile_doctor.py``):
     # avoids a doctor <-> selector-resolution module-load cycle.
@@ -408,5 +525,13 @@ def run_decisions_reconciliation(
         _emit_json(report)
     else:
         _emit_human(report)
+
+    # #4919 (FR-004, C-007): --repair exits non-zero when it could not
+    # reconcile every decision -- one that remains malformed after the
+    # rebuild attempt is reported above (never a second document) and then
+    # refused here, rather than the command silently claiming success. The
+    # read-only diagnose path (repair=False) always exits 0 (report-only).
+    if repair and report.malformed_folds:
+        raise typer.Exit(1)
 
     raise typer.Exit(0)

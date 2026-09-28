@@ -1392,17 +1392,27 @@ def decisions_reconcile(
 ) -> None:
     """Diagnose or repair divergence between ``decisions/index.json`` and the
     authoritative ``DecisionPointOpened``/``DecisionPointResolved`` event log
-    (FR-004/FR-005).
+    (FR-004/FR-005; #4919 FR-001—FR-004).
 
     Diagnose (default): read-only; reports decisions present in the event
-    log but missing from the index, and index entries with no backing event.
+    log but missing from the index, index entries with no backing event, a
+    decision_id whose event group cannot be folded at all (e.g. an
+    ``open -> open`` corruption), and an index entry whose status disagrees
+    with the folded log (a stale entry). Always exits 0 (report only) — C-007.
 
     ``--repair``: rebuilds ``index.json`` from the log via the single
     canonical ``event -> IndexEntry`` fold
     (:mod:`specify_cli.decisions.index_fold`) under the same sidecar lock the
     write path uses — never invents an entry absent from the log, never
     drops a log-backed entry. A no-op (no write) when the log and index
-    already agree.
+    already agree. The fold is order-independent: a decision's documented
+    ``open -> defer -> resolve`` flow emits a ``deferred``-outcome event and
+    a later ``resolved``-outcome event, and folds to ``resolved`` regardless
+    of which one the (git-merge-driver-resorted) log lists first (#4919).
+    When a decision cannot be reconciled, ``--repair`` leaves it unchanged
+    (never drops it), names it in the report, and the command then exits
+    **1** — C-007. It exits 0 only when every decision the repair touched
+    folds cleanly.
 
     Run ``--repair`` as an offline maintenance step, not concurrently with
     live decision traffic: a decision that is mid-open (its index entry
@@ -1410,8 +1420,6 @@ def decisions_reconcile(
     invisible to a log-authoritative rebuild, so a repair racing that window
     can drop the in-flight entry (a later ``--repair`` heals it). Like
     ``fsck``, it is meant to run when writers are quiesced.
-
-    Informational only: always exits 0.
 
     Examples:
         spec-kitty doctor decisions --mission my-mission-01ABCD

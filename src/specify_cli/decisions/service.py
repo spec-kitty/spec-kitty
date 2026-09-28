@@ -129,7 +129,7 @@ def _decisions_lock_path(ledger_dir: Path) -> Path:
     (#4966 AC-D2) -- the doctor's own ``_ledger_dir`` copy must resolve the
     SAME dir so both lock paths agree.
     """
-    return _store.decisions_dir(ledger_dir) / _LOCK_FILENAME
+    return Path(_store.decisions_dir(ledger_dir) / _LOCK_FILENAME)
 
 
 _TERMINAL_STATUSES = {
@@ -147,8 +147,14 @@ def _is_allowed_terminal_reopen(
     current_status: DecisionStatus,
     target_status: DecisionStatus,
 ) -> bool:
-    """Return True for terminal states that may be explicitly closed later."""
-    return current_status == DecisionStatus.DEFERRED and target_status == DecisionStatus.RESOLVED
+    """Return True for terminal states that may be explicitly closed later.
+
+    Delegates to :func:`specify_cli.decisions.index_fold.is_allowed_terminal_reopen`
+    -- the single transition-rule authority (#4919, plan D3) shared with the
+    read-side fold, so the write path and the reconciler can never drift into
+    two independent answers for "which terminal-to-terminal reopen is legal".
+    """
+    return _index_fold.is_allowed_terminal_reopen(current_status, target_status)
 
 
 def _primary_metadata_dir(repo_root: Path, mission_slug: str) -> Path:
@@ -336,12 +342,14 @@ def _repair_missing_opened_event(
             message=(f"Cannot repair opened event for decision {entry.decision_id!r}: opening actor was not persisted"),
         )
     try:
-        return _emit.emit_decision_opened(
-            repo_root,
-            mission_slug,
-            decision_id=entry.decision_id,
-            entry=entry,
-            actor=entry.opened_by,
+        return int(
+            _emit.emit_decision_opened(
+                repo_root,
+                mission_slug,
+                decision_id=entry.decision_id,
+                entry=entry,
+                actor=entry.opened_by,
+            )
         )
     except Exception as exc:
         raise DecisionError(
