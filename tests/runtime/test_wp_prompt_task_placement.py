@@ -9,7 +9,7 @@ import pytest
 
 from mission_runtime import MissionTopology
 from runtime.next.decision import Decision, DecisionKind, _build_prompt_or_error, decide_next
-from runtime.next.runtime_bridge import _materialize_decision, decide_next_via_runtime
+from runtime.next.runtime_bridge import _materialize_decision, decide_next_via_runtime, query_current_state
 from runtime.next.runtime_bridge_cores import DecisionEnvelope
 from tests.runtime._next_mission_scaffold import (
     advance_to_step,
@@ -247,3 +247,56 @@ def test_missing_terminal_task_blocks_active_wp_to_preserve_board_integrity(
     assert decision.reason is not None
     assert str(task_file) in decision.reason
     assert "restore" in decision.reason.lower() or "regenerate" in decision.reason.lower()
+
+
+def test_query_blocks_when_finalized_status_wp_task_is_missing(tmp_path: Path) -> None:
+    """Query mode must not report file-derived totals that omit a status WP."""
+    repo_root, mission_slug, primary_dir, _ = _scaffold_lanes_with_coord_mission(
+        tmp_path,
+        lane="planned",
+        additional_wps={"WP02": "done"},
+    )
+    task_file = primary_dir / "tasks" / "WP02.md"
+    task_file.unlink()
+
+    decision = query_current_state("codex", mission_slug, repo_root)
+
+    assert decision.kind == DecisionKind.query
+    assert decision.mission_state == "blocked"
+    assert decision.preview_step is None
+    assert decision.progress is None
+    assert decision.reason is not None
+    assert str(task_file) in decision.reason
+    assert "WP02" in decision.reason
+    assert "restore" in decision.reason.lower() or "regenerate" in decision.reason.lower()
+
+
+@pytest.mark.parametrize("route", ["bridge", "decision_api"], ids=["runtime-bridge", "decision-api"])
+def test_wp_prompt_blocks_when_primary_task_declares_another_wp_id(
+    tmp_path: Path,
+    route: str,
+) -> None:
+    """A filename match cannot authorize embedding another WP's authored task."""
+    repo_root, mission_slug, primary_dir, _ = _scaffold_lanes_with_coord_mission(tmp_path, lane="planned")
+    advance_to_step(repo_root, mission_slug, "software-dev", "implement")
+
+    task_file = primary_dir / "tasks" / "WP01.md"
+    wrong_identity_task = _EXPECTED_WP_TASK.replace(
+        "work_package_id: WP01",
+        "work_package_id: WP02",
+    ).replace("Work Package WP01:", "Work Package WP02:")
+    task_file.write_text(wrong_identity_task, encoding="utf-8")
+
+    route_callable = decide_next_via_runtime if route == "bridge" else decide_next
+    decision = route_callable("codex", mission_slug, "success", repo_root)
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.action is None
+    assert decision.wp_id is None
+    assert decision.prompt_file is None
+    assert decision.reason is not None
+    assert str(task_file) in decision.reason
+    assert "expected WP01" in decision.reason
+    assert "found WP02" in decision.reason
+    assert "restore" in decision.reason.lower() or "regenerate" in decision.reason.lower()
+    assert "<subtask-ids>" not in decision.reason
