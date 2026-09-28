@@ -189,9 +189,7 @@ class TestDoctorProvenanceCli:
         assert "PARADIGM:atomic-design" in result.output
         assert "spec-kitty migrate" in result.output
 
-    def test_unverified_template_set_checkout_is_reported_as_ambiguous(
-        self, tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unverified_template_set_checkout_is_reported_as_ambiguous(self, tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         external = tmp_path / "external-authority" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
         _write(external, "name: unrelated-mutable-mission\ndescription: Keep this authority.\n")
         refs = (
@@ -211,6 +209,15 @@ class TestDoctorProvenanceCli:
         assert "TEMPLATE_SET:software-dev-default" in result.output
         assert "ambiguous" in result.output.lower() or "unresolved" in result.output.lower()
         assert "not healed" in result.output.lower()
+
+        json_result = runner.invoke(doctor_module.app, ["provenance", "--json"])
+
+        assert json_result.exit_code == 1, json_result.output
+        payload = json.loads(json_result.output)
+        assert payload["leak_count"] == 0
+        assert payload["unresolved_count"] == payload["finding_count"] == 1
+        assert payload["heal_hint"] is None
+        assert "ambiguous" in payload["unresolved"][0]
 
     def test_json_output_shape(self, tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         abs_source = packs_root / "built-in" / "paradigms" / "atomic-design.paradigm.yaml"

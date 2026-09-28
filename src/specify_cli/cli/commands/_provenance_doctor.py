@@ -34,6 +34,7 @@ import typer
 from specify_cli.core.paths import locate_project_root
 from specify_cli.upgrade.migrations.m_3_2_7_heal_provenance_paths import describe_leaks
 from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance import (
+    describe_template_set_ambiguities,
     describe_template_set_leaks,
 )
 
@@ -49,25 +50,40 @@ def run_provenance_audit(repo_root: Path, *, json_output: bool) -> None:
     """Entry point for ``doctor provenance``.
 
     Advisory (matches ``doctor cutover``'s informational shape): exits 1 when
-    a leak is found so CI can gate on it if desired, but this command never
-    mutates anything -- healing is a separate, explicit ``spec-kitty
-    migrate`` step.
+    a leak or unverified legacy source is found so CI can gate on it if desired,
+    but this command never mutates anything -- healing is a separate, explicit
+    ``spec-kitty migrate`` step for sources with proven checkout identity.
     """
     leaks = [*describe_leaks(repo_root), *describe_template_set_leaks(repo_root)]
+    unresolved = describe_template_set_ambiguities(repo_root)
+    findings = [*leaks, *unresolved]
 
     if json_output:
-        payload = {"leaks": leaks, "leak_count": len(leaks), "heal_hint": _HEAL_HINT}
+        payload = {
+            "leaks": leaks,
+            "leak_count": len(leaks),
+            "unresolved": unresolved,
+            "unresolved_count": len(unresolved),
+            "finding_count": len(findings),
+            "heal_hint": _HEAL_HINT if leaks else None,
+        }
         console.print_json(json.dumps(payload, indent=2))
-        raise typer.Exit(1 if leaks else 0)
+        raise typer.Exit(1 if findings else 0)
 
-    if not leaks:
+    if not findings:
         console.print("[green]Provenance[/green]: no absolute built-in-pack source_path leaks found.")
         raise typer.Exit(0)
 
-    console.print(f"\n[bold yellow]Provenance leak(s)[/bold yellow] -- {len(leaks)} absolute built-in-pack source_path(s)\n")
+    console.print(f"\n[bold yellow]Provenance finding(s)[/bold yellow] -- {len(findings)} source_path issue(s)\n")
     for leak in leaks:
         console.print(f"  • [yellow]{leak}[/yellow]")
-    console.print(f"\n  [dim]Heal with:[/dim] {_HEAL_HINT}\n")
+    for finding in unresolved:
+        console.print(f"  • [yellow]{finding}[/yellow]")
+    if leaks:
+        console.print(f"\n  [dim]Heal verified built-in paths with:[/dim] {_HEAL_HINT}")
+    if unresolved:
+        console.print("\n  [dim]Unverified paths are left unchanged; resolve them manually or restore checkout evidence.[/dim]")
+    console.print()
     raise typer.Exit(1)
 
 
@@ -81,12 +97,12 @@ def register(app: typer.Typer) -> None:
             typer.Option("--json", help="Machine-readable JSON output"),
         ] = False,
     ) -> None:
-        """Flag committed absolute built-in-pack source_path leaks (C-PRV-5).
+        """Flag committed absolute built-in-pack leaks and ambiguous template sources (C-PRV-5).
 
         Scans .kittify/charter/charter.yaml's catalog and
-        .kittify/agent_profiles_manifest.json for a source_path that should
-        be a ${SPEC_KITTY_PACKS_ROOT}/built-in/... token but is not, and
-        prints a heal hint for each. Read-only -- never mutates state.
+        .kittify/agent_profiles_manifest.json for source_path values that
+        should be portable pack tokens. Read-only -- never mutates state;
+        ambiguous former-checkout paths are reported without a heal hint.
 
         Examples:
             spec-kitty doctor provenance

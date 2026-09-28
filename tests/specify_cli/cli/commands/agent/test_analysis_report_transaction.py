@@ -105,9 +105,7 @@ def test_report_only_succeeds_with_charter_generated_in_another_checkout(repo: P
     assert "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml" in charter_path.read_text(encoding="utf-8")
 
 
-def test_report_only_refuses_unverified_external_template_authority_after_migration(
-    repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+def test_report_only_refuses_unverified_external_template_authority_after_migration(repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
     from charter.offering.provenance import is_built_in_pack_path
     from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance import (

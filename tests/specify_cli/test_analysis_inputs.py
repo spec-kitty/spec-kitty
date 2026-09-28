@@ -188,6 +188,26 @@ def test_external_mutable_catalog_source_still_fails_closed(tmp_path: Path, monk
         collect_material_inputs(mission, checkout_b)
 
 
+def test_external_template_set_with_canonical_suffix_fails_closed_in_material_inputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A matching built-in path suffix does not make an external source portable."""
+    from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
+    from specify_cli.analysis_inputs import MaterialInputError, collect_material_inputs
+
+    checkout_b, charter_path = _generated_charter_in_second_checkout(tmp_path, monkeypatch)
+    mission = checkout_b / "kitty-specs" / "second-checkout"
+    external_source = tmp_path / "external-authority" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    external_source.parent.mkdir(parents=True)
+    external_source.write_text("name: unrelated-mutable-mission\ndescription: Keep this authority.\n", encoding="utf-8")
+
+    catalog = load_charter_yaml(charter_path)["catalog"]
+    template_ref = next(ref for ref in catalog["references"] if ref["kind"] == "template_set")
+    template_ref["source_path"] = str(external_source)
+    update_charter_yaml_section(charter_path, "catalog", catalog)
+
+    with pytest.raises(MaterialInputError, match="External mutable analysis authority is unsupported"):
+        collect_material_inputs(mission, checkout_b)
+
+
 def test_malformed_wp_definition_is_refused(tmp_path: Path):
     from specify_cli.analysis_inputs import MaterialInputError, collect_material_inputs
 

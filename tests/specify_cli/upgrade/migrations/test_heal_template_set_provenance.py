@@ -69,8 +69,7 @@ def _former_checkout_source(checkout: Path, *, remove_source: bool = False) -> P
     source.parent.mkdir(parents=True)
     source.write_text("name: software-dev\ndescription: Tracked built-in mission.\n", encoding="utf-8")
     (checkout / "pyproject.toml").write_text(
-        '[project]\nname = "spec-kitty-cli"\n\n'
-        '[project.urls]\nRepository = "https://github.com/spec-kitty/spec-kitty"\n',
+        '[project]\nname = "spec-kitty-cli"\n\n[project.urls]\nRepository = "https://github.com/spec-kitty/spec-kitty"\n',
         encoding="utf-8",
     )
     subprocess.run(["git", "init", "--quiet", str(checkout)], check=True)
@@ -174,7 +173,7 @@ def test_template_set_migration_is_dry_run_safe_and_idempotent(tmp_path: Path, p
     assert migration.apply(tmp_path).changes_made == []
 
 
-def test_external_template_set_path_is_preserved_and_not_reported(tmp_path: Path, packs_root: Path) -> None:
+def test_external_template_set_path_is_preserved_without_healing(tmp_path: Path, packs_root: Path) -> None:
     external = tmp_path / "external-authority" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
     external.parent.mkdir(parents=True)
     external.write_text("name: unrelated-mutable-mission\ndescription: Keep this authority.\n", encoding="utf-8")
@@ -190,3 +189,22 @@ def test_external_template_set_path_is_preserved_and_not_reported(tmp_path: Path
     assert migration.apply(tmp_path).changes_made == []
     data = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
     assert data["catalog"]["references"][0]["source_path"] == str(external)
+
+
+def test_missing_template_path_without_checkout_evidence_stays_ambiguous(tmp_path: Path, packs_root: Path) -> None:
+    from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance import describe_template_set_ambiguities
+
+    stale_source = tmp_path / "former-checkout" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    charter_path = _charter_path(tmp_path)
+    _write_charter(charter_path, [_template_ref(str(stale_source))])
+    migration = HealTemplateSetProvenanceMigration()
+
+    assert not stale_source.exists()
+    assert migration.detect(tmp_path) is False
+    result = migration.apply(tmp_path)
+    data = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
+
+    assert result.success is True
+    assert result.changes_made == []
+    assert data["catalog"]["references"][0]["source_path"] == str(stale_source)
+    assert "ambiguous" in describe_template_set_ambiguities(tmp_path)[0]
