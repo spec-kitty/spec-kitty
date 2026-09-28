@@ -15,10 +15,13 @@ import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.upgrade.migrations.m_3_2_6_retire_rtk_search_tooling import (
-    RETIRED_TOOLGUIDE_REFERENCE_ID,
     RETIRED_TOOLGUIDE_STEM,
     RetireRtkSearchToolingMigration,
 )
+
+#: Catalog/reference block id of the retired toolguide, as compiled into
+#: ``.kittify/charter/charter.yaml`` (``catalog``) and ``references.yaml``.
+RETIRED_TOOLGUIDE_REFERENCE_ID = f"TOOLGUIDE:{RETIRED_TOOLGUIDE_STEM}"
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

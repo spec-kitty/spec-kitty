@@ -261,7 +261,7 @@ def test_lint_config_data_file_exists_and_declares_the_pinned_key() -> None:
     assert "structural_lint_config" in raw
 
 
-def test_lint_config_data_file_loads_through_the_asset_loader() -> None:
+def test_lint_config_data_file_loads_through_the_asset_loader(monkeypatch: pytest.MonkeyPatch) -> None:
     """The unchanged loader contract: any file carrying the pinned wrapper key loads."""
     import importlib.util
     import sys
@@ -269,13 +269,10 @@ def test_lint_config_data_file_loads_through_the_asset_loader() -> None:
     spec = importlib.util.spec_from_file_location("docs_structural_lint_under_test", _PACKS / "assets" / "docs_structural_lint.py")
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules["docs_structural_lint_under_test"] = module
-    try:
-        spec.loader.exec_module(module)
-        config = module.load_config(_LINT_CONFIG_ASSET)
-        assert "architecture" in config.curated_complete_sections
-    finally:
-        sys.modules.pop("docs_structural_lint_under_test", None)
+    monkeypatch.setitem(sys.modules, "docs_structural_lint_under_test", module)
+    spec.loader.exec_module(module)
+    config = module.load_config(_LINT_CONFIG_ASSET)
+    assert "architecture" in config.curated_complete_sections
 
 
 def test_common_docs_styleguide_no_longer_embeds_the_lint_config() -> None:

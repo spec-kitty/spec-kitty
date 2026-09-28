@@ -50,11 +50,11 @@ matching, the "nothing removed" no-op contract) are shared with
 ``m_4_0_0rc5_retire_single_owner_doctrine_ids`` via the generic engine in
 ``_retired_activation.py`` rather than duplicated a second time. This
 migration's own public surface — ``migration_id``, ``target_version``, the
-three project files it touches, and the exported
-``RETIRED_TOOLGUIDE_STEM`` / ``RETIRED_TOOLGUIDE_REFERENCE_ID`` constants —
-is unchanged; only the internals were extracted, and
-``tests/specify_cli/upgrade/migrations/test_m_3_2_6_retire_rtk_search_tooling.py``
-still passes unmodified against the rebuilt class (behaviour-preserving).
+three project files it touches, and the exported ``RETIRED_TOOLGUIDE_STEM``
+constant — is unchanged; only the internals were extracted (the catalog
+reference id ``TOOLGUIDE:<stem>`` is now derived by the engine from
+``reference_prefix``), and the migration's tests pass against the rebuilt
+class (behaviour-preserving).
 """
 
 from __future__ import annotations
@@ -68,10 +68,6 @@ from .base import BaseMigration, MigrationResult
 #: Config/file-stem id of the retired toolguide, as it appears in
 #: ``activated_toolguides`` in both ``config.yaml`` and ``charter.yaml``.
 RETIRED_TOOLGUIDE_STEM = "rtk-search-tooling"
-
-#: Catalog/reference block id of the same artefact, as compiled into
-#: ``.kittify/charter/charter.yaml`` (``catalog``) and ``references.yaml``.
-RETIRED_TOOLGUIDE_REFERENCE_ID = f"TOOLGUIDE:{RETIRED_TOOLGUIDE_STEM}"
 
 _RETIREMENT = Retirement(
     kind_key="activated_toolguides",
