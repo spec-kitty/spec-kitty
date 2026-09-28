@@ -10,6 +10,8 @@ from packaging.version import Version
 
 from specify_cli.gitignore_manager import GitignorePathError
 
+from .migrations.base import MigrationStateUnreadableError
+
 if TYPE_CHECKING:
     from .migrations.base import BaseMigration
 
@@ -98,7 +100,7 @@ class MigrationRegistry:
                 detect_path = Path(project_path) if isinstance(project_path, str) else project_path
                 try:
                     migration_needed = migration.detect(detect_path)
-                except GitignorePathError as exc:
+                except (GitignorePathError, MigrationStateUnreadableError) as exc:
                     # A symlinked `.gitignore`/`.claudeignore` makes detect()
                     # fail closed rather than follow it (gitignore_manager.py)
                     # -- select the migration so the runner can record a

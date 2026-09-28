@@ -23,6 +23,20 @@ class ClaudeignorePathError(Exception):
     """
 
 
+class MigrationStateUnreadableError(Exception):
+    """Raised when a migration cannot read the project state it must evaluate.
+
+    ``detect()`` returning ``False`` means "project already in target state";
+    the runner records that as a skip and may then stamp the project version
+    past the migration, after which it is never re-considered. A migration
+    whose input (e.g. a malformed ``charter.yaml``) cannot be parsed has not
+    proven that, so it raises this instead and the runner records a FAILURE
+    and leaves the version untouched -- the same fail-closed contract as
+    ``GitignorePathError``. Lives in ``base.py`` so its identity survives the
+    ``importlib.reload()`` in ``auto_discover_migrations()``.
+    """
+
+
 @dataclass(frozen=True)
 class PartialWrite:
     """A single file a migration persisted before a non-atomic abort (FR-005).

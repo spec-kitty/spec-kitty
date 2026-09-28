@@ -27,6 +27,7 @@ from typer.testing import CliRunner
 
 import specify_cli.cli.commands.doctor as doctor_module
 from specify_cli.cli.commands import _provenance_doctor
+from specify_cli.upgrade.migrations.base import MigrationStateUnreadableError
 from specify_cli.upgrade.migrations import m_4_0_0rc5_heal_template_set_provenance as provenance_migration
 
 pytestmark = [pytest.mark.fast]
@@ -176,6 +177,28 @@ class TestRunProvenanceAudit:
         with pytest.raises(typer.Exit) as exc_info:
             _provenance_doctor._run_provenance_audit(tmp_path, json_output=False)
         assert exc_info.value.exit_code == 1
+
+    def test_unreadable_charter_is_a_finding_not_a_clean_result(self, tmp_path: Path, packs_root: Path) -> None:
+        charter = _charter_yaml_path(tmp_path)
+        _write(charter, "catalog: [unclosed\n")
+
+        leaks, unresolved = _provenance_doctor._collect_findings(tmp_path)
+
+        assert leaks == []
+        assert len(unresolved) == 1
+        assert "unreadable charter.yaml" in unresolved[0]
+        assert charter.read_text(encoding="utf-8") == "catalog: [unclosed\n"
+
+    def test_migration_unreadable_error_is_reported_as_a_finding(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _raise(_root: Path) -> list[str]:
+            raise MigrationStateUnreadableError("charter.yaml could not be read (ParserError); provenance was not evaluated")
+
+        monkeypatch.setattr(_provenance_doctor, "describe_template_set_ambiguities", _raise)
+
+        leaks, unresolved = _provenance_doctor._collect_findings(tmp_path)
+
+        assert leaks == []
+        assert unresolved == ["unreadable charter.yaml: charter.yaml could not be read (ParserError); provenance was not evaluated; nothing was changed"]
 
 
 # ---------------------------------------------------------------------------
@@ -414,3 +437,22 @@ def test_describe_leaks_matches_yaml_round_trip(tmp_path: Path, packs_root: Path
 
     data = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
     assert data["catalog"]["references"][0]["id"] == "PARADIGM:atomic-design"
+
+
+def test_unreadable_charter_fails_the_audit_in_human_and_json_output(tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write(_charter_yaml_path(tmp_path), "catalog: [unclosed\n")
+    monkeypatch.setattr(_provenance_doctor, "locate_project_root", lambda *a, **k: tmp_path)
+
+    result = runner.invoke(doctor_module.app, ["provenance"])
+
+    assert result.exit_code == 1, result.output
+    assert "unreadable charter.yaml" in result.output
+    assert "spec-kitty migrate" not in result.output
+
+    json_result = runner.invoke(doctor_module.app, ["provenance", "--json"])
+
+    assert json_result.exit_code == 1, json_result.output
+    payload = json.loads(json_result.output)
+    assert payload["leak_count"] == 0
+    assert payload["unresolved_count"] == payload["finding_count"] == 1
+    assert payload["heal_hint"] is None

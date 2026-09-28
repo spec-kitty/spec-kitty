@@ -28,7 +28,7 @@ from kernel.paths import BUILT_IN_PACK_SIBLING_PATTERN
 from kernel.sibling_paths import SiblingPathNotFound
 
 from ..registry import MigrationRegistry
-from .base import BaseMigration, MigrationResult
+from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 
 MIGRATION_ID = "4_0_0rc5_heal_template_set_provenance"
 TARGET_VERSION = "4.0.0rc5"
@@ -224,14 +224,28 @@ def _matches_mission_source(source_path: str, token: str) -> bool:
         return False
 
 
+def _load_charter_document(charter_path: Path) -> Any:
+    """Load ``charter.yaml``, failing closed when it cannot be read.
+
+    An unreadable charter is not "nothing to heal": treating it that way lets
+    the runner record a skip and stamp past this migration for good. Raise
+    :class:`MigrationStateUnreadableError` so the upgrade fails and retries.
+    """
+    from charter.activation.charter_yaml_io import load_charter_yaml  # noqa: PLC0415
+    from ruamel.yaml.error import YAMLError  # noqa: PLC0415
+
+    try:
+        return load_charter_yaml(charter_path)
+    except (YAMLError, OSError, UnicodeDecodeError) as exc:
+        raise MigrationStateUnreadableError(f"{charter_path} could not be read ({type(exc).__name__}); provenance was not evaluated") from exc
+
+
 def _healable_references(charter_path: Path, document: Any | None = None) -> list[tuple[dict[str, Any], str]]:
     if not charter_path.is_file():
         return []
 
     if document is None:
-        from charter.activation.charter_yaml_io import load_charter_yaml  # noqa: PLC0415
-
-        document = load_charter_yaml(charter_path)
+        document = _load_charter_document(charter_path)
     catalog = document.get("catalog") if hasattr(document, "get") else None
     if not isinstance(catalog, dict):
         return []
@@ -275,9 +289,7 @@ def describe_template_set_ambiguities(project_path: Path) -> list[str]:
     if not charter_path.is_file():
         return []
 
-    from charter.activation.charter_yaml_io import load_charter_yaml  # noqa: PLC0415
-
-    document = load_charter_yaml(charter_path)
+    document = _load_charter_document(charter_path)
     catalog = document.get("catalog") if hasattr(document, "get") else None
     if not isinstance(catalog, dict):
         return []
@@ -335,9 +347,9 @@ class HealTemplateSetProvenanceMigration(BaseMigration):
         if not charter_path.is_file():
             return MigrationResult(success=True)
 
-        from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section  # noqa: PLC0415
+        from charter.activation.charter_yaml_io import update_charter_yaml_section  # noqa: PLC0415
 
-        document = load_charter_yaml(charter_path)
+        document = _load_charter_document(charter_path)
         healable = _healable_references(charter_path, document)
         if not healable:
             return MigrationResult(success=True)

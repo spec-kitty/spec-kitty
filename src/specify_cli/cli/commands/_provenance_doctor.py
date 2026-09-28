@@ -30,8 +30,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from ruamel.yaml.error import YAMLError
 
 from specify_cli.core.paths import locate_project_root
+from specify_cli.upgrade.migrations.base import MigrationStateUnreadableError
 from specify_cli.upgrade.migrations.m_3_2_7_heal_provenance_paths import describe_leaks
 from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance import (
     describe_template_set_ambiguities,
@@ -46,6 +48,23 @@ __all__ = ["register"]
 _HEAL_HINT = "spec-kitty migrate  # applies pending provenance migrations"
 
 
+def _collect_findings(repo_root: Path) -> tuple[list[str], list[str]]:
+    """Return ``(leaks, unresolved)``; an unreadable charter is an unresolved finding.
+
+    A charter the audit cannot parse was never evaluated, so reporting "no
+    leaks" for it would be a false clean. It surfaces as one unresolved
+    finding (exit 1) with no heal hint, and nothing is changed.
+    """
+    try:
+        leaks = [*describe_leaks(repo_root), *describe_template_set_leaks(repo_root)]
+        unresolved = describe_template_set_ambiguities(repo_root)
+    except MigrationStateUnreadableError as exc:
+        return [], [f"unreadable charter.yaml: {exc}; nothing was changed"]
+    except (YAMLError, OSError, UnicodeDecodeError) as exc:
+        return [], [f"unreadable charter.yaml ({type(exc).__name__}): provenance was not evaluated; nothing was changed"]
+    return leaks, unresolved
+
+
 def _run_provenance_audit(repo_root: Path, *, json_output: bool) -> None:
     """Entry point for ``doctor provenance``.
 
@@ -54,8 +73,7 @@ def _run_provenance_audit(repo_root: Path, *, json_output: bool) -> None:
     but this command never mutates anything -- healing is a separate, explicit
     ``spec-kitty migrate`` step for sources with proven checkout identity.
     """
-    leaks = [*describe_leaks(repo_root), *describe_template_set_leaks(repo_root)]
-    unresolved = describe_template_set_ambiguities(repo_root)
+    leaks, unresolved = _collect_findings(repo_root)
     findings = [*leaks, *unresolved]
 
     if json_output:

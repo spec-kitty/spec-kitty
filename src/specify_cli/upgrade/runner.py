@@ -25,7 +25,7 @@ from . import autocommit
 from .autocommit import capture_upgrade_baseline
 from .detector import VersionDetector
 from .metadata import ProjectMetadata
-from .migrations.base import BaseMigration, MigrationResult
+from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 from .registry import MigrationRegistry
 
 logger = logging.getLogger(__name__)
@@ -299,7 +299,7 @@ class MigrationRunner:
         # next `spec-kitty upgrade` retries once the symlink is gone.
         try:
             migration_needed = migration.detect(self.project_path)
-        except GitignorePathError as exc:
+        except (GitignorePathError, MigrationStateUnreadableError) as exc:
             if not dry_run:
                 self._record_migration_result(
                     metadata,
@@ -350,7 +350,7 @@ class MigrationRunner:
         # migration failure, not an unhandled crash.
         try:
             result = migration.apply(self.project_path, dry_run=dry_run)
-        except GitignorePathError as exc:
+        except (GitignorePathError, MigrationStateUnreadableError) as exc:
             return (
                 MigrationResult(
                     success=False,
@@ -477,7 +477,7 @@ class MigrationRunner:
                 # settled, when the migration was never actually evaluated.
                 try:
                     migration_needed = migration.detect(worktree)
-                except GitignorePathError as exc:
+                except (GitignorePathError, MigrationStateUnreadableError) as exc:
                     result["errors"].append(f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}")
                     if not dry_run and self._record_migration_result(
                         wt_metadata,
@@ -510,7 +510,7 @@ class MigrationRunner:
 
                 try:
                     migration_result = migration.apply(worktree, dry_run=dry_run)
-                except GitignorePathError as exc:
+                except (GitignorePathError, MigrationStateUnreadableError) as exc:
                     result["errors"].append(f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}")
                     continue
                 if migration_result.manual_review_required:

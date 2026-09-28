@@ -328,3 +328,68 @@ def test_missing_template_path_without_checkout_evidence_stays_ambiguous(tmp_pat
     assert result.changes_made == []
     assert data["catalog"]["references"][0]["source_path"] == str(stale_source)
     assert "ambiguous" in describe_template_set_ambiguities(tmp_path)[0]
+
+
+@pytest.fixture
+def registry_restore() -> Any:
+    original = MigrationRegistry._migrations.copy()
+    yield
+    MigrationRegistry._migrations = original
+
+
+@pytest.mark.parametrize(
+    ("from_version", "target_version"),
+    [("4.0.0rc4", "4.0.0rc5"), ("4.0.0rc5", "4.0.0rc6")],
+    ids=["upgrade-into-rc5", "upgrade-past-rc5"],
+)
+def test_unreadable_charter_fails_the_upgrade_closed_without_stamping(
+    tmp_path: Path, packs_root: Path, registry_restore: Any, from_version: str, target_version: str
+) -> None:
+    """An unreadable charter.yaml must fail the upgrade, never skip this migration.
+
+    A "skipped" verdict would let the runner stamp the target version, and
+    ``get_applicable`` never reconsiders an older migration once the project is
+    past it: the legacy path would stay committed after the charter is
+    repaired. ``detect`` raises ``MigrationStateUnreadableError`` instead, the
+    runner records a failure and leaves the version where it was, and once the
+    charter is repaired the next upgrade heals the stale path.
+    """
+    from kernel.clock import now_utc  # noqa: PLC0415
+
+    from specify_cli.upgrade.metadata import ProjectMetadata  # noqa: PLC0415
+    from specify_cli.upgrade.runner import MigrationRunner  # noqa: PLC0415
+
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir()
+    ProjectMetadata(
+        version=from_version,
+        initialized_at=now_utc(),
+        python_version="3.11",
+        platform="test",
+        platform_version="test",
+    ).save(kittify_dir)
+    charter_path = _charter_path(tmp_path)
+    charter_path.parent.mkdir(parents=True)
+    charter_path.write_bytes(b"catalog: [unclosed\n")
+    MigrationRegistry.clear()
+    MigrationRegistry.register(HealTemplateSetProvenanceMigration)
+
+    result = MigrationRunner(tmp_path).upgrade(target_version, include_worktrees=False, force=True)
+
+    assert not result.success
+    assert any(MIGRATION_ID in error for error in result.errors)
+    assert MIGRATION_ID not in result.migrations_skipped
+    reloaded = ProjectMetadata.load(kittify_dir)
+    assert reloaded is not None
+    assert reloaded.version == from_version
+    assert charter_path.read_bytes() == b"catalog: [unclosed\n"
+
+    stale_source = packs_root / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    _write_charter(charter_path, [_template_ref(str(stale_source))])
+
+    retried = MigrationRunner(tmp_path).upgrade(target_version, include_worktrees=False, force=True)
+
+    assert retried.success, retried.errors
+    assert MIGRATION_ID in retried.migrations_applied
+    healed = YAML().load(charter_path.read_text(encoding="utf-8"))
+    assert healed["catalog"]["references"][0]["source_path"] == "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml"
