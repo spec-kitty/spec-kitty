@@ -1,0 +1,22 @@
+{
+  "baseline_merge_commit": "285cc88e5d1acb274baea06c2b0b24fde3c829cc",
+  "created_at": "2026-09-28T12:48:42.838566+00:00",
+  "flattened": false,
+  "friendly_name": "Honest consolidation transaction start + nightly integration green",
+  "merged_at": "2026-09-28T14:01:47.132688+00:00",
+  "merged_commit": "feca723fe2af37bee5815541cc755f30d81319bc",
+  "mid8": "01M3M0YW",
+  "mission_id": "01M3M0YW5MCJ7PY1JYRN0XR2BC",
+  "mission_number": null,
+  "mission_slug": "honest-consolidation-txn-start-01M3M0YW",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances Honest consolidation transaction start + nightly integration green on issue-5111-honest-consolidation-txn-start so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "A failed fresh consolidate no longer wedges the next run; the nightly integration lane goes green or carries verdicted dispositions.",
+  "slug": "honest-consolidation-txn-start-01M3M0YW",
+  "status_phase": "1",
+  "target_branch": "issue-5111-honest-consolidation-txn-start",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T13:04:16.240615+00:00"
+}

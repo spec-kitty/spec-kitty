@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#4758": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "context only \u2014 drift D cause",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4764": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "context only \u2014 drift C3 cause",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4959": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "context only \u2014 drift A cause (coord read fail-closed ADR)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4990": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "context only \u2014 drift E cause (events 10.4 reducer)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5001": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "context only \u2014 parent epic; drift B/C1 cause",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5044": {
+      "evidence_ref": "22 failed / 112 passed at af847be7 over the 12 affected files",
+      "fr": "FR-005,FR-007",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-003",
+      "scope": "full",
+      "source_file": "spec.md",
+      "title": "tests/integration reds on main (fixture drift; nightly integration red set)",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#5045": {
+      "evidence_ref": "nightly run 36393904544",
+      "fr": "FR-005",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-003",
+      "scope": "full (auto-closes on first green integration nightly)",
+      "source_file": "spec.md",
+      "title": "Nightly suite red: integration",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#5049": {
+      "evidence_ref": "tests/integration/test_merge_resume.py",
+      "fr": "FR-006",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-004",
+      "scope": "partial: test_merge_resume::test_resume_completes_within_30s_budget only (charter budget owned by slice 2)",
+      "source_file": "spec.md",
+      "title": "Nightly suite red: performance",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#5110": {
+      "evidence_ref": "tests/consolidation/test_issue_5110_dry_run_unmaterialized_coord.py (RED at af847be7)",
+      "fr": "FR-004",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-002",
+      "scope": "full",
+      "source_file": "spec.md",
+      "title": "merge --dry-run raises a raw traceback on an unmaterialized coordination worktree",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#5111": {
+      "evidence_ref": "tests/consolidation/test_issue_5111_fresh_gate_failure_rerun.py (RED at af847be7)",
+      "fr": "FR-001,FR-002,FR-003",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-001",
+      "scope": "full",
+      "source_file": "spec.md",
+      "title": "Fresh merge that fails before reconciliation wedges the next run as 'pre-fix'",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

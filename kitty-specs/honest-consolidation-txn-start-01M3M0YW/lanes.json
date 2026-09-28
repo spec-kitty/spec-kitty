@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "mission_slug": "honest-consolidation-txn-start-01M3M0YW",
+  "mission_id": "01M3M0YW5MCJ7PY1JYRN0XR2BC",
+  "mission_branch": "kitty/mission-honest-consolidation-txn-start-01M3M0YW",
+  "target_branch": "issue-5111-honest-consolidation-txn-start",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/consolidation/resolve.py",
+        "src/specify_cli/consolidation/state.py",
+        "tests/consolidation/test_issue_5111_fresh_gate_failure_rerun.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/forecast.py",
+        "tests/consolidation/test_issue_5110_dry_run_unmaterialized_coord.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/integration/sparse_checkout/test_merge_refresh_and_invariant.py",
+        "tests/integration/test_coord_unprotected_lifecycle_loop.py",
+        "tests/integration/test_implement_review_retrospect_smoke.py",
+        "tests/integration/test_merge_lane_planning_data_loss.py",
+        "tests/integration/test_merge_lane_worktree_safety.py",
+        "tests/integration/test_merge_primary_checkout_safety.py",
+        "tests/integration/test_merge_resume.py",
+        "tests/integration/test_post_merge_index_refresh.py",
+        "tests/integration/test_post_merge_unrelated_untracked.py",
+        "tests/integration/test_review_durability_matrix.py",
+        "tests/integration/test_surface_translation_seam.py",
+        "tests/integration/test_wp_file_hash_stability.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-28T13:02:58.210783+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "de82901a07ed3211048de9e3052ca56085d78c18"
+}

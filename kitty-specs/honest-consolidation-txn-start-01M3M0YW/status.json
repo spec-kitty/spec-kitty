@@ -1,0 +1,119 @@
+{
+  "event_count": 24,
+  "last_event_id": "01M3M551F8KAJAXCSH3K2HQ8AH",
+  "materialized_at": "2026-09-28T14:01:57.480809+00:00",
+  "mission_number": "",
+  "mission_slug": "honest-consolidation-txn-start-01M3M0YW",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M54S2VJ9BSG5A53HSFHVFF",
+      "last_transition_at": "2026-09-28T14:01:48.891235+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first CLI tests (8/9 red on base) + fix; tests/consolidation 1151 passed (1 env-only fail: charter write from linked worktree, green from repo root)",
+        "Changes requested: clear_state (and finalize's redundant clear_post_fix_marker) unlink the marker before state.json, so a crash leaves a marker-less state and reopens the #5111 wedge; delete state first, drop the duplicate clear, pin the order. Rest approved-quality.",
+        "Review cycle 1 folded: B1 state-first delete + single clear owner; S1 interrupt + resume-preservation CLI tests; N1-N3. Targeted: 200 passed, 1 xfailed",
+        "Cycle 2 approved: fold 3a3cbe0a resolves B1 (clear_state deletes state then marker in both branches; finalize duplicate clear and clear_post_fix_marker/_post_fix_marker_path removed, single owner), S1 (KeyboardInterrupt + resume-preservation CLI tests), N1-N3. Delete-order unit test pins state-before-marker. 393 passed/1 xfailed across 5111/4764/reconciliation/phase-boundary/state/workspace/compat/recovery/executor-coverage/resolve-seam/terminus/destructive-op-routing; ruff/C901/format clean; mypy baseline-only (4 pre-existing no-any-return)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24883,
+      "shell_pid_created_at": "1790600653.04",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M54XRDW20EZCJJYKN4K5XA",
+      "last_transition_at": "2026-09-28T14:01:53.677244+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first CLI test + fix; forecast_seam 19/19 green",
+        "Approved: forecast fails closed on CoordinationWorktreeUnmaterialized/BranchDeleted with remediation text and exit 1; --json adds only error_code on the new path (success payload unchanged). 2/2 new tests RED at base, green on lane; test_forecast_seam green; ruff/C901/mypy clean. Non-blocking: add a CoordinationBranchDeleted dry-run test."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1137,
+      "shell_pid_created_at": "1790601045.44",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M551F8KAJAXCSH3K2HQ8AH",
+      "last_transition_at": "2026-09-28T14:01:57.480809+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "12 files: 134 passed/1 perf-skip (base 22 failed/112 passed); perf budget test green with 30s budget unchanged (red on base); sc007 re-pinned per operator verdict 'stale'",
+        "Approved (DIRECTIVE_041 lens): all 7 re-pins restore the current contract without weakening. A: fail-closed asserted with error_code; Guard4 decoy+IssueMatrixRefReadError is sound (partition helper step 4 never falls back to PRIMARY; a fallback regression returns a dir and fails). B: reconcile-gate stub justified (pure verify gate, fake run_command, not the subject; exercised in tests/consolidation+terminus). C1: seeds real post-fix marker+anchors, 30s budget unchanged. C3/D/E: real emit pipeline / lanes.json / causal rework history. sc007: operator STALE verdict; force-falsy kept + review_ref added. 134 passed/1 perf-skip; perf 1 passed; ruff clean. Nit: C3 imports helpers from a sibling test module."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4934,
+      "shell_pid_created_at": "1790603455.46",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    }
+  }
+}
