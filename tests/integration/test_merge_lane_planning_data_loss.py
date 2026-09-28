@@ -71,6 +71,7 @@ def _init_git_repo(repo: Path) -> None:
 def _make_manifest_with_planning_and_code(slug: str) -> MagicMock:
     """Build a fake LanesManifest with three code WPs and one planning-artifact WP."""
     manifest = MagicMock()
+    manifest.mission_slug = slug
     manifest.target_branch = "main"
     manifest.mission_branch = f"kitty/mission-{slug}"
 
@@ -192,6 +193,7 @@ class TestMergeIncludesPlanningLane:
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
             patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
             patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
         ]
         with contextlib.ExitStack() as stack:
             mocks = [stack.enter_context(p) for p in patches]
@@ -1402,7 +1404,7 @@ class TestPlanningArtifactReachesTarget:
 
 
 _RETENTION_MISSION_ID = "01KX0000000RETENTIONCOORD01"
-_RETENTION_MID8 = _RETENTION_MISSION_ID[:8].lower()
+_RETENTION_MID8 = _RETENTION_MISSION_ID[:8]
 _RETENTION_SLUG = f"retention-repro-{_RETENTION_MID8}"
 _RETENTION_MISSION_BRANCH = f"kitty/mission-{_RETENTION_SLUG}"
 
@@ -1489,6 +1491,10 @@ class TestRetentionConstraintSurvivesCleanup:
 
         # Mission branch == coordination branch (coord topology).
         _git(tmp_path, "branch", _RETENTION_MISSION_BRANCH, "main")
+        # #4959: a declared-but-unmaterialized coord branch now fails closed;
+        # materialize it the way real coord writes do (42adce94 pattern).
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+        _git(tmp_path, "worktree", "add", "-q", str(CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)), _RETENTION_MISSION_BRANCH)
 
         # Real code lane with a real commit.
         lane_a_branch = f"kitty/mission-{slug}-lane-a"
@@ -1611,6 +1617,10 @@ class TestRetentionConstraintSurvivesCleanup:
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap coord retaining mission")
 
         _git(tmp_path, "branch", mission_branch, "main")
+        # #4959: a declared-but-unmaterialized coord branch now fails closed;
+        # materialize it the way real coord writes do (42adce94 pattern).
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+        _git(tmp_path, "worktree", "add", "-q", str(CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)), mission_branch)
         lane_a_branch = f"kitty/mission-{slug}-lane-a"
         _git(tmp_path, "branch", lane_a_branch, "main")
         code_relpath = "src/retention_repro_override.py"
@@ -1713,6 +1723,10 @@ class TestRetentionConstraintSurvivesCleanup:
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap malformed-retention mission")
 
         _git(tmp_path, "branch", mission_branch, "main")
+        # #4959: a declared-but-unmaterialized coord branch now fails closed;
+        # materialize it the way real coord writes do (42adce94 pattern).
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+        _git(tmp_path, "worktree", "add", "-q", str(CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)), mission_branch)
         lane_a_branch = f"kitty/mission-{slug}-lane-a"
         _git(tmp_path, "branch", lane_a_branch, "main")
         _commit_file(
@@ -1794,6 +1808,10 @@ class TestRetentionConstraintSurvivesCleanup:
         _git(tmp_path, "add", ".")
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap dry-run retaining mission")
         _git(tmp_path, "branch", mission_branch, "main")
+        # #4959: a declared-but-unmaterialized coord branch now fails closed;
+        # materialize it the way real coord writes do (42adce94 pattern).
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+        _git(tmp_path, "worktree", "add", "-q", str(CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)), mission_branch)
 
         # NO cleanup flags: the CLI default (unset tri-state) must resolve
         # through the mission's retention policy, not the pre-#3131 delete default.

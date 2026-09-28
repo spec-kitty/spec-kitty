@@ -40,7 +40,7 @@ from mission_runtime import (
 )
 from mission_runtime.artifacts import artifact_home_for
 from mission_runtime.resolution import ResolvedSurface, SurfaceLocations, translate_surface
-from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
 
 from tests.integration.test_placement_partition_golden_path import (
     _create_mission,
@@ -160,19 +160,23 @@ def test_empty_coord_resolves_primary_and_stamps_primary(tmp_path: Path) -> None
     assert resolved.path.resolve() == result.feature_dir.resolve()
 
 
-def test_unmaterialized_coord_resolves_primary_and_stamps_primary(
+def test_unmaterialized_coord_refuses_fail_closed(
     tmp_path: Path,
 ) -> None:
-    """UNMATERIALIZED (coord branch exists, worktree absent) → primary + PRIMARY."""
+    """UNMATERIALIZED (coord branch exists, worktree absent) → fail closed.
+
+    ADR ``2026-09-24-2-coord-read-fail-closed`` (#4959) retired the former
+    "resolve to PRIMARY and stamp PRIMARY" substitution: a coord-partition kind
+    now raises ``CoordinationWorktreeUnmaterialized`` rather than handing back
+    the empty primary checkout as if it were the coord surface.
+    """
     repo = _repo(tmp_path)
     result = _create_mission(repo, "seam-unmaterialized", MissionTopology.COORD)
     # Do NOT materialise the coord worktree → coord root absent, branch present.
 
-    resolved = resolve_artifact_surface(
-        repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX
-    )
-    assert resolved.surface_kind is TopologySurface.PRIMARY
-    assert resolved.path.resolve() == result.feature_dir.resolve()
+    with pytest.raises(CoordinationWorktreeUnmaterialized) as exc_info:
+        resolve_artifact_surface(repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX)
+    assert exc_info.value.error_code == "COORDINATION_WORKTREE_UNMATERIALIZED"
 
 
 def test_deleted_coord_branch_raises_fail_loud(tmp_path: Path) -> None:

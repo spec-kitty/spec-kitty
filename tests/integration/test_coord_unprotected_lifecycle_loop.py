@@ -73,7 +73,10 @@ from mission_runtime import (
     MissionArtifactKind,
     resolve_artifact_surface,
 )
+from mission_runtime.issue_matrix_partition import resolve_issue_matrix_partition
+from mission_runtime.resolution import IssueMatrixRefReadError
 from specify_cli.coordination.surface_authority import coord_topology_reachable
+from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
@@ -236,21 +239,32 @@ def test_pr_bound_unprotected_primary_does_not_route_to_coordination() -> None:
 
 
 class TestGuard4NoSplitBrain:
-    def test_gate_read_surface_equals_issue_matrix_authority_unmaterialized(self, tmp_path: Path) -> None:
-        """Coord worktree UNMATERIALIZED (the realistic unprotected state): the
-        gate's kind-blind read dir (``resolve_feature_dir_for_mission``) equals
-        the affirmative ``resolve_artifact_surface(ISSUE_MATRIX)`` surface — both
-        PRIMARY. Read and write cannot diverge, so the plan's Guard-4 split-brain
-        cannot arise.
+    def test_gate_read_and_issue_matrix_authority_fail_closed_together_unmaterialized(self, tmp_path: Path) -> None:
+        """Coord worktree UNMATERIALIZED (the realistic unprotected state).
+
+        ADR ``2026-09-24-2-coord-read-fail-closed`` (#4959) and the #5171
+        partition helper retired the silent substitution of the PRIMARY
+        checkout for an unmaterialized coord surface. ``ISSUE_MATRIX`` is a
+        coord-partition artifact: the verdict-write authority
+        (``resolve_artifact_surface(ISSUE_MATRIX)``) refuses, and the approve
+        gate's matrix read (``resolve_issue_matrix_partition``) reads the
+        coordination BRANCH ref -- never the PRIMARY copy. A decoy matrix on
+        PRIMARY proves it: with no matrix on the coord ref, the gate read fails
+        closed instead of adopting the decoy. Neither side can act on the
+        PRIMARY surface, so the plan's Guard-4 split-brain still cannot arise.
+        Reference discovery (the kind-blind gate read dir) stays PRIMARY:
+        spec/tasks are PRIMARY artifacts.
         """
         repo = _stand_up_coord_unprotected_mission(tmp_path)
+        primary_dir = repo / "kitty-specs" / _SLUG
+        (primary_dir / "issue-matrix.json").write_text('{"rows": {}, "schema_version": 1}\n', encoding="utf-8")
 
-        gate_read_dir = resolve_feature_dir_for_mission(repo, _SLUG)
-        matrix_surface = resolve_artifact_surface(repo, _SLUG, MissionArtifactKind.ISSUE_MATRIX)
-        assert gate_read_dir == matrix_surface.path, (
-            "FR-004 regression: the approve-gate read dir diverged from the issue-matrix authoritative surface (a split-brain would be back)"
-        )
-        assert matrix_surface.surface_kind.name.lower() == "primary"
+        assert resolve_feature_dir_for_mission(repo, _SLUG) == primary_dir
+        with pytest.raises(CoordinationWorktreeUnmaterialized) as write_refusal:
+            resolve_artifact_surface(repo, _SLUG, MissionArtifactKind.ISSUE_MATRIX)
+        assert write_refusal.value.error_code == "COORDINATION_WORKTREE_UNMATERIALIZED"
+        with pytest.raises(IssueMatrixRefReadError):
+            resolve_issue_matrix_partition(repo, _SLUG)
 
     def test_gate_read_surface_equals_issue_matrix_authority_materialized(self, tmp_path: Path) -> None:
         """Coord worktree MATERIALIZED: the gate read dir and the issue-matrix
