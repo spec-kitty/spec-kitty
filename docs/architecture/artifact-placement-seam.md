@@ -184,7 +184,10 @@ coord-authority gate (formerly `tests/architectural/test_resolution_authority_ga
 deleted) independently sanctioned this exact call as a permanent legitimate coord-owned write bypass, keyed on the
 literal primitive name — the gate must learn the seam idiom (recognize a kind-aware
 `read_dir(<COORD kind>)` call as the same sanctioned bypass) before this site can route without
-breaking that gate. `#3055` tracks the follow-up. This is the one edge *this mission audited*
+breaking that gate. `#3055` tracked the follow-up. (Superseded: the site was routed onto
+`read_dir(STATUS_STATE)` in write-side-seam-matrix-tracer WP02, and the sanctioning gate was deleted
+in #3285; see the `decisions/emit.py:71` row in
+[`read-side-seam-classification.md`](../development/reference/read-side-seam-classification.md).) This is the one edge *this mission audited*
 as directory-identical-routable and deliberately deferred. It is not the only unrouted
 sanctioned `resolve_feature_dir_for_mission` coord-write: `widen/state.py:63`,
 `agent_tasks_ports.py:322`, and `lanes/recovery.py:765` carry the same coord-authority

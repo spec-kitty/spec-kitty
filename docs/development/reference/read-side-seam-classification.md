@@ -37,8 +37,8 @@ covered:
 - `primary_feature_dir_for_mission(repo_root, mission_slug)` — kind-blind
   **and** deliberately topology-blind (never routes to a coordination
   worktree); it inherits the guarantee transferred from WP01's retired
-  use-count floors (in `test_resolution_authority_gates.py`, since deleted; the
-  guarantee is now enforced by `tests/architectural/test_no_read_side_bypass.py`).
+  use-count floors (in `test_resolution_authority_gates.py`, deleted in #3285;
+  the guarantee is now enforced by `tests/architectural/test_no_read_side_bypass.py`).
 
 The censused-callee set is now **five** primitives. The first four are
 defined in `src/specify_cli/missions/_read_path_resolver.py`; the fifth is the
@@ -654,10 +654,11 @@ sat outside every gate's view rather than merely outside one table.
 
 **This section previously claimed the primary primitive was "policed by
 nothing".  That claim was false and is what manufactured
-[#3014](https://github.com/Priivacy-ai/spec-kitty/issues/3014).** It is, and
-always was, policed on the **anchoring axis** by
+[#3014](https://github.com/Priivacy-ai/spec-kitty/issues/3014).** It was policed
+on the **anchoring axis** by
 `tests/architectural/test_resolution_authority_gates.py` (the retired-floor
-gate WP01 rewrote; that file has since been deleted, see that mission's own ledger). What was actually true is
+gate WP01 rewrote; see that mission's own ledger) until that file was deleted
+in #3285. What was actually true is
 narrower: no gate policed it on the **call-site-bypass axis** — i.e. nothing
 stopped a *new* call to it outside a tracked set. That gap is what this
 revision closes: `primary_feature_dir_for_mission` is now one of the four

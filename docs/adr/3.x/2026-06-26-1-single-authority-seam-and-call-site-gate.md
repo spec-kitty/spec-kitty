@@ -168,9 +168,7 @@ A `MissionResolver` Protocol + `FsMissionResolver` + `FakeMissionResolver`, owni
 
 **Ratification (2026-07-29, write-side-seam-matrix-tracer-01KYP3MH WP02, HiC-approved).**
 This ADR was `status: Proposed` but de-facto shipped — the coord-authority gate it
-governs (at the time of this ratification, `tests/architectural/test_resolution_authority_gates.py`;
-that file has since been deleted, see [#5104](https://github.com/Priivacy-ai/spec-kitty/issues/5104), and
-the read-side guarantee now lives in `tests/architectural/test_no_read_side_bypass.py`) had been live and
+governs (`tests/architectural/test_resolution_authority_gates.py`) has been live and
 enforced since the sibling `single-authority-resolution-gates-01KW1P0F` mission. WP02
 re-pins the gate's census floor (`COORD_AUTHORITY_WRITE_FLOOR` 4 → 3, "Move A" per
 [`contracts/coord-authority-gate.md`](../../../kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/contracts/coord-authority-gate.md))
@@ -181,6 +179,17 @@ as sanctioned coord-write authority in the gate's predicate — is named here as
 **amendment target** for this ADR: it changes the gate mechanism itself (not merely the
 census), so it must amend this ADR (def-use gated, with a preserved non-vacuity proof),
 never land as a contract-only predicate widen.
+
+**Amendment (2026-09-28, [#5146](https://github.com/spec-kitty/spec-kitty/issues/5146)):**
+`tests/architectural/test_resolution_authority_gates.py` was deleted in #3285 (`177e06269`), and the
+coord-authority write floor (`COORD_AUTHORITY_WRITE_FLOOR`, `_COORD_WRITE_BY_DESIGN`) was retired with
+it, so the Move B amendment target above no longer has a gate to amend. The call-site guarantee over
+`resolve_feature_dir_for_mission` is now enforced by the census in
+`tests/architectural/test_no_read_side_bypass.py`; the write side is covered by
+`tests/architectural/test_no_write_side_rederivation.py` and
+`tests/architectural/test_write_surface_placement_guard.py`. The def-use handle-canonicality check has no
+successor: its remaining target, the public `primary_feature_dir_for_mission` wrapper, was itself deleted
+(T035).
 
 **Phase 2 (deferred follow-on, under [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619)).**
 The `MissionResolver` port — Protocol contract + one real FS adapter + one fake, owning the single
