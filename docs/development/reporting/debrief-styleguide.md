@@ -23,19 +23,28 @@ the token package wins — re-sync the subset, don't fork it.
 | Link / accent (light) | `--sk-color-sage` | `#4F8F4F` |
 | Success · **SHIPPED** | `--sk-color-green` | `#8FCB8F` on `--sk-surface-tint-mint` `#E8F4E8` |
 | Alert · **WATCH / P0** | `--sk-color-red` | `#E97373` on `--sk-surface-tint-sky` `#E4EDF8` |
-| Page | `--sk-surface-page` | `#F8F5EC` (warm cream) |
+| Page | `--sk-surface-page` | `#FCFAF4` (light warm cream — the design system's "hero" tone; lighter than the `#F8F5EC` page surface so print reads easier) |
+| Warm-gold accent | `--sk-color-haygold` | `#D9B36A` (card left-edge accent) |
 | Card | `--sk-surface-card` | `#FFFFFF` |
 | Chip rail | `--sk-surface-pill` | `#ECE7D8` |
 | Ink / body / muted / label | `--sk-fg-default/body/muted/subtle` | `#1A1A14` / `#2A2A22` / `#5C5C52` / `#8A8A7E` |
 | Hairline / card border | `--sk-border-default/strong` | `#EAE4D2` / `#D6CFB9` |
 
-Yellow is the brand signature — use it sparingly (it is the CTA/logo colour),
-not for status. Status colour is green (good) / red (attention) only.
+Yellow is the brand signature — use it sparingly, as an **accent**, never for
+status: the title carries a short yellow "bow" underline (echoing the logo), and
+the metric-tile card has a yellow top-accent bar. Section cards take a warm-gold
+(`--sk-color-haygold`) left edge. Status colour stays green (good) / red
+(attention) only.
 
-**Full-bleed print.** The warm-cream page colour must reach every edge — no
-white printer margin. The template sets `@page { margin: 0 }`, puts the cream on
-both `html` and `body`, and forces `print-color-adjust: exact` so the background
-survives the PDF. Content inset comes from `body` padding, not a page margin.
+**Full-bleed print, with a continuation-page top inset.** The warm-cream page
+colour reaches every edge — no white printer margin — via `print-color-adjust:
+exact` and the cream on both `html` and `body`. Page 1 is flush at the top (its
+`body` padding gives the header room); **pages 2+ get a `~2.6rem` top inset** so
+content is never jammed against the sheet edge. That inset is produced by a
+`@page { margin-top }` (with `@page :first { margin-top: 0 }`), and it stays
+**cream, not white**, because the root (`html`) background propagates across the
+whole sheet including the page margin. Never switch this to a plain `@page`
+margin without the root-background propagation — that reintroduces a white strip.
 These are **light-chromed on purpose**: print/PDF is far easier to read light,
 so the dark-theme tokens are never used here.
 

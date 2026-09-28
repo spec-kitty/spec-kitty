@@ -36,10 +36,14 @@
    display face degrades gracefully to the system sans stack. */
 :root {
   --sk-color-yellow:        #F5C518;   /* signature primary */
+  --sk-color-yellow-soft:   #FFD84D;   /* hover / highlight */
   --sk-color-green:         #8FCB8F;   /* success / SHIPPED */
   --sk-color-red:           #E97373;   /* alert / WATCH / P0 */
   --sk-color-sage:          #4F8F4F;   /* light-mode link/accent */
-  --sk-surface-page:        #F8F5EC;   /* warm cream page */
+  --sk-color-blue:          #A9C7E8;   /* soft icy blue accent */
+  --sk-color-purple:        #B8A9E0;   /* soft lavender accent */
+  --sk-color-haygold:       #D9B36A;   /* muted warm gold — dim accents */
+  --sk-surface-page:        #FCFAF4;   /* light warm cream page (hero tone) */
   --sk-surface-card:        #FFFFFF;   /* white card */
   --sk-surface-pill:        #ECE7D8;   /* chip rail */
   --sk-surface-tint-mint:   #E8F4E8;   /* SHIPPED pill bg */
@@ -63,8 +67,13 @@
   --sk-shadow-card: 0 1px 2px rgba(20,20,15,.04), 0 1px 1px rgba(20,20,15,.06);
 }
 * { box-sizing: border-box; }
-/* Full-bleed cream: no printer margin, background forced on, edge-to-edge. */
-@page { margin: 0; }
+/* Full-bleed cream + per-page top inset on CONTINUATION pages only.
+   The @page top margin insets the content box on pages 2+; the root (html)
+   background propagates to the whole sheet — including that margin — so the
+   inset stays cream, never white. Page 1 keeps a flush top (its own body
+   padding provides the header spacing). */
+@page { margin: 2.6rem 0 0 0; }
+@page :first { margin-top: 0; }
 html { background: var(--sk-surface-page); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { font-family: var(--sk-font-sans); color: var(--sk-fg-body);
        background: var(--sk-surface-page); margin: 0; padding: 44px 56px 56px;
@@ -77,14 +86,18 @@ body { font-family: var(--sk-font-sans); color: var(--sk-fg-body);
 .eyebrow { font-family: var(--sk-font-mono); font-size: var(--sk-text-xs); letter-spacing: .14em;
            text-transform: uppercase; color: var(--sk-fg-subtle); }
 h1 { font-family: var(--sk-font-display); font-size: 40px; font-weight: 800; color: var(--sk-fg-default);
-     margin: 6px 0 10px; letter-spacing: -.01em; }
+     margin: 6px 0 12px; letter-spacing: -.01em; }
+/* Signature yellow "bow" under the title — the brand accent from the logo. */
+h1::after { content: ""; display: block; width: 68px; height: 6px; margin-top: 12px;
+            background: var(--sk-color-yellow); border-radius: var(--sk-radius-pill); }
 h2 { font-family: var(--sk-font-display); font-size: 24px; font-weight: 800; color: var(--sk-fg-default);
-     margin: 34px 0 14px; }
+     margin: 34px 0 14px; break-after: avoid; }
 .meta { font-family: var(--sk-font-mono); font-size: 12.5px; color: var(--sk-fg-subtle); margin-bottom: 20px; }
 .lede { font-size: 17px; line-height: 1.55; color: var(--sk-fg-body); margin: 0 0 28px; }
 
 /* metric tiles */
-.tiles { display: flex; gap: 0; border: 1px solid var(--sk-border-strong); border-radius: var(--sk-radius-lg);
+.tiles { display: flex; gap: 0; border: 1px solid var(--sk-border-strong);
+         border-top: 4px solid var(--sk-color-yellow); border-radius: var(--sk-radius-lg);
          overflow: hidden; margin-bottom: 32px; background: var(--sk-surface-card); box-shadow: var(--sk-shadow-card); }
 .tile { flex: 1; padding: 18px 20px; border-right: 1px solid var(--sk-border-default); }
 .tile:last-child { border-right: 0; }
@@ -92,8 +105,9 @@ h2 { font-family: var(--sk-font-display); font-size: 24px; font-weight: 800; col
 .tile .n.alert { color: var(--sk-color-red); }
 .tile .lbl { color: var(--sk-fg-muted); font-size: 13px; margin-top: 8px; }
 
-.section { border: 1px solid var(--sk-border-strong); border-radius: var(--sk-radius-lg); padding: 20px 22px;
-           margin-bottom: 18px; background: var(--sk-surface-card); box-shadow: var(--sk-shadow-card); }
+.section { border: 1px solid var(--sk-border-strong); border-left: 4px solid var(--sk-color-haygold);
+           border-radius: var(--sk-radius-lg); padding: 20px 22px 18px; margin: 1.75rem 0 0;
+           background: var(--sk-surface-card); box-shadow: var(--sk-shadow-card); break-inside: avoid; }
 .section .head { display: flex; justify-content: space-between; align-items: baseline; }
 .section h3 { font-family: var(--sk-font-mono); font-size: 15px; color: var(--sk-fg-default); margin: 0 0 4px; }
 .section .count { font-family: var(--sk-font-mono); font-size: 12px; color: var(--sk-fg-subtle); }
@@ -118,7 +132,14 @@ a { color: var(--sk-link); text-decoration: none; }
 code { font-family: var(--sk-font-mono); font-size: .92em; background: var(--sk-surface-pill); padding: 1px 4px; border-radius: 3px; }
 .footer { color: var(--sk-fg-muted); font-size: 12.5px; margin-top: 32px; line-height: 1.5;
           border-top: 1px solid var(--sk-border-default); padding-top: 16px; }
-@media print { body { padding: 24px 28px; } .section, .tiles { break-inside: avoid; } }
+@media print {
+  body { padding: 40px 48px 48px; }
+  .tiles { break-inside: avoid; }
+  /* Continuation-page top breathing room: a card pushed to a new page keeps its
+     transparent top margin, which shows the cream page background — so pages 2+
+     are not flush to the sheet edge. Section margin-top (1.75rem) supplies it. */
+  .section { break-inside: avoid; }
+}
 </style>
 </head>
 <body>
