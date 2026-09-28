@@ -20,6 +20,10 @@ import typer
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
+from specify_cli.coordination.surface_resolver import (
+    CoordinationBranchDeleted,
+    CoordinationWorktreeUnmaterialized,
+)
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
 from specify_cli.lanes.persistence import (
@@ -47,12 +51,64 @@ from specify_cli.post_merge.review_artifact_consistency import (
 )
 
 
-def _emit_dry_run_error(*, error_msg: str, json_output: bool) -> None:
-    """Emit an unresolved-slug / missing-lanes dry-run error in the right channel."""
+def _emit_dry_run_error(*, error_msg: str, json_output: bool, error_code: str | None = None) -> None:
+    """Emit a dry-run error in the right channel (``error_code`` added to JSON when given)."""
     if json_output:
-        print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
+        payload: dict[str, str] = {"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}
+        if error_code is not None:
+            payload["error_code"] = error_code
+        print(json.dumps(payload))
     else:
         console.print(f"[red]Error:[/red] {error_msg}")
+
+
+def _preview_review_artifacts(
+    repo_root: Path,
+    resolved_feature: str,
+    wp_ids: list[str],
+    *,
+    json_output: bool,
+) -> tuple[Path, ReviewArtifactPreflightResult]:
+    """Resolve the preview dir and run the review-artifact preflight, failing closed.
+
+    The preflight reads WP lane state from the STATUS_STATE (coord) partition. On
+    a coord-topology mission whose coordination branch was deleted, or whose
+    coordination worktree is not materialized (#4959), that read raises
+    :class:`CoordinationBranchDeleted` / :class:`CoordinationWorktreeUnmaterialized`
+    -- ``StatusReadPathNotFound(Exception)`` subclasses, not ``RuntimeError`` /
+    ``OSError``. #5110: render the exception's own remediation (its ``next_step``
+    is folded into ``str(exc)``) and exit 1, mirroring the real consolidation
+    path's STATUS_STATE read in ``executor.py``, with a valid ``--json`` error
+    object carrying the stable ``error_code`` -- never a raw traceback.
+    """
+    main_repo = get_main_repo_root(repo_root)
+    try:
+        # FR-006 (#2885): the review-artifact consistency preflight needs facts from
+        # TWO partitions — WP lane state (STATUS_STATE, the coord husk for a coord
+        # mission) and review-cycle artifacts (WORK_PACKAGE_TASK, PRIMARY) — and it
+        # resolves each from its OWN declared home internally (see
+        # ``find_rejected_review_artifact_conflicts``). The dir below stays PRIMARY
+        # because it ALSO drives the ``would_assign_mission_number`` scan
+        # (``meta.json`` is a PRIMARY-partition fact for every topology); passing it
+        # into the preflight only supplies the mission slug (``.name``). Routed
+        # through the ONE affirmative surface→filesystem seam
+        # (lifecycle-gate-execution-context WP02).
+        feature_dir_for_preview = resolve_artifact_surface(
+            main_repo,
+            resolved_feature,
+            MissionArtifactKind.WORK_PACKAGE_TASK,
+        ).path
+        preflight = run_review_artifact_consistency_preflight(feature_dir_for_preview, wp_ids=wp_ids)
+    except (CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized) as exc:
+        _emit_dry_run_error(error_msg=str(exc), json_output=json_output, error_code=exc.error_code)
+        if not json_output:
+            console.print(
+                "[yellow]Dry run aborted before any state change.[/yellow] "
+                "Restore the mission's coordination worktree/branch as described above, "
+                "then re-run [bold]spec-kitty consolidate --dry-run[/bold]."
+            )
+        raise typer.Exit(1) from exc
+    return feature_dir_for_preview, preflight
 
 
 def _emit_review_artifact_block(
@@ -224,26 +280,6 @@ def run_dry_run_forecast(
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
 
-    # FR-006 (#2885): the review-artifact consistency preflight needs facts from
-    # TWO partitions — WP lane state (STATUS_STATE, the coord husk for a coord
-    # mission) and review-cycle artifacts (WORK_PACKAGE_TASK, PRIMARY) — and it now
-    # resolves each from its OWN declared home internally (see
-    # ``find_rejected_review_artifact_conflicts``) rather than judging both off one
-    # dir this caller supplies. The prior single ``feature_dir_for_preview`` handed
-    # the gate a PRIMARY dir, whose empty status log made every WP look stateless so
-    # the preview passed a rejected review while real merge — reading the coord husk
-    # — refused: preview and consolidation disagreed. Below stays PRIMARY because it
-    # ALSO drives the ``would_assign_mission_number`` scan (``meta.json`` is a
-    # PRIMARY-partition fact for every topology); passing it into the preflight only
-    # supplies the mission slug (``.name``), which the preflight re-resolves both
-    # homes from. Routed through the ONE affirmative surface→filesystem seam
-    # (lifecycle-gate-execution-context WP02).
-    feature_dir_for_preview = resolve_artifact_surface(
-        get_main_repo_root(repo_root),
-        resolved_feature,
-        MissionArtifactKind.WORK_PACKAGE_TASK,
-    ).path
-
     # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate
     # that real merge runs (issue #991). When a rejected review-cycle
     # artifact still sits on an approved/done WP, real merge exits with
@@ -253,9 +289,11 @@ def run_dry_run_forecast(
     dry_run_all_wp_ids: list[str] = [
         wp for lane in lanes_manifest.lanes for wp in lane.wp_ids
     ]
-    review_artifact_preflight = run_review_artifact_consistency_preflight(
-        feature_dir_for_preview,
-        wp_ids=dry_run_all_wp_ids,
+    feature_dir_for_preview, review_artifact_preflight = _preview_review_artifacts(
+        repo_root,
+        resolved_feature,
+        dry_run_all_wp_ids,
+        json_output=json_output,
     )
     if not review_artifact_preflight.passed:
         _emit_review_artifact_block(
