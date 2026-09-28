@@ -97,7 +97,7 @@
       "wp": null
     },
     "#4900": {
-      "evidence_ref": "Owned by WP03 of mission exit-zero-data-intact-01M3KDAS; red-first regression test in that WP's test file",
+      "evidence_ref": "tests/consolidation/test_mission_number_truthful_4900.py; accepted 1972b41f; consolidated 554ab705",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,7 +105,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#4915": {
@@ -133,7 +133,7 @@
       "wp": null
     },
     "#4919": {
-      "evidence_ref": "Owned by WP02 of mission exit-zero-data-intact-01M3KDAS; red-first regression test in that WP's test file",
+      "evidence_ref": "tests/decisions/test_defer_resolve_repair_4919.py; accepted 1972b41f; consolidated 554ab705",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -141,7 +141,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#4927": {
@@ -157,7 +157,7 @@
       "wp": null
     },
     "#4933": {
-      "evidence_ref": "Owned by WP04 of mission exit-zero-data-intact-01M3KDAS; red-first regression test in that WP's test file",
+      "evidence_ref": "tests/consolidation/test_user_meta_json_dirty_4933.py; accepted 1972b41f; consolidated 554ab705",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -165,11 +165,11 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP04"
     },
     "#4940": {
-      "evidence_ref": "Owned by WP05 of mission exit-zero-data-intact-01M3KDAS; red-first regression test in that WP's test file",
+      "evidence_ref": "tests/specify_cli/session_presence/test_settings_encoding_4940.py; accepted 1972b41f; consolidated 554ab705",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -177,7 +177,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP05"
     },
     "#4941": {
@@ -217,7 +217,7 @@
       "wp": null
     },
     "#4964": {
-      "evidence_ref": "Owned by WP07 of mission exit-zero-data-intact-01M3KDAS; red-first regression test in that WP's test file",
+      "evidence_ref": "tests/cli/test_migrate_group_flags_4964.py; accepted 1972b41f; consolidated 554ab705",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -225,11 +225,11 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP07"
     },
     "#4998": {
-      "evidence_ref": "Owned by WP06 of mission exit-zero-data-intact-01M3KDAS; red-first regression test in that WP's test file",
+      "evidence_ref": "tests/specify_cli/skills/test_crlf_skill_render_4998.py; accepted 1972b41f; consolidated 554ab705",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -237,7 +237,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP06"
     },
     "#5044": {

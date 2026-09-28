@@ -1,33 +1,33 @@
 {
-  "event_count": 80,
-  "last_event_id": "01M3M6QT975Z8CK4A9F7QH42XF",
-  "materialized_at": "2026-09-28T14:29:41.287222+00:00",
-  "mission_number": "",
+  "event_count": 91,
+  "last_event_id": "01M3M88GYN86WGAVVBY0RMPXS4",
+  "materialized_at": "2026-09-28T14:56:17.365480+00:00",
+  "mission_number": "206",
   "mission_slug": "exit-zero-data-intact-01M3KDAS",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 7,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 8,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M3KW62ZM36P9Q92WX6TJXWV7",
-      "last_transition_at": "2026-09-28T11:25:14.612673+00:00",
+      "lane": "done",
+      "last_event_id": "01M3M87J4VS5NA7R8CN5BM1H15",
+      "last_transition_at": "2026-09-28T14:55:45.819623+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: kernel.text_decode (decode_unambiguous/detect_bom/normalize_newlines, stdlib-only) added; charter.encoding_recovery delegates BOM detection (UTF-32 ordering fix, red-first pinned) and charter.hasher.hash_content delegates newline normalization. Tests: tests/kernel/test_text_decode.py + tests/charter/test_encoding_recovery_bom_delegation.py (new, all green) + tests/charter/test_encoding_recovery.py + test_hasher.py (unchanged/extended, green). Gates: ruff check/format, mypy --strict all clean. Architectural gates (layer_rules, encoding_recovery_unification, meta_decode_l1, ruff_format_enforcement) green. Fast-tier baseline: 2374 passed, 1 pre-existing unrelated fail (test_destination_health_check_oserror_falls_through_to_render, confirmed red on unmodified src/ too), 10 skipped.",
@@ -51,15 +51,15 @@
       }
     },
     "WP02": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M3KZBQCAY82ZHG5DJVV483D9",
-      "last_transition_at": "2026-09-28T12:20:45.066584+00:00",
+      "lane": "done",
+      "last_event_id": "01M3M87PP2CZXF73THAK4ZTQMP",
+      "last_transition_at": "2026-09-28T14:55:50.466188+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: order-independent decisions fold (#4919). index_fold.py: single transition-rule authority + order-independent fold_events; service.py delegates; _decisions_doctor.py diagnose now runs the fold and reports malformed_folds/status_mismatch on read-only too; --repair exits 1 on unresolved malformed decisions. Tests: tests/decisions/test_defer_resolve_repair_4919.py (FR-001..FR-004, red-first confirmed against unmodified code, 7 failures -> green). Full gate suite green: tests/decisions tests/specify_cli/decisions tests/architectural/{test_cli_error_surface_seam,test_status_module_boundary,test_layer_rules,test_no_legacy_terminology,test_json_contract_enumeration} tests/integration/test_accept_matrix_coord_partition tests/status/test_authoritative_non_lane_registry_4897 plus mypy --strict/ruff clean on changed files. Fast-tier baseline: 2374 passed, 1 pre-existing unrelated failure (test_agent_commands.py::TestFreshnessShortCircuitOSErrorFallthrough::test_destination_health_check_oserror_falls_through_to_render, outside owned_files, not touched by this diff).",
@@ -86,15 +86,15 @@
       }
     },
     "WP03": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M3M2TWKAM5B8AH07GJXRW71P",
-      "last_transition_at": "2026-09-28T13:21:27.658931+00:00",
+      "lane": "done",
+      "last_event_id": "01M3M87TTN4D2RRVF395BSJ8MC",
+      "last_transition_at": "2026-09-28T14:55:54.709328+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: driver fix (FR-007), unconditional target-tree write + read-back verify (FR-005/006), canonical is_assigned_mission_number leaf. Tests: tests/consolidation/test_mission_number_truthful_4900.py (18 new, shown RED pre-fix on the sequential-consolidate + hand-numbered repros), test_ordering_bake_seam.py (38 pass, re-pinned), test_merge_drivers.py (19 pass), test_no_dead_symbols.py (34 pass, re-pinned + __all__ trim), architectural gates (267 pass, 1 unrelated pre-existing red in test_doctor_cli_surface_golden.py), fast tier (2374 pass, 1 unrelated pre-existing red in test_agent_commands.py), mypy --strict clean on new/changed code (4 pre-existing executor.py no-any-return errors untouched). Deviation noted in commit: ruff format reformatted all of executor.py (pre-existing format-noncompliant baseline, confirmed via git stash; could not revert due to destructive-action guard on git checkout).",
@@ -122,15 +122,15 @@
       }
     },
     "WP04": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M3KZQCXTT0V8B8VJD83WFADE",
-      "last_transition_at": "2026-09-28T12:27:07.578686+00:00",
+      "lane": "done",
+      "last_event_id": "01M3M87YXCQQHM5JJ9Z97CN1XJ",
+      "last_transition_at": "2026-09-28T14:55:58.892387+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "T019-T022 done. #4933: coordination/coherence.py::is_self_bookkeeping_churn's meta.json exemption anchored depth-exact ((?:^|/)kitty-specs/[^/]+/meta.json$ + legacy .kittify/meta.json$), replacing the basename-only PurePosixPath(...).name==meta.json check. Red-first: tests/consolidation/test_user_meta_json_dirty_4933.py proved the bug live (dirty src/app/meta.json let spec-kitty consolidate proceed to a full squash-merge commit in the primary-checkout case, and to worktree removal in the lane-worktree case; aggregation dropped meta.json from a multi-file refusal). Green post-fix, FR-010 owned-meta.json controls unchanged. Tests: new+owned files 32 passed; +test_issue_2795_claim_blocker.py 42 passed; full is_self_bookkeeping_churn/is_toolchain_generated_churn caller-class grep sweep (18 files) 212 passed / 5 failed, all 5 confirmed pre-existing on unmodified src/ (CoordinationWorktreeUnmaterialized / LaneNamingSlugMismatch in tests/integration/test_merge_lane_planning_data_loss.py, unrelated to this diff). Architectural gates (exemption_registry_ratchet, destructive_op_routing, layer_rules) 122 passed. ruff check/format clean, mypy --strict clean on coherence.py. make test-fast baseline was still completing at handoff (heavy shared-machine contention, ~15min, 99%+ progress, single F at 78%% consistent with documented pre-existing fast-tier reds) - recorded here for the reviewer to confirm final tally.",
@@ -156,15 +156,15 @@
       }
     },
     "WP05": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M3M4VF72GAYNKGN5H3AQN91S",
-      "last_transition_at": "2026-09-28T13:56:43.874969+00:00",
+      "lane": "done",
+      "last_event_id": "01M3M887YFZG0T5HS7E7VQAAVA",
+      "last_transition_at": "2026-09-28T14:56:08.143364+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "T023-T029 done. .claude/settings.json decode now routes through kernel.text_decode.decode_unambiguous (BOM or strict UTF-8 only); undecodable files raise SettingsNotDecodableError(GuardedReadError) instead of silently returning {}. Non-plain-UTF-8 sources get a byte-exact backup (asset_preservation.backup.backup_before_overwrite) before the UTF-8 rewrite. Fixed: _load/_save, prepare_commands/apply_prepared (init/upgrade writer path), doctor probe (session-presence-undecodable finding, STATE_UNSAFE, no traceback), has_presence propagates. agent config sync --sync-hooks / live-work install-uninstall already had no swallowing catch and now surface exit 1 with no source change needed. Tests: tests/specify_cli/session_presence/test_settings_encoding_4940.py 23/23 passed. Blast radius: tests/specify_cli/session_presence/ + tool_surface/providers/test_session_presence*.py + live_work/test_install.py + live_work/test_capability.py + cli/commands/test_lint_hooks.py + cli/commands/test_live_work.py + upgrade/migrations/test_m_3_2_0rc39_refresh_orientation_block.py = 413 passed, 1 skipped. Full tests/specify_cli/tool_surface/ = 1098 passed. Architectural gates (test_cli_error_surface_seam.py, test_overwrite_ownership_routing.py, test_layer_rules.py) = 105 passed. Fast-tier baseline = 2374 passed, 10 skipped, 1 pre-existing unrelated failure (test_agent_commands.py::TestFreshnessShortCircuitOSErrorFallthrough::test_destination_health_check_oserror_falls_through_to_render, confirmed red on the unmodified merge-base via git archive). ruff check + ruff format --check clean; mypy --strict clean on all changed src files.",
@@ -192,15 +192,15 @@
       }
     },
     "WP06": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M3M62DY6VWZM183DN5JSQXJJ",
-      "last_transition_at": "2026-09-28T14:18:00.518419+00:00",
+      "lane": "done",
+      "last_event_id": "01M3M88CPCDDP238AWVPA6111B",
+      "last_transition_at": "2026-09-28T14:56:13.004227+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "T030-T035 done. CRLF frontmatter doubling (#4998) fixed: normalize_newlines applied in ensure_skill_frontmatter (T032) and command-skill render() (T033); .gitattributes eol=lf pin + check-attr test (T034); tests/specify_cli/skills/test_crlf_skill_render_4998.py FR-015..FR-019, red-first + half-by-half proof (T031/T035). Tests: new module 6/6 passed; tests/specify_cli/skills/ 431 passed/3 pre-existing failures (confirmed on unmodified base); architectural gates (merge_reconciliation_class_guard, packaging_safety, layer_rules) 80/80 passed; mypy --strict + ruff clean on touched files.",
@@ -228,15 +228,15 @@
       }
     },
     "WP07": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M3KWF4BQZB4ZV62YKRRX75CB",
-      "last_transition_at": "2026-09-28T11:30:10.935659+00:00",
+      "lane": "done",
+      "last_event_id": "01M3M88393VG298DQ3273W7XKN",
+      "last_transition_at": "2026-09-28T14:56:03.363236+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "T036-T039 done. Extracted _forward_or_refuse_group_flags in migrate_cmd.py's group callback (D7/R6, #4964): forwards --dry-run/--verbose/--force to a subcommand via ctx.default_map when it declares the same flag, else click.UsageError exit 2 naming flag/subcommand/position (NFR-003). tests/cli/test_migrate_group_flags_4964.py (new, 54 tests incl. 1 documented skip): live-registry-parametrised (subcommand x flag) matrix, real end-to-end positive control on backfill-runtime-state (dry-run writes nothing; non-dry-run on same fixture does write), FR-022 ratchets, issue repro cases. Tests run: tests/cli/test_migrate_group_flags_4964.py -> 53 passed, 1 skipped; blast-radius (test_migrate_cmd_messaging.py + all migrate_cmd/'migrate' referencing test files) -> 147 passed, 3 skipped; tests/architectural/test_cli_error_surface_seam.py + test_layer_rules.py -> 83 passed; ruff check/format + mypy --strict clean on both changed files. make test-fast in progress (heavy shared-host CPU contention, ~95%+ through with 0 new failures attributable to this change at last check).",
@@ -259,20 +259,34 @@
       }
     },
     "WP08": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M3M6QT975Z8CK4A9F7QH42XF",
-      "last_transition_at": "2026-09-28T14:29:41.287222+00:00",
+      "lane": "done",
+      "last_event_id": "01M3M88GYN86WGAVVBY0RMPXS4",
+      "last_transition_at": "2026-09-28T14:56:17.365480+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "CHANGELOG entry (6 issues, Before/After each, mission slug) + docs/api/cli-commands.md (doctor decisions, migrate group --help synced to live CLI) + docs/guides/how-to/harnesses/setup-lint-hooks.md (new Troubleshooting: settings.json not valid UTF-8) + docs retrieval index regenerated. check_docs_freshness.py --ci: 0 errors (28 pre-existing warnings unrelated). test_no_legacy_terminology.py: 96 passed. test_sync_changelog.py + test_validate_changelog_entry.py: 19 passed.",
+        "Review passed: verified commit ebb6ed6c. All six CHANGELOG Before/After claims (#4919, #4900, #4933, #4940, #4998, #4964) spot-checked against src/ code (doctor decisions --repair typer.Exit(1) on malformed_folds + read-only clean:false; mission_number.py is_assigned_mission_number + read-back-verified Assigned line + MissionNumberVerificationError; depth-exact owned_mission_meta/legacy_kittify_meta regex + is_pure_behind_head_lag gating; kernel.text_decode.decode_unambiguous/SettingsNotDecodableError/backup_before_overwrite '<path>.<timestamp>'; normalize_newlines in command_renderer.py + .gitattributes eol=lf entries from WP07; migrate_cmd._forward_or_refuse_group_flags UsageError exit 2). docs/api/cli-commands.md doctor-decisions and migrate --help sections match live PYTHONPATH=... spec-kitty doctor decisions --help / migrate --help byte-for-byte. setup-lint-hooks.md Troubleshooting section matches code behavior (refused+untouched vs provable-non-UTF-8 merged+backup). grep for doctor decisions/sync-hooks/settings.json/migrate --dry-run/mission_number/live-work install outside changelog found only plans/ADRs/history plus unaffected reference docs -- no live how-to/reference page misstates behavior. Gates: check_docs_freshness.py --ci exit=0 errors=0 (19 pre-existing warnings); pytest tests/architectural/test_no_legacy_terminology.py tests/docs/test_sync_changelog.py tests/release/test_validate_changelog_entry.py -q: 115 passed. owned_files respected (CHANGELOG, docs/api/cli-commands.md, docs/guides/how-to/harnesses/setup-lint-hooks.md, docs retrieval index, WP file); .gitattributes untouched. No feature/merge terminology violations introduced."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 29778,
-      "shell_pid_created_at": "1790605767.57"
+      "review_result": {
+        "reference": "auto-approval:WP08:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 5907,
+      "shell_pid_created_at": "1790606548.48",
+      "subtasks": {
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
     }
   }
 }
