@@ -261,6 +261,19 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             stack.enter_context(patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result))
             stack.enter_context(patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result))
             stack.enter_context(patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"))
+            # #4900: this test mocks commit_merge_bookkeeping below, so nothing
+            # is ever really committed to the target branch. The new
+            # target-tree mission_number write/read-back
+            # (executor._record_mission_number_on_target_tree /
+            # _verify_and_announce_mission_number) would otherwise assign a
+            # real number from the (unmocked) mission-branch bake and then
+            # fail its read-back verification against that mocked commit.
+            # Neutralize the bake so it never assigns a number for this run
+            # (mirrors the existing style of patching the old bake below in
+            # sibling tests); this test's intent is the safe_commit call
+            # shape, not mission_number correctness (covered by
+            # tests/consolidation/test_mission_number_truthful_4900.py).
+            stack.enter_context(patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None))
             mock_safe_commit = stack.enter_context(patch("specify_cli.consolidation.executor.commit_merge_bookkeeping", return_value=True))
             mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
             mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
@@ -356,7 +369,17 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             # WP10 (#2057): the bake (ordering seam) + the done-on-target assert
             # (done_bookkeeping seam) run real git against an unseeded branch in
             # this unit test; patch them at their seam homes.
-            stack.enter_context(patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"))
+            # #4900: return_value=None (not a bare MagicMock) -- the executor
+            # now threads this return value into run.assigned_mission_number
+            # and, when non-None, JSON-serializes it onto the target-tree
+            # meta.json (executor._record_mission_number_on_target_tree). A
+            # bare MagicMock return blew up that json.dump with
+            # "Object of type MagicMock is not JSON serializable". None
+            # matches this mock's original intent (the bake is disabled, not
+            # standing in for a real assignment) and lets the mission_number
+            # machinery no-op for this test, which is about baseline_merge_
+            # commit metadata, not mission_number.
+            stack.enter_context(patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None))
             stack.enter_context(patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"))
             mock_safe_commit = stack.enter_context(patch("specify_cli.consolidation.executor.commit_merge_bookkeeping", return_value=True))
             mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
@@ -506,6 +529,15 @@ class TestMergeDoneTransitions:
             stack.enter_context(patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result))
             stack.enter_context(patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result))
             stack.enter_context(patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"))
+            # #4900: see the matching comment in
+            # test_safe_commit_is_called_with_correct_files above -- this test
+            # also mocks commit_merge_bookkeeping (via record_safe_commit
+            # below), so the target-tree mission_number read-back would
+            # otherwise fail against a number that was never really
+            # committed. Neutralize the bake so no number is assigned for
+            # this run; this test's intent is safe_commit/worktree-removal
+            # ordering, not mission_number correctness.
+            stack.enter_context(patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None))
             stack.enter_context(patch("specify_cli.consolidation.executor.commit_merge_bookkeeping", side_effect=record_safe_commit))
             mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
             mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
