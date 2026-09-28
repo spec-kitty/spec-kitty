@@ -6,8 +6,10 @@ supported, working commands — before any spec or plan exists (FR-001..FR-003,
 FR-008, FR-012). This test creates a fresh software-dev mission, obtains the
 issued ``discovery`` prompt through the real ``next`` CLI, extracts every
 ``spec-kitty ...`` invocation the prompt tells the agent to run, runs each one
-through the real CLI, and then advances ``next`` past ``discovery`` via the
-supported path (no ``--result success`` shortcut that bypasses guards).
+through the real CLI, and then advances ``next`` past ``discovery`` the same
+supported way the first invocation issued it: a second ``--result success``
+call (the ``discovery`` step requires no artifact, so this is the guard-
+respecting completion path, not a bypass).
 
 A second case (FR-012, "Research-type missions only") checks that on a
 research-type mission with a filled plan, the fenced research-only
@@ -19,6 +21,13 @@ extracted invocation for a software-dev mission is a bare, no-op
 ``spec-kitty research`` command missing ``--mission``); the failure is
 recorded in the WP Activity Log / final report, then this file is converted
 to a focused test (no ``regression`` marker) once the prompt is fixed.
+
+A third group (FR-013) checks that the prose surfaces that describe
+``/spec-kitty.research`` alongside the prompt — the ``spk-mission-research``
+skill, the ``spk-start-command-map`` reference, the ``/spec-kitty.research``
+section of ``docs/api/slash-commands.md``, and the plan doc's "Research
+Kickoff" bullet in ``docs/context/spec-driven.md`` — cannot drift back to the
+stale "only after ``/spec-kitty.plan``" ordering without failing a test.
 """
 
 from __future__ import annotations
@@ -33,6 +42,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
 from tests._factories import provision_test_charter
+from tests.doctrine.test_builtin_cli_command_references import _COMMAND_PATTERN
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -41,6 +51,10 @@ runner = CliRunner()
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _RESEARCH_PROMPT = _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev" / "research" / "prompt.md"
 _PLAN_PROMPT = _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev" / "plan" / "prompt.md"
+_SKILL_MD = _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "spk-mission-research" / "SKILL.md"
+_COMMAND_MAP_MD = _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "spk-start-command-map" / "references" / "command-map.md"
+_SLASH_COMMANDS_MD = _REPO_ROOT / "docs" / "api" / "slash-commands.md"
+_SPEC_DRIVEN_MD = _REPO_ROOT / "docs" / "context" / "spec-driven.md"
 
 FILLED_PLAN = """\
 # Implementation Plan — Discovery Contract Fixture
@@ -60,7 +74,11 @@ must still scaffold research.md/data-model.md from the shipped templates.
 # Invocation extraction (Risks & Mitigations: brittle-prose guard)
 # ---------------------------------------------------------------------------
 
-_COMMAND_LINE = re.compile(r"^spec-kitty\s+[a-z][\w .<>/'\"-]*$")
+# Built from the same canonical ``spec-kitty <path>`` detector the doctrine
+# command-reference guard uses (``_COMMAND_PATTERN``), extended to also
+# capture the trailing flags/arguments (``--mission <handle>``) a runnable
+# invocation carries, which the path-only pattern deliberately excludes.
+_COMMAND_LINE = re.compile(r"^" + _COMMAND_PATTERN.pattern + r"(?:[ \t]+[\w.<>/'\"-]*)*$")
 _RESEARCH_ONLY_HEADING = re.compile(r"^#{1,6}\s*Research-type missions only")
 _NEXT_HEADING = re.compile(r"^#{1,6}\s")
 _FENCE = re.compile(r"^\s*(```|~~~)")
@@ -160,6 +178,19 @@ def test_extractor_skips_research_only_section_when_excluded() -> None:
 
 
 @pytest.fixture(autouse=True)
+def _bypass_global_asset_bootstrap(monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-004: ``main_callback`` re-renders every agent's global command and
+    skill assets on each ``CliRunner.invoke()`` because its ``next``-invocation
+    fast path keys off the real process ``sys.argv``, which pytest owns, not
+    the args passed to ``invoke()``. That global asset bootstrap is outside
+    this contract (it is exercised by its own tests), so no-op it here.
+    """
+    monkeypatch.setattr("specify_cli.runtime.agent_commands.ensure_global_agent_commands", lambda *_a, **_k: None)
+    monkeypatch.setattr("specify_cli.runtime.agent_skills.ensure_global_agent_skills", lambda *_a, **_k: None)
+    monkeypatch.setattr("specify_cli.runtime.bootstrap.ensure_runtime", lambda *_a, **_k: None)
+
+
+@pytest.fixture(autouse=True)
 def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     """Same bypass as ``test_next_command_integration.py`` — these fixtures
     stage minimal mission state without running ``spec-kitty charter sync``.
@@ -245,17 +276,25 @@ def test_discovery_prompt_is_fully_executable_for_software_dev(tmp_path: Path, m
     assert prompt_file, "kind='step' must carry a non-empty prompt_file"
     prompt_text = Path(prompt_file).read_text(encoding="utf-8")
 
-    # FR-002: no STOP / "not main" location instruction survives into the
-    # issued prompt.
-    assert "STOP" not in prompt_text.upper() or "⛔" not in prompt_text
+    # FR-002: no STOP location pre-flight survives into the issued prompt.
+    # Each token is checked independently — the old assertion's ``or`` passed
+    # as long as either one was merely absent, which is vacuous.
+    assert "STOP" not in prompt_text.upper()
     assert "NOT main" not in prompt_text
-    assert "main branch" not in prompt_text.lower() or "not " not in prompt_text.lower().split("main branch")[0][-20:]
+    assert "⛔" not in prompt_text
 
     # FR-001: the prompt names research.md as create-or-extend.
     assert "research.md" in prompt_text
     assert "create" in prompt_text.lower() and "extend" in prompt_text.lower()
 
-    invocations = extract_invocations(prompt_text, include_research_only=False)
+    # Command extraction is scoped to the template body only (after the
+    # ``next``-issued header + governance banner) — read the resolved
+    # template file directly and reuse ``_COMMAND_PATTERN`` from the doctrine
+    # command-reference guard rather than re-scanning the whole issued file
+    # with a local regex.
+    template_body = _RESEARCH_PROMPT.read_text(encoding="utf-8")
+    assert template_body in prompt_text, "the issued prompt must carry the template file verbatim"
+    invocations = extract_invocations(template_body, include_research_only=False)
     assert invocations, "the issued discovery prompt must name at least one runnable command"
 
     for raw in invocations:
@@ -293,6 +332,7 @@ def test_discovery_prompt_is_fully_executable_for_software_dev(tmp_path: Path, m
 
 def test_research_only_invocation_scaffolds_four_artifacts_for_research_mission(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mission_slug = "research-contract"
     repo_root = _scaffold_mission(
@@ -307,18 +347,12 @@ def test_research_only_invocation_scaffolds_four_artifacts_for_research_mission(
     research_invocations = [inv for inv in invocations if inv.split()[1] == "research"]
     assert research_invocations, "expected a 'spec-kitty research ...' invocation in the research-only section"
 
-    import os
-
-    old_cwd = Path.cwd()
-    os.chdir(repo_root)
-    try:
-        for raw in research_invocations:
-            command = substitute_placeholders(raw, mission_slug=mission_slug)
-            tokens = command.split()
-            result = runner.invoke(cli_app, tokens[1:])
-            assert result.exit_code == 0, f"{command!r} failed: {result.output}"
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(repo_root)
+    for raw in research_invocations:
+        command = substitute_placeholders(raw, mission_slug=mission_slug)
+        tokens = command.split()
+        result = runner.invoke(cli_app, tokens[1:])
+        assert result.exit_code == 0, f"{command!r} failed: {result.output}"
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     for rel in (
@@ -345,3 +379,129 @@ def test_plan_prompt_phase0_says_extend_not_replace() -> None:
     assert "extend" in phase0_section.lower()
     assert "research.md" in phase0_section
     assert "do not replace" in phase0_section.lower() or "not replace" in phase0_section.lower()
+
+
+# ---------------------------------------------------------------------------
+# FR-013: phrase-invariant surfaces stay aligned with the discovery prompt —
+# create-or-extend, pre-spec ordering, and a scaffold scoped to research-type
+# missions after plan. None may drift back to "only after /spec-kitty.plan".
+# ---------------------------------------------------------------------------
+
+_STALE_ORDERING_PATTERNS = (
+    re.compile(r"only after\s*`?/spec-kitty\.plan`?", re.IGNORECASE),
+    re.compile(r"plan\s+prompts?\s+(?:you\s+)?to\s+run\s*`?spec-kitty research`?", re.IGNORECASE),
+)
+
+
+def _stale_ordering_hits(text: str) -> list[str]:
+    """Every stale-ordering phrase found (empty when *text* is clean)."""
+    return [match.group(0) for pattern in _STALE_ORDERING_PATTERNS for match in pattern.finditer(text)]
+
+
+def _bare_research_mentions(text: str) -> list[str]:
+    """Every ``spec-kitty research`` mention (the CLI form) missing ``--mission``."""
+    return [match.group(0) for match in re.finditer(r"spec-kitty research\b[^\n`]*", text) if "--mission" not in match.group(0)]
+
+
+def _describes_discovery_create_or_extend(text: str) -> bool:
+    lowered = text.lower()
+    return (
+        "research.md" in lowered and "create" in lowered and "extend" in lowered and ("pre-spec" in lowered or "before a spec" in lowered or "discovery" in lowered)
+    )
+
+
+def _scaffold_scoped_to_research_type_after_plan(text: str) -> bool:
+    lowered = text.lower()
+    return "research" in lowered and "mission type" in lowered and "plan" in lowered
+
+
+_FR013_SURFACES = [
+    (_SKILL_MD, "spk-mission-research/SKILL.md"),
+    (_COMMAND_MAP_MD, "spk-start-command-map/references/command-map.md"),
+    (_SLASH_COMMANDS_MD, "docs/api/slash-commands.md"),
+    (_SPEC_DRIVEN_MD, "docs/context/spec-driven.md"),
+]
+
+
+@pytest.mark.parametrize("path,label", _FR013_SURFACES, ids=[label for _, label in _FR013_SURFACES])
+def test_fr013_surface_has_no_stale_ordering_or_bare_research_mentions(path: Path, label: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    assert _stale_ordering_hits(text) == [], f"{label}: stale ordering phrase(s) found"
+    assert _bare_research_mentions(text) == [], f"{label}: 'spec-kitty research' mention(s) missing --mission"
+
+
+@pytest.mark.parametrize(
+    "path,label",
+    [(_SKILL_MD, "SKILL.md"), (_SLASH_COMMANDS_MD, "slash-commands.md")],
+    ids=["skill", "slash-commands"],
+)
+def test_fr013_surface_describes_discovery_create_or_extend_and_scoped_scaffold(path: Path, label: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    assert _describes_discovery_create_or_extend(text), f"{label}: does not describe research.md as pre-spec create-or-extend"
+    assert _scaffold_scoped_to_research_type_after_plan(text), f"{label}: does not scope the scaffold to research-type missions after plan"
+
+
+# Positive control (Risks & Mitigations: same-fixture non-vacuity guard) —
+# the checks above must actually fail against the pre-fix wording they were
+# written to catch, not vacuously pass on anything. Recovered verbatim from
+# the pre-#5254 commit (``git show 18bf2b5e:<path>``).
+_OLD_SKILL_MD = """\
+---
+name: spk-mission-research
+description: "Operate pre-spec or in-mission research workflows while keeping findings tied to mission decisions."
+---
+
+# spk-mission-research
+
+Use this skill when a mission needs discovery, external facts, design precedent,
+technical investigation, or decision support.
+
+## Flow
+
+1. Use a research mission for pre-spec discovery workflows.
+2. Invoke `/spec-kitty.research` only after `/spec-kitty.plan`; it scaffolds
+   research artifacts from an existing plan.
+3. Write findings as decision-ready evidence, not a loose reading list.
+4. Record assumptions, source quality, and unresolved questions.
+5. Return findings to `spk-mission-specify` or `spk-mission-plan`.
+
+## Rule
+
+Research is not a substitute for a spec. It should narrow uncertainty enough for
+the next mission phase.
+"""
+
+_OLD_SLASH_COMMANDS_SECTION = """\
+## /spec-kitty.research
+
+**Syntax**: `/spec-kitty.research [--force]`
+
+**Purpose**: Scaffold research artifacts for Phase 0 research.
+
+**Prerequisites**:
+- Run from any checkout where the mission can be resolved.
+
+**What it does**:
+- Runs `spec-kitty research` to create research templates.
+
+**Creates/updates**:
+- `kitty-specs/<feature>/research.md`
+- `kitty-specs/<feature>/data-model.md`
+- `kitty-specs/<feature>/research/evidence-log.csv`
+- `kitty-specs/<feature>/research/source-register.csv`
+
+**Related**: `/spec-kitty.plan`
+"""
+
+_OLD_SPEC_DRIVEN_LINE = (
+    "5. **Research Kickoff**: Prompts the team to run `spec-kitty research` (or `/spec-kitty.research`) so Phase 0 artifacts exist before task generation"
+)
+
+
+def test_fr013_checks_are_not_vacuous_against_pre_fix_wording() -> None:
+    assert _stale_ordering_hits(_OLD_SKILL_MD), "expected the old SKILL.md's 'only after /spec-kitty.plan' to be caught"
+    assert _bare_research_mentions(_OLD_SLASH_COMMANDS_SECTION), "expected the old slash-commands.md bare mention to be caught"
+    assert _bare_research_mentions(_OLD_SPEC_DRIVEN_LINE), "expected the old spec-driven.md bare mention to be caught"
+    assert not _describes_discovery_create_or_extend(_OLD_SLASH_COMMANDS_SECTION), (
+        "expected the old slash-commands.md section to fail the create-or-extend check (no 'extend')"
+    )
