@@ -228,6 +228,7 @@ def _load_or_create_merge_state(
     wp_order: list[str],
     push_requested: bool,
     skip_lanes: bool = False,
+    strategy: str | None = None,
 ) -> tuple[ConsolidationState, bool]:
     """Load canonical/legacy merge state, migrating legacy state to canonical.
 
@@ -236,6 +237,12 @@ def _load_or_create_merge_state(
     durable record for a genuinely-lanes.json-absent mission). A loaded
     (existing) state's own persisted value is never overwritten here --
     that survives resume exactly as recorded on the run that created it.
+
+    ``strategy`` follows the same fresh-only rule (#5111 landing fold): when
+    given, the fresh record is born with the strategy this run executes, so
+    its FIRST write is already truthful. Stamping it only in a second save
+    left a hard-kill window where a resumable record carried the inert
+    ``"merge"`` default instead of the operator's strategy.
     """
     canonical_state = load_state(main_repo, canonical_id)
     if canonical_state is not None:
@@ -266,6 +273,8 @@ def _load_or_create_merge_state(
         push_requested=push_requested,
         skip_lanes=skip_lanes,
     )
+    if strategy is not None:
+        state.strategy = strategy
     # #5111 / FR-012: the reconciliation marker is part of the fresh transaction
     # record and is written BEFORE ``state.json``, so a state on disk always
     # implies its marker (a crash in between leaves only a harmless orphan

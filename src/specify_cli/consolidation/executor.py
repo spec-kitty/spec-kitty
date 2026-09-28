@@ -3212,6 +3212,7 @@ def _run_lane_based_consolidation_locked(
         wp_order=all_wp_ids,
         push_requested=push,
         skip_lanes=skip_lanes,
+        strategy=strategy.value,
     )
 
     # terminus-merge-integrity WP06 (C-1 wiring half / T029): reseed the manifest
