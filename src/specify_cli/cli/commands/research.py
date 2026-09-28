@@ -176,7 +176,7 @@ def research(
     ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
-    """Execute Phase 0 research workflow to scaffold artifacts."""
+    """Scaffold research artifacts from the mission type's shipped templates."""
 
     show_banner()
 
@@ -272,7 +272,7 @@ def research(
         console.print("  1. Run [cyan]/spec-kitty.plan[/cyan] inside your coding agent (Claude Code, Codex, Cursor) to fill in the technical architecture")
         console.print("  2. Complete all [FEATURE], [DATE], and technical context placeholders")
         console.print("  3. Remove [REMOVE IF UNUSED] sections and choose your project structure")
-        console.print("  4. Then run [cyan]/spec-kitty.research[/cyan] again in the agent")
+        console.print(f"  4. Then run [cyan]spec-kitty research --mission {mission_slug}[/cyan] again")
         raise typer.Exit(1)
 
     created_paths: list[Path] = []

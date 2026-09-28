@@ -83,7 +83,7 @@ Focus areas:
 /spec-kitty.research
 ```
 
-**Result:** Creates Phase 0 research artifacts:
+**Result:** For a research-type mission with a filled plan, scaffolds the research artifacts from the mission type's templates:
 ```
 kitty-specs/001-serverless-auth-study/
 ├── spec.md                      # Research objectives

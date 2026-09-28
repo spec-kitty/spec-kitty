@@ -5393,7 +5393,7 @@ _Regenerate the committed generated agent-command + skill fixtures from source (
 ```
  Usage: spec-kitty research [OPTIONS]
 
- Execute Phase 0 research workflow to scaffold artifacts.
+ Scaffold research artifacts from the mission type's shipped templates.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission          TEXT  Mission slug to target                              │

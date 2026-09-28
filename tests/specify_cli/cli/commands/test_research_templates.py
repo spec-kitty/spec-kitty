@@ -254,3 +254,23 @@ def test_resolve_research_template_not_found(tmp_path: Path) -> None:
     resolved = _resolve_research_template(Path("research-template.md"), tmp_path, "software-dev")
 
     assert resolved is None
+
+
+# --------------------------------------------------------------------------- #
+# Unfilled plan: the recovery hint names the runnable CLI invocation, not the
+# agent prompt (which no longer runs the scaffold for every mission type).
+# --------------------------------------------------------------------------- #
+def test_unfilled_plan_hint_names_the_cli_invocation(tmp_path: Path) -> None:
+    primary_dir = _seed_mission(tmp_path, mission_type="research")
+    (primary_dir / "plan.md").write_text(
+        "# Implementation Plan: [FEATURE]\n[###-feature-name] [DATE] [link]\n[Gates determined based on charter file]\n",
+        encoding="utf-8",
+    )
+
+    result = _run_research(tmp_path)
+
+    assert result.exit_code == 1
+    output = " ".join(result.output.split())
+    assert f"spec-kitty research --mission {SLUG_WITH_MID8}" in output
+    assert "again in the agent" not in output
+    assert not (primary_dir / RESEARCH_MD).exists()

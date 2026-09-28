@@ -178,7 +178,7 @@ spec-kitty init <project_name> --ai claude --non-interactive
 After initialization, you should see the following commands available in your AI agent:
 - `/spec-kitty.specify` - Create specifications
 - `/spec-kitty.plan` - Generate implementation plans  
-- `/spec-kitty.research` - Scaffold mission-specific research artifacts (Phase 0)
+- `/spec-kitty.research` - Record discovery findings in `research.md` (research-type missions can also scaffold their research templates after planning)
 - `/spec-kitty.tasks` - Break down into actionable tasks
 
 Those four cover the start of a mission. For everything your agent can now run —
