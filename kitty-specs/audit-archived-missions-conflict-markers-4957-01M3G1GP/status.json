@@ -1,0 +1,86 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M3GKBPZ6X89HD3K3165E5QBW",
+  "materialized_at": "2026-09-27T04:53:18.438777+00:00",
+  "mission_number": "205",
+  "mission_slug": "audit-archived-missions-conflict-markers-4957-01M3G1GP",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3GKBNVZC8E9T2BZP0JYVF5W",
+      "last_transition_at": "2026-09-27T04:53:17.311657+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: repaired conflict-marker block at lines 758-773 of archived 025 WP01 activity log, kept HEAD side per spec.md Clarification (c). Expected-red on test_no_preexisting_archived_file_was_modified (WP02 resolves via carve-out entry).",
+        "Review passed: reviewer-renata verdict approved, 0 findings (reviews/wp-WP01.yaml)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260927",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1073807,
+      "shell_pid_created_at": "1790478437.16",
+      "subtasks": {
+        "T001": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3GKBPZ6X89HD3K3165E5QBW",
+      "last_transition_at": "2026-09-27T04:53:18.438777+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: T002 (4th carve-out entry) + T003-T007 (5 non-vacuous conflict-marker guard tests, all red-first verified). T008 comment drafted, not posted (orchestrator posts). Issue-matrix already resolved by orchestrator.",
+        "Cycle 2: R-002 fixed (skip now logged, red-first caplog test), R-003 fixed; R-001 satisfied: FR-009 comment posted https://github.com/spec-kitty/spec-kitty/issues/4956#issuecomment-5852575170",
+        "Review cycle 2 passed: reviewer-renata approved, R-001/R-002/R-003 resolved, 0 new findings (reviews/wp-WP02-cycle2.yaml)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20260927",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}

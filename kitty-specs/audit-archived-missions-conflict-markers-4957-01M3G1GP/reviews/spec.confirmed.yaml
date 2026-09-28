@@ -1,0 +1,131 @@
+# review-findings/v1 (confirmed subset) — R3 output: merged findings whose refute verdict is
+# `confirmed`. Refuted findings (SPEC-VERIFY-004) stay out of this file but remain in
+# spec.merged.yaml + spec-refute-1.yaml for the audit trail.
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+source: reviews/spec.merged.yaml + reviews/spec-refute-1.yaml
+findings:
+  - id: SPEC-GOV-001
+    lens: Carve-out precedent fidelity
+    severity: 4
+    title: "Spec undercounts and misattributes the existing _OPERATOR_SANCTIONED_CORRECTIONS entries — this mission's addition is the fourth entry, not the third"
+    evidence:
+      - artifact: "spec.md § User Story 3 (body + Acceptance Scenario 1)"
+      - artifact: "spec.md § FR-002"
+      - artifact: "spec.md § C-003"
+      - artifact: "spec.md § Clarifications (b) and (d)"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:150-156"
+      - code: "git blame: commit f0fb552d6 (2026-09-23, #4936) added the acceptance-matrix-merge-fail-closed entry; commit 0ceff68a06 (2026-09-25, message cites #4972) added the coord-read-fail-closed and silent-write-hardening-residuals entries"
+    claim: >
+      The spec repeatedly states the mechanism holds "two" existing entries from the "#4936
+      precedent" and that this mission's addition will be "a third, explicitly-commented entry".
+      The actual `_OPERATOR_SANCTIONED_CORRECTIONS` frozenset already contains THREE entries, not
+      two: the #4936 status.json entry, plus two more (coord-read-fail-closed,
+      silent-write-hardening-residuals) landed together via commit 0ceff68a06 on 2026-09-25,
+      citing #4972. This mission's addition would therefore be the FOURTH entry.
+    remediation: >
+      Correct US3, FR-002, C-003, and Clarifications (b)/(d) to state the mechanism already holds
+      three entries (one from #4936, two from #4972) and this mission's addition is the fourth.
+    refute_verdict: confirmed
+    refute_reason: "tests/architectural/test_archive_root_byte_identical.py:150-156 shows three existing entries from two different precedent commits; spec.md's 'two/third' framing undercounts by one."
+
+  - id: SPEC-GOV-002
+    lens: "Carve-out precedent fidelity & #4956 sequencing"
+    severity: 3
+    title: "C-003's 'note it in the PR body' plan leaves the already-stale #4956 issue body uncorrected"
+    evidence:
+      - artifact: "spec.md § C-003 ('Note this in the PR body for whoever picks up #4956 next.')"
+      - code: "gh issue view 4956 (fetched 2026-09-27): OPEN, unassigned, body only describes deleting a single entry and cites 'the line-679 skip'"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:728 (the skip clause is now at line 728, not line 679, after commit 0ceff68a06 added two more entries on 2026-09-25)"
+    claim: >
+      Issue #4956 was filed 2026-09-24 and already lags the code (describes removing a single
+      entry, cites a stale line number). This mission's C-003 plan is only to "note" the new entry
+      in this mission's own PR body — not discoverable from the issue itself.
+    remediation: >
+      Add an explicit FR requiring the mission's implementation to post a comment directly on
+      GitHub issue #4956 enumerating the full, current membership and correct line reference.
+    refute_verdict: confirmed
+    refute_reason: "gh issue view 4956 confirms OPEN/unassigned with a stale body citing a wrong line number; C-003's PR-body-only plan is not discoverable from the issue."
+
+  - id: SPEC-ARCH-001
+    also_reported_as: [SPEC-GOV-003]
+    lens: "Canonical source / Directive (ATDD-first / acceptance-criteria accuracy)"
+    severity: 4
+    title: "Activity Log line-count in the repair AC contradicts the actual HEAD-side content (5, then 6, then the real 12)"
+    evidence:
+      - artifact: "spec.md § User Story 1 Independent Test: \"the HEAD (df2dac046) side's five Activity Log entries are preserved verbatim and in order\""
+      - artifact: "spec.md § Acceptance Scenario 1: \"the file contains the six HEAD-side Activity Log lines\""
+      - code: "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md:759-770 (the <<<<<<< HEAD block spans lines 759-770 — twelve Activity Log lines, not five or six)"
+    claim: >
+      The spec states two different, and both wrong, counts for the number of HEAD-side Activity
+      Log lines the repair must preserve: "five" vs "six", when the actual file has twelve. An
+      implementer who trims the file to match the spec's stated count would silently discard 6-7
+      genuine, already-shipped Activity Log entries.
+    remediation: >
+      Correct both citations to the real count (twelve, lines 759-770) or restate the AC in a
+      count-independent structural form.
+    refute_verdict: confirmed
+    refute_reason: "Direct count of the file confirms 12 HEAD-side lines (759-770), contradicting both the spec's 'five' and 'six' claims."
+
+  - id: SPEC-VERIFY-001
+    lens: non-vacuity-triad
+    severity: 4
+    title: "Shrink-only-allowlist leg of the non-vacuity triad self-declares as no-op passable, contradicting its own FR"
+    evidence:
+      - artifact: "spec.md § FR-005 (Requirements table row: \"No-op passable? | no\")"
+      - artifact: "spec.md § SC-004 (\"— [build] · no-op passable: yes\")"
+      - artifact: "spec.md § NFR-003 and Clarifications (g) (claims the new shrink-only test \"mirrors the existing `_APPEND_ONLY_SPINE_EXCEPTIONS` / burn-down-policy discipline\")"
+      - code: "tests/architectural/test_archive_root_byte_identical.py:114 (_APPEND_ONLY_SPINE_EXCEPTIONS defined) and :150 (_OPERATOR_SANCTIONED_CORRECTIONS defined) — no test anywhere in tests/ enforces growth/shrink on either frozenset"
+      - code: ".kittify/charter/charter.md:599 Burn-down Policy governs allowlists registered in tests/architectural/_baselines.yaml only; _baselines.yaml has zero references to this file's frozensets"
+    claim: >
+      FR-005 says "No-op passable? no" but SC-004 for the identical requirement says "no-op
+      passable: yes" — a direct contradiction. A bare no-op shrink-only test would still pass
+      SC-004 as worded since nothing has grown yet on the current tree; the positive control
+      SC-004 gestures at is never promoted to its own FR/AC. Also, the "mirrors ... existing
+      discipline" claim is inaccurate: no such enforcement currently exists.
+    remediation: >
+      Resolve the FR-005/SC-004 contradiction (set SC-004 to "no"); promote the positive control to
+      its own numbered AC/FR; correct or drop the "mirrors" framing.
+    refute_verdict: confirmed
+    refute_reason: "spec.md's own table literally contradicts itself (FR-005 'no' vs SC-004 'yes'); grep of tests/ and _baselines.yaml confirms no existing enforcement to 'mirror'."
+
+  - id: SPEC-VERIFY-002
+    lens: non-vacuity-triad
+    severity: 4
+    title: "Concrete-floor AC (FR-004) does not tie the reported scan count to an independently verifiable ground truth"
+    evidence:
+      - artifact: "spec.md § FR-004 (\"assert it scanned a real, non-empty set of tracked files\")"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 (\"it passes with a non-empty, real count of scanned files\")"
+      - artifact: "spec.md § Edge Cases, first bullet (empty git ls-files result must fail/raise)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 4 (simulated enumeration-failure must raise)"
+    claim: >
+      FR-004's AC only asserts the guard's self-reported count is non-empty on today's tree.
+      Nothing requires that count tied to an independently derived ground truth. A naive
+      implementation that hardcodes a literal non-empty count without ever calling `git ls-files`
+      satisfies AC1 verbatim.
+    remediation: >
+      Add a testable requirement that the reported floor count equals the count of files actually
+      fed into the regex scan for that same invocation, e.g. via a fixture subtree with a known,
+      independently-counted N tracked files.
+    refute_verdict: confirmed
+    refute_reason: "Re-read of FR-004/AC1/Edge-case/AC4 verbatim confirms none requires the count tied to an independent ground truth."
+
+  - id: SPEC-VERIFY-003
+    lens: silent-success
+    severity: 3
+    title: "NFR-002 and the binary/non-text Edge Case give contradictory guidance on decode-error handling"
+    evidence:
+      - artifact: "spec.md § NFR-002 (\"decode error treated as fatal rather than skip-silently ... must raise a test failure\")"
+      - artifact: "spec.md § Edge Cases, last bullet (\"it either skips genuinely binary blobs ... or treats a decode failure as informational\")"
+    claim: >
+      NFR-002 says any decode error is fatal; the Edge Case says a binary file's decode failure can
+      be skipped or treated as informational (non-fatal). These are contradictory prescriptions for
+      the same trigger.
+    remediation: >
+      Reconcile: state explicitly whether a per-file decode failure always fails the whole guard,
+      or is skip/log-and-continue at the per-file level (with NFR-002's "fatal" language scoped
+      only to enumeration-level failures) — and if skipped, require it still be counted or logged.
+    refute_verdict: confirmed
+    refute_reason: "Direct text comparison confirms genuinely contradictory prescriptions for the same decode-error trigger."

@@ -1,0 +1,110 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed-round3
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+- id: TASKS-FRESH2-001
+  lens: fresh-sweep-round2
+  severity: 3
+  title: plan.md's round-2 correction note patches only its own paragraph; the Implementation Concern
+    Map still asserts the superseded same-commit/parallel plan as operative
+  evidence:
+  - artifact: 'plan.md:123 (IC-01 heading: "Repair + carve-out registration (coupled, must land together)")'
+  - artifact: "plan.md:136-138 (IC-01 Sequencing/Risks: \"IC-02 can be implemented in parallel\" / \"\
+      Risks: Landing order coupling \u2014 see Section D's explicit resolution (same commit, recommended).\"\
+      )"
+  - artifact: 'plan.md:150-151 (IC-02 Sequencing: "none strictly")'
+  - artifact: plan.md:399-427 (the new Section D correction, which claims to narrow IC-01's framing but
+      does not edit IC-01/IC-02 themselves)
+  claim: "The round-2 correction inserted after Section D's original \"Decision: land both in the same\
+    \ commit\" paragraph explicitly states it \"correspondingly narrows IC-01's 'coupled, must land together'\
+    \ framing above to 'coupled via a claim-time dependency edge, landed as two commits in two lanes,\
+    \ published together only after both are approved.'\" That narrowing is prose-only: the IC-01 heading\
+    \ at line 123 is untouched and still literally reads \"(coupled, must land together)\" with no forward\
+    \ pointer to the correction; the IC-01 Risks bullet at line 138 is untouched and still says \"same\
+    \ commit, recommended\" as the current resolution, not a superseded one; and IC-01's own Sequencing\
+    \ line 136-137 still asserts \"IC-02 can be implemented in parallel,\" which directly contradicts\
+    \ the corrected, operative mechanism (WP02 carries `dependencies: [WP01]` and cannot even be claimed\
+    \ until WP01 reaches approved/done \u2014 a hard sequential gate, not parallel implementation). IC-02's\
+    \ \"Sequencing/depends-on: none strictly\" (line 150) has the same problem. A reader who reads only\
+    \ the Implementation Concern Map (the document's own up-front summary, before the lettered detail\
+    \ sections) \u2014 a normal way to consume this plan \u2014 comes away with the superseded picture,\
+    \ and would have no reason to know Section D's late correction exists or overrides it. This is exactly\
+    \ the \"patch the one paragraph, leave the rest asserting the superseded plan\" failure mode the review\
+    \ was asked to check for.\n"
+  remediation: 'Edit the IC-01 heading to drop "(coupled, must land together)" or append "(landed as two
+    commits in two lanes, see Section D correction)"; rewrite the IC-01 Risks bullet at line 138 to state
+    the actual mechanism (claim-time dependency edge + push-after-both-approved operative discipline)
+    instead of "same commit, recommended"; and correct IC-01''s line 136-137 "IC-02 can be implemented
+    in parallel" and IC-02''s line 150 "none strictly" to reflect the real hard claim-time dependency
+    gate, each with a pointer to Section D''s correction rather than restating pre-correction language
+    as fact.
+
+    '
+- id: TASKS-FRESH2-002
+  lens: fresh-sweep-round2
+  severity: 2
+  title: WP01/WP02's corrected _assert_mission_terminal_ready description overclaims "at the very start
+    of a single spec-kitty merge invocation"
+  evidence:
+  - artifact: tasks/WP01-repair-archived-conflict-markers.md:86-92
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md:87-93
+  - code: 'src/specify_cli/merge/executor.py:3066-3133 (_run_lane_based_merge_locked: _enforce_review_artifact_consistency,
+      then _load_or_create_merge_state, then _persist_executed_strategy, all run BEFORE _phase_gates_and_state(run)
+      at line 3133, which is what calls _assert_mission_terminal_ready)'
+  - code: src/specify_cli/merge/executor.py:461-521 (_assert_mission_terminal_ready itself)
+  claim: "Both WP files now state _assert_mission_terminal_ready \"is evaluated once over run.all_wp_ids\
+    \ ... at the very start of a single `spec-kitty merge` invocation, strictly before `_phase_merge_lanes`\
+    \ (the first phase that consolidates any lane).\" The \"strictly before _phase_merge_lanes\" half\
+    \ is verified accurate (confirmed by reading the call sites: _phase_gates_and_state(run) at executor.py:3133\
+    \ precedes _phase_merge_lanes(run) at :3185). The \"at the very start of a single spec-kitty merge\
+    \ invocation\" half is not accurate: within the very same function (_run_lane_based_merge_locked),\
+    \ the review-artifact consistency gate (_enforce_review_artifact_consistency, :3066), merge-state\
+    \ load/create (_load_or_create_merge_state, :3075), and strategy persistence (_persist_executed_strategy,\
+    \ :3102) all run before _phase_gates_and_state (and therefore before _assert_mission_terminal_ready)\
+    \ is ever called. The function's own docstring at :531 is more careful (\"runs FIRST, at the top of\
+    \ this phase\") \u2014 first within _phase_gates_and_state, not first in the merge invocation as a\
+    \ whole. This is a residual overclaim left by the round-2 fix, which otherwise correctly corrected\
+    \ the previous, more wrong \"fires inside spec-kitty merge's consolidation of WP02's lane\" description.\n"
+  remediation: 'Soften "at the very start of a single `spec-kitty merge` invocation" to something like
+    "early in a single `spec-kitty merge` invocation (after the review-artifact consistency gate and merge-state
+    setup, but strictly before `_phase_merge_lanes`, the first lane-consolidating phase)" in both WP files.
+
+    '
+- id: TASKS-FRESH2-003
+  lens: fresh-sweep-round2
+  severity: 3
+  title: WP02 T003 step 5's new paragraph misattributes exemption-list coverage to T004, which never tests
+    an exempted path
+  evidence:
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md:278-299 (T003 step 5's new 'why this grep-only
+      proxy is sufficient' paragraph)
+  - artifact: tasks/WP02-conflict-marker-guard-and-carveout.md:308-325 (T004's own steps)
+  - code: tests/git_ops/test_git.py:449-459 (test_conflict_marker_parsing's conflict_content string literal,
+      containing literal '<<<<<<< HEAD' / '>>>>>>> branch' text inside the tracked source file itself)
+  claim: "The new paragraph appended to T003 step 5 states the real function-level red-first proof \"\
+    is provided instead by Subtask T004 ... which plants a synthetic marker in a fresh fixture and exercises\
+    \ the actual guard function end-to-end, including its exemption-list and line-identification logic.\"\
+    \ Reading T004's own steps (1-4), every fixture file T004 creates is planted \"outside `_CONFLICT_MARKER_SCAN_EXEMPTIONS`\"\
+    \ (T004 step 2) \u2014 T004 never constructs a case where a marker-containing file IS on the exemption\
+    \ list, so it never exercises the guard's exemption-skip behavior at all; it only exercises detection\
+    \ + line-identification on non-exempted content. The guard's exemption-list handling is in fact exercised\
+    \ elsewhere: `tests/git_ops/test_git.py` (the one real exemption-list entry) literally contains the\
+    \ strings \"<<<<<<< HEAD\" and \">>>>>>> branch\" inside its own source text (the `conflict_content`\
+    \ string literal in `test_conflict_marker_parsing`, tests/git_ops/test_git.py:450-457), so T003's\
+    \ real-tree run is what incidentally proves the guard correctly skips an exempted, marker-containing\
+    \ tracked file \u2014 not T004. Crediting T004 with exemption-list coverage it does not provide understates\
+    \ that this coverage is currently incidental (riding on unrelated fixture content in a different file\
+    \ that could change shape later) rather than a dedicated, intentional assertion, which matters directly\
+    \ for Standing Order #5's \"gate-unmask cannot self-validate\" bar this WP is built around.\n"
+  remediation: 'Either (a) correct the T003 step 5 paragraph to say T004 covers detection and line-identification
+    only (not exemption-list handling), and note that exemption-skip correctness is covered incidentally
+    by T003''s real-tree run via tests/git_ops/test_git.py''s existing marker-shaped fixture text; or
+    (b) add an explicit assertion to T004 (or a new case within it) that plants a marker inside a file
+    path that IS in `_CONFLICT_MARKER_SCAN_EXEMPTIONS` and asserts the scan helper reports zero violations
+    for it, giving exemption-list handling its own dedicated, non-incidental positive proof.
+
+    '
+note: Round-3 confirmed set = the round-2 fresh-sweep findings verbatim (fresh-sweep findings are routed
+  straight to R4 per protocol, no refutation pass needed).

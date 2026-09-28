@@ -23,6 +23,7 @@ from charter.resolution import (
 from specify_cli.charter_runtime.lint.findings import SEVERITY_ORDER
 from specify_cli.core.atomic import atomic_write
 from kernel.clock import now_utc_iso
+from kernel.resolution import resolve_rejecting_loops
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
@@ -224,11 +225,11 @@ def _relativize_or_raise(path: Path, governing_root: Path) -> str:
     ``Path.relative_to`` is intentionally suppressed: its own text embeds both
     absolute paths."""
     try:
-        resolved_path = path.resolve()
-        resolved_root = governing_root.resolve()
+        resolved_path = resolve_rejecting_loops(path)
+        resolved_root = resolve_rejecting_loops(governing_root)
         resolved_path.relative_to(resolved_root)
         return str(path.relative_to(governing_root))
-    except ValueError:
+    except (ValueError, OSError):
         raise PathRelativizationError(
             f"Cannot record artifact {path.name!r} relative to its governing "
             f"root (root basename: {governing_root.name!r}): the artifact "

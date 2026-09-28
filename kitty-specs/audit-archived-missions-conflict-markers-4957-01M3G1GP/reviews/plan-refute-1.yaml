@@ -1,0 +1,44 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >-
+      status.events.jsonl (read in full) shows MissionCreated/SpecifyStarted/SpecifyCompleted/PlanStarted
+      with no PlanCompleted event against a 487-line substantive plan.md, and tracer-tooling-friction.md
+      (read cover to cover, not just the Plan-phase-entries section) never mentions PlanCompleted or SK-279
+      anywhere; SPEC-KITTY-LEDGER.md:13752's SK-279 text matches the cited symptom verbatim.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Read test_no_preexisting_archived_file_was_modified (713-742) and all five cited helpers
+      (_changes 236-249, _check_lifecycle 268-277, _check_op_closures 306-316, _check_recovery 554-576,
+      _check_dead_port_recovery 601+, _terminal_lifecycle_paths 342-399): _changes classifies via
+      git diff --name-status codes not raw bytes, and none of the three per-mission helpers can match a
+      tasks/WP*.md path (confirmed via git log that the WP01 file is a pre-existing tracked file, so its
+      change would show as status "M", not the disjoint "A-and-not-in-baseline" escape at line 739-740) —
+      the plan's stated mechanism is genuinely incomplete but the sequencing conclusion still holds, so
+      severity 2 is correctly calibrated, not understated.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      _run_git (159-166) and _git_bytes (169-177) both hardcode ["git", "-C", str(REPO_ROOT), ...] with
+      no root-override parameter and REPO_ROOT is a fixed module constant (line 44); plan.md §A/§B (the
+      exact quoted passages) commit to reusing these helpers for a tmp_path fixture scan without ever
+      naming how the redirection happens, confirmed absent by grep across the whole plan.md.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      test_public_witnesses.py line 19 carries only pytestmark = pytest.mark.integration (no corpus mark
+      anywhere in the file), .github/ci-module-registry.yml has no entry for tests/upgrade/preview_support
+      (the registered upgrade module's test_dirs are tests/specify_cli/upgrade{,/migrations}), and
+      ci-router.yml:664's tests-corpus job selects only "-m corpus and not windows_ci" — yet plan.md lines
+      285 and 468 twice call it "a corpus-marked suite"/"the ... corpus suite", both false.
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      Grepped every NFR-001 mention in plan.md: Technical Context (36-38) states the budget, §H
+      (451-468) restates the assumption it will hold, but no line in §B (196-261), §D (305-384), or
+      anywhere else states a post-implementation timing/measurement step, confirming the traceability gap.

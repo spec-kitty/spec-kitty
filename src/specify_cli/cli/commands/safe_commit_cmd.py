@@ -64,6 +64,7 @@ from pathlib import Path
 import typer
 from specify_cli.cli.console import console
 
+from kernel.resolution import resolve_rejecting_loops
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -420,6 +421,27 @@ def _resolve_capability_for_target(
     return GuardCapability.STANDARD
 
 
+def _resolve_file_argument(candidate: Path) -> Path:
+    """Resolve one CLI file argument, refusing a symlink loop on every interpreter (#3189).
+
+    ``resolve_rejecting_loops`` behaves exactly like non-strict
+    ``Path.resolve()`` except that a symlink loop anywhere in ``candidate``
+    always raises ``OSError(errno.ELOOP, ...)`` -- on every interpreter this
+    project supports, not only 3.11/3.12's own non-strict probe (3.13+ no
+    longer performs that probe itself, so an un-migrated ``.resolve()`` call
+    here would silently return an unresolved path and let the loop's two
+    symlinks get staged and committed instead of refused). Translated to a
+    ``ValueError`` (already caught by ``safe_commit_command``'s existing
+    broad except-all below) rather than added to that tuple as a bare
+    ``OSError``, so this refusal alone changes shape -- an unrelated OSError
+    elsewhere in the command body is not silently swallowed by this fix.
+    """
+    try:
+        return resolve_rejecting_loops(candidate)
+    except OSError as exc:
+        raise ValueError(f"Symlink loop while resolving file argument {candidate}: {exc}") from exc
+
+
 def safe_commit_command(
     files: list[Path] = typer.Argument(
         ...,
@@ -446,7 +468,7 @@ def safe_commit_command(
     try:
         repo_root = _current_worktree_root()
         normalized_files = [
-            (repo_root / file_path).resolve() if not file_path.is_absolute() else file_path.resolve()
+            _resolve_file_argument(repo_root / file_path if not file_path.is_absolute() else file_path)
             for file_path in files
         ]
 

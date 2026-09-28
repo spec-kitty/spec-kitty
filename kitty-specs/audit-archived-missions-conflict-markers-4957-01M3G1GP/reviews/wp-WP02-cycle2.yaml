@@ -1,0 +1,101 @@
+wp_id: WP02
+reviewer_profile: reviewer-renata
+review_cycle: 2
+directives_applied:
+  - "001 Architectural Integrity Standard: confirmed the cycle-2 delta (433d38f02) touches only tests/architectural/test_archive_root_byte_identical.py — a new module-level logging.getLogger(__name__) plus one logger.warning call inside the existing per-file except block, no new coupling into src/"
+  - "024 Locality of Change: full WP diff (issue-4957-archived-conflict-markers...lane tip) is +236 lines in the one owned test file; the cycle-2 commit itself is +32/-3 in that same file — scope stayed on the three cycle-1 findings, no drift"
+  - "030 Test and Typecheck Quality Gate: re-ran the owned test file (14 passed), tests/git_ops/test_git.py (32 passed), ruff check, ruff format --check, and ruff check --select C901 on the owned file in the lane worktree's own .venv before approving"
+  - "032 Conceptual Alignment: verified the fourth _OPERATOR_SANCTIONED_CORRECTIONS comment block's wording/vocabulary matches the three existing entries, and that the GitHub comment enumerates the same four entries verbatim against the lane-tip file content"
+  - "041 Tests as Scaffold, Not Friction: for R-002, did not trust the implementer's claim that the new caplog test is non-vacuous — independently red-proved it in a throwaway detached worktree by deleting the logger.warning call and re-running the test under the lane's own .venv; confirmed FAIL, then restored by discarding the scratch worktree entirely"
+  - "051 Supply-Chain Install Safety: not applicable — no dependency-touching change in this diff"
+diff_reviewed: 433d38f02
+verdict: approved
+prior_findings:
+  WP02-R-001: resolved
+  WP02-R-002: resolved
+  WP02-R-003: resolved
+findings: []
+prior_findings_detail:
+  - id: WP02-R-001
+    status: resolved
+    verification: >
+      `gh api repos/spec-kitty/spec-kitty/issues/4956/comments` (GITHUB_TOKEN unset,
+      keyring auth) now returns the required comment at
+      https://github.com/spec-kitty/spec-kitty/issues/4956#issuecomment-5852575170
+      (posted 2026-09-27T04:20:06Z by MOES-Media). It enumerates all four
+      _OPERATOR_SANCTIONED_CORRECTIONS entries verbatim against the lane-tip file
+      content (verified by direct read of tests/architectural/test_archive_root_byte_identical.py
+      at 433d38f02), cites the exemption-check clause at "line 745" which matches
+      `git show 433d38f02:tests/...py | grep -n "if not path.startswith(_ARCHIVE_ROOTS)"`
+      exactly, and carries the required informational-only / does-not-close-#4956
+      disclaimer (C-003) in its opening sentence. status.events.jsonl shows T008
+      marked done at 2026-09-27T04:20:30Z, twenty-four seconds AFTER the comment was
+      posted (04:20:06Z) — the deferred-posting sequencing the orchestrator claimed
+      is confirmed by the event timestamps, not merely asserted. `spec-kitty agent
+      tasks status` (retried once, no StartupAssetError encountered) shows WP02 in
+      for_review with no outstanding subtask gap.
+  - id: WP02-R-002
+    status: resolved
+    verification: >
+      Commit 433d38f02 adds `logger = logging.getLogger(__name__)` and a
+      `logger.warning("conflict-marker scan: skipping unreadable/binary tracked
+      file %s (%s)", rel_path, error)` call inside the existing per-file
+      UnicodeDecodeError/OSError except block, plus a new
+      test_conflict_marker_guard_logs_skipped_undecodable_files test using
+      caplog. Independent red check: created a detached scratch worktree
+      (git worktree add --detach .../4957-wp02-c2 433d38f02) OUTSIDE the mission
+      tree, deleted the logger.warning line, and ran
+      `<lane-venv>/python -m pytest tests/architectural/test_archive_root_byte_identical.py
+      -k logs_skipped -q` with cwd set to the scratch worktree — result: 1 failed
+      (test correctly reds when the fix is removed; non-vacuous). Scratch worktree
+      then removed via `git worktree remove --force` and pruned.
+      Spec-intent judgment (spec.md Edge Cases: "a skip can never silently shrink
+      the floor into a false 'clean' result nor hide which files were not
+      content-scanned"): the new test also asserts `scanned_count == 2` for a
+      2-file fixture with one undecodable file, so the floor still counts the
+      skipped file — the "shrink the floor" half of the spec sentence is
+      independently proven, not just claimed. On the "hide which files" half: a
+      standard `logging.getLogger(__name__).warning(...)` call is a legitimate,
+      literal implementation of "logged" — it is captured by pytest's log
+      capture (visible via caplog or --log-cli-level=WARNING in CI), and even
+      outside a test harness Python's logging module falls back to a
+      last-resort stderr handler for an unconfigured WARNING+ record, so the
+      skip is never silent in any of these paths. The spec text requires the
+      skip be "logged," not that it be printed to the default CI console
+      transcript specifically — reading in a stronger requirement than the
+      spec states would be inventing new scope. Ruled: meets the spec's stated
+      intent.
+  - id: WP02-R-003
+    status: resolved
+    verification: >
+      The fourth _OPERATOR_SANCTIONED_CORRECTIONS comment block's prose "--"
+      before "the same defect class..." is now an em dash ("—"), matching the
+      three existing entries' style. The implementer left
+      `git merge-base --is-ancestor` (in the same comment block) as an ASCII
+      double-dash — correctly, since it is a literal CLI flag being quoted for
+      a reader to run, not prose; converting it to an em dash would corrupt a
+      runnable command. Judged correct: the fix addressed the cosmetic nit
+      without touching the one dash that is not prose.
+test_results:
+  owned_test_file: "14 passed (tests/architectural/test_archive_root_byte_identical.py, lane worktree .venv)"
+  git_ops_test_git: "32 passed (tests/git_ops/test_git.py, lane worktree .venv)"
+  ruff_check: "All checks passed! (owned file)"
+  ruff_format_check: "1 file already formatted (owned file)"
+  ruff_c901: "All checks passed! (owned file)"
+  r002_independent_red_check: "FAILED as expected when logger.warning call removed (1 failed, 13 deselected) — non-vacuous"
+new_findings_from_fresh_review: []
+worktree_hygiene:
+  scratch_worktree_removed: true
+  scratch_worktree_pruned: true
+  git_worktree_list_post_cleanup:
+    - "/home/<user>/dev/SK-missions/4957 [issue-4957-archived-conflict-markers]"
+    - "/home/<user>/dev/SK-missions/4957/.worktrees/audit-archived-missions-conflict-markers-4957-01M3G1GP-lane-a [kitty/mission-audit-archived-missions-conflict-markers-4957-01M3G1GP-lane-a]"
+  git_status_primary_porcelain: ""
+  git_status_lane_porcelain: ""
+red_first_independent:
+  real_tree_guard: pass
+  carveout: pass
+  ratchet: pass
+  empty_enumeration: pass
+  r002_logs_skipped_removed_call: fail_as_expected
+complete: true

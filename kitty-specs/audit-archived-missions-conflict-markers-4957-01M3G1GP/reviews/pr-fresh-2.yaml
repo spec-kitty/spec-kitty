@@ -1,0 +1,71 @@
+schema: review-findings/v1
+phase: pr
+lens_group: fresh-2
+reviewer: fresh-sweeper-r5b-round2
+profile: architect-alphonso
+findings:
+  - id: PR-FRESH2-001
+    lens: silent-success
+    severity: 4
+    title: >-
+      Shrink-only exemption baseline silently defaults to "live" (no-op ratchet) for any
+      stale/un-rebased PR branch, not only the mechanism's own introducing PR
+    evidence:
+      - "code: tests/architectural/test_archive_root_byte_identical.py:179-196 (_resolve_exemption_baseline)"
+      - "code: tests/architectural/test_archive_root_byte_identical.py:1285-1306 (test_conflict_marker_exemption_baseline_defaults_to_live_on_first_landing docstring claims this path is scoped to \"this mission's own PR\")"
+    claim: >-
+      Reproduced against the real, imported module (not a re-implementation). Built a fixture
+      repo where a "main" branch already carries the landed mechanism with baseline
+      {"a.txt"}, and a "contributor" branch forked from a commit BEFORE that landing (its
+      copy of the file has no _CONFLICT_MARKER_SCAN_EXEMPTIONS assignment) adds a spurious
+      entry "malicious/hides_a_marker.py" to the live set. git merge-base(contributor, main)
+      resolves to the pre-landing commit (verified: `git merge-base` returned exactly the
+      pre-landing SHA). Calling the real _resolve_exemption_baseline(root, that merge-base,
+      live) returns `live` unchanged (source parses to None at that revision, so the function
+      falls back to live), and _assert_exemption_set_is_shrink_only(live, baseline) then PASSES
+      even though main's actual landed baseline is only {"a.txt"} and never included the
+      malicious entry. The "first landing" fallback is not scoped to genuinely-first-landing
+      PRs; it fires for ANY PR whose merge-base with main predates the constant's introduction,
+      i.e. every stale/un-rebased branch for as long as it stays un-rebased after #4957 merges.
+      No warning or failure is emitted in this path — it is a fully silent bypass of the
+      FR-005/NFR-003 shrink-only ratchet Standing Order #5 exists to require, and of
+      _require_conflict_marker_exemption_baseline's own stated anti-co-edit purpose. A related,
+      lower-probability variant of the same hole: _resolve_exemption_baseline hardcodes the
+      constant name as a bare string literal ("_CONFLICT_MARKER_SCAN_EXEMPTIONS") passed to
+      the ast parser, uncoupled from the actual Python identifier by any static check; a future
+      rename of the live constant that forgets to update this string re-triggers the identical
+      silent "parsed is None -> return live" fallback on every subsequent PR, indefinitely, with
+      no test in this diff that would catch the drift.
+    remediation: >-
+      Distinguish "verified genesis" from "parse simply found nothing at this base_rev." Either
+      pin the genesis exemption to a fixed, known landing commit SHA (so any base_rev at or
+      after it that still lacks the constant is a hard error, not a silent live-fallback), or
+      require CI to additionally confirm the constant exists at the tip of the canonical remote
+      ref itself (not merely at the PR's own possibly-stale merge-base) before accepting the
+      live-fallback path — failing closed (per NFR-002's own stated philosophy) rather than
+      defaulting to live whenever the base copy's parse comes back empty.
+
+  - id: PR-FRESH2-002
+    lens: proportionality
+    severity: 2
+    title: >-
+      The 3-var git-subprocess env-override dict is duplicated verbatim a third time, contradicting
+      this repo's own duplicate-literal convention and the plan's stated intent to reuse it by name
+    evidence:
+      - "code: tests/architectural/test_archive_root_byte_identical.py:192 (pre-existing _git_bytes)"
+      - "code: tests/architectural/test_archive_root_byte_identical.py:846 (_read_file_at_rev, new)"
+      - "code: tests/architectural/test_archive_root_byte_identical.py:920 (_run_ls_files, new)"
+    claim: >-
+      grep-confirmed: the exact literal `{**os.environ, "GIT_NO_REPLACE_OBJECTS": "1",
+      "GIT_OPTIONAL_LOCKS": "0", "SPEC_KITTY_ENABLE_SAAS_SYNC": "0"}` appears verbatim at all
+      three call sites. CLAUDE.md's Sonar Expectations state a literal repeated >=3 times in a
+      module should be hoisted to a named constant (S1192); the mission's own plan.md (Section
+      B, item 1's fold-in note) states the new helper "reuses _git_bytes's env-hardening dict by
+      name rather than re-deriving it by hand" -- the delivered code re-derives it verbatim
+      twice instead of reusing it by name. This is a concrete, mechanically removable
+      simplification, not a subjective style complaint.
+    remediation: >-
+      Hoist the dict to one module-level constant (e.g. `_GIT_SUBPROCESS_ENV_OVERRIDES`) and
+      have `_git_bytes`, `_read_file_at_rev`, and `_run_ls_files` all reference it, matching the
+      plan's own stated design.
+complete: true

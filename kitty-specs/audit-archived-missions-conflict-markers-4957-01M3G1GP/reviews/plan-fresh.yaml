@@ -1,0 +1,51 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: PLAN-FRESH-001
+    lens: Contradiction between the revised tmp_path-fixture mechanism description and the unrevised enumeration-mechanism claim it sits beside in the same section
+    severity: 3
+    title: "New \"concrete mechanism\" paragraph in §B item 1's fold-in describes a helper that IS a new git wrapper, contradicting item 1's own unrevised \"not a new git wrapper\" framing a few lines above it"
+    evidence:
+      - artifact: "plan.md:209-211 (unchanged by the revision): \"enumerates tracked files via `git ls-files` (reusing the file's existing `_run_git`/`_git_bytes` subprocess helpers, not a new git wrapper)\""
+      - artifact: "plan.md:257-266 (added by commit 130ccd0d3, the PLAN-VERIFY-001 fix): \"the file's existing `_run_git`/`_git_bytes` helpers are hardcoded to `-C {REPO_ROOT}` ... so the guard's own enumeration is extracted into a small helper parameterized by root (`_enumerate_tracked_files(root: Path = REPO_ROOT)`, internally calling `git -C <root> ls-files`)\""
+      - code: "tests/architectural/test_archive_root_byte_identical.py:159-176 — `_run_git`/`_git_bytes` are confirmed hardcoded to `[\"git\", \"-C\", str(REPO_ROOT), *args]` with no `root` parameter, and each sets its own env dict (`GIT_NO_REPLACE_OBJECTS`, `SPEC_KITTY_ENABLE_SAAS_SYNC`, plus `GIT_OPTIONAL_LOCKS` for `_git_bytes` only)"
+    claim: >
+      The revision (commit 130ccd0d3, addressing PLAN-VERIFY-001) added a "Concrete mechanism"
+      paragraph to §B item 1 naming a brand-new module-level helper, `_enumerate_tracked_files(root:
+      Path = REPO_ROOT)`, that it says internally calls `git -C <root> ls-files` directly — necessarily
+      NOT going through the existing `_run_git`/`_git_bytes` helpers, since those two are hardcoded to
+      `-C {REPO_ROOT}` and cannot take a variable root without their own signature change (which the
+      new paragraph does not propose). That is itself a new, small git-invocation wrapper — parallel to,
+      and independent of, `_run_git`/`_git_bytes`. This directly contradicts the sentence a few lines
+      earlier in the very same numbered item (§B item 1, line 211, untouched by this revision): the
+      enumeration "reus[es] the file's existing `_run_git`/`_git_bytes` subprocess helpers, not a new
+      git wrapper." Before this revision, item 1's enumeration mechanism was left unspecified beyond
+      that one sentence, so no contradiction existed; the revision's newly-added, more concrete
+      mechanism is what creates the clash. A WP implementer reading top-to-bottom gets two
+      irreconcilable instructions for the same enumeration call inside the same test: "reuse the
+      existing helpers, add no new wrapper" vs. "add a new parameterized helper that shells out to git
+      itself." Whichever path is taken, the plan's own text will read as inaccurate about it: reusing
+      `_run_git`/`_git_bytes` as-is means they cannot be pointed at `tmp_path_repo` for the
+      fixture-subtree check (defeating the "same helper, same guard invocation" argument used to justify
+      folding AS5 into test 1 rather than adding a 6th test function); writing `_enumerate_tracked_files`
+      as a standalone subprocess call means the guard's enumeration bypasses `_run_git`/`_git_bytes`'s
+      env hardening (`GIT_NO_REPLACE_OBJECTS`, `SPEC_KITTY_ENABLE_SAAS_SYNC=0`, and for `_git_bytes`,
+      `GIT_OPTIONAL_LOCKS=0`) unless duplicated by hand — a duplication this file's existing helpers
+      exist specifically to avoid.
+    remediation: >
+      Reconcile the two descriptions in §B item 1 before this reaches tasks/WPs. Either (a) state
+      explicitly that `_run_git`/`_git_bytes` are being widened to accept an optional `root: Path =
+      REPO_ROOT` parameter (a signature change touching all 4 `_run_git` and 6 `_git_bytes` call sites
+      in the file, per `_run_git(...)`/`_git_bytes(...)` uses at lines 467, 488, 572, 667-668, 696 and
+      188, 193, 207, 241 — note this also reopens the §E campsite-clean analysis, which assessed only
+      the file's current complexity/duplicate-literal state, not a diff that touches this many
+      pre-existing call sites), and drop "not a new git wrapper" from item 1's own description since a
+      signature change to shared helpers is a materially different claim than "reuse as-is"; or (b)
+      keep `_run_git`/`_git_bytes` untouched and describe `_enumerate_tracked_files` as a genuinely new,
+      narrowly-scoped wrapper that explicitly re-uses the same env-hardening dict `_git_bytes` builds
+      (naming it, not re-deriving it by hand), and correct item 1's "not a new git wrapper" sentence to
+      match. Either choice is fine; leaving both sentences standing as written is not.
+# If you have no findings, write: findings: []

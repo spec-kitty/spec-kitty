@@ -1,0 +1,23 @@
+{
+  "baseline_merge_commit": "3feb4b24c4de01ab19afbdbc9d8eb5dfbfae30e4",
+  "coordination_branch": "kitty/mission-python-interpreter-surface-honesty-01M3JCW8",
+  "created_at": "2026-09-27T21:38:31.569417+00:00",
+  "flattened": false,
+  "friendly_name": "Python interpreter surface honesty",
+  "merged_at": "2026-09-27T22:59:22.322581+00:00",
+  "merged_commit": "1d3349a709cbd4df3a2a8eb78a6693534c3ccc80",
+  "mid8": "01M3JCW8",
+  "mission_id": "01M3JCW8KAWHKMAGEGED0SWXGK",
+  "mission_number": null,
+  "mission_slug": "python-interpreter-surface-honesty-01M3JCW8",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty admits any Python from 3.11 upwards, but most CI runs on 3.12 and only a nightly lane touches 3.13; nothing runs 3.14. Interpreter-specific defects such as symlink-loop handling changing in Python 3.13 therefore ship silently. This mission fixes the divergence defects found by reproduction and makes the declared and tested interpreter surfaces agree, guarded so they cannot drift apart again.",
+  "purpose_tldr": "Make the Python versions Spec Kitty declares match the versions it actually tests, and fix the real interpreter-divergence defects that gap has hidden.",
+  "slug": "python-interpreter-surface-honesty-01M3JCW8",
+  "status_phase": "1",
+  "target_branch": "claude/project-thread-hjiqjz",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-27T21:58:16.301802+00:00"
+}

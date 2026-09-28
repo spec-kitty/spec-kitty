@@ -22,6 +22,7 @@ from ruamel.yaml import YAML
 from ulid import ULID
 
 from kernel.env_expand import expand_raw_template, find_empty_env_token, find_unresolved_token
+from kernel.resolution import resolve_rejecting_loops
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +203,10 @@ def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
         )
 
     resolved_root = root.resolve(strict=False)
-    resolved_candidate = (root / relative_path).resolve(strict=False)
+    try:
+        resolved_candidate = resolve_rejecting_loops(root / relative_path)
+    except OSError as exc:
+        raise OrgPackSubdirEscapeError(f"path {relative_path!r} could not be resolved under root {root}: {exc}") from exc
     try:
         resolved_candidate.relative_to(resolved_root)
     except ValueError as exc:

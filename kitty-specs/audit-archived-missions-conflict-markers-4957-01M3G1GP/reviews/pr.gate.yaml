@@ -1,0 +1,26 @@
+schema: review-gate/v1
+phase: pr
+rounds_used: 3
+bound: 3
+gate: passed
+summary: >
+  Pre-merge squad (report-only R1-R3, fixes routed out): 5 raised in R1 (4 confirmed, 1 refuted:
+  PR-TESTS-002 runtime, refuted on warm measurements); round-1 fixes + R5 surfaced PR-VERIFY-001 and
+  PR-FRESH-001..003; round-2 fixes + R5 surfaced PR-FRESH2-001..002; round-3 fixes verified resolved
+  (pr-verify-3.yaml). Severity>=3 count per round: 4 -> 3 -> 1 -> 0.
+accepted_with_reason:
+  - id: PR-FRESH3-001
+    severity: 1
+    reason: >
+      Nit with no behavioural effect (a redundant second git ls-files enumeration inside one test);
+      the squad reached its 3-round bound and another fix+verify cycle for a severity-1 nit is not
+      proportionate. Recorded here rather than silently dropped.
+  - id: PR-FRESH-003
+    severity: 2
+    reason: Accepted-with-reason in code by the round-2 fixer and verified legitimate in pr-verify-2.yaml.
+carry_forward:
+  - >
+    Cold-cache runtime: three lenses measured the archive-freeze file at 38-83 s on a first (cold)
+    run versus ~3.5 s warm; PR-TESTS-002 was refuted on warm numbers. Confirm the real archive-freeze
+    job duration in CI during landing.
+complete: true

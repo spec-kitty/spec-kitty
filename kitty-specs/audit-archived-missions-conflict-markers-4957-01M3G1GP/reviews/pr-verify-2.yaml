@@ -1,0 +1,143 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 2
+verifications:
+  - id: PR-CONTRACT-001
+    status: resolved
+    evidence: >-
+      Read the round-2 diff (c0ce9cf76..a8ee46c0d, tests/architectural/test_archive_root_byte_identical.py
+      only, 311 insertions/42 deletions, no other file touched). The baseline is now resolved via
+      `_resolve_exemption_baseline(root, base_rev, live)`, which reads `base_rev`'s copy of this file
+      with `git show <base_rev>:tests/architectural/test_archive_root_byte_identical.py`
+      (`_read_file_at_rev`) and parses `_CONFLICT_MARKER_SCAN_EXEMPTIONS` structurally with `ast`
+      (`_parse_frozenset_of_str_constant`), and `base_rev` comes from `_require_port_base_rev()` --
+      the same merge-base resolution the pre-existing byte-identical freeze test already depends on.
+      Checked all five sub-questions:
+      (a) End-to-end mutation proof in the throwaway worktree (git worktree add --detach
+      /home/<user>/dev/SK-missions/_review-scratch/4957-r5a2 a8ee46c0d): wrote a scratch test
+      calling `_resolve_exemption_baseline(REPO_ROOT, "<a8ee46c0d sha>", grown_live)` where
+      `grown_live = {"tests/git_ops/test_git.py", "evil/injected.py"}` -- simulating a second PR
+      that branches from this mission's own landed commit and, in the same diff, grows the live set.
+      Resolved baseline == `{"tests/git_ops/test_git.py"}` (the real historical value at that real
+      commit, read via `git show`), and `_assert_exemption_set_is_shrink_only(grown_live, baseline)`
+      raised `AssertionError` matching "evil/injected.py" -- 1 passed. This proves the anchor a
+      same-PR co-edit cannot move, against the real committed file at a real commit, not only the
+      mission's own synthetic-fixture-repo test (`test_conflict_marker_exemption_baseline_anchors_to_base_ref_not_working_tree`,
+      which exercises the same logic but against an isolated tmp_path repo). Worktree removed
+      afterward.
+      (b) First-landing check: `git merge-base HEAD origin/main` in the worktree resolves to
+      `46ea5bd7f`; `git show 46ea5bd7f:tests/architectural/test_archive_root_byte_identical.py |
+      grep _CONFLICT_MARKER_SCAN_EXEMPTIONS` -> no hit, confirming this PR's own merge-base has no
+      such constant, so `_resolve_exemption_baseline` falls back to `live` for THIS PR only. Judged
+      against Standing Order #5 / FR-005: this is a bootstrap-only gap, not a permanent vacuity --
+      FR-005/NFR-003 govern growth "beyond this mission's landed baseline," and there is no landed
+      baseline until this PR lands one; the one-time unguarded population (`{"tests/git_ops/test_git.py"}`)
+      is exactly what ordinary PR review already checks (Clarification (a)'s independently-reproduced
+      grep confirms it is the single legitimate item). Mutation (a) above proves the SECOND PR is
+      genuinely protected once this one merges, which is what NFR-003 actually promises. Not a spec
+      violation.
+      (c) Read `_require_conflict_marker_exemption_baseline`: calls `_require_port_base_rev()`
+      directly and returns its result as `base_rev` with no fallback path around it. The shipped
+      `test_conflict_marker_exemption_baseline_fails_closed_when_base_is_unreachable` monkeypatches
+      `_require_port_base_rev` to raise and asserts the wrapper re-raises unmodified -- re-read this
+      test and confirmed the wiring is a straight pass-through (no try/except swallowing it), so an
+      unreachable base fails exactly like the freeze test's own `pytest.fail`(CI)/`pytest.skip`(local)
+      contract, never an empty baseline.
+      (d) `.github/workflows/ci-router.yml:489-502` (archive-freeze job): `actions/checkout` with
+      `fetch-depth: 0` (full history for all branches/tags), giving `refs/remotes/origin/main` a
+      reachable ref in the runner's checkout; `_port_base_candidate_refs()` (via `_select_port_base_refs`)
+      resolves `origin/main` first when `origin`'s configured URL matches the canonical
+      `spec-kitty/spec-kitty` slug, which is the case for both this checkout and a GitHub Actions
+      checkout of this repo. This is unchanged, pre-existing infrastructure the round-2 fix reuses
+      rather than introduces -- no new CI risk.
+      (e) `_parse_frozenset_of_str_constant` handles both `ast.Assign` (plain `=`) and `ast.AnnAssign`
+      (the file's actual `name: frozenset[str] = ...` shape) as targets, and both a `frozenset({...})`
+      call and a bare literal (list/set) value via `ast.literal_eval` before the final `frozenset(literal)`
+      wrap -- robust to either spelling. Confirmed via the mutation-based reproduction in (a), which
+      exercises this parser against the real file's real `frozenset[str] = frozenset({...})` shape
+      and returns the correct value.
+      Net: the severity-4 claim (ratchet vacuous-by-construction against a lockstep same-diff edit)
+      is fixed and mutation-proven; the residual first-landing gap is bounded to this one PR and does
+      not violate FR-005/Standing Order #5's actual promise.
+  - id: PR-VERIFY-001
+    status: resolved
+    evidence: >-
+      Read the new comment block above `_CONFLICT_MARKER_GUARD_RELATIVE_PATH`
+      (test_archive_root_byte_identical.py:803-806): "spec.md Clarification (k) is cited ONLY for the
+      separate decision not to register this exemption set in `_baselines.yaml` (a three-file-edit
+      problem under C-002's two-file blast radius) -- it says nothing about, and is not the basis
+      for, this anti-co-edit anchoring design (PR-VERIFY-001)." Side by side with spec.md
+      Clarification (k)'s actual text (re-read in full): Clarification (k) is entirely about why the
+      exemption allowlist is NOT wired into `_baselines.yaml`'s centralized ratchet mechanism
+      (`_REQUIRED_TOP_LEVEL_KEYS` closed frozenset, `test_ratchet_baselines.py` as a third file under
+      C-002's two-file blast radius) -- it never discusses anti-co-edit anchoring or a co-located
+      baseline's adequacy. The new comment's citation now matches that scope exactly and explicitly
+      disclaims the overreach the round-1 finding caught. Resolved.
+  - id: PR-FRESH-001
+    status: resolved
+    evidence: >-
+      Mutated `_CONFLICT_MARKER_PATTERN` in the throwaway worktree twice, restoring the original
+      between each: (1) `re.compile(r"^(<<<<<<<) ")` (drop the `>>>>>>>` arm) ->
+      `pytest -k conflict_marker -q` -> "1 failed, 13 passed, 8 deselected" -- the failing test is
+      exactly `test_conflict_marker_guard_self_mutation_catches_synthetic_closing_marker`. (2) restored,
+      then `re.compile(r"^(>>>>>>>) ")` (drop the `<<<<<<<` arm) -> "3 failed, 11 passed, 8 deselected"
+      -- failures are `test_conflict_marker_guard_scans_non_ascii_tracked_filenames`,
+      `test_conflict_marker_guard_scans_text_file_with_stray_non_utf8_byte`, and
+      `test_conflict_marker_guard_self_mutation_catches_synthetic_marker`. Both alternation arms are
+      independently, provably covered. File restored to original after each mutation.
+  - id: PR-FRESH-002
+    status: resolved
+    evidence: >-
+      Ran CI's exact invocation (`pytest tests/architectural/test_archive_root_byte_identical.py -q`)
+      twice in the throwaway worktree: "22 passed, 2 warnings" both times (4.72s then 4.23s wall
+      clock; NFR-001's "a few seconds" budget holds). The 2 warnings are the new aggregate summary --
+      one for the real tree's 30 binary skips, one for the fixture test's 1 binary skip -- each
+      naming the exact count and every skipped path in one message (read the message text: "skipping
+      30 tracked file(s) not content-scanned (binary, NUL byte present): docs/assets/..., ..."),
+      down from the round-1-measured 31 separate warnings. The per-file `OSError`/unreadable path
+      (`_warn_skipped_file`) is untouched and still warns immediately per-file (confirmed by reading
+      `_decode_tracked_file_for_scan`'s and `_scan_tracked_files_for_conflict_markers`'s post-fix
+      bodies: only `binary_skips` are batched into `_warn_binary_skip_summary`; the `else` branch for
+      a genuine `OSError` still calls `_warn_skipped_file` per path as before). The `skipped` list
+      returned by the scan function is unchanged in shape (still every skipped path, binary and
+      non-binary together) and the new
+      `test_conflict_marker_guard_aggregates_binary_skips_into_one_warning` asserts on it directly
+      (`sorted(skipped) == sorted(binary_names)`), proving the skip list stays independently
+      assertable rather than only visible via the warning text. All four sub-requirements hold.
+  - id: PR-FRESH-003
+    status: resolved
+    evidence: >-
+      Read the new comment above `_CONFLICT_MARKER_SCAN_EXEMPTIONS`
+      (test_archive_root_byte_identical.py:786-796): explicitly states the exemption is whole-file
+      not line-scoped, names the residual risk (a future real corruption elsewhere in
+      tests/git_ops/test_git.py would be invisible), gives a reasoned justification (line-scoping
+      would need an `ast` walk to locate the fixture, a second drift-prone hardcoded-line-number
+      surface, disproportionate cost for a file whose only content is git-behavior test fixtures),
+      cites the consistent `_APPEND_ONLY_SPINE_EXCEPTIONS` precedent, and closes with "Left as a
+      known, accepted residual risk." This is exactly the finding's own remediation's fallback
+      clause ("at minimum, note in the code comment that this is a known, accepted residual risk"),
+      not a narrowing of the exemption itself -- and the reasoning is sound (the file is
+      contributor-owned test fixtures, not production content the guard primarily protects, and the
+      cost/benefit tradeoff against a second drift-prone line-number surface is real). Accept-with-reason,
+      legitimately documented. Resolved.
+new_findings: []
+regression_sweep:
+  - check: "ruff check tests/architectural/test_archive_root_byte_identical.py"
+    result: "All checks passed! (includes C901 complexity gate; no violations)"
+  - check: "ruff format --check tests/architectural/test_archive_root_byte_identical.py"
+    result: "1 file already formatted"
+  - check: "owned-file scope"
+    result: "git diff --stat c0ce9cf76..a8ee46c0d shows exactly 1 file changed (tests/architectural/test_archive_root_byte_identical.py, 311 insertions, 42 deletions); test function count in that file is 22 (grep '^def test_' -> 22), matching the expected 22 after round-2's 5 new tests (17 -> 22)."
+  - check: "pytest tests/git_ops/test_git.py -q"
+    result: "32 passed in 0.71s"
+  - check: "pytest tests/architectural/test_no_duplicate_suite_execution.py -q"
+    result: "58 passed, 1 skipped in 3.59s"
+  - check: "CI exact invocation, run 1: pytest tests/architectural/test_archive_root_byte_identical.py -q"
+    result: "22 passed, 2 warnings in 4.03s (real 4.72s)"
+  - check: "CI exact invocation, run 2: pytest tests/architectural/test_archive_root_byte_identical.py -q"
+    result: "22 passed, 2 warnings in 3.59s (real 4.23s)"
+scratch_worktree:
+  path: /home/<user>/dev/SK-missions/_review-scratch/4957-r5a2
+  removed: true
+  verified_by: "git worktree list no longer shows 4957-r5a2 after `git worktree remove --force` + `git worktree prune`"

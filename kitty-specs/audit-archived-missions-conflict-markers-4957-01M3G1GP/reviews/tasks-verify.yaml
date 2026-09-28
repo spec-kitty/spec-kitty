@@ -1,0 +1,60 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >-
+      `grep -ni "eleven"` over the current WP01 file returns zero hits; every prior
+      "eleven" reference (Objective, T001 steps 2/4, Validation, Definition of Done,
+      Reviewer Guidance) now reads "twelve", and the Files line reads "content edit
+      only, net 4 lines removed, 0 lines added — 3 marker lines plus the 1
+      losing-side line", matching the verified 4-line delta instead of the prior
+      "~5 lines removed".
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: >-
+      Both WP01's and WP02's Context sections now correctly state WP01/WP02 sit in
+      two distinct lanes (`lane-planning` vs `lane-a`) joined only by
+      `depends_on_lanes`, that the edge only gates WP02's claim time, and that
+      `_assert_mission_terminal_ready` protects only lane-a's consolidation, not
+      WP01's already-landed commit; both files now carry an explicit "do NOT push
+      the mission branch to origin, and do NOT open or update a pull request …
+      until BOTH WP01 and WP02 have reached approved/done" instruction. A broad
+      grep for "same lane"/"one worktree"/"shared lane"/"single lane" across both
+      files finds only the now-correct negated uses ("does **not** execute in the
+      same lane", "not a shared lane") — no leftover affirmative same-lane claim
+      remains in Risks, Reviewer Guidance, or the T002/T003 validation notes.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >-
+      WP02 T003 step 5 now states plainly that WP01's repair is already present by
+      the time this test is written (since WP02 cannot be claimed until WP01 is
+      approved/done), that expecting the live tree to still show the corruption
+      would be self-contradictory, and instructs inspecting the file at
+      `<WP01-commit>^` (the parent, i.e. pre-repair blob) via `git show ...^:<path>
+      | grep -nE ...` to confirm the regex would have matched lines 758/773, then
+      running the real test against the live (already-repaired) tree and confirming
+      it passes — a concrete, self-consistent, performable sequence with no
+      remaining trace of the original "confirm it fails today" contradiction.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >-
+      WP02's T008 step 5 now runs `spec-kitty agent issue-verdict --mission ...
+      --issue <#NNNN> --verdict <verdict> --actor <actor> --evidence-ref
+      "<evidence>"` for each of the six rows with per-row verdicts (fixed /
+      not-applicable ×4 / deferred-with-followup); running `spec-kitty agent
+      issue-verdict --help` against this checkout's own `.venv` (the globally
+      installed `spec-kitty` on PATH is a stale, unrelated build and was
+      disregarded per the project's documented stale-install trap) confirms
+      `--mission`, `--issue`, `--verdict`, `--actor`, and `--evidence-ref` are all
+      real, currently-existing flags and that the real verdict enum is exactly
+      `fixed | verified-already-fixed | deferred-with-followup | in-mission |
+      not-applicable` — every verdict value the WP text uses is genuine, none
+      invented, and the `--evidence-ref` follow-up-handle requirement for
+      `deferred-with-followup` the WP text describes matches the CLI's own help
+      text verbatim. A Definition-of-Done item ("T008 step 5 — issue-matrix
+      resolved (all six rows)") and a Reviewer Guidance line both require this
+      before approval, and WP01's Risks section carries the cross-reference
+      warning that WP01 itself could hit the same mission-wide gate first.

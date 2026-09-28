@@ -51,14 +51,14 @@ def _artifact_path_is_contained(path: Path, mission_dir: Path, artifact_dir: Pat
     """Require containment below BOTH roots, reusing the canonical C-002 seam.
 
     Fail-closed: ``ensure_within_directory`` raises ``ValueError`` when the
-    resolved path escapes a root, and ``path.resolve()`` inside it can raise
-    ``OSError``/``RuntimeError`` on an unresolvable path or symlink loop.
+    resolved path escapes a root or runs through a symlink loop (on every
+    interpreter, #3189), and ``OSError`` when the path cannot be resolved.
     """
     try:
         ensure_within_directory(path, mission_dir)
         ensure_within_directory(path, artifact_dir)
         return True
-    except (ValueError, OSError, RuntimeError):
+    except (ValueError, OSError):
         return False
 
 

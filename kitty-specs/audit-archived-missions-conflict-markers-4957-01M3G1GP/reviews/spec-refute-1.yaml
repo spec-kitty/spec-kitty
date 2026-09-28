@@ -1,0 +1,27 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "tests/architectural/test_archive_root_byte_identical.py:150-156 shows _OPERATOR_SANCTIONED_CORRECTIONS already holds three entries (acceptance-matrix-merge-fail-closed from commit f0fb552d6, 2026-09-23 per #4936, plus coord-read-fail-closed and silent-write-hardening-residuals from commit 0ceff68a0, 2026-09-25 per #4972), so spec.md's repeated 'two existing entries / a third entry' framing (US3, FR-002, C-003, Clarifications b/d) undercounts by one and misattributes two entries to #4936 instead of #4972."
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: "gh issue view 4956 confirms it is OPEN, unassigned, and its body only describes deleting a single _OPERATOR_SANCTIONED_CORRECTIONS entry citing a stale 'line-679 skip' (the real skip clause is now at line 728 per grep), while spec.md's C-003 plan is only to note the current state in this mission's own PR body rather than on the issue itself."
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: "The HEAD-side Activity Log block actually spans lines 759-770 (12 dated entries, verified by direct grep/read of WP01-git-dependency-setup-and-library-integration.md), but spec.md's own User Story 1 Independent Test says 'five' entries and Acceptance Scenario 1 says 'six' HEAD-side lines -- both wrong and internally inconsistent with each other."
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: "spec.md's Requirements table literally states FR-005 'No-op passable? no' while SC-004 for the same shrink-only-allowlist requirement states 'no-op passable: yes' -- a direct, verbatim self-contradiction in the artifact -- and grep of tests/ plus tests/architectural/_baselines.yaml confirms no test or baseline entry currently enforces growth/shrink on _APPEND_ONLY_SPINE_EXCEPTIONS or _OPERATOR_SANCTIONED_CORRECTIONS, so the 'mirrors ... existing discipline' claim in NFR-003/Clarifications(g) is inaccurate."
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: "Re-reading FR-004, US2 AC1, the Edge Cases bullet, and AC4 verbatim in spec.md confirms all four require only that the guard's self-reported scanned-file count be non-empty; none of them requires that count be checked against an independently derived ground truth (e.g. a real git ls-files count on a fixture), so a hardcoded non-empty literal would satisfy the stated AC as worded."
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: "spec.md's NFR-002 lists 'decode error treated as fatal rather than skip-silently' among conditions that must raise a test failure, while the Edge Cases' last bullet explicitly permits treating a binary file's decode failure as 'informational' (non-fatal) or skipping it -- genuinely contradictory prescriptions for the same decode-error trigger, verified by direct comparison of both passages."
+  - id: SPEC-VERIFY-004
+    verdict: refuted
+    reason: "SC-002/Clarifications(f) correctly and honestly scope the baseline to the named 3-file, 48-passed count without ever claiming the rest of the repo is green, so the absence of an extra sentence acknowledging other unrelated pre-existing reds elsewhere is a stylistic completeness suggestion, not a factual defect in the spec."

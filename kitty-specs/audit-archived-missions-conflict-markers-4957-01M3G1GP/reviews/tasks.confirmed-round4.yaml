@@ -1,0 +1,45 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed-round4
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+- id: TASKS-FRESH3-001
+  severity: 1
+  title: WP02 T003 step 5 cites the wrong line range for test_git.py's conflict_content fixture
+  location: tasks/WP02-conflict-marker-guard-and-carveout.md, Subtask T003 step 5 (the paragraph newly
+    added by the round-3 fix, starting 'The guard's exemption-skip correctness is instead covered incidentally...')
+  description: 'The round-3 diff adds a new justification for why the exemption-skip path is left as an
+    incidental, undedicated proof: it points at the existing `conflict_content` fixture string in `tests/git_ops/test_git.py`''s
+    `test_conflict_marker_parsing`, citing "tests/git_ops/test_git.py:450-457" as the literal''s line
+    range. On this checkout the function signature is at line 449, its docstring at 450, a comment at
+    451, and the `conflict_content = """..."""` assignment itself runs from line 452 (opening line) through
+    the marker lines at 453 (`<<<<<<< HEAD`) and 457 (`>>>>>>> branch`) to the closing `"""` at line 459.
+    The cited range therefore includes the docstring/comment lines (450-451, not part of the literal)
+    and stops two lines short of the literal''s actual close, rather than matching either the literal''s
+    true span (452-459) or the marker-line pair the rest of this mission consistently cites (453/457,
+    mirroring how WP01 cites its own marker lines 758/773).
+
+    '
+  impact: 'Purely explanatory prose supporting an already-acknowledged, non-blocking test-coverage gap;
+    no test, helper, or implementation step depends on this exact range, so the WP would still be implemented
+    correctly. It is a citation-accuracy nit in a mission that otherwise re-verifies every line citation
+    fresh each phase (plan.md''s own closing Tooling section makes exactly that claim), so a reviewer
+    who spot-checks this specific new citation will find it slightly off.
+
+    '
+  recommendation: 'Correct the citation to "tests/git_ops/test_git.py:452-459" (the full `conflict_content`
+    literal) or to the marker-line pair "453/457", matching the citation style used elsewhere in this
+    mission''s WP files.
+
+    '
+  verified: true
+  verification_note: 'Independently re-read tests/git_ops/test_git.py on this checkout: line 449 is `def
+    test_conflict_marker_parsing`, 450 is its docstring, 451 a comment, 452 `conflict_content = """Normal
+    line`, 453 `<<<<<<< HEAD`, 455 `=======`, 457 `>>>>>>> branch`, 458 `More normal content`, 459 the
+    closing `"""`.
+
+    '
+note: Round-4 confirmed set = the round-3 fresh-sweep single nit verbatim. Only one severity-1 finding
+  remains; per protocol this is the final fix round (one more R4, then a single R5a, no further fresh
+  sweep).

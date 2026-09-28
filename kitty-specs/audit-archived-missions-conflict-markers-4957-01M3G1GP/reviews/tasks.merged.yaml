@@ -1,0 +1,227 @@
+# review-findings/v1 merged — mechanical concatenation of all R1 lens-group findings for PHASE=tasks.
+# No dedup was needed: all four findings cite distinct artifact sections and make distinct claims.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: merged
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+source_files:
+  - reviews/tasks-decomp.findings.yaml
+  - reviews/tasks-seq.findings.yaml
+  - reviews/tasks-verify.findings.yaml
+findings:
+  - id: TASKS-DECOMP-001
+    lens: WP concreteness / implement-without-re-deriving
+    severity: 3
+    title: "WP01 repeatedly mislabels the preserved HEAD-side block as \"eleven\" lines when the cited range (759–770) is twelve"
+    evidence:
+      - artifact: "tasks/WP01-repair-archived-conflict-markers.md lines 123, 132, 154, 168, 191, 207"
+      - code: "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md:759-770 (12 bullet lines, verified via `grep -n \"\" <file> | sed -n '755,775p'`)"
+    claim: >
+      WP01 states six times (Objective context, Step 2, Step 3 validation note, Definition of
+      Done, Risks, Reviewer Guidance) that the preserved HEAD-side Activity Log block spans
+      "eleven" lines at 759–770. Counting the actual archived file at that exact line range
+      (independently re-read this session) yields twelve distinct Activity Log bullets (759
+      "Ready for review..." through 770 "Review passed..."), not eleven. The instruction's line
+      range (759–770) is itself correct and unambiguous, and every "eleven" mention sits next to
+      that correct range, so a careful implementer who follows the line numbers rather than the
+      count label will still do the right repair — but the Definition of Done ("All eleven
+      HEAD-side Activity Log lines... are present") and Reviewer Guidance ("Confirm all eleven
+      HEAD-side lines survive") both invite a literal count check that will fail against the
+      correct 12-line result, risking a reviewer flagging correct work as defective (an extra
+      line "snuck in") or an implementer second-guessing and dropping a genuine Activity Log
+      entry to force the stated count of 11. The related "Files" line ("content edit only, net
+      ~5 lines removed, 0 lines added") is also imprecise: removing the 3 marker lines (758,
+      771, 773) plus the 1 losing-side line (772) is a net of exactly 4 lines removed, not ~5 —
+      consistent with the same off-by-one miscount of the block's total size (16 lines, not the
+      implied 17).
+    remediation: >
+      In WP01, replace every "eleven" (and "the eleven lines from 759–770") with "twelve" (or
+      drop the count and rely solely on the verified 759–770 range plus "no gap, no marker
+      text, no 5eda48f7-side content" as the DoD/reviewer check, which is count-agnostic and
+      already correct). Update the "Files" line's "net ~5 lines removed" to "net 4 lines
+      removed, 0 lines added" to match the actual marker/losing-line delta.
+
+  - id: TASKS-SEQ-001
+    lens: landing-order-coupling (derived)
+    severity: 4
+    title: >-
+      "Same lane / no independent merge-and-gate checkpoint" is factually wrong, and no
+      code-level gate actually stops WP01's repair from reaching the real PR branch before
+      WP02 lands
+    evidence:
+      - artifact: "tasks/WP01-repair-archived-conflict-markers.md:68-86 (Context, 'Landing-order coupling')"
+      - artifact: "tasks/WP02-conflict-marker-guard-and-carveout.md:73-80 (Context)"
+      - artifact: "lanes.json:7-40"
+      - code: "src/specify_cli/lanes/compute.py:1-11"
+      - code: "src/specify_cli/lanes/compute.py:28-31"
+      - code: "src/specify_cli/merge/executor.py:461-521"
+      - code: "src/specify_cli/merge/executor.py:539"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:690-717"
+    claim: >-
+      Both WP prompts assert the landing-order-coupling risk (plan.md Section D: repair +
+      carve-out registration are "safest landed in the same commit") is compensated for by
+      putting WP01 and WP02 "in the same lane (sequential, one worktree, no independent
+      merge-and-gate checkpoint between them)". This is factually incorrect on two counts, and
+      the actual mechanism leaves a real, unenforced gap:
+      (1) lanes.json places WP01 and WP02 in two DISTINCT lanes (`lane-planning`,
+      `lane-a`) joined only by a `depends_on_lanes` edge, not one lane/worktree. This matches
+      `src/specify_cli/lanes/compute.py`'s own module docstring: "Dependency edges do not
+      collapse lanes by themselves. They are preserved as lane-level dependencies" — i.e. an
+      explicit `dependencies: [WP01]` on WP02 never fuses them into one lane in this codebase,
+      contrary to what the WP prose implies.
+      (2) More importantly, `lane-planning` (WP01's lane, `execution_mode: planning_artifact`)
+      "resolves to the main repository checkout" (compute.py:28-31) — i.e. WP01's repair is
+      committed directly onto whatever branch is currently checked out at the repo root, which
+      for this mission IS `issue-4957-archived-conflict-markers` (independently confirmed: this
+      review workspace is checked out on exactly that branch — the real branch the eventual PR
+      to `main` will be opened from). WP01's commit therefore lands on the actual PR-source
+      branch the moment WP01 is implemented, with NO merge/consolidation step and hence no gate
+      in between. The only code-level gate that exists, `_assert_mission_terminal_ready`
+      (merge/executor.py:461-521, called unconditionally at line 539 before any lane
+      consolidation, regardless of `policy.merge_gates.mode` or any CLI flag), only fires
+      inside `spec-kitty merge`'s CODE-lane consolidation step (for `lane-a`/WP02) — a
+      completely separate action from pushing the already-resident WP01 commit to origin and
+      opening/updating a GitHub PR. Nothing in this repo's tooling prevents an operator (or a
+      plain `git push origin issue-4957-archived-conflict-markers && gh pr create`) from
+      publishing a branch tip that is repaired-but-unregistered the instant WP01 alone is
+      implemented/approved, well before WP02 exists — which is exactly the transiently-red
+      `test_no_preexisting_archived_file_was_modified` / `archive-freeze` state plan.md
+      Section D reasoned should never be reachable ("a real transiently-red window a
+      force-push or rebase mistake could expose"). The two-WP split's "same lane" narrative
+      papers over this gap rather than closing it; the only thing actually standing between
+      this mission and that exact incident is the plan.md Section G "one PR for the whole
+      mission" convention — an unenforced operator/orchestrator discipline, not a gate.
+    remediation: >-
+      In both WP01's and WP02's Context sections, replace the "same lane / one worktree / no
+      independent merge-and-gate checkpoint" claim with an accurate description: WP01 and WP02
+      are in different lanes (`lane-planning`, `lane-a`) linked by `depends_on_lanes`; the
+      dependency gate only controls when WP02 can be *claimed*, and `spec-kitty merge`'s
+      `_assert_mission_terminal_ready` gate only protects lane-a's consolidation into the
+      mission branch — neither protects WP01's already-landed commit from being pushed to
+      origin / opened as a PR before WP02 exists. Add an explicit, unambiguous instruction (in
+      both WP files, and ideally in plan.md Section G itself) that the mission branch must NOT
+      be pushed to origin and no PR opened/updated until BOTH WP01 and WP02 have reached
+      approved/done — i.e., "one PR" must be read as "no push before the whole mission is
+      merge-ready," not merely "eventually one PR." If a stronger guarantee is wanted, that
+      push-gating needs to become a real check (e.g. a documented pre-push step that runs
+      `_assert_mission_terminal_ready`'s equivalent before any `git push`/`gh pr create` for
+      this mission), since today it is process discipline only.
+
+  - id: TASKS-VERIFY-001
+    lens: red-first sequencing concreteness (derived lens item 4)
+    severity: 3
+    title: "WP02 T003 step 5's red-first instruction for FR-001 is self-contradictory given the WP dependency gate"
+    evidence:
+      - artifact: "tasks/WP02-conflict-marker-guard-and-carveout.md § Subtask T003, step 5 (lines 237-243)"
+        quote: >-
+          "Confirm this test **fails today** (before WP01's repair has landed in
+          this lane) because the real corruption at ... is still present ...
+          Confirm it turns green once WP01's repair is present (it will be,
+          since this WP depends on and executes after WP01 in the same lane)."
+      - artifact: "wps.yaml WP02 entry: `dependencies: [WP01]`"
+      - code: "src/specify_cli/core/dependency_graph.py:34-58 (dependency_readiness_for_wp — a dependency is satisfied only once it reaches `approved` or `done`; every other lane, incl. `for_review`/`in_review`, is not ready)"
+      - artifact: "CLAUDE.md § Status Model Patterns, \"Dependency gating\": \"WPs with dependencies frontmatter cannot be claimed/implemented until every dependency is approved or done.\""
+      - artifact: "tasks/WP02-conflict-marker-guard-and-carveout.md § Context: \"this WP depends on and executes after WP01 in the same lane\"; tasks/WP01-repair-archived-conflict-markers.md § Context: \"both WPs are expected to execute in the same lane (sequential, one worktree, no independent merge-and-gate checkpoint between them)\""
+    claim: >-
+      T003 step 5 instructs the WP02 implementer to "confirm this test fails
+      today (before WP01's repair has landed in this lane)" as a literal,
+      checkable red-first action performed during WP02's own implementation —
+      then, in the same sentence, states the repair "will be [present], since
+      this WP depends on and executes after WP01 in the same lane." These two
+      clauses describe mutually exclusive states of the working tree at the
+      moment T003 is authored. Because WP02 carries `dependencies: [WP01]`,
+      the dependency-readiness gate (`dependency_readiness_for_wp`) refuses to
+      let WP02 even be claimed until WP01 has reached `approved` or `done` —
+      and both WP prompts additionally specify sequential, same-lane execution
+      with WP01 landing first. So by the time a WP02 implementer writes and
+      runs T003, WP01's repair is already committed (and already reviewed) in
+      the shared working tree: the literal "before WP01's repair has landed"
+      state described in the first clause cannot be observed live during
+      WP02's own execution window without an extra, unstated git maneuver
+      (e.g., inspecting the file at a pre-WP01 commit/stash rather than the
+      live tree). Plan.md Section D's abstract description ("confirm it fails
+      today ... after FR-001 lands, confirm green") assumed the test-writing
+      and the repair could be interleaved in either order; the WP-boundary
+      split (forced by the `kitty-specs/` ownership ban discussed in both
+      WPs' Context sections) and the same-lane sequential mandate collapse
+      that assumption, but the concrete subtask text was carried over
+      verbatim without resolving the resulting contradiction. This creates a
+      real risk that an implementer either (a) skips the verification and
+      records "confirmed red" without ever observing it, producing a hollow
+      audit trail for a Standing-Order-#4-mandated red-first proof, or (b)
+      has to improvise an unstated git-archaeology step to satisfy it,
+      causing avoidable rework/confusion inside WP02.
+    remediation: >-
+      Rewrite T003 step 5 to name the concrete, actually-performable
+      verification given the mandated same-lane/sequential ordering — e.g.:
+      "Before implementing this test's assertions, confirm the guard's regex
+      would have matched the pre-repair content by inspecting the file at
+      WP01's parent commit (`git show <WP01-commit>^:kitty-specs/.../WP01-....md
+      | grep -nE '^(<<<<<<<|>>>>>>>) '` — or equivalent) rather than expecting
+      the live working tree (which already carries WP01's repair by the time
+      WP02 starts) to still show the corruption. Then write and run the test
+      against the live (already-repaired) tree and confirm it passes — this is
+      the red-first proof for FR-001 in the only order the WP dependency gate
+      actually permits." This removes the internal contradiction and gives the
+      implementer (and reviewer) a literal, checkable step instead of two
+      clauses describing incompatible tree states.
+
+  - id: TASKS-VERIFY-002
+    lens: issue-matrix hazard (derived lens item 6)
+    severity: 4
+    title: "Six issue-matrix rows are stuck at the gating 'unknown' placeholder and neither WP acknowledges resolving them before approval"
+    evidence:
+      - artifact: "kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/issue-matrix.json: all six rows (#4928, #4936, #4954, #4956, #4957, #4972) carry `\"verdict\": \"unknown\"`, `\"title\": \"<fill at WP-implementation time>\"`, `\"evidence_ref\": \"<link or commit>\"`"
+      - code: "src/specify_cli/tasks/issue_matrix.py:68-80 — `_SCAFFOLD_VERDICT_PLACEHOLDER = \"unknown\"` is the GATING placeholder; a non-gating (`context_only`/`pr_or_commit_ref`) reference is instead pre-resolved at scaffold time to `_SCAFFOLD_NON_GATING_VERDICT = \"not-applicable\"` \"so it never blocks approval\" — the fact all six rows still read `\"unknown\"` (not `\"not-applicable\"`) means the classifier treated all six as gating (`implementation_target`) references."
+      - code: "src/specify_cli/cli/commands/review/_issue_matrix.py:351-362 — `validate_issue_matrix`/`_validate_structured_issue_matrix` raises `ISSUE_MATRIX_VERDICT_UNKNOWN` for any row whose verdict is not a genuine `IssueMatrixVerdict` member; the docstring at lines 411-413 states explicitly: \"a scaffolded placeholder verdict like 'unknown' is still flagged even though it is excluded from the canonical .rows list.\""
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:271-330 (`_issue_matrix_approval_blocker`) — for any gating reference, if `not result.passed` (true whenever an `ISSUE_MATRIX_VERDICT_UNKNOWN` diagnostic exists) the function returns a blocking message: \"ERROR: issue-matrix.json has unresolved entries. Fill in verdicts ...\" — this check applies at BOTH `approved` and `done` transitions (only the additional `in-mission`-at-`done` check is lane-gated), and the discovery scan (`discover_issue_references`) runs over the whole mission's primary-partition artifacts (spec.md, plan.md, tasks/*.md), not per-WP — so it can block WP01's own approval, not only WP02's or the mission's."
+      - code: "src/specify_cli/core/dependency_graph.py — WP02 cannot be claimed until WP01 reaches `approved`, and this same blocker gates the `approved` transition, so WP01's approval is the first place this can bite."
+      - artifact: "tasks/WP01-repair-archived-conflict-markers.md and tasks/WP02-conflict-marker-guard-and-carveout.md (full text, both files) — neither Objective, Context, subtasks, Definition of Done, Risks, nor Reviewer Guidance mentions `issue-matrix`, `issue-verdict`, or resolving any of the six rows; WP02's FR-009/T008 only covers posting a GitHub comment on #4956, a distinct action from setting that issue's issue-matrix row verdict."
+    claim: >-
+      spec.md and plan.md cite six issue numbers in prose (#4928, #4936,
+      #4954, #4956, #4957, #4972). The mission's scaffolded
+      `issue-matrix.json` shows all six were classified as gating
+      (`implementation_target`) references — none were auto-demoted to the
+      non-gating `not-applicable` placeholder, which is what the scaffolder
+      writes for context-only/PR-or-commit references specifically so they
+      "never block approval." Because every row's verdict is still the raw
+      `"unknown"` scaffold placeholder, the issue-matrix validator will raise
+      an `ISSUE_MATRIX_VERDICT_UNKNOWN` diagnostic for each of the six on the
+      next validation pass, which fails `result.passed` and makes
+      `_issue_matrix_approval_blocker` return a hard block ("has unresolved
+      entries") the next time either WP is moved toward `for_review`/
+      `approved`, or the mission toward `done` — this is exactly the
+      known SK-269-class hazard the brief names: an unresolved issue-matrix
+      state that silently blocks WP-approval later, discoverable only by
+      hitting the gate. Neither WP01 nor WP02's prompt file — read in full —
+      mentions the issue-matrix at all, let alone assigns responsibility for
+      running `spec-kitty agent issue-verdict` against these six rows before
+      either WP is submitted for review. WP02's FR-009/T008 (posting an
+      informational GitHub comment on issue #4956) is a different action
+      entirely from resolving #4956's *issue-matrix row* verdict, and does
+      nothing to resolve the other five rows (#4928, #4936, #4954, #4957,
+      #4972). Without an explicit remediation step, the implementer will hit
+      this block for the first time at WP01's own approval attempt (per the
+      dependency-gate ordering above) with no prior warning in either WP's
+      Definition of Done or Reviewer Guidance.
+    remediation: >-
+      Add an explicit subtask (or a final step under WP02's existing T008,
+      since it is already the mission's designated PR-closing/tracker-action
+      step) that runs `spec-kitty agent issue-verdict --mission <handle>
+      --issue <#NNNN> --verdict <verdict> --evidence-ref <evidence>` for each
+      of the six rows before either WP requests `for_review`/`approved`:
+      e.g. `#4957` → `fixed` (this mission's own issue, evidence = the PR
+      link); `#4936`/`#4972`/`#4928` → `not-applicable` (cited as precedent/
+      context only, no work owed by this mission) with a one-line
+      justification in the evidence_ref; `#4954` → `not-applicable` or
+      `verified-already-fixed` as appropriate (the ledger-entry citation is
+      contextual, not a target); `#4956` → a verdict consistent with C-003's
+      explicit deferral (e.g. `deferred-with-followup`, with the evidence_ref
+      containing the `#4956` follow-up handle the validator's
+      `ISSUE_MATRIX_DEFERRED_WITHOUT_HANDLE` rule requires). Add a
+      corresponding Definition-of-Done checklist item and a Reviewer Guidance
+      line ("confirm all six issue-matrix rows carry a genuine terminal
+      verdict, not the `unknown` scaffold placeholder, before requesting
+      review") so this is caught before the approval gate rejects it rather
+      than discovered live during the approval attempt.

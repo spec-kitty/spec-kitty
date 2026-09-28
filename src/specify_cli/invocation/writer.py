@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
 from kernel.clock import now_utc_iso
+from kernel.resolution import resolve_rejecting_loops
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError, LegacyRecordError
 from specify_cli.invocation.record import (
@@ -92,9 +93,10 @@ def normalise_ref(ref: str, repo_root: Path) -> str:
     try:
         path = Path(ref)
         candidate = path if path.is_absolute() else repo_root / path
-        resolved = candidate.resolve()
-    except (OSError, RuntimeError, ValueError):
-        # ValueError can occur on paths with embedded null bytes (Python 3.14+)
+        resolved = resolve_rejecting_loops(candidate)
+    except (OSError, ValueError):
+        # OSError covers a symlink loop on every interpreter (#3189); ValueError
+        # can occur on paths with embedded null bytes (Python 3.14+).
         return ref
     root = repo_root.resolve()
     try:

@@ -22,6 +22,8 @@ import shutil
 from pathlib import Path
 from collections.abc import Sequence
 
+from kernel.resolution import resolve_rejecting_loops
+
 from .errors import PathGuardViolation
 
 __all__ = [
@@ -69,7 +71,13 @@ class PathGuard:
 
     def _assert_allowed(self, target: Path, caller: str) -> None:
         """Raise PathGuardViolation if target is not under any allowed prefix."""
-        resolved = target.resolve()
+        try:
+            resolved = resolve_rejecting_loops(target)
+        except OSError as exc:
+            raise PathGuardViolation(
+                attempted_path=str(target),
+                caller=caller,
+            ) from exc
         for allowed in self._allowed:
             try:
                 resolved.relative_to(allowed)

@@ -1,0 +1,203 @@
+# review-findings/v1 -- R3 result: all 5 merged findings confirmed by the refuter batch
+# (kitty-specs/.../reviews/plan-refute-1.yaml), none refuted. Findings copied verbatim
+# from plan.merged.yaml (mechanical, per protocol: confirmed.yaml = merged findings
+# whose verdict is confirmed).
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+- id: PLAN-GOV-001
+  lens: ledger
+  severity: 2
+  title: This mission's own status.events.jsonl live-reproduces SK-279 (PlanStarted=1, PlanCompleted=0
+    on a substantive plan), but neither plan.md nor tracer-tooling-friction.md records it
+  evidence:
+  - artifact: kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/status.events.jsonl
+  - code: SPEC-KITTY-LEDGER.md:13752 (SK-279 — "setup-plan emits PlanCompleted only if plan.md is already
+      substantive; the scaffold-then-author flow never records plan completion")
+  - artifact: kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/tracer-tooling-friction.md
+      (Plan-phase entries, items 1-4 — no mention of PlanCompleted/SK-279)
+  - artifact: kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/plan.md § Tooling / verification
+      notes for this phase (covers SK-248/SK-276 re-verification only)
+  claim: 'The brief asked this lens to spot-check that the tracer''s SK-248/SK-276 non-recurrence claims
+    are re-derivable rather than merely asserted, and they are (independently re-verified: `diff .kittify/overrides/.../plan-template.md
+    packs/built-in/.../plan-template.md` is byte-identical, confirming no SK-248/SK-276 recurrence). But
+    a third open ledger entry the brief also named as relevant to this mission, SK-279, is live-reproduced
+    on this exact mission''s own status log and is not accounted for anywhere. Reading `kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/status.events.jsonl`
+    directly shows: MissionCreated, SpecifyStarted, SpecifyCompleted, PlanStarted — and no PlanCompleted
+    event, even though `plan.md` (487 lines, R-reviewable content, now committed at HEAD `2c7132a03`)
+    is unambiguously substantive. This is the exact symptom SK-279 describes verbatim ("status.events.jsonl
+    carries PlanStarted = 1, PlanCompleted = 0 on a fully authored, squad-passed plan"). Standing Order
+    #3 requires the tooling-friction tracer to capture friction encountered during the mission, and this
+    friction is both real (independently confirmed against this mission''s own JSONL, not inferred) and
+    directly on-lens for the Ledger check the brief calls out by name — yet it is invisible in both `plan.md`''s
+    tooling notes and `tracer-tooling-friction.md`''s four logged entries. SK-279 itself notes this is
+    a state-fidelity defect, not a blocker (downstream `finalize-tasks`/ `record-analysis` do not refuse
+    on the missing event), so this does not put the mission''s implementation at risk — it is a completeness
+    gap in a Standing-Order-#3-mandated deliverable, not a defect in the plan''s technical content.
+
+    '
+  remediation: 'Append an entry to tracer-tooling-friction.md''s "Plan-phase entries" (or, if already
+    past this phase, "Implementation-phase entries") section noting: this mission''s own status.events.jsonl
+    shows PlanStarted=1/PlanCompleted=0 against a fully-authored, committed plan.md, matching SK-279 exactly
+    (cite the ledger heading); confirm downstream tooling (finalize-tasks, record-analysis) did not refuse
+    on the missing event, per SK-279''s own noted precedent, so this is recorded as a non-blocking, verified-first-hand
+    recurrence rather than left silent for the close-phase assessment to rediscover from scratch.
+
+    '
+- id: PLAN-ARCH-001
+  lens: Landing-order coupling correctness (mission-derived)
+  severity: 2
+  title: Plan mischaracterizes the freeze test's enforcement mechanism, though its sequencing conclusion
+    still holds for this file
+  evidence:
+  - artifact: plan.md § D, 'FR-002 (carve-out) and FR-001 (repair) landing-order coupling' paragraph
+  - code: tests/architectural/test_archive_root_byte_identical.py:713-739 (test_no_preexisting_archived_file_was_modified
+      body)
+  - code: 'tests/architectural/test_archive_root_byte_identical.py:236-247 (_changes: classifies via `git
+      diff --name-status`, i.e. git''s own status codes A/M/D/R/C, not a manual byte comparison)'
+  - code: tests/architectural/test_archive_root_byte_identical.py:268-341,554,592,342-392 (_check_lifecycle,
+      _check_op_closures, _check_recovery, _check_dead_port_recovery, _terminal_lifecycle_paths — five
+      further admission mechanisms beyond the two frozensets, gating the fixed kitty-ops/lifecycle.jsonl
+      path, a fixed op-closures path, and specific meta.json/status.json/status.events.jsonl triples per
+      mission dir)
+  claim: 'Plan Section D justifies landing FR-001 and FR-002 in the same commit by asserting "the freeze
+    test only compares bytes against merge-base, not content validity" and reasons about "the two frozensets"
+    (_APPEND_ONLY_SPINE_EXCEPTIONS, _OPERATOR_SANCTIONED_CORRECTIONS) as the sole gating mechanism. Reading
+    test_no_preexisting_archived_file_was_modified''s actual body shows this is inaccurate on two counts:
+    (1) the function classifies each path via `git diff --name-status` status codes (A/M/D/R/C), not a
+    raw byte comparison, and (2) beyond the two frozensets it also admits changes via a fixed lifecycle-log
+    path check (status == "M" on kitty-ops/lifecycle.jsonl), a fixed op-closures path check, and three
+    further per-mission admission helpers (_check_recovery, _check_dead_port_recovery, _terminal_lifecycle_paths)
+    that structurally admit specific meta.json/status.json/status.events.jsonl triples. All five extra
+    mechanisms were independently traced and confirmed none of them can match kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md
+    (they are keyed to a fixed singleton path or to the meta.json/status.json/status.events.jsonl filenames
+    specifically, never a tasks/WP*.md path) — so the plan''s forward claim (repair-without-carve-out
+    reds this test) and reverse claim (carve-out-without-repair does not red it) both still hold for this
+    specific file, and the "land both in the same commit" sequencing decision is therefore correct. The
+    defect is narrower than a broken central claim: the plan''s stated *justification* for that correct
+    decision describes the wrong mechanism, in a way that would mislead a future reader trying to reason
+    about a different archived path against this same function (e.g. a path that DOES fall under one of
+    the three per-mission lifecycle/recovery admission helpers, where the two-frozenset framing would
+    give a wrong answer).'
+  remediation: 'In plan.md Section D, replace "the freeze test only compares bytes against merge-base,
+    not content validity" with an accurate description: the test classifies each archived-root path''s
+    `git diff --name-status` status against merge-base and skips a path only if it matches one of five
+    admission mechanisms (_APPEND_ONLY_SPINE_EXCEPTIONS, _OPERATOR_SANCTIONED_CORRECTIONS, the fixed lifecycle-log
+    path, the fixed op-closures path, or one of the three per-mission lifecycle/recovery admission helpers
+    gating meta.json/status.json/status.events.jsonl triples). State explicitly that none of the latter
+    three helpers can admit a tasks/WP*.md path (confirmed by inspection of _check_recovery/_check_dead_port_recovery/
+    _terminal_lifecycle_paths), which is why the simpler two-frozenset framing happens to be sufficient
+    for this specific file even though it is not a complete description of the function as a whole.'
+- id: PLAN-VERIFY-001
+  lens: Revert discipline / AS5 folding non-vacuity (mission-derived lens 2)
+  severity: 3
+  title: Folded AS5/binary-file fixture check in test 1 has no stated mechanism for scanning a non-REPO_ROOT
+    tmp_path subtree with the file's existing git helpers
+  evidence:
+  - artifact: plan.md § B, item 1 (the sixth-scenario folding paragraph, ~lines 250-261) and § A (~lines
+      209-214, "reusing the file's existing `_run_git`/`_git_bytes` subprocess helpers, not a new git
+      wrapper")
+  - code: tests/architectural/test_archive_root_byte_identical.py:44 (`REPO_ROOT = Path(__file__).resolve().parents[2]`,
+      a fixed module-level constant)
+  - code: tests/architectural/test_archive_root_byte_identical.py:159-166 (`_run_git` hardcodes `["git",
+      "-C", str(REPO_ROOT), *args]`)
+  - code: tests/architectural/test_archive_root_byte_identical.py:169-177 (`_git_bytes` hardcodes the
+      same `-C {REPO_ROOT}` invocation)
+  - artifact: 'spec.md, Acceptance Scenario 5 of User Story 2 (line ~75-80): "a fixture subtree containing
+      a known, independently-counted N tracked files ... When the guard runs scoped to that subtree"'
+  claim: 'Plan §B folds spec.md''s AS5 (the ground-truth-tied N-file floor, including a binary file) into
+    test 1 rather than a seventh function, and states this "exercises the *same* guard invocation as test
+    1''s real-tree assertion, just against a controlled fixture instead of the live tree," with the fixture
+    being "tmp_path-materialized, not a new tracked repo directory." But the file''s existing git-subprocess
+    helpers that §A commits to reusing (`_run_git`/`_git_bytes`) are hardcoded to `-C {REPO_ROOT}` with
+    no parameter to redirect enumeration at an arbitrary `tmp_path` directory, and `REPO_ROOT` itself
+    is a fixed module-level constant. `monkeypatch.chdir()` does not help, since the `-C` argument is
+    a literal interpolated string, not derived from cwd. Spec.md''s AS5 additionally requires the fixture
+    files be "tracked" (i.e. real `git ls-files` output), which is inconsistent with a bare filesystem
+    walk. The plan never states which of the two resolutions it intends: (a) parameterize `_run_git`/`_git_bytes`
+    (or the new guard helper) with a root override — a signature change touching helpers used by ~27 other
+    call sites in this 831-line file, which §E''s campsite-clean analysis does not anticipate or account
+    for; or (b) git-init a throwaway nested repo under `tmp_path` and invoke git directly for the fixture
+    path, which is a second, parallel enumeration mechanism and contradicts the "same guard invocation...
+    not duplicated logic" non-vacuity claim this folding decision rests on. Either resolution is plausible,
+    but the plan states neither, leaving the WP that implements FR-004/test 1 to discover and resolve
+    this mid-implementation.
+
+    '
+  remediation: 'Add one sentence to plan.md §B item 1 (or §A) naming the concrete mechanism: e.g. "the
+    guard''s own enumeration is extracted into a small helper parameterized by root (`_enumerate_tracked_files(root:
+    Path = REPO_ROOT)`), which internally calls `git -C <root> ls-files`; the fixture-subtree check git-inits
+    a throwaway repo under `tmp_path`, commits the N fixture files (including the binary one), and calls
+    the same helper with `root=tmp_path_repo`." State this explicitly so the WP implementer does not choose
+    an approach that silently widens the touched-helper surface beyond what §E''s campsite-clean analysis
+    assessed, or duplicates enumeration logic and undermines the non-vacuity claim.
+
+    '
+- id: PLAN-VERIFY-002
+  lens: Gates (independent re-derivation)
+  severity: 3
+  title: plan.md §C misidentifies test_public_witnesses.py as a corpus-marked, tests-corpus-gated file;
+    it is integration-marked and claimed by no per-PR CI job
+  evidence:
+  - artifact: 'plan.md § C, row "tests (corpus)" (`tests-corpus` job, marker-selected `-m "corpus and
+      not windows_ci"`): "This is also why spec.md''s SC-002 baseline includes tests/upgrade/preview_support/test_public_witnesses.py
+      (a corpus-marked suite) in the three-file baseline command."'
+  - code: tests/upgrade/preview_support/test_public_witnesses.py:19 (`pytestmark = pytest.mark.integration`
+      — the file's only pytest mark, module-level; no `@pytest.mark.corpus` anywhere in the file)
+  - code: '.github/workflows/ci-router.yml:664 (`tests-corpus` job body: `uv run --frozen pytest -m "corpus
+      and not windows_ci" -q ...`, gated by `if: needs.changes.outputs.corpus == ''true''` at line 639)
+      — an `integration`-marked file is not selected by this `-m` expression'
+  - code: .github/ci-module-registry.yml — no entry for `tests/upgrade/preview_support` or `preview_support`
+      anywhere in the file (grepped in full); the registered `upgrade` module's `test_dirs` (line ~590-591)
+      are `tests/specify_cli/upgrade` and `tests/specify_cli/upgrade/migrations`, a different tree, and
+      `tests/upgrade/preview_support` does not appear in `out_of_matrix_test_dirs` either
+  claim: 'The plan''s Gate-set section states this file is "a corpus-marked suite," used as the justification
+    tying its presence in the SC-002 local baseline command to the always-on, path-filtered `tests-corpus`
+    CI job. Independently verified: the file carries only `pytest.mark.integration`, not `corpus`, so
+    `pytest -m "corpus and not windows_ci"` would not select it regardless of the path filter firing.
+    Further, its directory is not claimed by any module row or `out_of_matrix_test_dirs` entry in `.github/ci-module-registry.yml`,
+    meaning no per-PR CI job (`ci-modules.yml` matrix, `tests-corpus`, or `architectural-heavy`, which
+    is scoped to `tests/architectural` only) actually runs this file on this mission''s PR. The `tests-corpus`
+    job itself does still fire for this diff (the path filter''s `kitty-specs/**/tasks/**` pattern is
+    correctly matched by the WP01 repair path), so that row''s "Yes" verdict is not wrong — but the specific
+    claim that `test_public_witnesses.py` is what that job exercises is false, and a reader could reasonably
+    conclude (incorrectly) that CI will catch a regression this mission''s SC-002 baseline command surfaces
+    locally in that file. It will not: absent registration anywhere, that file is only exercised by `make
+    test-full` / `ci-nightly.yml`, not by this mission''s own PR''s CI run.
+
+    '
+  remediation: 'Correct plan.md §C to state plainly: `test_public_witnesses.py` is `pytest.mark.integration`-marked
+    and is not claimed by any per-PR CI job (`ci-module-registry.yml` has no entry for `tests/upgrade/preview_support`)
+    — it is included in SC-002''s baseline command as an extra local safety check the mission chose to
+    run (per spec.md Clarification (f)), not because any CI gate exercises it for this diff. This keeps
+    the gate table honest about what CI will and will not catch for this specific PR.
+
+    '
+- id: PLAN-VERIFY-003
+  lens: Coverage floors / NFR traceability
+  severity: 2
+  title: NFR-001 (guard runtime budget) has no stated verification step in Section B/D
+  evidence:
+  - artifact: 'plan.md Technical Context, "Performance Goals": "NFR-001 — the new guard adds no more than
+      a few seconds to test_archive_root_byte_identical.py -q''s current runtime (baseline test_no_preexisting_archived_file_was_modified
+      alone: 1.99s)."'
+  - artifact: plan.md § B (five test functions) and § D (red-first sequencing) — neither mentions timing
+      the new guard test(s) against the stated budget
+  claim: 'NFR-001 restates the performance requirement and cites the pre-mission baseline, but the plan
+    never states how or when the budget will actually be checked post-implementation (e.g., timing `pytest
+    tests/architectural/test_archive_root_byte_identical.py -q` again once the five new tests exist and
+    comparing against the 1.99s/276.09s baselines). This is a minor traceability gap, not a correctness
+    risk — a `git ls-files` + per-file regex scan over the repo is very unlikely to blow the "a few seconds"
+    budget — but as written, NFR-001 is the one FR/NFR in spec.md with no test or explicit measurement
+    step named anywhere in the plan.
+
+    '
+  remediation: 'Add one line to plan.md § D''s red-first sequencing (or a new §D closing note): after
+    all five test functions are green, re-run `pytest tests/architectural/test_archive_root_byte_identical.py
+    -q` and record the wall-clock delta against the 1.99s/276.09s baselines in the PR body, closing NFR-001''s
+    verification loop explicitly rather than leaving it implicit.
+
+    '

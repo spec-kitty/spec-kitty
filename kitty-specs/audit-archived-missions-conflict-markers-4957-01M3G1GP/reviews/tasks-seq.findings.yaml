@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: TASKS-SEQ-001
+    lens: landing-order-coupling (derived)
+    severity: 4
+    title: >-
+      "Same lane / no independent merge-and-gate checkpoint" is factually wrong, and no
+      code-level gate actually stops WP01's repair from reaching the real PR branch before
+      WP02 lands
+    evidence:
+      - artifact: "tasks/WP01-repair-archived-conflict-markers.md:68-86 (Context, 'Landing-order coupling')"
+      - artifact: "tasks/WP02-conflict-marker-guard-and-carveout.md:73-80 (Context)"
+      - artifact: "lanes.json:7-40"
+      - code: "src/specify_cli/lanes/compute.py:1-11"
+      - code: "src/specify_cli/lanes/compute.py:28-31"
+      - code: "src/specify_cli/merge/executor.py:461-521"
+      - code: "src/specify_cli/merge/executor.py:539"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:690-717"
+    claim: >-
+      Both WP prompts assert the landing-order-coupling risk (plan.md Section D: repair +
+      carve-out registration are "safest landed in the same commit") is compensated for by
+      putting WP01 and WP02 "in the same lane (sequential, one worktree, no independent
+      merge-and-gate checkpoint between them)". This is factually incorrect on two counts, and
+      the actual mechanism leaves a real, unenforced gap:
+      (1) lanes.json places WP01 and WP02 in two DISTINCT lanes (`lane-planning`,
+      `lane-a`) joined only by a `depends_on_lanes` edge, not one lane/worktree. This matches
+      `src/specify_cli/lanes/compute.py`'s own module docstring: "Dependency edges do not
+      collapse lanes by themselves. They are preserved as lane-level dependencies" — i.e. an
+      explicit `dependencies: [WP01]` on WP02 never fuses them into one lane in this codebase,
+      contrary to what the WP prose implies.
+      (2) More importantly, `lane-planning` (WP01's lane, `execution_mode: planning_artifact`)
+      "resolves to the main repository checkout" (compute.py:28-31) — i.e. WP01's repair is
+      committed directly onto whatever branch is currently checked out at the repo root, which
+      for this mission IS `issue-4957-archived-conflict-markers` (independently confirmed: this
+      review workspace is checked out on exactly that branch — the real branch the eventual PR
+      to `main` will be opened from). WP01's commit therefore lands on the actual PR-source
+      branch the moment WP01 is implemented, with NO merge/consolidation step and hence no gate
+      in between. The only code-level gate that exists, `_assert_mission_terminal_ready`
+      (merge/executor.py:461-521, called unconditionally at line 539 before any lane
+      consolidation, regardless of `policy.merge_gates.mode` or any CLI flag), only fires
+      inside `spec-kitty merge`'s CODE-lane consolidation step (for `lane-a`/WP02) — a
+      completely separate action from pushing the already-resident WP01 commit to origin and
+      opening/updating a GitHub PR. Nothing in this repo's tooling prevents an operator (or a
+      plain `git push origin issue-4957-archived-conflict-markers && gh pr create`) from
+      publishing a branch tip that is repaired-but-unregistered the instant WP01 alone is
+      implemented/approved, well before WP02 exists — which is exactly the transiently-red
+      `test_no_preexisting_archived_file_was_modified` / `archive-freeze` state plan.md
+      Section D reasoned should never be reachable ("a real transiently-red window a
+      force-push or rebase mistake could expose"). The two-WP split's "same lane" narrative
+      papers over this gap rather than closing it; the only thing actually standing between
+      this mission and that exact incident is the plan.md Section G "one PR for the whole
+      mission" convention — an unenforced operator/orchestrator discipline, not a gate.
+    remediation: >-
+      In both WP01's and WP02's Context sections, replace the "same lane / one worktree / no
+      independent merge-and-gate checkpoint" claim with an accurate description: WP01 and WP02
+      are in different lanes (`lane-planning`, `lane-a`) linked by `depends_on_lanes`; the
+      dependency gate only controls when WP02 can be *claimed*, and `spec-kitty merge`'s
+      `_assert_mission_terminal_ready` gate only protects lane-a's consolidation into the
+      mission branch — neither protects WP01's already-landed commit from being pushed to
+      origin / opened as a PR before WP02 exists. Add an explicit, unambiguous instruction (in
+      both WP files, and ideally in plan.md Section G itself) that the mission branch must NOT
+      be pushed to origin and no PR opened/updated until BOTH WP01 and WP02 have reached
+      approved/done — i.e., "one PR" must be read as "no push before the whole mission is
+      merge-ready," not merely "eventually one PR." If a stronger guarantee is wanted, that
+      push-gating needs to become a real check (e.g. a documented pre-push step that runs
+      `_assert_mission_terminal_ready`'s equivalent before any `git push`/`gh pr create` for
+      this mission), since today it is process discipline only.

@@ -1,0 +1,19 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: Re-read status.events.jsonl directly and confirmed it still shows PlanStarted with no PlanCompleted against the now-committed plan.md, and tracer-tooling-friction.md's new item 5 records this exact recurrence, cites SK-279 by name, states it is independently confirmed (not inferred from ledger text) and non-blocking per SK-279's own precedent.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: Re-read test_no_preexisting_archived_file_was_modified and its five admission-mechanism helpers directly; plan.md §D's rewritten paragraph (lines 349-374) accurately describes the git diff --name-status classification, all five admission mechanisms plus the status=="A" escape, confirms none of the three per-mission helpers can match a tasks/WP*.md path, and the "land both in the same commit" conclusion is unchanged.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: plan.md §B (lines 259-268) now names a concrete, workable mechanism — extracting _enumerate_tracked_files(root=REPO_ROOT) calling "git -C <root> ls-files" and git-initing a throwaway tmp_path repo with committed fixture files — which correctly works around the hardcoded REPO_ROOT in _run_git/_git_bytes without duplicating enumeration logic.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: Both locations are corrected consistently (§C gate-table row at line 294 and §H at lines 501-502), independently re-verified that test_public_witnesses.py carries only pytest.mark.integration and is absent from .github/ci-module-registry.yml, while the tests-corpus job's "Yes" verdict for this diff is explicitly preserved as correct for the right (unrelated) reason.
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: plan.md §D now adds an explicit "NFR-001 closing verification" step (lines 413-416) directing a post-implementation re-run of the architectural test file with wall-clock comparison against the stated 1.99s/276.09s baselines, recorded in the PR body.

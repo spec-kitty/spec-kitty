@@ -1,0 +1,118 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: audit-archived-missions-conflict-markers-4957-01M3G1GP
+findings:
+  - id: SPEC-FRESH-001
+    lens: non-vacuity-triad (fresh-eyes)
+    severity: 4
+    title: "FR-004's new exact-match floor definition contradicts the revised binary-skip Edge Case it was fixed alongside"
+    evidence:
+      - artifact: "spec.md § FR-004 (\"self-reported scanned-file count asserted both non-empty and exactly equal to the count of files actually fed into the regex scan for that same invocation\")"
+      - artifact: "spec.md § Edge Cases, last bullet (\"a skipped file must still be counted or explicitly excluded from, and logged against, FR-004's scanned-file floor\")"
+      - code: "git ls-files kitty-specs/ .kittify/mission-state-audit/quarantine/ kitty-ops/ .kittify/missions/ contains real non-text/zero-byte tracked files (e.g. */tasks/.gitkeep) today, so the binary/decode-skip path is a live condition, not a hypothetical"
+    claim: >
+      This fix round tightened FR-004 (responding to the confirmed SPEC-VERIFY-002 finding) to
+      require the guard's self-reported floor to be "exactly equal to the count of files actually
+      fed into the regex scan" — i.e. files that were skipped (not fed to the regex) must be
+      excluded from that count. In the same pass, the Edge Cases binary/decode-failure bullet was
+      rewritten (responding to the confirmed SPEC-VERIFY-003 finding) to allow a skipped file to
+      be "counted... toward FR-004's scanned-file floor" as one of two disjunctive options ("counted
+      or explicitly excluded"). "Counted" directly contradicts FR-004's own exact-match definition:
+      a skipped-but-counted file was not fed into the regex scan, so including it in the
+      self-reported floor makes that floor provably unequal to "files actually fed into the regex
+      scan" the moment any binary/decode-skip occurs — which, per the `git ls-files` check above,
+      happens today over the real archive roots. Two independently-confirmed fixes (VERIFY-002 and
+      VERIFY-003) were each individually satisfied, but their combination produces a new
+      self-contradiction neither prior finding anticipated.
+    remediation: >
+      Pick one rule and state it once: either (a) a skipped binary/decode-failure file is EXCLUDED
+      from FR-004's floor (so "exactly equal to files fed into the regex scan" stays literally
+      true), with its own separate skip-count logged for visibility, or (b) FR-004's floor is
+      redefined as "files enumerated" rather than "files fed into the regex scan" and the exact-
+      match AC is restated against that broader definition. Delete the "counted or" disjunct from
+      the Edge Cases bullet — it is the branch that breaks FR-004.
+    refute_verdict: null
+    refute_reason: null
+
+  - id: SPEC-FRESH-002
+    lens: correspondence (fresh-eyes)
+    severity: 3
+    title: "The confirmed SPEC-VERIFY-001 correction (\"mirrors _APPEND_ONLY_SPINE_EXCEPTIONS\" is inaccurate) was applied to FR-005/NFR-003 but not to the identical claim in Edge Cases and Clarification (d)"
+    evidence:
+      - artifact: "spec.md § FR-005 (revised: \"a new enforcement mechanism for this exemption set... rather than mirroring existing enforcement of `_APPEND_ONLY_SPINE_EXCEPTIONS`, which today has no dedicated growth/shrink test of its own\")"
+      - artifact: "spec.md § NFR-003 (revised: \"No such growth/shrink enforcement exists today for `_APPEND_ONLY_SPINE_EXCEPTIONS`... so this mission introduces that enforcement for the first time\")"
+      - artifact: "spec.md § Edge Cases, third bullet (unchanged: \"Via the same shrink-only, frozenset-keyed-by-relative-path allowlist pattern as `_APPEND_ONLY_SPINE_EXCEPTIONS` — never a bespoke second mechanism (FR-005).\")"
+      - artifact: "spec.md § Clarifications (d) (unchanged: \"...following the same pattern as the existing `_APPEND_ONLY_SPINE_EXCEPTIONS`... — no new exemption mechanism is introduced (FR-005).\")"
+      - code: "grep -rn _APPEND_ONLY_SPINE_EXCEPTIONS tests/ shows only its own definition (line 114) and one use site (line 728) in test_archive_root_byte_identical.py — confirming NFR-003's revised claim that no dedicated growth/shrink test exists for it, which is exactly what the unchanged Edge Cases/Clarification (d) text still contradicts"
+    claim: >
+      This fix round's own re-verification (NFR-003) establishes that `_APPEND_ONLY_SPINE_EXCEPTIONS`
+      has no existing shrink-only enforcement to mirror, and FR-005 was reworded to say this mission
+      introduces a genuinely new enforcement mechanism "by analogy," not a mirror. The Edge Cases
+      bullet and Clarification (d) were left untouched and still assert the opposite framing ("the
+      same... pattern," "never a bespoke second mechanism," "no new exemption mechanism is
+      introduced") that the fix round itself just corrected elsewhere in the same document. A reader
+      relying on Edge Cases/Clarification (d) rather than FR-005/NFR-003 would reasonably conclude no
+      new test-writing work is needed for the ratchet, causing rework once FR-005/FR-008's actual
+      scope is discovered during implementation.
+    remediation: >
+      Update the Edge Cases third bullet and Clarification (d) to match FR-005/NFR-003's corrected
+      framing: the frozenset *shape* (relative-path-keyed allowlist) mirrors `_APPEND_ONLY_SPINE_EXCEPTIONS`,
+      but the shrink-only *enforcement* is new, introduced by this mission for the first time.
+    refute_verdict: null
+    refute_reason: null
+
+  - id: SPEC-FRESH-003
+    lens: charter-conformance (fresh-eyes)
+    severity: 4
+    title: "NFR-003's own re-verification shows the new exemption ratchet bypasses the charter's binding Burn-down Policy (_baselines.yaml) without reconciling why"
+    evidence:
+      - artifact: "spec.md § NFR-003 (\"neither frozenset is registered in `tests/architectural/_baselines.yaml`, and no test in `tests/` currently gates either one's size — so this mission introduces that enforcement for the first time for this exemption set, extending by analogy the repo-wide Burn-down Policy discipline... rather than mirroring an existing precedent specific to this file\")"
+      - artifact: ".kittify/charter/charter.md:599-603 (\"## Burn-down Policy (binding per HiC §5a.2 / C-004) — (a) Every mutable architectural allowlist is governed by a baseline in `tests/architectural/_baselines.yaml`. Growth above baseline FAILS CI; shrinkage WARNS.\")"
+      - artifact: ".kittify/charter/charter.md Governing Principles / Standing Order #6 (\"Canonical sources & unification. Use canonical templates/skills/CLI, never improvise or copy an older mission; chase unification, not parity.\")"
+    claim: >
+      This fix round's honesty about NFR-003 (correcting the SPEC-VERIFY-001 "mirrors" inaccuracy)
+      surfaces a substantive charter question it does not answer: the charter's Burn-down Policy is
+      explicitly binding and states every mutable architectural allowlist is governed by a baseline
+      in `tests/architectural/_baselines.yaml`, with growth-above-baseline failing CI. The new
+      conflict-marker exemption allowlist (FR-005) is exactly this kind of mutable architectural
+      allowlist, yet the spec's own text says it will be enforced by a bespoke, standalone shrink-
+      only test "extending by analogy" rather than by registering the exemption set in
+      `_baselines.yaml` and using the canonical mechanism. Standing Order #6 (canonical sources)
+      requires using canonical mechanisms rather than improvising a parallel one. Neither the FR nor
+      the Clarifications explain why `_baselines.yaml` registration is unsuitable here or otherwise
+      reconcile this tension — it is only newly visible because this fix round made the "no existing
+      mirror" admission more accurate than before.
+    remediation: >
+      Either register the new exemption frozenset in `tests/architectural/_baselines.yaml` and drive
+      FR-005/FR-008 off that canonical mechanism, or add an explicit Clarification stating why the
+      Burn-down Policy's `_baselines.yaml` path does not apply to this exemption set (e.g. a
+      structural mismatch with how `_baselines.yaml` entries are shaped) so the deviation is a
+      reasoned exception rather than a silent bypass.
+    refute_verdict: null
+    refute_reason: null
+
+  - id: SPEC-FRESH-004
+    lens: mission-hygiene (fresh-eyes)
+    severity: 2
+    title: "FR-009's mandated comment on issue #4956 does not disclaim that this mission is not claiming/addressing #4956"
+    evidence:
+      - artifact: "spec.md § FR-009 (\"post a comment directly on GitHub issue #4956 enumerating the full, current `_OPERATOR_SANCTIONED_CORRECTIONS` membership... so the issue itself... carries an accurate starting point for whoever closes it next\")"
+      - artifact: "spec.md § C-003 (\"This mission does not perform that cleanup; it only adds the fourth entry.\")"
+      - artifact: ".kittify/charter/charter.md § Mission hygiene (Standing Order #8: \"every addressed issue gets an issue-matrix row + claim + tracker comment naming the mission\")"
+    claim: >
+      This mission is scoped to #4957 and explicitly does not claim or address #4956 (C-003: "out of
+      scope for this mission"). FR-009 nonetheless requires posting a comment directly on #4956's
+      GitHub thread. The charter's mission-hygiene pattern pairs a tracker comment with a claim on
+      the addressed issue; FR-009 produces a comment on an issue this mission neither claims nor
+      addresses. Nothing in FR-009's requirement text or the Constraints table instructs the comment
+      to state plainly that it is informational only and does not constitute a claim on #4956 — a
+      future triager skimming #4956's thread could reasonably read the comment as this mission (or
+      its lineage) already working the issue.
+    remediation: >
+      Add one sentence to FR-009 (or C-003) specifying the comment's content must explicitly state
+      it is an informational correction only, posted from mission #4957, and does not claim or
+      commit to closing #4956.
+    refute_verdict: null
+    refute_reason: null

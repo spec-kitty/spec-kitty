@@ -1,0 +1,43 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      FR-004's floor is now explicitly redefined as "the count of files actually enumerated
+      (via git ls-files or equivalent)... not merely the subset of those files successfully
+      fed into the regex match after any per-file binary/decode skip", and the Edge Cases
+      binary/decode-skip bullet now states the skipped file "is still counted toward FR-004's
+      scanned-file floor, because that floor is defined over files enumerated... not over files
+      successfully fed into the regex match" — both passages and User Story 2 AC5 now agree on
+      the same enumeration-based floor definition, so the prior exact-match-vs-counted-skip
+      contradiction is gone.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      Both flagged locations were corrected to match FR-005/NFR-003: the Edge Cases third bullet
+      now reads "whose *shape* mirrors `_APPEND_ONLY_SPINE_EXCEPTIONS`'s — but whose shrink-only
+      *enforcement* is new... `_APPEND_ONLY_SPINE_EXCEPTIONS` itself has no dedicated growth/shrink
+      test to mirror", and Clarification (d) carries the identical shape-mirrors/enforcement-is-new
+      framing — no remaining "same pattern, no new mechanism" claim survives in either location.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >-
+      NFR-003 now states the deviation is deliberate and points to new Clarification (k), which
+      gives an evidenced reason (registering a new module in `_baselines.yaml` isn't a bare YAML
+      edit because `test_ratchet_baselines.py`'s `_REQUIRED_TOP_LEVEL_KEYS` is a closed frozenset
+      gated by `test_no_unregistered_baseline_keys_are_added`, each module's growth/shrink check is
+      hand-wired per module via `_import_module_attr` call sites, and `_APPEND_ONLY_SPINE_EXCEPTIONS`
+      itself is also unregistered there); I independently verified all three claims by reading
+      `tests/architectural/test_ratchet_baselines.py` (closed frozenset at line 125, per-module
+      `_import_module_attr` call sites at lines 201/355/471/521/633, unregistered-key test at line
+      654) and by grepping `tests/` for `_APPEND_ONLY_SPINE_EXCEPTIONS`/`_OPERATOR_SANCTIONED_CORRECTIONS`
+      (only the definition and one use site in `test_archive_root_byte_identical.py`, no
+      `_baselines.yaml` entry, no ratchet wiring) — the stated reason is factually true.
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: >-
+      FR-009 now adds "The comment must explicitly state it is an informational correction only,
+      posted from mission #4957, and that it does not claim or commit to closing #4956 (see
+      C-003...)", directly requiring the disclaimer the finding was missing.
