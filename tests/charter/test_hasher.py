@@ -34,6 +34,21 @@ def test_hash_content_whitespace_normalization():
     assert hash1 == hash2 == hash3
 
 
+def test_hash_content_crlf_and_cr_normalize_to_lf():
+    """`hash_content` delegates its newline step to `kernel.text_decode.normalize_newlines`
+    (D5, #4998, WP01) -- CRLF and lone-CR variants of the same content must hash identically
+    to the LF form, and the digest must be byte-for-byte the pinned value below."""
+    lf = "# Charter\nline one\nline two\nline three\n"
+    crlf = "# Charter\r\nline one\r\nline two\r\nline three\r\n"
+    cr = "# Charter\rline one\rline two\rline three\r"
+
+    expected = "sha256:d16c8cec5f460428fdabc97b00f41d49a40bd5881c50b8ed4ae939dbb96f9444"
+
+    assert hash_content(lf) == expected
+    assert hash_content(crlf) == expected
+    assert hash_content(cr) == expected
+
+
 def test_hash_content_internal_whitespace_preserved():
     """Hash preserves internal whitespace differences."""
     content1 = "# Charter\nContent."

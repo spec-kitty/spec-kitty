@@ -5,6 +5,8 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from kernel.text_decode import normalize_newlines
+
 __all__ = [
     "hash_content",
     "is_stale",
@@ -35,9 +37,10 @@ def hash_content(content: str) -> str:
     surface routes through, so they agree regardless of how they decoded.
     """
     # Drop a leading BOM (``read_text`` keeps it, the chokepoint strips it),
-    # normalize line endings (CRLF/CR -> LF), then strip outer whitespace so the
-    # hash is stable across the two divergent decoding read surfaces.
-    normalized = content.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n").strip()
+    # normalize line endings (CRLF/CR -> LF) via the shared kernel primitive
+    # (one newline rule, D5 / DIRECTIVE_044), then strip outer whitespace so
+    # the hash is stable across the two divergent decoding read surfaces.
+    normalized = normalize_newlines(content.lstrip("\ufeff")).strip()
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     return f"sha256:{digest}"
 

@@ -17,11 +17,9 @@ from dataclasses import dataclass
 
 import charset_normalizer
 
-__all__ = ["CP1252_CODEC", "EncodingRecoveryResult", "recover"]
+from kernel.text_decode import detect_bom
 
-_BOM_UTF8_SIG = b"\xef\xbb\xbf"
-_BOM_UTF16_LE = b"\xff\xfe"
-_BOM_UTF16_BE = b"\xfe\xff"
+__all__ = ["CP1252_CODEC", "EncodingRecoveryResult", "recover"]
 
 #: Canonical name of the single-byte repair codec this module treats as the
 #: cp1252 recovery target. Exported so other encoding-repair call sites
@@ -112,13 +110,21 @@ def recover(data: bytes, *, unsafe: bool = False) -> EncodingRecoveryResult:
 
 
 def _recover_from_bom(data: bytes) -> EncodingRecoveryResult | None:
-    if data.startswith(_BOM_UTF8_SIG):
-        return _bom_result(data, "utf-8-sig", "utf-8-sig")
-    if data.startswith(_BOM_UTF16_LE):
-        return _bom_result(data, "utf-16", "utf-16-le")
-    if data.startswith(_BOM_UTF16_BE):
-        return _bom_result(data, "utf-16", "utf-16-be")
-    return None
+    """Detect a BOM via the shared kernel primitive, then decode here.
+
+    Delegates BOM *detection* to :func:`kernel.text_decode.detect_bom` (one
+    definition, DIRECTIVE_044 / D1) but keeps the decode call in this
+    function so undecodable bytes after a recognised BOM keep raising
+    ``UnicodeDecodeError`` exactly as before -- this must never silently
+    fall through to strict-UTF-8/cp1252 guessing (pinned by
+    ``tests/charter/test_encoding_recovery_bom_delegation.py``). Only the
+    kernel's own ``decode_unambiguous`` returns ``None`` for that case.
+    """
+    bom = detect_bom(data)
+    if bom is None:
+        return None
+    codec, source_encoding = bom
+    return _bom_result(data, codec, source_encoding)
 
 
 def _bom_result(data: bytes, codec_name: str, source_encoding: str) -> EncodingRecoveryResult:
