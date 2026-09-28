@@ -43,7 +43,7 @@ from typer.testing import CliRunner, Result
 
 from specify_cli import app as root_app
 from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
-from specify_cli.analysis_report import write_analysis_report
+from specify_cli.analysis_report import check_analysis_report_current, write_analysis_report
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -450,6 +450,27 @@ def _seed_split_mission_event_logs(
     return primary_log, coord_log, primary_bytes, coord_bytes, coord_worktree
 
 
+def _commit_primary_mission_event_log(repo_root: Path, mission_dirname: str) -> tuple[Path, bytes]:
+    primary_log = repo_root / "kitty-specs" / mission_dirname / "mission-events.jsonl"
+    primary_bytes = (
+        json.dumps(
+            {
+                "mission": mission_dirname,
+                "payload": {"action": "discovery", "record": "primary-committed"},
+                "timestamp": "2026-09-28T00:00:01+00:00",
+                "type": "MissionNextInvoked",
+            },
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+    primary_log.write_bytes(primary_bytes)
+    event_log_rel = f"kitty-specs/{mission_dirname}/mission-events.jsonl"
+    _git(repo_root, "add", event_log_rel)
+    _git(repo_root, "commit", "-q", "-m", "planning: retain primary mission event log")
+    return primary_log, primary_bytes
+
+
 def _disable_auto_commit(repo_root: Path) -> None:
     (repo_root / ".kittify" / "config.yaml").write_text("auto_commit: false\n", encoding="utf-8")
 
@@ -513,6 +534,41 @@ def test_claim_preserves_split_mission_event_logs(
     status_path = coord_worktree / "kitty-specs" / mission_dirname / "status.events.jsonl"
     status_events = [json.loads(line) for line in status_path.read_text(encoding="utf-8").splitlines()]
     assert any(event.get("wp_id") == "WP01" and event.get("to_lane") == "claimed" for event in status_events)
+
+
+@pytest.mark.parametrize(
+    ("stage_edit", "status_prefix"),
+    [(False, " M "), (True, "M  ")],
+    ids=["unstaged", "staged"],
+)
+def test_tracked_primary_mission_event_log_edit_still_blocks_coord_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stage_edit: bool,
+    status_prefix: str,
+) -> None:
+    repo_root, mission_dirname, coord_branch = _build_two_lane_coord_mission(
+        tmp_path,
+        monkeypatch,
+        mission_slug="coord-staging-4905-tracked-events",
+    )
+    _disable_auto_commit(repo_root)
+    primary_log, primary_bytes = _commit_primary_mission_event_log(repo_root, mission_dirname)
+    primary_log.write_bytes(primary_bytes + b'{"payload":{"record":"edited"},"type":"MissionNextInvoked"}\n')
+    event_log_rel = f"kitty-specs/{mission_dirname}/mission-events.jsonl"
+    if stage_edit:
+        _git(repo_root, "add", event_log_rel)
+
+    assert _git(repo_root, "status", "--porcelain", "--untracked-files=all", "--", event_log_rel).stdout == (f"{status_prefix}{event_log_rel}\n")
+    assert event_log_rel in _git(repo_root, "ls-tree", "-r", "--name-only", "HEAD").stdout.splitlines()
+    assert event_log_rel not in _git(repo_root, "ls-tree", "-r", "--name-only", coord_branch).stdout.splitlines()
+    assert check_analysis_report_current(primary_log.parent, repo_root).ok
+
+    result = _run_implement(mission_dirname, "WP01")
+
+    assert result.exit_code != 0
+    assert "Planning artifacts not committed" in result.output
+    assert event_log_rel in result.output
 
 
 def test_dirty_primary_spec_still_blocks_coord_claim(
