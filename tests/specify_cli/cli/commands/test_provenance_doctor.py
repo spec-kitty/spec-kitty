@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+from typing import Any
 
 import pytest
 import typer
@@ -26,6 +27,7 @@ from typer.testing import CliRunner
 
 import specify_cli.cli.commands.doctor as doctor_module
 from specify_cli.cli.commands import _provenance_doctor
+from specify_cli.upgrade.migrations import m_4_0_0rc5_heal_template_set_provenance as provenance_migration
 
 pytestmark = [pytest.mark.fast]
 
@@ -281,6 +283,90 @@ class TestDoctorProvenanceCli:
         assert payload["unresolved_count"] == payload["finding_count"] == 1
         assert payload["heal_hint"] is None
         assert "ambiguous" in payload["unresolved"][0]
+
+    def test_symlinked_former_checkout_root_is_reported_without_heal_hint(
+        self,
+        tmp_path: Path,
+        packs_root: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        real_checkout = tmp_path / "external-authority" / "former-checkout"
+        real_source = _former_checkout_source(real_checkout)
+        checkout_alias = tmp_path / "former-checkout"
+        checkout_alias.symlink_to(real_checkout, target_is_directory=True)
+        source = checkout_alias / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+        refs = (
+            "  - id: TEMPLATE_SET:software-dev-default\n"
+            "    kind: template_set\n"
+            "    title: software-dev-default\n"
+            "    summary: x\n"
+            f"    source_path: {source}\n"
+            "    local_path: _LIBRARY/template-set-software-dev-default.md\n"
+        )
+        charter_path = _charter_yaml_path(tmp_path)
+        original = _charter_yaml_with_catalog(refs)
+        _write(charter_path, original)
+        monkeypatch.setattr(_provenance_doctor, "locate_project_root", lambda *a, **k: tmp_path)
+
+        result = runner.invoke(doctor_module.app, ["provenance", "--json"])
+
+        assert result.exit_code == 1, result.output
+        payload = json.loads(result.output)
+        assert payload["leak_count"] == 0
+        assert payload["unresolved_count"] == payload["finding_count"] == 1
+        assert payload["heal_hint"] is None
+        assert "ambiguous" in payload["unresolved"][0]
+        assert real_source.is_file()
+        assert charter_path.read_text(encoding="utf-8") == original
+
+    def test_file_swapped_to_symlink_during_git_query_is_reported_without_heal_hint(
+        self,
+        tmp_path: Path,
+        packs_root: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        checkout = tmp_path / "former-checkout"
+        source = _former_checkout_source(checkout)
+        external = tmp_path / "external-authority.yaml"
+        _write(external, "name: mutable-external-authority\n")
+        refs = (
+            "  - id: TEMPLATE_SET:software-dev-default\n"
+            "    kind: template_set\n"
+            "    title: software-dev-default\n"
+            "    summary: x\n"
+            f"    source_path: {source}\n"
+            "    local_path: _LIBRARY/template-set-software-dev-default.md\n"
+        )
+        charter_path = _charter_yaml_path(tmp_path)
+        original = _charter_yaml_with_catalog(refs)
+        _write(charter_path, original)
+        monkeypatch.setattr(_provenance_doctor, "locate_project_root", lambda *a, **k: tmp_path)
+        original_run = subprocess.run
+        swapped = False
+
+        def swap_source_after_git_query(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+            nonlocal swapped
+            result = original_run(*args, **kwargs)
+            command = args[0] if args else kwargs.get("args")
+            if not swapped and isinstance(command, list) and "ls-files" in command:
+                source.unlink()
+                source.symlink_to(external)
+                swapped = True
+            return result
+
+        monkeypatch.setattr(provenance_migration.subprocess, "run", swap_source_after_git_query)
+
+        result = runner.invoke(doctor_module.app, ["provenance", "--json"])
+
+        assert result.exit_code == 1, result.output
+        payload = json.loads(result.output)
+        assert swapped is True
+        assert source.is_symlink()
+        assert payload["leak_count"] == 0
+        assert payload["unresolved_count"] == payload["finding_count"] == 1
+        assert payload["heal_hint"] is None
+        assert "ambiguous" in payload["unresolved"][0]
+        assert charter_path.read_text(encoding="utf-8") == original
 
     def test_json_output_shape(self, tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         abs_source = packs_root / "built-in" / "paradigms" / "atomic-design.paradigm.yaml"

@@ -5,10 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 import shutil
 import subprocess
+from typing import Any
 
 import pytest
 from ruamel.yaml import YAML
 
+from specify_cli.upgrade.migrations import m_4_0_0rc5_heal_template_set_provenance as provenance_migration
 from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance import (
     MIGRATION_ID,
     TARGET_VERSION,
@@ -157,6 +159,68 @@ def test_template_set_migration_repairs_path_while_former_checkout_still_exists(
     assert migration.apply(tmp_path).success is True
     data = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
     assert data["catalog"]["references"][0]["source_path"] == ("${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml")
+
+
+def test_template_set_migration_rejects_symlinked_former_checkout_root(tmp_path: Path, packs_root: Path) -> None:
+    real_checkout = tmp_path / "external-authority" / "former-checkout"
+    _former_checkout_source(real_checkout)
+    checkout_alias = tmp_path / "former-checkout"
+    checkout_alias.symlink_to(real_checkout, target_is_directory=True)
+    stale_source = checkout_alias / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    token = "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml"
+    charter_path = _charter_path(tmp_path)
+    _write_charter(charter_path, [_template_ref(str(stale_source))])
+    original = charter_path.read_text(encoding="utf-8")
+    migration = HealTemplateSetProvenanceMigration()
+
+    assert stale_source.is_file()
+    assert _matches_mission_source(str(stale_source), token) is False
+    assert migration.detect(tmp_path) is False
+    assert migration.apply(tmp_path, dry_run=True).changes_made == []
+    assert migration.apply(tmp_path).changes_made == []
+    assert charter_path.read_text(encoding="utf-8") == original
+
+
+@pytest.mark.parametrize("classification", ["classifier", "detect", "dry_run"])
+def test_template_set_migration_rejects_file_swapped_to_symlink_during_git_query(
+    tmp_path: Path,
+    packs_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    classification: str,
+) -> None:
+    checkout = tmp_path / "former-checkout"
+    stale_source = _former_checkout_source(checkout)
+    external = tmp_path / "external-authority.yaml"
+    external.write_text("name: mutable-external-authority\n", encoding="utf-8")
+    charter_path = _charter_path(tmp_path)
+    _write_charter(charter_path, [_template_ref(str(stale_source))])
+    migration = HealTemplateSetProvenanceMigration()
+    original_run = subprocess.run
+    swapped = False
+
+    def swap_source_after_git_query(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal swapped
+        result = original_run(*args, **kwargs)
+        command = args[0] if args else kwargs.get("args")
+        if not swapped and isinstance(command, list) and "ls-files" in command:
+            stale_source.unlink()
+            stale_source.symlink_to(external)
+            swapped = True
+        return result
+
+    monkeypatch.setattr(provenance_migration.subprocess, "run", swap_source_after_git_query)
+    token = "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml"
+
+    if classification == "classifier":
+        result = _matches_mission_source(str(stale_source), token)
+    elif classification == "detect":
+        result = migration.detect(tmp_path)
+    else:
+        result = bool(migration.apply(tmp_path, dry_run=True).changes_made)
+
+    assert swapped is True
+    assert stale_source.is_symlink()
+    assert result is False
 
 
 @pytest.mark.parametrize(
