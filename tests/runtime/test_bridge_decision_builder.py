@@ -452,11 +452,15 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
     through ``_materialize_decision``; the zero-open-coded-``Decision``
     invariant is unchanged. A regression on this exact count catches a silent
     re-introduction of an open-coded ``Decision(...)`` construction that
-    bypasses the builder."""
+    bypasses the builder.
+
+    #5255 adds the 28th site: query mode materializes a read-only blocked
+    decision when status references a missing or inconsistent primary task,
+    rather than returning file-derived progress that omits that WP."""
     source = inspect.getsource(rb)
     tree = ast.parse(source)
     materialize_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"]
-    assert len(materialize_calls) == 27
+    assert len(materialize_calls) == 28
 
 
 def test_cores_module_is_the_sole_home_of_raw_decision_construction() -> None:

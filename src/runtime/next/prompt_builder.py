@@ -478,6 +478,11 @@ def _read_wp_task(tasks_dir: Path, wp_id: str, mission_slug: str) -> tuple[Path,
 
     try:
         wp_meta, _ = read_authored_wp_frontmatter(wp_file)
+        if wp_meta.work_package_id != wp_id:
+            raise ValueError(
+                f"Canonical WORK_PACKAGE_TASK file {wp_file} declares work_package_id "
+                f"{wp_meta.work_package_id}; expected {wp_id}, found {wp_meta.work_package_id}. {recovery}"
+            )
         wp_content = wp_file.read_text(encoding="utf-8")
     except (FrontmatterError, OSError, UnicodeError, ValidationError) as exc:
         raise ValueError(f"Could not read canonical WORK_PACKAGE_TASK file {wp_file}: {exc}. {recovery}") from exc

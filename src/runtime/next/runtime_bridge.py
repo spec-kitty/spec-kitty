@@ -2735,6 +2735,23 @@ def query_current_state(
         raise MissionNotFoundError(mission_slug)
 
     mission_type = mission_context.mission_type
+    task_error = _wp_task_surface_error(task_board.read_dir, status_state.read_dir, mission_slug)
+    if task_error is not None:
+        # Query remains a read-only query decision, but an inconsistent task
+        # surface cannot produce truthful file-derived progress. Match the
+        # advancing board's fail-closed recovery without emitting partial totals.
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.query,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="blocked",
+                timestamp=now,
+                reason=task_error,
+            )
+        )
+
     progress = _compute_wp_progress(task_board.read_dir, status_dir=status_state.read_dir)
 
     run_ref = _existing_run_ref(mission_slug, repo_root, mission_type)
