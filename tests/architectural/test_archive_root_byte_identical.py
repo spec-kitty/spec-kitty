@@ -855,7 +855,17 @@ _CONFLICT_MARKER_PATTERN = re.compile(r"^(<<<<<<<|>>>>>>>) ")
 # avoid a second, drift-prone hardcoded-line-number surface -- disproportionate
 # cost for marginal risk reduction on a file whose only content is
 # git-behavior test fixtures. Left as a known, accepted residual risk.
-_CONFLICT_MARKER_SCAN_EXEMPTIONS: frozenset[str] = frozenset({"tests/git_ops/test_git.py"})
+#
+# The merge-driver goldens (#3080) are the expected output of a lane-merge
+# driver that deliberately emits conflict markers on a real collision, so
+# their markers are the asserted behaviour, not corruption.
+_CONFLICT_MARKER_SCAN_EXEMPTIONS: frozenset[str] = frozenset(
+    {
+        "tests/git_ops/test_git.py",
+        "tests/consolidation/merge_driver_goldens/merge-driver-review-cycle/collision-conflict-markers/expected_A",
+        "tests/consolidation/merge_driver_goldens/merge-driver-review-cycle/ours-absent-embeds-theirs/expected_A",
+    }
+)
 
 # PR-CONTRACT-001: the shrink-only ratchet's baseline is NOT a second literal
 # co-located in this same file -- that was the mission's original design, and
