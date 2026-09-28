@@ -130,13 +130,17 @@ forking values.
 - [ ] scope-mode impact tags marked preliminary unless a verify pass ran.
 - [ ] The Op is closed with `spec-kitty profile-invocation complete … --outcome done`.
 
-## Deferred (do after this has been used a few times)
+## Doctrine home
 
-The **initial house style** already exists —
-[`docs/development/reporting/debrief-styleguide.md`](../../../docs/development/reporting/debrief-styleguide.md),
-seeded from `@spec-kitty/tokens` (spec-kitty-design). What remains: once the
-shape has proven itself on real reports, **promote that styleguide into the
-internal doctrine pack** (`packs/internal/`, NOT `built-in` — it governs how
-*we* report, not consumers) as an activatable styleguide artifact, then run
-`spec-kitty doctrine regenerate-graph`. This SKILL orchestrates; that artifact
-will be the durable doctrine it points at.
+The house style is shipped as internal doctrine (never ships to consumers):
+- `packs/internal/styleguides/executive-debrief.styleguide.yaml` — the activatable
+  styleguide, refining `report-writing`.
+- `packs/internal/procedures/executive-debrief-generation.procedure.yaml` — the
+  collect → synthesize → render → review workflow, in `org-charter.yaml`'s
+  `required_procedures`.
+
+This SKILL orchestrates; that doctrine is the durable authority it points at, and
+[`docs/development/reporting/debrief-styleguide.md`](../../../docs/development/reporting/debrief-styleguide.md)
+is the detailed palette/print-treatment reference. Remaining follow-ups: per-PR CI
+enrolment of `tests/reporting/` (#5275) and brand-asset convergence with the
+canonical `spec-kitty-branded-pdf` generator (#5273).

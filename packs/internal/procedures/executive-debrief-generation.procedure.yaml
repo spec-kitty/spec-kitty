@@ -64,7 +64,8 @@ steps:
       renderer rather than the Markdown spec-kitty-branded-pdf generator because
       its dashboard layout (metric tiles, pill-tagged cluster cards) is not
       Markdown prose; converging the two brand treatments onto one token/font/logo
-      source is tracked as a follow-up, not a blocker.
+      source (pointing both renderers at the spec-kitty-design source) is tracked
+      as follow-up #5273, not a blocker.
     actor: agent
   - title: Verify, review, and hand off
     description: >

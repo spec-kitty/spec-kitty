@@ -11,8 +11,10 @@ related:
 ---
 # Debrief house style — "WTF happened" executive one-pagers
 
-**Status:** initial house style (seeded from the design system; not yet a
-formal doctrine artifact — see *Promotion* below).
+**Status:** the design system's house style, now shipped as the internal
+doctrine styleguide
+[`packs/internal/styleguides/executive-debrief.styleguide.yaml`](../../../packs/internal/styleguides/executive-debrief.styleguide.yaml).
+This page is that artifact's detailed palette and print-treatment reference.
 **Applies to:** the reports produced by the `spk-report-debrief` skill — the
 time-window "what landed since <T>" debrief and the milestone/label open-issue
 snapshot. Examples: [`examples/`](examples/).
@@ -137,10 +139,14 @@ Status uses `STATUS`-style words in the decision table
   - Impact tags in scope mode are a preliminary read until code-verified — say so.
   - Author attribution comes from the PR author field.
 
-## Promotion (deferred)
+## Promotion (done)
 
-Once this has driven a handful of real reports and the grammar has settled,
-promote it to a **styleguide artifact in the internal doctrine pack**
-(`packs/internal/`, never `built-in` — it governs how *we* report, not
-consumers), and run `spec-kitty doctrine regenerate-graph`. This document is the
-seed; the internal-pack artifact is the durable, activatable form.
+This house style is now shipped as an activatable styleguide artifact in the
+internal doctrine pack: `packs/internal/styleguides/executive-debrief.styleguide.yaml`
+(it *refines* `report-writing` and is *suggested* by the
+`executive-debrief-generation` procedure, which is in `org-charter.yaml`'s
+`required_procedures`). Internal doctrine never ships to consumers, it governs how
+*we* report. That YAML is the durable, activatable doctrine; this page is the
+detailed palette and print-treatment reference it links to. Converging the debrief
+renderer's brand assets (fonts/logo/palette) with the canonical
+`spec-kitty-branded-pdf` generator is tracked as follow-up #5273.

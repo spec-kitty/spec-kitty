@@ -7609,7 +7609,7 @@ pages:
     - {slug: "layout-grammar-fixed-order", text: "Layout grammar (fixed order)", level: 2}
     - {slug: "pill-vocabulary-the-design-system-s-sk-tag", text: "Pill vocabulary (the design system's `.sk-tag`)", level: 2}
     - {slug: "voice-content-conventions", text: "Voice & content conventions", level: 2}
-    - {slug: "promotion-deferred", text: "Promotion (deferred)", level: 2}
+    - {slug: "promotion-done", text: "Promotion (done)", level: 2}
   - path: "docs/development/testing/index.md"
     title: "Testing the Spec Kitty codebase"
     divio_type: "none"
