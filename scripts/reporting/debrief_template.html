@@ -63,9 +63,17 @@
   --sk-shadow-card: 0 1px 2px rgba(20,20,15,.04), 0 1px 1px rgba(20,20,15,.06);
 }
 * { box-sizing: border-box; }
+/* Full-bleed cream: no printer margin, background forced on, edge-to-edge. */
+@page { margin: 0; }
+html { background: var(--sk-surface-page); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { font-family: var(--sk-font-sans); color: var(--sk-fg-body);
-       background: var(--sk-surface-page); margin: 0; padding: 48px 56px;
-       font-size: 15px; line-height: 1.5; max-width: 940px; }
+       background: var(--sk-surface-page); margin: 0; padding: 44px 56px 56px;
+       font-size: 15px; line-height: 1.5; min-height: 100vh; max-width: 940px;
+       -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+/* Brand mark — the PNG carries a light baked background; multiply dissolves it
+   into the cream page so only the line-art shows. */
+.brand-logo { height: 52px; width: auto; display: block; margin: 0 0 14px -2px;
+              mix-blend-mode: multiply; }
 .eyebrow { font-family: var(--sk-font-mono); font-size: var(--sk-text-xs); letter-spacing: .14em;
            text-transform: uppercase; color: var(--sk-fg-subtle); }
 h1 { font-family: var(--sk-font-display); font-size: 40px; font-weight: 800; color: var(--sk-fg-default);
@@ -114,6 +122,7 @@ code { font-family: var(--sk-font-mono); font-size: .92em; background: var(--sk-
 </style>
 </head>
 <body>
+  <img class="brand-logo" src="assets/logo.png" alt="Spec Kitty" />
   <div class="eyebrow">{{ EYEBROW }}</div>   <!-- e.g. SPEC KITTY · EXECUTIVE OVERVIEW -->
   <h1>{{ TITLE }}</h1>                        <!-- e.g. What landed since Friday morning -->
   <div class="meta">{{ META_LINE }}</div>     <!-- window / main SHA / repos, from meta -->

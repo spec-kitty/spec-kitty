@@ -32,6 +32,13 @@ the token package wins — re-sync the subset, don't fork it.
 Yellow is the brand signature — use it sparingly (it is the CTA/logo colour),
 not for status. Status colour is green (good) / red (attention) only.
 
+**Full-bleed print.** The warm-cream page colour must reach every edge — no
+white printer margin. The template sets `@page { margin: 0 }`, puts the cream on
+both `html` and `body`, and forces `print-color-adjust: exact` so the background
+survives the PDF. Content inset comes from `body` padding, not a page margin.
+These are **light-chromed on purpose**: print/PDF is far easier to read light,
+so the dark-theme tokens are never used here.
+
 ## Typography
 
 - **Display** (`h1`, `h2`, tile numbers): **Falling Sky**, weight 800
@@ -48,6 +55,10 @@ not for status. Status colour is green (good) / red (attention) only.
 
 ## Layout grammar (fixed order)
 
+0. **Brand mark** — the Spec Kitty logo (`assets/logo.png`, mirrored from
+   `@spec-kitty/tokens`) top-left, ~52px. The PNG carries a light baked
+   background; `mix-blend-mode: multiply` dissolves it into the cream so only
+   the line-art shows.
 1. **Eyebrow** — mono, uppercase, tracked: `SPEC KITTY · EXECUTIVE OVERVIEW`.
 2. **Title** — the question answered: *What landed since Friday morning* /
    *Milestone 11 — "4.0.0 release scope": open issues*.
