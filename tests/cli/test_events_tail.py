@@ -403,10 +403,9 @@ def test_events_tail_registered_on_the_real_top_level_app(
     two separate spans, ``-`` then ``-mission``, with an ANSI reset
     in between), which breaks a plain ``"--mission" in result.output``
     substring check even though the option is genuinely present and
-    correctly spelled. This is unrelated to the app's own
-    ``specify_cli.cli.console`` singleton pin (``tests/conftest.py``'s
-    ``_plain_cli_console_seam``), which does not reach Typer's internal
-    help-rendering console.
+    correctly spelled. Since #5258 ``tests/conftest.py``'s
+    ``_plain_cli_console_seam`` also pins Typer's help console colourless;
+    this per-test pin is kept for its width guarantee and as defence in depth.
     """
     import sys
 

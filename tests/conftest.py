@@ -595,22 +595,39 @@ def _plain_cli_console_seam() -> Iterator[None]:
     (``CliConsole(stderr=True, highlight=False)``). FR-003's guard reports this
     gap by name; it is not something this seam can close from setup time.
 
+    **Typer's own help/usage console** (#5258): ``--help`` and usage errors are
+    rendered by ``typer.rich_utils._get_rich_console``, NOT a ``CliConsole``, so
+    ``set_all_plain`` cannot reach them. ``typer.rich_utils`` freezes
+    ``FORCE_TERMINAL = True`` at import time whenever ``GITHUB_ACTIONS`` /
+    ``FORCE_COLOR`` / ``PY_COLORS`` is set, so on a GitHub runner every captured
+    help/usage render carried SGR codes that split option names (``-f`` /
+    ``--mission``) and broke substring assertions that pass locally. Both module
+    globals are read at console-construction time, so pinning them here makes
+    every in-process Typer render colourless on any runner; ``NO_COLOR`` alone
+    would not do it (bold/dim survive).
+
     Reset both colour and size afterwards, in ``finally``, so nothing but the
     test window is affected (C-002).
     """
     # Lazy import keeps conftest's import graph free of the CLI bootstrap until
     # the first test actually runs.
+    import typer.rich_utils as typer_rich_utils
+
     from specify_cli.cli.console import CliConsole, console, err_console
 
-    CliConsole.set_all_plain(True)
+    original_typer_colour = (typer_rich_utils.FORCE_TERMINAL, typer_rich_utils.COLOR_SYSTEM)
     original_console_size = (console._width, console._height)
     original_err_console_size = (err_console._width, err_console._height)
-    console.size = (_RENDER_WIDTH, _RENDER_HEIGHT)
-    err_console.size = (_RENDER_WIDTH, _RENDER_HEIGHT)
     try:
+        CliConsole.set_all_plain(True)
+        typer_rich_utils.FORCE_TERMINAL = False
+        typer_rich_utils.COLOR_SYSTEM = None
+        console.size = (_RENDER_WIDTH, _RENDER_HEIGHT)
+        err_console.size = (_RENDER_WIDTH, _RENDER_HEIGHT)
         yield
     finally:
         CliConsole.set_all_plain(False)
+        typer_rich_utils.FORCE_TERMINAL, typer_rich_utils.COLOR_SYSTEM = original_typer_colour
         console._width, console._height = original_console_size
         err_console._width, err_console._height = original_err_console_size
 

@@ -308,13 +308,12 @@ def _flatten(text: str) -> str:
     Two independent renderings have to be collapsed before a literal can match:
 
     * **Colour.** Typer renders ``--help`` through its own ``rich`` console in
-      :mod:`typer.rich_utils`, which reads ``FORCE_COLOR``/``CI`` from the
-      environment at render time. That console is *not* one of the
-      ``specify_cli.cli.console`` singletons, so the ``_plain_cli_console_seam``
-      autouse fixture in ``tests/conftest.py`` cannot reach it — under a
-      colour-forcing harness the captured help carries SGR codes, and Rich
-      splices them *inside* tokens (``--outcome`` renders as a styled ``-``
-      followed by a styled ``-outcome``). Stripping them restores the plain text
+      :mod:`typer.rich_utils`, not a ``specify_cli.cli.console`` singleton. Since
+      #5258 the ``_plain_cli_console_seam`` autouse fixture in
+      ``tests/conftest.py`` also pins that console colourless, but this helper
+      keeps stripping as defence in depth: under a colour-forcing harness Rich
+      splices SGR codes *inside* tokens (``--outcome`` renders as a styled ``-``
+      followed by a styled ``-outcome``), and stripping restores the plain text
       the user actually reads.
     * **Width.** Rich wraps and pads to the console width, so a literal spanning
       a wrap point needs whitespace collapsed.
