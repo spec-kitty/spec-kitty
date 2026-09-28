@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-ARCH-001
+    lens: "Reflexivity of a bot that opens PRs on main (duplicate-PR detection mechanism)"
+    severity: 2
+    title: "FR-007 names no detection axis for 'already-open recapture PR' and does not cross-reference FR-010's own naming convention"
+    evidence:
+      - artifact: "spec.md § Requirements > Functional Requirements, FR-007 row"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 3"
+      - artifact: "spec.md § Requirements, FR-010 row (\"a fixed commit-author/PR-body convention, independently verifiable by inspection\")"
+      - artifact: "tracer-approach.md § Design choices deliberately left open for the plan phase, bullet 3 (\"Duplicate-PR and no-drift detection mechanisms... a plan-time choice\")"
+    claim: >
+      FR-007's row and its Acceptance Scenario 3 both state the observable requirement ("does
+      not open a second, duplicate recapture PR") but name no candidate detection axis at all —
+      not branch-name prefix, not label, not `gh pr list --head <branch>`, not a PR-title/body
+      grep against FR-010's own "fixed commit-author/PR-body convention". The tracer confirms
+      this omission is deliberate. This is not fully vacuous (the AC's observable outcome is
+      testable regardless of mechanism), but FR-007 and FR-010 are logically the same identity
+      problem (both need a way to recognize "this PR is the automated charter recapture") and
+      the spec never says so, so a plan/implementation pass could independently invent two
+      inconsistent conventions (e.g., FR-010 fixes a PR-body marker while FR-007 is implemented
+      against a branch name that is NOT deterministic across runs — the "commits to a new
+      branch" language in Key Entities does not say whether that branch name is fixed/reused or
+      freshly generated per run, and a per-run-unique branch name makes branch-name-based
+      duplicate detection impossible without also tracking the branch some other way).
+    remediation: >
+      Add one sentence to spec.md's Key Entities or FR-007 row naming the detection axis (or at
+      minimum requiring FR-007 and FR-010 to key off the same convention), and state explicitly
+      whether the recapture branch name is fixed/reused across runs or freshly generated per
+      run — this is a one-line addition that removes a real (if minor) risk of the plan phase
+      building two uncoordinated identity mechanisms for the same PR.
+
+  - id: SPEC-ARCH-002
+    lens: "Reflexivity of a bot that opens PRs on main (concurrent-run race on FR-007's duplicate guard)"
+    severity: 3
+    title: "FR-007 only guards against a duplicate from a *prior completed* run; nothing in spec.md serializes concurrent invocations of the new workflow itself, even though the spec's own precedent for the trigger shape uses a concurrency group"
+    evidence:
+      - artifact: "spec.md § Requirements, FR-007 row and § User Story 2, Acceptance Scenario 3 (both phrased as \"a prior recapture PR ... is still open\" / \"before the first PR merges\" — i.e. sequential runs, not simultaneous ones)"
+      - artifact: "spec.md § Key Entities > The scheduled recapture workflow (\"runs on schedule + workflow_dispatch only ... mirroring .github/workflows/ci-stale-running-sweep.yml's pattern\")"
+      - code: ".github/workflows/ci-stale-running-sweep.yml:32-34"
+      - artifact: "spec.md § User Story 2, Independent Test (\"Manually dispatch the new workflow ... Re-run the workflow with no further drift\" — the spec's own verification recipe explicitly invites repeated/close-together manual dispatch, which is exactly the scenario that can overlap with a cron-triggered run)"
+    claim: >
+      spec.md cites `.github/workflows/ci-stale-running-sweep.yml` as the precedent for the new
+      workflow's trigger shape (schedule + workflow_dispatch, no pull_request/push). That exact
+      precedent file also carries a `concurrency: { group: ci-stale-running-sweep,
+      cancel-in-progress: false }` block (lines 32-34) that serializes overlapping runs so a
+      manual dispatch and a cron firing never execute the sweep logic at the same time. spec.md
+      copies the trigger shape from this precedent but never mentions the concurrency block, and
+      FR-007 / Acceptance Scenario 3 are both phrased only in terms of a *prior, already-open*
+      PR from a completed earlier run. Nothing in the spec addresses two runs of the new
+      workflow executing concurrently (workflow_dispatch racing the cron, or two manual
+      dispatches close together) — a TOCTOU window where both runs check "is a recapture PR
+      already open" before either has committed/opened one, both see none, and both proceed,
+      producing two PRs. This is exactly the failure FR-007 exists to prevent, and it is a
+      realistic scenario for this specific workflow shape (schedule + on-demand dispatch, with
+      the spec's own Independent Test recipe explicitly encouraging manual re-runs). Architecturally
+      this is a genuine gap in the mission's own duplicate-PR guarantee, not a mechanism-choice
+      detail like SPEC-ARCH-001 — no choice of detection mechanism (label, branch name, PR
+      search) closes a same-instant race unless the workflow run itself is also serialized.
+    remediation: >
+      Add a constraint (or fold into FR-007) requiring the new workflow to carry a
+      `concurrency:` group (mirroring `ci-stale-running-sweep.yml`'s own
+      `cancel-in-progress: false` serialization) so overlapping schedule/workflow_dispatch
+      invocations queue rather than race the open-PR check. This closes the TOCTOU window
+      structurally instead of relying on the check-then-act sequence alone, consistent with
+      Standing Order #5's require ment that a gate's guarantee be non-vacuous under the
+      conditions the mission itself invites (repeated manual dispatch).

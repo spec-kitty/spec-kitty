@@ -1,0 +1,93 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh3
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-FRESH3-001
+    lens: structural-root-cause (debugger-debbie)
+    severity: 4
+    title: "FR-006 drift check's \"before\" length is never snapshotted prior to the destructive `--write`, so the design as specified likely always reports no drift"
+    evidence:
+      - artifact: "plan.md:301-303 — \"**no-drift-no-PR**: `has_drift(before_length=N, after_length=N)` (equal lengths, simulating that `--write` rewrote `run_id`/`captured_at`/duration-value noise but the list length is unchanged)\""
+      - artifact: "plan.md:315-320 — fixture 6 (\"drift-triggers-push\") likewise only exercises `has_drift(before_length=N, after_length=M)` on plain injected ints, never on values sourced from a real (or faked) `.github/ci-shard-timings.json` read"
+      - artifact: "plan.md:412-425 — `run_capture_or_die(capture_main, argv)` calls `capture_main(argv)` directly with no step, before or after, that reads/snapshots the pre-write committed charter length"
+      - artifact: "plan.md:517-522 — FR-009 section states the script \"passes `--module charter` to `capture_shard_timings.main()` internally\" but never states whether `--write` or `--output` is used, nor when the committed length is read relative to that call"
+      - artifact: "scripts/ci/capture_shard_timings.py:268,274 (verified live) — `main()` reads `TIMINGS_PATH` into `payload` at line 268, then `destination.write_text(...)` at line 274 overwrites that same file in place when `--write` is passed (`destination: Path = TIMINGS_PATH if args.write else args.output`, line 273) — i.e. calling `capture_main([\"--module\",\"charter\",\"--write\"])` destroys the pre-recapture committed value on disk as a side effect of the very call whose outcome needs to be compared against it"
+      - artifact: "spec.md:209 (FR-006) — \"defined as the committed and freshly-collected `module_test_durations[\\\"charter\\\"]` list length agreeing ... The plan phase must specify a length-only or noise-stripped comparison for this decision, never a raw file-diff/`git diff` check\""
+    claim: >
+      The plan's own analysis (the "mechanism-vs-ordinary-failure design problem" section) proves in
+      detail that `capture_shard_timings.main()` writes the merged JSON to `TIMINGS_PATH` in place
+      (when `--write` is used) before it returns. FR-006 requires comparing the *pre-recapture
+      committed* charter length against the *freshly-collected* length. But the plan's design never
+      states that the wrapper must read/snapshot the committed length from `.github/ci-shard-timings.json`
+      BEFORE invoking `capture_main` with `--write` — every fixture and code excerpt in the plan treats
+      `has_drift(before_length, after_length)` as a pure function over two already-known integers,
+      never showing where those integers come from relative to the destructive write. Since spec.md
+      explicitly forbids using `git diff`/file-diff as a fallback (so the implementer cannot lean on
+      git history post-write to reconstruct "before" without deliberately fetching it), an implementer
+      following this plan's `run_capture_or_die` snippet literally (call `capture_main` first, then try
+      to determine before/after from the one file `capture_main` already overwrote) would very likely
+      compute `before_length == after_length` on every run — the drift check would silently report "no
+      drift" unconditionally, and the scheduled workflow would never open a recapture PR even when
+      charter has genuinely drifted. That is exactly the SK-247-class silent decay CL-001/User Story 2
+      exist to prevent, and exactly the "silent success" anti-pattern Standing Order #5 (Charter
+      Tension, point 5) claims this design avoids. None of the plan's 10 required fixtures (item c)
+      would catch this, since fixture 3/6 test `has_drift` on synthetic ints, not the real sourcing
+      pipeline.
+    remediation: >
+      Add an explicit step to the design (item (b) or the design-problem section) stating that the
+      wrapper reads `module_test_durations["charter"]`'s length from `.github/ci-shard-timings.json`
+      (or via `git show HEAD:.github/ci-shard-timings.json` for extra safety against a dirty working
+      tree) BEFORE calling `capture_main`/`run_capture_or_die`, holds that value as `before_length`,
+      and only then invokes the capture with `--write`, reading the (now overwritten) file's charter
+      length as `after_length` for the `has_drift` comparison. Add a fixture (or extend an existing
+      one) that exercises this ordering with a fake `capture_main` that mutates a fake filesystem/dict
+      in place, proving the wrapper's snapshot-then-capture-then-compare sequence, not just the pure
+      `has_drift(int, int)` comparator.
+
+  - id: PLAN-FRESH3-002
+    lens: conceptual-alignment (debugger-debbie)
+    severity: 2
+    title: "NFR-001 (correctness-of-claim) has no traceability line anywhere in the plan, unlike NFR-002/NFR-003"
+    evidence:
+      - artifact: "plan.md — no line in the document contains the string \"NFR-001\" (grep confirms zero matches, vs. dedicated headers for NFR-002 at plan.md:38,163-168 and NFR-003 at plan.md:507,515,543-549)"
+      - artifact: "spec.md:219 (NFR-001) — \"The spec and its acceptance criteria must not claim or imply that demoting `test_charter_is_not_allowlisted_and_agrees` risks masking a test-coverage or correctness regression ... verified at `.github/workflows/module-tests.yml`'s \\\"Select this shard's tests\\\" step\""
+    claim: >
+      The plan gives NFR-002 and NFR-003 their own concrete, dedicated treatment (headers, exact
+      values, verification steps) but never mentions NFR-001 by ID anywhere, even though it is a
+      "High" priority NFR in spec.md's table. The plan's prose happens not to violate NFR-001's
+      substance (it never claims the demoted assertion protects test correctness/coverage), so this is
+      not a functional defect, but an implementer or reviewer skimming the plan for NFR coverage has no
+      signal that NFR-001 was considered or verified, unlike every other NFR/FR in the document, which
+      is inconsistent with the plan's otherwise exhaustive per-requirement traceability (Implementation
+      Concern Map, "concrete text" sections).
+    remediation: >
+      Add a one-line NFR-001 traceability note (e.g. alongside the NFR-002/NFR-003 "concrete text"
+      section or in the Gate Authority section) confirming the module-tests.yml uniform-weight-fallback
+      citation already used elsewhere in the plan for NFR-001, and instructing the PR body to state the
+      claim explicitly (shard-balance only, never coverage) so the requirement's own acceptance bar
+      ("must not claim or imply...") is demonstrably checked, not just accidentally unviolated.
+
+  - id: PLAN-FRESH3-003
+    lens: architectural-gate-discipline (debugger-debbie)
+    severity: 2
+    title: "New workflow's `permissions:` block is never specified, despite the plan repeatedly citing least-privilege permissions as a design differentiator"
+    evidence:
+      - artifact: "plan.md:150-157 (item a) — contrasts this job's needs against `ci-nightly.yml`'s \"workflow-level `permissions: contents: read` plus, at most, a job-level `issues: write`\", concluding this job \"needs a dedicated PAT ... checked out with write credentials\", but never states this new workflow's own `permissions:` block"
+      - artifact: "plan.md:713-716 (IC-03) — \"Wire IC-02's script into a `schedule`+`workflow_dispatch`-only workflow with its own concurrency group and least-privilege permissions\" — no concrete permissions value given"
+      - artifact: "plan.md:174-252 (item b, \"Names — secret, branch, concurrency group, open-PR check (verbatim)\") — gives exact verbatim values for the secret name, branch name, concurrency group, and `gh pr list` invocation, but has no corresponding bullet for the workflow's `permissions:` block"
+    claim: >
+      Every other operationally load-bearing name/value in this design gets an exact, verbatim
+      specification (item b's own title promises this). The workflow's `permissions:` block is the one
+      concrete YAML-level decision left unstated, even though item (a) explicitly reasons about
+      permission shape as the reason this can't be a `ci-nightly.yml` job. Because auth for git
+      push/`gh pr create` goes through the dedicated PAT (not `GITHUB_TOKEN`), the workflow-level
+      `permissions:` block is likely inconsequential to whether the push/PR-open succeeds — but the
+      plan doesn't say so, leaving a reader to guess whether `contents: write`/`pull-requests: write` is
+      needed at the workflow level for `actions/checkout` or is simply irrelevant here.
+    remediation: >
+      Add one bullet to item (b) or (a) stating the exact `permissions:` block for
+      `ci-charter-shard-recapture.yml` (e.g. `contents: read` at workflow level, since git/PR writes go
+      through the dedicated PAT rather than `GITHUB_TOKEN`), mirroring the verbatim-naming treatment
+      already given to the secret, branch, and concurrency group.

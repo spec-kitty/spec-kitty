@@ -1,0 +1,61 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh7
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-FRESH7-001
+    lens: fresh-eyes
+    severity: 3
+    title: "Plan never specifies how the actual git push/commit is authenticated with the dedicated PAT, only how gh CLI calls are"
+    evidence:
+      - artifact: >-
+          plan.md § Concrete Design Decisions (b) Names — Permissions bullet — "the workflow-level
+          `permissions:` block is `permissions: {contents: read}` — the minimum a workflow can
+          declare... `git push`/`gh pr create` authenticate through the dedicated
+          `CHARTER_SHARD_RECAPTURE_TOKEN` PAT (the Secret bullet above), never through
+          `GITHUB_TOKEN`, so no job-level escalation (`contents: write`, `pull-requests: write`) is
+          needed at the workflow level: `actions/checkout` only needs `contents: read`, and the PAT
+          — not `GITHUB_TOKEN` — is what actually authorizes the push and PR-open calls."
+      - artifact: >-
+          plan.md § Concrete Design Decisions (b) Open-PR check (verbatim) bullet — only specifies
+          `GH_TOKEN` for the `gh pr list` subprocess call; no bullet anywhere in item (b) or item (a)
+          specifies an `actions/checkout` `token:` override, a `persist-credentials: false` +
+          manual `git remote set-url`/credential-helper step, or any other concrete mechanism by
+          which a subsequent `git push --force` (or the commit itself) is authenticated with
+          `CHARTER_SHARD_RECAPTURE_TOKEN` rather than the ambient, checkout-persisted `GITHUB_TOKEN`.
+      - artifact: >-
+          `.github/workflows/ci-stale-running-sweep.yml` (the file plan.md § (a) cites verbatim as
+          "the closer structural precedent this plan follows instead") uses `actions/checkout`
+          `with: { persist-credentials: false }` and never pushes any commit — it only posts a PR
+          comment via `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. `.github/workflows/release.yml`'s
+          `nightly-gate` job (the other cited PAT precedent) also never pushes a commit; its PAT is
+          used only as `GH_TOKEN` for a `gh workflow run`-style dispatch, with a plain,
+          override-free `actions/checkout@v6` step. Neither cited precedent demonstrates a
+          PAT-authenticated `git push`, so "directly mirrors" (plan.md § Charter Check,
+          DIRECTIVE_044 bullet) is not quite true for the one wiring point this design actually
+          needs that its precedents do not have.
+    claim: >-
+      By default, `actions/checkout` persists the ephemeral `GITHUB_TOKEN` as the git remote
+      credential for `origin` (unless `persist-credentials: false` is set, as the plan's own cited
+      precedent does). Since the plan's stated `permissions:` block is `{contents: read}`, a plain
+      `git push`/`git commit` from that default checkout would either (a) fail outright with a
+      permission error because the ambient token is read-only, or (b) if an implementer "fixes" the
+      failure by adding `contents: write` to the workflow permissions instead of wiring the PAT into
+      the checkout/git credential path, the push would then succeed while actually authenticating
+      with `GITHUB_TOKEN` — silently reintroducing exactly the GITHUB_TOKEN-authored-push behavior
+      CL-002/C-004 forbid (a GITHUB_TOKEN-authored PR does not fire other workflows' `pull_request`
+      events, the whole rationale for the dedicated PAT). The plan asserts the PAT "authorizes the
+      push" but never states the concrete git-level mechanism (checkout `token:` override vs.
+      manual `git remote set-url`/credential-helper step) that makes that true, and its own two
+      cited "mirrors" for this workflow's shape do not include a git-push-authenticated-by-PAT case
+      to copy from.
+    remediation: >-
+      Add one concrete sentence to item (b) (or a new sub-bullet) stating the exact mechanism:
+      e.g., "the workflow's `actions/checkout` step passes `with: { token:
+      ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}, persist-credentials: true }` so the
+      subsequent `git push --force`/commit-author steps authenticate via the PAT-backed credential
+      checkout persists, never via the ambient `GITHUB_TOKEN`" (or the equivalent explicit
+      `git remote set-url`/`http.extraheader` step, if checkout's own credential persistence is not
+      used). This closes the one authentication wiring point item (c)'s pre-merge manual-dispatch
+      rehearsal would otherwise have to discover the hard way.

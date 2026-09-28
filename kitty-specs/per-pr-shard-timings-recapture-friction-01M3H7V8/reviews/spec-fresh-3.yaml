@@ -1,0 +1,92 @@
+# review-findings/v1 — fresh sweep of round 3's fix (base cfb79841e -> revised b0dda19ea).
+# Profile: debugger-debbie. Directives applied: 001 (Architectural Integrity — traced whether
+# round 3's specific wording change actually closes the structural FR-007/FR-010/Key-Entities
+# contradiction carried forward from spec-fresh-2.yaml/spec.confirmed-3.yaml, or merely relocates
+# it into vagueness), 003 (Decision Documentation — every claim below records what was checked
+# and confirmed/falsified against the live repo, not asserted on priors), 030 (Test/Quality Gate
+# — the round-3 mechanism claim about FR-010 was checked against the actual `gh pr create --help`
+# output and an existing in-repo `gh pr create` usage, not taken on faith from the spec's own
+# prose), 032 (Conceptual Alignment — FR-007, FR-010, Key Entities, User Story 2 AS3, and the
+# Charter Tension section were re-diffed against each other for agreement after this specific
+# edit, not just checked against the finding that prompted the edit).
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh3
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-FRESH3-001
+    lens: "falsifiability (FR-010's softened 'consistent with, never contradicting' acceptance criterion)"
+    severity: 4
+    title: "FR-010's 'No-op passable?' column now claims a testable criterion ('consistent with — never contradicting') that has no operational definition of 'contradiction' between two markers of different types, making it strictly less falsifiable than every other FR in this spec"
+    evidence:
+      - artifact: "spec.md § FR-010 row, 'No-op passable?' column: \"yes — a fixed commit-author/PR-body convention, independently verifiable by inspection, and consistent with — never contradicting — whichever marker(s) FR-007's duplicate check uses\""
+      - artifact: "spec.md § FR-007 row: \"...so the two need not be the identical marker — see FR-010\" (i.e. FR-007's marker and FR-010's bot-identity/PR-body signal are now explicitly allowed to be of different types: a label vs. a commit-author identity, or a branch-name prefix vs. a commit-author identity)"
+      - artifact: "spec.md § Key Entities: \"the two need not be the identical marker\" (round-3 edit)"
+    claim: >
+      Every other FR/SC in this spec (FR-001, FR-004 through FR-009, SC-001 through SC-006) states
+      its "no-op passable?" acceptance criterion as a concrete fixture: a specific state, a specific
+      observable outcome, and a specific way to fail it. FR-010's round-3 rewrite is the sole
+      exception: "consistent with, never contradicting" has no stated failure condition when the
+      two markers are of DIFFERENT TYPES, which round 3 itself just established is now the expected
+      case (FR-007's marker may be "a label" or "a branch-name prefix", neither of which is a
+      bot-commit-author identity or PR-body text). A label and a bot-commit-author identity are
+      orthogonal signals on different git/GitHub objects (an issue/PR label vs. a commit's author
+      field) — there is no defined notion of one "contradicting" the other, so a QA engineer asked
+      to write the fixture this column promises ("yes ... independently verifiable by inspection")
+      cannot construct a test that could ever fail when FR-007 picks "label" or "branch-name
+      prefix": any commit-author/PR-body convention FR-010 ships trivially "does not contradict" a
+      label it has nothing to do with. The constraint only has real bite in the one case FR-007
+      picks "bot commit-author identity" as its own marker — but the spec does not scope the
+      requirement to that case; it states it as though it applies uniformly across all three
+      marker choices. This is a regression in falsifiability versus round 2's "identical to"
+      wording: "identical to" was too strict (SPEC-FRESH2-001's actual defect — unsatisfiable when
+      FR-007 picks label/branch-prefix) but was at least a bright-line, byte-comparable test in the
+      one case it could apply to. "Consistent with, never contradicting" is vaguer than the defect
+      it replaces: it reads as if it resolved the tension, but for two of the three marker choices
+      it is vacuously true (nothing to check), and for the third it silently reintroduces the exact
+      "identical" bar it claims to have softened, without saying so.
+    remediation: >
+      Make the FR-010 <-> FR-007 relationship conditional and explicit rather than a blanket
+      "consistent with": e.g. "IF the plan selects 'bot commit-author identity' as FR-007's marker,
+      THEN it MUST be the identical convention FR-010 defines (byte-comparable, e.g. the same
+      committer email); IF the plan selects 'label' or 'branch-name prefix' instead, FR-010's
+      bot-identity/PR-body convention is independent and FR-007's duplicate check does not
+      reference it at all." This gives a QA engineer a concrete fixture in every branch of the
+      conditional instead of an unfalsifiable "never contradicting" clause with no defined failure
+      mode.
+  - id: SPEC-FRESH3-002
+    lens: "code/mechanism-claim verification (root-cause of why round 3 chose to soften rather than pin the shared marker)"
+    severity: 3
+    title: "The round-3 justification for treating FR-007's marker and FR-010's bot-identity/PR-body convention as necessarily non-identical — 'FR-010's own mechanism can only ever produce a bot-commit-author identity/PR-body, never a label or a branch-name prefix' — is not true of the actual mechanism: the same PR-open call can attach a label"
+    evidence:
+      - artifact: "spec.md § FR-007 row (round-3 edit): \"FR-010's own mechanism can only ever produce a bot-commit-author identity/PR-body, never a label or a branch-name prefix, so the two need not be the identical marker — see FR-010\""
+      - artifact: "Live verification: `gh pr create --help` in this checkout lists `-l, --label name  Add labels by name` — a single `gh pr create` invocation (the same call that sets `--body`/`--fill`, i.e. FR-010's 'PR body' half of its convention) can attach a GitHub label in the identical step/job."
+      - artifact: "scripts/release/README.md:152 already uses this exact mechanism in this repo: `gh pr create --base main --title \"Release 3.1.0a0\" --fill` — the precedent CL-002 itself points to (`RELEASE_NIGHTLY_DISPATCH_TOKEN` / `release.yml`'s PAT pattern) is a `gh pr create`-shaped call, the same tool that supports `--label` in the same invocation."
+    claim: >
+      Round 3's rationale for why FR-007 and FR-010 "need not be the identical marker" rests on a
+      structural-impossibility claim — FR-010's mechanism supposedly CANNOT produce a label or a
+      branch-name prefix — that is false. The PR-open step is exactly where a label would be
+      attached (`gh pr create --label <name>`, or an equivalent single REST call sequence in the
+      same job), and the branch name pushed ahead of that PR-open call is chosen by the very same
+      job/script that sets the bot commit-author identity (Key Entities already documents this
+      job controls a fixed branch-name **prefix**). Nothing about FR-010's mechanism prevents it
+      from also emitting a label or from being the same job that fixes the branch-name prefix —
+      the "only ever" framing conflates "FR-010 as currently SCOPED chooses not to require a label"
+      with "a label is mechanically impossible here." This matters because SPEC-FRESH2-001's
+      remediation offered two independent fixes: (a) pin the shared identity marker specifically to
+      "bot commit-author identity" (since — contrary to round 3's claim — that IS achievable
+      without giving up label/branch-prefix as independent, additional signals FR-007 could still
+      use), or (b) soften the "identical to" language. Round 3 picked (b) using an inaccurate
+      technical premise to justify skipping (a), and (a) would have preserved a falsifiable,
+      byte-comparable acceptance criterion (see SPEC-FRESH3-001) instead of introducing one that
+      cannot be tested in two of its three branches.
+    remediation: >
+      Drop the "FR-010's own mechanism can only ever produce a bot-commit-author identity/PR-body,
+      never a label or a branch-name prefix" claim — it is not accurate — and reconsider option (a)
+      from SPEC-FRESH2-001/SPEC-FRESH2-001-carried-forward (spec.confirmed-3.yaml): require the
+      SAME job that opens the FR-010 PR to also apply whichever fixed label/branch-prefix/
+      commit-author marker FR-007's duplicate check uses (all three are within that job's control,
+      including via a single `gh pr create --label ...` call), restoring a testable "identical"
+      (or "one and the same fixed value") requirement instead of an unscoped "never contradicting"
+      clause.

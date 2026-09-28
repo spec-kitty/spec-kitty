@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: "plan.md fixture 10 'ordinary-failure-continues' (lines 344-354, item c) is a fake capture_main returning a plain non-zero exit code without raising, asserting the orchestration proceeds to the drift check/commit-push rather than aborting, and the mechanism-vs-ordinary-failure resolution section (line 429-430) now cites 'fixture 10, \"ordinary-failure-continues\", in item (c) above' by name and number; the fixture count is updated to 10 everywhere (line 289 list, line 502 FR-005-008 line)."
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: "The concurrency-group bullet (plan.md lines 232-247) drops the 'only one ref this workflow runs against' premise entirely and justifies the static group purely on the manual-dispatch-from-topic-branch (item c's pre-merge rehearsal) vs. main-triggered-run race for the shared fixed head branch, stating a per-ref group 'would key the two runs' concurrency slots on different refs ... letting a pre-merge rehearsal race a concurrent main run.'"
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: "Both step-numbering citations in item (b) now point at spec.md's Key Entities three-step sequence instead of a nonexistent item (c) step numbering: plan.md line 190-191 says 'confirmed by spec.md's Key Entities three-step sequence — open-PR check (1) -> recapture (2) -> drift check (3) — step (1)', and line 198 says 'spec.md's Key Entities step (1), detailed in the Open-PR check (verbatim) bullet below'; no 'step 2 of item (c)' text remains (grep confirms)."
+  - id: PLAN-FRESH2-004
+    status: resolved
+    reason: "The same edit that fixed finding 003 (plan.md line 198) also corrects the direction: 'spec.md's Key Entities step (1), detailed in the Open-PR check (verbatim) bullet below' — 'below' is now directionally correct since the Open-PR check bullet is the last bullet in item (b), after the Stale-branch-replacement/TOCTOU bullet; no 'step 1, above' text remains (grep confirms)."
+  - id: PLAN-FRESH2-005
+    status: resolved
+    reason: "plan.md lines 502-507 split the line into 'FR-005 through FR-008 — the 10 fixtures listed in item (c) above (fixture-tested; spec.md marks all four \"no-op passable: no\")' and a separate 'FR-009/FR-010 — verified by code-shape inspection, not a dedicated fixture (spec.md marks both \"no-op passable: yes\" ...)', with the fixture count accurately stated as 10 (matching the actual 10-item list in item c)."
+  - id: PLAN-FRESH2-006
+    status: resolved
+    reason: "The TOCTOU accepted-residual-cost paragraph (plan.md lines 219-226) now explicitly states 'this is not another invocation of this same workflow — the Concurrency group bullet below establishes that C-006's static group already serializes those ... the residual actor here is any external push/PR-open against this repo-internal branch (e.g. a human or another tool manually pushing to, or opening a PR from, the ci/-prefixed branch)', naming the source and excluding same-workflow re-invocation as the ruling requires."

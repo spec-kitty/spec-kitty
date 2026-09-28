@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: "Verified: guidelines.md:25 says '200-500 lines per WP prompt' verbatim; git show --stat b893ce5c7 confirms WP02-recapture-decision-script.md is exactly 433 lines (below tasks.md's own claimed '~500-600 estimated lines' and within the 200-500 guideline), and tasks.md's PR-shape section (lines 18-24) gives a line estimate for every listed artifact except the WP02 test file ('one matching unit-test file' has no number), so the 'kept as one WP / at the upper end' justification is unsubstantiated by the artifact it describes."
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: "Verified: tasks.md:177 lists 8 subtasks for WP01 (T001-T008) against guidelines.md:25's 'aim for 3-7', WP01's own file carries no upper-end/rationale text (unlike WP02's explicit acknowledgment), and T004/T005 (WP01-demote-charter-length-assertion.md:203-227) are each a 1-3 line body invoking the same `_charter_disposition` helper with different arguments, a near-duplicate split."
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: "Verified: git show --stat b893ce5c7 shows lanes.json + tasks.md + all three WP*.md landing in the same commit, gates_core.py:188 confirms lanes.json is produced only via finalize-tasks, and WP01's frontmatter already carries C-001/C-002/NFR-001 in addition to the FR-001..004 the 'Next steps' step-2 batch payload would add — so tasks.md's 'Next steps' lists as pending work that the artifact's own committed state shows already done/superseded."
+  - id: TASKS-DECOMP-004
+    verdict: confirmed
+    reason: "Verified live: gh pr view 5190 shows it MERGED at 2026-09-27T10:38:44Z touching only docs/development/reference/known-friction-points.md; git merge-base HEAD origin/main = e2dcf69c8 and git log HEAD..origin/main for that file shows commit 4a036b905 (PR #5190) is not reachable from this branch; grep of the file's current content on this branch finds no 'shard'/'recapture'/'5189'/'5190' bullet (frontmatter still 'updated: 2026-08-15'), yet WP03's T018 instructs finding and annotating that exact bullet."
+  - id: TASKS-DECOMP-005
+    verdict: confirmed
+    reason: "Verified: tasks.md:133's traceability row applies C-005's grep self-check to all three WPs, but WP01 and WP02's frontmatter requirement_refs omit C-005 and neither WP's Review Guidance section mentions the grep/home-path check; WP03's frontmatter does list C-005 (line 9) but its Review Guidance (lines ~276-286) likewise never restates the concrete grep command."
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: "Verified: WP03's Risks & Mitigations (line ~263-265) says the PR body states the cron/post-merge-provability caveat 'explicitly (T019)', but T019's four numbered steps (lines 217-248) cover only the ci-parity check, the NFR-002 budget note, the NFR-001 shard-balance note, and the docs-supersession note — none instructs writing the cron/post-merge caveat; the phrase 'only confirmable post-merge' occurs exactly once in the whole tasks/ tree (line 254, Test Strategy prose), never inside any Subtask step."

@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 2
+verdicts:
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: WP01 T003 (lines 182-201) only demotes the assertion and adds no test, while T004 (lines 203-221) is the subtask that adds test_charter_disposition_flags_length_disagreement, so the FR-001 row's "T003, T007" omits the task that actually delivers the first named test.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: WP02's Subtask Index and full text (T014 lines 304-341 covers fixtures 1-6 ending at drift-triggers-push; T015 lines 343-384 opens with fixture 7 toctou-recheck-aborts-push) show fixture 7 belongs to T015, not T014, and the traceability table itself correctly cites T015 for the same fixture two rows below the FR-007 row (line 139 vs line 122).
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: T014's fourth numbered fixture (lines 321-323) is capture-failure-no-commit, so the FR-008 row's "T015 (fixtures 4, 8, 9, 10)" wrongly folds fixture 4 into T015 when it is T014's.
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: T017 (lines 181-197) is a 7-point structural YAML-shape checklist with no PR-body step at all, while T019 step 3 (lines 237-241) is explicitly "Add a note to the PR body stating NFR-001's claim explicitly," so the NFR-001 row's "T017 (PR-body statement)" cites the wrong subtask.
+  - id: TASKS-VERIFY-005
+    verdict: confirmed
+    reason: find_open_recapture_pr (WP02 lines 194-201) checks only pr.get("headRefName") == RECAPTURE_BRANCH with no base field inspected anywhere in the function; the base==main restriction is applied only by the separate gh pr list --base main subprocess call (lines 203-209), so attributing "checks head==... AND base==main" to "the open-PR matcher" singular overstates what that function itself does.
+  - id: TASKS-VERIFY-006
+    verdict: confirmed
+    reason: tasks.md's traceability table header (lines 109-112) claims every operator ruling point is mapped, but grepping the table shows only PLAN-FRESH2-001/002 and PLAN-FRESH4-001/002 have rows; PLAN-FRESH2-003 through 006 (plan.ruling.md lines 20-29) have no row, even though plan.md's TOCTOU/fixture-split prose (lines 220, 379, 604-608) shows they were resolved as prose-only fixes, so the header's completeness claim is inaccurate as literally stated.

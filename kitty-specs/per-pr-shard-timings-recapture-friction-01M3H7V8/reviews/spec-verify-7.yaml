@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH6-001
+    status: resolved
+    reason: FR-007's want-clause and User Story 2 AC3 now condition the push on "no PR from that branch is currently open"/"permanently pinned to (used whenever it does push)" respectively, a case-insensitive grep for "always" across the whole spec.md returns zero matches (including the two Key Entities bullets not cited in the original finding), and both the fixed-branch mechanism (ruling 1) and skip-if-open mechanism (ruling 2) remain textually intact and unweakened.

@@ -1,0 +1,150 @@
+# review-findings/v1 — confirmed (R3 output): all 4 merged findings were CONFIRMED by the
+# refuter (reviews/amendment-refute-1.yaml, batch 1); none were refuted. This is the exact
+# input to the R4 fix round.
+schema: review-findings/v1
+complete: true
+phase: amendment
+lens_group: confirmed
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+source_files:
+  - amendment.gov.findings.yaml
+  - amendment.arch.findings.yaml
+  - amendment.verify.findings.yaml
+findings:
+  - id: AMENDMENT-GOV-001
+    lens: Ruling fidelity / scope-statement correction (ruling point 3)
+    severity: 4
+    title: "C-001 and the Ledger Cross-Reference section still make the exact \"charter-only demotion\"/\"workflow scoped to charter\" claims ruling point 3 says the spec must not make"
+    evidence:
+      - artifact: "spec.md § Constraints, row C-001 (unchanged by this amendment): \"This mission touches only `charter`'s handling in `tests/architectural/test_module_length_agreement.py` and adds one new scheduled workflow scoped to `charter`.\""
+      - artifact: "spec.md § Ledger Cross-Reference (unchanged by this amendment): \"it stays `charter`-only (CL-003 / C-001), leaves the 19-entry allowlist untouched (FR-003)\""
+      - artifact: "spec.md § FR-003 (amended 2026-09-28): \"the per-PR demotion mechanism ... covers **both** live-collection gates ... never charter alone. The *recapture* mechanism (FR-005-FR-010) stays **charter only** (CL-003/C-001)\""
+      - artifact: "plan.md § (a2) (amended 2026-09-28): the new `strict-shard-timings-check` job lives in the SAME workflow file WP03 owns (`ci-charter-shard-recapture.yml`) and runs `pytest tests/architectural/test_module_length_agreement.py -q` — i.e. the whole gate file, not `--module charter` — precisely so it also hard-fails on `agent` drift, per plan.md's own \"Which modules this covers\" paragraph"
+      - artifact: "tasks/WP03-scheduled-workflow-wiring.md § Subtask T020 (added 2026-09-28): the strict-mode job is added to \"the SAME workflow file T016 authors\""
+    claim: >
+      The operator's ruling point 3 says, generally, "The spec must not claim a charter-only
+      demotion" — not narrowly "fix FR-003's wording." The amendment corrected FR-003, SC-006, and
+      Charter Tension point 3 to say the demotion covers both live-collection gates, but left two
+      other spec.md sections making the same now-false claim verbatim: C-001 ("adds one new
+      scheduled workflow scoped to `charter`") and the Ledger Cross-Reference section ("it stays
+      charter-only"). Both are now literally false: the same amendment adds Subtask T020 to that
+      very workflow file specifically so it is NOT charter-scoped — it runs the full architectural
+      gate file under strict mode so `agent` (the second non-allowlisted module) also gets a
+      hard-failing home, which is the whole point of ruling point 4. The amended FR-003 even cites
+      C-001 as if it already carries the "recapture-only" nuance FR-003 itself had to spell out,
+      which it does not — C-001's literal text is broader than "recapture" and is contradicted by
+      the very workflow file the amendment adds a job to. tracer-design-decisions.md's own summary
+      of "what did NOT change" lists CL-003 (correctly, per ruling point 3's "operator decision 3
+      unchanged") but never examines C-001 or the Ledger Cross-Reference section, so the gap was
+      not caught by the amendment's own sweep. A reviewer checking C-001 literally against the
+      merged design (as a post-merge mission review would, per Standing Order #8) would find T020
+      in apparent violation of a still-"Open" Constraint that the ruling itself authorized.
+    remediation: >
+      Reword C-001's second sentence to distinguish the two scopes exactly as the amended FR-003
+      now does, e.g.: "The *recapture* script/logic (WP02/WP03's `scripts/ci/recapture_charter_shard_timings.py`
+      and its triggering job) is scoped to `charter` only. The demotion mechanism (absorbed from
+      #5240) and the new strict-mode CI job (WP03 T020, same workflow file) are NOT charter-scoped —
+      they cover every non-allowlisted registry module (today: `charter` and `agent`) — see FR-003."
+      Apply the same correction to the Ledger Cross-Reference section's "it stays charter-only
+      (CL-003/C-001)" sentence, and add a line to tracer-design-decisions.md's amendment section
+      noting C-001 and the Ledger Cross-Reference were swept too (or, if intentionally deferred,
+      say so explicitly rather than silently omitting them from the "what did NOT change" list).
+
+  - id: AMENDMENT-GOV-002
+    lens: Terminology/consistency (stale cross-reference)
+    severity: 2
+    title: "analysis-report.md (not one of the 6 amended files) still asserts the pre-amendment \"four untouched tests\"/\"visible-xfail\" design as the current, analyzed-and-ready state"
+    evidence:
+      - artifact: "analysis-report.md, lines 79-82: \"...the unconditional `\"charter\" not in _MISMATCH_ALLOWLIST\"` assertion, the four untouched tests, and the visible-xfail-not-silent-pass design.\""
+      - artifact: "spec.md § FR-003 (amended 2026-09-28): now names three untouched tests, not four, and the mechanism is `ShardTimingsDriftWarning`, not `xfail`"
+    claim: >
+      analysis-report.md is the recorded output of the `/spec-kitty.analyze` run (`423463a10`) that
+      produced the original `ready` verdict, before #5240 was discovered and before this amendment.
+      It still describes "the four untouched tests" and "the visible-xfail-not-silent-pass design"
+      as the analyzed, consistent state — both now false of the amended spec.md/plan.md (three
+      untouched tests; `ShardTimingsDriftWarning`, never `xfail`). Nothing in the amendment or
+      tracer-design-decisions.md's amendment section flags analysis-report.md as superseded/stale,
+      so a future reader doing a cross-artifact consistency check (or re-running analyze and diffing
+      against the last recorded report) could be misled into thinking the "four tests"/`xfail`
+      framing was ever validated against the code that now actually exists. This does not misdirect
+      an implementer (WP01/WP03 correctly cite spec.md/plan.md/the rulings, not analysis-report.md,
+      as authoritative), so it is a documentation-hygiene gap rather than an implementation risk.
+    remediation: >
+      Add one line to analysis-report.md (or to tracer-design-decisions.md's amendment section)
+      marking analysis-report.md as superseded by the 2026-09-28 amendment for the "four untouched
+      tests"/xfail claims specifically, pointing at the corrected FR-003/Charter-Tension text — or,
+      if a full analyze re-run is planned before merge, note that intent explicitly so the stale
+      report is not mistaken for current. (Orchestrator note: a fresh `analyze` run is scheduled
+      after this squad passes, per the phase's own step 4 — that re-run will naturally regenerate
+      analysis-report.md, which may moot this finding; the fix round should still confirm rather
+      than assume this.)
+
+  - id: AMENDMENT-ARCH-001
+    lens: "Strict-mode run semantics in the workflow (WP03's new T020)"
+    severity: 4
+    title: T020's "verbatim" job sketch omits the repo's mandatory `astral-sh/setup-uv` step, so the job fails on every run before pytest even executes
+    evidence:
+      - artifact: "tasks/WP03-scheduled-workflow-wiring.md § Subtask T020"
+      - artifact: "plan.md § (a2) Strict-mode home for the exact-count invariant"
+      - code: "tests/architectural/test_module_length_agreement.py (file this job targets; unaffected by the bug itself, cited for context only)"
+      - code: ".github/workflows/ci-nightly.yml:117-122,219-224,314-319,404-409,585-590,677-682 — six jobs, each pairs `uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1` immediately before its `uv sync --frozen --all-extras` step"
+    claim: >-
+      T020's job YAML is introduced with "per plan.md item (a2) (verbatim — do not deviate)" and
+      reads: checkout -> `run: uv sync --frozen --all-extras` -> `run: uv run --frozen pytest ...`.
+      It never installs `uv` on the runner. Verified against every other workflow file in this repo
+      (`for f in .github/workflows/*.yml; do grep -q "uv sync\|uv run" "$f" && ! grep -q "setup-uv"
+      "$f" && echo missing; done` produces zero hits — i.e. 100% of existing jobs that call `uv
+      sync`/`uv run` first run `astral-sh/setup-uv`). As literally written, `uv sync` in T020 hits
+      "uv: command not found" and the job reds on every single scheduled/dispatched run, for a
+      plumbing reason wholly unrelated to shard-timings drift — defeating the ruling's actual goal
+      (a real, hard-failing home for genuine charter/agent drift; a job that is unconditionally red
+      trains reviewers to ignore it, which is worse than no gate). The WP03 prose immediately
+      contradicts its own "verbatim — do not deviate" label one line later: "(Match the actual uv
+      sync/environment-setup step this repo's other scheduled workflows already use ... rather than
+      inventing a new one ...)" — i.e. the implementer is told both to copy the block exactly and to
+      not copy its setup step. This is exactly the kind of literal-sketch defect that produces
+      throwaway WP03 rework (author ships the "verbatim" block, first dispatch reds, root-caused,
+      redone).
+    remediation: >-
+      Fix the illustrative YAML in both plan.md item (a2) and tasks/WP03-scheduled-workflow-wiring.md
+      § T020 to include the missing step, e.g. insert before "Set up environment":
+      `- name: Install uv` / `uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d #
+      v10.0.1` (the same pinned SHA/version every other job in ci-nightly.yml already uses). Drop the
+      "(verbatim — do not deviate)" qualifier from the checkout/setup portion specifically (keep it
+      for the truly fixed pieces: job name, `timeout-minutes: 10`, the env var, and the pytest
+      invocation), so the WP file no longer tells the implementer two contradictory things about the
+      same code block.
+
+  - id: AMENDMENT-ARCH-002
+    lens: "Strict-mode run semantics in the workflow (WP03's new T020)"
+    severity: 3
+    title: T020 runs the whole test file unfiltered, so a red run can mean an unrelated pre-existing allowlist-hygiene defect, not shard-timings drift — but the design's "what a red run means" narrative only describes the drift case
+    evidence:
+      - artifact: "plan.md § (a2), \"Relation to the recapture PR\" paragraph"
+      - artifact: "tasks/WP03-scheduled-workflow-wiring.md § Subtask T020, Notes — relation to the recapture job"
+      - code: "tests/architectural/test_module_length_agreement.py:387-421 — test_allowlist_does_not_exceed_baseline, test_allowlist_entries_are_real_registry_modules, test_allowlisted_modules_still_genuinely_mismatch all use plain `assert`, not `_report_drift`, and are not gated by `SPEC_KITTY_STRICT_SHARD_TIMINGS`"
+    claim: >-
+      T020's `run:` step is `uv run --frozen pytest tests/architectural/test_module_length_agreement.py
+      -q` with no `-k`/`-m` selection, so it collects and runs every test in the file: the two
+      demoted live-collection gates (the design's actual subject) plus the three
+      always-hard-failing allowlist-ratchet tests and the fast self-mutation tests. A stale
+      `_MISMATCH_ALLOWLIST` entry (module renamed/removed from the registry) or an allowlisted
+      module that quietly started agreeing would fail `test_allowlist_entries_are_real_registry_modules`
+      / `test_allowlisted_modules_still_genuinely_mismatch` and turn this job red for a reason that
+      has nothing to do with the charter/agent exact-count invariant this job exists to protect. Per
+      the file's own docstring, a `.github/ci-module-registry.yml`-only edit (no `tests/architectural/**`
+      touch) does not trigger `ci-router.yml`'s per-PR architectural-heavy job today, so this new
+      scheduled job would, in practice, be the first place such drift surfaces — yet plan.md's and
+      WP03's "relation to the recapture PR" text describes only two outcomes ("charter drifted" /
+      "a different non-allowlisted module drifted"), never "an unrelated allowlist-hygiene test in
+      this file failed." Whoever triages this job's first red run has no documented cue to check
+      which test failed before assuming it is a shard-timings signal.
+    remediation: >-
+      Either (a) scope T020's pytest invocation to just the two demoted gate functions, e.g. `pytest
+      tests/architectural/test_module_length_agreement.py -q -k
+      "test_charter_is_not_allowlisted_and_agrees or test_non_allowlisted_modules_agree_with_live_collection"`,
+      so a red run is unambiguous, or (b) keep the full-file run (it usefully closes the existing
+      per-PR gap for `.github/`-only registry edits) but add one sentence to plan.md item (a2) and
+      WP03's T020 Notes/PR-body guidance stating explicitly that a red run must be triaged by test
+      name first, since it can also mean an unrelated allowlist-ratchet regression, not shard-timings
+      drift.

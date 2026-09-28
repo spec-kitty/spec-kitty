@@ -1,0 +1,38 @@
+# review-findings/v1 — round-3 fix target set. R6 gate rule: ANY finding in spec-fresh-2.yaml
+# triggers one more R4 round, then repeat R5. This file mechanically carries that one finding
+# forward (orchestrator bookkeeping, no new judgment applied).
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: round3-targets
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+source_files:
+  - reviews/spec-fresh-2.yaml
+findings:
+  - id: SPEC-FRESH2-001
+    origin: spec-fresh-2.yaml
+    lens: "Architectural integrity — FR-007/FR-010 marker-choice freedom vs FR-010's own fixed mechanism"
+    severity: 3
+    title: "Round 2's restored 'all three markers remain equally legitimate' sentence in Key Entities widens an unaddressed tension with FR-010, which can only ever produce a bot commit-author/PR-body signal and requires it be 'identical to the marker FR-007's duplicate check uses'"
+    evidence:
+      - artifact: "spec.md § Key Entities (round-2 edit): \"all three markers — label, branch-name prefix, bot commit-author — remain equally legitimate ... none is eliminated\""
+      - artifact: "spec.md § FR-010 row: requires its commit-author/PR-body convention to be \"identical to the marker FR-007's duplicate check uses\""
+      - artifact: "spec.md § FR-007 row: \"the same convention FR-010 ... keys off\""
+    claim: >
+      FR-010 can only ever produce a bot commit-author identity / PR-body convention signal —
+      it has no mechanism to produce a GitHub label or a branch-name prefix. If a plan author
+      exercises the free three-way choice Key Entities/FR-007 explicitly authorize (e.g. picking
+      "label"), FR-010's own fixture requirement ("identical to the marker FR-007 uses") becomes
+      unsatisfiable, since FR-010 cannot itself BE a label. This cross-reference tension was
+      introduced in round 1's original fix for SPEC-VERIFY-004 but was made concrete/unavoidable
+      by round 2's specific restoration of "all three markers remain equally legitimate," and
+      neither round's review caught it until this fresh sweep.
+    remediation: >
+      Either (a) pin the shared identity marker specifically to "bot commit-author identity"
+      wherever FR-007/FR-010/Key Entities cross-reference "the same convention" — since that is
+      the one marker type FR-010's mechanism can actually produce — while still allowing
+      label/branch-name-prefix as ADDITIONAL, independent detection signals FR-007 may also use
+      (not required to be identical to FR-010's), or (b) soften FR-010's "identical to" language
+      to "consistent with" / "does not conflict with" so the three-way choice in Key Entities
+      remains genuinely free without making FR-010 vacuous. Pick one and make Key Entities,
+      FR-007, and FR-010 agree on which one.

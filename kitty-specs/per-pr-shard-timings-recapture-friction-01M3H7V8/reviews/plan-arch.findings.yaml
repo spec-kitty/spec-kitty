@@ -1,0 +1,121 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-ARCH-001
+    lens: mechanism-failure design correctness
+    severity: 3
+    title: "run_capture_or_die's `except Exception` does not catch SystemExit raised inside capture_shard_timings.main()"
+    evidence:
+      - artifact: "plan.md lines 288, 297-303 (`run_capture_or_die`: `except Exception as exc:` with comment 'deliberately broad: ANY uncaught exception from the mechanism is a crash')"
+      - code: "scripts/ci/capture_shard_timings.py:253-254 (`_parse_args`: `parser.error(...)` raises `SystemExit`, not `Exception`)"
+      - code: ".venv/lib/python3.11/site-packages/_pytest/config/__init__.py:340-367 (`_prepareconfig`'s `except BaseException: ...; raise` re-raises ANY exception type from plugin registration / `pytest_cmdline_parse`, including a stray `SystemExit` from a misbehaving conftest/plugin)"
+    claim: >-
+      `argparse.ArgumentParser.error()` (used by `capture_shard_timings.py`'s `_parse_args`, e.g.
+      when neither/both of `--write`/`--output` are given) raises `SystemExit`, which is a
+      `BaseException` subclass, NOT an `Exception` subclass. The plan's `run_capture_or_die`
+      catches only `except Exception`, with a comment claiming this is "ANY uncaught exception" —
+      that claim is false for `SystemExit`. The same gap applies to any `SystemExit` raised deeper
+      inside pytest's own config/plugin-registration phase (verified against the actually-pinned
+      pytest 9.0.3 in `.venv`: `_prepareconfig` re-raises arbitrary `BaseException` types, and
+      `pytest.main()` only special-cases `ConftestImportFailure`/`UsageError`). In practice this
+      is reachable only if the wrapper ever constructs bad argv for `capture_shard_timings.main()`
+      or a conftest calls `sys.exit()`, since FR-009 hardcodes `--module charter --write` — so it
+      is a defensive-coding gap, not a live day-one bug, but if triggered it does not degrade
+      gracefully to `mechanism_ok=False` (the job-summary/no-commit path in FR-008); it crashes the
+      whole `recapture_charter_shard_timings.py` process with an uncaught `SystemExit` traceback.
+    remediation: >-
+      Change `run_capture_or_die`'s except clause to `except (Exception, SystemExit) as exc:` (or
+      `except BaseException` with an explicit `except KeyboardInterrupt: raise` carve-out above
+      it), and add a 6th fixture in `tests/ci/test_recapture_charter_shard_timings.py` that injects
+      a fake `capture_main` raising `SystemExit(2)` and asserts `mechanism_ok=False` is still
+      produced rather than the exception propagating.
+
+  - id: PLAN-ARCH-002
+    lens: mechanism-failure design correctness
+    severity: 4
+    title: "capture_shard_timings.main()'s post-write stderr print can raise AFTER the write already succeeded, which the plan's classifier would misreport as a mechanism crash"
+    evidence:
+      - artifact: "plan.md lines 269-282 ('`capture_shard_timings.main()`'s own body writes the merged JSON to disk ... strictly before it reaches its final `return` statement' / 'Any exception raised inside `_capture_all`/`capture_module`/`merge_capture` ... propagates out of `main()` before the write happens')"
+      - code: "scripts/ci/capture_shard_timings.py:273-282 (`destination.write_text(...)` at line 274, then a `for capture in captures: print(..., file=sys.stderr)` loop at 276-281, THEN the sole `return` at 282)"
+    claim: >-
+      The plan's invariant is stated as a clean biconditional: exception ⇒ write never happened,
+      clean return ⇒ write happened. That is not quite what the code guarantees. Between the write
+      (line 274) and the `return` (line 282) sits a `print(..., file=sys.stderr)` loop (lines
+      276-281). If that print raises — e.g. a `BrokenPipeError`/`OSError` if the CI runner's stderr
+      pipe is torn down mid-job, or a `UnicodeEncodeError` under an unusual locale — the exception
+      propagates out of `main()` exactly like a pre-write mechanism crash would, but the merged
+      JSON has ALREADY been written to disk. `run_capture_or_die`'s `except Exception` (this
+      `print` failure IS an `Exception` subclass, unlike PLAN-ARCH-001's case) will report
+      `mechanism_ok=False`, and per plan.md line 305 ("`mechanism_ok=False` aborts before any
+      commit/push/PR-open step") the wrapper will discard a successful, already-persisted capture
+      and skip opening/updating the recapture PR for that run — exactly the "exception ⇒ pre-write
+      ⇒ mechanism crash" inference the design section claims holds, in a case where it demonstrably
+      does not. Low practical likelihood (ASCII-only content to a normally-open CI log pipe;
+      self-heals on the next scheduled run) but it is a genuine, concrete counter-example to the
+      stated invariant, which is the exact class of gap this lens was dispatched to find.
+    remediation: >-
+      Either (a) move the informational `print(...)` loop to occur before line 274's write (it only
+      reports on `captures`, which is already fully computed by line 271, so reordering is safe and
+      changes no behavior other than log-line order), or (b) wrap only lines 268-274 (read-existing +
+      capture + merge + write) in the crash/no-crash boundary the wrapper relies on, and treat
+      anything after the write as best-effort logging whose failure must not flip `mechanism_ok`.
+      Add a fixture that injects a `capture_main` fake which performs a side-effecting "write" and
+      then raises, and assert the wrapper does not resurrect/re-run the capture on a subsequent
+      invocation in a way that contradicts "the write already happened."
+
+  - id: PLAN-ARCH-003
+    lens: mechanism-failure design correctness
+    severity: 2
+    title: "Plan does not document why calling pytest.main() in-process (rather than as a subprocess) is safe against pytest's own known repeated-invocation gotchas"
+    evidence:
+      - artifact: "plan.md lines 284-288 ('never invoke it as a subprocess; call `capture_shard_timings.main(argv)` directly, in-process ...')"
+      - code: "scripts/ci/capture_shard_timings.py:258-260 (`_capture_all` loops `capture_module` — and therefore `pytest.main()` — once per requested `--module`)"
+      - artifact: "plan.md lines 377-379 (FR-009: `MODULE = \"charter\"` hardcoded, single `--module charter` call, no `--module` CLI flag exposed by the wrapper)"
+    claim: >-
+      Calling `pytest.main()` more than once in the same interpreter process is a well-documented
+      pytest hazard (stale `sys.modules` entries from prior test-file imports, the assertion-rewrite
+      import hook accumulating on `sys.meta_path`, and plugin-registration state carried over) that
+      can produce wrong or flaky results on the second call. The plan's chosen design (in-process,
+      not subprocess) is safe here ONLY because FR-009 hardcodes exactly one `--module charter`
+      call per process, so `_capture_all`'s loop body — and therefore `pytest.main()` — executes
+      exactly once per script invocation. The plan asserts the in-process choice is correct (to make
+      exceptions catchable) but never states this single-invocation precondition as the reason it is
+      safe, nor flags it as a constraint. A future change reusing `run_capture_or_die`/`capture_main`
+      for a second module in the same process (or a second recapture target added to this same
+      script) would silently reintroduce the hazard with zero test coverage calling it out.
+    remediation: >-
+      Add one sentence to the design-problem section (or FR-009) stating explicitly: "in-process
+      invocation is safe here because exactly one `pytest.main()` call occurs per process
+      (FR-009's single-module hardcoding); do not extend this wrapper to capture multiple modules
+      in one process without re-introducing subprocess isolation or auditing pytest's
+      repeated-invocation state (sys.modules, assertion-rewrite hook, plugin registration)."
+
+  - id: PLAN-ARCH-004
+    lens: Reflexivity / Blast radius
+    severity: 2
+    title: "Item (g)'s '#5175/#5177 — whichever merges first' framing is already overtaken by live PR state"
+    evidence:
+      - artifact: "plan.md lines 443-450 ('Whichever of {this mission, #5175, #5177} merges first, the others rebase against a changed `.github/ci-shard-timings.json`')"
+      - code: "gh pr view 5177 --json state → MERGED; gh pr view 5175 --json state,mergeable → CLOSED / CONFLICTING (checked live during this review, 2026-09-27)"
+    claim: >-
+      The substantive conclusion in item (g) — neither #5175 nor #5177 touches
+      `tests/architectural/test_module_length_agreement.py`, `.github/workflows/module-tests.yml`,
+      `scripts/ci/capture_shard_timings.py`, or `.github/ci-module-registry.yml`, so there is no
+      direct code collision — is verified TRUE against each PR's actual file list (checked live via
+      `gh pr view --json files`). However the "whichever merges first" hypothetical is already
+      stale: #5177 is MERGED and #5175 is CLOSED (not merged, and shows as CONFLICTING against the
+      current base), so there is no live three-way race left to reason about — this mission's
+      future branch will simply rebase onto whatever `.github/ci-shard-timings.json` state #5177's
+      merge already produced on `main`, and #5175 drops out of blast-radius consideration entirely
+      since it will never land. This does not change the plan's conclusion or require any design
+      change, but citing a resolved/closed PR as an open three-way race is the kind of
+      already-superseded framing the charter's version-governance rule (`DIRECTIVE_048`) calls out.
+    remediation: >-
+      Before tasks/implementation starts, refresh item (g) to state the current fact: #5177 already
+      merged (this mission rebases onto its `.github/ci-shard-timings.json` state, ordinary churn,
+      no action needed), and #5175 closed without merging (drop it from the blast-radius list, or
+      note it explicitly as "closed, no longer live" rather than leaving it in a "whichever merges
+      first" framing).

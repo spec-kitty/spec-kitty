@@ -1,0 +1,137 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh8
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-FRESH8-001
+    lens: five-whys cartographer (structural root cause of the two-way/three-way sequencing gap)
+    severity: 3
+    title: User Story 2's own lead narrative still describes a two-way branch (always run recapture, then conditionally open a PR), omitting the step-1 open-PR short-circuit that FR-007/Key Entities/C-003/C-006 now state explicitly
+    evidence:
+      - artifact: "spec.md § User Story 2 (lead paragraph, untouched by the sequencing fix)"
+        quote: "A new scheduled workflow runs `scripts/ci/capture_shard_timings.py --module charter --write` on a cadence, and — only when the recapture actually changes the committed data — opens a PR carrying the update, so a human reviews and merges the recapture through the normal PR-only path."
+      - artifact: "spec.md § Key Entities > The scheduled recapture workflow (post-fix)"
+        quote: "(1) it checks FIRST, before invoking the recapture script at all, whether a PR from the single fixed head branch defined below is already open against `main` (FR-007); if so, it skips entirely — no recapture script invocation, no push, no PR"
+    claim: >
+      The three-way sequencing fix (open-PR check first → skip if open; else run recapture →
+      FR-006 drift check → no-op if no drift, push+open if drift) was applied to the "scheduled
+      recapture workflow" / "recapture head branch" Key Entities bullets, C-003, and C-006, but
+      User Story 2's own descriptive lead paragraph — the first plain-English description of the
+      mechanism a plan-phase reader encounters — was not swept and still states the old two-way
+      model: the workflow "runs `capture_shard_timings.py`... on a cadence" unconditionally, and
+      only the PR-open step is conditioned on drift. It never mentions that the recapture script
+      itself is skipped entirely (never invoked) when a PR from the fixed branch is already open.
+      This directly contradicts the corrected Key Entities text, which is explicit that step 1
+      happens "before invoking the recapture script at all." A plan author working from this
+      narrative alone (rather than cross-referencing the formal Key Entities/FR-007 text) could
+      reasonably design a workflow that always invokes the capture script and only guards the
+      PR-open call — the exact "runs the recapture, checks for an open PR only at push time" shape
+      the three-step fix was meant to rule out.
+    remediation: >
+      Reword User Story 2's lead paragraph to name the open-PR short-circuit explicitly, e.g.: "A
+      new scheduled workflow checks whether a recapture PR from a fixed head branch is already
+      open and, if so, does nothing further; otherwise it runs
+      `scripts/ci/capture_shard_timings.py --module charter --write` on a cadence and — only when
+      the recapture actually changes the committed data — opens a PR carrying the update, so a
+      human reviews and merges it through the normal PR-only path."
+
+  - id: SPEC-FRESH8-002
+    lens: bisector (before/after mechanism change vs. unchanged narrative test description)
+    severity: 3
+    title: User Story 2's "Independent Test" re-run step is stale relative to the fixed-head-branch model — a second run while the first PR is still open would exercise FR-007's skip-if-open path, not the FR-006 no-drift path the text cites
+    evidence:
+      - artifact: "spec.md § User Story 2 > Independent Test"
+        quote: "Manually dispatch the new workflow (`workflow_dispatch`) against a checkout where charter's committed length has been made stale (e.g. one test added without recapture); confirm it opens exactly one PR carrying an updated `.github/ci-shard-timings.json` whose committed charter length matches live collection. Re-run the workflow with no further drift; confirm it opens no PR (see FR-006)."
+      - artifact: "spec.md § Key Entities > The recapture head branch"
+        quote: "when one exists, the job never invokes the recapture script and never pushes, force-pushes, comments, or opens anything against it — it only writes one line to the job summary naming that PR's number and exits successfully (**skip if open**, per operator ruling 2 ...)"
+    claim: >
+      Under the pre-ruling design (freshly-generated branch per run), re-running the workflow with
+      "no further drift" cleanly exercised FR-006's no-drift check in isolation, because each run
+      pushed to its own new branch. Under the now-binding fixed-head-branch model (ruling 1) plus
+      skip-if-open (ruling 2), the branch and any PR opened from it persist across runs. The
+      Independent Test's second sentence re-runs the workflow immediately after the first run
+      opened a PR from that fixed branch, with no stated step that closes or merges it first. As
+      written, that second run would hit step 1 of the three-step sequence (an open PR from the
+      fixed branch already exists) and skip entirely — never reaching FR-006's drift check at all
+      — so "confirm it opens no PR (see FR-006)" misattributes the observed outcome: the no-PR
+      result would actually be produced by FR-007's skip-if-open behavior, not by FR-006's
+      no-drift comparison. Built literally, this narrative test would give a false sense that
+      FR-006's no-drift path was exercised when it was not. (The formal FR-006/FR-007 table rows
+      each separately mandate their own dedicated fixtures, so this does not leave FR-006
+      genuinely untested overall — but this narrative paragraph, read on its own, is
+      self-contradictory relative to the mechanism it cites.)
+    remediation: >
+      Either (a) state explicitly that the first PR is merged (or closed) before the re-run, so
+      the second run's "no drift" premise is actually reachable and genuinely exercises FR-006, or
+      (b) split this into two independent tests: one for FR-006 (no drift, no open PR from a prior
+      run) and one for FR-007 (an open PR from the fixed branch already exists, regardless of
+      drift state) — matching the fixture pairs already required by the FR-006 and FR-007 table
+      rows.
+
+  - id: SPEC-FRESH8-003
+    lens: differential matrix (AS-to-SC coverage matrix)
+    severity: 2
+    title: No Success Criterion covers the skip-if-open behavior (FR-007 / AS3) or the mechanism-failure abort (FR-008 / AS5), even though the other three User Story 2 acceptance scenarios each got a dedicated SC
+    evidence:
+      - artifact: "spec.md § Success Criteria > Measurable Outcomes"
+        quote: "SC-003 ... produces exactly one PR ... SC-004 ... produces zero PRs ... SC-005 ... fails the job with an error naming the missing secret ... SC-006: The other 19 `_MISMATCH_ALLOWLIST` entries ..."
+      - artifact: "spec.md § User Story 2, Acceptance Scenarios 3 and 5"
+        quote: "it does **not** push, force-push, comment, or open anything; it writes one line to the job summary ... (see FR-007) ... the job fails (visible as a failed Actions run) and does **not** commit or open a PR with partial/corrupt data (see FR-008)"
+    claim: >
+      User Story 2 has five Acceptance Scenarios (drift→PR, no-drift→no-PR, skip-if-open,
+      missing-secret→fail, mechanism-failure→fail). SC-003, SC-004, and SC-005 map 1:1 onto the
+      first, second, and fourth of these. There is no SC-level "Measurable Outcome" for Acceptance
+      Scenario 3 (skip-if-open — no push/comment/open when a recapture PR is already open, only a
+      job-summary line) or Acceptance Scenario 5 (mechanism failure aborts before commit/PR) —
+      both explicitly high-priority, "no-op passable: no" behaviors with their own required
+      fixtures at the FR-007/FR-008 table-row level. The Success Criteria section is the top-level
+      "is this mission done" checklist; leaving out two of the five User Story 2 outcomes it is
+      meant to summarize is an inconsistency in the spec's own established one-SC-per-scenario
+      pattern, even though the FR-level fixture requirements already guarantee these two behaviors
+      get tested during implementation.
+    remediation: >
+      Add two Success Criteria: one for the skip-if-open behavior (e.g. "A manually-dispatched run
+      against a fixed branch that already has an open recapture PR pushes nothing, opens nothing,
+      and only writes a job-summary line naming the open PR") and one for the mechanism-failure
+      behavior (e.g. "A forced `capture_shard_timings.py` mechanism crash fails the Actions run and
+      commits/opens nothing"), each tagged with a delivery label and no-op-passable mark consistent
+      with the existing SC-001..SC-006 convention.
+
+  - id: SPEC-FRESH8-004
+    lens: falsifier (testing "never force-pushes, in any case" against the stale-branch carve-out)
+    severity: 3
+    title: "\"the job never force-pushes, in any case\" is stated as an unconditional guarantee, but the same paragraph's stale-branch-replacement carve-out only rules out a force-update \"of a PR under review\" — leaving the branch-replacement mechanism itself unspecified and potentially force-push-based"
+    evidence:
+      - artifact: "spec.md § Key Entities > The recapture head branch"
+        quote: "it only writes one line to the job summary naming that PR's number and exits successfully (**skip if open**, per operator ruling 2; the job never force-pushes, in any case)"
+      - artifact: "spec.md § Key Entities > The recapture head branch (same bullet, two sentences later)"
+        quote: "If the fixed branch exists with no open PR (e.g. a previously closed PR), the plan phase decides how that stale branch is replaced before the next push — that replacement is not a force-update of a PR under review, since no PR is open at that point."
+    claim: >
+      Operator ruling 2 eliminated force-update/force-push as a mechanism specifically because it
+      is unsafe when a PR is under active review (dismissed approvals, disrupted review threads —
+      the root cause of SPEC-FRESH5-001/003). The Key Entities text states this as an absolute,
+      "the job never force-pushes, in any case." But the very same paragraph then introduces a
+      distinct scenario the ruling never addressed — the fixed branch still exists with stale
+      commits from a previously closed (unmerged) PR, and a new run finds drift — and defers "how
+      that stale branch is replaced" to the plan phase, explicitly hedging that this replacement
+      "is not a force-update of a PR under review" rather than stating it is not a force-push at
+      all. Since no PR is open in this case, the earlier "never force-pushes, in any case" language
+      and this later hedge are in tension: read literally, "in any case" forbids force-pushing here
+      too, but the hedge's careful "of a PR under review" qualifier reads as though it is leaving
+      the door open for exactly that (e.g., force-pushing over the stale branch to replace it,
+      since no PR/reviews are at stake). This is a genuinely new ambiguity introduced by ruling 1/2's
+      rewrite (the pre-ruling spec had no fixed, reused branch and thus no stale-branch scenario at
+      all) — it has no Edge Case entry, and no FR pins the actual replacement mechanism (delete +
+      recreate the ref vs. force-push vs. something else), unlike every other plan-deferred item in
+      this spec, which the plan-time "TBD" convention otherwise scopes with a concrete acceptance
+      bar.
+    remediation: >
+      Either (a) state plainly that "never force-pushes, in any case" is truly unconditional, and
+      require the stale-branch replacement to use a non-force mechanism (e.g. delete the ref, then
+      push fresh — explicitly naming this as the required approach so the plan cannot pick
+      force-push), or (b) scope the "never force-pushes" guarantee explicitly to "while a PR from
+      this branch is open" and add a short Edge Case entry documenting that a closed-PR stale
+      branch may be replaced by a plan-chosen mechanism (which may include a force-push, since no
+      review is at stake). Either way, add a falsifiable Edge Case bullet naming the chosen bound,
+      matching this spec's own convention for every other plan-deferred mechanism choice.

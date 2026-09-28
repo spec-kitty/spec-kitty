@@ -1,0 +1,109 @@
+schema: review-findings/v1
+complete: true
+phase: amendment
+lens_group: fresh
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: AMENDMENT-FRESH-001
+    lens: "T020 job design coherence, cross-checked against its sibling recapture job (T016) for whether the amendment's setup-uv fix should also have applied there"
+    severity: 4
+    title: "WP03's recapture job (T016) is never given a dependency-install step, and invokes the script that runs pytest via bare python3 -- it would crash before capture_shard_timings.main() ever executes"
+    evidence:
+      - artifact: "tasks/WP03-scheduled-workflow-wiring.md:162-175 (Subtask T016, 'Setup + invocation step')"
+      - artifact: "plan.md:42-46 (Technical Context: 'Primary Dependencies ... PyYAML ..., pytest (only as the thing being wrapped/tested, not a new dependency)')"
+      - artifact: "plan.md:194 ('headroom left for checkout/uv sync/git-push/gh pr create overhead on top of the measured capture time')"
+      - code: "scripts/ci/capture_shard_timings.py:198-205 (capture_module: 'import pytest' + 'pytest.main(list(argv), plugins=[recorder])')"
+      - code: "scripts/ci/capture_shard_timings.py:68 ('from kernel.clock import datetime, now_utc_compact_stamp, now_utc_iso') -- a module-level import of this repo's own `kernel` package, only resolvable with the project's environment set up (pytest.ini's `pythonpath = src`, or an editable install), never under a bare system `python3`"
+      - artifact: "tasks/WP03-scheduled-workflow-wiring.md:305-318 (Subtask T020's sibling job, added by this same amendment/fix round) -- shows the CORRECT pattern: 'Install uv' (astral-sh/setup-uv, SHA-pinned) then 'uv sync --frozen --all-extras' then 'uv run --frozen pytest ...'"
+    claim: >
+      T016's own workflow snippet for the recapture job is: checkout, then a single step
+      `run: | python3 scripts/ci/recapture_charter_shard_timings.py` with no environment-setup
+      step in between. WP02's design (T009) has that script call
+      `capture_shard_timings.main(argv)` IN-PROCESS, and `capture_shard_timings.py`'s own
+      `capture_module()` does `import pytest` and `pytest.main(...)` against `tests/charter`/
+      `tests/doctrine` -- i.e. running the actual, real test suite, which needs `pytest` plus the
+      whole project's dev dependencies installed and importable (its own `capture_shard_timings.py`
+      does a module-level `from kernel.clock import ...`, which fails under a bare `python3` with
+      no environment set up). T016's prose says only "install any needed dependency (PyYAML,
+      already a capture_shard_timings.py dependency)" -- naming PyYAML alone, even though plan.md's
+      own Technical Context section explicitly lists `pytest` as a dependency this mechanism needs.
+      As literally sketched, this step has no install action of any kind before invoking
+      `python3` directly (contrast with T020, added by this same amendment/fix round in the SAME
+      workflow file, which correctly has `Install uv` -> `uv sync --frozen --all-extras` ->
+      `uv run --frozen pytest ...`). If implemented as WP03 currently describes it, the recapture
+      job's one substantive step fails immediately with `ModuleNotFoundError` (for `pytest` and/or
+      the project's own packages) before `capture_shard_timings.main()` is ever reached -- the
+      entire recapture mechanism (FR-005 through FR-010, User Story 2's whole point) never runs.
+      This is a pre-existing gap in T016 (unchanged by this amendment's diff), made more visible
+      by contrast with T020's freshly-fixed, correct setup sequence right next to it in the same
+      file and the same WP.
+    remediation: >
+      Add the missing `Install uv` (`astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d #
+      v10.0.1`) + `uv sync --frozen --all-extras` steps to T016's recapture-job snippet, before the
+      `Recapture charter shard timings if drifted` step, and change that step's invocation from
+      bare `python3 scripts/ci/recapture_charter_shard_timings.py` to
+      `uv run --frozen python3 scripts/ci/recapture_charter_shard_timings.py` (or equivalent),
+      mirroring T020's now-correct pattern in the same file. Also correct T016's prose ("install
+      any needed dependency (PyYAML, already a capture_shard_timings.py dependency)") to name the
+      real dependency surface (the full `uv sync --frozen --all-extras` environment, since
+      `capture_shard_timings.py` runs `pytest.main()` against `tests/charter`/`tests/doctrine` and
+      imports this repo's own `kernel` package), not PyYAML alone.
+
+  - id: AMENDMENT-FRESH-002
+    lens: "weakened acceptance criteria: does the WP01 rewrite (absorb #5240) still satisfy FR-004's explicit fixture list and User Story 3's Acceptance Scenario 2?"
+    severity: 4
+    title: "FR-004's 'one proving the agreeing case emits none' fixture, and User Story 3 Acceptance Scenario 2, have no test in the amended WP01 subtask list (T002-T008) -- the amendment silently dropped the agreement-side fixture the original design had"
+    evidence:
+      - artifact: "spec.md:207 (FR-004 row, 'no-op passable' column: 'no -- requires three fixtures: one proving the disagreeing case ..., one proving the agreeing case emits none, and one proving a genuine infrastructure/collection break ... fails/errors visibly')"
+      - artifact: "spec.md:171-172 (User Story 3, Acceptance Scenario 2: 'Given charter's lengths agree, When the same test runs, Then it reports a clean pass with no warning noise.')"
+      - artifact: "tasks/WP01-demote-charter-length-assertion.md:219-348 (Subtasks T003-T006, as rewritten by the amendment: T003/T004 construct DISAGREEING fixtures and assert a warning; T005 asserts strict-mode failure on the same disagreeing fixtures; T006 asserts infra-break failure on a missing artefact) -- none constructs an AGREEING fixture and asserts the production gate functions emit no warning"
+      - artifact: "tasks.md:127 (FR-004 coverage row, amended: 'T002, T003, T004, T005, T006' -- T002 is a read-only verification pass, not a fixture; none of T003-T006 covers the agreeing case)"
+      - artifact: "tasks/WP01-demote-charter-length-assertion.md:378-381 (T008 step 2: 'Confirm test_charter_is_not_allowlisted_and_agrees and test_non_allowlisted_modules_agree_with_live_collection each report either a clean pass (if lengths currently agree) or a captured ShardTimingsDriftWarning' -- an incidental observation of whatever today's live-collection state happens to be, not a deterministic, constructed fixture proving the agreeing case is silent)"
+    claim: >
+      Before this amendment, WP01's design had a dedicated fixture for exactly this requirement
+      (the now-dead `test_charter_disposition_is_none_on_agreement`, proving the helper returns
+      `None` -- no warning -- on agreement). The amendment replaced that whole
+      `_charter_disposition` design with a verify-and-add-red-first-tests plan (T002-T008), but the
+      replacement set only adds tests for the DISAGREEING integration path (T003/T004), the
+      strict-mode-fail path (T005), and the infra-break path (T006) -- it drops the agreeing-case
+      fixture entirely. FR-004 explicitly lists three MANDATORY fixtures ("no-op passable: no"),
+      and User Story 3's Acceptance Scenario 2 is a distinct, falsifiable acceptance criterion
+      about the agreeing case specifically. T008's step 2 is not a substitute: it merely observes
+      whatever the live repo's current agree/disagree state happens to be during one CI run, so it
+      can silently never exercise the agreeing branch at all (e.g. if `charter` currently disagrees
+      at implementation time) and never fails specifically because that branch went unexercised.
+      No test in T002-T008 constructs an artificial `committed == collected` case and asserts
+      `test_charter_is_not_allowlisted_and_agrees`/`test_non_allowlisted_modules_agree_with_live_collection`
+      emit no warning.
+    remediation: >
+      Add one WP01 subtask (e.g. a new T003b/T004b, alongside the existing disagreement fixtures)
+      that calls each production gate function directly with constructed AGREEING fixtures
+      (`committed == collected`) and asserts, deterministically (e.g. via `recwarn`/
+      `warnings.catch_warnings(record=True)`), that no `ShardTimingsDriftWarning` is emitted and
+      the function returns normally -- mirroring the pre-amendment
+      `test_charter_disposition_is_none_on_agreement`'s purpose at the new integration point. Wire
+      it into tasks.md's FR-004 coverage row and WP01's Success Criteria.
+
+  - id: AMENDMENT-FRESH-003
+    lens: "contradictions with unchanged sections: does the fix round's FR-003/C-001/Charter-Tension correction (two live-collection gates now demoted) leave any other cross-reference stale?"
+    severity: 2
+    title: "spec.md's Non-Goals section still claims 'only the assertion behavior inside one test in that suite changes', contradicting the corrected FR-003/C-001 (both amendment passes missed this location)"
+    evidence:
+      - artifact: "spec.md:337-339 (Non-Goals: 'No change to ci-router.yml's architectural-heavy job trigger conditions ... only the assertion behavior inside one test in that suite changes.')"
+      - artifact: "spec.md:206 (FR-003, corrected by the fix round: the demotion mechanism 'covers both live-collection gates ... never charter alone')"
+      - artifact: "tracer-design-decisions.md:198-214 (the amendment's own change-log: 'Correction (fix round, 2026-09-28): the first amendment pass swept FR-003, SC-006, and Charter Tension point 3 but missed two further spec.md locations ... C-001's own constraint text and the Ledger Cross-Reference section's ... sentence.' -- the Non-Goals bullet at line 339 is a THIRD location making the same stale claim, missed by both the original amendment sweep and this fix round's follow-up correction.)"
+    claim: >
+      After the amendment absorbed PR #5240, the demotion mechanism (`ShardTimingsDriftWarning`/
+      `_report_drift`) covers TWO production gate functions --
+      `test_charter_is_not_allowlisted_and_agrees` and the cross-module
+      `test_non_allowlisted_modules_agree_with_live_collection` -- not one. FR-003, SC-006, and
+      Charter Tension point 3 were all corrected to say so (the original amendment pass), and the
+      fix round further corrected C-001 and the Ledger Cross-Reference section for the same
+      "charter-only demotion" drift. The Non-Goals section's closing clause ("only the assertion
+      behavior inside one test in that suite changes") makes the identical now-false claim and was
+      not corrected by either pass -- it still describes the pre-#5240-absorption,
+      single-function-demotion design.
+    remediation: >
+      Reword spec.md's Non-Goals bullet to match FR-003/C-001's corrected language, e.g.: "...only
+      the assertion behavior inside two existing tests in that suite changes (the demotion
+      mechanism absorbed from #5240; the *recapture* itself still touches only `charter`)."

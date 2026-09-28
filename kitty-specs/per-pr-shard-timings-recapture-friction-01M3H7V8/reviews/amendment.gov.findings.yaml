@@ -1,0 +1,71 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: amendment
+lens_group: gov
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: AMENDMENT-GOV-001
+    lens: Ruling fidelity / scope-statement correction (ruling point 3)
+    severity: 4
+    title: "C-001 and the Ledger Cross-Reference section still make the exact \"charter-only demotion\"/\"workflow scoped to charter\" claims ruling point 3 says the spec must not make"
+    evidence:
+      - artifact: "spec.md § Constraints, row C-001 (unchanged by this amendment): \"This mission touches only `charter`'s handling in `tests/architectural/test_module_length_agreement.py` and adds one new scheduled workflow scoped to `charter`.\""
+      - artifact: "spec.md § Ledger Cross-Reference (unchanged by this amendment): \"it stays `charter`-only (CL-003 / C-001), leaves the 19-entry allowlist untouched (FR-003)\""
+      - artifact: "spec.md § FR-003 (amended 2026-09-28): \"the per-PR demotion mechanism ... covers **both** live-collection gates ... never charter alone. The *recapture* mechanism (FR-005-FR-010) stays **charter only** (CL-003/C-001)\""
+      - artifact: "plan.md § (a2) (amended 2026-09-28): the new `strict-shard-timings-check` job lives in the SAME workflow file WP03 owns (`ci-charter-shard-recapture.yml`) and runs `pytest tests/architectural/test_module_length_agreement.py -q` — i.e. the whole gate file, not `--module charter` — precisely so it also hard-fails on `agent` drift, per plan.md's own \"Which modules this covers\" paragraph"
+      - artifact: "tasks/WP03-scheduled-workflow-wiring.md § Subtask T020 (added 2026-09-28): the strict-mode job is added to \"the SAME workflow file T016 authors\""
+    claim: >
+      The operator's ruling point 3 says, generally, "The spec must not claim a charter-only
+      demotion" — not narrowly "fix FR-003's wording." The amendment corrected FR-003, SC-006, and
+      Charter Tension point 3 to say the demotion covers both live-collection gates, but left two
+      other spec.md sections making the same now-false claim verbatim: C-001 ("adds one new
+      scheduled workflow scoped to `charter`") and the Ledger Cross-Reference section ("it stays
+      charter-only"). Both are now literally false: the same amendment adds Subtask T020 to that
+      very workflow file specifically so it is NOT charter-scoped — it runs the full architectural
+      gate file under strict mode so `agent` (the second non-allowlisted module) also gets a
+      hard-failing home, which is the whole point of ruling point 4. The amended FR-003 even cites
+      C-001 as if it already carries the "recapture-only" nuance FR-003 itself had to spell out,
+      which it does not — C-001's literal text is broader than "recapture" and is contradicted by
+      the very workflow file the amendment adds a job to. tracer-design-decisions.md's own summary
+      of "what did NOT change" lists CL-003 (correctly, per ruling point 3's "operator decision 3
+      unchanged") but never examines C-001 or the Ledger Cross-Reference section, so the gap was
+      not caught by the amendment's own sweep. A reviewer checking C-001 literally against the
+      merged design (as a post-merge mission review would, per Standing Order #8) would find T020
+      in apparent violation of a still-"Open" Constraint that the ruling itself authorized.
+    remediation: >
+      Reword C-001's second sentence to distinguish the two scopes exactly as the amended FR-003
+      now does, e.g.: "The *recapture* script/logic (WP02/WP03's `scripts/ci/recapture_charter_shard_timings.py`
+      and its triggering job) is scoped to `charter` only. The demotion mechanism (absorbed from
+      #5240) and the new strict-mode CI job (WP03 T020, same workflow file) are NOT charter-scoped —
+      they cover every non-allowlisted registry module (today: `charter` and `agent`) — see FR-003."
+      Apply the same correction to the Ledger Cross-Reference section's "it stays charter-only
+      (CL-003/C-001)" sentence, and add a line to tracer-design-decisions.md's amendment section
+      noting C-001 and the Ledger Cross-Reference were swept too (or, if intentionally deferred,
+      say so explicitly rather than silently omitting them from the "what did NOT change" list).
+
+  - id: AMENDMENT-GOV-002
+    lens: Terminology/consistency (stale cross-reference)
+    severity: 2
+    title: "analysis-report.md (not one of the 6 amended files) still asserts the pre-amendment \"four untouched tests\"/\"visible-xfail\" design as the current, analyzed-and-ready state"
+    evidence:
+      - artifact: "analysis-report.md, lines 79-82: \"...the unconditional `\"charter\" not in _MISMATCH_ALLOWLIST\"` assertion, the four untouched tests, and the visible-xfail-not-silent-pass design.\""
+      - artifact: "spec.md § FR-003 (amended 2026-09-28): now names three untouched tests, not four, and the mechanism is `ShardTimingsDriftWarning`, not `xfail`"
+    claim: >
+      analysis-report.md is the recorded output of the `/spec-kitty.analyze` run (`423463a10`) that
+      produced the original `ready` verdict, before #5240 was discovered and before this amendment.
+      It still describes "the four untouched tests" and "the visible-xfail-not-silent-pass design"
+      as the analyzed, consistent state — both now false of the amended spec.md/plan.md (three
+      untouched tests; `ShardTimingsDriftWarning`, never `xfail`). Nothing in the amendment or
+      tracer-design-decisions.md's amendment section flags analysis-report.md as superseded/stale,
+      so a future reader doing a cross-artifact consistency check (or re-running analyze and diffing
+      against the last recorded report) could be misled into thinking the "four tests"/`xfail`
+      framing was ever validated against the code that now actually exists. This does not misdirect
+      an implementer (WP01/WP03 correctly cite spec.md/plan.md/the rulings, not analysis-report.md,
+      as authoritative), so it is a documentation-hygiene gap rather than an implementation risk.
+    remediation: >
+      Add one line to analysis-report.md (or to tracer-design-decisions.md's amendment section)
+      marking analysis-report.md as superseded by the 2026-09-28 amendment for the "four untouched
+      tests"/xfail claims specifically, pointing at the corrected FR-003/Charter-Tension text — or,
+      if a full analyze re-run is planned before merge, note that intent explicitly so the stale
+      report is not mistaken for current.

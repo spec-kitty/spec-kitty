@@ -1,0 +1,48 @@
+schema: review-findings/v1
+phase: tasks
+lens_group: seq
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: TASKS-SEQ-001
+    lens: Mission-derived lens — pre- vs. post-merge provability of the scheduled workflow
+    severity: 3
+    title: "WP03's Risks & Mitigations claims T019 puts the cron/post-merge-only caveat in the PR body, but T019's actual steps never say so"
+    evidence:
+      - artifact: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md § Risks & Mitigations"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md:263-265"
+      - artifact: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md § Subtask T019"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md:217-248 (T019's four numbered steps)"
+    claim: >
+      WP03's own "Risks & Mitigations" section states: "Risk: cron-firing and the real-`main`
+      PR-open path cannot be proven pre-merge. Mitigation: the PR body says so explicitly (T019)
+      rather than implying full pre-merge proof." This cites T019 as the mechanism that surfaces
+      the "only confirmable post-merge" caveat (plan.md item (c)'s pre-/post-merge provability
+      split) into the actual PR body. But T019's four literal steps (lines 225-244) are: (1) run
+      `make ci-parity` and record the gate-selection output, (2) add a PR-body note about the
+      NFR-002 30-minute timeout being a pre-dispatch projection with the real runtime recorded
+      post-dispatch, (3) add a PR-body note stating NFR-001's shard-balance-only claim, and (4)
+      add the docs-supersession note (T018's doc-side half). None of these four steps instructs
+      the implementer to write anything into the PR body about the `schedule`/cron trigger firing,
+      or the real PR-open-against-`main` path, being only confirmable post-merge. The same gap
+      exists in tasks.md's own FR/NFR traceability table, which maps NFR-002 to "T019 flags the
+      budget for revisit" but never separately traces the cron/post-merge-provability caveat to
+      any concrete task step, and in `grep`-verified fact the phrase "only confirmable post-merge"
+      appears exactly once in the whole tasks/ tree — in WP03's Test Strategy framing prose, not
+      in any Subtask step. An implementer who executes T019's four steps literally (the actionable
+      part of the WP) will produce a PR body that states the NFR-002 budget caveat and the NFR-001
+      shard-balance claim, but is silent on whether the scheduled workflow's cron-firing and
+      real-PR-open mechanics have actually been proven to work — exactly the "implying full
+      pre-merge proof" outcome the Risks & Mitigations bullet says it avoids, and exactly the kind
+      of implicit/silently-dropped caveat the charter's dominant "silent success" failure mode
+      (Standing Order #5) warns against.
+    remediation: >
+      Add a fifth explicit step to T019 (or fold it into step 2, since it is closely related to
+      the NFR-002 budget note) instructing the implementer to add a PR-body sentence stating,
+      verbatim or near-verbatim: "The `schedule` (cron) trigger firing on its own, and the
+      recapture PR actually opening against the real `main` and running normal per-PR CI, are only
+      confirmable post-merge (GitHub only evaluates `schedule` triggers on the workflow's copy on
+      the default branch) — this PR's pre-merge testing covers the decision-logic unit tests
+      (WP02) and structural workflow-shape inspection (T017) only." Then correct WP03's Risks &
+      Mitigations bullet so its "(T019)" citation points at the step that actually now contains
+      this text, closing the gap between the claim and the task.
+complete: true

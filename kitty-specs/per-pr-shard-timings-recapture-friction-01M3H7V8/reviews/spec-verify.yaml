@@ -1,0 +1,37 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:                    # one entry for EVERY finding in the findings file
+  - id: SPEC-GOV-001
+    status: unresolved
+    remaining_severity: 2
+    reason: "The sweep fixed FR-003/FR-009/C-001/SC-006/Non-Goals/Ledger-Cross-Reference/AS2/Key-Entities/Charter-Tension to '19' but missed CL-003 (spec.md line 48, \"The other 20 modules tracked by ledger entry SK-247 ... stay out of scope\"), an unquoted present-tense claim of the same defect class that now contradicts the already-fixed Non-Goals bullet naming 19 modules; _MISMATCH_ALLOWLIST verified at 19 live entries."
+
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: "FR-003's title and the Charter Tension #3 bullet were both retitled to name all four untouched tests (three allowlist-ratchet tests plus the cross-module test_non_allowlisted_modules_agree_with_live_collection gate), matching the body's headcount; no other 'three ratchet tests' phrasing remains in spec.md."
+
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: "A new Key Entities bullet commits to a fixed identity signal (label/branch-name prefix/bot-author) that FR-007 and FR-010 both explicitly cross-reference and key off, states the recapture branch is freshly generated per run, and AS3 now names the #5175/#5177 non-mistaken-identity case, closing the falsifiability and coordination-risk gaps."
+
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: "New C-006 requires a concurrency: group mirroring ci-stale-running-sweep.yml's own block; verified against the live workflow file — group: ci-stale-running-sweep, cancel-in-progress: false is an exact match — and the Key Entities scheduled-workflow bullet and Charter Tension section both now reference it."
+
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: "FR-008 (title, body, and AS5) now narrows the failure trigger to a genuine mechanism crash/exception and explicitly excludes an ordinary failing measured test, citing DurationRecorder's unconditional recording and the currently-committed charter provenance's exit_code: 1 — verified accurate against capture_shard_timings.py:118-125/205/282 and the live .github/ci-shard-timings.json provenance entry."
+
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: "FR-006, AS2, and SC-004 now define 'no drift' as committed/collected module_test_durations[\"charter\"] LENGTH agreement, explicitly excluding 'the recapture script produced any file diff', and require the plan to use a length-only or noise-stripped comparison rather than raw git diff — consistent with capture_shard_timings.py's unconditional run_id/captured_at/duration rewrite on every --write."
+
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: "FR-005, C-004, and AS4 all now require the named-secret presence check to run and fail before any recapture/commit/push occurs (not merely before PR-open), and FR-005's fixture requirement adds a check that no new branch/commit exists in the remote when the secret is absent."
+
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: "A new Acceptance Scenario 3 under User Story 3 and a third FR-004 fixture requirement now operationalize the missing-artefact/collection-crash outcome as fail/error-visibly, distinguishable from both the warn and clean-pass cases, closing the gap between the Edge Cases section's claim and the actual ACs."

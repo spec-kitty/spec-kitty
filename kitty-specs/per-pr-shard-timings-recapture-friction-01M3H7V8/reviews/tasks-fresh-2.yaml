@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: TASKS-FRESH2-001
+    lens: "Does the T011 gh-pr-list-json-fields fix actually work end-to-end (all other locations reconciled)?"
+    severity: 4
+    title: "plan.md's own 'Open-PR check (verbatim)' text still shows the pre-fix, buggy `--json number` command in two places, contradicting the just-fixed WP02 T011 subtask"
+    evidence:
+      - artifact: "plan.md line 272 (\"Open-PR check (verbatim)\" bullet, item (b))"
+      - artifact: "plan.md lines 225-226 (TOCTOU re-verification paragraph, item (b))"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md:207"
+    claim: >
+      This round's fix corrected WP02's T011 subtask so the `gh pr list` invocation requests
+      `--json number,headRefName` instead of the old, buggy `--json number` (which left
+      `pr.get("headRefName")` always `None` and silently disabled FR-007's skip-if-open match).
+      That fix was applied ONLY to tasks/WP02-recapture-decision-script.md. plan.md — the document
+      WP02's own prompt tells the implementer to read for "the exact code sketch you should
+      implement" and explicitly labels this exact invocation "Open-PR check (verbatim)" — still
+      contains the old, unfixed command in two places: the "Open-PR check (verbatim)" bullet itself
+      (`gh pr list --repo <owner/repo> --head ci/recapture-charter-shard-timings --base main --state
+      open --json number`) and the TOCTOU re-verification paragraph's restatement of "the same `gh
+      pr list ... --json number` call detailed in that same bullet below". An implementer who follows
+      plan.md's "verbatim" text (as WP02's own prompt instructs) rather than WP02.md's T011 subtask
+      text would reproduce exactly the bug this round's fix was meant to close. Neither of the three
+      edited passages in this commit reconciles or even footnotes this drift — plan.md was left
+      untouched while tasks/WP02-*.md's parallel, functionally-identical command sample was fixed
+      in place, so the mission's own canonical planning artifact and its own tasks artifact now
+      disagree on a load-bearing command.
+    remediation: >
+      Either (a) add a short reconciliation note to WP02.md's T011 subtask and/or the "Ruling: fixed
+      head branch" traceability row in tasks.md stating explicitly that this tasks-phase fix
+      supersedes plan.md's "Open-PR check (verbatim)" bullet and its TOCTOU-paragraph restatement,
+      both of which still show the pre-fix `--json number`-only field list and should not be treated
+      as verbatim by an implementer; or (b) correct plan.md's two occurrences to
+      `--json number,headRefName` directly, if plan.md is not frozen at this phase.
+
+  - id: TASKS-FRESH2-002
+    lens: "Does WP01's new guideline-reconciliation paragraph, added to match WP02's rigor, actually compute correctly?"
+    severity: 3
+    title: "WP01's new subtask-ceiling paragraph reuses WP02's \"as literally written\" phrasing but skips WP02's own denominator clarification, applying the wrong quantity to the 200-500-line guideline"
+    evidence:
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks.md:182-199 (WP01 paragraph)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks.md:229-233 (WP02 paragraph, same commit)"
+      - artifact: "packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md § Subtask Granularity"
+    claim: >
+      guidelines.md's rule is "Aim for 3-7 subtasks per WP and 200-500 lines per WP prompt." In this
+      same commit, WP02's paragraph explicitly resolves an ambiguity in that rule: "that guideline's
+      'lines per WP prompt' wording literally means the tasks/WPnn-*.md prompt document's own length
+      ... but tasks.md's 'estimated lines' figures ... have consistently tracked the underlying
+      implementation diff size instead" -- and then verifies WP02's actual prompt file is 441 lines
+      (confirmed independently via `wc -l tasks/WP02-recapture-decision-script.md` = 441) to satisfy
+      the guideline "as literally written." WP01's new paragraph, added in the same commit "to be as
+      rigorous as WP02's" (per the fix commit's stated intent), does not carry over this
+      clarification: it takes WP01's pre-existing "~350-450 estimated lines" figure -- which, by
+      WP02's own adjacent reasoning, is an *implementation-size* estimate, not the prompt-document
+      line count -- and asserts it "sits within the 200-500 range as literally written," i.e. treats
+      the wrong quantity as satisfying the literal-denominator reading WP02 itself just established.
+      `wc -l tasks/WP01-demote-charter-length-assertion.md` = 369, which does happen to also fall in
+      200-500, so the numeric conclusion is not currently wrong, but the stated rationale is
+      internally inconsistent with the sibling paragraph it was written to mirror, and was never
+      itself re-verified with `wc -l` the way WP02's was ("re-verified at fix time").
+    remediation: >
+      Either cite the actual `tasks/WP01-demote-charter-length-assertion.md` line count (369, via
+      `wc -l`) as the quantity satisfying "200-500 lines per WP prompt as literally written" -- matching
+      WP02's own denominator clarification -- or explicitly state that WP01's paragraph is using the
+      "implementation diff size" reading instead and say why that reading is the one being reconciled
+      for WP01, so the two adjacent paragraphs use the same, explicit interpretation of the guideline
+      rather than silently switching denominators between them.

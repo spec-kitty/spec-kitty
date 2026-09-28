@@ -1,0 +1,87 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-FRESH-001
+    lens: "Residual-risk honesty for a ruling-derived stability guarantee (PLAN-GOV-001 remediation area)"
+    severity: 3
+    title: "The just-added TOCTOU re-check narrows, but does not 'close,' the force-push race, and the plan does not acknowledge the residual window as an accepted cost"
+    evidence:
+      - artifact: "plan.md § (b) 'TOCTOU re-verification (closes the window between the initial check and the push)', lines 194-207"
+      - artifact: "reviews/spec.ruling.md, ruling 2 point 2: 'the job never force-pushes, in any case'"
+      - artifact: "reviews/spec.ruling.md, ruling 2 point 5 (an example of the plan explicitly naming an *accepted cost* elsewhere in this same mission, for the stale-open-PR case)"
+    claim: >
+      Plan.md's new paragraph states the re-check "closes the TOCTOU gap" and "makes ruling 2 point
+      3's ... guarantee hold at the moment of the push." This overclaims: the re-check and the
+      `git push --force` call are two separate, sequential operations (a `gh pr list` subprocess
+      call followed by a `git push` subprocess call), not one atomic check-and-push primitive.
+      A PR can still open in the (now much narrower, sub-second rather than 18-30 minute) window
+      between the re-check's `gh pr list` call returning and the `git push --force` call actually
+      executing, and would still be silently force-pushed over -- the exact case ruling 2 forecloses
+      ("never force-pushes, in any case" while a PR from the branch is open). No GitHub API offers
+      an atomic "push only if no PR exists against this branch" primitive, so this residual window
+      cannot be engineered away by tooling choice alone; it can only be acknowledged and accepted,
+      the way ruling 2 point 5 explicitly accepts the "capture can go stale while a PR sits open"
+      cost elsewhere in this same mission. The current text instead states the gap is closed,
+      full stop, which is not true and is not falsifiable by any of the 9 fixtures (fixture 7 only
+      proves the *injected fake* aborts when told a PR is now open -- it cannot exercise the real
+      sub-second OS-level gap between two real subprocess calls).
+    remediation: >
+      Reword the closing sentence of the TOCTOU paragraph to state the residual window explicitly
+      as an accepted cost (mirroring ruling 2 point 5's framing): the re-check reduces the exposure
+      window from ~18-30 minutes to the time between two sequential local subprocess calls
+      (sub-second, no long-running operation in between), and this residual, structurally
+      irreducible window is accepted rather than claimed to be eliminated. Do not claim the
+      guarantee "holds" unconditionally at the moment of the push -- state that it holds as of the
+      re-check, with a documented, negligible residual gap after it.
+
+  - id: PLAN-FRESH-002
+    lens: "Broken cross-reference (fresh sweep of the just-revised FR-009 precondition sentence)"
+    severity: 2
+    title: "FR-009's new precondition sentence cites '(item (c) above)' for content that actually lives in the unlettered design-problem section between (c) and (d), not in item (c) itself"
+    evidence:
+      - artifact: "plan.md line 469: 'Precondition this scope also buys the in-process invocation choice (item (c) above):'"
+      - artifact: "plan.md § (c) 'How the workflow is tested' (lines 222-308) -- contains only fixture/provability content, no discussion of subprocess-vs-in-process invocation"
+      - artifact: "plan.md § 'The mechanism-vs-ordinary-failure design problem — resolution' (lines 309-393) -- this is where the actual 'never invoke it as a subprocess; call capture_shard_timings.main(argv) directly, in-process' decision and rationale are written"
+    claim: >
+      The plan's `###` heading structure places "The mechanism-vs-ordinary-failure design problem —
+      resolution" as its own unlettered section between item (c) (lines 222-308) and item (d) (line
+      395+). The in-process-invocation reasoning FR-009's new sentence points to lives entirely in
+      that unlettered section, not inside item (c)'s own bullets. A reader following the "(item (c)
+      above)" pointer to verify the in-process invocation rationale lands on the fixture-provability
+      content instead and has to keep scrolling past an entire unlettered section to find the actual
+      referent.
+    remediation: >
+      Change the pointer to reference the actual section, e.g. "(see 'The mechanism-vs-ordinary-
+      failure design problem' section above)" or give that section its own letter (e.g. promote it
+      to part of item (c) explicitly, or letter it as a distinct item) so cross-references can name
+      it precisely.
+
+  - id: PLAN-FRESH-003
+    lens: "Contradiction with an unchanged section after item (d)'s fixture-count revision (PLAN-VERIFY-001 remediation area)"
+    severity: 2
+    title: "Charter Check's ATDD-first bullet still says 'three [tests] covering the dispositions directly via the extracted helper,' which was already inaccurate and is more clearly wrong now that item (d) lists 4 fixtures with only 2 targeting the helper"
+    evidence:
+      - artifact: "plan.md lines 52-56 (Charter Check § ATDD-first): '... the demoted test's three dispositions get 4 new fast, synthetic tests before/with the behavioural edit (three covering the dispositions directly via the extracted helper, one exercising the consuming test function itself against a disagreeing pair — see item (d))'"
+      - artifact: "plan.md § (d) Red-first fixtures, lines 419-452 (the actual 4 tests): #1 and #2 call `_charter_disposition` directly (the extracted helper); #3 (`test_load_timings_fails_loudly_when_artefact_missing`) targets the unrelated, pre-existing `_load_timings()` function, not the extracted helper; #4 exercises the consuming test function itself"
+    claim: >
+      The extracted helper `_charter_disposition(committed, collected)` only has two possible
+      outcomes (agree -> None, disagree -> a string) -- it cannot represent the third disposition
+      (infra-break/missing-artefact), which item (d) correctly covers via a *different*,
+      pre-existing function (`_load_timings()`), not the extracted helper. So of the 4 fixtures,
+      only 2 (not 3) exercise the extracted helper directly; 1 exercises `_load_timings()`; 1
+      exercises the consuming test function. The Charter Check bullet's parenthetical "three
+      covering the dispositions directly via the extracted helper, one exercising the consuming
+      test function" undercounts to 3+1=4 but mis-attributes which function each fixture targets,
+      and was not corrected when item (d) was revised (per PLAN-VERIFY-001) to add the 4th,
+      consuming-function-level fixture. This is a documentation-accuracy defect only -- item (d)
+      itself, which an implementer would actually follow, is correct -- but a reviewer or
+      implementer skimming only the Charter Check gate section would get a wrong mental model of
+      which function each new test targets.
+    remediation: >
+      Reword the parenthetical to match item (d)'s actual composition, e.g.: "two covering the
+      extracted helper's own two dispositions (agree/disagree) directly, one covering the third
+      disposition (infra-break) via the pre-existing `_load_timings()` function, and one exercising
+      the consuming test function itself against a disagreeing pair — see item (d)."

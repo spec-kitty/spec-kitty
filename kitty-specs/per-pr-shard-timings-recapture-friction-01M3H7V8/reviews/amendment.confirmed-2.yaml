@@ -1,0 +1,92 @@
+# review-findings/v1 — round-2 fix input (orchestrator bookkeeping).
+#
+# Source: reviews/amendment-fresh.yaml (R5b fresh sweep after round-1's fix). Per the R1-R6
+# protocol, "fresh-sweep findings are real findings: they get fixed, not recorded-and-accepted."
+# Two of the three fresh findings are included here as round-2 fix input:
+#
+#   - AMENDMENT-FRESH-002 (sev 4): a gap in WP01's OWN amended subtask set (T003-T006) — squarely
+#     part of this amendment's delta (WP01's whole T002-T008 replacement is amendment content).
+#   - AMENDMENT-FRESH-003 (sev 2): a stale "charter-only"/"one test" claim in spec.md's Non-Goals
+#     section — the same claim class FR-003/C-001/Charter-Tension-point-3/Ledger-Cross-Reference
+#     were already corrected for by this amendment's two prior passes; Non-Goals is a third,
+#     missed location of the identical correction, in scope for the same sweep.
+#
+# AMENDMENT-FRESH-001 (sev 4, WP03 Subtask T016's missing uv-sync/setup step) is DELIBERATELY
+# EXCLUDED from this round's fix scope: T016's own subtask body was not touched by this amendment
+# (confirmed by diff — only referenced by name from the new T020 text) and was already reviewed
+# and PASSED by the original tasks-phase squad (reviews/tasks.ruling.md) before this amendment
+# ever began. The binding amendment ruling (reviews/amendment.ruling.md, closing line) states:
+# "unchanged, already-PASSED content is not re-litigated." Re-litigating T016 here would exceed
+# this phase's authorized scope (design-amendment agent dispatch: "Squad over the DELTA only").
+# FRESH-001 is a real, verified, severity-4 finding — it is NOT dropped, it is carried forward
+# verbatim in this phase's final report to the orchestrator for an explicit scope/routing
+# decision (new issue vs. separate fix vs. operator ruling to expand this phase's scope).
+schema: review-findings/v1
+complete: true
+phase: amendment
+lens_group: confirmed-round-2
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+source_files:
+  - amendment-fresh.yaml
+excluded:
+  - id: AMENDMENT-FRESH-001
+    reason: "Targets tasks/WP03-scheduled-workflow-wiring.md Subtask T016, unchanged/already-PASSED content outside this amendment's delta; carried forward to the orchestrator instead of fixed in this phase."
+findings:
+  - id: AMENDMENT-FRESH-002
+    lens: "weakened acceptance criteria: does the WP01 rewrite (absorb #5240) still satisfy FR-004's explicit fixture list and User Story 3's Acceptance Scenario 2?"
+    severity: 4
+    title: "FR-004's 'one proving the agreeing case emits none' fixture, and User Story 3 Acceptance Scenario 2, have no test in the amended WP01 subtask list (T002-T008) -- the amendment silently dropped the agreement-side fixture the original design had"
+    evidence:
+      - artifact: "spec.md FR-004 row, 'no-op passable' column: 'no -- requires three fixtures: one proving the disagreeing case ..., one proving the agreeing case emits none, and one proving a genuine infrastructure/collection break ... fails/errors visibly'"
+      - artifact: "spec.md User Story 3, Acceptance Scenario 2: 'Given charter's lengths agree, When the same test runs, Then it reports a clean pass with no warning noise.'"
+      - artifact: "tasks/WP01-demote-charter-length-assertion.md, Subtasks T003-T006 as rewritten by the amendment: T003/T004 construct DISAGREEING fixtures and assert a warning; T005 asserts strict-mode failure on the same disagreeing fixtures; T006 asserts infra-break failure on a missing artefact — none constructs an AGREEING fixture and asserts the production gate functions emit no warning"
+      - artifact: "tasks.md's FR-004 coverage row (amended): T002 is a read-only verification pass, not a fixture; none of T003-T006 covers the agreeing case"
+      - artifact: "tasks/WP01-demote-charter-length-assertion.md, T008 step 2: 'Confirm test_charter_is_not_allowlisted_and_agrees and test_non_allowlisted_modules_agree_with_live_collection each report either a clean pass (if lengths currently agree) or a captured ShardTimingsDriftWarning' -- an incidental observation of whatever today's live-collection state happens to be, not a deterministic, constructed fixture proving the agreeing case is silent"
+    claim: >
+      Before this amendment, WP01's design had a dedicated fixture for exactly this requirement
+      (the now-dead `test_charter_disposition_is_none_on_agreement`, proving the helper returns
+      `None` -- no warning -- on agreement). The amendment replaced that whole
+      `_charter_disposition` design with a verify-and-add-red-first-tests plan (T002-T008), but the
+      replacement set only adds tests for the DISAGREEING integration path (T003/T004), the
+      strict-mode-fail path (T005), and the infra-break path (T006) -- it drops the agreeing-case
+      fixture entirely. FR-004 explicitly lists three MANDATORY fixtures ("no-op passable: no"),
+      and User Story 3's Acceptance Scenario 2 is a distinct, falsifiable acceptance criterion
+      about the agreeing case specifically. T008's step 2 is not a substitute: it merely observes
+      whatever the live repo's current agree/disagree state happens to be during one CI run, so it
+      can silently never exercise the agreeing branch at all (e.g. if `charter` currently disagrees
+      at implementation time) and never fails specifically because that branch went unexercised.
+      No test in T002-T008 constructs an artificial `committed == collected` case and asserts
+      `test_charter_is_not_allowlisted_and_agrees`/`test_non_allowlisted_modules_agree_with_live_collection`
+      emit no warning.
+    remediation: >
+      Add one WP01 subtask (e.g. a new T003b/T004b, alongside the existing disagreement fixtures)
+      that calls each production gate function directly with constructed AGREEING fixtures
+      (`committed == collected`) and asserts, deterministically (e.g. via `recwarn`/
+      `warnings.catch_warnings(record=True)`), that no `ShardTimingsDriftWarning` is emitted and
+      the function returns normally -- mirroring the pre-amendment
+      `test_charter_disposition_is_none_on_agreement`'s purpose at the new integration point. Wire
+      it into tasks.md's FR-004 coverage row and WP01's Success Criteria.
+
+  - id: AMENDMENT-FRESH-003
+    lens: "contradictions with unchanged sections: does the fix round's FR-003/C-001/Charter-Tension correction (two live-collection gates now demoted) leave any other cross-reference stale?"
+    severity: 2
+    title: "spec.md's Non-Goals section still claims 'only the assertion behavior inside one test in that suite changes', contradicting the corrected FR-003/C-001 (both amendment passes missed this location)"
+    evidence:
+      - artifact: "spec.md Non-Goals: 'No change to ci-router.yml's architectural-heavy job trigger conditions ... only the assertion behavior inside one test in that suite changes.'"
+      - artifact: "spec.md FR-003, corrected by the fix round: the demotion mechanism 'covers both live-collection gates ... never charter alone'"
+      - artifact: "tracer-design-decisions.md's own change-log: 'Correction (fix round, 2026-09-28): the first amendment pass swept FR-003, SC-006, and Charter Tension point 3 but missed two further spec.md locations ... C-001's own constraint text and the Ledger Cross-Reference section's ... sentence.' -- the Non-Goals bullet is a THIRD location making the same stale claim, missed by both the original amendment sweep and this fix round's follow-up correction."
+    claim: >
+      After the amendment absorbed PR #5240, the demotion mechanism (`ShardTimingsDriftWarning`/
+      `_report_drift`) covers TWO production gate functions --
+      `test_charter_is_not_allowlisted_and_agrees` and the cross-module
+      `test_non_allowlisted_modules_agree_with_live_collection` -- not one. FR-003, SC-006, and
+      Charter Tension point 3 were all corrected to say so (the original amendment pass), and the
+      fix round further corrected C-001 and the Ledger Cross-Reference section for the same
+      "charter-only demotion" drift. The Non-Goals section's closing clause ("only the assertion
+      behavior inside one test in that suite changes") makes the identical now-false claim and was
+      not corrected by either pass -- it still describes the pre-#5240-absorption,
+      single-function-demotion design.
+    remediation: >
+      Reword spec.md's Non-Goals bullet to match FR-003/C-001's corrected language, e.g.: "...only
+      the assertion behavior inside two existing tests in that suite changes (the demotion
+      mechanism absorbed from #5240; the *recapture* itself still touches only `charter`)."

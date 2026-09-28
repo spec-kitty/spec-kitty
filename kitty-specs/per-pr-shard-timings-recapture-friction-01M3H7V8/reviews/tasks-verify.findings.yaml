@@ -1,0 +1,125 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Per-AC test strategy concrete
+    severity: 2
+    title: "FR-001 traceability row cites T003 for a test that T004 actually adds"
+    evidence:
+      - artifact: "tasks.md § FR/NFR/Constraint/Ruling traceability, row FR-001: \"WP01 | T003, T007 | `test_charter_disposition_flags_length_disagreement`, `test_charter_is_not_allowlisted_and_agrees_xfails_on_disagreement`\""
+      - artifact: "tasks.md § Subtask Index: T003 = \"Demote `test_charter_is_not_allowlisted_and_agrees` to use the helper + `pytest.xfail`\" (no test added); T004 = \"Add `test_charter_disposition_flags_length_disagreement`\""
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP01-demote-charter-length-assertion.md:203-221 (Subtask T004 is the one that adds `test_charter_disposition_flags_length_disagreement`; Subtask T003 at lines 182-201 only demotes the assertion and adds no test)"
+    claim: >
+      The FR-001 row's Task(s) column lists "T003, T007" but the first test it names
+      (`test_charter_disposition_flags_length_disagreement`) is delivered by T004, not T003 — T003 is
+      the pure implementation edit (no test of its own). The table therefore misattributes which
+      subtask actually produces the cited verification artifact, even though T004 exists and will be
+      executed anyway (WP01 subtasks are sequential, T001-T008 all run), so no wrong implementation
+      results — but a reviewer checking "did T003 deliver this test" against the WP file would find
+      it does not.
+    remediation: >
+      Change the FR-001 row's Task(s) column to "T004, T007" (or "T003, T004, T007" if T003's role as
+      the underlying implementation edit should stay listed), matching the Subtask Index's own
+      T003/T004 split.
+
+  - id: TASKS-VERIFY-002
+    lens: Per-AC test strategy concrete
+    severity: 3
+    title: "FR-007 row misattributes fixture 7 (TOCTOU re-check) to T014; a later row in the same table correctly attributes it to T015"
+    evidence:
+      - artifact: "tasks.md § FR/NFR/Constraint/Ruling traceability, row FR-007: \"WP02 | T011, T013, T014 (fixtures 1, 2, 7) | ... fixture 7 (TOCTOU re-check) proves a PR appearing between the initial check and the push still aborts the push\""
+      - artifact: "tasks.md § FR/NFR/Constraint/Ruling traceability, row \"Plan ruling: TOCTOU re-check fixture (fixture 7) | WP02 | T015 | `test_toctou_recheck_aborts_push`\" (same table, a few rows below the FR-007 row)"
+      - artifact: "tasks.md § Subtask Index: \"T014 | Unit tests for fixtures 1-6 (skip-if-open, unrelated-PR-not-matched, no-drift-no-PR, capture-failure-no-commit, missing-secret-loud-failure x2, drift-triggers-push)\" vs. \"T015 | Unit tests for fixtures 7-11 (toctou-recheck-aborts-push, ...)\""
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md:304-342 (Subtask T014's six numbered fixtures stop at 6, drift-triggers-push) and :343-384 (Subtask T015 opens with \"7. toctou-recheck-aborts-push\")"
+    claim: >
+      The FR-007 row cites T014 as the subtask delivering fixture 7, but WP02's own Subtask Index and
+      full subtask text put fixture 7 (toctou-recheck-aborts-push) in T015, not T014 — and the same
+      traceability table directly contradicts itself two rows later by correctly citing T015 for the
+      identical fixture under the "Plan ruling: TOCTOU re-check fixture" row. This is an internal
+      inconsistency within tasks.md's own traceability table, not merely a mismatch against the WP
+      file, so a verifier cross-checking FR-007 coverage against "T014" would not find fixture 7 there
+      and could wrongly conclude the fixture is missing or double-counted.
+    remediation: >
+      Change the FR-007 row's Task(s) column to "T011, T013, T014 (fixtures 1, 2), T015 (fixture 7)"
+      so it matches both the Subtask Index and the correct citation already present in the
+      "Plan ruling: TOCTOU re-check fixture" row of the same table.
+
+  - id: TASKS-VERIFY-003
+    lens: Per-AC test strategy concrete
+    severity: 2
+    title: "FR-008 row misattributes fixture 4 (capture-failure-no-commit) to T015; it is actually T014's fourth fixture"
+    evidence:
+      - artifact: "tasks.md § FR/NFR/Constraint/Ruling traceability, row FR-008: \"WP02 | T009, T015 (fixtures 4, 8, 9, 10) | ... fixtures 4/8/9 prove mechanism-crash aborts before commit/push/PR-open; fixture 10 proves an ordinary non-zero `pytest_exit_code` ... proceeds to the drift check\""
+      - artifact: "tasks.md § Subtask Index: \"T014 | Unit tests for fixtures 1-6 (skip-if-open, unrelated-PR-not-matched, no-drift-no-PR, capture-failure-no-commit, missing-secret-loud-failure x2, drift-triggers-push)\""
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md:321-323 (Subtask T014, numbered item 4: \"capture-failure-no-commit: a fake `capture_main` callable that raises a plain `Exception`...\")"
+    claim: >
+      Fixture 4 (capture-failure-no-commit) is T014's fourth numbered fixture, not part of T015
+      (which covers fixtures 7-11). The FR-008 row's "T015 (fixtures 4, 8, 9, 10)" citation is wrong
+      for fixture 4 specifically; fixtures 8, 9, 10 are correctly in T015. All four fixtures still get
+      implemented regardless (T009-T015 are all WP02 subtasks), so this does not change what gets
+      built, but it misdirects a reviewer verifying FR-008's coverage against the named subtask.
+    remediation: >
+      Change the FR-008 row's Task(s) column to "T009, T014 (fixture 4), T015 (fixtures 8, 9, 10)".
+
+  - id: TASKS-VERIFY-004
+    lens: Per-AC test strategy concrete
+    severity: 2
+    title: "NFR-001 row cites T017 for the PR-body statement; that text is actually written by T019"
+    evidence:
+      - artifact: "tasks.md § FR/NFR/Constraint/Ruling traceability, row NFR-001: \"WP01, WP03 | T003 (code shape), T017 (PR-body statement) | `module-tests.yml`'s uniform-weight fallback verified by inspection ...; WP03's PR-body note states this explicitly\""
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md:181-197 (Subtask T017, \"Verify workflow shape against plan.md's verbatim decisions\" — a 7-point YAML-shape checklist: trigger, concurrency group, permissions, checkout token, timeout-minutes, runs-on, SHA-pinning; no mention of NFR-001 or a PR-body note anywhere in T017's text)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md:217-246 (Subtask T019, step 3: \"Add a note to the PR body stating NFR-001's claim explicitly ... this demotion does not risk masking a test-coverage or correctness regression ...\")"
+    claim: >
+      T017 is a structural self-check of the workflow YAML's shape (trigger/concurrency/permissions/
+      checkout-token/timeout/runner/SHA-pinning) and contains no PR-body-drafting step at all. The
+      NFR-001 PR-body statement the traceability row describes is written in T019 (step 3), not T017.
+      The row cites the wrong subtask for the half of NFR-001's verification it attributes to WP03.
+    remediation: >
+      Change the NFR-001 row's Task(s) column to "T003 (code shape), T019 (PR-body statement)".
+
+  - id: TASKS-VERIFY-005
+    lens: Mission-derived lens — operator-ruling traceability into WPs
+    severity: 1
+    title: "FR-007 row's verification text overstates that the pure matcher function itself checks base==main"
+    evidence:
+      - artifact: "tasks.md § FR/NFR/Constraint/Ruling traceability, row FR-007: \"open-PR matcher returns the PR number only for the fixed head branch\" (and the Ruling row two lines below: \"open-PR matcher checks head==`ci/recapture-charter-shard-timings` AND base==`main`\")"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md:190-202 (`find_open_recapture_pr(open_prs)` only checks `pr.get(\"headRefName\") == RECAPTURE_BRANCH`; it never inspects a `base`/`baseRefName` field)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md:203-209 (the `base main` restriction is applied only by the `gh pr list --head ... --base main --state open` subprocess call that produces `open_prs`, i.e. upstream of the pure matcher)"
+    claim: >
+      The "Ruling: fixed head branch ... skip-if-open" row states the open-PR matcher itself "checks
+      head==... AND base==main", but WP02's `find_open_recapture_pr` (the pure, unit-tested function)
+      only checks `headRefName`; the base==`main` restriction is enforced by the `gh pr list --base
+      main` query string that supplies the function's input, not by the function's own logic. This is
+      a wording overstatement about which component enforces which half of FR-007's match condition —
+      the end-to-end behavior is correct, but a reader taking the row literally would expect a `base`
+      check inside the pure function's unit tests (fixtures 1/2), which is not what T011/T014 build or
+      test.
+    remediation: >
+      Reword the row to distinguish the two enforcement points, e.g.: "the `gh pr list --base main`
+      query restricts candidates to PRs against `main`; `find_open_recapture_pr` then matches on
+      `headRefName == ci/recapture-charter-shard-timings` among those results" — so the description
+      matches T011's actual function signature and T014's fixture scope (head-only matching).
+
+  - id: TASKS-VERIFY-006
+    lens: Mission-derived lens — operator-ruling traceability into WPs
+    severity: 1
+    title: "Traceability table claims full ruling coverage but omits PLAN-FRESH2-003/004/005/006"
+    evidence:
+      - artifact: "tasks.md § FR/NFR/Constraint/Ruling traceability (header prose): \"Every FR in spec.md, every NFR, every Constraint, and every operator ruling point is mapped below to a concrete WP task with a concrete test\""
+      - artifact: "reviews/plan.ruling.md, \"Plan HALT ruling\" points 3-6 (PLAN-FRESH2-003 through PLAN-FRESH2-006), none of which appear as a row in tasks.md's traceability table (only PLAN-FRESH2-001 and PLAN-FRESH2-002 have rows)"
+      - artifact: "plan.md item (b) TOCTOU paragraph (cites spec.md Key Entities' three-step sequence directly, resolving PLAN-FRESH2-003), item (d)'s explicit fixture-tested/code-shape-inspection split (resolving PLAN-FRESH2-005), and the \"accepted-residual-cost\" paragraph naming the external-actor race source (resolving PLAN-FRESH2-006) — confirming these three are already fully resolved in plan.md's own prose, with no separate code-landing task required"
+    claim: >
+      The traceability table's own header asserts it maps "every operator ruling point," but
+      PLAN-FRESH2-003, -004, -005, and -006 have no row. Independently checking plan.md confirms these
+      four are in fact resolved (as plan-phase prose fixes, not as an implementation requirement), so
+      there is no missing WP/test coverage — but the table's completeness claim is inaccurate as
+      stated, and a reviewer relying on the table alone (rather than re-reading plan.md) cannot
+      confirm those four rulings were addressed without doing the cross-check this review just did.
+    remediation: >
+      Either add four rows noting "PLAN-FRESH2-003/004/005/006 — resolved in plan.md's own prose at
+      [phase], no code-landing WP required" or narrow the header sentence to state it maps every
+      ruling point that has a code-facing consequence, so the claim matches what the table actually
+      contains.

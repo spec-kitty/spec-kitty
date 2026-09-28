@@ -1,0 +1,108 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Revert discipline (catalog verify lens)
+    severity: 4
+    title: >-
+      The two "reversion-catching" fast tests for FR-001/FR-004 only pin the extracted
+      helper's own correctness, not that the actual test body calls it
+    evidence:
+      - artifact: "plan.md § (d) Red-first fixtures per changed behaviour, lines 344-356"
+      - code: "tests/architectural/test_module_length_agreement.py:329-344 (test_charter_is_not_allowlisted_and_agrees, current hard-assert body)"
+    claim: >-
+      plan.md's item (d) proposes two new tests, `test_charter_disposition_flags_length_disagreement`
+      and `test_charter_disposition_is_none_on_agreement`, calling the pure helper
+      `_charter_disposition(committed, collected)` directly and asserting its return value. plan.md
+      claims (line 350-351) "This test fails if the demotion is ever reverted back to a bare hard
+      `assert` with no disposition helper (the helper would no longer exist / no longer be called)".
+      That claim is only true for the narrower revert where the helper function itself is deleted.
+      Walking through the actual revert this mission's own behavioural change invites (someone restores
+      `test_charter_is_not_allowlisted_and_agrees`'s body to `assert committed == collected` — e.g. via a
+      bad rebase/cherry-pick of just the assertion line, or a well-meaning "simplify" edit — while leaving
+      the now-orphaned `_charter_disposition` helper and its two unit tests untouched): both new tests
+      still call `_charter_disposition` directly and still pass, because the helper itself is unchanged.
+      Neither test ever imports, calls, or otherwise exercises `test_charter_is_not_allowlisted_and_agrees`
+      itself, so neither test can detect that the production test body stopped consuming the helper and
+      reverted to a hard, per-PR-blocking assertion — exactly the regression FR-001 exists to prevent and
+      that Standing Order #5 requires a self-mutation/non-vacuous test to catch. This is a classic
+      test-the-helper-not-the-integration-point gap: the helper's correctness is proven, but the wiring
+      between the helper and the actual assertion path (the thing that changed observable per-PR CI
+      behaviour) is not.
+    remediation: >-
+      Add a fixture that exercises `test_charter_is_not_allowlisted_and_agrees` itself under a disagreeing
+      committed/collected pair (e.g. via monkeypatching `_committed_length`/`_collected_counts` or by
+      calling the test function directly and asserting it raises `pytest.xfail`'s outcome exception rather
+      than a bare `AssertionError`), so a revert of the consuming line (independent of the helper's own
+      survival) is caught. At minimum, plan.md should state explicitly that tests 1 and 2 only prove the
+      helper's own correctness and name a separate mechanism (or accept the residual risk with a reason)
+      for catching a revert of the integration point.
+
+  - id: PLAN-VERIFY-002
+    lens: "Mission-derived: test-fixture completeness against spec.md falsifiability bars (FR-006)"
+    severity: 4
+    title: >-
+      FR-006 requires both a drift-triggers-PR fixture and a no-drift-no-PR fixture; plan.md's item (c)
+      only specifies the latter
+    evidence:
+      - artifact: "spec.md FR-006 row, 'No-op passable?' column: 'requires a fixture proving both the drift case (length disagrees -> PR opened) and the no-drift case (length agrees ... -> no PR)'"
+      - artifact: "plan.md § (c) Required fixtures, item 3 ('no-drift-no-PR'), lines 250-252"
+    claim: >-
+      spec.md's own falsifiability bar for FR-006 explicitly names two required fixtures: the drift case
+      (lengths disagree -> the orchestration pushes and opens a PR) and the no-drift case (lengths agree ->
+      nothing is pushed/opened). plan.md's item (c) lists exactly 5 required fixtures (skip-if-open,
+      unrelated-PR-not-matched, no-drift-no-PR, capture-failure-no-commit, missing-secret-loud-failure).
+      Fixture 3 ("no-drift-no-PR") covers only the negative/no-drift half: `has_drift(before_length=N,
+      after_length=N)` returns `False`, and "the orchestration path that consumes it performs no
+      commit/push/PR-open call." No fixture anywhere in plan.md (items (c) or (d)) asserts the positive
+      path — that when `has_drift` returns `True` (lengths disagree), the orchestration path actually DOES
+      invoke the commit/push/PR-open call. Every orchestration-path assertion named in the plan (fixtures
+      1, 3, 4) is phrased as "performs no ... call" (a negative assertion); none proves the callable IS
+      invoked when it is supposed to be. This is not a minor omission: the drift-triggers-a-PR path is the
+      actual deliverable of User Story 2 and SC-003 ("a manually-dispatched run against a deliberately
+      stale charter entry produces exactly one PR") — the one positive-path acceptance criterion this whole
+      workflow exists to satisfy is left completely unverified by the plan's own stated test list.
+    remediation: >-
+      Add a sixth required fixture to item (c), e.g. "drift-triggers-push": `has_drift(before_length=N,
+      after_length=M)` with N != M returns `True`, and the orchestration path that consumes a `True` result
+      DOES invoke the commit/push/PR-open callable exactly once (asserted via the same fake "would-push"
+      callable pattern already used for the negative cases, but asserting it IS called with the expected
+      arguments). Cross-reference this fixture from IC-02's risk/coverage notes so the implementer does not
+      treat the existing no-drift-only test as satisfying FR-006 in full.
+
+  - id: PLAN-VERIFY-003
+    lens: "Mission-derived: test-fixture completeness against spec.md falsifiability bars (FR-004)"
+    severity: 3
+    title: >-
+      FR-004's infra-break fixture only covers "missing artefact" via `_load_timings()`; the
+      "live-collection crash" half of the same falsifiability requirement is neither fixtured nor
+      explicitly defended as out of scope
+    evidence:
+      - artifact: "spec.md FR-004 row, 'No-op passable?' column: 'a genuine infrastructure/collection break (missing timings/registry artefact, live-collection crash) fails/errors visibly'"
+      - artifact: "spec.md User Story 3, Acceptance Scenario 3: 'the timings/registry artefact is missing, OR live collection crashes'"
+      - artifact: "plan.md § (d), fixture 3, lines 357-363 (test_load_timings_fails_loudly_when_artefact_missing)"
+      - code: "tests/architectural/test_module_length_agreement.py:229-251 (_live_collected_count: pytest.fail on subprocess rc not in (0, 1) or empty node_ids)"
+    claim: >-
+      spec.md names two concrete infra-break sub-cases for FR-004/User Story 3 Scenario 3: a missing
+      timings/registry artefact, OR a live-collection crash. plan.md's item (d) adds exactly one new test,
+      `test_load_timings_fails_loudly_when_artefact_missing`, covering only the missing-artefact case via
+      `_load_timings()`. The live-collection-crash case has its own, separate, pre-existing mechanism in
+      the same file — `_live_collected_count()` (line 229) calls `pytest.fail(...)` when the collection
+      subprocess's return code is not in `(0, 1)` or no node ids are parsed — but plan.md adds no fixture
+      exercising that path, and gives no explicit rationale for why one fixture (missing artefact) is
+      treated as representative of both named sub-cases. This is exactly the open question the dispatch
+      calls out: "is the drift case covered elsewhere... if defensible, does plan say why? If not, that's
+      a coverage gap." Nothing in plan.md's item (c), (d), (e), or the Charter Check section addresses this
+      specific gap or defends the omission.
+    remediation: >-
+      Either (a) add a fourth fast test in item (d) that monkeypatches `subprocess.run` (or replaces the
+      `test_dirs` tuple with one guaranteed to make the collect-only invocation fail) so
+      `_live_collected_count()` raises via `pytest.fail`, proving the live-collection-crash sub-case is
+      independently exercised and distinguishable from the clean-pass/length-mismatch outcomes; or (b) if
+      the implementer/plan author judges the missing-artefact fixture representative of both sub-cases
+      (since both paths already call `pytest.fail` at the session-scoped-fixture level, before the demoted
+      test's own body runs), state that judgment and its reasoning explicitly in plan.md item (d) rather
+      than leaving the omission unaddressed.

@@ -1,0 +1,21 @@
+schema: review-verify/v1
+complete: true
+phase: amendment
+results:
+  - id: AMENDMENT-FRESH-002
+    status: resolved
+    reason: >-
+      WP01 now carries T003b/T004b, each constructing a deterministic AGREEING
+      (committed == collected) fixture against the real production functions'
+      confirmed two/three-positional-arg signatures and asserting via recwarn
+      that zero ShardTimingsDriftWarning instances are recorded and the
+      function returns normally, and tasks.md's FR-004 row, Subtask Index, and
+      WP01's own subtask-count prose (8 -> 10) were all updated in step with
+      the frontmatter subtasks list.
+  - id: AMENDMENT-FRESH-003
+    status: resolved
+    reason: >-
+      spec.md's Non-Goals bullet now reads "two existing tests in that suite"
+      and names both test_charter_is_not_allowlisted_and_agrees and
+      test_non_allowlisted_modules_agree_with_live_collection, matching
+      FR-003/C-001's already-corrected language exactly.

@@ -1,0 +1,97 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >-
+      tasks.md WP02 section (lines 202-233) now derives ~280-320 lines for the test file from the
+      actual fixture count (T014's 6 + T015's 5 = ~12 test functions) vs. the
+      test_stale_running_sweep.py precedent, states a combined ~430-570 total replacing the old
+      unsubstantiated "~500-600", quotes the guideline verbatim ('Aim for 3-7 subtasks per WP and
+      200-500 lines per WP prompt... Prefer splitting an oversized WP over padding a small one'),
+      reconciles the prompt-file-vs-implementation-diff denominator ambiguity explicitly, and the
+      PR-shape section (lines 20-22) now gives the test file its own ~280-320-line estimate; the
+      "kept as one WP" cohesion argument is retained but now sits atop these real numbers.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: >-
+      WP01's tasks.md subtask line (182-188) now carries an explicit "at the upper end, because
+      T004 and T005 are kept as two separate subtasks rather than merged into one..."
+      acknowledgment with a substantive reason (independently-checkable red-first fixtures per
+      disposition), not a bare rephrasing.
+  - id: TASKS-DECOMP-003
+    status: resolved
+    reason: >-
+      tasks.md's Next steps section (lines 269-288) now states finalize-tasks already ran (citing
+      the committed lanes.json computed_at timestamp) and that all three WPs' requirement_refs
+      are already populated and richer than the old batch payload, narrowing the only pending
+      step to /spec-kitty.analyze and marking the old three commands "Historical note - already
+      executed; do not re-run".
+  - id: TASKS-DECOMP-004
+    status: resolved
+    reason: >-
+      WP03's T018 (lines 199-226) now has step 1 requiring the implementer to check via git
+      log/file content whether the #5190 bullet is actually present, step 2 for the present case,
+      and step 3 with an explicit fallback (rebase onto main, or add both the original bullet and
+      the supersession note together) for the absent case.
+  - id: TASKS-DECOMP-005
+    status: resolved
+    reason: >-
+      WP01 (frontmatter line 12) and WP02 (frontmatter line 15) requirement_refs now both include
+      C-005 (WP03 already had it), and all three WP files' Review Guidance sections now state the
+      concrete "grep -rn /home/" command with that WP's own actual owned files substituted in
+      (WP01's test_module_length_agreement.py; WP02's script + test file; WP03's workflow yaml +
+      docs file).
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: >-
+      T019 gained an explicit step 5 (lines 260-267) that writes the near-verbatim
+      cron/post-merge-provability PR-body sentence, and WP03's Risks and Mitigations bullet (lines
+      286-288) plus its Review Guidance (lines 310-312) now cite "T019 step 5" specifically
+      instead of the old bare "(T019)" citation that pointed at nothing concrete.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >-
+      tasks.md's FR-001 row (line 121) now cites "T004, T007" matching the Subtask Index's T004
+      (add test_charter_disposition_flags_length_disagreement) and T007 (add the
+      xfails_on_disagreement test), replacing the prior incorrect T003 citation.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >-
+      the FR-007 row (line 127) now cites "T015 (fixture 7)" for the TOCTOU re-check, matching
+      the Subtask Index (T015 covers fixtures 7-11) and agreeing with the "Plan ruling: TOCTOU
+      re-check fixture" row (line 144) which already correctly cited T015 -- both rows now agree,
+      the contradiction is gone.
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: >-
+      the FR-008 row (line 128) now cites "T014 (fixture 4), T015 (fixtures 8, 9, 10)", correctly
+      splitting fixture 4 (in T014's fixtures 1-6) from fixtures 8-10 (in T015's fixtures 7-11),
+      matching WP02's own subtask text.
+  - id: TASKS-VERIFY-004
+    status: resolved
+    reason: >-
+      the NFR-001 row (line 131) now cites "T003 (code shape), T019 (PR-body statement)" instead
+      of T017; T019 step 3 is the actual subtask that writes the NFR-001 PR-body note, while T017
+      remains a structural YAML-shape checklist with no PR-body content.
+  - id: TASKS-VERIFY-005
+    status: resolved
+    reason: >-
+      the "Ruling: fixed head branch..." row (line 140) now distinguishes the two enforcement
+      points near-verbatim per the remediation -- the gh pr list --base main query restricts
+      candidates to PRs against main, and find_open_recapture_pr then matches on headRefName
+      against the fixed branch name among those results -- matching WP02's actual
+      find_open_recapture_pr implementation, which only checks headRefName.
+  - id: TASKS-VERIFY-006
+    status: resolved
+    reason: >-
+      tasks.md's traceability-table header (lines 108-117) now narrows its completeness claim to
+      "every operator ruling point that carries a code-facing consequence" and explicitly names
+      PLAN-FRESH2-003 through -006 as resolved entirely in plan.md's own prose with no
+      code-landing WP required, so the claim now matches what the table actually contains;
+      cross-checking the rest of the table (all FR/NFR/C/ruling rows against the Subtask Index and
+      each WP's actual subtask text) found no other unresolved citation errors and no new
+      contradictions introduced by this fix round, including the additional PLAN-FRESH4-002 row
+      citation to T019 (not a nonexistent WP03 "Definition of Done" section) fixed in the same
+      commit.

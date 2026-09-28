@@ -1,0 +1,54 @@
+# review-findings/v1 — fresh sweep of round 2's fix (base 7fafd7e35 -> revised cfb79841e).
+# Profile: debugger-debbie. Directives applied: 001 (Architectural Integrity — traced the
+# FR-007/FR-010/Key-Entities cross-reference for a structural contradiction, not just the
+# paragraph the fix itself touched), 003 (Decision Documentation — every claim below records
+# what was checked and confirmed vs. falsified, so it isn't re-litigated), 030 (Test/Quality
+# Gate — every codebase claim re-verified against the live files: generate_run_id(),
+# _MISMATCH_ALLOWLIST, _BASELINE_ALLOWLIST_COUNT, .github/ci-module-registry.yml module count),
+# 032 (Conceptual Alignment — the two files round 2 edited in the same commit, spec.md's Key
+# Entities and tracer-approach.md, were diffed against each other for agreement, not just each
+# against the finding that prompted its own edit).
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-FRESH2-001
+    lens: "conceptual-alignment (FR-007/Key-Entities' multi-option marker vs. FR-010's single fixed-convention commitment)"
+    severity: 3
+    title: "FR-007 and Key Entities now guarantee all three identity markers (label / branch-name prefix / bot commit-author) are equally legitimate plan-time choices, but FR-010's own row still requires FR-007's marker to be 'identical to' FR-010's bot-identity/PR-body convention specifically — a marker choice of 'label' or 'branch-name prefix' cannot satisfy both FRs simultaneously"
+    evidence:
+      - artifact: "spec.md § Key Entities (round-2 text, this fix's own edit): \"All three markers — label, branch-name prefix, and bot commit-author identity — remain equally legitimate plan-time choices for the stable identity signal; none is eliminated here.\""
+      - artifact: "spec.md § FR-007 row: \"identified by a fixed marker this workflow controls (a label, a branch-name prefix, or a bot commit-author identity; see Key Entities), the same convention FR-010's bot-identity/PR-body marker keys off\" — asserts FR-007's marker IS the same convention as FR-010's bot-identity/PR-body marker, in the same sentence that lists two other options (label, branch-name prefix) that are neither an identity marker nor a PR-body marker"
+      - artifact: "spec.md § FR-010 row, 'No-op passable?' column: \"a fixed commit-author/PR-body convention ... identical to the marker FR-007's duplicate check uses\" — FR-010 only ever produces a commit-author-identity/PR-body signal; it has no mechanism that produces a GitHub label or a branch-name prefix, so this column's 'identical to' claim is only satisfiable when FR-007's marker choice is specifically 'bot commit-author identity'"
+    claim: >
+      This cross-reference (FR-007 <-> FR-010 <-> Key Entities) was authored entirely in round 1
+      (commit 7fafd7e35, resolving SPEC-VERIFY-004's "no identifying axis" gap) — FR-007's
+      three-option list and its "same convention FR-010 ... keys off" clause, and FR-010's
+      "identical to the marker FR-007 ... uses" clause, were added together in that single commit.
+      Round 2 did not touch FR-007's or FR-010's row text, but it DID rewrite the Key Entities
+      closing sentence this exact tension turns on — reverting it from round 1's narrower
+      "label/bot-author" pair back to all three markers "equally legitimate ... none is eliminated"
+      (to resolve SPEC-FRESH-001, correctly, on its own terms). That restoration widens the live
+      gap with FR-010's own fixture text, which still hard-commits to a SINGLE realization (bot
+      commit-author identity + PR body) as the "identical" marker FR-007 must use. FR-010 has no
+      way to produce a "label" or a "branch-name prefix" signal, so if a plan-time author exercises
+      the choice Key Entities and FR-007 both now explicitly authorize — picking "a label" as the
+      fixed marker — FR-010's own row becomes literally unsatisfiable (a label is not "identical to"
+      a commit-author/PR-body convention), producing rework inside whichever WP implements FR-007
+      + FR-010's identity convention. In practice a plan author will likely converge on "bot
+      commit-author identity" for both FRs to sidestep the conflict, but nothing in the spec text
+      says so — the "plan picks which" framing in Key Entities/FR-007 currently promises a free
+      choice that FR-010's fixture column forecloses.
+    remediation: >
+      Either (a) narrow FR-007/Key Entities' marker list to state that whichever marker is chosen,
+      it must be realizable as (or accompanied by) FR-010's bot-identity/PR-body convention — i.e.
+      make explicit that "bot commit-author identity" is the marker FR-010 anchors to, and that
+      choosing "label" or "branch-name prefix" instead means FR-010's "identical to" language no
+      longer applies and must be reworded (e.g. "consistent with, not necessarily identical to");
+      or (b) drop FR-010's "identical to the marker FR-007's duplicate check uses" no-op-passable
+      clause and its story-level "so that FR-007's duplicate-PR detection can key off this same
+      fixed convention" sentence, and instead state FR-010's bot-identity/PR-body convention is
+      simply available as one of the three legitimate marker choices, not a hard-required match for
+      whichever of the three FR-007 ends up using.

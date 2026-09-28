@@ -1,0 +1,14 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: "git show 9efd2ec77 --stat and git log --oneline -- plan.md both confirm plan.md was not touched (its only commit remains the original a117695b5 PASSED authoring commit, still showing the pre-fix --json number sample at lines 226/272); WP02.md's T011 section now carries an explicit 'Supersession note (TASKS-FRESH2-001)' stating plan.md's Open-PR check (verbatim) bullet and TOCTOU restatement predate the fix and are superseded by T011's own --json number,headRefName command, and tasks.md's matching traceability row (the 'Ruling: fixed head branch ...' row) carries a one-line 'Pointer (TASKS-FRESH2-001)' making the same statement."
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: "wc -l on WP01-demote-charter-length-assertion.md measured 369 lines, and tasks.md's WP01 guideline-reconciliation paragraph now cites that exact figure ('WP01's actual committed prompt file is 369 lines (wc -l, freshly re-measured)') alongside the pre-existing ~350-450 implementation-estimate figure, mirroring WP02's denominator-clarification pattern."
+also_verified:
+  - id: WP02-line-count-citation
+    status: resolved
+    reason: "wc -l on WP02-recapture-decision-script.md measured 448 lines (matching the fix round's claimed 441->448 growth from the T011 supersession-note addition), and tasks.md's WP02 paragraph cites '448 lines (wc -l, freshly re-measured after this round's T011 supersession-note addition)', matching the current real count exactly."

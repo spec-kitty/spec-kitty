@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: FR-010 now requires only that its bot-identity/PR-body convention stay "consistent with, and never contradicted by" whichever of the three Key Entities markers FR-007 selects, instead of requiring an impossible identical match, while Key Entities and FR-007 still state all three markers remain equally legitimate — all three sections agree and no stray "identical to" language survives.

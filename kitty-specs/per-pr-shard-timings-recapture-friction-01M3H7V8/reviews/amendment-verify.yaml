@@ -1,0 +1,22 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: amendment
+results:
+  - id: AMENDMENT-GOV-001
+    status: resolved
+    reason: spec.md's C-001 and Ledger Cross-Reference section now correctly distinguish charter-only recapture scope from the non-charter-scoped demotion/strict-mode-job scope (matching the amended FR-003), CL-003 is left untouched, and tracer-design-decisions.md records the correction explicitly as a fix-round entry.
+  - id: AMENDMENT-GOV-002
+    status: resolved
+    reason: analysis-report.md now opens with a dated "Superseded note" flagging the "four untouched tests"/xfail claims as false of the amended spec.md/plan.md, naming the correct count/mechanism and pointing to tracer-design-decisions.md's amendment entry.
+  - id: AMENDMENT-ARCH-001
+    status: resolved
+    reason: >-
+      both plan.md §(a2) and WP03 §T020's illustrative YAML now include an "Install uv" step using
+      astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d (v10.0.1), matching the identical
+      pin re-grepped directly from all six existing jobs in ci-nightly.yml, and the "verbatim" label
+      is now scoped only to job name/timeout/env var/pytest line, no longer contradicting the
+      guidance to match the repo's existing setup pattern for checkout/setup-uv/sync.
+  - id: AMENDMENT-ARCH-002
+    status: resolved
+    reason: plan.md §(a2) and WP03 §T020 both now carry an explicit, non-buried "triaged by test name first" instruction stating a red run can mean an unrelated allowlist-ratchet regression rather than shard-timings drift, with no contradicting text elsewhere in either artifact.

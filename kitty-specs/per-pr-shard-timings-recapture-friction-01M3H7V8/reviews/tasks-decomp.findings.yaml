@@ -1,0 +1,168 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: TASKS-DECOMP-001
+    lens: single-concern-pr-sized
+    severity: 3
+    title: WP02's size claims are self-contradictory and never estimate the diff's largest file, so the "kept as one WP" call is unsubstantiated
+    evidence:
+      - artifact: "tasks.md § Work Package WP02 (lines 191-194)"
+      - artifact: "tasks.md § PR shape recommendation (lines 18-24)"
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md:25 — \"Aim for 3-7 subtasks per WP and 200-500 lines per WP prompt ... Prefer splitting an oversized WP over padding a small one.\""
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md (actual committed file = 433 lines per `git show --stat b893ce5c7`)"
+    claim: >
+      tasks.md § WP02 states "7 subtasks, ~500-600 estimated lines -- at the upper end because
+      of the 11-fixture test file; kept as one WP rather than split, since every fixture
+      exercises the same small set of pure functions and splitting would fragment a cohesive
+      review." Two things undercut this as a real sizing judgment rather than a bare assertion:
+      (1) the actual, currently-committed WP02 prompt file is 433 lines (verified via
+      `git show --stat b893ce5c7`), below tasks.md's own claimed 500-600 and within this
+      repository's own canonical "200-500 lines per WP prompt" guideline
+      (packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md:25) -- so the
+      premise used to justify not splitting ("at the upper end") does not match the artifact it
+      describes; (2) separately, tasks.md's "PR shape recommendation" section gives concrete
+      line estimates for every artifact in the mission's diff EXCEPT WP02's test file
+      ("~150-250-line script; one matching unit-test file" -- no number given for the test
+      file), even though that file backs all 11 fixtures (gh-CLI JSON mocking, two required
+      empty-string/unset secret sub-cases, TOCTOU two-call sequencing, dataclass-outcome
+      assertions, a fake-mutating-dict ordering fixture) and is plausibly the single largest
+      code file in the entire mission diff. Neither the guideline-referenced sizing check nor an
+      actual code-diff estimate for the dominant file was performed before deciding "kept as one
+      WP" -- the cohesion argument alone (which the dispatch itself flags as potentially
+      question-begging) is standing in for a sizing judgment that this repo's own doctrine says
+      should default toward splitting an oversized WP.
+    remediation: >
+      Before finalizing WP02 as a single WP, either (a) produce a real line-count estimate for
+      `tests/ci/test_recapture_charter_shard_timings.py` (e.g. by drafting its skeleton) and
+      reconcile the total against the 200-500-line-per-WP-prompt / 3-7-subtask guideline,
+      stating explicitly (as the guideline requires) why an oversized WP is being kept together
+      rather than split; or (b) split along the natural functional seam: WP02a (T009-T013's core
+      pure functions + orchestration, with fixtures 1-6/T014) and WP02b (the hardening fixtures
+      7-11/T015 -- TOCTOU re-check, SystemExit variant, post-write-failure, ordinary-failure, and
+      snapshot-ordering -- which specifically stress-test T013's highest-risk piece and merit
+      dedicated review attention rather than being diluted across 11 fixtures in one pass).
+
+  - id: TASKS-DECOMP-002
+    lens: no-padding-no-vacuous-tasks
+    severity: 2
+    title: WP01's 8 subtasks exceed the repo's own "3-7 subtasks per WP" guideline with no stated rationale, and T004/T005 are near-duplicative
+    evidence:
+      - artifact: "tasks.md § Work Package WP01 (line 177): \"Subtasks: T001, T002, T003, T004, T005, T006, T007, T008 (8 subtasks, ~350-450 estimated lines).\""
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md:25 — \"Aim for 3-7 subtasks per WP ...\""
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP01-demote-charter-length-assertion.md:203-234 (T004, T005)"
+    claim: >
+      WP01 has 8 subtasks (T001-T008), one more than this repository's own canonical guideline's
+      "aim for 3-7 subtasks per WP." Unlike WP02, which explicitly acknowledges and defends being
+      "at the upper end" of its own sizing, WP01 gives no rationale at all for exceeding the
+      guideline. The excess is explainable: T004 (`test_charter_disposition_flags_length_disagreement`)
+      and T005 (`test_charter_disposition_is_none_on_agreement`) are each a 2-3 line body that
+      calls the same single helper (`_charter_disposition`) with different arguments and asserts
+      the opposite disposition -- functionally one concern ("prove the helper's two dispositions")
+      artificially split into two subtasks, not two genuinely distinct pieces of work.
+    remediation: >
+      Merge T004 and T005 into one subtask ("add the two `_charter_disposition` unit tests:
+      disagreement and agreement"), bringing WP01 back to 7 subtasks within the guideline -- or,
+      if kept separate, add the same explicit "at the upper end, because ..." acknowledgment
+      WP02 carries, rather than silently exceeding the stated aim.
+
+  - id: TASKS-DECOMP-003
+    lens: internal-consistency-hygiene
+    severity: 3
+    title: Next-steps section lists finalize-tasks/map-requirements as pending, but the same commit already shows finalize-tasks succeeded and requirement_refs already populated beyond what the listed batch would add
+    evidence:
+      - artifact: "tasks.md § Next steps (lines 230-235)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/lanes.json:60-63 — computed_at: '2026-09-27T22:06:42+00:00', computed_from: 'dependency_graph+ownership'"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP01-demote-charter-length-assertion.md:5-12 (requirement_refs already has FR-001..FR-004, C-001, C-002, NFR-001)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md:5-15 and WP03-scheduled-workflow-wiring.md:6-10 (same pattern)"
+      - code: "git show --stat b893ce5c7 -- shows lanes.json, tasks.md, and all three WP*.md files landing together in ONE commit ('Add tasks for feature per-pr-shard-timings-recapture-friction-01M3H7V8')"
+    claim: >
+      tasks.md's "Next steps" section lists, as future actions: (1) `finalize-tasks
+      --validate-only`, (2) `agent tasks map-requirements --batch
+      '{"WP01":["FR-001","FR-002","FR-003","FR-004"],"WP02":[...FR-005..FR-010],"WP03":["NFR-002"]}'`,
+      (3) `finalize-tasks` again, then (4) `/spec-kitty.analyze`. But `lanes.json` -- which only
+      `finalize-tasks` produces ("writes lane metadata" per this repo's own CLAUDE.md) -- is
+      already committed in the SAME commit as tasks.md itself, with a `computed_at` timestamp
+      (22:06:42Z) after the WP prompts were generated (22:00:54Z per their own frontmatter
+      `history`). Separately, all three WP files' `requirement_refs` frontmatter fields are
+      already populated, and are RICHER than what step (2)'s own proposed batch payload would
+      add: WP01's actual frontmatter already carries C-001/C-002/NFR-001 that the listed batch
+      command omits entirely; WP02's already carries C-001/C-003/C-004/C-006; WP03's already
+      carries C-003/C-005/C-006. Steps 1 and 3 have therefore already run to completion, and step
+      2's own payload is already stale/superseded by richer data already on disk. A future reader
+      or orchestrator following "Next steps" literally would re-run already-completed steps, and
+      could mistake the narrower batch payload in step 2 for the authoritative mapping when the
+      frontmatter already has more (`map-requirements` without `--replace` unions rather than
+      overwrites, per `tasks_mapping_core.py:114-123`, so this is confusion/redundancy risk
+      rather than data loss -- but a decomposition-hygiene defect either way).
+    remediation: >
+      Rewrite "Next steps" to state the actual current status honestly: "finalize-tasks has
+      already run (see the committed lanes.json above); requirement_refs are already populated
+      on all three WP frontmatters." Reduce the remaining actionable next step to just
+      `/spec-kitty.analyze` (the one step genuinely still pending), and either delete the
+      `--validate-only` / `map-requirements --batch` / second `finalize-tasks` lines or
+      explicitly mark them "already executed; re-run only if a WP file changes" so a later reader
+      does not treat completed steps as pending work.
+
+  - id: TASKS-DECOMP-004
+    lens: descriptions-concrete-enough-to-implement
+    severity: 3
+    title: WP03's T018 instructs finding a known-friction-points.md bullet from PR #5190 that is not reachable from this mission's branch
+    evidence:
+      - artifact: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md:199-215 (Subtask T018)"
+      - artifact: "docs/development/reference/known-friction-points.md (current content on this branch: frontmatter `updated: '2026-08-15'`; no occurrence of \"shard\", \"recapture\", \"5189\", or \"5190\" anywhere in the file)"
+      - code: "verified via `gh pr view 5190 --repo spec-kitty/spec-kitty --json number,title,state,mergedAt,files` -- PR #5190 is real, state MERGED, mergedAt 2026-09-27T10:38:44Z, touches exactly docs/development/reference/known-friction-points.md (+13/-2)"
+      - code: "`git merge-base HEAD origin/main` = e2dcf69c8; `git log --oneline HEAD..origin/main -- docs/development/reference/known-friction-points.md` shows commit 4a036b905 \"docs(friction): record per-PR shard-timings recapture friction\" on origin/main, not reachable from this mission branch's HEAD"
+    claim: >
+      spec.md's Reflexivity section states "PR #5190 (merged, docs-only) recorded this friction
+      as a known-friction-points bullet," and WP03's T018 instructs the implementer to "find the
+      bullet PR #5190 added about this friction ... and add a short note (1-2 lines) immediately
+      after it." PR #5190 is genuinely merged on GitHub (confirmed live), but its commit
+      (4a036b905) landed on `origin/main` AFTER this mission's branch
+      (`issue-5189-per-pr-shard-timings-recapture-friction`) diverged from `main`
+      (merge-base e2dcf69c8), and the branch has not since been rebased/fast-forwarded --
+      despite #5190 merging (10:38 UTC) many hours before this mission's own tasks.md/WP files
+      were authored (22:06 UTC) the same day. As a direct, concrete consequence, the bullet T018
+      tells the implementer to find and annotate does not exist anywhere in the current working
+      tree of the branch this WP will actually be implemented on. An implementer following T018
+      literally cannot complete it as written: there is nothing to add a note "immediately
+      after."
+    remediation: >
+      Before or at the start of WP03, rebase/fast-forward this mission's branch onto current
+      `main` so PR #5190's bullet is actually present -- or, if a mid-mission rebase is out of
+      scope, rewrite T018 to say explicitly: "verify with `git log --oneline -- docs/development/
+      reference/known-friction-points.md` whether the #5190 bullet is present in your checkout;
+      if it is not (this branch predates that merge), either rebase onto current main first, or
+      add both the original friction note and this supersession note together" -- rather than
+      assuming the bullet's presence unconditionally.
+
+  - id: TASKS-DECOMP-005
+    lens: descriptions-concrete-enough-to-implement
+    severity: 3
+    title: C-005's concrete self-check (grep for /home/ paths) lives only in tasks.md's traceability table, not in WP01's or WP02's own prompt files
+    evidence:
+      - artifact: "tasks.md § FR / NFR / Constraint / Ruling traceability, C-005 row: \"WP01, WP02, WP03 | (all) | reviewer/self-check: grep -rn \\\"/home/\\\" <touched files> before each WP is marked done\""
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP01-demote-charter-length-assertion.md:5-12 (requirement_refs has no C-005) and :345-357 (Review Guidance has no /home/ grep instruction)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md:5-15 (requirement_refs has no C-005) and :413-425 (Review Guidance has no /home/ grep instruction)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md:6-10 (C-005 present at line 9) but :274-286 (Review Guidance) still never states the concrete grep command either"
+    claim: >
+      This mission's own spec.md names C-005 ("Public repo -- no absolute local paths, no
+      credentials") as High priority, and tasks.md's traceability table applies it to "WP01, WP02,
+      WP03 | (all)" with one concrete, mechanical verification step: `grep -rn "/home/" <touched
+      files>` before marking a WP done. That check appears nowhere inside WP01's or WP02's own
+      prompt files -- neither in `requirement_refs` (both omit C-005 entirely) nor in their
+      "Review Guidance"/"Risks & Mitigations" sections. WP03 at least lists C-005 in its
+      frontmatter and Objectives text, but even WP03's own Review Guidance section never restates
+      the actual grep command. Since a WP is meant to be dispatched and implemented from its own
+      self-contained prompt file (per this mission's own "descriptions concrete enough to
+      implement without re-deriving plan.md" design intent), an implementer of WP01 or WP02 has
+      no way to discover this obligation without independently re-reading tasks.md's traceability
+      table.
+    remediation: >
+      Add `C-005` to WP01 and WP02's `requirement_refs` frontmatter (matching tasks.md's own
+      traceability table), and add the concrete `grep -rn "/home/" <touched files>` self-check
+      (substituting each WP's own owned files) to all three WPs' "Review Guidance" or
+      "Definition of Done" sections directly, rather than leaving it stated only in tasks.md's
+      traceability table.

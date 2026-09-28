@@ -1,0 +1,233 @@
+# review-findings/v1 — confirmed set for R4. Every finding here was CONFIRMED by the R3
+# refutation pass (see reviews/spec-refute-1.yaml for verdicts/reasons); none were refuted.
+# This file cites reviews/spec.merged.yaml as its evidence base per family conventions.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+source_files:
+  - reviews/spec.merged.yaml
+  - reviews/spec-refute-1.yaml
+findings:
+  - id: SPEC-GOV-001
+    origin: gov
+    lens: "Standing Order #5 fidelity (testable-property check of FR-003's current-code description)"
+    severity: 4
+    title: "Spec repeatedly misdescribes `_MISMATCH_ALLOWLIST` as a 20-entry allowlist; it currently has 19 entries"
+    evidence:
+      - artifact: "spec.md § FR-003 (title and body)"
+      - artifact: "spec.md § FR-009"
+      - artifact: "spec.md § C-001"
+      - artifact: "spec.md § SC-006"
+      - artifact: "spec.md § Non-Goals (\"The other 20 SK-247 modules\" bullet)"
+      - artifact: "spec.md § Ledger Cross-Reference (closing sentence, \"leaves the 20-entry allowlist untouched\")"
+      - code: "tests/architectural/test_module_length_agreement.py:98-117 (the `_MISMATCH_ALLOWLIST` dict literal)"
+      - code: "tests/architectural/test_module_length_agreement.py:119-124 (`_BASELINE_ALLOWLIST_COUNT = 20` and its own comment: \"`agent` removed (ci-coverage-honesty WP02)\")"
+    claim: >
+      The spec asserts, in six separate places, that the live `_MISMATCH_ALLOWLIST` currently
+      holds 20 entries. A direct read of the dict literal shows exactly 19 keys today; `agent`
+      was already fixed and removed post-SK-247 (per the file's own comment).
+      `_BASELINE_ALLOWLIST_COUNT = 20` is a shrink-only high-water mark, not the live count
+      (`test_allowlist_does_not_exceed_baseline` asserts `<=`, not `==`). The spec's own
+      Non-Goals bullet even names only 19 modules while captioning the list "20" —
+      internally inconsistent with its own enumeration.
+    remediation: >
+      Correct every present-tense claim about the CURRENT size of `_MISMATCH_ALLOWLIST` from
+      "20" to "19" (FR-003 title, FR-009, C-001, SC-006, Ledger Cross-Reference closing
+      sentence). Keep "20 of 21" / historical framing ONLY where explicitly quoting SK-247's
+      own point-in-time text (e.g. CL-003's parenthetical).
+
+  - id: SPEC-GOV-002
+    origin: gov
+    lens: "Standing Order #5 fidelity (testable-property check of FR-003's current-code description)"
+    severity: 1
+    title: "FR-003's title says \"three\" ratchet tests but its own requirement body names four tests"
+    evidence:
+      - artifact: "spec.md § FR-003"
+      - code: "tests/architectural/test_module_length_agreement.py:304 (test_non_allowlisted_modules_agree_with_live_collection)"
+      - code: "tests/architectural/test_module_length_agreement.py:348 (test_allowlist_does_not_exceed_baseline)"
+      - code: "tests/architectural/test_module_length_agreement.py:358 (test_allowlist_entries_are_real_registry_modules)"
+      - code: "tests/architectural/test_module_length_agreement.py:366 (test_allowlisted_modules_still_genuinely_mismatch)"
+    claim: >
+      FR-003's title reads "the other three ratchet tests," but its own body correctly names
+      FOUR tests that must keep hard-blocking behavior — three genuine allowlist-ratchet tests
+      plus the file's primary cross-module gate (marked "# The real gate." in source). Operative
+      content is correct; only the title's headcount undercounts its own body.
+    remediation: >
+      Retitle FR-003 to match its body's count (e.g. "the other four untouched tests — three
+      allowlist-ratchet tests plus the cross-module live-collection gate").
+
+  - id: SPEC-VERIFY-004
+    origin: [arch, verify]
+    duplicate_of_note: "Merged SPEC-ARCH-001 into this entry — same artifact section (FR-007 row + User Story 2 AS3), same underlying root cause (FR-007 names no identifying signal for 'a recapture PR from this workflow'), argued from two angles: architectural coordination-risk (arch) and testability/falsifiability (verify). Kept the higher severity (3) and unioned evidence/remediation."
+    lens: "Falsifiability + reflexivity (duplicate-PR detection has no spec-level identity signal)"
+    severity: 3
+    title: "FR-007's 'already-open recapture PR' names no detection/identity axis, is unfalsifiable as literally worded, and risks FR-007/FR-010 diverging into two uncoordinated conventions"
+    evidence:
+      - artifact: "spec.md § Requirements > Functional Requirements, FR-007 row"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 3"
+      - artifact: "spec.md § Requirements, FR-010 row (\"a fixed commit-author/PR-body convention, independently verifiable by inspection\")"
+      - artifact: "spec.md § Reflexivity (lines 269-271): confirms #5175 and #5177 are real, currently-open PRs that also list `.github/ci-shard-timings.json` as a changed file"
+      - artifact: "tracer-approach.md § Design choices deliberately left open for the plan phase, bullet 3 (\"Duplicate-PR and no-drift detection mechanisms... a plan-time choice\")"
+    claim: >
+      FR-007 and its Acceptance Scenario 3 state the observable requirement ("does not open a
+      second, duplicate recapture PR") but name no candidate detection axis at all — no label,
+      branch-name prefix, PR search, or bot-author marker — and never cross-reference FR-010's
+      own "fixed commit-author/PR-body convention," which is logically the same identity
+      problem. Two consequences: (1) architecturally, a plan/implementation pass could invent
+      two inconsistent conventions (FR-010 fixing a PR-body marker while FR-007 is implemented
+      against a branch name whose fixed/reused-vs-freshly-generated nature Key Entities never
+      states); (2) as a testability matter, a QA engineer handed only FR-007's row and AS3
+      cannot construct a test today that distinguishes "correctly skipped because our recapture
+      PR is open" from "incorrectly skipped because #5175/#5177 happen to be open" — the AC is
+      unfalsifiable as worded, independent of whichever detection mechanism the plan eventually
+      picks.
+    remediation: >
+      Add one sentence to spec.md's Key Entities or the FR-007 row committing to a spec-level
+      identifying property for "a recapture PR from this workflow" (e.g. "identifiable by a
+      fixed marker this workflow controls — label, branch-name prefix, or bot author, never by
+      incidentally touching the same file"), require FR-007 and FR-010 to key off the same
+      convention, and state whether the recapture branch name is fixed/reused across runs or
+      freshly generated per run. This makes the acceptance scenario falsifiable against a
+      defined signal and removes the risk of two independently-invented identity mechanisms.
+
+  - id: SPEC-ARCH-002
+    origin: arch
+    lens: "Reflexivity of a bot that opens PRs on main (concurrent-run race on FR-007's duplicate guard)"
+    severity: 3
+    title: "FR-007 only guards against a duplicate from a prior COMPLETED run; nothing in spec.md serializes concurrent invocations of the new workflow itself, even though the spec's own cited precedent uses a concurrency group"
+    evidence:
+      - artifact: "spec.md § Requirements, FR-007 row and § User Story 2, Acceptance Scenario 3 (both phrased as \"a prior recapture PR ... is still open\" / \"before the first PR merges\" — sequential runs, not simultaneous ones)"
+      - artifact: "spec.md § Key Entities > The scheduled recapture workflow (\"runs on schedule + workflow_dispatch only ... mirroring .github/workflows/ci-stale-running-sweep.yml's pattern\")"
+      - code: ".github/workflows/ci-stale-running-sweep.yml:32-34"
+      - artifact: "spec.md § User Story 2, Independent Test (\"Manually dispatch the new workflow ... Re-run the workflow with no further drift\" — explicitly invites repeated/close-together manual dispatch)"
+    claim: >
+      spec.md cites `ci-stale-running-sweep.yml` as precedent for the trigger shape (schedule +
+      workflow_dispatch), but that precedent also carries a `concurrency: {group:
+      ci-stale-running-sweep, cancel-in-progress: false}` block that serializes overlapping
+      runs — spec.md copies the trigger shape but never mentions carrying forward the
+      concurrency block. FR-007/AS3 are phrased only against a prior COMPLETED run's open PR;
+      nothing addresses two runs of the new workflow executing concurrently (cron racing a
+      manual dispatch, or two manual dispatches close together — a TOCTOU window where both
+      runs see "no PR open yet" and both proceed, producing two PRs). This is a genuine
+      architectural gap, not a mechanism-choice detail: no choice of detection axis (label,
+      branch name, PR search) closes a same-instant race unless the workflow run itself is
+      also serialized.
+    remediation: >
+      Add a constraint (or fold into FR-007) requiring the new workflow to carry a
+      `concurrency:` group mirroring `ci-stale-running-sweep.yml`'s own serialization, so
+      overlapping schedule/workflow_dispatch invocations queue rather than race the open-PR
+      check.
+
+  - id: SPEC-VERIFY-001
+    origin: verify
+    lens: falsifiability
+    severity: 4
+    title: "FR-008's failure model ('recapture script fails = corrupt/partial data') contradicts capture_shard_timings.py's actual exit-code semantics, which are already tripped on the currently-committed charter capture"
+    evidence:
+      - artifact: "spec.md § FR-008 (line 188)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 5 (lines 123-125)"
+      - code: "scripts/ci/capture_shard_timings.py:205 (`exit_code = int(pytest.main(list(argv), plugins=[recorder]))`) and :282 (`return 0 if all(capture.exit_code == 0 for capture in captures) else 1`)"
+      - code: "scripts/ci/capture_shard_timings.py:118-125 (`DurationRecorder.pytest_runtest_logreport` records every report unconditionally, so a failing test does not corrupt or truncate recorded durations)"
+      - code: ".github/ci-shard-timings.json (verified via `git show HEAD:.github/ci-shard-timings.json`): the currently-committed `module_capture_provenance.charter` entry has `\"exit_code\": 1` right now, for the charter recapture already merged into main"
+    claim: >
+      FR-008/AS5 treat "the recapture script exits non-zero" as synonymous with "the capture
+      mechanism broke / produced corrupt data." The script's exit code is actually
+      `pytest.main()`'s own return value for the measured test run — it reflects whether any
+      test under `tests/charter`/`tests/doctrine` itself failed, not whether the timing-capture
+      mechanism succeeded. `DurationRecorder` records every report regardless of outcome, so a
+      run with failing tests still produces complete, valid data — yet `main()` still returns
+      1. This is not hypothetical: the repo's own currently-committed charter provenance
+      already has `exit_code: 1` for the accepted, merged recapture. A literal FR-008
+      implementation would treat this ordinary, already-accepted condition as a hard block,
+      meaning the scheduled job could perpetually fail to ever produce a PR whenever
+      charter/doctrine has any failing test — defeating User Story 2's "self-heal ... without a
+      maintainer in the loop" goal for a reason unrelated to capture trustworthiness.
+    remediation: >
+      Either (a) narrow FR-008's failure trigger to a genuine mechanism failure (a raised
+      exception / non-zero exit from `main()` due to a collection/tooling crash, distinct from
+      an ordinary failing measured test) and explicitly exclude "the measured pytest run had
+      test failures" from that trigger, or (b) if the intent really is "never open a recapture
+      PR while charter/doctrine has a failing test," state that explicitly as its own FR with a
+      rationale. Either way, add a fixture proving `capture_shard_timings.py` returning 1 due
+      to an ordinary failing test does NOT collapse into the same outcome as a genuine
+      collection crash, unless (b) is the intended design.
+
+  - id: SPEC-VERIFY-002
+    origin: verify
+    lens: silent-success
+    severity: 4
+    title: "FR-006's 'no drift' is defined only by charter's committed/collected LENGTH agreement, but capture_shard_timings.py's --write path always rewrites non-deterministic provenance/duration fields, so a diff-based no-op check would show drift on every run"
+    evidence:
+      - artifact: "spec.md § FR-006 (line 186)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 2 (lines 115-117)"
+      - artifact: "spec.md § SC-004 (lines 238-239)"
+      - code: "scripts/ci/capture_shard_timings.py:212 (`captured_at=now_utc_iso()`) and :154-157 (`generate_run_id` embeds a fresh UTC timestamp), written on every `--write` invocation independent of whether the duration-list length changed"
+      - code: "scripts/ci/capture_shard_timings.py:130-131 (per-test wall-clock durations rounded to 4 decimals — values vary run to run even when test COUNT is unchanged)"
+    claim: >
+      The spec anchors "no drift" to LENGTH agreement, but the workflow's actual mechanism
+      (`capture_shard_timings.py --module charter --write`) unconditionally rewrites `run_id`,
+      `captured_at`, and the full duration-value list on every invocation, even when the test
+      COUNT is unchanged. If the plan/implementation decides "was there drift" via `git diff`
+      (the most natural, spec-consistent implementation absent other guidance), the answer will
+      be "yes" on essentially every scheduled run — including the exact "already-agreeing"
+      scenario AS2/SC-004 require to produce ZERO PRs. This is falsifiable today against the
+      actual tool and would fail SC-004 for any implementation that treats "the script produced
+      a file diff" as the PR-open trigger.
+    remediation: >
+      Add an explicit clause to FR-006 stating that "drift," for the PR-open decision, means
+      committed/collected LENGTH disagreement specifically (mirroring
+      `test_charter_is_not_allowlisted_and_agrees`'s own comparison) — not "the recapture script
+      produced any file diff" — and require the plan to specify how the no-drift decision is
+      made (e.g. compare pre/post `module_test_durations["charter"]` list length only, or strip
+      provenance/timestamp noise before diffing).
+
+  - id: SPEC-VERIFY-003
+    origin: verify
+    lens: silent-success
+    severity: 3
+    title: "FR-005/AS4 gate the PR-open step on the named secret's presence but never require the check to precede commit/push, leaving room for an orphan branch+commit with no PR and no visible failure signal at the moment the commit lands"
+    evidence:
+      - artifact: "spec.md § FR-005 (line 185)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 4 (lines 120-122)"
+      - artifact: "spec.md § CL-002 (lines 34-44): scopes the fail-loud requirement to \"the scheduled job's PR-open step\" specifically"
+    claim: >
+      Both FR-005 and AS4 scope the fail-loud/no-fallback requirement to the PR-open step only.
+      Neither states the named-secret presence check must run BEFORE the capture-and-commit
+      steps. A plan-conformant implementation could legally (1) run `capture_shard_timings.py
+      --write`, (2) commit and push a new branch via the default `GITHUB_TOKEN` (no special
+      secret needed for a same-repo push), and only then (3) attempt `gh pr create` with the
+      named secret and discover it absent — satisfying the letter of FR-005/AS4 while leaving a
+      pushed branch with a real commit in the remote, no PR, and no failure signal at the
+      instant the mutation happened.
+    remediation: >
+      Add a clause (to FR-005 or alongside C-004) requiring the named-secret presence check to
+      run and fail the job BEFORE any commit or push occurs, and/or require a fixture proving
+      "given the secret is absent, no new branch exists in the remote afterward."
+
+  - id: SPEC-VERIFY-005
+    origin: verify
+    lens: silent-success
+    severity: 4
+    title: "FR-004's Acceptance Scenarios only enumerate two outcomes; the Edge Cases section claims a third outcome ('could not determine the lengths at all' must still error) is covered, but no scenario or fixture requirement operationalizes it"
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenarios 1-2 (lines 148-155): only two outcomes (disagree/warn, agree/pass)"
+      - artifact: "spec.md § FR-004 row (line 184), 'No-op passable?' column: only two fixtures required"
+      - artifact: "spec.md § Edge Cases (lines 167-173): claims FR-004's ACs already require a third, distinguishable 'could not determine the lengths at all' outcome"
+      - code: "tests/architectural/test_module_length_agreement.py:161-166 (_load_registry) and :168-171 (_load_timings): a missing artefact calls `pytest.fail(...)` directly today, independent of any xfail marker downstream — showing the mechanism CAN separate the two outcomes, but no spec AC pins this as a requirement to preserve"
+    claim: >
+      The Edge Cases section asserts FR-004's acceptance criteria already require a third
+      outcome (infrastructure/collection break) distinguishable from both length-mismatch-warn
+      and clean-pass. But FR-004's own row and both of User Story 3's Acceptance Scenarios
+      enumerate exactly two outcomes — the Edge Cases section's coverage claim does not hold up
+      against the artifact it cites. If plan/implementation applies a bare
+      `pytest.mark.xfail` (no `strict=False, raises=...` narrowing) to the whole test body, a
+      genuine infrastructure crash would be silently swallowed as "expected failure," reported
+      as `xfailed` — outwardly identical to the legitimate length-mismatch case — and no fixture
+      in FR-004's own AC set would catch that collapse.
+    remediation: >
+      Add a third Acceptance Scenario under User Story 3 (and a corresponding FR-004 fixture
+      requirement): "Given the timings/registry artefact is missing or live collection crashes,
+      When the demoted test runs, Then it fails/errors visibly (not xfailed, not a warning) —
+      distinguishable from both the length-mismatch-warn case and the clean-pass case."

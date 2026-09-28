@@ -1,0 +1,107 @@
+# review-findings/v1 — round-2 fix target set. R6 gate rule: ANY unresolved in
+# spec-verify.yaml, or ANY finding in spec-fresh.yaml, triggers one more R4 round targeting
+# all of them, then repeat R5. This file is that combined target set (orchestrator bookkeeping,
+# mechanical concatenation, no new judgment applied).
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: round2-targets
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+source_files:
+  - reviews/spec-verify.yaml   # SPEC-GOV-001 carried over: status unresolved, remaining_severity 2
+  - reviews/spec-fresh.yaml    # SPEC-FRESH-001/002/003: new findings from the post-fix fresh sweep
+findings:
+  - id: SPEC-GOV-001
+    origin: spec-verify.yaml (unresolved carry-over)
+    lens: "Standing Order #5 fidelity — allowlist headcount sweep, missed instance"
+    severity: 2   # per R5a's remaining_severity (down from the original 4; most instances were fixed)
+    title: "CL-003 (spec.md line 48) still says 'the other 20 modules tracked by ledger entry SK-247' — the one unquoted, present-tense '20' claim the round-1 sweep missed"
+    evidence:
+      - artifact: "spec.md § CL-003 (line 48), the unquoted sentence \"The other 20 modules tracked by ledger entry SK-247 (the operator's cross-mission ledger...) stay out of scope\" — distinct from the adjacent verbatim SK-247 quote (\"20 of 21 modules\") which is correctly left as historical framing"
+      - artifact: "spec.md § Non-Goals bullet (already fixed to name 19 modules) — CL-003's unquoted '20' now contradicts it"
+      - code: "tests/architectural/test_module_length_agreement.py:98-117 (`_MISMATCH_ALLOWLIST` — 19 live keys, re-confirmed by R5a)"
+    claim: >
+      Round 1's fix correctly swept FR-003, FR-009, C-001, SC-006, the Non-Goals bullet, the
+      Ledger Cross-Reference closing sentence, User Story 1 AS2, the Key Entities bullet, and
+      Charter Tension from "20" to "19" — but missed CL-003's own unquoted, present-tense "the
+      other 20 modules ... stay out of scope" sentence. This is the identical defect class the
+      finding originally named, in the same file, left in one spot — it now directly
+      contradicts the already-corrected Non-Goals bullet two sections later.
+    remediation: >
+      Change CL-003's unquoted "The other 20 modules tracked by ledger entry SK-247 ... stay
+      out of scope" to "19" — leave any adjacent VERBATIM quote of SK-247's own "20 of 21
+      modules" text untouched, per the same historical-quote exception round 1 already applied
+      correctly elsewhere in this same section.
+
+  - id: SPEC-FRESH-001
+    origin: spec-fresh.yaml
+    lens: "Architectural integrity — new Key Entities paragraph self-contradicts on FR-007's identity signal"
+    severity: 3
+    title: "The fix's new Key Entities paragraph names three candidate duplicate-PR markers (label / branch-name prefix / bot commit-author) but its own closing sentence narrows to only two, silently dropping branch-name-prefix, while FR-007 and AS3 both still list all three and cross-reference this same paragraph"
+    evidence:
+      - artifact: "spec.md § Key Entities (new paragraph added in commit 7fafd7e35, resolving SPEC-VERIFY-004): opens naming three co-equal markers, closes narrowing to two"
+      - artifact: "spec.md § FR-007 row and § User Story 2, Acceptance Scenario 3 (both still list all three markers and cross-reference \"see Key Entities\")"
+      - code: "scripts/ci/capture_shard_timings.py:154-157 (`generate_run_id()` produces a `<label>-durations-<UTC timestamp>` string — a branch-name PREFIX is specifically designed to survive exactly this kind of per-run-varying suffix, so \"the branch is freshly generated per run\" does not actually rule out prefix-matching as a viable stable signal)"
+    claim: >
+      The paragraph added to resolve SPEC-VERIFY-004 introduces an internal contradiction: it
+      lists three candidate identity markers up front but its closing "stable identity signal"
+      sentence drops branch-name-prefix, while FR-007/AS3 (which point at this same paragraph)
+      still list all three. The elimination of branch-name-prefix is also technically unsound —
+      a prefix convention is designed precisely to survive a varying per-run suffix like
+      `generate_run_id()`'s own `<label>-durations-<timestamp>` shape, so "freshly generated per
+      run" doesn't disqualify it. This is a fix-round-introduced defect, not a re-litigation of
+      the original finding.
+    remediation: >
+      Make the Key Entities paragraph, FR-007's row, and AS3 agree on exactly the same set of
+      viable identity markers. Either (a) keep all three (label, branch-name prefix, bot
+      commit-author) as legitimate plan-time choices and remove the narrowing closing sentence,
+      or (b) if there is a genuine reason to exclude branch-name-prefix, state that reason
+      explicitly (the current "freshly generated per run" reason does not hold, since a prefix
+      match tolerates a varying suffix) and update FR-007/AS3 to match the narrowed set.
+
+  - id: SPEC-FRESH-002
+    origin: spec-fresh.yaml
+    lens: "Conceptual alignment — tracer-approach.md left stale by the spec fix"
+    severity: 2
+    title: "tracer-approach.md (unchanged by the fix) still lists 'checking for an existing branch' as an open plan-time choice, but spec.md's fix now forecloses that mechanism by mandating a freshly-generated-per-run branch"
+    evidence:
+      - artifact: "tracer-approach.md § Design choices deliberately left open for the plan phase (unchanged since 4a0e0cde1 — confirmed via diff, this fix round did not touch tracer files)"
+      - artifact: "spec.md § Key Entities (new text from commit 7fafd7e35): \"the recapture branch is freshly generated per run\""
+    claim: >
+      The tracer file's whole purpose is to record what remains genuinely open for the plan
+      phase. The spec fix closed off "a single fixed/reused branch, detectable by existing-branch
+      check" as a viable duplicate-detection mechanism, but tracer-approach.md was not updated
+      to reflect that and still presents branch-existence-checking as live optionality — a
+      plan-phase author reading only the tracer could pick an option the spec text has already
+      foreclosed.
+    remediation: >
+      Update tracer-approach.md's "design choices deliberately left open" list to remove or
+      caveat "checking for an existing branch" as a duplicate-detection option, noting the spec
+      now specifies the branch is freshly generated per run (so branch-existence alone cannot
+      serve as the stable identity signal — see Key Entities / FR-007).
+
+  - id: SPEC-FRESH-003
+    origin: spec-fresh.yaml
+    lens: "Falsifiability / silent-success — inconsistent secret-check-ordering timing across three amended clauses"
+    severity: 3
+    title: "The fix's three edits closing the 'orphan commit before secret check' gap (C-004, FR-005, AS4) end up with two different timing rules, and FR-005's own prescribed fixture cannot distinguish between them"
+    evidence:
+      - artifact: "spec.md § FR-005 (amended by fix): requires the secret check before recapture starts"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 4 (amended by fix): matches FR-005's before-recapture timing"
+      - artifact: "spec.md § C-004 (amended by fix): requires the secret check only before commit/push (recapture may run first)"
+    claim: >
+      FR-005 and AS4 require the secret-presence check before recapture even starts; C-004,
+      amended in the same fix commit for the same underlying requirement, only requires the
+      check before commit/push — recapture is allowed to run first under C-004's wording. These
+      are two different timing rules presented as one requirement. Separately, FR-005's own
+      listed fixture ("no new branch/commit exists in the remote afterward") cannot distinguish
+      "recapture ran, then the check failed before commit" from "the check failed before
+      recapture ran" — both produce an identical observable (no branch, no commit) — so FR-005's
+      stricter "before...recapture" clause is currently unfalsifiable by its own prescribed test.
+    remediation: >
+      Pick ONE timing rule and apply it consistently to FR-005, AS4, and C-004 (e.g. "the
+      secret-presence check runs and fails the job before the recapture script is invoked at
+      all"). If the before-recapture timing is kept, add a fixture element that can actually
+      distinguish it from the weaker before-commit timing (e.g. assert no recapture-script
+      invocation/log line appears at all when the secret is absent, not merely that no
+      branch/commit resulted).

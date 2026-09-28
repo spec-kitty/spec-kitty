@@ -1,0 +1,94 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      plan.md item (b) (§"Stale-branch-replacement mechanism") explicitly relies on step 1 of item
+      (c)'s orchestration ("step 2 of item (c)'s orchestration already confirmed no PR is open
+      before this point is ever reached") without any re-check immediately before the git-push
+      --force in step 3, and item (a) budgets up to 30 minutes for the capture step in between;
+      ruling 2 point 3 (reviews/spec.ruling.md) permits the plan to choose a force-push mechanism
+      only "when no such PR is open", so a PR opening on the stale branch during that window would
+      be force-pushed over undetected — no fixture in item (c)'s 5-item list or any other plan.md
+      text re-verifies the open-PR state right before the push.
+
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >
+      Verified scripts/ci/capture_shard_timings.py:254 — `parser.error(...)` inside `_parse_args`
+      raises `SystemExit`, a `BaseException` subclass, not an `Exception` subclass; plan.md's
+      `run_capture_or_die` (lines 297-303) catches only `except Exception as exc:` with the comment
+      "deliberately broad: ANY uncaught exception from the mechanism is a crash" (line 300), which
+      is factually false for `SystemExit` — a real, code-verified gap, independent of how narrow the
+      trigger conditions are.
+
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: >
+      Verified scripts/ci/capture_shard_timings.py:273-282 exactly as cited — `destination.write_text
+      (...)` at line 274 executes BEFORE the `for capture in captures: print(..., file=sys.stderr)`
+      loop (lines 276-281) and the sole `return` at line 282; if that print raises
+      (BrokenPipeError/UnicodeEncodeError), the exception propagates through `capture_main(argv)`
+      in plan.md's `run_capture_or_die` and is classified `mechanism_ok=False` even though the
+      merged JSON was already durably written — a genuine, code-verified counter-example to the
+      plan's stated write-before-return biconditional (plan.md lines 269-282).
+
+  - id: PLAN-ARCH-003
+    verdict: confirmed
+    reason: >
+      Full read of plan.md confirms no sentence anywhere states that in-process `pytest.main()`
+      invocation is safe only because exactly one `--module` call occurs per process; code
+      confirms `_capture_all` (capture_shard_timings.py:258-260) loops `capture_module`/
+      `pytest.main()` once per requested module (a real multi-call hazard if ever invoked with
+      >1 module), and FR-009's concrete text (plan.md lines 375-380) discusses the hardcoded
+      single-module scope only as a scope-creep guard, never connecting it to pytest's
+      repeated-invocation safety — a genuine, verifiable documentation gap, even though low
+      severity since the design is safe by construction today.
+
+  - id: PLAN-ARCH-004
+    verdict: confirmed
+    reason: >
+      Live-checked via `gh pr view 5177 --json state,mergedAt` -> {"state":"MERGED"} and
+      `gh pr view 5175 --json state,mergeable,mergedAt` -> {"state":"CLOSED","mergeable":
+      "CONFLICTING"} (checked 2026-09-27), exactly matching the finding's cited evidence; plan.md
+      lines 443-450's "whichever merges first" framing is indeed stale relative to this live state,
+      even though it does not change the plan's substantive no-collision conclusion.
+
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >
+      Verified plan.md's two new tests (lines 348-356) call `_charter_disposition` directly, never
+      the actual `test_charter_is_not_allowlisted_and_agrees` body; the current body
+      (test_module_length_agreement.py:329-344) would, under plan's proposed edit, gain an
+      if/xfail branch consuming the helper — a revert of only that consuming branch back to a bare
+      `assert committed == collected` (leaving the orphaned helper and its two new unit tests
+      physically present and passing) would not be caught by either new test, exactly the
+      integration-point gap the finding describes.
+
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >
+      spec.md's FR-006 row states verbatim "requires a fixture proving both the drift case (length
+      disagrees -> PR opened) and the no-drift case (length agrees ... -> no PR)"; plan.md's item
+      (c) 5-fixture list (lines 241-263) contains only fixture 3, "no-drift-no-PR" — no fixture in
+      that list, or anywhere else in plan.md, asserts that a `True` `has_drift` result drives the
+      orchestration to actually invoke the commit/push/PR-open callable, leaving FR-006's positive
+      half (User Story 2's actual deliverable) unverified by the plan's own test list.
+
+  - id: PLAN-VERIFY-003
+    verdict: refuted
+    reason: >
+      spec.md's FR-004 row literally requires "three fixtures: one proving the disagreeing case...,
+      one proving the agreeing case..., and one proving a genuine infrastructure/collection break
+      (missing timings/registry artefact, live-collection crash) fails/errors visibly" — the
+      parenthetical lists two example causes of ONE required fixture, not two separately mandated
+      fixtures (reinforced by User Story 3 Acceptance Scenario 3's single combined "artefact is
+      missing, OR live collection crashes" framing, one Given clause, one Then); plan.md's item (d)
+      delivers exactly the three fixtures named (2 disposition tests + 1 infra-break test), and its
+      missing-artefact test exercises the same session-scoped-fixture-level `pytest.fail` mechanism
+      that `_live_collected_count()` (test_module_length_agreement.py:229-250) also uses, making it
+      a defensible representative instance of the "genuine infra break" class rather than a
+      spec-violating omission of a fourth, separately-required fixture.

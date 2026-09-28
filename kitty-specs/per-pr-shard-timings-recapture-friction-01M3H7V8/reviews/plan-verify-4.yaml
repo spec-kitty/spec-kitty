@@ -1,0 +1,60 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: >
+      plan.md now carries a dedicated "Snapshot-then-capture-then-compare" subsection
+      (lines 458-485) with an explicit, numbered 3-step ordering an implementer can
+      follow literally — (1) read `.github/ci-shard-timings.json`'s `charter` length
+      as `before_length` BEFORE calling `run_capture_or_die` at all, (2) call
+      `run_capture_or_die(capture_main, argv)` with `--module charter --write` (the
+      call that overwrites the file per the design-problem analysis just above it,
+      lines 458-464, whose line-268/274 citations match the live
+      `scripts/ci/capture_shard_timings.py` exactly — verified independently: line 268
+      loads `payload` from `TIMINGS_PATH`, line 274 `destination.write_text(...)`
+      overwrites it in place under `--write`), (3) only after `mechanism_ok=True`,
+      re-read the file's `charter` length as `after_length` and call
+      `has_drift(before_length, after_length)`. This is no longer a restated claim —
+      it is a concrete, sequenced instruction with a named function. It is also backed
+      by a new fixture 11, "snapshot-before-overwrite" (lines 363-377), which is not a
+      pure `has_drift(int, int)` test: a fake `capture_main` mutates a fake in-memory
+      dict standing in for the parsed timings file in place, and the fixture asserts
+      the orchestration reads `before_length` pre-mutation and `after_length`
+      post-mutation, exactly proving the snapshot-then-capture-then-compare ordering
+      the finding demanded. Downstream fixture-count references were updated
+      consistently (line 554: "FR-005 through FR-008 — the 11 fixtures listed in item
+      (c) above").
+
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: >
+      The "FR-009, FR-010, NFR-003 — concrete text" section header was expanded to
+      "FR-009, FR-010, NFR-001, NFR-003 — concrete text" (line 567), and a dedicated
+      bullet "NFR-001 (gate protects shard balance, not correctness)" (lines 602-610)
+      now cites `.github/workflows/module-tests.yml`'s "Select this shard's tests"
+      step falling back to uniform per-test weights when
+      `len(durations) != len(node_ids)` as the verification that the demoted
+      assertion's sole protected property is shard-balance, never coverage — mirroring
+      the concrete-value/verification-step treatment already given to NFR-002 and
+      NFR-003 in the same section, and instructing the PR body to state the claim
+      explicitly, matching the finding's remediation.
+
+  - id: PLAN-FRESH3-003
+    status: resolved
+    reason: >
+      Item (b)'s title was widened to "Names — secret, branch, concurrency group,
+      permissions, open-PR check (verbatim)" and a new "Permissions" bullet
+      (lines 253-260) states the concrete workflow-level block verbatim —
+      `permissions: {contents: read}` — with the rationale requested: git
+      push/`gh pr create` authenticate through the dedicated
+      `CHARTER_SHARD_RECAPTURE_TOKEN` PAT rather than `GITHUB_TOKEN`, so no job-level
+      `contents: write`/`pull-requests: write` escalation is needed, and granting it
+      would be "inert widening, not a functional requirement." This mirrors the
+      verbatim-naming treatment already given to the secret, branch, and concurrency
+      group, closing the one previously-unstated YAML-level decision the finding
+      flagged. Minor, non-blocking observation from the vicinity spot-check: the
+      bullet's actual position in item (b) comes after "Open-PR check," while the
+      section title lists "permissions" before "open-PR check" — a title-ordering nit,
+      not a substantive gap, and not scored as a new finding.

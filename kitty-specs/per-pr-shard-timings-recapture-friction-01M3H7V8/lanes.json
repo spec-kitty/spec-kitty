@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "mission_slug": "per-pr-shard-timings-recapture-friction-01M3H7V8",
+  "mission_id": "01M3H7V865DG4BNBKP2ETZSZ1A",
+  "mission_branch": "kitty/mission-per-pr-shard-timings-recapture-friction-01M3H7V8",
+  "target_branch": "issue-5189-per-pr-shard-timings-recapture-friction",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_module_length_agreement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "scripts/ci/recapture_charter_shard_timings.py",
+        "tests/ci/test_recapture_charter_shard_timings.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-charter-shard-recapture.yml",
+        "docs/development/reference/known-friction-points.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-27T22:06:42.287128+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9d83c7ed10600ec96280081b560811c2b9074061"
+}

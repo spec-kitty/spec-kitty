@@ -1,0 +1,124 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh5
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-FRESH5-001
+    lens: fresh-eyes
+    severity: 4
+    title: Plan never orders the mandatory secret truthy-check ahead of the open-PR check, which itself authenticates with the same secret
+    evidence:
+      - artifact: >-
+          plan.md § (b) Names — ... (verbatim), "Open-PR check (verbatim)" bullet — "gh pr list
+          --repo <owner/repo> --head ci/recapture-charter-shard-timings --base main --state open
+          --json number invoked from inside the new script via subprocess, authenticated with
+          GH_TOKEN set to the dedicated secret (never GITHUB_TOKEN)."
+      - artifact: >-
+          plan.md § (b) Names — ..., Secret bullet — "this check must NOT copy that function's
+          GITHUB_TOKEN fallback ... falling back to GITHUB_TOKEN when CHARTER_SHARD_RECAPTURE_TOKEN
+          is falsy would violate CL-002/C-004's operator decision that this design must never
+          fall back to the default GITHUB_TOKEN."
+      - artifact: >-
+          plan.md § (c) How the workflow is tested, fixture 5 (missing-secret-loud-failure) — "Both
+          (a) and (b) must produce the same loud, non-zero-exit failure ... that callable is never
+          invoked at all in either case ... Both cases must fail before any recapture work (the
+          capture-wrapper invocation) starts."
+      - artifact: >-
+          plan.md § "Snapshot-then-capture-then-compare — where before_length/after_length actually
+          come from" — the only explicit ordering the plan states is "1. Before calling
+          run_capture_or_die at all, read .github/ci-shard-timings.json ... 2. Call
+          run_capture_or_die(...) ... 3. Only when ... mechanism_ok is True, re-read..." — this
+          numbered sequence never mentions the secret check or the open-PR check at all.
+    claim: >-
+      The plan (via ruling 2) pins the secret presence check as a truthy test that must "run and
+      fail before any recapture, commit, or push occurs" and must never let the process fall back
+      to GITHUB_TOKEN. But the plan's own Open-PR check — the very first thing spec.md's Key
+      Entities three-step sequence does on every run — is itself authenticated "with GH_TOKEN set
+      to the dedicated secret." Nowhere does the plan state that the secret truthy-check must run
+      before that open-PR-check subprocess call; the only explicit ordering given (the
+      before_length/run_capture_or_die/after_length numbered list) starts mid-sequence, after both
+      the secret check and the open-PR check are assumed already resolved, and fixture 5's own
+      assertion only proves the capture-wrapper callable is never invoked — it says nothing about
+      whether the open-PR-check callable was invoked first with a missing/empty token. An
+      implementation that runs the open-PR check before the secret check would (a) hand `gh` an
+      empty or absent GH_TOKEN for a live `gh pr list` call, producing a generic gh
+      authentication failure instead of the "clear, non-zero-exit error naming the missing secret"
+      FR-005/C-004/SC-005/Acceptance Scenario 4 require, and (b) creates exactly the silent-fallback
+      risk CL-002/C-004 exist to forbid, if gh's own env-var resolution treats an empty/unset
+      GH_TOKEN as "not set" and falls through to an ambient GITHUB_TOKEN for that call — undetected
+      by any fixture in the plan, since fixture 5 never asserts on the open-PR-check callable.
+    remediation: >-
+      Add an explicit statement (in item (b) or as a new lead sentence in item (c)'s fixture list)
+      that main()'s very first action, before any `gh`/subprocess call of any kind including the
+      open-PR check, is the CHARTER_SHARD_RECAPTURE_TOKEN truthy check — fail loudly and exit before
+      the open-PR-check function is ever called. Extend fixture 5 (or add a twelfth fixture) to
+      assert, via the same spy/fake pattern, that the open-PR-check callable is also never invoked
+      in the missing-secret case, closing the gap between "capture-wrapper never invoked" (already
+      asserted) and "open-PR check never invoked either" (currently unasserted).
+
+  - id: PLAN-FRESH5-002
+    lens: fresh-eyes
+    severity: 3
+    title: NFR-002's deferred-runtime sentence names an artifact (the recapture PR body) whose format, fixed elsewhere in the same plan, has no field for that data
+    evidence:
+      - artifact: >-
+          plan.md § (a) Scheduled job placement, Timeout budget — "NFR-002's 'measured in-Actions
+          runtime' obligation is satisfied by deferral, not by this plan: the recapture PR's own
+          description — not plan.md — will carry the actual measured in-Actions runtime after the
+          first real dispatch, and this 30-minute figure remains only the interim, falsifiable
+          pre-dispatch projection until that PR body records the real number."
+      - artifact: >-
+          plan.md § FR-009, FR-010, NFR-001, NFR-003 — concrete text, FR-010 bullet — "PR body
+          (fixed template, filled only with the before/after lengths and this run's workflow run
+          URL — no free-form prose): \"Automated recapture opened by the scheduled
+          ci-charter-shard-recapture.yml workflow ... Updates .github/ci-shard-timings.json's
+          charter entry: committed length <before> -> <after>. See spec-kitty#5189.\" Every clause
+          is fixed, falsifiable-by-inspection text per FR-010."
+    claim: >-
+      Item (a)'s ruling-2 fix commits to recording the actual measured in-Actions runtime "in the
+      recapture PR's own description" once the workflow has run for real. But "the recapture PR" is
+      the term the plan uses everywhere else for the automated PR the scheduled workflow itself
+      opens (FR-010's subject), and FR-010's own section — untouched by ruling 2 — defines that PR's
+      body as a rigid, three-field fixed template (before-length, after-length, workflow-run URL)
+      explicitly stating "no free-form prose." There is no field in that template for a runtime
+      figure, so the two sections point at the same artifact with mutually exclusive contracts: one
+      says the PR body will carry the measured runtime, the other says the PR body carries only
+      three fixed fields and nothing else. An implementer following FR-010 to the letter (fixed
+      text, no free-form prose) cannot also satisfy item (a)'s promise without violating FR-010, or
+      vice versa.
+    remediation: >-
+      Either (a) add a fourth fixed field to FR-010's PR-body template for the measured runtime
+      (and adjust "no free-form prose" to describe it as a fourth fixed, falsifiable field, not
+      free text), or (b) repoint item (a)'s NFR-002 sentence at a different artifact that can
+      legitimately carry prose commentary — e.g. this mission's own implementation PR body's
+      "Tests run"/notes section, updated after the first real dispatch — rather than the
+      automated recapture PR's fixed-template body.
+
+  - id: PLAN-FRESH5-003
+    lens: fresh-eyes
+    severity: 1
+    title: "Charter Check's Standing Order #2 bullet calls capture_shard_timings.py a file this mission \"touches\", contradicting its \"zero edits\"/\"UNCHANGED\" status stated everywhere else"
+    evidence:
+      - artifact: >-
+          plan.md § Charter Check — "Standing Order #2 (campsite cleaning): both files this mission
+          touches (test_module_length_agreement.py, capture_shard_timings.py) were read in full; no
+          debt was found in either that is in-scope to this change."
+      - artifact: >-
+          plan.md § (e) Campsite-clean scope — "scripts/ci/capture_shard_timings.py: read in full.
+          ... this file requires zero edits: its existing, unmodified control flow ... is exactly
+          what the new wrapper depends on."
+      - artifact: >-
+          plan.md § Project Structure, Source Code — "capture_shard_timings.py # UNCHANGED (see
+          item e)".
+    claim: >-
+      The Charter Check section's Standing Order #2 bullet describes capture_shard_timings.py as
+      one of "both files this mission touches," which reads as an edited surface under review — but
+      every other section (Summary, item (e), the Source Code file tree) is explicit that this file
+      receives zero edits and is UNCHANGED. This is imprecise wording, not a substantive defect
+      (campsite-cleaning a read-only dependency is legitimate), but a reviewer skimming only the
+      Charter Check section could mistake it for an edited surface.
+    remediation: >-
+      Reword the Standing Order #2 bullet to distinguish the edited file from the read-only one,
+      e.g. "the one file this mission edits (test_module_length_agreement.py) plus the one
+      unmodified file its design depends on (capture_shard_timings.py) were both read in full."

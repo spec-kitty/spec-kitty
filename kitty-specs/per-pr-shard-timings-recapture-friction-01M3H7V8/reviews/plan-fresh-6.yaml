@@ -1,0 +1,42 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh6
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-FRESH6-001
+    lens: fresh-eyes
+    severity: 3
+    title: FR-010 PR-body description promises a workflow-run-URL field the fixed template text does not contain
+    evidence:
+      - artifact: >-
+          plan.md § (b) Names — ... FR-010 concrete text — "PR body (fixed template, filled only
+          with the before/after lengths and this run's workflow run URL — no free-form prose):
+          \"Automated recapture opened by the scheduled `ci-charter-shard-recapture.yml` workflow
+          (`scripts/ci/recapture_charter_shard_timings.py`). Updates
+          `.github/ci-shard-timings.json`'s `charter` entry: committed length `<before>` ->
+          `<after>`. See spec-kitty#5189.\""
+      - artifact: >-
+          plan.md § (a) Scheduled job placement — Timeout budget — "not the automated,
+          scheduled-workflow-opened recapture PR that FR-010's fixed three-field template governs"
+    claim: >-
+      The FR-010 bullet states the PR body is "filled only with the before/after lengths and this
+      run's workflow run URL", i.e. it advertises three fill-in values (before, after, run URL).
+      But the verbatim template text quoted immediately after contains only two placeholders,
+      `<before>` and `<after>` — there is no run-URL placeholder anywhere in the fixed text (no
+      `<run_url>`, no `${{ github... }}` reference, nothing). NFR-003's concrete text and the
+      surrounding sentence both stress this text is "fixed, falsifiable-by-inspection" and must
+      never carry free-form prose, so an implementer following the literal quoted template omits
+      the run URL entirely (contradicting the "filled with...this run's workflow run URL" claim),
+      while an implementer following the descriptive sentence adds a URL the falsifiable-by-
+      inspection fixed text never anticipated — either way the two adjacent sentences describing
+      the same artifact disagree about what it actually contains. This phrase sits directly next to
+      the newly-reworded NFR-002 sentence (line ~171, "FR-010's fixed three-field template") that
+      this round's edit introduced/touched, so the mismatch is either newly exposed or newly
+      load-bearing by that edit's cross-reference.
+    remediation: >-
+      Either add a third placeholder to the quoted PR-body template (e.g. append "Workflow run:
+      <run_url>." to the fixed text) so the template actually contains all three advertised fields,
+      or drop "and this run's workflow run URL" from the descriptive sentence so the prose matches
+      the two-placeholder template that is actually specified. Pick one and make the two sentences
+      agree verbatim.

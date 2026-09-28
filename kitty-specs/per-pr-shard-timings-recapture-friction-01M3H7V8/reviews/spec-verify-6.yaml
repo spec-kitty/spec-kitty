@@ -1,0 +1,33 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH5-001
+    status: resolved
+    reason: >-
+      Ruling 2's bar is "FR-012 and the stale-thread edge case are gone and nothing in the spec
+      still implies a force-update" — FR-012 (and its infeasible "dismiss stale reviews on push"
+      branch-protection option) has no row in the current FR table (FR-001..FR-010 only), AS7 no
+      longer exists (User Story 2 now has 5 renumbered scenarios with no dismiss-stale-reviews
+      text), and every remaining force-push/force-update mention in spec.md (lines 124, 205, 243,
+      253, 255, 260, 372, 374) is a negation ("does not push, force-push, comment, or open
+      anything... never force-pushes, in any case") rather than an implication that a force-update
+      happens.
+  - id: SPEC-FRESH5-002
+    status: resolved
+    reason: >-
+      Ruling 2's bar is "the Charter Tension FR ranges match the surviving FR set" — Charter
+      Tension item 5 now cites "FR-005 through FR-008" (FR-011/FR-012 dropped, replaced with the
+      skip-if-open behavior and the accepted staleness cost per ruling 2 point 5) and item 1's
+      "(FR-005-FR-009)" range never included FR-011/FR-012 in the first place, so neither range
+      references a retired FR ID; both are internally consistent with the surviving FR-001..FR-010
+      set.
+  - id: SPEC-FRESH5-003
+    status: resolved
+    reason: >-
+      Ruling 2's bar is "the stale-thread edge case [is] gone" — the Edge Cases section (spec.md
+      lines 174-190) now contains only the two pre-existing bullets each covered by a named FR
+      (FR-008, FR-004); the stale-review-thread bullet and its unfalsifiable "plan phase must
+      state the accepted behavior explicitly" clause have been deleted outright with no vestige,
+      consistent with FR-011/FR-012/SC-007 and User Story 2's Acceptance Scenarios 6-7 also being
+      deleted (renumbered 1-5, no gap) rather than reworded.

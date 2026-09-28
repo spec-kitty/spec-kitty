@@ -1,0 +1,148 @@
+# Profile applied: packs/built-in/agent_profiles/debugger-debbie.agent.yaml
+# (Debugger Debbie). This is a review-only fresh sweep (no implementation, no
+# sub-agents dispatched per the dispatch's explicit prohibition), so the
+# five-paradigm swarm was applied as a solo analytical lens set rather than a
+# literal parallel dispatch:
+#   - Hypothesis-driven (The Falsifier): each candidate defect was stated as a
+#     falsifiable claim and checked directly against the current spec.md text
+#     (e.g. "FR-011's lease-check races C-006's concurrency guard" was
+#     checked and FALSIFIED -- the two guard different actors, job-vs-job vs.
+#     job-vs-human, and are complementary, not reported).
+#   - Bisection/timeline (The Bisector): `git diff HEAD` was read as a
+#     before/after bisection isolating exactly the round-4/round-5 additions
+#     (FR-011, FR-012, the new Edge Case bullet, SC-007) from the unchanged
+#     text they now must stay consistent with.
+#   - Divergence matrix (The Matrix-Maker): cross-checked FR-011/FR-012/the
+#     new Edge Case/SC-007 against Charter Tension, Key Entities, C-001/C-006,
+#     and the Acceptance Scenarios cell-by-cell for drift the new text left
+#     behind (surfaced SPEC-FRESH5-002).
+#   - Trace-based observability (The Stenographer): treated the spec's own
+#     "never silent" / falsifiable-fixture theme as the evidentiary trace to
+#     re-run against FR-012's new "or" clause, surfacing that one branch of
+#     the disjunction rests on a GitHub branch-protection mechanism that
+#     cannot actually be scoped the way the FR text claims (SPEC-FRESH5-001).
+#   - 5-Whys/Ishikawa (The Cartographer): asked why the Edge Cases entries
+#     before this round all cite a covering FR while the new stale-review-
+#     thread bullet does not, to confirm SPEC-FRESH5-003 is a genuinely new
+#     enforcement gap introduced by this round's edit, not a pre-existing,
+#     already-litigated shape.
+# Directive-references applied: 001 (Architectural Integrity Standard --
+# checked FR-012's branch-protection mechanism against how GitHub branch
+# protection actually scopes, a structural/boundary fact, not just the
+# prose); 003 (Decision Documentation Requirement -- confirmed
+# SPEC-FRESH3-001/002 and SPEC-FRESH4-001..005 are genuinely closed per
+# reviews/spec.ruling.md and tracer-design-decisions.md before treating any
+# adjacent text as fair game, per the dispatch's do-not-relitigate scope);
+# 032 (Conceptual Alignment -- FR-012/AS7 vs. actual GitHub branch-protection
+# semantics; Charter Tension item 1's FR range vs. item 5's FR range).
+# Tactic applied: review-intent-and-risk-first (evaluated FR-012's intent --
+# "force-update review state is never silent" -- against the real-world risk
+# that its (a) branch requires a repo-wide branch-protection change outside
+# C-001's charter-only scope).
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh5
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-FRESH5-001
+    lens: conceptual-alignment
+    severity: 4
+    title: "FR-012's \"dismiss stale reviews\" branch misstates GitHub branch-protection scope, inviting an out-of-charter global change"
+    evidence:
+      - artifact: "spec.md § FR-012"
+        quote: "either the repository requires \"dismiss stale reviews on push\" for this branch/PR path so a force-update always requires fresh re-review before merge"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 7"
+        quote: "either the approval is dismissed (branch protection's \"dismiss stale reviews on push\" applies to this path)"
+      - artifact: "spec.md § C-001"
+        quote: "This mission touches only `charter`'s handling ... and adds one new scheduled workflow scoped to `charter`."
+    claim: >
+      FR-012 and AS7 both phrase option (a) as if "dismiss stale reviews on
+      push" is a setting scopable to "this branch/PR path" -- i.e. only to
+      the recapture PR's fixed head branch. GitHub branch protection does not
+      support that scoping: "Dismiss stale pull request approvals when new
+      commits are pushed" is configured once per protected target-branch
+      pattern (here, `main`) and applies to every PR merging into `main`, not
+      to a specific source/head branch. Choosing option (a) as written would
+      therefore either (i) be impossible to implement as scoped ("for this
+      branch/PR path"), sending the plan phase down an infeasible path, or
+      (ii) require enabling the setting repo-wide, silently changing
+      approval-dismissal behavior for every PR into `main` -- a repo-wide
+      governance change with real review-process impact for every
+      contributor, which C-001 ("touches only charter's handling ... and adds
+      one new scheduled workflow scoped to charter") gives this mission no
+      license to make. The FR text presents (a) as a symmetric, mission-local
+      implementation choice with no acknowledgment of this scope
+      consequence, so a plan author following FR-012 literally could commit
+      to a change this spec never actually authorized.
+    remediation: >
+      Reword FR-012's option (a) to state the real mechanism: "if the
+      repository's existing branch-protection rule for `main` already has
+      'dismiss stale reviews on push' enabled (a pre-existing, repo-wide
+      setting this mission does not enable or change), the force-update relies
+      on that existing behavior; otherwise the plan must default to option
+      (b) (the explicit PR comment/annotation), since enabling that setting
+      repo-wide is outside this mission's charter-only scope (C-001) and is
+      not authorized here." Apply the same correction to AS7's parenthetical.
+  - id: SPEC-FRESH5-002
+    lens: dual-system-divergence-mapping
+    severity: 2
+    title: "Charter Tension item 1's FR range is stale — cites FR-005–FR-009 but excludes the new FR-011/FR-012, while item 5 was correctly swept"
+    evidence:
+      - artifact: "spec.md § Charter Tension, item 1"
+        quote: "it is moved from a per-PR blocking check to a scheduled, automatic recapture (FR-005–FR-009) that restores agreement on a bounded cadence."
+      - artifact: "spec.md § Charter Tension, item 5"
+        quote: "Silent-success failure modes for the scheduled job are explicitly specified (FR-005 through FR-008, FR-011, FR-012 / Acceptance Scenarios under User Story 2)"
+    claim: >
+      Item 5 was correctly updated this round to add FR-011 and FR-012 to its
+      citation range, but item 1 -- describing the same "automatic path" the
+      scheduled job implements -- still cites only "(FR-005–FR-009)". FR-011
+      (lease-guarded force-push) and FR-012 (explicit review-state outcome)
+      are just as much part of making that automatic path "restore agreement"
+      without silently losing a manual commit or silently invalidating a
+      review as FR-006/FR-007/FR-008 (named in item 1's next sentence) are.
+      The omission is a genuine, if minor, sweep gap: the same round that
+      correctly extended item 5's range left item 1's parallel range
+      untouched, so a reviewer scanning item 1 in isolation would not be
+      pointed at FR-011/FR-012 as part of the relocated-invariant story.
+    remediation: >
+      Extend item 1's citation to "(FR-005–FR-009, FR-011, FR-012)" (or add a
+      clause naming FR-011/FR-012 alongside FR-006/FR-007/FR-008 in the
+      following sentence), matching the sweep already applied to item 5.
+  - id: SPEC-FRESH5-003
+    lens: root-cause-analysis
+    severity: 3
+    title: New stale-review-thread Edge Case imposes a plan-phase obligation with no covering FR/SC, unlike every other Edge Case entry
+    evidence:
+      - artifact: "spec.md § Edge Cases (new bullet)"
+        quote: "The plan phase must state the accepted behavior explicitly ... rather than leaving the clutter unbounded and unaddressed."
+      - artifact: "spec.md § Edge Cases (pre-existing bullets, for contrast)"
+        quote: "Covered by FR-008 ... / FR-004's acceptance criteria require the demoted test to still distinguish ..."
+    claim: >
+      Every other Edge Case bullet in this section resolves to a specific,
+      already-specified FR whose acceptance criteria enforce the stated
+      behavior (FR-008 for the mid-recapture-failure case; FR-004 for the
+      collection-break case; the two-open-PRs case is explicitly waived as
+      "not this mission's problem"). The new stale-review-thread bullet is the
+      only one that instead defers to "the plan phase must state the accepted
+      behavior explicitly," with no FR ID, no acceptance-scenario reference,
+      and no Success Criteria entry gating whether the plan actually did so.
+      Unlike FR-011/FR-012 (which got full FR-table rows with fixture
+      requirements this same round), this edge case's obligation is
+      unfalsifiable at the spec level: nothing in tasks/analyze or a later
+      review pass has a concrete check to point at if the plan phase's
+      "explicit statement" turns out to be a vague sentence rather than a
+      real, testable behavior. This is a materially riskier gap than it looks
+      because the underlying issue (review-thread clutter across many
+      force-update cycles) directly reproduces the User Story 1 landing
+      friction this mission exists to reduce.
+    remediation: >
+      Either (a) add a lightweight FR (e.g. FR-013) stating the required
+      observable behavior (resolve/collapse prior review threads on
+      force-update, OR close-and-reopen past a stated staleness bound N) with
+      a no-op-passable="no" fixture requirement, mirroring FR-011/FR-012's
+      treatment, or (b) explicitly tag this edge case as a documented,
+      spec-level non-requirement (analogous to the "not this mission's
+      problem to solve structurally" framing used for the two-open-PRs edge
+      case) if the operator intends it to stay a plan-time judgment call with
+      no spec-level acceptance gate.

@@ -1,0 +1,66 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-GOV-001
+    lens: ruling-fidelity (mission-derived)
+    severity: 4
+    title: "Force-push mechanism has a TOCTOU window that can force-push over a branch that gained an open PR during the run, violating ruling 2's 'never force-pushes, in any case' guarantee"
+    evidence:
+      - artifact: "plan.md § (b) 'Stale-branch-replacement mechanism'"
+      - artifact: "plan.md § (a) 'Timeout budget' (30-minute budget)"
+      - artifact: "plan.md § (c) 'How the workflow is tested' (three-step orchestration: check open-PR -> invoke capture -> drift check + push)"
+      - artifact: "reviews/spec.ruling.md, ruling 2 point 2: 'The job never force-pushes, in any case.'"
+      - artifact: "spec.md Key Entities, 'The recapture head branch' bullet (same three-step orchestration, same single up-front open-PR check)"
+    claim: >
+      Plan.md's chosen stale-branch-replacement mechanism is "plain `git push --force` to the
+      fixed branch, taken only in the no-open-PR path," justified by "step 2 of item (c)'s
+      orchestration already confirmed no PR is open before this point is ever reached." But the
+      orchestration in item (c)/Key Entities is: (1) check for an open PR, (2) invoke the capture
+      script (measured at ~18 minutes locally; plan's own item (a) budgets up to 30 minutes for
+      this step), (3) apply the drift check and then git-push-force. The open-PR check in step 1
+      is never repeated immediately before the actual push in step 3 — plan.md contains no
+      re-check, re-verify, or "immediately before push" language anywhere (confirmed by a full
+      read of plan.md; grepped for "re-check"/"recheck"/"re-verify"/"immediately before" with zero
+      hits). During the up-to-30-minute window between step 1's check and step 3's push, a
+      maintainer (or another automated process with write access) can push a new commit to the
+      fixed branch and open a PR from it — the branch already exists with prior content whenever
+      the stale-branch-replacement path is reached at all (a previously-closed PR's branch), so
+      this is not a far-fetched scenario. When the job then reaches step 3, it force-pushes onto a
+      branch that now HAS an open PR, discarding that PR's content without ever re-checking —
+      exactly the case operator ruling 2 forecloses ("the job never force-pushes, in any case," and
+      "it does not push, force-push, comment, or open anything" while a PR from the branch is
+      open). This is an ordering/race bug in the plan's own described step sequence, not merely a
+      mismatch with its stated intent: the plan's own prose ("this code path is only reached after
+      confirming no such PR exists") is true only of the moment of the check, not the moment of the
+      push, and the plan never closes that gap. The C-006 concurrency group does not help here —
+      it only serializes overlapping invocations of this same workflow, not a human's independent
+      PR-open action on the branch mid-run.
+    remediation: >
+      Add an explicit re-verification of the open-PR check immediately before the git-push-force
+      step (i.e., re-run the same `gh pr list --head ci/recapture-charter-shard-timings --base
+      main --state open` check right before the push in step 3, not only at step 1), and abort the
+      push (falling back to the skip-if-open behavior: write the job-summary line naming the newly
+      opened PR and exit successfully) if a PR now exists. Alternatively, narrow the window by
+      moving the open-PR check to immediately precede the push rather than immediately preceding
+      the (slow) capture step, or document and justify an accepted residual race window explicitly
+      as a stated, operator-approved cost (mirroring how ruling 2 point 5's staleness cost is
+      explicitly stated) rather than leaving it unaddressed. Either fix must be reflected in
+      plan.md's item (b)/(c) text and in a corresponding fixture in
+      tests/ci/test_recapture_charter_shard_timings.py (a fixture proving that a PR opened between
+      the initial check and the push causes the job to abort the push rather than force-push over
+      it).
+# No other findings within this group's assigned lenses (Scope, Directive, Terminology,
+# Public-repo, Ledger, Campsite scope, Tracer files) — verified against
+# SPEC-KITTY-LEDGER.md's SK-247 entry (figures and module list
+# match spec.md/plan.md exactly), tests/architectural/test_module_length_agreement.py (confirmed
+# 19 live _MISMATCH_ALLOWLIST entries against _BASELINE_ALLOWLIST_COUNT = 20, matching spec.md's
+# "19 modules" framing), scripts/ci/capture_shard_timings.py (confirmed write-before-return control
+# flow underpinning the mechanism-vs-ordinary-failure design), and
+# .github/workflows/{ci-nightly.yml,ci-stale-running-sweep.yml,release.yml,protect-main.yml}
+# (confirmed cron/timeout/concurrency/secret-name precedents cited by plan.md items (a)/(b)). No
+# literal /home/<user> path or credential value appears in plan.md. Tracer files are treated as
+# already-seeded background and not contradicted or relitigated.

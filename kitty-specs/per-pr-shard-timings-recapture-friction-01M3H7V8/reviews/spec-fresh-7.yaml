@@ -1,0 +1,70 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh7
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-FRESH7-001
+    lens: divergence-mapping
+    severity: 4
+    title: Key Entities/C-003/C-006 describe the recapture mechanism as a two-branch (open-PR-exists vs. not) decision that drops FR-006's no-drift gate entirely
+    evidence:
+      - artifact: "spec.md § Key Entities — \"The scheduled recapture workflow\""
+        quote: "invokes `scripts/ci/capture_shard_timings.py --module charter --write`, and either (a) pushes the result to the single fixed head branch defined below and opens a PR from it, when no PR from that branch is currently open against `main`, or (b) when one is already open, skips entirely"
+      - artifact: "spec.md § Key Entities — \"The recapture head branch\""
+        quote: "when one exists, the job never pushes, force-pushes, comments, or opens anything against it ... when none exists, it pushes the fresh capture to the branch and opens a PR."
+      - artifact: "spec.md § Constraints — C-003"
+        quote: "It commits to the fixed recapture head branch (see Key Entities) and opens a PR from it, or (per ruling 2) skips entirely ... when a PR from that branch is already open"
+      - artifact: "spec.md § Constraints — C-006"
+        quote: "race FR-007's open-PR check, where both could otherwise observe \"no PR is open\" at the same instant and each open its own PR against the fixed branch"
+      - artifact: "spec.md § Requirements — FR-006"
+        quote: "Scheduled workflow opens no PR when there is no drift ... so that the recapture workflow never spams an empty/no-op PR from `--write`'s routine rewrite"
+      - artifact: "spec.md § User Story 2 — Acceptance Scenario 2"
+        quote: "it opens **no** PR (see FR-006 — a no-drift run must not produce an empty/no-op PR)."
+    claim: >
+      Four passages that the ruling-1/ruling-2 sweep rewrote (the "scheduled recapture workflow"
+      Key Entities bullet, the "recapture head branch" Key Entities bullet, C-003, and C-006) now
+      describe the workflow's decision as an exhaustive two-way branch keyed ONLY on "is a PR from
+      the fixed head branch currently open": if yes, skip; if no, push the fresh capture and open a
+      PR. None of these four passages mention or leave room for FR-006's independent no-drift gate
+      (Acceptance Scenario 2 / SC-004: when the committed and freshly-collected charter lengths
+      already agree, the job must open **no** PR — regardless of whether a prior PR happens to be
+      open or not). Read literally, an implementer following the Key Entities/C-003/C-006 prose
+      would push a routine-noise commit (run_id/captured_at/per-test-duration rewrites) to the fixed
+      branch and open a PR from it on every no-drift cron run for which no PR currently happens to
+      be open — precisely the "empty/no-op PR" spam FR-006 and SC-004 exist to prevent. This is a
+      real (not wording-only) contradiction: FR-006 requires a drift check that gates push+PR-open
+      independently of the open-PR check, but the newly-worded Key Entities/C-003/C-006 mechanism
+      description has collapsed the decision to a single binary condition, silently dropping that
+      gate. This gap did not exist before the ruling-1 rewrite (the pre-ruling text used the vaguer
+      "conditionally opens a PR," which did not foreclose a third state); the ruling's more precise
+      "either (a) ... or (b) ..." phrasing introduced the contradiction.
+    remediation: >
+      Restate the mechanism in all four passages as a three-way sequence, matching the order implied
+      by User Story 2's own Acceptance Scenarios: (1) if an open PR from the fixed head branch
+      already exists, skip entirely (no push, no commit, no PR-open — job-summary line only); (2)
+      else, run the recapture and compare committed vs. freshly-collected `charter` length
+      (FR-006's length-only comparison); if they agree, do not push and do not open a PR; (3) else
+      (drift found and no PR open), push the fresh capture to the fixed branch and open the PR. Make
+      explicit that the FR-006 drift check is evaluated independently of, and in addition to, the
+      FR-007 open-PR check — not subsumed by it.
+  - id: SPEC-FRESH7-002
+    lens: structural-root-cause
+    severity: 2
+    title: Recapture script invocation is not stated to be conditioned on the open-PR check, wasting a full ~18-minute recapture on every cron tick while a recapture PR sits open
+    evidence:
+      - artifact: "spec.md § Key Entities — \"The scheduled recapture workflow\""
+        quote: "invokes `scripts/ci/capture_shard_timings.py --module charter --write`, and either (a) ... or (b) when one is already open, skips entirely"
+    claim: >
+      The sentence structure states the workflow "invokes ...--write" first, and only afterward
+      branches on whether a PR is already open. Taken at face value this means the full recapture
+      (the same ~18-minute run User Story 1 exists to avoid paying per-PR) still executes on every
+      scheduled tick even when FR-007's skip-if-open path is about to discard its result — for
+      however many days/weeks the recapture PR sits open awaiting review. NFR-002 bounds the
+      workflow's own runtime but says nothing about avoiding wasted invocations, and no other
+      passage says the open-PR check should run (and short-circuit) before the recapture script is
+      invoked.
+    remediation: >
+      State explicitly that the open-PR check (FR-007) runs first and short-circuits before
+      `capture_shard_timings.py` is invoked at all when a recapture PR is already open, so a cron
+      tick with an open recapture PR costs a cheap API call rather than a full recapture run.

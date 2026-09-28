@@ -1,0 +1,67 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh4
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-FRESH4-001
+    lens: fresh-eyes / falsification-first (code-truth)
+    severity: 4
+    title: "Missing-secret check design (\"absent from the environment\") does not account for GitHub Actions' empty-string secret behavior, risking a recapture run before the loud failure CL-002/FR-005/C-004 require"
+    evidence:
+      - artifact: "plan.md:176-179 — \"Secret: CHARTER_SHARD_RECAPTURE_TOKEN ... Read from the environment inside scripts/ci/recapture_charter_shard_timings.py; the workflow step sets env: CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}.\""
+      - artifact: "plan.md:316-317 — fixture 5, \"missing-secret-loud-failure\": \"main() invoked with CHARTER_SHARD_RECAPTURE_TOKEN absent from the environment\""
+      - artifact: "scripts/ci/release_nightly_gate.py:262-268 — the cited canonical precedent's own `resolve_token()` uses a truthy check (`if value:`), precisely because an env var sourced from `${{ secrets.X }}` for an undefined secret is set to an EMPTY STRING by GitHub Actions, not omitted — `os.environ.get(name)` returns `\"\"`, which `if value:` correctly treats as absent but a bare `name not in os.environ` / `is None` check would not."
+    claim: >
+      GitHub Actions sets an `env:`-mapped variable sourced from `${{ secrets.NAME }}` to an
+      empty string when the named secret does not exist in the repository — the variable is
+      never simply missing from the runner's environment. Plan.md's own cited canonical
+      precedent (`release_nightly_gate.py`, invoked by name in item (a)'s DIRECTIVE_044
+      justification) already handles this correctly via a truthy check, but plan.md's design
+      description and its required fixture both frame the missing-secret case exclusively as
+      "absent from the environment" (line 179's "the default GITHUB_TOKEN is never read...";
+      fixture 5's literal wording at 316). Neither the design text nor the fixture calls out
+      the empty-string case, so an implementer following plan.md's literal framing could
+      plausibly write `"CHARTER_SHARD_RECAPTURE_TOKEN" not in os.environ` (or
+      `os.environ.get(...) is None`) instead of mirroring the precedent's truthy check, and
+      fixture 5 as specified (built by deleting the env var, not by setting it to `""`) would
+      not catch that mistake. In production, an actually-missing repository secret produces an
+      empty-string env var, not an absent key — a presence-only check would silently pass, the
+      job would proceed into the ~18-30 minute recapture and attempt to push/open a PR with an
+      empty token, failing late (at the `git push`/`gh pr create` step) with an opaque
+      credential error instead of the loud, secret-named, pre-recapture failure CL-002/FR-005/
+      C-004/SC-005 require. This is exactly the "silently becomes a bypass or a confusing late
+      failure instead of the specified fail-loud-before-any-mutation behavior" failure mode the
+      spec is written to forbid.
+    remediation: >
+      Add one sentence to plan.md item (b)'s Secret bullet and to fixture 5's description
+      making explicit that the presence check must be a truthy check (mirroring
+      `release_nightly_gate.py::resolve_token`'s `if value:` pattern) specifically because an
+      unset GitHub secret surfaces as an empty string, not a missing key, and extend fixture 5
+      (or add a fixture 5b) that sets `CHARTER_SHARD_RECAPTURE_TOKEN=""` (rather than deleting
+      it) and asserts the same loud, pre-recapture failure occurs.
+
+  - id: PLAN-FRESH4-002
+    lens: fresh-eyes / spec-plan correspondence
+    severity: 2
+    title: "Plan admits it cannot satisfy NFR-002's literal \"the plan phase must record the actual measured in-Actions runtime\" requirement, and does not amend/redirect that obligation"
+    evidence:
+      - artifact: "spec.md:220 — NFR-002: \"...the plan phase must record the actual measured in-Actions runtime once dispatched...\""
+      - artifact: "plan.md:163-168 — \"This is stated explicitly as a pre-dispatch projection, not a measured Actions-runtime figure — NFR-002 requires the plan to record the actual measured in-Actions runtime once dispatched; that measurement can only happen post-merge (see item (c)).\""
+    claim: >
+      Spec.md's NFR-002 text places an obligation on "the plan phase" itself to record the
+      actual measured in-Actions runtime. Plan.md correctly recognizes this is physically
+      impossible at plan-authoring time (no code exists yet to dispatch) and substitutes a
+      pre-dispatch projection (18min x 1.5 -> 30min budget), explicitly saying the real
+      measurement "can only happen post-merge." That is the right engineering call, but the
+      plan never closes the loop on the spec's literal wording — it does not state that NFR-002
+      is being satisfied instead at implementation/PR time (e.g., "the PR body records the
+      first real dispatch's measured runtime, superseding this projection"), leaving a reviewer
+      to independently notice and accept the substitution rather than finding it stated as a
+      settled disposition of the NFR.
+    remediation: >
+      Add one line to item (a)'s Timeout budget paragraph (or to the Charter Check /
+      Requirements-traceability area) stating explicitly that NFR-002's "plan phase must
+      record" language is satisfied by deferral: the PR description (not plan.md) will carry
+      the actual measured in-Actions runtime after the first real dispatch, and this plan's
+      30-minute figure is the interim, falsifiable placeholder until then.

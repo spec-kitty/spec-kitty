@@ -1,0 +1,68 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: amendment
+results:
+  - id: AMENDMENT-FRESH-001
+    status: resolved
+    reason: >-
+      The acceptance bar applied here is the orchestrator ruling in
+      reviews/tasks.ruling.md's final section ("Orchestrator ruling (operator standing rule,
+      plan.ruling.md) — 2026-09-28"), which REPLACES the original amendment-sweep finding's own
+      remediation text as the governing bar, per its closing sentence: "A verifier judges the
+      finding resolved iff every Python invocation in WP03 runs in the synced environment and the
+      job's step order still honours the fail-early secret check." The original AMENDMENT-FRESH-001
+      entry in reviews/amendment-fresh.yaml is retained only as background: T016's recapture job
+      invoked bare `python3 scripts/ci/recapture_charter_shard_timings.py` with no uv install or
+      environment sync, which would crash with ModuleNotFoundError before
+      capture_shard_timings.main() (which imports this repo's own kernel package and runs
+      pytest.main() against tests/charter/tests/doctrine) ever executed. Verified against the
+      applied fix: `git diff -- kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md`
+      shows T016's "Setup + invocation step" now inserts `- name: Install uv` /
+      `uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1` followed by
+      `- name: Set up environment` / `run: uv sync --frozen --all-extras` immediately before the
+      `Recapture charter shard timings if drifted` step, and that step's invocation line changed
+      from `python3 scripts/ci/recapture_charter_shard_timings.py` to
+      `uv run --frozen python scripts/ci/recapture_charter_shard_timings.py`. (a) Every Python
+      invocation inside a GitHub Actions `run:` step in WP03 now runs in the synced uv environment:
+      T016 as fixed above, and T020's sibling job (WP03 lines 293-359, untouched by this diff) was
+      already correct — `uv run --frozen pytest tests/architectural/test_module_length_agreement.py -q`
+      preceded by the same checkout/Install-uv/uv-sync sequence, confirming it as the correctness
+      pattern this fix now matches. The Test Strategy section's local-repro line
+      (`.venv/bin/python -m pytest tests/architectural/test_module_length_agreement.py -q`, WP03
+      line 374) is judged OUT OF SCOPE of "every Python invocation in WP03": it is explicitly
+      labeled a local manual-reproduction command run "against an already-synced .venv" that "does
+      not require the workflow to be dispatched" — i.e. it presumes the sync precondition already
+      holds and is never executed unattended in CI, unlike the T016 defect AMENDMENT-FRESH-001's own
+      evidence and remediation addressed (a scheduled job with literally zero environment-sync step).
+      This is also the repo's own documented convention (CLAUDE.md: "not a bare `uv run`, which
+      re-syncs the environment and destroys a hand-built `.venv`" for the UI-test local-repro case) —
+      a deliberate, distinct pattern from unattended CI invocation, not a missed bare-interpreter
+      case of the kind this finding was about. (b) Step order still honours the fail-early secret
+      check: T016 has exactly one substantive `run:` step (the recapture script itself, which per
+      plan.ruling.md's Plan HALT ruling 2 / PLAN-FRESH4-001 performs the truthy secret check
+      internally before any recapture work); the two newly-inserted steps (Install uv, Set up
+      environment) precede it and perform no push/PR-open/drift-correction work of their own, so
+      nothing in the new steps runs "work" ahead of the script's internal secret check. (c) The
+      SHA-pinned astral-sh/setup-uv ref T016 now uses,
+      `astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1`, is IDENTICAL to the
+      ref already used by T020 in the same file and to all six occurrences grepped from
+      .github/workflows/ci-nightly.yml (lines 118, 220, 315, 405, 586, 678 — all the same SHA).
+      (d) Out-of-scope check: `git status --short` shows two modified files
+      (reviews/tasks.ruling.md and tasks/WP03-scheduled-workflow-wiring.md); `git diff` confirms the
+      fix's own content change is confined entirely to WP03-scheduled-workflow-wiring.md. The
+      tasks.ruling.md modification is pre-existing state unrelated to this fix — its diff (`git diff --stat`
+      shows +24/-0 lines) is purely the addition of the "Orchestrator ruling" section itself (the
+      acceptance-bar text this verification applies), not any edit made by the fixer; the fixer
+      touched no line of tasks.ruling.md. No file outside WP03-scheduled-workflow-wiring.md was
+      touched by the fix. (e) Nothing else in WP03-scheduled-workflow-wiring.md was disturbed: the
+      diff hunk is localized to the T016 "Setup + invocation step" bullet (prose + YAML block);
+      T017, T018, T019, T020, the frontmatter, the cron schedule (`41 4 * * *`), the concurrency
+      group (`ci-charter-shard-recapture`, static), permissions (`contents: read`), timeout
+      (`timeout-minutes: 30`), runner (`ubuntu-24.04`), and the checkout step
+      (`actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0` with
+      `with.token: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}`) are all untouched by this diff.
+      Username-leak sweep: `grep -rn "/home/[a-z]" kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP03-scheduled-workflow-wiring.md`
+      returned no matches (empty, grep exit 1) — no unresolved leak. All five judgment criteria
+      (a)-(e) plus the username sweep pass; the finding is resolved against the ruling's literal
+      acceptance-bar sentence, not against any independently-invented remedy.

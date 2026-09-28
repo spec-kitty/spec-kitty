@@ -1,0 +1,18 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH7-001
+    status: resolved
+    reason: >-
+      plan.md § Concrete Design Decisions (b) now carries a dedicated "Checkout credential
+      mechanism" bullet (lines 284-297) stating the concrete git-level wiring —
+      `actions/checkout` with `token: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}` and
+      `persist-credentials` left at its true default (true) — names both failure modes without
+      it (a plain push failing outright under `permissions: {contents: read}`, or an
+      implementer's wrong fix of granting `contents: write` that would silently reauthenticate
+      via `GITHUB_TOKEN`), and explicitly ties the mechanism to CL-002/C-004's anti-fallback
+      rationale, matching those constraints as defined in spec.md; the mechanism described is
+      technically correct (checkout's `token:` input is used for the clone and, absent
+      `persist-credentials: false`, is persisted as the git credential for later git commands
+      in the same job).

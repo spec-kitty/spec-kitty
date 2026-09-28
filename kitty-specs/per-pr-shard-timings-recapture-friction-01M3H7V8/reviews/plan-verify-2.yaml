@@ -1,0 +1,37 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      plan.md lines 196-222 now frame the TOCTOU re-check as narrowing (not closing) the
+      window ("narrows, but does not close, the window", line 196; "does **not** make ruling
+      2 point 3's ... guarantee hold unconditionally at the moment of the push", line 211;
+      "This residual, structurally irreducible window is an **accepted cost**", line 216-217,
+      explicitly mirroring ruling 2 point 5's own accepted-cost framing) while still stating
+      the real narrowing value ("reduces the exposure window from the original ~18-30 minute
+      ... to ... call-overhead scale (sub-second to at most a few seconds)", lines 207-210);
+      fixture 7's own description (line 304) was also updated to "narrows the TOCTOU window
+      described in item (b) above, per that item's accepted-residual-cost framing" and no
+      longer claims closure.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      `grep -n '^### '` confirms the actual heading is "### The mechanism-vs-ordinary-failure
+      design problem — resolution" (line 328), and the FR-009 precondition sentence (lines
+      488-489) now reads "(see \"The mechanism-vs-ordinary-failure design problem —
+      resolution\" section above)" — an exact-string match to the real heading, correctly
+      pointing away from item (c) (lines 237-326, fixture/provability content only) to the
+      unlettered section that actually contains the in-process-invocation rationale.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: >-
+      Charter Check's ATDD-first bullet (lines 54-58) now reads "two covering the extracted
+      helper's own two dispositions — agree/disagree — directly, one covering the third
+      disposition — infra-break — via the pre-existing `_load_timings()` function, and one
+      exercising the consuming test function itself", which matches item (d)'s actual 4
+      fixtures verified directly (lines 442-471): #1/#2 call `_charter_disposition` directly
+      (agree/disagree), #3 (`test_load_timings_fails_loudly_when_artefact_missing`) targets
+      `_load_timings()` for the infra-break disposition, #4 exercises the consuming test
+      function itself — an accurate 2/1/1 attribution, not merely re-worded.

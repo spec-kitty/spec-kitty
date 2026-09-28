@@ -1,0 +1,140 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh2
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-FRESH2-001
+    lens: FR coverage audit of item (c)'s 9 required fixtures against spec.md's own no-op-passable bar
+    severity: 4
+    title: "FR-008's second required fixture (\"ordinary failing test does not abort\") is asserted to exist but is not in the 9-fixture list"
+    evidence:
+      - artifact: "plan.md:401 — \"`mechanism_ok=True` proceeds to the drift check **regardless of `pytest_exit_code`** (FR-008's \\\"ordinary failing test does not abort\\\" fixture)\""
+      - artifact: "plan.md:272-327 — the full enumerated \"Required fixtures\" list (1 skip-if-open, 2 unrelated-PR-not-matched, 3 no-drift-no-PR, 4 capture-failure-no-commit, 5 missing-secret-loud-failure, 6 drift-triggers-push, 7 toctou-recheck-aborts-push, 8 mechanism-crash-via-systemexit, 9 post-write-logging-failure-fails-closed) — none of the 9 exercises `run_capture_or_die`/`capture_main` returning a non-zero exit code WITHOUT raising"
+      - artifact: "plan.md:473 — \"**FR-005 through FR-010** — the 9 fixtures listed in item (c) above\" (the plan's own claim that these 9 fixtures are the complete fixture set for FR-008)"
+      - artifact: "spec.md:211 — FR-008's own acceptance bar: \"no-op passable: no — requires two fixtures: one proving a genuine mechanism crash aborts before any commit/PR step, and one proving an ordinary failing measured test (non-zero `pytest.main()` exit with complete `DurationRecorder` output) does **not** abort the commit/PR step\""
+    claim: >
+      Spec.md's FR-008 explicitly requires TWO fixtures: (a) mechanism-crash-aborts, and (b)
+      ordinary-failing-test-does-not-abort. Item (c)'s 9 enumerated fixtures give (a) three times over
+      (fixtures 4, 8, 9) but never implement (b): no fixture calls `run_capture_or_die` with a fake
+      `capture_main` that returns a plain non-zero exit code (e.g. `1`) WITHOUT raising, and asserts
+      `mechanism_ok=True` / the orchestration proceeds to the drift check and does not abort. The
+      design-problem section (line 401) parenthetically cites "FR-008's 'ordinary failing test does not
+      abort' fixture" as though it is one of the defined deliverables, but no such fixture is named or
+      numbered anywhere in item (c) or item (d). This is a dangling reference to a test that the plan
+      never actually specifies, leaving one half of FR-008's own stated acceptance bar unimplemented by
+      this plan's design.
+    remediation: >
+      Add a 10th fixture to item (c)'s list (e.g. "ordinary-failure-continues" / "mechanism-ok-despite-test-failure"):
+      a fake `capture_main` callable that returns `1` (or any non-zero int) without raising →
+      `run_capture_or_die` returns `mechanism_ok=True, pytest_exit_code=1` → the orchestration path
+      proceeds to the drift check (and, if drift is found, to commit/push) rather than aborting. Update
+      the "9 fixtures" count to 10 everywhere it is cited (plan.md:473, plan.md:635, and any other
+      occurrence), and correct line 401's parenthetical to point at this new, actually-defined fixture.
+  - id: PLAN-FRESH2-002
+    lens: cross-section consistency of the concurrency-group rationale added/kept across both fix rounds
+    severity: 3
+    title: "Item (b)'s concurrency-group rationale (\"only one ref this workflow runs against\") is contradicted by item (c)'s own pre-merge testing strategy"
+    evidence:
+      - artifact: "plan.md:226-230 — \"Static (not per-ref) is correct here because this workflow only ever runs against `main`'s default-branch checkout and one fixed target branch ... ref-scoping would add nothing since there is only ever one ref this workflow runs against.\""
+      - artifact: "plan.md:252-258 — \"A **manual `workflow_dispatch`** ... is achievable pre-merge from a topic branch once the workflow file and secret exist on that branch's PR — GitHub permits `workflow_dispatch` from a non-default branch's own copy of the workflow file when dispatched via the branch ref.\""
+      - artifact: "plan.md:267 — \"The recapture PR actually being opened against the **real** `main` (rather than a topic branch used for a manual-dispatch rehearsal) ...\""
+    claim: >
+      Item (b)'s justification for using a static (non-`${{ github.ref }}`-suffixed) concurrency group
+      rests on the factual premise that "there is only ever one ref this workflow runs against"
+      (main's default-branch checkout). Item (c) — in the same plan, describing the mission's own
+      pre-merge test strategy — explicitly relies on dispatching this same workflow from a topic
+      branch's own copy of the workflow file (a different ref), and item (c)'s post-merge section
+      reinforces the distinction between "the real `main`" and "a topic branch used for a
+      manual-dispatch rehearsal." The premise underlying item (b)'s stated rationale is therefore false
+      on the plan's own terms — this workflow demonstrably CAN and (per item (c)) SHOULD run against
+      more than one ref during the mission's own test rehearsal. The static-group design decision may
+      still be safe in practice (a static group would still serialize a topic-branch rehearsal run
+      against a concurrent scheduled main run, which is arguably the correct, conservative behavior
+      since both target the same fixed head branch), but the stated justification for why ref-scoping
+      "would add nothing" does not hold given the plan's own testing story.
+    remediation: >
+      Either (a) qualify item (b)'s claim to something accurate, e.g. "in steady-state/production
+      operation this workflow only ever runs against main's default-branch checkout; the topic-branch
+      workflow_dispatch rehearsal described in item (c) is a one-time pre-merge exercise and does not
+      change this analysis because a static group still correctly serializes it against any concurrent
+      production run targeting the same fixed head branch," or (b) drop the "only one ref" claim
+      entirely and justify the static group purely on "both runs would target the same fixed head
+      branch regardless of the ref they're triggered from, so ref-scoping is actively wrong, not merely
+      unnecessary."
+  - id: PLAN-FRESH2-003
+    lens: cross-reference audit (grep for "item (c)", "step N", "above"/"below") after two rounds of edits
+    severity: 2
+    title: "Item (b)'s TOCTOU paragraph cites \"step 2 of item (c)'s orchestration\" — item (c) defines no such step numbering"
+    evidence:
+      - artifact: "plan.md:187-188 — \"taken **only** in the no-open-PR path (step 2 of item (c)'s orchestration confirmed no PR was open at that initial check)\""
+      - artifact: "plan.md:237-327 — item (c), \"How the workflow is tested — pre-merge vs. post-merge-only,\" contains no numbered step-1/step-2/step-3 orchestration sequence; it is structured as \"Provable pre-merge\" / \"Only confirmable post-merge\" bullets plus 9 numbered *fixtures*"
+      - artifact: "spec.md:244-258 — the actual numbered \"(1) ... (2) ... (3) ...\" three-step orchestration sequence lives in spec.md's Key Entities section (\"The scheduled recapture workflow\"), not in plan.md's item (c)"
+    claim: >
+      The parenthetical "(step 2 of item (c)'s orchestration confirmed no PR was open at that initial
+      check)" sends a reader to item (c) to find a numbered orchestration step sequence that does not
+      exist there. The actual (1)/(2)/(3) step numbering this text is implicitly relying on is defined
+      in spec.md's Key Entities section, not plan.md's item (c). This is a stale/misdirected
+      cross-reference left in place through both fix rounds' edits to this exact paragraph.
+    remediation: >
+      Change the citation to point at spec.md's Key Entities three-step sequence (e.g. "confirmed no
+      PR was open per step (1) of spec.md's Key Entities orchestration sequence"), or restate the two
+      relevant steps locally instead of citing a step-numbering scheme item (c) never defines.
+  - id: PLAN-FRESH2-004
+    lens: cross-reference audit (grep for "above"/"below" pointing at the wrong section)
+    severity: 1
+    title: "TOCTOU paragraph's \"(step 1, above)\" points in the wrong direction — the cited Open-PR check bullet is below, not above"
+    evidence:
+      - artifact: "plan.md:196-197 — \"The initial open-PR check (step 1, above) runs before the ~18–30 minute capture step\""
+      - artifact: "plan.md:231-235 — the \"**Open-PR check (verbatim)**\" bullet, giving the exact `gh pr list ...` command this paragraph is presumably referring to, is the LAST bullet in item (b), appearing well after (below) the TOCTOU paragraph, which is nested inside the earlier \"Stale-branch-replacement mechanism\" bullet"
+    claim: >
+      Within item (b), the bullets appear in this order: Secret; Fixed head branch;
+      Stale-branch-replacement mechanism (containing the TOCTOU paragraph with the "(step 1, above)"
+      citation); Concurrency group; Open-PR check (verbatim). The verbatim `gh pr list` command the
+      TOCTOU paragraph is describing is therefore textually BELOW the citation, not above it — "above"
+      is directionally wrong.
+    remediation: >
+      Change "(step 1, above)" to "(step 1, detailed in the Open-PR check bullet below)" or reorder the
+      bullets so the Open-PR check bullet precedes the Stale-branch-replacement/TOCTOU bullet.
+  - id: PLAN-FRESH2-005
+    lens: FR-to-fixture range accuracy after round-2's fixture-count corrections elsewhere in the same section
+    severity: 2
+    title: "\"FR-005 through FR-010 — the 9 fixtures\" overstates fixture coverage for FR-009 and FR-010"
+    evidence:
+      - artifact: "plan.md:473 — \"**FR-005 through FR-010** — the 9 fixtures listed in item (c) above.\""
+      - artifact: "plan.md:481-515 — the separate \"FR-009, FR-010, NFR-003 — concrete text\" section satisfies FR-009 and FR-010 via a hardcoded `MODULE` constant / fixed PR-body template, verified by code-shape inspection, not by any of the 9 pytest fixtures"
+      - artifact: "spec.md:212-213 — FR-009 and FR-010's own \"No-op passable?\" columns both say \"yes\" (verifiable by inspection, no dedicated fixture required), unlike FR-005 through FR-008 which all say \"no\" and enumerate required fixtures"
+    claim: >
+      Grouping FR-009 and FR-010 together with FR-005 through FR-008 under "the 9 fixtures listed in
+      item (c)" implies all six FRs are proven by those 9 dynamic unit tests. In fact none of the 9
+      fixtures touches FR-009 (module scope) or FR-010 (bot identity/PR body) at all — those two are
+      satisfied purely by the script's hardcoded shape and fixed text, exactly as spec.md's own
+      "no-op passable: yes" marking for both anticipates. The line conflates two different verification
+      strategies (dynamic fixtures vs. static inspection) under one FR range.
+    remediation: >
+      Split the line into two, e.g.: "FR-005 through FR-008 — the 9 fixtures listed in item (c) above."
+      and "FR-009/FR-010 — verified by code-shape inspection, not a dedicated fixture; see 'FR-009,
+      FR-010, NFR-003 — concrete text' below," matching the no-op-passable distinction spec.md already draws.
+  - id: PLAN-FRESH2-006
+    lens: internal consistency of the round-2 "accepted residual cost" TOCTOU framing against the adjacent C-006 concurrency-group description
+    severity: 2
+    title: "TOCTOU paragraph never names the race's actual source, leaving an unresolved tension with the adjacent concurrency-group bullet's serialization claim"
+    evidence:
+      - artifact: "plan.md:196-199 — \"a PR can be opened against the fixed branch by something else during that multi-minute window — a check taken only once, at the start, cannot see it\" (no identification of what \"something else\" is)"
+      - artifact: "plan.md:223-230 — the immediately-following Concurrency group bullet: \"C-006's actual concern (two invocations of *this same schedule* racing each other) is exactly what a static group serializes\""
+    claim: >
+      The TOCTOU paragraph's residual-cost framing depends on some actor being able to open a PR
+      against the fixed head branch during the multi-minute capture window. The most obvious candidate
+      — a second invocation of this same scheduled/dispatched workflow — is exactly what the adjacent
+      Concurrency group bullet says is already serialized (queued, not raced) by C-006. Since the
+      TOCTOU paragraph never states that its threat model is a source EXTERNAL to this workflow's own
+      runs (e.g. a human or another tool manually pushing to/opening a PR from a `ci/`-prefixed branch),
+      a reader working through item (b) top-to-bottom can reasonably read the two bullets as being in
+      tension: "how can a PR open mid-run if C-006 already prevents overlapping runs of this exact
+      workflow?" The two claims are almost certainly reconcilable (external actor vs. same-workflow
+      race), but the plan does not do the reconciling itself.
+    remediation: >
+      Add one clause to the TOCTOU paragraph naming the threat model explicitly, e.g.: "(this is not
+      another invocation of this same workflow — C-006's concurrency group already serializes those;
+      the residual actor is any external push/PR-open against this repo-internal branch, however
+      unlikely)."

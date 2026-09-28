@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH4-001
+    status: resolved
+    reason: plan.md:180-194 states the truthy test (empty-or-unset both count as missing), cites and mirrors resolve_token's `if value:` pattern verified accurate against scripts/ci/release_nightly_gate.py:262-268, explicitly forbids copying that function's GH_TOKEN/GITHUB_TOKEN fallback and ties this to the CL-002/C-004 never-fall-back-to-GITHUB_TOKEN operator decision, and fixture 5 (plan.md:328-339) now covers both the empty-string case and a fully-unset companion case, both required to produce the same loud pre-recapture failure with the capture callable never invoked.
+  - id: PLAN-FRESH4-002
+    status: resolved
+    reason: plan.md:163-170 states explicitly that NFR-002's "measured in-Actions runtime" obligation is satisfied by deferral — the recapture PR's own description (not plan.md) will record the actual measured runtime after the first real dispatch, with the 30-minute figure standing only as the interim, falsifiable pre-dispatch projection until then, matching the ruling's literal disposition.

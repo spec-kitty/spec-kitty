@@ -1,0 +1,110 @@
+# review-findings/v1 — fresh-sweep output (post-fix).
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-FRESH-001
+    lens: "structural-root-cause (self-mutation of the fix's own remediation text)"
+    severity: 3
+    title: "The fix's new Key Entities paragraph names 'branch-name prefix' as a viable duplicate-PR marker, then its own closing sentence silently excludes it, while FR-007's row and User Story 2's Acceptance Scenario 3 still list it as viable — a 3-to-1 internal contradiction the fix itself introduced"
+    evidence:
+      - artifact: "spec.md § Key Entities > 'The recapture PR's identifying signal' (new bullet added by the fix): opens with 'identifiable by one fixed marker this workflow controls — a label, a branch-name prefix, or a bot commit-author identity (the plan picks which)' but closes the same bullet with 'so the stable identity signal for duplicate-detection purposes is the label/bot-author marker, never the (per-run-varying) branch name itself'"
+      - artifact: "spec.md § Requirements, FR-007 row: 'identified by a fixed marker this workflow controls (a label, a branch-name prefix, or a bot commit-author identity; see Key Entities)' — still lists branch-name prefix and cross-references the very paragraph that walks it back"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 3: 'identifiable by the fixed marker in Key Entities (label / branch-name prefix / bot commit-author)' — same three-way list, same dangling cross-reference"
+      - code: "scripts/ci/capture_shard_timings.py:154-157 (generate_run_id: \"A run id in the committed <label>-durations-<UTC timestamp> convention\") — confirms the branch-freshness precedent the Key Entities paragraph cites is real, but a timestamp-suffixed identifier is exactly the shape a fixed PREFIX survives (prefix-match is unaffected by a varying suffix), so the paragraph's own premise does not support eliminating branch-name-prefix from the candidate list"
+    claim: >
+      This whole Key Entities bullet is new text added by this fix round (it did not exist in the
+      base spec at commit 4a0e0cde1). It was written specifically to resolve SPEC-VERIFY-004 /
+      SPEC-ARCH-001's "no identifying axis" gap, and it does so by naming three candidate markers
+      (label, branch-name prefix, bot commit-author) "the plan picks which." But its own last
+      sentence — added to explain why the branch is freshly generated per run — narrows the
+      "stable identity signal" down to just "the label/bot-author marker," dropping branch-name
+      prefix without saying so explicitly. This directly contradicts the SAME paragraph's opening
+      sentence, and it contradicts FR-007's row and Acceptance Scenario 3 (User Story 2), both of
+      which still present all three markers as co-equal options and both of which explicitly
+      cross-reference "Key Entities" for the definitive list — sending a reader to a paragraph that
+      disagrees with the very row/scenario citing it. The elimination is also not soundly reasoned:
+      a "branch-name PREFIX" is, by construction, the part of a branch name designed to survive a
+      per-run-varying suffix (e.g. `recapture-charter-<run-id>` — prefix "recapture-charter-" is
+      fixed even though the run-id suffix changes every run, exactly mirroring
+      `generate_run_id()`'s own `<label>-durations-<timestamp>` shape). The paragraph conflates "a
+      single fixed, reused branch name" (correctly ruled out) with "a branch-name prefix on a
+      freshly-generated branch name" (not actually ruled out by the same argument), then uses that
+      conflation to contradict its own opening list. A plan-phase author who picks branch-name
+      prefix — explicitly authorized by FR-007's own row and by AS3 — could be told at review time
+      that Key Entities' closing sentence forbids it, causing rework inside the WP that implements
+      FR-007/FR-010's identity convention.
+    remediation: >
+      Pick one: either (a) remove "a branch-name prefix" from the three-way list everywhere (Key
+      Entities' opening sentence, FR-007's row, AS3) and state only "label or bot commit-author
+      identity" as the two viable markers, with a one-line rationale that a per-run-varying branch
+      name defeats prefix-matching in this design (if that is really the intended reasoning); or
+      (b) keep branch-name prefix as a legitimate third option and delete/rewrite Key Entities'
+      closing sentence so it does not silently narrow the set the rest of the spec still offers.
+      Either way, make the three cross-referencing artifacts (Key Entities, FR-007 row, AS3) agree
+      on the same final candidate set.
+
+  - id: SPEC-FRESH-002
+    lens: "reflexivity (fix left a sibling tracer artifact stale)"
+    severity: 2
+    title: "tracer-approach.md's 'design choices deliberately left open for the plan phase' still lists 'checking for an existing branch' as a viable duplicate/no-drift detection mechanism, but the fix's new Key Entities text in spec.md now forecloses that mechanism by mandating a freshly-generated-per-run branch name"
+    evidence:
+      - artifact: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tracer-approach.md lines 66-69: \"Duplicate-PR and no-drift detection mechanisms (FR-006/FR-007): specified as observable acceptance criteria ... not as a prescribed implementation (e.g., `gh pr list --state open --label ...` vs. checking for an existing branch) — again a plan-time choice.\" (unchanged by this fix — confirmed via `git diff 4a0e0cde1 7fafd7e355a -- .../tracer-approach.md`, which shows zero changes to this file)"
+      - artifact: "spec.md § Key Entities > 'The recapture PR's identifying signal' (new, added by this fix): \"The recapture branch itself is freshly generated per run (e.g. timestamp/run-id suffixed ...) rather than a single fixed, reused branch name — so the stable identity signal for duplicate-detection purposes is the label/bot-author marker, never the (per-run-varying) branch name itself.\""
+    claim: >
+      The fix round edited spec.md to settle a design question (the recapture branch is
+      freshly-generated per run, not a single fixed/reused branch) that directly bears on which
+      detection mechanisms remain viable — "checking for an existing branch" (singular, implying a
+      fixed, reused branch name to check for) is exactly the mechanism spec.md's own new text now
+      rules out. tracer-approach.md is a sibling mission artifact whose explicit purpose (per its
+      own heading) is to record "design choices deliberately left open for the plan phase," and it
+      was not updated alongside spec.md's fix, so it still presents "checking for an existing
+      branch" as a live, undecided option next to the label-based `gh pr list` option. A plan-phase
+      author who consults the tracer file (as the mission's own artifacts direct them to) rather
+      than re-deriving the constraint from spec.md's newest Key Entities prose could still pick the
+      now-foreclosed mechanism.
+    remediation: >
+      Update tracer-approach.md's "design choices deliberately left open" bullet for
+      FR-006/FR-007 to drop "checking for an existing branch" as a live option (or explicitly note
+      it is now foreclosed by the freshly-generated-branch decision recorded in spec.md's Key
+      Entities section), so the tracer and the spec agree on what is actually still open at plan
+      time.
+
+  - id: SPEC-FRESH-003
+    lens: "falsifiability (fixture does not test the clause it was added to support)"
+    severity: 3
+    title: "FR-005's new 'before the recapture-and-commit steps execute' timing requirement is stricter than, and inconsistent with, C-004's parallel fix ('before any commit or push occurs'), and FR-005's own listed fixture does not actually exercise the stricter clause"
+    evidence:
+      - artifact: "spec.md § Constraints, C-004 (as revised by this fix): \"the presence check for that secret must run and fail **before any commit or push occurs** — never merely immediately before the PR-open call.\""
+      - artifact: "spec.md § Requirements, FR-005 row (as revised by this fix): \"This check must run and fail the job **before the recapture-and-commit steps execute** — not merely before the PR-open call\""
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 4 (as revised by this fix): \"the job fails loudly ... **before any recapture, commit, or push occurs**\""
+      - artifact: "spec.md § Requirements, FR-005 row, 'No-op passable?' column: \"requires a fixture/dry-run proving the job errors ... when the secret is unset, and a fixture proving no new branch/commit exists in the remote afterward\" — this fixture only asserts the absence of a pushed branch/commit; it does not assert whether `capture_shard_timings.py` (the ~18-minute recapture step) ran before or after the secret check"
+    claim: >
+      This fix round touched three places to close SPEC-VERIFY-003's ordering gap (C-004, FR-005,
+      and AS4), but two of the three ended up with textually different requirements: FR-005 and AS4
+      both now say the check must run before RECAPTURE begins (i.e. before
+      `capture_shard_timings.py` is even invoked), while C-004 — revised in the same fix — only
+      requires the check to run before COMMIT OR PUSH, which permits the (expensive, ~18-minute)
+      recapture step to run first as long as nothing is committed/pushed before the check fires.
+      These are two different, non-equivalent points in the job's execution order for the "same"
+      requirement, cross-referenced from each other (FR-005 cites CL-002; C-004 and FR-005 both
+      describe the identical secret-presence check). Separately, FR-005's own stated fixture
+      ("proving no new branch/commit exists in the remote afterward") cannot distinguish
+      "recapture ran, then the check failed before commit" from "the check failed before recapture
+      ran" — both produce an identical observable (no branch/commit in the remote) — so FR-005's
+      newly added "before...recapture" clause is not actually falsifiable by the fixture the same
+      row prescribes for it. A plan/implementation pass could legitimately build to C-004's looser
+      timing (check right before commit, after a full recapture run) and pass every fixture FR-005
+      names, while a reviewer holding the implementation to FR-005's row text would call it
+      non-compliant — a live source of WP rework.
+    remediation: >
+      Make C-004 and FR-005/AS4 state the identical timing requirement. If "before recapture" is
+      the intended (stricter) rule, update C-004 to say so explicitly instead of "before any commit
+      or push occurs." If "before commit/push" (recapture may run first) is actually sufficient,
+      loosen FR-005/AS4 to match C-004 and drop "before the recapture-and-commit steps execute" /
+      "before any recapture." Either way, add a fixture element that actually distinguishes
+      "recapture ran before the check" from "the check ran before recapture" (e.g. asserting the
+      capture script's provenance file is never written/staged when the secret is absent), since
+      the current "no branch/commit in the remote" fixture cannot tell the two apart.

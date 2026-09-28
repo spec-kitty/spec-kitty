@@ -1,0 +1,42 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: amendment
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: AMENDMENT-GOV-001
+    verdict: confirmed
+    reason: >-
+      C-001's "adds one new scheduled workflow scoped to charter" and the Ledger
+      Cross-Reference's "it stays charter-only" are verified verbatim and unchanged in
+      spec.md, and both are now stale because plan.md's (a2) section and WP03's T020
+      (added by this same amendment) put a second job in that very workflow file that
+      plan.md itself says hard-fails on agent drift too, not just charter — a
+      contradiction the tracer's own "genuinely unaffected by this amendment" sweep note
+      missed even though it sits three lines from describing T020's cross-module reach.
+  - id: AMENDMENT-GOV-002
+    verdict: confirmed
+    reason: >-
+      analysis-report.md (generated 2026-09-27, commit 423463a10) is verified unedited
+      and still reads "the four untouched tests" and "the visible-xfail-not-silent-pass
+      design" verbatim, both now contradicted by the amended FR-003 (three untouched
+      tests, ShardTimingsDriftWarning mechanism) — a real staleness gap regardless of a
+      later analyze re-run mooting it.
+  - id: AMENDMENT-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Grepping ci-nightly.yml confirms all six uv-sync jobs, and every other uv-sync job
+      across the workflow directory, pair astral-sh/setup-uv immediately before uv sync,
+      but WP03's T020 YAML, labeled "verbatim, do not deviate", goes straight from
+      checkout to a bare uv sync with no setup-uv step, and the very next paragraph tells
+      the implementer to instead "match the actual uv sync/environment-setup step" — a
+      genuine self-contradiction that would fail every real run with uv not found.
+  - id: AMENDMENT-ARCH-002
+    verdict: confirmed
+    reason: >-
+      Direct read of the allowlist-ratchet tests confirms all three use plain,
+      unconditional assert statements with no _report_drift and no strict-mode gating,
+      T020's run line has no -k or -m filter so all of them execute, and the "what a red
+      run means" narrative in plan.md/WP03 covers only the charter-drift and
+      other-module-drift cases, never a stale-allowlist-entry failure unrelated to
+      shard-timings drift.

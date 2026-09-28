@@ -1,0 +1,23 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH7-001
+    status: resolved
+    reason: >-
+      All four cited passages (the "scheduled recapture workflow" and "recapture head branch" Key
+      Entities bullets, C-003, C-006) plus the FR-006/FR-007 table rows now consistently spell out
+      the same three-step sequence (skip entirely if a PR from the fixed head branch is already
+      open; else run the recapture; else apply FR-006's independent length-only drift check, pushing
+      +opening only on drift and doing nothing on no-drift), each explicitly stating the drift gate
+      is "independent of, and additional to" / "never subsumed by" the open-PR check, and no
+      leftover two-way ("either (a) skip or (b) push+open") phrasing or stale three-marker/label
+      language remains anywhere in the document.
+  - id: SPEC-FRESH7-002
+    status: resolved
+    reason: >-
+      The "scheduled recapture workflow" bullet now states the open-PR check runs "FIRST, before
+      invoking the recapture script at all" with "no recapture script invocation" on the skip path,
+      and the "recapture head branch" bullet mirrors this ("evaluated FIRST, before the recapture
+      script ever runs... the job never invokes the recapture script"), so a PR-already-open cron
+      tick costs only a job-summary write, never the ~18-minute `capture_shard_timings.py` run.

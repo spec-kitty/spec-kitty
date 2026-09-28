@@ -1,0 +1,30 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "Counted the live _MISMATCH_ALLOWLIST dict literal programmatically (19 keys, not 20) and confirmed spec.md's FR-003, FR-009, C-001, SC-006, Non-Goals bullet, and Ledger Cross-Reference all still say '20'."
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: "FR-003's title says 'the other three ratchet tests' but its own requirement body names four test functions verbatim, a direct self-inconsistency in the artifact."
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: "FR-007's row and AS3 name no detection/identity axis while FR-010's row commits to 'a fixed commit-author/PR-body convention' with no cross-reference, and tracer-approach.md confirms only the detection *mechanism* (not the identity-convention alignment) was deliberately deferred to plan time, so the coordination/testability gap the finding names is real and unaddressed."
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: "Verified ci-stale-running-sweep.yml:32-34 does carry a concurrency group (group: ci-stale-running-sweep, cancel-in-progress: false) that spec.md cites as trigger-shape precedent but never mentions carrying forward, and FR-007/AS3 are phrased only against a prior completed run's open PR, leaving a genuine same-instant race window."
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: "Verified capture_shard_timings.py's exit code is pytest.main()'s own return value (line 205) reduced via `all(exit_code==0)` (line 282), that DurationRecorder records every report unconditionally, and via `git show HEAD:.github/ci-shard-timings.json` that the currently-committed charter provenance already carries exit_code=1 — so FR-008's literal wording would treat this ordinary, already-merged state as a hard block."
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: "Confirmed capture_shard_timings.py unconditionally rewrites captured_at/run_id/rounded per-test durations on every --write invocation regardless of count, while spec.md's AS2/SC-004 explicitly define 'no drift' as committed/collected length agreement — a naive diff-based no-op check would show drift on every run, contradicting AS2/SC-004's zero-PR requirement."
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: "Confirmed CL-002, FR-005, C-004, and AS4 all scope the named-secret fail-loud requirement to 'the PR-open step' specifically and none of them require the secret-presence check to precede commit/push, so a literal-compliant implementation could push a branch via the default GITHUB_TOKEN before discovering the named secret is absent."
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: "Verified User Story 3's Acceptance Scenarios 1-2 enumerate exactly two outcomes (disagree/warn, agree/pass) with no third scenario, so the Edge Cases section's claim that 'FR-004's acceptance criteria require' a third 'could not determine the lengths' outcome does not hold up against the artifact it cites."

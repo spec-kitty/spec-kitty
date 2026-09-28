@@ -1,0 +1,29 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH5-001
+    status: resolved
+    reason: >-
+      Item (b)'s Secret bullet now states verbatim that the truthy check is main()'s "very first
+      action, full stop," running and failing before ANY subprocess call "including the Open-PR
+      check (verbatim) bullet's gh pr list call below," and fixture 5 (item c) now applies the
+      spy/fake pattern a second time to the open-PR-check callable, asserting non-invocation for
+      both sub-case (a) empty-string and sub-case (b) fully-unset, closing the gap the finding
+      identified.
+  - id: PLAN-FRESH5-002
+    status: resolved
+    reason: >-
+      Item (a)'s NFR-002 sentence now explicitly repoints the measured-runtime figure to "this
+      mission's own implementation PR" (opened during sk-implement, updated after first real
+      dispatch) and explicitly excludes "the automated, scheduled-workflow-opened recapture PR
+      that FR-010's fixed three-field template governs"; re-reading FR-010's own text confirms its
+      PR-body template (before/after lengths + run URL, "no free-form prose") is untouched and no
+      longer collides because the runtime figure is now assigned to a different artifact entirely.
+  - id: PLAN-FRESH5-003
+    status: resolved
+    reason: >-
+      The Standing Order #2 bullet now reads "the one file this mission edits
+      (test_module_length_agreement.py) plus the one unmodified file its design depends on
+      (capture_shard_timings.py) were both read in full" — verbatim the remediation's suggested
+      wording, distinguishing edited from read-only.

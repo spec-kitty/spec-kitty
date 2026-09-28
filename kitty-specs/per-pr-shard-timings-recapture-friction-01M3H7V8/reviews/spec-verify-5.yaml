@@ -1,0 +1,37 @@
+# Verifier: R5a anchored verification, round 5, spec phase.
+# Profile applied: packs/built-in/agent_profiles/reviewer-renata.agent.yaml (Reviewer Renata).
+# Directives applied:
+#   - 032 Conceptual Alignment: checked new FR-011/FR-012 text, the Key Entities
+#     heading/body, Acceptance Scenarios 6-7, and Charter Tension bullet 5 for
+#     cross-reference consistency (correct FR ids, no stale "(FR-007 / FR-010)"
+#     residue, terminology matches "silent" theme used elsewhere in the doc).
+#   - 001 Architectural Integrity: checked the new FR-011/FR-012 rows do not
+#     collide with existing FR numbering and that the new Edge Cases bullet and
+#     SC-007 sit in the correct structural section rather than papering over a
+#     boundary gap.
+#   - 024 Locality of Change: confirmed each edit is scoped to the finding it
+#     addresses (no unrelated drive-by edits beyond the 5 claimed changes).
+#   - Anti-laziness tactic (code-review-incremental / reverse-speccing posture):
+#     for each finding, checked whether the added text is a falsifiable,
+#     fixture-backed requirement (per this spec's own established "no-op
+#     passable: no, requires a fixture" convention) rather than a heading-only
+#     or restated-finding non-fix.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH4-001
+    status: resolved
+    reason: "FR-011 adds a falsifiable compare-and-swap/--force-with-lease requirement with an explicit fail-loud-on-mismatch fixture, and is threaded through Key Entities, AS6, and Charter Tension bullet 5 without numbering collision."
+  - id: SPEC-FRESH4-002
+    status: resolved
+    reason: "FR-012 specifies a concrete, testable either/or review-state outcome (dismiss-stale-reviews enabled or an explicit post-approval PR comment), mirrored in AS7, Key Entities, and Charter Tension bullet 5 with a matching fixture requirement."
+  - id: SPEC-FRESH4-003
+    status: resolved
+    reason: "The new Edge Cases bullet requires the plan phase to explicitly state the accepted stale-review-thread behavior (resolve/collapse or a staleness-bound close-and-reopen) rather than leaving it silently unaddressed, consistent with this spec's existing deferred-plan-time-choice pattern (e.g. FR-004/Charter Tension bullet 4)."
+  - id: SPEC-FRESH4-004
+    status: resolved
+    reason: "SC-007 adds a top-level Measurable Outcome for FR-007's force-update mechanism, phrased in the same [tag]/no-op-passable style as SC-001..SC-006 and mirroring FR-007's own fixture and AS3."
+  - id: SPEC-FRESH4-005
+    status: resolved
+    reason: "The Key Entities heading now reads \"The recapture head branch (FR-007):\" with the stale \"/ FR-010\" tag removed, consistent with the body text's own statement that FR-010 is independent of this entity's branch-based detection mechanism."

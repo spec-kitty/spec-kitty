@@ -1,0 +1,76 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: TASKS-FRESH-001
+    lens: "TASKS-DECOMP-002 acknowledgment vs. guidelines.md:25 subtask-count ceiling"
+    severity: 3
+    title: WP01's new T004/T005 "not padding" justification never engages the guideline's explicit 3-7 subtask ceiling that WP01's own 8 subtasks already exceed
+    evidence:
+      - artifact: "tasks.md § Work Package WP01 (lines 182-188)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks.md:202-233 (WP02's parallel paragraph)"
+      - artifact: "packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md:25 (\"Aim for 3-7 subtasks per WP\")"
+    claim: >
+      The fix round added new prose declining to merge WP01's T004/T005 (TASKS-DECOMP-002), arguing
+      each pins an independently-checkable disposition and merging would "blur" the pass/fail
+      signal. This is the WP01 half of the same reconciliation exercise the fix round did for WP02
+      (TASKS-DECOMP-001), where the parallel paragraph explicitly quotes
+      guidelines.md's "Aim for 3-7 subtasks per WP and 200-500 lines per WP prompt" line and computes
+      "WP02's subtask count (7) is within the 3-7 guideline." WP01's paragraph does the opposite: it
+      never cites guidelines.md, never states WP01's actual subtask count (8), and never
+      acknowledges that 8 subtasks is already one over the guideline's own aim-for ceiling -- the
+      exact ceiling that merging T004/T005 (bringing WP01 to 7) would have satisfied. The
+      acknowledgment gestures at "not padding" without engaging with the one guideline clause the
+      dispatch specifically asked reviewers to check it against, leaving WP01 the only one of the
+      three WPs whose subtask-count guideline compliance is unstated anywhere in tasks.md.
+    remediation: >
+      Add a sentence to WP01's subtask-count paragraph (tasks.md, WP01 section) that states WP01's
+      subtask count (8) explicitly, cites guidelines.md's "3-7 subtasks per WP" line the way WP02's
+      paragraph does, and either justifies going one over that ceiling on its own terms (not just via
+      the "not padding" review-clarity argument) or revisits the merge decision.
+
+  - id: TASKS-FRESH-002
+    lens: "Broken cross-reference: fix-round table edit vs. unchanged WP02 T011 code sample"
+    severity: 3
+    title: New traceability-table text describing the open-PR CLI/Python filtering split contradicts WP02's own (untouched) T011 gh pr list command
+    evidence:
+      - artifact: "tasks.md § FR / NFR / Constraint / Ruling traceability, row \"Ruling: fixed head branch ...\" (line 140)"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md:206-208 (Subtask T011 Steps)"
+    claim: >
+      The fix round rewrote this row's "How it is verified" cell to read: "the `gh pr list --base
+      main` query restricts candidates to PRs against `main`; `find_open_recapture_pr` then matches
+      on `headRefName == ci/recapture-charter-shard-timings` among those results" -- i.e. it now
+      claims the CLI call filters ONLY by base, and the Python function does the head-branch
+      filtering itself against an otherwise-unfiltered result set. But WP02's T011 subtask (not
+      touched by this fix round) shows the actual command as `gh pr list --repo <owner/repo> --head
+      ci/recapture-charter-shard-timings --base main --state open --json number` -- filtering by
+      BOTH head and base at the CLI level, and requesting only the `number` JSON field (not
+      `headRefName`, which `find_open_recapture_pr` needs to do the filtering the new row
+      describes). The fix round's own new citation is not accurate against the current file content
+      it is describing -- exactly the defect class this fix round was dispatched to eliminate.
+    remediation: >
+      Either (a) correct the traceability-table cell to match T011's actual command (CLI filters by
+      both --head and --base; find_open_recapture_pr's headRefName check is then a defensive
+      belt-and-suspenders match, not the primary filter), or (b) if the intent really is
+      CLI-filters-by-base-only + Python-filters-by-head, fix T011's own `gh pr list` invocation to
+      drop `--head` and add `headRefName` to its `--json` field list so the code sample and the
+      table agree.
+
+  - id: TASKS-FRESH-003
+    lens: "New numeric citation accuracy (fix round's own reconciliation math)"
+    severity: 2
+    title: WP02 section's new line-count reconciliation misstates the WP02 prompt file's actual length
+    evidence:
+      - artifact: "tasks.md:220-221 (\"WP02's actual committed prompt file is 433 lines\")"
+      - code: "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/tasks/WP02-recapture-decision-script.md (437 lines, verified via wc -l)"
+    claim: >
+      The fix round's new reconciliation paragraph, added specifically to close out the
+      "guideline denominator" ambiguity, states "WP02's actual committed prompt file is 433 lines,
+      within the 200-500 range as literally written." `wc -l` on the actual committed file returns
+      437 lines, not 433. The number is still within the cited 200-500 range so the paragraph's
+      conclusion is unaffected, but this is a fresh, self-introduced miscitation in the exact class
+      of defect ("table/prose cites a number that doesn't match the artifact") this fix round was
+      dispatched to eliminate elsewhere.
+    remediation: "Correct \"433 lines\" to the actual current line count (437, or re-verify at merge time since further edits may change it)."

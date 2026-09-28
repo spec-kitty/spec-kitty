@@ -1,0 +1,71 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >-
+      plan.md item (b) now adds an explicit "TOCTOU re-verification" paragraph (lines 194-207)
+      that re-runs the exact same `gh pr list ... --state open --json number` open-PR check a
+      second time immediately before the `git push --force`, and aborts the push (falling back
+      to the same skip-if-open behavior: job-summary line naming the PR, no push/commit/PR-open/
+      comment) if that re-check now finds an open PR; a corresponding fixture 7
+      ("toctou-recheck-aborts-push", lines 287-294) exercises exactly this sequence and asserts
+      the push callable is never invoked, closing the race rather than only restating it.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >-
+      The `run_capture_or_die` code sketch (lines 358-377) now reads `except (Exception,
+      SystemExit) as exc:` with an explicit `except KeyboardInterrupt: raise` carve-out above it,
+      and the inline comment is corrected to explain that `SystemExit` is a `BaseException`
+      subclass `Exception` alone would miss (citing `argparse`'s `parser.error()`); fixture 8
+      ("mechanism-crash-via-systemexit", lines 295-300) injects a fake `capture_main` raising
+      `SystemExit(2)` and asserts `mechanism_ok=False` still results, genuinely exercising the
+      fixed except clause.
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: >-
+      plan.md's "Known, accepted edge case" section (lines 328-349) now precisely scopes the
+      write-already-happened invariant to lines 268-274 only and states explicitly "the new
+      script's safety boundary does not rely on capture_shard_timings.main()'s post-write print
+      loop at all" -- a concrete, non-hand-wavy statement of what is/isn't covered (accepting the
+      residual false-negative as a documented, safe fail-closed tradeoff rather than silently
+      mis-describing the invariant as covering the whole function body); fixture 9
+      ("post-write-logging-failure-fails-closed", lines 301-307) pins the accepted behavior
+      (mechanism_ok=False, abort before commit/push/PR-open) rather than leaving it unverified.
+  - id: PLAN-ARCH-003
+    status: resolved
+    reason: >-
+      The FR-009 section (lines 469-476) now states the single-invocation precondition explicitly
+      in prose: in-process `pytest.main()` invocation "is safe here only because FR-009's
+      hardcoded single `--module charter` call means exactly one `pytest.main()` invocation occurs
+      per process," and flags that a future multi-module extension would need to re-audit pytest's
+      repeated-invocation state or reintroduce subprocess isolation -- matching the remediation
+      verbatim.
+  - id: PLAN-ARCH-004
+    status: resolved
+    reason: >-
+      plan.md item (g) (lines 540-552) now states the re-verified current state ("#5177 has
+      already merged... #5175 drops out of the blast-radius list entirely: it closed without
+      merging") rather than the stale "whichever merges first" framing; independently re-verified
+      live via `gh pr view 5177 --json state` (returns MERGED) and `gh pr view 5175 --json
+      state,mergeable` (returns CLOSED / CONFLICTING) -- both match plan.md's own re-verified
+      claim exactly, confirmed against reality rather than trusting the document.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >-
+      plan.md item (d) now adds a 4th fixture, `test_charter_is_not_allowlisted_and_agrees_xfails_on_disagreement`
+      (lines 439-452), which explicitly exercises the consuming test body itself (not only the
+      `_charter_disposition` helper) via monkeypatching the session-scoped committed/collected
+      fixtures or calling the test function directly against a disagreeing pair, and asserts it
+      raises pytest's `_pytest.outcomes.XFailed` specifically -- not a bare exception -- closing
+      the "test-the-helper-not-the-integration-point" gap the finding identified.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >-
+      plan.md item (c) now lists a genuine positive-path fixture 6, "drift-triggers-push" (lines
+      281-286): `has_drift(before_length=N, after_length=M)` with `N != M` returns `True`, and the
+      orchestration path DOES invoke the commit/push/PR-open callable exactly once, asserted via
+      the same fake "would-push" callable pattern but asserting it IS called -- a real positive
+      counterpart to the existing negative "no-drift-no-PR" fixture 3, not another negative-phrased
+      fixture in disguise.

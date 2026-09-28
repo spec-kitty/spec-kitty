@@ -1,0 +1,149 @@
+# review-findings/v1 — R3 confirmed set (verdict=confirmed in plan-refute-1.yaml).
+# PLAN-VERIFY-003 was REFUTED (spec.md FR-004 asks for three fixtures total, one of which cites
+# two example causes under a single combined Given clause; plan.md delivers exactly three
+# fixtures with a defensible representative instance) and is excluded here — it remains in
+# plan.merged.yaml for the audit trail.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: PLAN-GOV-001
+    lens: ruling-fidelity (mission-derived)
+    severity: 4
+    title: "Force-push mechanism has a TOCTOU window that can force-push over a branch that gained an open PR during the run, violating ruling 2's 'never force-pushes, in any case' guarantee"
+    evidence:
+      - artifact: "plan.md § (b) 'Stale-branch-replacement mechanism'"
+      - artifact: "plan.md § (a) 'Timeout budget' (30-minute budget)"
+      - artifact: "plan.md § (c) 'How the workflow is tested' (three-step orchestration: check open-PR -> invoke capture -> drift check + push)"
+      - artifact: "reviews/spec.ruling.md, ruling 2 point 2: 'The job never force-pushes, in any case.'"
+    claim: >
+      Plan.md's stale-branch-replacement mechanism relies on a single open-PR check taken before
+      the ~18-30 minute capture step, with no re-verification immediately before the git-push-force
+      in step 3. Ruling 2 point 3 only authorizes force-replacing a stale branch "when no such PR is
+      open" — a PR opening on that branch during the multi-minute window would be silently
+      force-pushed over, discarding it without ever re-checking. No fixture in the plan's list
+      covers this TOCTOU gap.
+    remediation: >
+      Add an explicit re-verification of the open-PR check immediately before the git-push-force
+      step, and abort the push (falling back to skip-if-open behavior) if a PR now exists. Reflect
+      the fix in plan.md item (b)/(c) and add a corresponding fixture in
+      tests/ci/test_recapture_charter_shard_timings.py.
+
+  - id: PLAN-ARCH-001
+    lens: mechanism-failure design correctness
+    severity: 3
+    title: "run_capture_or_die's `except Exception` does not catch SystemExit raised inside capture_shard_timings.main()"
+    evidence:
+      - artifact: "plan.md lines 288, 297-303 (`run_capture_or_die`: `except Exception as exc:`)"
+      - code: "scripts/ci/capture_shard_timings.py:253-254 (`_parse_args`: `parser.error(...)` raises `SystemExit`)"
+    claim: >-
+      `argparse.ArgumentParser.error()` raises `SystemExit`, a `BaseException` subclass, NOT an
+      `Exception` subclass. The plan's `run_capture_or_die` catches only `except Exception`, so its
+      comment claiming "ANY uncaught exception... is a crash" is factually wrong for `SystemExit`.
+      Reachable only via a wrapper-side argv bug or a misbehaving conftest, a defensive-coding gap,
+      but if triggered it crashes the process uncaught rather than degrading to `mechanism_ok=False`.
+    remediation: >-
+      Change the except clause to `except (Exception, SystemExit) as exc:` (or `except
+      BaseException` with an explicit `except KeyboardInterrupt: raise` carve-out), and add a 6th
+      fixture injecting a fake `capture_main` raising `SystemExit(2)`, asserting `mechanism_ok=False`
+      still results.
+
+  - id: PLAN-ARCH-002
+    lens: mechanism-failure design correctness
+    severity: 4
+    title: "capture_shard_timings.main()'s post-write stderr print can raise AFTER the write already succeeded, which the plan's classifier would misreport as a mechanism crash"
+    evidence:
+      - artifact: "plan.md lines 269-282 (the write-before-return invariant claim)"
+      - code: "scripts/ci/capture_shard_timings.py:273-282 (write at 274, print loop at 276-281, return at 282)"
+    claim: >-
+      Between the write (line 274) and the `return` (line 282) sits a `print(..., file=sys.stderr)`
+      loop. If that print raises (BrokenPipeError/UnicodeEncodeError), the exception propagates
+      exactly like a pre-write mechanism crash would, but the merged JSON has ALREADY been written.
+      `run_capture_or_die` will report `mechanism_ok=False` and discard a successful,
+      already-persisted capture, skipping the PR for that run — a genuine counter-example to the
+      stated invariant.
+    remediation: >-
+      Either (a) move the informational `print(...)` loop to occur before line 274's write (safe: it
+      only reports on `captures`, already fully computed by line 271), or (b) scope the crash/no-crash
+      boundary the wrapper relies on to only lines 268-274, treating anything after the write as
+      best-effort logging whose failure must not flip `mechanism_ok`. Add a fixture covering a
+      post-write logging failure.
+
+  - id: PLAN-ARCH-003
+    lens: mechanism-failure design correctness
+    severity: 2
+    title: "Plan does not document why calling pytest.main() in-process (rather than as a subprocess) is safe against pytest's own known repeated-invocation gotchas"
+    evidence:
+      - artifact: "plan.md lines 284-288 (in-process invocation choice)"
+      - code: "scripts/ci/capture_shard_timings.py:258-260 (`_capture_all` loops `capture_module`/`pytest.main()` once per requested `--module`)"
+      - artifact: "plan.md lines 377-379 (FR-009: single hardcoded `--module charter` call)"
+    claim: >-
+      The plan's in-process design is safe here only because FR-009 hardcodes exactly one
+      `--module charter` call per process — the plan never states this precondition as the reason
+      it's safe, nor flags it as a constraint. A future multi-module extension would silently
+      reintroduce pytest's repeated-invocation hazards (stale sys.modules, assertion-rewrite hook
+      accumulation, plugin-registration state).
+    remediation: >-
+      Add one sentence to the design-problem section (or FR-009) stating explicitly that in-process
+      invocation is safe only because exactly one `pytest.main()` call occurs per process, and that
+      extending to multiple modules in one process requires re-auditing pytest's repeated-invocation
+      state or reintroducing subprocess isolation.
+
+  - id: PLAN-ARCH-004
+    lens: Reflexivity / Blast radius
+    severity: 2
+    title: "Item (g)'s '#5175/#5177 — whichever merges first' framing is already overtaken by live PR state"
+    evidence:
+      - artifact: "plan.md lines 443-450"
+      - code: "gh pr view 5177 --json state -> MERGED; gh pr view 5175 --json state,mergeable -> CLOSED / CONFLICTING (checked live 2026-09-27)"
+    claim: >-
+      The substantive no-collision conclusion is verified TRUE against each PR's real file list, but
+      the "whichever merges first" hypothetical is stale: #5177 is MERGED, #5175 is CLOSED (not
+      merged). No live three-way race remains.
+    remediation: >-
+      Before tasks/implementation, refresh item (g): #5177 already merged (this mission rebases onto
+      its resulting `.github/ci-shard-timings.json` state, ordinary churn), #5175 closed without
+      merging (drop from blast-radius list or note explicitly as no longer live).
+
+  - id: PLAN-VERIFY-001
+    lens: Revert discipline (catalog verify lens)
+    severity: 4
+    title: >-
+      The two "reversion-catching" fast tests for FR-001/FR-004 only pin the extracted
+      helper's own correctness, not that the actual test body calls it
+    evidence:
+      - artifact: "plan.md § (d) Red-first fixtures per changed behaviour, lines 344-356"
+      - code: "tests/architectural/test_module_length_agreement.py:329-344 (test_charter_is_not_allowlisted_and_agrees, current hard-assert body)"
+    claim: >-
+      plan.md's two new tests call the pure helper `_charter_disposition` directly. A revert that
+      restores `test_charter_is_not_allowlisted_and_agrees`'s body to a bare hard `assert` while
+      leaving the now-orphaned helper and its two unit tests untouched would leave both new tests
+      passing, because neither exercises the production test body itself.
+    remediation: >-
+      Add a fixture that exercises `test_charter_is_not_allowlisted_and_agrees` itself under a
+      disagreeing committed/collected pair (e.g. via monkeypatching or calling the test function
+      directly and asserting it raises the `xfail` outcome, not a bare `AssertionError`), so a revert
+      of the consuming line is caught independent of the helper's own survival.
+
+  - id: PLAN-VERIFY-002
+    lens: "Mission-derived: test-fixture completeness against spec.md falsifiability bars (FR-006)"
+    severity: 4
+    title: >-
+      FR-006 requires both a drift-triggers-PR fixture and a no-drift-no-PR fixture; plan.md's item (c)
+      only specifies the latter
+    evidence:
+      - artifact: "spec.md FR-006 row, 'No-op passable?' column: 'requires a fixture proving both the drift case (length disagrees -> PR opened) and the no-drift case'"
+      - artifact: "plan.md § (c) Required fixtures, item 3 ('no-drift-no-PR'), lines 250-252"
+    claim: >-
+      spec.md's falsifiability bar for FR-006 names two required fixtures; plan.md's item (c) lists
+      exactly 5 fixtures, and only fixture 3 covers the negative half. No fixture anywhere asserts the
+      positive path — that when `has_drift` returns `True`, the orchestration DOES invoke the
+      commit/push/PR-open call. The drift-triggers-a-PR path is the actual deliverable of User Story
+      2 / SC-003, left completely unverified by the plan's own test list.
+    remediation: >-
+      Add a sixth required fixture, "drift-triggers-push": `has_drift(before_length=N,
+      after_length=M)` with N != M returns `True`, and the orchestration path that consumes a `True`
+      result DOES invoke the commit/push/PR-open callable exactly once (via the same fake
+      "would-push" callable pattern, asserting it IS called with expected arguments).

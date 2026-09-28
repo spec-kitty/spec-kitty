@@ -1,0 +1,60 @@
+# review-verify/v1 — R5a anchored verification of the operator ruling
+# (reviews/spec.ruling.md) over SPEC-FRESH3-001 (sev 4) and SPEC-FRESH3-002 (sev 3), both
+# originally recorded in reviews/spec-fresh-3.yaml.
+#
+# Judged against the RULING's points 1-5, not against spec-fresh-3.yaml's own remediation text
+# and not against the earlier "identical marker" / "consistent with, never contradicting" bar
+# from spec-fresh-2.yaml / spec.confirmed-3.yaml — per the dispatch, that bar is superseded.
+# The ruling replaces the free three-way marker choice (label / branch-prefix / bot
+# commit-author) with a single fixed head branch as the sole detection mechanism, and severs
+# FR-010 from any identity-matching relationship to FR-007.
+#
+# Verification method: read the CURRENT (uncommitted, working-tree) spec.md in full, then
+# grep the whole document for every phrase the ruling requires gone (`label`,
+# `branch-name prefix`/`branch-prefix`, an alternative-marker sense of `commit-author`,
+# `identical`, `three marker`/`equally legitimate`/`need not be`) to confirm no residue, and
+# separately confirm FR-007, FR-010, Key Entities, User Story 2 Acceptance Scenario 3, and the
+# Charter Tension section all narrate the same fixed-single-head-branch mechanism.
+#
+# Profile: reviewer-renata (packs/built-in/agent_profiles/reviewer-renata.agent.yaml).
+# Directives/tactics applied:
+#   - 001 Architectural Integrity Standard: checked FR-007's detection boundary
+#     (head=fixed-branch AND base=main) against Key Entities' and User Story 2 AS3's
+#     restatement of the same boundary for a structural mismatch, not just matching prose.
+#   - 032 Conceptual Alignment: re-diffed FR-007, FR-010, Key Entities, User Story 2 AS3, and
+#     Charter Tension #5 against each other after the fix, the same cross-section sweep that
+#     caught SPEC-FRESH3-001/002 in the prior round's own methodology, to confirm no leftover
+#     three-way-marker or "consistent with" residue survives in any of the sections the
+#     original findings implicated.
+#   - Anti-laziness (profile purpose: does not accept restated findings as fixes): confirmed
+#     via direct grep that the specific offending strings quoted in spec-fresh-3.yaml's
+#     evidence blocks ("consistent with", "never contradicting", "need not be the identical
+#     marker", "FR-010's own mechanism can only ever produce a bot-commit-author
+#     identity/PR-body", "label", "branch-name prefix") are ABSENT from the current spec.md,
+#     not merely reworded restatements of the same unfalsifiable clause.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH3-001
+    status: resolved
+    reason: >-
+      FR-010 (spec.md line 207) no longer carries any "consistent with, never contradicting"
+      or identity-matching clause against FR-007's marker; its sole falsifiable requirement is
+      that the committer identity, commit message, and PR body plainly and verifiably state the
+      change is an automated recapture, and FR-007 (line 204) plus Key Entities (lines 244-256)
+      now define "already open" purely as "an open PR whose head is the one constant fixed
+      branch and base is main" with no marker-type choice left to create an unfalsifiable
+      cross-reference — a repo-wide grep for "label", "branch-name prefix"/"branch-prefix", and
+      "identical" (in the marker-matching sense) returns no hits in spec.md.
+  - id: SPEC-FRESH3-002
+    status: resolved
+    reason: >-
+      The false mechanism claim ("FR-010's own mechanism can only ever produce a
+      bot-commit-author identity/PR-body, never a label or a branch-name prefix, so the two
+      need not be the identical marker") is deleted outright, not reworded — FR-007's row (line
+      204) and the Key Entities "recapture head branch" entry (lines 244-256) now state the
+      detection mechanism solely in terms of the fixed head branch and make FR-010's
+      bot-identity/PR-body convention explicitly independent of FR-007's check ("it only needs
+      to state plainly... it carries no identity-matching relationship to FR-007's check"),
+      with no claim anywhere in spec.md about what FR-010's mechanism can or cannot produce.

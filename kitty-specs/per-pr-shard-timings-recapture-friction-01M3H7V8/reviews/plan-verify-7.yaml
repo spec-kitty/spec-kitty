@@ -1,0 +1,17 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH6-001
+    status: resolved
+    reason: >-
+      plan.md lines 625-633 now quote a three-placeholder PR-body template ("committed length
+      `<before>` -> `<after>`. Workflow run: `<run_url>`.") matching the descriptive sentence's
+      "before/after lengths and this run's workflow run URL," and state `<run_url>`'s value as the
+      fixed GitHub Actions context expression `${{ github.server_url }}/${{ github.repository
+      }}/actions/runs/${{ github.run_id }}` (never free-form prose), consistent with the
+      fixed/falsifiable-by-inspection requirement; a grep of the whole document for `<before>`,
+      `<after>`, "PR body", "Automated recapture opened", and "three-field template" confirms the
+      quoted template text appears exactly once (line 625) — the other "PR body" hits (lines 174,
+      636, 641, 648, 819, 823) are narrative references or discuss the unrelated mission-implementation
+      PR, not a second copy of the FR-010 template.

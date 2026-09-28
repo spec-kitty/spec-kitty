@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH8-001
+    status: resolved
+    reason: User Story 2's lead paragraph (spec.md lines 92-98) now states the open-PR check first ("checks whether a recapture PR from a fixed head branch is already open and, if so, does nothing further"), then "otherwise" runs the recapture script, and only then conditions the PR-open on drift, matching the three-step sequence in FR-007/Key Entities/C-003/C-006.
+  - id: SPEC-FRESH8-002
+    status: resolved
+    reason: The Independent Test (lines 104-111) now inserts an explicit "Merge (or close) that PR so no PR from the fixed head branch remains open" step before the re-run, and explicitly attributes the resulting "opens no PR" outcome to FR-006's length agreement rather than FR-007's skip-if-open path, cross-referencing Acceptance Scenario 3 as the separate FR-007 exercise.
+  - id: SPEC-FRESH8-003
+    status: resolved
+    reason: SC-008 (skip-if-open, lines 318-321) and SC-009 (mechanism-failure abort, lines 322-325) were added immediately after SC-006 in the established bold-id/one-sentence/[build]-tag/no-op-passable format, cover AS3/FR-007 and AS5/FR-008 respectively, and SC-007 is confirmed absent everywhere in the file (grep found zero occurrences), so the retired id was correctly skipped.
+  - id: SPEC-FRESH8-004
+    status: resolved
+    reason: "The Key Entities \"never force-pushes, in any case\" guarantee (line 268) is now explicitly scoped with \"while a PR from this branch is open,\" and the stale-branch-replacement carve-out (lines 276-285) is rewritten as a genuine plan-time deferral mirroring the FR-004/Charter-Tension point-4 pattern, with a stated falsifiable observable requirement (\"the stale branch's prior content is fully replaced by the fresh capture\") and an explicit non-contradiction note; FR-007's own \"never force-pushes, in any case\" parenthetical (line 210) remains correctly scoped by its immediate \"When such a PR exists\" sentence context and needed no change."

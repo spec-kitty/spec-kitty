@@ -1,0 +1,184 @@
+# Profile applied: packs/built-in/agent_profiles/debugger-debbie.agent.yaml
+# (Debugger Debbie). No sub-agents were dispatched (explicitly forbidden for this
+# fresh-sweep run); the five-paradigm swarm was applied as a solo analytical
+# framework instead of a literal five-way dispatch:
+#   - Hypothesis-driven (The Falsifier): each candidate defect below was
+#     stated as a falsifiable claim and checked directly against spec.md's
+#     current text before being kept as a finding (e.g. the FR-008/force-update
+#     interaction hypothesis was checked and FALSIFIED -- FR-008's gate runs
+#     pre-push, so it is not reported as a finding).
+#   - Bisection/timeline (The Bisector): `git diff HEAD` was read as a
+#     before/after bisection of exactly what the round-3 fix changed, isolating
+#     new text from unchanged sections it now has to stay consistent with.
+#   - Divergence matrix (The Matrix-Maker): cross-checked FR-007 / FR-010 /
+#     Key Entities / User Story 2 AS3 / C-003 / C-006 / Charter Tension /
+#     Success Criteria against each other cell-by-cell for drift the edit
+#     left behind (surfaced SPEC-FRESH4-004 and SPEC-FRESH4-005).
+#   - Trace-based observability (The Stenographer): treated the spec's own
+#     "never silent" theme (FR-004, Charter Tension, CL-002's anti-silent-
+#     bypass rationale) as the evidentiary trace to check the new
+#     force-update mechanism against, surfacing SPEC-FRESH4-001/002/003 as
+#     silent-failure-shaped gaps the same theme would otherwise catch.
+#   - 5-Whys/Ishikawa (The Cartographer): asked why the old three-way-marker
+#     design didn't have these particular risks, to confirm each finding
+#     below is a genuinely NEW consequence of the fixed-branch mechanism
+#     (fresh-branch-per-run had no reused branch to collide with or silently
+#     overwrite) rather than a pre-existing, already-litigated gap.
+# Directive-references applied: 001 (Architectural Integrity -- boundary/
+# structural-fork hunting between the new mechanism and unchanged sections),
+# 032 (Conceptual Alignment -- the FR-007/FR-010/Key Entities/AS3 divergence
+# check), 003 (Decision Documentation -- verified the operator ruling in
+# tracer-design-decisions.md/reviews/spec.ruling.md was correctly and fully
+# threaded through every dependent section rather than partially applied).
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh4
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-FRESH4-001
+    lens: structural-fix-planning
+    severity: 4
+    title: Fixed, reused head branch has no lease/ownership guard against silent overwrite of non-workflow commits
+    evidence:
+      - artifact: "spec.md § Key Entities — The recapture head branch"
+      - artifact: "spec.md § FR-007"
+    claim: >
+      The fixed mechanism now names one constant, long-lived branch
+      (`ci/recapture-charter-shard-timings`, per Key Entities: "a single,
+      constant, reused branch name that the plan pins ... not freshly
+      generated per run") that the job force-updates on every scheduled run
+      ("the job force-updates that branch with the fresh capture", FR-007).
+      Nothing in FR-007, C-003, C-006, or Key Entities requires the force-push
+      to verify the branch's current tip before overwriting it (e.g. a
+      compare-and-swap / `--force-with-lease`-equivalent check), and nothing
+      constrains who else may write to that well-known, documented branch
+      name. Because the branch is reused and its name is now public/pinned
+      (unlike the old design's freshly-generated, unpredictable per-run
+      branch name), it is a much more plausible target for a maintainer to
+      intentionally push a manual fix to (e.g. hand-editing the JSON to
+      unblock a merge) while the recapture PR sits open awaiting the next
+      cron tick. The next scheduled run's force-update would silently
+      discard that commit with no warning, no fixture, and no detection --
+      exactly the "silent success/silent loss" failure mode this same spec
+      treats as first-class elsewhere (FR-004, Charter Tension, CL-002's
+      anti-silent-bypass rationale). This is a genuinely new risk the old
+      fresh-branch-per-run design did not have (no branch was ever reused
+      across runs, so there was nothing stable to collide with).
+    remediation: >
+      Add a requirement (new FR or a Key Entities addendum) that the
+      force-update step must use a compare-and-swap push (e.g.
+      `--force-with-lease` against the last SHA the workflow itself pushed,
+      recorded via the PR's head SHA at detection time) and must fail loudly
+      rather than blindly overwrite when the branch's actual tip does not
+      match what the job expects — surfacing "someone else touched this
+      branch" as a visible job failure instead of a silent overwrite.
+  - id: SPEC-FRESH4-002
+    lens: conceptual-alignment
+    severity: 4
+    title: Force-updating an open PR's review state (approvals, required checks) is unaddressed
+    evidence:
+      - artifact: "spec.md § FR-007"
+      - artifact: "spec.md § Key Entities — The recapture head branch"
+    claim: >
+      FR-007 and Key Entities specify that "When such a PR exists, the job
+      force-updates that PR's branch with the fresh capture" but neither FR-007,
+      FR-010, C-003, C-006, User Story 2 AS3, nor NFR-003 say anything about
+      what happens to any review state already on that open PR when it is
+      force-pushed with new commits. Depending on this repo's branch-protection
+      "dismiss stale approvals on push" setting, a human reviewer's approval
+      either (a) silently survives the force-push and could let the PR merge
+      with content the reviewer never actually reviewed, or (b) is silently
+      dismissed, requiring a human to notice and re-approve with no signal from
+      this spec that this will happen. This spec already treats an analogous
+      "silent bypass of a review/gate mechanism" as a first-class concern
+      elsewhere — CL-002's entire rationale for banning `GITHUB_TOKEN` fallback
+      is that it "would be a silent CI-gate bypass on the very PR meant to
+      restore the invariant" — but the equivalent risk introduced by
+      force-updating an *already-reviewed* PR is not mentioned anywhere.
+    remediation: >
+      Add an explicit requirement stating the expected review-state behavior
+      on force-update: either (a) require "dismiss stale reviews on push" to be
+      enabled for this branch/PR path so a force-update always requires fresh
+      re-review before merge, or (b) if approvals are expected to survive,
+      require the job to post an explicit comment/annotation on the PR noting
+      new content was pushed after any existing approval, so it is never a
+      silent re-approval-by-omission.
+  - id: SPEC-FRESH4-003
+    lens: root-cause-analysis
+    severity: 3
+    title: Long-lived reused branch can accumulate stale review-comment clutter across many recapture cycles, unaddressed by Edge Cases
+    evidence:
+      - artifact: "spec.md § Key Entities — The recapture head branch"
+      - artifact: "spec.md § Edge Cases"
+    claim: >
+      Because the recapture head branch is "a single, constant, reused branch
+      name" (Key Entities) that can stay open across an unbounded number of
+      scheduled cron ticks until a human merges it, every force-update that
+      lands while a PR sits open marks any existing inline review comments on
+      changed lines as outdated (GitHub's standard behavior on a force-push),
+      without resolving or removing them. Over enough recapture cycles this
+      produces exactly the kind of PR-review clutter/friction this mission's
+      own charter is aimed at reducing (the issue's evidenced pain is
+      "friction ... disproportionate", User Story 1), yet the Edge Cases
+      section — which already enumerates several force-update-adjacent
+      scenarios (mechanism failure mid-run, two open PRs touching the same
+      file) — does not mention this one, and no FR/NFR addresses it.
+    remediation: >
+      Add an Edge Case entry (or an NFR) stating the expected behavior when
+      the recapture PR accumulates outdated review threads across multiple
+      force-updates — e.g. require the job to resolve/collapse prior review
+      threads on force-update, or explicitly accept the clutter as an
+      acknowledged trade-off with a stated staleness bound (e.g. "if the PR
+      has been open longer than N days, close it and open a fresh one instead
+      of force-updating") rather than leaving it silently unaddressed.
+  - id: SPEC-FRESH4-004
+    lens: review-intent-and-risk-first
+    severity: 2
+    title: Measurable Outcomes (Success Criteria) has no top-level SC entry for FR-007's new force-update behavior
+    evidence:
+      - artifact: "spec.md § Success Criteria — Measurable Outcomes (SC-001..SC-006)"
+      - artifact: "spec.md § FR-007"
+    claim: >
+      FR-007's row and User Story 2's Acceptance Scenario 3 both specify a
+      fixture proving the new force-update mechanism (a second run,
+      fixed-branch PR already open, gets its branch/PR updated with a new
+      commit rather than a duplicate PR opened). But the top-level Measurable
+      Outcomes list (SC-001 through SC-006) — the section a reviewer scans to
+      confirm the mission's headline observable outcomes — has no SC entry
+      for this behavior (nor for FR-008's mechanism-failure-abort behavior).
+      The force-update mechanism is a materially riskier action than the
+      superseded "skip" mechanism it replaced (it mutates an existing PR's
+      branch rather than doing nothing), which makes its absence from the
+      top-level success-criteria list more consequential post-fix than it was
+      pre-fix.
+    remediation: >
+      Add an SC entry (e.g. SC-007) stating: "A manually-dispatched run of the
+      new scheduled workflow, run twice with intervening drift and the first
+      run's PR still open, produces one PR whose branch/commit changed between
+      the two runs (force-updated), never a second open PR" — mirroring the
+      fixture already required by FR-007's row and AS3, so the headline
+      success-criteria list actually covers the mission's newest, riskiest
+      mechanism.
+  - id: SPEC-FRESH4-005
+    lens: dual-system-divergence-mapping
+    severity: 2
+    title: Key Entities heading still cross-references FR-010 after the fix decoupled it
+    evidence:
+      - artifact: "spec.md § Key Entities — The recapture head branch"
+    claim: >
+      The entity's heading still reads "**The recapture head branch** (FR-007
+      / FR-010):", a leftover from the pre-fix version where this entity
+      (then "The recapture PR's identifying signal") genuinely governed both
+      FR-007's duplicate-detection marker and FR-010's bot-identity
+      convention. The entity's own body text now explicitly severs that
+      relationship: "FR-010's bot-identity/PR-body convention is independent
+      of this branch-based detection mechanism ... it carries no
+      identity-matching relationship to FR-007's check." The heading's
+      "/ FR-010" tag contradicts the body's own disclaimer and will mislead a
+      reader skimming headings into thinking this entity still constrains
+      FR-010.
+    remediation: >
+      Drop "/ FR-010" from the heading, leaving "**The recapture head branch**
+      (FR-007):", consistent with the body text's statement that FR-010 has no
+      relationship to this entity's branch-based detection mechanism.

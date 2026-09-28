@@ -1,0 +1,62 @@
+# review-findings/v1 — round-3 fix input (orchestrator bookkeeping).
+#
+# Source: reviews/amendment-fresh-2.yaml (R5b fresh sweep after round-2's fix). Both findings are
+# severity <= 3, which per the R1-R6 protocol's R6 Gate triggers the TERMINAL path directly:
+# "Only <= #3 left -> final fix round: one more R4 targeting exactly those, then a single R5a
+# (no fresh sweep, no further rounds). All resolved -> phase passes." This is round 3's (final)
+# fix input; no further fresh sweep follows this round.
+schema: review-findings/v1
+complete: true
+phase: amendment
+lens_group: confirmed-round-3-final
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+source_files:
+  - amendment-fresh-2.yaml
+findings:
+  - id: AMENDMENT-FRESH2-001
+    lens: "contradictions with unchanged sections: does WP03's docs-supersession subtask (T018) still describe the retired xfail mechanism?"
+    severity: 3
+    title: "WP03's Subtask T018 instructs the implementer to write '(xfail)' into the public, committed docs/development/reference/known-friction-points.md, describing a mechanism the amendment retired"
+    evidence:
+      - artifact: "tasks/WP03-scheduled-workflow-wiring.md:230 (Subtask T018 step 2): \"...the per-PR assertion is now non-blocking (`xfail`) and a scheduled workflow...\""
+      - artifact: "tracer-design-decisions.md's amendment entry: the `_charter_disposition`/`pytest.xfail` design is dead, replaced by the absorbed `ShardTimingsDriftWarning`/`_report_drift` mechanism from #5240"
+      - code: "tests/architectural/test_module_length_agreement.py — the real, merged mechanism is `warnings.warn(ShardTimingsDriftWarning(...))`/`pytest.fail(...)` under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, never `pytest.xfail`"
+    claim: >
+      T018 (the docs-supersession-note subtask, unrelated to T020 and untouched by either prior
+      amendment/fix pass) still tells the implementer to write "(`xfail`)" as the mechanism name
+      into a public, committed documentation file. If followed literally, this ships a factually
+      wrong description of the CI mechanism into
+      `docs/development/reference/known-friction-points.md`. Every other amendment-touched file
+      (spec.md, plan.md, WP01, tracer-design-decisions.md) was corrected to describe the real
+      `ShardTimingsDriftWarning`/`_report_drift` mechanism; T018 was missed because the two prior
+      sweeps focused on WP03's T020 (the new strict-mode job), not T018 (a pre-existing subtask in
+      the same file that happens to also describe the demotion mechanism in passing).
+    remediation: >
+      Reword T018 step 2's mechanism description to say the per-PR assertion is now non-blocking
+      (a `ShardTimingsDriftWarning`, restorable to a hard failure via
+      `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`) rather than `xfail`, consistent with the language already
+      used elsewhere in spec.md/plan.md/WP01.
+
+  - id: AMENDMENT-FRESH2-002
+    lens: "citation accuracy: does WP01's new T004b correctly cite the spec.md acceptance criterion it claims to satisfy?"
+    severity: 2
+    title: "WP01's Subtask T004b cites 'User Story 3 Acceptance Scenario 2' for the cross-module agreeing-case fixture, but that Acceptance Scenario is charter-specific in spec.md and was never amended to cover the cross-module gate"
+    evidence:
+      - artifact: "tasks/WP01-demote-charter-length-assertion.md (Subtask T004b): frames itself as extending \"User Story 3 Acceptance Scenario 2\""
+      - artifact: "spec.md, User Story 3 Acceptance Scenario 2 (unchanged by any amendment pass): \"Given `charter`'s lengths agree, When the same test runs, Then it reports a clean pass with no warning noise.\" — explicitly `charter`-scoped, referring to `test_charter_is_not_allowlisted_and_agrees` specifically (see the Independent Test line naming that one function)."
+    claim: >
+      T004b is good, non-vacuous engineering (a real, deterministic agreeing-case fixture for the
+      cross-module `test_non_allowlisted_modules_agree_with_live_collection`), but its citation of
+      "User Story 3 Acceptance Scenario 2" overstates spec.md's actual current coverage: that
+      Acceptance Scenario, and User Story 3's Acceptance Scenarios generally, remain charter-specific
+      throughout spec.md and were never amended to mention the cross-module gate. A reviewer trusting
+      the citation could believe spec.md itself already states an acceptance criterion for the
+      cross-module agreeing case, when it does not — the actual authority for T004b's requirement is
+      FR-004's general "one proving the agreeing case emits none" fixture (which spec.md's FR-003
+      correction already establishes applies to both live-collection gates), not User Story 3
+      Acceptance Scenario 2 specifically.
+    remediation: >
+      Reword T004b's citation to point at FR-004 generally (and, if useful, note that User Story 3's
+      Acceptance Scenario 2 states the equivalent charter-specific case) rather than implying spec.md's
+      User Story 3 Acceptance Scenario 2 itself already covers the cross-module gate. This is a
+      citation-precision fix only — no change to the fixture's actual test code is needed.

@@ -1,0 +1,39 @@
+# review-verify/v1 — round 2.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >-
+      CL-003's unquoted "the other 20 modules ... stay out of scope" now reads 19, matching
+      the re-counted 19-key `_MISMATCH_ALLOWLIST`; a full re-sweep found only two remaining "20"
+      mentions (line 50 CL-003's adjacent verbatim SK-247 quote "20 of 21 modules" and the
+      Ledger Cross-Reference's paraphrase of what SK-247 itself documents), both correctly left
+      as historical/attributed framing per round 1's precedent, and every present-tense count
+      (FR-003, FR-009, C-001, SC-006, Non-Goals' 19-name list, Charter Tension, User Story 1 AS2)
+      is consistently 19.
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      The Key Entities closing sentence no longer narrows to two markers — it now states all
+      three (label / branch-name prefix / bot-commit-author) remain equally legitimate, matching
+      FR-007 and AS3 verbatim, and adds a technically sound clarification that a branch-based
+      check must match the fixed prefix portion (not the full varying name), which correctly
+      reflects `generate_run_id()`'s actual `<label>-durations-<timestamp>` shape re-confirmed at
+      scripts/ci/capture_shard_timings.py:154-157.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      tracer-approach.md's "design choices left open" list now caveats that a single
+      fixed/reused branch name is not viable given the spec's freshly-generated-per-run branch,
+      and correctly narrows to "a branch-based check, if chosen, must match the fixed prefix
+      portion," aligning with the updated Key Entities/FR-007 text rather than contradicting it.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >-
+      FR-005, AS4, C-004, and SC-005 now all use identical before-recapture-or-commit-or-push
+      timing wording, and FR-005's fixture requirement was rewritten to assert no recapture-script
+      invocation occurred at all (rather than the previous no-branch/no-commit check that could
+      not distinguish the two timings), closing the unfalsifiability gap; no other spec clause
+      restates a weaker (before-commit-only) timing for this same requirement.

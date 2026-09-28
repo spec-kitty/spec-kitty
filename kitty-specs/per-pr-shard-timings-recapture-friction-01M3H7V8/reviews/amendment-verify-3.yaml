@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: amendment
+results:
+  - id: AMENDMENT-FRESH2-001
+    status: resolved
+    reason: T018 step 2 now reads "non-blocking (a ShardTimingsDriftWarning, restorable to a hard failure via SPEC_KITTY_STRICT_SHARD_TIMINGS=1)" and a whole-file grep for xfail returns zero hits.
+  - id: AMENDMENT-FRESH2-002
+    status: resolved
+    reason: SC-001 and the Review Guidance bullet now attribute "User Story 3 Acceptance Scenario 2" to T003b (charter-specific) only and cite FR-004's general third mandatory fixture for T004b's cross-module case; T004b's recwarn-based fixture body is unchanged and non-vacuous.

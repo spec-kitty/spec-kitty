@@ -1,0 +1,40 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh6
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-FRESH6-001
+    lens: falsifier (five-paradigm debugging — hypothesis vs. stated mechanism)
+    severity: 3
+    title: FR-007's own "I want" clause claims the job "always" pushes, directly contradicted by the skip-if-open behavior stated two sentences later
+    evidence:
+      - artifact: "spec.md § Requirements > Functional Requirements, FR-007"
+        quote: "As a maintainer, I want the recapture job to always push its capture to one constant, fixed head branch (e.g. `ci/recapture-charter-shard-timings`; see Key Entities), and detect \"already open\" as an open PR whose head is that branch and whose base is `main` ... When such a PR exists, the job does **not** push, force-push, comment, or open anything — it writes one line to the job summary naming the open PR's number and exits successfully (never force-pushes, in any case); when none exists, it opens one."
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 3"
+        quote: "identifiable by its head branch being the single fixed branch this workflow always pushes to (see Key Entities)"
+    claim: >
+      FR-007's requirement-statement sentence asserts, unconditionally, that the job "always
+      push[es] its capture to one constant, fixed head branch" — then the very same table cell
+      immediately specifies that when a PR from that branch is already open, the job "does not
+      push, force-push, comment, or open anything." These two clauses of the same FR directly
+      contradict each other on whether pushing is unconditional. This is leftover phrasing from
+      operator ruling 1 (where the mechanism was "force-update," under which the job genuinely did
+      always push — either as a fresh branch or a force-update) that was not swept when ruling 2
+      replaced force-update with skip-if-open. The tracer's own sweep list
+      (tracer-design-decisions.md, "Operator ruling 2" section) enumerates FR-007's table row as
+      swept for the force-update→skip-if-open change but does not appear to have caught this
+      "always push" survival. Acceptance Scenario 3 in User Story 2 repeats a softer version of
+      the same "always pushes to" phrasing. The falsifiable "no-op passable" column of FR-007 is
+      itself unambiguous and correct — only the narrative "I want" sentence and AC3's framing
+      clause carry the contradiction — but a plan-time author who works from the requirement
+      narrative rather than the fixture column could reasonably (mis)implement unconditional
+      pushing, especially since this FR is the exact mechanism ruling 2 exists to fix.
+    remediation: >
+      Reword FR-007's "I want" clause to remove the unconditional "always," e.g. "I want the
+      recapture job to push its capture to one constant, fixed head branch whenever no PR from
+      that branch is currently open, and to detect 'already open' as an open PR whose head is
+      that branch and whose base is `main` ..." Similarly reword User Story 2 Acceptance Scenario
+      3's "the single fixed branch this workflow always pushes to" to something branch-identity-
+      scoped and non-frequency-adverbial, e.g. "the single fixed branch this workflow is
+      permanently pinned to (used whenever it does push)."

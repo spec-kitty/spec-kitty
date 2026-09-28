@@ -1,0 +1,83 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+findings:
+  - id: SPEC-GOV-001
+    lens: Standing Order #5 fidelity (testable-property check of FR-003's current-code description)
+    severity: 4
+    title: "Spec repeatedly misdescribes `_MISMATCH_ALLOWLIST` as a 20-entry allowlist; it currently has 19 entries"
+    evidence:
+      - artifact: "spec.md § FR-003 (title and body)"
+      - artifact: "spec.md § FR-009"
+      - artifact: "spec.md § C-001"
+      - artifact: "spec.md § SC-006"
+      - artifact: "spec.md § Non-Goals (\"The other 20 SK-247 modules\" bullet)"
+      - artifact: "spec.md § Ledger Cross-Reference (closing sentence, \"leaves the 20-entry allowlist untouched\")"
+      - code: "tests/architectural/test_module_length_agreement.py:98-117 (the `_MISMATCH_ALLOWLIST` dict literal)"
+      - code: "tests/architectural/test_module_length_agreement.py:119-124 (`_BASELINE_ALLOWLIST_COUNT = 20` and its own comment: \"`agent` removed (ci-coverage-honesty WP02)\")"
+    claim: >
+      The spec asserts, in six separate places, that the live `_MISMATCH_ALLOWLIST` in
+      `tests/architectural/test_module_length_agreement.py` currently holds 20 entries
+      ("the 20-entry allowlist", "the other 20 `_MISMATCH_ALLOWLIST` entries", "the other 20
+      SK-247 modules ... in `_MISMATCH_ALLOWLIST`"). A direct read of the dict literal
+      (`_MISMATCH_ALLOWLIST: dict[str, str] = {...}`) shows exactly 19 keys today: merge,
+      missions, post_merge, release, status, review, next, lanes, dashboard, upgrade, cli,
+      kernel, glossary, execution_context, core_misc, unit, specify_cli_runtime, ci, auth. The
+      file's own comment explains why: "`agent` removed (ci-coverage-honesty WP02): enrolling
+      tests/specify_cli/agent_utils into the agent row + re-measuring its timings made
+      committed==collected, so the mismatch is gone and the allowlist entry is stale." The
+      constant `_BASELINE_ALLOWLIST_COUNT = 20` is a shrink-only HIGH-WATER MARK (headroom for
+      future growth), not the current live count -- `test_allowlist_does_not_exceed_baseline`
+      asserts `len(_MISMATCH_ALLOWLIST) <= _BASELINE_ALLOWLIST_COUNT`, an inequality, not
+      equality. The spec's own Non-Goals bullet actually *names* only 19 modules (correctly
+      omitting `agent`) while still captioning the list "The other 20 SK-247 modules" --
+      internally inconsistent with its own enumeration. This is exactly the class of defect the
+      mission-specific lens instructions flag: "a spec that misdescribes the current code is a
+      defect regardless of what it proposes to change." The severity-rubric's "high" tier
+      explicitly names "contradicts existing code" -- this does, in a load-bearing FR/SC/C-00N
+      count claim, not incidental prose. Left as-is, a plan- or implementation-phase author
+      following FR-003/SC-006 literally (e.g., writing a regression fixture asserting the
+      allowlist stays at exactly 20 entries, or being confused when a diff review finds 19 not
+      20) would build against a number the live code does not have.
+    remediation: >
+      Correct every present-tense claim about the *current* size of `_MISMATCH_ALLOWLIST` from
+      "20" to "19" (FR-003's title -> "Leave the other ratchet tests and the 19-entry allowlist
+      untouched"; FR-009's "other 20 SK-247 modules" -> "the 19 modules currently in
+      `_MISMATCH_ALLOWLIST`"; C-001; SC-006; the Ledger Cross-Reference's closing sentence). Keep
+      the "20 of 21" / "SK-247" phrasing ONLY where the spec is explicitly quoting the ledger
+      entry's own historical framing (e.g. CL-003's parenthetical direct quote, and the Ledger
+      Cross-Reference's summary of what SK-247 says) -- do not conflate the ledger's
+      point-in-time historical count with the live code's current count. Optionally note that
+      `agent` was already fixed and removed post-SK-247, so the mission's Non-Goals list (which
+      already correctly excludes `agent`) and its "20" caption are not just imprecise but
+      actively disagree with each other.
+  - id: SPEC-GOV-002
+    lens: Standing Order #5 fidelity (testable-property check of FR-003's current-code description)
+    severity: 1
+    title: "FR-003's title says \"three\" ratchet tests but its own requirement body names four tests"
+    evidence:
+      - artifact: "spec.md § FR-003"
+      - code: "tests/architectural/test_module_length_agreement.py:304 (test_non_allowlisted_modules_agree_with_live_collection)"
+      - code: "tests/architectural/test_module_length_agreement.py:348 (test_allowlist_does_not_exceed_baseline)"
+      - code: "tests/architectural/test_module_length_agreement.py:358 (test_allowlist_entries_are_real_registry_modules)"
+      - code: "tests/architectural/test_module_length_agreement.py:366 (test_allowlisted_modules_still_genuinely_mismatch)"
+    claim: >
+      FR-003's title reads "Leave the other three ratchet tests and the 20-entry allowlist
+      untouched," but the requirement's own "As a maintainer" body names FOUR test functions
+      that must keep their current hard-blocking behavior:
+      `test_allowlist_does_not_exceed_baseline`, `test_allowlisted_modules_still_genuinely_mismatch`,
+      `test_allowlist_entries_are_real_registry_modules`, AND
+      `test_non_allowlisted_modules_agree_with_live_collection`. The first three are genuinely
+      "ratchet" tests (they police the allowlist's own integrity); the fourth is the file's
+      primary cross-module gate (marked "# The real gate." in the source), a different category
+      the title's "three ratchet tests" phrase does not obviously cover. The operative content
+      (all four keep hard-blocking behavior) is correct and matches the live code; only the
+      title's headcount undercounts what its own body lists.
+    remediation: >
+      Retitle FR-003 to name the count that matches its own body (e.g. "Leave the other four
+      untouched tests -- three allowlist-ratchet tests plus the cross-module live-collection
+      gate -- and the allowlist itself unchanged") so the title and body agree, or explicitly
+      split "ratchet tests" (3) from "the real gate" (1) as two distinct clauses.
