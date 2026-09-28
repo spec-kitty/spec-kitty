@@ -1,0 +1,125 @@
+<!doctype html>
+<!--
+  Stage C template for "WTF happened" executive debriefs.
+
+  This is the canonical LOOK. The synthesis stage (Stage B) produces the
+  structured slots defined in scripts/reporting/skill/SKILL.md; the render step
+  fills this template from those slots. Placeholders use {{ SNAKE_CASE }} for
+  scalars and <!-- @each NAME --> ... <!-- @end --> for repeated blocks so a
+  trivial substitution renderer (or the model itself) can fill it.
+
+  Print-optimised (A4/Letter) so it exports cleanly to PDF via a headless
+  browser print. Light theme only — these are printed one-pagers.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ TITLE }}</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #6b7280; --line: #e5e7eb; --card: #fafafa;
+    --accent: #b60205;        /* P0 / WATCH red */
+    --ok: #0e8a16;            /* SHIPPED green */
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+    --sans: -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: var(--sans); color: var(--ink); margin: 0; padding: 48px 56px;
+         font-size: 15px; line-height: 1.5; max-width: 920px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .14em;
+             text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 40px; font-weight: 800; margin: 6px 0 10px; letter-spacing: -.01em; }
+  .meta { font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+          margin-bottom: 20px; }
+  .lede { font-size: 17px; line-height: 1.55; margin: 0 0 28px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
+
+  /* metric tiles */
+  .tiles { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 10px;
+           overflow: hidden; margin-bottom: 32px; }
+  .tile { flex: 1; padding: 18px 20px; border-right: 1px solid var(--line); }
+  .tile:last-child { border-right: 0; }
+  .tile .n { font-size: 34px; font-weight: 800; line-height: 1; }
+  .tile .n.alert { color: var(--accent); }
+  .tile .lbl { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+  h2 { font-size: 24px; font-weight: 800; margin: 34px 0 14px; }
+  .section { border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px;
+             margin-bottom: 18px; }
+  .section .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .section h3 { font-family: var(--mono); font-size: 15px; margin: 0 0 4px; }
+  .section .count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .section .intro { color: var(--muted); font-size: 14px; margin: 4px 0 12px; }
+  ul { margin: 0; padding-left: 20px; }
+  li { margin: 7px 0; }
+
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em;
+          text-transform: uppercase; padding: 2px 7px; border-radius: 4px; margin-right: 6px; }
+  .pill.shipped { background: #e7f5ea; color: var(--ok); }
+  .pill.watch   { background: #fde8e8; color: var(--accent); }
+  .pill.p0      { background: #fde8e8; color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 4px; font-size: 14px; }
+  th { text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+       text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line);
+       padding: 8px 10px; }
+  td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  a { color: #0b5fff; text-decoration: none; }
+  code { font-family: var(--mono); font-size: .92em; background: var(--card);
+         padding: 1px 4px; border-radius: 3px; }
+  .footer { color: var(--muted); font-size: 12.5px; margin-top: 32px; line-height: 1.5; }
+  @media print { body { padding: 24px 28px; } .section, .tiles { break-inside: avoid; } }
+</style>
+</head>
+<body>
+  <div class="eyebrow">{{ EYEBROW }}</div>   <!-- e.g. SPEC KITTY · EXECUTIVE OVERVIEW -->
+  <h1>{{ TITLE }}</h1>                        <!-- e.g. What landed since Friday morning -->
+  <div class="meta">{{ META_LINE }}</div>     <!-- window / main SHA / repos, generated from meta -->
+
+  <p class="lede">{{ LEDE }}</p>              <!-- Stage B narrative synthesis -->
+
+  <div class="tiles">
+    <!-- @each TILE -->
+    <div class="tile"><div class="n {{ TILE_CLASS }}">{{ TILE_N }}</div><div class="lbl">{{ TILE_LABEL }}</div></div>
+    <!-- @end -->
+  </div>
+
+  <h2>{{ HIGHLIGHTS_HEADING }}</h2>           <!-- "The bottom line" / "Key takeaways" -->
+  <ul>
+    <!-- @each HIGHLIGHT -->
+    <li><span class="pill {{ HL_PILL_CLASS }}">{{ HL_PILL }}</span>{{ HL_TEXT }}</li>
+    <!-- @end -->
+  </ul>
+
+  <h2>{{ BODY_HEADING }}</h2>                 <!-- "What shipped, by theme" / "By cluster" -->
+  <!-- @each SECTION -->
+  <div class="section">
+    <div class="head"><h3>{{ SEC_TITLE }}</h3><span class="count">{{ SEC_COUNT }}</span></div>
+    <div class="intro">{{ SEC_INTRO }}</div>
+    <ul>
+      <!-- @each SEC_ITEM -->
+      <li>{{ ITEM_PILL }}{{ ITEM_TEXT }} {{ ITEM_REFS }}</li>
+      <!-- @end -->
+    </ul>
+  </div>
+  <!-- @end -->
+
+  <!-- Optional decision / backlog table (window mode) -->
+  <!-- @if DECISIONS -->
+  <h2>{{ DECISIONS_HEADING }}</h2>
+  <table>
+    <thead><tr><th>Item</th><th>Status</th><th>Owner</th></tr></thead>
+    <tbody>
+      <!-- @each DECISION -->
+      <tr><td>{{ D_ITEM }}</td><td>{{ D_STATUS }}</td><td>{{ D_OWNER }}</td></tr>
+      <!-- @end -->
+    </tbody>
+  </table>
+  <!-- @end -->
+
+  <div class="footer">
+    <p><strong>Who shipped it:</strong> {{ AUTHORS_LINE }}</p>
+    <p><strong>Method:</strong> {{ METHOD }}</p>  <!-- generated from meta.method, never hand-typed -->
+  </div>
+</body>
+</html>
