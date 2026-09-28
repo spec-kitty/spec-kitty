@@ -105,6 +105,16 @@ def test_find_open_recapture_pr_returns_none_for_empty_list() -> None:
     assert find_open_recapture_pr([]) is None
 
 
+def test_find_open_recapture_pr_raises_loudly_for_non_int_number(capsys: pytest.CaptureFixture[str]) -> None:
+    """pr-contract-001: a malformed `number` field (non-int) on the matching PR must fail
+    loudly, never be silently coerced to None (indistinguishable from "no PR open")."""
+    open_prs = [{"number": "not-an-int", "headRefName": RECAPTURE_BRANCH}]
+    with pytest.raises(SystemExit) as exc_info:
+        find_open_recapture_pr(open_prs)
+    assert exc_info.value.code != 0
+    assert "::error::" in capsys.readouterr().err
+
+
 def test_require_recapture_token_returns_value_when_set(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_token(monkeypatch, FAKE_TOKEN)
     assert require_recapture_token() == FAKE_TOKEN
@@ -194,6 +204,40 @@ def test_list_open_recapture_prs_invokes_gh_with_token_and_parses_json(monkeypat
     assert captured["env"]["GH_TOKEN"] == FAKE_TOKEN
 
 
+def test_list_open_recapture_prs_raises_loudly_for_non_list_payload(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """pr-contract-001: an unexpected `gh pr list` JSON shape (e.g. an object instead of a
+    list -- a schema change) must fail loudly, never be silently coerced to []
+    (indistinguishable, downstream, from a genuine "no open PR" answer before a force-push)."""
+
+    class _FakeCompletedProcess:
+        stdout = json.dumps({"unexpected": "object-shape"})
+
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: _FakeCompletedProcess())
+
+    with pytest.raises(SystemExit) as exc_info:
+        recapture._list_open_recapture_prs("spec-kitty/spec-kitty", FAKE_TOKEN)
+    assert exc_info.value.code != 0
+    assert "::error::" in capsys.readouterr().err
+
+
+def test_list_open_recapture_prs_fails_loudly_on_subprocess_error(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """pr-contract-002: a genuine `gh pr list` transport failure (auth expiry, rate limit,
+    network error) surfaces through the script's own ::error:: convention and a clean
+    SystemExit, never a raw, unhandled CalledProcessError traceback."""
+
+    def _fake_run(cmd: list[str], **kwargs: Any) -> None:
+        raise subprocess.CalledProcessError(returncode=1, cmd=cmd)
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    with pytest.raises(SystemExit) as exc_info:
+        recapture._list_open_recapture_prs("spec-kitty/spec-kitty", FAKE_TOKEN)
+    assert exc_info.value.code != 0
+    err = capsys.readouterr().err
+    assert "::error::" in err
+    assert "gh pr list" in err
+
+
 def test_push_and_open_pr_runs_git_and_gh_with_expected_arguments(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[list[str]] = []
     envs: list[dict[str, str] | None] = []
@@ -223,6 +267,51 @@ def test_push_and_open_pr_runs_git_and_gh_with_expected_arguments(monkeypatch: p
     assert FAKE_TOKEN not in flat_argv_text
     assert envs[3] is not None
     assert envs[3]["GH_TOKEN"] == FAKE_TOKEN
+
+
+@pytest.mark.parametrize(
+    ("fail_at_call_index", "expected_step"),
+    [
+        (0, "git add"),
+        (1, "git commit"),
+        (2, "git push"),
+        (3, "gh pr create"),
+    ],
+    ids=["git-add", "git-commit", "git-push", "gh-pr-create"],
+)
+def test_push_and_open_pr_fails_loudly_on_subprocess_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    fail_at_call_index: int,
+    expected_step: str,
+) -> None:
+    """pr-contract-002: a genuine git/gh transport failure (e.g. a rejected force-push)
+    surfaces through the script's own ::error:: convention and a clean SystemExit, never a
+    raw, unhandled CalledProcessError traceback -- independently proven for each of the
+    four steps in the commit/push/open sequence (``git add``, ``git commit``, ``git push``,
+    ``gh pr create``), not only the first: the fake succeeds on every call before the
+    parametrized failure index, then raises on that call, and each case asserts the
+    ``::error::`` output names that specific step and that no later step's ``subprocess.run``
+    call ever happened.
+    """
+    calls: list[list[str]] = []
+
+    def _fake_run(cmd: list[str], **kwargs: Any) -> None:
+        calls.append(cmd)
+        if len(calls) - 1 == fail_at_call_index:
+            raise subprocess.CalledProcessError(returncode=1, cmd=cmd)
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    run_url = "https://github.com/spec-kitty/spec-kitty/actions/runs/1"
+    with pytest.raises(SystemExit) as exc_info:
+        recapture._push_and_open_pr("spec-kitty/spec-kitty", FAKE_TOKEN, 10, 12, run_url)
+    assert exc_info.value.code != 0
+    err = capsys.readouterr().err
+    assert "::error::" in err
+    assert expected_step in err
+    # No step after the one that failed ever ran.
+    assert len(calls) == fail_at_call_index + 1
 
 
 def test_pr_body_template_matches_fr010_verbatim_text() -> None:

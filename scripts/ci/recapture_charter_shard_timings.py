@@ -130,11 +130,22 @@ def has_drift(before_length: int, after_length: int) -> bool:
 def find_open_recapture_pr(open_prs: list[dict[str, object]]) -> int | None:
     """FR-007: match ONLY on head branch == RECAPTURE_BRANCH. An unrelated PR that also
     touches .github/ci-shard-timings.json on a different head (e.g. #5175/#5177) is never
-    matched, because its head branch differs."""
+    matched, because its head branch differs.
+
+    pr-contract-001: a malformed ``number`` field on the matching PR fails loudly -- never
+    silently coerced to ``None``, which downstream is indistinguishable from a genuine
+    "no open PR" answer before the step-8 force-push.
+    """
     for pr in open_prs:
         if pr.get("headRefName") == RECAPTURE_BRANCH:
             number = pr.get("number")
-            return number if isinstance(number, int) else None
+            if not isinstance(number, int):
+                print(
+                    f"::error::unexpected `gh pr list` JSON shape: PR number is not an int: {number!r}",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1)
+            return number
     return None
 
 
@@ -171,6 +182,27 @@ def _read_charter_length(path: Path = TIMINGS_PATH) -> int:
     return len(payload["module_test_durations"][MODULE])
 
 
+def _run_subprocess_or_die(
+    cmd: list[str],
+    *,
+    step: str,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    capture_output: bool = False,
+    text: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    """Run *cmd*, surfacing a genuine gh/git failure via the script's own ``::error::``
+    convention (pr-contract-002) instead of a raw, unhandled ``CalledProcessError``
+    traceback. *step* names which command failed (e.g. ``"gh pr list"``) -- never the
+    token, which is passed only via *env* and never logged.
+    """
+    try:
+        return subprocess.run(cmd, cwd=cwd, env=env, capture_output=capture_output, text=text, check=True)
+    except subprocess.CalledProcessError as exc:
+        print(f"::error::{step} failed: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+
 def _list_open_recapture_prs(repository: str, token: str) -> list[dict[str, object]]:
     """``gh pr list`` edge -- authenticated with *token* (never ``GITHUB_TOKEN``; C-004).
 
@@ -180,7 +212,7 @@ def _list_open_recapture_prs(repository: str, token: str) -> list[dict[str, obje
     """
     env = dict(os.environ)
     env["GH_TOKEN"] = token
-    result = subprocess.run(
+    result = _run_subprocess_or_die(
         [
             "gh",
             "pr",
@@ -196,13 +228,22 @@ def _list_open_recapture_prs(repository: str, token: str) -> list[dict[str, obje
             "--json",
             "number,headRefName",
         ],
+        step="gh pr list",
+        env=env,
         capture_output=True,
         text=True,
-        env=env,
-        check=True,
     )
     parsed = json.loads(result.stdout)
-    return parsed if isinstance(parsed, list) else []
+    if not isinstance(parsed, list):
+        # pr-contract-001: an unexpected shape (e.g. an object, or a schema change) fails
+        # loudly -- never silently coerced to [], which downstream is indistinguishable
+        # from a genuine "no open PR" answer before the step-8 force-push.
+        print(
+            f"::error::unexpected `gh pr list` JSON shape: expected a list, got {type(parsed).__name__}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    return parsed
 
 
 def _write_job_summary(line: str) -> None:
@@ -233,8 +274,8 @@ def _push_and_open_pr(repository: str, token: str, before: int, after: int, run_
     """
     env = dict(os.environ)
     env["GH_TOKEN"] = token
-    subprocess.run(["git", "add", str(TIMINGS_PATH)], cwd=REPO_ROOT, check=True)
-    subprocess.run(
+    _run_subprocess_or_die(["git", "add", str(TIMINGS_PATH)], step="git add", cwd=REPO_ROOT)
+    _run_subprocess_or_die(
         [
             "git",
             "-c",
@@ -245,17 +286,17 @@ def _push_and_open_pr(repository: str, token: str, before: int, after: int, run_
             "-m",
             COMMIT_MESSAGE,
         ],
+        step="git commit",
         cwd=REPO_ROOT,
-        check=True,
     )
-    subprocess.run(
+    _run_subprocess_or_die(
         ["git", "push", "--force", "origin", f"HEAD:refs/heads/{RECAPTURE_BRANCH}"],
+        step="git push",
         cwd=REPO_ROOT,
         env=env,
-        check=True,
     )
     body = PR_BODY_TEMPLATE.format(before=before, after=after, run_url=run_url)
-    subprocess.run(
+    _run_subprocess_or_die(
         [
             "gh",
             "pr",
@@ -271,8 +312,8 @@ def _push_and_open_pr(repository: str, token: str, before: int, after: int, run_
             "--body",
             body,
         ],
+        step="gh pr create",
         env=env,
-        check=True,
     )
 
 
