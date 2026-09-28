@@ -825,8 +825,8 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(fresh
 _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
     "documentation": 44,
     "research": 110,
-    "software-dev": 161,
-    "plan": 141,
+    "software-dev": 165,
+    "plan": 147,
 }
 #: The built-in tactic ``acceptance-criteria-non-vacuity`` sits downstream of
 #: ``tactic:usage-examples-sync`` (already scoped to every governance-bearing
@@ -840,6 +840,19 @@ _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
 #: toolguides (1 + 1 + 2 = 4). ``plan``/``research``/``software-dev`` already
 #: reached ``mutation-testing-workflow`` by a pre-existing path, so the new
 #: edge is redundant for them and they move by only +1.
+#:
+#: #5258 (R7): the curated advisory edge ``procedure:disciplined-defect-
+#: diagnosis --suggests--> directive:DIRECTIVE_052`` de-orphans DIRECTIVE_052 by
+#: giving it its first INBOUND reference. ``--cascade all`` reachability follows
+#: ``suggests`` edges, so DIRECTIVE_052 and its five outbound targets now enter
+#: the cascade closure of every mission type that reaches the
+#: ``disciplined-defect-diagnosis`` procedure. ``plan`` gains +6 (141 -> 147:
+#: the directive plus five not-previously-reached targets) and ``software-dev``
+#: gains +4 (161 -> 165: two of those targets were already reached by another
+#: path). ``documentation``/``research`` do not reach the procedure, so their
+#: totals are unchanged. The edge is advisory only -- it never auto-activates
+#: (activation cascade requires an explicit ``--cascade`` flag); this ratchet
+#: tracks reachability, not activation.
 
 
 @pytest.mark.parametrize("mission_type_id", ("documentation", "plan", "research", "software-dev"))
