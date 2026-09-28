@@ -316,7 +316,13 @@ def _list_open_recapture_prs(repository: str, token: str) -> list[dict[str, obje
         capture_output=True,
         text=True,
     )
-    parsed = json.loads(result.stdout)
+    try:
+        parsed = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        # F8: empty stdout, a proxy error page, or a gh warning is not "no open PR" --
+        # fail loud via the ::error:: convention, never a raw JSONDecodeError traceback.
+        print(f"::error::`gh pr list` returned non-JSON output: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
     if not isinstance(parsed, list):
         # pr-contract-001: an unexpected shape (e.g. an object, or a schema change) fails
         # loudly -- never silently coerced to [], which downstream is indistinguishable

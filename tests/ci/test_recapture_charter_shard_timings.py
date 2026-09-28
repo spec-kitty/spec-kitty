@@ -262,6 +262,24 @@ def test_list_open_recapture_prs_raises_loudly_for_non_list_payload(monkeypatch:
     assert "::error::" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("stdout", ["", "not json at all", "<html>502 Bad Gateway</html>"], ids=["empty", "plain-text", "html"])
+def test_list_open_recapture_prs_fails_loudly_on_non_json_output(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], stdout: str) -> None:
+    """F8: non-JSON `gh pr list` output (empty stdout, a proxy error page, a gh warning)
+    surfaces through the ::error:: convention and SystemExit(1) -- never a raw
+    JSONDecodeError traceback -- and the pre-push open-PR decision is never reached."""
+
+    fake = subprocess.CompletedProcess(args=["gh"], returncode=0, stdout=stdout)
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: fake)
+
+    with pytest.raises(SystemExit) as exc_info:
+        recapture._list_open_recapture_prs("spec-kitty/spec-kitty", FAKE_TOKEN)
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert "::error::" in err
+    assert "gh pr list" in err
+    assert FAKE_TOKEN not in err
+
+
 def test_list_open_recapture_prs_fails_loudly_on_subprocess_error(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """pr-contract-002: a genuine `gh pr list` transport failure (auth expiry, rate limit,
     network error) surfaces through the script's own ::error:: convention and a clean
