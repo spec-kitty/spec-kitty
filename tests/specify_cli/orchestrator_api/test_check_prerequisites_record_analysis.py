@@ -311,6 +311,7 @@ _CHECK_PREREQUISITES_SUCCESS_DATA_KEYS = frozenset(
         "current_branch",
         "errors",
         "merge_target_branch",
+        "mission_dir",
         "mission_slug",
         "paths",
         "planning_base_branch",
