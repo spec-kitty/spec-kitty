@@ -22,11 +22,12 @@ from specify_cli.consolidation.state import (
     ConsolidationState,
     ConsolidationStateReadError,
     clear_state,
+    drop_post_fix_marker,
     load_state,
     save_state,
 )
 from specify_cli.consolidation.reconciliation import write_post_fix_marker
-from specify_cli.consolidation.workspace import cleanup_merge_workspace, post_fix_marker_path
+from specify_cli.consolidation.workspace import cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
 from mission_runtime import MissionArtifactKind, placement_seam
 
@@ -258,8 +259,11 @@ def _load_or_create_merge_state(
             # Only pre-fix code wrote non-canonical keys, so a migrated state is
             # pre-fix and stays marker-less (its resume is refused, as before);
             # never let an orphan marker already sitting in the canonical dir
-            # (e.g. from a pre-#5111 ``--abort``) vouch for it.
-            post_fix_marker_path(canonical_id, main_repo).unlink(missing_ok=True)
+            # (e.g. from a pre-#5111 ``--abort``) vouch for it. One post-fix
+            # exception: ``migrate backfill-identity`` run mid-merge re-keys an
+            # in-flight record, which is then refused as pre-fix -- fail-closed,
+            # and recoverable with ``consolidate --abort``.
+            drop_post_fix_marker(main_repo, canonical_id)
             save_state(state, main_repo)
             if source_key is not None and source_key != canonical_id:
                 clear_state(main_repo, source_key)

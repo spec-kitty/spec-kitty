@@ -20,12 +20,16 @@ logger = logging.getLogger(__name__)
 # (``state.json`` + this marker). Owned here, beside the runtime-dir layout, so
 # ``state.clear_state`` and ``reconciliation`` share ONE definition (#5111).
 POST_FIX_MARKER_FILENAME = "reconciliation.post-fix"
+# The other half of the transaction record, defined beside its marker so both
+# filenames have one home (#5111 landing fold).
+STATE_FILENAME = "state.json"
 
 # Files in the runtime directory that must survive cleanup for recovery.
-_PRESERVED_FILES = {"state.json", "lock", POST_FIX_MARKER_FILENAME}
+_PRESERVED_FILES = {STATE_FILENAME, "lock", POST_FIX_MARKER_FILENAME}
 
 __all__ = [
     "POST_FIX_MARKER_FILENAME",
+    "STATE_FILENAME",
     "post_fix_marker_path",
     "create_merge_workspace",
     "cleanup_merge_workspace",
