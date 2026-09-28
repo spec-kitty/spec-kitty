@@ -32,6 +32,8 @@ contract, run:
 spec-kitty agent mission branch-context --json
 ```
 
+This command reads the current checkout only and takes no `--mission` option.
+
 ## Where to record findings
 
 Write directly into `<mission_dir>/research.md` (that is `kitty-specs/<mission_slug>/research.md`)
@@ -58,7 +60,7 @@ same `research.md`, it does not replace it.
 The section below applies **only** to mission types whose pack ships
 `research.md` / `data-model.md` templates (today: the `research` mission type).
 For every other mission type — including `software-dev` — there is no such
-scaffold: skip this section, the scaffold command creates nothing for you, and
+scaffold: skip this section, the scaffold command creates nothing by default, and
 recording findings by hand as described above is the whole step.
 
 On a mission type that does ship those templates, once its plan is filled in
