@@ -36,7 +36,7 @@ from specify_cli.consolidation.state import (
     load_state,
     save_state,
 )
-from specify_cli.consolidation.workspace import POST_FIX_MARKER_FILENAME, get_merge_runtime_dir
+from specify_cli.consolidation.workspace import get_merge_runtime_dir, post_fix_marker_path
 from tests.consolidation.test_issue_4764_terminus_safety import (
     MISSION_ID,
     MISSION_SLUG,
@@ -49,7 +49,8 @@ from tests.consolidation.test_issue_4764_terminus_safety import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 _PRE_FIX_REFUSAL = "pre-fix in-flight merge state"
-_MARKER_FILENAME = POST_FIX_MARKER_FILENAME
+# The marker filename is private to workspace.py; derive it from the public path helper.
+_MARKER_FILENAME = post_fix_marker_path(MISSION_ID, Path(".")).name
 
 
 def _gate_eval(*, passing: bool) -> MagicMock:
@@ -95,7 +96,7 @@ def approved_repo(tmp_path: Path) -> Path:
 
 
 def _marker_path(repo: Path) -> Path:
-    return get_merge_runtime_dir(MISSION_ID, repo) / _MARKER_FILENAME
+    return post_fix_marker_path(MISSION_ID, repo)
 
 
 def test_5111_fresh_gate_failure_then_plain_rerun_runs_full_gate_path(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
