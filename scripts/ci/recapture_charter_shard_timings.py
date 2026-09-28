@@ -91,7 +91,7 @@ import json
 import os
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -210,7 +210,7 @@ def has_drift(before_length: int, after_length: int) -> bool:
     return before_length != after_length
 
 
-def find_open_recapture_pr(open_prs: list[dict[str, object]]) -> int | None:
+def find_open_recapture_pr(open_prs: Sequence[Mapping[str, object]]) -> int | None:
     """FR-007: match ONLY on head branch == RECAPTURE_BRANCH. An unrelated PR that also
     touches .github/ci-shard-timings.json on a different head (e.g. #5175/#5177) is never
     matched, because its head branch differs.
