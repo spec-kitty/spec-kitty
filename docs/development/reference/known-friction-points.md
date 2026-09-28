@@ -142,6 +142,14 @@ closed — so the "known reds" below are already a different set than a month ag
   (~18 min locally) that also churns ~5–6k lines of JSON, as mandatory landing
   work (the nightly recapture does **not** absorb it). Bit #5164 and #5175
   consecutively (tracked in #5189).
+  **Superseded by spec-kitty#5189 (`per-pr-shard-timings-recapture-friction`).**
+  The bullet above is still historically accurate about the friction that
+  existed; it is no longer open. The per-PR assertion is now non-blocking (a
+  `ShardTimingsDriftWarning`, restorable to a hard failure via
+  `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`), and a scheduled workflow
+  (`.github/workflows/ci-charter-shard-recapture.yml`) keeps `charter`'s
+  shard timings converging automatically, so a landing agent no longer needs
+  to run the manual ~18-minute recapture as mandatory landing work.
 
 ## Maintaining this page
 

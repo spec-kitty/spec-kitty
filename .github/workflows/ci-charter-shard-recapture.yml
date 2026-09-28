@@ -1,0 +1,155 @@
+# Charter shard-timings recapture -- scheduled automatic remediation, plus the
+# strict-mode home for the exact-count invariant.
+#
+# Mission per-pr-shard-timings-recapture-friction-01M3H7V8, WP03 (spec-kitty#5189).
+#
+# WP01 demotes `test_charter_is_not_allowlisted_and_agrees` (and its sibling,
+# per #5240) from a per-PR hard failure to a visible `ShardTimingsDriftWarning`,
+# so an individual PR is no longer blocked on `charter`'s recorded shard-timing
+# count drifting away from live collection -- but that demotion, on its own,
+# only stops blocking; it does nothing to CLOSE the drift. This workflow is
+# the automatic remediation plus the invariant's real, scheduled, hard-failing
+# home (Standing Order #5):
+#
+#   * `recapture-charter-shard-timings`: re-runs the capture mechanism for
+#     `charter` only (WP02's `scripts/ci/recapture_charter_shard_timings.py`)
+#     and, only when the freshly-captured entry's length actually changed,
+#     commits it to a fixed branch and opens a PR. Authenticated with a
+#     dedicated PAT/App-token secret (`CHARTER_SHARD_RECAPTURE_TOKEN`) --
+#     NEVER `GITHUB_TOKEN` -- so the recapture PR triggers normal per-PR CI
+#     the same way a human-authored PR would (the same anti-recursion
+#     rationale `release.yml`'s `nightly-gate` job documents).
+#   * `strict-shard-timings-check`: runs the architectural length-agreement
+#     gates under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, restoring the hard
+#     failure for `charter` (and `agent`, the only other non-allowlisted
+#     module) on a real, scheduled cadence -- nothing in `ci-nightly.yml`
+#     runs `tests/architectural` today (its `full-module-matrix` job only
+#     expands `.github/ci-module-registry.yml`'s `modules[]` rows, and that
+#     registry's own `out_of_matrix_test_dirs` explicitly excludes
+#     `tests/architectural`), so without this job WP01's per-PR demotion
+#     would be a silent removal of the exact-count gate, not a relocation.
+#
+# These two jobs are DELIBERATELY INDEPENDENT -- no `needs:` edge between
+# them, mirroring `ci-nightly.yml`'s own independent `performance`/`e2e`/
+# `stress`/`interpreter-matrix` jobs (none of which `needs:` each other). If
+# `charter` drifts, `strict-shard-timings-check` goes red (the visible alarm)
+# AND, independently in the same run, `recapture-charter-shard-timings`
+# detects the same drift and opens/updates its fix PR (the fix); the next
+# scheduled run after that PR merges goes green again. If a DIFFERENT
+# non-allowlisted module drifts (today, only `agent`), `strict-shard-timings-
+# check` goes red -- a genuine, new signal -- but the recapture job, hardcoded
+# to `charter` only (FR-009/C-001), does nothing about it; that is intentional
+# (CL-003), now at least visible instead of silently unblocked. Triage a red
+# `strict-shard-timings-check` run BY TEST NAME FIRST: its unfiltered
+# `pytest ... -q` invocation also collects the three always-hard-failing
+# allowlist-ratchet tests (`test_allowlist_does_not_exceed_baseline`,
+# `test_allowlisted_modules_still_genuinely_mismatch`,
+# `test_allowlist_entries_are_real_registry_modules`), so a red run can mean
+# an unrelated pre-existing allowlist-hygiene defect instead of shard-timings
+# drift.
+#
+# `schedule` + `workflow_dispatch` ONLY -- no `pull_request`/`push` trigger,
+# so a PR event can never start either job and neither can enter a
+# merge-blocking `needs:` chain. All `uses:` action references are SHA-pinned
+# (`@<40-hex> # v<tag>`), matching this repo's DIR-051 convention and the
+# closest structural precedent, `ci-stale-running-sweep.yml`.
+#
+# The `schedule` trigger firing on its own, and the recapture job actually
+# opening a PR against the real `main` and running normal per-PR CI, are only
+# confirmable post-merge (GitHub only evaluates `schedule` triggers on the
+# workflow's copy on the default branch) -- this mission's pre-merge testing
+# covers the decision-logic unit tests (WP02) and structural workflow-shape
+# inspection (T017) only.
+
+name: CI Charter Shard-Timings Recapture
+
+on:
+  schedule:
+    # 04:41 UTC daily -- off a round hour/minute, distinct from
+    # ci-nightly.yml's 17 3 * * * and ci-stale-running-sweep.yml's 23 */4 * * *,
+    # so the three scheduled workflows do not contend for the same
+    # runner-availability window.
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+
+# Static (NOT `${{ github.ref }}`-suffixed), deliberately. A pre-merge manual
+# `workflow_dispatch` rehearsal from a topic branch's own copy of this file
+# is a different ref from a scheduled production run's `main` checkout, but
+# both push to the SAME fixed recapture head branch
+# (`ci/recapture-charter-shard-timings`), because that head branch is a
+# constant, never derived from the triggering ref. A per-ref group (like
+# ci-nightly.yml's) would key the two runs' concurrency slots on different
+# refs, letting a rehearsal race a concurrent `main` run on the one thing
+# they actually share -- the fixed target branch both push to and both
+# open-PR-check against. The static group keys both runs on the same slot
+# regardless of triggering ref, so they correctly queue behind each other
+# (C-006).
+concurrency:
+  group: ci-charter-shard-recapture
+  cancel-in-progress: false
+
+# Least privilege: `git push`/`gh pr create` authenticate through the
+# dedicated CHARTER_SHARD_RECAPTURE_TOKEN PAT (wired into the recapture job's
+# checkout step only), never through GITHUB_TOKEN, so no job-level escalation
+# is needed at the workflow level.
+permissions:
+  contents: read
+
+jobs:
+  recapture-charter-shard-timings:
+    runs-on: ubuntu-24.04
+    # 18-minute measured local capture time (scripts/ci/capture_shard_timings.py
+    # --module charter --write) x ~1.5 headroom, rounded up, mirroring
+    # ci-nightly.yml's own rounding methodology -- this is a pre-dispatch
+    # projection (see this mission's PR body for the post-first-dispatch
+    # measured-runtime update), with headroom left for checkout/uv sync/
+    # git-push/gh pr create overhead on top of the measured capture time.
+    timeout-minutes: 30
+    steps:
+      # The load-bearing credential wiring: without this token override,
+      # actions/checkout would default to persisting GITHUB_TOKEN, and this
+      # workflow's permissions: {contents: read} would then make a plain
+      # `git push` fail -- or invite "fixing" that by granting
+      # `contents: write` instead, reintroducing the exact GITHUB_TOKEN-
+      # authored-push behavior CL-002/C-004 forbid. persist-credentials stays
+      # at its default `true` so the checkout persists the PAT, not
+      # GITHUB_TOKEN, as the git remote credential for `origin`.
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          token: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Set up environment
+        run: uv sync --frozen --all-extras
+      - name: Recapture charter shard timings if drifted
+        env:
+          CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
+        run: |
+          uv run --frozen python scripts/ci/recapture_charter_shard_timings.py
+
+  # Independent of the job above (no `needs:` in either direction -- see the
+  # header comment). Needs no PAT and no secret: it only reads the repo and
+  # runs pytest, so actions/checkout's default credential (this workflow's
+  # own permissions: {contents: read}) is sufficient.
+  strict-shard-timings-check:
+    runs-on: ubuntu-24.04
+    # The file's own docstring records live collection of all 21 registry
+    # modules at ~36 seconds measured locally (2026-09-22) -- 10 minutes
+    # leaves headroom well over 15x the measured collection time, plus
+    # checkout/uv sync overhead, without being large enough to mask a
+    # genuinely hung job.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Set up environment
+        run: uv sync --frozen --all-extras
+      - name: Run architectural length-agreement gates under strict mode
+        env:
+          SPEC_KITTY_STRICT_SHARD_TIMINGS: "1"
+        run: uv run --frozen pytest tests/architectural/test_module_length_agreement.py -q
