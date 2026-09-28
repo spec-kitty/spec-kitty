@@ -155,6 +155,7 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
         # baseline seams; the executor binds them — patch there.
         patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
         patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+        patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
     ]
 
     with contextlib.ExitStack() as stack:

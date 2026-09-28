@@ -215,6 +215,7 @@ class TestMergeToleratesUntrackedFiles:
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
             patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
             patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
         ]
 
         with contextlib.ExitStack() as stack:
@@ -301,6 +302,7 @@ class TestMergeToleratesUntrackedFiles:
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
             patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
             patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
         ]
 
         with contextlib.ExitStack() as stack:
