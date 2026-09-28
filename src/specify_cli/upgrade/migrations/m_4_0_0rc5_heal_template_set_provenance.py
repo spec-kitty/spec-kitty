@@ -102,26 +102,39 @@ def _is_spec_kitty_repository(value: str) -> bool:
     return parsed.scheme in {"https", "ssh"}
 
 
-def _source_path_has_no_symlinks(checkout_root: Path, relative_source: PurePosixPath) -> bool:
-    current = checkout_root
-    parts = relative_source.parts
-    for index, part in enumerate(parts):
-        current = current / part
+def _source_path_snapshot(checkout_root: Path, relative_source: PurePosixPath) -> tuple[tuple[int, int, int], ...] | None:
+    if not checkout_root.is_absolute() or relative_source.is_absolute():
+        return None
+
+    components = (*checkout_root.parts[1:], *relative_source.parts)
+    if any(part in {"", ".", ".."} for part in components):
+        return None
+
+    current = Path(checkout_root.anchor)
+    snapshot: list[tuple[int, int, int]] = []
+    for index, part in enumerate(components):
+        current /= part
         try:
-            mode = current.lstat().st_mode
+            metadata = current.lstat()
         except FileNotFoundError:
-            return True
+            return tuple(snapshot)
+        mode = metadata.st_mode
         if stat.S_ISLNK(mode):
-            return False
-        is_final = index == len(parts) - 1
+            return None
+        is_final = index == len(components) - 1
         if is_final and not stat.S_ISREG(mode):
-            return False
+            return None
         if not is_final and not stat.S_ISDIR(mode):
-            return False
-    return True
+            return None
+        snapshot.append((metadata.st_dev, metadata.st_ino, stat.S_IFMT(mode)))
+    return tuple(snapshot)
 
 
-def _checkout_tracks_mission(checkout_root: Path, relative_source: PurePosixPath) -> bool:
+def _checkout_tracks_mission(
+    checkout_root: Path,
+    relative_source: PurePosixPath,
+    initial_source_snapshot: tuple[tuple[int, int, int], ...],
+) -> bool:
     try:
         metadata = tomllib.loads((checkout_root / "pyproject.toml").read_text(encoding="utf-8"))
         project = metadata.get("project")
@@ -157,7 +170,8 @@ def _checkout_tracks_mission(checkout_root: Path, relative_source: PurePosixPath
         ).stdout.strip()
         if not _is_spec_kitty_repository(origin):
             return False
-        if not _source_path_has_no_symlinks(checkout_root, relative_source):
+        before_query = _source_path_snapshot(checkout_root, relative_source)
+        if before_query is None or before_query != initial_source_snapshot:
             return False
         index_entries = subprocess.run(
             ["git", "-C", str(checkout_root), "ls-files", "--stage", "--error-unmatch", "--", relative_source.as_posix()],
@@ -166,7 +180,10 @@ def _checkout_tracks_mission(checkout_root: Path, relative_source: PurePosixPath
             text=True,
             timeout=2,
         ).stdout.splitlines()
+        after_query = _source_path_snapshot(checkout_root, relative_source)
     except (OSError, subprocess.SubprocessError, tomllib.TOMLDecodeError, ValueError):
+        return False
+    if after_query is None or after_query != before_query:
         return False
     if len(index_entries) != 1:
         return False
@@ -183,11 +200,14 @@ def _has_former_checkout_proof(source_path: str, token_suffix: str) -> bool:
     for _part in relative_parts:
         checkout_root = checkout_root.parent
 
+    initial_source_snapshot = _source_path_snapshot(checkout_root, relative_source)
+    if initial_source_snapshot is None:
+        return False
     resolved_root = checkout_root.resolve()
     expected_source = resolved_root.joinpath(*relative_parts)
     if source.resolve() != expected_source.resolve():
         return False
-    return _checkout_tracks_mission(resolved_root, relative_source)
+    return _checkout_tracks_mission(checkout_root, relative_source, initial_source_snapshot)
 
 
 def _matches_mission_source(source_path: str, token: str) -> bool:
