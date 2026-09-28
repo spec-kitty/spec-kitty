@@ -129,6 +129,12 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
     feature_dir = tmp_path / "kitty-specs" / slug
     _write_meta(feature_dir, slug)
     _write_lanes_manifest(feature_dir, slug)
+    # #4764: merge is gated on every WP being approved/done (terminal-readiness
+    # precondition); seed WP01 approved through the real emit pipeline.
+    from tests.integration.test_merge_lane_planning_data_loss import _seed_wp_approved, _write_wp_file
+
+    _write_wp_file(feature_dir, "WP01")
+    _seed_wp_approved(feature_dir, slug, "WP01")
     _git(tmp_path, "add", ".")
     _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap mission fixture")
 
