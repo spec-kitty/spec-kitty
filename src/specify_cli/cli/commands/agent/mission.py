@@ -349,11 +349,6 @@ PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."
 
 
-def _ensure_branch_checked_out(*_args: object, **_kwargs: object) -> None:
-    """Compatibility shim for tests patching the retired checkout helper."""
-    return None
-
-
 def _enforce_git_preflight(
     repo_root: Path,
     *,

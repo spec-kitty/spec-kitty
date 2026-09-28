@@ -126,7 +126,6 @@ def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature") -> d
         f"{MODULE}.locate_project_root": MagicMock(return_value=tmp_path),
         f"{MODULE}._find_feature_directory": MagicMock(return_value=feature_dir),
         f"{MODULE}._resolve_planning_branch": MagicMock(return_value="main"),
-        f"{MODULE}._ensure_branch_checked_out": MagicMock(),
         # WP02 / T027: commit_for_mission is the canonical commit seam.
         "specify_cli.coordination.commit_router.commit_for_mission": MagicMock(
             return_value=_fake_commit_result

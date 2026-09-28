@@ -118,7 +118,6 @@ def _control_mission_patches(tmp_path: Path, mission_slug: str) -> dict[str, Any
         f"{_MISSION_MODULE}.locate_project_root": MagicMock(return_value=tmp_path),
         f"{_MISSION_MODULE}._find_feature_directory": MagicMock(return_value=feature_dir),
         f"{_MISSION_MODULE}._resolve_planning_branch": MagicMock(return_value="main"),
-        f"{_MISSION_MODULE}._ensure_branch_checked_out": MagicMock(),
         "specify_cli.coordination.commit_router.commit_for_mission": MagicMock(return_value=fake_commit_result),
         f"{_MISSION_MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
         f"{_MISSION_MODULE}.validate_ownership": MagicMock(

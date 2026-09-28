@@ -129,7 +129,6 @@ def _common_patches(tmp_path: Path) -> dict[str, MagicMock]:
         f"{MODULE}.locate_project_root": MagicMock(return_value=tmp_path),
         f"{MODULE}._find_feature_directory": MagicMock(return_value=feature_dir),
         f"{MODULE}._resolve_planning_branch": MagicMock(return_value="main"),
-        f"{MODULE}._ensure_branch_checked_out": MagicMock(),
         f"{MODULE}.bootstrap_canonical_state": MagicMock(
             return_value=_make_bootstrap_result()
         ),
