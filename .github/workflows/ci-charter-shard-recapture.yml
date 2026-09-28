@@ -14,11 +14,13 @@
 #   * `recapture-charter-shard-timings`: re-runs the capture mechanism for
 #     `charter` only (WP02's `scripts/ci/recapture_charter_shard_timings.py`)
 #     and, only when the freshly-captured entry's length actually changed,
-#     commits it to a fixed branch and opens a PR. Authenticated with a
-#     dedicated PAT/App-token secret (`CHARTER_SHARD_RECAPTURE_TOKEN`) --
-#     NEVER `GITHUB_TOKEN` -- so the recapture PR triggers normal per-PR CI
-#     the same way a human-authored PR would (the same anti-recursion
-#     rationale `release.yml`'s `nightly-gate` job documents).
+#     commits it to a fixed branch and opens a PR. Pushes and opens the PR
+#     with a dedicated PAT/App-token secret (`CHARTER_SHARD_RECAPTURE_TOKEN`)
+#     -- NEVER `GITHUB_TOKEN` -- so the recapture PR triggers normal per-PR
+#     CI the same way a human-authored PR would (the same anti-recursion
+#     rationale `release.yml`'s `nightly-gate` job documents). The PAT is
+#     scoped to the final `publish` step only; `uv sync` and the ~18-minute
+#     in-process pytest capture run without it (see the job's comments).
 #   * `strict-shard-timings-check`: runs the architectural length-agreement
 #     gates under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, restoring the hard
 #     failure for `charter` (and `agent`, the only other non-allowlisted
@@ -88,10 +90,10 @@ concurrency:
   group: ci-charter-shard-recapture
   cancel-in-progress: false
 
-# Least privilege: `git push`/`gh pr create` authenticate through the
-# dedicated CHARTER_SHARD_RECAPTURE_TOKEN PAT (wired into the recapture job's
-# checkout step only), never through GITHUB_TOKEN, so no job-level escalation
-# is needed at the workflow level.
+# Least privilege: `git push`/`gh pr list`/`gh pr create` authenticate
+# through the dedicated CHARTER_SHARD_RECAPTURE_TOKEN PAT (wired into the
+# recapture job's `publish` step env only), never through GITHUB_TOKEN, so no
+# job-level escalation is needed at the workflow level.
 permissions:
   contents: read
 
@@ -106,30 +108,51 @@ jobs:
     # git-push/gh pr create overhead on top of the measured capture time.
     timeout-minutes: 30
     steps:
-      # The load-bearing credential wiring: without this token override,
-      # actions/checkout would default to persisting GITHUB_TOKEN, and this
-      # workflow's permissions: {contents: read} would then make a plain
-      # `git push` fail -- or invite "fixing" that by granting
-      # `contents: write` instead, reintroducing the exact GITHUB_TOKEN-
-      # authored-push behavior CL-002/C-004 forbid. persist-credentials stays
-      # at its default `true` so the checkout persists the PAT, not
-      # GITHUB_TOKEN, as the git remote credential for `origin`.
+      # Credential wiring (F1, #5271 landing pass). The write PAT must never
+      # be reachable by the ~18-minute in-process pytest capture (it runs the
+      # whole `charter` test suite) or by `uv sync`, so:
+      #   * checkout uses the default read-only GITHUB_TOKEN and
+      #     `persist-credentials: false` -- no credential lands in
+      #     .git/config at all;
+      #   * the `capture` step's env has NO secret (the script refuses to run
+      #     the capture if CHARTER_SHARD_RECAPTURE_TOKEN is present);
+      #   * only the `publish` step receives the PAT, and the script hands it
+      #     per-subprocess: `git push` via a one-shot GIT_CONFIG_COUNT/
+      #     GIT_CONFIG_KEY_n/GIT_CONFIG_VALUE_n `http.https://github.com/
+      #     .extraheader` entry in that subprocess's env only, `gh` via
+      #     GH_TOKEN in its env only; `git add`/`git commit` get neither.
+      # There is no GITHUB_TOKEN fallback anywhere: a missing/empty PAT fails
+      # the publish step before any gh/git call.
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          token: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
+          persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: Set up environment
         run: uv sync --frozen --all-extras
-      - name: Recapture charter shard timings if drifted
+      # Token-free: runs the capture, the crash/F2 trustworthiness gates and
+      # the length-only drift decision, and records drift/before/after as
+      # step outputs. A crash or untrustworthy capture fails this step, so
+      # `publish` (default `success()` condition) never runs.
+      - name: Capture charter shard timings (no credentials)
+        id: capture
+        run: |
+          uv run --frozen python scripts/ci/recapture_charter_shard_timings.py capture
+      # Runs only on drift. Re-checks for an open recapture PR immediately
+      # before the (force-)push -- the mandatory pre-push check -- and skips
+      # if one exists, so a branch with an open PR is never force-pushed.
+      - name: Publish recapture PR if drifted
+        if: steps.capture.outputs.drift == 'true'
         env:
           CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
+          RECAPTURE_BEFORE_LENGTH: ${{ steps.capture.outputs.before }}
+          RECAPTURE_AFTER_LENGTH: ${{ steps.capture.outputs.after }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
         run: |
-          uv run --frozen python scripts/ci/recapture_charter_shard_timings.py
+          uv run --frozen python scripts/ci/recapture_charter_shard_timings.py publish
 
   # Independent of the job above (no `needs:` in either direction -- see the
   # header comment). Needs no PAT and no secret: it only reads the repo and
