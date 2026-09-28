@@ -50,12 +50,15 @@ activated_procedures    tracker-organisation-workflow    PROCEDURE   none (moves
 matches strictly by ``kind_key``, so the directive list is never even
 inspected while retiring the ``locality-of-change`` *tactic*.
 
-An id moved to ``packs/internal`` (``iterative-deepening-review``,
-``tracker-organisation-workflow``) still resolves for a project that loads
+An id moved to ``packs/internal`` under the same name
+(``tracker-organisation-workflow``) still resolves for a project that loads
 that org pack via ``.kittify/config.yaml``'s ``charter_packs.org.packs``
 (as this very repository does) — the shared engine's org-pack-resolvable
 skip (see ``_retired_activation.py``) leaves those consumers' activations
 untouched rather than retiring an id they can still legitimately use.
+``iterative-deepening-review`` was renamed on the move
+(``tracker-backlog-iterative-deepening``), so the skip never applies to it
+and the migration retires it everywhere.
 
 Consumer ``graph.yml`` (Rule 6)
 --------------------------------
