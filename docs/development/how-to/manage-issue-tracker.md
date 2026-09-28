@@ -2,7 +2,7 @@
 title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-09-27'
+updated: '2026-09-28'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -300,12 +300,15 @@ below.
 | `domain:mission-runtime` | `src/mission_runtime/` — artifact-placement seam (PlacementSeam, resolver port, identity, lifecycle_phase) |
 | `domain:cli` | `src/specify_cli/cli/` — control-plane / CLI command surface |
 | `domain:invocation` | `src/specify_cli/invocation/` — dispatch & profile-invocation routing (Op lifecycle) |
+| `domain:decisions` | `src/specify_cli/decisions/` + `cli/commands/decision.py` — Decision Moment flow, models, emit |
 | `domain:status` | `src/specify_cli/status/` + `lanes/` + `coordination/` + `workspace/` + `state/` — status event-log & lane state machine; `state/` is the project-scoped state-surface contract and `doctor` state-root checks |
 | `domain:merge` | `src/specify_cli/consolidation/` — mission merge / lane consolidation, retention, preflight |
 | `domain:skills` | `src/specify_cli/skills/` — command/skill rendering, install, and the command-skills manifest |
 | `domain:upgrade` | `src/specify_cli/upgrade/` (incl. `upgrade/migrations/`) + `cli/commands/upgrade.py` — `spec-kitty upgrade`: version detection, migration registry/runner, redeploying generated commands and skills |
 | `domain:review` | `src/specify_cli/review/` + `cli/commands/review/` — WP review cycle, verdicts, arbiter, the pre-review transition gate (`gate_registry`, `pre_review_gate`), and the `spec-kitty review` mission-review gates |
+| `domain:acceptance` | `src/specify_cli/acceptance/` — the `accept` gate: acceptance matrix, verify, `summary_core` path conventions |
 | `domain:orchestrator` | `src/specify_cli/orchestrator_api/` — the `orchestrator-api` external machine contract (JSON envelope + subcommands), documented in `docs/api/orchestrator-api.md` |
+| `domain:contracts` | `src/specify_cli/contracts/` + `docs/contracts/` — payload / handoff-packet contract registry |
 | `domain:tracker` | `src/specify_cli/tracker/` — tracker provider integrations & connectors (`spec_kitty_tracker` consumer) |
 | `domain:docs` | `docs/` + `scripts/docs/` + `src/specify_cli/docs/` + `cli/commands/docs.py` — documentation content, docs build/freshness tooling, and the `docs query` retrieval index |
 | `domain:ci` | GitHub Actions workflows (`.github/workflows/`) + `scripts/ci/` — pipeline, gate selection, coverage aggregation |
