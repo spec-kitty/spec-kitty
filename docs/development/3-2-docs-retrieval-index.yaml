@@ -4094,6 +4094,7 @@ pages:
     - {slug: "required-flags", text: "Required Flags", level: 2}
     - {slug: "lane-model-for-orchestrators", text: "Lane Model for Orchestrators", level: 2}
     - {slug: "acceptance-payload", text: "Acceptance Payload", level: 2}
+    - {slug: "mission-not-ready-contract-1-7-0", text: "`MISSION_NOT_READY` (contract >= 1.7.0)", level: 3}
     - {slug: "design-phase-commands", text: "Design-Phase Commands", level: 2}
     - {slug: "specify", text: "specify", level: 3}
     - {slug: "plan", text: "plan", level: 3}
