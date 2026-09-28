@@ -184,11 +184,12 @@ def test_research_with_no_template_does_not_fabricate_artifacts(monkeypatch, tmp
     must NOT fabricate 0-byte "ready" artifacts (mission
     ownership-boundary-overwrite-hardening-01M35ER3/#4926, FR-002). Formerly
     named ``test_research_creates_artifacts`` and asserted the opposite (the
-    exact fabrication bug #4926 fixes) — `resolve_template_path` returning
-    ``None`` for every asset is precisely the "no template resolves" case the
-    guard now refuses, even under `--force` (never truncates/fabricates to
-    empty, regardless of authorization, per `guard_destructive_overwrite`'s
-    truth table)."""
+    exact fabrication bug #4926 fixes) — the canonical resolver
+    (``specify_cli.runtime.resolver.resolve_template``, #5254) raising
+    ``FileNotFoundError`` for every asset is precisely the "no template
+    resolves" case the guard now refuses, even under `--force` (never
+    truncates/fabricates to empty, regardless of authorization, per
+    `guard_destructive_overwrite`'s truth table)."""
     project_root = tmp_path / "project"
     (project_root / ".kittify" / "missions" / "software-dev" / "templates").mkdir(parents=True)
     feature_dir = project_root / "kitty-specs" / "001-demo-feature"
@@ -213,8 +214,11 @@ def test_research_with_no_template_does_not_fabricate_artifacts(monkeypatch, tmp
         def read_dir(self, *_a: object, **_k: object) -> Path:
             return feature_dir
 
+    def _raise_not_found(*_args: object, **_kwargs: object) -> None:
+        raise FileNotFoundError("no template resolves for this fixture")
+
     monkeypatch.setattr(research_module, "placement_seam", lambda *_a, **_k: _SeamStub())
-    monkeypatch.setattr(research_module, "resolve_template_path", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(research_module, "resolve_template", _raise_not_found)
 
     result = runner.invoke(cli_app, ["research", "--mission", "001-demo-feature", "--force"])
     # FR-008: a refusal never fails the command — it exits 0 and reports the
@@ -304,9 +308,7 @@ def test_accept_requires_explicit_feature_flag(monkeypatch, tmp_path: Path) -> N
     # Must fail because --mission is required (exit 2 = typer error for missing param)
     assert result.exit_code != 0
     output = result.stdout
-    assert "error" in output.lower() or "mission" in output.lower(), (
-        f"Expected error about missing mission, got: {output}"
-    )
+    assert "error" in output.lower() or "mission" in output.lower(), f"Expected error about missing mission, got: {output}"
 
 
 def test_merge_dry_run_outputs_lane_payload(monkeypatch, tmp_path: Path) -> None:

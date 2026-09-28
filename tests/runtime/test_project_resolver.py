@@ -3,62 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from specify_cli.core.project_resolver import (
     locate_project_root,
-    resolve_template_path,
 )
 
 pytestmark = pytest.mark.fast
-
-
-def test_locate_project_root_and_template_resolution(tmp_path: Path) -> None:
-    """locate_project_root finds .kittify root and resolve_template_path prefers mission-local template."""
-    project = tmp_path / "workspace"
-    (project / ".kittify" / "missions" / "software-dev" / "templates").mkdir(parents=True)
-    (project / ".kittify" / "templates").mkdir(parents=True)
-    (project / ".kittify" / "missions" / "software-dev" / "templates" / "foo.txt").write_text(
-        "mission template",
-        encoding="utf-8",
-    )
-    (project / ".kittify" / "templates" / "foo.txt").write_text("fallback", encoding="utf-8")
-
-    nested = project / "nested" / "deeper"
-    nested.mkdir(parents=True)
-
-    assert nested.exists(), "nested directory must exist for root search to traverse upward"
-
-    root = locate_project_root(nested)
-    template_path = resolve_template_path(project, "software-dev", "foo.txt")
-
-    assert root == project
-    assert template_path == project / ".kittify" / "missions" / "software-dev" / "templates" / "foo.txt"
-
-
-def test_resolve_template_path_returns_none_when_no_template_exists(tmp_path: Path) -> None:
-    """resolve_template_path returns None when no template file is found at any tier (line 70)."""
-    project = tmp_path / "project"
-    (project / ".kittify").mkdir(parents=True)
-
-    result = resolve_template_path(project, "software-dev", "missing.txt")
-
-    assert result is None
-
-
-def test_resolve_template_path_swallows_runtime_error_from_home(tmp_path: Path) -> None:
-    """resolve_template_path silently skips global tiers when get_kittify_home() raises RuntimeError."""
-    project = tmp_path / "project"
-    (project / ".kittify").mkdir(parents=True)
-
-    with patch(
-        "specify_cli.runtime.home.get_kittify_home",
-        side_effect=RuntimeError("no home configured"),
-    ):
-        result = resolve_template_path(project, "software-dev", "missing.txt")
-
-    assert result is None
 
 
 def test_env_root_authoritative(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

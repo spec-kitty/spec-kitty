@@ -20,7 +20,6 @@ root and the seam resolves for real against the on-disk fixture.
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -32,12 +31,6 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import research as research_mod
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
-
-# The real, shipped CSV templates (only the `research` mission type ships
-# research.md/data-model.md-adjacent CSV templates with real content — no
-# mission type ships a research.md/data-model.md template at all).
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_RESEARCH_MISSION_CSV_TEMPLATES = _REPO_ROOT / "packs" / "built-in" / "missions" / "research" / "templates" / "research"
 
 # Production-shaped identity: a 26-char Crockford-alphabet ULID + its 8-char mid8.
 MISSION_ID = "01KVW9RSRCHPRESERVE0TESTAB"
@@ -198,14 +191,10 @@ def test_no_force_rerun_preserves_existing_user_content(tmp_path: Path, asset_re
 # --------------------------------------------------------------------------- #
 def test_csv_template_resolves_for_research_mission_type_copies_real_content(tmp_path: Path) -> None:
     primary_dir = _seed_mission(tmp_path, mission_type="research")
-    # Materialize the real shipped CSV templates at the tier-1 (project
-    # mission-specific) resolution path a real `spec-kitty init` + charter
-    # activation would populate — this fixture doesn't run `init`, so the
-    # template must be placed explicitly for `resolve_template_path` to find it.
-    project_templates = tmp_path / ".kittify" / "missions" / "research" / "templates" / "research"
-    project_templates.mkdir(parents=True, exist_ok=True)
-    for csv_name in ("evidence-log.csv", "source-register.csv"):
-        shutil.copy2(_RESEARCH_MISSION_CSV_TEMPLATES / csv_name, project_templates / csv_name)
+    # #5254/FR-006: the canonical resolver's PACKAGE_DEFAULT tier ships the
+    # research mission's real CSV templates directly — isolated HOME (the
+    # suite's autouse per-worker isolation) means no other tier can satisfy
+    # this resolution, so a successful copy proves the package-default tier.
 
     result = _run_research(tmp_path)
 
@@ -234,10 +223,8 @@ def test_csv_template_resolves_for_research_mission_type_copies_real_content(tmp
 # --------------------------------------------------------------------------- #
 def test_rerun_without_force_reports_preserved_not_no_template(tmp_path: Path) -> None:
     primary_dir = _seed_mission(tmp_path, mission_type="research")
-    project_templates = tmp_path / ".kittify" / "missions" / "research" / "templates" / "research"
-    project_templates.mkdir(parents=True, exist_ok=True)
-    for csv_name in ("evidence-log.csv", "source-register.csv"):
-        shutil.copy2(_RESEARCH_MISSION_CSV_TEMPLATES / csv_name, project_templates / csv_name)
+    # #5254/FR-006: relies on the canonical resolver's PACKAGE_DEFAULT tier
+    # (isolated HOME, see the sibling test above).
 
     first = _run_research(tmp_path)
     assert first.exit_code == 0, first.output

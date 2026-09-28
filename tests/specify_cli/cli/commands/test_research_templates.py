@@ -27,7 +27,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import research as research_mod
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _RESEARCH_PACK_TEMPLATES = _REPO_ROOT / "packs" / "built-in" / "missions" / "research" / "templates"
@@ -181,3 +181,76 @@ def test_preexisting_research_md_untouched_without_force(tmp_path: Path) -> None
 
     assert result.exit_code == 0, result.output
     assert dest.read_text(encoding="utf-8") == original_content, "research.md changed on a plain (no --force) re-run"
+
+
+# --------------------------------------------------------------------------- #
+# Squad fold (a): a project override at .kittify/overrides/templates/ wins
+# over the pack default (tier 1 > tier 6).
+# --------------------------------------------------------------------------- #
+def test_project_override_wins_over_pack_default(tmp_path: Path) -> None:
+    primary_dir = _seed_mission(tmp_path, mission_type="research")
+    override_dir = tmp_path / ".kittify" / "overrides" / "templates"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_content = "# Overridden research template\n\nProject-specific override.\n"
+    (override_dir / "research-template.md").write_text(override_content, encoding="utf-8")
+
+    result = _run_research(tmp_path)
+
+    assert result.exit_code == 0, result.output
+    dest = primary_dir / RESEARCH_MD
+    assert dest.exists()
+    assert dest.read_text(encoding="utf-8") == override_content, "override tier did not win over the pack default"
+
+
+# --------------------------------------------------------------------------- #
+# Squad fold (b): a typeless mission (get_mission_type returns "") resolves
+# through the mission-independent tiers only (never a blank/nonsensical
+# "missions//templates" segment) and, absent any override/legacy seed,
+# reports "no template" exactly like software-dev.
+# --------------------------------------------------------------------------- #
+def test_typeless_mission_reports_no_template(tmp_path: Path) -> None:
+    from mission_runtime import MissionTopology
+
+    _init_repo(tmp_path)
+    meta: dict[str, object] = {
+        "mission_id": MISSION_ID,
+        "mid8": MID8,
+        "mission_slug": SLUG_WITH_MID8,
+        "topology": MissionTopology.SINGLE_BRANCH.value,
+        # Deliberately no "mission_type" key -> get_mission_type() == "".
+    }
+    _write_meta(tmp_path / "kitty-specs" / SLUG_WITH_MID8, meta)
+    primary_dir = tmp_path / "kitty-specs" / SLUG_WITH_MID8
+    (primary_dir / "plan.md").write_text(FILLED_PLAN, encoding="utf-8")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-qm", "seed typeless mission")
+
+    result = _run_research(tmp_path)
+
+    assert result.exit_code == 0, result.output
+    for rel in (RESEARCH_MD, DATA_MODEL_MD, EVIDENCE_LOG_CSV, SOURCE_REGISTER_CSV):
+        assert not (primary_dir / rel).exists(), f"{rel} was fabricated for a typeless mission"
+    assert "no research template" in result.output.lower(), result.output
+
+
+# --------------------------------------------------------------------------- #
+# T002: direct unit coverage for the extracted resolver helper -- found and
+# not-found branches.
+# --------------------------------------------------------------------------- #
+def test_resolve_research_template_found(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.research import _resolve_research_template
+
+    resolved = _resolve_research_template(Path("research-template.md"), tmp_path, "research")
+
+    assert resolved is not None
+    assert resolved.is_file()
+    assert resolved == _RESEARCH_PACK_TEMPLATES / "research-template.md"
+
+
+def test_resolve_research_template_not_found(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.research import _resolve_research_template
+
+    (tmp_path / ".kittify").mkdir(parents=True, exist_ok=True)
+    resolved = _resolve_research_template(Path("research-template.md"), tmp_path, "software-dev")
+
+    assert resolved is None

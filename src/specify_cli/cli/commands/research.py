@@ -17,11 +17,24 @@ from specify_cli.cli.helpers import get_project_root_or_exit, show_banner
 from specify_cli.context.mission_resolver import mission_not_found_message
 from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.paths import UnsafePathSegmentError
-from specify_cli.core.project_resolver import resolve_template_path
 from specify_cli.mission import get_mission_type
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
+from specify_cli.runtime.resolver import resolve_template
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from mission_runtime import MissionArtifactKind, placement_seam
+
+
+#: Destination (relative to the mission's planning dir) -> the shipped
+#: template filename the research pack resolves it from (FR-005/FR-006,
+#: Decision 2). Shared by both the research.md/data-model.md copy path and the
+#: CSV stub loop -- all four assets are scaffolded through the same canonical
+#: resolver and the same destination->template mapping.
+_RESEARCH_ASSET_TEMPLATES: dict[Path, Path] = {
+    Path("research.md"): Path("research-template.md"),
+    Path("data-model.md"): Path("data-model-template.md"),
+    Path("research") / "evidence-log.csv": Path("research") / "evidence-log.csv",
+    Path("research") / "source-register.csv": Path("research") / "source-register.csv",
+}
 
 
 @dataclass(frozen=True)
@@ -55,6 +68,33 @@ def _has_preserved_existing(skipped: list[tuple[Path, str, str]]) -> bool:
     return any(reason in _PRESERVED_EXISTING_REASONS for _, _, reason in skipped)
 
 
+#: `get_mission_type`'s neutral result for a typeless / absent / unreadable
+#: `meta.json` (FR-003a). Never silently defaulted for GOVERNANCE reads, but
+#: for TEMPLATE-FILE SELECTION the `software-dev` default is preserved (C-006,
+#: mirroring `mission.get_mission_for_feature`'s identical coalesce) so a
+#: typeless mission still probes the mission-independent tiers (override,
+#: legacy, global-generic) through a real, non-blank mission segment instead
+#: of a nonsensical ``missions//templates`` path.
+_TYPELESS_MISSION_TYPE = ""
+_TEMPLATE_SELECTION_DEFAULT_MISSION = "software-dev"
+
+
+def _resolve_research_template(
+    template_rel: Path,
+    project_root: Path,
+    mission_type: str,
+) -> Path | None:
+    """Resolve one research template through the canonical 6-tier resolver
+    (FR-006, Decision 2), or ``None`` when no tier has it."""
+    resolution_mission = mission_type if mission_type != _TYPELESS_MISSION_TYPE else _TEMPLATE_SELECTION_DEFAULT_MISSION
+    try:
+        result = resolve_template(str(template_rel), project_root, mission=resolution_mission)
+    except FileNotFoundError:
+        return None
+    resolved_path: Path = result.path
+    return resolved_path
+
+
 def _write_research_asset(
     *,
     dest_rel: Path,
@@ -73,7 +113,7 @@ def _write_research_asset(
     assets shared the same destroyer, so they now share the same fix.
     """
     dest_path = planning_dir / dest_rel
-    template_path = resolve_template_path(project_root, mission_type, template_rel)
+    template_path = _resolve_research_template(template_rel, project_root, mission_type)
     substantive = template_path is not None and template_path.is_file()
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -238,12 +278,12 @@ def research(
     created_paths: list[Path] = []
     skipped_assets: list[tuple[Path, str, str]] = []
 
-    def _copy_asset(step_key: str, label: str, relative_path: Path, template_name: Path) -> None:
+    def _copy_asset(step_key: str, label: str, relative_path: Path) -> None:
         tracker.start(step_key)
         try:
             outcome = _write_research_asset(
                 dest_rel=relative_path,
-                template_rel=template_name,
+                template_rel=_RESEARCH_ASSET_TEMPLATES[relative_path],
                 planning_dir=planning_dir,
                 project_root=project_root,
                 mission_type=mission_type,
@@ -261,13 +301,12 @@ def research(
             skipped_assets.append((relative_path, outcome.diagnostic, outcome.reason))
             tracker.skip(step_key, outcome.diagnostic)
 
-    _copy_asset("research-md", "research.md ready", Path("research.md"), Path("research.md"))
-    _copy_asset("data-model", "data-model.md ready", Path("data-model.md"), Path("data-model.md"))
+    _copy_asset("research-md", "research.md ready", Path("research.md"))
+    _copy_asset("data-model", "data-model.md ready", Path("data-model.md"))
 
     tracker.start("research-csv")
     csv_targets = [
-        (Path("research") / "evidence-log.csv", Path("research") / "evidence-log.csv"),
-        (Path("research") / "source-register.csv", Path("research") / "source-register.csv"),
+        (dest_rel, _RESEARCH_ASSET_TEMPLATES[dest_rel]) for dest_rel in (Path("research") / "evidence-log.csv", Path("research") / "source-register.csv")
     ]
     csv_errors: list[str] = []
     csv_skipped: list[tuple[Path, str, str]] = []

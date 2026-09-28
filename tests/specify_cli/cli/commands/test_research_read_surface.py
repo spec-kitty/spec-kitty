@@ -102,10 +102,14 @@ def _init_repo(repo_root: Path) -> None:
     # otherwise never has. These tests are about primary-vs-coord placement
     # and handle canonicalization, not the fabrication policy, so a real
     # generic template preserves their original intent.
+    # #5254/FR-006: the canonical resolver's LEGACY tier reads
+    # `.kittify/templates/{name}` where `{name}` is the SHIPPED template
+    # filename (`research-template.md` / `data-model-template.md`), not the
+    # destination filename — re-seeded under the shipped names.
     templates_dir = repo_root / ".kittify" / "templates"
     templates_dir.mkdir(parents=True, exist_ok=True)
-    (templates_dir / "research.md").write_text("# Research\n\nSeeded template content.\n", encoding="utf-8")
-    (templates_dir / "data-model.md").write_text("# Data Model\n\nSeeded template content.\n", encoding="utf-8")
+    (templates_dir / "research-template.md").write_text("# Research\n\nSeeded template content.\n", encoding="utf-8")
+    (templates_dir / "data-model-template.md").write_text("# Data Model\n\nSeeded template content.\n", encoding="utf-8")
     research_templates_dir = templates_dir / "research"
     research_templates_dir.mkdir(parents=True, exist_ok=True)
     (research_templates_dir / "evidence-log.csv").write_text("timestamp,source_type,citation,key_finding,confidence,notes\n", encoding="utf-8")
