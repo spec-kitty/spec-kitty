@@ -8223,6 +8223,8 @@ pages:
     - {slug: "aider", text: "Aider", level: 3}
     - {slug: "cursor", text: "Cursor", level: 3}
     - {slug: "windsurf", text: "Windsurf", level: 3}
+    - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
+    - {slug: "claude-settings-json-is-not-valid-utf-8", text: "\"`.claude/settings.json` is not valid UTF-8\"", level: 3}
     - {slug: "4-advanced-usage", text: "4. Advanced Usage", level: 2}
     - {slug: "auto-fixing", text: "Auto-Fixing", level: 3}
     - {slug: "json-output", text: "JSON Output", level: 3}

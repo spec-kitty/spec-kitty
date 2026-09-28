@@ -2,7 +2,7 @@
 title: Set up Post-Edit Lint Hooks
 description: Configure your AI agent harness to automatically run ruff and mypy after every code edit using spec-kitty lint.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-09-28'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 ---
@@ -86,6 +86,19 @@ Windsurf has no programmatic post-edit hook, so `--sync-hooks` does not manage i
 # Linting Guardrail
 After every file edit, you MUST run `spec-kitty lint <file_path>` and fix any reported errors immediately.
 ```
+
+## Troubleshooting
+
+### "`.claude/settings.json` is not valid UTF-8"
+
+`spec-kitty agent config sync --sync-hooks` and `spec-kitty live-work install` decode `.claude/settings.json` before merging in the lint/session hooks. They only decode an encoding they can *prove*: plain UTF-8, or a byte-order mark (BOM) for UTF-8, UTF-16, or UTF-32. If the file was saved in a single-byte code page (for example, Windows ANSI/cp1252 — common when an editor auto-saves non-ASCII values such as `"OWNER": "José"` without a BOM), the command refuses rather than guessing:
+
+- The file is left **byte-identical** — nothing is written.
+- The command exits non-zero and names the file plus the fix: re-save it as UTF-8.
+
+**Fix:** open `.claude/settings.json` in your editor and re-save it with UTF-8 encoding (no BOM required, though a UTF-8/UTF-16/UTF-32 BOM is also accepted), then re-run the sync/install command.
+
+If the file *is* a provable non-UTF-8 encoding (BOM'd UTF-16 or UTF-32), the command decodes it, merges in the hook entries, and — before rewriting it as UTF-8 — makes a byte-exact backup sidecar next to the original, named `settings.json.<timestamp>`. Your original bytes are never lost even when the encoding changes.
 
 ## 4. Advanced Usage
 
