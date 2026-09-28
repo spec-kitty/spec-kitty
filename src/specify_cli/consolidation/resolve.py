@@ -247,9 +247,11 @@ def _load_or_create_merge_state(
         if state.mission_id != canonical_id:
             state.mission_id = canonical_id
             state.mission_slug = mission_slug
-            # #5111 / FR-012: a migrated state keeps its own provenance -- never
-            # let an orphan marker already sitting in the canonical dir (e.g. from
-            # a pre-#5111 ``--abort``, which left markers behind) vouch for it.
+            # #5111 / FR-012: a deliberate provenance strip, not a record clear.
+            # Only pre-fix code wrote non-canonical keys, so a migrated state is
+            # pre-fix and stays marker-less (its resume is refused, as before);
+            # never let an orphan marker already sitting in the canonical dir
+            # (e.g. from a pre-#5111 ``--abort``) vouch for it.
             post_fix_marker_path(canonical_id, main_repo).unlink(missing_ok=True)
             save_state(state, main_repo)
             if source_key is not None and source_key != canonical_id:
