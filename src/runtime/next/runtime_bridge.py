@@ -2999,12 +2999,15 @@ def _wp_blocked_action(board_step: str | None, reason: str) -> _WpBoardAction:
 def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug: str) -> str | None:
     """Return the canonical task-read error for any WP present in status state.
 
-    Validate terminal WPs too: progress totals and terminal counts are derived
-    from primary task files, so skipping a missing done/canceled task could erase
-    it from the board and make the remaining tasks appear complete.
+    Validate done WPs too: progress totals and terminal counts are derived
+    from primary task files, so skipping a missing done task could erase it
+    from the board and make the remaining tasks appear complete. Canceled WPs
+    are skipped: canceling is the recorded way to retire a work package whose
+    task file was removed on purpose, and a canceled WP never counts toward
+    completion.
     """
     from runtime.next.prompt_builder import _read_wp_task
-    from specify_cli.status import CanonicalStatusNotFoundError, get_all_wp_lanes
+    from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_all_wp_lanes
 
     try:
         wp_lanes = get_all_wp_lanes(status_dir)
@@ -3012,7 +3015,9 @@ def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug:
         return None
 
     tasks_dir = task_board_dir / "tasks"
-    for wp_id in sorted(wp_lanes):
+    for wp_id, lane in sorted(wp_lanes.items()):
+        if lane == Lane.CANCELED:
+            continue
         try:
             _read_wp_task(tasks_dir, wp_id, mission_slug)
         except (FileNotFoundError, ValueError) as exc:

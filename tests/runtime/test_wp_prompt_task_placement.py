@@ -223,16 +223,12 @@ def test_unavailable_primary_task_blocks_public_runtime_route_after_implement(
     assert "<subtask-ids>" not in decision.reason
 
 
-@pytest.mark.parametrize("terminal_lane", ["done", "canceled"], ids=["done", "canceled"])
-def test_missing_terminal_task_blocks_active_wp_to_preserve_board_integrity(
-    tmp_path: Path,
-    terminal_lane: str,
-) -> None:
-    """A missing terminal task cannot vanish from file-derived board totals."""
+def test_missing_done_task_blocks_active_wp_to_preserve_board_integrity(tmp_path: Path) -> None:
+    """A missing done task cannot vanish from file-derived board totals."""
     repo_root, mission_slug, primary_dir, _ = _scaffold_lanes_with_coord_mission(
         tmp_path,
         lane="planned",
-        additional_wps={"WP02": terminal_lane},
+        additional_wps={"WP02": "done"},
     )
     advance_to_step(repo_root, mission_slug, "software-dev", "implement")
 
@@ -247,6 +243,36 @@ def test_missing_terminal_task_blocks_active_wp_to_preserve_board_integrity(
     assert decision.reason is not None
     assert str(task_file) in decision.reason
     assert "restore" in decision.reason.lower() or "regenerate" in decision.reason.lower()
+
+
+def test_missing_canceled_task_does_not_block_active_wp(tmp_path: Path) -> None:
+    """Canceling is how a deliberately removed WP is retired; it must not brick the Mission."""
+    repo_root, mission_slug, primary_dir, _ = _scaffold_lanes_with_coord_mission(
+        tmp_path,
+        lane="planned",
+        additional_wps={"WP02": "canceled"},
+    )
+    advance_to_step(repo_root, mission_slug, "software-dev", "implement")
+
+    (primary_dir / "tasks" / "WP02.md").unlink()
+    decision = decide_next_via_runtime("codex", mission_slug, "success", repo_root)
+
+    _assert_task_prompt(decision, action="implement", repo_root=repo_root, mission_slug=mission_slug)
+
+
+def test_missing_task_recovery_offers_cancel_for_intentional_removal(tmp_path: Path) -> None:
+    """The blocked reason names the cancel route, not only restore/regenerate."""
+    repo_root, mission_slug, primary_dir, _ = _scaffold_lanes_with_coord_mission(
+        tmp_path,
+        lane="planned",
+        additional_wps={"WP02": "done"},
+    )
+    (primary_dir / "tasks" / "WP02.md").unlink()
+
+    decision = query_current_state("codex", mission_slug, repo_root)
+
+    assert decision.reason is not None
+    assert f"move-task WP02 --to canceled --mission {mission_slug}" in decision.reason
 
 
 def test_query_blocks_when_finalized_status_wp_task_is_missing(tmp_path: Path) -> None:

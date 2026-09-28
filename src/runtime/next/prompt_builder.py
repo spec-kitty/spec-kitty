@@ -464,7 +464,9 @@ def _read_wp_task(tasks_dir: Path, wp_id: str, mission_slug: str) -> tuple[Path,
     expected_file = tasks_dir / f"{wp_id}.md"
     recovery = (
         f"Restore or regenerate the primary task for {wp_id} at {expected_file} "
-        f"(or a titled {wp_id} file under {tasks_dir}), then rerun `spec-kitty next --mission {mission_slug}`."
+        f"(or a titled {wp_id} file under {tasks_dir}), then rerun `spec-kitty next --mission {mission_slug}`. "
+        f"If {wp_id} was removed on purpose, move it to canceled instead: "
+        f"`spec-kitty agent tasks move-task {wp_id} --to canceled --mission {mission_slug}`."
     )
     if not tasks_dir.is_dir():
         raise FileNotFoundError(f"Canonical WORK_PACKAGE_TASK directory for {wp_id} is missing at {tasks_dir}; expected {expected_file}. {recovery}")
