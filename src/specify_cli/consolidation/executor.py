@@ -3424,7 +3424,13 @@ def _synthesize_no_lane_manifest(
     )
 
 
-def _report_pre_mutation_refusal(exc: DestructiveOpRefused, main_repo: Path, *, mission_branch: str) -> None:
+def _report_pre_mutation_refusal(
+    exc: DestructiveOpRefused,
+    main_repo: Path,
+    *,
+    mission_branch: str,
+    base_sha: str | None = None,
+) -> None:
     """Print the pre-mutation refusal, upgrading a behind-own-HEAD remedy (WP05 / #4982/#4997).
 
     WP10 integration: a dirty-PRIMARY refusal may actually be the checkout sitting
@@ -3437,16 +3443,37 @@ def _report_pre_mutation_refusal(exc: DestructiveOpRefused, main_repo: Path, *, 
     behind-own-HEAD (or interrupted-``reset``) state gets the safe reset-to-HEAD
     remedy instead. Advisory only — the refusal still aborts fail-closed BEFORE any
     mutation (NFR-001); this only changes the printed guidance.
+
+    #4933 (escalated by the WP04 reviewer, orchestrator-added scope): on a FRESH
+    consolidation the mission branch is created off the target and never advances
+    until the lanes merge, so it is trivially "already an ancestor of HEAD" — the
+    lane-ancestry-only ``BEHIND_OWN_HEAD`` classification misfires on every dirty
+    refusal, not just a genuinely interrupted terminus. Printing the reset-to-HEAD
+    guidance there tells the operator to run ``git reset --hard HEAD``, which
+    destroys the very user edit (e.g. a dirty ``src/app/meta.json``) this WP
+    protects. The upgraded guidance is now gated on
+    :func:`~specify_cli.consolidation.preflight.is_pure_behind_head_lag`, the
+    content proof #4997 already uses for the ``--resume`` auto-recovery path
+    (:func:`_recover_behind_head_primary_on_resume`): it needs a persisted
+    ``ConsolidationState.pre_mutation_target_sha`` (``base_sha``) that is a STRICT
+    ancestor of HEAD with a byte-identical tree/index and no obstructing untracked
+    path. A fresh consolidation has no persisted state (``base_sha=None``), so the
+    predicate is fail-closed False and this always falls through to the safe
+    commit/stash/revert remedy already present in ``str(exc)``. ``BLOCKED_INDEX_LOCK``
+    is unaffected -- it never claims a specific working-tree state to reset into, so
+    it carries no #4933 hazard and stays gated on classification alone.
     """
     console.print(f"[red]Error:[/red] {exc}")
     if getattr(exc, "error_code", None) == MERGE_UNSAFE_PRIMARY_DIRTY:
         from specify_cli.consolidation.preflight import (
             ResumeRemedyKind,
             classify_resume_dirty_remedy,
+            is_pure_behind_head_lag,
         )
 
         remedy = classify_resume_dirty_remedy(main_repo, lane_branch=mission_branch)
-        if remedy.kind is not ResumeRemedyKind.LOCAL_CHANGES:
+        proven_behind_head = remedy.kind is ResumeRemedyKind.BEHIND_OWN_HEAD and is_pure_behind_head_lag(main_repo, base_sha=base_sha)
+        if remedy.kind is ResumeRemedyKind.BLOCKED_INDEX_LOCK or proven_behind_head:
             console.print("[yellow]Resume recovery guidance (behind-own-HEAD / interrupted reset detected):[/yellow]")
             for line in remedy.remediation:
                 console.print(f"  • {line}")
@@ -3545,12 +3572,27 @@ def _pre_mutation_safety_preflight_with_recovery(
     except DestructiveOpRefused as exc:
         recovered = _recover_behind_head_primary_on_resume(exc, main_repo, canonical_id, mission_branch=lanes_manifest.mission_branch)
         if not recovered:
-            _report_pre_mutation_refusal(exc, main_repo, mission_branch=lanes_manifest.mission_branch)
+            # #4933: the persisted ``pre_mutation_target_sha`` (absent on a fresh
+            # consolidation) is the only proof `_report_pre_mutation_refusal` will
+            # accept for the reset-to-HEAD guidance -- see its docstring.
+            state = load_state(main_repo, canonical_id)
+            _report_pre_mutation_refusal(
+                exc,
+                main_repo,
+                mission_branch=lanes_manifest.mission_branch,
+                base_sha=state.pre_mutation_target_sha if state else None,
+            )
             raise typer.Exit(1) from exc
         try:
             _run()
         except DestructiveOpRefused as exc_after:
-            _report_pre_mutation_refusal(exc_after, main_repo, mission_branch=lanes_manifest.mission_branch)
+            state = load_state(main_repo, canonical_id)
+            _report_pre_mutation_refusal(
+                exc_after,
+                main_repo,
+                mission_branch=lanes_manifest.mission_branch,
+                base_sha=state.pre_mutation_target_sha if state else None,
+            )
             raise typer.Exit(1) from exc_after
 
 

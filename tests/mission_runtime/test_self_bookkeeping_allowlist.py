@@ -32,7 +32,10 @@ from pathlib import Path
 import pytest
 import typer
 
-from specify_cli.coordination.coherence import is_self_bookkeeping_churn
+from specify_cli.coordination.coherence import (
+    is_self_bookkeeping_churn,
+    is_toolchain_generated_churn,
+)
 from specify_cli.cli.commands.agent.mission import (
     _enforce_analysis_report_write_preflight,
 )
@@ -77,9 +80,7 @@ def _seed_committed_mission(repo_root: Path) -> Path:
     (feature_dir / "spec.md").write_text("# Spec\n\nFR-003.\n", encoding="utf-8")
     provenance = repo_root / ".kittify" / "encoding-provenance"
     provenance.mkdir(parents=True)
-    (provenance / "global.jsonl").write_text(
-        '{"path": "kitty-specs/x/spec.md", "encoding": "utf-8"}\n', encoding="utf-8"
-    )
+    (provenance / "global.jsonl").write_text('{"path": "kitty-specs/x/spec.md", "encoding": "utf-8"}\n', encoding="utf-8")
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-q", "-m", "seed mission")
     return feature_dir
@@ -101,6 +102,47 @@ class TestSelfBookkeepingPredicate:
         # G-5 invariant: a stale primary spec.md is planning dirt, NOT bookkeeping.
         assert not is_self_bookkeeping_churn(f"kitty-specs/{_MISSION_SLUG}/spec.md")
 
+    # ------------------------------------------------------------------
+    # #4933 (WP04) — depth-exact meta.json anchor
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "src/app/meta.json",
+            "kitty-specs/m/research/meta.json",
+            "my-kitty-specs/m/meta.json",
+            "meta.json",
+        ],
+    )
+    def test_user_meta_json_is_not_self_bookkeeping(self, path: str) -> None:
+        """A user's OWN ``meta.json`` -- anywhere the depth-exact anchor does
+        not reach -- is real dirt again, not spec-kitty bookkeeping."""
+        assert not is_self_bookkeeping_churn(path)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "kitty-specs/m/meta.json",
+            "sub/kitty-specs/m/meta.json",
+            ".kittify/meta.json",
+            "kitty-specs\\m\\meta.json",
+        ],
+    )
+    def test_owned_meta_json_stays_self_bookkeeping(self, path: str) -> None:
+        """FR-010 ratchet: Spec Kitty's own mission ``meta.json`` (any monorepo
+        depth prefix) and the legacy ``.kittify/meta.json`` stay exempt. A
+        backslash path is normalized by ``to_posix`` before the anchor runs."""
+        assert is_self_bookkeeping_churn(path)
+
+    def test_user_meta_json_is_toolchain_churn_through_the_union_facade(self) -> None:
+        """One test per caller class: the public union predicate every
+        destructive/refusal gate actually consults
+        (:func:`is_toolchain_generated_churn`) also now treats a user
+        ``meta.json`` as dirty, not just the narrower self-bookkeeping leg."""
+        assert not is_toolchain_generated_churn("src/app/meta.json")
+        assert is_toolchain_generated_churn(f"kitty-specs/{_MISSION_SLUG}/meta.json")
+
     def test_unrelated_global_jsonl_is_not_over_allowlisted(self) -> None:
         # Suffix match is anchored on the provenance path, so a bare global.jsonl
         # elsewhere must NOT be over-allowlisted.
@@ -119,9 +161,7 @@ class TestSelfBookkeepingPredicate:
         self,
     ) -> None:
         """Repo-relative prefix before ``kitty-ops/`` is handled (path component)."""
-        assert is_self_bookkeeping_churn(
-            "some/prefix/kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTV.jsonl"
-        )
+        assert is_self_bookkeeping_churn("some/prefix/kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTV.jsonl")
 
     def test_kitty_ops_non_ulid_basename_is_not_self_bookkeeping(self) -> None:
         """G-5: ``kitty-ops/notes.txt`` (non-ULID) is NOT self-bookkeeping."""
@@ -148,9 +188,7 @@ class TestSelfBookkeepingPredicate:
     def test_audit_manifest_is_self_bookkeeping(self) -> None:
         """#4928: a tracked repair manifest under .kittify/mission-state-audit/
         is spec-kitty's own bookkeeping — a --fix before accept must not gate."""
-        assert is_self_bookkeeping_churn(
-            ".kittify/mission-state-audit/01M37PWGWRFNZY8X2Y7P7KJJGK.json"
-        )
+        assert is_self_bookkeeping_churn(".kittify/mission-state-audit/01M37PWGWRFNZY8X2Y7P7KJJGK.json")
 
     def test_audit_root_collapsed_untracked_dir_is_self_bookkeeping(self) -> None:
         """#4928 regression: ``git status --porcelain`` collapses a wholly-
@@ -166,22 +204,16 @@ class TestSelfBookkeepingPredicate:
 
     def test_audit_quarantine_is_self_bookkeeping(self) -> None:
         """#4928: the quarantine subtree is likewise self-bookkeeping churn."""
-        assert is_self_bookkeeping_churn(
-            ".kittify/mission-state-audit/quarantine/RUNID/042-slug/status.events.jsonl"
-        )
+        assert is_self_bookkeeping_churn(".kittify/mission-state-audit/quarantine/RUNID/042-slug/status.events.jsonl")
 
     def test_audit_root_with_leading_prefix_is_self_bookkeeping(self) -> None:
         """A repo-relative prefix before .kittify/mission-state-audit/ is handled."""
-        assert is_self_bookkeeping_churn(
-            "some/prefix/.kittify/mission-state-audit/01M37PWG.json"
-        )
+        assert is_self_bookkeeping_churn("some/prefix/.kittify/mission-state-audit/01M37PWG.json")
 
     def test_legacy_migrations_path_is_not_over_allowlisted(self) -> None:
         """The matcher is scoped to mission-state-audit/, NOT the legacy
         .kittify/migrations/ tree — a stray file there must not be whitelisted."""
-        assert not is_self_bookkeeping_churn(
-            ".kittify/migrations/mission-state/legacy.json"
-        )
+        assert not is_self_bookkeeping_churn(".kittify/migrations/mission-state/legacy.json")
 
     def test_unrelated_kittify_path_is_not_over_allowlisted(self) -> None:
         """A sibling .kittify/ path must NOT be swept in by the audit matcher."""
@@ -196,14 +228,11 @@ class TestSelfBookkeepingPredicate:
 def _modify_self_bookkeeping(feature_dir: Path, repo_root: Path) -> None:
     """Make the self-bookkeeping files dirty (the false-block trigger)."""
     (feature_dir / "meta.json").write_text(
-        (feature_dir / "meta.json").read_text(encoding="utf-8").replace(
-            "Gate Read Surface Completion", "Gate Read Surface Completion (touched)"
-        ),
+        (feature_dir / "meta.json").read_text(encoding="utf-8").replace("Gate Read Surface Completion", "Gate Read Surface Completion (touched)"),
         encoding="utf-8",
     )
     (repo_root / ".kittify" / "encoding-provenance" / "global.jsonl").write_text(
-        '{"path": "kitty-specs/x/spec.md", "encoding": "utf-8"}\n'
-        '{"path": "kitty-specs/y/plan.md", "encoding": "utf-8"}\n',
+        '{"path": "kitty-specs/x/spec.md", "encoding": "utf-8"}\n{"path": "kitty-specs/y/plan.md", "encoding": "utf-8"}\n',
         encoding="utf-8",
     )
 

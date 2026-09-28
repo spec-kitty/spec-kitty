@@ -30,7 +30,7 @@ from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation import preflight as pf
 from specify_cli.consolidation.preflight import ResumeRemedyKind, is_pure_behind_head_lag
-from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.consolidation.state import ConsolidationState, save_state
 
 # Two profiles in one file: the preflight-layer tests build real git repos
 # (subprocess-backed, mirroring test_behind_head_remedy.py) while the
@@ -324,7 +324,42 @@ def test_preflight_with_recovery_reports_and_exits_when_not_recovered(tmp_path: 
 
     assert mock_preflight.call_count == 1
     mock_recover.assert_called_once()
-    mock_report.assert_called_once_with(exc, tmp_path, mission_branch="kitty/mission-m")
+    # #4933: `_report_pre_mutation_refusal` now takes `base_sha` (the persisted
+    # `ConsolidationState.pre_mutation_target_sha`), threaded from a fresh
+    # `load_state` read at the call site -- `tmp_path` has no state.json here,
+    # so the call is `base_sha=None`, re-pinning the previously-implicit
+    # 2-kwarg signature.
+    mock_report.assert_called_once_with(exc, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
+    assert exc_info.value.exit_code == 1
+
+
+def test_preflight_with_recovery_threads_persisted_pre_mutation_target_sha_as_base_sha(
+    tmp_path: Path,
+) -> None:
+    """#4933 cycle-2 gap: the call site must thread a REAL persisted
+    ``pre_mutation_target_sha`` through as ``base_sha``, not just the
+    ``None`` default the sibling tests above happen to exercise (their
+    ``tmp_path`` has no state.json at all). Without this, dropping
+    ``base_sha`` at the call site -- or wiring it to something other than
+    the persisted sha -- would go undetected while every existing test
+    stayed green."""
+    manifest, retention = _manifest_and_retention()
+    exc = _refusal()
+    persisted_sha = "cafef00dfeed" * 3  # 36 hex chars, sha-shaped, clearly not a default
+
+    save_state(_fake_state(pre_mutation_target_sha=persisted_sha), tmp_path)
+
+    with (
+        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=exc) as mock_preflight,
+        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=False) as mock_recover,
+        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        pytest.raises(typer.Exit) as exc_info,
+    ):
+        ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
+
+    assert mock_preflight.call_count == 1
+    mock_recover.assert_called_once()
+    mock_report.assert_called_once_with(exc, tmp_path, mission_branch="kitty/mission-m", base_sha=persisted_sha)
     assert exc_info.value.exit_code == 1
 
 
@@ -345,5 +380,6 @@ def test_preflight_with_recovery_reports_and_exits_when_still_refused_after_reco
 
     assert mock_preflight.call_count == 2
     mock_recover.assert_called_once()
-    mock_report.assert_called_once_with(exc_after, tmp_path, mission_branch="kitty/mission-m")
+    # #4933: see the sibling assertion's comment above -- same re-pin, no state.json here.
+    mock_report.assert_called_once_with(exc_after, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
     assert exc_info.value.exit_code == 1

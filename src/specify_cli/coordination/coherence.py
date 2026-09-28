@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from kernel.paths import to_posix
 from mission_runtime import (
@@ -52,14 +52,29 @@ _REVERT_FAILED_MSG = "git revert failed"
 
 
 def is_self_bookkeeping_churn(path: str | Path) -> bool:
-    """Return True for spec-kitty's OWN bookkeeping files (retired IC-07a).
+    r"""Return True for spec-kitty's OWN bookkeeping files (retired IC-07a).
 
     WP11 retirement: absorbs the retired ``mission_runtime`` self-bookkeeping
-    predicate (#2102 / G-5 invariant) as the self-bookkeeping LEG of the owner union — ``meta.json``
-    (mission identity metadata), the encoding-provenance
-    ``.kittify/encoding-provenance/global.jsonl``, and ``kitty-ops/<ULID>.jsonl``
-    Op-record orphans (#2251) are spec-kitty's own bookkeeping, not mission planning
-    artifacts, and their churn must not block a dirty-state gate.
+    predicate (#2102 / G-5 invariant) as the self-bookkeeping LEG of the owner union — spec-kitty's
+    OWN mission-identity ``meta.json`` (``kitty-specs/<mission>/meta.json``, depth-exact,
+    including under a monorepo subdirectory, plus the legacy ``.kittify/meta.json``), the
+    encoding-provenance ``.kittify/encoding-provenance/global.jsonl``, and
+    ``kitty-ops/<ULID>.jsonl`` Op-record orphans (#2251) are spec-kitty's own bookkeeping,
+    not mission planning artifacts, and their churn must not block a dirty-state gate.
+
+    #4933 (WP04): the ``meta.json`` leg was previously exempted by BASENAME ALONE
+    (``PurePosixPath(normalized).name == "meta.json"``), so an operator's OWN file that
+    merely happens to be named ``meta.json`` anywhere in the tree (e.g.
+    ``src/app/meta.json``) was silently treated as bookkeeping and its dirty churn
+    was invisible to every destructive/refusal gate that consults this predicate —
+    ``spec-kitty consolidate`` would ``reset --hard`` the primary checkout or
+    ``worktree remove --force`` a lane worktree over that edit and exit 0. The
+    exemption is now depth-exact: only ``(?:^|/)kitty-specs/[^/]+/meta\.json$``
+    (Spec Kitty's own mission metadata) and ``(?:^|/)\.kittify/meta\.json$`` (the
+    legacy location, read only by ``tracker.py`` and an old migration) are exempt.
+    A user ``meta.json`` anywhere else — including
+    ``kitty-specs/<mission>/research/meta.json``, which is one level too deep to
+    match the mission-root anchor — is real dirt again.
 
     FIX-M2-05: also recognizes the dossier snapshot
     (``<feature_dir>/.kittify/dossiers/<mission_slug>/snapshot-latest.json``,
@@ -121,8 +136,16 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     # #2384/SC-005 non-gating property fails on the common path. ``-legacy`` /
     # ``-notes`` siblings still miss (``$`` / ``/`` cannot follow ``-``).
     mission_state_audit = re.compile(r"(?:^|/)\.kittify/mission-state-audit(?:/|$)")
+    # #4933: depth-exact anchor -- only Spec Kitty's OWN mission-identity
+    # meta.json (any monorepo depth prefix, but exactly one path component
+    # under ``kitty-specs/``) and the legacy ``.kittify/meta.json`` (read only
+    # by ``tracker.py`` and an old migration) are exempt. A user's own
+    # ``meta.json`` anywhere else -- including one level deeper, e.g.
+    # ``kitty-specs/<mission>/research/meta.json`` -- is real dirt.
+    owned_mission_meta = re.compile(r"(?:^|/)kitty-specs/[^/]+/meta\.json$")
+    legacy_kittify_meta = re.compile(r"(?:^|/)\.kittify/meta\.json$")
     normalized = to_posix(path).rstrip("/")
-    if PurePosixPath(normalized).name == "meta.json":
+    if owned_mission_meta.search(normalized) or legacy_kittify_meta.search(normalized):
         return True
     if normalized.endswith(".kittify/encoding-provenance/global.jsonl"):
         return True
@@ -264,9 +287,7 @@ def is_toolchain_generated_churn(
     Returns:
         ``True`` when ``path`` is spec-kitty-generated churn a gate should ignore.
     """
-    return is_self_bookkeeping_churn(path) or is_coord_residue_churn(
-        path, mission_slug=mission_slug, topology=topology
-    )
+    return is_self_bookkeeping_churn(path) or is_coord_residue_churn(path, mission_slug=mission_slug, topology=topology)
 
 
 def coord_incoherent_done_wps(
@@ -328,11 +349,7 @@ def coord_incoherent_done_wps(
     )
     if not events:
         return []
-    return [
-        wp_id
-        for wp_id in candidate_wps
-        if wp_lane_actor_from_events(events, wp_id).lane == Lane.DONE
-    ]
+    return [wp_id for wp_id in candidate_wps if wp_lane_actor_from_events(events, wp_id).lane == Lane.DONE]
 
 
 @dataclass(frozen=True)
@@ -403,9 +420,7 @@ def _worktree_checked_out_branch(coord_worktree: Path, env: dict[str, str]) -> s
     return ref.stdout.strip() or None
 
 
-def _worktree_branch_matches_coord_ref(
-    coord_worktree: Path, coord_ref: str, env: dict[str, str]
-) -> bool:
+def _worktree_branch_matches_coord_ref(coord_worktree: Path, coord_ref: str, env: dict[str, str]) -> bool:
     """Branch-identity guard closing the #4920-sibling foreign-branch class.
 
     ``_head_shape_is_expected`` is purely content-based (SHA ancestry + strand
@@ -457,15 +472,11 @@ def _head_shape_is_expected(
     )
     if ancestor.returncode != 0:
         return False
-    live_at_head = coord_incoherent_done_wps(
-        head_sha, candidate_wps, repo_root=repo_root, feature_dir=feature_dir
-    )
+    live_at_head = coord_incoherent_done_wps(head_sha, candidate_wps, repo_root=repo_root, feature_dir=feature_dir)
     return bool(live_at_head)
 
 
-def _clean_coord_status_paths_to_head(
-    coord_worktree: Path, feature_dir: Path, env: dict[str, str]
-) -> None:
+def _clean_coord_status_paths_to_head(coord_worktree: Path, feature_dir: Path, env: dict[str, str]) -> None:
     """Scoped clean-to-HEAD of the mission's coordination status paths.
 
     The rollback byte-restore leaves the coord worktree DIRTY — the WORKING
@@ -646,9 +657,7 @@ def repair_coord_strand(
         # caller emits a STUCK diagnostic rather than looping the live-strand error.
         return CoordRepairOutcome(healed=False, worktree_missing=True)
 
-    stranded = coord_incoherent_done_wps(
-        coord_ref, candidate_wps, repo_root=repo_root, feature_dir=feature_dir
-    )
+    stranded = coord_incoherent_done_wps(coord_ref, candidate_wps, repo_root=repo_root, feature_dir=feature_dir)
     if not stranded:
         # Already coherent (or nothing to heal): no-op — never revert the revert.
         return CoordRepairOutcome(healed=False, stranded_wp_ids=[])
@@ -675,18 +684,14 @@ def repair_coord_strand(
         env=env,
     ):
         # HEAD advanced unexpectedly (concurrency TOCTOU) — refuse the wider revert.
-        return CoordRepairOutcome(
-            healed=False, stranded_wp_ids=stranded, head_advanced=True
-        )
+        return CoordRepairOutcome(healed=False, stranded_wp_ids=stranded, head_advanced=True)
 
     if not _worktree_branch_matches_coord_ref(coord_worktree, coord_ref, env):
         # #4920-sibling: the worktree has some OTHER branch checked out (or a
         # detached HEAD). Both content-based guards above pass for a sibling
         # branch created from the coord tip — only a branch-identity check can
         # catch it. Refuse before the revert would mutate that foreign branch.
-        return CoordRepairOutcome(
-            healed=False, stranded_wp_ids=stranded, branch_mismatch=True
-        )
+        return CoordRepairOutcome(healed=False, stranded_wp_ids=stranded, branch_mismatch=True)
 
     # Scoped clean-to-HEAD (after the gate, before the revert) so the forward
     # revert applies over the byte-restored (dirty) coord worktree.
