@@ -1506,6 +1506,8 @@ def test_coordinated_skill_installation_exact_delta_and_project_precheck(
     monkeypatch: pytest.MonkeyPatch,
     all_families: bool,
 ) -> None:
+    import dataclasses
+
     from specify_cli.skills import installer
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
@@ -1557,7 +1559,20 @@ def test_coordinated_skill_installation_exact_delta_and_project_precheck(
     current = snapshot({"sandbox": tmp_path})
     refused = installer.apply_skill_installation(changed, consent)
     assert all(result.outcome == "precondition_changed" for result in refused)
-    assert_unchanged(current, snapshot({"sandbox": tmp_path}))
+    after = snapshot({"sandbox": tmp_path})
+    # c206e7d2d (#4714): the per-owner lock moved onto the canonical
+    # kernel.locks.machine_file_lock, which writes a holder record and
+    # truncates it back to empty on release -- bytes (empty) and mode are
+    # unchanged, only the sidecar's mtime moves. Tolerate ONLY that: assert
+    # content/mode identity first, then neutralise this one entry's mtime
+    # before the exact-purity comparison.
+    lock_key = ("sandbox", "home/.kittify/cache/.agent-skills.lock")
+    assert lock_key in current and lock_key in after, (current.keys(), after.keys())
+    assert current[lock_key].sha256 == after[lock_key].sha256
+    assert current[lock_key].mode == after[lock_key].mode
+    current = {**current, lock_key: dataclasses.replace(current[lock_key], mtime_ns=None)}
+    after = {**after, lock_key: dataclasses.replace(after[lock_key], mtime_ns=None)}
+    assert_unchanged(current, after)
 
 
 def test_backup_member_windows_fchmod_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

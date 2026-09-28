@@ -1664,7 +1664,6 @@ exclude = [
     "tests/migration/test_corpus_frontload_idempotent.py",
     "tests/migration/test_mission_handle_matches_meta_contract.py",
     "tests/migration/test_normalize_mission_lifecycle_cli.py",
-    "tests/migration/test_verdict_provenance_backfill.py",
     "tests/mission/test_active_mission_handle_windows.py",
     "tests/mission_metadata/test_mission_identity.py",
     "tests/mission_runtime/test_artifact_home.py",
