@@ -12,6 +12,7 @@ baselines the repo enforces for new test files (see the maintainer runbook).
 from __future__ import annotations
 
 import json
+import subprocess
 
 import pytest
 
@@ -66,6 +67,10 @@ def test_window_contract_shape_and_ref_guard(monkeypatch):
             "stateReason": "not_planned",
         },
     ]
+    # Headline counts come from distinct search/issues total_count queries, NOT
+    # len() of the detail lists. Order specific-before-generic (the fake matches
+    # the first substring): is:open before the generic label:P0, label:P0 before
+    # the generic closed count.
     monkeypatch.setattr(
         cd,
         "_run_gh",
@@ -74,7 +79,11 @@ def test_window_contract_shape_and_ref_guard(monkeypatch):
                 "pr list": prs,
                 "issue list --repo spec-kitty/spec-kitty --state closed": closed,
                 "commits/main": "dc06afb962abc",
-                "search/issues": {"total": 169},
+                "is:pr merged": {"total": 42},
+                "is:open label:priority:P0": {"total": 18},
+                "label:priority:P0": {"total": 12},
+                "is:issue created": {"total": 177},
+                "is:issue closed": {"total": 138},
             }
         ),
     )
@@ -84,14 +93,17 @@ def test_window_contract_shape_and_ref_guard(monkeypatch):
     assert out["meta"]["mode"] == "window"
     assert out["meta"]["filters"] == {"since": "2026-09-26T06:00:00Z", "until": "2026-09-28T05:50:00Z"}
     assert out["meta"]["main_shas"]["spec-kitty/spec-kitty"] == "dc06afb962"
-    assert "queried, not estimated" in out["meta"]["method"]
+    assert "not estimated" in out["meta"]["method"]
 
-    assert out["metrics"]["prs_merged"] == 1
-    assert out["metrics"]["issues_closed"] == 2
+    # Exact counts from the search totals (not the 1 PR / 2 issues in the lists).
+    assert out["metrics"]["prs_merged"] == 42
+    assert out["metrics"]["issues_closed"] == 138
+    assert out["metrics"]["p0_closed"] == 12
+    assert out["metrics"]["issues_opened"] == 177
+    assert out["metrics"]["p0_open"] == 18
+    assert out["metrics"]["detail_sampled"] is False
+    # by_reason / authors / valid_refs come from the (capped) detail lists.
     assert out["metrics"]["issues_closed_by_reason"] == {"fixed": 1, "not_planned": 1}
-    assert out["metrics"]["p0_closed"] == 1
-
-    # The hallucination guard: exactly the refs the collector saw, sorted.
     assert out["valid_refs"] == ["#1193", "#5050", "#5266"]
     assert out["authors"] == {"stijn-dejongh": 1}
 
@@ -179,3 +191,31 @@ def test_collector_fails_closed_on_gh_error(monkeypatch):
     monkeypatch.setattr(cd, "_run_gh", _boom)
     with pytest.raises(cd.CollectorError):
         cd.collect_scope(["spec-kitty/spec-kitty"], milestone="11", label=None, query=None)
+
+
+def test_run_gh_converts_subprocess_error_to_collector_error(monkeypatch):
+    # The REAL fail-closed seam: a nonzero gh exit becomes CollectorError, not a
+    # raw CalledProcessError that would escape uncaught.
+    def _raise(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, ["gh"], stderr="boom")
+
+    monkeypatch.setattr(cd.subprocess, "run", _raise)
+    with pytest.raises(cd.CollectorError):
+        cd._run_gh(["issue", "list"])
+
+
+def test_run_gh_converts_missing_binary_to_collector_error(monkeypatch):
+    def _missing(*args, **kwargs):
+        raise FileNotFoundError("gh not found")
+
+    monkeypatch.setattr(cd.subprocess, "run", _missing)
+    with pytest.raises(cd.CollectorError):
+        cd._run_gh(["issue", "list"])
+
+
+def test_gh_json_rejects_non_json(monkeypatch):
+    # A gh command that returns non-JSON must fail closed, not hand synthesis
+    # garbage.
+    monkeypatch.setattr(cd, "_run_gh", lambda args: "this is not json")
+    with pytest.raises(cd.CollectorError):
+        cd._gh_json(["api", "search/issues"])

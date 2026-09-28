@@ -52,6 +52,11 @@ _ISSUE_FIELDS = "number,title,author,closedAt,createdAt,labels,url,stateReason,m
 #: Priority labels, most-severe first, for the metric tiles.
 _PRIORITY_LABELS = ("priority:P0", "priority:P1", "priority:P2", "priority:P3")
 
+#: Per-repo cap on the detail lists (PRs / issues) fetched for clustering and
+#: valid_refs. Headline counts use the search total_count, not these lists, so
+#: the cap never undercounts a tile — it only bounds the clustered detail.
+_LIST_CAP = 1000
+
 
 class CollectorError(RuntimeError):
     """A gh query failed or returned something unusable — fail closed."""
@@ -94,8 +99,11 @@ def _label_names(item: dict[str, Any]) -> list[str]:
 
 
 def _priority_of(item: dict[str, Any]) -> str | None:
-    for label in _label_names(item):
-        if label in _PRIORITY_LABELS:
+    # Resolve by severity (the _PRIORITY_LABELS order), not the issue's own
+    # label order, so a mislabelled [P1, P0] issue resolves to P0.
+    labels = set(_label_names(item))
+    for label in _PRIORITY_LABELS:
+        if label in labels:
             return label
     return None
 
@@ -113,32 +121,42 @@ def collect_window(repos: list[str], since: str, until: str) -> dict[str, Any]:
     """Merged PRs + closed/opened issues across `repos` within [since, until]."""
     merged_prs: list[dict[str, Any]] = []
     closed_issues: list[dict[str, Any]] = []
-    opened_count = 0
+    detail_sampled = False
 
     for repo in repos:
         merged_search = f"merged:{since}..{until}"
-        for pr in _gh_json(["pr", "list", "--repo", repo, "--state", "merged", "--search", merged_search, "--limit", "500", "--json", _PR_FIELDS]):
-            merged_prs.append(_normalise_pr(pr, repo))
+        page = _gh_json(["pr", "list", "--repo", repo, "--state", "merged", "--search", merged_search, "--limit", str(_LIST_CAP), "--json", _PR_FIELDS])
+        detail_sampled = detail_sampled or len(page) >= _LIST_CAP
+        merged_prs.extend(_normalise_pr(pr, repo) for pr in page)
 
         closed_search = f"closed:{since}..{until}"
-        for issue in _gh_json(["issue", "list", "--repo", repo, "--state", "closed", "--search", closed_search, "--limit", "1000", "--json", _ISSUE_FIELDS]):
-            closed_issues.append(_normalise_issue(issue, repo))
+        page = _gh_json(["issue", "list", "--repo", repo, "--state", "closed", "--search", closed_search, "--limit", str(_LIST_CAP), "--json", _ISSUE_FIELDS])
+        detail_sampled = detail_sampled or len(page) >= _LIST_CAP
+        closed_issues.extend(_normalise_issue(issue, repo) for issue in page)
 
-        # gh list caps at --limit; use the search API total for an exact count.
-        opened_count += _search_issue_count(repo, f"created:{since}..{until}")
-
+    # Headline counts come from the search API total_count (exact), NOT len() of
+    # the --limit-capped lists, so a large window (e.g. a quarter) is never
+    # silently undercounted. The lists above stay capped for clustering,
+    # authorship, and valid_refs; `detail_sampled` flags when they are a sample.
+    prs_merged = sum(_search_count(r, f"is:pr merged:{since}..{until}") for r in repos)
+    issues_closed = sum(_search_count(r, f"is:issue closed:{since}..{until}") for r in repos)
+    p0_closed = sum(_search_count(r, f"is:issue closed:{since}..{until} label:priority:P0") for r in repos)
+    issues_opened = sum(_search_count(r, f"is:issue created:{since}..{until}") for r in repos)
     p0_open = sum(_open_priority_count(repo, "priority:P0") for repo in repos)
 
     close_reasons = Counter(issue["close_reason"] for issue in closed_issues)
     authors = Counter(pr["author"] for pr in merged_prs)
 
     metrics = {
-        "prs_merged": len(merged_prs),
-        "issues_closed": len(closed_issues),
+        "prs_merged": prs_merged,
+        "issues_closed": issues_closed,
         "issues_closed_by_reason": dict(close_reasons),
-        "p0_closed": sum(1 for i in closed_issues if i["priority"] == "priority:P0"),
-        "issues_opened": opened_count,
+        "p0_closed": p0_closed,
+        "issues_opened": issues_opened,
         "p0_open": p0_open,
+        # True when a detail list hit the fetch cap: headline counts stay exact,
+        # but by_reason / authors / clusters are then over a sample of that cap.
+        "detail_sampled": detail_sampled,
     }
     return _envelope(
         mode="window",
@@ -199,11 +217,19 @@ def collect_scope(
 # --------------------------------------------------------------------------- #
 # helpers
 # --------------------------------------------------------------------------- #
+def _search_count(repo: str, query: str) -> int:
+    """Exact count for a repo-scoped search query, via search API total_count.
+
+    `query` carries its own `is:issue`/`is:pr` qualifier so the caller controls
+    whether PRs, issues, or both are counted.
+    """
+    result = _gh_json(["api", "-X", "GET", "search/issues", "-f", f"q=repo:{repo} {query}", "--jq", "{total: .total_count}"])
+    return int(result.get("total", 0)) if isinstance(result, dict) else 0
+
+
 def _search_issue_count(repo: str, search: str) -> int:
     """Exact issue count for a search, via the search API total_count."""
-    owner_repo = repo
-    result = _gh_json(["api", "-X", "GET", "search/issues", "-f", f"q=repo:{owner_repo} is:issue {search}", "--jq", "{total: .total_count}"])
-    return int(result.get("total", 0)) if isinstance(result, dict) else 0
+    return _search_count(repo, f"is:issue {search}")
 
 
 def _open_priority_count(repo: str, label: str) -> int:
@@ -276,10 +302,17 @@ def _envelope(**parts: Any) -> dict[str, Any]:
             # The Method footer is generated from these fields — never typed.
             "method": (
                 "Merged PRs and issues were read from GitHub via `gh` "
-                f"({parts['mode']} mode) with the filters above; counts are "
-                "queried, not estimated. Close reason follows GitHub's own "
-                "state_reason; 'verified_fixed' (a linked closing PR) is not "
-                "yet computed."
+                f"({parts['mode']} mode) with the filters above; headline counts "
+                "come from the search API total, not estimated. Close reason "
+                "follows GitHub's own state_reason; 'verified_fixed' (a linked "
+                "closing PR) is not yet computed."
+                + (
+                    " The per-issue/PR detail (clusters, authorship, close-reason "
+                    "breakdown) is a sample of the fetch cap for this window; the "
+                    "headline counts remain exact."
+                    if parts["metrics"].get("detail_sampled")
+                    else ""
+                )
             ),
         },
         "metrics": parts["metrics"],
