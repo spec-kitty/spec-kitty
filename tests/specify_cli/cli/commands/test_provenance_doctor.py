@@ -135,14 +135,14 @@ def test_register_is_idempotent_safe_to_call_directly() -> None:
 
 
 # ---------------------------------------------------------------------------
-# run_provenance_audit / describe_leaks reuse
+# _run_provenance_audit / describe_leaks reuse
 # ---------------------------------------------------------------------------
 
 
 class TestRunProvenanceAudit:
     def test_no_leaks_exits_zero(self, tmp_path: Path, packs_root: Path) -> None:
         with pytest.raises(typer.Exit) as exc_info:
-            _provenance_doctor.run_provenance_audit(tmp_path, json_output=False)
+            _provenance_doctor._run_provenance_audit(tmp_path, json_output=False)
         assert exc_info.value.exit_code == 0
 
     def test_leak_present_exits_one(self, tmp_path: Path, packs_root: Path) -> None:
@@ -158,7 +158,7 @@ class TestRunProvenanceAudit:
         _write(_charter_yaml_path(tmp_path), _charter_yaml_with_catalog(refs))
 
         with pytest.raises(typer.Exit) as exc_info:
-            _provenance_doctor.run_provenance_audit(tmp_path, json_output=False)
+            _provenance_doctor._run_provenance_audit(tmp_path, json_output=False)
         assert exc_info.value.exit_code == 1
 
     def test_template_set_leak_exits_one(self, tmp_path: Path, packs_root: Path) -> None:
@@ -174,7 +174,7 @@ class TestRunProvenanceAudit:
         _write(_charter_yaml_path(tmp_path), _charter_yaml_with_catalog(refs))
 
         with pytest.raises(typer.Exit) as exc_info:
-            _provenance_doctor.run_provenance_audit(tmp_path, json_output=False)
+            _provenance_doctor._run_provenance_audit(tmp_path, json_output=False)
         assert exc_info.value.exit_code == 1
 
 

@@ -1281,15 +1281,10 @@ _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
             "run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9", source_module="specify_cli.cli.commands._env_file_doctor"
         ),
         # specify_cli.cli.commands._provenance_doctor::register -- body_hash
-        # refreshed (cli-boundary-robustness #4600): the ``register`` shell's
-        # nested ``provenance`` command body changed under the boundary
-        # refactor, invalidating the prior content-tier key. Same
-        # dynamic-dispatch reach path as ``_env_file_doctor::register`` above.
-        SymbolKey("register", "5e4f0244801fa7826875fe6345c9917612a3753b6719ea6f4762130212f1f7eb", source_module="specify_cli.cli.commands._provenance_doctor"),
-        # specify_cli.cli.commands._provenance_doctor::run_provenance_audit
-        SymbolKey(
-            "run_provenance_audit", "a657b0dbc7e8d2b82fc80e005592413230902a240d550c1b12be39cd4cd66b2e", source_module="specify_cli.cli.commands._provenance_doctor"
-        ),
+        # Refreshed for #5253: the nested command now calls the underscore-private
+        # audit helper. The same dynamic-dispatch reach path as
+        # ``_env_file_doctor::register`` above remains in place.
+        SymbolKey("register", "86be39d2a8af2f6109da0272d9fc0d539a758e6a0e1c8882a4c96202e333b2ea", source_module="specify_cli.cli.commands._provenance_doctor"),
     }
 )
 

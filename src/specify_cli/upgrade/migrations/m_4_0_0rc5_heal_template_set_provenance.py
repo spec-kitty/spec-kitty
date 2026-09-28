@@ -21,10 +21,9 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from charter.bundle import CHARTER_YAML
-from charter.offering.missions import MissionTemplateRepository
-from charter.offering.missions.repository import MissionsRootNotFound
-from charter.offering.pack_paths import PackRootNotFound
-from charter.offering.provenance import is_built_in_pack_path, to_portable_source_path
+from charter.missions import MissionsRootNotFound, MissionTemplateRepository
+from charter.pack_paths import PackRootNotFound
+from charter.provenance import is_built_in_pack_path, to_portable_source_path
 from kernel.paths import BUILT_IN_PACK_SIBLING_PATTERN
 from kernel.sibling_paths import SiblingPathNotFound
 

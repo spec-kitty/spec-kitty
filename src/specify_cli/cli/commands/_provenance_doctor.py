@@ -41,12 +41,12 @@ from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance impo
 from . import _doctor_shared
 from ._doctor_shared import console
 
-__all__ = ["register", "run_provenance_audit"]
+__all__ = ["register"]
 
 _HEAL_HINT = "spec-kitty migrate  # applies pending provenance migrations"
 
 
-def run_provenance_audit(repo_root: Path, *, json_output: bool) -> None:
+def _run_provenance_audit(repo_root: Path, *, json_output: bool) -> None:
     """Entry point for ``doctor provenance``.
 
     Advisory (matches ``doctor cutover``'s informational shape): exits 1 when
@@ -109,4 +109,4 @@ def register(app: typer.Typer) -> None:
             spec-kitty doctor provenance --json
         """
         repo_root = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output)
-        run_provenance_audit(repo_root, json_output=json_output)
+        _run_provenance_audit(repo_root, json_output=json_output)
