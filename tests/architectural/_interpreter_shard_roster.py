@@ -220,6 +220,7 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/mission_metadata",
             "tests/post_merge",
             "tests/release",
+            "tests/reporting",
             "tests/reviews",
             "tests/specify_cli/charter",
             "tests/specify_cli/charter_freshness",
