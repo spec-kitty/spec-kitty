@@ -187,7 +187,17 @@ class TestMergeIncludesPlanningLane:
             patch("specify_cli.consolidation.executor.has_remote", return_value=False),
             patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
             patch("specify_cli.consolidation.executor.clear_state"),
-            patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"),
+            # #4900: bare patch (no return_value) used to return a MagicMock,
+            # which the new target-tree bake/verify (_record_mission_number_
+            # on_target_tree / _verify_and_announce_mission_number) tried to
+            # json.dump / read back, raising MissionNumberVerificationError.
+            # return_value=None keeps run.assigned_mission_number None so
+            # that seam early-returns, matching this test's pre-existing
+            # intent (mission_number correctness is out of scope here).
+            patch(
+                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                return_value=None,
+            ),
             # WP10 (#2057): branch preflight + target asserts moved to seams;
             # appended last to keep positional mock indices stable.
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
@@ -467,6 +477,21 @@ def _real_invariant_external_mocks(repo_root: Path):
         patch("specify_cli.policy.config.load_policy_config"),
         patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
         patch("specify_cli.consolidation.executor._refresh_primary_checkout_after_merge"),
+        # #4900: this fixture exercises the PLANNING-ONLY assignment path
+        # (executor._assign_planning_only_mission_number_if_needed), which is
+        # a sibling of the lane-path bake mocked above but is NOT mocked here
+        # on purpose — this test's own intent is that mission_number really
+        # gets assigned and dirties the working-tree meta.json (see the class
+        # docstring). commit_merge_bookkeeping is mocked above, so nothing is
+        # ever really committed to the target branch; the new target-tree
+        # read-back verification (executor._verify_and_announce_mission_number)
+        # would otherwise fail against that mocked commit even though the
+        # assignment itself is genuine. Neutralize only the verify/announce
+        # step — mission_number-on-target correctness is covered by
+        # tests/consolidation/test_mission_number_truthful_4900.py and by
+        # TestPlanningOnlyDoneMarkingPersists's real-commit sibling fixture
+        # below (_real_bookkeeping_commit_external_mocks).
+        patch("specify_cli.consolidation.executor._verify_and_announce_mission_number"),
         # NOTE: _classify_porcelain_lines is intentionally NOT mocked here —
         # the real post-merge working-tree invariant must run so the F2 fix
         # (meta.json in expected_paths) is exercised.
@@ -850,6 +875,13 @@ def _real_persistence_external_mocks(repo_root: Path):
         patch("specify_cli.policy.config.load_policy_config"),
         patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
         patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
+        # #4900: same planning-only-path rationale as
+        # _real_invariant_external_mocks above — the real (unmocked)
+        # _assign_planning_only_mission_number_if_needed genuinely assigns a
+        # number here, but commit_merge_bookkeeping is mocked (no real
+        # commit lands), so the new target-tree read-back verification would
+        # otherwise fail. Neutralize only the verify/announce step.
+        patch("specify_cli.consolidation.executor._verify_and_announce_mission_number"),
         # NOTE: _mark_wp_merged_done and _assert_merged_wps_reached_done are
         # intentionally NOT mocked — the real done-marking persistence runs.
     ]

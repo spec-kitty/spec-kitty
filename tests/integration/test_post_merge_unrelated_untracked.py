@@ -208,7 +208,10 @@ class TestMergeToleratesUntrackedFiles:
             patch("specify_cli.consolidation.executor.has_remote", return_value=False),
             patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
             patch("specify_cli.consolidation.executor.clear_state"),
-            patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"),
+            patch(
+                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                return_value=None,
+            ),
                         # WP10 (#2057): branch preflight + target asserts moved to the
             # preflight / done_bookkeeping / baseline seams; appended last to
             # keep positional mock indices stable.
@@ -295,7 +298,10 @@ class TestMergeToleratesUntrackedFiles:
             patch("specify_cli.consolidation.executor.has_remote", return_value=False),
             patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
             patch("specify_cli.consolidation.executor.clear_state"),
-            patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"),
+            patch(
+                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                return_value=None,
+            ),
                         # WP10 (#2057): branch preflight + target asserts moved to the
             # preflight / done_bookkeeping / baseline seams; appended last to
             # keep positional mock indices stable.

@@ -179,7 +179,10 @@ class TestPostMergeRefreshAndInvariant:
             patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
             patch("specify_cli.consolidation.executor.clear_state"),
             patch("specify_cli.consolidation.state.ConsolidationState"),
-            patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"),
+            patch(
+                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                return_value=None,
+            ),
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
             patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
             patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
@@ -288,7 +291,10 @@ class TestPostMergeRefreshAndInvariant:
             patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
             patch("specify_cli.consolidation.executor.clear_state"),
             patch("specify_cli.consolidation.state.ConsolidationState"),
-            patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"),
+            patch(
+                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                return_value=None,
+            ),
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
             patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
             patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),

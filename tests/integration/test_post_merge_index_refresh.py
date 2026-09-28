@@ -147,7 +147,10 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
         patch("specify_cli.consolidation.executor.has_remote", return_value=False),
         patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
         patch("specify_cli.consolidation.executor.clear_state"),
-        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch"),
+        patch(
+            "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+            return_value=None,
+        ),
         # WP10 (#2057): mission-branch preflight moved to the preflight seam;
         # appended last to keep positional mock indices stable.
         patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
