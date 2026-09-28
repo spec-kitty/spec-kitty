@@ -29,9 +29,13 @@ from typing import Any
 _SCALAR = re.compile(r"\{\{\s*([A-Z0-9_]+)\s*\}\}")
 _OPEN = re.compile(r"<!--\s*@(each|if)\s+([A-Z0-9_]+)\s*-->")
 _END = "<!-- @end -->"
-_STYLE = re.compile(r"<style\b.*?</style>", re.DOTALL | re.IGNORECASE)
 # A GitHub ref is `#` + digits with no trailing hex letter — the negative
 # lookahead keeps CSS hex colours that start with a digit (e.g. #1A1A14) out.
+# The whole rendered doc is scanned (including any <style> block): stripping
+# <style> before scanning was an evasion vector — an invented #ref hidden inside
+# a synthesis-injected <style> block would escape the guard. The lookahead alone
+# excludes the template's hex palette (every colour has a hex letter after its
+# leading digit), so no strip is needed.
 _REF = re.compile(r"#\d+(?![0-9A-Fa-f])")
 
 
@@ -119,8 +123,7 @@ def build_context(synth: dict[str, Any]) -> dict[str, Any]:
 def enforce_ref_guard(rendered: str, valid_refs: list[str]) -> None:
     """Every #ref in the output must be one the collector actually returned."""
     valid = set(valid_refs)
-    content = _STYLE.sub("", rendered)  # never count CSS hex colours as refs
-    used = set(_REF.findall(content))
+    used = set(_REF.findall(rendered))
     invented = sorted(used - valid, key=lambda r: int(r[1:]))
     if invented:
         raise RenderError(f"synthesis cited refs not present in the collected data (invented / out of scope): {', '.join(invented)}")

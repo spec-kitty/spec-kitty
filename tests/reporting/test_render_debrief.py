@@ -61,7 +61,18 @@ def test_ref_guard_passes_when_all_present():
 
 
 def test_ref_guard_ignores_css_hex_colours():
-    # A <style> block with digit-leading hex colours (#1A1A14, #2A2A22, …) must
-    # not be mistaken for GitHub refs — regression for the sample-render bug.
+    # The template's palette (digit-leading hex like #1A1A14, #2A2A22, …) is
+    # excluded by the _REF negative-lookahead alone — each has a hex letter after
+    # its leading digit. No <style> strip is used, so this holds anywhere.
     rendered = "<style>:root{--a:#1A1A14;--b:#2A2A22;--c:#5C5C52;--d:#8FCB8F}</style><li>real ref #5045</li>"
     rd.enforce_ref_guard(rendered, valid_refs=["#5045"])
+
+
+def test_ref_guard_catches_invented_ref_hidden_in_style_block():
+    # Regression: the guard must NOT strip <style> before scanning — an invented
+    # all-decimal #ref hidden inside a synthesis-injected <style> block would
+    # otherwise evade the guard (the ref-guard's headline promise).
+    rendered = "<p>legit #5045</p><style>/* sneaky #9999 */</style>"
+    with pytest.raises(rd.RenderError) as exc:
+        rd.enforce_ref_guard(rendered, valid_refs=["#5045"])
+    assert "#9999" in str(exc.value)
