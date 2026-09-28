@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path, PurePosixPath, PureWindowsPath
+import stat
 import tomllib
 from typing import Any
 from urllib.parse import urlsplit
@@ -101,6 +102,25 @@ def _is_spec_kitty_repository(value: str) -> bool:
     return parsed.scheme in {"https", "ssh"}
 
 
+def _source_path_has_no_symlinks(checkout_root: Path, relative_source: PurePosixPath) -> bool:
+    current = checkout_root
+    parts = relative_source.parts
+    for index, part in enumerate(parts):
+        current = current / part
+        try:
+            mode = current.lstat().st_mode
+        except FileNotFoundError:
+            return True
+        if stat.S_ISLNK(mode):
+            return False
+        is_final = index == len(parts) - 1
+        if is_final and not stat.S_ISREG(mode):
+            return False
+        if not is_final and not stat.S_ISDIR(mode):
+            return False
+    return True
+
+
 def _checkout_tracks_mission(checkout_root: Path, relative_source: PurePosixPath) -> bool:
     try:
         metadata = tomllib.loads((checkout_root / "pyproject.toml").read_text(encoding="utf-8"))
@@ -137,8 +157,10 @@ def _checkout_tracks_mission(checkout_root: Path, relative_source: PurePosixPath
         ).stdout.strip()
         if not _is_spec_kitty_repository(origin):
             return False
-        tracked = subprocess.run(
-            ["git", "-C", str(checkout_root), "ls-files", "--error-unmatch", "--", relative_source.as_posix()],
+        if not _source_path_has_no_symlinks(checkout_root, relative_source):
+            return False
+        index_entries = subprocess.run(
+            ["git", "-C", str(checkout_root), "ls-files", "--stage", "--error-unmatch", "--", relative_source.as_posix()],
             check=True,
             capture_output=True,
             text=True,
@@ -146,7 +168,11 @@ def _checkout_tracks_mission(checkout_root: Path, relative_source: PurePosixPath
         ).stdout.splitlines()
     except (OSError, subprocess.SubprocessError, tomllib.TOMLDecodeError, ValueError):
         return False
-    return relative_source.as_posix() in tracked
+    if len(index_entries) != 1:
+        return False
+    index_metadata, separator, indexed_path = index_entries[0].partition("\t")
+    fields = index_metadata.split()
+    return bool(separator) and indexed_path == relative_source.as_posix() and len(fields) == 3 and fields[0] in {"100644", "100755"} and fields[2] == "0"
 
 
 def _has_former_checkout_proof(source_path: str, token_suffix: str) -> bool:
