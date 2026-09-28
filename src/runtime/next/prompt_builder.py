@@ -462,16 +462,20 @@ def _legacy_governance_context(repo_root: Path) -> str:
 
 def _read_wp_task(tasks_dir: Path, wp_id: str, mission_slug: str) -> tuple[Path, WPMetadata, str]:
     """Load the exact WP file, authored metadata, and body from its task surface."""
-    recovery = f"Restore or regenerate the task file under {tasks_dir}, then rerun `spec-kitty next --mission {mission_slug}`."
+    expected_file = tasks_dir / f"{wp_id}.md"
+    recovery = (
+        f"Restore or regenerate the primary task for {wp_id} at {expected_file} "
+        f"(or a titled {wp_id} file under {tasks_dir}), then rerun `spec-kitty next --mission {mission_slug}`."
+    )
     if not tasks_dir.is_dir():
-        raise FileNotFoundError(f"Canonical WORK_PACKAGE_TASK directory for {wp_id} is missing at {tasks_dir}. {recovery}")
+        raise FileNotFoundError(f"Canonical WORK_PACKAGE_TASK directory for {wp_id} is missing at {tasks_dir}; expected {expected_file}. {recovery}")
 
     wp_file = next(
         (path for path in sorted(tasks_dir.glob("WP*.md")) if path.stem == wp_id or path.stem.startswith(f"{wp_id}-")),
         None,
     )
     if wp_file is None:
-        raise FileNotFoundError(f"Canonical WORK_PACKAGE_TASK file for {wp_id} was not found under {tasks_dir}. {recovery}")
+        raise FileNotFoundError(f"Canonical WORK_PACKAGE_TASK file for {wp_id} is missing at {expected_file}. {recovery}")
 
     try:
         wp_meta, _ = read_authored_wp_frontmatter(wp_file)

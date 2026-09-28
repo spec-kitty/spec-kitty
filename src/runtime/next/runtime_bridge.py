@@ -794,6 +794,13 @@ def _should_advance_wp_step(
         anchor_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
 
     tasks_dir = anchor_dir / "tasks"
+    # A file-based WP count cannot distinguish an empty pre-finalize board
+    # from finalized lane state whose canonical task file disappeared. Keep
+    # the run in its WP step so the board selector can emit the canonical
+    # task-read error instead of advancing through composition.
+    if repo_root is not None and _wp_task_surface_error(anchor_dir, feature_dir, mission_slug) is not None:
+        return False
+
     if not tasks_dir.is_dir():
         return True  # no WPs to iterate over
 
@@ -2972,6 +2979,25 @@ def _wp_blocked_action(board_step: str | None, reason: str) -> _WpBoardAction:
     return _WpBoardAction(board_step=board_step, action=None, wp_id=None, workspace_path=None, blocked_reason=reason)
 
 
+def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug: str) -> str | None:
+    """Return the canonical task-read error for any WP present in status state."""
+    from runtime.next.prompt_builder import _read_wp_task
+    from specify_cli.status import CanonicalStatusNotFoundError, get_all_wp_lanes
+
+    try:
+        wp_lanes = get_all_wp_lanes(status_dir)
+    except CanonicalStatusNotFoundError:
+        return None
+
+    tasks_dir = task_board_dir / "tasks"
+    for wp_id in sorted(wp_lanes):
+        try:
+            _read_wp_task(tasks_dir, wp_id, mission_slug)
+        except (FileNotFoundError, ValueError) as exc:
+            return str(exc)
+    return None
+
+
 def _wp_dispatch_action(board_step: str, action: str, wp_id: str, workspace_path: str) -> _WpBoardAction:
     return _WpBoardAction(board_step=board_step, action=action, wp_id=wp_id, workspace_path=workspace_path, blocked_reason=None)
 
@@ -3094,6 +3120,10 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path) -> _WpBoardA
 
     task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
     status_dir = mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+    task_error = _wp_task_surface_error(task_board_dir, status_dir, mission_slug)
+    if task_error is not None:
+        return _wp_blocked_action(None, task_error)
+
     progress = _compute_wp_progress(task_board_dir, status_dir=status_dir)
     board_step = _finalized_task_board_override_step(task_board_dir, progress, status_dir=status_dir)
 
