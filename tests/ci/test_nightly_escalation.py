@@ -441,8 +441,14 @@ def _ungated_escalation_steps(jobs: dict[str, Any]) -> list[str]:
         label = f"{job_name}: {step.get('name')!r}"
         if _WORKFLOW_REF_CONDITION not in str(step.get("if") or ""):
             problems.append(f"{label} if: {step.get('if')!r} lacks {_WORKFLOW_REF_CONDITION!r}")
-        if _SCRIPT_REF_ARG not in str(step.get("run") or ""):
+        run = str(step.get("run") or "")
+        if _SCRIPT_REF_ARG not in run:
             problems.append(f"{label} run does not pass {_SCRIPT_REF_ARG}")
+        # The value must be space-separated from the flag: a glued `--run-url"..."`
+        # reaches argparse as one `--run-urlhttps://...` token and crashes the
+        # escalation step (a main-only workflow PR CI never exercises).
+        if '--run-url"' in run:
+            problems.append(f"{label} run glues --run-url to its value (missing space)")
     return problems
 
 
