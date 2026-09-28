@@ -61,7 +61,7 @@
       "wp": null
     },
     "#5044": {
-      "evidence_ref": "22 failed / 112 passed at af847be7 over the 12 affected files",
+      "evidence_ref": "PR #5285 (e35682ff..54c94afa); 12 integration files 134 passed / 0 failed (base 22 failed)",
       "fr": "FR-005,FR-007",
       "nfr": null,
       "repo": "spec-kitty/spec-kitty",
@@ -69,11 +69,11 @@
       "scope": "full",
       "source_file": "spec.md",
       "title": "tests/integration reds on main (fixture drift; nightly integration red set)",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#5045": {
-      "evidence_ref": "nightly run 36393904544",
+      "evidence_ref": "PR #5285; integration nightly red set re-pinned green",
       "fr": "FR-005",
       "nfr": null,
       "repo": "spec-kitty/spec-kitty",
@@ -81,11 +81,11 @@
       "scope": "full (auto-closes on first green integration nightly)",
       "source_file": "spec.md",
       "title": "Nightly suite red: integration",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#5049": {
-      "evidence_ref": "tests/integration/test_merge_resume.py",
+      "evidence_ref": "PR #5285 (42ebdd5f): test_resume_completes_within_30s_budget green, budget unchanged; charter budget half is slice 2 (#5278)",
       "fr": "FR-006",
       "nfr": null,
       "repo": "spec-kitty/spec-kitty",
@@ -93,11 +93,11 @@
       "scope": "partial: test_merge_resume::test_resume_completes_within_30s_budget only (charter budget owned by slice 2)",
       "source_file": "spec.md",
       "title": "Nightly suite red: performance",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#5110": {
-      "evidence_ref": "tests/consolidation/test_issue_5110_dry_run_unmaterialized_coord.py (RED at af847be7)",
+      "evidence_ref": "PR #5285 (07125cea); tests/consolidation/test_issue_5110_dry_run_unmaterialized_coord.py",
       "fr": "FR-004",
       "nfr": null,
       "repo": "spec-kitty/spec-kitty",
@@ -105,11 +105,11 @@
       "scope": "full",
       "source_file": "spec.md",
       "title": "merge --dry-run raises a raw traceback on an unmaterialized coordination worktree",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#5111": {
-      "evidence_ref": "tests/consolidation/test_issue_5111_fresh_gate_failure_rerun.py (RED at af847be7)",
+      "evidence_ref": "PR #5285 (be0fc625, c2394faa, landing folds 538779c4/9fa3a290); tests/consolidation/test_issue_5111_fresh_gate_failure_rerun.py",
       "fr": "FR-001,FR-002,FR-003",
       "nfr": null,
       "repo": "spec-kitty/spec-kitty",
@@ -117,7 +117,7 @@
       "scope": "full",
       "source_file": "spec.md",
       "title": "Fresh merge that fails before reconciliation wedges the next run as 'pre-fix'",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
