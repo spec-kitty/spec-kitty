@@ -277,6 +277,16 @@ def test_no_activation_keys_skips_doctrine_scan(
     assert report.unknown_references == []
 
 
+# #5049 (Tier-1 budget gate, testing-flakiness.md -> "tune the budget, never
+# retry"): the 3.0s ceiling tripped on ci-nightly's serial `-m performance`
+# lane at 3.49s while the same test measures ~1.2s locally -- runner variance
+# on the hosted 4-vCPU runner, not a regression (no charter change in that
+# window). The budget is now 6.0s: ~1.7x the worst observed CI measurement
+# (3.49s) and ~5x local nominal. A real algorithmic regression (e.g. the
+# pre-#3808 3x DRG reload) adds time consistently and still trips it.
+_CONSISTENCY_CHECK_BUDGET_SECONDS = 6.0
+
+
 @pytest.mark.doctrine
 @pytest.mark.timing
 # NFR-003 perf guard, routed to the serial `-m timing` gate (2026-08-07, PR
@@ -290,8 +300,8 @@ def test_no_activation_keys_skips_doctrine_scan(
 # under cache pressure). Marking it ``timing`` moves it to the dedicated
 # ``timing-nfr-serial`` job (``-m timing -n0``), which runs one test at a time
 # with the whole cache available -- restoring the ~1.2s nominal and letting a
-# simple wall-clock budget be both stable and meaningful. The 3.0s ceiling is
-# ~2.5x nominal: headroom for the 4-vCPU runner's single-thread speed while a
+# simple wall-clock budget be both stable and meaningful. The original 3.0s
+# ceiling (~2.5x nominal; retuned to the constant above, #5049) left headroom for the 4-vCPU runner's single-thread speed while a
 # genuine algorithmic regression still trips it. (Not a #3246 regression:
 # nominal is identical on this branch and upstream/main's charter sources.)
 @pytest.mark.performance
@@ -302,7 +312,7 @@ def test_run_consistency_check_completes_within_budget(tmp_path: Path) -> None:
     regular per-PR module slice. Marked ``performance`` so it is deselected from
     the parallelized per-PR shards (where a loaded shared runner made the
     wall-clock assertion flaky) and runs only in ci-nightly's ``-m performance``
-    lane. Nominal ~1.2s in that serial gate; the assertion itself is unchanged.
+    lane. Nominal ~1.2s in that serial gate; worst observed CI 3.49s (#5049).
     """
     ctx = _ctx_with_config(tmp_path, "# minimal valid project\n")
 
@@ -310,9 +320,9 @@ def test_run_consistency_check_completes_within_budget(tmp_path: Path) -> None:
     run_consistency_check(ctx)
     elapsed = time.perf_counter() - start
 
-    assert elapsed < 3.0, (
-        f"consistency check took {elapsed:.2f}s (limit: 3s; nominal ~1.2s, "
-        "serial timing gate)"
+    assert elapsed < _CONSISTENCY_CHECK_BUDGET_SECONDS, (
+        f"consistency check took {elapsed:.2f}s (limit: {_CONSISTENCY_CHECK_BUDGET_SECONDS}s; "
+        "nominal ~1.2s, worst observed CI 3.49s, #5049)"
     )
 
 

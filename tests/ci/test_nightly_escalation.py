@@ -11,6 +11,10 @@ the escalation flow with a fake GitHub client (never the network) and cover:
 - **close-on-green**: a recovered suite comments and closes the open issue;
 - **token-absent degrade (C-005)**: with no token / no repo, ``main`` prints a
   warning and exits ``0`` (fail-loud only) without crashing or echoing the token.
+- **mainline-only gate (#5169/#5172/#5265)**: a run on any ref other than
+  ``refs/heads/main`` can never open, bump or close a P0 -- proven on BOTH
+  halves: the script (``run_escalation`` / ``main``) and the workflow (every
+  escalation step's ``if:`` carries the ref condition and passes ``--ref``).
 
 The module is loaded by file path (``scripts/ci`` is not an importable package),
 mirroring ``tests/ci/test_sonar_project_version.py``.
@@ -31,6 +35,12 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT_PATH = _REPO_ROOT / "scripts" / "ci" / "nightly_escalation.py"
 
 _FAKE_TOKEN = "ghs_faketoken_should_never_be_printed"  # noqa: S105 - test sentinel, not a real credential
+
+_MAIN = "refs/heads/main"
+_MAIN_ARGS = ("--ref", _MAIN)
+_WORKFLOW_PATH = _REPO_ROOT / ".github" / "workflows" / "ci-nightly.yml"
+_WORKFLOW_REF_CONDITION = "github.ref == 'refs/heads/main'"
+_SCRIPT_REF_ARG = '--ref "$GITHUB_REF"'
 
 
 def _load_module() -> ModuleType:
@@ -78,7 +88,7 @@ def _call_names(client: FakeClient) -> list[str]:
 # ---------------------------------------------------------------------------
 def test_failure_with_no_open_issue_creates_a_p0_issue_with_marker() -> None:
     client = FakeClient(existing=None)
-    summary = mod.run_escalation(client, suite_key="integration", conclusion="failure", run_url="https://run/1")
+    summary = mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion="failure", run_url="https://run/1")
 
     assert _call_names(client) == ["find", "create"]
     (_, (title, body, labels)) = client.calls[1]
@@ -100,7 +110,7 @@ def test_created_issue_body_carries_the_exact_stable_dedup_marker() -> None:
 # ---------------------------------------------------------------------------
 def test_failure_with_open_issue_comments_and_never_creates_a_duplicate() -> None:
     client = FakeClient(existing={"number": 77, "body": mod.escalation_marker("integration")})
-    summary = mod.run_escalation(client, suite_key="integration", conclusion="failure", run_url="https://run/2")
+    summary = mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion="failure", run_url="https://run/2")
 
     assert _call_names(client) == ["find", "comment"]
     assert "create" not in _call_names(client)
@@ -115,7 +125,7 @@ def test_failure_with_open_issue_comments_and_never_creates_a_duplicate() -> Non
 # ---------------------------------------------------------------------------
 def test_success_with_open_issue_comments_then_closes_it() -> None:
     client = FakeClient(existing={"number": 88, "body": mod.escalation_marker("e2e")})
-    summary = mod.run_escalation(client, suite_key="e2e", conclusion="success", run_url="https://run/3")
+    summary = mod.run_escalation(client, ref=_MAIN, suite_key="e2e", conclusion="success", run_url="https://run/3")
 
     assert _call_names(client) == ["find", "comment", "close"]
     assert client.calls[-1] == ("close", (88,))
@@ -124,7 +134,7 @@ def test_success_with_open_issue_comments_then_closes_it() -> None:
 
 def test_success_with_no_open_issue_is_a_noop() -> None:
     client = FakeClient(existing=None)
-    summary = mod.run_escalation(client, suite_key="performance", conclusion="success")
+    summary = mod.run_escalation(client, ref=_MAIN, suite_key="performance", conclusion="success")
 
     assert _call_names(client) == ["find"]
     assert "nothing to do" in summary
@@ -144,7 +154,7 @@ def test_run_escalation_raises_on_unknown_conclusion_instead_of_closing() -> Non
     """
     client = FakeClient(existing={"number": 99, "body": mod.escalation_marker("integration")})
     with pytest.raises(ValueError, match="unknown nightly suite conclusion"):
-        mod.run_escalation(client, suite_key="integration", conclusion="cancelled")
+        mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion="cancelled")
 
     # The pre-existing open issue must NOT have been closed (or even
     # commented on) as a side effect of the rejected call.
@@ -153,14 +163,14 @@ def test_run_escalation_raises_on_unknown_conclusion_instead_of_closing() -> Non
 
 def test_run_escalation_closes_only_on_the_explicit_success_constant() -> None:
     client = FakeClient(existing={"number": 5, "body": mod.escalation_marker("integration")})
-    summary = mod.run_escalation(client, suite_key="integration", conclusion=mod.CONCLUSION_SUCCESS)
+    summary = mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion=mod.CONCLUSION_SUCCESS)
     assert _call_names(client) == ["find", "comment", "close"]
     assert "closed" in summary
 
 
 def test_run_url_absent_falls_back_to_a_placeholder_never_crashes() -> None:
     client = FakeClient(existing=None)
-    mod.run_escalation(client, suite_key="integration", conclusion="failure", run_url=None)
+    mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion="failure", run_url=None)
     (_, (_title, body, _labels)) = client.calls[1]
     assert "run link unavailable" in body
 
@@ -171,7 +181,7 @@ def test_run_url_absent_falls_back_to_a_placeholder_never_crashes() -> None:
 def test_main_without_token_warns_and_exits_zero(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     monkeypatch.delenv("GH_TOKEN", raising=False)
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    rc = mod.main(["--suite-key", "integration", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty"])
+    rc = mod.main([*_MAIN_ARGS, "--suite-key", "integration", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty"])
     assert rc == 0
     captured = capsys.readouterr()
     assert "skipping nightly P0 escalation" in captured.err
@@ -181,7 +191,7 @@ def test_main_without_token_warns_and_exits_zero(monkeypatch: pytest.MonkeyPatch
 def test_main_without_repo_warns_and_exits_zero(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     monkeypatch.setenv("GH_TOKEN", _FAKE_TOKEN)
     monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
-    rc = mod.main(["--suite-key", "integration", "--conclusion", "failure"])
+    rc = mod.main([*_MAIN_ARGS, "--suite-key", "integration", "--conclusion", "failure"])
     assert rc == 0
     captured = capsys.readouterr()
     assert "repository" in captured.err
@@ -196,7 +206,7 @@ def test_main_degrades_to_exit_zero_on_api_error(monkeypatch: pytest.MonkeyPatch
         raise mod.EscalationError("simulated outage")
 
     monkeypatch.setattr(mod.GitHubIssueClient, "find_open_issue_by_marker", _boom)
-    rc = mod.main(["--suite-key", "integration", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty"])
+    rc = mod.main([*_MAIN_ARGS, "--suite-key", "integration", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty"])
     assert rc == 0
     captured = capsys.readouterr()
     assert "degraded" in captured.err
@@ -217,7 +227,7 @@ def test_main_happy_path_routes_through_run_escalation(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(mod.GitHubIssueClient, "find_open_issue_by_marker", _fake_find)
     monkeypatch.setattr(mod.GitHubIssueClient, "create_issue", _fake_create)
-    rc = mod.main(["--suite-key", "integration", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty", "--run-url", "https://run/7"])
+    rc = mod.main([*_MAIN_ARGS, "--suite-key", "integration", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty", "--run-url", "https://run/7"])
     assert rc == 0
     assert captured_client["find"] == mod.escalation_marker("integration")
     assert captured_client["create"][1] == ["priority:P0"]
@@ -265,3 +275,199 @@ def test_find_open_issue_returns_none_when_no_body_carries_the_marker(monkeypatc
 
 def test_redact_removes_the_token_from_diagnostics() -> None:
     assert _FAKE_TOKEN not in mod._redact(f"boom {_FAKE_TOKEN} end", _FAKE_TOKEN)
+
+
+# ---------------------------------------------------------------------------
+# mainline-only gate, SCRIPT half (#5169/#5172/#5265): a non-main run can
+# never open, bump or close a P0. The refs below include the exact branch
+# that opened/bumped #5265 (run 36393904544) and near-miss spellings of main.
+# ---------------------------------------------------------------------------
+_NON_MAIN_REFS = (
+    "refs/heads/claude/issue-3189-investigation-n3r4uk",
+    "refs/heads/main-backup",
+    "refs/heads/feature/main",
+    "refs/tags/v4.0.0rc5",
+    "refs/pull/5300/merge",
+    "main",
+    "refs/heads/Main",
+    "",
+    None,
+)
+
+
+def test_escalation_allowed_only_for_the_exact_mainline_ref() -> None:
+    assert mod.MAINLINE_REF == _MAIN
+    assert mod.escalation_allowed(_MAIN) is True
+    for ref in _NON_MAIN_REFS:
+        assert mod.escalation_allowed(ref) is False, ref
+
+
+@pytest.mark.parametrize("ref", _NON_MAIN_REFS)
+@pytest.mark.parametrize(
+    ("conclusion", "existing", "forbidden_effect"),
+    [
+        ("failure", None, "open"),
+        ("failure", {"number": 5265, "body": "<!-- nightly-escalation-key: integration -->"}, "bump"),
+        ("success", {"number": 5265, "body": "<!-- nightly-escalation-key: integration -->"}, "close"),
+    ],
+)
+def test_non_main_run_cannot_open_bump_or_close_a_p0(ref: str | None, conclusion: str, existing: dict[str, Any] | None, forbidden_effect: str) -> None:
+    client = FakeClient(existing=existing)
+    summary = mod.run_escalation(client, ref=ref, suite_key="integration", conclusion=conclusion, run_url="https://run/x")
+
+    # Not even a lookup: the client is never touched on a non-mainline ref.
+    assert client.calls == [], f"non-main ref {ref!r} must not {forbidden_effect} a P0"
+    assert "skipped" in summary
+    assert repr(ref) in summary
+
+
+@pytest.mark.parametrize(
+    ("conclusion", "existing", "expected_calls"),
+    [
+        ("failure", None, ["find", "create"]),
+        ("failure", {"number": 7, "body": "m"}, ["find", "comment"]),
+        ("success", {"number": 7, "body": "m"}, ["find", "comment", "close"]),
+    ],
+)
+def test_main_ref_still_opens_bumps_and_closes(conclusion: str, existing: dict[str, Any] | None, expected_calls: list[str]) -> None:
+    """Other side of the gate: the mainline ref keeps the full policy live."""
+    client = FakeClient(existing=existing)
+    mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion=conclusion)
+    assert _call_names(client) == expected_calls
+
+
+def test_run_escalation_has_no_default_ref_so_omission_cannot_bypass_the_gate() -> None:
+    client = FakeClient(existing=None)
+    with pytest.raises(TypeError):
+        mod.run_escalation(client, suite_key="integration", conclusion="failure")
+    assert client.calls == []
+
+
+def _forbid_client_construction(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    constructed: list[str] = []
+
+    def _init(self: Any, repository: str, token: str) -> None:
+        constructed.append(repository)
+        raise AssertionError("a non-main run must never build a GitHub client")
+
+    monkeypatch.setattr(mod.GitHubIssueClient, "__init__", _init)
+    return constructed
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "success"])
+def test_main_with_non_main_ref_never_builds_a_client(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], conclusion: str) -> None:
+    monkeypatch.setenv("GH_TOKEN", _FAKE_TOKEN)
+    constructed = _forbid_client_construction(monkeypatch)
+    rc = mod.main(
+        [
+            "--ref",
+            "refs/heads/claude/issue-3189-investigation-n3r4uk",
+            "--suite-key",
+            "integration",
+            "--conclusion",
+            conclusion,
+            "--repo",
+            "spec-kitty/spec-kitty",
+        ]
+    )
+    assert rc == 0
+    assert constructed == []
+    captured = capsys.readouterr()
+    assert "skipped nightly P0 escalation" in captured.out
+    assert _FAKE_TOKEN not in captured.out + captured.err
+
+
+def test_main_reads_a_non_main_ref_from_github_ref_env(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setenv("GH_TOKEN", _FAKE_TOKEN)
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/claude/issue-3189-investigation-n3r4uk")
+    constructed = _forbid_client_construction(monkeypatch)
+    rc = mod.main(["--suite-key", "integration", "--conclusion", "success", "--repo", "spec-kitty/spec-kitty"])
+    assert rc == 0
+    assert constructed == []
+    assert "skipped nightly P0 escalation" in capsys.readouterr().out
+
+
+def test_main_fails_closed_when_no_ref_is_known(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setenv("GH_TOKEN", _FAKE_TOKEN)
+    monkeypatch.delenv("GITHUB_REF", raising=False)
+    constructed = _forbid_client_construction(monkeypatch)
+    rc = mod.main(["--suite-key", "integration", "--conclusion", "success", "--repo", "spec-kitty/spec-kitty"])
+    assert rc == 0
+    assert constructed == []
+    assert "None" in capsys.readouterr().out
+
+
+def test_main_escalates_when_github_ref_env_is_main(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setenv("GH_TOKEN", _FAKE_TOKEN)
+    monkeypatch.setenv("GITHUB_REF", _MAIN)
+    monkeypatch.setattr(mod.GitHubIssueClient, "find_open_issue_by_marker", lambda self, marker: None)
+    monkeypatch.setattr(mod.GitHubIssueClient, "create_issue", lambda self, *, title, body, labels: {"number": 11})
+    rc = mod.main(["--suite-key", "integration", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty"])
+    assert rc == 0
+    assert "created escalation issue #11" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# mainline-only gate, WORKFLOW half: every ci-nightly.yml step that invokes
+# the escalation script is itself gated on the mainline ref AND passes the ref
+# through, so the script's own gate always sees the real value.
+# ---------------------------------------------------------------------------
+def _load_workflow_jobs() -> dict[str, Any]:
+    # Canonical splicing loader (LAND-PAT-003) -- never a raw yaml.safe_load.
+    from tests.architectural._gate_coverage import load_spliced_workflow
+
+    loaded = load_spliced_workflow(_WORKFLOW_PATH)
+    jobs = loaded.get("jobs")
+    assert isinstance(jobs, dict), "ci-nightly.yml must declare a jobs mapping"
+    return jobs
+
+
+def _escalation_steps(jobs: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    return [
+        (job_name, step)
+        for job_name, job in jobs.items()
+        if isinstance(job, dict)
+        for step in job.get("steps") or []
+        if isinstance(step, dict) and "nightly_escalation.py" in str(step.get("run") or "")
+    ]
+
+
+def _ungated_escalation_steps(jobs: dict[str, Any]) -> list[str]:
+    """PRODUCTION comparison: one message per escalation step missing either
+    half of the workflow-side mainline gate. The real-workflow guard and its
+    mutation test below both call this SAME function."""
+    problems: list[str] = []
+    for job_name, step in _escalation_steps(jobs):
+        label = f"{job_name}: {step.get('name')!r}"
+        if _WORKFLOW_REF_CONDITION not in str(step.get("if") or ""):
+            problems.append(f"{label} if: {step.get('if')!r} lacks {_WORKFLOW_REF_CONDITION!r}")
+        if _SCRIPT_REF_ARG not in str(step.get("run") or ""):
+            problems.append(f"{label} run does not pass {_SCRIPT_REF_ARG}")
+    return problems
+
+
+def test_every_nightly_escalation_step_is_gated_on_the_mainline_ref() -> None:
+    jobs = _load_workflow_jobs()
+    steps = _escalation_steps(jobs)
+    # Non-vacuity floor: performance, e2e, stress, integration,
+    # specify-cli-out-of-matrix + at least one interpreter shard.
+    assert len(steps) >= 6, f"expected >= 6 escalation steps in ci-nightly.yml, found {len(steps)}"
+    assert _ungated_escalation_steps(jobs) == []
+
+
+def test_ungated_escalation_step_is_caught_by_the_gate_check() -> None:
+    """Mutation proof: a step with the pre-fix bare ``if: always()`` (the
+    shape that let branch runs open #5169/#5172/#5265) must be flagged."""
+    scratch_jobs = {
+        "performance": {
+            "steps": [
+                {
+                    "name": "Escalate performance red -> deduped P0 (fail-closed)",
+                    "if": "always()",
+                    "run": 'python3 scripts/ci/nightly_escalation.py --suite-key performance --conclusion "$conclusion"',
+                }
+            ]
+        }
+    }
+    problems = _ungated_escalation_steps(scratch_jobs)
+    assert len(problems) == 2, problems

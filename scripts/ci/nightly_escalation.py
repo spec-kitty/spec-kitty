@@ -17,6 +17,13 @@ Contract (research.md D6):
   run. INV-5: at most one open issue per key.
 - ``--conclusion success`` -> if an open issue with the key exists, comment that
   the suite recovered and close it.
+- **Mainline-only (#5169/#5172/#5265)**: only a run on ``refs/heads/main``
+  may open, bump or close a P0. A ``workflow_dispatch`` on an unmerged branch
+  is a diagnostic run -- its red is not main's red, and its green must never
+  auto-close a real main P0. The workflow gates each escalation step on
+  ``github.ref``; this script enforces the same gate independently
+  (``--ref``, default ``$GITHUB_REF``) so it holds even if the workflow
+  condition drifts. A missing/unknown ref fails closed: no escalation.
 - **Fail-closed toward the workflow**: if the GitHub token / API is unavailable
   (fork, outage) the helper prints a warning to stderr and exits ``0`` -- it
   degrades to fail-loud-only (the suite's own red still fails the job) and never
@@ -52,6 +59,9 @@ EXIT_OK = 0
 CONCLUSION_SUCCESS = "success"
 CONCLUSION_FAILURE = "failure"
 
+# The only ref whose nightly verdict may touch a standing P0 (open/bump/close).
+MAINLINE_REF = "refs/heads/main"
+
 
 class EscalationError(RuntimeError):
     """A recoverable GitHub API failure -- degrades the step to fail-loud-only."""
@@ -60,6 +70,15 @@ class EscalationError(RuntimeError):
 def escalation_marker(suite_key: str) -> str:
     """Return the stable hidden dedup marker embedded in an issue's body."""
     return _MARKER_TEMPLATE.format(key=suite_key)
+
+
+def escalation_allowed(ref: str | None) -> bool:
+    """Return True only for a run on the mainline ref (exact match, fail-closed)."""
+    return ref == MAINLINE_REF
+
+
+def _non_mainline_summary(suite_key: str, ref: str | None) -> str:
+    return f"skipped nightly P0 escalation for {suite_key!r}: ref {ref!r} is not {MAINLINE_REF!r} (branch runs never open, bump or close a P0)"
 
 
 def _run_reference(run_url: str | None) -> str:
@@ -108,13 +127,19 @@ def run_escalation(
     *,
     suite_key: str,
     conclusion: str,
+    ref: str | None,
     run_url: str | None = None,
 ) -> str:
     """Apply the dedup/open/close policy for one suite; return a human summary.
 
     Pure orchestration over an :class:`IssueClient` -- the unit tests drive it
     with a fake client to cover create / update-existing / close-on-green.
+    ``ref`` is required (no default) so no caller can bypass the mainline
+    gate by omission: a non-mainline ref returns before the client is touched.
     """
+    if not escalation_allowed(ref):
+        return _non_mainline_summary(suite_key, ref)
+
     marker = escalation_marker(suite_key)
     existing = client.find_open_issue_by_marker(marker)
 
@@ -230,7 +255,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--conclusion", required=True, choices=(CONCLUSION_SUCCESS, CONCLUSION_FAILURE), help="the suite's conclusion")
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY"), help="owner/repo (default: $GITHUB_REPOSITORY)")
     parser.add_argument("--run-url", default=None, help="link to the failing/passing workflow run")
+    parser.add_argument(
+        "--ref",
+        default=os.environ.get("GITHUB_REF"),
+        help=f"the run's git ref (default: $GITHUB_REF); only {MAINLINE_REF} escalates",
+    )
     args = parser.parse_args(argv)
+
+    if not escalation_allowed(args.ref):
+        # Checked before the token so a branch run never builds an API client.
+        print(_non_mainline_summary(args.suite_key, args.ref))
+        return EXIT_OK
 
     token = resolve_token()
     if not token or not args.repo:
@@ -242,7 +277,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         client = GitHubIssueClient(args.repo, token)
-        summary = run_escalation(client, suite_key=args.suite_key, conclusion=args.conclusion, run_url=args.run_url)
+        summary = run_escalation(client, suite_key=args.suite_key, conclusion=args.conclusion, ref=args.ref, run_url=args.run_url)
     except EscalationError as exc:
         print(f"warning: nightly P0 escalation degraded (fail-loud only): {exc}", file=sys.stderr)
         return EXIT_OK
