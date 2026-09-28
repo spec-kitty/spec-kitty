@@ -401,6 +401,59 @@ def _run_implement(mission_dirname: str, wp_id: str) -> Result:
     )
 
 
+def _seed_split_mission_event_logs(
+    repo_root: Path,
+    mission_dirname: str,
+) -> tuple[Path, Path, bytes, bytes, Path]:
+    """Seed retained, untracked mission-event logs on the primary and coord surfaces."""
+    primary_feature_dir = repo_root / "kitty-specs" / mission_dirname
+    metadata = json.loads((primary_feature_dir / "meta.json").read_text(encoding="utf-8"))
+    coord_worktree = CoordinationWorkspace.worktree_path(
+        repo_root,
+        mission_dirname,
+        str(metadata["mid8"]),
+    )
+    coord_feature_dir = coord_worktree / "kitty-specs" / mission_dirname
+    primary_log = primary_feature_dir / "mission-events.jsonl"
+    coord_log = coord_feature_dir / "mission-events.jsonl"
+
+    primary_bytes = "".join(
+        json.dumps(
+            {
+                "mission": mission_dirname,
+                "payload": {"action": "discovery", "record": f"primary-{index}"},
+                "timestamp": f"2026-09-28T00:00:0{index}+00:00",
+                "type": "MissionNextInvoked",
+            },
+            sort_keys=True,
+        )
+        + "\n"
+        for index in range(1, 5)
+    ).encode("utf-8")
+    coord_bytes = (
+        json.dumps(
+            {
+                "mission": mission_dirname,
+                "payload": {"action": "discovery", "record": "coord-later"},
+                "timestamp": "2026-09-28T00:00:10+00:00",
+                "type": "MissionNextInvoked",
+            },
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+    assert not primary_log.exists()
+    assert not coord_log.exists()
+    primary_log.write_bytes(primary_bytes)
+    coord_log.write_bytes(coord_bytes)
+    return primary_log, coord_log, primary_bytes, coord_bytes, coord_worktree
+
+
+def _disable_auto_commit(repo_root: Path) -> None:
+    (repo_root / ".kittify" / "config.yaml").write_text("auto_commit: false\n", encoding="utf-8")
+
+
 # ---------------------------------------------------------------------------
 # T010 -- red-first repro (coord pollution on claim)
 # ---------------------------------------------------------------------------
@@ -420,6 +473,145 @@ def test_claim_does_not_stage_wp_file_on_coord(tmp_path: Path, monkeypatch: pyte
 
     flagged = _wp_task_blobs_on_coord(repo_root, coord_branch, mission_dirname)
     assert flagged == [], f"#4905 regression: WP01's claim staged a WP file onto the coordination branch: {flagged!r}"
+
+
+def test_claim_preserves_split_mission_event_logs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A coord claim ignores the retained primary event log without merging either stream."""
+    repo_root, mission_dirname, coord_branch = _build_two_lane_coord_mission(
+        tmp_path,
+        monkeypatch,
+        mission_slug="coord-staging-4905-legacy-events",
+    )
+    primary_log, coord_log, primary_bytes, coord_bytes, coord_worktree = _seed_split_mission_event_logs(
+        repo_root,
+        mission_dirname,
+    )
+    event_log_rel = f"kitty-specs/{mission_dirname}/mission-events.jsonl"
+    _disable_auto_commit(repo_root)
+
+    assert _git(repo_root, "status", "--porcelain", "--untracked-files=all", "--", event_log_rel).stdout == f"?? {event_log_rel}\n"
+    assert _git(coord_worktree, "status", "--porcelain", "--untracked-files=all", "--", event_log_rel).stdout == f"?? {event_log_rel}\n"
+    assert event_log_rel not in _git(repo_root, "ls-tree", "-r", "--name-only", "HEAD").stdout.splitlines()
+    assert event_log_rel not in _git(repo_root, "ls-tree", "-r", "--name-only", coord_branch).stdout.splitlines()
+
+    result = _run_implement(mission_dirname, "WP01")
+
+    assert result.exit_code == 0, result.output
+    assert primary_log.read_bytes() == primary_bytes
+    assert coord_log.read_bytes() == coord_bytes
+    assert _git(repo_root, "status", "--porcelain", "--untracked-files=all", "--", event_log_rel).stdout == f"?? {event_log_rel}\n"
+    assert _git(coord_worktree, "status", "--porcelain", "--untracked-files=all", "--", event_log_rel).stdout == f"?? {event_log_rel}\n"
+
+    primary_tree_paths = _git(repo_root, "ls-tree", "-r", "--name-only", "HEAD").stdout.splitlines()
+    coord_tree_paths = _git(repo_root, "ls-tree", "-r", "--name-only", coord_branch).stdout.splitlines()
+    assert event_log_rel not in primary_tree_paths
+    assert event_log_rel not in coord_tree_paths
+
+    status_path = coord_worktree / "kitty-specs" / mission_dirname / "status.events.jsonl"
+    status_events = [json.loads(line) for line in status_path.read_text(encoding="utf-8").splitlines()]
+    assert any(event.get("wp_id") == "WP01" and event.get("to_lane") == "claimed" for event in status_events)
+
+
+def test_dirty_primary_spec_still_blocks_coord_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root, mission_dirname, _ = _build_two_lane_coord_mission(
+        tmp_path,
+        monkeypatch,
+        mission_slug="coord-staging-4905-dirty-spec",
+    )
+    _disable_auto_commit(repo_root)
+    spec_path = repo_root / "kitty-specs" / mission_dirname / "spec.md"
+    spec_path.write_text(spec_path.read_text(encoding="utf-8") + "\nUncommitted change.\n", encoding="utf-8")
+    write_analysis_report(
+        feature_dir=spec_path.parent,
+        repo_root=repo_root,
+        body=_ANALYSIS_REPORT_BODY,
+        analyzer_agent="test",
+    )
+
+    result = _run_implement(mission_dirname, "WP01")
+
+    assert result.exit_code != 0
+    assert "Planning artifacts not committed" in result.output
+    assert f"kitty-specs/{mission_dirname}/spec.md" in result.output
+
+
+def test_flat_mission_event_log_remains_dirty_planning_input(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root, mission_dirname = _build_flat_two_lane_mission(
+        tmp_path,
+        monkeypatch,
+        mission_slug="lanes-only-4905-legacy-events",
+    )
+    _disable_auto_commit(repo_root)
+    event_log_rel = f"kitty-specs/{mission_dirname}/mission-events.jsonl"
+    event_log_path = repo_root / event_log_rel
+    event_log_path.write_text(
+        '{"mission":"flat-control","payload":{"action":"discovery"},"timestamp":"2026-09-28T00:00:01+00:00","type":"MissionNextInvoked"}\n',
+        encoding="utf-8",
+    )
+
+    result = _run_implement(mission_dirname, "WP01")
+
+    assert result.exit_code != 0
+    assert "Planning artifacts not committed" in result.output
+    assert event_log_rel in result.output
+
+
+def test_nested_and_backup_mission_event_lookalikes_remain_dirty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root, mission_dirname, _ = _build_two_lane_coord_mission(
+        tmp_path,
+        monkeypatch,
+        mission_slug="coord-staging-4905-event-lookalikes",
+    )
+    _disable_auto_commit(repo_root)
+    feature_dir = repo_root / "kitty-specs" / mission_dirname
+    nested_event_log = feature_dir / "traces" / "mission-events.jsonl"
+    backup_event_log = feature_dir / "mission-events.jsonl.backup"
+    nested_event_log.parent.mkdir(parents=True)
+    nested_event_log.write_text("nested\n", encoding="utf-8")
+    backup_event_log.write_text("backup\n", encoding="utf-8")
+
+    result = _run_implement(mission_dirname, "WP01")
+
+    assert result.exit_code != 0
+    assert "Planning artifacts not committed" in result.output
+    assert f"kitty-specs/{mission_dirname}/traces/mission-events.jsonl" in result.output
+    assert f"kitty-specs/{mission_dirname}/mission-events.jsonl.backup" in result.output
+
+
+def test_deleting_primary_mission_event_log_keeps_structural_refusal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root, mission_dirname, _ = _build_two_lane_coord_mission(
+        tmp_path,
+        monkeypatch,
+        mission_slug="coord-staging-4905-event-delete",
+    )
+    _disable_auto_commit(repo_root)
+    event_log_rel = f"kitty-specs/{mission_dirname}/mission-events.jsonl"
+    event_log_path = repo_root / event_log_rel
+    event_log_path.write_text("tracked history\n", encoding="utf-8")
+    _git(repo_root, "add", event_log_rel)
+    _git(repo_root, "commit", "-q", "-m", "planning: retain legacy event log")
+    event_log_path.unlink()
+
+    result = _run_implement(mission_dirname, "WP01")
+
+    assert result.exit_code != 0
+    assert "Uncommitted structural planning-artifact changes" in result.output
+    assert event_log_rel in result.output
 
 
 # ---------------------------------------------------------------------------
