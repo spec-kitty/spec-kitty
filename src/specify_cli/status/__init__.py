@@ -8,6 +8,8 @@ WP state. No frontmatter reads or writes occur in this module.
 
 from pathlib import Path
 
+from specify_cli.frontmatter import FrontmatterError
+
 from .models import (
     AgentAssignment,
     CurrentWpState,
@@ -411,6 +413,7 @@ __all__ = [
     "build_claim_policy_metadata",
     "build_resolved_actor",
     "is_cut_over",
+    "FrontmatterError",
     "parse_agent_boundary_string",
     "emit_inner_state_changed",
     "emit_resolved_binding",

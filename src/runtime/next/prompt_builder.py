@@ -32,11 +32,10 @@ from charter.activation.mission_type_profiles import (
 )
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
 from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
-from specify_cli.frontmatter import FrontmatterError
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
-from specify_cli.status import read_authored_wp_frontmatter
+from specify_cli.status import FrontmatterError, read_authored_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 

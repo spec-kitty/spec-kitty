@@ -2980,7 +2980,12 @@ def _wp_blocked_action(board_step: str | None, reason: str) -> _WpBoardAction:
 
 
 def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug: str) -> str | None:
-    """Return the canonical task-read error for any WP present in status state."""
+    """Return the canonical task-read error for any WP present in status state.
+
+    Validate terminal WPs too: progress totals and terminal counts are derived
+    from primary task files, so skipping a missing done/canceled task could erase
+    it from the board and make the remaining tasks appear complete.
+    """
     from runtime.next.prompt_builder import _read_wp_task
     from specify_cli.status import CanonicalStatusNotFoundError, get_all_wp_lanes
 
