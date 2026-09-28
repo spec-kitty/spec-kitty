@@ -38,6 +38,9 @@ import logging
 from pathlib import Path
 from uuid import uuid4
 
+from kernel.errors import GuardedReadError
+from kernel.text_decode import decode_unambiguous
+from specify_cli.asset_preservation.backup import backup_before_overwrite
 from specify_cli.core.utils import write_text_within_directory
 from ..writers.markdown_rules import (
     PreparedPresenceFile,
@@ -47,7 +50,29 @@ from ..writers.markdown_rules import (
     read_presence_bytes,
 )
 
-__all__ = ["ClaudeCodeHookRegistrar", "SESSION_START_EVENT", "STOP_EVENT"]
+__all__ = [
+    "ClaudeCodeHookRegistrar",
+    "SESSION_START_EVENT",
+    "SettingsNotDecodableError",
+    "STOP_EVENT",
+]
+
+
+class SettingsNotDecodableError(GuardedReadError):
+    """Raised when ``.claude/settings.json`` bytes cannot be provably decoded.
+
+    Provable means a byte-order mark or strict UTF-8 (see
+    ``kernel.text_decode.decode_unambiguous``, D1/D6, #4940). Anything else
+    (a single-byte code page such as cp1252, an ambiguous heuristic guess) is
+    refused rather than reinterpreted, so the file is never silently
+    overwritten by a lint-only reconstruction that loses the operator's
+    permissions, env, and hook entries.
+    """
+
+    def __init__(self, *, path: str) -> None:
+        reason = f"{path} is not valid UTF-8 and has no byte-order mark; re-save it as UTF-8"
+        super().__init__(reason, path=path, reason=reason)
+
 
 _SETTINGS_PATH = ".claude/settings.json"
 _SETTINGS_PATH_PARTS = (".claude", "settings.json")
@@ -67,6 +92,12 @@ class ClaudeCodeHookRegistrar:
 
     def __init__(self, event_key: str = SESSION_START_EVENT) -> None:
         self._event_key = event_key
+        # Set by ``_load`` for the path it just decoded, consumed by ``_save``
+        # on the same instance to decide whether a byte backup is required
+        # before the UTF-8 rewrite (D6). Keyed by string path since a
+        # registrar may be asked about more than one settings path in
+        # principle, though in practice there is exactly one.
+        self._source_encoding_by_path: dict[str, str] = {}
 
     @property
     def settings_relative_path(self) -> str:
@@ -79,8 +110,17 @@ class ClaudeCodeHookRegistrar:
         state = presence_state(observations[-1])
         if state.kind not in ("file", "absent"):
             raise ValueError("Claude settings destination is not a regular file")
-        raw = read_presence_bytes(project_root / _SETTINGS_PATH) if state.kind == "file" else b""
-        data = json.loads(raw) if state.kind == "file" else {}
+        path = project_root / _SETTINGS_PATH
+        if state.kind == "file":
+            raw = read_presence_bytes(path)
+            decoded = decode_unambiguous(raw)
+            if decoded is None:
+                raise SettingsNotDecodableError(path=str(path))
+            text, _source_encoding = decoded
+            data = json.loads(text)
+        else:
+            raw = b""
+            data = {}
         if not isinstance(data, dict):
             raise ValueError("Expected Claude settings JSON object")
         hooks = data.setdefault("hooks", {})
@@ -99,11 +139,30 @@ class ClaudeCodeHookRegistrar:
         return PreparedPresenceFile(_SETTINGS_PATH, state, desired, reason="Prepare lifecycle hooks")
 
     def apply_prepared(self, project_root: Path, prepared: PreparedPresenceFile) -> None:
-        """Write the previously validated final settings bytes once."""
+        """Write the previously validated final settings bytes once.
+
+        When the on-disk source was not plain UTF-8, the original bytes are
+        backed up (byte-exact, via ``backup_before_overwrite``) immediately
+        before the rewrite (D6). The source encoding is re-derived from the
+        current bytes rather than threaded from ``prepare_commands`` because
+        a prepared batch crosses a registrar-instance boundary
+        (``ClaudeCodeWriter.prepare_batch`` / ``apply_prepared`` each
+        construct their own ``ClaudeCodeHookRegistrar``); re-reading is the
+        smallest correct seam. A file that has become undecodable since it
+        was prepared (a benign race) refuses rather than losing it.
+        """
         if prepared.path != _SETTINGS_PATH:
             raise ValueError("Prepared settings belong to another owner")
-        if prepared.changed:
-            _atomic_write(project_root / prepared.path, prepared.content.decode("utf-8"), root=project_root, expected=prepared.before)
+        if not prepared.changed:
+            return
+        path = project_root / prepared.path
+        if path.exists():
+            decoded = decode_unambiguous(read_presence_bytes(path))
+            if decoded is None:
+                raise SettingsNotDecodableError(path=str(path))
+            if decoded[1] != "utf-8":
+                backup_before_overwrite(path)
+        _atomic_write(path, prepared.content.decode("utf-8"), root=project_root, expected=prepared.before)
 
     def _settings_path(self, project_root: Path) -> Path:
         root = project_root.expanduser().resolve()
@@ -135,19 +194,46 @@ class ClaudeCodeHookRegistrar:
             command_hooks.extend(hook for hook in entry_hooks if isinstance(hook, dict))
         return command_hooks
 
+    def _read_settings_text(self, path: Path) -> tuple[str, str] | None:
+        """Read and decode *path* via the shared proof-only rule (D1/D6).
+
+        Returns ``None`` only when the file is absent, including the benign
+        race where it disappears between an earlier ``exists()`` check and
+        this read. Any other read failure propagates (it is not this
+        function's job to swallow a real I/O error into an empty result --
+        that is exactly the #4940 bug class). Raises
+        :class:`SettingsNotDecodableError` when the bytes cannot be proven to
+        be a supported encoding.
+        """
+        try:
+            raw = path.read_bytes()
+        except FileNotFoundError:
+            return None
+        decoded = decode_unambiguous(raw)
+        if decoded is None:
+            raise SettingsNotDecodableError(path=str(path))
+        return decoded
+
     def _load(self, path: Path, *, preserve_invalid: bool = False) -> dict[str, object]:
         """Load JSON object from *path*, returning ``{}`` on absence or invalid data.
 
         When ``preserve_invalid`` is true, existing malformed/non-object content
         is copied to a sibling ``.invalid`` backup before callers overwrite the
         settings file.  Backup failures are re-raised to prevent silent data loss.
+
+        The bytes are decoded only when a BOM or strict UTF-8 proves the
+        encoding (D6); anything else raises :class:`SettingsNotDecodableError`
+        rather than being silently discarded as ``{}``. The proven source
+        encoding is remembered for this instance/path so :meth:`_save` knows
+        whether a pre-write byte backup is required.
         """
         if not path.exists():
             return {}
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+        result = self._read_settings_text(path)
+        if result is None:
             return {}
+        text, source_encoding = result
+        self._source_encoding_by_path[str(path)] = source_encoding
         try:
             data = json.loads(text)
         except json.JSONDecodeError:
@@ -167,7 +253,18 @@ class ClaudeCodeHookRegistrar:
         _logger.warning("Preserved invalid Claude settings JSON at %s", backup)
 
     def _save(self, path: Path, data: dict[str, object]) -> None:
-        """Write *data* as JSON to *path* atomically."""
+        """Write *data* as JSON to *path* atomically.
+
+        When the most recent ``_load`` of *path* on this instance proved a
+        source encoding other than plain UTF-8, the original bytes are
+        backed up first (byte-exact, ``backup_before_overwrite``) so the
+        re-encode to UTF-8 never loses the operator's original file.  Backup
+        failures are re-raised to prevent silent data loss, per the same
+        contract as ``_preserve_invalid``.
+        """
+        source_encoding = self._source_encoding_by_path.get(str(path))
+        if source_encoding is not None and source_encoding != "utf-8" and path.exists():
+            backup_before_overwrite(path)
         write_text_within_directory(
             path,
             json.dumps(data, indent=2) + "\n",

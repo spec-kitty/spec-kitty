@@ -43,6 +43,7 @@ from specify_cli.session_presence.hooks.claude_code_hook import (
     SESSION_START_EVENT,
     STOP_EVENT,
     ClaudeCodeHookRegistrar,
+    SettingsNotDecodableError,
 )
 from specify_cli.session_presence.writers.claude_code import (
     SESSION_START_CMD,
@@ -71,6 +72,7 @@ from ..findings import (
     CONTEXT_FILE_MISSING,
     RESEARCH_GAP_SURFACE,
     SESSION_PRESENCE_INCOMPLETE,
+    SESSION_PRESENCE_UNDECODABLE,
     SEVERITY_ERROR,
     SEVERITY_INFO,
     SEVERITY_WARNING,
@@ -98,6 +100,7 @@ from ..status import (
     STATE_NOT_APPLICABLE,
     STATE_PRESENT,
     STATE_STALE,
+    STATE_UNSAFE,
     SurfaceStatus,
     _surface_id,
 )
@@ -397,11 +400,39 @@ class SessionPresenceProvider:
         """
         if str(instance.path) == _RESEARCH_GAP_SENTINEL:
             return self._research_gap_status(instance)
-        if _instance_present(instance):
+        try:
+            present = _instance_present(instance)
+        except SettingsNotDecodableError:
+            return self._undecodable_status(instance)
+        if present:
             if _orientation_version_is_stale(instance):
                 return self._stale_status(instance)
             return SurfaceStatus(instance=instance, state=STATE_PRESENT)
         return self._missing_status(instance)
+
+    @staticmethod
+    def _undecodable_status(instance: SurfaceInstance) -> SurfaceStatus:
+        """Report an unreadable ``.claude/settings.json`` as a finding, not a crash.
+
+        The file exists but its bytes cannot be proven to be a supported
+        encoding (#4940, D6): re-saving it as UTF-8 is the only safe path, so
+        this is reported truthfully rather than the presence check raising
+        out of the read-only doctor probe.
+        """
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_UNSAFE,
+            findings=(
+                make_finding(
+                    SESSION_PRESENCE_UNDECODABLE,
+                    SEVERITY_ERROR,
+                    f"undecodable: re-save {instance.path} as UTF-8",
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=instance.path,
+                ),
+            ),
+        )
 
     @staticmethod
     def _stale_status(instance: SurfaceInstance) -> SurfaceStatus:
@@ -623,9 +654,17 @@ def _artefact_present(
     *composite* (file AND both hooks), so it is deliberately not used here: a
     ``--kind context_file`` probe must report the file's own state regardless of
     whether the sibling hooks happen to be present.
+
+    An undecodable ``settings.json`` (#4940) is reported as not-present here
+    (never a traceback out of ``expand``); ``probe()`` re-checks live and
+    turns the same condition into a truthful ``session-presence-undecodable``
+    finding instead.
     """
     if kind == ToolSurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
-        return _claude_hooks_present(project_root)
+        try:
+            return _claude_hooks_present(project_root)
+        except SettingsNotDecodableError:
+            return False
     if isinstance(writer, MarkdownRulesWriter):
         return _orientation_section_present(project_root / writer.rules_path)
     return path.exists()
