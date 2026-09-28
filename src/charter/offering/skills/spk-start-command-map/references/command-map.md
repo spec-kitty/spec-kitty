@@ -3,7 +3,7 @@
 | User intent | Command | Operating skill |
 |---|---|---|
 | Start or revise a specification | `/spec-kitty.specify` | `spk-mission-specify` |
-| Research before specification | `/spec-kitty.research` | `spk-mission-research` |
+| Capture discovery findings before specification | `/spec-kitty.research` | `spk-mission-research` |
 | Create an implementation plan | `/spec-kitty.plan` | `spk-mission-plan` |
 | Create tasks or work packages | `/spec-kitty.tasks*` | `spk-mission-tasks` |
 | Implement assigned work | `/spec-kitty.implement` or `next` output | `spk-run-next` |

@@ -10,9 +10,15 @@ technical investigation, or decision support.
 
 ## Flow
 
-1. Use a research mission for pre-spec discovery workflows.
-2. Invoke `/spec-kitty.research` only after `/spec-kitty.plan`; it scaffolds
-   research artifacts from an existing plan.
+1. Use `/spec-kitty.research` for pre-spec discovery, before a spec or plan
+   exists: capture decisions, evidence, and open questions directly in
+   `research.md` (create or extend it; never truncate it).
+2. On a mission type that ships research templates (today: the `research`
+   mission type), once that mission's plan is filled in you can additionally
+   run `spec-kitty research --mission <handle>` to scaffold `research.md`,
+   `data-model.md`, and the CSV stubs from the shipped templates. Other
+   mission types, including `software-dev`, have no such scaffold — the
+   command creates nothing for them.
 3. Write findings as decision-ready evidence, not a loose reading list.
 4. Record assumptions, source quality, and unresolved questions.
 5. Return findings to `spk-mission-specify` or `spk-mission-plan`.

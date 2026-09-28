@@ -186,7 +186,7 @@ Once a feature specification exists, this command creates a comprehensive implem
 2. **Charteral Compliance**: Ensures alignment with project charter and architectural principles
 3. **Technical Translation**: Converts business requirements into technical architecture and implementation details
 4. **Detailed Documentation**: Generates supporting documents for data models, API contracts, and test scenarios
-5. **Research Kickoff**: Prompts the team to run `spec-kitty research` (or `/spec-kitty.research`) so Phase 0 artifacts exist before task generation
+5. **Research Kickoff**: Generates and extends `research.md` itself during Phase 0 (any discovery findings captured earlier via `/spec-kitty.research` are extended, not replaced), so Phase 0 artifacts exist before task generation
 6. **Agent Context Refresh**: Reminds you to run `.kittify/scripts/bash/update-agent-context.sh __AGENT__` so Claude, Cursor, Gemini, and other assistants receive the latest architectural decisions
 7. **Quickstart Validation**: Produces a quickstart guide capturing key validation scenarios
 
@@ -194,7 +194,7 @@ Once a feature specification exists, this command creates a comprehensive implem
 
 After a plan is created **and Phase 0 research is complete**, this command analyzes the plan and related design documents to generate both the executable task list *and* the kanban-ready prompt bundles:
 
-1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, `research.md` (from `spec-kitty research`), and `quickstart.md`.
+1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, `research.md` (captured during discovery and extended by the plan step), and `quickstart.md`.
 2. **Task Derivation**: Converts contracts, entities, and scenarios into fine-grained subtasks (`Txxx`), marking safe parallelization with `[P]`.
 3. **Work-package grouping**: Rolls the subtasks into at most ten work packages (`WPxx`), each aligned with a user story or cohesive subsystem so teams can deliver in independent slices.
 4. **Prompt Generation**: Creates work package prompt files in flat `tasks/` directory using the bundle template (complete with metadata and implementation detail), sets `lane: "planned"` in frontmatter, and links each package from `tasks.md`.

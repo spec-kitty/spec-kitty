@@ -317,7 +317,7 @@ Apply this section whenever the plan adds, upgrades, or removes a dependency, in
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->` only when the user deliberately postpones a decision (call `decision defer` before writing each such marker)
    - If a charter exists, fill Charter Check section from it and challenge any conflicts directly with the user. If no charter exists, mark the section as skipped.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
-   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification, prioritizing unresolved domain rules, lifecycle questions, and event/integration behavior before generic tech comparisons)
+   - Phase 0: Generate research.md — extend it if the discovery step already created one; do not replace existing content (commission research to resolve every outstanding clarification, prioritizing unresolved domain rules, lifecycle questions, and event/integration behavior before generic tech comparisons)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent; when applicable, capture entities/value objects, invariants, state transitions, and externally visible events in the design artifacts
    - Re-evaluate Charter Check post-design, asking the user to resolve new gaps before proceeding
 
@@ -345,7 +345,7 @@ Apply this section whenever the plan adds, upgrades, or removes a dependency, in
      Task: "Find best practices for {tech} in {domain}"
    ```
 
-3. **Consolidate findings** in `research.md` using format:
+3. **Consolidate findings** in `research.md`: extend the file if discovery already created it; do not replace existing content. Use format:
    - Decision: [what was chosen]
    - Rationale: [why chosen]
    - Alternatives considered: [what else evaluated]

@@ -128,7 +128,7 @@ missions/mission-steps/software-dev/plan/prompt.md:
   repo_paths: 6
   provenance: 2
 missions/mission-steps/software-dev/research/prompt.md:
-  repo_paths: 4
+  repo_paths: 1
 missions/mission-steps/software-dev/review/prompt.md:
   repo_paths: 1
 missions/mission-steps/software-dev/specify/prompt.md:

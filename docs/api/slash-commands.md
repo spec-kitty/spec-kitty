@@ -330,23 +330,31 @@ overlay is absent or invalid. See [Handoff Packet v1](../contracts/handoff-packe
 
 ## /spec-kitty.research
 
-**Syntax**: `/spec-kitty.research [--force]`
-
-**Purpose**: Scaffold research artifacts for Phase 0 research.
+**Purpose**: Capture discovery findings before a spec or plan exists.
 
 **Prerequisites**:
-- Run from any checkout where the mission can be resolved.
+- Run from any checkout where the mission can be resolved. No spec or plan is
+  required.
 
 **What it does**:
-- Runs `spec-kitty research` to create research templates.
+- Tells you to record decisions, evidence, and open questions directly in
+  `research.md` (create or extend it; never truncate existing content).
 
-**Creates/updates**:
-- `kitty-specs/<feature>/research.md`
-- `kitty-specs/<feature>/data-model.md`
-- `kitty-specs/<feature>/research/evidence-log.csv`
-- `kitty-specs/<feature>/research/source-register.csv`
+**For mission types that ship research templates** (today: the `research`
+mission type), once that mission's plan is filled in you can additionally
+scaffold `research.md`, `data-model.md`, and the two CSV stubs from the
+mission type's shipped templates:
 
-**Related**: `/spec-kitty.plan`
+**Syntax**: `spec-kitty research --mission <handle> [--force]`
+
+**Creates/updates** (research-type missions only — creates nothing for
+mission types without research templates, e.g. `software-dev`):
+- `<mission_dir>/research.md`
+- `<mission_dir>/data-model.md`
+- `<mission_dir>/research/evidence-log.csv`
+- `<mission_dir>/research/source-register.csv`
+
+**Related**: `/spec-kitty.specify`, `/spec-kitty.plan`
 
 ---
 
