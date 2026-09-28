@@ -147,10 +147,10 @@ jobs:
           CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
           RECAPTURE_BEFORE_LENGTH: ${{ steps.capture.outputs.before }}
           RECAPTURE_AFTER_LENGTH: ${{ steps.capture.outputs.after }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
+          # GITHUB_SERVER_URL/GITHUB_REPOSITORY/GITHUB_RUN_ID/GITHUB_STEP_SUMMARY
+          # are runner defaults and deliberately NOT re-declared here: there is
+          # no `github.step_summary` context property, so re-declaring it would
+          # blank the summary path and silently drop the skip line.
         run: |
           uv run --frozen python scripts/ci/recapture_charter_shard_timings.py publish
 

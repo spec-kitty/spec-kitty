@@ -912,3 +912,27 @@ def test_run_publish_phase_no_drift_is_a_noop(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(recapture, "_push_and_open_pr", _fail_if_called)
 
     assert recapture.run_publish_phase() == 0
+
+
+# --------------------------------------------------------------------------- #
+# Workflow shape -- the credential/env wiring the script relies on.          #
+# --------------------------------------------------------------------------- #
+
+WORKFLOW_PATH = recapture.REPO_ROOT / ".github" / "workflows" / "ci-charter-shard-recapture.yml"
+
+
+def _recapture_job() -> dict[str, Any]:
+    import yaml
+
+    workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    job: dict[str, Any] = workflow["jobs"]["recapture-charter-shard-timings"]
+    return job
+
+
+def test_workflow_never_overrides_runner_default_github_env_vars() -> None:
+    """F3: GITHUB_* runner defaults must not be re-declared in any step env --
+    `${{ github.step_summary }}` is not a context property and evaluates to "", which
+    would blank $GITHUB_STEP_SUMMARY and silently drop the skip summary."""
+    for step in _recapture_job()["steps"]:
+        overridden = sorted(key for key in step.get("env", {}) if key.startswith("GITHUB_"))
+        assert overridden == [], f"step {step.get('name')!r} overrides {overridden}"
