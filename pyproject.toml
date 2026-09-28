@@ -1720,7 +1720,6 @@ exclude = [
     "tests/next/test_next_replay_parity_integration.py",
     "tests/next/test_occurrence_gate_next_loop.py",
     "tests/next/test_plan_mission_runtime.py",
-    "tests/next/test_prompt_builder_unit.py",
     "tests/next/test_prompt_file_invariant.py",
     "tests/next/test_prompt_step_schema_extensions.py",
     "tests/next/test_runtime_bridge_blocked_paths.py",
