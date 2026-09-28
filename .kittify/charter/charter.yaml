@@ -572,6 +572,12 @@ catalog:
     summary: Diagnose every fix to its root cause first and, when the cause is systemic, prefer a structural remediation that closes the class over a point-fix; governs diagnosis depth, not change size.
     source_path: ''
     local_path: _LIBRARY/directive-directive-052.md
+  - id: DIRECTIVE:DIRECTIVE_053
+    kind: directive
+    title: Choose Op or Mission Before Starting
+    summary: "Spec Kitty has two units of governed work, and each piece of governed work must be placed in exactly one of them BEFORE work starts. An Op is a lightweight, governed ad-hoc invocation, opened with `spec-kitty dispatch`. It creates no spec, plan, work package, branch or worktree, and it is opened and closed within one sitting. A Mission is the full specify -> plan -> tasks -> implement -> review -> consolidate workflow. It keeps a persistent mission directory, reviewable work packages on the lane state machine, and a review gate before anything lands. Choosing late, or not at all, causes the most common \"why was this not tracked, reviewed or landed?\" failure. Two cases produce it. An Op quietly grows into Mission-sized work, and so skips the spec and the review gate. Or a one-line task is given full Mission overhead. This directive makes the choice explicit and keeps it honest while the work runs. The decision heuristic that applies it is tactic:op-or-mission-selection.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-053.md
   - id: DIRECTIVE:DISCIPLINED_REFACTORING
     kind: directive
     title: DISCIPLINED_REFACTORING
@@ -974,6 +980,12 @@ catalog:
     summary: "Guide mission authors through classifying string occurrences by semantic context before performing bulk edits.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-occurrence-classification-workflow.md
+  - id: TACTIC:op-or-mission-selection
+    kind: tactic
+    title: Op-or-Mission Selection
+    summary: "Decide quickly and repeatably whether a piece of governed work should run as an Op or as a Mission. An Op is a lightweight `spec-kitty dispatch` invocation that is opened and closed in one sitting. A Mission is the full spec-to-consolidate workflow with reviewable work packages and a review gate. The rule of thumb: if the whole task fits in one sentence and one sitting, it is an Op. If it needs a spec, reviewable work packages or a review gate, or if it will span more than one sitting, it is a Mission.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-op-or-mission-selection.md
   - id: TACTIC:ownership-map-leeway
     kind: tactic
     title: Ownership Map Leeway
@@ -1786,6 +1798,7 @@ activated_directives:
 - reconcile-change-scope-tensions
 - 052-prefer-durable-fixes
 - use-mutation-testing-to-validate-test-quality
+- 053-choose-op-or-mission-before-starting
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -1900,6 +1913,7 @@ activated_tactics:
 - writing-audience-catalog
 - dialectic-research
 - model-task-routing
+- op-or-mission-selection
 activated_styleguides:
 - aggregate-design-rules
 - deployable-skill-authoring
