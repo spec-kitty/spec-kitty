@@ -105,6 +105,42 @@ def test_report_only_succeeds_with_charter_generated_in_another_checkout(repo: P
     assert "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml" in charter_path.read_text(encoding="utf-8")
 
 
+def test_report_only_refuses_unverified_external_template_authority_after_migration(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
+    from charter.offering.provenance import is_built_in_pack_path
+    from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance import (
+        HealTemplateSetProvenanceMigration,
+    )
+
+    charter_path = _compile_catalog_from_other_checkout(repo, monkeypatch)
+    external_source = tmp_path / "external-authority" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    external_source.parent.mkdir(parents=True)
+    external_source.write_text("name: unrelated-mutable-mission\ndescription: Keep this authority.\n", encoding="utf-8")
+    catalog = load_charter_yaml(charter_path)["catalog"]
+    template_ref = next(ref for ref in catalog["references"] if ref["kind"] == "template_set")
+    template_ref["source_path"] = str(external_source)
+    update_charter_yaml_section(charter_path, "catalog", catalog)
+    git(repo, "add", ".kittify/charter/charter.yaml")
+    git(repo, "commit", "-qm", "record unrelated mutable template authority")
+    head = git(repo, "rev-parse", "HEAD")
+
+    assert external_source.is_file()
+    assert is_built_in_pack_path(external_source) is False
+    migration = HealTemplateSetProvenanceMigration()
+    result = migration.apply(repo)
+
+    assert result.changes_made == []
+    assert str(external_source) in charter_path.read_text(encoding="utf-8")
+    result = invoke("--report-only")
+
+    assert result.exit_code == 1, result.output
+    assert "External mutable analysis authority is unsupported" in result.output
+    assert not (repo / REPORT).exists()
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
 def test_report_only_still_refuses_committed_external_catalog_authority(repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
 

@@ -189,6 +189,29 @@ class TestDoctorProvenanceCli:
         assert "PARADIGM:atomic-design" in result.output
         assert "spec-kitty migrate" in result.output
 
+    def test_unverified_template_set_checkout_is_reported_as_ambiguous(
+        self, tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        external = tmp_path / "external-authority" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+        _write(external, "name: unrelated-mutable-mission\ndescription: Keep this authority.\n")
+        refs = (
+            "  - id: TEMPLATE_SET:software-dev-default\n"
+            "    kind: template_set\n"
+            "    title: software-dev-default\n"
+            "    summary: x\n"
+            f"    source_path: {external}\n"
+            "    local_path: _LIBRARY/template-set-software-dev-default.md\n"
+        )
+        _write(_charter_yaml_path(tmp_path), _charter_yaml_with_catalog(refs))
+        monkeypatch.setattr(_provenance_doctor, "locate_project_root", lambda *a, **k: tmp_path)
+
+        result = runner.invoke(doctor_module.app, ["provenance"])
+
+        assert result.exit_code == 1, result.output
+        assert "TEMPLATE_SET:software-dev-default" in result.output
+        assert "ambiguous" in result.output.lower() or "unresolved" in result.output.lower()
+        assert "not healed" in result.output.lower()
+
     def test_json_output_shape(self, tmp_path: Path, packs_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         abs_source = packs_root / "built-in" / "paradigms" / "atomic-design.paradigm.yaml"
         refs = (

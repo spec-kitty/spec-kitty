@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 
 import pytest
 from ruamel.yaml import YAML
@@ -11,8 +12,10 @@ from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance impo
     MIGRATION_ID,
     TARGET_VERSION,
     HealTemplateSetProvenanceMigration,
+    _matches_mission_source,
 )
 from specify_cli.upgrade.registry import MigrationRegistry
+from charter.offering.provenance import is_built_in_pack_path
 
 pytestmark = [pytest.mark.unit]
 
@@ -58,6 +61,27 @@ def _template_ref(source_path: str) -> dict[str, str]:
         "source_path": source_path,
         "local_path": "_LIBRARY/template-set-software-dev-default.md",
     }
+
+
+def _former_checkout_source(checkout: Path, *, remove_source: bool = False) -> Path:
+    """Create a verifiable former Spec Kitty checkout containing the source."""
+    source = checkout / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    source.parent.mkdir(parents=True)
+    source.write_text("name: software-dev\ndescription: Tracked built-in mission.\n", encoding="utf-8")
+    (checkout / "pyproject.toml").write_text(
+        '[project]\nname = "spec-kitty-cli"\n\n'
+        '[project.urls]\nRepository = "https://github.com/spec-kitty/spec-kitty"\n',
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init", "--quiet", str(checkout)], check=True)
+    subprocess.run(
+        ["git", "-C", str(checkout), "remote", "add", "origin", "https://github.com/spec-kitty/spec-kitty.git"],
+        check=True,
+    )
+    subprocess.run(["git", "-C", str(checkout), "add", "pyproject.toml", "packs/built-in/missions/software-dev/mission.yaml"], check=True)
+    if remove_source:
+        source.unlink()
+    return source
 
 
 def test_forward_migration_is_registered_at_current_release_version() -> None:
@@ -109,7 +133,7 @@ def test_template_set_migration_rewrites_only_builtin_absolute_source(tmp_path: 
 
 
 def test_template_set_migration_recognizes_missing_path_from_another_checkout(tmp_path: Path, packs_root: Path) -> None:
-    stale_source = tmp_path / "former-checkout" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    stale_source = _former_checkout_source(tmp_path / "former-checkout", remove_source=True)
     charter_path = _charter_path(tmp_path)
     _write_charter(charter_path, [_template_ref(str(stale_source))])
     migration = HealTemplateSetProvenanceMigration()
@@ -123,9 +147,7 @@ def test_template_set_migration_recognizes_missing_path_from_another_checkout(tm
 
 
 def test_template_set_migration_repairs_path_while_former_checkout_still_exists(tmp_path: Path, packs_root: Path) -> None:
-    stale_source = tmp_path / "former-checkout" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
-    stale_source.parent.mkdir(parents=True)
-    stale_source.write_text("name: software-dev\n", encoding="utf-8")
+    stale_source = _former_checkout_source(tmp_path / "former-checkout")
     charter_path = _charter_path(tmp_path)
     _write_charter(charter_path, [_template_ref(str(stale_source))])
     migration = HealTemplateSetProvenanceMigration()
@@ -153,13 +175,17 @@ def test_template_set_migration_is_dry_run_safe_and_idempotent(tmp_path: Path, p
 
 
 def test_external_template_set_path_is_preserved_and_not_reported(tmp_path: Path, packs_root: Path) -> None:
-    external = tmp_path / "external" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    external = tmp_path / "external-authority" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
     external.parent.mkdir(parents=True)
-    external.write_text("name: custom\n", encoding="utf-8")
+    external.write_text("name: unrelated-mutable-mission\ndescription: Keep this authority.\n", encoding="utf-8")
     charter_path = _charter_path(tmp_path)
     _write_charter(charter_path, [_template_ref(str(external))])
     migration = HealTemplateSetProvenanceMigration()
 
+    token = "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml"
+    assert external.is_file()
+    assert is_built_in_pack_path(external) is False
+    assert _matches_mission_source(str(external), token) is False
     assert migration.detect(tmp_path) is False
     assert migration.apply(tmp_path).changes_made == []
     data = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
