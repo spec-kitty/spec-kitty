@@ -1,7 +1,6 @@
 """Tests for the shared retired-activation engine (``_retired_activation.py``).
 
-Extraction target for T002 (mission ``squad-doctrine-single-owner-01M3KBP7``,
-WP01): the generic mechanics behind both
+The generic mechanics behind both
 ``m_3_2_6_retire_rtk_search_tooling`` and
 ``m_4_0_0rc5_retire_single_owner_doctrine_ids``. These tests exercise the
 engine directly with synthetic retirement rows (rather than the production
@@ -237,6 +236,51 @@ def test_apply_skips_malformed_yaml_and_still_handles_the_other_surfaces(tmp_pat
     assert (tmp_path / _CHARTER_RELATIVE_PATH).read_text(encoding="utf-8") == malformed
 
 
+def test_apply_warns_once_per_unparseable_surface_file(tmp_path: Path) -> None:
+    retirements = (
+        Retirement(kind_key="activated_tactics", stem="widget-polish", reference_prefix="TACTIC"),
+        Retirement(kind_key="activated_tactics", stem="alpha-tactic", reference_prefix="TACTIC"),
+    )
+    _write(tmp_path / _CONFIG_RELATIVE_PATH, "activated_tactics:\n- widget-polish\n")
+    _write(tmp_path / _CHARTER_RELATIVE_PATH, "catalog: [unterminated\n")
+
+    result = apply_retirements(tmp_path, retirements, include_answers_surface=True)
+
+    assert result.success is True
+    charter_warnings = [w for w in result.warnings if ".kittify/charter/charter.yaml" in w]
+    # One warning for the file, not one per (retirement x surface) visit.
+    assert len(charter_warnings) == 1
+    assert "could not be parsed" in charter_warnings[0]
+
+
+def test_apply_warns_when_a_surface_file_is_not_a_mapping(tmp_path: Path) -> None:
+    retirement = (Retirement(kind_key="activated_tactics", stem="widget-polish", reference_prefix="TACTIC"),)
+    _write(tmp_path / _CONFIG_RELATIVE_PATH, "- just\n- a list\n")
+
+    result = apply_retirements(tmp_path, retirement, include_answers_surface=False)
+
+    assert result.success is True
+    assert any(".kittify/config.yaml" in w and "not a mapping" in w for w in result.warnings)
+
+
+def test_apply_dry_run_also_warns_about_an_unparseable_surface_file(tmp_path: Path) -> None:
+    retirement = (Retirement(kind_key="activated_tactics", stem="widget-polish", reference_prefix="TACTIC"),)
+    _write(tmp_path / _CONFIG_RELATIVE_PATH, "activated_tactics: [unterminated\n")
+
+    result = apply_retirements(tmp_path, retirement, include_answers_surface=False, dry_run=True)
+
+    assert any(".kittify/config.yaml" in w for w in result.warnings)
+
+
+def test_apply_does_not_warn_for_absent_or_empty_surface_files(tmp_path: Path) -> None:
+    retirement = (Retirement(kind_key="activated_tactics", stem="widget-polish", reference_prefix="TACTIC"),)
+    _write(tmp_path / _CONFIG_RELATIVE_PATH, "")
+
+    result = apply_retirements(tmp_path, retirement, include_answers_surface=True)
+
+    assert result.warnings == []
+
+
 def test_apply_dry_run_writes_nothing(tmp_path: Path) -> None:
     project = _seed_full_project(tmp_path)
     before = {
@@ -358,9 +402,8 @@ def _code_string_constants(tree: object) -> set[str]:
 
 # --------------------------------------------------------------------------- #
 # The legacy ``governance.charter.selected_<kind>`` block inside charter.yaml
-# (WP10-discovered gap, spec.md FR-009 amendment): a fifth surface, nested
-# inside the SAME charter.yaml file the top-level activated_<kind>/catalog
-# surface already touches.
+# A fifth surface, nested inside the SAME charter.yaml file the top-level
+# activated_<kind>/catalog surface already touches.
 # --------------------------------------------------------------------------- #
 
 

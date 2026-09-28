@@ -3,7 +3,7 @@
 The shipped charter pack's ``activated_agent_profiles`` allowlist must contain
 every profile named as a lens by the canonical adversarial-squad-deployment
 procedure's example casting table (the procedure is the single owner of the
-squad's casting; the skill only points to it — see WP04, #5219). A project
+squad's casting; the skill only points to it). A project
 seeded from the pack otherwise reaches the profile activation gate and cannot
 load that lens.
 """

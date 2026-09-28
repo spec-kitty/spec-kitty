@@ -1,11 +1,10 @@
-"""Red-first pins for WP08 (#5221 section C, supply-chain doctrine owner).
+"""Supply-chain doctrine ownership.
 
 DIRECTIVE_051 states its five threat-class pillars exactly once; the
-ecosystem-neutral ``supply-chain-install-safety`` tactic (pinned id, per
-plan.md "Pinned successor ids") carries the operational checklist with no
+ecosystem-neutral ``supply-chain-install-safety`` tactic carries the operational checklist with no
 ecosystem-specific tokens; the JS/TS-specific steps (lockfile file names,
 lifecycle-script commands, Node LTS) move to the ``javascript-supply-chain``
-toolguide; a ``python-supply-chain`` toolguide is added; ``dependency-hygiene``
+toolguide; a ``python-supply-chain`` toolguide covers Python; ``dependency-hygiene``
 references the tactic instead of restating its pillar list.
 """
 
@@ -115,6 +114,24 @@ class TestTacticIsEcosystemNeutral:
     def test_no_adversarial_evidence_contract_literal_path(self) -> None:
         text = _read_text(_TACTIC_PATH)
         assert "adversarial-evidence-contract.md" not in text
+
+    def test_disposition_contract_is_referenced_not_restated(self) -> None:
+        """The findings-disposition contract has one owner: the squad procedure.
+
+        The tactic may name the procedure and its loading pointer, but must not
+        define the disposition vocabulary itself (a restated ``accepted`` had
+        drifted to the opposite meaning of the owner's).
+        """
+        text = _read_text(_TACTIC_PATH)
+        for restated in (
+            "considered and rejected",
+            "original conclusion stands",
+            "accepted/changed",
+            "`accepted`",
+        ):
+            assert restated not in text, f"{restated!r} restates the findings-disposition contract; reference the owner instead"
+        assert "findings-disposition contract" in text
+        assert "charter context --include procedure:adversarial-squad-deployment" in text
 
     def test_references_javascript_and_python_toolguides(self) -> None:
         data = _YAML.load(_read_text(_TACTIC_PATH))

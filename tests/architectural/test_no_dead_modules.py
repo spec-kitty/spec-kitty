@@ -285,9 +285,8 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_decisions_event_log_merge_driver",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_retire_rtk_search_tooling",  # auto-discovered (#3009)
-        # squad-doctrine-single-owner-01M3KBP7 WP01/T004 (FR-009): the generic
-        # consumer-retirement sweep for this mission's retired/renamed/
-        # re-kinded doctrine ids, built on the same shared engine
+        # The generic consumer-retirement sweep for the retired/renamed/
+        # re-kinded single-owner doctrine ids, built on the same shared engine
         # (_retired_activation.py) as the rtk-retirement migration directly
         # above. Auto-discovered via pkgutil.iter_modules +
         # @MigrationRegistry.register; never statically imported by runtime

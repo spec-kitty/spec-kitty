@@ -1,11 +1,15 @@
-"""SC-002: the ids this mission retires are no longer named under ``src/`` or ``packs/``.
+"""Retired doctrine ids are no longer named under ``src/`` or ``packs/``.
 
-Mission ``squad-doctrine-single-owner-01M3KBP7`` deletes, renames, moves or
-re-kinds eight activatable ids (the ``RETIREMENTS`` table of the
-``m_4_0_0rc5_retire_single_owner_doctrine_ids`` migration). A stale mention
-of one of them in shipped source is either a dangling reference (the charter
-compiler is fail-closed on an unknown id) or a restated copy of the rule the
-epic moved to a single owner.
+The single-owner epic deleted, renamed, moved or re-kinded eight activatable
+ids (the ``RETIREMENTS`` table of the
+``m_4_0_0rc5_retire_single_owner_doctrine_ids`` migration) and retired the
+``adversarial-evidence-contract`` reference file. A stale mention of one of
+them in shipped source is either a dangling reference (the charter compiler
+is fail-closed on an unknown id) or a restated copy of a rule that now has a
+single owner. This module is the one absence guard for those artifacts: it
+scans shipped text for the ids, checks that no artifact file or DRG node
+survives under a retired id, and checks that no activation pack or action
+index still lists one.
 
 The scan is *identifier-shaped*, per id, because two retired stems share text
 with live artifacts:
@@ -17,7 +21,7 @@ with live artifacts:
 
 So for those two only the tactic-shaped forms count (``tactic:<id>``,
 ``<id>.tactic.yaml``, a ``type: tactic`` reference, an entry of a ``tactics:``
-list); the other six count in any identifier form. Prose that names a retired
+list); the other ids count in any identifier form. Prose that names a retired
 id *as retired* (for example "folds in the retired bug-fixing-checklist
 tactic") is provenance, not a reference, and is not identifier-shaped.
 
@@ -28,9 +32,8 @@ Allowlist (the only permitted identifier hits):
   (``iterative-deepening-review`` renamed on the move, and
   ``tracker-organisation-workflow``).
 
-Positive control: the same scanner finds hits in the base commit's
-``src/charter/activation/packs/default.yaml`` (read with ``git show``), and in a
-synthetic snippet, so the scan cannot pass vacuously.
+Synthetic positive and negative controls prove the scanner is neither vacuous
+nor over-eager.
 """
 
 from __future__ import annotations
@@ -41,13 +44,11 @@ from pathlib import Path
 
 import pytest
 
+from charter.offering.drg.models import DRGGraph
+
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-
-#: The pre-mission base (the lane's merge-base with ``origin/main``), used only
-#: for the positive control. Its ``default.yaml`` activated four retired tactics.
-_BASE_COMMIT = "dccf6aa7d523bdfccf7603dc4ce3ee1a38159bd0"
 
 _MIGRATION_MODULE = "src/specify_cli/upgrade/migrations/m_4_0_0rc5_retire_single_owner_doctrine_ids.py"
 _INTERNAL_PACK = "packs/internal/"
@@ -82,6 +83,7 @@ _PATTERNS: dict[str, re.Pattern[str]] = {
     "tracker-organisation-workflow": _any_identifier_form("tracker-organisation-workflow"),
     "locality-of-change": _tactic_forms_only("locality-of-change"),
     "boring-code-review": _tactic_forms_only("boring-code-review"),
+    "adversarial-evidence-contract": _any_identifier_form("adversarial-evidence-contract"),
 }
 
 #: Prose that names a retired id *as retired*. Each entry is (path, stem, the
@@ -137,18 +139,46 @@ def test_no_retired_id_is_named_under_src_or_packs() -> None:
     assert hits == [], f"retired ids still named in shipped source: {hits}"
 
 
+#: (artifact kind, id) of every retired built-in artifact that had a file and a
+#: DRG node of its own. ``boring-code-review`` is listed as a tactic only: the
+#: styleguide of the same id is its live successor.
+_RETIRED_ARTIFACTS: tuple[tuple[str, str], ...] = (
+    ("styleguide", "adversarial-squad-cadence"),
+    ("tactic", "bug-fixing-checklist"),
+    ("tactic", "locality-of-change"),
+    ("tactic", "common-docs-curation"),
+    ("tactic", "boring-code-review"),
+    ("tactic", "behavior-driven-development"),
+    ("tactic", "iterative-deepening-review"),
+    ("procedure", "tracker-organisation-workflow"),
+)
+
+
+@pytest.mark.parametrize(("kind", "artifact_id"), _RETIRED_ARTIFACTS, ids=lambda v: str(v))
+def test_retired_artifact_has_no_file_and_no_drg_node(built_in_graph: DRGGraph, kind: str, artifact_id: str) -> None:
+    """No built-in artifact file and no shipped-graph node (or edge) survives a retired id."""
+    files = sorted((_REPO_ROOT / "packs" / "built-in").rglob(f"{artifact_id}.{kind}.yaml"))
+    assert files == [], f"retired {kind} {artifact_id} still ships as a file: {files}"
+    urn = f"{kind}:{artifact_id}"
+    assert urn not in built_in_graph.node_urns()
+    dangling = [(e.source, e.target) for e in built_in_graph.edges if urn in (e.source, e.target)]
+    assert dangling == []
+
+
 def test_synthetic_positive_control_flags_every_shape() -> None:
     snippet = (
         "activated_tactics:\n  - bug-fixing-checklist\n"
         "edge: tactic:locality-of-change\n"
         "path: tactics/boring-code-review.tactic.yaml\n"
         "- type: styleguide\n  id: adversarial-squad-cadence\n"
+        "see contracts/adversarial-evidence-contract.md\n"
     )
     assert set(_scan_text(snippet, "packs/built-in/x.yaml")) == {
         "bug-fixing-checklist",
         "locality-of-change",
         "boring-code-review",
         "adversarial-squad-cadence",
+        "adversarial-evidence-contract",
     }
 
 
@@ -167,22 +197,6 @@ def test_allowlist_is_scoped_to_the_moved_ids() -> None:
     """``packs/internal`` may name the moved ids, never the other retirements."""
     snippet = "- tracker-organisation-workflow\n- iterative-deepening-review\n- bug-fixing-checklist\n"
     assert _scan_text(snippet, "packs/internal/drg/fragment.yaml") == ["bug-fixing-checklist"]
-
-
-def test_base_commit_positive_control() -> None:
-    """The scanner finds the retired tactics the base default pack activated."""
-    shown = subprocess.run(
-        ["git", "show", f"{_BASE_COMMIT}:src/charter/activation/packs/default.yaml"],
-        cwd=_REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    if shown.returncode != 0:
-        pytest.skip(f"base commit {_BASE_COMMIT[:8]} not in this clone (shallow checkout)")
-    found = set(_scan_text(shown.stdout, "src/charter/activation/packs/default.yaml"))
-    # ``locality-of-change`` / ``boring-code-review`` sit in a bare ``tactics``
-    # list entry there, which only the structural activation check below sees.
-    assert {"bug-fixing-checklist", "behavior-driven-development"} <= found
 
 
 # --------------------------------------------------------------------------- #

@@ -16,13 +16,14 @@ correctness gate for that unification:
   resolves to a real file on disk (WP05 seeds 16 *blank* placeholders — see
   ``test_prompt_emptiness.py`` for the content gate; this module only checks
   *existence*, not *content*).
-* **Guidelines single ownership (#5202, WP02).** The ``missions/<type>/actions/
-  <step>/guidelines.md`` copies T014/T015 originally duplicated into
-  ``mission-steps/<type>/<step>/guidelines.md`` have been retired --
-  ``mission-steps/`` is now the sole owner the loader reads
+* **Guidelines single ownership (#5202).** The ``missions/<type>/actions/
+  <step>/guidelines.md`` copies that used to duplicate
+  ``mission-steps/<type>/<step>/guidelines.md`` are gone --
+  ``mission-steps/`` is the sole owner the loader reads
   (``MissionTemplateRepository.get_action_guidelines``). This module asserts
-  the retired copy is absent and the sole-owner file is present, replacing the
-  former byte-identity assertion between the two.
+  the sole-owner file is present for every step that has guidelines; the
+  absence of the old ``actions/`` copies is asserted in
+  ``test_guidelines_single_owner.py``.
 * **NFR-006 — dispatch invariance.** ``spec-kitty next``'s dispatch decision
   for these 3 types must be unaffected by the new ``step.yaml`` files:
   1. The charter-mediated resolution seam
@@ -87,12 +88,9 @@ _EXPECTED_ACTION_SEQUENCES: dict[str, list[str]] = {
     "plan": ["specify", "research", "plan", "review"],
 }
 
-# step_id -> whether missions/<type>/actions/<step>/guidelines.md historically
-# existed and was copied into mission-steps/<type>/<step>/guidelines.md
-# (T014/T015). The actions/ copy is now retired (#5202, WP02): mission-steps/
-# is the sole owner the loader reads. plan has no guidelines to copy (T016);
-# documentation/research retrospect also has no guidelines.md in the source
-# actions/ tree.
+# mission type -> steps that carry a guidelines.md under
+# mission-steps/<type>/<step>/ (the sole owner the loader reads, #5202).
+# plan has no guidelines; documentation/research retrospect has none either.
 _GUIDELINES_COPIED_STEPS: dict[str, tuple[str, ...]] = {
     "documentation": (
         "discover",
@@ -195,12 +193,12 @@ class TestArtifactResolution:
 
 
 # ---------------------------------------------------------------------------
-# Guidelines single ownership -- the actions/ copy is retired (#5202, WP02)
+# Guidelines single ownership -- mission-steps/ is the sole owner (#5202)
 # ---------------------------------------------------------------------------
 
 
 class TestGuidelinesSingleOwner:
-    """The retired ``actions/`` copy is absent; ``mission-steps/`` is sole owner."""
+    """``mission-steps/`` carries the guidelines of every step that has any."""
 
     @pytest.mark.parametrize(
         ("mission_type", "step_id"),
@@ -210,7 +208,7 @@ class TestGuidelinesSingleOwner:
             for step_id in step_ids
         ],
     )
-    def test_actions_copy_absent_mission_steps_present(
+    def test_mission_steps_guidelines_present(
         self, mission_type: str, step_id: str
     ) -> None:
         sole_owner = _MISSION_STEPS_ROOT / mission_type / step_id / "guidelines.md"
@@ -218,21 +216,6 @@ class TestGuidelinesSingleOwner:
         assert sole_owner.is_file(), (
             f"{mission_type}/{step_id}: sole-owner guidelines missing at {sole_owner}"
         )
-
-    def test_plan_has_no_guidelines_to_copy(self) -> None:
-        """T016: plan's actions/<step>/ dirs carry no guidelines.md (census)."""
-        for step_id in _EXPECTED_ACTION_SEQUENCES["plan"]:
-            source = _MISSIONS_ROOT / "plan" / "actions" / step_id / "guidelines.md"
-            copy = _MISSION_STEPS_ROOT / "plan" / step_id / "guidelines.md"
-            assert not source.exists(), (
-                f"plan/{step_id}: source guidelines.md now exists at {source} -- "
-                "the T016 census assumption ('plan has none') is stale; "
-                "guidelines live only under mission-steps/plan/<step>/"
-            )
-            assert not copy.exists(), (
-                f"plan/{step_id}: an uncopied/invented guidelines.md exists at "
-                f"{copy} -- plan has no source to copy from (C-004)"
-            )
 
 
 # ---------------------------------------------------------------------------

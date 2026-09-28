@@ -1,9 +1,7 @@
-"""Tests for the consumer retirement migration (mission
-``squad-doctrine-single-owner-01M3KBP7``, WP01/T004).
+"""Tests for the consumer retirement migration of the single-owner doctrine ids.
 
-Covers the production :data:`RETIREMENTS` table (research.md R-11 / spec.md
-FR-009) and the migration class built on the shared engine tested in
-``test_retired_activation.py``.
+Covers the production :data:`RETIREMENTS` table and the migration class built on
+the shared engine tested in ``test_retired_activation.py``.
 """
 
 from __future__ import annotations
@@ -22,6 +20,7 @@ from specify_cli.upgrade.migrations.m_4_0_0rc5_retire_single_owner_doctrine_ids 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _CHARTER_RELATIVE_PATH = Path(".kittify") / "charter" / "charter.yaml"
+_FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def _write(path: Path, text: str) -> Path:
@@ -39,8 +38,8 @@ def _load(path: Path) -> dict:
 # --------------------------------------------------------------------------- #
 
 
-def test_retirements_table_matches_the_spec_table() -> None:
-    """Pins research.md R-11 / spec.md FR-009's eight rows, verbatim."""
+def test_retirements_table_rows() -> None:
+    """Pins the eight retirement rows (kind, successors) the migration ships."""
     by_stem = {r.stem: r for r in RETIREMENTS}
     assert len(RETIREMENTS) == 8
     assert set(by_stem) == {
@@ -226,6 +225,18 @@ def test_apply_on_bare_project_reports_the_no_op_message(tmp_path: Path) -> None
     assert not (tmp_path / ".kittify").exists()
 
 
+def test_unparseable_surface_file_is_reported_as_a_warning_not_swallowed(tmp_path: Path) -> None:
+    _write(tmp_path / ".kittify" / "config.yaml", "project_name: demo\nactivated_tactics:\n- tdd-red-green-refactor\n")
+    _write(tmp_path / _CHARTER_RELATIVE_PATH, "catalog: [unterminated\n")
+
+    result = RetireSingleOwnerDoctrineIdsMigration().apply(tmp_path)
+
+    # Nothing to remove elsewhere, so the no-op message is reported -- with the warning intact.
+    assert result.success is True
+    assert result.changes_made == ["no retired single-owner doctrine id is activated in this project; nothing to remove"]
+    assert any(".kittify/charter/charter.yaml" in w and "could not be parsed" in w for w in result.warnings)
+
+
 def test_dry_run_leaves_the_project_untouched(tmp_path: Path) -> None:
     _write(tmp_path / _CHARTER_RELATIVE_PATH, "activated_tactics:\n- locality-of-change\n")
     before = (tmp_path / _CHARTER_RELATIVE_PATH).read_text(encoding="utf-8")
@@ -249,13 +260,12 @@ def test_migration_identity() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# The legacy governance.charter.selected_<kind> block (WP10-discovered gap,
-# spec.md FR-009 amendment)
+# The legacy governance.charter.selected_<kind> block
 # --------------------------------------------------------------------------- #
 
 
 def test_apply_removes_every_table_row_from_governance_charter_selected_block(tmp_path: Path) -> None:
-    """Mirrors WP10's real charter.yaml shape: retired ids nested under governance.charter."""
+    """Mirrors the real charter.yaml shape: retired ids nested under governance.charter."""
     _write(
         tmp_path / _CHARTER_RELATIVE_PATH,
         "governance:\n"
@@ -291,11 +301,10 @@ def test_apply_removes_every_table_row_from_governance_charter_selected_block(tm
     ]
     assert selected["selected_styleguides"] == ["other-styleguide", "boring-code-review"]
     assert selected["selected_procedures"] == ["other-procedure", "test-first-bug-fixing"]
-    # common-docs-curation's successors are never invented -- charter.yaml's
-    # governance.charter block above never declared its own selected_tactics
-    # entries for common-docs-{scaffold,write,find}, but selected_tactics DOES
-    # exist as a list, so they ARE activated there (same rule as the top-level
-    # activated_tactics surface): confirm all three landed.
+    # common-docs-curation's successors are activated here because the
+    # selected_tactics list already exists (the same rule as the top-level
+    # activated_tactics surface); a successor is never created when its target
+    # list is absent. Confirm all three landed.
     assert "common-docs-scaffold" in selected["selected_tactics"]
     assert "common-docs-write" in selected["selected_tactics"]
     assert "common-docs-find" in selected["selected_tactics"]
@@ -323,68 +332,26 @@ def test_governance_charter_block_is_idempotent_over_the_whole_table(tmp_path: P
     assert migration.detect(tmp_path) is False
 
 
-def test_dogfood_repo_governance_charter_block_matches_wp10_hand_fix() -> None:
-    """End-to-end: applying the migration to this repo's own PRE-migration
-    charter.yaml (as it stood at commit a8e0984b, before WP10's dogfooding
-    commit d5aa133c) reproduces the same governance.charter.selected_* block
-    WP10's hand-edit committed at HEAD -- for the six retirements this
-    project actually had activated (the other two retired ids in the table
-    were never present in this project's charter.yaml at all, at any commit).
+def test_governance_charter_block_migrates_to_the_expected_block(tmp_path: Path) -> None:
+    """Applying the migration to a checked-in pre-migration charter yields the checked-in expected block.
+
+    Self-contained: no git history and no live project charter are read, so the
+    test cannot rot when a commit disappears or the project's own activation
+    changes.
     """
-    import subprocess
-    from pathlib import Path as _Path
+    before = (_FIXTURES / "rc5_governance_charter_before.charter.yaml").read_text(encoding="utf-8")
+    expected = _load(_FIXTURES / "rc5_governance_charter_after.block.yaml")
+    _write(tmp_path / _CHARTER_RELATIVE_PATH, before)
+    migration = RetireSingleOwnerDoctrineIdsMigration()
 
-    repo_root = _Path(__file__).resolve()
-    for parent in (repo_root, *repo_root.parents):
-        if (parent / ".git").exists() and (parent / "src").is_dir():
-            repo_root = parent
-            break
-    else:  # pragma: no cover -- defensive; the repo root always exists in CI/dev
-        pytest.skip("could not locate repo root")
+    result = migration.apply(tmp_path)
 
-    pre_migration_charter = subprocess.run(
-        ["git", "show", "a8e0984b:.kittify/charter/charter.yaml"],
-        cwd=repo_root,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-
-    import tempfile
-
-    with tempfile.TemporaryDirectory() as tmp:
-        project = Path(tmp)
-        _write(project / _CHARTER_RELATIVE_PATH, pre_migration_charter)
-
-        result = RetireSingleOwnerDoctrineIdsMigration().apply(project)
-
-        assert result.success is True
-        migrated = _load(project / _CHARTER_RELATIVE_PATH)
-        migrated_block = migrated["governance"]["charter"]
-
-    head_charter_yaml = (repo_root / ".kittify" / "charter" / "charter.yaml").read_text(encoding="utf-8")
-    head_block = YAML(typ="safe").load(head_charter_yaml)["governance"]["charter"]
-
-    # Retired stems, scoped by the SELECTED_<KIND> list they were retired
-    # from -- a retired stem can collide by name with an unrelated
-    # successor of a *different* kind (e.g. the tactic "boring-code-review"
-    # is retired, but "boring-code-review" the STYLEGUIDE is its very
-    # successor, legitimately present in selected_styleguides afterwards).
-    retired_by_selected_kind: dict[str, set[str]] = {}
-    for retirement in RETIREMENTS:
-        selected_kind = retirement.kind_key.replace("activated_", "selected_", 1)
-        retired_by_selected_kind.setdefault(selected_kind, set()).add(retirement.stem)
-
-    for kind_key in ("selected_tactics", "selected_styleguides", "selected_procedures"):
-        migrated_kind = set(migrated_block.get(kind_key, []))
-        head_kind = set(head_block.get(kind_key, []))
-        retired_for_kind = retired_by_selected_kind.get(kind_key, set())
-        # No retired stem survives the migration, for THIS kind's own list.
-        assert not (migrated_kind & retired_for_kind), f"{kind_key}: retired stems survived migration: {migrated_kind & retired_for_kind}"
-        # The migrated set equals HEAD's hand-fixed set for this kind, modulo
-        # ids WP10's hand-edit touched for unrelated reasons (none observed in
-        # practice -- this assertion is the executable proof of that).
-        assert migrated_kind == head_kind, f"{kind_key}: migration result {migrated_kind} != WP10 hand-fix {head_kind}"
+    assert result.success is True
+    migrated = _load(tmp_path / _CHARTER_RELATIVE_PATH)
+    assert migrated["governance"]["charter"] == expected
+    # Siblings of the charter block are not this migration's business.
+    assert migrated["governance"]["testing"] == {"min_coverage": 90}
+    assert migration.detect(tmp_path) is False
 
 
 def test_migration_is_registered_by_auto_discovery() -> None:

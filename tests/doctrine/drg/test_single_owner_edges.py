@@ -1,16 +1,16 @@
-"""The single-owner DRG wiring of mission ``squad-doctrine-single-owner-01M3KBP7``.
+"""The single-owner DRG wiring.
 
-Epic rule: one owner states each rule and every other artifact references the
-owner by id. The content work packages trimmed copies and deleted, renamed or
-re-kinded artifacts; this module pins the DRG edges that keep each owner
-delivered after those trims, and the absence of every retired node.
+One owner states each rule and every other artifact references the owner by
+id. Trimming copies can remove the only path that delivered an owner, so this
+module pins the DRG edges that keep each owner delivered.
 
 Non-default relations are curated ``_CURATED_ARTIFACT_EDGES`` entries in
 ``charter.offering.drg.migration.extractor`` (a procedure's YAML ``references``
 to a tactic/procedure mints ``requires``; a tactic's mints ``suggests``;
 ``refines`` has no YAML path at all). The assertions read the SHIPPED graph
 (``load_built_in_graph``), so a curated edge that never reached the committed
-fragments fails here, not only in the extractor.
+fragments fails here, not only in the extractor. Absence of the retired nodes
+is guarded in ``test_retired_ids_absent.py``.
 """
 
 from __future__ import annotations
@@ -28,20 +28,6 @@ _GWT = "styleguide:given-when-then-authoring"
 _SUPPLY_CHAIN_TACTIC = "tactic:supply-chain-install-safety"
 _LINT_ASSET = "asset:common-docs-structural-lint"
 
-#: Every node this mission retires from the built-in pack. Moved ids live on in
-#: ``packs/internal`` only; re-kinded ``boring-code-review`` lives on as a
-#: styleguide.
-_RETIRED_NODES: tuple[str, ...] = (
-    "styleguide:adversarial-squad-cadence",
-    "tactic:bug-fixing-checklist",
-    "tactic:locality-of-change",
-    "tactic:common-docs-curation",
-    "tactic:boring-code-review",
-    "tactic:behavior-driven-development",
-    "tactic:iterative-deepening-review",
-    "procedure:tracker-organisation-workflow",
-)
-
 
 def _relations(graph: DRGGraph, source: str, target: str) -> set[Relation]:
     return {e.relation for e in graph.edges if e.source == source and e.target == target}
@@ -54,13 +40,6 @@ def _has(graph: DRGGraph, source: str, target: str, relation: Relation) -> bool:
 # --------------------------------------------------------------------------- #
 # Retired nodes are gone; successors are present.
 # --------------------------------------------------------------------------- #
-
-
-@pytest.mark.parametrize("urn", _RETIRED_NODES)
-def test_retired_node_is_absent(built_in_graph: DRGGraph, urn: str) -> None:
-    assert urn not in built_in_graph.node_urns()
-    dangling = [e for e in built_in_graph.edges if urn in (e.source, e.target)]
-    assert dangling == []
 
 
 @pytest.mark.parametrize(
@@ -81,17 +60,17 @@ def test_successor_node_is_present(built_in_graph: DRGGraph, urn: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Squad procedure (#5219): FR-005, FR-006, FR-008, FR-012.
+# Squad procedure.
 # --------------------------------------------------------------------------- #
 
 
 def test_squad_procedure_suggests_model_task_routing(built_in_graph: DRGGraph) -> None:
-    """FR-005: model-tier choice is delegated, advisory (never ``requires``)."""
+    """Model-tier choice is delegated, advisory (never ``requires``)."""
     assert _relations(built_in_graph, _SQUAD, "tactic:model-task-routing") == {Relation.SUGGESTS}
 
 
-def test_squad_procedure_no_longer_requires_five_paradigm(built_in_graph: DRGGraph) -> None:
-    """FR-006 / SC-004."""
+def test_squad_procedure_does_not_require_five_paradigm(built_in_graph: DRGGraph) -> None:
+    """The squad procedure does not hard-require the fixed-lens tactic (the tactic refines the procedure instead)."""
     assert not _has(built_in_graph, _SQUAD, "tactic:five-paradigm-parallel-debugging", Relation.REQUIRES)
 
 
@@ -100,7 +79,7 @@ def test_squad_procedure_no_longer_requires_five_paradigm(built_in_graph: DRGGra
     ["directive:DIRECTIVE_043", "directive:DIRECTIVE_052", "procedure:mission-tracer-files"],
 )
 def test_citers_point_at_squad_procedure_with_suggests_only(built_in_graph: DRGGraph, source: str) -> None:
-    """FR-008: every citer points at the owner with ``suggests`` (C-001: no hard chain)."""
+    """Every citer points at the owner with ``suggests`` only (no hard chain)."""
     assert _relations(built_in_graph, source, _SQUAD) == {Relation.SUGGESTS}
 
 
@@ -109,23 +88,27 @@ def test_citers_point_at_squad_procedure_with_suggests_only(built_in_graph: DRGG
     ["tactic:five-paradigm-parallel-debugging", "tactic:paula-patterns-architecture-scout-review"],
 )
 def test_fixed_lens_tactics_refine_the_squad_procedure(built_in_graph: DRGGraph, source: str) -> None:
-    """FR-012 / SC-004: ``refines`` only -- no duplicate ``suggests`` for the pair."""
+    """``refines`` only -- no duplicate ``suggests`` for the pair."""
     assert _relations(built_in_graph, source, _SQUAD) == {Relation.REFINES}
 
 
-def test_refines_description_no_longer_claims_zero_edges(built_in_graph: DRGGraph) -> None:
-    """The REFINES wording tracked the graph; it now has built-in edges."""
-    assert any(e.relation is Relation.REFINES for e in built_in_graph.edges)
-    assert "zero edges" not in RELATION_DESCRIPTIONS[Relation.REFINES]
+_ZERO_EDGE_RELATIONS = sorted((r for r in Relation if "zero edges" in RELATION_DESCRIPTIONS[r]), key=lambda r: r.value)
+
+
+@pytest.mark.parametrize("relation", _ZERO_EDGE_RELATIONS, ids=lambda r: r.value)
+def test_relation_described_as_edgeless_has_no_built_in_edges(built_in_graph: DRGGraph, relation: Relation) -> None:
+    """A relation whose description claims "zero edges" in the built-in graph must really have none."""
+    edges = [(e.source, e.target) for e in built_in_graph.edges if e.relation is relation]
+    assert edges == [], f"{relation.value}: description claims zero built-in edges but the shipped graph has {edges[:3]}"
 
 
 # --------------------------------------------------------------------------- #
-# Testing / bug-fixing / BDD (#5220): FR-020, FR-021, FR-023.
+# Testing / bug-fixing / BDD.
 # --------------------------------------------------------------------------- #
 
 
 def test_testing_principles_requires_quadruple_a(built_in_graph: DRGGraph) -> None:
-    """FR-021: the inline Quad-A copy was trimmed, so delivery needs a hard edge."""
+    """The inline Quad-A copy was trimmed, so delivery needs a hard edge."""
     assert _has(
         built_in_graph,
         "styleguide:testing-principles",
@@ -145,7 +128,7 @@ def test_testing_principles_requires_quadruple_a(built_in_graph: DRGGraph) -> No
     ],
 )
 def test_test_first_bug_fixing_points_at_its_owners(built_in_graph: DRGGraph, target: str, relation: Relation) -> None:
-    """FR-020: 052 and the diagnosis hand-off are advisory (``suggests``) pointers."""
+    """052 and the diagnosis hand-off are advisory (``suggests``) pointers."""
     assert _has(built_in_graph, _TFBF, target, relation)
 
 
@@ -157,7 +140,7 @@ def test_test_first_bug_fixing_never_requires_052_or_diagnosis(built_in_graph: D
 
 @pytest.mark.parametrize("source", [_BDD_TACTIC, "procedure:bdd-scenario-lifecycle"])
 def test_bdd_practices_require_given_when_then(built_in_graph: DRGGraph, source: str) -> None:
-    """FR-023: scenarios are authored per the given-when-then styleguide."""
+    """Scenarios are authored per the given-when-then styleguide."""
     assert _has(built_in_graph, source, _GWT, Relation.REQUIRES)
     assert _has(built_in_graph, source, "toolguide:gherkin", Relation.SUGGESTS)
 
@@ -172,13 +155,13 @@ def test_bdd_practices_require_given_when_then(built_in_graph: DRGGraph, source:
     ],
 )
 def test_bdd_paradigm_reaches_its_practices(built_in_graph: DRGGraph, target: str, relation: Relation) -> None:
-    """FR-023: the paradigm gains edges to its practices (a paradigm's YAML
+    """The paradigm has edges to its practices (a paradigm's YAML
     reference mints ``requires`` to a tactic/procedure, ``suggests`` otherwise)."""
     assert _has(built_in_graph, "paradigm:behaviour-driven-development", target, relation)
 
 
 # --------------------------------------------------------------------------- #
-# Common docs, change scope, review, supply chain (#5221 A-D).
+# Common docs, change scope, review, supply chain.
 # --------------------------------------------------------------------------- #
 
 
@@ -214,24 +197,18 @@ def test_directive_039_points_at_the_boring_code_review_styleguide(built_in_grap
     ["toolguide:javascript-supply-chain", "toolguide:python-supply-chain", "toolguide:java-supply-chain"],
 )
 def test_supply_chain_tactic_suggests_each_ecosystem_toolguide(built_in_graph: DRGGraph, toolguide: str) -> None:
-    """FR-026: the neutral tactic points at the per-ecosystem commands."""
+    """The neutral tactic points at the per-ecosystem commands."""
     assert _has(built_in_graph, _SUPPLY_CHAIN_TACTIC, toolguide, Relation.SUGGESTS)
 
 
 @pytest.mark.parametrize("profile", ["python-pedro", "java-jenny", "architect-alphonso"])
 def test_profiles_reach_the_supply_chain_tactic(built_in_graph: DRGGraph, profile: str) -> None:
-    """FR-026: the three profiles WP11 rewired cite the tactic by id."""
+    """The profiles that bind supply-chain doctrine cite the tactic by id."""
     assert _has(built_in_graph, f"agent_profile:{profile}", _SUPPLY_CHAIN_TACTIC, Relation.REQUIRES)
 
 
-def test_no_edge_reason_quotes_the_retired_evidence_contract(built_in_graph: DRGGraph) -> None:
-    """FR-027: the disposition contract has one owner, the squad procedure."""
-    stale = [(e.source, e.target) for e in built_in_graph.edges if "adversarial-evidence-contract" in (e.reason or "") + (e.when or "")]
-    assert stale == []
-
-
 def test_directive_001_suggests_the_architecture_scout_swarm(built_in_graph: DRGGraph) -> None:
-    """FR-014: an escalation, not a prerequisite -- applied because the measured
+    """An escalation, not a prerequisite -- applied because the measured
     action (d=1, d=2) and profile reachability sets lost no member."""
     assert _relations(
         built_in_graph,
@@ -244,5 +221,5 @@ def test_decision_documentation_is_not_delivered_to_implement_via_avoid_gold_pla
     """The retired locality tactic's DIRECTIVE_003 edge is NOT carried over:
     avoid-gold-plating is reached from implement (boring-code-review ->
     avoid-gold-plating), so the edge would deliver the required
-    decision-documentation directive to implement (FR-004 gate)."""
+    decision-documentation directive to implement (decision-documentation scoping gate)."""
     assert not _relations(built_in_graph, "tactic:avoid-gold-plating", "directive:DIRECTIVE_003")

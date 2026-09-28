@@ -53,11 +53,11 @@ DIRECTIVE_PATH = _PACKS / "directives" / "042-common-docs.directive.yaml"
 STYLEGUIDE_PATH = _PACKS / "styleguides" / "common-docs.styleguide.yaml"
 FRESHNESS_STYLEGUIDE_PATH = _PACKS / "styleguides" / "docs-freshness-sla.styleguide.yaml"
 #: The lint's default policy data moved out of the styleguide and into the
-#: lint asset's own data file (WP06 A5, #5221 section A); load_config() now
+#: lint asset's own data file; load_config() now
 #: reads it from here for the built-in default, not from STYLEGUIDE_PATH.
 LINT_CONFIG_PATH = _PACKS / "assets" / "docs_structural_lint.config.yaml"
 #: common-docs-curation was folded into scaffold/write/find and retired
-#: (WP06, #5221 section A); its 'durable' restatement now lives in scaffold.
+#: its 'durable' restatement now lives in scaffold.
 TACTIC_PATHS = {name: _PACKS / "tactics" / f"common-docs-{name}.tactic.yaml" for name in ("write", "scaffold")}
 
 #: The reserved never-retire lifecycle value under test.

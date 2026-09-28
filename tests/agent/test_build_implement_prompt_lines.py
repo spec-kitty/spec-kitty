@@ -121,7 +121,7 @@ def test_feedback_absent_renders_no_crash_no_spurious_feedback(tmp_path: Path) -
 
 
 def test_implement_footer_recipe_names_lane_branch_not_target_branch(tmp_path: Path) -> None:
-    """WP03 review (cycle 1, #2): the printed commit recipe in the
+    """The printed commit recipe in the
     "WHEN YOU'RE DONE" footer must name ``--to-branch`` with the LANE branch
     (``workspace.branch_name``), never the mission's merge ``target_branch`` --
     naming the wrong one prints a recipe safe-commit's own HEAD-match guard

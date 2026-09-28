@@ -56,7 +56,7 @@ nodes:
     kind: procedures
     title: "Agent-Memory Curation and Knowledge Escalation (classify, place, escalate)"
     body_path: procedures/memory-curation-and-escalation.procedure.yaml
-  # Maintainer-only refinements and residue moved out of packs/built-in (#5203):
+  # Maintainer-only refinements and residue moved out of packs/built-in:
   # the built-in artefacts stay repository-agnostic; the Spec Kitty specifics
   # live here and refine them.
   - id: terminology-guard
@@ -87,7 +87,7 @@ nodes:
     kind: tactics
     title: "Spec Kitty Gate Non-Vacuity Exemplar Audit"
     body_path: tactics/spec-kitty-gate-non-vacuity-exemplar.tactic.yaml
-  # Backlog-triage doctrine moved from built-in (#5221 D, #5220): these are
+  # Backlog-triage doctrine moved from built-in: these are
   # maintainer/tracker-backlog specifics, not repository-agnostic product
   # doctrine, so they never shipped to consumers correctly. The tactic was
   # renamed on the move (iterative-deepening-review ->
@@ -155,8 +155,8 @@ edges:
   - source: branded-document-generation
     target: "asset:spec-kitty-branded-pdf"
     relation: requires
-  # Repository-specific refinements of repository-agnostic built-in doctrine
-  # (#5203). Each internal node refines the built-in artefact it specialises.
+  # Repository-specific refinements of repository-agnostic built-in doctrine.
+  # Each internal node refines the built-in artefact it specialises.
   - source: spec-kitty-arch-gate-adjudication
     target: "procedure:post-merge-arch-gate-adjudication"
     relation: refines
@@ -188,7 +188,7 @@ edges:
   - source: spec-kitty-gate-non-vacuity-exemplar
     target: "tactic:architectural-gate-non-vacuity"
     relation: refines
-  # Backlog-triage authoring chain (moved from built-in, #5221 D). Ported
+  # Backlog-triage authoring chain (moved from built-in). Ported
   # verbatim from the built-in tactic.graph.yaml / procedure.graph.yaml edge
   # set for these two artifacts, plus their outbound edges to built-in
   # nodes (moscow-scoping-lens, issue-triage-state-machine,

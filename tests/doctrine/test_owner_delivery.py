@@ -1,9 +1,9 @@
-"""SC-007: every epic owner is still delivered wherever it was delivered before.
+"""Every single-owner doctrine artifact stays delivered to the actions that need it.
 
-Mission ``squad-doctrine-single-owner-01M3KBP7`` trimmed copies of rules down to
-one owner each. A trimmed copy can be the only path that carried an owner into
-an agent's context, so this regression guard checks the owners through the
-SAME resolution ``charter context --action`` uses: the action doctrine bundle
+Rules are stated once, in one owner, and every other artifact references the
+owner by id. Trimming a copy can remove the only path that carried an owner
+into an agent's context, so this guard checks the owners through the SAME
+resolution ``charter context --action`` uses: the action doctrine bundle
 (``_load_action_doctrine_bundle``: shipped DRG -> activation filter ->
 ``resolve_context``) for ``software-dev`` implement and review, at both the
 compact (d=1) and bootstrap (d=2) depths.
@@ -16,17 +16,18 @@ Two activation profiles are pinned:
   built-in artifact admitted, which is where the DRG edges themselves are
   measured.
 
-The BASE sets are hard-coded literals captured ONCE on a ``git worktree add``
-of the pre-mission base (``git merge-base HEAD origin/main`` =
-``dccf6aa7d523``) with ``scratchpad/probe_delivery.py`` -- never derived from a
-golden this mission edits. The assertion is HEAD >= BASE, per cell.
+The delivery floors are literal sets, not derived from a file this test
+protects: with no activation filter every owner must be delivered to every
+cell; under the default pack the four directives listed in
+``_DEFAULT_PACK_FLOOR`` must be. A delivery cell may gain owners freely; it
+may not lose one.
 
-Permitted additions (explicit):
+Two further delivery facts are asserted directly:
 
-* ``DIRECTIVE_052`` must be delivered at ``implement`` (unfiltered) through
-  ``test-first-bug-fixing`` -- it was delivered at base too, and the
-  ``test-first-bug-fixing --suggests--> DIRECTIVE_052`` edge is asserted here
-  so the delivery does not silently depend on the prose copy WP05 trimmed.
+* ``DIRECTIVE_052`` reaches ``implement`` (unfiltered) through
+  ``test-first-bug-fixing`` -- the ``test-first-bug-fixing --suggests-->
+  DIRECTIVE_052`` edge is asserted so the delivery does not silently depend on
+  a prose copy.
 * The findings-disposition contract is not a node: it is delivered as part of
   ``procedure:adversarial-squad-deployment``, so wherever the procedure is
   delivered the contract text must be in it.
@@ -50,7 +51,7 @@ _DEFAULT_PACK = _REPO_ROOT / "src/charter/activation/packs/default.yaml"
 
 _SQUAD = "procedure:adversarial-squad-deployment"
 
-#: The epic owners (spec.md SC-007).
+#: The single-owner artifacts whose delivery is guarded.
 _OWNERS: frozenset[str] = frozenset(
     {
         "styleguide:quadruple-a-test-format",
@@ -64,19 +65,8 @@ _OWNERS: frozenset[str] = frozenset(
     }
 )
 
-_ALL_OWNERS_AT_BASE = _OWNERS
-
-#: BASE owner x action x depth, captured on dccf6aa7 (see module docstring):
-#:
-#:   $ PYTHONPATH=$BASE/src SPEC_KITTY_PACKS_ROOT=$BASE/packs \
-#:       python scratchpad/probe_delivery.py $BASE
-#:   implement 1 ['directive:DIRECTIVE_025', 'directive:DIRECTIVE_030', 'directive:DIRECTIVE_034', 'directive:DIRECTIVE_037']
-#:   implement 2 (same)   review 1 (same)   review 2 (same)
-#:
-#:   $ ... python scratchpad/probe_delivery.py $BASE --unfiltered
-#:   implement 1 [all eight owners]   implement 2 [all eight]
-#:   review 1 [all eight]             review 2 [all eight]
-_BASE_DEFAULT_PACK: frozenset[str] = frozenset(
+#: Owners the shipped default pack must deliver at every action and depth.
+_DEFAULT_PACK_FLOOR: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_025",
         "directive:DIRECTIVE_030",
@@ -85,8 +75,10 @@ _BASE_DEFAULT_PACK: frozenset[str] = frozenset(
     }
 )
 
-_BASE: dict[tuple[str, str, int], frozenset[str]] = {
-    (profile, action, depth): (_BASE_DEFAULT_PACK if profile == "default-pack" else _ALL_OWNERS_AT_BASE)
+#: Delivery floor per (activation profile, action, depth): with no activation
+#: filter every owner is delivered; under the default pack the floor above is.
+_FLOOR: dict[tuple[str, str, int], frozenset[str]] = {
+    (profile, action, depth): (_DEFAULT_PACK_FLOOR if profile == "default-pack" else _OWNERS)
     for profile in ("default-pack", "unfiltered")
     for action in ("implement", "review")
     for depth in (1, 2)
@@ -114,17 +106,11 @@ def _delivered(tmp_path: Path, *, profile: str, action: str, depth: int) -> froz
     )
 
 
-@pytest.mark.parametrize(("profile", "action", "depth"), sorted(_BASE), ids=lambda v: str(v))
-def test_owner_delivery_is_a_superset_of_base(tmp_path: Path, profile: str, action: str, depth: int) -> None:
-    head = _delivered(tmp_path, profile=profile, action=action, depth=depth) & _OWNERS
-    missing = _BASE[(profile, action, depth)] - head
+@pytest.mark.parametrize(("profile", "action", "depth"), sorted(_FLOOR), ids=lambda v: str(v))
+def test_owner_delivery_meets_the_floor(tmp_path: Path, profile: str, action: str, depth: int) -> None:
+    delivered = _delivered(tmp_path, profile=profile, action=action, depth=depth) & _OWNERS
+    missing = _FLOOR[(profile, action, depth)] - delivered
     assert not missing, f"{profile}/{action}/d={depth} lost delivery of {sorted(missing)}"
-
-
-def test_base_literals_are_non_vacuous() -> None:
-    """The literal must name owners, or HEAD >= BASE would hold trivially."""
-    assert all(_BASE.values())
-    assert _BASE[("unfiltered", "implement", 1)] == _OWNERS
 
 
 def test_directive_052_is_carried_by_test_first_bug_fixing(tmp_path: Path) -> None:

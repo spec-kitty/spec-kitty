@@ -118,5 +118,6 @@ class RetireRtkSearchToolingMigration(BaseMigration):
             return MigrationResult(
                 success=True,
                 changes_made=[f"{RETIRED_TOOLGUIDE_STEM} already absent; nothing to remove"],
+                warnings=result.warnings,
             )
         return result

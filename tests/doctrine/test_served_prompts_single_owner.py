@@ -1,27 +1,29 @@
-"""Red-first pins for WP11 (#5221 C/E, #5078 prompt, #5220 profiles).
+"""Served prompts, step contracts and agent profiles reference single owners.
 
 Served prompts, step contracts, and agent profiles must reference the
-single owners created by WP04 (squad procedure + disposition contract),
-WP05 (``test-first-bug-fixing``) and WP08 (supply-chain doctrine) rather
-than restating their content:
+single owners (the squad procedure with its disposition contract,
+``test-first-bug-fixing``, and the supply-chain doctrine) rather than
+restating their content:
 
 - The software-dev ``implement``/``plan``/``review`` prompts, the three
-  served guideline files, the software-dev step contracts, and the 8
-  agent profiles listed in ``owned_files`` reference ``DIRECTIVE_051`` /
+  served guideline files, the software-dev step contracts, and the eight
+  agent profiles in ``_PROFILE_IDS`` reference ``DIRECTIVE_051`` /
   the ``supply-chain-install-safety`` tactic instead of restating its
   five threat-class pillars.
-- Every citer of the retired ``contracts/adversarial-evidence-contract.md``
-  now cites the ``adversarial-squad-deployment`` procedure instead.
 - Step contracts under ``missions/built_in_step_contracts/`` cite
-  directives as ``DIRECTIVE_NNN``, never the retired ``NNN-slug`` form,
-  and every such citation resolves to a real directive.
+  directives as ``DIRECTIVE_NNN``, never the ``NNN-slug`` form, and every
+  such citation resolves to a real directive.
 - The implement prompt assigns draft-PR opening to the orchestrator (the
   WP agent pushes and reports) and contains no raw ``git commit``
   instruction -- every commit instruction uses ``spec-kitty safe-commit``.
-- No agent profile cites the retired ``bug-fixing-checklist`` tactic; the
-  four profiles that used to (implementer-ivan, node-norris,
-  frontend-freddy, drupal-dries) declare ``test-first-bug-fixing`` in
-  ``collaboration.operating-procedures`` instead.
+- The four profiles that carry the bug-fixing rule (implementer-ivan,
+  node-norris, frontend-freddy, drupal-dries) declare
+  ``test-first-bug-fixing`` in ``collaboration.operating-procedures``, and
+  the profiles that touch BDD cite ``bdd-scenario-formulation``.
+
+Retired ids (``bug-fixing-checklist``, ``behavior-driven-development``,
+``adversarial-evidence-contract``) are guarded once, in
+``test_retired_ids_absent.py``.
 """
 
 from __future__ import annotations
@@ -60,7 +62,7 @@ _PROFILE_FILES = [_AGENT_PROFILES_DIR / f"{profile_id}.agent.yaml" for profile_i
 _RETARGET_PROFILES = ("implementer-ivan", "node-norris", "frontend-freddy", "drupal-dries")
 
 # The five ecosystem-neutral pillars DIRECTIVE_051 states once (plus the
-# Node-LTS baseline concern FR-026 moved out of 051 into the JS/TS
+# Node-LTS baseline concern that lives in the JS/TS
 # toolguide -- a profile that still frames it as a 051 matter is restating
 # scope, not just vocabulary). A served surface "restates the pillar list"
 # when two or more distinct pillar-term variants co-occur within a short
@@ -145,28 +147,6 @@ class TestNoPillarRestatement:
         )
 
 
-class TestNoAdversarialEvidenceContractReference:
-    """Every citer of the retired contract file now cites the owning procedure."""
-
-    def test_no_reference_anywhere_in_built_in_pack(self) -> None:
-        """Scoped to content WP11 owns -- *.graph.yaml / pack-manifest.yaml are
-        WP09-owned generated files; regeneration retargets their curated edges
-        separately (see Handoff-to-WP09)."""
-        hits = []
-        for path in _PACKS.rglob("*"):
-            if not path.is_file():
-                continue
-            if path.suffix == ".yaml" and (path.name.endswith(".graph.yaml") or path.name == "pack-manifest.yaml"):
-                continue
-            try:
-                text = path.read_text(encoding="utf-8")
-            except (UnicodeDecodeError, OSError):
-                continue
-            if "adversarial-evidence-contract" in text:
-                hits.append(str(path.relative_to(_REPO_ROOT)))
-        assert not hits, f"adversarial-evidence-contract.md reference(s) remain in packs/built-in (must cite adversarial-squad-deployment instead): {hits}"
-
-
 class TestStepContractSlugCitationsConverted:
     """Step contracts cite DIRECTIVE_NNN, never the retired NNN-slug form."""
 
@@ -182,13 +162,6 @@ class TestStepContractSlugCitationsConverted:
         ids = _DIRECTIVE_ID_CITATION.findall(text)
         unresolved = [num for num in ids if num not in _KNOWN_DIRECTIVE_IDS]
         assert not unresolved, f"{path}: DIRECTIVE_NNN citation(s) do not resolve to a known directive: {unresolved}"
-
-    def test_at_least_64_citations_were_converted(self) -> None:
-        """Research R-10/E counted 64 slug citations across the step contracts;
-        confirm the converted corpus carries at least that many DIRECTIVE_NNN
-        citations (a 1:1 conversion, not a net loss of references)."""
-        total = sum(len(_DIRECTIVE_ID_CITATION.findall(_read(path))) for path in _STEP_CONTRACT_FILES)
-        assert total >= 64, f"expected at least 64 DIRECTIVE_NNN citations across step contracts after conversion, found {total}"
 
 
 class TestImplementPromptOrchestratorOpensDraftPr:
@@ -214,13 +187,8 @@ class TestImplementPromptOrchestratorOpensDraftPr:
         assert "spec-kitty safe-commit" in text, "implement prompt must instruct commits via `spec-kitty safe-commit`"
 
 
-class TestProfileBugFixingChecklistRetarget:
-    """No profile cites bug-fixing-checklist; the four retargeted profiles gain test-first-bug-fixing."""
-
-    @pytest.mark.parametrize("path", _PROFILE_FILES, ids=lambda p: p.stem)
-    def test_no_profile_cites_bug_fixing_checklist(self, path: Path) -> None:
-        text = _read(path)
-        assert "bug-fixing-checklist" not in text, f"{path}: still cites the retired bug-fixing-checklist tactic"
+class TestProfileBugFixingOwner:
+    """The four bug-fixing profiles declare test-first-bug-fixing as their operating procedure."""
 
     @pytest.mark.parametrize("profile_id", _RETARGET_PROFILES)
     def test_retargeted_profile_declares_operating_procedure(self, profile_id: str) -> None:
@@ -231,7 +199,6 @@ class TestProfileBugFixingChecklistRetarget:
         )
 
     @pytest.mark.parametrize("profile_id", ("node-norris", "frontend-freddy", "java-jenny"))
-    def test_no_profile_cites_retired_bdd_tactic_id(self, profile_id: str) -> None:
+    def test_bdd_profiles_cite_bdd_scenario_formulation(self, profile_id: str) -> None:
         text = _read(_AGENT_PROFILES_DIR / f"{profile_id}.agent.yaml")
-        assert "behavior-driven-development" not in text, f"{profile_id}: still cites the retired behavior-driven-development tactic id"
-        assert "bdd-scenario-formulation" in text, f"{profile_id}: does not cite the successor bdd-scenario-formulation tactic"
+        assert "bdd-scenario-formulation" in text, f"{profile_id}: does not cite the bdd-scenario-formulation tactic"

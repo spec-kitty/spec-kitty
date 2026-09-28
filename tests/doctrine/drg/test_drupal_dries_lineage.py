@@ -42,8 +42,8 @@ _EXPECTED_TACTIC_TARGETS = (
     "tactic:dependency-hygiene",
     "tactic:tdd-red-green-refactor",
     "tactic:supply-chain-install-safety",
-    # The retired bug-fixing-checklist tactic folded into this procedure (mission
-    # squad-doctrine-single-owner-01M3KBP7); dries now cites it through
+    # The retired bug-fixing-checklist tactic folded into this procedure; dries
+    # now cites it through
     # ``operating-procedures``, which mints the same ``requires`` edge.
     "procedure:test-first-bug-fixing",
 )

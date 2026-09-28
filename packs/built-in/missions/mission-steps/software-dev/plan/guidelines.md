@@ -32,4 +32,4 @@ These guidelines govern the quality and correctness standards for implementation
 
 - When the plan touches a dependency (add/upgrade/removal, any ecosystem), reference `DIRECTIVE_051` and the `supply-chain-install-safety` tactic for the checklist; surface a result for every control the directive names in the planning artifacts.
 - This is advisory in v1 (no new fail-closed gate) — but an unexamined default is a governance gap, not a pass.
-- For plan/research artifacts, record adversarial-squad challenge dispositions per the `adversarial-squad-deployment` procedure's findings-disposition contract; never drop a contested finding silently.
+- For plan/research artifacts, record adversarial-squad challenge dispositions per the `adversarial-squad-deployment` procedure's findings-disposition contract (load it with `spec-kitty charter context --include procedure:adversarial-squad-deployment`); never drop a contested finding silently.

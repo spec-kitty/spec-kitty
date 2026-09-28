@@ -267,7 +267,7 @@ class TestSynthesizeHappyPath:
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         assert "spec-kitty safe-commit .kittify/charter/synthesis-manifest.yaml .kittify/charter/provenance/ .kittify/doctrine/" in result.output
         assert '-m "chore: charter synthesis artifacts"' in result.output
-        # WP03 review (cycle 1, #1/#2): the reminder must name --to-branch,
+        # The reminder must name --to-branch,
         # resolved from the repo root's current branch -- never silently
         # rely on safe-commit's deprecated HEAD fallback.
         assert "--to-branch kitty/mission-charter-synth-demo" in result.output

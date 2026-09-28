@@ -55,9 +55,9 @@ _REQUIRED_NOTE_TERMS = ("no-op passable",)
 #: once the review action carried an explicit, non-calibrator tactic entry
 #: (the new tactic above). Restored by listing ``boring-code-review``
 #: explicitly in ``review/index.yaml``; pinned here so a future regen that
-#: drops it again fails loudly instead of silently. Mission
-#: squad-doctrine-single-owner-01M3KBP7 re-kinded it to a styleguide (same
-#: id); the review index now lists it under ``styleguides:``.
+#: drops it again fails loudly instead of silently. It is a styleguide (a
+#: tactic of the same id was retired); the review index lists it under
+#: ``styleguides:``.
 _BORING_CODE_REVIEW_URN = "styleguide:boring-code-review"
 
 

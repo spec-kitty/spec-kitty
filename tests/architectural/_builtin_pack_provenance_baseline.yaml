@@ -14,7 +14,7 @@ agent_profiles/retrospective-facilitator.agent.yaml:
   provenance: 1
 assets/docs_structural_lint.py:
   repo_paths: 4
-  provenance: 19
+  provenance: 17
 directives/030-test-and-typecheck-quality-gate.directive.yaml:
   provenance: 2
 directives/034-test-first-development.directive.yaml:

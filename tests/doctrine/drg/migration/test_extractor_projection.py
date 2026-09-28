@@ -770,15 +770,13 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     REACHABILITY: DIRECTIVE_052 remains action-unreachable, the same INERT
 #:     shape as entries (22)/(23); it joins the live action-unreachable ``dead``
 #:     partition, which asserts no frozen membership, so nothing there moves.
-#: (25) Single-owner doctrine (mission ``squad-doctrine-single-owner-01M3KBP7``,
-#:     WP09 regeneration of the WP04-WP08/WP11 content changes). Renumbered from
-#:     (24) and re-measured on integrating main at ``be286caa`` (which landed
-#:     entry (24) above), via ``load_built_in_graph()`` on both revisions: BASE
-#:     ``be286caa`` gives 357 nodes / 1051 edges (suggests 465, requires 348,
-#:     scope 202, refines 0); HEAD gives 354 nodes / 1064 edges (suggests 471,
+#: (25) Single-owner doctrine (regeneration after the content changes that
+#:     retired eight ids and moved each rule to one owner). Measured via
+#:     ``load_built_in_graph()`` on both sides of the change (entry (24) above
+#:     landed first): before it gives 357 nodes / 1051 edges (suggests 465, requires 348,
+#:     scope 202, refines 0); after it gives 354 nodes / 1064 edges (suggests 471,
 #:     requires 354, scope 201, refines 2). Entry (24)'s one edge is present on
-#:     both sides and untouched by this entry, so the delta is the same as the
-#:     original measurement against ``dccf6aa7`` (357/1050 -> 354/1063). The
+#:     both sides and untouched by this entry, so the delta is unaffected by it. The
 #:     one overlay change is an edge-source swap (``tactic:common-
 #:     docs-curation --requires--> asset:common-docs-structural-lint`` becomes
 #:     ``tactic:common-docs-write --requires-->`` the asset), so ``HAND_AUTHORED_
@@ -793,9 +791,9 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     ``toolguide:{javascript,python,java}-supply-chain``.
 #:     EDGES -51 / +64. Every removed edge touches a retired node, except two:
 #:     ``DIRECTIVE_001 --requires--> paula-patterns-architecture-scout-review``
-#:     becomes ``suggests`` (FR-014, curated; no action d=1/d=2 or profile
+#:     becomes ``suggests`` (curated; no action d=1/d=2 or profile
 #:     reachability member lost), and ``adversarial-squad-deployment
-#:     --requires--> five-paradigm-parallel-debugging`` is dropped (FR-006, YAML
+#:     --requires--> five-paradigm-parallel-debugging`` is dropped (YAML
 #:     reference removed). ``DIRECTIVE_052 --suggests-->`` is re-pointed from the
 #:     deleted styleguide to the procedure (entry (22)).
 #:     Curated additions (``_CURATED_ARTIFACT_EDGES``): squad procedure
@@ -808,7 +806,7 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     ``testing-principles``, ``bdd-scenario-formulation`` and
 #:     ``bdd-scenario-lifecycle`` --requires--> their Quad-A / given-when-then
 #:     owner (each alongside the ``suggests`` twin its YAML/path reference
-#:     mints). The rest are extractor-minted from the content WPs' YAML
+#:     mints). The rest are extractor-minted from the changed content's YAML
 #:     (retargeted profile, procedure, tactic, paradigm and styleguide
 #:     references) and from the action indexes (``boring-code-review`` now
 #:     ``scope``d as a styleguide at implement and review).
@@ -816,7 +814,7 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     documentation mission type drops its curation-tactic scope; its three
 #:     successors were already scoped), ``refines`` +2. ORPHAN SETS UNCHANGED
 #:     (``_SHIPPED_ORPHANS`` stays at 21: every new node is edge-incident).
-#:     REACHABILITY: see the WP09 ledger block in
+#:     REACHABILITY: see the ledger block in
 #:     ``tests/doctrine/drg/test_reachability.py`` (only the retired ids leave
 #:     any channel).
 #: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a

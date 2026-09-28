@@ -273,9 +273,9 @@ _TESTING_BDD_MUTATION_WIRED: frozenset[str] = (
 #: ``docs/plans/doctrine/delivery-reachability-wiring-table.md`` (Family E).
 
 # ---------------------------------------------------------------------------
-# Mission squad-doctrine-single-owner-01M3KBP7 (WP09) ledger for the pins below.
-# Measured with the canonical helpers on the regenerated graph, BASE dccf6aa7 vs
-# HEAD, against this repository's activation store:
+# Ledger for the pins below: the single-owner doctrine change.
+# Measured with the canonical helpers on the regenerated graph, before vs
+# after, against this repository's activation store:
 #   action reach d=1 148 -> 149, d=2 167 -> 170, profile 188 -> 191. The only
 #   members any channel LOST are the eight retired ids (no longer nodes).
 #   * Retired ids leave every pin: styleguide:adversarial-squad-cadence (D1),
@@ -708,8 +708,7 @@ _PROFILE_RESCUES: frozenset[str] = frozenset(
         # below):
         #   DIRECTIVE_047, DIRECTIVE_048  <- agent_profile:scribe-sally
         #   DIRECTIVE_049, DIRECTIVE_050  <- agent_profile:minutes-maker-mahad
-        #   (quadruple-a-test-format left: action-d2-reachable since WP09 of
-        #   squad-doctrine-single-owner-01M3KBP7, see the ledger above)
+        #   (quadruple-a-test-format left: action-d2-reachable, see the ledger above)
         #   writing-audience-catalog      <- agent_profile:comms-cleo
         #   USE_C4_MODEL_TECHNIQUES       <- agent_profile:diagram-daisy (requires)
         "directive:DIRECTIVE_047",
@@ -865,9 +864,8 @@ class TestActionChannelReachability:
         # intended delivery (see ``_WIRED_THIS_MISSION``), not a regression —
         # the assertion below now pins the opposite of the old one.
         assert "tactic:mutation-testing-workflow" in r_d2
-        # Quad-A is delivered at the bootstrap depth since mission
-        # squad-doctrine-single-owner-01M3KBP7 (WP09) wired testing-principles to
-        # it by id (the inline copy was trimmed); it is not a d=1 member.
+        # Quad-A is delivered at the bootstrap depth because testing-principles
+        # names it by id (the inline copy was trimmed); it is not a d=1 member.
         assert "styleguide:quadruple-a-test-format" in r_d2
         assert "styleguide:quadruple-a-test-format" not in r_d1
 

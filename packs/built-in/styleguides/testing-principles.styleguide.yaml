@@ -14,6 +14,7 @@ principles:
   - "Truthful: a passing test proves the behavior it describes is actually present in production code."
   - "Realistic: test data mirrors the shape and invariants of production data — real-format identifiers, valid lengths and ranges, plausible values. Fabricated placeholder values that violate production constraints test a world that cannot occur; they mask real behavior and mislead debugging."
   - "Documenting: reading the test suite gives a new contributor a clear model of how the system behaves — this is the refactor-stable, documents-the-system sense; see test-desiderata-and-boundaries for the desiderata that trade off confidence-to-ship (Inspiring) against the other eleven."
+  - "Pyramid shape and mock boundaries have one owner each: layer shape and proportion live in the testing-select-appropriate-level tactic and run order in the test-pyramid-progression tactic; where a test stubs versus keeps real collaborators (and over-mocking as the symptom of a missing seam) lives in test-desiderata-and-boundaries and the test-boundaries-by-responsibility tactic. Apply those instead of a local copy."
   - "Exemplary: tests are the best usage examples of the production code they exercise."
   - "Specific: a failing test clearly identifies which behavior is broken, not just that something is wrong."
   - "Minimal: each test contains only the code necessary to validate one behavior increment."
@@ -25,17 +26,6 @@ principles:
   - "Transitional shape guards need a retirement plan: tests written to enforce a transitional architectural state must carry a known retirement path — a comment referencing the issue that closes them when the migration completes. Tests without a plan outlive their purpose and accumulate into a quarantine backlog requiring a formal adjudication pass to clear."
 
 patterns:
-  - name: Testing Pyramid
-    description: >
-      Distribute tests across three layers in pyramid proportion: many fast unit tests at the
-      base, fewer integration tests in the middle, and a small number of end-to-end tests at the
-      top. Higher layers are slower and more brittle; keep them thin.
-    good_example: |
-      # Representative distribution for a backend service:
-      # Unit tests  (~70%): domain logic, validators, pure functions — milliseconds each
-      # Integration (~20%): repository queries, HTTP adapter contracts — seconds each
-      # End-to-end  (~10%): key user journeys through the running system — tens of seconds each
-
   - name: Single-Responsibility Test
     description: >
       Each test names and exercises exactly one refactor-stable behavior. Tests that cross
@@ -112,20 +102,6 @@ patterns:
           assert "canonical_root()" in src  # re-pin required on every rename
 
 anti_patterns:
-  - name: Over-Mocking
-    description: >
-      Mocking every collaborator turns integration tests into scripted interaction replays
-      that pass even when the real integration is broken. Mock only at true system boundaries
-      (external HTTP, file system, clocks, randomness).
-    bad_example: |
-      when(repository.findById(1L)).thenReturn(Optional.of(entity));
-      when(eventBus.publish(any())).thenReturn(true);
-      when(validator.validate(entity)).thenReturn(ValidationResult.ok());
-      // All logic mocked — nothing real is tested
-    good_example: |
-      // Use real repository backed by an in-memory or test-database store;
-      // only mock the external event bus at the outbound boundary.
-
   - name: Shared Mutable State Between Tests
     description: >
       Tests that share mutable state (static fields, common database rows without cleanup,
@@ -211,6 +187,7 @@ references:
   - "packs/built-in/tactics/testing/test-minimisation.tactic.yaml"
   - "packs/built-in/tactics/testing/test-boundaries-by-responsibility.tactic.yaml"
   - "packs/built-in/tactics/testing/test-pyramid-progression.tactic.yaml"
+  - "packs/built-in/tactics/testing/testing-select-appropriate-level.tactic.yaml"
   - "packs/built-in/directives/030-test-and-typecheck-quality-gate.directive.yaml"
   - "packs/built-in/directives/034-test-first-development.directive.yaml"
   - "packs/built-in/directives/041-tests-as-scaffold-not-friction.directive.yaml"

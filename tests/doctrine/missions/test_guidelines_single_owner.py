@@ -1,9 +1,9 @@
-"""Guidelines single-owner tests (WP02, epic #5218, #5202 P0).
+"""Guidelines single-owner tests.
 
 ``mission-steps/<type>/<action>/guidelines.md`` is the single owner of action
 guidelines; the ``packs/built-in/missions/<type>/actions/<action>/guidelines.md``
-copies (the loader's old, undocumented target) are retired. This module pins
-the four RED-first invariants:
+copies (the loader's old, undocumented target) do not exist. This module pins
+four invariants:
 
 (a) No ``packs/built-in/missions/*/actions/*/guidelines.md`` file exists.
 (b) For every mission type/action with a ``mission-steps/<type>/<action>/
@@ -15,8 +15,8 @@ the four RED-first invariants:
     the ``mission-steps`` copy) and that section mentions ``DIRECTIVE_051``;
     ``review`` states the dependency rule as approved/done (the
     ``dependency_readiness_for_wp`` gate, where ``approved`` satisfies it).
-(d) No served guideline says "main repository" or "inflating them with a
-    status commit" -- the two stale phrases the actions/ copies drifted onto.
+(d) No served guideline says "main repository": guidelines use "repository
+    root checkout" (charter Branch-Intent Terminology Governance).
 """
 
 from __future__ import annotations
@@ -30,19 +30,18 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
 _MISSION_STEPS_ROOT = BUILT_IN_MISSIONS_ROOT / "mission-steps"
 
-# Pinned verbatim, as authored in today's mission-steps/software-dev copies
-# (research.md R-7). WP08 later trims these sections to references -- only the
-# heading + the DIRECTIVE_051 mention are pinned here, never the pillar text.
+# Pinned verbatim, as authored in the mission-steps/software-dev copies. The
+# sections are references to DIRECTIVE_051 -- only the heading + the
+# DIRECTIVE_051 mention are pinned here, never the pillar text.
 _SOFTWARE_DEV_SUPPLY_CHAIN_HEADINGS = {
     "implement": "## Supply-Chain Security Check (dependency changes)",
     "plan": "## Supply-Chain Security & Adversarial Evidence",
     "review": "## Supply-Chain Security Evidence",
 }
 
-_FORBIDDEN_PHRASES = (
-    "main repository",
-    "inflating them with a status commit",
-)
+# Forbidden by the charter's Branch-Intent Terminology Governance: the
+# non-worktree checkout is the "repository root checkout".
+_FORBIDDEN_PHRASES = ("main repository",)
 
 
 def _all_mission_step_guideline_pairs() -> list[tuple[str, str]]:
@@ -59,8 +58,8 @@ def _all_mission_step_guideline_pairs() -> list[tuple[str, str]]:
 _MISSION_STEP_PAIRS = _all_mission_step_guideline_pairs()
 
 
-class TestActionsCopiesRetired:
-    """(a) No packs/built-in/missions/*/actions/*/guidelines.md exists."""
+class TestActionsCopiesAbsent:
+    """No packs/built-in/missions/*/actions/*/guidelines.md exists."""
 
     def test_no_actions_guidelines_copies_remain(self) -> None:
         stragglers = sorted(BUILT_IN_MISSIONS_ROOT.glob("*/actions/*/guidelines.md"))
@@ -68,7 +67,7 @@ class TestActionsCopiesRetired:
 
 
 class TestLoaderResolvesMissionSteps:
-    """(b) MissionTemplateRepository serves the mission-steps copy, by origin."""
+    """MissionTemplateRepository serves the mission-steps copy, by origin."""
 
     @pytest.mark.parametrize(("mission_type", "action"), _MISSION_STEP_PAIRS)
     def test_repository_resolves_mission_steps_guidelines(self, mission_type: str, action: str) -> None:
@@ -81,7 +80,7 @@ class TestLoaderResolvesMissionSteps:
 
 
 class TestSoftwareDevSupplyChainSections:
-    """(c) supply-chain headings + DIRECTIVE_051 mention; review states approved/done."""
+    """supply-chain headings + DIRECTIVE_051 mention; review states approved/done."""
 
     @pytest.mark.parametrize(("action", "heading"), sorted(_SOFTWARE_DEV_SUPPLY_CHAIN_HEADINGS.items()))
     def test_supply_chain_heading_and_directive_051(self, action: str, heading: str) -> None:
@@ -110,7 +109,7 @@ class TestSoftwareDevSupplyChainSections:
 
 
 class TestNoStalePhrases:
-    """(d) no served guideline carries a retired phrase."""
+    """(d) served guidelines use "repository root checkout", never "main repository"."""
 
     @pytest.mark.parametrize(("mission_type", "action"), _MISSION_STEP_PAIRS)
     @pytest.mark.parametrize("phrase", _FORBIDDEN_PHRASES)
@@ -118,4 +117,4 @@ class TestNoStalePhrases:
         repo = MissionTemplateRepository(BUILT_IN_MISSIONS_ROOT)
         result = repo.get_action_guidelines(mission_type, action)
         assert result is not None
-        assert phrase not in result.content, f"{mission_type}/{action}: served guidelines still carry retired phrase {phrase!r}"
+        assert phrase not in result.content, f"{mission_type}/{action}: served guidelines carry the forbidden phrase {phrase!r} (use 'repository root checkout')"

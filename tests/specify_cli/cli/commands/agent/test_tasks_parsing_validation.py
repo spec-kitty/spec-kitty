@@ -701,7 +701,7 @@ def test_validate_research_artifacts_blocks_research_commit_format(tmp_path: Pat
 
 
 def test_validate_research_artifacts_recipe_names_to_branch(tmp_path: Path) -> None:
-    """WP03 review (cycle 1, #1): the research/docs commit recipe must name
+    """The research/docs commit recipe must name
     ``--to-branch``, resolved from ``main_repo_root``'s current branch --
     never silently rely on safe-commit's deprecated HEAD fallback.
     """
@@ -1129,7 +1129,7 @@ def test_check_uncommitted_worktree_changes_untracked(tmp_path: Path) -> None:
 
 
 def test_check_uncommitted_worktree_changes_recipe_names_to_branch(tmp_path: Path) -> None:
-    """WP03 review (cycle 1, #1): the deliverable recipe must name
+    """The deliverable recipe must name
     ``--to-branch`` with the worktree's own checked-out branch."""
     with (
         patch("subprocess.run", return_value=_make_subproc(0, "M  src/foo.py\n")),
@@ -1182,7 +1182,7 @@ def test_check_implementation_commit_present_missing_blocks(tmp_path: Path) -> N
 
 
 def test_check_implementation_commit_present_recipe_names_to_branch(tmp_path: Path) -> None:
-    """WP03 review (cycle 1, #1): the deliverable recipe must name
+    """The deliverable recipe must name
     ``--to-branch`` with the worktree's own checked-out branch."""
     with (
         patch(
@@ -1260,7 +1260,7 @@ def test_check_kitty_specs_contamination_unknown_planning_branch(tmp_path: Path)
 def test_check_kitty_specs_contamination_recipe_names_worktree_branch_not_check_branch(
     tmp_path: Path,
 ) -> None:
-    """WP03 review (cycle 1, #1/#2): the cleanup recipe must name
+    """The cleanup recipe must name
     ``--to-branch`` with the worktree's OWN checked-out branch -- never
     ``check_branch`` (the diff BASE the lane diverges from; naming it would
     print a recipe safe-commit's own HEAD-match guard refuses to run). A

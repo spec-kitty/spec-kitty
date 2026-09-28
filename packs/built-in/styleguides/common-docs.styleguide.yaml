@@ -127,8 +127,7 @@ quality_test: >
 # --styleguide PATH / SPEC_KITTY_STYLEGUIDE); only the file the BUILT-IN
 # DEFAULT is loaded from has moved. A project that needs a different policy
 # keeps its own styleguide or data file carrying that block, as this
-# repository's own packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml
-# already does (unaffected by this move).
+# repository's own maintainer override already does (unaffected by this move).
 
 references:
   - packs/built-in/directives/042-common-docs.directive.yaml

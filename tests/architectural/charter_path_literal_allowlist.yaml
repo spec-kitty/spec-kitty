@@ -56,9 +56,9 @@
 # the other governance tests. Entry deleted per the DRAIN PROCEDURE. Baseline
 # re-seeded to the honest live census (50) and CHARTER_PATH_LITERAL_FLOOR is
 # restored in the gate at the same 50.
-# DRAINED (mission squad-doctrine-single-owner-01M3KBP7, WP01/T005): 50 -> 49.
+# DRAINED: 50 -> 49.
 # m_3_2_6_retire_rtk_search_tooling.py was rebuilt on the shared
-# _retired_activation.py engine (T002/T003); its module-level
+# _retired_activation.py engine; its module-level
 # `_CHARTER_RELATIVE_PATH` literal is gone (the module now imports
 # `charter.bundle.CHARTER_YAML` instead), so the site is genuinely gone from
 # the census, not relocated. FLOOR lowered in the gate to match.

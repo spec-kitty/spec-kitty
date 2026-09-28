@@ -5,7 +5,7 @@ preserved -- ``tests/specify_cli/upgrade/migrations/
 test_m_3_2_6_retire_rtk_search_tooling.py`` still passes unmodified against
 the rebuilt migration). That migration hand-rolled the removal logic for a
 single retired toolguide; ``m_4_0_0rc5_retire_single_owner_doctrine_ids``
-needs the same mechanics for eight retirements across four project surfaces,
+needs the same mechanics for eight retirements across five project surfaces,
 so the generic parts move here as a shared, data-driven engine rather than a
 second near-copy (DIRECTIVE_044 / boy-scout precedent already established by
 ``_merge_driver_seeding.py``, which this module mirrors: migrations
@@ -83,7 +83,9 @@ still resolves, so there is nothing to migrate away from.
 Nothing is ever created by this module: a project missing a surface file
 (or missing the key/entry within it) is left untouched, and a malformed
 (unparseable, or non-mapping) YAML file is skipped rather than treated as
-fatal. Every write is a round-trip (comment/quote preserving) parse-mutate-
+fatal -- but never silently: each such file is reported once as a
+``MigrationResult`` warning, because the fail-closed charter compiler would
+otherwise trip over the retired id the skipped file still carries. Every write is a round-trip (comment/quote preserving) parse-mutate-
 dump, exactly as the rtk migration did before extraction.
 """
 
@@ -160,9 +162,10 @@ class _Surface:
     successor_key_prefix: str | None = None
 
 
-_CONFIG_RELATIVE_PATH = Path(".kittify") / "config.yaml"
-_REFERENCES_RELATIVE_PATH = Path(".kittify") / "charter" / "references.yaml"
-_ANSWERS_RELATIVE_PATH = Path(".kittify") / "charter" / "interview" / "answers.yaml"
+_KITTIFY_DIR = Path(".kittify")
+_CONFIG_RELATIVE_PATH = _KITTIFY_DIR / "config.yaml"
+_REFERENCES_RELATIVE_PATH = _KITTIFY_DIR / "charter" / "references.yaml"
+_ANSWERS_RELATIVE_PATH = _KITTIFY_DIR / "charter" / "interview" / "answers.yaml"
 
 _ANSWERS_KEY_PREFIX = "activated_"
 _ANSWERS_KEY_REPLACEMENT = "selected_"
@@ -198,15 +201,30 @@ def _round_trip_yaml() -> YAML:
     return yaml
 
 
-def _load_mapping(path: Path) -> dict[str, Any] | None:
-    """Round-trip load *path* as a mapping; ``None`` when absent/unreadable/not a mapping."""
+def _warn_once(warnings: list[str] | None, message: str) -> None:
+    if warnings is not None and message not in warnings:
+        warnings.append(message)
+
+
+def _load_mapping(path: Path, warnings: list[str] | None = None) -> dict[str, Any] | None:
+    """Round-trip load *path* as a mapping; ``None`` when absent/unreadable/not a mapping.
+
+    A file that exists but cannot be parsed, or parses to something other
+    than a mapping, is skipped (never fatal) and, when *warnings* is given,
+    recorded there once so the operator learns the surface was not migrated.
+    An absent or empty file is silent.
+    """
     if not path.exists():
         return None
     try:
         data = _round_trip_yaml().load(path.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001 -- a malformed project file is skipped, never fatal
+    except Exception:  # noqa: BLE001 -- a malformed project file is skipped, never fatal; reported as a warning below
+        _warn_once(warnings, f"{path.as_posix()} could not be parsed as YAML and was skipped; retired ids in it were not migrated")
         return None
-    return data if isinstance(data, dict) else None
+    if data is not None and not isinstance(data, dict):
+        _warn_once(warnings, f"{path.as_posix()} is not a mapping and was skipped; retired ids in it were not migrated")
+        return None
+    return data
 
 
 def _write(path: Path, data: dict[str, Any]) -> None:
@@ -375,11 +393,12 @@ def _apply_one_retirement(
     include_answers_surface: bool,
     dry_run: bool,
     errors: list[str],
+    warnings: list[str],
 ) -> list[str]:
     changes: list[str] = []
     for surface in _surfaces_for(retirement, include_answers_surface=include_answers_surface):
         path = project_path / surface.relative_path
-        data = _load_mapping(path)
+        data = _load_mapping(path, warnings)
         if data is None:
             continue
         touched, successors_added = _process_surface(data, retirement, surface)
@@ -444,6 +463,7 @@ def apply_retirements(
     """
     changes: list[str] = []
     errors: list[str] = []
+    warnings: list[str] = []
     for retirement in retirements:
         if _still_resolves_via_org_pack(project_path, retirement):
             continue
@@ -454,6 +474,7 @@ def apply_retirements(
                 include_answers_surface=include_answers_surface,
                 dry_run=dry_run,
                 errors=errors,
+                warnings=warnings,
             )
         )
-    return MigrationResult(success=not errors, changes_made=changes, errors=errors)
+    return MigrationResult(success=not errors, changes_made=changes, errors=errors, warnings=warnings)

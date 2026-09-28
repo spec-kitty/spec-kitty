@@ -568,7 +568,7 @@ def _live_keys() -> set[CharterPathKey]:
 # 2026-08-16 GREW note, +2 from the 2026-08-13 #2831 F1/F2 fix whose growth was
 # never recorded, -1 stale activation.py entry drained by the #3838 WP01
 # rewrite and removed in the same #3514 change).
-# DRAINED (mission squad-doctrine-single-owner-01M3KBP7, WP01/T005): 50 -> 49.
+# DRAINED: 50 -> 49.
 # m_3_2_6_retire_rtk_search_tooling.py's module-level `_CHARTER_RELATIVE_PATH`
 # literal is gone (rebuilt on the shared _retired_activation.py engine, which
 # imports `charter.bundle.CHARTER_YAML` instead of re-spelling the literal).

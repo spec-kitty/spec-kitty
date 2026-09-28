@@ -67,8 +67,8 @@ _PRE_MIGRATION_CS = _FIXTURES / "shipped_context_sources_pre_migration.json"
 #: ``requires`` edge. It is the only edge added to a pre-existing profile, and
 #: nothing is removed.
 #:
-#: Single-owner doctrine (mission ``squad-doctrine-single-owner-01M3KBP7``,
-#: ``test_extractor_projection.py`` ledger entry (25)): the retired
+#: Single-owner doctrine (``test_extractor_projection.py`` ledger entry (25)):
+#: the retired
 #: ``bug-fixing-checklist`` tactic folded into the ``test-first-bug-fixing``
 #: procedure, which ivan, norris, freddy and dries now cite through
 #: ``operating-procedures`` (dries's never-shipped checklist edge becomes the

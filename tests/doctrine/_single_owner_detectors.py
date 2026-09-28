@@ -1,4 +1,4 @@
-"""Shared detectors for the squad-doctrine single-owner test suite (WP04, #5219).
+"""Shared detectors for the single-owner doctrine tests.
 
 Two detectors, both driven off plain text so they can be pointed at any
 extracted field (a step description, `notes`, a whole SKILL.md, directive
@@ -12,8 +12,8 @@ prose, ...):
   an "exactly N" headcount claim (squad size must stay example-only, never a
   requirement).
 
-Owned by WP04; reused as-is by WP10 for the charter and reference-page
-single-owner checks (see WP04 prompt, T015).
+Shared by the squad-procedure tests and the project-charter / reference-page
+single-owner checks.
 """
 
 from __future__ import annotations

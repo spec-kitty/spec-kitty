@@ -710,7 +710,7 @@ def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -
 
 
 def test_implement_prompt_and_finalize_summary_name_lane_branch_in_to_branch(workflow_repo: Path) -> None:
-    """WP03 review (cycle 1, #2): every printed ``safe-commit`` recipe in the
+    """Every printed ``safe-commit`` recipe in the
     implement prompt -- both ``build_implement_prompt_lines``'s "WHEN YOU'RE
     DONE:" footer (written to the prompt file) and
     ``implement_finalize_and_print``'s stdout summary -- must name

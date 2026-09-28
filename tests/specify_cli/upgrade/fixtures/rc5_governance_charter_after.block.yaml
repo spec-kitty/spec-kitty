@@ -1,0 +1,31 @@
+# Expected governance.charter block after applying the 4.0.0rc5 migration to
+# rc5_governance_charter_before.charter.yaml: retired stems gone, unrelated
+# siblings (including the same-slug DIRECTIVE 024-locality-of-change) untouched,
+# already-selected successors not duplicated, missing successors appended.
+selected_paradigms:
+- atomic-design
+- behaviour-driven-development
+selected_directives:
+- 024-locality-of-change
+- 025-boy-scout-rule
+selected_tactics:
+- acceptance-test-first
+- avoid-gold-plating
+- tdd-red-green-refactor
+- common-docs-find
+- common-docs-scaffold
+- common-docs-write
+- bdd-scenario-formulation
+selected_styleguides:
+- testing-principles
+- tiered-standards
+- boring-code-review
+selected_toolguides:
+- contextive
+selected_procedures:
+- bdd-scenario-lifecycle
+- test-first-bug-fixing
+- adversarial-squad-deployment
+selected_agent_profiles:
+- implementer-ivan
+template_set: software-dev-default

@@ -1,28 +1,27 @@
-"""Change-scope reconciler, review tactics, kind change and in-house moves
-(WP07, epic #5218, #5221 sections B and D, #5220 item 8).
-
-Written RED-first (charter ATDD-First Discipline): every assertion here must
-fail before the content change lands, then pass once it does.
+"""Change-scope reconciler, review tactics, boring-code-review kind and in-house moves.
 
 Covers:
-(a) ``RECONCILE_CHANGE_SCOPE_TENSIONS`` names DIRECTIVE_052, states the
+- ``RECONCILE_CHANGE_SCOPE_TENSIONS`` names DIRECTIVE_052, states the
     tidy-first carve-out, and states the tie-break between Boy Scout Rule's
     naming licence and smallest-viable-diff's file-set discipline.
-(b) The ``locality-of-change`` tactic is deleted; its evidence gate (3+ real
+- The evidence gate of the retired ``locality-of-change`` tactic (3+ real
     failures, the 5-of-7 checklist) lives in ``avoid-gold-plating`` as the
     single owned threshold.
-(c) ``DIRECTIVE_025`` names ``DIRECTIVE_030`` for pre-existing-failure
-    classification and no longer calls proving pre-existing-ness "the waste".
-(d) ``boring-code-review`` resolves as a styleguide, not a tactic.
-(e) ``iterative-deepening-review`` / ``tracker-organisation-workflow`` are
-    absent from built-in and present (renamed/moved) in the internal pack.
-(f) ``code-review-incremental`` references ``review-intent-and-risk-first``
+- ``DIRECTIVE_025`` names ``DIRECTIVE_030`` for pre-existing-failure
+    classification and does not call proving pre-existing-ness "the waste".
+- ``boring-code-review`` resolves as a styleguide, not a tactic.
+- ``iterative-deepening-review`` / ``tracker-organisation-workflow`` live in
+    the internal pack (renamed / moved), with schema-valid artifacts.
+- ``code-review-incremental`` references ``review-intent-and-risk-first``
     rather than restating its steps.
-(g) No built-in artifact references an internal-only id.
+
+Absence of the retired built-in artifacts and of references to the internal-only
+ids is guarded in ``test_retired_ids_absent.py``.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -40,15 +39,12 @@ _SCHEMAS = DOCTRINE_SOURCE_ROOT / "schemas"
 
 _RECONCILER = _BUILT_IN / "directives" / "reconcile-change-scope-tensions.directive.yaml"
 _DIRECTIVE_025 = _BUILT_IN / "directives" / "025-boy-scout-rule.directive.yaml"
-_LOCALITY_TACTIC = _BUILT_IN / "tactics" / "locality-of-change.tactic.yaml"
 _AVOID_GOLD_PLATING = _BUILT_IN / "tactics" / "avoid-gold-plating.tactic.yaml"
-_BORING_TACTIC = _BUILT_IN / "tactics" / "boring-code-review.tactic.yaml"
+_SMALLEST_VIABLE_DIFF = _BUILT_IN / "tactics" / "change-apply-smallest-viable-diff.tactic.yaml"
 _BORING_STYLEGUIDE = _BUILT_IN / "styleguides" / "boring-code-review.styleguide.yaml"
 _CODE_REVIEW_INCREMENTAL = _BUILT_IN / "tactics" / "code-review-incremental.tactic.yaml"
 _REVIEW_INTENT_FIRST = _BUILT_IN / "tactics" / "review-intent-and-risk-first.tactic.yaml"
 
-_BUILT_IN_ITERATIVE_DEEPENING = _BUILT_IN / "tactics" / "iterative-deepening-review.tactic.yaml"
-_BUILT_IN_TRACKER_WORKFLOW = _BUILT_IN / "procedures" / "tracker-organisation-workflow.procedure.yaml"
 _INTERNAL_ITERATIVE_DEEPENING = _INTERNAL / "tactics" / "tracker-backlog-iterative-deepening.tactic.yaml"
 _INTERNAL_TRACKER_WORKFLOW = _INTERNAL / "procedures" / "tracker-organisation-workflow.procedure.yaml"
 
@@ -56,13 +52,6 @@ _DIRECTIVE_SCHEMA = _SCHEMAS / "directive.schema.yaml"
 _TACTIC_SCHEMA = _SCHEMAS / "tactic.schema.yaml"
 _STYLEGUIDE_SCHEMA = _SCHEMAS / "styleguide.schema.yaml"
 _PROCEDURE_SCHEMA = _SCHEMAS / "procedure.schema.yaml"
-
-# Directories excluded from the "no built-in artifact references an
-# internal-only id" scan -- generated/graph surfaces are WP09's territory and
-# are expected to still carry the old wiring until WP09 regenerates.
-_GRAPH_OWNED_NAMES = {
-    "pack-manifest.yaml",
-}
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -84,7 +73,7 @@ def _validate(data: dict[str, Any], schema_path: Path) -> None:
 
 
 class TestReconcilerNamesDirective052AndCarveOuts:
-    """(a) the reconciler names DIRECTIVE_052, the tidy-first carve-out, and the tie-break."""
+    """The reconciler names DIRECTIVE_052, the tidy-first carve-out, and the tie-break."""
 
     def test_reconciler_names_directive_052(self) -> None:
         text = _raw_text(_RECONCILER)
@@ -106,10 +95,19 @@ class TestReconcilerNamesDirective052AndCarveOuts:
         _validate(data, _DIRECTIVE_SCHEMA)
 
 
-class TestDirective025NamesDirective030:
-    """(c) DIRECTIVE_025 names DIRECTIVE_030 for pre-existing-failure classification."""
+class TestSmallestViableDiffPointsAtTheTieBreak:
+    """The tactic's absolute "do not rename" wording must point at the owner of the tie-break."""
 
-    def test_no_longer_calls_the_proof_the_waste(self) -> None:
+    def test_tactic_names_the_reconciler_tie_break(self) -> None:
+        text = _raw_text(_SMALLEST_VIABLE_DIFF)
+        assert "RECONCILE_CHANGE_SCOPE_TENSIONS" in text, "change-apply-smallest-viable-diff must point at the reconciler's naming tie-break"
+        assert "tie-break" in text
+
+
+class TestDirective025NamesDirective030:
+    """DIRECTIVE_025 names DIRECTIVE_030 for pre-existing-failure classification."""
+
+    def test_does_not_call_the_proof_the_waste(self) -> None:
         text = " ".join(_raw_text(_DIRECTIVE_025).split())
         assert "is the waste this directive exists to prevent" not in text
 
@@ -122,11 +120,8 @@ class TestDirective025NamesDirective030:
         _validate(data, _DIRECTIVE_SCHEMA)
 
 
-class TestLocalityTacticFoldedIntoAvoidGoldPlating:
-    """(b) locality-of-change tactic absent; its evidence gate lives in avoid-gold-plating."""
-
-    def test_locality_of_change_tactic_absent(self) -> None:
-        assert not _LOCALITY_TACTIC.exists(), "locality-of-change tactic must be deleted (folded into avoid-gold-plating)"
+class TestAvoidGoldPlatingOwnsTheEvidenceGate:
+    """The locality-of-change evidence gate lives in avoid-gold-plating."""
 
     def test_avoid_gold_plating_carries_the_evidence_gate(self) -> None:
         raw = _raw_text(_AVOID_GOLD_PLATING)
@@ -144,7 +139,6 @@ class TestLocalityTacticFoldedIntoAvoidGoldPlating:
         data = _load_yaml(path)
         ids = {ref.get("id") for step in data.get("steps", []) for ref in step.get("references", []) or []}
         ids |= {ref.get("id") for ref in data.get("references", []) or []}
-        assert "locality-of-change" not in ids, "deepening-opportunity-assessment must stop referencing the deleted locality-of-change tactic"
         assert "avoid-gold-plating" in ids, "deepening-opportunity-assessment must repoint to avoid-gold-plating"
 
     def test_avoid_gold_plating_references_the_deleted_tactics_directive_edges(self) -> None:
@@ -160,9 +154,10 @@ class TestLocalityTacticFoldedIntoAvoidGoldPlating:
         # avoid-gold-plating sits two ``suggests`` hops from the implement
         # action (via the boring-code-review styleguide), so the edge would
         # deliver the required decision-documentation directive to implement
-        # and break the FR-004 gate (``scan_decision_documentation_scoped_on_
-        # implement``). Decision documentation is delivered at review.
-        assert "DIRECTIVE_003" not in directive_refs, "a typed DIRECTIVE_003 reference would deliver it to implement (FR-004 gate)"
+        # and break the decision-documentation scoping gate
+        # (``scan_decision_documentation_scoped_on_implement``). Decision
+        # documentation is delivered at review.
+        assert "DIRECTIVE_003" not in directive_refs, "a typed DIRECTIVE_003 reference would deliver it to implement (decision-documentation scoping gate)"
         assert "DIRECTIVE_003" in _raw_text(_AVOID_GOLD_PLATING), "avoid-gold-plating must still cite DIRECTIVE_003 (decision documentation) by id"
 
     def test_avoid_gold_plating_carries_the_accept_reject_rationale_rule(self) -> None:
@@ -182,10 +177,7 @@ class TestLocalityTacticFoldedIntoAvoidGoldPlating:
 
 
 class TestBoringCodeReviewIsAStyleguide:
-    """(d) boring-code-review resolves as a styleguide, not a tactic."""
-
-    def test_tactic_file_absent(self) -> None:
-        assert not _BORING_TACTIC.exists(), "boring-code-review tactic must be deleted"
+    """boring-code-review resolves as a styleguide."""
 
     def test_styleguide_file_present_with_same_id(self) -> None:
         assert _BORING_STYLEGUIDE.exists(), "boring-code-review styleguide must exist"
@@ -201,15 +193,10 @@ class TestBoringCodeReviewIsAStyleguide:
         data = _load_yaml(path)
         refs = {(ref.get("type"), ref.get("id")) for ref in data.get("references", []) or []}
         assert ("styleguide", "boring-code-review") in refs, "DIRECTIVE_039 must reference boring-code-review as a styleguide"
-        assert ("tactic", "boring-code-review") not in refs, "DIRECTIVE_039 must not still reference boring-code-review as a tactic"
 
 
 class TestInHouseMoves:
-    """(e) iterative-deepening-review / tracker-organisation-workflow move to internal."""
-
-    def test_absent_from_built_in(self) -> None:
-        assert not _BUILT_IN_ITERATIVE_DEEPENING.exists(), "iterative-deepening-review must leave built-in"
-        assert not _BUILT_IN_TRACKER_WORKFLOW.exists(), "tracker-organisation-workflow must leave built-in"
+    """iterative-deepening-review / tracker-organisation-workflow live in the internal pack."""
 
     def test_present_in_internal_pack(self) -> None:
         assert _INTERNAL_ITERATIVE_DEEPENING.exists(), "tracker-backlog-iterative-deepening must exist in packs/internal/tactics/"
@@ -233,23 +220,13 @@ class TestInHouseMoves:
         assert "tracker-backlog-iterative-deepening" in node_ids
         assert "tracker-organisation-workflow" in node_ids
 
-    def test_no_built_in_artifact_references_an_internal_only_id(self) -> None:
-        forbidden = {"iterative-deepening-review", "tracker-organisation-workflow"}
-        offenders: list[str] = []
-        for path in sorted(_BUILT_IN.rglob("*.yaml")):
-            if path.name in _GRAPH_OWNED_NAMES or path.name.endswith(".graph.yaml"):
-                continue
-            if "/missions/" in path.as_posix() and "/actions/" in path.as_posix() and path.name == "index.yaml":
-                continue
-            text = path.read_text(encoding="utf-8")
-            for forbidden_id in forbidden:
-                if forbidden_id in text:
-                    offenders.append(f"{path.relative_to(REPO_ROOT)}: {forbidden_id}")
-        assert not offenders, f"built-in artifacts must not reference internal-only ids: {offenders}"
+    def test_internal_pack_fragment_carries_no_issue_numbers(self) -> None:
+        text = (_INTERNAL / "drg" / "fragment.yaml").read_text(encoding="utf-8")
+        assert not re.search(r"#\d{3,5}\b", text), "internal fragment comments must describe the move in words, not cite #NNNN issue numbers"
 
 
 class TestReviewTacticLayering:
-    """(f) code-review-incremental references review-intent-and-risk-first by reference."""
+    """code-review-incremental references review-intent-and-risk-first by reference."""
 
     def test_review_intent_first_no_longer_asks_to_confirm_with_author(self) -> None:
         raw = " ".join(_raw_text(_REVIEW_INTENT_FIRST).split())

@@ -91,10 +91,13 @@ recorded for any other migration. Auto-discovered via
 
 Scope and idempotency
 ----------------------
-Four project files per retirement, each optional (never created):
-``.kittify/config.yaml``, ``.kittify/charter/charter.yaml``,
-``.kittify/charter/references.yaml``,
-``.kittify/charter/interview/answers.yaml``. A successor stem is activated
+Five project surfaces per retirement, each optional (never created):
+``.kittify/config.yaml``, ``.kittify/charter/charter.yaml`` (its top-level
+``activated_<kind>`` lists and ``catalog`` block), that same file's nested
+legacy ``governance.charter.selected_<kind>`` block,
+``.kittify/charter/references.yaml``, and
+``.kittify/charter/interview/answers.yaml``. A surface file that exists but
+cannot be parsed is skipped and reported as a ``MigrationResult`` warning. A successor stem is activated
 in the same file the retired stem was removed from, only when that
 successor's own ``activated_<kind>`` list already exists there (never
 created — an absent key means "not narrowed",
@@ -112,6 +115,9 @@ from ..registry import MigrationRegistry
 from ._retired_activation import Retirement, apply_retirements, detect_retirements
 from .base import BaseMigration, MigrationResult
 
+_TACTICS_KEY = "activated_tactics"
+_TACTIC_PREFIX = "TACTIC"
+
 #: The consumer retirement table (research.md R-11 / spec.md FR-009). Module-
 #: level constant so WP09's DRG-consistency test can import it directly
 #: rather than re-deriving the same data a second time.
@@ -122,43 +128,43 @@ RETIREMENTS: tuple[Retirement, ...] = (
         reference_prefix="STYLEGUIDE",
     ),
     Retirement(
-        kind_key="activated_tactics",
+        kind_key=_TACTICS_KEY,
         stem="bug-fixing-checklist",
-        reference_prefix="TACTIC",
+        reference_prefix=_TACTIC_PREFIX,
         successors=(("activated_procedures", "test-first-bug-fixing"),),
     ),
     Retirement(
-        kind_key="activated_tactics",
+        kind_key=_TACTICS_KEY,
         stem="locality-of-change",
-        reference_prefix="TACTIC",
-        successors=(("activated_tactics", "avoid-gold-plating"),),
+        reference_prefix=_TACTIC_PREFIX,
+        successors=((_TACTICS_KEY, "avoid-gold-plating"),),
     ),
     Retirement(
-        kind_key="activated_tactics",
+        kind_key=_TACTICS_KEY,
         stem="common-docs-curation",
-        reference_prefix="TACTIC",
+        reference_prefix=_TACTIC_PREFIX,
         successors=(
-            ("activated_tactics", "common-docs-scaffold"),
-            ("activated_tactics", "common-docs-write"),
-            ("activated_tactics", "common-docs-find"),
+            (_TACTICS_KEY, "common-docs-scaffold"),
+            (_TACTICS_KEY, "common-docs-write"),
+            (_TACTICS_KEY, "common-docs-find"),
         ),
     ),
     Retirement(
-        kind_key="activated_tactics",
+        kind_key=_TACTICS_KEY,
         stem="boring-code-review",
-        reference_prefix="TACTIC",
+        reference_prefix=_TACTIC_PREFIX,
         successors=(("activated_styleguides", "boring-code-review"),),
     ),
     Retirement(
-        kind_key="activated_tactics",
+        kind_key=_TACTICS_KEY,
         stem="behavior-driven-development",
-        reference_prefix="TACTIC",
-        successors=(("activated_tactics", "bdd-scenario-formulation"),),
+        reference_prefix=_TACTIC_PREFIX,
+        successors=((_TACTICS_KEY, "bdd-scenario-formulation"),),
     ),
     Retirement(
-        kind_key="activated_tactics",
+        kind_key=_TACTICS_KEY,
         stem="iterative-deepening-review",
-        reference_prefix="TACTIC",
+        reference_prefix=_TACTIC_PREFIX,
     ),
     Retirement(
         kind_key="activated_procedures",
@@ -207,5 +213,5 @@ class RetireSingleOwnerDoctrineIdsMigration(BaseMigration):
             dry_run=dry_run,
         )
         if not result.changes_made and not result.errors:
-            return MigrationResult(success=True, changes_made=[_NO_OP_MESSAGE])
+            return MigrationResult(success=True, changes_made=[_NO_OP_MESSAGE], warnings=result.warnings)
         return result

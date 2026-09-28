@@ -823,15 +823,15 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(fresh
 #: WILL move as doctrine grows -- that is expected; a diff here is a prompt to
 #: re-verify the new total, not a regression by itself.
 _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
-    "documentation": 129,
-    "research": 118,
+    "documentation": 130,
+    "research": 119,
     "software-dev": 165,
-    "plan": 137,
+    "plan": 138,
 }
-#: Mission squad-doctrine-single-owner-01M3KBP7 (WP09), measured with
-#: ``cascade_activation_targets`` on the regenerated graph; re-measured on
-#: integrating main at BASE be286caa (after #5258 below, which moved only
-#: ``plan`` and ``software-dev``), so the arrows start from those totals:
+#: Cascade totals after the single-owner doctrine change, measured with
+#: ``cascade_activation_targets`` on the regenerated graph (the arrows start
+#: from the totals before that change, after #5258 below, which moved only
+#: ``plan`` and ``software-dev``):
 #:
 #: * every type loses the retired ids it reached (adversarial-squad-cadence,
 #:   behavior-driven-development, bug-fixing-checklist, locality-of-change,
@@ -841,10 +841,15 @@ _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
 #: * the squad procedure now ``suggests`` model-task-routing, and
 #:   test-first-bug-fixing ``suggests`` DIRECTIVE_052 (-> DIRECTIVE_044 ->
 #:   canonical-source-unification), which every type that reaches them gains;
+#: * ``testing-principles`` then ``suggests`` ``testing-select-appropriate-level``
+#:   (the owner of the test-pyramid layer shape it now references instead of
+#:   restating), which adds that tactic to every type that reaches the
+#:   styleguide but not the tactic: documentation, research and plan +1 each
+#:   (129 -> 130, 118 -> 119, 137 -> 138); software-dev already reached it;
 #: * ``documentation`` 44 -> 129: it reaches
 #:   ``tactic:paula-patterns-architecture-scout-review``, whose new curated
 #:   ``refines`` edge to ``procedure:adversarial-squad-deployment`` is followed
-#:   by cascade (by design -- FR-012: refines is a cascade relation, not a
+#:   by cascade (by design: refines is a cascade relation, not a
 #:   delivery relation), so the procedure's closure (+85) joins; lost only
 #:   common-docs-curation (its successors were already reached);
 #: * ``plan`` 147 -> 137 (-12 / +2): ``procedure:tracker-organisation-workflow``

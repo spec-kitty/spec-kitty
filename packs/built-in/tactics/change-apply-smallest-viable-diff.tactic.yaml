@@ -8,7 +8,7 @@ steps:
     examples:
       - "A bug in payment processing requires changes only to payment_service.py and its tests – not to the shared utilities module."
   - title: Identify the minimal change within each file
-    description: Find the smallest edit (line or block) that achieves the goal. Do not reformat, rename, or reorganise adjacent code.
+    description: Find the smallest edit (line or block) that achieves the goal. Do not reformat, rename, or reorganise adjacent code. (Naming and readability cleanup inside the touched area is governed by the tie-break in the RECONCILE_CHANGE_SCOPE_TENSIONS directive, not by this step.)
   - title: Apply the change
     description: Make targeted edits without altering unrelated formatting, imports, or structure.
     examples:

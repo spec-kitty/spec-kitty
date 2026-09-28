@@ -1,25 +1,24 @@
-"""Testing/bug-fixing/BDD doctrine single-owner tests (WP05, epic #5218).
+"""Testing / bug-fixing / BDD doctrine single-owner tests.
 
-Resolves the 10 contradictions research R-9 pins for the testing, bug-fixing
-and BDD doctrine surfaces so each rule has exactly one owner:
+Each rule on the testing, bug-fixing and BDD doctrine surfaces has exactly one
+owner:
 
-(a) ``bug-fixing-checklist`` (tactic) is retired; its four unique lines were
-    folded into the ``test-first-bug-fixing`` procedure.
-(b) ``test-first-bug-fixing`` carries a "refactor after the fix" instruction
-    and states the commit-topology carve-out (test+fix together, unless a
-    failing reproduction already landed on the mainline).
-(c) The TypeScript mutation toolguide's CI break-gate example is an opt-in,
-    with ``break: 0`` as the shipped default.
-(d) Exactly one artifact (the ``mutation-testing-workflow`` tactic) carries a
-    mutation band table; no other artifact states a numeric mutation target.
-(e) ``testing-principles`` no longer defines "Predictive", "Inspiring", or
-    "Clear Test Boundaries" (or a same-named rename), and references
-    ``quadruple-a-test-format`` instead of restating its inline copy.
-(f) The tactic id ``bdd-scenario-formulation`` exists under
-    ``tactics/testing/``; the old id ``behavior-driven-development`` (tactic)
-    is retired.
-(g) ``development-bdd``'s step/reference order puts example mapping
-    (Discovery) before Formulation, per the BDD paradigm's cycle order.
+- The unique lines of the retired ``bug-fixing-checklist`` tactic live in the
+  ``test-first-bug-fixing`` procedure (absence of the retired tactic is
+  guarded in ``test_retired_ids_absent.py``).
+- ``test-first-bug-fixing`` carries a "refactor after the fix" instruction
+  and states the commit-topology carve-out (test+fix together, unless a
+  failing reproduction already landed on the mainline).
+- The TypeScript mutation toolguide's CI break-gate example is an opt-in,
+  with ``break: 0`` as the shipped default.
+- Exactly one artifact (the ``mutation-testing-workflow`` tactic) carries a
+  mutation band table; no other artifact states a numeric mutation target.
+- ``testing-principles`` does not define "Predictive", "Inspiring", or
+  "Clear Test Boundaries" (or a same-named rename), and references
+  ``quadruple-a-test-format`` instead of restating its inline copy.
+- The tactic id ``bdd-scenario-formulation`` lives under ``tactics/testing/``.
+- ``development-bdd``'s step/reference order puts example mapping
+  (Discovery) before Formulation, per the BDD paradigm's cycle order.
 """
 
 from __future__ import annotations
@@ -73,12 +72,8 @@ def _yaml(path: Path) -> dict:
     return yaml.safe_load(_text(path))
 
 
-class TestBugFixingChecklistRetired:
-    """(a) bug-fixing-checklist is absent; its lines live in test-first-bug-fixing."""
-
-    def test_bug_fixing_checklist_tactic_file_absent(self) -> None:
-        stray = _TACTICS_TESTING / "bug-fixing-checklist.tactic.yaml"
-        assert not stray.exists(), f"bug-fixing-checklist must be deleted -- test-first-bug-fixing is the single owner (#5220): {stray}"
+class TestBugFixingLinesLiveInTestFirstProcedure:
+    """The retired checklist's unique lines live in test-first-bug-fixing."""
 
     def test_test_first_bug_fixing_states_expected_actual_in_one_sentence(self) -> None:
         content = _text(_PROCEDURES / "test-first-bug-fixing.procedure.yaml")
@@ -100,7 +95,7 @@ class TestBugFixingChecklistRetired:
 
 
 class TestTestFirstBugFixingTopologyAndRefactor:
-    """(b) refactor-after instruction + commit-topology carve-out."""
+    """Refactor-after instruction + commit-topology carve-out."""
 
     def test_states_refactor_after_green_before_the_fix_step(self) -> None:
         procedure = _yaml(_PROCEDURES / "test-first-bug-fixing.procedure.yaml")
@@ -109,7 +104,7 @@ class TestTestFirstBugFixingTopologyAndRefactor:
         assert "refactor" in titles, "test-first-bug-fixing must state a refactor-after-green instruction, scoped to the fix's own code"
 
     def test_states_tidy_first_before_red_reproduction_with_025_citation(self) -> None:
-        # Recorded decision: tidy-first is a separate, behaviour-preserving
+        # Design decision: tidy-first is a separate, behaviour-preserving
         # commit on the surfaces the fix will touch, made BEFORE the red
         # reproduction test -- DIRECTIVE_025 (Boy Scout Rule) owns that rule,
         # so this procedure cites it by id instead of restating it.
@@ -134,7 +129,7 @@ class TestTestFirstBugFixingTopologyAndRefactor:
         # disciplined-defect-diagnosis already requires test-first-bug-fixing
         # (diagnose, then fix); a formal back-reference here would mint a
         # requires cycle, so the hand-off is prose-only in the "Understand
-        # the bug" step, and the reverse edge is a curated suggests for WP09.
+        # the bug" step, and the reverse edge is a curated suggests.
         procedure = _yaml(_PROCEDURES / "test-first-bug-fixing.procedure.yaml")
         ref_ids = {ref["id"] for ref in procedure.get("references", [])}
         expected = {"DIRECTIVE_034", "red-main-release-discipline"}
@@ -149,35 +144,29 @@ class TestTestFirstBugFixingTopologyAndRefactor:
             " existing test-first-bug-fixing reference)"
         )
 
-    def test_tdd_red_green_refactor_has_no_stray_refactor_after_fix_duplicate_wording(self) -> None:
-        # tdd-red-green-refactor already states its own Refactor step; this is a
-        # canary that no bug-fixing-checklist wording leaked into it verbatim.
-        content = _text(_TACTICS_TESTING / "tdd-red-green-refactor.tactic.yaml")
-        assert "Adapted from patterns.sddevelopment.be" not in content, "tdd-red-green-refactor must not absorb bug-fixing-checklist's notes verbatim"
-
 
 class TestDisciplinedDefectDiagnosisNoChecklistCitation:
     """checklist citation removed; minimal-fix wording softened."""
-
-    def test_no_bug_fixing_checklist_reference(self) -> None:
-        procedure = _yaml(_PROCEDURES / "disciplined-defect-diagnosis.procedure.yaml")
-        ref_ids = {ref["id"] for ref in procedure.get("references", [])}
-        assert "bug-fixing-checklist" not in ref_ids, "disciplined-defect-diagnosis must drop its bug-fixing-checklist reference (retired id)"
 
     def test_minimal_fix_wording_is_proportional_to_diagnosed_cause(self) -> None:
         content = _text(_PROCEDURES / "disciplined-defect-diagnosis.procedure.yaml").lower()
         assert "proportional to the diagnosed cause" in content, "disciplined-defect-diagnosis must soften 'minimal fix' to 'proportional to the diagnosed cause'"
 
+    @pytest.mark.parametrize("profile", ["java-jenny", "drupal-dries"])
+    def test_profiles_do_not_restate_the_minimal_fix_wording(self, profile: str) -> None:
+        content = _text(_PACKS_BUILT_IN / "agent_profiles" / f"{profile}.agent.yaml").lower()
+        assert "minimal fix" not in content, f"{profile} must defer to test-first-bug-fixing instead of the retired 'minimal fix' wording"
+
 
 class TestMutationSingleOwner:
-    """(c)/(d) exactly one mutation band table; TS CI gate is opt-in with break: 0."""
+    """Exactly one mutation band table; TS CI gate is opt-in with break: 0."""
 
     def test_mutation_testing_workflow_carries_the_band_table(self) -> None:
         content = _text(_MUTATION_TABLE_OWNER)
         assert _MUTATION_BAND_PATTERN.search(content), "mutation-testing-workflow must carry the single mutation band table (framed as triage bands)"
 
     def test_mutation_table_owner_uses_triage_framing_not_a_numeric_target(self) -> None:
-        # Recorded decision: no numeric target -- one table, framed as triage
+        # Design decision: no numeric target -- one table, framed as triage
         # bands (a signal for where to look, not a goal).
         content = _text(_MUTATION_TABLE_OWNER).lower()
         assert "triage band" in content, "mutation-testing-workflow must frame its band table as triage bands"
@@ -187,7 +176,7 @@ class TestMutationSingleOwner:
     def test_no_other_surface_carries_a_mutation_band_table(self, surface: Path) -> None:
         content = _text(surface)
         matches = _MUTATION_BAND_PATTERN.findall(content)
-        assert not matches, f"{surface}: mutation band/target table must be removed -- mutation-testing-workflow is the single owner (#5220): {matches}"
+        assert not matches, f"{surface}: mutation band/target table must be removed -- mutation-testing-workflow is the single owner: {matches}"
 
     def test_no_target_80_percent_phrase_anywhere_in_owned_mutation_surfaces(self) -> None:
         for surface in _CANDIDATE_MUTATION_SURFACES:
@@ -219,7 +208,7 @@ class TestMutationSingleOwner:
 
 
 class TestTestingPrinciplesTermsSingleOwner:
-    """(e) testing-principles drops colliding terms; references quadruple-a by id."""
+    """testing-principles drops colliding terms; references quadruple-a by id."""
 
     def test_no_literal_predictive_term(self) -> None:
         content = _text(_STYLEGUIDES / "testing-principles.styleguide.yaml")
@@ -245,6 +234,44 @@ class TestTestingPrinciplesTermsSingleOwner:
         content = _text(_STYLEGUIDES / "testing-principles.styleguide.yaml")
         assert "Quad-A Test Structure" not in content, "testing-principles must trim the inline Quad-A pattern and reference quadruple-a-test-format by id instead"
 
+    def test_testing_pyramid_is_referenced_not_restated(self) -> None:
+        styleguide = _yaml(_STYLEGUIDES / "testing-principles.styleguide.yaml")
+        pattern_names = {p.get("name") for p in styleguide.get("patterns", [])}
+        assert "Testing Pyramid" not in pattern_names, "testing-principles must reference testing-select-appropriate-level instead of restating the pyramid"
+        assert "~70%" not in _text(_STYLEGUIDES / "testing-principles.styleguide.yaml")
+
+    def test_over_mocking_is_referenced_not_restated(self) -> None:
+        styleguide = _yaml(_STYLEGUIDES / "testing-principles.styleguide.yaml")
+        anti_pattern_names = {p.get("name") for p in styleguide.get("anti_patterns", [])}
+        assert "Over-Mocking" not in anti_pattern_names, "testing-principles must reference test-desiderata-and-boundaries instead of restating over-mocking"
+
+    def test_owners_of_pyramid_and_mocking_are_named_by_id(self) -> None:
+        content = _text(_STYLEGUIDES / "testing-principles.styleguide.yaml")
+        for owner in (
+            "testing-select-appropriate-level",
+            "test-pyramid-progression",
+            "test-desiderata-and-boundaries",
+            "test-boundaries-by-responsibility",
+        ):
+            assert content.count(owner) >= 2, f"{owner} must be named in the prose as well as in references"
+
+    def test_pyramid_owner_carries_the_layer_shape(self) -> None:
+        owner = _text(_TACTICS_TESTING / "testing-select-appropriate-level.tactic.yaml").lower()
+        assert "base" in owner and "e2e" in owner and "few tests" in owner
+
+    def test_run_order_owner_does_not_restate_the_layer_shape(self) -> None:
+        # test-pyramid-progression owns run order only; the base/middle/top
+        # proportion is owned by testing-select-appropriate-level.
+        purpose = _yaml(_TACTICS_TESTING / "test-pyramid-progression.tactic.yaml")["purpose"].lower()
+        assert "at the base" not in purpose and "in the middle" not in purpose, (
+            "test-pyramid-progression owns run order; the pyramid layer shape belongs to testing-select-appropriate-level"
+        )
+
+    def test_styleguide_references_the_shape_owner(self) -> None:
+        styleguide = _yaml(_STYLEGUIDES / "testing-principles.styleguide.yaml")
+        flat = " ".join(str(r) for r in styleguide.get("references", []))
+        assert "testing-select-appropriate-level" in flat
+
 
 class TestInspiringCitationsRetargeted:
     """Inspiring citations move to test-desiderata-and-boundaries."""
@@ -259,11 +286,7 @@ class TestInspiringCitationsRetargeted:
 
 
 class TestBddScenarioFormulationSingleOwner:
-    """(f) bdd-scenario-formulation exists under tactics/testing/; old id retired."""
-
-    def test_old_behavior_driven_development_tactic_file_absent(self) -> None:
-        stray = _TACTICS / "behavior-driven-development.tactic.yaml"
-        assert not stray.exists(), f"behavior-driven-development (tactic) must be deleted -- renamed to bdd-scenario-formulation (#5220): {stray}"
+    """bdd-scenario-formulation lives under tactics/testing/."""
 
     def test_bdd_scenario_formulation_exists_under_tactics_testing(self) -> None:
         new_home = _TACTICS_TESTING / "bdd-scenario-formulation.tactic.yaml"
@@ -285,7 +308,7 @@ class TestBddScenarioFormulationSingleOwner:
 
 
 class TestDevelopmentBddDiscoveryBeforeFormulation:
-    """(g) development-bdd's order follows the paradigm's Discovery -> Formulation cycle."""
+    """development-bdd's order follows the paradigm's Discovery -> Formulation cycle."""
 
     def test_references_example_mapping_workshop_before_bdd_scenario_formulation(self) -> None:
         tactic = _yaml(_TACTICS / "architecture" / "development-bdd.tactic.yaml")
@@ -299,16 +322,6 @@ class TestDevelopmentBddDiscoveryBeforeFormulation:
         formulation_index = ref_ids.index("bdd-scenario-formulation")
         assert discovery_index < formulation_index, (
             "development-bdd must order Discovery (example-mapping-workshop) before Formulation (bdd-scenario-formulation), per the paradigm's cycle order"
-        )
-
-    def test_no_stray_reference_to_retired_behavior_driven_development_tactic_id(self) -> None:
-        # Widened (review cycle 1): must catch the bare id in prose, not only
-        # a YAML `references` entry -- development-bdd's own purpose text
-        # named the retired tactic by id outside of `references`.
-        content = _text(_TACTICS / "architecture" / "development-bdd.tactic.yaml")
-        assert "behavior-driven-development" not in content, (
-            "development-bdd must not reference the retired behavior-driven-development tactic id,"
-            " in a references entry or in prose -- cite bdd-scenario-formulation instead"
         )
 
 
@@ -334,13 +347,13 @@ class TestGherkinToolchainNotesLiveInToolguide:
 
 
 class TestNoIssueReferencesInPackProse:
-    """New/rewritten owned artifacts must not carry #NNNN issue references.
+    """Single-owner testing/BDD artifacts must not carry #NNNN issue references.
 
-    Scoped to the artifacts this WP creates or substantially rewrites --
+    Scoped to the owning artifacts listed below --
     surfaces with a PRE-EXISTING, already-baselined provenance comment
     (``tests/architectural/_builtin_pack_provenance_baseline.yaml``, e.g.
     directives 030/034's ``#3009`` migration note) are out of scope; the
-    shrink-only ratchet governs those, not this WP.
+    shrink-only ratchet governs those, not this test.
     """
 
     @pytest.mark.parametrize(
@@ -359,7 +372,6 @@ class TestNoIssueReferencesInPackProse:
         ],
     )
     def test_no_hash_issue_reference(self, surface: Path) -> None:
-        if not surface.exists():
-            pytest.skip(f"{surface} does not exist yet")
+        assert surface.exists(), f"{surface} is missing"
         content = _text(surface)
         assert not re.search(r"#\d{3,5}\b", content), f"{surface}: pack prose must not cite #NNNN issue references"

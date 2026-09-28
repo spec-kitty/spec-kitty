@@ -11,8 +11,7 @@
 # A repository that needs a different policy keeps its own styleguide or
 # data file carrying a `structural_lint_config:` block and points
 # `--styleguide` / `SPEC_KITTY_STYLEGUIDE` at it instead — this repository's
-# own packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml
-# is exactly that override, and is unaffected by this move: it keeps
+# own maintainer override is exactly that, and is unaffected by this move: it keeps
 # working through the same wrapper key.
 #
 # asset_owned_marker_values: the two point_in_time_markers frontmatter

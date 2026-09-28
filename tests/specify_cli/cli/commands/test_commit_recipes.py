@@ -1,4 +1,4 @@
-"""T011-T014 (#5078 WP03): every printed ``git commit`` recipe in
+"""Every printed ``git commit`` recipe in
 ``src/specify_cli`` uses ``spec-kitty safe-commit`` (the shared
 ``_commit_recipes.safe_commit_recipe`` renderer), never raw ``git add`` /
 ``git commit`` instructions.
@@ -24,13 +24,10 @@ Every hit must be either:
   scenario safe-commit structurally cannot serve (no destination ref yet, or
   an empty/allow-empty commit with no file paths).
 
-Base count (pinned at the WP03 planning base, verified 2026-09-28 against
-research.md R-8): scanning the pre-fix tree found 24 unique "git commit"
-string hits across src/specify_cli. 11 of those were genuine printed
-recipes (workflow_executor.py x3, implement.py x1, tasks_parsing_validation.py
-x5, charter/_synthesis.py x1, mission_setup_plan.py x1) and were converted to
-``safe_commit_recipe`` calls by this WP; the remaining 13 are the allowlist
-below, unchanged by this WP's fix.
+The allowlist is keyed on stable content -- the file plus a distinctive
+substring of the flagged text -- never on line numbers, so an unrelated edit
+above an allowlisted site cannot turn the scan red, and a real content change
+at a site does.
 """
 
 from __future__ import annotations
@@ -46,21 +43,23 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _SRC_ROOT = Path(__file__).resolve().parents[4] / "src" / "specify_cli"
 _NEEDLE = "git commit"
+_MIN_DISTINCTIVE_LEN = 16
 
-# (relative-path-from-src/specify_cli, lineno): one-line rationale.
-# Every entry here is text this WP judged NOT to be a printed copy/paste
-# commit recipe (see module docstring). Reviewers: a new entry needs its own
-# rationale, not a rubber stamp of this list -- and a converted recipe site
-# is REMOVED from this list, never added to it (the rendered
-# ``spec-kitty safe-commit ...`` text never contains "git commit").
-_ALLOWED_GIT_COMMIT_HITS: dict[tuple[str, int], str] = {
+# (relative-path-from-src/specify_cli, distinctive substring of the flagged
+# text): one-line rationale. Keyed on content, not line numbers (DIRECTIVE_041).
+# Every entry here is text judged NOT to be a printed copy/paste commit recipe
+# (see module docstring). Reviewers: a new entry needs its own rationale, not a
+# rubber stamp of this list -- and a converted recipe site is REMOVED from this
+# list, never added to it (the rendered ``spec-kitty safe-commit ...`` text
+# never contains "git commit").
+_ALLOWED_GIT_COMMIT_HITS: dict[tuple[str, str], str] = {
     (
         "cli/commands/agent/workflow_cores.py",
-        116,
+        "Ignore git commits and status changes from other agents",
     ): "Banner prose telling the agent to ignore OTHER agents' commits -- not a recipe to run.",
     (
         "cli/commands/implement.py",
-        664,
+        "silently demotes",
     ): (
         "_DEMOTION_REFUSAL_MSG: prose describing a manual meta.json-flatten "
         "conflict repair (`git add` + `git commit`, no concrete files/message/"
@@ -70,15 +69,15 @@ _ALLOWED_GIT_COMMIT_HITS: dict[tuple[str, int], str] = {
     ),
     (
         "consolidation/ordering.py",
-        482,
+        "git commit failed on the primary checkout",
     ): "Error-reason string reporting an ALREADY-ATTEMPTED subprocess git commit's failure, not a recipe.",
     (
         "coordination/write_seam.py",
-        189,
+        "safe_commit: git commit failed",
     ): "_EMPTY_CHANGESET_PREFIX: an internal prefix-matching constant shared with commit_router, not printed as a recipe.",
     (
         "core/mission_creation.py",
-        869,
+        "has no commits yet",
     ): (
         "Bootstrap recipe for an unborn HEAD (`git commit --allow-empty -m "
         "'Initial commit'`): no destination ref exists yet and there are no "
@@ -87,35 +86,35 @@ _ALLOWED_GIT_COMMIT_HITS: dict[tuple[str, int], str] = {
     ),
     (
         "git/commit_helpers.py",
-        1169,
+        "git commit in %s: %s",
     ): "logger.warning template reporting an ALREADY-RUN `git commit`'s stderr, not a recipe.",
     (
         "git/commit_helpers.py",
-        1183,
+        "produced warnings on a successful commit",
     ): "logger.warning template reporting an ALREADY-RUN `git commit`'s warnings, not a recipe.",
     (
         "git/commit_helpers.py",
-        1209,
+        "safe_commit: git commit failed in",
     ): "RuntimeError detail reporting an ALREADY-ATTEMPTED `git commit`'s failure, not a recipe.",
     (
         "migration/runner.py",
-        373,
+        "git commit failed (attempt 1)",
     ): "logger.warning reporting an ALREADY-ATTEMPTED migration git commit's failure (attempt 1), not a recipe.",
     (
         "migration/runner.py",
-        375,
+        "git commit exception (attempt 1)",
     ): "logger.warning reporting an ALREADY-ATTEMPTED migration git commit's exception (attempt 1), not a recipe.",
     (
         "migration/runner.py",
-        389,
+        "git commit failed (attempt 2",
     ): "logger.error reporting an ALREADY-ATTEMPTED migration git commit's failure (attempt 2), not a recipe.",
     (
         "migration/runner.py",
-        391,
+        "git commit exception (attempt 2)",
     ): "logger.error reporting an ALREADY-ATTEMPTED migration git commit's exception (attempt 2), not a recipe.",
     (
         "migration/runner.py",
-        579,
+        "git commit failed after retry",
     ): "_fail() detail string reporting an ALREADY-ATTEMPTED migration git commit's failure, not a recipe.",
 }
 
@@ -168,9 +167,9 @@ def _is_subprocess_argv_element(node: ast.AST, parent_map: dict[int, ast.AST]) -
     (``subprocess.run(["git", "commit", ...])``), code that actually runs
     git and is out of scope per the operator decision.
 
-    Narrowed (WP03 review cycle 1, #3) from "any element of any list/tuple
-    literal passed to any Call": that broader shape also exempted a git-
-    commit string joined into a printed GUIDANCE list, e.g.
+    Deliberately narrow (not "any element of any list/tuple literal passed to
+    any Call": that broader shape also exempted a git-commit string joined
+    into a printed GUIDANCE list, e.g.
     ``"\\n".join(["Commit first:", "  git commit -m ..."])`` -- code that
     prints a copy/paste recipe, squarely in scope. The ``elts[0] == "git"``
     check is real argv's own signature and does not match that shape (its
@@ -184,7 +183,7 @@ def _is_subprocess_argv_element(node: ast.AST, parent_map: dict[int, ast.AST]) -
 
 
 def find_git_commit_recipe_hits(*, source: str, filename: str = "<test>") -> list[tuple[int, str]]:
-    """Return ``(lineno, snippet)`` for every non-docstring, non-argv string
+    """Return ``(lineno, text)`` for every non-docstring, non-argv string
     constant or f-string in *source* containing the substring ``"git commit"``.
     """
     tree = ast.parse(source, filename=filename)
@@ -205,63 +204,76 @@ def find_git_commit_recipe_hits(*, source: str, filename: str = "<test>") -> lis
                 continue
             if _is_subprocess_argv_element(node, parents.parent):
                 continue
-            hits.append((node.lineno, node.value[:80]))
+            hits.append((node.lineno, node.value))
         elif isinstance(node, ast.JoinedStr):
             text = "".join(part.value for part in node.values if isinstance(part, ast.Constant) and isinstance(part.value, str))
             if _NEEDLE in text:
-                hits.append((node.lineno, text[:80]))
+                hits.append((node.lineno, text))
     return hits
 
 
-def _scan_src_specify_cli() -> dict[tuple[str, int], str]:
-    """Return ``{(relative_path, lineno): snippet}`` for every hit under src/specify_cli."""
-    found: dict[tuple[str, int], str] = {}
+def _scan_src_specify_cli() -> list[tuple[str, str]]:
+    """Return ``(relative_path, flagged_text)`` for every hit under src/specify_cli."""
+    found: list[tuple[str, str]] = []
     for path in sorted(_SRC_ROOT.rglob("*.py")):
         rel = path.relative_to(_SRC_ROOT).as_posix()
         source = path.read_text(encoding="utf-8")
-        for lineno, snippet in find_git_commit_recipe_hits(source=source, filename=str(path)):
-            found[(rel, lineno)] = snippet
+        found.extend((rel, text) for _lineno, text in find_git_commit_recipe_hits(source=source, filename=str(path)))
     return found
 
 
-def test_no_unallowed_git_commit_recipe_strings_in_src() -> None:
-    """FR-018/#5078: every printed ``git commit`` recipe is safe-commit-shaped.
+def _allowlist_covers(entry: tuple[str, str], hit: tuple[str, str]) -> bool:
+    (allowed_path, allowed_substring), (hit_path, hit_text) = entry, hit
+    return allowed_path == hit_path and allowed_substring in hit_text
 
-    Any hit not named in ``_ALLOWED_GIT_COMMIT_HITS`` (with a rationale) is a
-    regression -- either a new raw ``git commit`` recipe was printed, or a
-    known one was reverted from ``safe_commit_recipe``.
+
+def test_no_unallowed_git_commit_recipe_strings_in_src() -> None:
+    """Every printed ``git commit`` recipe is safe-commit-shaped.
+
+    Any hit not covered by an entry in ``_ALLOWED_GIT_COMMIT_HITS`` (with a
+    rationale) is a regression -- either a new raw ``git commit`` recipe was
+    printed, or a known one was reverted from ``safe_commit_recipe``.
     """
-    found = _scan_src_specify_cli()
-    unexplained = {key: snippet for key, snippet in found.items() if key not in _ALLOWED_GIT_COMMIT_HITS}
+    unexplained = [hit for hit in _scan_src_specify_cli() if not any(_allowlist_covers(entry, hit) for entry in _ALLOWED_GIT_COMMIT_HITS)]
     assert not unexplained, (
         "Printed git-commit recipe(s) found outside the reviewed allowlist "
         "-- convert to _commit_recipes.safe_commit_recipe() or add a "
-        f"rationale to _ALLOWED_GIT_COMMIT_HITS: {unexplained}"
+        f"rationale to _ALLOWED_GIT_COMMIT_HITS: {[(path, text[:80]) for path, text in unexplained]}"
     )
 
 
 def test_allowlist_has_no_stale_entries() -> None:
-    """The allowlist only ever shrinks (a fixed line moving is a rewrite, not
-    growth) -- a stale entry naming a hit that no longer exists is dead
-    bookkeeping that would silently mask a future regression at that spot.
+    """Every allowlist entry must still match a live hit.
+
+    A stale entry (its site was converted, reworded or deleted) is dead
+    bookkeeping that would silently mask a future regression at that spot, so
+    it must be removed -- the allowlist only ever shrinks.
     """
     found = _scan_src_specify_cli()
-    stale = sorted(key for key in _ALLOWED_GIT_COMMIT_HITS if key not in found)
+    stale = sorted(entry for entry in _ALLOWED_GIT_COMMIT_HITS if not any(_allowlist_covers(entry, hit) for hit in found))
     assert not stale, f"Allowlist entries with no matching source hit (stale, remove them): {stale}"
 
 
-def test_allowlist_pinned_to_thirteen_residual_hits() -> None:
-    """Ratchet: 24 hits existed at the WP03 planning base; 11 were printed
-    recipes (converted to safe_commit_recipe by this WP, so they drop out of
-    the scan); 13 residual non-recipe hits remain, all allowlisted. This
-    count may only go DOWN (further conversions/cleanups), never up.
-    """
-    assert len(_ALLOWED_GIT_COMMIT_HITS) == 13
+def test_allowlist_entries_are_specific_enough_to_be_stable_keys() -> None:
+    """A substring that is too short would silently cover unrelated future hits."""
+    too_short = sorted(entry for entry in _ALLOWED_GIT_COMMIT_HITS if len(entry[1]) < _MIN_DISTINCTIVE_LEN)
+    assert not too_short, f"Allowlist substrings must be distinctive (>= {_MIN_DISTINCTIVE_LEN} chars): {too_short}"
+
+
+def test_allowlist_matching_ignores_line_numbers() -> None:
+    """Positive control for the content key: shifting a site down the file does not change coverage."""
+    entry = ("a.py", "git commit failed (attempt 1)")
+    before = find_git_commit_recipe_hits(source="LOG = 'git commit failed (attempt 1): %s'\n")
+    after = find_git_commit_recipe_hits(source="\n\n\nimport os\nLOG = 'git commit failed (attempt 1): %s'\n")
+    assert before[0][0] != after[0][0]
+    assert _allowlist_covers(entry, ("a.py", before[0][1]))
+    assert _allowlist_covers(entry, ("a.py", after[0][1]))
+    assert not _allowlist_covers(entry, ("b.py", after[0][1]))
 
 
 def test_scanner_positive_control_flags_a_recipe_fixture() -> None:
     """Sanity check on the scanner itself: a fixture string shaped exactly
-    like the recipes this WP converts is still flagged when NOT allowlisted.
+    like the recipes the safe-commit conversion targets is still flagged when NOT allowlisted.
     """
     fixture_source = "RECIPE = 'git commit -m \"feat(WP01): x\"'\n"
     hits = find_git_commit_recipe_hits(source=fixture_source)
@@ -284,7 +296,7 @@ def test_scanner_ignores_subprocess_argv_list() -> None:
 
 
 def test_scanner_flags_joined_guidance_list() -> None:
-    """WP03 review (cycle 1, #3) positive control: a printed recipe joined
+    """Positive control: a printed recipe joined
     from a guidance list -- ``"\\n".join([..., "  git commit -m ..."])`` -- is
     NOT real subprocess argv (its first element is prose, not ``"git"``) and
     MUST still be flagged. Pre-fix, ``_is_subprocess_argv_element`` exempted
@@ -305,7 +317,7 @@ def test_scanner_flags_fstring_recipe() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T012/T013: the shared safe_commit_recipe() renderer.
+# The shared safe_commit_recipe() renderer.
 # ---------------------------------------------------------------------------
 
 
@@ -344,11 +356,10 @@ def test_protected_primary_hint_never_suggests_env_bypass() -> None:
 
 
 # ---------------------------------------------------------------------------
-# WP03 review-cycle-2 #1: pin ``_print_planning_artifact_commit_instructions``'s
-# printed recipe -- a mutation dropping ``planning_branch`` from the
-# ``safe_commit_recipe(...)`` call at implement.py ~L432 survived every other
-# test in the suite (reviewer-renata, review-cycle-2.md). Drive the
-# auto-commit-disabled path directly and assert on the printed recipe text.
+# Pin ``_print_planning_artifact_commit_instructions``'s printed recipe: a
+# mutation dropping ``planning_branch`` from its ``safe_commit_recipe(...)``
+# call must not survive. Drive the auto-commit-disabled path directly and
+# assert on the printed recipe text.
 # ---------------------------------------------------------------------------
 
 

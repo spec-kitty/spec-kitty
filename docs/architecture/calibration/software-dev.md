@@ -2,7 +2,7 @@
 title: 'Calibration Report: software-dev'
 description: 'Calibration report for the software-dev mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-28'
 ---
 # Calibration Report: software-dev
 
@@ -77,7 +77,7 @@ All 6 steps pass the §4.5.1 inequality after the overlay is applied (overlay is
 | **Action id** | `action:software-dev/implement` |
 | **Profile id** | `agent_profile:implementer-ivan` |
 | **Resolved DRG artifact URNs** | 35 URNs (all required + transitive refactoring tactics, styleguides, testing tactics via `DIRECTIVE_025`, `DIRECTIVE_030`, `DIRECTIVE_034`) |
-| **Scope edges involved** | `directive:DIRECTIVE_024/025/028/029/030/034`, `tactic:acceptance-test-first`, `tactic:autonomous-operation-protocol`, `tactic:behavior-driven-development`, `tactic:change-apply-smallest-viable-diff`, `tactic:function-over-form-testing`, `tactic:quality-gate-verification`, `tactic:stopping-conditions`, `tactic:tdd-red-green-refactor`, `toolguide:efficient-local-tooling` |
+| **Scope edges involved** | `directive:DIRECTIVE_024/025/028/029/030/034`, `tactic:acceptance-test-first`, `tactic:autonomous-operation-protocol`, `tactic:bdd-scenario-formulation`, `tactic:change-apply-smallest-viable-diff`, `tactic:function-over-form-testing`, `tactic:quality-gate-verification`, `tactic:stopping-conditions`, `tactic:tdd-red-green-refactor`, `toolguide:efficient-local-tooling` |
 | **Missing context** | none |
 | **Irrelevant / too-broad context** | none (transitive refactoring tactics and styleguides are `known_irrelevant`) |
 | **Recommended DRG edge changes** | none |

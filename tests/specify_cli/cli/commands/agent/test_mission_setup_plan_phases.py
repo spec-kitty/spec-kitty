@@ -1020,7 +1020,7 @@ def test_build_result_is_side_effect_free(monkeypatch: pytest.MonkeyPatch, tmp_p
 
 
 def test_warn_commit_failed_recipe_names_to_branch(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
-    """WP03 review (cycle 1, #2): the manual-fallback recipe printed when an
+    """The manual-fallback recipe printed when an
     auto-commit fails must name --to-branch with the real destination
     ``_commit_to_branch`` threaded in -- never rely on safe-commit's
     deprecated HEAD fallback.

@@ -33,5 +33,5 @@ These guidelines govern the quality and correctness standards for work package r
 ## Supply-Chain Security Evidence
 
 - For any dependency change (add/upgrade/removal), confirm the implementer's evidence covers every control `DIRECTIVE_051` names, per the `supply-chain-install-safety` tactic.
-- Confirm every adversarial-squad or reviewer challenge to a supply-chain finding has an explicit, traceable disposition per the `adversarial-squad-deployment` procedure's findings-disposition contract — never let a contested finding go unrecorded.
+- Confirm every adversarial-squad or reviewer challenge to a supply-chain finding has an explicit, traceable disposition per the `adversarial-squad-deployment` procedure's findings-disposition contract (load it with `spec-kitty charter context --include procedure:adversarial-squad-deployment`) — never let a contested finding go unrecorded.
 - This is advisory in v1: it does not add a new fail-closed transition gate, but missing evidence for a dependency change is a governance gap to flag in review feedback.

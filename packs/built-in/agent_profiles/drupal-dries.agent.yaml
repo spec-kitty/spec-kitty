@@ -85,7 +85,7 @@ mode-defaults:
     use-case: Building new Drupal features — modules, plugins, forms, and Drupal-native theming — with acceptance and unit tests first
   - mode: debugging
     description: Investigating and fixing Drupal defects with reproduction tests
-    use-case: Resolving bug reports — write a failing kernel or functional test, apply the minimal fix, verify the full suite
+    use-case: Resolving bug reports — write a failing kernel or functional test, apply the fix per test-first-bug-fixing, verify the full suite
   - mode: refactoring
     description: Improving Drupal code structure while keeping tests green
     use-case: Extracting services from thin `.module` files, replacing static calls with injected dependencies, improving cacheability metadata

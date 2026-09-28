@@ -75,7 +75,7 @@ mode-defaults:
     use-case: Building new features, writing production code with acceptance and unit tests first
   - mode: debugging
     description: Investigating and fixing defects with reproduction tests
-    use-case: Resolving bug reports — write failing test, apply minimal fix, verify full suite
+    use-case: Resolving bug reports — write failing test, apply the fix per test-first-bug-fixing, verify full suite
   - mode: refactoring
     description: Improving code structure while keeping tests green
     use-case: Reducing technical debt, extracting abstractions, improving naming and readability

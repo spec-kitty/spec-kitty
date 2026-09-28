@@ -1,0 +1,45 @@
+# Minimal pre-migration charter.yaml for the 4.0.0rc5 retire-single-owner-doctrine-ids
+# migration: the shape of a project charter whose legacy governance.charter.selected_<kind>
+# block still names retired ids (extracted from a real project charter and trimmed to what the
+# migration test needs). Six of the eight retired stems are present:
+# adversarial-squad-cadence, bug-fixing-checklist, locality-of-change (tactic),
+# common-docs-curation, boring-code-review (tactic), behavior-driven-development.
+# Successors that were already selected (avoid-gold-plating, the three common-docs-*
+# tactics, test-first-bug-fixing) must not be duplicated; the two that were not
+# (bdd-scenario-formulation, the boring-code-review styleguide) must be added.
+schema_version: 2.0.0
+governance:
+  testing:
+    min_coverage: 90
+  charter:
+    selected_paradigms:
+    - atomic-design
+    - behaviour-driven-development
+    selected_directives:
+    - 024-locality-of-change
+    - 025-boy-scout-rule
+    selected_tactics:
+    - acceptance-test-first
+    - avoid-gold-plating
+    - behavior-driven-development
+    - boring-code-review
+    - bug-fixing-checklist
+    - locality-of-change
+    - tdd-red-green-refactor
+    - common-docs-curation
+    - common-docs-find
+    - common-docs-scaffold
+    - common-docs-write
+    selected_styleguides:
+    - testing-principles
+    - adversarial-squad-cadence
+    - tiered-standards
+    selected_toolguides:
+    - contextive
+    selected_procedures:
+    - bdd-scenario-lifecycle
+    - test-first-bug-fixing
+    - adversarial-squad-deployment
+    selected_agent_profiles:
+    - implementer-ivan
+    template_set: software-dev-default

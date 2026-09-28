@@ -1,24 +1,18 @@
-"""Red-first pins for WP10 (dogfood the migration, charter, docs, glossary; #5218).
+"""The project's own governance surfaces follow the single-owner doctrine.
 
-Mission ``squad-doctrine-single-owner-01M3KBP7``, FR-010/FR-015/FR-023. Three
-independent surfaces:
+Three independent surfaces:
 
-1. The project's OWN ``.kittify/charter/charter.md`` (this repository's binding
-   governance doc, not a shipped pack artifact) still names the six retired
-   ids and its Standing Order #1 still restates the procedure's point-cut
-   list. T052/T053 turn this pin green by applying the retirement migration
-   and regenerating the charter, then rewording Standing Order #1 to
-   reference the ``adversarial-squad-deployment`` procedure instead of
-   restating its point-cut list.
+1. This repository's OWN ``.kittify/charter/charter.md`` and charter
+   activation store (binding governance, not a shipped pack artifact) name no
+   retired doctrine id, still compile, and Standing Order #1 references the
+   ``adversarial-squad-deployment`` procedure instead of restating its
+   point-cut list.
 2. ``docs/development/reference/quality-and-tech-debt-standing-orders.md``
-   restates the same point-cut table under "1. The Adversarial Squad Cadence".
-   T053 replaces it with a pointer + one-line summary.
-3. The "adversarial squad" glossary term lives in the INTERNAL pack
-   (``packs/internal/glossary_packs/spk-internal.glossary-pack.yaml``), not
-   the built-in one, and no behaviour/behavior alias exists yet. T054 moves
-   the term and adds the alias.
-
-Authored RED (T051) before the content change (T052-T054).
+   points at that procedure under "1. The Adversarial Squad Cadence" instead
+   of restating the point-cut table.
+3. The "adversarial squad" glossary term lives in the built-in glossary pack
+   (not the internal one), and the behaviour/behavior spelling alias resolves
+   to the canonical term.
 """
 
 from __future__ import annotations
@@ -44,12 +38,12 @@ _BUILT_IN_GLOSSARY = _REPO_ROOT / "packs" / "built-in" / "glossary_packs" / "spe
 _INTERNAL_GLOSSARY = _REPO_ROOT / "packs" / "internal" / "glossary_packs" / "spk-internal.glossary-pack.yaml"
 
 #: ``boring-code-review`` is deliberately excluded from this substring-check
-#: list: the retirement table's own successor for the retired TACTIC of that
-#: name is a STYLEGUIDE with the IDENTICAL stem (research.md R-11), so it is
-#: expected -- and correct -- for activated_styleguides to still carry it
-#: after migration. ``test_charter_standing_order_1_does_not_name_retired_
-#: styleguide`` below pins the one prose spot that must not name it as a
-#: styleguide (the retired ``adversarial-squad-cadence`` one).
+#: list: the retirement table's successor for the retired TACTIC of that
+#: name is a STYLEGUIDE with the IDENTICAL stem, so it is expected -- and
+#: correct -- for activated_styleguides to still carry it after migration.
+#: ``test_charter_standing_order_1_does_not_name_retired_styleguide`` below
+#: pins the one prose spot that must not name the retired
+#: ``adversarial-squad-cadence`` styleguide.
 _RETIRED_STEMS = (
     "adversarial-squad-cadence",
     "bug-fixing-checklist",
@@ -60,11 +54,10 @@ _RETIRED_STEMS = (
     "tracker-organisation-workflow",
 )
 
-#: Standing Order #1 as it read before this WP's edit (charter.md ~62-65),
-#: byte-for-byte, captured before the content change. Positive control: the
+#: A Standing Order #1 that restates the point-cut list. Positive control: the
 #: shared detector must flag this fixture (it restates 4 point-cut tokens),
 #: proving the detector is not vacuous.
-_OLD_STANDING_ORDER_1_FIXTURE = """\
+_RESTATING_STANDING_ORDER_1_FIXTURE = """\
 1. **Adversarial squad cadence.** Run a bounded, profile-loaded adversarial squad
    at every planning point-cut (pre-spec / post-spec / post-plan / post-tasks)
    before proceeding — one lens per agent, strongest model for the hard lenses.
@@ -87,13 +80,13 @@ def _section(text: str, start_marker: str, end_marker: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def test_detector_flags_the_pre_change_standing_order_1_text() -> None:
+def test_detector_flags_a_standing_order_1_that_restates_the_point_cut_list() -> None:
     """Sanity check on the detector itself, not on live content."""
-    assert restates_point_cut_list(_OLD_STANDING_ORDER_1_FIXTURE)
+    assert restates_point_cut_list(_RESTATING_STANDING_ORDER_1_FIXTURE)
 
 
 # --------------------------------------------------------------------------- #
-# T052 -- dogfood the migration + charter regeneration (FR-010)
+# The project charter carries no retired id and still compiles
 # --------------------------------------------------------------------------- #
 
 
@@ -127,7 +120,7 @@ def test_no_retired_doctrine_id_remains_activated_under_kittify() -> None:
 
 
 def test_boring_code_review_tactic_is_retired_its_successor_styleguide_is_not() -> None:
-    """The one stem the retired-and-successor share (research.md R-11).
+    """The one stem the retired tactic and its successor styleguide share.
 
     ``activated_tactics`` must drop ``boring-code-review``; the successor
     ``activated_styleguides`` entry of the same name is the expected,
@@ -149,7 +142,7 @@ def test_charter_compiles_against_the_projects_own_answers_without_unknown_artif
     ``.kittify/charter/interview/answers.yaml``) -- the CLI-level
     ``spec-kitty charter context`` command reads pre-compiled surfaces and
     does not exercise this fail-closed path itself, so a CLI smoke check
-    would not have been red before the migration.
+    would not prove it.
     """
     from charter.activation.compiler import compile_charter
     from charter.activation.interview import read_interview_answers
@@ -162,7 +155,7 @@ def test_charter_compiles_against_the_projects_own_answers_without_unknown_artif
 
 
 # --------------------------------------------------------------------------- #
-# T053 -- charter prose is a pointer, not a restatement (SC-001)
+# Charter prose is a pointer, not a restatement
 # --------------------------------------------------------------------------- #
 
 
@@ -197,7 +190,7 @@ def test_standing_orders_doc_does_not_restate_point_cut_table() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# T054 -- glossary: single owner + the behaviour/behavior alias (FR-015/FR-023)
+# Glossary: single owner + the behaviour/behavior alias
 # --------------------------------------------------------------------------- #
 
 

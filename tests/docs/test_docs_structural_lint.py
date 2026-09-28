@@ -746,6 +746,18 @@ def test_load_config_fails_loud_on_missing_block(tmp_path: Path) -> None:
         load_config(styleguide_path=stub)
 
 
+def test_config_error_messages_carry_no_mission_labels(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The lint ships to consumers: its operator-facing errors must not cite mission FR labels."""
+    monkeypatch.delenv("SPEC_KITTY_STYLEGUIDE", raising=False)
+    with pytest.raises(ConfigError) as unconfigured:
+        _resolve_styleguide(None)
+    with pytest.raises(ConfigError) as missing:
+        load_config(styleguide_path=tmp_path / "absent.yaml")
+
+    for exc in (unconfigured, missing):
+        assert "FR-" not in str(exc.value), str(exc.value)
+
+
 def test_load_config_rejects_malformed_block(tmp_path: Path) -> None:
     """A structural_lint_config: block missing a required key is a hard error."""
     stub = tmp_path / "stub.styleguide.yaml"

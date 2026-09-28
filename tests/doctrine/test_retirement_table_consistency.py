@@ -1,14 +1,14 @@
-"""SC-008: the consumer retirement table agrees with the shipped built-in doctrine.
+"""The consumer retirement table agrees with the shipped built-in doctrine.
 
 ``RETIREMENTS`` (migration ``m_4_0_0rc5_retire_single_owner_doctrine_ids``) is
-the single source of truth for the ids this mission retires. This module
+the single source of truth for the retired single-owner doctrine ids. This module
 imports it -- it never re-derives the table -- and checks three things against
 the shipped pack:
 
 1. every retired ``(kind, stem)`` no longer resolves in built-in doctrine
    (the fail-closed compile path raises ``UnknownArtifactIdError`` for it);
-2. every successor resolves, and the shipped ``default.yaml`` activates it
-   wherever the pre-mission default pack activated the retired id;
+2. every successor resolves, and the shipped ``default.yaml`` activates the
+   successors of the retired ids the default pack used to activate;
 3. a fixture consumer project that activates EVERY retired id compiles its
    activation roots after the migration's ``apply``, with each successor
    activated -- and fails to compile before it (the negative control).
@@ -34,18 +34,16 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_PACK = _REPO_ROOT / "src/charter/activation/packs/default.yaml"
 
-#: The retired ids the PRE-mission ``default.yaml`` activated (captured with
-#: ``git show dccf6aa7:src/charter/activation/packs/default.yaml``; the other
-#: four retired ids were never in the default pack). Hard-coded so this test
-#: never derives its baseline from a file this mission edits.
-_BASE_DEFAULT_ACTIVATED: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("activated_tactics", "behavior-driven-development"),
-        ("activated_tactics", "boring-code-review"),
-        ("activated_tactics", "bug-fixing-checklist"),
-        ("activated_tactics", "locality-of-change"),
-    }
+#: The retired ids the default pack used to activate (the other retired ids were
+#: never in the default pack). Each must be a real ``RETIREMENTS`` row: the
+#: parametrized test below looks the row up and fails on a name that drifted.
+_DEFAULT_PACK_RETIRED: tuple[tuple[str, str], ...] = (
+    ("activated_tactics", "behavior-driven-development"),
+    ("activated_tactics", "boring-code-review"),
+    ("activated_tactics", "bug-fixing-checklist"),
+    ("activated_tactics", "locality-of-change"),
 )
+_ROWS: dict[tuple[str, str], Retirement] = {(r.kind_key, r.stem): r for r in RETIREMENTS}
 
 #: A seed entry per activation list, so the migration's successor activation
 #: (which never creates a missing list) has a list to extend.
@@ -78,7 +76,7 @@ def _id(retirement: Retirement) -> str:
 
 def test_table_is_non_empty() -> None:
     """Guard against a vacuous pass if the table were ever emptied."""
-    assert len(RETIREMENTS) == 8
+    assert RETIREMENTS
 
 
 @pytest.mark.parametrize("retirement", RETIREMENTS, ids=_id)
@@ -99,22 +97,13 @@ def test_successor_resolves(tmp_path: Path, kind_key: str, stem: str) -> None:
     assert stem in getattr(roots, field)
 
 
-@pytest.mark.parametrize(
-    "retirement",
-    [r for r in RETIREMENTS if (r.kind_key, r.stem) in _BASE_DEFAULT_ACTIVATED],
-    ids=_id,
-)
-def test_default_pack_swaps_retired_id_for_successors(retirement: Retirement) -> None:
+@pytest.mark.parametrize("row_key", _DEFAULT_PACK_RETIRED, ids=lambda k: f"{k[0]}:{k[1]}")
+def test_default_pack_swaps_retired_id_for_successors(row_key: tuple[str, str]) -> None:
+    retirement = _ROWS[row_key]
     pack = YAML(typ="safe").load(_DEFAULT_PACK.read_text(encoding="utf-8"))
     assert retirement.stem not in (pack.get(retirement.kind_key) or [])
     for kind_key, stem in retirement.successors:
         assert stem in (pack.get(kind_key) or []), f"{stem} missing from default.yaml {kind_key}"
-
-
-def test_base_default_activation_literal_is_covered_by_the_table() -> None:
-    """Every hard-coded base entry is a real table row (no drift in the literal)."""
-    table = {(r.kind_key, r.stem) for r in RETIREMENTS}
-    assert table >= _BASE_DEFAULT_ACTIVATED
 
 
 def _all_retired_activation() -> dict[str, list[str]]:

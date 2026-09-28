@@ -253,8 +253,7 @@ def _resolve_styleguide(arg: str | None) -> Path:
     raise ConfigError(
         "no config file configured — pass --styleguide <path> or set "
         f"{_STYLEGUIDE_ENV_VAR} to a file carrying the '{_CONFIG_KEY}:' "
-        f"block (built-in default: assets/docs_structural_lint.config.yaml) "
-        "(FR-011)."
+        f"block (built-in default: assets/docs_structural_lint.config.yaml)."
     )
 
 
@@ -282,7 +281,7 @@ def load_config(styleguide_path: Path) -> LintConfig:
     """
     path = styleguide_path
     if not path.is_file():
-        raise ConfigError(f"Config file not found at {path} — cannot load '{_CONFIG_KEY}:' (FR-011).")
+        raise ConfigError(f"Config file not found at {path} — cannot load '{_CONFIG_KEY}:'.")
 
     yaml = YAML(typ="safe")
     try:

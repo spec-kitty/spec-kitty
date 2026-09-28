@@ -40,7 +40,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
   provenance_path:
-- content_hash: e5ce1c5488621789e5e1091d26ff38eac1eb169ebd87f18feb94df36967c4ec0
+- content_hash: 4abc5883bfa67fa88ee24e852f7aa1ea004246209394d156bce021b69741bc72
   id: drupal-dries
   kind: agent_profile
   path: agent_profiles/drupal-dries.agent.yaml
@@ -65,7 +65,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/implementer-ivan.agent.yaml
   provenance_path:
-- content_hash: bb48e568258dd0cad1296c31043dc8810268e831bcc297be275725e3bb39b64f
+- content_hash: 5fe490e66479990ff03f6b66a5f4a2b8f07bd76fd191685df303088fbf4d824f
   id: java-jenny
   kind: agent_profile
   path: agent_profiles/java-jenny.agent.yaml
@@ -550,7 +550,7 @@ constituents:
   kind: styleguide
   path: styleguides/boring-code-review.styleguide.yaml
   provenance_path:
-- content_hash: 3944597e452f09d0bfaaceaa24ff095fd533ffe1ad3b8df6975cbadd02740c6c
+- content_hash: f565303cda6a046696ecb6d1ad17afec31597a6dd1ea5744c4a3528a47189180
   id: common-docs
   kind: styleguide
   path: styleguides/common-docs.styleguide.yaml
@@ -655,7 +655,7 @@ constituents:
   kind: styleguide
   path: styleguides/test-desiderata-and-boundaries.styleguide.yaml
   provenance_path:
-- content_hash: 1e5d0d0348652ed76750116cba961e1a0a749f24ce2c88e35603a1f86cc816a2
+- content_hash: 0d44d5c650d9a0ccdb6b5a5cd82c55db658925a0b9f5a6b2826fae0a6ec3065c
   id: testing-principles
   kind: styleguide
   path: styleguides/testing-principles.styleguide.yaml
@@ -775,7 +775,7 @@ constituents:
   kind: tactic
   path: tactics/code-patterns/chain-of-responsibility-rule-pipeline.tactic.yaml
   provenance_path:
-- content_hash: e63325c3f7967b5d1e201a73721d594778a9822cd2acf678bfaf077b05da9a48
+- content_hash: 4d4e37809cc2aaec53661f60cd0201a6d907ba910c374507acddcf0d0c7bf9b8
   id: change-apply-smallest-viable-diff
   kind: tactic
   path: tactics/change-apply-smallest-viable-diff.tactic.yaml
@@ -1207,7 +1207,7 @@ constituents:
   kind: tactic
   path: tactics/analysis/strategic-domain-classification.tactic.yaml
   provenance_path:
-- content_hash: facaaade5cad6abd6fad32031270867d6bd136668ea2df78e34b9a686ba97a85
+- content_hash: efe95bc6d4391ae90f9723fbf49053c7ce145ba8a24e802fa631ed82dda3cf01
   id: supply-chain-install-safety
   kind: tactic
   path: tactics/security/supply-chain-install-safety.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 5b46e3c0feaac6dfa6e2c2f1f92acd0094799b3699bc6694f564a5877a4f59bc
+manifest_hash: 4904b42214f35943219d2f579509149cf480718dc0cd127d7b9516127446128d
 schema_version: '1'
 source_type: built-in
 source_url:

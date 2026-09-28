@@ -10,11 +10,10 @@ Safety) and to a tactic that actually carries supply-chain content
 (``dependency-hygiene``, extended by WP01, or the new
 ``supply-chain-install-safety`` tactic). It also proves ``reviewer-renata``
 specifically cites the ``adversarial-squad-deployment`` procedure -- the
-single owner of the findings-disposition contract (WP04/WP11, #5221 C,
-epic #5218) -- so that a contested supply-chain finding can never be
-dropped silently during review, without restating the disposition
-vocabulary (``accepted`` / ``changed`` / ``deferred_with_rationale``) that
-the procedure already states once.
+single owner of the findings-disposition contract -- so that a contested
+supply-chain finding can never be dropped silently during review, without
+restating the disposition vocabulary (``accepted`` / ``changed`` /
+``deferred_with_rationale``) that the procedure already states once.
 """
 
 from __future__ import annotations
@@ -112,8 +111,7 @@ class TestTargetedProfilesReferenceSupplyChainTactic:
 class TestReviewerRenataCarriesAdversarialEvidenceVocabulary:
     """reviewer-renata specifically must cite the disposition-owning procedure --
     not merely reference the directive/tactic like the other 6 profiles, and
-    never restate the disposition vocabulary the procedure already owns
-    (epic #5218, FR-027, WP11).
+    never restate the disposition vocabulary the procedure already owns.
     """
 
     @pytest.fixture(scope="class")
@@ -154,7 +152,7 @@ class TestReviewerRenataCarriesAdversarialEvidenceVocabulary:
         )
 
     def test_no_restatement_of_owned_disposition_vocabulary(self, profile: AgentProfile) -> None:
-        """FR-027: the disposition vocabulary (accepted/changed/
+        """The disposition vocabulary (accepted/changed/
         deferred_with_rationale) is owned once by adversarial-squad-deployment.
         reviewer-renata must reference the procedure, not restate the three
         terms as if it were an independent source of truth."""

@@ -102,13 +102,13 @@ steps:
     description: >
       When an adversarial-squad pass or a reviewer challenges a supply-chain
       finding or assumption made during this checklist, record an explicit
-      disposition for the challenged finding — never drop it silently. Use
-      the disposition vocabulary owned by the `adversarial-squad-deployment`
-      procedure: `accepted` (the original conclusion stands, challenge
-      considered and rejected with reasoning), `changed` (the finding altered
-      the decision — record what changed), or `deferred_with_rationale` (the
-      challenge is valid but out of scope for this change — record why and
-      where the follow-up is tracked). Every disposition must be traceable to
+      disposition for the challenged finding — never drop it silently. The
+      disposition vocabulary and the evidence each disposition must carry
+      are owned by the findings-disposition contract of the
+      `adversarial-squad-deployment` procedure; apply that contract as
+      written rather than a paraphrase (load it with
+      `spec-kitty charter context --include procedure:adversarial-squad-deployment`).
+      Every disposition must be traceable to
       a specific evidence_location (file/section) in the mission artifact.
     examples:
       - "Disposition: finding_id=SC-01, challenge_summary=\"freshness
@@ -126,9 +126,9 @@ failure_modes:
     the registry' instead of actually running the check and recording the
     result is not compliance."
   - "Silently dropping a challenged finding — an adversarial-squad or
-    reviewer challenge that never receives a recorded disposition
-    (accepted/changed/deferred_with_rationale) is a governance gap, not a
-    neutral outcome."
+    reviewer challenge that never receives a recorded disposition under the
+    findings-disposition contract is a governance gap, not a neutral
+    outcome."
   - "Using v1's advisory posture as license to skip evidence entirely —
     advisory means no new fail-closed transition gate, not 'the checklist is
     optional'."

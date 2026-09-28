@@ -1,12 +1,11 @@
-"""Red-first owner test for squad-doctrine-single-owner-01M3KBP7 WP04 (#5219, #5221).
+"""Owner test for the adversarial-squad doctrine.
 
-Pins the shape of the single-owner fold: ``adversarial-squad-deployment`` (the
-procedure) becomes the ONLY shipped artifact that states the squad playbook,
+Pins the shape of the single-owner squad doctrine: ``adversarial-squad-deployment``
+(the procedure) is the ONLY shipped artifact that states the squad playbook,
 the point-cut list, the profile-per-task rule, and the findings-disposition
-contract. Every other citer references it by id instead of restating it, and
-the ``adversarial-squad-cadence`` styleguide is deleted.
-
-This test is authored RED (T015) before the content change (T016-T020).
+contract. Every other citer references it by id instead of restating it.
+Absence of the retired ``adversarial-squad-cadence`` styleguide is guarded in
+``test_retired_ids_absent.py``.
 """
 
 from __future__ import annotations
@@ -33,15 +32,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _BUILT_IN_ROOT = pack_paths.built_in_root()
 
 _PROCEDURE_PATH = _BUILT_IN_ROOT / "procedures" / "adversarial-squad-deployment.procedure.yaml"
-_TRACER_PROCEDURE_PATH = _BUILT_IN_ROOT / "procedures" / "mission-tracer-files.procedure.yaml"
-_STYLEGUIDE_PATH = _BUILT_IN_ROOT / "styleguides" / "adversarial-squad-cadence.styleguide.yaml"
-_BROWNFIELD_PATH = _BUILT_IN_ROOT / "paradigms" / "brownfield-onboarding.paradigm.yaml"
 _DIRECTIVE_040_PATH = _BUILT_IN_ROOT / "directives" / "040-recurring-bug-structural-intervention.directive.yaml"
 _DIRECTIVE_043_PATH = _BUILT_IN_ROOT / "directives" / "043-close-defect-class-by-construction.directive.yaml"
 _DIRECTIVE_052_PATH = _BUILT_IN_ROOT / "directives" / "052-prefer-durable-fixes.directive.yaml"
 _FIVE_PARADIGM_PATH = _BUILT_IN_ROOT / "tactics" / "five-paradigm-parallel-debugging.tactic.yaml"
 _PAULA_TACTIC_PATH = _BUILT_IN_ROOT / "tactics" / "architecture" / "paula-patterns-architecture-scout-review.tactic.yaml"
-_ACCEPTANCE_NON_VACUITY_PATH = _BUILT_IN_ROOT / "tactics" / "testing" / "acceptance-criteria-non-vacuity.tactic.yaml"
 _SKILL_PATH = _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "adversarial-squad" / "SKILL.md"
 
 _CASTING_ANCHOR = "Example casting (examples, not rules):"
@@ -50,10 +45,10 @@ _ID_RE = re.compile(r"`([a-z][a-z0-9-]*)`")
 
 _VALID_CASTING_LABELS = frozenset({"pre-spec", "post-spec", "post-plan", "post-tasks", "pre-merge", "ad-hoc", "escalation"})
 
-# Fixture reproducing the pre-change SKILL.md "When to use" block, byte-for-byte
-# (the old point-cut restatement this WP removes). Used as the detector's
-# positive control so a vacuous detector cannot pass silently.
-_OLD_SKILL_WHEN_TO_USE_FIXTURE = """\
+# Fixture reproducing a SKILL.md "When to use" block that restates the point-cut
+# list byte-for-byte. Used as the detector's positive control so a vacuous
+# detector cannot pass silently.
+_RESTATED_POINT_CUT_LIST_FIXTURE = """\
 A squad is worth its tokens at a high-leverage point-cut where one reviewer's blind spot
 is expensive:
 
@@ -106,7 +101,7 @@ def _parse_casting_block(text: str) -> list[tuple[str, list[str]]]:
 
 
 # ---------------------------------------------------------------------------
-# FR-001 -- the profile-per-task rule
+# The profile-per-task rule
 # ---------------------------------------------------------------------------
 
 
@@ -116,13 +111,13 @@ def test_procedure_states_the_profile_per_task_rule() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FR-002 -- the single point-cut list
+# The single point-cut list
 # ---------------------------------------------------------------------------
 
 
 def test_point_cut_detector_positive_control() -> None:
-    """The detector must flag the pre-change SKILL.md 'When to use' block."""
-    assert restates_point_cut_list(_OLD_SKILL_WHEN_TO_USE_FIXTURE)
+    """The detector must flag a SKILL.md 'When to use' block that restates the list."""
+    assert restates_point_cut_list(_RESTATED_POINT_CUT_LIST_FIXTURE)
 
 
 def test_procedure_owns_the_point_cut_list() -> None:
@@ -153,7 +148,7 @@ def test_directive_052_does_not_restate_the_point_cut_list() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FR-003 -- no headcount in the procedure or the skill
+# No headcount in the procedure or the skill
 # ---------------------------------------------------------------------------
 
 
@@ -185,7 +180,7 @@ def test_skill_has_no_headcount() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FR-005 -- model tier delegated to model-task-routing
+# Model tier delegated to model-task-routing
 # ---------------------------------------------------------------------------
 
 
@@ -197,11 +192,11 @@ def test_procedure_delegates_model_tier_to_model_task_routing() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FR-007 -- folded styleguide content
+# The procedure carries the squad-cadence guidance (highest-value point-cut, timebox)
 # ---------------------------------------------------------------------------
 
 
-def test_procedure_folds_the_styleguide_unique_content() -> None:
+def test_procedure_states_highest_value_point_cut_and_timebox() -> None:
     notes_text = str(_procedure().get("notes", ""))
     assert "highest-value" in notes_text
     assert "post-tasks" in notes_text
@@ -215,7 +210,7 @@ def test_procedure_folds_the_styleguide_unique_content() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FR-013 -- squad-delegate cross-reference
+# squad-delegate cross-reference
 # ---------------------------------------------------------------------------
 
 
@@ -236,7 +231,7 @@ def test_fixed_lens_profiles_declare_squad_delegate_mode(profile_id: str) -> Non
 
 
 # ---------------------------------------------------------------------------
-# FR-008 / FR-012 -- reference ratchets
+# Reference ratchets: citers name the procedure
 # ---------------------------------------------------------------------------
 
 
@@ -266,39 +261,8 @@ def test_directive_043_references_the_procedure() -> None:
     assert {"type": "procedure", "id": "adversarial-squad-deployment"} in [{"type": r.get("type"), "id": r.get("id")} for r in references]
 
 
-def test_brownfield_no_longer_references_the_styleguide() -> None:
-    brownfield = _load_yaml(_BROWNFIELD_PATH)
-    references = brownfield.get("references", [])
-    assert not any(r.get("type") == "styleguide" and r.get("id") == "adversarial-squad-cadence" for r in references)
-
-
-def test_styleguide_file_is_absent() -> None:
-    assert not _STYLEGUIDE_PATH.exists(), "adversarial-squad-cadence.styleguide.yaml must be deleted"
-
-
-def test_acceptance_criteria_non_vacuity_comment_no_longer_names_the_styleguide() -> None:
-    text = _raw_text(_ACCEPTANCE_NON_VACUITY_PATH)
-    assert "adversarial-squad-cadence" not in text
-
-
-def test_mission_tracer_files_yaml_reference_to_styleguide_removed() -> None:
-    tracer = _load_yaml(_TRACER_PROCEDURE_PATH)
-    references = tracer.get("references", [])
-    assert not any(r.get("type") == "styleguide" and r.get("id") == "adversarial-squad-cadence" for r in references)
-
-
 # ---------------------------------------------------------------------------
-# Procedure references drop five-paradigm-parallel-debugging
-# ---------------------------------------------------------------------------
-
-
-def test_procedure_references_drop_five_paradigm_entry() -> None:
-    references = _procedure().get("references", [])
-    assert not any(r.get("type") == "tactic" and r.get("id") == "five-paradigm-parallel-debugging" for r in references)
-
-
-# ---------------------------------------------------------------------------
-# FR-027 -- findings-disposition contract
+# Findings-disposition contract
 # ---------------------------------------------------------------------------
 
 
@@ -311,7 +275,7 @@ def test_procedure_defines_the_findings_disposition_contract() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FR-004 -- casting table, parsed as in T018
+# Casting table
 # ---------------------------------------------------------------------------
 
 
@@ -347,7 +311,7 @@ def test_casting_table_labels_and_ids_resolve() -> None:
 
 
 def test_casting_table_negative_control_rejects_researcher_ryan() -> None:
-    """A casting line naming researcher-ryan parses but must not resolve (FR-004).
+    """A casting line naming researcher-ryan parses but must not resolve.
 
     Feeds a mutated casting line through the same ``_parse_casting_block``
     parser the real assertions use, then through ``AgentProfileRepository``,
