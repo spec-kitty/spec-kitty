@@ -310,7 +310,7 @@ def ensure_skill_frontmatter(content: str, skill_name: str) -> str:
     ``spec-kitty`` repro from #964. Existing frontmatter is preserved
     byte-for-byte (modulo the CRLF/lone-CR normalisation below).
 
-    Newlines are normalised to LF first (D5 / #4998): the installer decodes
+    Newlines are normalised to LF first (#4998): the installer decodes
     raw source bytes and keeps CRLF, but :data:`_RE_LEADING_FRONTMATTER`
     matches ``\\n`` only. Without this normalisation, CRLF-terminated
     frontmatter is never recognised as present, so a second, bogus
@@ -444,7 +444,7 @@ def render(
 
     raw_bytes = template_path.read_bytes()
     raw_text = raw_bytes.decode("utf-8")
-    # Normalise newlines right after decoding (D5 / #4998), before any
+    # Normalise newlines right after decoding (#4998), before any
     # frontmatter/body parsing sees the text: a CRLF-source template's
     # frontmatter would otherwise never match ``_RE_FRONTMATTER`` (``\n``
     # only) downstream. ``source_hash`` is hashed on the *normalised* bytes

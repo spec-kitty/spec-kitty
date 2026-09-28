@@ -1,4 +1,4 @@
-"""ATDD acceptance tests for ``spec-kitty migrate --dry-run/--force/--verbose <sub>`` (#4964, WP07).
+"""Acceptance tests for ``spec-kitty migrate --dry-run/--force/--verbose <sub>`` (#4964).
 
 Issue #4964: the ``migrate`` group callback declared ``--dry-run``/``--verbose``/
 ``--force`` but, whenever a subcommand was invoked, returned immediately
@@ -6,31 +6,27 @@ Issue #4964: the ``migrate`` group callback declared ``--dry-run``/``--verbose``
 so ``spec-kitty migrate --dry-run backfill-runtime-state`` silently dropped
 ``--dry-run`` and ran the REAL migration, exit 0.
 
-Design decision **D7** / research **R6**: the group callback now forwards a
+The group callback now forwards a
 group flag to the subcommand via ``ctx.default_map`` when the subcommand
 declares the same flag name, or refuses with a usage error (exit 2) before
 the subcommand runs — raised from the click universe typer actually uses
 (real ``click`` on typer <=0.25, vendored ``typer._click`` on 0.26+).
 
-Test strategy (two tiers, per the WP07 prompt's three endorsed proof methods —
-"the ``(dry-run)`` output prefix, a ``dry_run: true`` JSON field, or a spy on
-the backend function's ``dry_run`` kwarg"):
+Test strategy (two tiers):
 
 * **Tier 1 — generic, parametrised over the LIVE registry.** For every
   currently-registered ``migrate`` subcommand crossed with every group flag
   (``--dry-run``/``--verbose``/``-v``/``--force``), this asserts the seam's
   forward-or-refuse contract in isolation from each subcommand's own
-  migration logic (owned by other WPs, out of this WP's authoritative
-  surface ``cli/commands/migrate_cmd.py``): when the subcommand declares the
-  flag, its own CLI entry-point function is spied and must receive the
-  flag's value truthily (the "spy on the backend function's kwarg" method);
+  migration logic: when the subcommand declares the flag, its own CLI
+  entry-point function is spied and must receive the flag's value truthily;
   when it does not, the group must refuse with exit 2 and a message naming
-  the flag, the subcommand, and a ``--help`` next action (NFR-003). Because
+  the flag, the subcommand, and a ``--help`` next action. Because
   this discovers subcommands and their declared params from the live
   ``typer.Typer`` app rather than a hardcoded list, a future subcommand is
   covered automatically.
 * **Tier 2 — one real, non-spied, end-to-end positive control** (the
-  issue's own repro, ``backfill-runtime-state``, over the shared WP03
+  issue's own repro, ``backfill-runtime-state``, over the shared
   legacy-mission fixture): ``--dry-run`` truly writes nothing, and the
   non-dry-run form on the SAME fixture DOES write — proving the fixture is
   migratable and Tier 1's spy-based proof is not masking a corpus that had
@@ -75,23 +71,18 @@ _BOX_DRAWING_CHARS = re.compile(r"[─-╿]")
 
 
 # ---------------------------------------------------------------------------
-# Hard filesystem isolation (mandatory — post-incident hardening).
+# Hard filesystem isolation.
 #
-# An earlier version of this test file invoked the real CLI (the explicit
-# refusal repro cases below) WITHOUT patching project-root resolution. Run
-# against the then-unfixed source, the group callback's refusal did not fire,
-# so the subcommand's REAL body ran, and ``locate_project_root()`` resolved
-# to the ambient cwd's repository — which, from inside a git worktree, is
-# the MAIN checkout (/home/user/spec-kitty), not this worktree — mutating 51
-# real ``kitty-specs/*`` files there (additive ``status.events.jsonl`` /
-# ``meta.json`` ``status_phase`` writes). That cleanup was escalated to the
-# operator; it is NOT this test file's to fix.
+# On unfixed source the group callback's refusal does not fire, so a refusal
+# case runs the subcommand's REAL body, and an unpatched
+# ``locate_project_root()`` resolves to whatever repository the process cwd
+# is inside — from a git worktree, the main checkout — and mutates its real
+# ``kitty-specs/*`` files.
 #
-# Every test in this module now runs with cwd inside a scratch directory
-# under ``tmp_path`` (never inside /home/user/spec-kitty or any of its
-# worktrees), and ``locate_project_root`` is poisoned by default to a
-# callable that fails loudly unless a test explicitly overrides it with a
-# path under its own ``tmp_path`` — so a future test that forgets to patch
+# Every test in this module therefore runs with cwd inside a scratch
+# directory under ``tmp_path``, and ``locate_project_root`` is poisoned by
+# default to a callable that fails loudly unless a test explicitly overrides
+# it with a path under its own ``tmp_path`` — so a test that forgets to patch
 # project-root resolution fails immediately instead of touching a real repo.
 # ---------------------------------------------------------------------------
 
@@ -101,15 +92,14 @@ def _poisoned_locate_project_root(*_args: Any, **_kwargs: Any) -> Path:
         "locate_project_root() was called without an explicit test override. "
         "Every test in test_migrate_group_flags_4964.py must patch _LOCATE to "
         "a path under its own tmp_path before invoking the CLI (hard "
-        "isolation rule, #4964 WP07 post-incident hardening) — never let the "
+        "isolation rule) — never let the "
         "real resolver run, which would touch whatever real repository the "
         "process cwd happens to be inside."
     )
 
 
-#: The real repository this test file must never touch, in either form —
-#: the main checkout or any of its git worktrees.
-_REAL_REPO_ROOT = Path("/home/user/spec-kitty").resolve()
+#: The repository checkout this test file lives in, which it must never touch.
+_REAL_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(autouse=True)
@@ -118,7 +108,7 @@ def _hard_repo_isolation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Ite
     assert not resolved_tmp.is_relative_to(_REAL_REPO_ROOT), (
         f"pytest's own tmp_path ({resolved_tmp}) resolves inside the real "
         f"repository ({_REAL_REPO_ROOT}) — refusing to run any test in this "
-        "module (hard isolation rule, #4964 WP07 post-incident hardening)."
+        "module (hard isolation rule)."
     )
     scratch_cwd = tmp_path / "cwd"
     scratch_cwd.mkdir()
@@ -269,13 +259,13 @@ def test_group_flag_forwarded_or_refused(sub_name: str, cli_token: str, canonica
         result = click_runner.invoke(group, [cli_token, sub_name, *extra_args])
 
     if declares:
-        # FR-020: forwarded — the subcommand's own entry point actually
+        # Forwarded — the subcommand's own entry point actually
         # receives the flag truthily (not merely "nothing crashed").
         assert result.exit_code == 0, result.output
         assert len(calls) == 1, f"expected exactly one call to {sub_name!r}, got {calls}"
         assert calls[0].get(param_name) is True, calls[0]
     else:
-        # FR-021: refused before anything runs. NFR-003: message names the
+        # Refused before anything runs. The message names the
         # flag (every spelling, so the one typed is present), the subcommand,
         # and a concrete next action — never a trailing form the subcommand
         # does not declare (it cannot: this is the refusal branch).
@@ -287,36 +277,6 @@ def test_group_flag_forwarded_or_refused(sub_name: str, cli_token: str, canonica
         assert sub_name in flat_output, result.output
         assert f"spec-kitty migrate {sub_name} --help" in flat_output, result.output
         assert f"migrate {sub_name} {cli_token}" not in flat_output, result.output
-
-
-def test_dry_run_declaring_census_matches_documented_set() -> None:
-    """Guard against silent drift from the WP07 prompt's documented census.
-
-    Not the source of truth (the live registry is) — a regression guard so a
-    future subcommand addition/removal is a deliberate, reviewed change to
-    this constant rather than a silent surprise.
-    """
-    declaring = {name for name in _registered_subcommand_names() if _declares_param(_click_group().commands[name], "dry_run")}
-    assert declaring == {
-        "backfill-identity",
-        "backfill-merge-commit",
-        "backfill-mission-type",
-        "backfill-provenance",
-        "backfill-runtime-state",
-        "backfill-topology",
-        "charter-encoding",
-        "normalize-lifecycle",
-        "rebaseline-dossier-hashes",
-        "rewrite-opposed-by",
-    }
-    not_declaring = set(_registered_subcommand_names()) - declaring
-    assert not_declaring == {"repin-hooks"}
-    force_or_verbose = {
-        name
-        for name in _registered_subcommand_names()
-        if _declares_param(_click_group().commands[name], "force") or _declares_param(_click_group().commands[name], "verbose")
-    }
-    assert force_or_verbose == set(), "census assumed no subcommand declares --force/--verbose"
 
 
 # ---------------------------------------------------------------------------
@@ -360,12 +320,16 @@ def test_non_dry_run_positive_control_writes_on_same_fixture(tmp_path: Path) -> 
 
 
 # ---------------------------------------------------------------------------
-# T038: ratchets — behaviour that must NOT change.
+# Ratchets — pre-existing forms whose behaviour must NOT change.
+#
+# No subcommand declares ``--no-dry-run`` today, so "a trailing
+# ``--no-dry-run`` wins over a forwarded group ``--dry-run``" has nothing to
+# exercise; add that ratchet when a subcommand gains the negative form.
 # ---------------------------------------------------------------------------
 
 
 def test_trailing_dry_run_form_unchanged(tmp_path: Path) -> None:
-    """``migrate <sub> --dry-run`` (trailing) is untouched by this WP."""
+    """``migrate <sub> --dry-run`` (trailing) is unaffected by group-flag forwarding."""
     feature_dir = build_mission(tmp_path)
     events_before = (feature_dir / "status.events.jsonl").read_bytes()
 
@@ -378,24 +342,10 @@ def test_trailing_dry_run_form_unchanged(tmp_path: Path) -> None:
     assert (feature_dir / "status.events.jsonl").read_bytes() == events_before
 
 
-@pytest.mark.skip(
-    reason=(
-        "T038 ratchet: 'trailing --no-dry-run wins over a forwarded group "
-        "--dry-run' requires a subcommand declaring --dry-run/--no-dry-run. "
-        "The live registry census (test_dry_run_declaring_census_matches_"
-        "documented_set) confirms none of today's 10 --dry-run subcommands "
-        "define --no-dry-run, so there is nothing to exercise; documented "
-        "per the WP07 prompt's explicit skip-with-reason instruction."
-    )
-)
-def test_trailing_no_dry_run_overrides_forwarded_group_dry_run() -> None:  # pragma: no cover
-    raise AssertionError("no subcommand defines --no-dry-run to exercise this ratchet")
-
-
 def test_no_subcommand_dry_run_preview_path_unchanged(tmp_path: Path) -> None:
-    """``migrate --dry-run`` with no subcommand still runs its own body
-    exactly as today (FR-022) — not routed through the forward-or-refuse
-    helper at all (``ctx.invoked_subcommand is None``).
+    """``migrate --dry-run`` with no subcommand still runs its own preview
+    body — not routed through the forward-or-refuse helper at all
+    (``ctx.invoked_subcommand is None``).
     """
     (tmp_path / ".kittify").mkdir()
 
@@ -408,7 +358,7 @@ def test_no_subcommand_dry_run_preview_path_unchanged(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Explicit issue-repro cases named by the WP07 prompt.
+# Issue-repro refusals through the typer app (rich error panel rendering).
 # ---------------------------------------------------------------------------
 
 
@@ -418,6 +368,10 @@ def test_dry_run_before_repin_hooks_is_refused() -> None:
     flat_output = _flatten(result.output)
     assert "--dry-run" in flat_output
     assert "repin-hooks" in flat_output
+    # The next action is the subcommand's --help, never a trailing form the
+    # subcommand does not declare.
+    assert "spec-kitty migrate repin-hooks --help" in flat_output
+    assert "migrate repin-hooks --dry-run" not in flat_output
 
 
 def test_force_before_backfill_runtime_state_is_refused() -> None:
@@ -432,12 +386,13 @@ def test_verbose_short_flag_before_backfill_runtime_state_is_refused() -> None:
     result = _invoke(["-v", "backfill-runtime-state"])
     assert result.exit_code == 2, result.output
     flat_output = _flatten(result.output)
-    assert "--verbose" in flat_output
+    # Reported with its short form too, so the spelling typed is recognisable.
+    assert "-v/--verbose" in flat_output
     assert "backfill-runtime-state" in flat_output
 
 
 # ---------------------------------------------------------------------------
-# Pre-PR fold B1: the helper must be click-universe agnostic.
+# The helper must be click-universe agnostic.
 #
 # ``pyproject`` allows ``typer>=0.24.1,<0.28``; typer 0.26+ vendors its own
 # click (``typer._click``), whose ``Group``/``ParameterSource``/``UsageError``
@@ -611,22 +566,8 @@ def test_usage_error_class_skips_a_core_module_without_exceptions(monkeypatch: p
     assert migrate_cmd._usage_error_class(_fake_ctx(None, [], given={})) is click.UsageError
 
 
-def test_dry_run_before_undeclaring_subcommand_names_help_not_a_trailing_flag() -> None:
-    result = _invoke(["--dry-run", "repin-hooks"])
-    assert result.exit_code == 2, result.output
-    flat_output = _flatten(result.output)
-    assert "spec-kitty migrate repin-hooks --help" in flat_output
-    assert "migrate repin-hooks --dry-run" not in flat_output
-
-
-def test_short_verbose_refusal_names_the_short_form() -> None:
-    result = _invoke(["-v", "backfill-runtime-state"])
-    assert result.exit_code == 2, result.output
-    assert "-v/--verbose" in _flatten(result.output)
-
-
 # ---------------------------------------------------------------------------
-# Pre-PR fold B1: the same contract through the real CLI entry point in the
+# The same contract through the real CLI entry point in the
 # session test venv. ``tests/conftest.py::test_venv`` builds that venv with
 # ``pip install -e`` — i.e. the freshest typer the declared range admits
 # (0.27.x, vendored ``typer._click``) whenever the index is reachable, and an

@@ -62,7 +62,7 @@ class SettingsNotDecodableError(GuardedReadError):
     """Raised when ``.claude/settings.json`` bytes cannot be provably decoded.
 
     Provable means a byte-order mark or strict UTF-8 (see
-    ``kernel.text_decode.decode_unambiguous``, D1/D6, #4940). Anything else
+    ``kernel.text_decode.decode_unambiguous``, #4940). Anything else
     (a single-byte code page such as cp1252, an ambiguous heuristic guess) is
     refused rather than reinterpreted, so the file is never silently
     overwritten by a lint-only reconstruction that loses the operator's
@@ -94,7 +94,7 @@ class ClaudeCodeHookRegistrar:
         self._event_key = event_key
         # Set by ``_load`` for the path it just decoded, consumed by ``_save``
         # on the same instance to decide whether a byte backup is required
-        # before the UTF-8 rewrite (D6). Keyed by string path since a
+        # before the UTF-8 rewrite. Keyed by string path since a
         # registrar may be asked about more than one settings path in
         # principle, though in practice there is exactly one.
         self._source_encoding_by_path: dict[str, str] = {}
@@ -143,7 +143,7 @@ class ClaudeCodeHookRegistrar:
 
         When the on-disk source was not plain UTF-8, the original bytes are
         backed up (byte-exact, via ``backup_before_overwrite``) immediately
-        before the rewrite (D6). The source encoding is re-derived from the
+        before the rewrite. The source encoding is re-derived from the
         current bytes rather than threaded from ``prepare_commands`` because
         a prepared batch crosses a registrar-instance boundary
         (``ClaudeCodeWriter.prepare_batch`` / ``apply_prepared`` each
@@ -195,7 +195,7 @@ class ClaudeCodeHookRegistrar:
         return command_hooks
 
     def _read_settings_text(self, path: Path) -> tuple[str, str] | None:
-        """Read and decode *path* via the shared proof-only rule (D1/D6).
+        """Read and decode *path* via the shared proof-only rule (#4940).
 
         Returns ``None`` only when the file is absent, including the benign
         race where it disappears between an earlier ``exists()`` check and
@@ -222,7 +222,7 @@ class ClaudeCodeHookRegistrar:
         settings file.  Backup failures are re-raised to prevent silent data loss.
 
         The bytes are decoded only when a BOM or strict UTF-8 proves the
-        encoding (D6); anything else raises :class:`SettingsNotDecodableError`
+        encoding; anything else raises :class:`SettingsNotDecodableError`
         rather than being silently discarded as ``{}``. The proven source
         encoding is remembered for this instance/path so :meth:`_save` knows
         whether a pre-write byte backup is required.

@@ -1,5 +1,4 @@
-"""#4919 (WP02, plan D3, contract `contracts/failure-surface.md`): decisions
-survive defer-then-resolve and repair.
+"""#4919: decisions survive defer-then-resolve and repair.
 
 The documented Decision Moment flow ``open -> defer -> resolve`` emits TWO
 real ``DecisionPointResolved`` events for one decision -- ``defer`` with
@@ -9,20 +8,24 @@ real ``DecisionPointResolved`` events for one decision -- ``defer`` with
 so rebuilding the index (``doctor decisions --repair`` after the index is
 missing or diverged) silently DROPPED the decision and exited 0.
 
-FR-001: ``open -> defer -> resolve`` then deleting ``decisions/index.json``
-    -- ``doctor decisions --repair`` rebuilds the decision as ``resolved``
-    with its final answer. Driven through the real CLI (T007 requirement).
-FR-002: a log already on disk with the (deferred, resolved) pair, in EITHER
-    order, rebuilds as resolved -- the fold must not depend on append order
-    (the event-log git merge driver re-sorts by ``(at, event_id)``, #4941
-    class).
-FR-003: the read-only ``doctor decisions`` reports a genuinely unfoldable
-    decision (e.g. two ``DecisionPointOpened`` events) as a problem
-    (``clean: false``, id in ``malformed_folds``), and also flags an index
-    entry whose status differs from the folded status.
-FR-004: ``doctor decisions --repair`` never removes a decision it cannot
-    fold; it exits 1 and names the decision(s). Under ``--json`` it emits
-    exactly one JSON document, then exits 1.
+Contracts pinned here:
+
+* ``open -> defer -> resolve`` then deleting ``decisions/index.json`` --
+  ``doctor decisions --repair`` rebuilds the decision as ``resolved`` with
+  its final answer. Driven through the real CLI.
+* A log already on disk with the (deferred, resolved) pair, in EITHER
+  order, rebuilds as resolved -- the fold must not depend on append order
+  (the event-log git merge driver re-sorts by ``(at, event_id)``, #4941
+  class).
+* The read-only ``doctor decisions`` reports a genuinely unfoldable
+  decision (e.g. two ``DecisionPointOpened`` events, or a malformed
+  payload) as a problem (``clean: false``, id in ``malformed_folds``), and
+  also flags an index entry whose status differs from the folded status.
+* ``doctor decisions --repair`` never removes a decision it cannot fold; it
+  exits 1 and names the decision(s) with a remedy. Under ``--json`` it
+  emits exactly one JSON document, then exits 1.
+* ``--repair`` never wipes a non-wire index field (``summary_json``,
+  ``slot_key`` attribution) of an entry it reconciles.
 """
 
 from __future__ import annotations
@@ -70,7 +73,7 @@ def _setup_project(repo_root: Path) -> None:
     Mirrors ``tests/decisions/test_decisions_reconciler.py::_setup_meta`` and
     ``tests/specify_cli/cli/commands/test_decision.py::_setup_mission`` --
     the ``.kittify`` marker is what ``locate_project_root()`` anchors on, so
-    the real CLI (FR-001) resolves ``tmp_path`` as the project root exactly
+    the real CLI resolves ``tmp_path`` as the project root exactly
     like a real checkout instead of walking up past it.
     """
     (repo_root / ".kittify").mkdir(parents=True, exist_ok=True)
@@ -97,7 +100,7 @@ def _swap_resolved_event_order(repo_root: Path, decision_id: str) -> None:
     """Swap the on-disk line order of *decision_id*'s two
     ``DecisionPointResolved`` events -- the exact reshuffle the event-log git
     merge driver (``status/event_log_merge.py:62-68``, sorts by
-    ``(at, event_id)``) can produce across a merge (R1, the #4941 ordering-bug
+    ``(at, event_id)``) can produce across a merge (the #4941 ordering-bug
     class). Proves the fold does not depend on append order."""
     path = _events_path(repo_root)
     lines = _read_events(repo_root)
@@ -155,30 +158,29 @@ def _open_defer_resolve(repo_root: Path, *, step_id: str, final_answer: str = "f
 
 
 def _invoke_agent(args: list[str], cwd: Path) -> Result:
-    """Invoke ``spec-kitty agent <args>`` through the ROOT Typer app (T007:
-    not the ``agent`` sub-app directly), so top-level registration and the
-    root callback are exercised too."""
+    """Invoke ``spec-kitty agent <args>`` through the ROOT Typer app (not
+    the ``agent`` sub-app directly), so top-level registration and the root
+    callback are exercised too."""
     with contextlib.chdir(cwd):
         return runner.invoke(root_app, ["agent", *args], catch_exceptions=False)
 
 
 def _invoke_doctor(args: list[str], cwd: Path) -> Result:
-    """Invoke ``spec-kitty doctor <args>`` through the ROOT Typer app (T007:
-    not the ``doctor`` sub-app directly)."""
+    """Invoke ``spec-kitty doctor <args>`` through the ROOT Typer app (not
+    the ``doctor`` sub-app directly)."""
     with contextlib.chdir(cwd):
         return runner.invoke(root_app, ["doctor", *args], catch_exceptions=False)
 
 
 # ---------------------------------------------------------------------------
-# FR-001: real CLI, open -> defer -> resolve -> delete index -> --repair
+# Real CLI: open -> defer -> resolve -> delete index -> --repair
 # ---------------------------------------------------------------------------
 
 
-def test_fr001_cli_defer_then_resolve_survives_index_rebuild(tmp_path: Path) -> None:
-    """RED-FIRST (pre-fix): `malformed_folds:[D]`, `count:0`, exit 0 -- the
-    decision vanishes from the rebuilt index. This drives the full flow
-    through the real CLI (T007 requirement), not the service functions
-    directly."""
+def test_cli_defer_then_resolve_survives_index_rebuild(tmp_path: Path) -> None:
+    """Pre-fix: `malformed_folds:[D]`, `count:0`, exit 0 -- the decision
+    vanished from the rebuilt index. This drives the full flow through the
+    real CLI, not the service functions directly."""
     _setup_project(tmp_path)
 
     open_result = _invoke_agent(
@@ -190,9 +192,9 @@ def test_fr001_cli_defer_then_resolve_survives_index_rebuild(tmp_path: Path) -> 
             "--flow",
             "specify",
             "--step-id",
-            "fr001-step",
+            "cli-step",
             "--input-key",
-            "fr001-input",
+            "cli-input",
             "--question",
             "How many kittens?",
         ],
@@ -236,15 +238,15 @@ def test_fr001_cli_defer_then_resolve_survives_index_rebuild(tmp_path: Path) -> 
 
 
 # ---------------------------------------------------------------------------
-# FR-002: an existing on-disk log with the (deferred, resolved) pair, in
-# EITHER order, rebuilds as resolved.
+# An existing on-disk log with the (deferred, resolved) pair, in EITHER
+# order, rebuilds as resolved.
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("swap_order", [False, True], ids=["deferred-then-resolved", "resolved-then-deferred"])
-def test_fr002_existing_log_both_orders_rebuild_as_resolved(tmp_path: Path, swap_order: bool) -> None:
+def test_existing_log_rebuilds_as_resolved_in_either_order(tmp_path: Path, swap_order: bool) -> None:
     _setup_project(tmp_path)
-    decision_id = _open_defer_resolve(tmp_path, step_id="fr002-step", final_answer="the answer")
+    decision_id = _open_defer_resolve(tmp_path, step_id="order-step", final_answer="the answer")
     if swap_order:
         _swap_resolved_event_order(tmp_path, decision_id)
 
@@ -262,23 +264,23 @@ def test_fr002_existing_log_both_orders_rebuild_as_resolved(tmp_path: Path, swap
 
 
 # ---------------------------------------------------------------------------
-# FR-003 / FR-004: a genuinely unfoldable decision (two DecisionPointOpened)
+# A genuinely unfoldable decision (two DecisionPointOpened)
 # ---------------------------------------------------------------------------
 
 
-def test_fr003_diagnose_reports_unfoldable_decision_without_repair(
+def test_diagnose_reports_unfoldable_decision_without_repair(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Read-only `doctor decisions` (no --repair): reports the malformed
-    decision (`clean: false`, id in `malformed_folds`) and exits 0 -- FR-003."""
+    decision (`clean: false`, id in `malformed_folds`) and exits 0."""
     _setup_project(tmp_path)
     resp = open_decision(
         tmp_path,
         MISSION_SLUG,
         origin_flow=OriginFlow.CHARTER,
-        step_id="fr003-step",
-        input_key="fr003-input",
+        step_id="diagnose-step",
+        input_key="diagnose-input",
         question="Q?",
         actor="alice",
     )
@@ -298,20 +300,20 @@ def test_fr003_diagnose_reports_unfoldable_decision_without_repair(
     assert any(e.decision_id == resp.decision_id for e in unchanged.entries), "diagnose (read-only) must never mutate the index"
 
 
-def test_fr004_repair_refuses_malformed_decision_with_existing_entry(
+def test_repair_refuses_malformed_decision_with_existing_entry(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """`--repair` on a decision whose events fold to malformed: the index
     entry and log stay unchanged for that decision, the command names it and
-    exits 1 -- exactly one JSON document (FR-004, NFR-003)."""
+    exits 1 -- exactly one JSON document carrying the id and the remedy."""
     _setup_project(tmp_path)
     bad_resp = open_decision(
         tmp_path,
         MISSION_SLUG,
         origin_flow=OriginFlow.CHARTER,
-        step_id="fr004-bad-step",
-        input_key="fr004-bad-input",
+        step_id="malformed-step",
+        input_key="malformed-step-input",
         question="Q?",
         actor="alice",
     )
@@ -325,8 +327,8 @@ def test_fr004_repair_refuses_malformed_decision_with_existing_entry(
         tmp_path,
         MISSION_SLUG,
         origin_flow=OriginFlow.CHARTER,
-        step_id="fr004-clean-step",
-        input_key="fr004-clean-input",
+        step_id="clean-step",
+        input_key="clean-input",
         question="Q?",
         actor="alice",
     )
@@ -336,16 +338,15 @@ def test_fr004_repair_refuses_malformed_decision_with_existing_entry(
 
     with pytest.raises(typer.Exit) as exc_info:
         run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=True, repair=True)
-    assert exc_info.value.exit_code == 1, "malformed decision must make --repair exit non-zero (FR-004)"
+    assert exc_info.value.exit_code == 1, "malformed decision must make --repair exit non-zero"
 
     captured = capsys.readouterr()
-    # Exactly one JSON document on stdout (FR-004: "no second JSON document").
+    # Exactly one JSON document on stdout (never a second JSON document).
     stdout_lines = [line for line in captured.out.splitlines() if line.strip()]
     payload = json.loads("\n".join(stdout_lines))
     assert payload["malformed_folds"] == [bad_resp.decision_id]
     assert bad_resp.decision_id in payload["index_decision_ids"], "index entry unchanged for the malformed decision"
-    # NFR-003 / contract failure-surface.md row 1: the SAME single JSON
-    # document must carry the remedy -- "left in place" plus the inspect
+    # The SAME single JSON document must carry the remedy -- "left in place" plus the inspect
     # pointer -- not just the bare id.
     assert payload["remedy"] is not None, payload
     assert "left in place" in payload["remedy"]
@@ -362,20 +363,20 @@ def test_fr004_repair_refuses_malformed_decision_with_existing_entry(
     assert len(events_for_bad) == 2, "the malformed decision's log must be untouched by a refused repair"
 
 
-def test_fr004_repair_refuses_malformed_decision_with_no_prior_entry(
+def test_repair_refuses_malformed_decision_with_no_prior_entry(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """The no-prior-entry variant: the malformed decision was never in the
     index (never fabricated), and --repair still names it and exits 1
-    (NFR-003: both the id AND the remedy text)."""
+    (both the id AND the remedy text)."""
     _setup_project(tmp_path)
     bad_resp = open_decision(
         tmp_path,
         MISSION_SLUG,
         origin_flow=OriginFlow.CHARTER,
-        step_id="fr004-orphan-step",
-        input_key="fr004-orphan-input",
+        step_id="orphan-step",
+        input_key="orphan-input",
         question="Q?",
         actor="alice",
     )
@@ -403,7 +404,7 @@ def test_fr004_repair_refuses_malformed_decision_with_no_prior_entry(
 
 
 # ---------------------------------------------------------------------------
-# FR-003 / FR-004: the "anything else is malformed" half of the rule --
+# The "anything else is malformed" half of the rule --
 # data-model: "Any other multi-outcome set is malformed". A mutation that
 # accepted any pair of DecisionPointResolved outcomes and picked one of them
 # must fail these.
@@ -425,9 +426,9 @@ def _resolved_envelope_for(repo_root: Path, decision_id: str) -> dict[str, Any]:
 def _write_corrupted_resolved_outcomes(repo_root: Path, decision_id: str, outcomes: list[str]) -> None:
     """Replace *decision_id*'s single real ``DecisionPointResolved`` envelope
     with ``len(outcomes)`` copies of it, one per outcome in *outcomes* --
-    copying a real emitted envelope's shape (per the reviewer's required
-    change) but forcing a combination the write path would never itself
-    produce, to prove the fold's malformed-rejection half."""
+    copying a real emitted envelope's shape but forcing a combination the
+    write path would never itself produce, to prove the fold's
+    malformed-rejection half."""
     template = _resolved_envelope_for(repo_root, decision_id)
     other_lines = [
         e for e in _read_events(repo_root) if not (e.get("event_type") == "DecisionPointResolved" and e.get("payload", {}).get("decision_point_id") == decision_id)
@@ -442,7 +443,7 @@ def _write_corrupted_resolved_outcomes(repo_root: Path, decision_id: str, outcom
     _events_path(repo_root).write_text("\n".join(json.dumps(e) for e in all_events) + "\n", encoding="utf-8")
 
 
-@pytest.mark.parametrize(
+_UNFOLDABLE_OUTCOMES = pytest.mark.parametrize(
     "outcomes",
     [
         ["resolved", "resolved"],
@@ -452,6 +453,9 @@ def _write_corrupted_resolved_outcomes(repo_root: Path, decision_id: str, outcom
     ],
     ids=["two-resolved", "resolved-and-canceled", "two-deferred", "three-events"],
 )
+
+
+@_UNFOLDABLE_OUTCOMES
 def test_unfoldable_resolved_combinations_reported_and_refused(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -501,16 +505,7 @@ def test_unfoldable_resolved_combinations_reported_and_refused(
     assert _events_for_decision(tmp_path, resp.decision_id) == events_before, "repair must never touch the malformed decision's log"
 
 
-@pytest.mark.parametrize(
-    "outcomes",
-    [
-        ["resolved", "resolved"],
-        ["resolved", "canceled"],
-        ["deferred", "deferred"],
-        ["deferred", "resolved", "resolved"],
-    ],
-    ids=["two-resolved", "resolved-and-canceled", "two-deferred", "three-events"],
-)
+@_UNFOLDABLE_OUTCOMES
 def test_select_terminal_event_folderror_names_the_outcomes(outcomes: list[str]) -> None:
     """Fold-level unit assertion (single authority, `index_fold.py`):
     `_select_terminal_event` raises `FoldError` for every unfoldable
@@ -538,7 +533,7 @@ def test_stale_index_status_reported_by_diagnose_and_healed_by_repair(
 ) -> None:
     """The id-set agrees (the decision is in both the log and the index),
     but the index's recorded status is stale -- diagnose must catch this,
-    not just a missing/orphaned id-set comparison (FR-003, plan D3)."""
+    not just a missing/orphaned id-set comparison."""
     _setup_project(tmp_path)
     decision_id = _open_defer_resolve(tmp_path, step_id="stale-status-step", final_answer="answer")
 
@@ -616,8 +611,7 @@ def test_healthy_open_resolve_decision_stays_clean(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Pre-PR fold B2: ``--repair`` must never wipe a non-wire field of an entry it
-# rebuilds. ``summary_json`` (widen-review provenance, C-005) is never placed
+# ``--repair`` must never wipe a non-wire field of an entry it rebuilds. ``summary_json`` (widen-review provenance, C-005) is never placed
 # on the wire, so the fold always yields ``summary_json=None``; a repair
 # triggered by ONE stale status rebuilt EVERY entry from the log and silently
 # erased every other decision's provenance, exit 0.
@@ -637,14 +631,14 @@ def _entry(repo_root: Path, decision_id: str) -> IndexEntry:
     return next(e for e in _store.load_index(ledger_dir).entries if e.decision_id == decision_id)
 
 
-def test_b2_repair_of_one_stale_status_keeps_other_decisions_summary_json(tmp_path: Path) -> None:
+def test_repair_of_one_stale_status_keeps_other_decisions_summary_json(tmp_path: Path) -> None:
     _setup_project(tmp_path)
     provenance_resp = open_decision(
         tmp_path,
         MISSION_SLUG,
         origin_flow=OriginFlow.CHARTER,
-        step_id="b2-provenance-step",
-        input_key="b2-provenance-input",
+        step_id="provenance-step",
+        input_key="provenance-input",
         question="Provenance?",
         actor="alice",
     )
@@ -656,7 +650,7 @@ def test_b2_repair_of_one_stale_status_keeps_other_decisions_summary_json(tmp_pa
         summary_json={"k": "provenance"},
         actor="alice",
     )
-    stale_id = _open_defer_resolve(tmp_path, step_id="b2-stale-step", final_answer="done")
+    stale_id = _open_defer_resolve(tmp_path, step_id="stale-step", final_answer="done")
     _set_index_status(tmp_path, stale_id, DecisionStatus.DEFERRED)
     provenance_before = _entry(tmp_path, provenance_resp.decision_id)
     assert provenance_before.summary_json == {"k": "provenance"}
@@ -671,7 +665,7 @@ def test_b2_repair_of_one_stale_status_keeps_other_decisions_summary_json(tmp_pa
     assert _entry(tmp_path, provenance_resp.decision_id) == provenance_before, "repair wiped a non-wire field"
 
 
-def test_b2_stale_entry_itself_keeps_its_summary_json(tmp_path: Path) -> None:
+def test_repaired_stale_entry_keeps_its_own_summary_json(tmp_path: Path) -> None:
     """The entry whose status IS rewritten takes wire fields from the fold
     but carries its own non-wire ``summary_json`` forward."""
     _setup_project(tmp_path)
@@ -679,8 +673,8 @@ def test_b2_stale_entry_itself_keeps_its_summary_json(tmp_path: Path) -> None:
         tmp_path,
         MISSION_SLUG,
         origin_flow=OriginFlow.CHARTER,
-        step_id="b2-self-step",
-        input_key="b2-self-input",
+        step_id="self-step",
+        input_key="self-input",
         question="Self?",
         actor="alice",
     )
@@ -697,7 +691,7 @@ def test_b2_stale_entry_itself_keeps_its_summary_json(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Pre-PR fold N1: a malformed PAYLOAD (not just a malformed event set) must
+# A malformed PAYLOAD (not just a malformed event set) must
 # be reported as a malformed fold, never crash the read-only doctor.
 # ---------------------------------------------------------------------------
 
@@ -739,15 +733,15 @@ def _open_and_resolve(repo_root: Path, step_id: str) -> str:
 
 
 @pytest.mark.parametrize(("event_type", "mutate"), _PAYLOAD_CORRUPTIONS)
-def test_n1_malformed_payload_is_reported_not_crashed(
+def test_malformed_payload_is_reported_not_crashed(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     event_type: str,
     mutate: Any,
 ) -> None:
     _setup_project(tmp_path)
-    bad_id = _open_and_resolve(tmp_path, "n1-bad-step")
-    good_id = _open_and_resolve(tmp_path, "n1-good-step")
+    bad_id = _open_and_resolve(tmp_path, "bad-payload-step")
+    good_id = _open_and_resolve(tmp_path, "good-payload-step")
     _corrupt_payload(tmp_path, bad_id, event_type, mutate)
     bad_entry_before = _entry(tmp_path, bad_id)
 
@@ -769,11 +763,11 @@ def test_n1_malformed_payload_is_reported_not_crashed(
 
 
 @pytest.mark.parametrize(("event_type", "mutate"), _PAYLOAD_CORRUPTIONS)
-def test_n1_fold_events_wraps_payload_errors_as_folderror(tmp_path: Path, event_type: str, mutate: Any) -> None:
+def test_fold_events_wraps_payload_errors_as_folderror(tmp_path: Path, event_type: str, mutate: Any) -> None:
     from specify_cli.decisions.index_fold import FoldError, fold_events
 
     _setup_project(tmp_path)
-    decision_id = _open_and_resolve(tmp_path, "n1-unit-step")
+    decision_id = _open_and_resolve(tmp_path, "fold-unit-step")
     _corrupt_payload(tmp_path, decision_id, event_type, mutate)
 
     with pytest.raises(FoldError, match="malformed") as exc_info:
@@ -782,13 +776,13 @@ def test_n1_fold_events_wraps_payload_errors_as_folderror(tmp_path: Path, event_
 
 
 # ---------------------------------------------------------------------------
-# Pre-PR fold N2: a slot_key-origin decision's STATUS is on the wire, so a
+# A slot_key-origin decision's STATUS is on the wire, so a
 # stale status must be reported and repaired even though its attribution
 # (step_id/slot_key split) cannot be rebuilt from the log.
 # ---------------------------------------------------------------------------
 
 
-def test_n2_slot_key_origin_stale_status_is_reported_and_repaired(
+def test_slot_key_origin_stale_status_is_reported_and_repaired(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -797,8 +791,8 @@ def test_n2_slot_key_origin_stale_status_is_reported_and_repaired(
         tmp_path,
         MISSION_SLUG,
         origin_flow=OriginFlow.CHARTER,
-        slot_key="n2-slot",
-        input_key="n2-input",
+        slot_key="origin-slot",
+        input_key="slot-input",
         question="Slot?",
         actor="alice",
     )
@@ -822,12 +816,12 @@ def test_n2_slot_key_origin_stale_status_is_reported_and_repaired(
     healed = _entry(tmp_path, resp.decision_id)
     assert healed.status is DecisionStatus.RESOLVED
     assert healed.final_answer == "slot answer"
-    assert healed.slot_key == "n2-slot", "attribution must be kept, not rebuilt from the collapsed wire field"
+    assert healed.slot_key == "origin-slot", "attribution must be kept, not rebuilt from the collapsed wire field"
     assert healed.step_id is None
 
 
 # ---------------------------------------------------------------------------
-# Coverage fold: the human-text ``stale status`` line.
+# The human-text ``stale status`` line.
 # ---------------------------------------------------------------------------
 
 
@@ -846,7 +840,7 @@ def test_diagnose_human_output_names_stale_status(tmp_path: Path, capsys: pytest
 
 
 # ---------------------------------------------------------------------------
-# Pre-PR fold B2/N2: ``_reconcile_entry`` branch-level unit tests.
+# ``_reconcile_entry`` branch-level unit tests.
 # ---------------------------------------------------------------------------
 
 

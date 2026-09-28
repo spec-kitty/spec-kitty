@@ -1392,13 +1392,13 @@ def decisions_reconcile(
 ) -> None:
     """Diagnose or repair divergence between ``decisions/index.json`` and the
     authoritative ``DecisionPointOpened``/``DecisionPointResolved`` event log
-    (FR-004/FR-005; #4919 FR-001—FR-004).
+    (#4919).
 
     Diagnose (default): read-only; reports decisions present in the event
     log but missing from the index, index entries with no backing event, a
     decision_id whose event group cannot be folded at all (e.g. an
     ``open -> open`` corruption), and an index entry whose status disagrees
-    with the folded log (a stale entry). Always exits 0 (report only) — C-007.
+    with the folded log (a stale entry). Always exits 0 (report only).
 
     ``--repair``: rebuilds ``index.json`` from the log via the single
     canonical ``event -> IndexEntry`` fold
@@ -1411,7 +1411,7 @@ def decisions_reconcile(
     of which one the (git-merge-driver-resorted) log lists first (#4919).
     When a decision cannot be reconciled, ``--repair`` leaves it unchanged
     (never drops it), names it in the report, and the command then exits
-    **1** — C-007. It exits 0 only when every decision the repair touched
+    **1**. It exits 0 only when every decision the repair touched
     folds cleanly.
 
     Run ``--repair`` as an offline maintenance step, not concurrently with

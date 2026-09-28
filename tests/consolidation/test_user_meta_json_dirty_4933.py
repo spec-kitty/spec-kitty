@@ -1,4 +1,4 @@
-"""WP04/T019 — #4933: a user's own ``meta.json`` must never be exempted.
+"""#4933: a user's own ``meta.json`` must never be exempted from dirty-tree gates.
 
 ``coordination.coherence.is_self_bookkeeping_churn`` (pre-fix) exempted ANY
 path whose basename is ``meta.json`` from every dirty-tree safety gate that
@@ -10,11 +10,11 @@ and ``spec-kitty consolidate`` proceeded to ``reset --hard`` the repository
 root checkout / ``worktree remove --force`` the lane worktree, destroying the
 edit, then exited 0.
 
-FR-008/FR-009 (D4, R3): the fix anchors the exemption depth-exact —
+The fix anchors the exemption depth-exact —
 ``(?:^|/)kitty-specs/[^/]+/meta\\.json$`` plus the legacy
 ``(?:^|/)\\.kittify/meta\\.json$`` — so a user ``meta.json`` anywhere else is
 real dirt again, while Spec Kitty's own mission ``meta.json`` (including under
-a monorepo subdirectory) stays exempt (FR-010 ratchet).
+a monorepo subdirectory) stays exempt.
 
 Harness: the real-git ``_run_lane_based_consolidation`` Layer-2 pattern from
 ``tests/integration/test_merge_primary_checkout_safety.py`` /
@@ -87,7 +87,7 @@ def _write_meta(feature_dir: Path, slug: str) -> None:
         "mission_type": "software-dev",
         "target_branch": "main",
         "purpose_tldr": "user meta.json dirty-tree safety regression (#4933)",
-        "purpose_context": "WP04 red-first repro",
+        "purpose_context": "user meta.json regression fixture",
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -285,12 +285,12 @@ def _invoke_merge(tmp_path: Path, slug: str, *, remove_worktree: bool = False, d
 
 
 class TestPrimaryCheckoutUserMetaJsonSafety:
-    """FR-008: a dirty user ``src/app/meta.json`` in the root checkout."""
+    """A dirty user ``src/app/meta.json`` in the root checkout."""
 
     def test_dirty_user_meta_json_refuses_before_reset(self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
         # Pin the console width so Rich never wraps the long tmp path across
-        # lines (reviewer Issue 2 note) -- `cli.console`'s width/wrapping is
-        # left to per-invocation `COLUMNS` env detection by design.
+        # lines -- `cli.console`'s width/wrapping is left to per-invocation
+        # `COLUMNS` env detection by design.
         monkeypatch.setenv("COLUMNS", "400")
         slug = "test-user-meta-json-primary-dirty"
         _bootstrap_mission(tmp_path, slug)
@@ -313,19 +313,18 @@ class TestPrimaryCheckoutUserMetaJsonSafety:
         captured = capsys.readouterr()
         out = captured.out.replace("\n", " ")
         assert MERGE_UNSAFE_PRIMARY_DIRTY in out
-        # NFR-003: the file is named and the real remediation line is printed.
+        # The file is named and the real remediation line is printed.
         assert _USER_META in out
         assert _REMEDIATION_TEXT in out
-        # #4933 (orchestrator-added, escalated review item): on a FRESH
-        # consolidation the mission branch is trivially "already an ancestor
-        # of HEAD" (it was branched off the target and never advances until
-        # the lanes merge), so the lane-ancestry-only classifier misfires
-        # BEHIND_OWN_HEAD on every dirty refusal. That must never upgrade to
-        # the reset-to-HEAD guidance here -- it would tell the operator to
-        # destroy the very edit this WP protects.
+        # On a FRESH consolidation the mission branch is trivially "already
+        # an ancestor of HEAD" (it was branched off the target and never
+        # advances until the lanes merge), so the lane-ancestry-only
+        # classifier misfires BEHIND_OWN_HEAD on every dirty refusal. That
+        # must never upgrade to the reset-to-HEAD guidance here -- it would
+        # tell the operator to destroy the very edit this refusal protects.
         assert "reset --hard HEAD" not in out
 
-        # NFR-001: byte-identical to pre-invocation. The edit survives.
+        # Byte-identical to pre-invocation. The edit survives.
         assert _git(tmp_path, "rev-parse", "HEAD").stdout.strip() == pre_head
         assert (tmp_path / _USER_META).read_text() == '{"v": 2, "dirty": true}\n'
         assert _git(tmp_path, "status", "--porcelain").stdout == dirty_before
@@ -359,8 +358,8 @@ class TestPrimaryCheckoutUserMetaJsonSafety:
         assert _REMEDIATION_TEXT in out
 
     def test_dirty_owned_mission_meta_json_still_proceeds(self, tmp_path: Path) -> None:
-        """Control (FR-010 ratchet): a dirty Spec Kitty-owned mission
-        ``meta.json`` stays exempt; consolidation proceeds as today."""
+        """Control: a dirty Spec Kitty-owned mission ``meta.json`` stays
+        exempt; consolidation proceeds."""
         slug = "test-owned-meta-json-control"
         feature_dir = _bootstrap_mission(tmp_path, slug)
 
@@ -373,7 +372,7 @@ class TestPrimaryCheckoutUserMetaJsonSafety:
                     "mission_type": "software-dev",
                     "target_branch": "main",
                     "purpose_tldr": "dirtied for control",
-                    "purpose_context": "WP04 control",
+                    "purpose_context": "owned meta.json control",
                 },
                 indent=2,
                 sort_keys=True,
@@ -389,7 +388,7 @@ class TestPrimaryCheckoutUserMetaJsonSafety:
 
 
 class TestLaneWorktreeUserMetaJsonSafety:
-    """FR-009: same edit inside a lane worktree consolidation would remove."""
+    """The same edit inside a lane worktree consolidation would remove."""
 
     def test_dirty_user_meta_json_in_lane_worktree_refuses_before_removal(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
@@ -421,18 +420,17 @@ class TestLaneWorktreeUserMetaJsonSafety:
         out = captured.out.replace("\n", " ")
         assert MERGE_UNSAFE_WORKTREE_DIRTY in out
         assert _USER_META in out
-        # FR-009 / NFR-003: the worktree is named and the real remediation
-        # line is printed (reviewer Issue 2).
+        # The worktree is named and the real remediation line is printed.
         assert str(wt_path) in out
         assert _REMEDIATION_TEXT in out
 
-        # NFR-001: the worktree and the edit survive, untouched.
+        # The worktree and the edit survive, untouched.
         assert wt_path.exists()
         assert (wt_path / _USER_META).read_text() == '{"v": 2, "dirty": true}\n'
 
     def test_dirty_owned_mission_meta_json_in_worktree_still_proceeds(self, tmp_path: Path) -> None:
-        """Control (FR-010 ratchet): a dirty owned ``meta.json`` inside a
-        lane worktree stays exempt; the worktree is still removed as today."""
+        """Control: a dirty owned ``meta.json`` inside a lane worktree stays
+        exempt; the worktree is still removed."""
         slug = "test-owned-meta-json-worktree-control"
         feature_dir = _bootstrap_mission(tmp_path, slug)
         lane_branch = lane_branch_name(slug, "lane-a")
@@ -448,21 +446,20 @@ class TestLaneWorktreeUserMetaJsonSafety:
 
 
 class TestReportPreMutationRefusalBehindHeadGuidance:
-    """#4933 cycle-2 review gap: the POSITIVE branch of the executor fix.
+    """#4933: both branches of the reset-to-HEAD guidance gate.
 
     ``_report_pre_mutation_refusal``'s reset-to-HEAD guidance (``proven_behind_head
     = remedy.kind is BEHIND_OWN_HEAD and is_pure_behind_head_lag(main_repo,
-    base_sha=base_sha)``) had only its negative branch covered (the #4933 CLI
-    tests above assert "reset --hard HEAD" is ABSENT on a fresh consolidation).
-    Nothing proved the guidance still fires when the lag genuinely IS proven --
+    base_sha=base_sha)``) must stay ABSENT on a fresh consolidation (the CLI
+    tests above) yet still fire when the lag genuinely IS proven -- otherwise
     an over-gated regression (e.g. a call site silently dropping ``base_sha``)
-    would go undetected with every existing test green. These probe the
+    would go undetected. These probe the
     function DIRECTLY against a real git repo (no mocking of
     ``classify_resume_dirty_remedy`` / ``is_pure_behind_head_lag``), mirroring
     the "real ancestry/diff probes must run for real" house discipline in
     ``test_behind_head_recovery_coverage.py`` / ``test_behind_head_remedy.py``.
 
-    Fixture shape (reviewer's prescribed repro): commit A on ``main``, a lane
+    Fixture shape: commit A on ``main``, a lane
     branch with commit B (adds ``f.txt``) off A, then ``git update-ref
     refs/heads/main <B>`` WITHOUT touching the checkout -- so ``main``'s ref
     now points at B while the working tree (and index) still read A's tree.

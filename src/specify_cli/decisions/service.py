@@ -150,7 +150,7 @@ def _is_allowed_terminal_reopen(
     """Return True for terminal states that may be explicitly closed later.
 
     Delegates to :func:`specify_cli.decisions.index_fold.is_allowed_terminal_reopen`
-    -- the single transition-rule authority (#4919, plan D3) shared with the
+    -- the single transition-rule authority (#4919) shared with the
     read-side fold, so the write path and the reconciler can never drift into
     two independent answers for "which terminal-to-terminal reopen is legal".
     """

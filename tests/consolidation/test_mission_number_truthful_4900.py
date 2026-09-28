@@ -1,21 +1,22 @@
-"""Red-first repros for truthful mission numbering on consolidate (#4900 / WP03).
+"""Regression tests for truthful mission numbering on consolidate (#4900).
 
 ``spec-kitty consolidate`` prints ``Assigned mission_number=N`` (from the
 pre-squash mission-branch bake) but the ``meta.json`` merge driver treated a
 target-owned ``mission_number`` as authoritative whenever it was merely
 *present* -- even when it was ``null`` -- so the target's ``null`` won and
-every mission ended up numbered ``1``. This module covers, per the WP03
-prompt (T013):
+every mission ended up numbered ``1``. This module covers:
 
-1. Driver unit (FR-007): ``(null, 1) -> 1`` is the RED case; ``(3, 1) -> 3``
-   and ``(missing key, 1) -> 1`` are pre-existing CONTROLS.
-2. Sequential consolidates through the real CLI entry point (FR-005): two
-   missions consolidated one after another must record ``1`` then ``2`` on
-   the target branch, not ``null``/``1``/``1``.
-3. A hand-numbered target (FR-005): a target already carrying
-   ``mission_number: 7`` for one mission gives the next mission ``8``.
-4. Fault-injected read-back mismatch (FR-006): a corrupted read-back must
-   exit non-zero and never print a false "Assigned" line.
+1. Driver unit: ``(null, 1) -> 1`` is the regression case; ``(3, 1) -> 3``
+   ("target wins") and ``(missing key, 1) -> 1`` are controls.
+2. Sequential consolidates through the real CLI entry point: two missions
+   consolidated one after another must record ``1`` then ``2`` on the
+   target branch, not ``null``/``1``/``1``.
+3. A hand-numbered target: a target already carrying ``mission_number: 7``
+   for one mission gives the next mission ``8``.
+4. Fault-injected read-back mismatch: a corrupted read-back must exit
+   non-zero and never print a false "Assigned" line.
+5. The target-tree write never discards a decided number, never fabricates
+   a stub ``meta.json``, and announces only after read-back verification.
 
 Reuses fixture helpers from ``tests.integration.test_merge_lane_planning_data_loss``
 (the real-CLI, real-git merge harness) and the driver-level helpers already
@@ -38,7 +39,6 @@ from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.drivers import MergeDriverOutcome, run_meta_driver
 from specify_cli.consolidation.mission_number import is_assigned_mission_number
-from specify_cli.consolidation.ordering import assign_next_mission_number
 
 from tests.integration.test_merge_lane_planning_data_loss import (
     _commit_file,
@@ -54,12 +54,12 @@ pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
 # ---------------------------------------------------------------------------
-# 1. Driver unit (FR-007) -- direct body call + one subprocess-shell call.
+# 1. Driver unit -- direct body call + one subprocess-shell call.
 # ---------------------------------------------------------------------------
 
 
 def test_driver_null_target_never_beats_assigned_mission_side(tmp_path: Path) -> None:
-    """RED case (#4900): ours (target) null, theirs (mission) 1 -> must be 1.
+    """Regression case (#4900): ours (target) null, theirs (mission) 1 -> must be 1.
 
     Pre-fix, ``mission_number`` was copied from ``ours`` whenever the key was
     merely *present* -- even ``null`` -- clobbering the mission-side value.
@@ -78,8 +78,8 @@ def test_driver_null_target_never_beats_assigned_mission_side(tmp_path: Path) ->
     )
 
 
-def test_driver_assigned_target_wins_control(tmp_path: Path) -> None:
-    """CONTROL (already passed pre-fix): ours=3, theirs=1 -> 3 (target authoritative)."""
+def test_driver_assigned_target_wins(tmp_path: Path) -> None:
+    """Control: ours=3, theirs=1 -> 3 (an assigned target value is authoritative)."""
     ours = tmp_path / "O_A"
     theirs = tmp_path / "O_B"
     ours.write_text('{"mission_number": 3, "status": "accepted"}', encoding="utf-8")
@@ -92,8 +92,8 @@ def test_driver_assigned_target_wins_control(tmp_path: Path) -> None:
     assert merged["mission_number"] == 3
 
 
-def test_driver_missing_key_control(tmp_path: Path) -> None:
-    """CONTROL (already passed pre-fix): the key is absent from ours -> theirs wins."""
+def test_driver_missing_key_takes_mission_side(tmp_path: Path) -> None:
+    """Control: the key is absent from ours -> theirs wins."""
     ours = tmp_path / "O_A"
     theirs = tmp_path / "O_B"
     ours.write_text('{"status": "accepted"}', encoding="utf-8")
@@ -122,7 +122,7 @@ def test_driver_zero_and_negative_target_are_also_unset(tmp_path: Path) -> None:
 
 
 def test_driver_via_subprocess_shell_null_target(tmp_path: Path) -> None:
-    """Same RED case, invoked through the real ``merge-driver-meta`` subprocess shell."""
+    """Same regression case, invoked through the real ``merge-driver-meta`` subprocess shell."""
     import subprocess
     import sys
 
@@ -145,7 +145,7 @@ def test_driver_via_subprocess_shell_null_target(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Canonical "assigned" leaf (T012 coverage)
+# Canonical "assigned" leaf
 # ---------------------------------------------------------------------------
 
 
@@ -168,23 +168,23 @@ def test_is_assigned_mission_number_leaf(value: object, expected: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2/3. Sequential consolidates + hand-numbered target (FR-005) -- real CLI.
+# 2/3. Sequential consolidates + hand-numbered target -- real CLI.
 # ---------------------------------------------------------------------------
 
 
 @contextlib.contextmanager
 def _mission_number_merge_mocks(repo_root: Path):
     """Real mission-branch bake + real bookkeeping commit; only genuine
-    external side effects mocked (#4900 T013-2/T013-3 harness).
+    external side effects mocked.
 
     Mirrors ``_real_bookkeeping_commit_external_mocks`` in
     ``tests.integration.test_merge_lane_planning_data_loss`` but leaves
     ``_bake_mission_number_into_mission_branch`` UNMOCKED (real) -- the whole
-    point of this repro is to exercise the real mission-branch bake, the real
-    squash + merge-driver reconciliation, and the real target-tree write +
-    read-back this WP adds. Done-marking stays mocked; every fixture mission
-    here is LEGACY (no ``mission_id``), so the executor's own post-commit
-    done/baseline asserts early-return regardless (not this WP's concern).
+    point of these tests is to exercise the real mission-branch bake, the
+    real squash + merge-driver reconciliation, and the real target-tree write
+    + read-back. Done-marking stays mocked; every fixture mission here is
+    LEGACY (no ``mission_id``), so the executor's own post-commit
+    done/baseline asserts early-return regardless.
     """
     patches = [
         patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
@@ -282,10 +282,10 @@ def _target_meta(repo: Path, slug: str) -> dict[str, object]:
 
 
 def test_sequential_consolidates_record_1_then_2_on_target(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """FR-005: consolidating mission A then mission B records 1 and 2 on the
+    """Consolidating mission A then mission B records 1 and 2 on the
     target branch, matching the announced/printed numbers.
 
-    MUST FAIL on unmodified code (#4900's exact reported shape): the
+    #4900's exact reported shape, pre-fix: the
     pre-squash announcement prints 1 for BOTH missions, and the driver's
     "present wins, even null" rule clobbers each mission's assigned number
     back to null on the target -- so a second mission's scan over an
@@ -307,7 +307,7 @@ def test_sequential_consolidates_record_1_then_2_on_target(tmp_path: Path, capsy
     assert meta_a.get("mission_number") == 1, (
         f"#4900 regression: mission {slug_a} should be recorded as mission_number=1 on the target branch. Got {meta_a.get('mission_number')!r}."
     )
-    # FR-005 "matches the printed lines": the announced line must equal what
+    # The announced line must equal what
     # actually landed on the target, printed exactly once.
     output_a = capsys.readouterr().out
     assert output_a.count("Assigned mission_number=1") == 1, f"expected exactly one 'Assigned mission_number=1' line, got: {output_a!r}"
@@ -328,7 +328,7 @@ def test_sequential_consolidates_record_1_then_2_on_target(tmp_path: Path, capsy
 
 
 def test_hand_numbered_target_gives_next_mission_8(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """FR-005: a target with a hand-numbered mission (7) gives the next mission 8."""
+    """A target with a hand-numbered mission (7) gives the next mission 8."""
     slug_existing = "mission-4900-existing"
     slug_new = "mission-4900-new"
     _init_git_repo(tmp_path)
@@ -352,14 +352,14 @@ def test_hand_numbered_target_gives_next_mission_8(tmp_path: Path, capsys: pytes
 
     meta_new = _target_meta(tmp_path, slug_new)
     assert meta_new.get("mission_number") == 8, (
-        f"FR-005 regression: with a hand-numbered mission at 7 already on the target, the next consolidation must record 8. Got {meta_new.get('mission_number')!r}."
+        f"#4900 regression: with a hand-numbered mission at 7 already on the target, the next consolidation must record 8. Got {meta_new.get('mission_number')!r}."
     )
     output = capsys.readouterr().out
     assert output.count("Assigned mission_number=8") == 1, f"expected exactly one 'Assigned mission_number=8' line, got: {output!r}"
 
 
 def test_target_already_assigned_wins_over_stale_mission_branch_value(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """FR-007 "target wins": target already carries mission_number=3; the
+    """Target wins: target already carries mission_number=3; the
     mission branch independently carries a STALE mission_number=5 (as if an
     earlier, now-superseded attempt wrote it there before target's own
     correct value was assigned). Consolidation must record 3, never
@@ -408,7 +408,7 @@ def test_target_already_assigned_wins_over_stale_mission_branch_value(tmp_path: 
 
     meta = _target_meta(tmp_path, slug)
     assert meta.get("mission_number") == 3, (
-        f"FR-007 regression: the target already had mission_number=3; a stale mission-branch value (5) must never overwrite it. Got {meta.get('mission_number')!r}."
+        f"#4900 regression: the target already had mission_number=3; a stale mission-branch value (5) must never overwrite it. Got {meta.get('mission_number')!r}."
     )
     output = capsys.readouterr().out
     assert "Assigned mission_number=3" in output
@@ -416,21 +416,21 @@ def test_target_already_assigned_wins_over_stale_mission_branch_value(tmp_path: 
 
 
 # ---------------------------------------------------------------------------
-# 4. Fault-injected read-back mismatch (FR-006) -- T017.
+# 4. Fault-injected read-back mismatch.
 # ---------------------------------------------------------------------------
 
 
 def test_readback_mismatch_exits_nonzero_and_never_prints_false_assigned(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """FR-006: a mismatched read-back must exit non-zero, name expected vs
+    """A mismatched read-back must exit non-zero, name expected vs
     recorded, and never print a false "Assigned mission_number=" line.
 
     The merge driver runs as a SEPARATE subprocess, so patching ``drivers``
     in this test process has no effect on it. Instead this injects the fault
     in-process at the read seam :func:`baseline._read_committed_meta_json`
-    (the same seam :func:`assert_baseline_merge_commit_on_target` and the new
+    (the same seam :func:`assert_baseline_merge_commit_on_target` and
     ``assert_mission_number_on_target`` both use) -- the mission is LEGACY
-    (no ``mission_id``), so the pre-existing baseline assert never calls this
-    seam and only the new mission_number assert is exercised.
+    (no ``mission_id``), so the baseline assert never calls this seam and
+    only the mission_number assert is exercised.
     """
     slug = "mission-4900-mismatch"
     _init_git_repo(tmp_path)
@@ -463,18 +463,18 @@ def test_readback_mismatch_exits_nonzero_and_never_prints_false_assigned(tmp_pat
     output = capsys.readouterr().out
     assert "Error:" in output
     assert "999" in output, output
-    # NFR-003: the expected number and the remedy (--resume / git show) must
+    # The expected number and the remedy (--resume / git show) must
     # both be named, not just the recorded (wrong) value.
     assert "expected 1" in output, f"expected number (1) not named in error output: {output!r}"
     assert f"consolidate --mission {slug} --resume" in output, f"the --resume remedy is not named in error output: {output!r}"
     assert f"git show main:kitty-specs/{slug}/meta.json" in output, f"the git show remedy is not named in error output: {output!r}"
     assert "Assigned" not in output, (
-        f"FR-006 regression: a false 'Assigned mission_number=' line was printed even though read-back verification failed. Output: {output!r}"
+        f"#4900 regression: a false 'Assigned mission_number=' line was printed even though read-back verification failed. Output: {output!r}"
     )
 
 
 def test_resume_after_readback_failure_reverifies_and_records_correctly(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """T013-4 / D2e: a read-back failure on the FIRST run must not silently
+    """A read-back failure on the FIRST run must not silently
     stick. ``consolidate --resume`` must re-verify and either record the
     correct number on the target or exit non-zero -- it must never exit 0
     with a null or wrong number on the target. Exercises the executor
@@ -579,24 +579,7 @@ def test_read_mission_number_from_ref_unreadable_ref(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Control: assign_next_mission_number keeps its pre-existing semantics.
-# ---------------------------------------------------------------------------
-
-
-def test_assign_next_mission_number_control(tmp_path: Path) -> None:
-    specs_dir = tmp_path / "kitty-specs"
-    for slug, number in (("m-one", 1), ("m-two", None)):
-        mission_dir = specs_dir / slug
-        mission_dir.mkdir(parents=True)
-        (mission_dir / "meta.json").write_text(
-            json.dumps({"mission_slug": slug, "mission_number": number}, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-    assert assign_next_mission_number(tmp_path, specs_dir) == 2
-
-
-# ---------------------------------------------------------------------------
-# Pre-PR fold N3: a mission-branch write failure must not discard the number.
+# A mission-branch write failure must not discard the number.
 # ---------------------------------------------------------------------------
 
 
@@ -615,7 +598,7 @@ def _failing_numwrite_worktree_add(real_run):  # noqa: ANN001, ANN202 -- test do
 
 
 def test_mission_branch_write_failure_still_records_number_on_target(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """N3 / D2c: when the mission-branch write fails (``git worktree add``
+    """When the mission-branch write fails (``git worktree add``
     refused), the already-computed ``next_number`` must still be written onto
     the TARGET tree and read back -- never discarded so the consolidation exits
     0 with ``mission_number: null`` on the target."""
@@ -631,14 +614,14 @@ def test_mission_branch_write_failure_still_records_number_on_target(tmp_path: P
 
     meta = _target_meta(tmp_path, slug)
     assert meta.get("mission_number") == 1, (
-        f"N3 regression: a failed mission-branch write discarded the computed mission_number; target carries {meta.get('mission_number')!r}."
+        f"#4900 regression: a failed mission-branch write discarded the computed mission_number; target carries {meta.get('mission_number')!r}."
     )
     output = capsys.readouterr().out
     assert output.count("Assigned mission_number=1") == 1, output
 
 
 def test_unassignable_mission_number_exits_nonzero(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """N3: when no number can be determined at all (the bake refuses the
+    """When no number can be determined at all (the bake refuses the
     assignment), the consolidation surfaces it and exits non-zero instead of
     finishing with ``mission_number: null``."""
     from specify_cli.consolidation.baseline import MissionNumberVerificationError
@@ -665,12 +648,12 @@ def test_unassignable_mission_number_exits_nonzero(tmp_path: Path, capsys: pytes
 
 
 # ---------------------------------------------------------------------------
-# Pre-PR fold N4: the target-tree write/read must never fabricate or crash raw.
+# The target-tree write/read must never fabricate or crash raw.
 # ---------------------------------------------------------------------------
 
 
 def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """N4: if the target meta.json is absent when the number is written onto
+    """If the target meta.json is absent when the number is written onto
     the target tree, refuse (``Error:`` + exit 1) and restore the snapshots --
     never write a one-key ``{"mission_number": N}`` stub meta.json."""
     from specify_cli.consolidation import executor as ex
@@ -715,7 +698,7 @@ def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsy
 
 
 def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """N4: a corrupt target meta.json surfacing ``MissionMetaReadError`` from the
+    """A corrupt target meta.json surfacing ``MissionMetaReadError`` from the
     target-tree mission_number read takes the SAME restore-then-``Exit(1)``
     handling as the baseline record, not a raw traceback."""
     from specify_cli.consolidation import executor as ex
@@ -759,7 +742,7 @@ def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: 
 
 
 # ---------------------------------------------------------------------------
-# Queued WP03 fold: the planning-only path announces only AFTER read-back.
+# The planning-only path announces only AFTER read-back.
 # ---------------------------------------------------------------------------
 
 
@@ -775,7 +758,7 @@ def _bootstrap_planning_only_mission(repo: Path, slug: str) -> None:
 
 
 def test_planning_only_readback_failure_never_prints_assigned(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Queued WP03 fold: on the planning-only closeout the "Assigned" line must
+    """On the planning-only closeout the "Assigned" line must
     not print before the target read-back verification; a failed read-back
     exits non-zero with no "Assigned" line at all."""
     slug = "mission-4900-planning-only-mismatch"
@@ -803,7 +786,7 @@ def test_planning_only_readback_failure_never_prints_assigned(tmp_path: Path, ca
 
 
 def test_planning_only_announces_once_after_verification(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Queued WP03 fold control: the planning-only closeout records the number
+    """Control: the planning-only closeout records the number
     on the target and announces it exactly once (after verification)."""
     slug = "mission-4900-planning-only-ok"
     _init_git_repo(tmp_path)

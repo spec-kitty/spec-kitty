@@ -293,7 +293,7 @@ def reconcile_meta_payloads(
     ``theirs`` so mission-authoritative planning state is preserved.
 
     ``mission_number`` is a deliberate exception to the "present (even null)
-    wins" rule above (#4900 / D2b): an UNASSIGNED target-owned value (``null``,
+    wins" rule above (#4900): an UNASSIGNED target-owned value (``null``,
     missing, non-integer, 0 or negative — see
     :func:`specify_cli.consolidation.mission_number.is_assigned_mission_number`)
     is treated as UNSET, so it never overrides a genuinely-assigned

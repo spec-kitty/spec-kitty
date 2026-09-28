@@ -56,12 +56,12 @@ def test_already_baked() -> None:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    # 0 re-pinned False (was True): #4900/D2a -- ``_is_assigned_mission_number``
-    # now delegates to the single canonical leaf definition
+    # 0 and negatives are unassigned (#4900): ``_is_assigned_mission_number``
+    # delegates to the single canonical leaf definition
     # (``consolidation.mission_number.is_assigned_mission_number``), which
     # requires an integer >= 1 to match data-model.md "Mission number" and
     # the sibling ``mission_check_prerequisites`` definition. 0 and negative
-    # integers are unassigned too -- a correction, not a regression.
+    # integers are unassigned too.
     [(5, True), (0, False), (-1, False), (True, False), (False, False), (None, False), ("3", False)],
 )
 def test_is_assigned_mission_number(value: object, expected: bool) -> None:
@@ -120,7 +120,7 @@ def test_bake_dry_run_logs_without_write(tmp_path: Path) -> None:
 
 
 def test_bake_writes_and_never_marks_baked_itself_on_success(tmp_path: Path) -> None:
-    """#4900 / D2e: a fresh write returns the number but never marks
+    """#4900: a fresh write returns the number but never marks
     ``mission_number_baked`` itself -- only the executor does, after
     target-side verification."""
     marked: list[bool] = []
@@ -137,7 +137,7 @@ def test_bake_writes_and_never_marks_baked_itself_on_success(tmp_path: Path) -> 
 
 
 def test_bake_keeps_number_when_write_skipped(tmp_path: Path) -> None:
-    """Pre-PR fold N3: a skipped/failed mission-branch write must not discard
+    """#4900: a skipped/failed mission-branch write must not discard
     the computed number -- the executor's target-tree write + read-back is the
     authority and needs it."""
     with (
@@ -150,7 +150,7 @@ def test_bake_keeps_number_when_write_skipped(tmp_path: Path) -> None:
 
 
 def test_bake_refuses_loudly_when_no_number_can_be_determined(tmp_path: Path) -> None:
-    """Pre-PR fold N3: an unsafe slug means no number can ever be decided --
+    """#4900: an unsafe slug means no number can ever be decided --
     raise the typed verification error (executor -> ``Error:`` + exit 1)
     instead of a silent ``None`` that leaves the target ``null`` with exit 0."""
     from specify_cli.consolidation.baseline import MissionNumberVerificationError
@@ -165,7 +165,7 @@ def test_bake_refuses_loudly_when_no_number_can_be_determined(tmp_path: Path) ->
 
 
 def test_bake_onto_target_tree_refuses_absent_meta(tmp_path: Path) -> None:
-    """Pre-PR fold N4: never fabricate a one-key stub meta.json on the target."""
+    """#4900: never fabricate a one-key stub meta.json on the target."""
     from specify_cli.consolidation.baseline import MissionNumberVerificationError
 
     feature_dir = tmp_path / "kitty-specs" / "m"
@@ -477,7 +477,7 @@ def test_write_refuses_when_meta_not_a_dict(tmp_path: Path) -> None:
 def test_write_idempotency_hit_never_marks_baked_returns_false(tmp_path: Path) -> None:
     """meta already has the exact number -> idempotency skip, no write (lines 402-414).
 
-    #4900 / D2e: this seam no longer marks ``mission_number_baked`` itself --
+    #4900: this seam never marks ``mission_number_baked`` itself --
     that flag is set ONLY by the executor, after target-side verification.
     """
     import json as _json
@@ -504,4 +504,4 @@ def test_write_idempotency_hit_never_marks_baked_returns_false(tmp_path: Path) -
     ):
         result = ordering._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 9)
     assert result is False
-    assert marked == [], "the idempotency-hit seam must never mark mission_number_baked (#4900 / D2e)"
+    assert marked == [], "the idempotency-hit seam must never mark mission_number_baked (#4900)"

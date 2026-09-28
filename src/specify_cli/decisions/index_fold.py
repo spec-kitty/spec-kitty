@@ -77,7 +77,7 @@ _OUTCOME_TO_STATUS: dict[TerminalOutcome, DecisionStatus] = {
 }
 
 
-#: The single transition-rule authority (#4919, plan D3), shared by BOTH the
+#: The single transition-rule authority (#4919), shared by BOTH the
 #: write path (:func:`specify_cli.decisions.service._is_allowed_terminal_reopen`
 #: delegates here) and the read-side fold below (:func:`_select_terminal_event`)
 #: -- one canonical answer to "which terminal-to-terminal reopen is legal",
@@ -217,7 +217,7 @@ def _select_terminal_event(
 ) -> Mapping[str, Any] | None:
     """Pick the single ``DecisionPointResolved`` envelope to fold, if any.
 
-    #4919 (plan D3): the documented ``open -> defer -> resolve`` flow emits
+    #4919: the documented ``open -> defer -> resolve`` flow emits
     TWO real ``DecisionPointResolved`` events for one decision -- ``defer``
     with ``terminal_outcome=deferred``, then a later ``resolve`` with
     ``terminal_outcome=resolved`` (:func:`is_allowed_terminal_reopen`, the
@@ -253,7 +253,7 @@ def _select_terminal_event(
         first, second = resolved_events
         first_status = _OUTCOME_TO_STATUS[TerminalOutcome(first["payload"]["terminal_outcome"])]
         second_status = _OUTCOME_TO_STATUS[TerminalOutcome(second["payload"]["terminal_outcome"])]
-        # Single-authority check (#4919, plan D3 review fold-in): derive
+        # Single-authority check (#4919): derive
         # foldability from the SAME ``ALLOWED_TERMINAL_REOPEN`` table the
         # write path (`service._is_allowed_terminal_reopen`) enforces --
         # never a second, independently-maintained outcome-set literal here.
@@ -283,7 +283,7 @@ def fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
     event missing ``origin_flow``, or ``terminal_outcome: "bogus"``) surfaces
     as ``FoldError(...) from <original>`` instead of a bare
     ``KeyError``/``ValueError``, so the read-only ``doctor decisions`` reports
-    it as a malformed fold rather than crashing (pre-PR fold N1, #4919).
+    it as a malformed fold rather than crashing (#4919).
     """
     try:
         return _fold_events(events)
@@ -296,7 +296,7 @@ def fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
 def _fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
     """Fold one decision's ordered event envelopes into an ``IndexEntry``.
 
-    Order-independent (#4919, plan D3): the event-log git merge driver
+    Order-independent (#4919): the event-log git merge driver
     (``status/event_log_merge.py:62-68``) re-sorts the whole log by
     ``(at, event_id)``, so append order cannot be relied on after a merge.
     *events* may therefore arrive in ANY order. A decision with exactly one

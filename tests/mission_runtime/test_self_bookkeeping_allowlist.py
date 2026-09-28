@@ -103,7 +103,7 @@ class TestSelfBookkeepingPredicate:
         assert not is_self_bookkeeping_churn(f"kitty-specs/{_MISSION_SLUG}/spec.md")
 
     # ------------------------------------------------------------------
-    # #4933 (WP04) — depth-exact meta.json anchor
+    # #4933 — depth-exact meta.json anchor
     # ------------------------------------------------------------------
 
     @pytest.mark.parametrize(
@@ -130,7 +130,7 @@ class TestSelfBookkeepingPredicate:
         ],
     )
     def test_owned_meta_json_stays_self_bookkeeping(self, path: str) -> None:
-        """FR-010 ratchet: Spec Kitty's own mission ``meta.json`` (any monorepo
+        """Ratchet: Spec Kitty's own mission ``meta.json`` (any monorepo
         depth prefix) and the legacy ``.kittify/meta.json`` stay exempt. A
         backslash path is normalized by ``to_posix`` before the anchor runs."""
         assert is_self_bookkeeping_churn(path)

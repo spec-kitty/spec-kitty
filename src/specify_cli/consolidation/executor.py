@@ -373,7 +373,7 @@ class _MergeRunState:
     done_marked_before_target: bool = False
     mission_already_applied: bool = False
     mission_number_meta_path: Path | None = None
-    # #4900 / D2: the mission_number THIS run's mission-branch bake assigned
+    # #4900: the mission_number THIS run's mission-branch bake assigned
     # (``_bake_mission_number_into_mission_branch``'s return value, threaded
     # rather than discarded). ``None`` when the bake short-circuited this run
     # (resume / idempotency hit / no-op because the target already carried a
@@ -755,7 +755,7 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
         return
 
     # -- WP10/T053/T055: assign dense integer mission_number on mission branch --
-    # #4900 / D2: thread the assigned number (previously discarded) so the
+    # #4900: thread the assigned number (rather than discard it) so the
     # target-tree write + read-back in ``_phase_capture_and_baseline`` /
     # ``_phase_commit_and_assert`` has it, instead of depending on the
     # squash + merge-driver reconciliation alone.
@@ -769,7 +769,7 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
             merge_state=run.state,
         )
     except BaselineMergeCommitError as exc:
-        # Pre-PR fold N3: no mission_number can be determined at all (the
+        # No mission_number can be determined at all (the
         # bake refused before writing anything, strictly before the target is
         # touched) -- surface it and exit 1 instead of finishing with a
         # ``null`` target and exit 0.
@@ -1466,15 +1466,15 @@ def _phase_mission_to_target(run: _MergeRunState) -> None:
 
 
 def _resolve_expected_mission_number(run: _MergeRunState) -> int | None:
-    """Resolve the mission_number to write + verify on the target tree (#4900 / D2).
+    """Resolve the mission_number to write + verify on the target tree (#4900).
 
     Priority, so the SAME number is found on every topology and a stale
     mission-branch value can never overwrite a number the target already
-    carries (FR-007 "target wins" / D2e resume safety, review cycle 1):
+    carries ("target wins", and resume safety):
 
     1. The TARGET's own CURRENT working-tree value, when it already carries
        an assigned number for this mission. Authoritative -- covers a
-       squash that already correctly preserved it (the T014 driver fix), a
+       squash that already correctly preserved it (the merge-driver fix), a
        genuinely-completed prior run, AND the coord-topology primary-tree
        fallback (``ordering._bake_mission_number_on_primary_tree`` commits
        DIRECTLY onto ``target_branch``, so by the time this phase runs
@@ -1511,27 +1511,26 @@ def _resolve_expected_mission_number(run: _MergeRunState) -> int | None:
 
 
 def _record_mission_number_on_target_tree(run: _MergeRunState) -> None:
-    """Write the decided mission_number onto the TARGET-tree meta.json (#4900 / D2c).
+    """Write the decided mission_number onto the TARGET-tree meta.json (#4900).
 
     Planning-only closeout assigns directly on the target; the lane path writes
     the number the mission-branch bake decided (or the target already carries).
     Either way ``run.assigned_mission_number`` is set, so
     :func:`_verify_and_announce_mission_number` reads it back from the committed
-    target and only THEN announces it (queued WP03 fold: the planning-only path
-    no longer prints an unverified "Assigned" line).
+    target and only THEN announces it (the planning-only path never prints an
+    unverified "Assigned" line).
 
     Lane path: the write happens UNCONDITIONALLY, after the mission->target
     squash has already run -- this guarantee never depends on squash ordering
     or on whether git invoked ``merge-driver-meta`` for this squash at all.
     ``_resolve_expected_mission_number`` picks the number (target wins over a
-    stale mission-branch value, FR-007). ``None`` means mission_number
+    stale mission-branch value). ``None`` means mission_number
     assignment was never engaged for this mission at all (not a git repo, the
     resume short-circuit with nothing recorded anywhere, or the caller mocking
     the bake out entirely, which many existing non-mission_number-focused tests
     do). A mission-branch write that failed or was skipped no longer lands here:
-    the bake returns its computed number regardless (pre-PR fold N3), and an
-    undeterminable number raises instead. D2e's "never skip verification"
-    concern -- a run that DID decide a number and then lost track of it on
+    the bake returns its computed number regardless, and an undeterminable
+    number raises instead. The "never skip verification" concern -- a run that DID decide a number and then lost track of it on
     resume -- is closed by reading TARGET first, via an independent
     (working-tree, not ``git show``) seam.
 
@@ -1594,7 +1593,7 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     run.target_events_path = target_events_path
     run.target_status_path = target_status_path
 
-    # Pre-PR fold N4: the target-tree mission_number read/write gets the SAME
+    # The target-tree mission_number read/write gets the SAME
     # restore-then-``Exit(1)`` handling as the baseline record below -- a
     # corrupt target meta.json (``MissionMetaReadError``) or an absent one
     # (``MissionNumberVerificationError``, never a fabricated stub) must not
@@ -1959,7 +1958,7 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
 
 
 def _verify_and_announce_mission_number(run: _MergeRunState, lanes_manifest: LanesManifest) -> None:
-    """#4900 / D2d-e: verify the target-tree write, mark baked, THEN announce.
+    """#4900: verify the target-tree write, mark baked, THEN announce.
 
     Runs immediately after the baseline invariant, using the SAME error
     handling (``BaselineMergeCommitError`` -> ``Error:`` line ->
@@ -1970,10 +1969,9 @@ def _verify_and_announce_mission_number(run: _MergeRunState, lanes_manifest: Lan
     upstream), there is nothing to verify or announce, matching the
     pre-existing degrade-with-warning behavior on that path.
 
-    ``mission_number_baked`` is marked HERE, and only here (review cycle 1 /
-    D2e) -- never inside ``ordering``'s bake/write seams, which run BEFORE
-    the target-tree write even exists. Setting it earlier was the D2
-    REJECTED alternative: it let a ``--resume`` short-circuit past this
+    ``mission_number_baked`` is marked HERE, and only here -- never inside
+    ``ordering``'s bake/write seams, which run BEFORE the target-tree write
+    even exists. Setting it earlier is unsafe: it let a ``--resume`` short-circuit past this
     verification and exit 0 with a wrong or null number on the target.
     """
     if run.assigned_mission_number is None:
@@ -3480,14 +3478,13 @@ def _report_pre_mutation_refusal(
     remedy instead. Advisory only — the refusal still aborts fail-closed BEFORE any
     mutation (NFR-001); this only changes the printed guidance.
 
-    #4933 (escalated by the WP04 reviewer, orchestrator-added scope): on a FRESH
-    consolidation the mission branch is created off the target and never advances
-    until the lanes merge, so it is trivially "already an ancestor of HEAD" — the
-    lane-ancestry-only ``BEHIND_OWN_HEAD`` classification misfires on every dirty
-    refusal, not just a genuinely interrupted terminus. Printing the reset-to-HEAD
-    guidance there tells the operator to run ``git reset --hard HEAD``, which
-    destroys the very user edit (e.g. a dirty ``src/app/meta.json``) this WP
-    protects. The upgraded guidance is now gated on
+    #4933: on a FRESH consolidation the mission branch is created off the target
+    and never advances until the lanes merge, so it is trivially "already an
+    ancestor of HEAD" — the lane-ancestry-only ``BEHIND_OWN_HEAD`` classification
+    misfires on every dirty refusal, not just a genuinely interrupted terminus.
+    Printing the reset-to-HEAD guidance there tells the operator to run
+    ``git reset --hard HEAD``, which destroys the very user edit (e.g. a dirty
+    ``src/app/meta.json``) the refusal protects. The upgraded guidance is now gated on
     :func:`~specify_cli.consolidation.preflight.is_pure_behind_head_lag`, the
     content proof #4997 already uses for the ``--resume`` auto-recovery path
     (:func:`_recover_behind_head_primary_on_resume`): it needs a persisted

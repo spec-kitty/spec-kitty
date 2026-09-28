@@ -1375,7 +1375,7 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
             "_already_baked", "7f804f49001d93332ab0a3fad3929f8c45b6d33de06c8d7c1c875af723b87327", source_module="specify_cli.consolidation.ordering"
         ),  # specify_cli.consolidation.ordering::_already_baked
         # specify_cli.consolidation.ordering::_is_assigned_mission_number
-        # Hash re-pinned (#4900 / D2a): the function now delegates to the
+        # Hash re-pinned (#4900): the function now delegates to the
         # single canonical leaf definition
         # (``consolidation.mission_number.is_assigned_mission_number``)
         # instead of inlining its own (looser, 0/negative-accepting) check —

@@ -107,7 +107,7 @@ class BaselineMergeCommitError(RuntimeError):
 class MissionNumberVerificationError(BaselineMergeCommitError):
     """Raised when the announced ``mission_number`` did not land on the target (#4900).
 
-    Sibling of :class:`BaselineMergeCommitError` (D2d): the mission-number
+    Sibling of :class:`BaselineMergeCommitError`: the mission-number
     read-back seam reuses the exact same "record, then verify on the
     committed target tree, refuse loudly on mismatch" shape as the baseline
     invariant above, so it shares the error hierarchy and the caller's
@@ -333,7 +333,7 @@ def read_mission_number_from_ref(
 ) -> int | None:
     """Best-effort read of ``mission_number`` from *ref*'s committed meta.json (#4900).
 
-    Used by the target-tree bake (D2c) to recover the number a PRIOR run's
+    Used by the target-tree bake to recover the number a PRIOR run's
     mission-branch write already assigned, when THIS run's own bake
     short-circuited (idempotent / resumed / already-baked) and returned no
     fresh value. Routes through the same sanctioned seam
@@ -360,7 +360,7 @@ def assert_mission_number_on_target(
     mission_slug: str,
     expected: int,
 ) -> None:
-    """Fail the merge if ``mission_number`` did not land on *target_branch* (#4900 / D2d).
+    """Fail the merge if ``mission_number`` did not land on *target_branch* (#4900).
 
     Sibling of :func:`assert_baseline_merge_commit_on_target`: reads the
     target branch's COMMITTED ``kitty-specs/<slug>/meta.json`` via the same
@@ -369,14 +369,14 @@ def assert_mission_number_on_target(
     ``mission_number`` equals *expected* -- the number
     ``spec-kitty consolidate`` is about to announce. This is what makes the
     printed "Assigned mission_number=N" line truthful: it is asserted AFTER
-    the bookkeeping commit lands, never before (FR-006/FR-007).
+    the bookkeeping commit lands, never before.
 
     Raises :class:`MissionNumberVerificationError` (a
     :class:`BaselineMergeCommitError` sibling, so callers that already catch
     the latter need no new except-clause) when the committed value is
     missing, not a real assigned integer, or does not equal *expected*. The
     message names the mission, the recorded and expected values, and the
-    remedy (NFR-003): re-run ``--resume`` to re-verify, or inspect the
+    remedy: re-run ``--resume`` to re-verify, or inspect the
     target directly.
     """
     meta_rel = f"kitty-specs/{mission_slug}/{META_JSON}"

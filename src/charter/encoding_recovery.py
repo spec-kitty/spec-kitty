@@ -113,7 +113,7 @@ def _recover_from_bom(data: bytes) -> EncodingRecoveryResult | None:
     """Detect a BOM via the shared kernel primitive, then decode here.
 
     Delegates BOM *detection* to :func:`kernel.text_decode.detect_bom` (one
-    definition, DIRECTIVE_044 / D1) but keeps the decode call in this
+    definition, DIRECTIVE_044) but keeps the decode call in this
     function so undecodable bytes after a recognised BOM keep raising
     ``UnicodeDecodeError`` exactly as before -- this must never silently
     fall through to strict-UTF-8/cp1252 guessing (pinned by

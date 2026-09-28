@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`kernel.text_decode` (D1, D5 / #4940, #4998, WP01).
+"""Unit tests for :mod:`kernel.text_decode` (#4940, #4998).
 
 Pins the "provable encodings only" decode rule and the newline normaliser
 that ``charter.encoding_recovery`` and ``charter.hasher`` delegate to.
@@ -57,8 +57,7 @@ def test_utf16_be_bom_decodes() -> None:
 
 def test_utf32_le_bom_decodes_and_is_not_utf16() -> None:
     """The UTF-32-LE BOM (`FF FE 00 00`) starts with the UTF-16-LE BOM
-    (`FF FE`) -- this pins the ordering fix (D1): it must resolve as
-    utf-32-le, never utf-16-le."""
+    (`FF FE`) -- it must resolve as utf-32-le, never utf-16-le."""
     data = "﻿{}".encode("utf-32-le")
 
     result = decode_unambiguous(data)
@@ -110,6 +109,7 @@ def test_detect_bom_returns_none_for_plain_utf8() -> None:
     ("prefix", "expected"),
     [
         (b"\x00\x00\xfe\xff", ("utf-32", "utf-32-be")),
+        # Must match before the UTF-16-LE BOM it starts with.
         (b"\xff\xfe\x00\x00", ("utf-32", "utf-32-le")),
         (b"\xef\xbb\xbf", ("utf-8-sig", "utf-8-sig")),
         (b"\xff\xfe", ("utf-16", "utf-16-le")),
@@ -118,11 +118,6 @@ def test_detect_bom_returns_none_for_plain_utf8() -> None:
 )
 def test_detect_bom_recognises_each_bom(prefix: bytes, expected: tuple[str, str]) -> None:
     assert detect_bom(prefix + b"rest") == expected
-
-
-def test_detect_bom_prefers_utf32_le_over_utf16_le() -> None:
-    """Ordering pin: UTF-32-LE must be matched before UTF-16-LE."""
-    assert detect_bom(b"\xff\xfe\x00\x00") == ("utf-32", "utf-32-le")
 
 
 # --------------------------------------------------------------------------- #

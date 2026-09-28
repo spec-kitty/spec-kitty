@@ -38,7 +38,7 @@ CONTEXT_FILE_MISSING = "context-file-missing"
 SESSION_PRESENCE_INCOMPLETE = "session-presence-incomplete"
 NATIVE_CONFIG_MISSING = "native-config-missing"
 NATIVE_CONFIG_DRIFT = "native-config-drift"
-# .claude/settings.json bytes cannot be provably decoded (#4940, D6): the
+# .claude/settings.json bytes cannot be provably decoded (#4940): the
 # probe reports this truthfully instead of raising SettingsNotDecodableError.
 SESSION_PRESENCE_UNDECODABLE = "session-presence-undecodable"
 

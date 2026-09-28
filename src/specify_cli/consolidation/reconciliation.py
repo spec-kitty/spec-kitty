@@ -729,7 +729,7 @@ class MergeOutcomeVerifier:
         axis a path that classifier called bookkeeping was skipped BEFORE
         authored-blob attribution, so a removed/canceled WP's commit touching an
         ordinary product-source file merely NAMED like a toolchain artifact rode
-        a carrier lane onto the target and shipped at exit 0. #4933 (WP04) has
+        a carrier lane onto the target and shipped at exit 0. #4933 has
         since made ``coherence.py``'s ``meta.json`` leg depth-exact
         (``kitty-specs/<mission>/meta.json`` at any monorepo prefix, plus the
         legacy ``.kittify/meta.json``), but it is still not anchored to THIS

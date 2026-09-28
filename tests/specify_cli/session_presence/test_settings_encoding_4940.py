@@ -1,4 +1,4 @@
-"""Red-first regression tests for #4940 (WP05, D6): settings.json data loss.
+"""Regression tests for #4940: settings.json data loss.
 
 ``ClaudeCodeHookRegistrar._load`` used to swallow ``UnicodeDecodeError`` into
 ``{}`` *before* the invalid-content backup branch, so a non-UTF-8
@@ -7,14 +7,13 @@ plain UTF-16 file) got silently replaced by a lint-only reconstruction: the
 operator's permissions (incl. deny rules), env, their own hooks, and Spec
 Kitty's own SessionStart/Stop hooks were gone, with no backup, exit 0.
 
-Policy (Decision Moment ``01M3KDD2GHGFS7J5616ZNQHE6Y``): decode only
-*provable* encodings (strict UTF-8, or a BOM for UTF-8/UTF-16/UTF-32); never
-guess a code page. Anything else: leave the file byte-identical and fail
-non-zero.
-
-Covers FR-011..FR-014 / NFR-001..NFR-003 (plan D6, research R4,
-contracts/failure-surface.md row "agent config sync --sync-hooks,
-live-work install").
+Policy: decode only *provable* encodings (strict UTF-8, or a BOM for
+UTF-8/UTF-16/UTF-32); never guess a code page. A provably-decodable non-UTF-8
+file is backed up byte-exact before its UTF-8 rewrite. Anything else: leave
+the file byte-identical and fail non-zero, naming the file and the remedy.
+Covered surfaces: the hook registrar, ``agent config sync --sync-hooks``,
+``live-work install``/``uninstall``, the init/upgrade writer path, and the
+``doctor tool-surfaces`` probe.
 """
 
 from __future__ import annotations
@@ -119,7 +118,7 @@ def _backups(project_root: Path) -> list[Path]:
 
 
 def _assert_refusal(excinfo: pytest.ExceptionInfo[SettingsNotDecodableError], path: Path) -> None:
-    """NFR-003: every refusal names the offending file and the UTF-8 remedy.
+    """Every refusal names the offending file and the UTF-8 remedy.
 
     Pins the operator-visible message text (not just the exception type), so
     a change to the root error presenter that dropped the path or the
@@ -139,7 +138,7 @@ def _assert_fixture_entries_present(data: dict[str, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T024 / T025 -- the shared decode rule via _load/register/unregister/is_registered
+# The shared decode rule via _load/register/unregister/is_registered
 # ---------------------------------------------------------------------------
 
 
@@ -150,7 +149,7 @@ class TestRegistrarDecodeRule:
         ids=["utf-8-bom", "utf-16-le-bom", "utf-16-be-bom"],
     )
     def test_bom_encoded_settings_all_entries_preserved_and_backed_up(self, tmp_path: Path, encode: Any) -> None:
-        """FR-011/FR-012: every entry survives register(); the original bytes are backed up."""
+        """Every entry survives register(); the original bytes are backed up."""
         raw = encode(_fixture_settings_dict())
         path = _write_settings_bytes(tmp_path, raw)
         original = path.read_bytes()
@@ -169,7 +168,7 @@ class TestRegistrarDecodeRule:
         assert backups[0].read_bytes() == original
 
     def test_cp1252_settings_refused_bytes_untouched(self, tmp_path: Path) -> None:
-        """FR-013: cp1252 (unprovable, must not be guessed) -> file untouched, typed refusal."""
+        """cp1252 (unprovable, must not be guessed) -> file untouched, typed refusal."""
         raw = _cp1252_bytes(_fixture_settings_dict())
         path = _write_settings_bytes(tmp_path, raw)
         original = path.read_bytes()
@@ -199,7 +198,7 @@ class TestRegistrarDecodeRule:
         _assert_refusal(excinfo, path)
         assert path.read_bytes() == original
 
-    # --- Controls: behaviour must stay exactly as before for these cases ---
+    # --- Controls: provable / absent / invalid-JSON cases keep their behaviour ---
 
     def test_plain_utf8_control_no_backup(self, tmp_path: Path) -> None:
         raw = json.dumps(_fixture_settings_dict()).encode("utf-8")
@@ -231,7 +230,7 @@ class TestRegistrarDecodeRule:
 
 
 # ---------------------------------------------------------------------------
-# T024 / T028 -- `spec-kitty agent config sync --sync-hooks` (`_sync_claude_hooks`)
+# `spec-kitty agent config sync --sync-hooks` (`_sync_claude_hooks`)
 # ---------------------------------------------------------------------------
 
 
@@ -283,7 +282,7 @@ class TestSyncClaudeHooksCLI:
         assert path.read_bytes() == original
 
     def test_cli_subprocess_true_exit_code_for_sync_hooks(self, tmp_path: Path) -> None:
-        """T028: verify the real process exit code (CliRunner bypasses the root error hook)."""
+        """Verify the real process exit code (CliRunner bypasses the root error hook)."""
         project = tmp_path / "project"
         project.mkdir()
         (project / ".kittify").mkdir()
@@ -322,7 +321,7 @@ class TestSyncClaudeHooksCLI:
 
 
 # ---------------------------------------------------------------------------
-# T024 / T028 -- `spec-kitty live-work install claude` / `uninstall`
+# `spec-kitty live-work install claude` / `uninstall`
 # ---------------------------------------------------------------------------
 
 
@@ -351,7 +350,7 @@ class TestLiveWorkInstall:
         assert path.read_bytes() == original
 
     def test_cp1252_uninstall_refuses_non_zero(self, tmp_path: Path) -> None:
-        """Today this is already byte-identical (no-op); only the exit code was red."""
+        """Uninstall already left the bytes alone; it must also exit non-zero."""
         path = _write_settings_bytes(tmp_path, _cp1252_bytes(_fixture_settings_dict()))
         original = path.read_bytes()
 
@@ -363,13 +362,14 @@ class TestLiveWorkInstall:
 
 
 # ---------------------------------------------------------------------------
-# T024 / T026 -- init/upgrade writer path (prepare_commands / apply_prepared)
+# init/upgrade writer path (prepare_commands / apply_prepared)
 # ---------------------------------------------------------------------------
 
 
 class TestPrepareCommandsApplyPrepared:
     def test_utf16_backed_up_before_rewrite(self, tmp_path: Path) -> None:
-        """Today this silently re-encodes with no backup; must back up first."""
+        """A UTF-16 source is backed up before its UTF-8 rewrite (it used to be
+        re-encoded silently with no backup)."""
         raw = _utf16_le_bom_bytes(_fixture_settings_dict())
         path = _write_settings_bytes(tmp_path, raw)
         original = path.read_bytes()
@@ -421,7 +421,7 @@ class TestPrepareCommandsApplyPrepared:
         assert path.read_bytes() == original
 
     def test_upgrade_migration_refuses_non_zero_settings_untouched(self, tmp_path: Path) -> None:
-        """T024-3: spec-kitty upgrade's session-presence migration must not report success.
+        """spec-kitty upgrade's session-presence migration must not report success.
 
         Isolated to only ``SessionPresenceClaudeCodeMigration`` (rather than
         ``auto_discover_migrations()``'s full set): an unrelated earlier
@@ -469,7 +469,7 @@ class TestPrepareCommandsApplyPrepared:
         assert path.read_bytes() == original
 
     def test_cli_subprocess_upgrade_refuses_non_zero_settings_untouched(self, tmp_path: Path) -> None:
-        """T024-3: the real `spec-kitty upgrade` command surface refuses too.
+        """The real `spec-kitty upgrade` command surface refuses too.
 
         The runner-level test above isolates ``SessionPresenceClaudeCodeMigration``
         to prove ``detect()``/``apply()`` themselves raise; this test instead
@@ -478,7 +478,7 @@ class TestPrepareCommandsApplyPrepared:
         error-presentation hook lives (``CliRunner`` bypasses it -- see the
         module docstring pattern used by the sync-hooks subprocess test above).
         A project one migration below its target, with a cp1252
-        ``.claude/settings.json``, is confirmed (review cycle 1) to make
+        ``.claude/settings.json``, must make
         `spec-kitty upgrade --project --yes --target 3.2.0rc39 --no-worktrees`
         exit 1, print the path and remedy, leave the file byte-identical, and
         never record `3_3_0_session_presence_claude_code` as applied.
@@ -543,7 +543,7 @@ class TestPrepareCommandsApplyPrepared:
 
 
 # ---------------------------------------------------------------------------
-# T024 / T027 -- probes (doctor tool-surfaces): report, never crash
+# Probes (doctor tool-surfaces): report, never crash
 # ---------------------------------------------------------------------------
 
 
@@ -573,7 +573,7 @@ class TestDoctorProbe:
 
 
 # ---------------------------------------------------------------------------
-# Pre-PR coverage fold: the batch prepare/apply seam and the read helper.
+# The batch prepare/apply seam and the read helper.
 # ---------------------------------------------------------------------------
 
 

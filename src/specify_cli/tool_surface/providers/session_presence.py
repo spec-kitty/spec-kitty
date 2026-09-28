@@ -415,7 +415,7 @@ class SessionPresenceProvider:
         """Report an unreadable ``.claude/settings.json`` as a finding, not a crash.
 
         The file exists but its bytes cannot be proven to be a supported
-        encoding (#4940, D6): re-saving it as UTF-8 is the only safe path, so
+        encoding (#4940): re-saving it as UTF-8 is the only safe path, so
         this is reported truthfully rather than the presence check raising
         out of the read-only doctor probe.
         """

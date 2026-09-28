@@ -62,7 +62,7 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     ``kitty-ops/<ULID>.jsonl`` Op-record orphans (#2251) are spec-kitty's own bookkeeping,
     not mission planning artifacts, and their churn must not block a dirty-state gate.
 
-    #4933 (WP04): the ``meta.json`` leg was previously exempted by BASENAME ALONE
+    #4933: the ``meta.json`` leg was previously exempted by BASENAME ALONE
     (``PurePosixPath(normalized).name == "meta.json"``), so an operator's OWN file that
     merely happens to be named ``meta.json`` anywhere in the tree (e.g.
     ``src/app/meta.json``) was silently treated as bookkeeping and its dirty churn

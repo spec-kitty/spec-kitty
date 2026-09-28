@@ -1,4 +1,4 @@
-"""Single, non-guessing decode rule and newline normaliser (D1, D5 / #4940, #4998).
+"""Single, non-guessing decode rule and newline normaliser (#4940, #4998).
 
 Lives in ``kernel`` (the zero-dependency root) so it is reachable from every
 layer, including ``charter``, which is not allowed to import upward from
@@ -14,16 +14,16 @@ encoding. Anything else (single-byte code pages, tied ``charset_normalizer``
 candidates, ambiguous heuristics) is out of scope here — that guessing layer
 belongs one level up, in :func:`charter.encoding_recovery.recover`, which
 calls :func:`charset_normalizer.from_bytes` for the cases a BOM/strict-UTF-8
-proof cannot settle. This split is deliberate policy (#4940 Decision Moment
-``01M3KDD2GHGFS7J5616ZNQHE6Y``): user-owned text that this kernel touches
-directly (e.g. a settings file, D6) is either decoded with proof or left
+proof cannot settle. This split is deliberate policy (#4940): user-owned
+text that this kernel touches directly (e.g. a settings file) is either
+decoded with proof or left
 alone — never silently reinterpreted under a guessed code page.
 
 BOMs are checked longest/most-specific first: the UTF-32-LE BOM
 (``FF FE 00 00``) begins with the UTF-16-LE BOM (``FF FE``), so UTF-32 must
 be tried before UTF-16 or a UTF-32-LE file is silently mis-decoded as
 UTF-16-LE with embedded NUL bytes (the historical latent bug this module
-fixes for ``charter.encoding_recovery.recover``, D1).
+fixes for ``charter.encoding_recovery.recover``).
 
 ``charter.encoding_recovery`` layers cp1252 (and other single-byte code
 page) detection on top of the primitives this module exports; it does not
@@ -37,7 +37,7 @@ __all__ = ["decode_unambiguous", "detect_bom", "normalize_newlines"]
 # Checked in this order: longest/most-specific match first. UTF-32 BOMs MUST
 # be tried before UTF-16 BOMs because the UTF-32-LE BOM (`FF FE 00 00`)
 # starts with the UTF-16-LE BOM (`FF FE`) -- reversing this order is exactly
-# the historical mis-decode this module fixes (D1).
+# the historical mis-decode this module fixes.
 _BOM_TABLE: tuple[tuple[bytes, str, str], ...] = (
     (b"\x00\x00\xfe\xff", "utf-32", "utf-32-be"),
     (b"\xff\xfe\x00\x00", "utf-32", "utf-32-le"),

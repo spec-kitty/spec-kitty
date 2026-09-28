@@ -173,7 +173,7 @@ def test_coord_topology_bake_persists_to_primary_tree_when_reachable(tmp_path: P
     # Doctor-proxy: pending -> assigned AFTER the bake.
     assert needs_number_assignment(feature_dir) is False, "doctor-equivalent predicate must flip pending -> assigned"
 
-    # #4900 / D2e: this write lands directly on target_branch, but the seam
+    # #4900: this write lands directly on target_branch, but the seam
     # itself never marks mission_number_baked -- only the executor does,
     # after ``assert_mission_number_on_target`` verifies it there.
     assert state.mission_number_baked is False
@@ -236,7 +236,7 @@ def test_genuinely_unreachable_primary_surfaces_instead_of_silent_fail_open(tmp_
             merge_state=state,
         )
 
-    # Pre-PR fold N3: the decided number is still RETURNED (never discarded),
+    # #4900: the decided number is still RETURNED (never discarded),
     # so the executor's unconditional target-tree write + read-back decides
     # the outcome: that write refuses (``Error:`` + exit 1) when the target
     # meta.json is absent, rather than the historical silent ``null`` + exit 0.

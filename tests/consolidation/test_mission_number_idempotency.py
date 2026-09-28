@@ -4,13 +4,13 @@ Covers the three scenarios from T027:
 
 1. partial-merge resume — meta.json already has mission_number=N; the
    assignment step must detect this (idempotency check, T025) and NOT produce
-   an additional commit. Per #4900 / D2e, this seam never marks
+   an additional commit. Per #4900, this seam never marks
    mission_number_baked itself -- only the executor does, after verifying
    the number on the target.
 
 2. fresh-merge happy path — meta.json has mission_number=null; the step
    writes and commits, again without marking mission_number_baked itself
-   (#4900 / D2e).
+   (#4900).
 
 3. resume short-circuit — merge_state.mission_number_baked=True; the
    assignment step returns immediately without reading meta.json (T026).
@@ -223,10 +223,10 @@ class TestPartialMergeResumeIsIdempotent:
             "Idempotency check should have prevented a second commit (regression #983)"
         )
 
-        # #4900 / D2e: this seam no longer marks mission_number_baked itself
+        # #4900: this seam never marks mission_number_baked itself
         # -- only the executor does, after target-side verification.
         assert state.mission_number_baked is False, (
-            "mission_number_baked must NOT be set here (#4900 / D2e) -- only "
+            "mission_number_baked must NOT be set here (#4900) -- only "
             "the executor sets it, after verifying the number on the target"
         )
 
@@ -234,8 +234,8 @@ class TestPartialMergeResumeIsIdempotent:
         assert loaded is not None
         assert loaded.mission_number_baked is False
 
-        # Pre-PR fold N3: the skipped (idempotent) branch write no longer
-        # discards the decided number -- it is returned so the executor's
+        # #4900: the skipped (idempotent) branch write never discards the
+        # decided number -- it is returned so the executor's
         # target-tree write + read-back verification still runs.
         assert result == 1
 
@@ -247,7 +247,7 @@ class TestPartialMergeResumeIsIdempotent:
 
 class TestFreshMergeHappyPath:
     """First-time assignment: meta.json has mission_number=null; the step
-    writes the number and commits it. Per #4900 / D2e it does NOT mark
+    writes the number and commits it. Per #4900 it does NOT mark
     mission_number_baked itself -- only the executor does, after verifying
     the number on the target.
     """
@@ -282,7 +282,7 @@ class TestFreshMergeHappyPath:
         # The returned integer is the assigned number (1, since target is empty).
         assert result == 1
 
-        # #4900 / D2e: the flag is NOT set by this seam.
+        # #4900: the flag is NOT set by this seam.
         assert state.mission_number_baked is False
 
         loaded = load_state(git_repo, "02BCDEFGHIJKLMNOPQRSTUVWX")

@@ -118,12 +118,12 @@ _MISSION_TYPE_MANUAL_DIAGNOSTIC = (
     "Fix: assign a mission type whose governance profile resolves at some layer (built-in / org / project), or author/activate that type. Not necessarily a typo."
 )
 
-#: D7/R6 (#4964): the group's own forwardable flags, by their typer/click
+#: #4964: the group's own forwardable flags, by their typer/click
 #: parameter name. Order is the order they are checked in
 #: ``_forward_or_refuse_group_flags``; it has no other significance.
 _GROUP_FORWARDABLE_PARAMS: tuple[str, ...] = ("dry_run", "verbose", "force")
 
-#: Group-flag forward-or-refuse help suffix (C-007), shared by ``--dry-run``,
+#: Group-flag forward-or-refuse help suffix, shared by ``--dry-run``,
 #: ``--verbose``/``-v`` and ``--force`` below so the policy is spelled once.
 _GROUP_FLAG_FORWARDING_HELP = "Before a subcommand, forwarded if the subcommand declares it, else rejected (exit 2) — place it after the subcommand when unsure."
 
@@ -131,7 +131,7 @@ _GROUP_FLAG_FORWARDING_HELP = "Before a subcommand, forwarded if the subcommand 
 #: The ``ParameterSource`` member name for a value typed on the command line.
 #: Compared by ``.name`` rather than against ``click.core.ParameterSource``:
 #: typer 0.26+ vendors its own click (``typer._click``) whose enum shares no
-#: identity with the real ``click`` package's (#4964 pre-PR fold B1).
+#: identity with the real ``click`` package's (#4964).
 _COMMANDLINE_SOURCE = "COMMANDLINE"
 
 
@@ -176,7 +176,7 @@ def _flag_display(opts: list[str]) -> str:
 def _forward_or_refuse_group_flags(ctx: typer.Context) -> None:
     """Forward group-level flags to the invoked subcommand, or refuse them.
 
-    Design decision **D7** / research **R6** (#4964): a group flag
+    #4964: a group flag
     (``--dry-run`` / ``--verbose``/``-v`` / ``--force``) given on the command
     line before a subcommand is silently dropped by Click's own dispatch —
     the group callback returns before the subcommand ever sees it. This
@@ -187,14 +187,14 @@ def _forward_or_refuse_group_flags(ctx: typer.Context) -> None:
     declares the same flag name, forward the value via ``ctx.default_map``
     — Click builds the subcommand's own context AFTER this callback
     returns, so a flag given directly after the subcommand still wins over
-    a forwarded one (FR-022). If the subcommand does not declare it, refuse
+    a forwarded one. If the subcommand does not declare it, refuse
     with a usage error (exit 2) *before* the subcommand runs, so nothing is
-    ever silently dropped (FR-021) — the message names the flag, the
-    subcommand, and the next action (NFR-003).
+    ever silently dropped — the message names the flag, the subcommand,
+    and the next action.
 
     Every click touchpoint is duck-typed (``get_command``, the parameter
     source's ``.name``, :func:`_usage_error_class`) so the helper works in
-    both the real-click and the vendored ``typer._click`` eras (fold B1).
+    both the real-click and the vendored ``typer._click`` eras.
     """
     sub_name = ctx.invoked_subcommand
     if sub_name is None:
@@ -267,7 +267,7 @@ def migrate(  # noqa: C901
         spec-kitty migrate --force      # Apply without confirmation
     """
     # If a subcommand was invoked, forward-or-refuse group flags for it
-    # (D7/R6, #4964), then don't run the migrate callback body.
+    # (#4964), then don't run the migrate callback body.
     if ctx.invoked_subcommand is not None:
         _forward_or_refuse_group_flags(ctx)
         return

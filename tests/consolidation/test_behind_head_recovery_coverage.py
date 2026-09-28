@@ -336,7 +336,7 @@ def test_preflight_with_recovery_reports_and_exits_when_not_recovered(tmp_path: 
 def test_preflight_with_recovery_threads_persisted_pre_mutation_target_sha_as_base_sha(
     tmp_path: Path,
 ) -> None:
-    """#4933 cycle-2 gap: the call site must thread a REAL persisted
+    """#4933: the call site must thread a REAL persisted
     ``pre_mutation_target_sha`` through as ``base_sha``, not just the
     ``None`` default the sibling tests above happen to exercise (their
     ``tmp_path`` has no state.json at all). Without this, dropping
@@ -385,7 +385,7 @@ def test_preflight_with_recovery_reports_and_exits_when_still_refused_after_reco
     assert exc_info.value.exit_code == 1
 
 
-# --- pre-PR fold N6: a corrupt state.json never masks the refusal ------------
+# --- a corrupt state.json never masks the refusal ----------------------------
 
 
 def _write_corrupt_state(repo: Path, mission_id: str = "01ID") -> Path:
@@ -398,7 +398,7 @@ def _write_corrupt_state(repo: Path, mission_id: str = "01ID") -> Path:
 
 
 def test_preflight_with_recovery_corrupt_state_still_reports_original_refusal(tmp_path: Path) -> None:
-    """N6: a corrupt ``state.json`` read on the refusal path must not raise
+    """A corrupt ``state.json`` read on the refusal path must not raise
     ``ConsolidationStateReadError`` over the dirty-tree refusal -- the original
     refusal is reported (fail-closed ``base_sha=None``) and the run exits 1."""
     manifest, retention = _manifest_and_retention()
@@ -418,7 +418,7 @@ def test_preflight_with_recovery_corrupt_state_still_reports_original_refusal(tm
 
 
 def test_preflight_with_recovery_corrupt_state_after_retry_still_reports(tmp_path: Path) -> None:
-    """N6 (second refusal site): same fail-closed tolerance after a recovery retry."""
+    """Second refusal site: same fail-closed tolerance after a recovery retry."""
     manifest, retention = _manifest_and_retention()
     exc = _refusal()
     exc_after = _refusal()
@@ -437,7 +437,7 @@ def test_preflight_with_recovery_corrupt_state_after_retry_still_reports(tmp_pat
 
 
 def test_recover_false_on_corrupt_state(tmp_path: Path) -> None:
-    """N6: the recovery probe itself treats an unreadable ``state.json`` as
+    """The recovery probe itself treats an unreadable ``state.json`` as
     "no provable resume state" (fail-closed False, no auto-reset) instead of
     raising over the refusal it is trying to adjudicate."""
     _write_corrupt_state(tmp_path)

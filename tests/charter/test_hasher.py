@@ -35,9 +35,8 @@ def test_hash_content_whitespace_normalization():
 
 
 def test_hash_content_crlf_and_cr_normalize_to_lf():
-    """`hash_content` delegates its newline step to `kernel.text_decode.normalize_newlines`
-    (D5, #4998, WP01) -- CRLF and lone-CR variants of the same content must hash identically
-    to the LF form, and the digest must be byte-for-byte the pinned value below."""
+    """CRLF and lone-CR variants of the same content hash identically to the LF form
+    (#4998), and the digest is byte-for-byte the pinned value below."""
     lf = "# Charter\nline one\nline two\nline three\n"
     crlf = "# Charter\r\nline one\r\nline two\r\nline three\r\n"
     cr = "# Charter\rline one\rline two\rline three\r"

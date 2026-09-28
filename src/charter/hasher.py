@@ -37,7 +37,7 @@ def hash_content(content: str) -> str:
     """
     # Drop a leading BOM (``read_text`` keeps it, the chokepoint strips it),
     # normalize line endings (CRLF/CR -> LF) via the shared kernel primitive
-    # (one newline rule, D5 / DIRECTIVE_044), then strip outer whitespace so
+    # (one newline rule, DIRECTIVE_044), then strip outer whitespace so
     # the hash is stable across the two divergent decoding read surfaces.
     normalized = normalize_newlines(content.lstrip("\ufeff")).strip()
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner

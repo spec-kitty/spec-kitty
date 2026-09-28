@@ -1,6 +1,6 @@
 """Canonical definition of "assigned" for a mission's ``mission_number`` (#4900).
 
-Leaf module (standard library only, C-002): no ``specify_cli`` or third-party
+Leaf module (standard library only): no ``specify_cli`` or third-party
 imports, so it can be imported both by :mod:`specify_cli.consolidation.drivers`
 (which must not pull in :mod:`specify_cli.consolidation.ordering`, per that
 module's own import-boundary contract) and by ``ordering.py`` /
@@ -12,7 +12,7 @@ assigned, while ``mission_check_prerequisites._is_assigned_mission_number``
 (correctly) required a positive integer, matching
 ``kitty-specs/exit-zero-data-intact-01M3KDAS/data-model.md`` ("Mission
 number" -- "assigned" means an integer >= 1). Both now delegate here; this is
-the single source of truth (#4900 / D2a).
+the single source of truth (#4900).
 """
 
 from __future__ import annotations

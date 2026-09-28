@@ -176,7 +176,7 @@ def _resume_probe_candidate_summary(feature_dir: Path) -> dict[str, object]:
 def _is_assigned_mission_number(value: object) -> bool:
     """Return true only for a positive merged-Mission display number.
 
-    Delegates to the single canonical leaf definition (#4900 / D2a):
+    Delegates to the single canonical leaf definition (#4900):
     :func:`specify_cli.consolidation.mission_number.is_assigned_mission_number`.
     """
     from specify_cli.consolidation.mission_number import is_assigned_mission_number
