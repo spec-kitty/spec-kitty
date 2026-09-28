@@ -564,7 +564,7 @@ def test_non_allowlisted_agreement_emits_no_shard_timings_drift_warning(recwarn:
 def test_charter_disagreement_fails_in_strict_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     """spec-kitty#5189 amendment: strict mode restores the hard failure at the integration
     level (the disagreeing fixture above), not just at the already-tested _report_drift helper."""
-    monkeypatch.setenv("SPEC_KITTY_STRICT_SHARD_TIMINGS", "1")
+    monkeypatch.setenv(_STRICT_ENV_VAR, "1")
     fake_timings = {"module_test_durations": {"charter": [0.0] * 10}}
     fake_collected = {"charter": 11}
     with pytest.raises(pytest.fail.Exception, match="charter drifted"):
@@ -574,7 +574,7 @@ def test_charter_disagreement_fails_in_strict_mode(monkeypatch: pytest.MonkeyPat
 @pytest.mark.fast
 def test_non_allowlisted_disagreement_fails_in_strict_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     """spec-kitty#5189 amendment: same proof for the cross-module gate."""
-    monkeypatch.setenv("SPEC_KITTY_STRICT_SHARD_TIMINGS", "1")
+    monkeypatch.setenv(_STRICT_ENV_VAR, "1")
     fake_registry = {"modules": [{"module": "synthetic_test_module"}]}
     fake_timings = {"module_test_durations": {"synthetic_test_module": [0.0] * 5}}
     fake_collected = {"synthetic_test_module": 6}
