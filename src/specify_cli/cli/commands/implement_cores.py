@@ -231,6 +231,22 @@ def _drop_if(paths: Iterable[str], predicate: Callable[[str], bool]) -> list[str
     return [p for p in paths if not predicate(p)]
 
 
+def _is_coord_legacy_mission_event_log(repo_rel: str, coord_branch_for_filter: str | None) -> bool:
+    """True only for the retained direct-child event log on coord topology.
+
+    ``mission-events.jsonl`` is legacy observability, not planning input. A
+    retained primary copy may coexist with the newer coord-owned stream, so a
+    coord claim must leave this exact path untouched rather than trying to
+    stage or reconcile either stream. Keep this exception local to the claim
+    guard; globally classifying the filename as status/residue could make it
+    discardable by unrelated consumers.
+    """
+    if coord_branch_for_filter is None:
+        return False
+    parts = Path(repo_rel).parts
+    return len(parts) == 3 and parts[0] == "kitty-specs" and parts[2] == "mission-events.jsonl"
+
+
 def _status_paths_for_commit(entries: list[_PorcelainEntry], coord_branch_for_filter: str | None) -> list[str]:
     """The feature-dir paths to commit from ``git status`` entries.
 
@@ -608,6 +624,7 @@ def resolve_planning_artifact_staging(
         return _is_self_write_only_diff(repo_root, repo_rel, coord_branch_for_filter, git=git)
 
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
+    status_paths = _drop_if(status_paths, lambda p: _is_coord_legacy_mission_event_log(p, coord_branch_for_filter))
     if not auto_commit:
         status_paths = _drop_if(status_paths, _self_write)
     files_to_commit = list(status_paths)
@@ -623,7 +640,12 @@ def resolve_planning_artifact_staging(
         # and ``_commit_planning_artifacts_transaction`` would commit it,
         # reopening the exact violation FIX-M2-05 closed in
         # ``mission_finalize.py``, just via this sibling producer instead).
-        files_to_commit.extend(_drop_if(extra_file_paths, lambda p: is_status_state_path(p) or is_dossier_snapshot(p)))
+        files_to_commit.extend(
+            _drop_if(
+                extra_file_paths,
+                lambda p: is_status_state_path(p) or is_dossier_snapshot(p) or _is_coord_legacy_mission_event_log(p, coord_branch_for_filter),
+            )
+        )
     files_to_commit = list(dict.fromkeys(files_to_commit))
     if not auto_commit:
         files_to_commit = _drop_if(files_to_commit, _self_write)
