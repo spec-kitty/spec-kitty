@@ -145,6 +145,10 @@ edges:
   target: tactic:development-bdd
   relation: requires
   reason: Use BDD behavioral contract definition during architecture design to express observable system boundaries in stakeholder-readable terms. Behavioral contracts precede implementation and shape system component boundaries.
+- source: agent_profile:architect-alphonso
+  target: tactic:supply-chain-install-safety
+  relation: requires
+  reason: Review a design's dependency-provenance stance against the checklist DIRECTIVE_051 names, per the javascript-supply-chain toolguide for Node-ecosystem commands, and require an ADR when the design accepts elevated risk rather than a silently-skipped default.
 - source: agent_profile:comms-cleo
   target: directive:DIRECTIVE_003
   relation: requires
@@ -241,9 +245,8 @@ edges:
   target: directive:DIRECTIVE_051
   relation: requires
 - source: agent_profile:drupal-dries
-  target: tactic:bug-fixing-checklist
+  target: procedure:test-first-bug-fixing
   relation: requires
-  reason: Reproduce a Drupal defect with a failing kernel or functional test before applying the fix — never patch production code directly against a bug report
 - source: agent_profile:drupal-dries
   target: tactic:dependency-hygiene
   relation: requires
@@ -251,7 +254,7 @@ edges:
 - source: agent_profile:drupal-dries
   target: tactic:supply-chain-install-safety
   relation: requires
-  reason: Run the registry-authenticity and freshness checklist for both Composer (drupal/* packages) and npm (theming build dependencies) before accepting a new or changed dependency
+  reason: Run the checklist, per DIRECTIVE_051, for both Composer (drupal/* packages) and npm (theming build dependencies) before accepting a new or changed dependency
 - source: agent_profile:drupal-dries
   target: tactic:tdd-red-green-refactor
   relation: requires
@@ -303,21 +306,20 @@ edges:
   when: when assessing whether the tests around a change actually constrain its behaviour
   reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:frontend-freddy
-  target: tactic:behavior-driven-development
+  target: procedure:test-first-bug-fixing
+  relation: requires
+- source: agent_profile:frontend-freddy
+  target: tactic:bdd-scenario-formulation
   relation: requires
   reason: BDD scenarios define acceptance criteria for browser components; wire Cucumber-JS/Playwright e2e scenarios as acceptance tests before implementation
 - source: agent_profile:frontend-freddy
-  target: tactic:bug-fixing-checklist
-  relation: requires
-  reason: Reproduce browser defects with a failing test before fixing production code
-- source: agent_profile:frontend-freddy
   target: tactic:dependency-hygiene
   relation: requires
-  reason: JS/TS steps cover registry authenticity, package freshness, deny-by-default lifecycle-script handling, lockfile-driven reproducible installs, and Node runtime baseline checks for every npm/yarn/pnpm dependency change (build tooling, component libraries, bundlers).
+  reason: Pin and audit npm/yarn/pnpm dependencies (build tooling, component libraries, bundlers); run the supply-chain-install-safety tactic's checklist alongside these steps for every dependency change.
 - source: agent_profile:frontend-freddy
   target: tactic:supply-chain-install-safety
   relation: requires
-  reason: Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC checklist before accepting a new or changed npm dependency, and record the evidence rather than an aspirational statement of intent.
+  reason: Run the checklist, per DIRECTIVE_051, before accepting a new or changed npm dependency, using the javascript-supply-chain toolguide for exact commands, and record the evidence rather than an aspirational statement of intent.
 - source: agent_profile:frontend-freddy
   target: tactic:tdd-red-green-refactor
   relation: requires
@@ -391,13 +393,12 @@ edges:
   when: when assessing whether the tests around a change actually constrain its behaviour
   reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:implementer-ivan
-  target: tactic:bug-fixing-checklist
+  target: procedure:test-first-bug-fixing
   relation: requires
-  reason: Enforce test-first defect resolution — write a failing reproduction test before modifying production code. All specialist profiles (java-jenny, python-pedro, frontend-freddy, node-norris) inherit this discipline via union merge.
 - source: agent_profile:implementer-ivan
   target: tactic:dependency-hygiene
   relation: requires
-  reason: Pin and audit dependencies, restrict resolution to approved registries, and regenerate the SBOM after any change; for JavaScript/TypeScript work this now also covers registry authenticity, package freshness, deny-by-default lifecycle-script handling, lockfile-driven installs, and Node runtime baseline checks per the supply-chain-install-safety directive/tactic.
+  reason: Pin and audit dependencies, restrict resolution to approved registries, and regenerate the SBOM after any change; for install-time supply-chain safety, run the supply-chain-install-safety tactic's checklist alongside these steps.
 - source: agent_profile:java-jenny
   target: agent_profile:implementer-ivan
   relation: specializes_from
@@ -452,13 +453,17 @@ edges:
   relation: requires
   reason: ATDD outside-in from acceptance criteria; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
 - source: agent_profile:java-jenny
-  target: tactic:behavior-driven-development
+  target: tactic:bdd-scenario-formulation
   relation: requires
   reason: BDD scenarios define acceptance criteria for Java features. Wire Gherkin scenarios via Cucumber-JVM as acceptance tests before implementing production code.
 - source: agent_profile:java-jenny
   target: tactic:dependency-hygiene
   relation: requires
   reason: Pin direct dependency versions in the Maven properties block, restrict resolution to Maven Central, exclude vulnerable transitives with a documented reason, and regenerate the SBOM after any dependency change.
+- source: agent_profile:java-jenny
+  target: tactic:supply-chain-install-safety
+  relation: requires
+  reason: Run the checklist, per DIRECTIVE_051, before accepting a new or changed Maven/Gradle dependency, using the java-supply-chain toolguide for exact commands, and record the evidence rather than an aspirational statement of intent.
 - source: agent_profile:java-jenny
   target: tactic:tdd-red-green-refactor
   relation: requires
@@ -559,21 +564,20 @@ edges:
   when: when assessing whether the tests around a change actually constrain its behaviour
   reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:node-norris
-  target: tactic:behavior-driven-development
+  target: procedure:test-first-bug-fixing
+  relation: requires
+- source: agent_profile:node-norris
+  target: tactic:bdd-scenario-formulation
   relation: requires
   reason: BDD scenarios define acceptance criteria for API endpoints; Cucumber-JS step definitions call the API via supertest
 - source: agent_profile:node-norris
-  target: tactic:bug-fixing-checklist
-  relation: requires
-  reason: Reproduce server-side defects with a failing integration test before fixing production code
-- source: agent_profile:node-norris
   target: tactic:dependency-hygiene
   relation: requires
-  reason: JS/TS steps cover registry authenticity, package freshness, deny-by-default lifecycle-script handling, lockfile-driven reproducible installs, and Node runtime baseline checks for every npm/yarn/pnpm dependency change.
+  reason: Pin and audit npm/yarn/pnpm dependencies; run the supply-chain-install-safety tactic's checklist alongside these steps for every dependency change.
 - source: agent_profile:node-norris
   target: tactic:supply-chain-install-safety
   relation: requires
-  reason: Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC checklist before accepting a new or changed npm dependency, and record the evidence rather than an aspirational statement of intent.
+  reason: Run the checklist, per DIRECTIVE_051, before accepting a new or changed npm dependency, using the javascript-supply-chain toolguide for exact commands, and record the evidence rather than an aspirational statement of intent.
 - source: agent_profile:node-norris
   target: tactic:tdd-red-green-refactor
   relation: requires
@@ -689,6 +693,10 @@ edges:
   target: tactic:dependency-hygiene
   relation: requires
   reason: Pin direct dependency versions in pyproject.toml/uv.lock, restrict resolution to PyPI, audit license compliance, and regenerate the SBOM after any dependency change — the pip/uv checks this tactic already covers for Python.
+- source: agent_profile:python-pedro
+  target: tactic:supply-chain-install-safety
+  relation: requires
+  reason: Run the checklist, per DIRECTIVE_051, before accepting a new or changed pip/uv dependency, using the python-supply-chain toolguide for exact commands, and record the evidence rather than an aspirational statement of intent.
 - source: agent_profile:python-pedro
   target: tactic:tdd-red-green-refactor
   relation: requires
@@ -843,7 +851,7 @@ edges:
 - source: agent_profile:reviewer-renata
   target: tactic:supply-chain-install-safety
   relation: requires
-  reason: Require the registry/freshness/lifecycle-script/Node-LTS/incident-IoC checklist as review evidence for any dependency-touching change, and disposition every adversarial-squad or reviewer challenge to a supply-chain finding explicitly — accepted, changed, or deferred_with_rationale, each traceable to an evidence_location — per the adversarial-evidence-contract; a contested finding may never be dropped silently.
+  reason: Require the checklist, per DIRECTIVE_051, as review evidence for any dependency-touching change, and disposition every adversarial-squad or reviewer challenge to a supply-chain finding explicitly, per the adversarial-squad-deployment procedure's findings-disposition contract, each traceable to an evidence_location — a contested finding may never be dropped silently.
 - source: agent_profile:reviewer-renata
   target: tactic:test-readability-clarity-check
   relation: requires

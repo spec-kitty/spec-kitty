@@ -70,6 +70,8 @@ collaboration:
     - kernel-tests
     - functional-tests
     - implementation-notes
+  operating-procedures:
+    - test-first-bug-fixing
   canonical-verbs:
     - implement
     - fix
@@ -193,13 +195,11 @@ directive-references:
     rationale: >-
       Drupal projects install dependencies from two registries — Packagist via
       Composer for PHP/Drupal modules and npm for theming build tooling — both
-      require registry authenticity and freshness checks before acceptance
+      are evaluated against the threat-class controls DIRECTIVE_051 names
 tactic-references:
   - id: dependency-hygiene
     rationale: Pin Composer package versions in composer.json, restrict resolution to the packagist.org and drupal.org endpoints, and document any patch applied via composer-patches
   - id: tdd-red-green-refactor
     rationale: Drives module and plugin implementation through red-green-refactor at the kernel and unit test tiers before touching Drupal-native theming
   - id: supply-chain-install-safety
-    rationale: Run the registry-authenticity and freshness checklist for both Composer (drupal/* packages) and npm (theming build dependencies) before accepting a new or changed dependency
-  - id: bug-fixing-checklist
-    rationale: Reproduce a Drupal defect with a failing kernel or functional test before applying the fix — never patch production code directly against a bug report
+    rationale: Run the checklist, per DIRECTIVE_051, for both Composer (drupal/* packages) and npm (theming build dependencies) before accepting a new or changed dependency

@@ -9,7 +9,7 @@ principles:
   - "Cover both branches of logical operators: include at least one case where exactly one operand is true for every AND/OR guard."
   - "Assert observable outcomes: verify return values, state changes, or side effects — an assertion-free test cannot kill any mutant."
   - "Distinguish partial from total: test cases where some() and all() (or any() and all()) diverge."
-  - "Target 80 %+ mutation score on core business logic; below 60 % indicates structurally weak tests."
+  - "Read the mutation score as a triage signal for where tests are structurally weak, not as a numeric target — see the mutation-testing-workflow tactic for the band table."
 
 patterns:
   - name: Boundary Pair
@@ -141,3 +141,6 @@ quality_test: >
   Run the mutation suite on the module under review before marking a work
   package for_review. Any surviving mutant that is not annotated as equivalent
   must be killed by a new or strengthened test.
+
+references:
+  - "packs/built-in/tactics/testing/mutation-testing-workflow.tactic.yaml"

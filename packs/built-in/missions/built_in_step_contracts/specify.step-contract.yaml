@@ -21,9 +21,8 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-        - 037-living-documentation-sync
-
+        - DIRECTIVE_010
+        - DIRECTIVE_037
   - id: map_examples
     description: Capture concrete rules, examples, and open questions for the behavior slice
     delegates_to:
@@ -43,8 +42,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 003-decision-documentation-requirement
-
+        - DIRECTIVE_003
   - id: write_spec
     description: Write spec.md to kitty-specs/{feature}/
     command: "Write spec.md in kitty-specs/{mission_slug}/"
@@ -54,5 +52,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

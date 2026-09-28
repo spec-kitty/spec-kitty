@@ -22,9 +22,8 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-        - 003-decision-documentation-requirement
-
+        - DIRECTIVE_010
+        - DIRECTIVE_003
   - id: validate_scope
     description: Validate documentation scope boundaries and feasibility
     delegates_to:
@@ -41,5 +40,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

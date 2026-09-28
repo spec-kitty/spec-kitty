@@ -1,0 +1,120 @@
+# Default (repository-agnostic) policy data for the common-docs-structural-lint
+# doctrine asset (docs_structural_lint.py). Owned by the lint ASSET itself —
+# it used to be embedded inside the common-docs styleguide, which now
+# carries prose only. The loader contract is
+# unchanged: docs_structural_lint.py still reads the pinned wrapper key
+# `structural_lint_config:` from whatever file `--styleguide PATH` /
+# `SPEC_KITTY_STYLEGUIDE` points at; only the file a consumer of the
+# built-in DEFAULT points those knobs at has moved, from
+# packs/built-in/styleguides/common-docs.styleguide.yaml to this file.
+#
+# A repository that needs a different policy keeps its own styleguide or
+# data file carrying a `structural_lint_config:` block and points
+# `--styleguide` / `SPEC_KITTY_STYLEGUIDE` at it instead — this repository's
+# own packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml
+# is exactly that override, and is unaffected by this move: it keeps
+# working through the same wrapper key.
+#
+# asset_owned_marker_values: the two point_in_time_markers frontmatter
+# VALUES below (`point_in_time`, `closeout`) are lint-asset-owned extensions
+# of the shared `doc_status` frontmatter FIELD, used only by the
+# point_in_time_markers mechanism to self-declare a dated/point-in-time
+# page. They are NOT members of DIRECTIVE_042's five-value doc_status
+# LIFECYCLE vocabulary (draft | active | deprecated | superseded | durable)
+# and must never be read as such — see DIRECTIVE_042 for that vocabulary.
+# This key is declarative documentation only: load_config() reads only the
+# `structural_lint_config:` block below and ignores this sibling key, so
+# declaring it here cannot change runtime behaviour.
+asset_owned_marker_values:
+  - point_in_time
+  - closeout
+
+structural_lint_config:
+  # Sections whose index.md is checked for completeness (index_completeness).
+  # All other section indexes are landing pages and are exempt.
+  curated_complete_sections:
+    - architecture
+  # Concern-bucket -> canonical section home. Every target below is a
+  # section this SAME block's own sanctioned_content_sections list carries —
+  # a repository-agnostic default must never route content at a section it
+  # does not itself sanction. A project with more
+  # sections (e.g. an audience-based how-to split into a `development/`
+  # zone) keeps its own config, as this repository's internal override does.
+  concern_bucket_to_section:
+    how_to_internal: guides/
+    how_to_external: guides/
+    reference_policy: api/
+    point_in_time: plans/
+    ops_runbook: operations/
+  # Dated-filename patterns identifying a point-in-time document
+  # (point_in_time_placement). Regex, matched against the file basename.
+  point_in_time_patterns:
+    - "^\\d{4}-\\d{2}"
+  # Frontmatter signals that a file self-declares point-in-time/closeout even
+  # when its basename does not match point_in_time_patterns. See
+  # asset_owned_marker_values above for why these two values are declared,
+  # not members of DIRECTIVE_042's doc_status vocabulary.
+  point_in_time_markers:
+    - frontmatter_field: doc_status
+      frontmatter_value: point_in_time
+    - frontmatter_field: doc_status
+      frontmatter_value: closeout
+  # Path globs exempt from point_in_time_placement.
+  point_in_time_allowlist:
+    - "adr/**"
+    - "plans/**"
+  # Frontmatter fields every in-scope page must carry (frontmatter_contract).
+  frontmatter_required_fields:
+    - doc_status
+    - updated
+  # Pages excluded from frontmatter_required_fields: section README.md landing
+  # pages, and ADRs (DIRECTIVE_042: ADR frontmatter uses the MADR `status`).
+  frontmatter_in_scope_exclusions:
+    - "**/README.md"
+    - "adr/**"
+  # Basenames exempt from shadow_tree_basename (navigation scaffolding).
+  shadow_tree_nav_exemptions:
+    - index.md
+    - README.md
+    - toc.yml
+  # A page whose frontmatter `description` begins with this prefix is a redirect
+  # stub kept at a pre-move location; shadow_tree_basename skips it.
+  redirect_stub_description_prefix: "Redirect stub:"
+  # Guides-section boundary: reconciled with concern_bucket_to_section
+  # above. This repository-agnostic default sanctions no separate
+  # internal-audience section, so guides/ is the canonical home for how-to
+  # content of either audience here. A project that splits internal- and
+  # external-audience how-tos into separate sections keeps its own
+  # structural_lint_config, as this repository's internal override does.
+  guides_boundary: "docs/guides/ is the canonical home for how-to content in this repository-agnostic default, for both internal- and external-audience how-tos. A project that splits how-to content by audience into separate sections keeps its own structural_lint_config."
+  # The sanctioned content sections under docs/ (the styleguide's own
+  # section-structure list).
+  sanctioned_content_sections:
+    - index
+    - context
+    - architecture
+    - adr
+    - plans
+    - api
+    - configuration
+    - integrations
+    - security
+    - guides
+    - operations
+    - migrations
+    - changelog
+  # Sanctioned non-content directories under docs/ (assets/templates zones).
+  non_content_dirs:
+    - "assets/"
+    - "templates/"
+  # Documentation-bearing files permitted at the repository root.
+  root_allowlist:
+    - README.md
+    - LICENSE
+    - CHANGELOG.md
+    - CONTRIBUTING.md
+    - CODE_OF_CONDUCT.md
+    - SECURITY.md
+    - AGENTS.md
+  # When true, a directory carries at most one index/landing page (index.md).
+  one_index_per_dir: true

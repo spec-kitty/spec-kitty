@@ -87,6 +87,19 @@ nodes:
     kind: tactics
     title: "Spec Kitty Gate Non-Vacuity Exemplar Audit"
     body_path: tactics/spec-kitty-gate-non-vacuity-exemplar.tactic.yaml
+  # Backlog-triage doctrine moved from built-in (#5221 D, #5220): these are
+  # maintainer/tracker-backlog specifics, not repository-agnostic product
+  # doctrine, so they never shipped to consumers correctly. The tactic was
+  # renamed on the move (iterative-deepening-review ->
+  # tracker-backlog-iterative-deepening); the procedure kept its id.
+  - id: tracker-backlog-iterative-deepening
+    kind: tactics
+    title: "Tracker Backlog Iterative-Deepening Review"
+    body_path: tactics/tracker-backlog-iterative-deepening.tactic.yaml
+  - id: tracker-organisation-workflow
+    kind: procedures
+    title: "Tracker Organisation Workflow (backlog triage)"
+    body_path: procedures/tracker-organisation-workflow.procedure.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
@@ -175,3 +188,30 @@ edges:
   - source: spec-kitty-gate-non-vacuity-exemplar
     target: "tactic:architectural-gate-non-vacuity"
     relation: refines
+  # Backlog-triage authoring chain (moved from built-in, #5221 D). Ported
+  # verbatim from the built-in tactic.graph.yaml / procedure.graph.yaml edge
+  # set for these two artifacts, plus their outbound edges to built-in
+  # nodes (moscow-scoping-lens, issue-triage-state-machine,
+  # planning-and-tracking, github-tracker) -- an internal node referencing a
+  # built-in one is allowed; only the reverse direction is forbidden.
+  - source: tracker-backlog-iterative-deepening
+    target: "procedure:tracker-organisation-workflow"
+    relation: suggests
+  - source: tracker-backlog-iterative-deepening
+    target: "tactic:moscow-scoping-lens"
+    relation: suggests
+  - source: tracker-organisation-workflow
+    target: "tactic:tracker-backlog-iterative-deepening"
+    relation: requires
+  - source: tracker-organisation-workflow
+    target: "tactic:moscow-scoping-lens"
+    relation: requires
+  - source: tracker-organisation-workflow
+    target: "procedure:issue-triage-state-machine"
+    relation: requires
+  - source: tracker-organisation-workflow
+    target: "styleguide:planning-and-tracking"
+    relation: suggests
+  - source: tracker-organisation-workflow
+    target: "toolguide:github-tracker"
+    relation: suggests

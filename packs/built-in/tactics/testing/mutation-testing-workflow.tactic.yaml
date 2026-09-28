@@ -56,10 +56,13 @@ failure_modes:
   - "Running mutation testing on generated, migrated, or boilerplate code where survivors are always equivalent."
   - "Writing one test per surviving mutant instead of one pattern-based test that kills the whole family — a single well-chosen assertion can kill 3-10 related mutants at once."
 notes: >
-  Target mutation scores: < 60% indicates structurally weak tests; 60–80%
-  moderate — many improvements possible; 80–90% good; > 90% strong — watch for
-  equivalent mutant inflation. Use # pragma: no mutate to suppress specific lines
-  where mutations are semantically equivalent (e.g. version strings, log messages).
+  Triage bands (a signal for where to look, not a goal): < 60% structurally
+  weak tests; 60–80% moderate — many improvements possible; 80–90% good;
+  > 90% strong — watch for equivalent mutant inflation. No numeric score is a
+  target; a project that wants a CI break gate opts in separately, with
+  break: 0 as the shipped default. Use # pragma: no mutate to suppress
+  specific lines where mutations are semantically equivalent (e.g. version
+  strings, log messages).
 references:
   # This workflow drives the language-specific mutation toolchains; cite the
   # toolguides it operationalizes so the tools are reachable from the workflow

@@ -66,6 +66,17 @@ _PRE_MIGRATION_CS = _FIXTURES / "shipped_context_sources_pre_migration.json"
 #: the new ``DIRECTIVE_053`` (Choose Op or Mission Before Starting), minting one
 #: ``requires`` edge. It is the only edge added to a pre-existing profile, and
 #: nothing is removed.
+#:
+#: Single-owner doctrine (mission ``squad-doctrine-single-owner-01M3KBP7``,
+#: ``test_extractor_projection.py`` ledger entry (25)): the retired
+#: ``bug-fixing-checklist`` tactic folded into the ``test-first-bug-fixing``
+#: procedure, which ivan, norris, freddy and dries now cite through
+#: ``operating-procedures`` (dries's never-shipped checklist edge becomes the
+#: procedure edge); the retired ``behavior-driven-development`` tactic was
+#: renamed ``bdd-scenario-formulation`` (norris, freddy, jenny); and pedro,
+#: jenny and alphonso gain a ``tactic-references`` entry for the ecosystem-
+#: neutral ``supply-chain-install-safety`` tactic. Six retired-tactic edges
+#: leave (``_LEDGERED_REMOVED``).
 _LEDGERED_ADDED: frozenset[tuple[str, str, str]] = frozenset(
     {
         ("agent_profile:python-pedro", "directive:DIRECTIVE_034", "requires"),
@@ -86,11 +97,20 @@ _LEDGERED_ADDED: frozenset[tuple[str, str, str]] = frozenset(
         ("agent_profile:drupal-dries", "directive:DIRECTIVE_030", "requires"),
         ("agent_profile:drupal-dries", "directive:DIRECTIVE_034", "requires"),
         ("agent_profile:drupal-dries", "directive:DIRECTIVE_051", "requires"),
-        ("agent_profile:drupal-dries", "tactic:bug-fixing-checklist", "requires"),
+        ("agent_profile:drupal-dries", "procedure:test-first-bug-fixing", "requires"),
         ("agent_profile:drupal-dries", "tactic:dependency-hygiene", "requires"),
         ("agent_profile:drupal-dries", "tactic:supply-chain-install-safety", "requires"),
         ("agent_profile:drupal-dries", "tactic:tdd-red-green-refactor", "requires"),
         ("agent_profile:planner-priti", "directive:DIRECTIVE_053", "requires"),
+        ("agent_profile:implementer-ivan", "procedure:test-first-bug-fixing", "requires"),
+        ("agent_profile:node-norris", "procedure:test-first-bug-fixing", "requires"),
+        ("agent_profile:frontend-freddy", "procedure:test-first-bug-fixing", "requires"),
+        ("agent_profile:node-norris", "tactic:bdd-scenario-formulation", "requires"),
+        ("agent_profile:frontend-freddy", "tactic:bdd-scenario-formulation", "requires"),
+        ("agent_profile:java-jenny", "tactic:bdd-scenario-formulation", "requires"),
+        ("agent_profile:python-pedro", "tactic:supply-chain-install-safety", "requires"),
+        ("agent_profile:java-jenny", "tactic:supply-chain-install-safety", "requires"),
+        ("agent_profile:architect-alphonso", "tactic:supply-chain-install-safety", "requires"),
     }
 )
 _LEDGERED_REMOVED: frozenset[tuple[str, str, str]] = frozenset(
@@ -100,6 +120,12 @@ _LEDGERED_REMOVED: frozenset[tuple[str, str, str]] = frozenset(
         ("agent_profile:minutes-maker-mahad", "directive:DIRECTIVE_049", "requires"),
         ("agent_profile:minutes-maker-mahad", "directive:DIRECTIVE_050", "requires"),
         ("agent_profile:minutes-maker-mahad", "procedure:meeting-minutes-pipeline", "requires"),
+        ("agent_profile:implementer-ivan", "tactic:bug-fixing-checklist", "requires"),
+        ("agent_profile:node-norris", "tactic:bug-fixing-checklist", "requires"),
+        ("agent_profile:frontend-freddy", "tactic:bug-fixing-checklist", "requires"),
+        ("agent_profile:node-norris", "tactic:behavior-driven-development", "requires"),
+        ("agent_profile:frontend-freddy", "tactic:behavior-driven-development", "requires"),
+        ("agent_profile:java-jenny", "tactic:behavior-driven-development", "requires"),
     }
 )
 

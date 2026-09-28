@@ -14,7 +14,7 @@ agent_profiles/retrospective-facilitator.agent.yaml:
   provenance: 1
 assets/docs_structural_lint.py:
   repo_paths: 4
-  provenance: 20
+  provenance: 19
 directives/030-test-and-typecheck-quality-gate.directive.yaml:
   provenance: 2
 directives/034-test-first-development.directive.yaml:
@@ -172,10 +172,6 @@ missions/research/templates/task-prompt-template.md:
 missions/research/templates/tasks-template.md:
   repo_paths: 1
   provenance: 13
-missions/software-dev/actions/implement/guidelines.md:
-  repo_paths: 1
-missions/software-dev/actions/tasks/guidelines.md:
-  repo_paths: 2
 missions/software-dev/expected-artifacts.yaml:
   repo_paths: 1
 missions/software-dev/governance-profile.yaml:
@@ -205,7 +201,6 @@ procedures/legacy-codebase-triage.procedure.yaml:
   provenance: 6
 procedures/mission-tracer-files.procedure.yaml:
   repo_paths: 1
-  provenance: 1
 styleguides/docs-accessibility.styleguide.yaml:
   provenance: 10
 styleguides/publication-authority.styleguide.yaml:
@@ -219,10 +214,6 @@ tactics/architecture/paula-patterns-architecture-scout-review.tactic.yaml:
   provenance: 3
 tactics/canonical-source-unification.tactic.yaml:
   repo_paths: 1
-tactics/common-docs-curation.tactic.yaml:
-  provenance: 2
-tactics/common-docs-find.tactic.yaml:
-  provenance: 2
 tactics/communication/glossary-curation-interview.tactic.yaml:
   repo_paths: 3
 tactics/communication/usage-examples-sync.tactic.yaml:

@@ -12,13 +12,29 @@ entry_condition: >
 exit_condition: >
   A failing test existed that reproduced the bug, production code was changed
   to make it pass, all other tests still pass, and the test and fix are
-  committed together.
+  committed together — unless a failing reproduction test for this defect
+  already landed on the mainline under red-main-release-discipline, in which
+  case the fix commit is the one that turns it green.
 steps:
+  - title: Tidy first, if the surfaces the fix will touch need it
+    description: >
+      Before writing the red reproduction test, check whether the surfaces
+      the fix will touch carry structural debt that would make the fix
+      riskier or harder to review. If so, campsite-clean those surfaces in a
+      separate, behaviour-preserving commit FIRST — order is: tidy-first,
+      then the red reproduction test, then the fix, then a refactor scoped
+      to the fix's own code. DIRECTIVE_025 (Boy Scout Rule) owns the
+      tidy-first / enabler-sequencing rule; this step cites it rather than
+      restating it.
+    actor: agent
   - title: Understand the bug
     description: >
-      Read the bug report. Identify expected vs actual behavior, reproduction
-      steps, and triggering data or context. Formulate a hypothesis about what
-      is wrong and where the problem is likely located.
+      Read the bug report. State what SHOULD happen and what ACTUALLY happens,
+      each in one sentence — do not open a code editor until you can. Identify
+      reproduction steps and triggering data or context, and formulate a
+      hypothesis about what is wrong and where the problem is likely located.
+      For a hard or unclear bug, hand off to disciplined-defect-diagnosis to
+      build a feedback loop and minimize the defect before returning here.
     actor: agent
   - title: Choose the right test level
     description: >
@@ -30,6 +46,8 @@ steps:
       Create a test that exercises the buggy code path with the triggering
       input and asserts the CORRECT expected behavior. The test must fail.
       If it passes immediately, the test does not reproduce the bug — revise.
+      If you cannot write such a test, the defect is not yet understood well
+      enough to fix — no exceptions, even under time pressure.
     actor: agent
   - title: Verify the test fails for the right reason
     description: >
@@ -39,8 +57,19 @@ steps:
     actor: agent
   - title: Fix the production code
     description: >
-      Make the minimal change needed to make the failing test pass. Resist the
-      urge to refactor — that comes later. Focus on correctness.
+      Make the change proportional to the diagnosed cause needed to make the
+      failing test pass. Resist the urge to refactor beyond the fix's own
+      code — that comes next, as its own step. Document the root cause in a
+      comment if it would not be obvious to a future reader.
+    actor: agent
+  - title: Refactor after green, scoped to the fix
+    description: >
+      With the reproduction test passing, refactor only the surfaces the fix
+      itself touched — extract a helper, rename, or simplify the now-correct
+      logic. Do not widen the refactor beyond the fix's own code; broader
+      structural cleanup belongs to the tidy-first step that precedes the red
+      reproduction test (DIRECTIVE_025), not to this step. All tests must
+      stay green throughout.
     actor: agent
   - title: Run the full test suite
     description: >
@@ -49,21 +78,38 @@ steps:
     actor: agent
   - title: Commit test and fix together
     description: >
-      Stage the test file and the production fix in a single commit. The test
-      documents the bug; the fix resolves it. They are inseparable.
+      Stage the test file and the production fix in a single commit — the test
+      documents the bug, the fix resolves it, and they are inseparable. The one
+      carve-out: when a failing reproduction test for this exact defect already
+      landed on the mainline under red-main-release-discipline (an honest red
+      signal for a known, accepted defect), the fix lands as its own commit
+      that turns that pre-existing red test green.
+    actor: agent
+  - title: Document the fix
+    description: >
+      In the commit message or PR description: state the root cause, the fix
+      applied, any edge cases the new test does not yet cover, and a link to
+      the bug report or ticket.
     actor: agent
 anti_patterns:
   - name: Fix First, Test Later
-    description: "Modifying production code before having a failing test. No proof the bug existed or that the fix addresses it."
+    description: "Modifying production code before having a failing test. No proof the bug existed or that the fix addresses it. A test written after the fix is only a confirmation test, not a regression test — it does not prove the fix was necessary."
   - name: Side-Script Investigation
     description: "Building ad-hoc scripts to reproduce the bug instead of writing a proper test. Scripts rot; tests live."
   - name: Full Application Restart
     description: "Deploying the whole application to verify a fix. Slow, noisy, and not isolated."
   - name: Test Passes Immediately
     description: "The reproduction test passes on first run. The test does not capture the bug — revise setup or assertions."
+  - name: Refactoring Beyond the Fix
+    description: "Widening the post-green refactor past the fix's own code introduces unrelated risk into a bug-fix commit; broader cleanup belongs to the tidy-first step that precedes the red reproduction test, not to the post-fix refactor."
 notes: >
   External reference: "Example of test-first bug-fixing (Stijn Dejongh, 2022)"
   https://www.linkedin.com/pulse/example-test-first-bug-fixing-javascript-stijn-dejongh/
+  Folds in the retired bug-fixing-checklist tactic (single-owner consolidation):
+  state expected vs actual in one sentence before touching code; if the
+  reproduction test cannot be written, the defect is not understood; document
+  the root cause and the fix; a post-fix test is a confirmation test, not a
+  regression test.
 references:
   - type: tactic
     id: tdd-red-green-refactor
@@ -74,3 +120,12 @@ references:
   - type: directive
     id: DIRECTIVE_030
     reason: Quality gate requires tests pass before handoff — the reproduction test is part of that gate.
+  - type: directive
+    id: DIRECTIVE_034
+    reason: Reproduce the bug through the pre-existing (stable) entry point, never through the fix's not-yet-written API — the reproduction test is the red phase of the test-first cycle DIRECTIVE_034 requires.
+  - type: procedure
+    id: red-main-release-discipline
+    reason: States the commit-topology carve-out this procedure honors — when a failing reproduction test already landed on the mainline as an honest red signal, the fix commit turns it green rather than re-bundling test and fix.
+  - type: directive
+    id: DIRECTIVE_025
+    reason: Owns the tidy-first / enabler-sequencing rule — campsite-clean the surfaces this fix will touch in a separate, behaviour-preserving commit BEFORE the red reproduction test, whenever doing so de-risks or simplifies the fix.

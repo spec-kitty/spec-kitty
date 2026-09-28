@@ -118,3 +118,41 @@ def test_feedback_absent_renders_no_crash_no_spurious_feedback(tmp_path: Path) -
     text = "\n".join(lines)
     assert "IMPLEMENT: WP01" in text
     assert "review feedback" not in text.lower()
+
+
+def test_implement_footer_recipe_names_lane_branch_not_target_branch(tmp_path: Path) -> None:
+    """WP03 review (cycle 1, #2): the printed commit recipe in the
+    "WHEN YOU'RE DONE" footer must name ``--to-branch`` with the LANE branch
+    (``workspace.branch_name``), never the mission's merge ``target_branch`` --
+    naming the wrong one prints a recipe safe-commit's own HEAD-match guard
+    then refuses to run. ``target_branch`` ("main") and ``workspace.branch_name``
+    ("kitty/mission-001-test-mission-lane-a") are deliberately distinct here so
+    a regression that reverts the site back to ``target_branch`` fails this
+    assertion.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    mission_slug = "001-test-mission"
+    workspace = _workspace(repo, mission_slug)
+
+    lines = build_implement_prompt_lines(
+        normalized_wp_id="WP01",
+        wp=_wp(repo, mission_slug),
+        workspace=workspace,
+        workspace_path=repo / ".worktrees" / f"{mission_slug}-lane-a",
+        wp_agent_assignment=_agent_assignment(),
+        repo_root=repo,
+        mission_slug=mission_slug,
+        target_branch="main",
+        subtask_cmd="T001",
+        has_feedback=False,
+        review_feedback_ref=None,
+        review_feedback_file=None,
+        mission_type="software-dev",
+        deliverables_path=None,
+    )
+
+    text = "\n".join(lines)
+    assert f"--to-branch {workspace.branch_name}" in text
+    assert workspace.branch_name != "main"
+    assert "--to-branch main" not in text

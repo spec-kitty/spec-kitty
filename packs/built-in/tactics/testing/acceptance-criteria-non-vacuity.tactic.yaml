@@ -100,7 +100,7 @@ references:
   #   test_tactic_reference_graph_has_no_cycles requires a DAG).
   # - architectural-gate-non-vacuity: that tactic --suggests--> directive:
   #   DIRECTIVE_043, which sits in a densely-connected part of the DRG
-  #   (adversarial-squad-cadence -> brownfield-onboarding ->
+  #   (brownfield-onboarding -> adversarial-squad-deployment ->
   #   DIRECTIVE_041/034 -> the whole ATDD-adjacent tactic cluster). Adding
   #   that one edge, combined with the required acceptance-test-first
   #   back-reference, bridged two previously-separate graph regions and moved

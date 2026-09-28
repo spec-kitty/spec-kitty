@@ -34,7 +34,7 @@ integrity_rules:
   - "Opening (tidy-first) campsite cleanup is proactive but bounded: it applies to surfaces the current mission will touch, stays behavior-preserving with focused tests, is kept as a distinct step preceding the functional change, and never becomes a broad refactor outside those surfaces (that belongs to a dedicated task)."
   - Adjacent-breakage fixes stay within the touched area and do not expand into broad refactors.
   - Behavioral changes beyond the failing-check fix require explicit tests.
-  - Time spent proving a failure is pre-existing, rather than fixing it, is the waste this directive exists to prevent.
+  - Whether a touched-area failure is pre-existing or newly introduced is DIRECTIVE_030's classification to record at handoff; this directive's touched-area scope means the default action (fix it) applies without waiting on that classification first.
   - Domain-matched folding at a planning point-cut is gated by domain membership, not opportunistic convenience. An item is folded only if its domain demonstrably overlaps the current mission's primary domain; otherwise it is filed and deferred.
   - Out-of-domain debt items must never be silently absorbed into scope; they require an explicit tracker issue so they remain visible and actionable.
   - "Debt-paydown sequencing: critical or blocking items (those that impair correctness, break a gate, or block downstream work) take precedence over non-blocking aesthetic or cleanup items within the same point-cut."
@@ -50,6 +50,8 @@ explicit_allowances:
 references:
   - type: directive
     id: DIRECTIVE_024
+  - type: directive
+    id: DIRECTIVE_030
   - type: directive
     id: DIRECTIVE_040
   - type: tactic

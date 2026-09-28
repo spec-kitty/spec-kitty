@@ -17,6 +17,7 @@ from specify_cli.cli.console import console
 from rich.panel import Panel
 
 from specify_cli.cli import StepTracker
+from specify_cli.cli.commands._commit_recipes import PROTECTED_PRIMARY_HINT, safe_commit_recipe
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
 from kernel.clock import now_utc_iso
@@ -420,8 +421,16 @@ def _print_planning_artifact_commit_instructions(
         return
 
     console.print("\n[yellow]Auto-commit disabled.[/yellow] Commit planning artifacts first:")
-    console.print(f"  git add -f {feature_dir}")
-    console.print(f'  git commit -m "chore: planning artifacts for {mission_slug}"')
+    # WP03 review (cycle 1, #4) correction: safe-commit does NOT force-add
+    # gitignored paths at the CLI level -- its candidate-changes check and
+    # directory expansion both use ``git status`` without ignored files, so a
+    # gitignored path yields "No requested changes to commit" rather than
+    # being force-staged. Dropping the old `git add -f` step here is still
+    # correct, but for a DIFFERENT reason: migration m_0_12_1 removes
+    # kitty-specs/ from .gitignore, so feature_dir is never ignored and needs
+    # no force-add to be picked up.
+    console.print(f"  {safe_commit_recipe([str(feature_dir)], f'chore: planning artifacts for {mission_slug}', planning_branch)}")
+    console.print(f"  {PROTECTED_PRIMARY_HINT}")
     raise typer.Exit(1)
 
 

@@ -56,7 +56,13 @@
 # the other governance tests. Entry deleted per the DRAIN PROCEDURE. Baseline
 # re-seeded to the honest live census (50) and CHARTER_PATH_LITERAL_FLOOR is
 # restored in the gate at the same 50.
-charter_path_literal_baseline: 50
+# DRAINED (mission squad-doctrine-single-owner-01M3KBP7, WP01/T005): 50 -> 49.
+# m_3_2_6_retire_rtk_search_tooling.py was rebuilt on the shared
+# _retired_activation.py engine (T002/T003); its module-level
+# `_CHARTER_RELATIVE_PATH` literal is gone (the module now imports
+# `charter.bundle.CHARTER_YAML` instead), so the site is genuinely gone from
+# the census, not relocated. FLOOR lowered in the gate to match.
+charter_path_literal_baseline: 49
 
 charter_path_literals:
 - file: src/charter/activation/compiler.py
@@ -283,13 +289,6 @@ charter_path_literals:
   clause: "b"
   token: "charter_present = charter_md . exists ( )"
   rationale: "HISTORICAL DETERMINISM: records pre-migration charter.md presence to decide bundle seeding; frozen 3.2.0rc35 migration path."
-- file: src/specify_cli/upgrade/migrations/m_3_2_6_retire_rtk_search_tooling.py
-  qualname: <module>
-  line: 68
-  literal: "charter.yaml"
-  clause: "a"
-  token: "_CHARTER_RELATIVE_PATH = Path ( ) / /"
-  rationale: "HISTORICAL DETERMINISM: module-level charter.yaml relative path used by the 3.2.6 RTK-retirement migration; frozen migration path."
 - file: src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py
   qualname: <module>
   line: 79

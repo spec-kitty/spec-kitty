@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 
+from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.console import console, err_console
 from specify_cli.task_utils import TaskCliError
 
@@ -743,10 +744,23 @@ def _catalog_is_established(repo_root: Path, charter_yaml_path: Path) -> bool:
     return _has_real_prior_synthesis(repo_root) and _interview_answers_present(repo_root)
 
 
-def _print_synthesis_commit_reminder() -> None:
+_SYNTHESIS_ARTIFACT_PATHS = (
+    ".kittify/charter/synthesis-manifest.yaml",
+    ".kittify/charter/provenance/",
+    ".kittify/doctrine/",
+)
+
+
+def _print_synthesis_commit_reminder(repo_root: Path) -> None:
+    # FR-018 (WP03 review cycle 1, #1): name --to-branch, resolved from
+    # repo_root's own checked-out branch -- charter synthesis always runs
+    # from a repository-root checkout (the linked-worktree guard refuses
+    # charter writes from a worktree), so repo_root IS the current branch's
+    # own repo.
+    from specify_cli.core.git_ops import get_current_branch
+
     console.print("[yellow]Synthesis artifacts written; commit provenance before continuing:[/yellow]")
-    console.print("  git add .kittify/charter/synthesis-manifest.yaml .kittify/charter/provenance/ .kittify/doctrine/")
-    console.print("  git commit -m 'chore: charter synthesis artifacts'")
+    console.print(f"  {safe_commit_recipe(list(_SYNTHESIS_ARTIFACT_PATHS), 'chore: charter synthesis artifacts', get_current_branch(repo_root))}")
 
 
 # ---------------------------------------------------------------------------
@@ -1013,6 +1027,7 @@ def _emit_real_run_report(
     written_artifacts_real: list[dict[str, Any]],
     warnings_collected: list[str],
     prune: bool,
+    repo_root: Path,
 ) -> None:
     """Emit the real-run (preserve/prune) success report.
 
@@ -1078,7 +1093,7 @@ def _emit_real_run_report(
             for conflict in reconciliation.conflicts:
                 console.print(f"[yellow]{_conflict_to_line(conflict)}[/yellow]")
     if written_artifacts_real:
-        _print_synthesis_commit_reminder()
+        _print_synthesis_commit_reminder(repo_root)
 
 
 # Fresh-project doctrine seed helpers were carved out into ``_fresh_doctrine``

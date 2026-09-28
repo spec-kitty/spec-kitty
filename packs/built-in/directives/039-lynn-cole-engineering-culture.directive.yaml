@@ -40,7 +40,7 @@ references:
     id: DIRECTIVE_030
   - type: directive
     id: DIRECTIVE_034
-  - type: tactic
+  - type: styleguide
     id: boring-code-review
   - type: tactic
     id: focused-function-complexity-check

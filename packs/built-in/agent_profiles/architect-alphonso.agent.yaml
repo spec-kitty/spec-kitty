@@ -130,11 +130,12 @@ directive-references:
   - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
-      Dependency provenance, lifecycle-script execution, and Node runtime
-      baseline are architectural decisions, not implementation-detail
-      afterthoughts — designs that accept elevated supply-chain risk (e.g. a
-      non-LTS Node baseline) must document the rationale as an ADR, per
-      DIRECTIVE_003
+      Accepting the threat-class controls DIRECTIVE_051 names is an
+      architectural decision, not an implementation-detail afterthought — a
+      design that accepts elevated supply-chain risk must document the
+      rationale as an ADR, per DIRECTIVE_003. Node runtime baseline is a
+      separate architectural concern, governed by the javascript-supply-chain
+      toolguide, not by DIRECTIVE_051.
 
 tactic-references:
   - id: dependency-hygiene
@@ -143,6 +144,12 @@ tactic-references:
       exclusion, JS/TS supply-chain posture) are first-class architectural
       choices; review designs for a documented dependency-hygiene stance
       before treating a component boundary as settled.
+  - id: supply-chain-install-safety
+    rationale: >
+      Review a design's dependency-provenance stance against the checklist
+      DIRECTIVE_051 names, per the javascript-supply-chain toolguide for
+      Node-ecosystem commands, and require an ADR when the design accepts
+      elevated risk rather than a silently-skipped default.
   - id: development-bdd
     rationale: >
       Use BDD behavioral contract definition during architecture design to express

@@ -67,7 +67,11 @@ references:
   - name: Testing Principles Styleguide
     type: styleguide
     id: testing-principles
-    when: Inspiring and Exemplary test desiderata define what a reconstruction-worthy test suite looks like
+    when: The Exemplary desideratum defines what a reconstruction-worthy test suite looks like
+  - name: Test Desiderata and Clear Test Boundaries
+    type: styleguide
+    id: test-desiderata-and-boundaries
+    when: The Inspiring desideratum defines the confidence-to-ship bar a reconstruction-worthy test suite must clear
   - name: Reverse Speccing
     type: tactic
     id: reverse-speccing

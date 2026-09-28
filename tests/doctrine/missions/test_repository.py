@@ -322,7 +322,7 @@ class TestGetActionGuidelines:
     """Boundary pairs on presence/absence of guidelines.md."""
 
     def _write_guidelines(self, root: Path, mission: str, action: str, text: str) -> None:
-        d = root / mission / "actions" / action
+        d = root / "mission-steps" / mission / action
         d.mkdir(parents=True, exist_ok=True)
         (d / "guidelines.md").write_text(text)
 
@@ -342,7 +342,7 @@ class TestGetActionGuidelines:
         repo = MissionTemplateRepository(tmp_path)
         result = repo.get_action_guidelines("my-mission", "review")
         assert result is not None
-        assert result.origin == "doctrine/my-mission/actions/review/guidelines.md"
+        assert result.origin == "doctrine/mission-steps/my-mission/review/guidelines.md"
 
 
 # ── get_mission_config ────────────────────────────────────────────────────────

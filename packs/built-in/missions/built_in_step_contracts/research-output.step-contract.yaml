@@ -19,9 +19,8 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-        - 037-living-documentation-sync
-
+        - DIRECTIVE_010
+        - DIRECTIVE_037
   - id: verify_citation_completeness
     description: Confirm every claim in the publication traces to a source-register.csv row and that all sources are cited
     delegates_to:
@@ -57,5 +56,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

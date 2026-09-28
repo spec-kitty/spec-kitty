@@ -49,7 +49,7 @@ Publish only what `audit-report.md` marked `ready-to-publish`, and record a hand
 
 4. **Author `release.md` as the publication-handoff artifact.** Record: what shipped (page paths, area), where it shipped (URLs), the `audit-report.md` verdict reference, the source revision, the generator versions, and any caveats accepted during validate rather than fixed. Write it for the operator who will field support questions and for the next mission that will iterate on these docs — an empty or boilerplate `release.md` makes the next iteration start from zero.
 
-5. **Record the living-documentation cadence.** Reference content tied to a code surface enters a living-documentation contract: when the surface changes, the docs update in the same change set or get queued as an explicit gap for the next cycle. How-tos and tutorials enter a periodic-revalidation contract — record the cadence; stale tutorials are worse than missing tutorials. Explanations are revisited when the underlying architecture changes.
+5. **Record the living-documentation cadence.** Reference content tied to a code surface is subject to DIRECTIVE_037 (Living Documentation Sync), the single owner of the same-change documentation-update rule; when the update cannot land in the same change, queue it as an explicit gap for the next cycle. How-tos and tutorials enter a periodic-revalidation contract — record the cadence; stale tutorials are worse than missing tutorials. Explanations are revisited when the underlying architecture changes.
 
 6. **Surface unresolved drift to the next iteration.** Anything left open feeds the next mission's `discover` and `audit` steps as their starting input.
 

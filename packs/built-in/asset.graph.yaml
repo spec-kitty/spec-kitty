@@ -4,7 +4,7 @@ generated_by: drg-migration-v1
 nodes:
 - urn: asset:common-docs-structural-lint
   kind: asset
-  label: Common Docs structural lint (ratchet successor)
+  label: Common Docs structural lint (ratchet successor); default policy data at assets/docs_structural_lint.config.yaml
 - urn: asset:writing-audience-agentic-framework-core-team
   kind: asset
   label: 'Writing-audience persona: Agentic Framework Core Team'

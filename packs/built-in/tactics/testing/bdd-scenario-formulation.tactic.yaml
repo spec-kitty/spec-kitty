@@ -1,6 +1,6 @@
 schema_version: "1.0"
-id: behavior-driven-development
-name: Behavior-Driven Development
+id: bdd-scenario-formulation
+name: BDD Scenario Formulation
 purpose: >
   Define system behavior through concrete examples before implementation, ensuring
   shared understanding between stakeholders and implementers. BDD scenarios serve
@@ -63,18 +63,14 @@ notes: >
   the scenarios.
   BDD scenarios serve three purposes: (1) Communication — shared understanding; (2) Specification —
   explicit behavioral contract; (3) Validation — executable acceptance tests.
-  Toolchain landscape (informational — steps above are toolchain-agnostic):
-  Specification language: Gherkin (.feature files) with Given/When/Then.
-  Runners: Cucumber-JVM (Java/Kotlin), Cucumber-JS (JavaScript/TypeScript),
-  Behave (Python), SpecFlow (.NET/C#), Godog (Go).
-  Browser automation: Playwright (modern, multi-language, built-in auto-wait),
-  Selenium WebDriver (mature, W3C standard, Java/.NET ecosystem).
-  Narrative reports: Serenity BDD (JVM) — Screenplay pattern + living documentation HTML.
-  Custom DSLs: when the domain vocabulary is highly specialised and stakeholders do not
-  read Gherkin, a fluent internal DSL in the project language may replace Gherkin;
-  trade-off: better domain expression, worse non-technical readability and no
-  built-in living documentation.
-  Source: patterns.sddevelopment.be/primers/toolchain-and-automation/bdd
+  For Gherkin notation itself, see the Gherkin toolguide and the Given-When-Then
+  Authoring styleguide referenced below — this tactic states the
+  toolchain-agnostic steps only. Runner and automation tooling choice is a
+  separate, ecosystem-specific decision outside the Gherkin toolguide's own
+  stated scope; when the domain vocabulary is highly specialised and
+  stakeholders will not read Gherkin, a fluent internal DSL in the project
+  language may replace it — trade-off: better domain expression, worse
+  non-technical readability, and no built-in living documentation.
 
 failure_modes:
   - "Encoding implementation details in scenarios — scenarios that mention databases, API calls, or method names couple tests to implementation and break during refactoring."
@@ -97,7 +93,19 @@ references:
   - name: Testing Principles Styleguide
     type: styleguide
     id: testing-principles
-    when: BDD scenarios should satisfy the Inspiring and Exemplary test desiderata
+    when: BDD scenarios should be Exemplary — the best usage example of the production code they exercise
+  - name: Test Desiderata and Clear Test Boundaries
+    type: styleguide
+    id: test-desiderata-and-boundaries
+    when: A passing BDD suite should be Inspiring — it should give confidence to ship
+  - name: Given-When-Then Authoring
+    type: styleguide
+    id: given-when-then-authoring
+    when: Author each scenario's Given/When/Then steps per this styleguide's conventions
+  - name: The Gherkin Scenario Language
+    type: toolguide
+    id: gherkin
+    when: Express the formulated scenarios in the Gherkin DSL (Feature / Scenario / Given-When-Then / Examples)
   - name: BDD Scenario Lifecycle
     type: procedure
     id: bdd-scenario-lifecycle

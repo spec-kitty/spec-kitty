@@ -27,13 +27,12 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-        - 024-locality-of-change
-
+        - DIRECTIVE_010
+        - DIRECTIVE_024
   - id: finalize
     description: Validate dependencies and finalize WP metadata
     command: "spec-kitty agent mission finalize-tasks"
     delegates_to:
       kind: directive
       candidates:
-        - 024-locality-of-change
+        - DIRECTIVE_024

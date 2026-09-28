@@ -46,9 +46,9 @@ notes: >
   preparing a system for handover. A system whose tests pass this check has
   executable documentation that stays current automatically.
 references:
-  - name: Behavior-Driven Development
+  - name: BDD Scenario Formulation
     type: tactic
-    id: behavior-driven-development
+    id: bdd-scenario-formulation
     when: BDD scenarios are the highest-readability form of test; use BDD if reconstruction consistently fails
   - name: Test Boundaries by Responsibility
     type: tactic

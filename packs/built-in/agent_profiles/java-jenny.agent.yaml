@@ -165,12 +165,12 @@ directive-references:
   - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
-      Maven/Gradle dependency additions and upgrades require official-registry
-      (Maven Central) resolution, transitive-CVE exclusion, and version-pin
-      discipline before acceptance — apply alongside the dependency-hygiene
-      checklist, never as a silently-skipped default
+      Every Maven/Gradle dependency addition or upgrade is evaluated against
+      the threat-class controls DIRECTIVE_051 names, per the
+      supply-chain-install-safety tactic and the java-supply-chain
+      toolguide's exact commands — never a silently-skipped default.
 tactic-references:
-  - id: behavior-driven-development
+  - id: bdd-scenario-formulation
     rationale: >
       BDD scenarios define acceptance criteria for Java features. Wire Gherkin
       scenarios via Cucumber-JVM as acceptance tests before implementing production code.
@@ -179,6 +179,12 @@ tactic-references:
       Pin direct dependency versions in the Maven properties block, restrict
       resolution to Maven Central, exclude vulnerable transitives with a
       documented reason, and regenerate the SBOM after any dependency change.
+  - id: supply-chain-install-safety
+    rationale: >
+      Run the checklist, per DIRECTIVE_051, before accepting a new or changed
+      Maven/Gradle dependency, using the java-supply-chain toolguide for exact
+      commands, and record the evidence rather than an aspirational statement
+      of intent.
   - id: acceptance-test-first
     rationale: ATDD outside-in from acceptance criteria; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
   - id: tdd-red-green-refactor

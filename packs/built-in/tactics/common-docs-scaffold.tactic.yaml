@@ -2,19 +2,19 @@ schema_version: "1.0"
 id: common-docs-scaffold
 name: Common Docs Scaffold
 purpose: >
-  How to scaffold a new Common Doc from nothing: pick the one owning section of
-  the 13-section structure, create the file at the section-aware path, seed the
-  in-file frontmatter schema (including the namespaced doc_status), and add the
-  section index.md when the section is new. Use this when a concern has no home
-  yet under the single Common Docs root.
+  How to scaffold a new Common Doc from nothing: pick the one owning section
+  of the structure the common-docs styleguide's own principle states, create
+  the file at the section-aware path, seed the in-file frontmatter schema
+  (including the namespaced doc_status), and add the section index.md when
+  the section is new. Use this when a concern has no home yet under the
+  single Common Docs root.
 steps:
   - title: Choose the owning section
     description: >
-      Select exactly one of the 13 sections that owns the concern: index,
-      context, architecture, adr, plans, api, configuration, integrations,
-      security, guides, operations, migrations, changelog. One concern lives in
-      one section — never spread the same concern across two sections and never
-      invent a fourteenth section or a per-version shadow tree. Durable design
+      Select exactly one of the sections that owns the concern, per the
+      common-docs styleguide's own list. One concern lives in one section —
+      never spread the same concern across two sections and never invent a
+      fourteenth section or a per-version shadow tree. Durable design
       decisions go to adr/ (by era) or architecture/ (living, unversioned);
       in-flight investigations and traces go to plans/ under the distil-then-retire
       lifecycle.
@@ -43,17 +43,29 @@ steps:
       store; the page-inventory rollup is regenerated from this frontmatter.
     examples:
       - "doc_status: draft with updated: 2026-06-27, a 110-character description, and related: [] for a brand-new page."
-      - "A scaffolded ADR starts doc_status: draft (PROPOSED) and is flipped to doc_status: active when accepted."
+      - "A non-ADR page: doc_status: draft, flipped to doc_status: active once finalised."
+  - title: File a new ADR under its era, with MADR status
+    description: >
+      An Architecture Decision Record is the one sanctioned exception to the
+      doc_status schema above: file it under adr/<era>/ (adr/1.x, adr/2.x,
+      adr/3.x) by era of decision, with YAML frontmatter carrying the MADR
+      `status` field (Proposed | Accepted | Deprecated | Superseded) — never
+      `doc_status`. See DIRECTIVE_042 for the full ADR frontmatter exception;
+      this step does not restate it.
+    examples:
+      - "A new adr/3.x/2026-06-27-1-common-docs-root.md starts status: Proposed."
+      - "When ADR-B supersedes ADR-A, ADR-A flips to status: Superseded and gains a related: link to ADR-B."
   - title: Add the section index when the section is new
     description: >
-      If the chosen section did not exist before, create its index.md so every
-      one of the 13 sections carries its own index, and seed that index.md with
-      the same frontmatter schema. The common-docs-structural-lint doctrine
-      asset's index_completeness check enforces this mechanically only for sections the
-      styleguide config marks curated-complete (initially architecture/ only) —
-      a page missing from a curated-complete section's index.md fails the lint;
-      the other 12 section indexes are landing pages, so seeding them promptly
-      is still required by this directive but is not (yet) lint-enforced.
+      If the chosen section did not exist before, create its index.md so
+      every section (per the styleguide's own list) carries its own index, and seed
+      that index.md with the same frontmatter schema. The
+      common-docs-structural-lint doctrine asset's index_completeness check
+      enforces this mechanically only for sections the styleguide config
+      marks curated-complete (initially architecture/ only) — a page missing
+      from a curated-complete section's index.md fails the lint; every other
+      section index is a landing page, so seeding it promptly is still
+      required by this directive but is not (yet) lint-enforced.
     examples:
       - "Creating the first file under integrations/ also creates integrations/index.md with doc_status: active (a directive requirement, not currently lint-checked)."
       - "Adding a page under architecture/ (curated-complete) without listing it in architecture/index.md fails docs_structural_lint's index_completeness check."
@@ -61,13 +73,13 @@ failure_modes:
   - "The new file is dropped under a second documentation root or a per-version shadow tree, re-creating the split-brain."
   - "The concern is scattered across two sections instead of being owned by exactly one."
   - "Frontmatter is seeded with a bare status key, colliding with the work-package lane status model."
-  - "A new curated-complete section (architecture/) gains a page missing from its index.md, failing docs_structural_lint's index_completeness check; for the other 12 sections a missing index.md is a review-time gap, not yet caught mechanically."
+  - "A new curated-complete section (architecture/) gains a page missing from its index.md, failing docs_structural_lint's index_completeness check; for every other section a missing index.md is a review-time gap, not yet caught mechanically."
   - "The description is seeded outside the 50-180 character band and fails the lockfile freshness gate."
 references:
   - name: Common Docs Documentation Standard
     type: directive
     id: DIRECTIVE_042
-    when: Consult while choosing the section and path to apply the single-root, 13-section, doc_status placement rules.
+    when: Consult while choosing the section and path to apply the single-root, section-structure, doc_status placement rules.
   - name: Common Docs Styleguide
     type: styleguide
     id: common-docs

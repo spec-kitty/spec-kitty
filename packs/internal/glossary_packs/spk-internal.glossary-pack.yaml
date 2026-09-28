@@ -77,14 +77,6 @@ terms:
     confidence: 0.8
     status: active
 
-  - surface: adversarial squad
-    definition: >
-      A bounded, profile-loaded review squad deployed at an SDD point-cut so
-      independent doctrine lenses converge on findings a single reviewer would miss.
-      An optional enrichment, never a gate.
-    confidence: 0.85
-    status: active
-
   - surface: red-first verification
     definition: >
       For a bugfix, the discipline of first confirming the new/failing test is RED

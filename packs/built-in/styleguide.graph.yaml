@@ -2,12 +2,12 @@ schema_version: '1.0'
 generated_at: STATIC
 generated_by: drg-migration-v1
 nodes:
-- urn: styleguide:adversarial-squad-cadence
-  kind: styleguide
-  label: Adversarial Squad Cadence
 - urn: styleguide:aggregate-design-rules
   kind: styleguide
   label: Aggregate Design Rules
+- urn: styleguide:boring-code-review
+  kind: styleguide
+  label: Boring Code Review
 - urn: styleguide:common-docs
   kind: styleguide
   label: Common Docs Styleguide
@@ -78,12 +78,6 @@ nodes:
   kind: styleguide
   label: Tiered Coding Standards
 edges:
-- source: styleguide:adversarial-squad-cadence
-  target: paradigm:brownfield-onboarding
-  relation: suggests
-- source: styleguide:adversarial-squad-cadence
-  target: procedure:adversarial-squad-deployment
-  relation: suggests
 - source: styleguide:aggregate-design-rules
   target: paradigm:domain-driven-design
   relation: suggests
@@ -93,15 +87,21 @@ edges:
 - source: styleguide:aggregate-design-rules
   target: tactic:domain-event-capture
   relation: suggests
+- source: styleguide:boring-code-review
+  target: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
+  relation: suggests
+- source: styleguide:boring-code-review
+  target: tactic:avoid-gold-plating
+  relation: suggests
+- source: styleguide:boring-code-review
+  target: tactic:easy-to-change
+  relation: suggests
 - source: styleguide:common-docs
   target: asset:common-docs-structural-lint
   relation: requires
   reason: "The common-docs styleguide's tooling rows and quality_test name the structural lint as their enforcing gate, and its structural_lint_config: block is the policy the asset loads; activating the styleguide requires the shipped lint asset."
 - source: styleguide:common-docs
   target: directive:DIRECTIVE_042
-  relation: suggests
-- source: styleguide:common-docs
-  target: tactic:common-docs-curation
   relation: suggests
 - source: styleguide:common-docs
   target: tactic:common-docs-find
@@ -162,6 +162,9 @@ edges:
   relation: suggests
 - source: styleguide:meeting-minutes-format
   target: directive:DIRECTIVE_047
+  relation: suggests
+- source: styleguide:mutation-aware-test-design
+  target: tactic:mutation-testing-workflow
   relation: suggests
 - source: styleguide:plain-language
   target: styleguide:common-docs
@@ -240,6 +243,15 @@ edges:
   relation: suggests
 - source: styleguide:testing-principles
   target: directive:DIRECTIVE_041
+  relation: suggests
+- source: styleguide:testing-principles
+  target: styleguide:quadruple-a-test-format
+  relation: requires
+- source: styleguide:testing-principles
+  target: styleguide:quadruple-a-test-format
+  relation: suggests
+- source: styleguide:testing-principles
+  target: styleguide:test-desiderata-and-boundaries
   relation: suggests
 - source: styleguide:testing-principles
   target: tactic:acceptance-test-first

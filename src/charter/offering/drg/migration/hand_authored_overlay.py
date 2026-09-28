@@ -353,8 +353,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # The 4 requires edges wiring the common-docs artifacts to the shipped
     # structural-lint asset (mission ship-structural-lint-as-asset). The lint
     # is now the first built-in ASSET (asset:common-docs-structural-lint); the
-    # directive, styleguide, and both curation/scaffold tactics NAME it in
-    # prose as the gate that enforces them. The extractor has no frontmatter
+    # directive, styleguide, and the write/scaffold tactics NAME it in prose as
+    # the gate that enforces them. (The write edge replaced the retired
+    # curation tactic's edge when mission squad-doctrine-single-owner-01M3KBP7
+    # folded curation's run-the-live-gates step into common-docs-write.) The extractor has no frontmatter
     # mechanism to mint an edge to an asset, so these are authored directly in
     # the graph fragments. REQUIRES (not suggests): activating any of these
     # artifacts pulls the shipped lint asset in as a mandatory prerequisite.
@@ -391,13 +393,13 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="tactic:common-docs-curation",
+        source="tactic:common-docs-write",
         target=_URN_ASSET_COMMON_DOCS_STRUCTURAL_LINT,
         relation=Relation.REQUIRES,
         reason=(
-            "The common-docs curation tactic directs the agent to run the "
-            "structural lint as one of the live gates; activating the tactic "
-            "requires the shipped lint asset."
+            "The common-docs write tactic's run-the-live-gates step directs the "
+            "agent to run the structural lint before handoff; activating the "
+            "tactic requires the shipped lint asset."
         ),
     ),
     DRGEdge(
@@ -414,8 +416,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # WP09 (mission doctrine-delivery-reachability-01KYMXD6, T050, FR-015): the
     # reaching edge for the common-docs cluster. The four `requires` edges above
     # de-orphan asset:common-docs-structural-lint by INCIDENCE, but every one of
-    # their sources (DIRECTIVE_042, styleguide:common-docs, and the curation /
-    # scaffold tactics) was measured action-UNREACHABLE -- the whole documentation-
+    # their sources (DIRECTIVE_042, styleguide:common-docs, and the common-docs
+    # tactics) was measured action-UNREACHABLE -- the whole documentation-
     # authoring family is a strongly-connected island no action node scopes, so
     # the asset (and the styleguide, and the four common-docs tactics) reached
     # nobody. Incidence is not reachability (contract R-6); this is exactly the
@@ -1291,7 +1293,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # Not scope-resolved itself, but reachable via a <=2-hop suggests chain, so
     # these DELIVER at the bootstrap depth d=2 only. `suggests` matches how
     # brownfield already links its non-mandatory members (it mixes requires for
-    # hard prerequisites with suggests, e.g. styleguide:adversarial-squad-cadence).
+    # hard prerequisites with suggests, e.g. tactic:reverse-speccing below).
     DRGEdge(
         source=_URN_PARADIGM_BROWNFIELD_ONBOARDING,
         target="tactic:reverse-speccing",
@@ -1420,7 +1422,11 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         source=_URN_DIRECTIVE_030,
         target="styleguide:test-desiderata-and-boundaries",
         relation=Relation.SUGGESTS,
-        when=("assessing tests against the test desiderata (Kent Beck) and checking each test owns exactly one behavioural boundary"),
+        when=(
+            "assessing tests against the test desiderata (Kent Beck) and drawing each "
+            "test's boundary by functional responsibility, with infrastructure stubbed "
+            "outside it"
+        ),
         reason=(
             "The quality gate suggests the test-desiderata-and-boundaries styleguide "
             "as the finer-grained bar for a good test; the `when` is the "

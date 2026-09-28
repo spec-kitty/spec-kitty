@@ -333,6 +333,6 @@ class TestNoRegressionForExistingKinds:
         assert {edge.source for edge in inbound} == {
             "directive:DIRECTIVE_042",
             "styleguide:common-docs",
-            "tactic:common-docs-curation",
+            "tactic:common-docs-write",  # was common-docs-curation (folded into write)
             "tactic:common-docs-scaffold",
         }

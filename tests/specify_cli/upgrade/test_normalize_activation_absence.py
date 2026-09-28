@@ -115,7 +115,7 @@ def test_does_not_clobber_populated_or_explicit_empty(tmp_path: Path) -> None:
     _write(
         tmp_path / ".kittify" / "charter" / "charter.yaml",
         _charter_yaml(
-            "activated_tactics:\n  - bug-fixing-checklist\n"
+            "activated_tactics:\n  - tdd-red-green-refactor\n"
             "activated_paradigms: []\n"
         ),
     )
@@ -123,7 +123,7 @@ def test_does_not_clobber_populated_or_explicit_empty(tmp_path: Path) -> None:
     migration.apply(tmp_path)
 
     charter = _load(tmp_path / ".kittify" / "charter" / "charter.yaml")
-    assert charter["activated_tactics"] == ["bug-fixing-checklist"]
+    assert charter["activated_tactics"] == ["tdd-red-green-refactor"]
     assert charter["activated_paradigms"] == []
 
 

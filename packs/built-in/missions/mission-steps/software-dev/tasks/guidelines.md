@@ -23,7 +23,7 @@ These guidelines govern the quality and correctness standards for work-package d
 ## Subtask Granularity
 
 - Aim for 3–7 subtasks per WP and 200–500 lines per WP prompt.
-- Prefer splitting an oversized WP over padding a small one; prefer merging trivially short WPs over inflating them with a status commit.
+- Prefer splitting an oversized WP over padding a small one; prefer merging trivially short WPs over inflating them with unnecessary overhead.
 - Each subtask must name a concrete deliverable (file, test, validation step) — not a phase of thought.
 
 ---

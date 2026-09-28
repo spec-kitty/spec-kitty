@@ -34,7 +34,7 @@ references:
     id: architectural-gate-non-vacuity
   - type: tactic
     id: frozen-baseline-shrink-only-ratchet
-  - type: styleguide
-    id: adversarial-squad-cadence
+  - type: procedure
+    id: adversarial-squad-deployment
   - type: tactic
     id: pr-agent-worktree-isolation

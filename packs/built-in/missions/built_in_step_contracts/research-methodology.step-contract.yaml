@@ -19,8 +19,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-
+        - DIRECTIVE_010
   - id: design_methodology
     description: Document research methodology — design choices, frameworks, reproducibility plan
     delegates_to:
@@ -34,8 +33,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 003-decision-documentation-requirement
-
+        - DIRECTIVE_003
   - id: write_plan
     description: Write plan.md to kitty-specs/{mission_slug}/
     command: "Write plan.md in kitty-specs/{mission_slug}/"
@@ -45,5 +43,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

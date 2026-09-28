@@ -6,6 +6,9 @@ purpose: >
   and compatibility regressions by dispatching five architecture scouts with
   different lenses, then synthesizing one pragmatic matrix that separates the
   smallest release-safe fix from deferred architecture repair.
+  The general dispatch/loading/synthesis discipline this tactic specializes
+  to five fixed architecture-scout lenses is the adversarial-squad-deployment
+  procedure.
 steps:
   - title: Verify architecture-scout mode is warranted
     description: >

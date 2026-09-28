@@ -71,18 +71,14 @@ nodes:
 - urn: procedure:test-first-bug-fixing
   kind: procedure
   label: Test-First Bug Fixing
-- urn: procedure:tracker-organisation-workflow
-  kind: procedure
-  label: Tracker Organisation Workflow
 edges:
 - source: procedure:adversarial-squad-deployment
   target: tactic:code-review-incremental
   relation: requires
   reason: Each delegate applies structured, observation-first review discipline within its assigned lens.
 - source: procedure:adversarial-squad-deployment
-  target: tactic:five-paradigm-parallel-debugging
-  relation: requires
-  reason: A squad is the review-side analogue of five-paradigm parallel debugging — independent lenses run concurrently and converge on findings one lens would miss.
+  target: tactic:model-task-routing
+  relation: suggests
 - source: procedure:bdd-scenario-lifecycle
   target: directive:DIRECTIVE_034
   relation: requires
@@ -96,13 +92,24 @@ edges:
   relation: requires
   reason: The Discovery phase that produces the validated examples this procedure begins with.
 - source: procedure:bdd-scenario-lifecycle
+  target: styleguide:given-when-then-authoring
+  relation: requires
+- source: procedure:bdd-scenario-lifecycle
+  target: styleguide:given-when-then-authoring
+  relation: suggests
+  reason: Gherkin scenarios (step 1) are authored per this styleguide's Given/When/Then conventions.
+- source: procedure:bdd-scenario-lifecycle
   target: tactic:acceptance-test-first
   relation: requires
   reason: Canonical examples from step 1 hand off into executable acceptance checks in step 4.
 - source: procedure:bdd-scenario-lifecycle
-  target: tactic:behavior-driven-development
+  target: tactic:bdd-scenario-formulation
   relation: requires
   reason: The technique tactic for writing individual Given/When/Then scenarios; used throughout steps 1-3 of this procedure.
+- source: procedure:bdd-scenario-lifecycle
+  target: toolguide:gherkin
+  relation: suggests
+  reason: Scenarios are expressed in the Gherkin DSL this toolguide documents.
 - source: procedure:development-assist-test-cleanup
   target: directive:DIRECTIVE_025
   relation: requires
@@ -130,10 +137,6 @@ edges:
   target: procedure:test-first-bug-fixing
   relation: requires
   reason: Once the defect is minimized, the fix follows the test-first bug-fixing procedure.
-- source: procedure:disciplined-defect-diagnosis
-  target: tactic:bug-fixing-checklist
-  relation: requires
-  reason: The checklist supplies the focused red-green discipline for the regression-test phase.
 - source: procedure:disciplined-defect-diagnosis
   target: tactic:testing-select-appropriate-level
   relation: requires
@@ -303,9 +306,8 @@ edges:
   relation: suggests
   reason: Tracer files are naturally seeded during the brownfield ramp-up phase to capture early tooling friction and initial approach decisions before implementation begins.
 - source: procedure:mission-tracer-files
-  target: styleguide:adversarial-squad-cadence
+  target: procedure:adversarial-squad-deployment
   relation: suggests
-  reason: 'The tracer files (especially tooling-friction and approach entries) are inputs to the post-tasks anti-laziness squad and the post-merge retrospective described by the adversarial-squad cadence. Forward reference: adversarial-squad-cadence styleguide is authored by WP08 of mission doctrine-catfooding-2196-01KWE16N.'
 - source: procedure:mission-wrap-up-sequence
   target: directive:DIRECTIVE_045
   relation: requires
@@ -437,9 +439,27 @@ edges:
   relation: requires
   reason: 'A timeboxed spike is a safe-to-fail experiment: bounded, reversible, and run in a throwaway space so a failed hypothesis costs only the budget.'
 - source: procedure:test-first-bug-fixing
+  target: directive:DIRECTIVE_025
+  relation: requires
+  reason: Owns the tidy-first / enabler-sequencing rule — campsite-clean the surfaces this fix will touch in a separate, behaviour-preserving commit BEFORE the red reproduction test, whenever doing so de-risks or simplifies the fix.
+- source: procedure:test-first-bug-fixing
   target: directive:DIRECTIVE_030
   relation: requires
   reason: Quality gate requires tests pass before handoff — the reproduction test is part of that gate.
+- source: procedure:test-first-bug-fixing
+  target: directive:DIRECTIVE_034
+  relation: requires
+  reason: Reproduce the bug through the pre-existing (stable) entry point, never through the fix's not-yet-written API — the reproduction test is the red phase of the test-first cycle DIRECTIVE_034 requires.
+- source: procedure:test-first-bug-fixing
+  target: directive:DIRECTIVE_052
+  relation: suggests
+- source: procedure:test-first-bug-fixing
+  target: procedure:disciplined-defect-diagnosis
+  relation: suggests
+- source: procedure:test-first-bug-fixing
+  target: procedure:red-main-release-discipline
+  relation: requires
+  reason: States the commit-topology carve-out this procedure honors — when a failing reproduction test already landed on the mainline as an honest red signal, the fix commit turns it green rather than re-bundling test and fix.
 - source: procedure:test-first-bug-fixing
   target: tactic:tdd-red-green-refactor
   relation: requires
@@ -448,23 +468,3 @@ edges:
   target: tactic:test-boundaries-by-responsibility
   relation: requires
   reason: Determines what to mock vs test real when writing the reproduction test.
-- source: procedure:tracker-organisation-workflow
-  target: procedure:issue-triage-state-machine
-  relation: requires
-  reason: Per-ticket triage — one category and one state with durable handoff or rejection context — feeding this tracker-wide organisation pass.
-- source: procedure:tracker-organisation-workflow
-  target: styleguide:planning-and-tracking
-  relation: suggests
-  reason: Defines the epic/meta-tracker hierarchy, issue-type, priority, and triage conventions this workflow enforces while organising the tracker.
-- source: procedure:tracker-organisation-workflow
-  target: tactic:iterative-deepening-review
-  relation: requires
-  reason: Sequences the backlog sweep in widening time windows so emergent groupings become epics before later rings reach them.
-- source: procedure:tracker-organisation-workflow
-  target: tactic:moscow-scoping-lens
-  relation: requires
-  reason: Provides the scoping lens for negotiating what each bucket or slice must, should, could, or won't carry, distinct from the priority label taxonomy.
-- source: procedure:tracker-organisation-workflow
-  target: toolguide:github-tracker
-  relation: suggests
-  reason: Supplies the gh CLI + GraphQL mechanics (sub-issues, types, parent walks) used to read and re-home tickets during the organisation pass.

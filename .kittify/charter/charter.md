@@ -2,6 +2,11 @@
 
 > Created: 2026-01-27
 > Version: 1.4.0
+> Updated: 2026-09-28 — dogfooded the squad-doctrine-single-owner-01M3KBP7
+> retirement sweep: applied the `4.0.0rc5_retire_single_owner_doctrine_ids`
+> migration to this project's own `.kittify/charter/` surfaces, then reworded
+> Standing Order #1 to reference the `adversarial-squad-deployment` procedure
+> instead of restating its point-cut list (single owner, #5218).
 > Updated: 2026-09-27 — added the `NO_FULL_HEAVY_SUITES_IN_MISSION` binding
 > pointer under Agent Operating Discipline and corrected the Review action's
 > "run the FULL compliance suite" wording, which conflicted with the Testing
@@ -59,10 +64,11 @@ summary — verify against live code, witness the bug in a real run, and let
 independent adversarial perspectives try to break the work *before* it lands, at
 the cheapest point in the lifecycle.
 
-1. **Adversarial squad cadence.** Run a bounded, profile-loaded adversarial squad
-   at every planning point-cut (pre-spec / post-spec / post-plan / post-tasks)
-   before proceeding — one lens per agent, strongest model for the hard lenses.
-   Optional and advisory, never a hard gate. → `adversarial-squad-cadence` styleguide.
+1. **Adversarial squad cadence.** Run a profile-loaded adversarial squad at the
+   planning point-cuts the procedure defines, casting the profiles whose focus
+   answers that point-cut's question. Optional and advisory, never a hard gate.
+   → `adversarial-squad-deployment` procedure (the single owner of when, who,
+   and how).
 2. **Campsite cleaning & incremental debt paydown.** *Open* a mission/WP by
    campsite-cleaning the surfaces it will touch **first** — resolve their Sonar
    findings, extract/decompose over-long functions/files, refactor the methods

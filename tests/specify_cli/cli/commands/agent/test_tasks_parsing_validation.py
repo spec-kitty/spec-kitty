@@ -700,6 +700,38 @@ def test_validate_research_artifacts_blocks_research_commit_format(tmp_path: Pat
     assert "move-task WP01 --to for_review" in text
 
 
+def test_validate_research_artifacts_recipe_names_to_branch(tmp_path: Path) -> None:
+    """WP03 review (cycle 1, #1): the research/docs commit recipe must name
+    ``--to-branch``, resolved from ``main_repo_root``'s current branch --
+    never silently rely on safe-commit's deprecated HEAD fallback.
+    """
+    console = MagicMock()
+    porcelain = " M kitty-specs/demo/data-model.md\n"
+    with (
+        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch(
+            "specify_cli.review.dirty_classifier.classify_dirty_paths",
+            return_value=(["kitty-specs/demo/data-model.md"], []),
+        ),
+        patch(
+            "specify_cli.core.git_ops.get_current_branch",
+            return_value="kitty/mission-demo-planning",
+        ),
+    ):
+        guidance = _validate_research_artifacts(
+            main_repo_root=tmp_path,
+            feature_dir=tmp_path / "kitty-specs" / "demo",
+            mission_slug="demo",
+            wp_id="WP01",
+            mission_type="research",
+            target_lane="for_review",
+            console=console,
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "--to-branch kitty/mission-demo-planning" in text
+
+
 def test_validate_research_artifacts_benign_only_passes_with_note(tmp_path: Path) -> None:
     """Unaffected by T006/T007's per-line-attribution rewrite (T007 step 3):
     this test's assertions are about the benign-only console note path, not
@@ -1096,6 +1128,27 @@ def test_check_uncommitted_worktree_changes_untracked(tmp_path: Path) -> None:
     assert guidance[0] == "Uncommitted implementation changes in worktree!"
 
 
+def test_check_uncommitted_worktree_changes_recipe_names_to_branch(tmp_path: Path) -> None:
+    """WP03 review (cycle 1, #1): the deliverable recipe must name
+    ``--to-branch`` with the worktree's own checked-out branch."""
+    with (
+        patch("subprocess.run", return_value=_make_subproc(0, "M  src/foo.py\n")),
+        patch(
+            "specify_cli.core.git_ops.get_current_branch",
+            return_value="kitty/mission-demo-lane-a",
+        ),
+    ):
+        guidance = _check_uncommitted_worktree_changes(
+            worktree_path=tmp_path,
+            wp_id="WP01",
+            target_lane="for_review",
+            filter_runtime_state_paths=lambda s: s,
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "--to-branch kitty/mission-demo-lane-a" in text
+
+
 def test_check_uncommitted_worktree_changes_filtered_clean(tmp_path: Path) -> None:
     # filter strips everything (runtime-state only) → no block.
     with patch("subprocess.run", return_value=_make_subproc(0, " M .spec-kitty/lock\n")):
@@ -1126,6 +1179,30 @@ def test_check_implementation_commit_present_missing_blocks(tmp_path: Path) -> N
         )
     assert guidance is not None
     assert guidance[0] == "No implementation commits on lane branch!"
+
+
+def test_check_implementation_commit_present_recipe_names_to_branch(tmp_path: Path) -> None:
+    """WP03 review (cycle 1, #1): the deliverable recipe must name
+    ``--to-branch`` with the worktree's own checked-out branch."""
+    with (
+        patch(
+            "specify_cli.cli.commands.agent.tasks_parsing_validation.lane_has_commit_beyond_base",
+            return_value=False,
+        ),
+        patch(
+            "specify_cli.core.git_ops.get_current_branch",
+            return_value="kitty/mission-demo-lane-a",
+        ),
+    ):
+        guidance = _check_implementation_commit_present(
+            worktree_path=tmp_path,
+            check_branch="main",
+            wp_id="WP01",
+            target_lane="for_review",
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "--to-branch kitty/mission-demo-lane-a" in text
 
 
 def test_check_implementation_commit_present_ok(tmp_path: Path) -> None:
@@ -1178,6 +1255,39 @@ def test_check_kitty_specs_contamination_unknown_planning_branch(tmp_path: Path)
         )
     assert guidance is not None
     assert "planning branch unknown" in "\n".join(guidance)
+
+
+def test_check_kitty_specs_contamination_recipe_names_worktree_branch_not_check_branch(
+    tmp_path: Path,
+) -> None:
+    """WP03 review (cycle 1, #1/#2): the cleanup recipe must name
+    ``--to-branch`` with the worktree's OWN checked-out branch -- never
+    ``check_branch`` (the diff BASE the lane diverges from; naming it would
+    print a recipe safe-commit's own HEAD-match guard refuses to run). A
+    revert to ``check_branch`` here must fail this assertion.
+    """
+    with (
+        patch(
+            "specify_cli.mission_metadata.load_meta",
+            return_value={"planning_base_branch": "kitty/plan"},
+        ),
+        patch(
+            "specify_cli.core.git_ops.get_current_branch",
+            return_value="kitty/mission-demo-lane-a",
+        ),
+    ):
+        guidance = _check_kitty_specs_contamination(
+            worktree_path=tmp_path,
+            check_branch="kitty/mission-coord-01ABC",
+            feature_dir=tmp_path,
+            wp_id="WP01",
+            target_lane="for_review",
+            list_wp_branch_specs_changes_for_guard=lambda **_k: ["kitty-specs/demo/spec.md"],
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "--to-branch kitty/mission-demo-lane-a" in text
+    assert "--to-branch kitty/mission-coord-01ABC" not in text
 
 
 def test_check_kitty_specs_contamination_clean_returns_none(tmp_path: Path) -> None:

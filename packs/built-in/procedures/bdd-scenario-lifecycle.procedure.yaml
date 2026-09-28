@@ -93,10 +93,19 @@ references:
     reason: >
       The Discovery phase that produces the validated examples this procedure begins with.
   - type: tactic
-    id: behavior-driven-development
+    id: bdd-scenario-formulation
     reason: >
       The technique tactic for writing individual Given/When/Then scenarios; used
       throughout steps 1-3 of this procedure.
+  - type: styleguide
+    id: given-when-then-authoring
+    reason: >
+      Gherkin scenarios (step 1) are authored per this styleguide's Given/When/Then
+      conventions.
+  - type: toolguide
+    id: gherkin
+    reason: >
+      Scenarios are expressed in the Gherkin DSL this toolguide documents.
   - type: tactic
     id: acceptance-test-first
     reason: >

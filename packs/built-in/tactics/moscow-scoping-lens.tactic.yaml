@@ -52,8 +52,3 @@ notes: >
   planning-and-tracking glossary subset); MoSCoW operates one level up, at the
   moment a mission or slice boundary is being negotiated. When each applies:
   MoSCoW at scoping and negotiation time; `priority:Px` at backlog-state time.
-references:
-  - name: Tracker Organisation Workflow
-    type: procedure
-    id: tracker-organisation-workflow
-    when: Scoping which slices a functional epic or bucket commits to in a cut, alongside the per-ticket priority labels that workflow enforces.

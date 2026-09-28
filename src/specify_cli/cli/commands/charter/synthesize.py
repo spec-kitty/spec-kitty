@@ -369,7 +369,7 @@ def charter_synthesize(  # noqa: C901
                 console.print("[green]Charter synthesis (fresh project)[/green]: minimal .kittify/doctrine/ materialized.")
                 for f in written:
                     console.print(f"  ✓ {f}")
-                _print_synthesis_commit_reminder()
+                _print_synthesis_commit_reminder(repo_root)
                 return
             # else: established store -- fall through past the whole
             # ``if is_fresh_project_synthesize:`` branch to the normal
@@ -537,6 +537,7 @@ def charter_synthesize(  # noqa: C901
             written_artifacts_real=written_artifacts_real,
             warnings_collected=warnings_collected,
             prune=prune,
+            repo_root=repo_root,
         )
 
     except typer.Exit:

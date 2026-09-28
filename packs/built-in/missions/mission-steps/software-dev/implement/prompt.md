@@ -160,13 +160,9 @@ Work through each subtask in order:
 
 ### 4a. Supply-Chain Security Check (dependency changes)
 
-If this WP adds, upgrades, or removes a dependency (any ecosystem — npm/yarn/pnpm, pip/uv, Maven/Gradle, etc.), run the `supply-chain-install-safety` tactic checklist before the quality gate — this mirrors the `supply_chain_security_check` step already present in the `implement` step contract:
+If this WP adds, upgrades, or removes a dependency (any ecosystem — npm/yarn/pnpm, pip/uv, Maven/Gradle, etc.), run the `supply-chain-install-safety` tactic's checklist before the quality gate, per `DIRECTIVE_051` — this mirrors the `supply_chain_security_check` step already present in the `implement` step contract. Use the matching ecosystem toolguide (for example `javascript-supply-chain`, `python-supply-chain`, `java-supply-chain`) for the exact commands and file names.
 
-- **Registry authenticity**: confirm the resolved package/version comes from the approved official registry, not an unexpected mirror or namespace.
-- **Package freshness**: record first-publish/latest-publish timestamps; flag a suspiciously new version for operator acknowledgment instead of accepting it silently.
-- **Lifecycle-script discipline (deny-by-default)**: never auto-approve `preinstall`/`install`/`postinstall` scripts. If a legitimate native build genuinely needs one, add an explicit, justified allowlist entry — never a blanket script-safety bypass.
-- **Node Active LTS awareness**: check the project's declared/runtime Node version against current Active LTS; disclose any skew with a documented rationale rather than leaving it unacknowledged.
-- **Risk disclosure**: record what was checked and the resulting decision (per the `051-supply-chain-install-safety` directive) in the WP implementation notes or commit message, so a reviewer does not have to re-derive the analysis.
+- **Risk disclosure**: record what was checked and the resulting decision for every control DIRECTIVE_051 names in the WP implementation notes or commit message, so a reviewer does not have to re-derive the analysis.
 
 This is advisory in v1 — it does not add a new fail-closed gate — but skipping the checklist for a dependency change is a gap the reviewer will flag, not a neutral outcome.
 
@@ -321,18 +317,26 @@ agent profile automatically.
    role: "reviewer"
    ```
 
-3. Commit the updated frontmatter together with your implementation changes **before**
+3. Commit the updated frontmatter together with your implementation changes with
+   `spec-kitty safe-commit <files> -m "<msg>" --to-branch <lane branch>` **before**
    running `spec-kitty agent tasks move-task WPxx --to for_review`.
 
 ### GitHub Actions Workflow Changes
 
-If this WP adds or modifies `.github/workflows/*`, use a draft PR before review hand-off:
+If this WP adds or modifies `.github/workflows/*`, the changed workflow must be
+exercised on a real GitHub Actions runner before review hand-off. Per
+`DIRECTIVE_045` and `mission-wrap-up-sequence`, the WP agent pushes and reports;
+the orchestrator opens the draft PR:
 
-1. Push the WP branch.
-2. Open a draft PR so the workflow runs on a real GitHub Actions runner.
-3. Iterate on the draft PR until the changed workflow has a successful run.
-4. Record the successful run ID or Actions URL in `kitty-specs/<mission>/workflow-evidence.md`.
-5. Only then move the WP to `for_review`.
+1. Commit with `spec-kitty safe-commit <files> -m "<msg>" --to-branch <lane branch>`,
+   then push the WP branch.
+2. Report to the orchestrator that this WP needs a draft PR to exercise the
+   changed workflow on a real runner.
+3. The orchestrator opens the draft PR and iterates until the changed workflow
+   has a successful run, then records the successful run ID or Actions URL in
+   `kitty-specs/<mission>/workflow-evidence.md`.
+4. Only after the orchestrator confirms the recorded evidence does the WP move
+   to `for_review`.
 
 The reviewer will then use `/ad-hoc-profile-load` with the reviewer profile and apply
 its self-review gates automatically.

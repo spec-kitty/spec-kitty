@@ -13,9 +13,9 @@ tactics:
   - stopping-conditions
   - supply-chain-install-safety
   - acceptance-criteria-non-vacuity
+styleguides:
   # Listed explicitly so graph calibration cannot drop it from review.
   - boring-code-review
-styleguides: []
 toolguides: []
 procedures:
   - mission-wrap-up-sequence

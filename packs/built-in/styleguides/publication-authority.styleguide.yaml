@@ -6,7 +6,7 @@ applies_to_languages: []
 
 principles:
   - "Code is the source of truth; documentation mirrors shipped behaviour. Documentation describes what the system actually does, never what it was hoped to do or what an old design intended. When code and docs disagree, the code is right and the docs are the defect. A page that documents behaviour the code does not implement is worse than no page — it manufactures false confidence. This is the source-of-truth half of publication authority (FR-005: source-of-truth)."
-  - "Every behaviour-changing change updates its documentation in the same change. A change that alters observable behaviour — a CLI flag, an API response, a config key, a workflow step — carries the matching documentation edit in the same commit or the same mission. Documentation is not a follow-up ticket; deferring it is how docs drift from reality. This operationalises the living-documentation-sync directive at authoring time."
+  - "Every behaviour-changing change updates its documentation. DIRECTIVE_037 (Living Documentation Sync) is the single owner of the same-change documentation-update rule for a change that alters observable behaviour — a CLI flag, an API response, a config key, a workflow step. Documentation is not a follow-up ticket; deferring it is how docs drift from reality."
   - "Reference that can be generated from the code is generated, not hand-copied. API signatures, CLI flags, and schema fields are extracted from the source (rustdoc, JSDoc, Sphinx autodoc) so they cannot drift from it. Hand-transcribing a signature into prose creates a second copy that silently goes stale. Hand-write only the contract semantics a generator cannot infer."
   - "Publication is a gate, not a default. A page is published only after it passes the mission's validate action — Divio-type discipline, plain-language, accessibility, freshness, and source-of-truth fidelity are all green. Publishing is a deliberate, gated step in the publish action; a draft is never live by accident. This is the publication half of publication authority (FR-005: publication)."
   - "One canonical home per fact; cross-reference instead of copying. Each fact lives in exactly one authoritative page and every other page links to it. Copy-pasting a fact into a second page creates two sources of truth that drift apart; the reader then cannot tell which is current. Curate by linking, and by distilling-then-retiring stale copies, not by duplicating."
@@ -16,8 +16,8 @@ principles:
 patterns:
   - name: Behaviour change ships with its doc edit
     description: >
-      Bundle the documentation update into the same change as the behaviour it
-      describes, so the published docs never lag the shipped code.
+      Apply DIRECTIVE_037's same-change documentation-update rule at
+      authoring time, so the published docs never lag the shipped code.
     good_example: |
       # One commit / one mission:
       src/.../transitions.py      # add the --force override
@@ -60,7 +60,7 @@ anti_patterns:
       tutorial and how-to link to it. One change updates every reader.
 
 tooling:
-  living-documentation-sync: "packs/built-in/directives/037-living-documentation-sync.directive.yaml (binds every behaviour-changing change to a same-change documentation update)."
+  living-documentation-sync: "packs/built-in/directives/037-living-documentation-sync.directive.yaml — the single owner of the same-change documentation-update rule (DIRECTIVE_037)."
   publication-gate: "documentation mission publish action (a page goes live only after the validate action is green — Divio type, plain language, accessibility, freshness, and source-of-truth fidelity all pass)."
 
 quality_test: >

@@ -34,7 +34,7 @@ steps:
       Search the page-inventory lockfile — the rollup regenerated FROM in-file
       frontmatter — by section, title, doc_status, or related: edges to find the
       page that owns a topic and its current lifecycle. Because the lockfile is
-      derived from frontmatter and freshness-gated (WP04), a match points at a
+      derived from frontmatter and freshness-gated, a match points at a
       page that actually exists with the metadata it actually carries.
     examples:
       - "Filtering the lockfile to section: guides and doc_status: active to find the live how-to for a task."
@@ -42,7 +42,7 @@ steps:
   - title: Confirm the source is fresh before trusting the answer
     description: >
       Treat a stale graph or lockfile as untrustworthy: run the DRG freshness
-      gate (and rely on the WP04 lockfile freshness gate) so the authority you
+      gate (and rely on the lockfile freshness gate) so the authority you
       searched matches source. If a gate is red, regenerate before concluding a
       doc does or does not exist.
     examples:

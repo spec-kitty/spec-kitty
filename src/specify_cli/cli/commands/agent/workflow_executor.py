@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, cast
 import typer
 
 from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.commands.agent.workflow_cores import (
     build_owned_files_review_pathspecs,
     has_prior_rejection,
@@ -1374,8 +1375,8 @@ def build_implement_prompt_lines(
     lines.append("✓ Implementation complete and tested:")
     lines.append("  1. **Commit your implementation files:**")
     lines.append("     git status  # Check what you changed")
-    lines.append("     git add <your-implementation-files>  # NOT WP status files")
-    lines.append(f'     git commit -m "feat({normalized_wp_id}): <brief description>"')
+    _implement_recipe = safe_commit_recipe(["<your-implementation-files>"], f"feat({normalized_wp_id}): <brief description>", workspace.branch_name)
+    lines.append(f"     {_implement_recipe}  # NOT WP status files")
     lines.append("     git log -1 --oneline  # Verify commit succeeded")
     lines.append("  2. Mark all subtasks as done:")
     lines.append(f"     spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
@@ -1451,8 +1452,8 @@ def build_implement_prompt_lines(
     lines.append("✅ Implementation complete and tested:")
     lines.append("   1. **Commit your implementation files:**")
     lines.append("      git status  # Check what you changed")
-    lines.append("      git add <your-implementation-files>  # NOT WP status files")
-    lines.append(f'      git commit -m "feat({normalized_wp_id}): <brief description>"')
+    _completion_recipe = safe_commit_recipe(["<your-implementation-files>"], f"feat({normalized_wp_id}): <brief description>", workspace.branch_name)
+    lines.append(f"      {_completion_recipe}  # NOT WP status files")
     lines.append("      git log -1 --oneline  # Verify commit succeeded")
     lines.append("      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
     lines.append("   2. Mark all subtasks as done:")
@@ -1511,7 +1512,8 @@ def implement_finalize_and_print(
     print(f"    cat {prompt_file}")
     print()
     print("After implementation, run:")
-    print(f'  1. git status && git add <your-files> && git commit -m "feat({normalized_wp_id}): <description>"')
+    _finalize_recipe = safe_commit_recipe(["<your-files>"], f"feat({normalized_wp_id}): <description>", workspace.branch_name)
+    print(f"  1. git status && {_finalize_recipe}")
     print(f"  2. spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
     print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
     print("     (Pre-flight check will verify no uncommitted changes)")

@@ -157,23 +157,28 @@ const LOG_TAG = "cache-eviction";
 
 ---
 
-## CI Integration
+## CI Integration (opt-in)
 
-Add a Stryker threshold gate to fail CI when mutation score drops below a minimum:
+A Stryker threshold gate that fails CI below a minimum score is a per-project
+**opt-in**, not a shipped default — see the mutation-testing-workflow tactic
+for why a numeric target is a signal, not a goal. A project that opts in
+ships `break: 0` by default (report the score; do not fail the build on it)
+and raises `break` deliberately only once its suite is mature enough that a
+drop is a real regression signal rather than triage noise:
 
 ```json
 {
   "thresholds": {
     "high": 80,
     "low": 60,
-    "break": 60
+    "break": 0
   }
 }
 ```
 
 - `high` — score at or above: green output.
 - `low` — score between `low` and `high`: yellow warning.
-- `break` — score below: non-zero exit code (fails CI).
+- `break` — score below: non-zero exit code (fails CI) — `0` disables the gate.
 
 ```yaml
 # GitHub Actions step
@@ -185,19 +190,11 @@ Add a Stryker threshold gate to fail CI when mutation score drops below a minimu
 
 ## Red Flags
 
-- **Mutation score < 60 %** on a business-logic module — tests don't assert meaningful behaviour.
 - **Many `No Coverage` mutants** — branches never reached by tests.
 - **Survived `??` → `||` mutants** — nullish vs falsy distinction not tested; common source of runtime bugs with `0` or `""` values.
 - **Survived optional-chaining mutants** — `null`/`undefined` path never exercised.
 - **Equivalent mutant inflation above ~10 %** — tests over-specify implementation rather than behaviour.
 
----
-
-## Mutation Score Targets
-
-| Score | Interpretation |
-|-------|---------------|
-| > 90 % | Strong — watch for equivalent mutant inflation |
-| 80–90 % | Good |
-| 60–80 % | Moderate — improvements possible |
-| < 60 % | Structurally weak — tests don't assert behaviour |
+For the mutation-score triage bands (the single owner of that table), see the
+[Mutation Testing Workflow](../tactics/testing/mutation-testing-workflow.tactic.yaml)
+tactic's notes.

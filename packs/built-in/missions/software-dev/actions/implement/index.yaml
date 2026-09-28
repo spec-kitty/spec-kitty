@@ -16,7 +16,6 @@ tactics:
   - acceptance-test-first
   - tdd-red-green-refactor
   - black-box-integration-testing
-  - boring-code-review
   - change-apply-smallest-viable-diff
   - dependency-hygiene
   - focused-function-complexity-check
@@ -35,7 +34,8 @@ paradigms:
   - shared-branch-ci
   - git-flow
   - trunk-based
-styleguides: []
+styleguides:
+  - boring-code-review
 toolguides:
   - efficient-local-tooling
 procedures:

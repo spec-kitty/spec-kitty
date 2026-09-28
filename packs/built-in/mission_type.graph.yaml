@@ -64,9 +64,6 @@ edges:
   target: styleguide:publication-authority
   relation: scope
 - source: mission_type:documentation
-  target: tactic:common-docs-curation
-  relation: scope
-- source: mission_type:documentation
   target: tactic:common-docs-find
   relation: scope
 - source: mission_type:documentation

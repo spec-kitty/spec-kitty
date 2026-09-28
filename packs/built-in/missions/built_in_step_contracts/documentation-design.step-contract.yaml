@@ -22,8 +22,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 001-architectural-integrity-standard
-
+        - DIRECTIVE_001
   - id: architecture_decision
     description: Capture architecture decisions for documentation structure and tooling
     delegates_to:
@@ -47,5 +46,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

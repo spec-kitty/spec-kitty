@@ -7,6 +7,8 @@ purpose: >
   epistemology. Independent investigations converge on a single
   structural fix while each surfaces findings the others structurally
   cannot. Produces one structural intervention, not five point-fixes.
+  The general dispatch/loading/synthesis discipline this tactic specializes
+  to five fixed debugging lenses is the adversarial-squad-deployment procedure.
 steps:
   - title: Verify the bug warrants the budget
     description: >

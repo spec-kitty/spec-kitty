@@ -160,21 +160,13 @@ git checkout -- <file>
 
 ## Red Flags
 
-- **Mutation score < 60 %** on a core business-logic module — tests execute the code but do not assert meaningful outcomes.
 - **Many `No Coverage` mutants** — large branches never reached by any test.
 - **Equivalent mutant inflation above ~10 %** — suspect tests are over-specified for implementation details rather than behaviour.
 - **Sandbox fails immediately** — a test in `runner` depends on files not in `also_copy`; add to `pytest_add_cli_args --ignore=` list.
 
----
-
-## Mutation Score Targets
-
-| Score | Interpretation |
-|-------|---------------|
-| > 90 % | Strong — watch for equivalent mutant inflation |
-| 80–90 % | Good |
-| 60–80 % | Moderate — improvements possible |
-| < 60 % | Structurally weak — tests don't assert behaviour |
+For the mutation-score triage bands (the single owner of that table), see the
+[Mutation Testing Workflow](../tactics/testing/mutation-testing-workflow.tactic.yaml)
+tactic's notes.
 
 ---
 

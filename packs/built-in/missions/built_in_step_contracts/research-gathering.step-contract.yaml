@@ -19,8 +19,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-
+        - DIRECTIVE_010
   - id: collect_sources
     description: Collect, register, and cite research sources; emit source_documented events for the run engine
     delegates_to:
@@ -38,12 +37,11 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-
+        - DIRECTIVE_010
   - id: commit_register
     description: Commit source-register.csv updates with co-author attribution
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

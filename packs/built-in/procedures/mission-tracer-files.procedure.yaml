@@ -66,20 +66,13 @@ anti_patterns:
       actionable tracker items and retrospective inputs.
 notes: |
   These tracer files are optional experiment infrastructure — their absence
-  does not block acceptance. They support the adversarial-squad cadence
-  and post-planning review, but skipping them is not a mission-gate violation.
+  does not block acceptance. They support the adversarial-squad-deployment
+  procedure's point-cuts and post-planning review, but skipping them is not a
+  mission-gate violation.
 
   Lifecycle summary: seed (at mission start) -> append (during implementation)
   -> assess (at mission close). Three files, three phases.
 references:
-  - type: styleguide
-    id: adversarial-squad-cadence
-    reason: >
-      The tracer files (especially tooling-friction and approach entries) are
-      inputs to the post-tasks anti-laziness squad and the post-merge
-      retrospective described by the adversarial-squad cadence. Forward
-      reference: adversarial-squad-cadence styleguide is authored by WP08 of
-      mission doctrine-catfooding-2196-01KWE16N.
   - type: paradigm
     id: brownfield-onboarding
     reason: >

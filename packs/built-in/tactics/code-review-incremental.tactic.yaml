@@ -8,14 +8,36 @@ steps:
   - title: Scan the diff for touched modules
     description: Identify which files and modules are affected. Note the change size.
   - title: Read modified files in full without commenting
-    description: Build a mental model of the change before forming opinions.
-  - title: Summarize the apparent intent
-    description: Write one paragraph describing what the change attempts to accomplish. This anchors all subsequent feedback.
-  - title: Identify risks in priority order
     description: >
-      Evaluate in this sequence: correctness, architectural boundaries,
-      maintainability, unintended side effects. Stop when the change size
+      Apply review-intent-and-risk-first's "read the entire change without
+      commenting" step: build a mental model of the change before forming
+      any opinion.
+    references:
+      - name: Review Intent and Risk First
+        type: tactic
+        id: review-intent-and-risk-first
+        when: Reading the full change set without commenting, before forming any opinion.
+  - title: Summarize the apparent intent
+    description: >
+      Apply review-intent-and-risk-first's intent-summary step: write one
+      paragraph describing what the change attempts to accomplish. This
+      anchors all subsequent feedback.
+    references:
+      - name: Review Intent and Risk First
+        type: tactic
+        id: review-intent-and-risk-first
+        when: Summarizing apparent intent before assessing risk.
+  - title: Identify risks using the intent-first taxonomy
+    description: >
+      Apply review-intent-and-risk-first's risk taxonomy (Correctness,
+      Maintainability, Impact, Misuse) in priority order -- this tactic does
+      not maintain a second, competing taxonomy. Stop when the change size
       does not warrant deeper analysis.
+    references:
+      - name: Review Intent and Risk First
+        type: tactic
+        id: review-intent-and-risk-first
+        when: Categorising risk using its taxonomy instead of a second, competing one.
   - title: Formulate feedback as observations and questions
     description: >
       Use observation language ("I notice...", "This appears to...").

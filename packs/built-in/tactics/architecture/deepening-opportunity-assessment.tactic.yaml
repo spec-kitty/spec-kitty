@@ -60,10 +60,10 @@ references:
     type: tactic
     id: easy-to-change
     when: Use after identifying a candidate to test whether deepening improves future change cost.
-  - name: Locality of Change Assessment
+  - name: Avoid Gold Plating
     type: tactic
-    id: locality-of-change
-    when: Use to require evidence that the added structure solves an observed locality problem.
+    id: avoid-gold-plating
+    when: Use its evidence-gate checklist to require evidence that the added structure solves an observed, real problem.
   - name: Refactoring
     type: procedure
     id: refactoring

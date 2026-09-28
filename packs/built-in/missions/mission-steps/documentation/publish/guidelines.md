@@ -34,7 +34,7 @@ These guidelines govern the release-readiness and handoff standards for the **pu
 
 ## Post-Publish Living-Documentation Sync
 
-- Reference content tied to a code surface enters a **living-documentation contract**: when the surface changes, the docs are updated in the same change set or queued as an explicit gap for the next cycle.
+- Reference content tied to a code surface is subject to **DIRECTIVE_037** (Living Documentation Sync), the single owner of the same-change documentation-update rule; when the update cannot land in the same change, queue it as an explicit gap for the next cycle.
 - How-tos and tutorials enter a **periodic-revalidation contract**: the cadence is recorded in `release.md`. Stale tutorials are worse than missing tutorials.
 - Explanations are revisited when the underlying architecture changes; the design ADRs from this mission are the source for "what changed" comparisons.
 - Surface any unresolved drift to the next iteration's discover and audit phases. The post-publish state is the next mission's input.

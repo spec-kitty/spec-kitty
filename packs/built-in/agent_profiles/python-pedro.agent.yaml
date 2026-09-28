@@ -166,10 +166,12 @@ directive-references:
   - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
-      pip/uv dependency additions and upgrades require official-registry
-      (PyPI) resolution, package freshness visibility, and license/CVE audit
-      before acceptance — apply alongside the dependency-hygiene checklist,
-      never as a silently-skipped default
+      Every pip/uv dependency addition or upgrade is evaluated against the
+      threat-class controls DIRECTIVE_051 names, per the
+      supply-chain-install-safety tactic and the python-supply-chain
+      toolguide's exact commands — never a silently-skipped default. License
+      and CVE audit is a separate dependency-hygiene concern, applied
+      alongside it.
 
 tactic-references:
   - id: test-scaffolding-as-design-smell
@@ -188,5 +190,11 @@ tactic-references:
       Pin direct dependency versions in pyproject.toml/uv.lock, restrict resolution
       to PyPI, audit license compliance, and regenerate the SBOM after any
       dependency change — the pip/uv checks this tactic already covers for Python.
+  - id: supply-chain-install-safety
+    rationale: >
+      Run the checklist, per DIRECTIVE_051, before accepting a new or changed
+      pip/uv dependency, using the python-supply-chain toolguide for exact
+      commands, and record the evidence rather than an aspirational statement
+      of intent.
   - id: tdd-red-green-refactor
     rationale: Core Python red-green-refactor discipline; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).

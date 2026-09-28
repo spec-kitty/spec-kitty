@@ -5,32 +5,35 @@ purpose: >
   Deploy a small, bounded set of profile-loaded subagents in parallel at high-leverage
   review point-cuts so independent doctrine lenses converge on findings no single
   reviewer would catch. Turns review from one perspective into a cheap adversarial
-  panel that resists laziness, accidental-pass, and single-lens blind spots. Optional
-  and charter- or memory-activated — it enriches the flow, it does not gate it.
+  panel that resists laziness, accidental-pass, and single-lens blind spots. This
+  procedure is the single owner of when, why, who, and how — squad size is not a
+  requirement; the numbers are examples of squad types. The point is that different
+  profiles are selected depending on the task at hand. Optional and charter- or
+  memory-activated — it enriches the flow, it does not gate it.
 entry_condition: >
-  A work product has reached a review point-cut (post-spec, post-plan, post-tasks,
-  pre-merge, or an ad-hoc design / decision check) and an independent multi-lens
-  assessment would reduce the risk of a costly miss (split-brain design, fakeable
-  test, missed scope, security gap, duct-tape fix). The orchestrator opts in; nothing
-  forces the squad.
+  A work product has reached a point-cut where an independent multi-lens assessment
+  would reduce the risk of a costly miss (split-brain design, fakeable test, missed
+  scope, security gap, duct-tape fix). The orchestrator opts in; nothing forces the
+  squad.
 exit_condition: >
   Each delegate has returned a structured verdict; the orchestrator has synthesized
   them (and, on a consequential divergence, taken a second opinion or adjudicated from
-  the source); the confirmed, convergent findings are recorded and the decision or
-  remediation is grounded in them.
+  the source); the confirmed findings have been recorded and dispositioned per the
+  findings-disposition contract, and the decision or remediation is grounded in them.
 steps:
   - title: Choose the point-cut and the question
     description: >
-      Identify where in the flow the squad runs — pre-spec investigation, post-planning
-      brownfield check, post-tasks anti-laziness pass, pre-merge architectural sweep, or
-      an ad-hoc decision. State one sharp question the squad must answer.
+      Identify where in the flow the squad runs, from the point-cut list in this
+      procedure's notes (the single owning list — do not restate it elsewhere).
+      State one sharp question the squad must answer.
     actor: agent
-  - title: Select profiles by lens (bounded)
+  - title: Cast profiles for the question
     description: >
-      Pick 3-4 distinct profiles whose lenses are complementary (e.g. architect for
-      structure, debugger for live-evidence and coverage, reviewer for anti-laziness,
-      reducer for duplication, patterns for decomposition). Scale up only for an explicit
-      audit / comprehensive ask. More delegates is not better — distinct lenses are.
+      Choose profiles whose declared focus answers this point-cut's question. Cast
+      distinct lenses over headcount — more delegates is not better, distinct lenses
+      are — and scale the cast to the question, not to a fixed number. Recurrence-only
+      profiles (those whose avoidance-boundary excludes first-occurrence work) are
+      cast only on escalation, and there they run in their squad-delegate mode.
     actor: agent
   - title: Dispatch in parallel, profile-LOADED
     description: >
@@ -43,7 +46,9 @@ steps:
       `packs/built-in/agent_profiles/<id>.agent.yaml`; that degraded fallback can
       diverge because overlays, `specializes_from` lineage, and `enhances`/`overrides`
       semantics are not applied. Each delegate is read-only unless its task is an
-      isolated implementation in its own worktree.
+      isolated implementation in its own worktree. A profile cast on escalation runs in
+      its squad-delegate mode: it answers the squad's question from its own lens
+      directly, as one delegate, without dispatching its own sub-agent swarm.
     actor: agent
   - title: Require structured, non-fakeable output
     description: >
@@ -54,9 +59,9 @@ steps:
     actor: agent
   - title: Match model tier to task difficulty
     description: >
-      Use the stronger model tier for analytical and adversarial lenses and the lighter
-      tier for mechanical or tracker work. Do not burn the top tier on bookkeeping, and
-      do not put the weakest tier on the hardest adversarial lens.
+      Follow the model-task-routing tactic to match model tier to lens difficulty. Do
+      not burn the top tier on bookkeeping, and do not put the weakest tier on the
+      hardest adversarial lens.
     actor: agent
   - title: Synthesize, and get a second opinion on divergence
     description: >
@@ -68,17 +73,20 @@ steps:
     on_failure: >
       If verdicts remain irreconcilable, escalate the decision to the human with the
       competing positions laid out; do not silently pick one.
-  - title: Record the convergent evidence and act
+  - title: Record and disposition every finding, then proceed regardless
     description: >
-      Capture the confirmed findings and the decision they ground — in the artifact, a
-      findings document, or a memory. The squad's value is convergent evidence that
-      survived independent scrutiny, not a single opinion.
+      Capture the confirmed findings and disposition each one per the findings
+      disposition contract (see notes). The squad's value is convergent evidence that
+      survived independent scrutiny, not a single opinion; the squad is advisory, so
+      work proceeds once every finding is recorded and dispositioned.
     actor: agent
 anti_patterns:
   - name: Persona without profile
     description: Naming a persona without loading its agent profile — a persona label is not a lens.
   - name: Unbounded squad
-    description: Dozens of delegates for a question that 3-4 distinct lenses would answer; more delegates is not better.
+    description: Dozens of delegates for a question that a small, distinct set of lenses would answer; more delegates is not better.
+  - name: Casting by habit
+    description: Reusing the same cast regardless of the point-cut's question instead of choosing profiles whose declared focus actually answers it.
   - name: Averaging divergent verdicts
     description: Averaging conflicting verdicts instead of adjudicating from the source or taking a focused second opinion.
   - name: Trusting a biased delegate
@@ -86,24 +94,50 @@ anti_patterns:
   - name: Model-tier mismatch
     description: Top-tier model on mechanical or tracker delegates, or a weak tier on the hardest adversarial lens.
   - name: Hard-wiring the squad as a gate
-    description: Turning the squad into a mission gate; it is an optional, charter- or memory-activated enrichment, never a guard or mission-type change.
+    description: >
+      Turning the squad into a required mission gate instead of optional, charter- or
+      memory-activated enrichment. Bad: a status transition blocked until squad
+      evidence is present, e.g. raising a StatusGateError before a work package can be
+      claimed. Good: the squad runs at the point-cut as guidance and the work proceeds
+      independently of the squad's outcome — the squad enriches, it never blocks.
+  - name: Silently dropped finding
+    description: Recording a finding without a disposition under the findings-disposition contract — every finding must be accepted, changed, or deferred with a rationale, never dropped.
 references:
-  - type: tactic
-    id: five-paradigm-parallel-debugging
-    reason: A squad is the review-side analogue of five-paradigm parallel debugging — independent lenses run concurrently and converge on findings one lens would miss.
   - type: tactic
     id: code-review-incremental
     reason: Each delegate applies structured, observation-first review discipline within its assigned lens.
 notes: |
-  Point-cuts in the SDD flow (all OPTIONAL and charter- or memory-activated; none change
-  the mission type or its guards):
-  - after /spec-kitty.specify  -> pre-spec investigation squad (scope, prior art, live repros)
-  - after /spec-kitty.plan     -> post-planning brownfield squad (foldable issues, split-brain, deprecations)
-  - after /spec-kitty.tasks    -> post-tasks anti-laziness squad (fakeable DoDs, decomposition realism)
-  - before merge               -> architectural-gate / cross-base sweep
-  - ad-hoc decision            -> proponent + adversaries + synthesizer (e.g. delete-vs-migrate)
+  This procedure is the single owner of the squad playbook; the `adversarial-squad`
+  skill is a harness alias that points here for the when, who, and how.
 
-  Invariants: bounded (3-4), profile-LOADED, structured output, model discipline,
-  live-evidence-grounded, second-opinion on divergence. The operational dispatch recipe
-  lives in the authored harness skill 'adversarial-squad' (invocable via its CLI alias);
-  this procedure is the doctrine of WHEN and WHY, the skill is the HOW.
+  Point-cuts (all OPTIONAL and charter- or memory-activated; none change the mission
+  type or its guards): pre-spec (before /spec-kitty.specify), post-spec, post-plan,
+  post-tasks, pre-merge, ad-hoc decision. post-tasks is the highest-value point-cut:
+  finding decomposition gaps before implementation avoids costly mid-WP scope
+  expansions.
+
+  Invariants: distinct lenses over headcount, profile-LOADED, structured output,
+  model discipline per model-task-routing, live-evidence-grounded, second-opinion on
+  divergence, every finding dispositioned, never a mission gate.
+
+  Apply a bounded timebox: keep a squad run to about half an hour of wall-clock
+  delegate time; if a lens needs materially longer, split the question rather
+  than letting the squad run unbounded.
+
+  Findings disposition contract: every finding returned by a delegate gets exactly one
+  disposition, and no finding may be dropped silently.
+  - accepted: the finding is valid and the artifact changed accordingly. Record the
+    evidence location (file/section) where the change landed.
+  - changed: the design was changed in another way that resolves the concern. Record
+    the evidence location where that alternative resolution is captured.
+  - deferred_with_rationale: the finding is valid but deferred. Record the rationale
+    for deferring and where it is tracked (e.g. a Non-Goal or follow-up issue).
+
+  Example casting (examples, not rules):
+  - pre-spec: `planner-priti`, `researcher-robbie`, `architect-alphonso` — is the scope right, what prior art exists, is the defect still live?
+  - post-spec: `reviewer-renata`, `doctrine-daphne` — are the acceptance criteria fakeable; does the spec duplicate an existing authority?
+  - post-plan: `architect-alphonso`, `researcher-robbie`, `randy-reducer` — split-brain, foldable issues, duplication the plan missed?
+  - post-tasks: `reviewer-renata`, `planner-priti`, `implementer-ivan` — fakeable DoDs, undersized or unrealistic work packages?
+  - pre-merge: `reviewer-renata`, `architect-alphonso` — correctness and boundary/overlap on the aggregate diff?
+  - escalation: `debugger-debbie`, `paula-patterns` — only when a defect class has recurred or ownership keeps leaking; each runs in its squad-delegate mode.
+  Typical sizes: two lenses for a small fix, three to five for a governance, contract or API change. These are examples of squad types, not requirements.

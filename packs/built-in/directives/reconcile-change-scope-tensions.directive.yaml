@@ -17,7 +17,9 @@ scope: >
   Applies whenever a change is evaluated against DIRECTIVE_024, DIRECTIVE_025,
   or tactic:change-apply-smallest-viable-diff -- in practice, any code, test,
   or documentation change that must decide how far to extend beyond its
-  stated goal.
+  stated goal. Also applies once DIRECTIVE_052's root-cause diagnosis is
+  complete: DIRECTIVE_052 governs the DEPTH of diagnosis for a fix, never its
+  size, and this directive resolves the SIZE of the resulting remediation.
 procedures:
   - "Start from the smallest viable diff for the stated goal (the tactic):
     identify the minimal file set and the minimal edit within each file
@@ -36,6 +38,18 @@ procedures:
     growing the file set itself."
   - Record the resolution (what was folded in, what was deferred, and why)
     in the task or review context rather than silently picking a side.
+  - "Tidy-first carve-out: an opening campsite-clean performed under Boy
+    Scout Rule's tidy-first / enabler sequencing is a distinct,
+    behavior-preserving step that PRECEDES THE FUNCTIONAL CHANGE, and may
+    legitimately open its own surfaces for that purpose. The resolution
+    order above governs the functional change that follows, not this
+    preparatory step."
+  - "Tie-break: naming, readability, and consistency improvements Boy Scout
+    Rule licenses inside the touched area are not blocked by
+    smallest-viable-diff's minimal-edit guidance -- smallest-viable-diff
+    governs the FILE SET chosen in step 1 and the size of the functional
+    edit, not in-file naming or the minor readability cleanup Boy Scout Rule
+    applies within files already inside that set."
 integrity_rules:
   - Boy Scout Rule cleanup performed under this directive never expands the
     file set chosen by smallest-viable-diff; it only improves files already

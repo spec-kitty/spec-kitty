@@ -32,6 +32,6 @@ references:
     id: DIRECTIVE_030
     when: Generated code must pass the same gates as handwritten code.
   - name: Boring Code Review
-    type: tactic
+    type: styleguide
     id: boring-code-review
     when: Use to remove clever or over-abstracted generated output.

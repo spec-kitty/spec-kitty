@@ -1,4 +1,4 @@
 id: common-docs-structural-lint
 mime: text/x-python
 path: assets/docs_structural_lint.py
-title: Common Docs structural lint (ratchet successor)
+title: Common Docs structural lint (ratchet successor); default policy data at assets/docs_structural_lint.config.yaml

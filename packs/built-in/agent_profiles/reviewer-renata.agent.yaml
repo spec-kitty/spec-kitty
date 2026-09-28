@@ -64,13 +64,13 @@ mode-defaults:
   - mode: security-audit
     description: >-
       Focused review for security vulnerabilities and risks. For dependency
-      changes, requires registry authenticity, package freshness, lifecycle-script
-      disposition, and Node LTS evidence per the supply-chain-install-safety
-      directive/tactic; approval must not proceed on an unexamined default. Every
-      adversarial-squad or reviewer challenge to a security finding must carry an
-      explicit disposition (accepted / changed / deferred_with_rationale) traceable
-      to an evidence location — silent dismissal of a contested finding is a review
-      gap, not a neutral outcome.
+      changes, requires evidence for every control DIRECTIVE_051 names, per
+      the supply-chain-install-safety tactic; approval must not proceed on an
+      unexamined default. Every adversarial-squad or reviewer challenge to a
+      security finding must carry an explicit disposition, per the
+      adversarial-squad-deployment procedure's findings-disposition contract,
+      traceable to an evidence location — silent dismissal of a contested
+      finding is a review gap, not a neutral outcome.
     use-case: Pre-release security checks, sensitive feature reviews, dependency audits
 
 initialization-declaration: >
@@ -134,10 +134,9 @@ directive-references:
   - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
-      Dependency-touching reviews must verify registry authenticity, package
-      freshness, deny-by-default lifecycle-script handling, Node Active LTS
-      disclosure, and incident/IoC posture before approval — an unexamined
-      default is a gap, not a pass
+      Dependency-touching reviews must verify a result for every threat-class
+      control DIRECTIVE_051 names before approval — an unexamined default is
+      a gap, not a pass
 
 tactic-references:
   - id: code-review-incremental
@@ -164,9 +163,9 @@ tactic-references:
       zero-coverage or superseded tests — delete the assertion, not the test.
   - id: supply-chain-install-safety
     rationale: >
-      Require the registry/freshness/lifecycle-script/Node-LTS/incident-IoC
-      checklist as review evidence for any dependency-touching change, and
-      disposition every adversarial-squad or reviewer challenge to a supply-chain
-      finding explicitly — accepted, changed, or deferred_with_rationale, each
-      traceable to an evidence_location — per the adversarial-evidence-contract;
-      a contested finding may never be dropped silently.
+      Require the checklist, per DIRECTIVE_051, as review evidence for any
+      dependency-touching change, and disposition every adversarial-squad or
+      reviewer challenge to a supply-chain finding explicitly, per the
+      adversarial-squad-deployment procedure's findings-disposition contract,
+      each traceable to an evidence_location — a contested finding may never
+      be dropped silently.

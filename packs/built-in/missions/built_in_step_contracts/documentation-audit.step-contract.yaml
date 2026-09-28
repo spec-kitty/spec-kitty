@@ -22,8 +22,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 037-living-documentation-sync
-
+        - DIRECTIVE_037
   - id: identify_gaps
     description: Identify documentation gaps relative to the spec and current code surfaces
     delegates_to:
@@ -40,5 +39,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

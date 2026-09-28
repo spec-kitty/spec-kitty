@@ -64,6 +64,8 @@ collaboration:
     - e2e-tests
     - pull-request
     - implementation-notes
+  operating-procedures:
+    - test-first-bug-fixing
   canonical-verbs:
     - implement
     - fix
@@ -159,30 +161,25 @@ self-review-protocol:
     - name: supply-chain-install-safety
       command: "npm view <package> dist.tarball && npm view <package>@<version> time && node --version"
       gate: >-
-        registry authenticity confirmed, package freshness recorded, no
-        automatic lifecycle-script approval (preinstall/install/postinstall
-        deny-by-default unless explicitly allowlisted with justification), and
-        Node Active LTS skew disclosed with rationale if present — per the
-        supply-chain-install-safety directive/tactic
+        every control DIRECTIVE_051 names is recorded, per the
+        javascript-supply-chain toolguide's exact commands
     - name: locality-review
       gate: only files directly related to the task objective are modified
 
 tactic-references:
-  - id: behavior-driven-development
+  - id: bdd-scenario-formulation
     rationale: BDD scenarios define acceptance criteria for browser components; wire Cucumber-JS/Playwright e2e scenarios as acceptance tests before implementation
-  - id: bug-fixing-checklist
-    rationale: Reproduce browser defects with a failing test before fixing production code
   - id: dependency-hygiene
     rationale: >
-      JS/TS steps cover registry authenticity, package freshness, deny-by-default
-      lifecycle-script handling, lockfile-driven reproducible installs, and Node
-      runtime baseline checks for every npm/yarn/pnpm dependency change (build
-      tooling, component libraries, bundlers).
+      Pin and audit npm/yarn/pnpm dependencies (build tooling, component
+      libraries, bundlers); run the supply-chain-install-safety tactic's
+      checklist alongside these steps for every dependency change.
   - id: supply-chain-install-safety
     rationale: >
-      Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC
-      checklist before accepting a new or changed npm dependency, and record the
-      evidence rather than an aspirational statement of intent.
+      Run the checklist, per DIRECTIVE_051, before accepting a new or changed
+      npm dependency, using the javascript-supply-chain toolguide for exact
+      commands, and record the evidence rather than an aspirational statement
+      of intent.
   - id: tdd-red-green-refactor
     rationale: Drives frontend implementation through red-green-refactor; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
 
@@ -205,7 +202,6 @@ directive-references:
   - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
-      npm/yarn/pnpm dependency changes (component libraries, build tooling)
-      require registry authenticity, package freshness, deny-by-default
-      lifecycle-script handling, and Node Active LTS skew disclosure before they
-      are accepted
+      Every npm/yarn/pnpm dependency change (component libraries, build
+      tooling) is evaluated against the threat-class controls DIRECTIVE_051
+      names before it is accepted

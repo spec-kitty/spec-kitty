@@ -2,7 +2,7 @@
 title: Quality & Tech-Debt Standing Orders
 description: "Eight-section standing orders for spec-driven missions: adversarial squads, campsite cleaning, test discipline, architectural gates, sources, git workflow, and mission hygiene."
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-09-28'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -26,31 +26,20 @@ at the cheapest possible point in the lifecycle.
 
 ## 1. The Adversarial Squad Cadence (the spine)
 
-At **every planning point-cut**, run a bounded, multi-profile adversarial squad
-*before* proceeding to the next phase. This is the single highest-leverage
-practice: it reliably catches undersizing (repeatedly observed at 4–5×) and
-fakeable acceptance criteria while they are still cheap prose, not code.
+Deploy a bounded, profile-loaded adversarial squad at high-leverage review
+point-cuts so independent doctrine lenses converge on findings no single
+reviewer would catch — this is the single highest-leverage practice: it
+reliably catches undersizing (repeatedly observed at 4–5×) and fakeable
+acceptance criteria while they are still cheap prose, not code.
 
-**Where the squads run:**
-
-| Point-cut | Squad focus |
-|-----------|-------------|
-| **Pre-planning** (before a spec) | Related-issues + live code-state check; campsite-fold check (§2) |
-| **Post-spec** | Scope/sizing sanity, completeness |
-| **Post-plan** (before `/tasks`) | Brownfield checks: foldable-issue search, split-brain/dual-authority scan, LOC/sizing, deprecation check — plus a **residual hunt** when a "fixed" claim rests on static reading |
-| **Post-tasks** (before implement) | Anti-laziness pass on the work-package decomposition: verify every cited claim against live code, hunt fakeable Definitions of Done, remediate before a line of code is written |
-
-**Squad playbook (how to run one well):**
-- **Bounded** — a small, deliberate number of agents, one **lens per agent**
-  (architecture, code-truth/debugging, fakeability-review, patterns).
-- **Profile-loaded** — each agent *reads and adopts* its governing doctrine
-  profile (not merely a persona name), so the review carries real directives.
-- **Model discipline** — strongest model for the hard lenses (sizing,
-  fakeability, code-truth); cheaper model for mechanical passes.
-- **One squad per context** — don't reuse a squad across unrelated questions.
-- **Synthesize, then remediate** — fold the findings back into the
-  spec/plan/tasks artifacts *before* moving on; the squad's value is realized
-  only when its findings change the work.
+The `adversarial-squad-deployment` procedure is the single owner of when,
+who, and how — it names the point-cut list, the casting rule (profiles are
+chosen per point-cut question, not by headcount), the model-tier discipline,
+and the findings-disposition contract. In one line: at each point-cut, cast
+the profiles whose declared focus answers that point-cut's specific question,
+dispatch them in parallel, and fold the confirmed findings back into the
+artifact before moving on. See the procedure for the full playbook,
+anti-patterns, and casting examples.
 
 > Real example: the post-tasks squad on a recent mission found a P0 defect was
 > *already half-fixed by a prior merged PR* (the spec had over-scoped from stale

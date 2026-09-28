@@ -53,12 +53,10 @@ activated_tactics:
   - atomic-state-ownership
   - autonomous-operation-protocol
   - avoid-gold-plating
-  - behavior-driven-development
+  - bdd-scenario-formulation
   - black-box-integration-testing
-  - boring-code-review
   - bounded-context-canvas-fill
   - bounded-context-identification
-  - bug-fixing-checklist
   - c4-zoom-in-architecture-documentation
   - chain-of-responsibility-rule-pipeline
   - change-apply-smallest-viable-diff
@@ -88,7 +86,6 @@ activated_tactics:
   - input-validation-fail-fast
   - interface-variation-design
   - language-driven-design
-  - locality-of-change
   - mutation-testing-workflow
   - no-parallel-duplicate-test-runs
   - occurrence-classification-workflow
@@ -125,6 +122,7 @@ activated_tactics:
   - stakeholder-alignment
   - stopping-conditions
   - strategic-domain-classification
+  - supply-chain-install-safety
   - tdd-red-green-refactor
   - terminology-extraction-mapping
   - test-boundaries-by-responsibility
@@ -140,6 +138,7 @@ activated_tactics:
 
 activated_styleguides:
   - aggregate-design-rules
+  - boring-code-review
   - deployable-skill-authoring
   - java-conventions
   - kitty-glossary-writing
@@ -152,11 +151,14 @@ activated_toolguides:
   - contextive
   - efficient-local-tooling
   - git-agent-commit-signing
+  - java-supply-chain
+  - javascript-supply-chain
   - maven-review-checks
   - mermaid-diagramming
   - plantuml-diagramming
   - python-mutation-tools
   - python-review-checks
+  - python-supply-chain
   - typescript-mutation-tools
 
 activated_paradigms:

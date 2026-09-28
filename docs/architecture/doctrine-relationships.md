@@ -2,7 +2,7 @@
 title: 'Doctrine relationships: lineage, delegation, augmentation, and action resolution'
 description: "How Spec Kitty models each DRG relation type — lineage, delegation, augmentation, obligation, scope, and the tension edges — as a typed graph edge, not as artifact fields."
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-28'
 ---
 # Doctrine relationships: lineage, delegation, augmentation, and action resolution
 
@@ -176,7 +176,7 @@ A directional edge from a mission-step action node to the template it produces a
 
 ### Refinement — `refines`
 
-A directional edge: an artifact narrows or sharpens the applicability or meaning of its target (a parent or built-in artifact) without replacing it -- a first-class, traversable relation, never a synonym for ``applies`` or ``specializes_from``. Intended-but-dormant: zero edges exist in the built-in graph today. The org-to-DRG bridge previously downgraded authored ``refines`` edges to ``applies`` silently; that lossy downgrade has been removed, so ``refines`` now survives end-to-end once an author emits one.
+A directional edge: an artifact narrows or sharpens the applicability or meaning of its target (a parent or built-in artifact) without replacing it -- a first-class, traversable relation, never a synonym for ``applies`` or ``specializes_from``. The built-in graph uses it for fixed-lens specialisations: the five-paradigm-parallel-debugging and paula-patterns-architecture-scout-review tactics refine the adversarial-squad-deployment procedure. Charter cascade follows ``refines``; action-context delivery does not. The org-to-DRG bridge previously downgraded authored ``refines`` edges to ``applies`` silently; that lossy downgrade has been removed, so ``refines`` survives end-to-end.
 
 ## Tension vocabulary — `in_tension_with`, `reconciles_tension`, `rejects`
 

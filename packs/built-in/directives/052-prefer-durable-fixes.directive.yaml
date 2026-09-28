@@ -25,7 +25,7 @@ procedures:
   - "The investigation method is mandatory and comes FIRST, before authoring any
     fix. Run these five steps (naturally executed as a profile-loaded
     investigation squad at the pre-spec / post-spec point-cuts — see
-    styleguide:adversarial-squad-cadence and Standing Order #1)."
+    procedure:adversarial-squad-deployment)."
   - "1. Dig for similar tickets. Search the WHOLE tracker (not only the current
     milestone) for same-surface or same-root-cause issues. Identify an existing
     umbrella/epic that the class belongs to, or propose one."

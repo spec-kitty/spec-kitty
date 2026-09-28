@@ -39,7 +39,7 @@ activated_directives:
   - 028-search-tool-discipline
   - 030-test-and-typecheck-quality-gate
 
-# A small, curated subset of foundational built-in tactics.
+# A small, curated subset of foundational built-in tactics. (Boring code
+# review is a styleguide; the scope note above admits every styleguide.)
 activated_tactics:
   - acceptance-test-first
-  - boring-code-review

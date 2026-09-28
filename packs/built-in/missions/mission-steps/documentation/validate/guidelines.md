@@ -28,7 +28,7 @@ These guidelines govern the quality-gate standards for the **validate** phase of
 ## Risk Review Discipline
 
 - Pre-publication risks include drift (code moved, docs did not), unstable examples (the API changes after publish), and audience mismatches (the page targets a reader the discover spec did not promise).
-- Each surfaced risk gets a disposition: accept (with a rationale), mitigate (with the action), or block-publish.
+- Each surfaced risk gets a disposition: accept (with a rationale), mitigate (with the action), or block-publish. This vocabulary maps onto the `adversarial-squad-deployment` procedure's findings-disposition contract: accept -> `accepted`, mitigate -> `changed` (the action taken), block-publish -> `deferred_with_rationale` (deferred back to generate or design with the blocking rationale recorded).
 - Risks that block publish go back to generate or design as appropriate. Validate does not silently downgrade a blocking risk to a warning.
 
 ---

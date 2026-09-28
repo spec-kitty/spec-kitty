@@ -64,8 +64,7 @@ class TestValidateReadyForReview:
         # Check actionable guidance is present
         guidance_text = "\n".join(guidance)
         assert "uncommitted" in guidance_text.lower()
-        assert "git add" in guidance_text
-        assert "git commit" in guidance_text
+        assert "spec-kitty safe-commit" in guidance_text
         assert "research(WP01)" in guidance_text  # Research-specific commit format
 
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
@@ -159,7 +158,7 @@ class TestValidateReadyForReview:
         guidance_text = "\n".join(guidance)
         assert "uncommitted" in guidance_text.lower()
         assert "worktree" in guidance_text.lower()
-        assert "git add" in guidance_text
+        assert "spec-kitty safe-commit" in guidance_text
 
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type")
@@ -295,10 +294,10 @@ class TestMoveTaskPreflightCheck:
             assert any(
                 any(keyword in line.lower() for keyword in ["uncommitted", "staged", "unstaged"]) for line in guidance
             ), f"No uncommitted/staged message in: {guidance}"
-            assert any("git add <deliverable-path-1> <deliverable-path-2>" in line for line in guidance), (
+            assert any("<deliverable-path-1> <deliverable-path-2>" in line for line in guidance), (
                 f"No explicit staging guidance in: {guidance}"
             )
-            assert any("git commit" in line for line in guidance), f"No 'git commit' in: {guidance}"
+            assert any("spec-kitty safe-commit" in line for line in guidance), f"No 'spec-kitty safe-commit' in: {guidance}"
 
     def test_validate_ready_for_review_allows_clean_worktree(self, tmp_path):
         """Verify validation passes when worktree is clean."""

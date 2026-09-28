@@ -3,8 +3,9 @@
 The WP-frontmatter ownership contract is encoded in three independent places that
 historically drifted apart:
 
-1. Doctrine prose — BOTH ``tasks/guidelines.md`` copies (the ``actions/`` runtime
-   copy and the ``mission-steps/`` step-contract copy).
+1. Doctrine prose — ``mission-steps/software-dev/tasks/guidelines.md``, the sole
+   owner of tasks guidelines (#5202; the former ``actions/`` runtime copy was
+   retired and is no longer read by the loader).
 2. The authoring template — ``software-dev/templates/task-prompt-template.md``
    frontmatter, plus (since #3795) the ``documentation`` mission's copy, which
    had drifted and omitted the ownership keys and the REQUIRED profile-load
@@ -17,8 +18,9 @@ path shape: ``owned_files`` must be **repo-root-relative**, never absolute. This
 module is the SSOT ratchet that locks the prose and template to that authority so
 they cannot silently re-diverge:
 
-- A mandatory prose ratchet pins BOTH ``guidelines.md`` copies to repo-root-relative
-  guidance and forbids the literal ``absolute path`` drift vector.
+- A mandatory prose ratchet pins the single-owner ``guidelines.md`` copy to
+  repo-root-relative guidance and forbids the literal ``absolute path`` drift
+  vector.
 - A golden round-trip drives the REAL ownership validator + finalize resolve path
   (read from the on-disk template, not a hand-written fixture): a WP authored with
   repo-relative ``owned_files`` passes; an absolute-path entry fails consistently.
@@ -26,7 +28,6 @@ they cannot silently re-diverge:
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -50,7 +51,6 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 # see tests/doctrine/conftest.py).
 SOFTWARE_DEV_ROOT = BUILT_IN_MISSIONS_ROOT / "software-dev"
 
-GUIDELINES_ACTIONS = SOFTWARE_DEV_ROOT / "actions" / "tasks" / "guidelines.md"
 GUIDELINES_STEPS = (
     BUILT_IN_MISSIONS_ROOT
     / "mission-steps"
@@ -62,8 +62,6 @@ TASK_PROMPT_TEMPLATE = SOFTWARE_DEV_ROOT / "templates" / "task-prompt-template.m
 DOCUMENTATION_TASK_PROMPT_TEMPLATE = (
     BUILT_IN_MISSIONS_ROOT / "documentation" / "templates" / "task-prompt-template.md"
 )
-
-GUIDELINES_COPIES = (GUIDELINES_ACTIONS, GUIDELINES_STEPS)
 
 # Every bundled mission whose WP prompts /spec-kitty.tasks authors from a
 # task-prompt-template.md must declare the same ownership contract (#3795: the
@@ -121,45 +119,24 @@ PROFILE_LOAD_FIELDS = ("agent_profile", "role", "agent")
 # --- T003 step 2: mandatory prose ratchet (pins the doctrine TEXT) ---------------
 
 
-@pytest.mark.parametrize("guidelines_path", GUIDELINES_COPIES, ids=lambda p: p.parent.parent.parent.name)
-def test_guidelines_copy_instructs_repo_root_relative_owned_files(guidelines_path: Path) -> None:
-    """Each ``guidelines.md`` copy must instruct repo-root-relative owned_files.
+def test_guidelines_copy_instructs_repo_root_relative_owned_files() -> None:
+    """The single-owner ``guidelines.md`` must instruct repo-root-relative owned_files.
 
     The validator is repo-root-relative (C-004); the prose must match it and must
     not carry the ``absolute path`` drift vector that contradicts the validator.
+    ``mission-steps/software-dev/tasks/guidelines.md`` is the sole owner (#5202);
+    the former ``actions/`` runtime copy was retired.
     """
-    assert guidelines_path.exists(), f"missing doctrine copy: {guidelines_path}"
-    text = guidelines_path.read_text(encoding="utf-8").lower()
+    assert GUIDELINES_STEPS.exists(), f"missing doctrine copy: {GUIDELINES_STEPS}"
+    text = GUIDELINES_STEPS.read_text(encoding="utf-8").lower()
 
     assert FORBIDDEN_PROSE_TOKEN not in text, (
-        f"{guidelines_path} still instructs '{FORBIDDEN_PROSE_TOKEN}' owned_files — "
+        f"{GUIDELINES_STEPS} still instructs '{FORBIDDEN_PROSE_TOKEN}' owned_files — "
         "this contradicts the repo-root-relative ownership validator (C-004)."
     )
     assert REQUIRED_PROSE_TOKEN in text, (
-        f"{guidelines_path} must instruct '{REQUIRED_PROSE_TOKEN}' owned_files paths "
+        f"{GUIDELINES_STEPS} must instruct '{REQUIRED_PROSE_TOKEN}' owned_files paths "
         "to match the ownership validator."
-    )
-
-
-def test_both_guidelines_copies_share_owned_files_guidance() -> None:
-    """Both copies must carry the same repo-root-relative owned_files guidance line.
-
-    The original defect was two copies drifting apart; pin the shared guidance line
-    so they cannot re-diverge on the owned_files contract.
-    """
-
-    def _owned_files_line(path: Path) -> str:
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if "owned" in line.lower() and "frontmatter" in line.lower():
-                return line.strip()
-        raise AssertionError(f"no owned-files guidance line found in {path}")
-
-    actions_line = _owned_files_line(GUIDELINES_ACTIONS)
-    steps_line = _owned_files_line(GUIDELINES_STEPS)
-    assert actions_line == steps_line, (
-        "owned_files guidance diverges between the two guidelines.md copies:\n"
-        f"  actions:      {actions_line!r}\n"
-        f"  mission-steps:{steps_line!r}"
     )
 
 

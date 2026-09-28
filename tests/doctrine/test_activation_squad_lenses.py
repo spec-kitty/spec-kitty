@@ -1,9 +1,11 @@
 """Red-first regression test for #3810 — activate doctrine-daphne + randy-reducer.
 
 The shipped charter pack's ``activated_agent_profiles`` allowlist must contain
-every profile named as a lens by the canonical adversarial-squad skill.  A
-project seeded from the pack otherwise reaches the profile activation gate and
-cannot load that lens.
+every profile named as a lens by the canonical adversarial-squad-deployment
+procedure's example casting table (the procedure is the single owner of the
+squad's casting; the skill only points to it — see WP04, #5219). A project
+seeded from the pack otherwise reaches the profile activation gate and cannot
+load that lens.
 """
 
 from __future__ import annotations
@@ -24,16 +26,23 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 runner = CliRunner()
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SKILL_PATH = _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "adversarial-squad" / "SKILL.md"
-_LENS_LINE_RE = re.compile(r"^\s*-\s*`([a-z][a-z0-9-]*)`\s*—", re.MULTILINE)
+_PROCEDURE_PATH = _REPO_ROOT / "packs" / "built-in" / "procedures" / "adversarial-squad-deployment.procedure.yaml"
+_CASTING_ANCHOR = "Example casting (examples, not rules):"
+_LENS_LINE_RE = re.compile(r"^\s*-\s*[a-z][a-z-]*\s*:\s*(?P<ids>(?:`[a-z][a-z0-9-]*`,?\s*)+)—", re.MULTILINE)
+_ID_RE = re.compile(r"`([a-z][a-z0-9-]*)`")
 _MISSING_LENSES = frozenset({"doctrine-daphne", "randy-reducer"})
 
 
 def _squad_lens_ids() -> frozenset[str]:
-    """Extract lens profile ids from the skill's canonical lens list."""
-    ids = frozenset(_LENS_LINE_RE.findall(_SKILL_PATH.read_text(encoding="utf-8")))
-    assert ids, f"expected to find lens ids in {_SKILL_PATH}"
-    return ids
+    """Extract lens profile ids from the procedure's example casting table."""
+    text = _PROCEDURE_PATH.read_text(encoding="utf-8")
+    anchor_index = text.index(_CASTING_ANCHOR)
+    tail = text[anchor_index:]
+    ids: set[str] = set()
+    for match in _LENS_LINE_RE.finditer(tail):
+        ids.update(_ID_RE.findall(match.group("ids")))
+    assert ids, f"expected to find lens ids in {_PROCEDURE_PATH}"
+    return frozenset(ids)
 
 
 def _shipped_activated_agent_profiles() -> frozenset[str]:
@@ -42,8 +51,8 @@ def _shipped_activated_agent_profiles() -> frozenset[str]:
     return frozenset(ids)
 
 
-def test_squad_lens_ids_present_in_skill() -> None:
-    """The canonical skill must name the two lenses that exposed #3810."""
+def test_squad_lens_ids_present_in_procedure() -> None:
+    """The canonical procedure must cast the two lenses that exposed #3810."""
     assert _squad_lens_ids() >= _MISSING_LENSES
 
 
@@ -54,9 +63,9 @@ def test_missing_lenses_are_activated_in_shipped_default_pack() -> None:
 
 
 def test_adversarial_squad_lenses_are_subset_of_activated_default_profiles() -> None:
-    """Every lens named by the skill must be activated by the shipped pack."""
+    """Every lens cast by the procedure must be activated by the shipped pack."""
     missing = _squad_lens_ids() - _shipped_activated_agent_profiles()
-    assert not missing, f"adversarial-squad skill names lens(es) absent from the shipped activated_agent_profiles allowlist: {sorted(missing)}"
+    assert not missing, f"adversarial-squad-deployment procedure casts lens(es) absent from the shipped activated_agent_profiles allowlist: {sorted(missing)}"
 
 
 def _write_shipped_default_config(repo_root: Path) -> None:

@@ -18,3 +18,12 @@ summary: >
 directive_refs:
   - DIRECTIVE_034
   - DIRECTIVE_037
+references:
+  - type: tactic
+    id: bdd-scenario-formulation
+  - type: procedure
+    id: bdd-scenario-lifecycle
+  - type: styleguide
+    id: given-when-then-authoring
+  - type: toolguide
+    id: gherkin

@@ -8,104 +8,82 @@ intent: >
   namespace-confused packages, rapid-republish attacks during an active
   incident window) recur across ecosystems faster than any hand-maintained
   list of bad package/version pairs can track. Agents and mission workflows
-  must therefore default to five threat-class controls for every dependency
-  addition or upgrade: (1) official registry authenticity — the resolved
-  package and version must come from the approved official registry, not an
-  unexpected mirror or namespace; (2) package freshness visibility — first-publish
-  and latest-publish/update timestamps must be surfaced so an operator can see
+  must therefore default to five ecosystem-neutral threat-class controls for
+  every dependency addition or upgrade, stated once here, never restated
+  below, and never restated by any other artifact that cites this directive:
+  (1) registry authenticity — the resolved package and version must come
+  from the ecosystem's approved official registry, not an unexpected mirror
+  or namespace; (2) package freshness — first-publish and
+  latest-publish/update timestamps must be surfaced so an operator can see
   when a version is suspiciously new or was substantially reworked; (3)
-  deny-by-default lifecycle-script approval — `preinstall`/`install`/`postinstall`
-  scripts are never auto-approved and must be explicitly allowlisted with a
-  documented justification when required for legitimate native builds; (4)
-  Node Active LTS awareness — the project/runtime Node version is checked
-  against current Active LTS and any skew is explicitly disclosed with
-  rationale, never silently accepted; (5) incident-list and IoC/persistence
-  posture — known active-incident package/version lists and indicator-of-compromise
-  (IoC) or persistence patterns (unexpected postinstall network calls,
-  credential/token exfiltration attempts, self-propagating install scripts)
-  are treated as class-level risk signals to check for, with CAS/vendor
-  incident feeds as the external authority of record — this directive never
-  hardcodes specific incident package names or versions as core truth, because
-  that list changes faster than doctrine can be re-authored.
+  deny-by-default lifecycle-script approval — install-time hook scripts are
+  never auto-approved and must be explicitly allowlisted with a documented
+  justification when required for a legitimate native build; (4)
+  lockfile-driven installs — the ecosystem's lockfile is the source of truth
+  for a reproducible install, and automation uses a frozen/CI install mode so
+  an unreviewed dependency-tree change cannot silently slip in; (5)
+  incident-list and IoC/persistence posture — known active-incident
+  package/version lists and indicator-of-compromise or persistence patterns
+  (unexpected install-script network calls, credential/token exfiltration
+  attempts, self-propagating install behavior) are treated as class-level
+  risk signals to check for, with CAS/vendor incident feeds as the external
+  authority of record — this directive never hardcodes specific incident
+  package names or versions as core truth, because that list changes faster
+  than doctrine can be re-authored. The concrete, per-ecosystem commands and
+  file names for these five controls live in the ecosystem-neutral
+  `supply-chain-install-safety` tactic and the per-ecosystem toolguides it
+  points to (for example the JavaScript/TypeScript and Python toolguides),
+  never in this directive.
 enforcement: required
 scope: >
   Applies whenever a software-dev mission adds, upgrades, or reviews a
   dependency during `plan`, `implement`, or `review`, across any package
-  ecosystem (npm/yarn/pnpm for JavaScript/TypeScript, pip/uv for Python,
-  Maven/Gradle for Java, and others as applicable). It governs the checks an
-  implementer must perform before accepting a new or changed dependency and
-  the evidence a reviewer must require before approving a change that touches
-  the dependency tree. This directive is advisory at the transition-gate level in v1: it
-  does not introduce a new fail-closed transition-gate handler, and workflow
-  wiring must not silently hard-block on it. It DOES require visibility and
-  explicit evidence — silence or an unexamined default is not compliance.
+  ecosystem (JavaScript/TypeScript, Python, Java, and others as applicable).
+  It governs the checks an implementer must perform before accepting a new or
+  changed dependency and the evidence a reviewer must require before
+  approving a change that touches the dependency tree. This directive is
+  advisory at the transition-gate level in v1: it does not introduce a new
+  fail-closed transition-gate handler, and workflow wiring must not silently
+  hard-block on it. It DOES require visibility and explicit evidence —
+  silence or an unexamined default is not compliance.
 procedures:
-  - "Registry authenticity check: before accepting a new or changed dependency,
-    confirm the package and version resolve on the approved official registry
-    (e.g. registry.npmjs.org for npm, PyPI for pip/uv, Maven Central for
-    Java) and not an unexpected mirror, proxy, or typosquatted namespace. If
-    resolution is ambiguous or points somewhere unexpected, stop and require
-    explicit operator attention rather than proceeding silently."
-  - "Package freshness signal: surface first-publish and latest-publish/update
-    timestamps for the resolved version as part of the dependency decision.
-    A package or version published very recently, especially during a known
-    active incident window, is a risk signal that must be visible to the
-    operator and acknowledged, not silently accepted."
-  - "Lifecycle script approval discipline: treat `preinstall`/`install`/`postinstall`
-    (and ecosystem equivalents) as deny-by-default. Never enable automatic
-    execution of lifecycle scripts for a new or changed dependency. When a
-    legitimate native build genuinely requires a lifecycle script, require an
-    explicit, documented allowlist entry with the justification recorded —
-    blanket script enablement is never an acceptable substitute for a scoped
-    allowlist."
-  - "Node Active LTS awareness and skew disclosure: check the project's
-    declared/runtime Node version against the current Active LTS line. If the
-    project runs a non-LTS or outdated Node version, that is elevated risk
-    that must be explicitly disclosed with a documented business rationale —
-    it may be acceptable, but never silently."
-  - "Incident-list and IoC/persistence posture: check newly added or upgraded
-    packages against current CAS/vendor supply-chain incident feeds (the
-    external authority of record for active incidents) and watch for
-    class-level indicators of compromise — unexpected network calls from
-    install scripts, credential or token exfiltration attempts, or
-    self-propagating (worm-style) install behavior. This directive encodes
-    the threat classes to check for; it does not embed a static list of
-    incident package names/versions as core doctrine (no live external
-    denylist sync in core)."
+  - "Run the ecosystem-neutral `supply-chain-install-safety` tactic's
+    checklist for every dependency addition, upgrade, or review, using the
+    ecosystem toolguide it references (for example JavaScript/TypeScript or
+    Python) for the exact commands and file names."
   - "Record evidence, not just a pass/fail impression: implementer and
-    reviewer outputs must capture what was checked (registry, freshness,
-    scripts, Node LTS, incident/IoC posture) and the resulting decision, so a
+    reviewer outputs must capture what was checked and the resulting
+    decision for each of the five threat-class controls in `intent`, so a
     later reviewer or operator does not have to re-derive the analysis."
 integrity_rules:
-  - "A dependency resolving to an unexpected registry, mirror, or namespace
-    must never be silently accepted; it requires explicit operator attention
-    before the change proceeds."
-  - "Lifecycle scripts are never auto-approved. A lifecycle script may only run
-    when explicitly allowlisted with a recorded justification — blanket
-    enablement (e.g. globally disabling script safety) is a violation of this
-    directive, not a valid workaround."
-  - "Node LTS skew must never be silently accepted; a non-LTS or outdated Node
-    baseline requires an explicit, documented rationale even when the project
-    has legitimate business reasons to run it."
-  - "This directive must remain threat-class based. Hardcoding specific
-    incident package names or version numbers as core doctrine truth is
-    prohibited — cite CAS/vendor incident lists as the external authority
-    instead."
+  - "None of the five threat-class controls stated in `intent` may be
+    silently skipped; an unexamined default is a gap in evidence, not a
+    pass."
+  - "An adverse result from any control in `intent` (an unexpected registry
+    or namespace, a suspiciously new or reworked version, an
+    un-allowlisted install-time hook, lockfile drift, or an active-incident
+    match) is never silently accepted; it requires explicit operator
+    acknowledgment before the change proceeds."
+  - "Blanket enablement of install-time hook scripts is a violation of this
+    directive, not a valid workaround, even when it unblocks one
+    dependency's legitimate native build."
+  - "This directive must remain threat-class based. Hardcoding a specific
+    incident package name or version number as core doctrine truth is
+    prohibited — cite the CAS/vendor incident feed consulted instead."
   - "This directive does not introduce a new fail-closed transition-gate
-    handler in v1. Workflow wiring that consumes this
-    directive must keep it advisory at the gate level while still requiring
-    explicit visibility and evidence — omitting the check entirely is not an
-    acceptable interpretation of 'advisory'."
+    handler in v1. Workflow wiring that consumes this directive must keep it
+    advisory at the gate level while still requiring explicit visibility and
+    evidence — omitting the check entirely is not an acceptable
+    interpretation of 'advisory'."
 validation_criteria:
   - "Software-dev mission guidance for plan/implement/review references this
-    directive (directly or via the supply-chain-install-safety tactic) for
+    directive (directly or via the `supply-chain-install-safety` tactic) for
     any change that adds, upgrades, or removes a dependency."
-  - "Implementer and reviewer evidence for a dependency change documents
-    registry authenticity, freshness, lifecycle-script disposition, Node LTS
-    posture, and incident/IoC posture — an unexamined default is treated as a
-    gap, not a pass."
-  - "No dependency change is accepted with an unreviewed non-default lifecycle
-    script or an unacknowledged Node LTS skew."
+  - "Implementer and reviewer evidence for a dependency change documents a
+    result for every control named in `intent` — an unexamined default is
+    treated as a gap, not a pass."
+  - "No dependency change is accepted with an unreviewed non-default
+    install-time hook script or an unacknowledged reproducibility gap."
   - "No hardcoded incident-specific package name/version list is introduced
     into this directive as core truth; CAS/vendor incident feeds remain the
     external authority referenced."

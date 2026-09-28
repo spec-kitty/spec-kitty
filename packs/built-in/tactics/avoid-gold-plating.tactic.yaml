@@ -14,6 +14,21 @@ references:
     when: >
       After confirming the design is not gold-plated, use easy-to-change to verify
       that the simpler design still supports anticipated future change.
+  - name: Reconciling Change-Scope Tensions
+    type: directive
+    id: RECONCILE_CHANGE_SCOPE_TENSIONS
+    when: >
+      Once this tactic's evidence gate accepts an added complexity, the SIZE
+      of the resulting change is a separate scope decision reconciled
+      through this directive.
+  - name: Locality of Change
+    type: directive
+    id: DIRECTIVE_024
+    when: This tactic is the practical application protocol for Directive 024; use the directive for policy, this tactic for evaluation procedure
+  - name: Architectural Integrity Standard
+    type: directive
+    id: DIRECTIVE_001
+    when: Proposed changes that expand architectural scope must pass the integrity standard check
 steps:
   - title: Identify abstractions and generalisations introduced
     description: >
@@ -45,3 +60,25 @@ steps:
       Confirm the stripped-back design still meets all current requirements and
       adheres to the project's minimum clean-code bar (readability, naming,
       test coverage). Avoiding gold plating is not a licence to skip quality.
+  - title: Apply the evidence-gate checklist before accepting added complexity
+    description: >
+      This is the single threshold this tactic owns for accepting an
+      abstraction or generalisation beyond what current requirements demand;
+      other tactics reference it rather than restating their own bar.
+      Proceed with the added complexity only if 5+ of these 7 apply:
+      (1) Can you point to 3+ real instances where the current, simpler
+      approach failed? (2) Have you quantified the impact? (3) Have you
+      evaluated "do nothing" as an option? (4) Have you explored simpler
+      alternatives first? (5) Does the change preserve or enhance core
+      architectural values? (6) Are you not prescribing too early? (7) Does
+      the change achieve significant value at proportional cost? Record the
+      accept/reject decision together with the do-nothing baseline and the
+      alternatives considered, documented per DIRECTIVE_003 (decision
+      documentation), which the review action delivers. An added complexity that conflicts with an
+      existing ADR must propose to supersede that ADR or be rejected. Apply
+      this gate to small additions too, not only large ones.
+    examples:
+      - "5/7 checks apply: 4 real failures logged, impact quantified, do-nothing evaluated and rejected, simpler alternatives explored, and the change preserves architectural values -- proceed."
+      - "Only 2/7 checks apply and there is no evidence of 3+ real failures -- defer the abstraction and note it in a design note instead."
+failure_modes:
+  - "Complexity creep — each small addition looks reasonable in isolation, but the cumulative effect degrades simplicity; apply this gate to small changes too."

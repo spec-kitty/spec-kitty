@@ -11,7 +11,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
+from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 from specify_cli.analysis_report import write_analysis_report
 from specify_cli.cli.commands.agent import workflow
@@ -704,10 +704,35 @@ def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -
     content = prompt_file.read_text(encoding="utf-8")
     assert "WHEN YOU'RE DONE:" in content
     assert "1. **Commit your implementation files:**" in content
-    assert "git add" in content
-    assert "git commit" in content
+    assert "spec-kitty safe-commit" in content
     assert "feat(WP01):" in content or "fix(WP01):" in content
     assert "git log -1" in content
+
+
+def test_implement_prompt_and_finalize_summary_name_lane_branch_in_to_branch(workflow_repo: Path) -> None:
+    """WP03 review (cycle 1, #2): every printed ``safe-commit`` recipe in the
+    implement prompt -- both ``build_implement_prompt_lines``'s "WHEN YOU'RE
+    DONE:" footer (written to the prompt file) and
+    ``implement_finalize_and_print``'s stdout summary -- must name
+    ``--to-branch`` with the LANE branch (``workspace.branch_name``), never
+    the mission's merge target branch (``"main"`` here). A regression that
+    reverts either site to the target branch fails this assertion.
+    """
+    wp_path, mission_slug = _setup_implement_fixture(workflow_repo)
+    expected_branch = lane_branch_name(mission_slug)
+    assert expected_branch != "main"
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    prompt_file = _prompt_path_from_output(result.stdout)
+    content = prompt_file.read_text(encoding="utf-8")
+    assert f"--to-branch {expected_branch}" in content
+    # implement_finalize_and_print's own recipe, printed to stdout.
+    assert f"--to-branch {expected_branch}" in result.stdout
 
 
 def test_implement_prompt_includes_commit_message_conventions(workflow_repo: Path) -> None:

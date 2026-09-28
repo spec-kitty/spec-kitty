@@ -22,15 +22,13 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 037-living-documentation-sync
-
+        - DIRECTIVE_037
   - id: validate_acceptance_fidelity
     description: Validate the accepted documentation baseline against the mission specification and publish handoff
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-
+        - DIRECTIVE_010
   - id: acceptance_decision
     description: Record whether the documentation mission is accepted or blocked for follow-up work
     delegates_to:
@@ -43,5 +41,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

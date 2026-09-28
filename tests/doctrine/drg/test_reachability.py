@@ -101,7 +101,7 @@ _NORMALIZATION_DELTA = 31
 #: ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` (edges 2/3) is reachable at BOTH
 #: depths, so it leaves both ``_ACTION_UNREACHABLE_D1`` and ``_D2`` and does not
 #: enter the spread. See the wiring-table ledger for the per-member accounting.
-_ACTION_D1_D2_SPREAD = 20
+_ACTION_D1_D2_SPREAD = 23
 
 # ---------------------------------------------------------------------------
 # WP03 SUPERSEDING NOTE (mission ``doctrine-delivery-activation-01KYQVQK``)
@@ -147,7 +147,6 @@ _COMMON_DOCS_WIRED: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_042",
         "styleguide:common-docs",
-        "tactic:common-docs-curation",
         "tactic:common-docs-find",
         "tactic:common-docs-scaffold",
         "tactic:common-docs-write",
@@ -273,6 +272,32 @@ _TESTING_BDD_MUTATION_WIRED: frozenset[str] = (
 #: reachability DEFERRED set stays at 50 -- no artefact leaves it. See
 #: ``docs/plans/doctrine/delivery-reachability-wiring-table.md`` (Family E).
 
+# ---------------------------------------------------------------------------
+# Mission squad-doctrine-single-owner-01M3KBP7 (WP09) ledger for the pins below.
+# Measured with the canonical helpers on the regenerated graph, BASE dccf6aa7 vs
+# HEAD, against this repository's activation store:
+#   action reach d=1 148 -> 149, d=2 167 -> 170, profile 188 -> 191. The only
+#   members any channel LOST are the eight retired ids (no longer nodes).
+#   * Retired ids leave every pin: styleguide:adversarial-squad-cadence (D1),
+#     tactic:boring-code-review and tactic:locality-of-change (profile), and
+#     tactic:common-docs-curation (``_COMMON_DOCS_WIRED``; its lint-asset edge
+#     moved to common-docs-write).
+#   * ``styleguide:quadruple-a-test-format`` leaves D2 (stays in D1) and so
+#     leaves ``_PROFILE_RESCUES``: testing-principles now names it by id and
+#     DIRECTIVE_030 --suggests--> testing-principles --> quadruple-a is a
+#     2-hop chain, reached at the bootstrap depth only.
+#   * ``directive:DIRECTIVE_044`` leaves D2 (stays in D1) and so leaves
+#     ``_PROFILE_RESCUES``: procedure:test-first-bug-fixing (implement-scoped)
+#     --suggests--> DIRECTIVE_052 --suggests--> DIRECTIVE_044.
+#   * ``procedure:disciplined-defect-diagnosis`` and
+#     ``tactic:testing-select-appropriate-level`` leave ``_PROFILE_UNREACHABLE``:
+#     the four profiles that cite test-first-bug-fixing through
+#     ``operating-procedures`` now reach its new diagnosis hand-off edge.
+#   * ``_ACTION_D1_D2_SPREAD`` 20 -> 23: quadruple-a, DIRECTIVE_044 and
+#     tactic:model-task-routing (squad procedure --suggests--> it) are reached at
+#     d=2 only; DIRECTIVE_052 is reached at both depths.
+# ---------------------------------------------------------------------------
+
 #: Activated artefacts (node form) NOT reachable via the action channel at
 #: d=1 (compact/steady-state). Membership, not cardinality (R-4).
 _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
@@ -290,7 +315,6 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "procedure:drill-down-documentation",
         "procedure:event-storming-discovery",
         "procedure:migrate-project-guidance-to-spec-kitty-charter",
-        "styleguide:adversarial-squad-cadence",
         # ``deployable-skill-authoring`` stays action-unreachable at BOTH depths
         # (and profile-unreachable). Mission kind-complete-cascade-orphan-wiring
         # -01M0FQCD (WP02, #3009 residual) records it *direct-activation-only*: it
@@ -405,7 +429,6 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "directive:DIRECTIVE_035",
         "directive:DIRECTIVE_038",
         "directive:DIRECTIVE_039",
-        "directive:DIRECTIVE_044",
         "paradigm:atomic-design",
         "paradigm:c4-incremental-detail-modeling",
         "paradigm:structured-prompt-driven-development",
@@ -464,7 +487,6 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "styleguide:plain-language",
         "styleguide:professional-communications",
         "styleguide:publication-authority",
-        "styleguide:quadruple-a-test-format",
         "styleguide:research-citation-discipline",
         "tactic:dialectic-research",
         "tactic:writing-audience-catalog",
@@ -544,7 +566,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "paradigm:atomic-design",
         "paradigm:deep-module-design",
         "paradigm:structured-prompt-driven-development",
-        "procedure:disciplined-defect-diagnosis",
         "procedure:documentation-gap-prioritization",
         "procedure:domain-aware-decision-interview",
         "procedure:issue-triage-state-machine",
@@ -558,7 +579,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:atomic-design-review-checklist",
         "tactic:atomic-state-ownership",
         "tactic:avoid-gold-plating",
-        "tactic:boring-code-review",
         "tactic:chain-of-responsibility-rule-pipeline",
         # common-docs-{curation,find,scaffold,write} dropped — see the
         # DIRECTIVE_047 note above; the cluster is now profile-reachable.
@@ -570,7 +590,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:focused-function-complexity-check",
         "tactic:generated-code-stewardship",
         "tactic:interface-variation-design",
-        "tactic:locality-of-change",
         "tactic:reasons-canvas-fill",
         "tactic:reasons-canvas-review",
         "tactic:refactoring-change-function-declaration",
@@ -586,7 +605,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:reference-architectural-patterns",
         "tactic:requirements-validation-workflow",
         "tactic:secure-regex-catastrophic-backtracking",
-        "tactic:testing-select-appropriate-level",
         "toolguide:git-agent-commit-signing",
         "toolguide:maven-review-checks",
         # Writing-comms/diagramming activation (commit 9a99801f1, #3009): ten of
@@ -663,7 +681,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
 #: finding it.
 _PROFILE_RESCUES: frozenset[str] = frozenset(
     {
-        "directive:DIRECTIVE_044",
         "paradigm:c4-incremental-detail-modeling",
         "procedure:drill-down-documentation",
         "procedure:event-storming-discovery",
@@ -691,7 +708,8 @@ _PROFILE_RESCUES: frozenset[str] = frozenset(
         # below):
         #   DIRECTIVE_047, DIRECTIVE_048  <- agent_profile:scribe-sally
         #   DIRECTIVE_049, DIRECTIVE_050  <- agent_profile:minutes-maker-mahad
-        #   quadruple-a-test-format       <- generic-agent -> DIRECTIVE_041 (suggests)
+        #   (quadruple-a-test-format left: action-d2-reachable since WP09 of
+        #   squad-doctrine-single-owner-01M3KBP7, see the ledger above)
         #   writing-audience-catalog      <- agent_profile:comms-cleo
         #   USE_C4_MODEL_TECHNIQUES       <- agent_profile:diagram-daisy (requires)
         "directive:DIRECTIVE_047",
@@ -699,7 +717,6 @@ _PROFILE_RESCUES: frozenset[str] = frozenset(
         "directive:DIRECTIVE_049",
         "directive:DIRECTIVE_050",
         "directive:USE_C4_MODEL_TECHNIQUES",
-        "styleguide:quadruple-a-test-format",
         "tactic:writing-audience-catalog",
     }
 )
@@ -848,7 +865,11 @@ class TestActionChannelReachability:
         # intended delivery (see ``_WIRED_THIS_MISSION``), not a regression —
         # the assertion below now pins the opposite of the old one.
         assert "tactic:mutation-testing-workflow" in r_d2
-        assert "styleguide:quadruple-a-test-format" not in r_d2
+        # Quad-A is delivered at the bootstrap depth since mission
+        # squad-doctrine-single-owner-01M3KBP7 (WP09) wired testing-principles to
+        # it by id (the inline copy was trimmed); it is not a d=1 member.
+        assert "styleguide:quadruple-a-test-format" in r_d2
+        assert "styleguide:quadruple-a-test-format" not in r_d1
 
 
 @pytest.mark.doctrine

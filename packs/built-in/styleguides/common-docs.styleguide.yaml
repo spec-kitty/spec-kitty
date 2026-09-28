@@ -13,7 +13,7 @@ principles:
   - "Audience is named via a resolvable audience: path. Every documentation page touched by a change declares its target reader through an audience: frontmatter field — one resolvable repo-relative .md path (or a list of paths) targeting a persona under docs/context/audience/. This is the machine-checkable form of DIRECTIVE_047's audience-oriented-writing rule. The field is required on touched pages only and is deliberately NOT added to frontmatter_required_fields, so untouched legacy pages are never red-lined for lacking it (C-012)."
   - "ADRs live under adr/<era>/ with YAML frontmatter. Architecture Decision Records are filed under adr/1.x/, adr/2.x/, or adr/3.x/ by era of decision and carry YAML frontmatter so the docsite can index them. The living architectural design collapses into a single unversioned architecture/ location."
   - "Naming is kebab-case and section-scoped. Documentation file and directory names are lowercase kebab-case; ADR filenames keep their dated prefix; one concern per file."
-  - "Curate by delete-stale. docs/ is not a wiki: one concern per file, every behaviour-changing change updates the relevant docs in the same commit, and stale or deprecated documents are distilled into a decision (adr/) or design (architecture/) and then retired rather than accumulating."
+  - "Curate by delete-stale. docs/ is not a wiki: one concern per file; DIRECTIVE_037 (Living Documentation Sync) owns the same-change documentation-update rule; stale or deprecated documents are distilled into a decision (adr/) or design (architecture/) and then retired rather than accumulating."
 
 patterns:
   - name: doc_status namespacing
@@ -95,10 +95,10 @@ anti_patterns:
 # check that enforces it. Zero rows carry check = none — that is what makes this
 # styleguide a checkable artifact rather than narrative.
 tooling:
-  structure-single-root-13-section: "the common-docs-structural-lint doctrine asset (the structural lint shipped with this pack) — the durable successor to the retired ratchet. Its shadow_tree_basename check asserts no shared non-nav content basename across section subtrees; its self-test also asserts DIRECTIVE_042 resolves to a loaded directive. The single-root / all-13-sections-present structure itself remains subject to periodic bulk curation and review, not a per-PR mechanical count."
+  structure-single-root-section: "the common-docs-structural-lint doctrine asset (the structural lint shipped with this pack) — the durable successor to the retired ratchet. Its shadow_tree_basename check asserts no shared non-nav content basename across section subtrees; its self-test also asserts DIRECTIVE_042 resolves to a loaded directive. The single-root / all-sections-present structure itself remains subject to periodic bulk curation and review, not a per-PR mechanical count."
   adr-era-layout: "the common-docs-structural-lint doctrine asset (the structural lint shipped with this pack) — its point_in_time_placement check allowlists adr/** (era-dated ADRs) so ADRs resolve under adr/<era>/ without churn; the living architecture/ being unversioned is maintained by periodic bulk curation and review."
   naming-kebab-case: "Maintained by periodic bulk curation and review (the retired per-PR docs ratchet asserted this mechanically; the common-docs-structural-lint doctrine asset does not currently assert kebab-case naming)."
-  curation-delete-stale: "Maintained by periodic bulk curation and review; the common-docs-structural-lint doctrine asset's shadow_tree_basename and point_in_time_placement checks catch two concrete drift classes (duplicated non-nav basenames and misplaced dated/point-in-time files) but curation itself remains a review-time practice."
+  curation-delete-stale: "Maintained by periodic bulk curation and review; the common-docs-structural-lint doctrine asset's shadow_tree_basename and point_in_time_placement checks catch two concrete drift classes (duplicated non-nav basenames and misplaced dated/point-in-time files) but curation itself remains a review-time practice, per DIRECTIVE_037's same-change discipline."
   frontmatter-doc-status: "The page-inventory lockfile freshness gate reads frontmatter REPORT-ONLY (it regenerates the rollup FROM frontmatter and reds on drift). It does not yet assert the doc_status controlled vocabulary or reject a bare status key."
   frontmatter-ssot-lockfile: "The page-inventory lockfile freshness gate (asserts the rollup is regenerated FROM frontmatter and the committed lockfile is in sync)."
   frontmatter-seo-description: "The page-inventory lockfile freshness gate (asserts every description is 50-180 characters)."
@@ -119,100 +119,20 @@ quality_test: >
   are read REPORT-ONLY); and the related: path validator resolves every
   cross-reference.
 
-# Machine-parseable policy store the docs structural lint LOADS as its single
-# source of truth. The common-docs-structural-lint doctrine asset reads this
-# exact block — the wrapper key structural_lint_config: is a pinned interface
-# contract with that asset; do not rename it without updating the lint. Plain
-# YAML scalars/lists only — no anchors, no custom tags.
-#
-# This is a repository-agnostic DEFAULT. A project that needs different
-# sections, allowlists or exclusions keeps its own styleguide carrying a
-# structural_lint_config: block and points the lint at it (--styleguide PATH or
-# SPEC_KITTY_STYLEGUIDE).
-structural_lint_config:
-  # Sections whose index.md is checked for completeness (index_completeness).
-  # All other section indexes are landing pages and are exempt.
-  curated_complete_sections:
-    - architecture
-  # Concern-bucket -> canonical section home. how_to routing is audience-based:
-  # contributor/maintainer how-tos go to development/, user-facing how-tos go to
-  # guides/. The lint loads this as a flat dict[str, str].
-  concern_bucket_to_section:
-    how_to_internal: development/
-    how_to_external: guides/
-    reference_policy: development/
-    point_in_time: plans/engineering-notes/
-    ops_runbook: operations/
-    generated_report: reports/
-    generated_nav: pinned
-  # Dated-filename patterns identifying a point-in-time document
-  # (point_in_time_placement). Regex, matched against the file basename.
-  point_in_time_patterns:
-    - "^\\d{4}-\\d{2}"
-  # Frontmatter signals that a file self-declares point-in-time/closeout even
-  # when its basename does not match point_in_time_patterns.
-  point_in_time_markers:
-    - frontmatter_field: doc_status
-      frontmatter_value: point_in_time
-    - frontmatter_field: doc_status
-      frontmatter_value: closeout
-  # Path globs exempt from point_in_time_placement.
-  point_in_time_allowlist:
-    - "adr/**"
-    - "plans/**"
-  # Frontmatter fields every in-scope page must carry (frontmatter_contract).
-  frontmatter_required_fields:
-    - doc_status
-    - updated
-  # Pages excluded from frontmatter_required_fields: section README.md landing
-  # pages, and ADRs (DIRECTIVE_042: ADR frontmatter uses the MADR `status`).
-  frontmatter_in_scope_exclusions:
-    - "**/README.md"
-    - "adr/**"
-  # Basenames exempt from shadow_tree_basename (navigation scaffolding).
-  shadow_tree_nav_exemptions:
-    - index.md
-    - README.md
-    - toc.yml
-  # A page whose frontmatter `description` begins with this prefix is a redirect
-  # stub kept at a pre-move location; shadow_tree_basename skips it.
-  redirect_stub_description_prefix: "Redirect stub:"
-  # Guides-section boundary, consistent with the audience-based how_to routing.
-  guides_boundary: "docs/guides/ is the canonical home for user-facing (external-audience) how-tos only; internal-audience (contributor/maintainer) how_to content and all reference_policy content route to development/."
-  # The sanctioned content sections under docs/ (the 13-section structure).
-  sanctioned_content_sections:
-    - index
-    - context
-    - architecture
-    - adr
-    - plans
-    - api
-    - configuration
-    - integrations
-    - security
-    - guides
-    - operations
-    - migrations
-    - changelog
-  # Sanctioned non-content directories under docs/ (assets/templates zones).
-  non_content_dirs:
-    - "assets/"
-    - "templates/"
-  # Documentation-bearing files permitted at the repository root.
-  root_allowlist:
-    - README.md
-    - LICENSE
-    - CHANGELOG.md
-    - CONTRIBUTING.md
-    - CODE_OF_CONDUCT.md
-    - SECURITY.md
-    - AGENTS.md
-  # When true, a directory carries at most one index/landing page (index.md).
-  one_index_per_dir: true
+# The machine-parseable structural_lint_config:
+# policy block that used to live here has moved to the lint asset's own data
+# file, packs/built-in/assets/docs_structural_lint.config.yaml — owned by
+# the lint asset, not by this styleguide. The loader contract is unchanged
+# (the pinned wrapper key structural_lint_config: still resolves through
+# --styleguide PATH / SPEC_KITTY_STYLEGUIDE); only the file the BUILT-IN
+# DEFAULT is loaded from has moved. A project that needs a different policy
+# keeps its own styleguide or data file carrying that block, as this
+# repository's own packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml
+# already does (unaffected by this move).
 
 references:
   - packs/built-in/directives/042-common-docs.directive.yaml
-  - packs/built-in/tactics/common-docs-curation.tactic.yaml
   - packs/built-in/tactics/common-docs-scaffold.tactic.yaml
   - packs/built-in/tactics/common-docs-write.tactic.yaml
   - packs/built-in/tactics/common-docs-find.tactic.yaml
+  - packs/built-in/assets/docs_structural_lint.config.yaml

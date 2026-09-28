@@ -1,0 +1,24 @@
+schema_version: "1.0"
+id: python-supply-chain
+tool: python-supply-chain-stack
+title: Python Supply-Chain Install Safety
+guide_path: packs/built-in/toolguides/PYTHON_SUPPLY_CHAIN.md
+applies_to_languages:
+  - python
+summary: >
+  Ecosystem-specific commands and file names for the Python pip/uv/poetry
+  stack: lockfile-driven reproducible installs, hash pinning, and index
+  pinning. This guide carries the mechanics; the
+  `supply-chain-install-safety` tactic (ecosystem-neutral) owns the checklist
+  shape and the evidence a reviewer requires.
+commands:
+  - uv lock
+  - uv sync --locked
+  - uv pip compile --generate-hashes
+  - pip install --require-hashes
+  - poetry lock
+  - poetry sync
+last_updated: "2026-09-28"
+references:
+  - DIRECTIVE_051
+  - supply-chain-install-safety

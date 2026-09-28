@@ -47,24 +47,18 @@ nodes:
 - urn: tactic:avoid-gold-plating
   kind: tactic
   label: Avoid Gold Plating
-- urn: tactic:behavior-driven-development
+- urn: tactic:bdd-scenario-formulation
   kind: tactic
-  label: Behavior-Driven Development
+  label: BDD Scenario Formulation
 - urn: tactic:black-box-integration-testing
   kind: tactic
   label: Black-Box Integration Testing
-- urn: tactic:boring-code-review
-  kind: tactic
-  label: Boring Code Review
 - urn: tactic:bounded-context-canvas-fill
   kind: tactic
   label: Bounded Context Canvas Fill
 - urn: tactic:bounded-context-identification
   kind: tactic
   label: Bounded Context Identification
-- urn: tactic:bug-fixing-checklist
-  kind: tactic
-  label: Test-First Bug Fixing Checklist
 - urn: tactic:c4-zoom-in-architecture-documentation
   kind: tactic
   label: C4 Zoom-In Architecture Documentation
@@ -86,9 +80,6 @@ nodes:
 - urn: tactic:code-review-incremental
   kind: tactic
   label: Incremental Code Review
-- urn: tactic:common-docs-curation
-  kind: tactic
-  label: Common Docs Curation
 - urn: tactic:common-docs-find
   kind: tactic
   label: Common Docs Find
@@ -176,15 +167,9 @@ nodes:
 - urn: tactic:interface-variation-design
   kind: tactic
   label: Interface Variation Design
-- urn: tactic:iterative-deepening-review
-  kind: tactic
-  label: Iterative-Deepening Review
 - urn: tactic:language-driven-design
   kind: tactic
   label: Language-Driven Design
-- urn: tactic:locality-of-change
-  kind: tactic
-  label: Locality of Change Assessment
 - urn: tactic:model-task-routing
   kind: tactic
   label: Model Task Routing
@@ -505,29 +490,56 @@ edges:
   relation: suggests
   when: Progress stalls or an unexpected blocker is encountered during autonomous work.
 - source: tactic:avoid-gold-plating
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Proposed changes that expand architectural scope must pass the integrity standard check
+- source: tactic:avoid-gold-plating
+  target: directive:DIRECTIVE_024
+  relation: suggests
+  when: This tactic is the practical application protocol for Directive 024; use the directive for policy, this tactic for evaluation procedure
+- source: tactic:avoid-gold-plating
+  target: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
+  relation: suggests
+  when: Once this tactic's evidence gate accepts an added complexity, the SIZE of the resulting change is a separate scope decision reconciled through this directive.
+- source: tactic:avoid-gold-plating
   target: tactic:easy-to-change
   relation: suggests
   when: After confirming the design is not gold-plated, use easy-to-change to verify that the simpler design still supports anticipated future change.
-- source: tactic:behavior-driven-development
+- source: tactic:bdd-scenario-formulation
   target: directive:DIRECTIVE_034
   relation: suggests
   when: BDD scenarios become the failing acceptance tests in the test-first cycle
-- source: tactic:behavior-driven-development
+- source: tactic:bdd-scenario-formulation
   target: paradigm:behaviour-driven-development
   relation: suggests
   when: For the philosophical and collaborative framing of BDD — Discovery/Formulation/Automation cycle, Three Amigos practice
-- source: tactic:behavior-driven-development
+- source: tactic:bdd-scenario-formulation
   target: procedure:bdd-scenario-lifecycle
   relation: suggests
   when: After scenarios are written in Given/When/Then, use this procedure to wire them to executable tests and maintain them as living documentation
-- source: tactic:behavior-driven-development
+- source: tactic:bdd-scenario-formulation
+  target: styleguide:given-when-then-authoring
+  relation: requires
+- source: tactic:bdd-scenario-formulation
+  target: styleguide:given-when-then-authoring
+  relation: suggests
+  when: Author each scenario's Given/When/Then steps per this styleguide's conventions
+- source: tactic:bdd-scenario-formulation
+  target: styleguide:test-desiderata-and-boundaries
+  relation: suggests
+  when: A passing BDD suite should be Inspiring — it should give confidence to ship
+- source: tactic:bdd-scenario-formulation
   target: styleguide:testing-principles
   relation: suggests
-  when: BDD scenarios should satisfy the Inspiring and Exemplary test desiderata
-- source: tactic:behavior-driven-development
+  when: BDD scenarios should be Exemplary — the best usage example of the production code they exercise
+- source: tactic:bdd-scenario-formulation
   target: tactic:acceptance-test-first
   relation: suggests
   when: BDD provides the scenario format; ATDD provides the workflow for writing those scenarios before implementation
+- source: tactic:bdd-scenario-formulation
+  target: toolguide:gherkin
+  relation: suggests
+  when: Express the formulated scenarios in the Gherkin DSL (Feature / Scenario / Given-When-Then / Examples)
 - source: tactic:black-box-integration-testing
   target: directive:DIRECTIVE_030
   relation: suggests
@@ -544,14 +556,6 @@ edges:
   target: tactic:test-boundaries-by-responsibility
   relation: suggests
   when: Use this tactic first to select which components are inside vs. outside the responsibility boundary before applying black-box integration testing.
-- source: tactic:boring-code-review
-  target: tactic:avoid-gold-plating
-  relation: suggests
-  when: Use when a proposed abstraction is speculative rather than justified by current complexity.
-- source: tactic:boring-code-review
-  target: tactic:easy-to-change
-  relation: suggests
-  when: Use after simplifying a design to verify that the simpler form still supports expected change.
 - source: tactic:bounded-context-canvas-fill
   target: tactic:aggregate-boundary-design
   relation: suggests
@@ -592,14 +596,6 @@ edges:
   target: tactic:language-driven-design
   relation: suggests
   when: Detecting linguistic conflicts that signal a bounded context boundary.
-- source: tactic:bug-fixing-checklist
-  target: directive:DIRECTIVE_030
-  relation: suggests
-  when: The full test suite must pass before a fix is considered complete
-- source: tactic:bug-fixing-checklist
-  target: directive:DIRECTIVE_034
-  relation: suggests
-  when: Bug fixing is a test-first activity; the reproduction test is the failing test in the red-green cycle
 - source: tactic:c4-zoom-in-architecture-documentation
   target: directive:DIRECTIVE_001
   relation: suggests
@@ -663,18 +659,6 @@ edges:
   target: tactic:review-intent-and-risk-first
   relation: suggests
   when: Applying the intent-first review philosophy that this tactic adds incremental discipline to
-- source: tactic:common-docs-curation
-  target: asset:common-docs-structural-lint
-  relation: requires
-  reason: The common-docs curation tactic directs the agent to run the structural lint as one of the live gates; activating the tactic requires the shipped lint asset.
-- source: tactic:common-docs-curation
-  target: directive:DIRECTIVE_042
-  relation: suggests
-  when: Consult throughout placement, frontmatter authoring, and ADR migration to apply the binding documentation rules.
-- source: tactic:common-docs-curation
-  target: styleguide:common-docs
-  relation: suggests
-  when: Consult while authoring frontmatter, naming files, and writing cross-references to apply the rule-to-check conventions.
 - source: tactic:common-docs-find
   target: directive:DIRECTIVE_042
   relation: suggests
@@ -690,11 +674,15 @@ edges:
 - source: tactic:common-docs-scaffold
   target: directive:DIRECTIVE_042
   relation: suggests
-  when: Consult while choosing the section and path to apply the single-root, 13-section, doc_status placement rules.
+  when: Consult while choosing the section and path to apply the single-root, section-structure, doc_status placement rules.
 - source: tactic:common-docs-scaffold
   target: styleguide:common-docs
   relation: suggests
   when: Consult while seeding frontmatter and naming the file to apply the schema, kebab-case naming, and section-index conventions.
+- source: tactic:common-docs-write
+  target: asset:common-docs-structural-lint
+  relation: requires
+  reason: The common-docs write tactic's run-the-live-gates step directs the agent to run the structural lint before handoff; activating the tactic requires the shipped lint asset.
 - source: tactic:common-docs-write
   target: directive:DIRECTIVE_042
   relation: suggests
@@ -748,13 +736,13 @@ edges:
   relation: suggests
   when: Use when the selected deepening is an internal behavior-preserving restructuring.
 - source: tactic:deepening-opportunity-assessment
+  target: tactic:avoid-gold-plating
+  relation: suggests
+  when: Use its evidence-gate checklist to require evidence that the added structure solves an observed, real problem.
+- source: tactic:deepening-opportunity-assessment
   target: tactic:easy-to-change
   relation: suggests
   when: Use after identifying a candidate to test whether deepening improves future change cost.
-- source: tactic:deepening-opportunity-assessment
-  target: tactic:locality-of-change
-  relation: suggests
-  when: Use to require evidence that the added structure solves an observed locality problem.
 - source: tactic:delete-the-assertion-not-the-test
   target: tactic:acceptance-test-first
   relation: suggests
@@ -774,7 +762,7 @@ edges:
 - source: tactic:dependency-hygiene
   target: directive:DIRECTIVE_051
   relation: suggests
-  when: JS/TS dependency additions or upgrades require the full registry/freshness/script/Node-LTS/incident posture defined by this directive
+  when: Every dependency addition or upgrade, in any ecosystem, is also bound by this directive's install-time threat-class controls
 - source: tactic:dependency-hygiene
   target: tactic:secure-design-checklist
   relation: suggests
@@ -782,15 +770,15 @@ edges:
 - source: tactic:dependency-hygiene
   target: tactic:supply-chain-install-safety
   relation: suggests
-  when: Use this tactic's concrete checklist to execute and record evidence for the JS/TS supply-chain checks introduced here
+  when: Run this tactic's ecosystem-neutral checklist (and its per-ecosystem toolguide) alongside these version-pinning/SBOM steps for every dependency change
 - source: tactic:development-bdd
   target: procedure:example-mapping-workshop
   relation: suggests
-  when: Use to collaboratively validate and refine the behavioral contracts with stakeholders
+  when: Use to collaboratively validate and refine the behavioral contracts with stakeholders — the Discovery phase this tactic's contracts build on
 - source: tactic:development-bdd
-  target: tactic:behavior-driven-development
+  target: tactic:bdd-scenario-formulation
   relation: suggests
-  when: Use this tactic to translate the behavioral contracts into executable Given/When/Then scenarios
+  when: Use this tactic to translate the behavioral contracts into executable Given/When/Then scenarios — the Formulation phase that follows
 - source: tactic:dialectic-research
   target: tactic:bounded-context-identification
   relation: suggests
@@ -799,6 +787,10 @@ edges:
   target: tactic:premortem-risk-identification
   relation: suggests
   when: The adversarial pass benefits from imagining concrete ways the claim fails.
+- source: tactic:easy-to-change
+  target: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
+  relation: suggests
+  when: Once a recommended structural intervention is accepted, the SIZE of the resulting change is a separate scope decision reconciled through this directive.
 - source: tactic:entity-value-object-classification
   target: tactic:language-driven-design
   relation: suggests
@@ -807,6 +799,9 @@ edges:
   target: directive:DIRECTIVE_040
   relation: suggests
   when: When a bug class has recurred and reactive PRs have not stopped the chain, this directive REQUIRES a structural intervention rather than another point fix
+- source: tactic:five-paradigm-parallel-debugging
+  target: procedure:adversarial-squad-deployment
+  relation: refines
 - source: tactic:five-paradigm-parallel-debugging
   target: tactic:code-review-incremental
   relation: suggests
@@ -884,7 +879,7 @@ edges:
   relation: suggests
   when: Acceptance tests are the canonical behavioral tests that function-over-form produces
 - source: tactic:function-over-form-testing
-  target: tactic:behavior-driven-development
+  target: tactic:bdd-scenario-formulation
   relation: suggests
   when: BDD scenarios express the observable outcomes that function-over-form tests should validate
 - source: tactic:generated-code-stewardship
@@ -892,7 +887,7 @@ edges:
   relation: suggests
   when: Generated code must pass the same gates as handwritten code.
 - source: tactic:generated-code-stewardship
-  target: tactic:boring-code-review
+  target: styleguide:boring-code-review
   relation: suggests
   when: Use to remove clever or over-abstracted generated output.
 - source: tactic:glossary-curation-interview
@@ -919,26 +914,6 @@ edges:
   target: tactic:traceable-decisions
   relation: suggests
   when: Record the selected interface when the trade-off is durable and non-obvious.
-- source: tactic:iterative-deepening-review
-  target: procedure:tracker-organisation-workflow
-  relation: suggests
-  when: Sequencing the tracker-wide organisation sweep into widening rings.
-- source: tactic:iterative-deepening-review
-  target: tactic:moscow-scoping-lens
-  relation: suggests
-  when: Scoping what an emergent epic must, should, could, or won't carry once a ring surfaces it.
-- source: tactic:locality-of-change
-  target: directive:DIRECTIVE_001
-  relation: suggests
-  when: Proposed changes that expand architectural scope must pass the integrity standard check
-- source: tactic:locality-of-change
-  target: directive:DIRECTIVE_003
-  relation: suggests
-  when: The rationale for accepting or rejecting a change must be documented per the decision documentation requirement
-- source: tactic:locality-of-change
-  target: directive:DIRECTIVE_024
-  relation: suggests
-  when: This tactic is the practical application protocol for Directive 024; use the directive for policy, this tactic for evaluation procedure
 - source: tactic:model-task-routing
   target: directive:DIRECTIVE_044
   relation: suggests
@@ -947,10 +922,6 @@ edges:
   target: tactic:autonomous-operation-protocol
   relation: suggests
   when: Consult alongside this tactic when delegating work to a subagent — model routing decides *which* model runs the delegated work; the autonomous operation protocol decides *how* that agent should behave once dispatched.
-- source: tactic:moscow-scoping-lens
-  target: procedure:tracker-organisation-workflow
-  relation: suggests
-  when: Scoping which slices a functional epic or bucket commits to in a cut, alongside the per-ticket priority labels that workflow enforces.
 - source: tactic:mutation-testing-workflow
   target: toolguide:python-mutation-tools
   relation: suggests
@@ -974,6 +945,9 @@ edges:
   target: directive:DIRECTIVE_032
   relation: suggests
   when: Scout findings reveal language drift or confused ownership concepts.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: procedure:adversarial-squad-deployment
+  relation: refines
 - source: tactic:paula-patterns-architecture-scout-review
   target: tactic:anti-corruption-layer
   relation: suggests
@@ -1229,7 +1203,19 @@ edges:
 - source: tactic:supply-chain-install-safety
   target: tactic:secure-design-checklist
   relation: suggests
-  when: Supply-chain install safety is a specialization of Fail-Safe Defaults (deny by default) applied to dependency lifecycle scripts
+  when: Supply-chain install safety is a specialization of Fail-Safe Defaults (deny by default) applied to dependency install-time hook scripts
+- source: tactic:supply-chain-install-safety
+  target: toolguide:java-supply-chain
+  relation: suggests
+  when: Use for the exact ecosystem commands and file names behind this checklist's steps in a Java project
+- source: tactic:supply-chain-install-safety
+  target: toolguide:javascript-supply-chain
+  relation: suggests
+  when: Use for the exact ecosystem commands and file names behind this checklist's steps in a JavaScript/TypeScript project
+- source: tactic:supply-chain-install-safety
+  target: toolguide:python-supply-chain
+  relation: suggests
+  when: Use for the exact ecosystem commands and file names behind this checklist's steps in a Python project
 - source: tactic:terminology-extraction-mapping
   target: paradigm:brownfield-onboarding
   relation: suggests
@@ -1270,7 +1256,7 @@ edges:
   relation: suggests
   when: Test minimisation applies after a test-first cycle has produced coverage — never use it to avoid writing tests
 - source: tactic:test-readability-clarity-check
-  target: tactic:behavior-driven-development
+  target: tactic:bdd-scenario-formulation
   relation: suggests
   when: BDD scenarios are the highest-readability form of test; use BDD if reconstruction consistently fails
 - source: tactic:test-readability-clarity-check
@@ -1294,9 +1280,13 @@ edges:
   relation: suggests
   when: Test-first discipline is a prerequisite for the test suite to serve as a living specification
 - source: tactic:test-to-system-reconstruction
+  target: styleguide:test-desiderata-and-boundaries
+  relation: suggests
+  when: The Inspiring desideratum defines the confidence-to-ship bar a reconstruction-worthy test suite must clear
+- source: tactic:test-to-system-reconstruction
   target: styleguide:testing-principles
   relation: suggests
-  when: Inspiring and Exemplary test desiderata define what a reconstruction-worthy test suite looks like
+  when: The Exemplary desideratum defines what a reconstruction-worthy test suite looks like
 - source: tactic:test-to-system-reconstruction
   target: tactic:acceptance-test-first
   relation: suggests

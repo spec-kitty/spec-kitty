@@ -19,8 +19,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-
+        - DIRECTIVE_010
   - id: synthesize_findings
     description: Synthesize documented evidence into findings; trace each conclusion to source rows
     delegates_to:
@@ -38,8 +37,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 003-decision-documentation-requirement
-
+        - DIRECTIVE_003
   - id: write_findings
     description: Write findings.md to kitty-specs/{mission_slug}/
     command: "Write findings.md in kitty-specs/{mission_slug}/"
@@ -49,5 +47,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

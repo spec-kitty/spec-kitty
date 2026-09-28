@@ -48,11 +48,23 @@ steps:
     examples:
       - "Renaming Open_Dashboard.md to open-dashboard.md to satisfy kebab-case naming."
       - "Flipping doc_status: draft -> active and bumping updated: when the page is finalised."
+  - title: Run the live gates before handoff
+    description: >
+      Verify compliance against the live gates rather than asserting it in
+      prose: the DRG freshness gate (spec-kitty doctrine regenerate-graph
+      --check) so the doctrine graph stays in sync, then the documentation
+      gates — the related: path validator, the page-inventory lockfile
+      freshness gate, and the common-docs-structural-lint doctrine asset.
+      Treat any red gate as a blocker, not a note for a later pass.
+    examples:
+      - "spec-kitty doctrine regenerate-graph --check returns exit 0 (DRG fresh) before handoff."
+      - "docs_structural_lint is green: index completeness for curated-complete sections, no shared non-nav content basename across sections, and DIRECTIVE_042 resolves to a loaded directive."
 failure_modes:
   - "The description is shorter than 50 or longer than 180 characters and the lockfile freshness gate rejects it."
   - "A cross-reference is written in prose or as citation_refs instead of a resolvable related: path, so no gate can verify it."
   - "A related: entry points at a path that does not resolve and the validator fails."
   - "A how-to and a design rationale are merged into one file, breaking the one-concern-per-file and Divio-type conventions."
+  - "Compliance is asserted in prose without running the related-path validator, the lockfile freshness gate, or docs_structural_lint."
 references:
   - name: Common Docs Styleguide
     type: styleguide

@@ -1,0 +1,26 @@
+schema_version: "1.0"
+id: java-supply-chain
+tool: java-supply-chain-stack
+title: Java Supply-Chain Install Safety
+guide_path: packs/built-in/toolguides/JAVA_SUPPLY_CHAIN.md
+applies_to_languages:
+  - java
+summary: >
+  Ecosystem-specific commands and file names for the Java Maven/Gradle
+  stack: Maven Central resolution, checksum verification against the
+  serving repository (Maven) or against committed hashes (Gradle), and
+  Gradle's lockfile-driven reproducible installs. This guide carries the
+  mechanics; the `supply-chain-install-safety` tactic (ecosystem-neutral)
+  owns the checklist shape and the evidence a reviewer requires. Grounded in
+  the existing Java profile guidance for Maven Central resolution and
+  transitive-CVE exclusion, which this guide extends to the full five-control
+  checklist.
+commands:
+  - mvn dependency:tree
+  - mvn -C dependency:resolve
+  - gradle --write-verification-metadata sha256 help
+  - gradle dependencies --write-locks
+last_updated: "2026-09-28"
+references:
+  - DIRECTIVE_051
+  - supply-chain-install-safety

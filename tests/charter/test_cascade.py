@@ -823,11 +823,43 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(fresh
 #: WILL move as doctrine grows -- that is expected; a diff here is a prompt to
 #: re-verify the new total, not a regression by itself.
 _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
-    "documentation": 44,
-    "research": 110,
+    "documentation": 129,
+    "research": 118,
     "software-dev": 165,
-    "plan": 147,
+    "plan": 137,
 }
+#: Mission squad-doctrine-single-owner-01M3KBP7 (WP09), measured with
+#: ``cascade_activation_targets`` on the regenerated graph; re-measured on
+#: integrating main at BASE be286caa (after #5258 below, which moved only
+#: ``plan`` and ``software-dev``), so the arrows start from those totals:
+#:
+#: * every type loses the retired ids it reached (adversarial-squad-cadence,
+#:   behavior-driven-development, bug-fixing-checklist, locality-of-change,
+#:   boring-code-review as a tactic, common-docs-curation, and the two ids that
+#:   moved to packs/internal) and gains their successors where reached
+#:   (bdd-scenario-formulation, the boring-code-review styleguide);
+#: * the squad procedure now ``suggests`` model-task-routing, and
+#:   test-first-bug-fixing ``suggests`` DIRECTIVE_052 (-> DIRECTIVE_044 ->
+#:   canonical-source-unification), which every type that reaches them gains;
+#: * ``documentation`` 44 -> 129: it reaches
+#:   ``tactic:paula-patterns-architecture-scout-review``, whose new curated
+#:   ``refines`` edge to ``procedure:adversarial-squad-deployment`` is followed
+#:   by cascade (by design -- FR-012: refines is a cascade relation, not a
+#:   delivery relation), so the procedure's closure (+85) joins; lost only
+#:   common-docs-curation (its successors were already reached);
+#: * ``plan`` 147 -> 137 (-12 / +2): ``procedure:tracker-organisation-workflow``
+#:   moved to packs/internal, and with it the only plan path to
+#:   issue-triage-state-machine and its requires closure (test-first-bug-fixing,
+#:   disciplined-defect-diagnosis, requirements-validation-workflow,
+#:   testing-select-appropriate-level) -- and so also DIRECTIVE_052, which
+#:   #5258 made plan-reachable only through disciplined-defect-diagnosis (its
+#:   five outbound targets stay reached by other paths, e.g. the squad
+#:   procedure); plus the five retired ids plan reached; gains
+#:   avoid-gold-plating and bdd-scenario-formulation;
+#: * ``research`` 110 -> 118 (-2 / +10): the swaps above plus the closures of
+#:   model-task-routing and DIRECTIVE_044 (canonical-source-unification);
+#: * ``software-dev`` 165 -> 165: five retired ids out, their two successors
+#:   and the three supply-chain toolguides in.
 #: The built-in tactic ``acceptance-criteria-non-vacuity`` sits downstream of
 #: ``tactic:usage-examples-sync`` (already scoped to every governance-bearing
 #: mission type) via a forward step-level reference from

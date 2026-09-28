@@ -23,6 +23,12 @@ nodes:
 - urn: toolguide:github-tracker
   kind: toolguide
   label: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
+- urn: toolguide:java-supply-chain
+  kind: toolguide
+  label: Java Supply-Chain Install Safety
+- urn: toolguide:javascript-supply-chain
+  kind: toolguide
+  label: JavaScript/TypeScript Supply-Chain Install Safety
 - urn: toolguide:maven-review-checks
   kind: toolguide
   label: Maven Review Checks
@@ -41,6 +47,9 @@ nodes:
 - urn: toolguide:python-review-checks
   kind: toolguide
   label: Python Review Checks
+- urn: toolguide:python-supply-chain
+  kind: toolguide
+  label: Python Supply-Chain Install Safety
 - urn: toolguide:sonar
   kind: toolguide
   label: SonarQube Static Analysis and Quality Gate

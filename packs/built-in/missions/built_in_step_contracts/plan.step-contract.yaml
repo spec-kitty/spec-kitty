@@ -19,8 +19,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-
+        - DIRECTIVE_010
   - id: design_architecture
     description: Design the implementation architecture and component breakdown
     delegates_to:
@@ -34,15 +33,13 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 003-decision-documentation-requirement
-
+        - DIRECTIVE_003
   - id: supply_chain_security_check
     description: >
-      Surface install-time and dependency supply-chain risk (registry
-      authenticity, package freshness, lifecycle-script discipline, Node
-      Active LTS awareness, incident/IoC posture) for any dependency the
-      plan introduces or upgrades. Advisory in v1: visibility and evidence
-      are required, but this step does not gate the transition.
+      Surface install-time and dependency supply-chain risk, per
+      DIRECTIVE_051 and the supply-chain-install-safety tactic, for any
+      dependency the plan introduces or upgrades. Advisory in v1: visibility
+      and evidence are required, but this step does not gate the transition.
     delegates_to:
       kind: tactic
       candidates:
@@ -57,5 +54,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

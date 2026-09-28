@@ -42,6 +42,7 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from specify_cli.workspace.context import ResolvedWorkspace
 
+from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.commands.agent.tasks_dependency_graph import (
     _count_behind_commits_outside_planning_artifacts,
 )
@@ -383,11 +384,17 @@ def _validate_research_artifacts(
     guidance.append("")
     guidance.append(f"Commit these files before moving to {target_lane}.")
     guidance.append(f"  cd {main_repo_root}")
-    guidance.append(f"  git add kitty-specs/{mission_slug}/")
-    if mission_type == MISSION_TYPE_RESEARCH:
-        guidance.append(f'  git commit -m "research({wp_id}): <describe your research outputs>"')
-    else:
-        guidance.append(f'  git commit -m "docs({wp_id}): <describe your changes>"')
+    _research_message = f"research({wp_id}): <describe your research outputs>"
+    _docs_message = f"docs({wp_id}): <describe your changes>"
+    _commit_message = _research_message if mission_type == MISSION_TYPE_RESEARCH else _docs_message
+    # FR-018 (WP03 review cycle 1, #1): name --to-branch, resolved from
+    # main_repo_root's own checked-out branch (the planning-artifact
+    # destination) -- one extra git call on this error-guidance path is
+    # acceptable.
+    from specify_cli.core.git_ops import get_current_branch as _get_branch_for_research
+
+    _research_branch = _get_branch_for_research(main_repo_root)
+    guidance.append(f"  {safe_commit_recipe([f'kitty-specs/{mission_slug}/'], _commit_message, _research_branch)}")
     guidance.append("")
     guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
     return guidance
@@ -584,8 +591,15 @@ def _check_uncommitted_worktree_changes(
     guidance.append("")
     guidance.append("Commit your work first:")
     guidance.append(f"  cd {worktree_path}")
-    guidance.append("  git add <deliverable-path-1> <deliverable-path-2> ...")
-    guidance.append(f'  git commit -m "feat({wp_id}): <describe implementation>"')
+    # FR-018 (WP03 review cycle 1, #1): name --to-branch, resolved from
+    # worktree_path's own checked-out branch.
+    from specify_cli.core.git_ops import get_current_branch as _get_branch_for_deliverable
+
+    _deliverable_branch = _get_branch_for_deliverable(worktree_path)
+    _deliverable_recipe = safe_commit_recipe(
+        ["<deliverable-path-1>", "<deliverable-path-2>", "..."], f"feat({wp_id}): <describe implementation>", _deliverable_branch
+    )
+    guidance.append(f"  {_deliverable_recipe}")
     guidance.append("")
     guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
     return guidance
@@ -614,8 +628,15 @@ def _check_implementation_commit_present(
     guidance.append("  2. Or verify work is complete (use --force if nothing to commit)")
     guidance.append("")
     guidance.append(f"  cd {worktree_path}")
-    guidance.append("  git add <deliverable-path-1> <deliverable-path-2> ...")
-    guidance.append(f'  git commit -m "feat({wp_id}): <describe implementation>"')
+    # FR-018 (WP03 review cycle 1, #1): name --to-branch, resolved from
+    # worktree_path's own checked-out branch.
+    from specify_cli.core.git_ops import get_current_branch as _get_branch_for_commit_present
+
+    _no_commit_branch = _get_branch_for_commit_present(worktree_path)
+    _deliverable_recipe = safe_commit_recipe(
+        ["<deliverable-path-1>", "<deliverable-path-2>", "..."], f"feat({wp_id}): <describe implementation>", _no_commit_branch
+    )
+    guidance.append(f"  {_deliverable_recipe}")
     guidance.append("")
     guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
     return guidance
@@ -709,7 +730,17 @@ def _check_kitty_specs_contamination(
     guidance.append(f"Clean the branch before moving to {target_lane}:")
     guidance.append(f"  cd {worktree_path}")
     guidance.append(f"  git restore --source {_guard_base} --staged --worktree -- {KITTY_SPECS_DIR}/")
-    guidance.append('  git commit -m "chore: remove planning artifacts from lane branch"')
+    # FR-018 (WP03 review cycle 1, #1): --to-branch must name worktree_path's
+    # OWN checked-out branch, resolved here with one extra git call -- never
+    # check_branch/_guard_base, which is the comparison BASE this lane
+    # diverges from, not the destination the commit must land on. Naming
+    # check_branch would print a recipe safe-commit's own HEAD-match guard
+    # then refuses to run.
+    from specify_cli.core.git_ops import get_current_branch as _get_branch_for_cleanup
+
+    _cleanup_branch = _get_branch_for_cleanup(worktree_path)
+    _cleanup_recipe = safe_commit_recipe([f"{KITTY_SPECS_DIR}/"], "chore: remove planning artifacts from lane branch", _cleanup_branch)
+    guidance.append(f"  {_cleanup_recipe}")
     guidance.append("")
     guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
     return guidance

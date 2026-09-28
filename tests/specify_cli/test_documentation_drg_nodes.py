@@ -79,7 +79,6 @@ _SLUG_TO_URN: dict[str, str] = {
     # entries, needed by ``_type_grain_urns`` -- these never appear in an
     # action bundle's own index.yaml (FR-013 forbids the duplication), only
     # in the type-grain exclusion set used by test_action_bundle_matches_drg_edges.
-    "common-docs-curation": "tactic:common-docs-curation",
     "common-docs-find": "tactic:common-docs-find",
     "common-docs-scaffold": "tactic:common-docs-scaffold",
     "common-docs-write": "tactic:common-docs-write",

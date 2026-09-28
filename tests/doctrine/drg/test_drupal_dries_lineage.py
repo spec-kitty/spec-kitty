@@ -42,7 +42,10 @@ _EXPECTED_TACTIC_TARGETS = (
     "tactic:dependency-hygiene",
     "tactic:tdd-red-green-refactor",
     "tactic:supply-chain-install-safety",
-    "tactic:bug-fixing-checklist",
+    # The retired bug-fixing-checklist tactic folded into this procedure (mission
+    # squad-doctrine-single-owner-01M3KBP7); dries now cites it through
+    # ``operating-procedures``, which mints the same ``requires`` edge.
+    "procedure:test-first-bug-fixing",
 )
 
 # C-002: endpoint form is ``<kind>:<id>`` where kind is a real NodeKind member.

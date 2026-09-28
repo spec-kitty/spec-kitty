@@ -38,11 +38,10 @@ steps:
 
   - id: supply_chain_security_check
     description: >
-      Run the supply-chain install-safety checklist (registry authenticity,
-      package freshness, deny-by-default lifecycle scripts, Node Active LTS
-      awareness, incident/IoC posture) for any dependency added or changed
-      during implementation, before the standard quality gate. Advisory in
-      v1: evidence is required, but this step does not gate the transition.
+      Run the supply-chain-install-safety tactic's checklist, per
+      DIRECTIVE_051, for any dependency added or changed during
+      implementation, before the standard quality gate. Advisory in v1:
+      evidence is required, but this step does not gate the transition.
     delegates_to:
       kind: tactic
       candidates:
@@ -53,15 +52,14 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 030-test-and-typecheck-quality-gate
-
+        - DIRECTIVE_030
   - id: commit
     description: Commit changes with co-author attribution
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033
     guidance: >
       Use conventional commit format. Include WP ID in commit scope.
 

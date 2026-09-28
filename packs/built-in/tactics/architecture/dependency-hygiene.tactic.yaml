@@ -7,11 +7,11 @@ purpose: >
   licenses. Apply at project creation, when adding any dependency, and as part of
   regular pre-release maintenance. Apply when: starting a new project, adding or
   upgrading any dependency, a vulnerability scanner reports new CVEs, or preparing
-  a release. For JavaScript/TypeScript projects specifically, dependency hygiene
-  also covers install-time supply-chain safety (registry authenticity, package
-  freshness, lifecycle-script discipline, lockfile behavior, and Node runtime
-  baseline) per the supply-chain-install-safety directive and tactic — see the
-  JS/TS-specific steps below.
+  a release. Install-time supply-chain safety (the checklist for a dependency
+  addition or upgrade, across any ecosystem) is a separate concern owned by the
+  supply-chain-install-safety tactic — run that tactic's checklist alongside
+  these steps rather than restating it here; its ecosystem toolguides (for
+  example javascript-supply-chain) carry the exact per-ecosystem commands.
 steps:
   - title: Pin all direct dependency versions explicitly
     description: >
@@ -90,69 +90,11 @@ steps:
       - "mvn -Pcompliance cyclonedx:makeAggregateBom"
       - "uv run cyclonedx-py environment --output-format JSON --output-file bom.json"
 
-  - title: "JS/TS — verify registry authenticity before adding a package"
-    description: >
-      For JavaScript/TypeScript projects, confirm that any new or changed npm
-      dependency resolves on the official registry (registry.npmjs.org, or an
-      organization's approved private registry/proxy) and not an unexpected
-      mirror or namespace. Do not accept a resolution that lands on an
-      unfamiliar registry URL without explicit operator attention.
-    examples:
-      - "npm view <package> dist.tarball  # confirm the resolved tarball host"
-      - "npm config get registry  # confirm the configured registry matches policy"
-
-  - title: "JS/TS — report package freshness before accepting a version"
-    description: >
-      Surface first-publish and latest-publish/update timestamps for the
-      resolved package version before accepting it. A version published very
-      recently, or during a known active incident window, is a risk signal
-      that must be visible to the operator, not silently accepted.
-    examples:
-      - "npm view <package>@<version> time"
-      - "npm view <package> time.modified"
-
-  - title: "JS/TS — deny-by-default lifecycle script execution"
-    description: >
-      Treat `preinstall`/`install`/`postinstall` scripts as deny-by-default for
-      every new or changed npm/yarn/pnpm dependency. Do not globally disable
-      script safety (e.g. blanket `--ignore-scripts` bypass configured back to
-      "on") to work around a legitimate build need. When a lifecycle script is
-      genuinely required (native module builds), add an explicit, scoped
-      allowlist entry with the justification documented alongside the change.
-    examples:
-      - "npm install --ignore-scripts  # default-safe install"
-      - "pnpm config set enable-pre-post-scripts false  # deny-by-default posture"
-
-  - title: "JS/TS — confirm lockfile-driven, reproducible installs"
-    description: >
-      Commit and rely on the ecosystem lockfile (package-lock.json, yarn.lock,
-      or pnpm-lock.yaml) for reproducible installs, and use the frozen/CI
-      install mode in automation so an unreviewed dependency-tree change
-      cannot silently slip into a build. Review lockfile diffs the same way
-      manifest diffs are reviewed — a lockfile-only change can still introduce
-      a new transitive dependency or resolve to a different version.
-    examples:
-      - "npm ci  # frozen install from package-lock.json, fails on drift"
-      - "pnpm install --frozen-lockfile"
-
-  - title: "JS/TS — check the Node runtime baseline"
-    description: >
-      Check the project's declared/runtime Node version against the current
-      Active LTS line. If the project intentionally runs a non-LTS or outdated
-      Node version, document the business rationale explicitly rather than
-      leaving the skew unacknowledged; do not silently accept an outdated
-      baseline.
-    examples:
-      - "node --version"
-      - "cat .nvmrc  # or the \"engines.node\" field in package.json"
-
 failure_modes:
   - "Relying on transitive version resolution — when direct dependency versions are not pinned, a transitive upgrade can silently pull in a vulnerable or breaking version."
   - "Excluding transitives without a comment — exclusions without an explanatory comment become maintenance liabilities; future contributors remove them assuming they are stale, re-introducing the vulnerability."
   - "Skipping the SBOM update — a stale SBOM is worse than no SBOM because it creates false assurance; always regenerate after any dependency change."
-  - "JS/TS: globally disabling lifecycle-script safety to unblock a single native build — this silently re-enables automatic script execution for every dependency, not just the one that needed it."
-  - "JS/TS: accepting a freshly-published version without checking freshness or registry authenticity, especially during a known active incident window."
-  - "JS/TS: editing the lockfile by hand or ignoring lockfile diffs during review — lockfile drift can introduce an unreviewed transitive dependency."
+  - "Treating install-time supply-chain safety as covered by these version-pinning/SBOM steps alone — run the supply-chain-install-safety tactic's own checklist for every dependency addition or upgrade instead of assuming this tactic already covers it."
 
 references:
   - name: Architectural Integrity Standard
@@ -166,8 +108,8 @@ references:
   - name: Supply-Chain Install Safety
     type: directive
     id: DIRECTIVE_051
-    when: JS/TS dependency additions or upgrades require the full registry/freshness/script/Node-LTS/incident posture defined by this directive
+    when: Every dependency addition or upgrade, in any ecosystem, is also bound by this directive's install-time threat-class controls
   - name: Supply-Chain Install Safety Checklist
     type: tactic
     id: supply-chain-install-safety
-    when: Use this tactic's concrete checklist to execute and record evidence for the JS/TS supply-chain checks introduced here
+    when: Run this tactic's ecosystem-neutral checklist (and its per-ecosystem toolguide) alongside these version-pinning/SBOM steps for every dependency change

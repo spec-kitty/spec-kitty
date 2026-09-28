@@ -22,15 +22,13 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 037-living-documentation-sync
-
+        - DIRECTIVE_037
   - id: specification_fidelity
     description: Confirm published documentation honours specification fidelity requirements
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-
+        - DIRECTIVE_010
   - id: final_validation
     description: Final validation pass against the documentation spec prior to release
     delegates_to:
@@ -47,5 +45,5 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 029-agent-commit-signing-policy
-        - 033-targeted-staging-policy
+        - DIRECTIVE_029
+        - DIRECTIVE_033

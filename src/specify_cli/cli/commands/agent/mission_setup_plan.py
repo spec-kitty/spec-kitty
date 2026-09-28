@@ -37,6 +37,7 @@ import subprocess
 from collections.abc import Mapping
 from typing import Annotated, Literal, cast
 
+from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.console import console
 import typer
 
@@ -131,10 +132,19 @@ def _print_artifact_unchanged(artifact_type: str, json_output: bool) -> None:
         console.print(f"[dim]{artifact_type.capitalize()} unchanged, no commit needed[/dim]")
 
 
-def _warn_commit_failed(artifact_type: str, file_path: Path, exc: BaseException, json_output: bool) -> None:
+def _warn_commit_failed(
+    artifact_type: str,
+    file_path: Path,
+    exc: BaseException,
+    json_output: bool,
+    *,
+    commit_message: str,
+    to_branch: str,
+) -> None:
     if not json_output:
         console.print(f"[yellow]Warning:[/yellow] Failed to commit {artifact_type}: {exc}")
-        console.print(f"[yellow]You may need to commit manually:[/yellow] git add {file_path} && git commit")
+        recipe = safe_commit_recipe([str(file_path)], commit_message, to_branch)
+        console.print(f"[yellow]You may need to commit manually:[/yellow] {recipe}")
 
 
 @dataclass(frozen=True)
@@ -262,7 +272,14 @@ def _commit_to_branch(
     else:
         # "error" status — surface via warn helper and re-raise as RuntimeError
         # so callers that catch RuntimeError still get the failure.
-        _warn_commit_failed(artifact_type, file_path, RuntimeError(router_result.diagnostic or "commit failed"), json_output)
+        _warn_commit_failed(
+            artifact_type,
+            file_path,
+            RuntimeError(router_result.diagnostic or "commit failed"),
+            json_output,
+            commit_message=commit_msg,
+            to_branch=_target_branch,
+        )
         raise RuntimeError(router_result.diagnostic or f"commit_for_mission failed for {artifact_type}")
 
 

@@ -15,8 +15,17 @@ terms:
     path, and dependency state. Passed to agents at step boundaries.
   status: active
   surface: action context
+- confidence: 0.85
+  definition: A bounded set of profile-loaded delegates, dispatched at an SDD
+    point-cut, each casting a distinct doctrine lens chosen for that
+    point-cut's question so independent perspectives converge on findings a
+    single reviewer would miss. Optional and advisory, never a gate. Owned
+    by the built-in adversarial-squad-deployment procedure (the single
+    owner of when, who, and how).
+  status: active
+  surface: adversarial squad
 - confidence: 0.75
-  definition: An execution mode in which the harness proposes answers to 
+  definition: An execution mode in which the harness proposes answers to
     interview questions for mission owner confirmation, without acting 
     autonomously. The mission owner retains final authority on every decision.
   status: draft
@@ -37,6 +46,17 @@ terms:
     immediate parent.\n"
   status: active
   surface: base branch
+- aliases:
+  - behavior-driven development
+  confidence: 0.9
+  definition: A collaboration practice, not a testing methodology, that
+    operates through Discovery (Three Amigos conversations produce
+    concrete behavioral examples), Formulation (examples become
+    plain-language Given/When/Then specifications), and Automation
+    (specifications connect to executable tests). See the paradigm and the
+    bdd-scenario-formulation tactic.
+  status: active
+  surface: behaviour-driven development
 - confidence: 0.95
   definition: "The mission-create guard for PR-bound missions that requires an explicit
     operator or agent decision before planning artifacts are written on a primary

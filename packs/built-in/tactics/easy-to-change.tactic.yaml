@@ -26,7 +26,10 @@ steps:
       Ask: "Is this abstraction solving a problem that exists now, or one that
       might never happen?" Flag abstractions that increase indirection without
       reducing a real, observed change cost. Over-engineering in the name of
-      flexibility is as harmful as hardcoding.
+      flexibility is as harmful as hardcoding. Apply avoid-gold-plating's
+      evidence-gate checklist (5+ of 7 checks, including 3+ real instances of
+      failure) as the single owned threshold for accepting the abstraction;
+      do not restate a second, competing bar here.
   - title: Verify safety net coverage
     description: >
       Confirm that characterising tests exist around the seams most likely to
@@ -41,3 +44,11 @@ steps:
     examples:
       - "Extract payment-provider integration behind a port/adapter interface to isolate future provider changes."
       - "Add an architecture test that fails if the domain layer imports infrastructure packages."
+references:
+  - name: Reconciling Change-Scope Tensions
+    type: directive
+    id: RECONCILE_CHANGE_SCOPE_TENSIONS
+    when: >
+      Once a recommended structural intervention is accepted, the SIZE of
+      the resulting change is a separate scope decision reconciled through
+      this directive.

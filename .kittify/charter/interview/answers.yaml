@@ -55,11 +55,11 @@ answers:
     more exceptions.
 
 available_tools:
-  - git
-  - spec-kitty
-  - pytest
-  - mypy
-  - ruff
+- git
+- spec-kitty
+- pytest
+- mypy
+- ruff
 
 template_set: software-dev-default
 
@@ -67,91 +67,87 @@ template_set: software-dev-default
 # Includes all previously-activated directives plus the three catfooding
 # directives added by doctrine-catfooding-2196.
 selected_directives:
-  - DIRECTIVE_001
-  - DIRECTIVE_003
-  - DIRECTIVE_010
-  - DIRECTIVE_018
-  - DIRECTIVE_024
-  - DIRECTIVE_025
-  - DIRECTIVE_028
-  - DIRECTIVE_029
-  - DIRECTIVE_030
-  - DIRECTIVE_031
-  - DIRECTIVE_032
-  - DIRECTIVE_033
-  - DIRECTIVE_034
-  - DIRECTIVE_035
-  - DIRECTIVE_036
-  - DIRECTIVE_037
-  - DIRECTIVE_038
-  - DIRECTIVE_039
-  - DIRECTIVE_040
-  - DIRECTIVE_041
-  - DIRECTIVE_042
+- DIRECTIVE_001
+- DIRECTIVE_003
+- DIRECTIVE_010
+- DIRECTIVE_018
+- DIRECTIVE_024
+- DIRECTIVE_025
+- DIRECTIVE_028
+- DIRECTIVE_029
+- DIRECTIVE_030
+- DIRECTIVE_031
+- DIRECTIVE_032
+- DIRECTIVE_033
+- DIRECTIVE_034
+- DIRECTIVE_035
+- DIRECTIVE_036
+- DIRECTIVE_037
+- DIRECTIVE_038
+- DIRECTIVE_039
+- DIRECTIVE_040
+- DIRECTIVE_041
+- DIRECTIVE_042
   # Catfooding directives (WP02-WP07, doctrine-catfooding-2196):
-  - DIRECTIVE_043
-  - DIRECTIVE_044
-  - DIRECTIVE_045
+- DIRECTIVE_043
+- DIRECTIVE_044
+- DIRECTIVE_045
   # Mission wrap-up + readable-PRs doctrine (mission-wrapup-doctrine):
-  - DIRECTIVE_046
+- DIRECTIVE_046
 
 # Tactics: use canonical id: field (same as filename stem for tactics).
 # Includes catfooding tactics from WP02 (§5a arch-gate non-vacuity),
 # WP05 (§6 canonical-source-unification), WP06/WP07 (§7 git workflow).
 selected_tactics:
   # Pre-existing tactics from v1.1.5 charter baseline:
-  - acceptance-test-first
-  - adr-drafting-workflow
-  - adversarial-qa-handoff
-  - autonomous-operation-protocol
-  - behavior-driven-development
-  - black-box-integration-testing
-  - boring-code-review
-  - change-apply-smallest-viable-diff
-  - code-review-incremental
-  - decision-marker-capture
-  - delete-the-assertion-not-the-test
-  - easy-to-change
-  - focused-function-complexity-check
-  - locality-of-change
-  - occurrence-classification-workflow
-  - quality-gate-verification
-  - tdd-red-green-refactor
-  - test-boundaries-by-responsibility
-  - testing-select-appropriate-level
-  - traceable-decisions
-  - work-package-completion-validation
-  - zombies-tdd
+- acceptance-test-first
+- adr-drafting-workflow
+- adversarial-qa-handoff
+- autonomous-operation-protocol
+- black-box-integration-testing
+- change-apply-smallest-viable-diff
+- code-review-incremental
+- decision-marker-capture
+- delete-the-assertion-not-the-test
+- easy-to-change
+- focused-function-complexity-check
+- occurrence-classification-workflow
+- quality-gate-verification
+- tdd-red-green-refactor
+- test-boundaries-by-responsibility
+- testing-select-appropriate-level
+- traceable-decisions
+- work-package-completion-validation
+- zombies-tdd
   # Catfooding tactics (doctrine-catfooding-2196):
-  - architectural-gate-non-vacuity
-  - frozen-baseline-shrink-only-ratchet
-  - canonical-source-unification
-  - pr-agent-worktree-isolation
-  - ownership-map-leeway
-  - reviewer-implementer-role-separation
+- architectural-gate-non-vacuity
+- frozen-baseline-shrink-only-ratchet
+- canonical-source-unification
+- pr-agent-worktree-isolation
+- ownership-map-leeway
+- reviewer-implementer-role-separation
 
 # Styleguides: catfooding additions.
 selected_styleguides:
-  - python-conventions
-  - testing-principles
-  - mutation-aware-test-design
+- python-conventions
+- testing-principles
+- mutation-aware-test-design
   # Catfooding styleguides (doctrine-catfooding-2196):
-  - adversarial-squad-cadence
-  - planning-and-tracking
+- planning-and-tracking
 
 # Toolguides: catfooding additions.
 selected_toolguides:
-  - git-agent-commit-signing
-  - github-tracker
+- git-agent-commit-signing
+- github-tracker
   # terminology-guard now reaches this repo via the internal org pack
   # (packs/internal/org-charter.yaml required_toolguides), not built-in.
 
 # Procedures: catfooding additions.
 selected_procedures:
-  - disciplined-defect-diagnosis
-  - test-first-bug-fixing
+- disciplined-defect-diagnosis
+- test-first-bug-fixing
   # Catfooding procedures (doctrine-catfooding-2196):
-  - mission-tracer-files
-  - post-merge-arch-gate-adjudication
+- mission-tracer-files
+- post-merge-arch-gate-adjudication
 
 selected_paradigms: []

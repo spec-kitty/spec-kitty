@@ -23,6 +23,7 @@ procedures:
   - Synthesize the five verdicts. Convergence is the deliverable; divergence is signal that must be investigated, not suppressed.
   - Author a single structural fix plan that closes all currently-known masks plus the dormant masks identified by The Matrix-Maker.
   - Persist the falsified-hypothesis catalog and divergence matrix on the parent issue so future recurrences start ahead.
+  - The general dispatch, profile-loading, and synthesis discipline for running the five paradigms as a squad lives in the adversarial-squad-deployment procedure; this directive specializes it to the five fixed debugging lenses.
 integrity_rules:
   - A second reactive point-fix for the same bug class without a structural-intervention plan is non-compliant.
   - Shipping a structural fix that closes fewer than all known masks is non-compliant — the matrix from The Matrix-Maker defines the minimum scope.

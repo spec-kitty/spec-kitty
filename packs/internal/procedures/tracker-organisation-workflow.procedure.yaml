@@ -126,8 +126,8 @@ applies_to_languages: []
 notes: >
   Distilled from a full-backlog tracker remediation (235 open tickets reviewed,
   zero genuine orphans remaining). Pair this workflow with the
-  iterative-deepening-review tactic to sequence the sweep in widening time
-  windows, and with moscow-scoping-lens when negotiating which slices a bucket
+  tracker-backlog-iterative-deepening tactic to sequence the sweep in widening
+  time windows, and with moscow-scoping-lens when negotiating which slices a bucket
   must, should, could, or won't carry. The supporting planning-and-tracking
   vocabulary (functional epic, meta-tracker, issue type, priority scheme, triage
   status) is defined in the planning-and-tracking glossary subset. DRG wiring of
@@ -141,7 +141,7 @@ notes: >
   carve-out). This preserves the audit trail while respecting tree governance.
 references:
   - type: tactic
-    id: iterative-deepening-review
+    id: tracker-backlog-iterative-deepening
     reason: Sequences the backlog sweep in widening time windows so emergent groupings become epics before later rings reach them.
   - type: tactic
     id: moscow-scoping-lens

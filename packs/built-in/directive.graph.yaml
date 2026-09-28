@@ -119,7 +119,7 @@ nodes:
 edges:
 - source: directive:DIRECTIVE_001
   target: tactic:paula-patterns-architecture-scout-review
-  relation: requires
+  relation: suggests
 - source: directive:DIRECTIVE_003
   target: tactic:decision-marker-capture
   relation: requires
@@ -135,6 +135,9 @@ edges:
   relation: suggests
 - source: directive:DIRECTIVE_025
   target: directive:DIRECTIVE_024
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: directive:DIRECTIVE_030
   relation: requires
 - source: directive:DIRECTIVE_025
   target: directive:DIRECTIVE_040
@@ -167,7 +170,7 @@ edges:
 - source: directive:DIRECTIVE_030
   target: styleguide:test-desiderata-and-boundaries
   relation: suggests
-  when: assessing tests against the test desiderata (Kent Beck) and checking each test owns exactly one behavioural boundary
+  when: assessing tests against the test desiderata (Kent Beck) and drawing each test's boundary by functional responsibility, with infrastructure stubbed outside it
   reason: The quality gate suggests the test-desiderata-and-boundaries styleguide as the finer-grained bar for a good test; the `when` is the styleguide's own subject. Delivered at implement/review.
 - source: directive:DIRECTIVE_030
   target: styleguide:testing-principles
@@ -276,10 +279,10 @@ edges:
   target: directive:DIRECTIVE_034
   relation: requires
 - source: directive:DIRECTIVE_039
-  target: tactic:adversarial-qa-handoff
+  target: styleguide:boring-code-review
   relation: suggests
 - source: directive:DIRECTIVE_039
-  target: tactic:boring-code-review
+  target: tactic:adversarial-qa-handoff
   relation: suggests
 - source: directive:DIRECTIVE_039
   target: tactic:focused-function-complexity-check
@@ -328,9 +331,6 @@ edges:
   target: styleguide:common-docs
   relation: suggests
 - source: directive:DIRECTIVE_042
-  target: tactic:common-docs-curation
-  relation: suggests
-- source: directive:DIRECTIVE_042
   target: tactic:common-docs-find
   relation: suggests
 - source: directive:DIRECTIVE_042
@@ -340,7 +340,7 @@ edges:
   target: tactic:common-docs-write
   relation: suggests
 - source: directive:DIRECTIVE_043
-  target: styleguide:adversarial-squad-cadence
+  target: procedure:adversarial-squad-deployment
   relation: suggests
 - source: directive:DIRECTIVE_043
   target: tactic:architectural-gate-non-vacuity
@@ -436,7 +436,7 @@ edges:
   target: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
   relation: suggests
 - source: directive:DIRECTIVE_052
-  target: styleguide:adversarial-squad-cadence
+  target: procedure:adversarial-squad-deployment
   relation: suggests
 - source: directive:DIRECTIVE_053
   target: tactic:op-or-mission-selection

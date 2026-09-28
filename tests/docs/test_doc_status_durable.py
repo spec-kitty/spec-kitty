@@ -52,7 +52,13 @@ _PACKS = _REPO_ROOT / "packs" / "built-in"
 DIRECTIVE_PATH = _PACKS / "directives" / "042-common-docs.directive.yaml"
 STYLEGUIDE_PATH = _PACKS / "styleguides" / "common-docs.styleguide.yaml"
 FRESHNESS_STYLEGUIDE_PATH = _PACKS / "styleguides" / "docs-freshness-sla.styleguide.yaml"
-TACTIC_PATHS = {name: _PACKS / "tactics" / f"common-docs-{name}.tactic.yaml" for name in ("curation", "write", "scaffold")}
+#: The lint's default policy data moved out of the styleguide and into the
+#: lint asset's own data file (WP06 A5, #5221 section A); load_config() now
+#: reads it from here for the built-in default, not from STYLEGUIDE_PATH.
+LINT_CONFIG_PATH = _PACKS / "assets" / "docs_structural_lint.config.yaml"
+#: common-docs-curation was folded into scaffold/write/find and retired
+#: (WP06, #5221 section A); its 'durable' restatement now lives in scaffold.
+TACTIC_PATHS = {name: _PACKS / "tactics" / f"common-docs-{name}.tactic.yaml" for name in ("write", "scaffold")}
 
 #: The reserved never-retire lifecycle value under test.
 RESERVED = "durable"
@@ -191,7 +197,7 @@ def test_durable_is_not_a_point_in_time_marker() -> None:
     existing marker values are asserted present so the block is not silently
     emptied under this guard.
     """
-    config = load_config(STYLEGUIDE_PATH)
+    config = load_config(LINT_CONFIG_PATH)
     marker_values = {marker.frontmatter_value for marker in config.point_in_time_markers}
 
     assert RESERVED not in marker_values
@@ -212,7 +218,7 @@ def test_durable_page_passes_structural_lint(tmp_path: Path) -> None:
     docs = tmp_path / "docs"
     page = docs / "architecture" / "durable-throughline.md"
     _write(page, frontmatter={"doc_status": RESERVED, "updated": "2026-08-12"})
-    config = load_config(STYLEGUIDE_PATH)
+    config = load_config(LINT_CONFIG_PATH)
 
     point_in_time = check_point_in_time_placement([page], docs, tmp_path, config)
     frontmatter = check_frontmatter_contract([page], docs, tmp_path, config)

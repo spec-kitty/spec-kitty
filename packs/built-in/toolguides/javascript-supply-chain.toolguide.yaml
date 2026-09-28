@@ -1,0 +1,29 @@
+schema_version: "1.0"
+id: javascript-supply-chain
+tool: javascript-supply-chain-stack
+title: JavaScript/TypeScript Supply-Chain Install Safety
+guide_path: packs/built-in/toolguides/JAVASCRIPT_SUPPLY_CHAIN.md
+applies_to_languages:
+  - javascript
+  - typescript
+summary: >
+  Ecosystem-specific commands and file names for the JavaScript/TypeScript
+  npm/pnpm/yarn stack: package-lock/yarn-lock/pnpm-lock-driven reproducible
+  installs, deny-by-default lifecycle-script execution, registry and
+  freshness checks, and Node Active LTS runtime-baseline awareness. This
+  guide carries the mechanics; the `supply-chain-install-safety` tactic
+  (ecosystem-neutral) owns the checklist shape and the evidence a reviewer
+  requires.
+commands:
+  - npm view
+  - npm ci
+  - npm ci --ignore-scripts
+  - pnpm install --frozen-lockfile
+  - pnpm install --ignore-scripts
+  - yarn install --frozen-lockfile
+  - yarn install --immutable
+  - node --version
+last_updated: "2026-09-28"
+references:
+  - DIRECTIVE_051
+  - supply-chain-install-safety

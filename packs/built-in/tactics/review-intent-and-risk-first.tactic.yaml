@@ -6,7 +6,7 @@ steps:
   - title: Read the entire change without commenting
     description: Consume the full change set, document, or proposal in one pass before forming any opinion.
   - title: Summarise apparent intent
-    description: Write one paragraph capturing what the author was trying to achieve. Confirm or correct this with the author before proceeding.
+    description: Write one paragraph capturing what the author was trying to achieve. Record open intent questions in the review output rather than waiting on live author confirmation before proceeding.
     examples:
       - "This change refactors the authentication layer to support OAuth2 alongside the existing session-based flow."
   - title: Identify potential risks and unknowns

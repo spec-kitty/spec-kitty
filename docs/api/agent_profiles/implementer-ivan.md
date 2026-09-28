@@ -2,7 +2,7 @@
 title: Implementer Ivan — Agent Profile
 description: General-purpose software implementation specialist
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-09-28'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
@@ -33,8 +33,8 @@ planner profiles, which hand off work to Ivan once the design is settled.
 - You have an approved work package or architecture decision record and need it turned
   into working, tested code.
 - You're fixing a reported bug and need a test-first reproduction plus the corrective
-  change (Ivan applies the bug-fixing-checklist tactic: failing test before production
-  code changes).
+  change (Ivan applies the test-first-bug-fixing procedure: failing test before
+  production code changes).
 - A reviewer has requested changes on a pull request and you need someone to respond to
   that feedback without relitigating the underlying design.
 

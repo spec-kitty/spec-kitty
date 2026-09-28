@@ -362,6 +362,9 @@ edges:
   target: procedure:test-first-bug-fixing
   relation: scope
 - source: action:software-dev/implement
+  target: styleguide:boring-code-review
+  relation: scope
+- source: action:software-dev/implement
   target: tactic:acceptance-test-first
   relation: scope
 - source: action:software-dev/implement
@@ -369,9 +372,6 @@ edges:
   relation: scope
 - source: action:software-dev/implement
   target: tactic:black-box-integration-testing
-  relation: scope
-- source: action:software-dev/implement
-  target: tactic:boring-code-review
   relation: scope
 - source: action:software-dev/implement
   target: tactic:change-apply-smallest-viable-diff
@@ -539,6 +539,9 @@ edges:
   target: procedure:test-first-bug-fixing
   relation: scope
 - source: action:software-dev/review
+  target: styleguide:boring-code-review
+  relation: scope
+- source: action:software-dev/review
   target: tactic:acceptance-criteria-non-vacuity
   relation: scope
 - source: action:software-dev/review
@@ -546,9 +549,6 @@ edges:
   relation: scope
 - source: action:software-dev/review
   target: tactic:autonomous-operation-protocol
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:boring-code-review
   relation: scope
 - source: action:software-dev/review
   target: tactic:quality-gate-verification

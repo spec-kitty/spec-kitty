@@ -24,25 +24,29 @@ the current clean tree passes** (NFR-003):
    pages excluded) lacks a required frontmatter field.
 
 **Config SSOT (FR-011, C-005)**: every section list, pattern, allowlist,
-required-field list, and exemption list is LOADED from the extended
-``common-docs`` styleguide's ``structural_lint_config:`` block — nothing here
-hard-codes policy that could diverge from that doctrine. A missing or
-malformed block is a hard, loud error (:class:`ConfigError`); there is no
-silent fallback to an inline default.
+required-field list, and exemption list is LOADED from a data file carrying
+the ``structural_lint_config:`` block — the built-in default lives at
+``assets/docs_structural_lint.config.yaml``, and a project may override it
+with its own file carrying the same wrapper key — nothing here hard-codes
+policy that could diverge from that data. A missing or malformed block is a
+hard, loud error (:class:`ConfigError`); there is no silent fallback to an
+inline default.
 
 This module is shipped as the ``common-docs-structural-lint`` doctrine asset:
 it imports only the stdlib and ``ruamel.yaml`` (nothing from the Spec Kitty
-source tree), so it runs unchanged in a consumer repo. The styleguide it
-loads its policy from is supplied explicitly — the ``--styleguide PATH`` CLI
-argument, else the ``SPEC_KITTY_STYLEGUIDE`` environment variable — with no
-hard-coded ``src/doctrine/...`` fallback.
+source tree), so it runs unchanged in a consumer repo. The file it loads its
+policy from is supplied explicitly — the ``--styleguide PATH`` CLI argument,
+else the ``SPEC_KITTY_STYLEGUIDE`` environment variable — with no hard-coded
+``src/doctrine/...`` fallback. Despite its flag/env-var name (kept for CLI
+backward compatibility), the path may point at any file carrying the
+``structural_lint_config:`` block, not specifically a styleguide.
 
 Invocation::
 
     python docs_structural_lint.py --styleguide PATH [--json] [DOCS_ROOT=docs]
 
 Exit ``0`` when no violations; exit ``1`` when any violation exists; exit
-``2`` when the styleguide config cannot be loaded. ``--json`` emits::
+``2`` when the config file cannot be loaded. ``--json`` emits::
 
     {"violations": [{"rule_id": str, "path": str, "message": str}, ...],
      "checked": int}
@@ -92,11 +96,13 @@ __all__ = [
 
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
 
-#: The pinned interface contract with the ``common-docs`` styleguide (FR-011).
-#: Renaming this wrapper key requires updating both the styleguide and here.
+#: The pinned interface contract with the data file carrying this asset's
+#: default policy (built-in default: ``assets/docs_structural_lint.config.yaml``,
+#: overridable by a project's own file carrying the same key). Renaming this
+#: wrapper key requires updating both that file and here.
 _CONFIG_KEY: Final[str] = "structural_lint_config"
 
-#: Environment variable naming the styleguide the lint LOADS its policy from,
+#: Environment variable naming the config file the lint LOADS its policy from,
 #: consulted when ``--styleguide`` is not passed. Keeps this asset consumable
 #: from any repo without a hard-coded ``src/doctrine/...`` path.
 _STYLEGUIDE_ENV_VAR: Final[str] = "SPEC_KITTY_STYLEGUIDE"
@@ -185,7 +191,7 @@ class PointInTimeMarker:
 
 @dataclass(slots=True, frozen=True)
 class LintConfig:
-    """Typed view of the styleguide's ``structural_lint_config:`` block."""
+    """Typed view of the data file's ``structural_lint_config:`` block."""
 
     curated_complete_sections: tuple[str, ...]
     concern_bucket_to_section: dict[str, str]
@@ -229,7 +235,7 @@ _REQUIRED_STR_LIST_KEYS: Final[tuple[str, ...]] = (
 
 
 def _resolve_styleguide(arg: str | None) -> Path:
-    """Resolve the styleguide path from the CLI arg, then the environment.
+    """Resolve the config-file path from the CLI arg, then the environment.
 
     Resolution order (there is deliberately NO hard-coded ``src/doctrine/...``
     default — this asset ships to consumer repos that do not have the Spec
@@ -245,23 +251,26 @@ def _resolve_styleguide(arg: str | None) -> Path:
     if env_value:
         return Path(env_value)
     raise ConfigError(
-        "no styleguide configured — pass --styleguide <path> or set "
-        f"{_STYLEGUIDE_ENV_VAR} to the common-docs styleguide that carries "
-        f"the '{_CONFIG_KEY}:' block (FR-011)."
+        "no config file configured — pass --styleguide <path> or set "
+        f"{_STYLEGUIDE_ENV_VAR} to a file carrying the '{_CONFIG_KEY}:' "
+        f"block (built-in default: assets/docs_structural_lint.config.yaml) "
+        "(FR-011)."
     )
 
 
 def load_config(styleguide_path: Path) -> LintConfig:
-    """Load the lint's policy from the ``common-docs`` styleguide (FR-011).
+    """Load the lint's policy from its data file (FR-011).
 
     Parameters
     ----------
     styleguide_path:
-        Path to the ``common-docs`` styleguide carrying the
-        ``structural_lint_config:`` block. Required — the lint no longer
-        hard-codes a ``src/doctrine/...`` default so it stays consumable from
-        a repo with no access to the Spec Kitty source tree. Callers resolve
-        it via :func:`_resolve_styleguide` (``--styleguide`` /
+        Path to a file carrying the ``structural_lint_config:`` block — the
+        built-in default is ``assets/docs_structural_lint.config.yaml``, and
+        a project may override it with its own file carrying the same key.
+        Required — the lint no longer hard-codes a ``src/doctrine/...``
+        default so it stays consumable from a repo with no access to the
+        Spec Kitty source tree. Callers resolve it via
+        :func:`_resolve_styleguide` (``--styleguide`` /
         ``SPEC_KITTY_STYLEGUIDE``).
 
     Raises
@@ -273,10 +282,7 @@ def load_config(styleguide_path: Path) -> LintConfig:
     """
     path = styleguide_path
     if not path.is_file():
-        raise ConfigError(
-            f"Styleguide not found at {path} — cannot load '{_CONFIG_KEY}:' "
-            "(FR-011)."
-        )
+        raise ConfigError(f"Config file not found at {path} — cannot load '{_CONFIG_KEY}:' (FR-011).")
 
     yaml = YAML(typ="safe")
     try:
@@ -289,7 +295,9 @@ def load_config(styleguide_path: Path) -> LintConfig:
         raise ConfigError(
             f"{path} has no '{_CONFIG_KEY}:' block. The lint refuses to fall "
             "back to a hard-coded default policy (C-005) — add the block to "
-            "the common-docs styleguide."
+            "a file carrying the 'structural_lint_config:' key (built-in "
+            "default: assets/docs_structural_lint.config.yaml), or point "
+            "--styleguide / SPEC_KITTY_STYLEGUIDE at one that does."
         )
     block = raw[_CONFIG_KEY]
     if not isinstance(block, dict):
@@ -846,9 +854,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--styleguide",
         default=None,
         help=(
-            "Path to the common-docs styleguide carrying the "
-            "'structural_lint_config:' block. Falls back to the "
-            f"{_STYLEGUIDE_ENV_VAR} environment variable when omitted."
+            "Path to a file carrying the 'structural_lint_config:' block "
+            "(built-in default: assets/docs_structural_lint.config.yaml; a "
+            "project may override with its own file carrying the same "
+            f"key). Falls back to the {_STYLEGUIDE_ENV_VAR} environment "
+            "variable when omitted."
         ),
     )
     parser.add_argument(

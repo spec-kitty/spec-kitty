@@ -346,6 +346,10 @@ class MissionTemplateRepository:
     def get_action_guidelines(self, mission: str, action: str) -> TemplateResult | None:
         """Read an action's guidelines.md from charter.offering assets.
 
+        ``mission-steps/<mission>/<action>/guidelines.md`` is the single owner
+        (#5202): the former ``<mission>/actions/<action>/guidelines.md`` copy
+        was an undocumented, silently-drifting duplicate and has been retired.
+
         Args:
             mission: Mission name.
             action: Action name.
@@ -358,7 +362,7 @@ class MissionTemplateRepository:
             return None
         try:
             content = path.read_text(encoding="utf-8")
-            origin = f"doctrine/{mission}/actions/{action}/guidelines.md"
+            origin = f"doctrine/mission-steps/{mission}/{action}/guidelines.md"
             return TemplateResult(content=content, origin=origin)
         except (OSError, UnicodeDecodeError):
             return None
@@ -498,7 +502,10 @@ class MissionTemplateRepository:
     def _action_guidelines_path(self, mission: str, action: str) -> Path | None:
         """Return the path to an action's ``guidelines.md``.
 
-        Looks for ``<missions_root>/<mission>/actions/<action>/guidelines.md``.
+        Looks for ``<missions_root>/mission-steps/<mission>/<action>/guidelines.md``
+        -- the single-owner location (#5202); the retired
+        ``<missions_root>/<mission>/actions/<action>/guidelines.md`` copy is no
+        longer consulted.
 
         Args:
             mission: Mission name.
@@ -507,7 +514,7 @@ class MissionTemplateRepository:
         Returns:
             Path if the file exists, else ``None``.
         """
-        path = self._root / mission / "actions" / action / "guidelines.md"
+        path = self._root / "mission-steps" / mission / action / "guidelines.md"
         return path if path.is_file() else None
 
     def _mission_config_path(self, mission: str) -> Path | None:

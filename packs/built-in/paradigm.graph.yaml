@@ -51,6 +51,18 @@ edges:
 - source: paradigm:behaviour-driven-development
   target: directive:DIRECTIVE_037
   relation: requires
+- source: paradigm:behaviour-driven-development
+  target: procedure:bdd-scenario-lifecycle
+  relation: requires
+- source: paradigm:behaviour-driven-development
+  target: styleguide:given-when-then-authoring
+  relation: suggests
+- source: paradigm:behaviour-driven-development
+  target: tactic:bdd-scenario-formulation
+  relation: requires
+- source: paradigm:behaviour-driven-development
+  target: toolguide:gherkin
+  relation: suggests
 - source: paradigm:brownfield-onboarding
   target: anti_pattern:big-ball-of-mud
   relation: rejects
@@ -74,9 +86,6 @@ edges:
 - source: paradigm:brownfield-onboarding
   target: procedure:legacy-codebase-triage
   relation: requires
-- source: paradigm:brownfield-onboarding
-  target: styleguide:adversarial-squad-cadence
-  relation: suggests
 - source: paradigm:brownfield-onboarding
   target: tactic:delete-the-assertion-not-the-test
   relation: requires

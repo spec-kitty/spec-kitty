@@ -6,7 +6,7 @@ purpose: >
   contracts before implementation begins, ensuring system boundaries are expressed
   in terms stakeholders can validate. Apply during design to establish what the
   system must do at its public interfaces — not how to write test scenarios
-  (see the behavior-driven-development tactic for that). Outputs of this tactic
+  (see the bdd-scenario-formulation tactic for that). Outputs of this tactic
   serve as the behavioral contract that step definitions later implement.
 steps:
   - title: Identify the observable behaviors
@@ -38,15 +38,17 @@ failure_modes:
   - "Conflating this architectural tactic with test-writing — behavioral contracts defined here become the acceptance criteria for BDD scenarios, not the scenarios themselves."
 notes: >
   Adapted from patterns.sddevelopment.be.
-  This tactic produces the behavioral contract specification that feeds into the
-  bdd-scenario-lifecycle procedure (Formulation phase). The output of this tactic
-  is the input to the example-mapping-workshop procedure.
+  Follows the BDD paradigm's Discovery-before-Formulation cycle order: the
+  example-mapping-workshop procedure (Discovery) produces the validated examples
+  this tactic turns into behavioral contracts; those contracts then feed the
+  bdd-scenario-formulation tactic and the bdd-scenario-lifecycle procedure
+  (Formulation).
 references:
-  - name: Behavior-Driven Development
-    type: tactic
-    id: behavior-driven-development
-    when: Use this tactic to translate the behavioral contracts into executable Given/When/Then scenarios
   - name: Example Mapping Workshop
     type: procedure
     id: example-mapping-workshop
-    when: Use to collaboratively validate and refine the behavioral contracts with stakeholders
+    when: Use to collaboratively validate and refine the behavioral contracts with stakeholders — the Discovery phase this tactic's contracts build on
+  - name: BDD Scenario Formulation
+    type: tactic
+    id: bdd-scenario-formulation
+    when: Use this tactic to translate the behavioral contracts into executable Given/When/Then scenarios — the Formulation phase that follows

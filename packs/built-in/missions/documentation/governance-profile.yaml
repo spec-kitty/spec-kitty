@@ -47,7 +47,7 @@ id: documentation
 mission_type: documentation
 template_set: null
 
-# 042-common-docs is the type-wide Common Docs directive (single 13-section root,
+# 042-common-docs is the type-wide Common Docs directive (single-root,
 # curate-by-delete). 037-living-documentation-sync is deliberately NOT listed here:
 # it is action-homed across the audit/validate/accept/generate/publish action grains,
 # and repeating it in the type-grain would be an FR-013 cross-grain double declaration.
@@ -57,8 +57,9 @@ selected_directives:
 # Reference-first curation + authoring tactics. glossary-curation-interview and
 # documentation-curation-audit and stakeholder-alignment are action-homed (retrospect /
 # validate+accept / discover respectively) and are intentionally omitted here (FR-013).
+# common-docs-curation was folded into common-docs-scaffold/write/find and is
+# retired; its unique steps are carried by the tactics below.
 selected_tactics:
-  - common-docs-curation
   - common-docs-find
   - common-docs-scaffold
   - common-docs-write

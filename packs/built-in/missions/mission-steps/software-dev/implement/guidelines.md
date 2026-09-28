@@ -8,7 +8,7 @@ These guidelines govern the quality and correctness standards for work package i
 
 - After running `spec-kitty implement WP##`, change into the worktree directory shown in the output.
 - ALL file operations (Read, Write, Edit) must target files inside the worktree workspace.
-- NEVER write deliverable files to the main repository — this causes review failures and merge conflicts.
+- NEVER write deliverable files to the repository root checkout — this causes review failures and merge conflicts.
 
 ---
 
@@ -36,5 +36,5 @@ If a file or path is uncertain, verify with `ls` or `test -f` before reading it.
 
 ## Supply-Chain Security Check (dependency changes)
 
-- Any dependency add/upgrade/removal must run the `supply-chain-install-safety` tactic checklist (registry authenticity, package freshness, deny-by-default lifecycle scripts, Node Active LTS awareness) before the quality gate, referencing the `051-supply-chain-install-safety` directive.
+- Any dependency add/upgrade/removal must run the `supply-chain-install-safety` tactic's checklist before the quality gate, per `DIRECTIVE_051` (see the matching ecosystem toolguide for exact commands).
 - Record the check results — not just intent — in the commit message or WP notes. An unexamined default is a gap, not a pass. Advisory in v1: no new fail-closed gate is added.

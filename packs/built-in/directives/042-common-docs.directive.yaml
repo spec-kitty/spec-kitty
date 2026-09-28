@@ -15,11 +15,10 @@ scope: >
   Decision Record is authored or migrated; and during review of any change that
   adds, relocates, or deletes documentation.
 procedures:
-  - Place every documentation file inside the single Common Docs root using the
-    13-section structure (index, context, architecture, adr, plans, api,
-    configuration, integrations, security, guides, operations, migrations,
-    changelog); never create a second documentation root or a per-version shadow
-    tree.
+  - Place every documentation file inside the single Common Docs root using
+    the section structure the `common-docs` styleguide's own principle
+    states; never create a second documentation root or a per-version
+    shadow tree.
   - Record per-page lifecycle metadata in in-file frontmatter as the sole source
     of truth — the page-inventory rollup is a generated lockfile derived FROM
     frontmatter, never a parallel hand-maintained authority.
@@ -46,9 +45,9 @@ procedures:
   - File Architecture Decision Records under `adr/<era>/` with YAML frontmatter,
     preserving the era-of-decision history; the living architectural design
     collapses into a single unversioned `architecture/` location.
-  - Curate under the delete-stale policy — one concern per file, every
-    behaviour-changing change updates the relevant docs in the same commit, and
-    stale or deprecated documents are distilled then retired rather than
+  - Curate under the delete-stale policy — one concern per file; DIRECTIVE_037
+    (Living Documentation Sync) owns the same-change documentation-update
+    rule; stale or deprecated documents are distilled then retired rather than
     accumulating as a wiki.
 integrity_rules:
   - There is exactly one documentation root; a second root or a per-version
@@ -72,8 +71,8 @@ validation_criteria:
     architecture/ only), point-in-time file placement under plans/** honoring
     the adr/**, plans/research/**, and plans/investigations/** allowlist, the
     no-shadow-tree rule (no shared non-nav content basename across section
-    subtrees), and required frontmatter on in-scope pages. The single-root /
-    13-section structure's continued existence remains maintained by periodic
+    subtrees), and required frontmatter on in-scope pages. The single-root
+    section structure's continued existence remains maintained by periodic
     bulk curation and review; a second root or per-version shadow tree is a
     red-line violation caught both at review time and by the lint.
   - The page-inventory lockfile freshness gate confirms the rollup matches a fresh
@@ -88,8 +87,6 @@ validation_criteria:
 references:
   - type: styleguide
     id: common-docs
-  - type: tactic
-    id: common-docs-curation
   - type: tactic
     id: common-docs-scaffold
   - type: tactic

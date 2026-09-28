@@ -67,7 +67,7 @@ def test_styleguide_and_toolguide_kinds_render() -> None:
             "purpose": "test fixture",
             "specialization": {"primary-focus": "testing"},
             "styleguide-references": [
-                {"id": "adversarial-squad-cadence", "rationale": "cite a styleguide"}
+                {"id": "testing-principles", "rationale": "cite a styleguide"}
             ],
             "toolguide-references": [
                 {"id": "contextive", "rationale": "cite a toolguide"}
@@ -81,7 +81,7 @@ def test_styleguide_and_toolguide_kinds_render() -> None:
         _PROFILE_STYLEGUIDES_HEADER_TPL.format(profile_id="synthetic-guide-citer")
         in block
     )
-    assert "adversarial-squad-cadence" in block
+    assert "testing-principles" in block
     assert (
         _PROFILE_TOOLGUIDES_HEADER_TPL.format(profile_id="synthetic-guide-citer")
         in block

@@ -173,7 +173,7 @@ Agent calls: spec-kitty charter context --action implement
   → Load action index: packs/built-in/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
   → src/charter/offering/service.py (DoctrineService) → fetch directive/tactic content by depth
-  → Load action guidelines: packs/built-in/missions/software-dev/actions/implement/guidelines.md
+  → Load action guidelines: packs/built-in/missions/mission-steps/software-dev/implement/guidelines.md
   → Render CharterContextResult (governance text injected into agent prompt)
   → Persist context-state.json (first-load tracking for depth semantics)
 ```
@@ -399,7 +399,7 @@ update and a valid fixture update.
 | Command templates as connector implementation | ✅ Complete | 12-agent template system via migrations |
 | Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/activation/reference_resolver.py` (mission 054) |
 | Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/activation/context.py` + `packs/built-in/missions/*/actions/*/index.yaml` (mission 054) |
-| Per-action guidelines extraction from templates | ✅ Complete | `packs/built-in/missions/software-dev/actions/*/guidelines.md` (mission 054) |
+| Per-action guidelines extraction from templates | ✅ Complete | `packs/built-in/missions/mission-steps/*/*/guidelines.md` (mission 054; single owner since #5202) |
 | ArtifactKind canonical enum | ✅ Complete | `src/charter/offering/artifact_kinds.py` (mission 054, WP09-WP10) |
 | MissionRepository package relocation | ✅ Complete | `packs/built-in/missions/` is the authoritative source for all shipped mission assets (YAML, mission-step prompt templates, content templates, expected-artifacts); `src/charter/offering/missions/` holds only the Python repository/loader code that reads them. `src/specify_cli/missions/` survives only as a stale legacy asset tree the resolver deliberately no longer falls back to (`src/kernel/paths.py`, DR-2); its Python mission code moved to `src/charter/offering/missions/` (`primitives.py`, `glossary_hook.py`). |
 | Skills Pack canonical distribution | ✅ Complete | `src/specify_cli/skills/` — `SkillRegistry`, `ManagedSkillManifest`, installer, verifier. 55 canonical skill packs in `src/charter/offering/skills/`. Deployed to agent directories during `spec-kitty init` (mission 055). |

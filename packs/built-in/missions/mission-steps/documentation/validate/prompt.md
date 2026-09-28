@@ -52,7 +52,7 @@ Gate the content produced in `generate` against explicit quality criteria and re
 
 8. **Run a pre-mortem against publication.** What fails after readers arrive? Stale screenshots, broken commands, contradictory pages, missing prerequisites. Surface each such risk now, not after publish.
 
-9. **Give every surfaced risk a disposition**: accept (with a rationale), mitigate (with the action), or block-publish. Risks that block publish go back to `generate` or `design` as appropriate — do not silently downgrade a blocking risk to a warning.
+9. **Give every surfaced risk a disposition**: accept (with a rationale), mitigate (with the action), or block-publish. This vocabulary maps onto the `adversarial-squad-deployment` procedure's findings-disposition contract: accept -> `accepted`, mitigate -> `changed` (the action taken), block-publish -> `deferred_with_rationale` (deferred back to `generate` or `design` with the blocking rationale recorded). Risks that block publish go back to `generate` or `design` as appropriate — do not silently downgrade a blocking risk to a warning.
 
 10. **Write `audit-report.md` as the canonical evidence artifact.** Cite concrete page paths, concrete failures, concrete fixes — "some pages have issues" is a note-to-self, not a validation. Assign a verdict: `ready-to-publish`, `needs-rework`, or `blocked`. The `publish` step reads this verdict and does not bypass it. If a previous `audit-report.md` exists, compare trends — a metric that worsened across cycles is itself a finding.
 

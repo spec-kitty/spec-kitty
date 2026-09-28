@@ -26,9 +26,8 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 010-specification-fidelity-requirement
-        - 037-living-documentation-sync
-
+        - DIRECTIVE_010
+        - DIRECTIVE_037
   - id: verify_example_sync
     description: Verify canonical examples, acceptance checks, and docs stayed in sync
     delegates_to:
@@ -45,10 +44,9 @@ steps:
 
   - id: supply_chain_security_review
     description: >
-      Require explicit supply-chain evidence (registry authenticity,
-      package freshness, lifecycle-script disposition, Node Active LTS
-      posture, incident/IoC posture) before recommending approval for any
-      change that touches the dependency tree. Advisory in v1 per
+      Require explicit supply-chain evidence, per DIRECTIVE_051 and the
+      supply-chain-install-safety tactic, before recommending approval for
+      any change that touches the dependency tree. Advisory in v1 per
       NFR-003/C-003: this step does not add a new fail-closed transition
       gate -- the existing "in_progress->for_review" gate above is
       unchanged -- but silence or an unexamined default is treated as a
@@ -63,8 +61,7 @@ steps:
     delegates_to:
       kind: directive
       candidates:
-        - 030-test-and-typecheck-quality-gate
-
+        - DIRECTIVE_030
   - id: verify_stopping_conditions
     description: Check that work has reached completion criteria
     delegates_to:

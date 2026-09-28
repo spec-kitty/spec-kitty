@@ -388,12 +388,12 @@ class TestBuildContextV2:
               - urn: "directive:DIRECTIVE_039"
                 kind: directive
                 label: Lynn Cole Engineering Culture
-              - urn: "tactic:boring-code-review"
-                kind: tactic
+              - urn: "styleguide:boring-code-review"
+                kind: styleguide
                 label: Boring Code Review
             edges:
               - source: "directive:DIRECTIVE_039"
-                target: "tactic:boring-code-review"
+                target: "styleguide:boring-code-review"
                 relation: requires
         """)
 
@@ -461,8 +461,8 @@ class TestBuildContextV2:
               - urn: "directive:DIRECTIVE_039"
                 kind: directive
                 label: Lynn Cole Engineering Culture
-              - urn: "tactic:boring-code-review"
-                kind: tactic
+              - urn: "styleguide:boring-code-review"
+                kind: styleguide
                 label: Boring Code Review
               - urn: "tactic:threat-model-first"
                 kind: tactic
@@ -475,7 +475,7 @@ class TestBuildContextV2:
                 label: Structured Prompt-Driven Development
             edges:
               - source: "directive:DIRECTIVE_039"
-                target: "tactic:boring-code-review"
+                target: "styleguide:boring-code-review"
                 relation: requires
               - source: "paradigm:structured-prompt-driven-development"
                 target: "tactic:reasons-canvas-fill"

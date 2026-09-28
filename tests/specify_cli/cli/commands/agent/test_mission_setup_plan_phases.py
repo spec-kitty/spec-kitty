@@ -14,6 +14,7 @@ golden harness.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, cast
@@ -1016,3 +1017,21 @@ def test_build_result_is_side_effect_free(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert outcome.payload["scaffold_only"] is True
     assert outcome.payload["phase_complete"] is False
     assert outcome.payload["mission_dir"] == outcome.payload["feature_dir"]
+
+
+def test_warn_commit_failed_recipe_names_to_branch(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """WP03 review (cycle 1, #2): the manual-fallback recipe printed when an
+    auto-commit fails must name --to-branch with the real destination
+    ``_commit_to_branch`` threaded in -- never rely on safe-commit's
+    deprecated HEAD fallback.
+    """
+    seam._warn_commit_failed(
+        "spec",
+        tmp_path / "spec.md",
+        RuntimeError("boom"),
+        False,
+        commit_message="chore: spec",
+        to_branch="kitty/mission-demo-lane-a",
+    )
+    output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+    assert "--to-branch kitty/mission-demo-lane-a" in output

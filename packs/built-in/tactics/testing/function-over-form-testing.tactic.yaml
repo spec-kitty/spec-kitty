@@ -67,9 +67,9 @@ references:
     type: tactic
     id: acceptance-test-first
     when: Acceptance tests are the canonical behavioral tests that function-over-form produces
-  - name: Behavior-Driven Development
+  - name: BDD Scenario Formulation
     type: tactic
-    id: behavior-driven-development
+    id: bdd-scenario-formulation
     when: BDD scenarios express the observable outcomes that function-over-form tests should validate
   - name: Test-First Development
     type: directive

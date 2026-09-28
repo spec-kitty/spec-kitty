@@ -319,10 +319,23 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:usage-examples-sync",
         Relation.REQUIRES,
     ),
+    # FR-014 (mission squad-doctrine-single-owner-01M3KBP7, ledger entry (25)):
+    # ``suggests``, was ``requires``. The architecture-scout swarm is an
+    # expensive, recurrence-only escalation, not a prerequisite of every
+    # change under the integrity standard. Conditional on no reachability
+    # loss, measured before the switch: action d=1 149 -> 149, d=2 170 -> 170,
+    # profile 191 -> 191 -- zero members lost or gained in the CHANNEL UNION
+    # sets and the delivered bundle. At the raw per-action graph level,
+    # paula-patterns-architecture-scout-review drops from the specify and
+    # plan action graphs specifically (it stays reached in the union/bundle
+    # through other channels), so "zero members lost or gained" is scoped to
+    # the union/bundle claim, not to every individual action graph. The
+    # tactic has no outbound ``requires``, and strategic-domain-classification
+    # stays reached through procedure:legacy-codebase-triage's ``requires``.
     (
         "directive:DIRECTIVE_001",
         "tactic:paula-patterns-architecture-scout-review",
-        Relation.REQUIRES,
+        Relation.SUGGESTS,
     ),
     (
         "directive:DIRECTIVE_003",
@@ -505,7 +518,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # DIAGNOSIS and points at the arbiter that sizes the resulting remediation.
     # ``suggests`` throughout — all advisory pointers (DIRECTIVE_052 is
     # ``enforcement: advisory``), each following an existing
-    # (directive -> {directive,styleguide}, suggests) pattern in the shipped
+    # (directive -> {directive,procedure}, suggests) pattern in the shipped
     # graph. All five targets are already edge-incident. Ledgered as
     # composition entry (22) in ``tests/doctrine/drg/migration/
     # test_extractor_projection.py``.
@@ -538,9 +551,12 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "directive:DIRECTIVE_040",
         Relation.SUGGESTS,
     ),
+    # Re-pointed by mission squad-doctrine-single-owner-01M3KBP7 (ledger entry
+    # (25)): the squad-cadence styleguide this edge targeted was deleted and its
+    # content folded into the procedure, which is now the single squad owner.
     (
         "directive:DIRECTIVE_052",
-        "styleguide:adversarial-squad-cadence",
+        "procedure:adversarial-squad-deployment",
         Relation.SUGGESTS,
     ),
     # DIRECTIVE_052 lint-orphan fix (nightly-drift-reds-01M3M14S, R7 / WP04):
@@ -582,6 +598,80 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:op-or-mission-selection",
         "procedure:adversarial-squad-deployment",
         Relation.SUGGESTS,
+    ),
+    # Mission squad-doctrine-single-owner-01M3KBP7 (epic rule: one owner states
+    # each rule; every other artefact references the owner by id). Each edge
+    # below carries a relation the YAML ``references`` path cannot mint for its
+    # (source kind, target kind) pair, which is why it is curated here. Ledgered
+    # as composition entry (25) in
+    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    #
+    # The squad procedure delegates model-tier choice to model-task-routing. A
+    # procedure's YAML reference to a tactic would mint ``requires``; the choice
+    # is advisory, so ``suggests``.
+    (
+        "procedure:adversarial-squad-deployment",
+        "tactic:model-task-routing",
+        Relation.SUGGESTS,
+    ),
+    # Tracer files point at the squad procedure as the point-cut practice. A
+    # procedure -> procedure YAML reference would mint ``requires`` and make the
+    # optional squad a hard prerequisite (the squad is advisory, never a gate).
+    (
+        "procedure:mission-tracer-files",
+        "procedure:adversarial-squad-deployment",
+        Relation.SUGGESTS,
+    ),
+    # The two fixed-lens swarms specialise the squad pattern with a
+    # predetermined lens set. ``refines`` has no YAML path; the procedure keeps
+    # reaching loaded agents through its existing inbound edges, so no
+    # ``suggests`` duplicate is added for the same pair.
+    (
+        "tactic:five-paradigm-parallel-debugging",
+        "procedure:adversarial-squad-deployment",
+        Relation.REFINES,
+    ),
+    (
+        "tactic:paula-patterns-architecture-scout-review",
+        "procedure:adversarial-squad-deployment",
+        Relation.REFINES,
+    ),
+    # The bug-fixing procedure points at the durable-fix directive and at the
+    # hard-bug diagnosis procedure. Both are advisory hand-offs: 052 is
+    # ``enforcement: advisory``, and disciplined-defect-diagnosis already
+    # ``requires`` this procedure, so a ``requires`` back-edge would form a
+    # requires cycle.
+    (
+        "procedure:test-first-bug-fixing",
+        "directive:DIRECTIVE_052",
+        Relation.SUGGESTS,
+    ),
+    (
+        "procedure:test-first-bug-fixing",
+        "procedure:disciplined-defect-diagnosis",
+        Relation.SUGGESTS,
+    ),
+    # testing-principles trimmed its inline Quad-A copy and now names the
+    # quadruple-a-test-format styleguide by id. The path-string reference mints
+    # only ``suggests``; the owner must travel with the styleguide, so the edge
+    # is ``requires``.
+    (
+        "styleguide:testing-principles",
+        "styleguide:quadruple-a-test-format",
+        Relation.REQUIRES,
+    ),
+    # BDD scenarios are authored per the given-when-then styleguide. A
+    # tactic's or procedure's YAML reference to a styleguide mints only
+    # ``suggests``; authoring a scenario needs the conventions, so ``requires``.
+    (
+        "tactic:bdd-scenario-formulation",
+        "styleguide:given-when-then-authoring",
+        Relation.REQUIRES,
+    ),
+    (
+        "procedure:bdd-scenario-lifecycle",
+        "styleguide:given-when-then-authoring",
+        Relation.REQUIRES,
     ),
 )
 

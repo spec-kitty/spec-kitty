@@ -66,9 +66,10 @@ steps:
   - title: Apply the smallest verified fix
     actor: agent
     description: >
-      Make the minimal production change that makes the regression test pass.
-      Re-run the original broad feedback loop after the minimized test passes so
-      the fix is proven against the user's scenario, not only the reduced case.
+      Make the production change proportional to the diagnosed cause that makes
+      the regression test pass. Re-run the original broad feedback loop after
+      the minimized test passes so the fix is proven against the user's
+      scenario, not only the reduced case.
   - title: Clean up and record the learning
     actor: agent
     description: >
@@ -91,9 +92,6 @@ references:
   - type: procedure
     id: test-first-bug-fixing
     reason: Once the defect is minimized, the fix follows the test-first bug-fixing procedure.
-  - type: tactic
-    id: bug-fixing-checklist
-    reason: The checklist supplies the focused red-green discipline for the regression-test phase.
   - type: tactic
     id: testing-select-appropriate-level
     reason: Test level selection identifies the correct seam for the regression test.

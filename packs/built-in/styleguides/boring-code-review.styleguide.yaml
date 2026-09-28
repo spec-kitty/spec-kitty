@@ -1,0 +1,69 @@
+schema_version: "1.0"
+id: boring-code-review
+title: Boring Code Review
+scope: code
+
+principles:
+  - "Prefer obvious control flow over clever control flow, unless the clever option clearly improves correctness, safety, or change cost."
+  - "Preserve a single source of truth: consolidate duplicated business logic, state rules, constants, and fragile assumptions; leave harmless syntactic repetition alone when an abstraction would add indirection without preserving meaning."
+  - "A new abstraction must earn its keep -- apply avoid-gold-plating's evidence-gate checklist (5+ of 7 checks, including 3+ real instances of failure) as the single owned threshold before adding one; do not restate a second, competing bar here."
+  - "Comment only where reasoning would otherwise be lost -- explain why the implementation diverges from the obvious pattern or records a non-obvious constraint, not what the code already says."
+
+patterns:
+  - name: Direct control flow
+    description: >
+      Review branches, loops, and data flow for directness during code
+      review. Replace cleverness with familiar language idioms unless the
+      clever option clearly improves correctness, safety, or change cost.
+  - name: Abstraction earns its keep
+    description: >
+      Accept a new abstraction in review only when it reduces real
+      complexity, improves correctness, or makes future change safer.
+      Apply avoid-gold-plating's evidence-gate checklist rather than a
+      second, competing threshold.
+  - name: Comment for lost reasoning only
+    description: >
+      Flag comments that narrate self-explanatory code, and require a
+      comment where the implementation diverges from the obvious pattern or
+      encodes a non-obvious constraint.
+
+anti_patterns:
+  - name: Indirection to remove a few repeated lines
+    description: >
+      Adding a helper or wrapper solely to remove a few repeated lines
+      rather than to preserve a single source of truth for business meaning.
+    bad_example: |
+      def _plus_one(x):
+          return x + 1
+      # introduced to avoid "duplicating" a one-line expression used once
+    good_example: |
+      # inline the one-line expression at its single call site instead
+  - name: Clever over direct
+    description: >
+      Using a clever language feature when a direct, familiar idiom would
+      be easier to review and change.
+    bad_example: |
+      result = next((v for v in xs if pred(v)), None)
+    good_example: |
+      result = None
+      for v in xs:
+          if pred(v):
+              result = v
+              break
+  - name: Duplicated business rules called acceptable repetition
+    description: >
+      Duplicating business rules, state rules, or fragile constants across
+      modules and calling it acceptable repetition instead of consolidating
+      the single source of truth.
+    bad_example: |
+      # tax_rate repeated as a literal constant in three separate modules
+    good_example: |
+      # tax_rate sourced from one shared constant, imported by all callers
+
+tooling:
+  linters: "Boring-code-review is a review discipline, not a lint rule; apply it in human or agent code review."
+
+references:
+  - "packs/built-in/tactics/avoid-gold-plating.tactic.yaml"
+  - "packs/built-in/tactics/easy-to-change.tactic.yaml"
+  - "packs/built-in/directives/reconcile-change-scope-tensions.directive.yaml"
