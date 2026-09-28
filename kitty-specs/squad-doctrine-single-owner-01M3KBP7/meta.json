@@ -1,4 +1,18 @@
 {
+  "accept_commit": "d1ba9f992874662a9f41c44581931059498f87c4",
+  "acceptance_history": [
+    {
+      "accept_commit": "d1ba9f992874662a9f41c44581931059498f87c4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-28T22:02:39.282227+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "34102c539cf68d9f8398d70d6f0b6dcbf9a68061"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-28T22:02:39.282227+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "34102c539cf68d9f8398d70d6f0b6dcbf9a68061",
   "baseline_merge_commit": "2345541a6eb7a168cee1ee63f759c66ec2b05b06",
   "coordination_branch": "kitty/mission-squad-doctrine-single-owner-01M3KBP7",
   "created_at": "2026-09-28T06:36:59.051539+00:00",

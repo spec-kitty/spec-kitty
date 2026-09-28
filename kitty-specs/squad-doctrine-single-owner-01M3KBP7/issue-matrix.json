@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#3810": {
+      "evidence_ref": "Context citation only: the #3810 squad-lens activation guard is preserved (re-pointed in WP04), no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5078": {
+      "evidence_ref": "Printed commit recipes use safe-commit (src/specify_cli/cli/commands/_commit_recipes.py); implement prompt: WP pushes, orchestrator opens PR. Tests: tests/specify_cli/cli/commands/test_commit_recipes.py, tests/doctrine/test_served_prompts_single_owner.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#5202": {
+      "evidence_ref": "mission-steps/<type>/<action>/guidelines.md is the single served owner; actions copies removed. Tests: tests/doctrine/missions/test_guidelines_single_owner.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5203": {
+      "evidence_ref": "Context citation only: broader in-house-in-built-in move tracked in #5203; this mission moves only iterative-deepening-review and tracker-organisation-workflow (operator decision).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5207": {
+      "evidence_ref": "Context citation only: enforcement/criticality wording explicitly out of scope, owned by #5207.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5218": {
+      "evidence_ref": "Epic: all three children (#5219, #5220, #5221) delivered in this mission; consumer retirement migration (src/specify_cli/upgrade/migrations/m_4_0_0rc5_retire_single_owner_doctrine_ids.py) plus DRG wiring.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP09"
+    },
+    "#5219": {
+      "evidence_ref": "Squad doctrine single owner: procedure adversarial-squad-deployment owns rule, point-cuts, casting, disposition contract; styleguide retired + migrated. Tests: tests/doctrine/test_squad_procedure_single_owner.py, tests/doctrine/drg/test_single_owner_edges.py, tests/doctrine/test_retired_ids_absent.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#5220": {
+      "evidence_ref": "Testing/bug-fixing/BDD owners (incl. closeout fold: pyramid/over-mocking referenced, not restated). Tests: tests/doctrine/test_testing_doctrine_single_owner.py, tests/doctrine/drg/test_single_owner_edges.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#5221": {
+      "evidence_ref": "Common Docs, change-scope, supply-chain, review-tactic owners (incl. closeout fold: supply-chain tactic references the disposition contract). Tests: tests/doctrine/test_common_docs_single_owner.py, tests/doctrine/test_change_scope_review_single_owner.py, tests/doctrine/test_supply_chain_single_owner.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP06"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,289 @@
+{
+  "mission_slug": "squad-doctrine-single-owner-01M3KBP7",
+  "mission_number": "207",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_squad_procedure_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:59:42.723029+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_squad_procedure_single_owner.py tests/doctrine/test_project_charter_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:59:49.124951+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_squad_procedure_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:59:55.014043+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_squad_procedure_single_owner.py tests/doctrine/test_activation_squad_lenses.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:00.883586+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/drg/test_single_owner_edges.py tests/doctrine/test_squad_procedure_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:06.740280+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/drg/test_single_owner_edges.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:12.270050+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_retired_ids_absent.py tests/doctrine/test_squad_procedure_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:18.559076+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/drg/test_single_owner_edges.py tests/doctrine/test_squad_procedure_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:24.462009+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc5_retire_single_owner_doctrine_ids.py tests/specify_cli/upgrade/migrations/test_retired_activation.py tests/doctrine/test_retirement_table_consistency.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:30.378317+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_project_charter_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:36.185703+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_activation_squad_lenses.py tests/doctrine/test_squad_procedure_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:41.792077+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/drg/test_single_owner_edges.py tests/doctrine/test_squad_procedure_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:47.398403+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_squad_procedure_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:52.690405+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/drg/test_single_owner_edges.py tests/doctrine/test_paula_patterns_artifacts.py tests/doctrine/test_owner_delivery.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:00:58.006003+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_project_charter_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:04.579951+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/missions/test_guidelines_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:10.298982+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/missions/test_guidelines_single_owner.py tests/doctrine/missions/test_referential_integrity.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:15.820255+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_commit_recipes.py tests/agent/test_build_implement_prompt_lines.py tests/specify_cli/cli/commands/test_implement_writeside.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:21.905808+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_served_prompts_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:27.389516+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_testing_doctrine_single_owner.py tests/doctrine/drg/test_single_owner_edges.py tests/doctrine/test_served_prompts_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:32.816095+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "Verify FR-021 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_testing_doctrine_single_owner.py tests/doctrine/drg/test_single_owner_edges.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:39.200366+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "Verify FR-022 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_testing_doctrine_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:45.324056+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "Verify FR-023 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_testing_doctrine_single_owner.py tests/doctrine/test_change_scope_review_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:51.487395+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-024",
+      "description": "Verify FR-024 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_common_docs_single_owner.py tests/docs/test_doc_status_durable.py tests/docs/test_docs_structural_lint.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:01:57.215490+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-025",
+      "description": "Verify FR-025 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_change_scope_review_single_owner.py tests/doctrine/drg/test_single_owner_edges.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:02:03.015783+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-026",
+      "description": "Verify FR-026 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_supply_chain_single_owner.py tests/doctrine/test_served_prompts_single_owner.py tests/doctrine/agent_profiles/test_supply_chain_profile_bindings.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:02:08.764288+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-027",
+      "description": "Verify FR-027 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_squad_procedure_single_owner.py tests/doctrine/test_common_docs_single_owner.py tests/doctrine/test_served_prompts_single_owner.py tests/doctrine/test_supply_chain_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:02:14.427074+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-028",
+      "description": "Verify FR-028 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_change_scope_review_single_owner.py tests/doctrine/test_served_prompts_single_owner.py (564 passed at 34102c539)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T22:02:20.328548+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
