@@ -69,6 +69,73 @@ def invoke(*extra: str):
     return CliRunner().invoke(app, ["record-analysis", "--mission", SLUG, "--json", *extra], input=BODY)
 
 
+def _compile_catalog_from_other_checkout(repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    from charter.activation.compiler import compile_charter, write_compiled_charter
+    from charter.activation.interview import default_interview
+    from ruamel.yaml import YAML
+
+    monkeypatch.delenv("SPEC_KITTY_PACKS_ROOT", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+    checkout_a = Path(__file__).resolve().parents[5]
+    compiled = compile_charter(
+        mission="software-dev",
+        interview=default_interview(mission="software-dev", profile="minimal"),
+        repo_root=checkout_a,
+    )
+    charter_path = repo / ".kittify/charter/charter.yaml"
+    write_compiled_charter(charter_path.parent, compiled, repo_root=repo)
+    git(repo, "add", ".kittify/charter/charter.yaml")
+    git(repo, "commit", "-qm", "compile charter from checkout A")
+    charter = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
+    template_ref = next(ref for ref in charter["catalog"]["references"] if ref["kind"] == "template_set")
+    assert template_ref["source_path"] == "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml"
+    return charter_path
+
+
+def test_report_only_succeeds_with_charter_generated_in_another_checkout(repo: Path, monkeypatch: pytest.MonkeyPatch):
+    charter_path = _compile_catalog_from_other_checkout(repo, monkeypatch)
+    head = git(repo, "rev-parse", "HEAD")
+
+    result = invoke("--report-only")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["commit_status"] == "committed"
+    assert git(repo, "rev-parse", "HEAD^").strip() == head.strip()
+    assert git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").decode().splitlines() == [REPORT]
+    assert "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml" in charter_path.read_text(encoding="utf-8")
+
+
+def test_report_only_still_refuses_committed_external_catalog_authority(repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
+
+    charter_path = _compile_catalog_from_other_checkout(repo, monkeypatch)
+    external_source = tmp_path / "external-authority" / "custom.yaml"
+    external_source.parent.mkdir()
+    external_source.write_text("id: external\n", encoding="utf-8")
+    catalog = load_charter_yaml(charter_path)["catalog"]
+    catalog["references"].append(
+        {
+            "id": "DIRECTIVE:external",
+            "kind": "directive",
+            "title": "External mutable authority",
+            "summary": "report-only negative control",
+            "source_path": str(external_source),
+            "local_path": "_LIBRARY/external.md",
+        }
+    )
+    update_charter_yaml_section(charter_path, "catalog", catalog)
+    git(repo, "add", ".kittify/charter/charter.yaml")
+    git(repo, "commit", "-qm", "add external mutable authority")
+    head = git(repo, "rev-parse", "HEAD")
+
+    result = invoke("--report-only")
+
+    assert result.exit_code == 1, result.output
+    assert "External mutable analysis authority is unsupported" in result.output
+    assert not (repo / REPORT).exists()
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
 def test_report_only_preserves_unrelated_partial_staging(repo: Path):
     from specify_cli.analysis_report import check_analysis_report_current
 

@@ -108,6 +108,34 @@ def test_template_set_migration_rewrites_only_builtin_absolute_source(tmp_path: 
     assert refs["PARADIGM:atomic-design"]["source_path"] == str(abs_paradigm)
 
 
+def test_template_set_migration_recognizes_missing_path_from_another_checkout(tmp_path: Path, packs_root: Path) -> None:
+    stale_source = tmp_path / "former-checkout" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    charter_path = _charter_path(tmp_path)
+    _write_charter(charter_path, [_template_ref(str(stale_source))])
+    migration = HealTemplateSetProvenanceMigration()
+
+    assert not stale_source.exists()
+    assert migration.detect(tmp_path) is True
+    result = migration.apply(tmp_path)
+    data = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
+    assert result.success is True
+    assert data["catalog"]["references"][0]["source_path"] == ("${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml")
+
+
+def test_template_set_migration_repairs_path_while_former_checkout_still_exists(tmp_path: Path, packs_root: Path) -> None:
+    stale_source = tmp_path / "former-checkout" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    stale_source.parent.mkdir(parents=True)
+    stale_source.write_text("name: software-dev\n", encoding="utf-8")
+    charter_path = _charter_path(tmp_path)
+    _write_charter(charter_path, [_template_ref(str(stale_source))])
+    migration = HealTemplateSetProvenanceMigration()
+
+    assert migration.detect(tmp_path) is True
+    assert migration.apply(tmp_path).success is True
+    data = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
+    assert data["catalog"]["references"][0]["source_path"] == ("${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml")
+
+
 def test_template_set_migration_is_dry_run_safe_and_idempotent(tmp_path: Path, packs_root: Path) -> None:
     abs_source = packs_root / "built-in" / "missions" / "software-dev" / "mission.yaml"
     charter_path = _charter_path(tmp_path)
@@ -125,8 +153,8 @@ def test_template_set_migration_is_dry_run_safe_and_idempotent(tmp_path: Path, p
 
 
 def test_external_template_set_path_is_preserved_and_not_reported(tmp_path: Path, packs_root: Path) -> None:
-    external = tmp_path / "external" / "mission.yaml"
-    external.parent.mkdir()
+    external = tmp_path / "external" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    external.parent.mkdir(parents=True)
     external.write_text("name: custom\n", encoding="utf-8")
     charter_path = _charter_path(tmp_path)
     _write_charter(charter_path, [_template_ref(str(external))])

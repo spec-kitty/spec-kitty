@@ -33,13 +33,16 @@ import typer
 
 from specify_cli.core.paths import locate_project_root
 from specify_cli.upgrade.migrations.m_3_2_7_heal_provenance_paths import describe_leaks
+from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance import (
+    describe_template_set_leaks,
+)
 
 from . import _doctor_shared
 from ._doctor_shared import console
 
 __all__ = ["register", "run_provenance_audit"]
 
-_HEAL_HINT = "spec-kitty migrate  # applies m_3_2_7_heal_provenance_paths"
+_HEAL_HINT = "spec-kitty migrate  # applies pending provenance migrations"
 
 
 def run_provenance_audit(repo_root: Path, *, json_output: bool) -> None:
@@ -50,7 +53,7 @@ def run_provenance_audit(repo_root: Path, *, json_output: bool) -> None:
     mutates anything -- healing is a separate, explicit ``spec-kitty
     migrate`` step.
     """
-    leaks = describe_leaks(repo_root)
+    leaks = [*describe_leaks(repo_root), *describe_template_set_leaks(repo_root)]
 
     if json_output:
         payload = {"leaks": leaks, "leak_count": len(leaks), "heal_hint": _HEAL_HINT}
@@ -58,15 +61,10 @@ def run_provenance_audit(repo_root: Path, *, json_output: bool) -> None:
         raise typer.Exit(1 if leaks else 0)
 
     if not leaks:
-        console.print(
-            "[green]Provenance[/green]: no absolute built-in-pack source_path leaks found."
-        )
+        console.print("[green]Provenance[/green]: no absolute built-in-pack source_path leaks found.")
         raise typer.Exit(0)
 
-    console.print(
-        f"\n[bold yellow]Provenance leak(s)[/bold yellow] -- {len(leaks)} absolute "
-        "built-in-pack source_path(s)\n"
-    )
+    console.print(f"\n[bold yellow]Provenance leak(s)[/bold yellow] -- {len(leaks)} absolute built-in-pack source_path(s)\n")
     for leak in leaks:
         console.print(f"  • [yellow]{leak}[/yellow]")
     console.print(f"\n  [dim]Heal with:[/dim] {_HEAL_HINT}\n")

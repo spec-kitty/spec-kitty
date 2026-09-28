@@ -1497,10 +1497,10 @@ def _doctrine_yaml_reference(
     (:func:`charter.offering.provenance.to_portable_source_path`, C-PRV-1/2/6): a
     built-in-pack path becomes a ``${SPEC_KITTY_PACKS_ROOT}/built-in/...``
     token, an in-tree path becomes repo-relative, and anything else stays
-    absolute. This is one of exactly two normalizer call sites
-    (contracts/provenance-and-channel.md C-PRV-6) -- the mission-template
-    reference (:func:`_template_reference`) and the local-support declaration
-    reference are deliberately excluded and keep using :func:`_trim_source_path`.
+    absolute. This is one of three normalizer call sites
+    (contracts/provenance-and-channel.md C-PRV-6, extended by issue #5253).
+    The local-support declaration reference remains excluded and keeps using
+    :func:`_trim_source_path`.
     """
     source = source or {"id": raw_id, "title": raw_id, "summary": "Definition unavailable in bundled doctrine."}
 
@@ -1552,6 +1552,7 @@ def _template_reference(*, mission: str, template_set: str) -> CharterReference:
     repo = MissionTemplateRepository.default()
     config = repo.get_mission_config(mission)
     mission_path = repo._mission_config_path(mission) or (repo._missions_root / mission / "mission.yaml")
+    source_path = to_portable_source_path(mission_path, project_root=None)
     raw_parsed = config.parsed if config is not None else {"name": mission}
     source: dict[str, object] = {str(key): value for key, value in raw_parsed.items()} if isinstance(raw_parsed, dict) else {"name": mission}
 
@@ -1559,7 +1560,7 @@ def _template_reference(*, mission: str, template_set: str) -> CharterReference:
     content = (
         f"# Template Set: {template_set}\n\n"
         f"- Mission: `{mission}`\n"
-        f"- Source: `{_trim_source_path(str(mission_path))}`\n"
+        f"- Source: `{source_path}`\n"
         f"- Summary: {summary}\n\n"
         "## Mission Definition\n\n"
         "```yaml\n"
@@ -1571,7 +1572,7 @@ def _template_reference(*, mission: str, template_set: str) -> CharterReference:
         kind="template_set",
         title=template_set,
         summary=summary,
-        source_path=_trim_source_path(str(mission_path)),
+        source_path=source_path,
         local_path=f"_LIBRARY/template-set-{_slugify(template_set)}.md",
         content=content,
     )

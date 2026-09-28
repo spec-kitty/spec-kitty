@@ -338,12 +338,348 @@ catalog:
   languages:
   - python
   references:
-  - id: USER:PROJECT_PROFILE
-    kind: user_profile
-    title: User Project Profile
-    summary: Project-specific interview answers captured for charter compilation.
-    source_path: .kittify/charter/interview/answers.yaml
-    local_path: _LIBRARY/user-project-profile.md
+  - id: AGENT_PROFILE:analyst-annie
+    kind: agent_profile
+    title: Analyst Annie
+    summary: "Generalist functional analyst specialising in translating informal requirements into structured, testable specifications. Bridges domain expertise and implementation teams by producing unambiguous, evidence-backed acceptance criteria and BDD scenarios that serve as the authoritative handoff to implementers.\n"
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-analyst-annie.md
+  - id: AGENT_PROFILE:architect-alphonso
+    kind: agent_profile
+    title: Architect Alphonso
+    summary: System architecture and technical design specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-architect-alphonso.md
+  - id: AGENT_PROFILE:comms-cleo
+    kind: agent_profile
+    title: Comms Cleo
+    summary: "Draft, edit, and calibrate professional written communications across all of a project's output surfaces — applying a defined tone framework and explicit audience-persona targeting.\n"
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-comms-cleo.md
+  - id: AGENT_PROFILE:curator-carla
+    kind: agent_profile
+    title: Curator Carla
+    summary: Knowledge base and doctrine maintenance specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-curator-carla.md
+  - id: AGENT_PROFILE:debugger-debbie
+    kind: agent_profile
+    title: Debugger Debbie
+    summary: Recurring-bug structural-root-cause investigator using five-paradigm parallel debugging
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-debugger-debbie.md
+  - id: AGENT_PROFILE:designer-dagmar
+    kind: agent_profile
+    title: Designer Dagmar
+    summary: UX/UI and interaction design specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-designer-dagmar.md
+  - id: AGENT_PROFILE:diagram-daisy
+    kind: agent_profile
+    title: Diagram Daisy
+    summary: "Transform conceptual and architectural structures into clear, semantically aligned diagrams using Mermaid, PlantUML, and Graphviz.\n"
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-diagram-daisy.md
+  - id: AGENT_PROFILE:generic-agent
+    kind: agent_profile
+    title: Generic Agent
+    summary: General-purpose task execution profile. Used as the default when no specialist profile is assigned to a work package.
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-generic-agent.md
+  - id: AGENT_PROFILE:human-in-charge
+    kind: agent_profile
+    title: Human in Charge
+    summary: Workflow sentinel indicating this work package requires direct human execution. No agent identity is injected. The HIC remains accountable for the deliverable.
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-human-in-charge.md
+  - id: AGENT_PROFILE:implementer-ivan
+    kind: agent_profile
+    title: Implementer Ivan
+    summary: General-purpose software implementation specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-implementer-ivan.md
+  - id: AGENT_PROFILE:lexical-larry
+    kind: agent_profile
+    title: Lexical Larry
+    summary: "Cross-functional semantic analyst and terminology reviewer specialising in linguistic accuracy across all artifact types — code, specifications, architecture decisions, and documentation. Larry's authority is the domain vocabulary: detecting synonym drift, enforcing ubiquitous language, authoring traceable glossary entries, and diagnosing tonality divergence as a semantic problem, not a style problem.\n"
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-lexical-larry.md
+  - id: AGENT_PROFILE:minutes-mahad
+    kind: agent_profile
+    title: Minutes Mahad
+    summary: "Meeting minutes specialist who converts VTT transcripts from Teams or Zoom into structured, validated Markdown and posts that Markdown as the assistant response in the originating chat. Minutes Mahad first asks which of two formats to produce — DECISION MINUTES (Attendance / Minutes table / Action Items) for decision- and action-oriented meetings, or DISCUSSION NOTES (Attendance / per-topic bullet summaries / optional Action Items) that stand alone as a briefing for someone who was not there. Extraction uses Scribe Sally identity and strict neutrality, then renders one stand-alone Markdown response using the template matching the selected format. The attribution rule (every action item present must have a named owner) is a hard gate: unresolved attribution gaps are asked about in the same chat before any final minutes are returned or handed off. In discussion notes the Action Items section is optional and may be omitted when nothing actionable arose. Executive brevity so minutes are readable in 1–2 minutes. Wiki/knowledge-base publication is optional and human-operated: the agent reuses the same validated Markdown and hands a rendered page to the human. Chat-only delivery requires no publish credentials. Minutes Mahad does not perform editorial interpretation, does not invent content not present in the transcript, and does not return minutes that have not passed the validation gate.\n"
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-minutes-mahad.md
+  - id: AGENT_PROFILE:paula-patterns
+    kind: agent_profile
+    title: Paula Patterns
+    summary: Architecture-scout reviewer for recurring boundary leaks, ownership confusion, and whack-a-field fixes
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-paula-patterns.md
+  - id: AGENT_PROFILE:planner-priti
+    kind: agent_profile
+    title: Planner Priti
+    summary: Work decomposition and delivery sequencing specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-planner-priti.md
+  - id: AGENT_PROFILE:python-pedro
+    kind: agent_profile
+    title: Python Pedro
+    summary: Python-specialist implementer applying TDD, type safety, and idiomatic Python 3.12+ practices
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-python-pedro.md
+  - id: AGENT_PROFILE:researcher-robbie
+    kind: agent_profile
+    title: Researcher Robbie
+    summary: Domain knowledge acquisition and synthesis specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-researcher-robbie.md
+  - id: AGENT_PROFILE:retrospective-facilitator
+    kind: agent_profile
+    title: Retrospective Facilitator
+    summary: Facilitates a structured mission retrospective at terminus
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-retrospective-facilitator.md
+  - id: AGENT_PROFILE:reviewer-renata
+    kind: agent_profile
+    title: Reviewer Renata
+    summary: Code and design quality assurance specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-reviewer-renata.md
+  - id: AGENT_PROFILE:scribe-sally
+    kind: agent_profile
+    title: Scribe Sally
+    summary: "Maintain traceable, neutral documentation integrity across meetings, agent exchanges, and structured knowledge artifacts.\n"
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-scribe-sally.md
+  - id: AGENT_PROFILE:synthesizer-sam
+    kind: agent_profile
+    title: Synthesizer Sam
+    summary: "Integrate multi-agent outputs into coherent, context-aligned insight systems.\n"
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-synthesizer-sam.md
+  - id: DIRECTIVE:ACTION_ITEM_ATTRIBUTION
+    kind: directive
+    title: Action Item Attribution
+    summary: "Every action item recorded in meeting minutes must be attributed to a named person. An unattributed action item cannot be followed up, tracked, or escalated — it becomes dead weight in the record. This rule is enforced as a hard validation gate: minutes containing ownerless actions are refused until the gap is resolved in the originating chat. The same gate applies before optional wiki publication.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-action-item-attribution.md
+  - id: DIRECTIVE:DIRECTIVE_001
+    kind: directive
+    title: Architectural Integrity Standard
+    summary: "System designs must maintain clear separation of concerns and well-defined component boundaries so that each part of the system is independently understandable, testable, and replaceable without cascading changes.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-001.md
+  - id: DIRECTIVE:DIRECTIVE_003
+    kind: directive
+    title: Decision Documentation Requirement
+    summary: "Material technical and governance decisions must be captured with enough context that future contributors can understand why a path was chosen and what constraints must remain true.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-003.md
+  - id: DIRECTIVE:DIRECTIVE_010
+    kind: directive
+    title: Specification Fidelity Requirement
+    summary: "Implemented behavior and produced artifacts must remain faithful to approved specifications, with any necessary deviations explicitly documented and reviewed before acceptance.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-010.md
+  - id: DIRECTIVE:DIRECTIVE_018
+    kind: directive
+    title: Doctrine Versioning Requirement
+    summary: "Doctrine artifacts must be versioned with traceable change rationale so downstream consumers can understand compatibility and migration impact.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-018.md
+  - id: DIRECTIVE:DIRECTIVE_024
+    kind: directive
+    title: Locality of Change
+    summary: "Changes should stay close to the problem being solved to reduce blast radius, simplify review, and lower regression risk.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-024.md
+  - id: DIRECTIVE:DIRECTIVE_025
+    kind: directive
+    title: Boy Scout Rule
+    summary: "Leave touched areas in a better state by default. When an area already modified for the current task carries a failing test, lint, or type issue, fixing it is the default stance — not an optional nicety. Establishing whether a failure is pre-existing routinely costs more effort than simply fixing it, and litigating blame leaves the campground dirtier; so the default is to fix, and to defer only with an explicit rationale. At planning point-cuts (post-spec, post-plan, post-tasks), this rule extends to proactive domain-matched debt folding: if a foldable tech-debt item belongs to the current mission's primary domain, it may be incorporated into the current scope; items outside the domain boundary are filed as issues and deferred, never silently absorbed. See also DIRECTIVE_024 for locality-of-change discipline; DIRECTIVE_040 for structural intervention on recurring bugs.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-025.md
+  - id: DIRECTIVE:DIRECTIVE_028
+    kind: directive
+    title: Efficient Local Tooling
+    summary: "Local work should prefer efficient, low-noise tooling so investigation, editing, validation, and repository operations stay fast and reproducible across development environments.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-028.md
+  - id: DIRECTIVE:DIRECTIVE_029
+    kind: directive
+    title: Agent Commit Signing Policy
+    summary: "Agent-authored commits must avoid GPG or SSH signing in unattended workflows so automation does not fail on missing key material or unverifiable signatures.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-029.md
+  - id: DIRECTIVE:DIRECTIVE_030
+    kind: directive
+    title: Test and Typecheck Quality Gate
+    summary: "Code changes must pass the relevant automated tests and static validation gates before handoff so regressions and interface drift are caught early.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-030.md
+  - id: DIRECTIVE:DIRECTIVE_031
+    kind: directive
+    title: Context-Aware Design
+    summary: "Every design decision must be made with explicit awareness of the bounded context it belongs to. Code, terminology, and abstractions must align with the context's ubiquitous language. Crossing a context boundary requires an explicit translation layer; implicit coupling across boundaries is prohibited.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-031.md
+  - id: DIRECTIVE:DIRECTIVE_032
+    kind: directive
+    title: Conceptual Alignment
+    summary: "Agents must never assume that shared vocabulary implies shared meaning. Before acting on any task that contains domain-specific, ambiguous, or overloaded terminology, the agent must explicitly state its interpretation of each key term and confirm that interpretation with the requester. Misaligned understanding discovered after implementation is far more costly than a brief clarification exchange before it begins.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-032.md
+  - id: DIRECTIVE:DIRECTIVE_033
+    kind: directive
+    title: Targeted Staging Policy
+    summary: "Agent-authored commits must stage only the expected deliverables for the current work package. Blanket staging commands that could inadvertently include unrelated changes, secrets, or build artefacts are prohibited.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-033.md
+  - id: DIRECTIVE:DIRECTIVE_034
+    kind: directive
+    title: Test-First Development
+    summary: "Require test-first behavior across acceptance and implementation layers, selecting tactics based on scope and risk. Tests define the contract before production code is written.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-034.md
+  - id: DIRECTIVE:DIRECTIVE_035
+    kind: directive
+    title: Bulk Edit Occurrence Classification
+    summary: "Codebase-wide renames, terminology migrations, and bulk string changes must classify string occurrences by semantic context before edits begin. Different contexts (code symbols, imports, filesystem paths, serialized keys, CLI commands, docs, tests, logs) may have different change rules.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-035.md
+  - id: DIRECTIVE:DIRECTIVE_036
+    kind: directive
+    title: Black-Box Integration Testing
+    summary: "Exercise the system under test through its external interfaces only, without reference to its internal code structure, implementation details, or internal paths. Test cases derive from specifications, requirements, and design parameters, and assertions are made on observable outputs returned through those external interfaces. \"Black-box\" refers to the technique (absence of structural knowledge) and is independent of test scope — the scope is selected separately by responsibility, not by default to end-to-end.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-036.md
+  - id: DIRECTIVE:DIRECTIVE_037
+    kind: directive
+    title: Living Documentation Sync
+    summary: "Behavior-describing artifacts must evolve together. When observable behavior changes, the canonical examples, acceptance checks, narrative specifications, user documentation, glossary terms, code-level documentation, and architecture records must be updated in the same change so no reader is left with a stale picture of the system.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-037.md
+  - id: DIRECTIVE:DIRECTIVE_038
+    kind: directive
+    title: Structured Prompt Change-Boundary
+    summary: "When the SPDD/REASONS doctrine pack is active, an implementation must remain inside the approved canvas's Requirements, Operations, Norms, and Safeguards unless a deviation is explicitly recorded. Applies to implement and review actions on projects whose charter selection includes the SPDD paradigm, either REASONS canvas tactic, or this directive.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-038.md
+  - id: DIRECTIVE:DIRECTIVE_039
+    kind: directive
+    title: Lynn Cole Engineering Culture
+    summary: "Constrain agentic implementation work toward test-first, strongly typed, modular, boring, reviewable code. Select this directive when the user names Lynn Cole's rules or expresses concern that coding agents produce excessive, bloated, clever, over-abstracted, or hard-to-review code.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-039.md
+  - id: DIRECTIVE:DIRECTIVE_040
+    kind: directive
+    title: Recurring-Bug Structural-Intervention Discipline
+    summary: "When a bug class has recurred and prior reactive point-fixes have not stopped the chain, the next response must be a structural intervention that closes the class — not another point fix. Use the five-paradigm parallel-debugging tactic to identify the structural root cause, enumerate dormant masks, and author one fix plan that closes the whole class.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-040.md
+  - id: DIRECTIVE:DIRECTIVE_041
+    kind: directive
+    title: Tests as Scaffold, Not Friction
+    summary: "Tests must protect change, not obstruct it. A test earns its place by failing exactly when the contract is violated and passing otherwise. Tests that pass for the wrong reason (mocked-out behavior, tautological or wiring-only assertions) or fail on correct, behavior-neutral changes (implementation-coupled assertions, line-pinned ratchets) are friction: they hide regressions and pressure engineers to revert good changes.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-041.md
+  - id: DIRECTIVE:DIRECTIVE_042
+    kind: directive
+    title: Common Docs Documentation Standard
+    summary: "Documentation is governed, single-source-of-truth content, not a wiki. Every documentation file lives under the single Common Docs root, declares its own lifecycle metadata in in-file frontmatter, and is curated under a delete-stale policy. This directive binds the conventions decided in the Common Docs reconciliation ADR (2026-06-27) so they are enforced by live checks rather than remembered by authors.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-042.md
+  - id: DIRECTIVE:DIRECTIVE_043
+    kind: directive
+    title: Close Defect Classes by Construction
+    summary: "A repeating defect class signals a missing structural constraint. The correct response is to eliminate the recurrence path with a structural mechanism — an AST call-site gate, a type invariant, or a shrink-only ratchet — rather than adding another process rule or discipline reminder. Structural enforcement closes the class permanently; process rules merely defer the next occurrence.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-043.md
+  - id: DIRECTIVE:DIRECTIVE_044
+    kind: directive
+    title: Canonical Sources and Unification
+    summary: "Agents and operators must use the canonical doctrine template, skill, or CLI command rather than improvising a substitute or copying from a prior mission artifact, because older artifacts drift from the canonical surface and copying them propagates the drift. When a concept is found to live in more than one location (a split-brain surface), the correct response is to consolidate to a single canonical authority — not to add the same behavior to every copy. A documented CLI command that is absent from the running tool is a gap to file upstream, not an invitation to hand-roll a workaround.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-044.md
+  - id: DIRECTIVE:DIRECTIVE_045
+    kind: directive
+    title: PRs-Only and Read-Intent Before High-Risk Operations
+    summary: "All changes to the remote main branch go through pull requests — agents never push directly or merge without explicit operator instruction. Before executing any high-risk git operation (merge, rebase, deletion, force operations), agents must read the mission spec and current context first. Neither rule may be bypassed under time pressure or assumed from a task title alone.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-045.md
+  - id: DIRECTIVE:DIRECTIVE_046
+    kind: directive
+    title: Readable and Consistent Pull Requests
+    summary: "Every mission branch and pull request an agent prepares must be readable, consistent, and independently reviewed before it is handed to the operator. Concretely, three properties are required and must not be traded away for speed: (1) LINEAR history — the branch is rebased onto the current upstream base and carries a small set of logically-sliced commits, never a tangle of merge and status commits (rebase over merge); (2) CONSISTENT and COMPLETE scope — the branch finishes the work it set out to do and does not defer genuinely small remaining items to a follow-up, deferring only work that is genuinely high-effort or mission-sized; (3) INDEPENDENTLY REVIEWED — the aggregate diff has had an independent review before, or in parallel to, opening the draft PR, with real findings folded in while the PR is still a draft. The adversarial review squad (adversarial-squad-deployment) is the RECOMMENDED review mechanism — not a mandated gate; it stays optional per its own doctrine.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-046.md
+  - id: DIRECTIVE:DIRECTIVE_047
+    kind: directive
+    title: Audience-Oriented Writing
+    summary: "Any artifact intended for a human reader must be tailored to a named, identifiable audience rather than written for an undefined or generic reader. Identifying who the reader is, what they already know, and what they need from the artifact must happen before drafting, not after. Artifacts that skip this step tend to over-explain to experts, under-explain to newcomers, or bury the point the reader actually needs.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-047.md
+  - id: DIRECTIVE:DIRECTIVE_048
+    kind: directive
+    title: Version Governance
+    summary: "Any agent operation that reads, cites, or reasons about a versioned artifact (a glossary, a specification, a doctrine element, a released document) must reference the current canonical version, not a cached or stale copy. Analysis performed against a stale version produces confidently wrong conclusions - it is not merely lower-quality, it is actively misleading because it looks complete.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-048.md
+  - id: DIRECTIVE:DIRECTIVE_049
+    kind: directive
+    title: Agent Declaration and Self-Introduction
+    summary: "Before beginning substantive work, an agent with a defined specialist identity (as opposed to a generic assistant) should open with a short role/scope declaration - who it is, what it is about to do, and any hard constraint it operates under - so the human or the requesting agent can catch a mismatch (wrong agent invoked, wrong scope assumed) before work is wasted rather than after. This is advisory guidance, not a runtime gate: no mechanism blocks work when the declaration is absent.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-049.md
+  - id: DIRECTIVE:DIRECTIVE_050
+    kind: directive
+    title: Credential Handling Discipline
+    summary: "Any agent operation that uses an authentication credential (token, key, password, session cookie) to call an external system must never log, echo, or otherwise surface that credential in output, error messages, or artifacts. The discipline is prevention-first: the credential must be kept out of any surface that could be logged or written in the first place, rather than surfaced and then scrubbed after the fact.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-050.md
+  - id: DIRECTIVE:DIRECTIVE_051
+    kind: directive
+    title: Supply-Chain Install Safety
+    summary: "Install-time and dependency-resolution decisions must be evaluated against a threat-CLASS model, not a static package denylist. Worm-style supply-chain compromises (credential-harvesting postinstall scripts, typosquatted or namespace-confused packages, rapid-republish attacks during an active incident window) recur across ecosystems faster than any hand-maintained list of bad package/version pairs can track. Agents and mission workflows must therefore default to five threat-class controls for every dependency addition or upgrade: (1) official registry authenticity — the resolved package and version must come from the approved official registry, not an unexpected mirror or namespace; (2) package freshness visibility — first-publish and latest-publish/update timestamps must be surfaced so an operator can see when a version is suspiciously new or was substantially reworked; (3) deny-by-default lifecycle-script approval — `preinstall`/`install`/`postinstall` scripts are never auto-approved and must be explicitly allowlisted with a documented justification when required for legitimate native builds; (4) Node Active LTS awareness — the project/runtime Node version is checked against current Active LTS and any skew is explicitly disclosed with rationale, never silently accepted; (5) incident-list and IoC/persistence posture — known active-incident package/version lists and indicator-of-compromise (IoC) or persistence patterns (unexpected postinstall network calls, credential/token exfiltration attempts, self-propagating install scripts) are treated as class-level risk signals to check for, with CAS/vendor incident feeds as the external authority of record — this directive never hardcodes specific incident package names or versions as core truth, because that list changes faster than doctrine can be re-authored.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-051.md
+  - id: DIRECTIVE:DIRECTIVE_052
+    kind: directive
+    title: Prefer Durable Fixes
+    summary: "Do not stop a fix at the surface symptom. Diagnose every fix to its root cause FIRST — an underdesigned or underspecified seam, the same problem recurring in more than one place, a forgone opportunity to reuse existing code or authority, a missing invariant — and, when the investigation reveals a systemic cause, prefer a STRUCTURAL remediation that closes the whole class over a narrow point-fix that leaves the class open. This directive governs the DEPTH OF DIAGNOSIS (always root-cause-deep); it does NOT license unbounded scope. The SIZE of the resulting remediation is a separate, explicit scope decision reconciled through RECONCILE_CHANGE_SCOPE_TENSIONS, and deferring a structural fix as a tracked follow-up (behind an umbrella issue) is an acceptable outcome when folding it would exceed the mission.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-052.md
+  - id: DIRECTIVE:DISCIPLINED_REFACTORING
+    kind: directive
+    title: Disciplined Refactoring
+    summary: "Refactoring is behaviour-preserving restructuring, and it stays safe only when it is disciplined. Change the shape of the code in small, individually reversible steps while a green test suite holds behaviour constant; never fold a behaviour change into the same step as a structural move. Before touching the code, name the smell the move addresses — feature envy, a long method, a data clump, duplicated logic, a conditional switching on state — so the improvement is aimed at a stated problem rather than at taste. Apply exactly one transformation at a time and re-run the tests after each, so that when a step goes red the cause is unambiguous and the step can be reverted on its own. This directive governs HOW to restructure once a smell is identified; the concrete moves it recommends (extract, encapsulate, move, replace-conditional-with- polymorphism, incremental replacement) are the refactoring tactics, each chosen by the specific smell it resolves.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-disciplined-refactoring.md
+  - id: DIRECTIVE:MINUTES_STAND_ALONE
+    kind: directive
+    title: Minutes must stand alone
+    summary: "Meeting minutes are not a reminder for people who attended — they are the authoritative record for people who did not. Every set of minutes must be independently legible: a reader who was not in the room must be able to understand what was discussed, what was decided, and what action has been assigned, without access to the recording, the transcript, or the attendees.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-minutes-stand-alone.md
+  - id: DIRECTIVE:RECONCILE_CHANGE_SCOPE_TENSIONS
+    kind: directive
+    title: Reconciling Change-Scope Tensions
+    summary: "Locality of Change (DIRECTIVE_024), the Boy Scout Rule (DIRECTIVE_025), and the Change Apply Smallest Viable Diff tactic each bound the size of a change from a different angle, and by design they are not fully compatible: Locality of Change minimizes blast radius, Boy Scout Rule licenses opportunistic in-place improvement of touched areas, and smallest-viable-diff minimizes the diff itself. This directive gives an operator or agent a single place to weigh the three together on a given change, instead of applying each in isolation, so the default doctrine pack stays coherent even though the underlying tension between the three rules is real and intentionally left unresolved at the rule level.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-reconcile-change-scope-tensions.md
+  - id: DIRECTIVE:USE_C4_MODEL_TECHNIQUES
+    kind: directive
+    title: Use C4 Model Techniques
+    summary: "Document and reason about a system's architecture with the C4 model's progressive zoom — System Context, then Container, then Component, then Code — so every diagram serves one audience at one level of detail instead of a single all-in-one picture that serves nobody. Draw only the levels that earn their keep: a Context diagram is almost always worth it, Container diagrams for systems with more than one deployable unit, Component diagrams only for containers with non-obvious internal structure, and Code-level diagrams only when they can be generated cheaply. Keep every diagram in a text-based, version-controlled form (Mermaid or PlantUML diagram-as-code, not a binary export) so it diffs, reviews, and travels with the code it describes. This directive is an extensible HUB for architecture-documentation techniques: the C4 zoom-in workflow, the diagram review checklist, the diagram-as-code toolguides, the drill-down abstraction-level discipline, and code/documentation analysis for boundary discovery all hang off it, and further techniques are wired in as they are supplied. It governs HOW to document and reason about architecture at the right zoom level; the concrete techniques it recommends are the suggested members, each chosen for the specific documentation need it serves.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-use-c4-model-techniques.md
+  - id: DIRECTIVE:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+    kind: directive
+    title: Use Mutation Testing to Validate Test Quality
+    summary: "Line and branch coverage prove a test executed a piece of code; they do not prove a test would notice if that code were wrong. Mutation testing closes that gap: it introduces small, deliberate faults (mutants) into the code under test and asks whether the existing tests fail. A surviving mutant is a concrete, located piece of evidence that some assertion does not actually pin the behaviour it appears to cover — the tests run the line but do not constrain its outcome. Use mutation testing to find those hollow assertions and strengthen them until the mutant is killed. Treat the mutation score as a QUALITY SIGNAL that points at weak spots, never as a target to be gamed: a number driven up by suppressing awkward mutants, over-fitting tests to implementation detail, or asserting on incidental output teaches nothing and rots the suite. Because a full-suite mutation run is expensive, run it on the CHANGED SCOPE under review — the modules a work package touched — rather than the whole tree, so the signal is timely and the survivors it surfaces are the ones a reviewer can act on now. This directive is an extensible HUB for mutation-testing technique: the run/triage workflow, the mutation-aware test-design conventions, and the language-specific mutation toolguides all hang off it.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-use-mutation-testing-to-validate-test-quality.md
   - id: PARADIGM:atomic-design
     kind: paradigm
     title: Atomic Design
@@ -392,210 +728,276 @@ catalog:
     summary: "Treat structured prompts and REASONS canvases as governed change-intent and decision-boundary artifacts. Code remains the source of truth for current behavior; canvases record approved intent, boundaries, and safeguards for a mission or work package. Applies to high-risk and multi-WP missions where change-boundary clarity reduces drift; not appropriate for tiny fixes, throwaway spikes, or purely visual exploration where canvas authoring is overhead.\n"
     source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/structured-prompt-driven-development.paradigm.yaml
     local_path: _LIBRARY/paradigm-structured-prompt-driven-development.md
-  - id: DIRECTIVE:DIRECTIVE_001
-    kind: directive
-    title: DIRECTIVE_001
-    summary: "Keep clear separation of concerns and well-defined component boundaries so each part is independently understandable, testable, and replaceable without cascading changes."
+  - id: PROCEDURE:adversarial-squad-deployment
+    kind: procedure
+    title: Adversarial Squad Deployment
+    summary: "Deploy a small, bounded set of profile-loaded subagents in parallel at high-leverage review point-cuts so independent doctrine lenses converge on findings no single reviewer would catch. Turns review from one perspective into a cheap adversarial panel that resists laziness, accidental-pass, and single-lens blind spots. Optional and charter- or memory-activated — it enriches the flow, it does not gate it.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-001.md
-  - id: DIRECTIVE:DIRECTIVE_003
-    kind: directive
-    title: DIRECTIVE_003
-    summary: "Capture material technical and governance decisions with enough context that future contributors understand why the path was chosen and what constraints must hold."
+    local_path: _LIBRARY/procedure-adversarial-squad-deployment.md
+  - id: PROCEDURE:bdd-scenario-lifecycle
+    kind: procedure
+    title: BDD Scenario Lifecycle
+    summary: "Guide the Formulation, Automation, and Maintenance phases of the BDD cycle, picking up where the Example Mapping Workshop (Discovery phase) leaves off. Covers translating validated examples into Gherkin specifications, wiring them to executable step definitions, and maintaining them as living documentation as the system evolves. Toolchain-agnostic — applicable with Cucumber-JVM, Cucumber-JS, Behave, SpecFlow, or any Given/When/Then runner.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-003.md
-  - id: DIRECTIVE:DIRECTIVE_010
-    kind: directive
-    title: DIRECTIVE_010
-    summary: "Keep implemented behaviour and artifacts faithful to approved specifications; document and review any deviation before acceptance."
+    local_path: _LIBRARY/procedure-bdd-scenario-lifecycle.md
+  - id: PROCEDURE:development-assist-test-cleanup
+    kind: procedure
+    title: Development-Assist Test Cleanup
+    summary: "Retire or re-home the development-assist tests a mission wrote to facilitate its own slices, once those slices have landed. It is common and legitimate to write targeted, narrowly-scoped tests to drive a development slice — characterization and parity oracles, before/after timing gates, per-work-package shape / delegate / __module__ assertions. Once the slice lands, those tests frequently become friction: inert (a self-compare against what is now the merged state), duplicative of a broader standing guard, or pinning transient code-shape that fights the next refactor. This procedure runs a judge-the-test pass at mission close so scaffolding is not carried forward as permanent suite bloat. It is the proactive, wrap-up-point-cut companion to DIRECTIVE_041's reactive judge-a-failing-test rubric.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-010.md
-  - id: DIRECTIVE:DIRECTIVE_018
-    kind: directive
-    title: DIRECTIVE_018
-    summary: "Version doctrine artifacts with traceable change rationale so consumers understand compatibility and migration impact."
+    local_path: _LIBRARY/procedure-development-assist-test-cleanup.md
+  - id: PROCEDURE:disciplined-defect-diagnosis
+    kind: procedure
+    title: Disciplined Defect Diagnosis
+    summary: "Diagnose hard bugs and performance regressions by first constructing a fast, trustworthy feedback loop, then testing ranked hypotheses with targeted instrumentation before applying a regression-tested fix. This procedure fills the gap before test-first bug fixing: it is for turning an unclear report into a reproducible, falsifiable, and cleanly verified defect.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-018.md
-  - id: DIRECTIVE:DIRECTIVE_024
-    kind: directive
-    title: DIRECTIVE_024
-    summary: "Keep changes close to the problem being solved to reduce blast radius, simplify review, and lower regression risk."
+    local_path: _LIBRARY/procedure-disciplined-defect-diagnosis.md
+  - id: PROCEDURE:documentation-gap-prioritization
+    kind: procedure
+    title: Documentation Gap Prioritization
+    summary: "Triage identified documentation gaps by user impact and fill them in priority order. Not all gaps are equal — a missing tutorial for a core workflow blocks more users than a missing explanation for an edge-case design decision. Prioritisation ensures that limited capacity is directed toward the gaps that most impede the target audience.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-024.md
-  - id: DIRECTIVE:DIRECTIVE_025
-    kind: directive
-    title: DIRECTIVE_025
-    summary: "Leave touched areas better than you found them; fixing a pre-existing failure in code you are already changing is the default, deferred only with explicit rationale."
+    local_path: _LIBRARY/procedure-documentation-gap-prioritization.md
+  - id: PROCEDURE:domain-aware-decision-interview
+    kind: procedure
+    title: Domain-Aware Decision Interview
+    summary: "Stress-test a plan or design through a one-question-at-a-time interview that uses project glossary, charter, doctrine, ADRs, and code evidence as the shared source of truth. The procedure resolves the decision tree without over-interviewing and records durable terminology or decision updates only when they have long-term value.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-025.md
-  - id: DIRECTIVE:DIRECTIVE_028
-    kind: directive
-    title: DIRECTIVE_028
-    summary: "Prefer efficient, low-noise local tooling so investigation, editing, validation, and repository operations stay fast and reproducible."
+    local_path: _LIBRARY/procedure-domain-aware-decision-interview.md
+  - id: PROCEDURE:drill-down-documentation
+    kind: procedure
+    title: Drill-Down Documentation
+    summary: "Ensure that decisions, documentation, and architecture descriptions are captured at a consistent level of abstraction and scope. Each layer of the documentation hierarchy addresses a distinct audience and concern set — from organisational impact through architecture and design to code-level detail. The drill-down approach prevents reasoning from hopscotching between levels, avoids convoluting strategic rationale with implementation minutiae, and makes it easy to locate the right level of detail for any question.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-028.md
-  - id: DIRECTIVE:DIRECTIVE_029
-    kind: directive
-    title: DIRECTIVE_029
-    summary: "Agent-authored commits avoid GPG/SSH signing in unattended workflows so automation does not fail on missing or unverifiable key material."
+    local_path: _LIBRARY/procedure-drill-down-documentation.md
+  - id: PROCEDURE:event-storming-discovery
+    kind: procedure
+    title: Event Storming Discovery
+    summary: "Discover domain events, commands, aggregates, policies, read models, and bounded context boundaries through a structured analysis of business flows. The procedure produces a shared domain model grounded in real business behaviour rather than technical assumptions. Based on Alberto Brandolini's Event Storming technique, adapted for agent-assisted discovery with human-in-charge validation at key decision points.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-029.md
-  - id: DIRECTIVE:DIRECTIVE_030
-    kind: directive
-    title: DIRECTIVE_030
-    summary: "Changes must pass the relevant automated tests and static checks before handoff so regressions and interface drift are caught early."
+    local_path: _LIBRARY/procedure-event-storming-discovery.md
+  - id: PROCEDURE:example-mapping-workshop
+    kind: procedure
+    title: Example Mapping Workshop
+    summary: "Turn a behavior request into concrete rules, examples, and open questions that stakeholders and implementers can share as a canonical specification set.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-030.md
-  - id: DIRECTIVE:DIRECTIVE_031
-    kind: directive
-    title: DIRECTIVE_031
-    summary: "Make every design decision aware of its bounded context and ubiquitous language; cross a context boundary only through an explicit translation layer."
+    local_path: _LIBRARY/procedure-example-mapping-workshop.md
+  - id: PROCEDURE:glossary-maintenance-workflow
+    kind: procedure
+    title: Glossary Maintenance Workflow
+    summary: "Run continuous term capture and triage against a project's living glossary so that terminology drift is caught early and canonical definitions stay current, rather than accumulating into a large periodic cleanup effort. Orchestrates the existing glossary-curation-interview tactic (structured curation rounds), the terminology-extraction-mapping tactic (candidate term extraction and mapping), and the kitty-glossary-writing styleguide (definition quality bar) into a repeatable cadence.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-031.md
-  - id: DIRECTIVE:DIRECTIVE_032
-    kind: directive
-    title: DIRECTIVE_032
-    summary: "Never assume shared vocabulary means shared meaning; state and confirm your interpretation of ambiguous or overloaded terms before acting."
+    local_path: _LIBRARY/procedure-glossary-maintenance-workflow.md
+  - id: PROCEDURE:issue-triage-state-machine
+    kind: procedure
+    title: Issue Triage State Machine
+    summary: "Triage incoming bugs and enhancements into a single current state, preserving durable handoff context for agents and durable rejection context for future maintainers. The procedure is tracker-neutral: GitHub labels are one possible carrier, but the invariant is a category plus exactly one workflow state.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-032.md
-  - id: DIRECTIVE:DIRECTIVE_033
-    kind: directive
-    title: DIRECTIVE_033
-    summary: "Stage only the expected deliverables for the current work package; never blanket-stage changes that could pull in unrelated files, secrets, or artefacts."
+    local_path: _LIBRARY/procedure-issue-triage-state-machine.md
+  - id: PROCEDURE:legacy-codebase-triage
+    kind: procedure
+    title: Legacy Codebase Triage
+    summary: "Convert an unfamiliar brownfield codebase into a defensible action plan by gathering version-control evidence, overlaying structural and complexity signals, optionally classifying domains, and bucketing the resulting findings into fix-this-week, fix-this-quarter, do-not-worry, and parallelisable work. The output is a triage document that anchors subsequent planning conversations and ADRs; it is not a replacement for deeper investigation, only a fast, evidence-backed first pass.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-033.md
-  - id: DIRECTIVE:DIRECTIVE_034
-    kind: directive
-    title: DIRECTIVE_034
-    summary: "Write tests first across acceptance and implementation layers so tests define the contract before production code."
+    local_path: _LIBRARY/procedure-legacy-codebase-triage.md
+  - id: PROCEDURE:meeting-minutes-pipeline
+    kind: procedure
+    title: Meeting Minutes Pipeline
+    summary: "Convert a VTT meeting transcript into structured, validated Markdown minutes and post them as the assistant response in the originating chat. The pipeline supports two output formats and asks the user which to use, before agenda resolution or extraction: DECISION MINUTES (Attendance / Minutes table / Action Items, for decision- and action-oriented meetings) and DISCUSSION NOTES (Attendance / Topics Discussed / optional Action Items, a stand-alone briefing for discussion-oriented meetings). The already-running chat agent performs extraction; chat-only delivery requires no API key, PAT, or wiki publish credentials. Validated Markdown in that chat is the canonical content. Wiki/knowledge-base publication is an optional human-operated follow-up: it runs only when the user explicitly requests it and identifies the destination, and it reuses the same validated Markdown. `.minutes.json` and `.wiki.txt` are not mandatory outputs.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-034.md
-  - id: DIRECTIVE:DIRECTIVE_035
-    kind: directive
-    title: DIRECTIVE_035
-    summary: "Before a codebase-wide rename or bulk string change, classify occurrences by semantic context (code, imports, paths, keys, CLI, docs, tests) since each may have different rules."
+    local_path: _LIBRARY/procedure-meeting-minutes-pipeline.md
+  - id: PROCEDURE:migrate-project-guidance-to-spec-kitty-charter
+    kind: procedure
+    title: Migrate Project Guidance to Spec Kitty Charter
+    summary: "Convert an existing project guidance or charter document into doctrine-backed governance artifacts that can be compiled into a Spec Kitty charter bundle with functional parity.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-035.md
-  - id: DIRECTIVE:DIRECTIVE_036
-    kind: directive
-    title: DIRECTIVE_036
-    summary: "Exercise the system through its external interfaces only, deriving cases from specifications and asserting on observable outputs, independent of internal structure."
+    local_path: _LIBRARY/procedure-migrate-project-guidance-to-spec-kitty-charter.md
+  - id: PROCEDURE:mission-tracer-files
+    kind: procedure
+    title: Mission Tracer Files
+    summary: "Give every mission a lightweight running log of tooling friction, approach evolution, and design rationale through three sparse tracer files. The files are seeded at mission start, appended to during implementation, and assessed at mission close. Captured friction and rationale feed the next mission's planning and make recurring tool and process gaps visible instead of repeatedly re-discovered.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-036.md
-  - id: DIRECTIVE:DIRECTIVE_037
-    kind: directive
-    title: DIRECTIVE_037
-    summary: "When observable behaviour changes, update its examples, acceptance checks, specs, docs, glossary, and architecture records in the same change so no reader is left with a stale picture."
+    local_path: _LIBRARY/procedure-mission-tracer-files.md
+  - id: PROCEDURE:mission-wrap-up-sequence
+    kind: procedure
+    title: Mission Wrap-Up Sequence
+    summary: "Drive a mission from \"all work packages approved\" to \"a clean, reviewable draft pull request handed to the operator\" through one standing, repeatable close-out sequence. The sequence makes the last mile deterministic: it verifies readiness, resolves every tracked-issue verdict, subjects the aggregate diff to an independent review, lands locally, compacts the branch into readable history, and opens a draft PR — so no mission ends in an ad-hoc, unreviewed, or messy state. It complements (does not replace) the per-work-package implement/review loop.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-037.md
-  - id: DIRECTIVE:DIRECTIVE_038
-    kind: directive
-    title: DIRECTIVE_038
-    summary: "When the SPDD/REASONS pack is active, keep implementation inside the approved canvas's Requirements, Operations, Norms, and Safeguards unless a deviation is explicitly recorded."
+    local_path: _LIBRARY/procedure-mission-wrap-up-sequence.md
+  - id: PROCEDURE:post-merge-arch-gate-adjudication
+    kind: procedure
+    title: Post-Merge Arch-Gate Adjudication
+    summary: "After merging one or more lane branches, architectural gate failures may appear that were not visible during per-lane review. This procedure distinguishes pre-existing failures (present on the mission base branch before any lane work) from regressions introduced by the merge. Correct adjudication prevents teams from either ignoring real regressions or blocking on failures they did not cause.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-038.md
-  - id: DIRECTIVE:DIRECTIVE_039
-    kind: directive
-    title: DIRECTIVE_039
-    summary: "Constrain agentic implementation toward test-first, strongly typed, modular, boring, reviewable code; select when bloated or over-clever agent output is a concern."
+    local_path: _LIBRARY/procedure-post-merge-arch-gate-adjudication.md
+  - id: PROCEDURE:red-main-release-discipline
+    kind: procedure
+    title: Red Main & Release Discipline
+    summary: "Keep the mainline CI signal honest and authoritative for release. A red main is a true signal of known release-blocking (P0) defects, never something to hide by reverting an honest failure or declining a bug's reproduction test. Mainline CI status is the single authoritative release gate; expensive QA and manual testing are not spent on a known-broken base; and red main is worked down as top priority. Adopt it as a team-wide agreement (product owner, QA, and maintainers) and record the project's own decision and runbook alongside it.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-039.md
-  - id: DIRECTIVE:DIRECTIVE_040
-    kind: directive
-    title: DIRECTIVE_040
-    summary: "Once a bug class recurs despite point-fixes, respond with a structural intervention that closes the class, using five-paradigm parallel debugging to find the root cause."
+    local_path: _LIBRARY/procedure-red-main-release-discipline.md
+  - id: PROCEDURE:refactoring
+    kind: procedure
+    title: Refactoring
+    summary: "Improve internal code structure without changing external behavior. This procedure provides a disciplined workflow for identifying improvement opportunities, selecting the right refactoring tactic, applying changes in safe increments, and verifying behavior preservation throughout.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-040.md
-  - id: DIRECTIVE:DIRECTIVE_041
-    kind: directive
-    title: DIRECTIVE_041
-    summary: "A test earns its place by failing exactly when the contract is violated; reject tests that pass for the wrong reason or fail on correct, behaviour-neutral changes."
+    local_path: _LIBRARY/procedure-refactoring.md
+  - id: PROCEDURE:situational-assessment
+    kind: procedure
+    title: Situational Assessment
+    summary: "Establish a shared, documented understanding of the context, stakeholders, constraints, and problem structure before any solution is designed or selected. A situational assessment ensures that architectural decisions are grounded in operational reality rather than technology preference, and that the trade-off assessments that follow address the right problem.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-041.md
-  - id: DIRECTIVE:DIRECTIVE_042
-    kind: directive
-    title: DIRECTIVE_042
-    summary: "Documentation is governed single-source content: every file lives under the Common Docs root, declares lifecycle frontmatter, and is curated under a delete-stale policy."
+    local_path: _LIBRARY/procedure-situational-assessment.md
+  - id: PROCEDURE:spike-timebox-policy
+    kind: procedure
+    title: Spike Timebox Policy
+    summary: "Keep an investigative spike bounded and decision-driven. A spike exists to buy down a specific uncertainty, not to build production code or drift into open-ended exploration. This policy frames every spike around a written hypothesis, a fixed time budget, explicit exit criteria, and a decision-or-abandon outcome so that the investment is proportionate to the risk it retires and the finding is captured whether the spike succeeds or fails.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-042.md
-  - id: DIRECTIVE:DIRECTIVE_043
-    kind: directive
-    title: DIRECTIVE_043
-    summary: "Answer a repeating defect class with a structural constraint (AST gate, type invariant, shrink-only ratchet) that eliminates the recurrence path, not another process rule."
+    local_path: _LIBRARY/procedure-spike-timebox-policy.md
+  - id: PROCEDURE:test-first-bug-fixing
+    kind: procedure
+    title: Test-First Bug Fixing
+    summary: "Resolve software defects by writing a failing test that reproduces the issue before modifying any production code. Transforms bug fixing from trial-and-error into a systematic, verifiable procedure with built-in regression prevention.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-043.md
-  - id: DIRECTIVE:DIRECTIVE_044
-    kind: directive
-    title: DIRECTIVE_044
-    summary: "Use the canonical template, skill, or CLI rather than improvising or copying older artifacts; when a concept is split across surfaces, consolidate to one authority."
+    local_path: _LIBRARY/procedure-test-first-bug-fixing.md
+  - id: STYLEGUIDE:adversarial-squad-cadence
+    kind: styleguide
+    title: Adversarial Squad Cadence
+    summary: "Run a bounded multi-profile adversarial squad at each planning point-cut as strong guidance, not a gate. A mission is not blocked for skipping the squad.\n"
     source_path: ''
-    local_path: _LIBRARY/directive-directive-044.md
-  - id: DIRECTIVE:DIRECTIVE_045
-    kind: directive
-    title: DIRECTIVE_045
-    summary: "All remote-main changes go through PRs (never a direct push or unrequested merge), and the mission spec and context are read before any high-risk git operation."
+    local_path: _LIBRARY/styleguide-adversarial-squad-cadence.md
+  - id: STYLEGUIDE:aggregate-design-rules
+    kind: styleguide
+    title: Aggregate Design Rules
+    summary: "Reference other aggregates by identity only: an aggregate must not hold a direct object reference to another aggregate. Use the other aggregate's ID instead to prevent transaction scope from spanning multiple aggregates."
     source_path: ''
-    local_path: _LIBRARY/directive-directive-045.md
-  - id: DIRECTIVE:DIRECTIVE_046
-    kind: directive
-    title: DIRECTIVE_046
-    summary: "Every pull request is handed over linear (rebased, logically sliced), complete in scope, and independently reviewed with findings folded in while still a draft."
+    local_path: _LIBRARY/styleguide-aggregate-design-rules.md
+  - id: STYLEGUIDE:common-docs
+    kind: styleguide
+    title: Common Docs Styleguide
+    summary: 'Single root, 13 sections. All documentation lives under one Common Docs root with the 13-section structure: index, context, architecture, adr, plans, api, configuration, integrations, security, guides, operations, migrations, changelog. Each directory carries its own index.md. No second documentation root and no per-version shadow tree.'
     source_path: ''
-    local_path: _LIBRARY/directive-directive-046.md
-  - id: DIRECTIVE:DIRECTIVE_047
-    kind: directive
-    title: DIRECTIVE_047
-    summary: "Write every human-facing artifact for a named, identified audience (what they know and need), decided before drafting rather than after."
+    local_path: _LIBRARY/styleguide-common-docs.md
+  - id: STYLEGUIDE:deployable-skill-authoring
+    kind: styleguide
+    title: Deployable Skill Authoring Styleguide
+    summary: 'A skill description is a routing contract: it must name what the skill does and the concrete triggers that should cause an agent to load it.'
     source_path: ''
-    local_path: _LIBRARY/directive-directive-047.md
-  - id: DIRECTIVE:DIRECTIVE_048
-    kind: directive
-    title: DIRECTIVE_048
-    summary: "Any operation that reads or reasons about a versioned artifact must use its current canonical version, never a cached or stale copy."
+    local_path: _LIBRARY/styleguide-deployable-skill-authoring.md
+  - id: STYLEGUIDE:divio-type-discipline
+    kind: styleguide
+    title: Divio Type Discipline Styleguide
+    summary: 'One document, one Divio type. Every documentation page is exactly one of the four Divio quadrants — Tutorial, How-To, Reference, or Explanation — and declares that type in its frontmatter. A page that tries to be two types at once serves neither audience: a tutorial that pauses to explain architecture loses the beginner; a reference that narrates rationale loses the working developer scanning for a signature.'
     source_path: ''
-    local_path: _LIBRARY/directive-directive-048.md
-  - id: DIRECTIVE:DIRECTIVE_049
-    kind: directive
-    title: DIRECTIVE_049
-    summary: "A specialist agent opens substantive work with a short declaration of who it is, what it will do, and any hard constraints."
+    local_path: _LIBRARY/styleguide-divio-type-discipline.md
+  - id: STYLEGUIDE:docs-accessibility
+    kind: styleguide
+    title: Documentation Accessibility Styleguide
+    summary: Every non-decorative image carries descriptive alt text. Screenshots, diagrams, and figures that convey information must have alt text that communicates the same information to a reader using a screen reader. The alt text describes what the image says, not that it is an image — 'Kanban board with WP01 in review and WP02 approved', not 'screenshot'. Purely decorative images carry empty alt (`alt=""`) so assistive tech skips them.
     source_path: ''
-    local_path: _LIBRARY/directive-directive-049.md
-  - id: DIRECTIVE:DIRECTIVE_050
-    kind: directive
-    title: DIRECTIVE_050
-    summary: "Never log, echo, or otherwise surface an authentication credential in output, errors, or artifacts when calling an external system."
+    local_path: _LIBRARY/styleguide-docs-accessibility.md
+  - id: STYLEGUIDE:docs-freshness-sla
+    kind: styleguide
+    title: Documentation Freshness SLA Styleguide
+    summary: "Every page carries a freshness date. Frontmatter carries `updated: YYYY-MM-DD`, set to the date the page's content was last verified against reality — not the date of an incidental typo fix. The freshness date is the input to every staleness check; a page without one cannot be triaged and is treated as stale by default."
     source_path: ''
-    local_path: _LIBRARY/directive-directive-050.md
-  - id: DIRECTIVE:DIRECTIVE_052
-    kind: directive
-    title: DIRECTIVE_052
-    summary: Diagnose every fix to its root cause first and, when the cause is systemic, prefer a structural remediation that closes the class over a point-fix; governs diagnosis depth, not change size.
+    local_path: _LIBRARY/styleguide-docs-freshness-sla.md
+  - id: STYLEGUIDE:given-when-then-authoring
+    kind: styleguide
+    title: Given-When-Then Scenario Authoring
+    summary: 'A scenario has three parts: Given (the precondition/context), When (the single trigger), Then (the observable outcome). This is the same behavioural skeleton the specs in this repository already use — one scenario describes one behaviour.'
     source_path: ''
-    local_path: _LIBRARY/directive-directive-052.md
-  - id: DIRECTIVE:DISCIPLINED_REFACTORING
-    kind: directive
-    title: DISCIPLINED_REFACTORING
-    summary: "Restructure behaviour-preservingly in small, individually reversible steps while a green test suite holds behaviour constant; never mix a refactor with a behaviour change."
+    local_path: _LIBRARY/styleguide-given-when-then-authoring.md
+  - id: STYLEGUIDE:kitty-glossary-writing
+    kind: styleguide
+    title: Kitty Glossary Writing Styleguide
+    summary: 'Clear, not clever: definitions exist to help the reader understand, not to demonstrate expertise.'
     source_path: ''
-    local_path: _LIBRARY/directive-disciplined-refactoring.md
-  - id: DIRECTIVE:RECONCILE_CHANGE_SCOPE_TENSIONS
-    kind: directive
-    title: RECONCILE_CHANGE_SCOPE_TENSIONS
-    summary: "Arbitrates the deliberate tension between Locality (024), the Boy Scout Rule (025), and smallest-viable-diff, sizing the fold-vs-defer decision and surfacing it to the operator."
+    local_path: _LIBRARY/styleguide-kitty-glossary-writing.md
+  - id: STYLEGUIDE:meeting-minutes-format
+    kind: styleguide
+    title: Meeting minutes format
+    summary: "Two output formats. This styleguide governs both minutes formats the Minutes Mahad agent can produce, and the agent asks the user which one to use before agenda resolution or extraction (see meeting-minutes-pipeline, step \"Select minutes format\"). Format 1 — DECISION MINUTES — is the executive record for decision- and action-oriented meetings (Attendance / Minutes table / Action Items; action attribution is a hard gate). Format 2 — DISCUSSION NOTES — is a stand-alone briefing for discussion-oriented meetings (Attendance / Topics Discussed / optional Action Items). The shared principles below (title suffix, em-dash, stand-alone readability, no invented content) apply to both; the format-specific principles are labelled \"Decision minutes:\" or \"Discussion notes:\".\n"
     source_path: ''
-    local_path: _LIBRARY/directive-reconcile-change-scope-tensions.md
-  - id: DIRECTIVE:USE_C4_MODEL_TECHNIQUES
-    kind: directive
-    title: USE_C4_MODEL_TECHNIQUES
-    summary: "Document and reason about architecture with the C4 model's progressive zoom (System Context, Container, Component, Code), one audience and detail level per diagram."
+    local_path: _LIBRARY/styleguide-meeting-minutes-format.md
+  - id: STYLEGUIDE:mutation-aware-test-design
+    kind: styleguide
+    title: Mutation-Aware Test Design
+    summary: 'Test boundary values: provide a test at the exact equality point for every >= or <= comparison, plus one step either side.'
     source_path: ''
-    local_path: _LIBRARY/directive-use-c4-model-techniques.md
-  - id: DIRECTIVE:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
-    kind: directive
-    title: USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
-    summary: "Validate that tests would catch real faults by introducing deliberate mutants; coverage proves code ran, mutation testing proves the tests would notice it breaking."
+    local_path: _LIBRARY/styleguide-mutation-aware-test-design.md
+  - id: STYLEGUIDE:plain-language
+    kind: styleguide
+    title: Plain Language Styleguide
+    summary: Write for the named audience, at their level. Plain language is not a fixed reading grade — it is calibrated to the reader the page is for. A tutorial for first-time users assumes no jargon; a reference for working developers may use precise domain terms without re-defining them. The audience is named at discover time (see the discover action's target-audience governance); every page then writes to that named reader, never to the author.
     source_path: ''
-    local_path: _LIBRARY/directive-use-mutation-testing-to-validate-test-quality.md
+    local_path: _LIBRARY/styleguide-plain-language.md
+  - id: STYLEGUIDE:planning-and-tracking
+    kind: styleguide
+    title: Planning & Tracking Styleguide
+    summary: 'Functional epics own work; meta-trackers only reference it. An epic must represent a real domain of work — a subsystem, a capability, or a bug-class — and own its tickets as native sub-issues. A release/stabilization/go-no-go rollup is not a domain of work: it gates via milestones or labels and references work by checklist, never as the canonical parent. Prefix such issues `META-TRACKER:` so their role is unmistakable.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-planning-and-tracking.md
+  - id: STYLEGUIDE:professional-communications
+    kind: styleguide
+    title: Professional Communications Styleguide
+    summary: 'Persona first: identify the target audience before drafting a single sentence. Every artifact names its target persona (see DIRECTIVE_047, Audience-Oriented Writing).'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-professional-communications.md
+  - id: STYLEGUIDE:publication-authority
+    kind: styleguide
+    title: Publication Authority Styleguide
+    summary: 'Code is the source of truth; documentation mirrors shipped behaviour. Documentation describes what the system actually does, never what it was hoped to do or what an old design intended. When code and docs disagree, the code is right and the docs are the defect. A page that documents behaviour the code does not implement is worse than no page — it manufactures false confidence. This is the source-of-truth half of publication authority (FR-005: source-of-truth).'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-publication-authority.md
+  - id: STYLEGUIDE:python-conventions
+    kind: styleguide
+    title: Python Conventions Styleguide
+    summary: 'Guard clauses over nesting: validate inputs early and fail fast rather than wrapping logic in conditional branches.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-python-conventions.md
+  - id: STYLEGUIDE:quadruple-a-test-format
+    kind: styleguide
+    title: Quadruple-A Test Format
+    summary: 'A test has four phases: Arrange, Assumption checks, Act, Assert. Naming them turns a test into the canonical skeleton for pinning ONE behaviour.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-quadruple-a-test-format.md
+  - id: STYLEGUIDE:reasons-canvas-writing
+    kind: styleguide
+    title: REASONS Canvas Writing Styleguide
+    summary: Lead each section with a one-sentence summary, then bullet specifics.
+    source_path: ''
+    local_path: _LIBRARY/styleguide-reasons-canvas-writing.md
+  - id: STYLEGUIDE:research-citation-discipline
+    kind: styleguide
+    title: Research Citation Discipline Styleguide
+    summary: 'Every claim carries a source: any assertion of fact in a research output must be traceable to a named source (a document, a data run, an interview, or a reproducible observation). An unsourced factual claim is a hypothesis, and must be labelled as one.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-research-citation-discipline.md
+  - id: STYLEGUIDE:test-desiderata-and-boundaries
+    kind: styleguide
+    title: Test Desiderata and Clear Test Boundaries
+    summary: 'Desiderata are trade-offs: choose which properties a given test optimizes; do not pretend one test maximizes all twelve at once.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-test-desiderata-and-boundaries.md
+  - id: STYLEGUIDE:testing-principles
+    kind: styleguide
+    title: Testing Principles Styleguide
+    summary: 'Fast: tests execute quickly enough that running them after every small change is not a burden.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-testing-principles.md
+  - id: STYLEGUIDE:tiered-standards
+    kind: styleguide
+    title: Tiered Coding Standards
+    summary: 'Rigour must match risk: the closer a package is to mission-critical state management or runtime execution, the higher the quality bar it must meet.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-tiered-standards.md
+  - id: TACTIC:acceptance-criteria-non-vacuity
+    kind: tactic
+    title: Acceptance Criteria Non-Vacuity
+    summary: "Prove that each acceptance criterion, and the test that stands in for it, could actually fail. A criterion a no-op change would satisfy proves nothing about the delivered behavior; a refusal or absence probe that could not have seen the thing it asserts is missing proves nothing about the production path. This tactic is the single canonical definition of the delivery labels, the no-op-passable mark, and the three rules that keep acceptance criteria and their tests non-vacuous.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-acceptance-criteria-non-vacuity.md
   - id: TACTIC:acceptance-test-first
     kind: tactic
     title: Acceptance Test Driven Development (ATDD)
@@ -731,7 +1133,7 @@ catalog:
   - id: TACTIC:chain-of-responsibility-rule-pipeline
     kind: tactic
     title: Chain of Responsibility — Rule-Based Pipeline
-    summary: "Express a complex multi-step rule application as a pipeline of small, pure, independently-testable functions instead of as one large branching function. Each rule decides on its own applicability, executes its narrow piece of work, and returns a result object that the runner threads to the next rule. The pattern keeps cognitive complexity per function low, makes the rule set readable as a sequence, and lets new rules slot in without re-reading the whole pipeline.\nThis is the codebase's accepted way of dealing with stacks of related but independent rules — validators, classifiers, canonicalizers, scorers, audit detectors. The shape recurs in `src/specify_cli/audit/`, `src/specify_cli/charter_runtime/lint/checks/`, `src/specify_cli/migration/`, and `src/doctrine/agent_profiles/repository.py` (DDR-011 scoring). New code that composes 4+ independent decisions over the same input should reach for this pattern by default.\n"
+    summary: "Express a complex multi-step rule application as a pipeline of small, pure, independently-testable functions instead of as one large branching function. Each rule decides on its own applicability, executes its narrow piece of work, and returns a result object that the runner threads to the next rule. The pattern keeps cognitive complexity per function low, makes the rule set readable as a sequence, and lets new rules slot in without re-reading the whole pipeline.\nThis is an accepted way of dealing with stacks of related but independent rules — validators, classifiers, canonicalizers, scorers, audit detectors. The shape typically recurs in audit detectors, lint check registries, migration canonicalizers and candidate scorers. New code that composes 4+ independent decisions over the same input should reach for this pattern by default.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-chain-of-responsibility-rule-pipeline.md
   - id: TACTIC:change-apply-smallest-viable-diff
@@ -833,7 +1235,7 @@ catalog:
   - id: TACTIC:dependency-hygiene
     kind: tactic
     title: Dependency Hygiene
-    summary: "Keep a project's dependency tree free of known vulnerabilities and non-compliant licenses. Apply at project creation, when adding any dependency, and as part of regular pre-release maintenance. Apply when: starting a new project, adding or upgrading any dependency, a vulnerability scanner reports new CVEs, or preparing a release.\n"
+    summary: "Keep a project's dependency tree free of known vulnerabilities and non-compliant licenses. Apply at project creation, when adding any dependency, and as part of regular pre-release maintenance. Apply when: starting a new project, adding or upgrading any dependency, a vulnerability scanner reports new CVEs, or preparing a release. For JavaScript/TypeScript projects specifically, dependency hygiene also covers install-time supply-chain safety (registry authenticity, package freshness, lifecycle-script discipline, lockfile behavior, and Node runtime baseline) per the supply-chain-install-safety directive and tactic — see the JS/TS-specific steps below.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-dependency-hygiene.md
   - id: TACTIC:development-bdd
@@ -952,8 +1354,8 @@ catalog:
     local_path: _LIBRARY/tactic-locality-of-change.md
   - id: TACTIC:model-task-routing
     kind: tactic
-    title: model-task-routing
-    summary: Definition unavailable in bundled doctrine.
+    title: Model Task Routing
+    summary: "Match model strength to task difficulty: route hard-judgment work (sizing, fakeability, code-truth, review, architecture) to the strongest available model, and grounded or mechanical passes to a cheaper model. Advisory — the recommendation surfaces alongside the task, it never substitutes for the operator's or orchestrator's own judgment about who should run a step.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-model-task-routing.md
   - id: TACTIC:mutation-testing-workflow
@@ -1234,8 +1636,8 @@ catalog:
     local_path: _LIBRARY/tactic-test-readability-clarity-check.md
   - id: TACTIC:test-scaffolding-as-design-smell
     kind: tactic
-    title: test-scaffolding-as-design-smell
-    summary: Definition unavailable in bundled doctrine.
+    title: Test Setup Scaffolding as a Design Smell
+    summary: "Read the cost and shape of test setup as a signal about production design. When a unit test needs real infrastructure (files, git, database, network, clock) or many mocks/patches to run, that scaffolding is evidence of a missing boundary in the code under test — the unit reaches infrastructure directly instead of depending on a pure seam. The remedy is to extract the behavior under test as a function of domain inputs, then test it directly. The mock scaffolding is the symptom; the missing boundary is the disease.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-test-scaffolding-as-design-smell.md
   - id: TACTIC:test-to-system-reconstruction
@@ -1280,138 +1682,12 @@ catalog:
     summary: Drive implementation through tiny behavior increments using failing tests to control complexity.
     source_path: ''
     local_path: _LIBRARY/tactic-zombies-tdd.md
-  - id: STYLEGUIDE:adversarial-squad-cadence
-    kind: styleguide
-    title: Adversarial Squad Cadence
-    summary: "Run a bounded multi-profile adversarial squad at each planning point-cut as strong guidance, not a gate. A mission is not blocked for skipping the squad.\n"
-    source_path: ''
-    local_path: _LIBRARY/styleguide-adversarial-squad-cadence.md
-  - id: STYLEGUIDE:aggregate-design-rules
-    kind: styleguide
-    title: Aggregate Design Rules
-    summary: "Reference other aggregates by identity only: an aggregate must not hold a direct object reference to another aggregate. Use the other aggregate's ID instead to prevent transaction scope from spanning multiple aggregates."
-    source_path: ''
-    local_path: _LIBRARY/styleguide-aggregate-design-rules.md
-  - id: STYLEGUIDE:common-docs
-    kind: styleguide
-    title: Common Docs Styleguide
-    summary: 'Single root, 13 sections. All documentation lives under one Common Docs root with the 13-section structure: index, context, architecture, adr, plans, api, configuration, integrations, security, guides, operations, migrations, changelog. Each directory carries its own index.md. No second documentation root and no per-version shadow tree.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-common-docs.md
-  - id: STYLEGUIDE:deployable-skill-authoring
-    kind: styleguide
-    title: Deployable Skill Authoring Styleguide
-    summary: 'A skill description is a routing contract: it must name what the skill does and the concrete triggers that should cause an agent to load it.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-deployable-skill-authoring.md
-  - id: STYLEGUIDE:divio-type-discipline
-    kind: styleguide
-    title: Divio Type Discipline Styleguide
-    summary: 'One document, one Divio type. Every documentation page is exactly one of the four Divio quadrants — Tutorial, How-To, Reference, or Explanation — and declares that type in its frontmatter. A page that tries to be two types at once serves neither audience: a tutorial that pauses to explain architecture loses the beginner; a reference that narrates rationale loses the working developer scanning for a signature.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-divio-type-discipline.md
-  - id: STYLEGUIDE:docs-accessibility
-    kind: styleguide
-    title: Documentation Accessibility Styleguide
-    summary: Every non-decorative image carries descriptive alt text. Screenshots, diagrams, and figures that convey information must have alt text that communicates the same information to a reader using a screen reader. The alt text describes what the image says, not that it is an image — 'Kanban board with WP01 in review and WP02 approved', not 'screenshot'. Purely decorative images carry empty alt (`alt=""`) so assistive tech skips them.
-    source_path: ''
-    local_path: _LIBRARY/styleguide-docs-accessibility.md
-  - id: STYLEGUIDE:docs-freshness-sla
-    kind: styleguide
-    title: Documentation Freshness SLA Styleguide
-    summary: "Every page carries a freshness date. Frontmatter carries `updated: YYYY-MM-DD`, set to the date the page's content was last verified against reality — not the date of an incidental typo fix. The freshness date is the input to every staleness check; a page without one cannot be triaged and is treated as stale by default."
-    source_path: ''
-    local_path: _LIBRARY/styleguide-docs-freshness-sla.md
-  - id: STYLEGUIDE:given-when-then-authoring
-    kind: styleguide
-    title: Given-When-Then Scenario Authoring
-    summary: 'A scenario has three parts: Given (the precondition/context), When (the single trigger), Then (the observable outcome). This is the same behavioural skeleton the specs in this repository already use — one scenario describes one behaviour.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-given-when-then-authoring.md
-  - id: STYLEGUIDE:java-conventions
-    kind: styleguide
-    title: java-conventions
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/styleguide-java-conventions.md
-  - id: STYLEGUIDE:kitty-glossary-writing
-    kind: styleguide
-    title: Kitty Glossary Writing Styleguide
-    summary: 'Clear, not clever: definitions exist to help the reader understand, not to demonstrate expertise.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-kitty-glossary-writing.md
-  - id: STYLEGUIDE:mutation-aware-test-design
-    kind: styleguide
-    title: Mutation-Aware Test Design
-    summary: 'Test boundary values: provide a test at the exact equality point for every >= or <= comparison, plus one step either side.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-mutation-aware-test-design.md
-  - id: STYLEGUIDE:plain-language
-    kind: styleguide
-    title: Plain Language Styleguide
-    summary: Write for the named audience, at their level. Plain language is not a fixed reading grade — it is calibrated to the reader the page is for. A tutorial for first-time users assumes no jargon; a reference for working developers may use precise domain terms without re-defining them. The audience is named at discover time (see the discover action's target-audience governance); every page then writes to that named reader, never to the author.
-    source_path: ''
-    local_path: _LIBRARY/styleguide-plain-language.md
-  - id: STYLEGUIDE:planning-and-tracking
-    kind: styleguide
-    title: Planning & Tracking Styleguide
-    summary: 'Functional epics own work; meta-trackers only reference it. An epic must represent a real domain of work — a subsystem, a capability, or a bug-class — and own its tickets as native sub-issues. A release/stabilization/go-no-go rollup is not a domain of work: it gates via milestones or labels and references work by checklist, never as the canonical parent. Prefix such issues `META-TRACKER:` so their role is unmistakable.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-planning-and-tracking.md
-  - id: STYLEGUIDE:professional-communications
-    kind: styleguide
-    title: Professional Communications Styleguide
-    summary: 'Persona first: identify the target audience before drafting a single sentence. Every artifact names its target persona (see DIRECTIVE_047, Audience-Oriented Writing).'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-professional-communications.md
-  - id: STYLEGUIDE:publication-authority
-    kind: styleguide
-    title: Publication Authority Styleguide
-    summary: 'Code is the source of truth; documentation mirrors shipped behaviour. Documentation describes what the system actually does, never what it was hoped to do or what an old design intended. When code and docs disagree, the code is right and the docs are the defect. A page that documents behaviour the code does not implement is worse than no page — it manufactures false confidence. This is the source-of-truth half of publication authority (FR-005: source-of-truth).'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-publication-authority.md
-  - id: STYLEGUIDE:python-conventions
-    kind: styleguide
-    title: Python Conventions Styleguide
-    summary: 'Guard clauses over nesting: validate inputs early and fail fast rather than wrapping logic in conditional branches.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-python-conventions.md
-  - id: STYLEGUIDE:quadruple-a-test-format
-    kind: styleguide
-    title: Quadruple-A Test Format
-    summary: 'A test has four phases: Arrange, Assumption checks, Act, Assert. Naming them turns a test into the canonical skeleton for pinning ONE behaviour.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-quadruple-a-test-format.md
-  - id: STYLEGUIDE:reasons-canvas-writing
-    kind: styleguide
-    title: REASONS Canvas Writing Styleguide
-    summary: Lead each section with a one-sentence summary, then bullet specifics.
-    source_path: ''
-    local_path: _LIBRARY/styleguide-reasons-canvas-writing.md
-  - id: STYLEGUIDE:research-citation-discipline
-    kind: styleguide
-    title: Research Citation Discipline Styleguide
-    summary: 'Every claim carries a source: any assertion of fact in a research output must be traceable to a named source (a document, a data run, an interview, or a reproducible observation). An unsourced factual claim is a hypothesis, and must be labelled as one.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-research-citation-discipline.md
-  - id: STYLEGUIDE:test-desiderata-and-boundaries
-    kind: styleguide
-    title: Test Desiderata and Clear Test Boundaries
-    summary: 'Desiderata are trade-offs: choose which properties a given test optimizes; do not pretend one test maximizes all twelve at once.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-test-desiderata-and-boundaries.md
-  - id: STYLEGUIDE:testing-principles
-    kind: styleguide
-    title: Testing Principles Styleguide
-    summary: 'Fast: tests execute quickly enough that running them after every small change is not a burden.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-testing-principles.md
-  - id: STYLEGUIDE:tiered-standards
-    kind: styleguide
-    title: Tiered Coding Standards
-    summary: 'Rigour must match risk: the closer a package is to mission-critical state management or runtime execution, the higher the quality bar it must meet.'
-    source_path: ''
-    local_path: _LIBRARY/styleguide-tiered-standards.md
+  - id: TEMPLATE_SET:software-dev-default
+    kind: template_set
+    title: software-dev-default
+    summary: Build high-quality software with structured workflows and test-driven development
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml
+    local_path: _LIBRARY/template-set-software-dev-default.md
   - id: TOOLGUIDE:contextive
     kind: toolguide
     title: Contextive
@@ -1439,15 +1715,9 @@ catalog:
   - id: TOOLGUIDE:github-tracker
     kind: toolguide
     title: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
-    summary: "Driving the GitHub issue tracker from the CLI — native sub-issues (parent/child), issue types, parent-chain walks, auth, and the rate-limit and node-id-vs-db-id gotchas that bite bulk tracker work.\n"
+    summary: "Driving the GitHub issue tracker from the CLI — native sub-issues (parent/child), issue types, parent-chain walks, auth, the rate-limit and node-id-vs-db-id gotchas that bite bulk tracker work, and the closing-keyword trap where \"Closes #A,#B\" links only the first issue.\n"
     source_path: ''
     local_path: _LIBRARY/toolguide-github-tracker.md
-  - id: TOOLGUIDE:maven-review-checks
-    kind: toolguide
-    title: maven-review-checks
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/toolguide-maven-review-checks.md
   - id: TOOLGUIDE:mermaid-diagramming
     kind: toolguide
     title: Mermaid Diagramming
@@ -1478,279 +1748,15 @@ catalog:
     summary: "Operator reference for SonarQube static analysis and its quality gate. Covers the four measure families (new-code coverage, code smells / maintainability, security hotspots and vulnerabilities, duplication), why the gate is evaluated on NEW code rather than the whole project, and the loopback-safe handling of a local Sonar or control-plane URL (do not force HTTPS on 127.0.0.1).\n"
     source_path: ''
     local_path: _LIBRARY/toolguide-sonar.md
-  - id: TOOLGUIDE:typescript-mutation-tools
-    kind: toolguide
-    title: typescript-mutation-tools
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/toolguide-typescript-mutation-tools.md
-  - id: PROCEDURE:adversarial-squad-deployment
-    kind: procedure
-    title: Adversarial Squad Deployment
-    summary: "Deploy a small, bounded set of profile-loaded subagents in parallel at high-leverage review point-cuts so independent doctrine lenses converge on findings no single reviewer would catch. Turns review from one perspective into a cheap adversarial panel that resists laziness, accidental-pass, and single-lens blind spots. Optional and charter- or memory-activated — it enriches the flow, it does not gate it.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-adversarial-squad-deployment.md
-  - id: PROCEDURE:bdd-scenario-lifecycle
-    kind: procedure
-    title: BDD Scenario Lifecycle
-    summary: "Guide the Formulation, Automation, and Maintenance phases of the BDD cycle, picking up where the Example Mapping Workshop (Discovery phase) leaves off. Covers translating validated examples into Gherkin specifications, wiring them to executable step definitions, and maintaining them as living documentation as the system evolves. Toolchain-agnostic — applicable with Cucumber-JVM, Cucumber-JS, Behave, SpecFlow, or any Given/When/Then runner.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-bdd-scenario-lifecycle.md
-  - id: PROCEDURE:development-assist-test-cleanup
-    kind: procedure
-    title: development-assist-test-cleanup
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/procedure-development-assist-test-cleanup.md
-  - id: PROCEDURE:disciplined-defect-diagnosis
-    kind: procedure
-    title: Disciplined Defect Diagnosis
-    summary: "Diagnose hard bugs and performance regressions by first constructing a fast, trustworthy feedback loop, then testing ranked hypotheses with targeted instrumentation before applying a regression-tested fix. This procedure fills the gap before test-first bug fixing: it is for turning an unclear report into a reproducible, falsifiable, and cleanly verified defect.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-disciplined-defect-diagnosis.md
-  - id: PROCEDURE:documentation-gap-prioritization
-    kind: procedure
-    title: Documentation Gap Prioritization
-    summary: "Triage identified documentation gaps by user impact and fill them in priority order. Not all gaps are equal — a missing tutorial for a core workflow blocks more users than a missing explanation for an edge-case design decision. Prioritisation ensures that limited capacity is directed toward the gaps that most impede the target audience.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-documentation-gap-prioritization.md
-  - id: PROCEDURE:domain-aware-decision-interview
-    kind: procedure
-    title: Domain-Aware Decision Interview
-    summary: "Stress-test a plan or design through a one-question-at-a-time interview that uses project glossary, charter, doctrine, ADRs, and code evidence as the shared source of truth. The procedure resolves the decision tree without over-interviewing and records durable terminology or decision updates only when they have long-term value.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-domain-aware-decision-interview.md
-  - id: PROCEDURE:drill-down-documentation
-    kind: procedure
-    title: Drill-Down Documentation
-    summary: "Ensure that decisions, documentation, and architecture descriptions are captured at a consistent level of abstraction and scope. Each layer of the documentation hierarchy addresses a distinct audience and concern set — from organisational impact through architecture and design to code-level detail. The drill-down approach prevents reasoning from hopscotching between levels, avoids convoluting strategic rationale with implementation minutiae, and makes it easy to locate the right level of detail for any question.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-drill-down-documentation.md
-  - id: PROCEDURE:event-storming-discovery
-    kind: procedure
-    title: Event Storming Discovery
-    summary: "Discover domain events, commands, aggregates, policies, read models, and bounded context boundaries through a structured analysis of business flows. The procedure produces a shared domain model grounded in real business behaviour rather than technical assumptions. Based on Alberto Brandolini's Event Storming technique, adapted for agent-assisted discovery with human-in-charge validation at key decision points.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-event-storming-discovery.md
-  - id: PROCEDURE:example-mapping-workshop
-    kind: procedure
-    title: Example Mapping Workshop
-    summary: "Turn a behavior request into concrete rules, examples, and open questions that stakeholders and implementers can share as a canonical specification set.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-example-mapping-workshop.md
-  - id: PROCEDURE:glossary-maintenance-workflow
-    kind: procedure
-    title: Glossary Maintenance Workflow
-    summary: "Run continuous term capture and triage against a project's living glossary so that terminology drift is caught early and canonical definitions stay current, rather than accumulating into a large periodic cleanup effort. Orchestrates the existing glossary-curation-interview tactic (structured curation rounds), the terminology-extraction-mapping tactic (candidate term extraction and mapping), and the kitty-glossary-writing styleguide (definition quality bar) into a repeatable cadence.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-glossary-maintenance-workflow.md
-  - id: PROCEDURE:issue-triage-state-machine
-    kind: procedure
-    title: Issue Triage State Machine
-    summary: "Triage incoming bugs and enhancements into a single current state, preserving durable handoff context for agents and durable rejection context for future maintainers. The procedure is tracker-neutral: GitHub labels are one possible carrier, but the invariant is a category plus exactly one workflow state.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-issue-triage-state-machine.md
-  - id: PROCEDURE:legacy-codebase-triage
-    kind: procedure
-    title: Legacy Codebase Triage
-    summary: "Convert an unfamiliar brownfield codebase into a defensible action plan by gathering version-control evidence, overlaying structural and complexity signals, optionally classifying domains, and bucketing the resulting findings into fix-this-week, fix-this-quarter, do-not-worry, and parallelisable work. The output is a triage document that anchors subsequent planning conversations and ADRs; it is not a replacement for deeper investigation, only a fast, evidence-backed first pass.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-legacy-codebase-triage.md
-  - id: PROCEDURE:migrate-project-guidance-to-spec-kitty-charter
-    kind: procedure
-    title: Migrate Project Guidance to Spec Kitty Charter
-    summary: "Convert an existing project guidance or charter document into doctrine-backed governance artifacts that can be compiled into a Spec Kitty charter bundle with functional parity.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-migrate-project-guidance-to-spec-kitty-charter.md
-  - id: PROCEDURE:mission-tracer-files
-    kind: procedure
-    title: Mission Tracer Files
-    summary: "Give every mission a lightweight running log of tooling friction, approach evolution, and design rationale through three sparse tracer files. The files are seeded at mission start, appended to during implementation, and assessed at mission close. Captured friction and rationale feed the next mission's planning and make recurring tool and process gaps visible instead of repeatedly re-discovered.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-mission-tracer-files.md
-  - id: PROCEDURE:mission-wrap-up-sequence
-    kind: procedure
-    title: Mission Wrap-Up Sequence
-    summary: "Drive a mission from \"all work packages approved\" to \"a clean, reviewable draft pull request handed to the operator\" through one standing, repeatable close-out sequence. The sequence makes the last mile deterministic: it verifies readiness, resolves every tracked-issue verdict, subjects the aggregate diff to an independent review, lands locally, compacts the branch into readable history, and opens a draft PR — so no mission ends in an ad-hoc, unreviewed, or messy state. It complements (does not replace) the per-work-package implement/review loop.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-mission-wrap-up-sequence.md
-  - id: PROCEDURE:post-merge-arch-gate-adjudication
-    kind: procedure
-    title: Post-Merge Arch-Gate Adjudication
-    summary: "After merging one or more lane branches, architectural gate failures may appear that were not visible during per-lane review. This procedure distinguishes pre-existing failures (present on the mission base branch before any lane work) from regressions introduced by the merge. Correct adjudication prevents teams from either ignoring real regressions or blocking on failures they did not cause.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-post-merge-arch-gate-adjudication.md
-  - id: PROCEDURE:red-main-release-discipline
-    kind: procedure
-    title: Red Main & Release Discipline
-    summary: "Keep the mainline CI signal honest and authoritative for release. A red main is a true signal of known release-blocking (P0) defects, never something to hide by reverting an honest failure or declining a bug's reproduction test. Mainline CI status is the single authoritative release gate; expensive QA and manual testing are not spent on a known-broken base; and red main is worked down as top priority. Consensus policy (CEO/product owner, QA lead, maintainers); governing decision ADR 2026-07-17-1, operational guide docs/development/red-main-and-release-readiness.md.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-red-main-release-discipline.md
-  - id: PROCEDURE:refactoring
-    kind: procedure
-    title: Refactoring
-    summary: "Improve internal code structure without changing external behavior. This procedure provides a disciplined workflow for identifying improvement opportunities, selecting the right refactoring tactic, applying changes in safe increments, and verifying behavior preservation throughout.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-refactoring.md
-  - id: PROCEDURE:situational-assessment
-    kind: procedure
-    title: Situational Assessment
-    summary: "Establish a shared, documented understanding of the context, stakeholders, constraints, and problem structure before any solution is designed or selected. A situational assessment ensures that architectural decisions are grounded in operational reality rather than technology preference, and that the trade-off assessments that follow address the right problem.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-situational-assessment.md
-  - id: PROCEDURE:test-first-bug-fixing
-    kind: procedure
-    title: Test-First Bug Fixing
-    summary: "Resolve software defects by writing a failing test that reproduces the issue before modifying any production code. Transforms bug fixing from trial-and-error into a systematic, verifiable procedure with built-in regression prevention.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-test-first-bug-fixing.md
-  - id: AGENT_PROFILE:analyst-annie
-    kind: agent_profile
-    title: Analyst Annie
-    summary: "Generalist functional analyst specialising in translating informal requirements into structured, testable specifications. Bridges domain expertise and implementation teams by producing unambiguous, evidence-backed acceptance criteria and BDD scenarios that serve as the authoritative handoff to implementers.\n"
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-analyst-annie.md
-  - id: AGENT_PROFILE:architect-alphonso
-    kind: agent_profile
-    title: Architect Alphonso
-    summary: System architecture and technical design specialist
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-architect-alphonso.md
-  - id: AGENT_PROFILE:comms-cleo
-    kind: agent_profile
-    title: Comms Cleo
-    summary: "Draft, edit, and calibrate professional written communications across all of a project's output surfaces — applying a defined tone framework and explicit audience-persona targeting.\n"
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-comms-cleo.md
-  - id: AGENT_PROFILE:curator-carla
-    kind: agent_profile
-    title: Curator Carla
-    summary: Knowledge base and doctrine maintenance specialist
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-curator-carla.md
-  - id: AGENT_PROFILE:debugger-debbie
-    kind: agent_profile
-    title: Debugger Debbie
-    summary: Recurring-bug structural-root-cause investigator using five-paradigm parallel debugging
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-debugger-debbie.md
-  - id: AGENT_PROFILE:designer-dagmar
-    kind: agent_profile
-    title: Designer Dagmar
-    summary: UX/UI and interaction design specialist
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-designer-dagmar.md
-  - id: AGENT_PROFILE:diagram-daisy
-    kind: agent_profile
-    title: Diagram Daisy
-    summary: "Transform conceptual and architectural structures into clear, semantically aligned diagrams using Mermaid, PlantUML, and Graphviz.\n"
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-diagram-daisy.md
-  - id: AGENT_PROFILE:frontend-freddy
-    kind: agent_profile
-    title: frontend-freddy
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-frontend-freddy.md
-  - id: AGENT_PROFILE:generic-agent
-    kind: agent_profile
-    title: Generic Agent
-    summary: General-purpose task execution profile. Used as the default when no specialist profile is assigned to a work package.
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-generic-agent.md
-  - id: AGENT_PROFILE:human-in-charge
-    kind: agent_profile
-    title: Human in Charge
-    summary: Workflow sentinel indicating this work package requires direct human execution. No agent identity is injected. The HIC remains accountable for the deliverable.
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-human-in-charge.md
-  - id: AGENT_PROFILE:implementer-ivan
-    kind: agent_profile
-    title: Implementer Ivan
-    summary: General-purpose software implementation specialist
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-implementer-ivan.md
-  - id: AGENT_PROFILE:java-jenny
-    kind: agent_profile
-    title: java-jenny
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-java-jenny.md
-  - id: AGENT_PROFILE:lexical-larry
-    kind: agent_profile
-    title: Lexical Larry
-    summary: "Cross-functional semantic analyst and terminology reviewer specialising in linguistic accuracy across all artifact types — code, specifications, architecture decisions, and documentation. Larry's authority is the domain vocabulary: detecting synonym drift, enforcing ubiquitous language, authoring traceable glossary entries, and diagnosing tonality divergence as a semantic problem, not a style problem.\n"
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-lexical-larry.md
-  - id: AGENT_PROFILE:minutes-mahad
-    kind: agent_profile
-    title: Minutes Mahad
-    summary: "Meeting minutes specialist who converts VTT transcripts from Teams or Zoom into structured, validated Markdown and posts that Markdown as the assistant response in the originating chat. Minutes Mahad first asks which of two formats to produce — decision minutes or discussion notes — then extracts with Scribe Sally identity and strict neutrality. The attribution rule is a hard gate. Wiki publication is optional and human-operated, reusing the same validated Markdown. Chat-only delivery requires no publish credentials.\n"
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-minutes-mahad.md
-  - id: AGENT_PROFILE:node-norris
-    kind: agent_profile
-    title: node-norris
-    summary: Definition unavailable in bundled doctrine.
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-node-norris.md
-  - id: AGENT_PROFILE:paula-patterns
-    kind: agent_profile
-    title: Paula Patterns
-    summary: Architecture-scout reviewer for recurring boundary leaks, ownership confusion, and whack-a-field fixes
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-paula-patterns.md
-  - id: AGENT_PROFILE:planner-priti
-    kind: agent_profile
-    title: Planner Priti
-    summary: Work decomposition and delivery sequencing specialist
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-planner-priti.md
-  - id: AGENT_PROFILE:python-pedro
-    kind: agent_profile
-    title: Python Pedro
-    summary: Python-specialist implementer applying TDD, type safety, and idiomatic Python 3.12+ practices
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-python-pedro.md
-  - id: AGENT_PROFILE:researcher-robbie
-    kind: agent_profile
-    title: Researcher Robbie
-    summary: Domain knowledge acquisition and synthesis specialist
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-researcher-robbie.md
-  - id: AGENT_PROFILE:retrospective-facilitator
-    kind: agent_profile
-    title: Retrospective Facilitator
-    summary: Facilitates a structured mission retrospective at terminus
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-retrospective-facilitator.md
-  - id: AGENT_PROFILE:reviewer-renata
-    kind: agent_profile
-    title: Reviewer Renata
-    summary: Code and design quality assurance specialist
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-reviewer-renata.md
-  - id: AGENT_PROFILE:scribe-sally
-    kind: agent_profile
-    title: Scribe Sally
-    summary: "Maintain traceable, neutral documentation integrity across meetings, agent exchanges, and structured knowledge artifacts.\n"
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-scribe-sally.md
-  - id: AGENT_PROFILE:synthesizer-sam
-    kind: agent_profile
-    title: Synthesizer Sam
-    summary: "Integrate multi-agent outputs into coherent, context-aligned insight systems.\n"
-    source_path: ''
-    local_path: _LIBRARY/agent_profile-synthesizer-sam.md
-  - id: TEMPLATE_SET:software-dev-default
-    kind: template_set
-    title: software-dev-default
-    summary: Build high-quality software with structured workflows and test-driven development
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/missions/software-dev/mission.yaml
-    local_path: _LIBRARY/template-set-software-dev-default.md
+  - id: USER:PROJECT_PROFILE
+    kind: user_profile
+    title: User Project Profile
+    summary: Project-specific interview answers captured for charter compilation.
+    source_path: .kittify/charter/interview/answers.yaml
+    local_path: _LIBRARY/user-project-profile.md
 overrides: {}
 metadata:
-  generated_at: '2026-08-08T08:10:03Z'
+  generated_at: '2026-09-28T01:15:56Z'
   bundle_schema_version: 2
 activated_directives:
 - 001-architectural-integrity-standard

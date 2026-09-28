@@ -22,14 +22,10 @@ that drift. This gate instead matches the built-in-pack SHAPE textually
 any absolute ``source_path``, independent of which checkout is running the
 test.
 
-**Exclusions mirror C-PRV-6 exactly** -- both are deliberately excluded
-normalizer callers, still absolute by design:
-
-- Catalog references with ``kind: template_set`` (the mission-template
-  reference, ``charter.activation.compiler._template_reference``).
-- The manifest's ``output_path`` field (``manifest.py``'s
-  ``relativize_under_root``-driven, repo-relative-only carrier) -- only
-  ``source_path`` is scanned.
+Issue #5253 extends the original C-PRV-6 scope to the built-in template-set
+reference emitted by ``charter.activation.compiler._template_reference``.
+The manifest's ``output_path`` remains excluded because it is a distinct,
+repo-relative-only carrier; only manifest ``source_path`` is scanned.
 """
 
 from __future__ import annotations
@@ -46,8 +42,6 @@ pytestmark = [pytest.mark.architectural]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CHARTER_YAML_PATH = _REPO_ROOT / ".kittify" / "charter" / "charter.yaml"
 _MANIFEST_PATH = _REPO_ROOT / ".kittify" / "agent_profiles_manifest.json"
-
-_EXCLUDED_CATALOG_KIND = "template_set"
 
 
 def _built_in_marker() -> str:
@@ -76,7 +70,7 @@ def _catalog_violations() -> list[str]:
 
     violations: list[str] = []
     for ref in references:
-        if not isinstance(ref, dict) or ref.get("kind") == _EXCLUDED_CATALOG_KIND:
+        if not isinstance(ref, dict):
             continue
         source_path = ref.get("source_path")
         if _is_absolute_built_in_shape(source_path):
@@ -115,8 +109,7 @@ def test_no_absolute_built_in_pack_path_in_charter_yaml_catalog() -> None:
     assert violations == [], (
         "charter.yaml catalog references leak an absolute built-in-pack "
         "source_path (C-PRV-5). Run `spec-kitty migrate` to apply "
-        "m_3_2_7_heal_provenance_paths.\nViolations:\n"
-        + "\n".join(f"  {v}" for v in violations)
+        "m_3_2_7_heal_provenance_paths.\nViolations:\n" + "\n".join(f"  {v}" for v in violations)
     )
 
 
@@ -125,19 +118,15 @@ def test_no_absolute_built_in_pack_path_in_agent_profiles_manifest() -> None:
     assert violations == [], (
         "agent_profiles_manifest.json entries leak an absolute built-in-pack "
         "source_path (C-PRV-5). Run `spec-kitty migrate` to apply "
-        "m_3_2_7_heal_provenance_paths.\nViolations:\n"
-        + "\n".join(f"  {v}" for v in violations)
+        "m_3_2_7_heal_provenance_paths.\nViolations:\n" + "\n".join(f"  {v}" for v in violations)
     )
 
 
-def test_excluded_template_set_reference_is_not_flagged() -> None:
-    """Belt-and-braces: the documented C-PRV-6 exclusion is not accidentally scanned."""
+def test_template_set_reference_is_emitted_as_portable_token() -> None:
+    """Issue #5253 extends the provenance normalizer to built-in template sets."""
     document = YAML(typ="safe").load(_CHARTER_YAML_PATH.read_text(encoding="utf-8")) or {}
     references = document["catalog"]["references"]
-    template_refs = [r for r in references if isinstance(r, dict) and r.get("kind") == _EXCLUDED_CATALOG_KIND]
+    template_refs = [r for r in references if isinstance(r, dict) and r.get("kind") == "template_set"]
 
     assert template_refs, "expected at least one template_set reference in charter.yaml (test non-vacuity)"
-    assert _is_absolute_built_in_shape(template_refs[0].get("source_path")), (
-        "the template_set reference is expected to remain absolute (excluded, C-PRV-6) -- "
-        "if this now fails, the exclusion may have regressed to a scanned shape."
-    )
+    assert template_refs[0].get("source_path") == ("${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml")

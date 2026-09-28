@@ -62,6 +62,7 @@ def _charter_yaml_path(project_root: Path) -> Path:
 def packs_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     root = tmp_path / "packs"
     (root / "built-in" / "paradigms").mkdir(parents=True)
+    (root / "built-in" / "missions" / "software-dev").mkdir(parents=True)
     monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(root))
     return root
 
@@ -139,7 +140,7 @@ class TestRunProvenanceAudit:
         assert exc_info.value.exit_code == 1
 
     def test_template_set_leak_exits_one(self, tmp_path: Path, packs_root: Path) -> None:
-        abs_source = packs_root / "built-in" / "missions" / "software-dev" / "mission.yaml"
+        abs_source = tmp_path / "former-checkout" / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
         refs = (
             "  - id: TEMPLATE_SET:software-dev-default\n"
             "    kind: template_set\n"
