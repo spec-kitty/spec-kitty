@@ -33,6 +33,7 @@ role: implementer
 
 Use the canonical primary task body for the implementation prompt.
 """
+_MALFORMED_WP_TASK = "---\nwork_package_id: [unterminated\n---\n"
 _WP_PROMPT_START = "=" * 78 + "\n  WORK PACKAGE PROMPT BEGINS\n" + "=" * 78 + "\n\n"
 _WP_PROMPT_END = "\n\n" + "=" * 78 + "\n  WORK PACKAGE PROMPT ENDS\n" + "=" * 78
 
@@ -41,15 +42,19 @@ def _scaffold_lanes_with_coord_mission(
     tmp_path: Path,
     *,
     lane: str,
+    additional_wps: dict[str, str] | None = None,
 ) -> tuple[Path, str, Path, Path]:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     mission_slug = f"issue-5255-{lane.replace('_', '-')}"
+    wps = {"WP01": lane}
+    if additional_wps:
+        wps.update(additional_wps)
     primary_dir, coordination_dir = scaffold_coord_software_dev(
         repo_root,
         mission_slug,
         MissionTopology.LANES_WITH_COORD,
-        wps={"WP01": lane},
+        wps=wps,
     )
     task_file = primary_dir / "tasks" / "WP01.md"
     task_file.write_text(_EXPECTED_WP_TASK, encoding="utf-8")
@@ -133,17 +138,27 @@ def test_held_wp_iteration_uses_primary_task_and_review_prompt(tmp_path: Path) -
     _assert_task_prompt(decision, action="review", repo_root=repo_root, mission_slug=mission_slug)
 
 
-@pytest.mark.parametrize("unreadable", [False, True], ids=["missing", "unreadable"])
+def test_status_facade_exports_frontmatter_error() -> None:
+    """Runtime consumers resolve task parse failures through the status facade."""
+    from specify_cli.frontmatter import FrontmatterError as FrontmatterModuleError
+    from specify_cli.status import FrontmatterError as StatusFacadeError
+
+    assert StatusFacadeError is FrontmatterModuleError
+
+
+@pytest.mark.parametrize("task_problem", ["missing", "unreadable", "malformed"])
 def test_unavailable_primary_task_blocks_with_actionable_reason(
     tmp_path: Path,
-    unreadable: bool,
+    task_problem: str,
 ) -> None:
     """A missing or unreadable canonical task never becomes a placeholder step."""
     repo_root, mission_slug, primary_dir, coordination_dir = _scaffold_lanes_with_coord_mission(tmp_path, lane="planned")
     task_file = primary_dir / "tasks" / "WP01.md"
     task_file.unlink()
-    if unreadable:
+    if task_problem == "unreadable":
         task_file.mkdir()
+    elif task_problem == "malformed":
+        task_file.write_text(_MALFORMED_WP_TASK, encoding="utf-8")
 
     prompt_file, prompt_error = _build_prompt_or_error(
         action="implement",
@@ -177,11 +192,11 @@ def test_unavailable_primary_task_blocks_with_actionable_reason(
 
 
 @pytest.mark.parametrize("route", ["bridge", "decision_api"], ids=["runtime-bridge", "decision-api"])
-@pytest.mark.parametrize("unreadable", [False, True], ids=["missing", "unreadable"])
+@pytest.mark.parametrize("task_problem", ["missing", "unreadable", "malformed"])
 def test_unavailable_primary_task_blocks_public_runtime_route_after_implement(
     tmp_path: Path,
     route: str,
-    unreadable: bool,
+    task_problem: str,
 ) -> None:
     """An active WP with a lost task blocks before composition advances the run."""
     repo_root, mission_slug, primary_dir, _ = _scaffold_lanes_with_coord_mission(tmp_path, lane="planned")
@@ -189,8 +204,10 @@ def test_unavailable_primary_task_blocks_public_runtime_route_after_implement(
 
     task_file = primary_dir / "tasks" / "WP01.md"
     task_file.unlink()
-    if unreadable:
+    if task_problem == "unreadable":
         task_file.mkdir()
+    elif task_problem == "malformed":
+        task_file.write_text(_MALFORMED_WP_TASK, encoding="utf-8")
 
     route_callable = decide_next_via_runtime if route == "bridge" else decide_next
     decision = route_callable("codex", mission_slug, "success", repo_root)
@@ -204,3 +221,29 @@ def test_unavailable_primary_task_blocks_public_runtime_route_after_implement(
     assert "restore" in decision.reason.lower() or "regenerate" in decision.reason.lower()
     assert "composition" not in decision.reason.lower()
     assert "<subtask-ids>" not in decision.reason
+
+
+@pytest.mark.parametrize("terminal_lane", ["done", "canceled"], ids=["done", "canceled"])
+def test_missing_terminal_task_blocks_active_wp_to_preserve_board_integrity(
+    tmp_path: Path,
+    terminal_lane: str,
+) -> None:
+    """A missing terminal task cannot vanish from file-derived board totals."""
+    repo_root, mission_slug, primary_dir, _ = _scaffold_lanes_with_coord_mission(
+        tmp_path,
+        lane="planned",
+        additional_wps={"WP02": terminal_lane},
+    )
+    advance_to_step(repo_root, mission_slug, "software-dev", "implement")
+
+    task_file = primary_dir / "tasks" / "WP02.md"
+    task_file.unlink()
+    decision = decide_next_via_runtime("codex", mission_slug, "success", repo_root)
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.action is None
+    assert decision.wp_id is None
+    assert decision.prompt_file is None
+    assert decision.reason is not None
+    assert str(task_file) in decision.reason
+    assert "restore" in decision.reason.lower() or "regenerate" in decision.reason.lower()
