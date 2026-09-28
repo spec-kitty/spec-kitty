@@ -241,8 +241,8 @@ def test_resolve_asset_tier1_mission_scoped_override_resolves(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Tier-1 override resolves a MISSION-SCOPED override at
-    ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (e.g. the
-    dogfood layout ``.kittify/overrides/missions/software-dev/command-templates/implement.md``).
+    ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (e.g.
+    ``.kittify/overrides/missions/software-dev/command-templates/implement.md``).
 
     Before this fix, Tier-1 only checked the flat
     ``.kittify/overrides/{subdir}/{name}`` path, so every mission-scoped

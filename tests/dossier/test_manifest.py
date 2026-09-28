@@ -1187,7 +1187,7 @@ class TestPlanManifest:
         hardcoded `mission_family="software-dev"` in `_check_cli_guards`
         plus the `review`-step lexical collision -- not a vaguer "no guard
         exists yet" framing. Mirrors WP04's T018 pattern
-        (`test_override_mirror_files_carry_deprecation_header`): reads the
+        (the since-retired `test_override_mirror_files_carry_deprecation_header`, #5128): reads the
         raw file text, not the parsed model, since the header comment is
         not part of the parsed schema."""
         raw_text = self._PLAN_MANIFEST_PATH.read_text(encoding="utf-8")
@@ -1205,254 +1205,64 @@ class TestPlanManifest:
         assert "no guard exists yet" not in raw_text.lower()
 
 
-class TestOverrideMirrorDeprecation:
-    """WP04 (IC-04): mark the two dead
-    `.kittify/overrides/missions/{research,documentation}/expected-artifacts.yaml`
-    mirror files as explicitly deprecated/inert via a header comment, rather
-    than refreshing their content to parity with WP02/WP03's reconciled
-    `packs/built-in/missions/` copies -- per
-    kitty-specs/expected-artifacts-manifest-repair-01KZY498/tracer-design-decisions.md
-    Decision 4 (mark-deprecated, don't refresh, don't delete; refreshing dead
-    content to keep it "in sync" is the literal shape of parity-with-a-dead-quirk,
-    charter DIRECTIVE_044's named anti-pattern). Verified first-hand:
-    `MissionTemplateRepository._expected_artifacts_path()`
-    (`src/charter/offering/missions/repository.py`) composes only
-    `default_missions_root()` -> `charter.offering.pack_paths.built_in_missions_root()`
-    (the `packs/built-in/missions` tree); `src/charter/offering/resolver.py` -- the
-    module that DOES implement the `.kittify/overrides/missions/{mission}/...`
-    tier -- only wires that tier for `templates/`, `command-templates/`, and
-    `mission.yaml`, never for `expected-artifacts.yaml`. So no reader anywhere
-    in this repository ever opens these two override files.
+class TestRepoMissionOverrideTierRetired:
+    """#5128: this repository carries NO mission-scoped override tier.
 
-    The `software-dev` mirror entry was removed by a later operator
-    decision: rather than leave the software-dev override permanently
-    header-only/inert, the operator chose to delete
-    `.kittify/overrides/missions/software-dev/expected-artifacts.yaml`
-    outright as part of a full software-dev override resync. The
-    research/documentation mirrors are untouched and keep the Decision 4
-    mark-deprecated treatment.
+    Supersedes the WP04 (IC-04) ``TestOverrideMirrorDeprecation`` guard, which
+    pinned the two dead
+    ``.kittify/overrides/missions/{research,documentation}/expected-artifacts.yaml``
+    mirrors as header-marked-deprecated (Decision 4 of
+    kitty-specs/expected-artifacts-manifest-repair-01KZY498/tracer-design-decisions.md:
+    mark-deprecated, don't refresh, don't delete). The operator's #5128 triage
+    went further: the whole ``.kittify/overrides/missions/{software-dev,research,
+    documentation,plan}/`` tier was a dogfood mirror of ``packs/built-in/missions/``
+    that either equalled the built-in copy (dead weight) or had drifted from it
+    and silently shadowed it (``charter.offering.resolver`` probes
+    ``.kittify/overrides/missions/{mission}/...`` at the OVERRIDE tier, ahead of
+    the built-in pack). The fix is deletion, not generation or a byte-parity
+    gate (the retired ``tests/cross_cutting/test_kittify_override_parity.py``),
+    so this repository resolves its mission templates exactly like a consumer
+    project with no overrides configured.
+
+    What this class still guards (the invariant the old mirror test existed
+    for -- "no reader-less / shadowing mirror of the canonical built-in
+    mission assets lives in this repo"): no per-mission override directory may
+    reappear under ``.kittify/overrides/missions/``. The override *mechanism*
+    stays supported for consumer projects and is covered by tmp_path fixtures
+    (``tests/runtime/test_resolver_unit.py``, ``tests/doctrine/test_resolver.py``).
     """
 
-    _OVERRIDE_ROOT = Path(__file__).parent.parent.parent / ".kittify" / "overrides" / "missions"
+    _REPO_ROOT = Path(__file__).resolve().parents[2]
+    _MISSION_OVERRIDE_ROOT = _REPO_ROOT / ".kittify" / "overrides" / "missions"
+    _BUILT_IN_MISSIONS_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions"
+    _RETIRED_MIRRORS = ("software-dev", "research", "documentation", "plan")
 
-    _MIRROR_FILES = {
-        "research": _OVERRIDE_ROOT / "research" / "expected-artifacts.yaml",
-        "documentation": _OVERRIDE_ROOT / "documentation" / "expected-artifacts.yaml",
-    }
-
-    # Full body-content fingerprints as they existed before WP04's
-    # header-only edit -- exercised below to prove the body was NOT
-    # refreshed to parity with the reconciled built-in copies, only the
-    # header comment changed (Decision 4's "don't refresh" half). Each
-    # dict is the COMPLETE parsed YAML document (every key, every leaf
-    # value) for its mirror, not just a hand-picked structural subset --
-    # so a maintainer can see exactly what is protected at a glance, and
-    # any drift to any leaf (a path_pattern, a blocking flag, a list
-    # member, ...) fails the equality check below.
-    _EXPECTED_CONTENT = {
-        "research": {
-            "schema_version": "1.0",
-            "mission_type": "research",
-            "manifest_version": "1",
-            "required_always": [],
-            "required_by_step": {
-                "scoping": [
-                    {
-                        "artifact_key": "input.spec.research",
-                        "artifact_class": "input",
-                        "path_pattern": "spec.md",
-                        "blocking": True,
-                    },
-                ],
-                "methodology": [
-                    {
-                        "artifact_key": "workflow.plan.methodology",
-                        "artifact_class": "workflow",
-                        "path_pattern": "plan.md",
-                        "blocking": True,
-                    },
-                ],
-                "gathering": [],
-                "synthesis": [
-                    {
-                        "artifact_key": "output.findings.main",
-                        "artifact_class": "output",
-                        "path_pattern": "findings.md",
-                        "blocking": True,
-                    },
-                ],
-                "output": [
-                    {
-                        "artifact_key": "output.report.publication",
-                        "artifact_class": "output",
-                        "path_pattern": "report.md",
-                        "blocking": True,
-                    },
-                ],
-                "done": [],
-            },
-            "optional_always": [
-                {
-                    "artifact_key": "evidence.methodology.detailed",
-                    "artifact_class": "evidence",
-                    "path_pattern": "methodology.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.synthesis.notes",
-                    "artifact_class": "evidence",
-                    "path_pattern": "synthesis.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.literature-review",
-                    "artifact_class": "evidence",
-                    "path_pattern": "literature-review.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.gap-analysis",
-                    "artifact_class": "evidence",
-                    "path_pattern": "gap-analysis.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.research-log",
-                    "artifact_class": "evidence",
-                    "path_pattern": "research.md",
-                    "blocking": False,
-                },
-            ],
-        },
-        "documentation": {
-            "schema_version": "1.0",
-            "mission_type": "documentation",
-            "manifest_version": "1",
-            "required_always": [],
-            "required_by_step": {
-                "discover": [
-                    {
-                        "artifact_key": "input.spec.documentation",
-                        "artifact_class": "input",
-                        "path_pattern": "spec.md",
-                        "blocking": True,
-                    },
-                ],
-                "audit": [
-                    {
-                        "artifact_key": "workflow.plan.documentation",
-                        "artifact_class": "workflow",
-                        "path_pattern": "plan.md",
-                        "blocking": True,
-                    },
-                    {
-                        "artifact_key": "workflow.tasks.documentation",
-                        "artifact_class": "workflow",
-                        "path_pattern": "tasks.md",
-                        "blocking": True,
-                    },
-                    {
-                        "artifact_key": "evidence.gap-analysis",
-                        "artifact_class": "evidence",
-                        "path_pattern": "gap-analysis.md",
-                        "blocking": True,
-                    },
-                ],
-                "design": [
-                    {
-                        "artifact_key": "workflow.plan.documentation",
-                        "artifact_class": "workflow",
-                        "path_pattern": "plan.md",
-                        "blocking": True,
-                    },
-                    {
-                        "artifact_key": "workflow.tasks.documentation",
-                        "artifact_class": "workflow",
-                        "path_pattern": "tasks.md",
-                        "blocking": True,
-                    },
-                ],
-                "generate": [
-                    {
-                        "artifact_key": "output.docs.generated",
-                        "artifact_class": "output",
-                        "path_pattern": "docs/**/*.md",
-                        "blocking": False,
-                    },
-                ],
-                "validate": [],
-                "publish": [],
-            },
-            "optional_always": [
-                {
-                    "artifact_key": "evidence.research",
-                    "artifact_class": "evidence",
-                    "path_pattern": "research.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.data-model",
-                    "artifact_class": "evidence",
-                    "path_pattern": "data-model.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.quickstart",
-                    "artifact_class": "evidence",
-                    "path_pattern": "quickstart.md",
-                    "blocking": False,
-                },
-                {
-                    "artifact_key": "evidence.audit-report",
-                    "artifact_class": "evidence",
-                    "path_pattern": "audit-report.md",
-                    "blocking": False,
-                },
-            ],
-        },
-    }
-
-    def test_override_mirror_files_carry_deprecation_header(self):
-        """T018: each mirror file's header names the SPECIFIC inert
-        mechanism (`_expected_artifacts_path()` / "no override tier for this
-        asset type"), not merely a generic "deprecated" string, and each
-        file's body content is byte-for-byte unchanged at the leaf level --
-        the full parsed YAML document (every key, every leaf value, not
-        just structural properties like key order or list length) is
-        compared against a committed expected value, so ANY drift below
-        the header (a path_pattern, a blocking flag, a list member, ...)
-        fails this test."""
-        from ruamel.yaml import YAML
-
-        yaml = YAML(typ="safe")
-
-        for mission_type, path in self._MIRROR_FILES.items():
-            assert path.is_file(), f"expected mirror file at {path}"
-            raw_text = path.read_text(encoding="utf-8")
-            lower_text = raw_text.lower()
-
-            # Recognizable deprecated/inert marker.
-            assert "deprecated" in lower_text or "inert" in lower_text, f"{path} header must state the file is deprecated/inert"
-            # Specific-mechanism language, not a vague "deprecated" alone:
-            # names the actual resolver method that never reads this file.
-            assert "_expected_artifacts_path" in raw_text, (
-                f"{path} header must name the specific resolver mechanism (_expected_artifacts_path()) that never consults this override tier"
+    def test_built_in_counterparts_exist(self) -> None:
+        """Positive control: every retired mirror names a real built-in
+        mission, so the absence checks below discriminate between "mirror
+        removed" and "wrong root / typo'd mission id"."""
+        for mission in self._RETIRED_MIRRORS:
+            assert (self._BUILT_IN_MISSIONS_ROOT / mission / "mission.yaml").is_file(), (
+                f"expected built-in mission {mission!r} under {self._BUILT_IN_MISSIONS_ROOT}"
             )
-            # Points at the canonical, actually-consumed copy.
-            assert "packs/built-in/missions" in raw_text, f"{path} header must point at the canonical, consumed copy under packs/built-in/missions/"
 
-            # Body content unchanged: parse and compare the WHOLE document
-            # against the committed expected value below -- every key and
-            # every leaf value, not a hand-picked subset. Comments are not
-            # part of the parsed YAML, so this is independent of the
-            # header-comment assertions above -- it fails if T019 (or any
-            # future "drift hygiene" refresh) touches ANY required_by_step/
-            # optional_always leaf value (e.g. a path_pattern), not just
-            # structural properties like key order or list length.
-            parsed = yaml.load(raw_text)
-            assert parsed == self._EXPECTED_CONTENT[mission_type], (
-                f"{path} body content drifted from the committed fingerprint "
-                "-- Decision 4 requires header-only edits to this dead mirror; "
-                "if this is an intentional content change, it likely belongs "
-                "in packs/built-in/missions/ instead (the canonical, consumed copy)"
+    def test_retired_mission_mirrors_absent(self) -> None:
+        for mission in self._RETIRED_MIRRORS:
+            mirror = self._MISSION_OVERRIDE_ROOT / mission
+            assert not mirror.exists(), (
+                f"{mirror} reappeared -- the repo-local mission override tier was "
+                "deleted by #5128; edit packs/built-in/missions/ (the canonical "
+                "source) instead of re-adding a shadowing mirror"
             )
+
+    def test_no_mission_scoped_override_directory(self) -> None:
+        """Any subdirectory under ``.kittify/overrides/missions/`` is a
+        mission-scoped override the resolver would consult ahead of the
+        built-in pack -- none may exist in this repository."""
+        if not self._MISSION_OVERRIDE_ROOT.is_dir():
+            return
+        subdirs = sorted(p.name for p in self._MISSION_OVERRIDE_ROOT.iterdir() if p.is_dir() and p.name != "__pycache__")
+        assert subdirs == [], (
+            f"mission-scoped override dirs found under {self._MISSION_OVERRIDE_ROOT}: {subdirs} -- "
+            "this repository must resolve mission templates from packs/built-in/missions/ (#5128)"
+        )

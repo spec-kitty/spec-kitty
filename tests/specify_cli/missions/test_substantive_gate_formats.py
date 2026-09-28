@@ -729,8 +729,8 @@ _SPEC_TEMPLATE_PATH = _REPO_ROOT / "packs" / "built-in" / "missions" / "software
 class TestSpecTemplateDeliveryLabels:
     """Reads the LIVE built-in template directly off disk (repo-root relative).
 
-    The ``.kittify/overrides`` copy is guarded separately by
-    ``tests/cross_cutting/test_kittify_override_parity.py``.
+    This repository carries no ``.kittify/overrides`` mission copy (removed by
+    #5128), so the built-in template is the one its own missions resolve.
     """
 
     def _template_text(self) -> str:

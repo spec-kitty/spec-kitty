@@ -11,7 +11,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _TASKS_PROMPT_SURFACES = (
     _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev" / "tasks" / "prompt.md",
-    _REPO_ROOT / ".kittify" / "overrides" / "missions" / "software-dev" / "command-templates" / "tasks.md",
+    # The repo-local `.kittify/overrides/missions/software-dev/command-templates/tasks.md`
+    # mirror was deleted by #5128; the built-in prompt is the only surface.
 )
 _STAGED_TASKS_PROMPT_SURFACES = (
     _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev" / "tasks-outline" / "prompt.md",

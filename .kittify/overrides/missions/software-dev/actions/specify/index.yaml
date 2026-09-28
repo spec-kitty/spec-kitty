@@ -1,9 +1,0 @@
-action: specify
-directives:
-  - 010-specification-fidelity-requirement
-  - 003-decision-documentation-requirement
-tactics:
-  - requirements-validation-workflow
-styleguides: []
-toolguides: []
-procedures: []

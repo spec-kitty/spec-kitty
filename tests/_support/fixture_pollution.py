@@ -26,7 +26,7 @@ __all__ = ["scrub_repo_mission_overrides"]
 def scrub_repo_mission_overrides(project: Path) -> None:
     """Strip this repository's own mission-scoped template overrides.
 
-    ``.kittify/overrides/missions/`` in ``REPO_ROOT`` is spec-kitty's own
+    ``.kittify/overrides/missions/`` in ``REPO_ROOT`` was spec-kitty's own
     project-local customization of its built-in mission templates (added by
     #661) -- maintainer-only state, not something a simulated *fresh* test
     project should inherit. Before mission ``up-org-template-fsm-01M06F9K``
@@ -45,5 +45,11 @@ def scrub_repo_mission_overrides(project: Path) -> None:
     restores "fresh project, no configured overrides" as the fixture's
     actual contract; tests that want an override in place already create
     their own.
+
+    #5128 deleted the per-mission override directories from ``REPO_ROOT``
+    (guarded by ``tests/dossier/test_manifest.py::
+    TestRepoMissionOverrideTierRetired``), so this scrub is now defensive: it
+    keeps the fixture contract true even if such a directory reappears, and
+    still drops the residual flat files left under that path.
     """
     shutil.rmtree(project / ".kittify" / "overrides" / "missions", ignore_errors=True)
