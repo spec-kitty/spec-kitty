@@ -79,6 +79,7 @@ from specify_cli.git.destructive_guard import (
 )
 from specify_cli.consolidation.git_probes import _paths_have_status_changes
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
+
 # Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
 # (single canonical home in ``lanes.compute`` — see its docstrings); re-exported
 # under the historical private names so existing call sites and tests in this
@@ -97,6 +98,8 @@ from specify_cli.consolidation._constants import (
 from specify_cli.consolidation.baseline import (
     BaselineMergeCommitError,
     assert_baseline_merge_commit_on_target as _assert_baseline_merge_commit_on_target,
+    assert_mission_number_on_target as _assert_mission_number_on_target,
+    read_mission_number_from_ref as _read_mission_number_from_ref,
     record_baseline_merge_commit as _record_baseline_merge_commit,
 )
 from specify_cli.consolidation.bookkeeping_projection import (
@@ -127,6 +130,9 @@ from specify_cli.consolidation.git_probes import (
 from specify_cli.consolidation.ordering import (
     _assign_planning_only_mission_number_if_needed,
     _bake_mission_number_into_mission_branch,
+    _bake_mission_number_onto_target_tree,
+    _mark_mission_number_baked,
+    _read_target_tree_mission_number,
 )
 from specify_cli.consolidation.preflight import (
     _check_mission_branch,
@@ -275,9 +281,7 @@ def _capture_pre_target_gate_artifacts(run: _MergeRunState) -> None:
     here pre-merge and this snapshot is empty/``None`` — a genuine no-op for
     :func:`_restore_regressed_gate_artifacts` below.
     """
-    run.pre_target_gate_artifact_snapshots = _capture_merge_snapshots(
-        run.main_repo, *_gate_artifact_paths(run)
-    )
+    run.pre_target_gate_artifact_snapshots = _capture_merge_snapshots(run.main_repo, *_gate_artifact_paths(run))
 
 
 def _restore_regressed_gate_artifacts(run: _MergeRunState) -> None:
@@ -368,6 +372,15 @@ class _MergeRunState:
     done_marked_before_target: bool = False
     mission_already_applied: bool = False
     mission_number_meta_path: Path | None = None
+    # #4900 / D2: the mission_number THIS run's mission-branch bake assigned
+    # (``_bake_mission_number_into_mission_branch``'s return value, threaded
+    # rather than discarded). ``None`` when the bake short-circuited this run
+    # (resume / idempotency hit / no-op because the target already carried a
+    # number) -- ``_phase_capture_and_baseline`` then falls back to reading
+    # the mission branch's OWN committed value. Also the number the
+    # target-tree read-back verifies and the post-verification "Assigned"
+    # line announces (``_phase_commit_and_assert``).
+    assigned_mission_number: int | None = None
     baseline_meta_path: Path | None = None
     stale_report: StaleAssertionReport | None = None
     # coord-write-placement-closure-01KYCF83 WP09 (IC-08 / FR-009): the birth-time
@@ -519,16 +532,11 @@ def _assert_mission_terminal_ready(run: _MergeRunState) -> None:
 
     snapshot = reduce(read_events(run.feature_dir))
     work_packages = snapshot.work_packages if hasattr(snapshot, "work_packages") else {}
-    relevant = {
-        wp_id: work_packages[wp_id] for wp_id in run.all_wp_ids if wp_id in work_packages
-    }
+    relevant = {wp_id: work_packages[wp_id] for wp_id in run.all_wp_ids if wp_id in work_packages}
     ok, missing = mission_terminal_acceptability(relevant, expected_wp_ids=run.all_wp_ids)
     if ok:
         return
-    console.print(
-        "\n[red]Error:[/red] Mission is not merge-ready — WP(s) missing "
-        f"review approval: {', '.join(missing)}."
-    )
+    console.print(f"\n[red]Error:[/red] Mission is not merge-ready — WP(s) missing review approval: {', '.join(missing)}.")
     console.print(
         "  No lane consolidation and no mission_number bake have occurred; "
         "the mission is unchanged. Move the listed WP(s) through review "
@@ -561,19 +569,13 @@ def _phase_gates_and_state(run: _MergeRunState) -> None:
     lanes_manifest = run.lanes_manifest
 
     if run.is_resume:
-        console.print(
-            f"[bold cyan]Resuming[/bold cyan] merge for {run.mission_slug} "
-            f"({len(run.state.completed_wps)}/{len(run.state.wp_order)} WPs already done)"
-        )
+        console.print(f"[bold cyan]Resuming[/bold cyan] merge for {run.mission_slug} ({len(run.state.completed_wps)}/{len(run.state.wp_order)} WPs already done)")
 
     console.print(f"[bold]Lane-based merge for {run.mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
     console.print(f"  Lanes: {', '.join(ln.lane_id for ln in lanes_manifest.lanes)}")
     if run.planning_artifact_only:
-        console.print(
-            "  [dim]Planning-artifact-only mission: target branch already "
-            "contains deliverables; branch merge steps will be skipped.[/dim]"
-        )
+        console.print("  [dim]Planning-artifact-only mission: target branch already contains deliverables; branch merge steps will be skipped.[/dim]")
 
     policy = load_policy_config(run.main_repo)
     gate_eval = evaluate_merge_gates(
@@ -673,9 +675,7 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         )
     for lane in lanes_manifest.lanes:
         if run.planning_artifact_only and is_planning_lane(lane):
-            console.print(
-                f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}"
-            )
+            console.print(f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}")
             continue
 
         # FR-004 / FR-009: skip branch integration ONLY when EVERY WP in the lane
@@ -684,23 +684,16 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         # canceled) still integrates its survivors, so this guard requires ALL
         # WPs excluded, never merely any.
         if _lane_fully_canceled(lane, run.excluded_canceled_wp_ids):
-            console.print(
-                f"  [dim]Skipping {lane.lane_id} (all WPs canceled with "
-                "provenance — acceptable ending, no branch to integrate)[/dim]"
-            )
+            console.print(f"  [dim]Skipping {lane.lane_id} (all WPs canceled with provenance — acceptable ending, no branch to integrate)[/dim]")
             continue
 
         # FR-037: skip ONLY when the lane branch is already fully integrated into
         # the mission branch (real tree state), never on the ``done`` proxy.
         _lane_branch = _created_lane_branch(lanes_manifest, lane.lane_id)
         if not is_planning_lane(lane) and (
-            _lane_already_integrated(run.main_repo, _lane_branch, lanes_manifest.mission_branch)
-            or _lane_completed_but_branch_gone(run, lane, _lane_branch)
+            _lane_already_integrated(run.main_repo, _lane_branch, lanes_manifest.mission_branch) or _lane_completed_but_branch_gone(run, lane, _lane_branch)
         ):
-            console.print(
-                f"  [dim]Skipping {lane.lane_id} (already integrated into "
-                f"{lanes_manifest.mission_branch})[/dim]"
-            )
+            console.print(f"  [dim]Skipping {lane.lane_id} (already integrated into {lanes_manifest.mission_branch})[/dim]")
             continue
         run.any_lane_had_unintegrated_code = True
 
@@ -741,16 +734,12 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
     # ``-coord`` husk for a coord-topology mission → a None/wrong baseline id.
     # ``run.feature_dir`` stays the coord STATUS leg, untouched (C-001).
     try:
-        run.baseline_mission_id = resolve_mission_identity(
-            run.target_feature_dir
-        ).mission_id
+        run.baseline_mission_id = resolve_mission_identity(run.target_feature_dir).mission_id
     except Exception:  # noqa: BLE001 — meta.json may be missing/corrupt for legacy missions
         run.baseline_mission_id = None
 
     status_surface_path = resolve_status_surface(run.main_repo, run.mission_slug)
-    run.done_marked_before_target = (
-        is_under_worktrees_segment(status_surface_path) and not run.planning_artifact_only
-    )
+    run.done_marked_before_target = is_under_worktrees_segment(status_surface_path) and not run.planning_artifact_only
     run.canonical_events_path = status_surface_path
     run.canonical_status_path = status_surface_path.parent / _STATUS_FILENAME
     run.merge_state_path = get_state_path(run.main_repo, run.state.mission_id)
@@ -760,15 +749,16 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
     """Bake mission_number on the mission branch and pre-target done bookkeeping."""
     lanes_manifest = run.lanes_manifest
     if run.planning_artifact_only:
-        console.print(
-            f"  [dim]Skipping mission branch merge; {lanes_manifest.target_branch} "
-            "is the planning artifact branch.[/dim]"
-        )
+        console.print(f"  [dim]Skipping mission branch merge; {lanes_manifest.target_branch} is the planning artifact branch.[/dim]")
         run.mission_already_applied = True
         return
 
     # -- WP10/T053/T055: assign dense integer mission_number on mission branch --
-    _bake_mission_number_into_mission_branch(
+    # #4900 / D2: thread the assigned number (previously discarded) so the
+    # target-tree write + read-back in ``_phase_capture_and_baseline`` /
+    # ``_phase_commit_and_assert`` has it, instead of depending on the
+    # squash + merge-driver reconciliation alone.
+    run.assigned_mission_number = _bake_mission_number_into_mission_branch(
         main_repo=run.main_repo,
         mission_slug=run.mission_slug,
         mission_branch=lanes_manifest.mission_branch,
@@ -812,9 +802,7 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
                 all_wp_ids=run.all_wp_ids,
             )
         except Exception as exc:
-            _restore_and_guard_coord_coherence(
-                run, run.pre_target_bookkeeping_snapshots, error=exc
-            )
+            _restore_and_guard_coord_coherence(run, run.pre_target_bookkeeping_snapshots, error=exc)
             # #4764/FOLD-A (sibling of FOLD-F1): a primary-tree
             # ``mission_number`` bake may have just committed directly on
             # ``target_branch`` (the ``_reanchor_baseline_past_primary_tree_bake``
@@ -919,9 +907,7 @@ def _revert_orphan_target_bake_commit(run: _MergeRunState) -> None:
             env=env,
         )
         logger.warning(
-            "#4764/FOLD-F1: could not revert the orphan mission_number bake "
-            "commit on %s (%s..HEAD); target may still carry an unmerged "
-            "bake commit: %s",
+            "#4764/FOLD-F1: could not revert the orphan mission_number bake commit on %s (%s..HEAD); target may still carry an unmerged bake commit: %s",
             run.lanes_manifest.target_branch,
             pre_bake_sha[:12],
             (revert.stderr or revert.stdout or "").strip(),
@@ -965,9 +951,7 @@ def _capture_coord_checkpoint(run: _MergeRunState) -> _CoordCheckpoint | None:
     ``None`` is a proven no-op wherever it is later consumed.
     """
     try:
-        coord_ref = resolve_placement_only(
-            run.main_repo, run.mission_slug, kind=MissionArtifactKind.STATUS_STATE
-        ).ref
+        coord_ref = resolve_placement_only(run.main_repo, run.mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref
     except Exception:  # noqa: BLE001 — unresolvable placement: skip the coherent revert
         return None
     ret, sha, _err = run_command(
@@ -1025,9 +1009,7 @@ def _coord_reconcile_read_feature_dir(run: _MergeRunState) -> Path:
     (``kitty-specs/<slug>/status.events.jsonl``) and the legacy-parse dir match
     the placement the rollback used — no ``-coord`` husk, no re-resolution drift.
     """
-    feature_dir: Path = placement_seam(run.main_repo, run.mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    feature_dir: Path = placement_seam(run.main_repo, run.mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return feature_dir
 
 
@@ -1055,9 +1037,7 @@ def _capture_pre_target_done_write_set(run: _MergeRunState) -> None:
             feature_dir=_coord_reconcile_read_feature_dir(run),
         )
     )
-    run.pre_target_done_write_set = [
-        wp for wp in run.all_wp_ids if wp not in pre_existing_done
-    ]
+    run.pre_target_done_write_set = [wp for wp in run.all_wp_ids if wp not in pre_existing_done]
 
 
 def _coord_worktree_root(run: _MergeRunState) -> Path | None:
@@ -1078,9 +1058,7 @@ def _coord_worktree_root(run: _MergeRunState) -> Path | None:
     return worktree_root
 
 
-def _reset_coord_to_checkpoint(
-    run: _MergeRunState, checkpoint: _CoordCheckpoint | None
-) -> None:
+def _reset_coord_to_checkpoint(run: _MergeRunState, checkpoint: _CoordCheckpoint | None) -> None:
     """T008: the ONE reset primitive — revert the coordination branch back to
     ``checkpoint`` via a forward-reversing ``git revert`` (never a raw
     ``git update-ref``/hard reset — AC-B3; ``advance_branch_ref`` cannot serve
@@ -1153,8 +1131,7 @@ def _reset_coord_to_checkpoint(
             env=env,
         )
         logger.warning(
-            "#2711/T008: could not revert coordination commit(s) on %s (%s..HEAD); "
-            "committed/working coherence may be degraded: %s",
+            "#2711/T008: could not revert coordination commit(s) on %s (%s..HEAD); committed/working coherence may be degraded: %s",
             checkpoint.ref,
             checkpoint.sha[:12],
             (revert.stderr or revert.stdout or "").strip(),
@@ -1184,9 +1161,7 @@ def _revert_coord_done_commit(run: _MergeRunState) -> None:
     _reset_coord_to_checkpoint(run, _CoordCheckpoint(ref=coord_ref, sha=captured_sha))
 
 
-def _persist_coord_reconcile_marker(
-    run: _MergeRunState, error: BaseException | None
-) -> None:
+def _persist_coord_reconcile_marker(run: _MergeRunState, error: BaseException | None) -> None:
     """Durably record a stranded committed-coord ``done`` (#2786 / #2367-B FR-005).
 
     Derives the strand set from the COMMITTED coordination ref (never a
@@ -1287,9 +1262,7 @@ def _restore_and_guard_coord_coherence(
         _heal_pending_coord_reconcile(run)
 
 
-def _rollback_to_pre_mutation_checkpoint(
-    run: _MergeRunState, *, error: BaseException | None
-) -> None:
+def _rollback_to_pre_mutation_checkpoint(run: _MergeRunState, *, error: BaseException | None) -> None:
     """T008 (FR-007/008): the pre-mutation-checkpoint backstop.
 
     Wraps ONLY ``_phase_merge_lanes`` in ``_run_lane_based_consolidation_locked`` (see
@@ -1311,9 +1284,7 @@ def _rollback_to_pre_mutation_checkpoint(
     which sits strictly before that phase in the linear call order.
     """
     checkpoint = (
-        _CoordCheckpoint(ref=run.pre_mutation_coord_ref, sha=run.pre_mutation_coord_sha)
-        if run.pre_mutation_coord_ref and run.pre_mutation_coord_sha
-        else None
+        _CoordCheckpoint(ref=run.pre_mutation_coord_ref, sha=run.pre_mutation_coord_sha) if run.pre_mutation_coord_ref and run.pre_mutation_coord_sha else None
     )
     _reset_coord_to_checkpoint(run, checkpoint)
     if run.pre_target_bookkeeping_snapshots:
@@ -1413,11 +1384,7 @@ def _handle_mission_merge_result(
     """Process the mission→target result: fail-loud / retry-tolerance / success log."""
     lanes_manifest = run.lanes_manifest
     run.mission_already_applied = getattr(mission_result, "already_applied", False) is True
-    if (
-        run.mission_already_applied
-        and not run.planning_artifact_only
-        and (run.any_lane_had_unintegrated_code or not mission_integrated_into_target)
-    ):
+    if run.mission_already_applied and not run.planning_artifact_only and (run.any_lane_had_unintegrated_code or not mission_integrated_into_target):
         _reject_zero_diff_noop_integration(run)
 
     if not mission_result.success:
@@ -1486,9 +1453,52 @@ def _phase_mission_to_target(run: _MergeRunState) -> None:
     except Exception:
         _restore_pre_target_if_at_baseline(run)
         raise
-    _handle_mission_merge_result(
-        run, mission_result, mission_integrated_into_target=_mission_integrated_into_target
-    )
+    _handle_mission_merge_result(run, mission_result, mission_integrated_into_target=_mission_integrated_into_target)
+
+
+def _resolve_expected_mission_number(run: _MergeRunState) -> int | None:
+    """Resolve the mission_number to write + verify on the target tree (#4900 / D2).
+
+    Priority, so the SAME number is found on every topology and a stale
+    mission-branch value can never overwrite a number the target already
+    carries (FR-007 "target wins" / D2e resume safety, review cycle 1):
+
+    1. The TARGET's own CURRENT working-tree value, when it already carries
+       an assigned number for this mission. Authoritative -- covers a
+       squash that already correctly preserved it (the T014 driver fix), a
+       genuinely-completed prior run, AND the coord-topology primary-tree
+       fallback (``ordering._bake_mission_number_on_primary_tree`` commits
+       DIRECTLY onto ``target_branch``, so by the time this phase runs
+       post-squash the target already carries it -- no separate "primary
+       tree" read is needed here). Read via
+       :func:`~specify_cli.consolidation.ordering._read_target_tree_mission_number`
+       (the WORKING TREE, not ``git show``) -- deliberately a DIFFERENT
+       mechanism than the ``baseline._read_committed_meta_json`` seam the
+       later verify step uses, so a broken read/decode seam cannot make
+       "what we expect" and "did it land" agree vacuously (mirrors
+       ``baseline._recorded_baseline_from_working_meta``'s same
+       independence for the baseline invariant).
+    2. ``run.assigned_mission_number`` -- the number THIS run's
+       mission-branch bake just freshly computed. Only reached when the
+       target did NOT already have one, so it can never disagree with (1).
+    3. The mission branch's own committed value, when this run's bake
+       short-circuited (resume / idempotency hit / already-baked no-op) but
+       a PRIOR run already wrote it there and the target-tree write never
+       landed (e.g. the process crashed between the mission-branch write and
+       this phase).
+
+    Returns ``None`` only when none of the above yields an assigned number
+    -- the pre-existing "nothing to bake this run" degrade path (no target
+    write, no verification, matching ``_bake_mission_number_into_mission_
+    branch``'s own documented skip conditions).
+    """
+    lanes_manifest = run.lanes_manifest
+    target_current = _read_target_tree_mission_number(run.target_feature_dir)
+    if target_current is not None:
+        return target_current
+    if run.assigned_mission_number is not None:
+        return run.assigned_mission_number
+    return _read_mission_number_from_ref(run.main_repo, lanes_manifest.mission_branch, run.mission_slug)
 
 
 def _phase_capture_and_baseline(run: _MergeRunState) -> None:
@@ -1533,6 +1543,32 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
             run.main_repo,
             run.feature_dir,
         )
+    else:
+        # #4900 / D2c: write the already-decided mission_number onto the
+        # TARGET tree UNCONDITIONALLY, after the mission->target squash has
+        # already run -- this guarantee never depends on squash ordering or
+        # on whether git invoked ``merge-driver-meta`` for this squash at
+        # all. ``_resolve_expected_mission_number`` picks the number (target
+        # wins over a stale mission-branch value, FR-007). ``None`` means
+        # mission_number assignment was never engaged for this mission at
+        # all -- the SAME pre-existing, intentional degrade path
+        # ``_bake_mission_number_into_mission_branch`` already documents
+        # (missing branch, missing/malformed meta.json, not a git repo, or
+        # the caller mocking the bake out entirely, which many existing
+        # non-mission_number-focused tests do). D2e's "never skip
+        # verification" concern is about a run that DID decide a number and
+        # then lost track of it on resume -- closed by reading TARGET first,
+        # via an independent (working-tree, not ``git show``) seam, which
+        # finds the number the coord-topology primary-tree fallback commits
+        # directly onto target even when the mission branch never carried it
+        # -- not by refusing this pre-existing "nothing to bake" no-op.
+        expected_number = _resolve_expected_mission_number(run)
+        if expected_number is not None:
+            run.assigned_mission_number = expected_number
+            run.mission_number_meta_path = _bake_mission_number_onto_target_tree(
+                run.target_feature_dir,
+                expected_number,
+            )
 
     # INV-5: record the #1827 baseline AFTER the target merge, BEFORE the
     # bookkeeping commit. On failure restore the final snapshots then exit.
@@ -1680,9 +1716,7 @@ def _run_birth_cutover(run: _MergeRunState) -> None:
     if result.flipped:
         run.birth_cutover_meta_path = run.target_feature_dir / "meta.json"
     elif result.error:
-        logger.warning(
-            "birth-cutover for %s did not reconcile: %s", run.mission_slug, result.error
-        )
+        logger.warning("birth-cutover for %s did not reconcile: %s", run.mission_slug, result.error)
 
     # Commit a genuinely-seeded COORD leg (the migration-coexistence case) onto
     # the coordination branch from ITS OWN worktree. Gated on dirty-state (not
@@ -1744,19 +1778,14 @@ def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> 
             branch=coord_ref,
         )
     except Exception as exc:  # noqa: BLE001 — best-effort, must never abort the merge
-        logger.warning(
-            "birth-cutover coord seed commit failed for %s: %s", run.mission_slug, exc
-        )
+        logger.warning("birth-cutover coord seed commit failed for %s: %s", run.mission_slug, exc)
 
 
 def _phase_porcelain_invariant(run: _MergeRunState) -> None:
     """WP05/T007 FR-014: post-merge working-tree invariant before the housekeeping commit."""
     _ret_status, _out_status = _raw_porcelain_status(run.main_repo)
     if _ret_status != 0:
-        console.print(
-            "[yellow]Warning:[/yellow] post-merge invariant check skipped: "
-            f"git status --porcelain returned {_ret_status}"
-        )
+        console.print(f"[yellow]Warning:[/yellow] post-merge invariant check skipped: git status --porcelain returned {_ret_status}")
         return
 
     expected_paths: set[str] = set()
@@ -1785,27 +1814,14 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
     if not offending_lines:
         return
 
-    console.print(
-        "[red]Error:[/red] Post-merge working-tree invariant violated. "
-        "The following paths diverge from HEAD unexpectedly:"
-    )
+    console.print("[red]Error:[/red] Post-merge working-tree invariant violated. The following paths diverge from HEAD unexpectedly:")
     for line in offending_lines:
         console.print(f"  {line}")
-    deleted_or_modified = any(
-        len(line) >= 2 and (line[1] in ("D", "M") or line[0] in ("D", "M"))
-        for line in offending_lines
-    )
+    deleted_or_modified = any(len(line) >= 2 and (line[1] in ("D", "M") or line[0] in ("D", "M")) for line in offending_lines)
     if deleted_or_modified:
-        console.print(
-            "\nThis may indicate a sparse-checkout or filter-driver issue. Run\n"
-            "  spec-kitty doctor sparse-checkout --fix\n"
-            "before retrying the merge."
-        )
+        console.print("\nThis may indicate a sparse-checkout or filter-driver issue. Run\n  spec-kitty doctor sparse-checkout --fix\nbefore retrying the merge.")
     else:
-        console.print(
-            "\nUnexpected working-tree state after merge. "
-            "Run `git status` to investigate before retrying."
-        )
+        console.print("\nUnexpected working-tree state after merge. Run `git status` to investigate before retrying.")
     _restore_and_guard_coord_coherence(run, run.final_bookkeeping_snapshots)
     raise typer.Exit(1)
 
@@ -1903,10 +1919,52 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
+    _verify_and_announce_mission_number(run, lanes_manifest)
 
-def _resolve_pre_mutation_target_sha(
-    main_repo: Path, target_branch: str, state: ConsolidationState
-) -> str | None:
+
+def _verify_and_announce_mission_number(run: _MergeRunState, lanes_manifest: LanesManifest) -> None:
+    """#4900 / D2d-e: verify the target-tree write, mark baked, THEN announce.
+
+    Runs immediately after the baseline invariant, using the SAME error
+    handling (``BaselineMergeCommitError`` -> ``Error:`` line ->
+    ``typer.Exit(1)``) -- :class:`~specify_cli.consolidation.baseline.
+    MissionNumberVerificationError` is a sibling subclass. When
+    ``run.assigned_mission_number`` is ``None`` (no number was ever decided
+    for this run -- e.g. an unsafe mission_slug refused assignment
+    upstream), there is nothing to verify or announce, matching the
+    pre-existing degrade-with-warning behavior on that path.
+
+    ``mission_number_baked`` is marked HERE, and only here (review cycle 1 /
+    D2e) -- never inside ``ordering``'s bake/write seams, which run BEFORE
+    the target-tree write even exists. Setting it earlier was the D2
+    REJECTED alternative: it let a ``--resume`` short-circuit past this
+    verification and exit 0 with a wrong or null number on the target.
+    """
+    if run.assigned_mission_number is None:
+        return
+    try:
+        _assert_mission_number_on_target(
+            run.main_repo,
+            lanes_manifest.target_branch,
+            run.mission_slug,
+            run.assigned_mission_number,
+        )
+    except BaselineMergeCommitError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    _mark_mission_number_baked(run.state, run.main_repo)
+
+    console.print(f"[green]Assigned[/green] mission_number={run.assigned_mission_number} to mission {run.mission_slug}")
+    logger.info(
+        "Assigned mission_number=%d to mission %s (verified on %s)",
+        run.assigned_mission_number,
+        run.mission_slug,
+        lanes_manifest.target_branch,
+    )
+
+
+def _resolve_pre_mutation_target_sha(main_repo: Path, target_branch: str, state: ConsolidationState) -> str | None:
     """Resolve the TRANSACTION-START target tip, persisting it at first capture.
 
     #5001 pre-merge FOLD-4. The excluded/closed-world reconciliation window base
@@ -2066,11 +2124,9 @@ def _refuse_unanchored_resume(run: _MergeRunState, *, coord_topology: bool) -> N
     console.print(
         "\n[red]Error:[/red] cannot resume this merge: the persisted "
         "pre-interrupt lane-tip record has no anchor for lane "
-        "branch(es) " + ", ".join(repr(b) for b in missing)
-        + " (the record is empty, partial, or was written by an "
+        "branch(es) " + ", ".join(repr(b) for b in missing) + " (the record is empty, partial, or was written by an "
         "older release under a different name). Resuming without "
-        "an anchor would disarm the resume guard. "
-        + _CONSOLIDATE_ABORT_AND_RESTART_HINT
+        "an anchor would disarm the resume guard. " + _CONSOLIDATE_ABORT_AND_RESTART_HINT
     )
     raise typer.Exit(1)
 
@@ -2108,12 +2164,7 @@ def _enforce_resume_anchor_integrity(run: _MergeRunState, *, coord_topology: boo
     state = run.state
     manifest_lists_wps = any(lane.wp_ids for lane in run.lanes_manifest.lanes)
     attempt_one_consolidated = bool(state.completed_wps)
-    if (
-        coord_topology
-        and manifest_lists_wps
-        and attempt_one_consolidated
-        and not state.pre_mutation_coord_sha
-    ):
+    if coord_topology and manifest_lists_wps and attempt_one_consolidated and not state.pre_mutation_coord_sha:
         console.print(
             "\n[red]Error:[/red] cannot resume this merge: a prior attempt already "
             "consolidated work but the pre-mutation coordination base was not "
@@ -2181,9 +2232,7 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     gate against unknown-shape state. A fresh merge's marker was already written
     with its ``state.json`` (#5111); the write below is an idempotent re-stamp.
     """
-    legacy = detect_legacy_in_flight_state(
-        run.main_repo, run.canonical_id, is_resume=run.is_resume
-    )
+    legacy = detect_legacy_in_flight_state(run.main_repo, run.canonical_id, is_resume=run.is_resume)
     if legacy is not None:
         console.print(f"[red]Error:[/red] {legacy}")
         raise typer.Exit(1)
@@ -2203,15 +2252,9 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # resolver falling back to a live capture.
     _enforce_resume_anchor_integrity(run, coord_topology=checkpoint is not None)
     coord_base_sha = _resolve_pre_mutation_coord_sha(run.state, run)
-    coord_base = (
-        coord_base_sha
-        if coord_base_sha is not None
-        else (checkpoint.sha if checkpoint is not None else run.lanes_manifest.mission_branch)
-    )
+    coord_base = coord_base_sha if coord_base_sha is not None else (checkpoint.sha if checkpoint is not None else run.lanes_manifest.mission_branch)
 
-    run.target_expected_old_sha = _resolve_pre_mutation_target_sha(
-        run.main_repo, run.lanes_manifest.target_branch, run.state
-    )
+    run.target_expected_old_sha = _resolve_pre_mutation_target_sha(run.main_repo, run.lanes_manifest.target_branch, run.state)
 
     try:
         run.approved_wp_set = build_approved_wp_set(
@@ -2348,9 +2391,7 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
         console.print(_reconciliation_pass_message(run.strategy))
         return
     claim = _reconciliation_claim_for_gate(run)
-    result = MergeOutcomeVerifier(run.main_repo).verify(
-        run.lanes_manifest.target_branch, claim
-    )
+    result = MergeOutcomeVerifier(run.main_repo).verify(run.lanes_manifest.target_branch, claim)
     run.reconciliation_result = result
     if result.is_pass:
         _record_reconciliation_pass(run)
@@ -2395,10 +2436,7 @@ def _reconciliation_pass_message(strategy: MergeStrategy) -> str:
             "content on the target); per-SHA approved-reachability deferred under "
             "squash strategy."
         )
-    return (
-        "  [green]✓[/green] Reconciliation verified: approved-WP commit "
-        "reachability on the target (no excluded commit reachable)."
-    )
+    return "  [green]✓[/green] Reconciliation verified: approved-WP commit reachability on the target (no excluded commit reachable)."
 
 
 def _rollback_target_after_failed_reconciliation(run: _MergeRunState) -> None:
@@ -2466,11 +2504,7 @@ def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
     checkpoint = run.coord_checkpoint
     if checkpoint is None:
         return
-    projected_paths = tuple(
-        _post_checkpoint_mission_paths(
-            run.main_repo, run.mission_slug, checkpoint.sha, checkpoint.ref
-        )
-    )
+    projected_paths = tuple(_post_checkpoint_mission_paths(run.main_repo, run.mission_slug, checkpoint.sha, checkpoint.ref))
     if not projected_paths:
         return
     pre_squash_target_ref = run.target_expected_old_sha
@@ -2631,10 +2665,7 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
             worktree_root=run.main_repo,
             mission_slug=run.mission_slug,
             branch=run.lanes_manifest.target_branch,
-            message=(
-                f"chore({run.mission_slug}): flatten coordination metadata "
-                f"after branch deletion (#3086)"
-            ),
+            message=(f"chore({run.mission_slug}): flatten coordination metadata after branch deletion (#3086)"),
             paths=(meta_path,),
         )
     except SafeCommitRecoveryFailed as exc:
@@ -2754,11 +2785,7 @@ def _teardown_coord_worktree(run: _MergeRunState) -> None:
     # surfaces the typed ``MissionMetaReadError`` (never a raw
     # ``ValueError``) and PROPAGATES, exactly as the raw read did before.
     _meta_for_teardown = _load_meta(run.feature_dir)
-    _mid8_for_teardown = (
-        str(_meta_for_teardown.get("mid8", "")).strip()
-        if isinstance(_meta_for_teardown, dict)
-        else ""
-    )
+    _mid8_for_teardown = str(_meta_for_teardown.get("mid8", "")).strip() if isinstance(_meta_for_teardown, dict) else ""
     # WP10 integration (S-B / FR-004 / T034): when the merge captured a
     # coordination checkpoint AND ran the reconciliation gate, build the
     # projection teardown gate so ``teardown_coordination_topology`` refuses
@@ -2780,9 +2807,7 @@ def _teardown_coord_worktree(run: _MergeRunState) -> None:
     projection_gate: ProjectionTeardownGate | None = None
     checkpoint = run.coord_checkpoint
     if checkpoint is not None and run.reconciliation_result is not None:
-        coord_is_distinct = _resolve_ref_sha(run.main_repo, checkpoint.ref) != _resolve_ref_sha(
-            run.main_repo, run.lanes_manifest.target_branch
-        )
+        coord_is_distinct = _resolve_ref_sha(run.main_repo, checkpoint.ref) != _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
         if coord_is_distinct:
             expected_coord_sha = run.coord_tip_after_projection or checkpoint.sha
         else:
@@ -2924,9 +2949,7 @@ def _remove_lane_worktrees(run: _MergeRunState) -> None:
     # filename MUST equal ``_created_lane_worktree(...).name`` (the string
     # ``save_context`` wrote) — never independently composed.
     for lane in lanes_manifest.lanes:
-        workspace_name = _created_lane_worktree(
-            run.main_repo, lanes_manifest.mission_slug, lane.lane_id
-        ).name
+        workspace_name = _created_lane_worktree(run.main_repo, lanes_manifest.mission_slug, lane.lane_id).name
         delete_context(run.main_repo, workspace_name)
 
 
@@ -3014,26 +3037,19 @@ def _render_stale_findings(stale_report: StaleAssertionReport | None) -> None:
     info_grade = [f for f in stale_report.findings if f.confidence == "info"]
 
     for finding in actionable:
-        console.print(
-            f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
-        )
+        console.print(f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
     if info_grade:
-        console.print(
-            f"  Message-content assertions skipped as info grade ({len(info_grade)}) — "
-            "review manually if diagnostic text changed:"
-        )
+        console.print(f"  Message-content assertions skipped as info grade ({len(info_grade)}) — review manually if diagnostic text changed:")
         for finding in info_grade:
-            console.print(
-                f"  [info] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
-            )
+            console.print(f"  [info] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
     for finding in low_grade:
-        console.print(
-            f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
-        )
+        console.print(f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
 
 
 def _resolve_coord_worktree_for_preflight(
-    main_repo: Path, mission_slug: str, primary_meta_dir: Path,
+    main_repo: Path,
+    mission_slug: str,
+    primary_meta_dir: Path,
 ) -> Path | None:
     """Resolve the coordination worktree path for the T010 preflight, purely.
 
@@ -3119,7 +3135,9 @@ def _pre_mutation_safety_preflight(
 
     assert_checkout_on_target(main_repo, target_branch)
     assert_worktree_clean(
-        main_repo, is_residue=is_residue, error_code=MERGE_UNSAFE_PRIMARY_DIRTY,
+        main_repo,
+        is_residue=is_residue,
+        error_code=MERGE_UNSAFE_PRIMARY_DIRTY,
     )
 
     if not remove_worktree:
@@ -3141,9 +3159,7 @@ def _pre_mutation_safety_preflight(
     if not teardown_coordination:
         return
 
-    coord_worktree = _resolve_coord_worktree_for_preflight(
-        main_repo, mission_slug, primary_meta_dir
-    )
+    coord_worktree = _resolve_coord_worktree_for_preflight(main_repo, mission_slug, primary_meta_dir)
     if coord_worktree is not None and coord_worktree.exists():
         assert_worktree_clean(coord_worktree, is_residue=is_residue, treat_untracked_as_dirty=True)
 
@@ -3181,9 +3197,7 @@ def _run_lane_based_consolidation_locked(
     # ``cutover_mission``'s ``status_phase`` flip target). WP08 (T036):
     # dropped the caller-side canonicalizer fold — redundant with the seam's
     # own internal fold for a PRIMARY-partition kind.
-    target_feature_dir = placement_seam(main_repo, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    target_feature_dir = placement_seam(main_repo, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     # FR-004 / FR-009: exclude canceled-with-provenance WPs from the per-WP
     # done/review derivations. ``all_wp_ids`` feeds the review-artifact
     # consistency gate (:1671), the evidence/canonical-history guards
@@ -3191,15 +3205,8 @@ def _run_lane_based_consolidation_locked(
     # ``_assert_merged_wps_reached_done`` — a canceled WP has no review artifact
     # and never reaches ``done``, so leaving it in would break the merge on an
     # acceptable ending. Resolved once here and threaded to the lane-consolidation phase.
-    excluded_canceled_wp_ids = frozenset(
-        acceptably_canceled_wp_ids(main_repo, mission_slug)
-    )
-    all_wp_ids = [
-        wp
-        for lane in lanes_manifest.lanes
-        for wp in lane.wp_ids
-        if wp not in excluded_canceled_wp_ids
-    ]
+    excluded_canceled_wp_ids = frozenset(acceptably_canceled_wp_ids(main_repo, mission_slug))
+    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids]
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 
     # INV (ordering preserved from the pre-refactor monolith): the review-artifact
@@ -3393,9 +3400,7 @@ def _synthesize_no_lane_manifest(
     from specify_cli.status import read_events, reduce
 
     identity = resolve_mission_identity(primary_meta_dir)
-    target_branch, _source = resolve_merge_target_branch(
-        main_repo, mission_slug, target_override
-    )
+    target_branch, _source = resolve_merge_target_branch(main_repo, mission_slug, target_override)
     snapshot = reduce(read_events(status_feature_dir))
     work_packages = snapshot.work_packages if hasattr(snapshot, "work_packages") else {}
     wp_ids = tuple(sorted(work_packages.keys()))
@@ -3419,9 +3424,7 @@ def _synthesize_no_lane_manifest(
     )
 
 
-def _report_pre_mutation_refusal(
-    exc: DestructiveOpRefused, main_repo: Path, *, mission_branch: str
-) -> None:
+def _report_pre_mutation_refusal(exc: DestructiveOpRefused, main_repo: Path, *, mission_branch: str) -> None:
     """Print the pre-mutation refusal, upgrading a behind-own-HEAD remedy (WP05 / #4982/#4997).
 
     WP10 integration: a dirty-PRIMARY refusal may actually be the checkout sitting
@@ -3444,17 +3447,11 @@ def _report_pre_mutation_refusal(
 
         remedy = classify_resume_dirty_remedy(main_repo, lane_branch=mission_branch)
         if remedy.kind is not ResumeRemedyKind.LOCAL_CHANGES:
-            console.print(
-                "[yellow]Resume recovery guidance (behind-own-HEAD / interrupted "
-                "reset detected):[/yellow]"
-            )
+            console.print("[yellow]Resume recovery guidance (behind-own-HEAD / interrupted reset detected):[/yellow]")
             for line in remedy.remediation:
                 console.print(f"  • {line}")
             return
-    console.print(
-        "[yellow]Merge aborted before any state change.[/yellow] "
-        "Resolve the reported condition, then re-run [bold]spec-kitty consolidate[/bold]."
-    )
+    console.print("[yellow]Merge aborted before any state change.[/yellow] Resolve the reported condition, then re-run [bold]spec-kitty consolidate[/bold].")
 
 
 def _recover_behind_head_primary_on_resume(
@@ -3509,15 +3506,9 @@ def _recover_behind_head_primary_on_resume(
         cwd=main_repo,
     )
     if reset_ret != 0:
-        console.print(
-            f"[red]Error:[/red] behind-own-HEAD recovery `git reset --hard HEAD` failed "
-            f"in {main_repo}: {reset_err.strip()}"
-        )
+        console.print(f"[red]Error:[/red] behind-own-HEAD recovery `git reset --hard HEAD` failed in {main_repo}: {reset_err.strip()}")
         return False
-    console.print(
-        "[yellow]Recovered a behind-own-HEAD primary checkout "
-        "(git reset --hard HEAD over phantom staged deletions); continuing resume.[/yellow]"
-    )
+    console.print("[yellow]Recovered a behind-own-HEAD primary checkout (git reset --hard HEAD over phantom staged deletions); continuing resume.[/yellow]")
     return True
 
 
@@ -3552,9 +3543,7 @@ def _pre_mutation_safety_preflight_with_recovery(
     try:
         _run()
     except DestructiveOpRefused as exc:
-        recovered = _recover_behind_head_primary_on_resume(
-            exc, main_repo, canonical_id, mission_branch=lanes_manifest.mission_branch
-        )
+        recovered = _recover_behind_head_primary_on_resume(exc, main_repo, canonical_id, mission_branch=lanes_manifest.mission_branch)
         if not recovered:
             _report_pre_mutation_refusal(exc, main_repo, mission_branch=lanes_manifest.mission_branch)
             raise typer.Exit(1) from exc
@@ -3634,17 +3623,13 @@ def _run_lane_based_consolidation(
     except CoordinationBranchDeleted as exc:
         console.print(f"[red]Error:[/red] {exc}")
         console.print(
-            "[yellow]Merge aborted before any state change.[/yellow] "
-            "Recover the mission's status authority, then re-run "
-            "[bold]spec-kitty consolidate[/bold]."
+            "[yellow]Merge aborted before any state change.[/yellow] Recover the mission's status authority, then re-run [bold]spec-kitty consolidate[/bold]."
         )
         raise typer.Exit(1) from exc
     except CoordinationWorktreeUnmaterialized as exc:
         console.print(f"[red]Error:[/red] {exc}")
         console.print(
-            "[yellow]Merge aborted before any state change.[/yellow] "
-            "Materialize the coordination worktree, then re-run "
-            "[bold]spec-kitty consolidate[/bold]."
+            "[yellow]Merge aborted before any state change.[/yellow] Materialize the coordination worktree, then re-run [bold]spec-kitty consolidate[/bold]."
         )
         raise typer.Exit(1) from exc
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
@@ -3710,11 +3695,7 @@ def _run_lane_based_consolidation(
             explicit_remove_worktree=remove_worktree,
         )
     except MissionMetaReadError as exc:
-        console.print(
-            "[red]Error:[/red] Cannot resolve the merge retention policy: "
-            f"{exc}. meta.json exists but is corrupt or unreadable; fix it "
-            "before merging."
-        )
+        console.print(f"[red]Error:[/red] Cannot resolve the merge retention policy: {exc}. meta.json exists but is corrupt or unreadable; fix it before merging.")
         raise typer.Exit(1) from exc
     for warning in retention.warnings:
         console.print(f"[yellow]Warning:[/yellow] {warning}")
@@ -3745,11 +3726,7 @@ def _run_lane_based_consolidation(
         )
         if not branch_ok:
             assert branch_blocker is not None
-            console.print(
-                "[red]Error:[/red] Missing mission branch: "
-                f"{branch_blocker['expected_branch']}. "
-                f"Run: {branch_blocker['remediation']}"
-            )
+            console.print(f"[red]Error:[/red] Missing mission branch: {branch_blocker['expected_branch']}. Run: {branch_blocker['remediation']}")
             raise typer.Exit(1)
 
     # -- WP03/T010 (#4752/#4753): pre-mutation refuse-before-destroy preflight.

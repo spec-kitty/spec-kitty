@@ -32,6 +32,7 @@ from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.consolidation._constants import logger as _merge_logger
 from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, path_is_under_worktrees
+from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.mission_metadata import load_meta, write_meta
 
@@ -46,6 +47,8 @@ __all__ = [
     "_is_assigned_mission_number",
     "_bake_mission_number_into_mission_branch",
     "_assign_planning_only_mission_number_if_needed",
+    "_bake_mission_number_onto_target_tree",
+    "_read_target_tree_mission_number",
 ]
 
 logger = logging.getLogger(__name__)
@@ -255,8 +258,16 @@ def _mark_mission_number_baked(
 
 
 def _is_assigned_mission_number(value: object) -> bool:
-    """Return True when *value* is a real integer mission_number (not bool/None)."""
-    return isinstance(value, int) and not isinstance(value, bool)
+    """Return True when *value* is a real, positive (>=1) integer mission_number.
+
+    Delegates to the single canonical leaf definition
+    (:mod:`specify_cli.consolidation.mission_number`, #4900 / D2a). 0 and
+    negative integers now count as unassigned too (a correction, pinned by
+    ``tests/consolidation/test_ordering_bake_seam.py``), matching
+    data-model.md "Mission number" and the sibling
+    ``mission_check_prerequisites._is_assigned_mission_number``.
+    """
+    return is_assigned_mission_number(value)
 
 
 def _compute_next_mission_number_or_none(
@@ -367,7 +378,6 @@ def _bake_mission_number_on_primary_tree(
     mission_slug: str,
     mission_branch: str,
     next_number: int,
-    merge_state: ConsolidationState | None,
 ) -> bool:
     """#4474 / FR-011 topology-aware fallback: write directly to the PRIMARY tree.
 
@@ -386,10 +396,12 @@ def _bake_mission_number_on_primary_tree(
         ``True`` when a fresh number was written and committed directly on
         ``main_repo``'s current checkout (PERSISTED -- the preferred
         outcome). ``False`` when the value was already present (idempotency
-        hit -- still marks the baked flag) or when the primary tree is
-        genuinely unreachable/unwritable, in which case the unbaked field is
-        surfaced via :func:`_surface_unbaked_mission_number` instead of a
-        silent skip.
+        hit) or when the primary tree is genuinely unreachable/unwritable, in
+        which case the unbaked field is surfaced via
+        :func:`_surface_unbaked_mission_number` instead of a silent skip.
+        Never marks ``mission_number_baked`` itself (#4900 / D2e) -- this
+        write lands directly on ``target_branch``, so the executor's own
+        target read resolves and verifies it after the squash.
     """
     import subprocess as _subprocess
 
@@ -435,7 +447,11 @@ def _bake_mission_number_on_primary_tree(
             next_number,
             mission_slug,
         )
-        _mark_mission_number_baked(merge_state, main_repo)
+        # #4900 / D2e: no longer marks ``mission_number_baked`` here -- the
+        # flag is set ONLY by the executor, after
+        # ``assert_mission_number_on_target`` verifies the number on the
+        # TARGET tree (this primary-tree write lands directly on
+        # ``target_branch``, so the executor's own target-read resolves it).
         return False
 
     meta_data["mission_number"] = next_number
@@ -496,7 +512,6 @@ def _write_mission_number_to_branch(
     mission_branch: str,
     mission_slug: str,
     next_number: int,
-    merge_state: ConsolidationState | None,
 ) -> bool:
     """Step 2: write the integer into meta.json on the mission branch, commit,
     and fast-forward the branch ref.
@@ -505,7 +520,8 @@ def _write_mission_number_to_branch(
         True when a fresh write + commit was applied; False when nothing was
         written because (a) the branch is missing, (b) the worktree could not
         be created, (c) meta.json is missing or malformed, or (d) the value
-        was already equal (idempotency hit — still persists the baked flag).
+        was already equal (idempotency hit). Never marks
+        ``mission_number_baked`` itself (#4900 / D2e).
     """
     import subprocess as _subprocess
     import tempfile as _tempfile
@@ -583,7 +599,6 @@ def _write_mission_number_to_branch(
                 mission_slug,
                 mission_branch,
                 next_number,
-                merge_state,
             )
 
         # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
@@ -608,7 +623,8 @@ def _write_mission_number_to_branch(
                 mission_branch,
                 mission_slug,
             )
-            _mark_mission_number_baked(merge_state, main_repo)
+            # #4900 / D2e: no longer marks ``mission_number_baked`` here --
+            # see the executor-side NOTE on this function's docstring.
             return False
 
         meta_data["mission_number"] = next_number
@@ -696,15 +712,21 @@ def _bake_mission_number_into_mission_branch(
        fast-forward the mission branch ref. The idempotency check inside
        Step 2 short-circuits with no write when the mission branch already
        carries exactly the computed value (T025 / FR-010).
-    5. On a successful write, mark the baked flag for future resume calls.
+    5. This function does NOT mark the baked flag itself.
 
     The caller MUST hold the global merge lock
     (``acquire_merge_lock("__global_merge__", ...)``) for the duration.
 
-    NOTE: ``mission_number_baked`` is set after a successful idempotency hit
-    OR a successful write. Operators who manually edit ``meta.json`` after a
-    partial merge are responsible for clearing the flag (or running
-    ``spec-kitty consolidate --abort``).
+    NOTE (#4900 / D2e): ``mission_number_baked`` is set ONLY by the executor
+    (``executor._verify_and_announce_mission_number``), and only AFTER
+    ``baseline.assert_mission_number_on_target`` verifies the number is
+    durably recorded on the TARGET tree -- never here, on a successful
+    idempotency hit or a successful mission-branch/primary-tree write alone.
+    Setting the flag before target-side verification was the D2 REJECTED
+    alternative: it let a `--resume` skip verification and exit 0 with a
+    wrong or null number on the target. Operators who manually edit
+    ``meta.json`` after a partial merge are responsible for clearing the
+    flag (or running ``spec-kitty consolidate --abort``).
 
     **coord-write-placement-closure-01KYCF83 WP09 (IC-08 / FR-009) design note:**
     this function's detached-mission-branch-worktree mechanism was considered as
@@ -759,12 +781,23 @@ def _bake_mission_number_into_mission_branch(
         console.print(f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}")
         return None
 
-    if not _write_mission_number_to_branch(main_repo, mission_branch, mission_slug, next_number, merge_state):
+    if not _write_mission_number_to_branch(main_repo, mission_branch, mission_slug, next_number):
         return None
 
-    console.print(f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}")
-    _merge_logger.info("Assigned mission_number=%d to mission %s", next_number, mission_slug)
-    _mark_mission_number_baked(merge_state, main_repo)
+    # #4900 / D2e: the "Assigned" announcement moves to AFTER the target-tree
+    # read-back verification (``baseline.assert_mission_number_on_target``,
+    # called from ``executor._phase_commit_and_assert``) -- printing it here,
+    # before the mission->target squash even runs, is exactly what made the
+    # pre-fix announcement untruthful. This mission-branch write is only ever
+    # a candidate value until the executor verifies it landed on the target.
+    _merge_logger.info(
+        "Writing mission_number=%d to mission branch %s for %s (pending target verification)",
+        next_number,
+        mission_branch,
+        mission_slug,
+    )
+    # #4900 / D2e: no longer marks ``mission_number_baked`` here -- see the
+    # NOTE above. The executor marks it only after target-side verification.
 
     return next_number
 
@@ -792,3 +825,55 @@ def _assign_planning_only_mission_number_if_needed(
     write_meta(feature_dir, meta, validate=False)
     console.print(f"  [green]✓[/green] Assigned mission_number={next_number} on target branch")
     return feature_dir / "meta.json"
+
+
+def _bake_mission_number_onto_target_tree(
+    target_feature_dir: Path,
+    number: int,
+) -> Path:
+    """Write *number* directly onto the TARGET-tree ``meta.json`` (#4900 / D2c).
+
+    Unconditional companion to :func:`_bake_mission_number_into_mission_branch`:
+    the guarantee that the announced number lands on the target must not
+    depend on squash ordering, nor on whether git even invokes
+    ``merge-driver-meta`` for this squash (a merge driver only fires when
+    BOTH sides changed the path since the merge base). Mirrors
+    :func:`_assign_planning_only_mission_number_if_needed`'s target-tree
+    write, but takes the ALREADY-DECIDED *number* instead of computing a
+    fresh one -- the mission-branch bake earlier in this same run (or a
+    prior run's) already made that decision; this function only makes it
+    durable on the target, where :func:`specify_cli.consolidation.baseline.
+    assert_mission_number_on_target` can verify it after the bookkeeping
+    commit lands.
+
+    Idempotent: writing the same *number* twice (e.g. on ``--resume``) is a
+    content no-op that the bookkeeping commit's own ``git status``-based
+    change detection naturally skips.
+    """
+    meta = load_meta_fail_closed(target_feature_dir) or {}
+    meta["mission_number"] = number
+    write_meta(target_feature_dir, meta, validate=False)
+    return target_feature_dir / "meta.json"
+
+
+def _read_target_tree_mission_number(target_feature_dir: Path) -> int | None:
+    """Read ``mission_number`` from the TARGET's WORKING-TREE meta.json (#4900, review cycle 1).
+
+    Deliberately independent of the ``baseline._read_committed_meta_json`` /
+    ``git show`` seam that :func:`specify_cli.consolidation.baseline.
+    assert_mission_number_on_target` uses to VERIFY -- mirrors
+    :func:`specify_cli.consolidation.baseline._recorded_baseline_from_working_meta`'s
+    same independence for the baseline invariant. If the "what do we expect"
+    read used the SAME mechanism as the "did it land" verify read, a broken
+    read seam would make both agree and the verification would be vacuous
+    (it would prove nothing). The caller (``executor._resolve_expected_
+    mission_number``) reads this AFTER ``_refresh_primary_checkout_after_
+    merge``, so the working tree accurately reflects the target's
+    post-squash committed state.
+    """
+    meta = load_meta_fail_closed(target_feature_dir) or {}
+    number = meta.get("mission_number")
+    if is_assigned_mission_number(number):
+        assert isinstance(number, int)
+        return number
+    return None

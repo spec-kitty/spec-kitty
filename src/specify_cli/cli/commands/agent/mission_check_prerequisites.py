@@ -174,8 +174,14 @@ def _resume_probe_candidate_summary(feature_dir: Path) -> dict[str, object]:
 
 
 def _is_assigned_mission_number(value: object) -> bool:
-    """Return true only for a positive merged-Mission display number."""
-    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+    """Return true only for a positive merged-Mission display number.
+
+    Delegates to the single canonical leaf definition (#4900 / D2a):
+    :func:`specify_cli.consolidation.mission_number.is_assigned_mission_number`.
+    """
+    from specify_cli.consolidation.mission_number import is_assigned_mission_number
+
+    return is_assigned_mission_number(value)
 
 
 def _resume_meta_problems(meta: dict[str, Any], feature_dir: Path) -> list[str]:

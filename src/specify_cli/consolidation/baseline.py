@@ -19,6 +19,7 @@ from pathlib import Path
 from kernel.clock import now_utc_iso
 from kernel._safe_re import re
 from kernel.meta_decode import MetaDecodeError, decode_meta
+from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.core.git_ops import resolve_primary_branch, run_command
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -100,6 +101,17 @@ class BaselineMergeCommitError(RuntimeError):
     ``spec-kitty review`` raises ``MISSION_REVIEW_MODE_MISMATCH``. We surface
     that failure loudly at merge time instead of letting an apparently
     successful merge ship a mission that cannot be reviewed post-consolidation.
+    """
+
+
+class MissionNumberVerificationError(BaselineMergeCommitError):
+    """Raised when the announced ``mission_number`` did not land on the target (#4900).
+
+    Sibling of :class:`BaselineMergeCommitError` (D2d): the mission-number
+    read-back seam reuses the exact same "record, then verify on the
+    committed target tree, refuse loudly on mismatch" shape as the baseline
+    invariant above, so it shares the error hierarchy and the caller's
+    ``except BaselineMergeCommitError`` handling.
     """
 
 
@@ -311,6 +323,70 @@ def assert_baseline_merge_commit_on_target(
             f"Post-merge baseline validation failed for {mission_slug}: "
             f"committed baseline_merge_commit ({committed_baseline}) on "
             f"{target_branch} does not match the captured baseline ({expected})."
+        )
+
+
+def read_mission_number_from_ref(
+    main_repo: Path,
+    ref: str,
+    mission_slug: str,
+) -> int | None:
+    """Best-effort read of ``mission_number`` from *ref*'s committed meta.json (#4900).
+
+    Used by the target-tree bake (D2c) to recover the number a PRIOR run's
+    mission-branch write already assigned, when THIS run's own bake
+    short-circuited (idempotent / resumed / already-baked) and returned no
+    fresh value. Routes through the same sanctioned seam
+    (:func:`_read_committed_meta_json`) as every other committed-ref meta
+    read in this module. Soft: returns ``None`` on any read/decode failure
+    rather than raising -- the caller degrades to "nothing to bake this run"
+    instead of aborting the merge over an unrelated ref's read.
+    """
+    meta_rel = f"kitty-specs/{mission_slug}/{META_JSON}"
+    try:
+        committed = _read_committed_meta_json(main_repo, ref, meta_rel, mission_slug)
+    except BaselineMergeCommitError:
+        return None
+    number = committed.get("mission_number")
+    if is_assigned_mission_number(number):
+        assert isinstance(number, int)
+        return number
+    return None
+
+
+def assert_mission_number_on_target(
+    main_repo: Path,
+    target_branch: str,
+    mission_slug: str,
+    expected: int,
+) -> None:
+    """Fail the merge if ``mission_number`` did not land on *target_branch* (#4900 / D2d).
+
+    Sibling of :func:`assert_baseline_merge_commit_on_target`: reads the
+    target branch's COMMITTED ``kitty-specs/<slug>/meta.json`` via the same
+    sanctioned seam (:func:`_read_committed_meta_json`, ``git show`` +
+    :func:`kernel.meta_decode.decode_meta`) and asserts the recorded
+    ``mission_number`` equals *expected* -- the number
+    ``spec-kitty consolidate`` is about to announce. This is what makes the
+    printed "Assigned mission_number=N" line truthful: it is asserted AFTER
+    the bookkeeping commit lands, never before (FR-006/FR-007).
+
+    Raises :class:`MissionNumberVerificationError` (a
+    :class:`BaselineMergeCommitError` sibling, so callers that already catch
+    the latter need no new except-clause) when the committed value is
+    missing, not a real assigned integer, or does not equal *expected*. The
+    message names the mission, the recorded and expected values, and the
+    remedy (NFR-003): re-run ``--resume`` to re-verify, or inspect the
+    target directly.
+    """
+    meta_rel = f"kitty-specs/{mission_slug}/{META_JSON}"
+    committed_meta = _read_committed_meta_json(main_repo, target_branch, meta_rel, mission_slug)
+    recorded = committed_meta.get("mission_number")
+    if not (is_assigned_mission_number(recorded) and recorded == expected):
+        raise MissionNumberVerificationError(
+            f"mission_number on {target_branch} is {recorded!r}, expected {expected}. "
+            f"Run `spec-kitty consolidate --mission {mission_slug} --resume` to "
+            f"re-verify, or inspect with `git show {target_branch}:{meta_rel}`."
         )
 
 
@@ -847,6 +923,8 @@ __all__ = [
     "PrMergeEvidence",
     "PrMergeEvidenceError",
     "assert_baseline_merge_commit_on_target",
+    "assert_mission_number_on_target",
+    "read_mission_number_from_ref",
     "record_baseline_merge_commit",
     "record_pr_merge_baseline_for_mission",
     "resolve_primary_meta_dir",

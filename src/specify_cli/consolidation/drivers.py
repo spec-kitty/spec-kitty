@@ -79,6 +79,7 @@ from specify_cli.acceptance import (
     ACCEPTANCE_PROVENANCE_FIELDS,
 )
 from specify_cli.acceptance.matrix import AcceptanceMatrix, AcceptanceMatrixParseError
+from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.mission_metadata import parse_meta_file
 from specify_cli.status import EventLogMergeError, merge_event_log_files
 from specify_cli.tasks.issue_matrix import _SCAFFOLD_VERDICT_PLACEHOLDER, ISSUE_MATRIX_SCHEMA_VERSION
@@ -290,11 +291,24 @@ def reconcile_meta_payloads(
     #1732 mission-authoritative planning intent). Acceptance/VCS scalar keys are taken from ``ours``
     when present; ``acceptance_history`` is unioned; every other key falls back to
     ``theirs`` so mission-authoritative planning state is preserved.
+
+    ``mission_number`` is a deliberate exception to the "present (even null)
+    wins" rule above (#4900 / D2b): an UNASSIGNED target-owned value (``null``,
+    missing, non-integer, 0 or negative — see
+    :func:`specify_cli.consolidation.mission_number.is_assigned_mission_number`)
+    is treated as UNSET, so it never overrides a genuinely-assigned
+    mission-side number with the not-yet-minted placeholder every mission
+    starts with. Every other target-authoritative field keeps the pre-existing
+    rule unchanged (research: only ``mission_number`` is minted null pre-merge;
+    widening this exception to other fields is out of scope).
     """
     result = dict(theirs)  # mission-authoritative baseline (C-002 / #1732).
     for key in _TARGET_AUTHORITATIVE_META_FIELDS:
-        if key in ours:
-            result[key] = ours[key]
+        if key not in ours:
+            continue
+        if key == "mission_number" and not is_assigned_mission_number(ours[key]):
+            continue
+        result[key] = ours[key]
     unioned_history = _union_acceptance_history(
         theirs.get(ACCEPTANCE_HISTORY_FIELD),
         ours.get(ACCEPTANCE_HISTORY_FIELD),

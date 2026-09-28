@@ -173,7 +173,10 @@ def test_coord_topology_bake_persists_to_primary_tree_when_reachable(tmp_path: P
     # Doctor-proxy: pending -> assigned AFTER the bake.
     assert needs_number_assignment(feature_dir) is False, "doctor-equivalent predicate must flip pending -> assigned"
 
-    assert state.mission_number_baked is True
+    # #4900 / D2e: this write lands directly on target_branch, but the seam
+    # itself never marks mission_number_baked -- only the executor does,
+    # after ``assert_mission_number_on_target`` verifies it there.
+    assert state.mission_number_baked is False
 
 
 # ---------------------------------------------------------------------------
