@@ -120,10 +120,12 @@ def test_load_or_create_returns_existing_canonical() -> None:
 
 def test_load_or_create_creates_new_when_absent() -> None:
     saved: list[ConsolidationState] = []
+    writes: list[str] = []
     with (
         patch.object(resolve, "load_state", return_value=None),
         patch.object(resolve, "_load_merge_state_entry_for_mission", return_value=None),
-        patch.object(resolve, "save_state", side_effect=lambda s, _r: saved.append(s)),
+        patch.object(resolve, "write_post_fix_marker", side_effect=lambda _r, mid: writes.append(f"marker:{mid}")),
+        patch.object(resolve, "save_state", side_effect=lambda s, _r: (saved.append(s), writes.append("state"))),
     ):
         result, existed = resolve._load_or_create_merge_state(
             main_repo=Path("/r"), mission_slug="m", canonical_id="01NEW",
@@ -133,6 +135,8 @@ def test_load_or_create_creates_new_when_absent() -> None:
     assert result.mission_id == "01NEW"
     assert result.push_requested is True
     assert saved == [result]
+    # #5111: the fresh record is created marker-first, so a state on disk always implies its marker.
+    assert writes == ["marker:01NEW", "state"]
 
 
 def test_load_or_create_migrates_legacy_state() -> None:
