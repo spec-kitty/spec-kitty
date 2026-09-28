@@ -6,8 +6,7 @@ content to exist first -- they read across `research`/`documentation`/
 `software-dev` (AS7) or all four manifests including the new `plan` one
 (SC-006, FR-013) simultaneously, rather than asserting on one manifest's
 content in isolation the way `tests/dossier/test_manifest.py`'s per-IC
-classes (`TestManifestReconciliation`, `TestPlanManifest`,
-`TestOverrideMirrorDeprecation`) do. Kept in this SEPARATE file specifically
+classes (`TestManifestReconciliation`, `TestPlanManifest`) do. Kept in this SEPARATE file specifically
 so WP05 never needs to touch `test_manifest.py`'s per-IC-owned sections --
 see `plan.md`'s Implementation Concern Map, "Test file ownership" note, and
 `tracer-approach.md`'s "Chokepoint note" for the full rationale.

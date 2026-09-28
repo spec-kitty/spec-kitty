@@ -33,7 +33,9 @@ MISSION_RUNTIME_DIRS = (
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
     # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
     REPO_ROOT / "packs" / "built-in" / "missions",
-    REPO_ROOT / ".kittify" / "overrides" / "missions",
+    # The repo-local ``.kittify/overrides/missions`` mirror tier was deleted by
+    # #5128 (its absence is guarded in tests/dossier/test_manifest.py), so the
+    # built-in pack is the only mission-runtime surface left to scan.
 )
 # The Python-package README (``src/charter/offering/agent_profiles/README.md``) was NOT
 # relocated; the built-in-pack README moved to the flattened pack dir.
