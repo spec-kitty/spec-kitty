@@ -9,6 +9,7 @@ from charter.hasher import hash_content, hash_charter, is_stale
 
 pytestmark = pytest.mark.fast
 
+
 def test_hash_content_deterministic():
     """Hash function produces consistent output for same content."""
     content = "# My Charter\n\nSome content here."

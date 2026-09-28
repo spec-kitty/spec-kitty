@@ -847,7 +847,7 @@ def _assign_planning_only_mission_number_if_needed(
     Returns the number written onto ``feature_dir/meta.json`` (``None`` when no
     assignment was needed). Deliberately prints NOTHING (#4900): the "Assigned" line is announced by
     ``executor._verify_and_announce_mission_number`` only AFTER the target
-    read-back verification, exactly as on the lane-merge path.
+    read-back verification, exactly as on the lane consolidation path.
     """
     from specify_cli.consolidation.state import needs_number_assignment
 

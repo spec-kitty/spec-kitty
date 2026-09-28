@@ -53,10 +53,7 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"git {' '.join(args)} failed in {cwd}:\n"
-            f"stdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        raise RuntimeError(f"git {' '.join(args)} failed in {cwd}:\nstdout: {result.stdout}\nstderr: {result.stderr}")
     return result
 
 
@@ -172,9 +169,7 @@ class TestPartialMergeResumeIsIdempotent:
     commit count stays the same would fail — proving the test exercises the fix.
     """
 
-    def test_idempotency_check_skips_write_when_number_already_matches(
-        self, git_repo: Path
-    ) -> None:
+    def test_idempotency_check_skips_write_when_number_already_matches(self, git_repo: Path) -> None:
         mission_slug = "test-mission-01ABCDEF"
         mission_branch = _make_mission_branch(git_repo, mission_slug)
 
@@ -219,15 +214,12 @@ class TestPartialMergeResumeIsIdempotent:
         # No new commit produced on the mission branch — this is the #983
         # regression assertion. If the idempotency check is disabled, this
         # would be commits_after_first_write + 1.
-        assert _commit_count(git_repo, mission_branch) == commits_after_first_write, (
-            "Idempotency check should have prevented a second commit (regression #983)"
-        )
+        assert _commit_count(git_repo, mission_branch) == commits_after_first_write, "Idempotency check should have prevented a second commit (regression #983)"
 
         # #4900: this seam never marks mission_number_baked itself
         # -- only the executor does, after target-side verification.
         assert state.mission_number_baked is False, (
-            "mission_number_baked must NOT be set here (#4900) -- only "
-            "the executor sets it, after verifying the number on the target"
+            "mission_number_baked must NOT be set here (#4900) -- only the executor sets it, after verifying the number on the target"
         )
 
         loaded = load_state(git_repo, "01ABCDEFGHIJKLMNOPQRSTUVWX")
@@ -275,9 +267,7 @@ class TestFreshMergeHappyPath:
         )
 
         # A new commit should have been made on the mission branch.
-        assert _commit_count(git_repo, mission_branch) == commits_before + 1, (
-            "Expected exactly one new commit from the fresh assignment"
-        )
+        assert _commit_count(git_repo, mission_branch) == commits_before + 1, "Expected exactly one new commit from the fresh assignment"
 
         # The returned integer is the assigned number (1, since target is empty).
         assert result == 1
@@ -325,9 +315,7 @@ class TestResumeShortCircuitWhenFlagIsTrue:
         )
 
         # No commit must have been made on the mission branch.
-        assert _commit_count(git_repo, mission_branch) == commits_before, (
-            "Short-circuit (mission_number_baked=True) must not produce any commit"
-        )
+        assert _commit_count(git_repo, mission_branch) == commits_before, "Short-circuit (mission_number_baked=True) must not produce any commit"
 
         # Function returns None immediately.
         assert result is None
@@ -352,9 +340,7 @@ class TestBackwardCompatibilityLoad:
         """Simulate a pre-WP04 state.json (no mission_number_baked key)."""
         import json as _json
 
-        state_dir = (
-            tmp_path / ".kittify" / "runtime" / "merge" / "legacy-mission-id"
-        )
+        state_dir = tmp_path / ".kittify" / "runtime" / "merge" / "legacy-mission-id"
         state_dir.mkdir(parents=True, exist_ok=True)
         legacy_data = {
             "mission_id": "legacy-mission-id",
@@ -370,15 +356,11 @@ class TestBackwardCompatibilityLoad:
             "updated_at": "2026-05-12T00:00:00+00:00",
             # NOTE: no "mission_number_baked" key — intentionally absent
         }
-        (state_dir / "state.json").write_text(
-            _json.dumps(legacy_data, indent=2), encoding="utf-8"
-        )
+        (state_dir / "state.json").write_text(_json.dumps(legacy_data, indent=2), encoding="utf-8")
 
         loaded = load_state(tmp_path, "legacy-mission-id")
         assert loaded is not None, "Legacy state file must load without error"
-        assert loaded.mission_number_baked is False, (
-            "mission_number_baked must default to False for pre-WP04 state files"
-        )
+        assert loaded.mission_number_baked is False, "mission_number_baked must default to False for pre-WP04 state files"
 
     def test_round_trip_with_flag_true(self, tmp_path: Path) -> None:
         """State with mission_number_baked=True survives a save/load round-trip."""
