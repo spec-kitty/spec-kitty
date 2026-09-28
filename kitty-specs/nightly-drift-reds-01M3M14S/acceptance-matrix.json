@@ -1,0 +1,89 @@
+{
+  "mission_slug": "nightly-drift-reds-01M3M14S",
+  "mission_number": "206",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "GITHUB_ACTIONS=true tests/specify_cli/cli/commands/test_mission_close_guard.py: 5 failed before (git archive HEAD~1 export, independently reproduced), 7 passed after; SC-001 set 479 passed under GITHUB_ACTIONS=true",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T15:15:23.308526+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "R1-R5/R15-R17/R21-R22 files green on consolidated tip (SC-001 set 479 passed); R4 product fix red-first proven (remote-only test fails on unfixed product)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T15:15:10.193816+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_terminology_guards + decision shape guard green; docfx publication guard with planted-config failures (18 passed); no docs/reports file edited",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T15:15:16.709618+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "charter lint orphan set back to {DIRECTIVE_035, DIRECTIVE_039}; test_orphan.py green; regenerate-graph --check fresh",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T15:15:42.308047+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "SC-011 counts re-derived via inline_reference_inventory.py (GOVERNANCE 101, RAW 19); test_occurrence_map_field_paths.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T15:15:48.434013+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "backfill-runtime-state flipped both missions verify_ok=true; test_dogfood_corpus_backfilled.py and test_archive_root_byte_identical.py green on consolidated tip",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T15:15:29.516505+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "installer x2 + convergence (bisected ed6d34e75) + verdict backfill (+#4990 positive pin) green; 118 passed in review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T15:15:35.982303+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "grep -rn 'large features' src packs -> 0 hits",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T15:15:55.039869+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

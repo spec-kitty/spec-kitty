@@ -1,0 +1,231 @@
+{
+  "event_count": 49,
+  "last_event_id": "01M3M8F3YXW9711H42SMNTHK0H",
+  "materialized_at": "2026-09-28T14:59:53.437175+00:00",
+  "mission_number": "206",
+  "mission_slug": "nightly-drift-reds-01M3M14S",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M8DVPE4BCP4GZZ8X25AS7P",
+      "last_transition_at": "2026-09-28T14:59:12.206780+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Seam pins typer.rich_utils FORCE_TERMINAL/COLOR_SYSTEM; red-first GITHUB_ACTIONS=true 5 failed -> 7 passed (also FORCE_COLOR=1); blast radius 62 passed under GITHUB_ACTIONS=true",
+        "Independent reviewer-renata APPROVE; minor findings folded (see review fold commits)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3328,
+      "shell_pid_created_at": "1790603986.76",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M8E0DX6DBPRG0NX4NZN62Y",
+      "last_transition_at": "2026-09-28T14:59:17.053201+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "R4 product fix (red-first proven) + R1-R3/R15/R17/R21/R22 re-pins, R16 deleted, dead fallback branch removed; 141 passed; mypy clean",
+        "Independent reviewer-renata APPROVE; minor folds 183baaab4; follow-up #5287"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4024,
+      "shell_pid_created_at": "1790604039.78",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M8E4MCJDK11E1C237EG4DK",
+      "last_transition_at": "2026-09-28T14:59:21.356520+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "R5 re-pin + docs/reports/ exemption in both guards with docfx guard; red-before 3 failed, green-after 21 passed; test_no_legacy_terminology 96 passed",
+        "Independent reviewer-renata APPROVE with findings; all three folded (glob-resolving docfx guard with planted-config proofs, single shared guard, five-surface policy pin)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4024,
+      "shell_pid_created_at": "1790604039.78",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M8E99BA0ZP7FZ590JKSWX8",
+      "last_transition_at": "2026-09-28T14:59:26.123976+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Curated suggests edge de-orphans DIRECTIVE_052; ledger (24); SC-011 re-derived 101/19; 94 passed; regenerate-graph --check fresh",
+        "Independent reviewer-renata APPROVE; findings folded (review fold commits)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4024,
+      "shell_pid_created_at": "1790604039.78",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M8EDT4R4BQAB3RBZGZZWVD",
+      "last_transition_at": "2026-09-28T14:59:30.756907+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "R18/19 mtime-only tolerance; R20 bisected to ed6d34e75, re-pinned + rebuild spy; R23 rework hops + #4990 positive pin; 112 passed; format ratchet 6 passed",
+        "Independent reviewer-renata APPROVE; findings folded (review fold commits)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4024,
+      "shell_pid_created_at": "1790604039.78",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M8EK3SCF3FW95HAAQB34QD",
+      "last_transition_at": "2026-09-28T14:59:36.185760+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T018 sanction entries (path-only membership gate) + T019 template wording; archive gate 25 passed, template compliance 8 passed, m_0_12_0 19 passed",
+        "Review passed (orchestrator review, reviewer != implementer): sanction entry mirrors #4972/#4957 format, all 4 paths, dated operator rationale + removal follow-up; template word matches canon; gates green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4024,
+      "shell_pid_created_at": "1790604039.78",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3M8F3YXW9711H42SMNTHK0H",
+      "last_transition_at": "2026-09-28T14:59:53.437175+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Canonical backfill-runtime-state: both missions flipped verify_ok=true (6/3 seeds); only the 4 sanctioned files changed. Dogfood guard: both missions now pass; the remaining eligible entry is this in-flight mission, stamped at accept (#2917 seam).",
+        "Independent reviewer-renata APPROVE; findings folded (review fold commits)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27287,
+      "shell_pid_created_at": "1790605167.15",
+      "subtasks": {
+        "T020": "done"
+      }
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-drift-reds-01M3M14S",
+  "mission_id": "01M3M14SCCHT1JJCDHDN1CHD72",
+  "mission_branch": "kitty/mission-nightly-drift-reds-01M3M14S",
+  "target_branch": "issue-5258-nightly-drift-reds",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/cli/test_events_tail.py",
+        "tests/conftest.py",
+        "tests/specify_cli/invocation/cli/test_complete.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/cli/commands/test_doctor_coordination.py",
+        "tests/specify_cli/cli/commands/test_mission_type_current_fallback_signal.py",
+        "tests/specify_cli/invocation/cli/test_dispatch.py",
+        "tests/specify_cli/test_audit_tail_readers.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/development/reference/terminology-exemptions.md",
+        "tests/contract/test_terminology_guards.py",
+        "tests/specify_cli/cli/test_decision_command_shape_consistency.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "packs/built-in/*.graph.yaml",
+        "packs/built-in/pack-manifest.yaml",
+        "src/charter/offering/drg/migration/extractor.py",
+        "tests/doctrine/drg/migration/test_extractor_projection.py",
+        "tests/specify_cli/bulk_edit/test_occurrence_map_field_paths.py",
+        "tests/specify_cli/charter_lint/checks/test_orphan.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/migration/test_verdict_provenance_backfill.py",
+        "tests/specify_cli/skills/test_installer.py",
+        "tests/specify_cli/skills/test_installer_global_reassess_convergence.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/missions/documentation/templates/task-prompt-template.md",
+        "tests/architectural/test_archive_root_byte_identical.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "kitty-specs/doctrine-org-init-from-template-01KXNA6P/**",
+        "kitty-specs/org-init-template-security-remediation-01KY4S90/**"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-28T13:59:34.212895+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP07"
+  ],
+  "planning_commit_sha": "b33ee3c529d00d522081eb211d996c84742eda91"
+}

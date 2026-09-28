@@ -1,0 +1,36 @@
+{
+  "accept_commit": "048db271e72441f4feddbfab971abe5d42e51d82",
+  "acceptance_history": [
+    {
+      "accept_commit": "048db271e72441f4feddbfab971abe5d42e51d82",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-28T15:16:35.065697+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "855148008e67608ab8c94da96cea0cc996a3e968"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-28T15:16:35.065697+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "855148008e67608ab8c94da96cea0cc996a3e968",
+  "baseline_merge_commit": "0b8860db61b456ae36642e617c35c51f0c6eb0bd",
+  "created_at": "2026-09-28T12:51:56.159103+00:00",
+  "flattened": false,
+  "friendly_name": "specify_cli out-of-matrix nightly drift reds",
+  "merged_at": "2026-09-28T14:59:10.163714+00:00",
+  "merged_commit": "0c52c45a45daca54623472ee34e5d04d45705142",
+  "mid8": "01M3M14S",
+  "mission_id": "01M3M14SCCHT1JJCDHDN1CHD72",
+  "mission_number": 206,
+  "mission_slug": "nightly-drift-reds-01M3M14S",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The nightly specify-cli-out-of-matrix leg (#5258) has been red with ~21 failures caused by drift on main (new subcommands, renamed help text, doctrine additions, colour-dependent CLI assertions). Each red is judged test-vs-product and fixed at the right side; a stale duplicate documentation template is reconciled with canon.",
+  "purpose_tldr": "Turn the 21 drift reds in the specify_cli out-of-matrix nightly leg green by re-pinning stale tests and fixing product defects, per DIRECTIVE_041.",
+  "slug": "nightly-drift-reds-01M3M14S",
+  "status_phase": "1",
+  "target_branch": "issue-5258-nightly-drift-reds",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T13:59:52.407545+00:00"
+}
