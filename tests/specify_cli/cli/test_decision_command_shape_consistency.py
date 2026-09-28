@@ -4,14 +4,16 @@ its rendered help, and every documentation/skill/template reference.
 
 The canonical shape is:
 
-    spec-kitty agent decision { open | resolve | defer | cancel | verify }
+    spec-kitty agent decision { open | resolve | defer | cancel | verify | list }
 
 Three invariants, all already correct on ``main`` (verified during
-planning of mission ``release-3-2-0a5-tranche-1``, research note R6):
+planning of mission ``release-3-2-0a5-tranche-1``, research note R6; the
+``list`` subcommand was added on purpose in ``989667221``, #3951, and is
+part of the canonical visible surface as of nightly-drift-reds-01M3M14S R5):
 
 1. **CLI shape**: introspection of the agent app shows the ``decision``
-   subgroup exposes exactly the five canonical *visible* subcommands.
-2. **Help shape**: ``spec-kitty agent decision --help`` lists those five.
+   subgroup exposes exactly the six canonical *visible* subcommands.
+2. **Help shape**: ``spec-kitty agent decision --help`` lists those six.
 3. **Docs/skills/templates**: no surviving non-canonical phrasing exists
    anywhere under ``docs/``, ``.agents/skills/``, the rendered skill
    snapshots, or the mission templates.
@@ -20,7 +22,7 @@ The non-canonical regex is anchored on the ``spec-kitty`` prefix so that
 prose like "decision documentation requirement" or "decisions about ..."
 does not produce false positives.
 
-Note on the ``widen`` subcommand: ``decision_app`` registers a sixth
+Note on the ``widen`` subcommand: ``decision_app`` registers a seventh
 subcommand named ``widen`` with ``hidden=True``. The contract specifies
 the *visible* surface, so we filter to non-hidden subcommands when
 asserting set equality.
@@ -37,6 +39,7 @@ from click.testing import CliRunner
 from typer.main import get_command
 
 from specify_cli import app as _typer_app
+from tests._support.docfx_reports_guard import assert_docfx_does_not_publish_reports
 
 
 import pytest
@@ -50,18 +53,20 @@ cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
 # so parents[3] points to <repo>.
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
-EXPECTED_SUBCOMMANDS = {"open", "resolve", "defer", "cancel", "verify"}
+EXPECTED_SUBCOMMANDS = {"open", "resolve", "defer", "cancel", "verify", "list"}
 
 # Non-canonical decision-command shapes that must NOT appear anywhere.
 # Two alternations, both anchored on the ``spec-kitty`` prefix:
 #   1. ``spec-kitty [agent] decisions ...`` (plural) or ``spec-kitty
 #      [agent] decision-...`` (kebabed legacy form).
-#   2. ``spec-kitty decision <verb>`` where <verb> is anything other than
-#      the five canonical subcommands — i.e. a missing ``agent`` segment.
+#   2. ``spec-kitty decision ...`` with ANY verb — a missing ``agent`` segment.
+#      There is no top-level ``decision`` command, so even a canonical verb
+#      (``spec-kitty decision open``) is wrong without ``agent`` (#5258: the
+#      former verb lookahead let exactly those through).
 NON_CANONICAL_RE = re.compile(
     r"spec-kitty\s+(?:agent\s+)?(?:decisions\b|decision-)"
     r"|"
-    r"spec-kitty\s+decision\b(?!\s+(?:open|resolve|defer|cancel|verify))",
+    r"spec-kitty\s+decision\b",
 )
 
 SCAN_ROOTS = (
@@ -70,6 +75,32 @@ SCAN_ROOTS = (
     "tests/specify_cli/skills/__snapshots__",
     "src/specify_cli/missions",
 )
+
+# Dated report snapshots under docs/reports/ (e.g.
+# docs/reports/tracer-friction-recon/2026-09-26/) are immutable point-in-time
+# records that legitimately quote retired command shapes on purpose — the
+# whole point of the snapshot is to describe the shape as it stood on the
+# date it was taken. Rewording them would falsify the historical record.
+# docs/reports/ is already classified as an immutable-historical-snapshot
+# prefix by ARCHIVE_PATH_PREFIXES in
+# tests/architectural/test_no_dead_src_path_literals.py; this mirrors that
+# classification for the decision-command-shape guard rather than inventing
+# a third, divergent exemption list. See spec.md R6 / #5187
+# (nightly-drift-reds-01M3M14S).
+REPORT_SNAPSHOT_PREFIX = "docs/reports/"
+
+
+def test_report_snapshot_prefix_stays_an_archive_classified_prefix() -> None:
+    """The exemption is only honest while the archive classification agrees."""
+    from tests.architectural.test_no_dead_src_path_literals import ARCHIVE_PATH_PREFIXES
+
+    assert REPORT_SNAPSHOT_PREFIX in ARCHIVE_PATH_PREFIXES
+
+# docs/docfx.json's ``build.content`` globs are what actually gets published
+# as live docs. The exemption above is only safe as long as ``reports`` is
+# never one of those globs -- otherwise a "point-in-time snapshot" would be
+# published as a live doc while still being allowed to quote retired shapes.
+DOCFX_CONFIG_PATH = REPO_ROOT / "docs" / "docfx.json"
 
 
 def _visible_subcommand_names(group: click.Group) -> set[str]:
@@ -127,15 +158,35 @@ def test_no_non_canonical_decision_command_shape_in_repo_text() -> None:
         for path in root.rglob("*"):
             if not path.is_file():
                 continue
+            relpath = path.relative_to(REPO_ROOT).as_posix()
+            if relpath.startswith(REPORT_SNAPSHOT_PREFIX):
+                continue
             try:
                 text = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
             for match in NON_CANONICAL_RE.finditer(text):
-                offenders.append(
-                    (str(path.relative_to(REPO_ROOT)), match.group(0))
-                )
+                offenders.append((relpath, match.group(0)))
     assert not offenders, (
         "FR-007 regression: non-canonical decision command shape found:\n  "
         + "\n  ".join(f"{p}: {m!r}" for p, m in offenders)
     )
+
+
+def test_docs_reports_exemption_is_not_published_as_live_docs() -> None:
+    """The docs/reports/ exemption is only safe while docfx never publishes it.
+
+    ``docs/reports/`` snapshots (see ``REPORT_SNAPSHOT_PREFIX`` above) are
+    exempted from the non-canonical-shape scan because they are dated,
+    immutable point-in-time records. That is only safe as long as
+    ``docs/docfx.json`` never turns those snapshots into published, live
+    documentation — otherwise a reader would see a "live" page that is
+    deliberately allowed to quote retired command shapes. This guard fails
+    loudly the moment docfx's build.content actually resolves a
+    docs/reports/ path (a **-aware glob match against a probe path, not a
+    bare 'reports' substring test -- see
+    tests/_support/docfx_reports_guard.py). Shares its implementation with
+    the equivalent guard in tests/contract/test_terminology_guards.py via
+    that module -- do not re-add a second copy here.
+    """
+    assert_docfx_does_not_publish_reports(DOCFX_CONFIG_PATH)

@@ -1,8 +1,8 @@
 ---
 title: Terminology Guard Exemption Policy
-description: "Policy for the four surfaces exempted from spec-kitty terminology guards (docs/adr, docs/migration, archival docs/plans sub-areas, and the Unreleased-only CHANGELOG scan)."
+description: "Policy for the five surfaces exempted from spec-kitty terminology guards (docs/adr, docs/migration, archival docs/plans sub-areas, dated docs/reports snapshots, and the Unreleased-only CHANGELOG scan)."
 doc_status: active
-updated: '2026-06-30'
+updated: '2026-09-28'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related: []
@@ -30,7 +30,7 @@ doctrine skills, and live documentation — stay aligned with the canonical
 vocabulary. They scan live surfaces only; surfaces that are historical records or
 archival snapshots are deliberately out of scope.
 
-Four categories of surfaces are currently exempt from the live-doc component of
+Five categories of surfaces are currently exempt from the live-doc component of
 the guards. Each is described below.
 
 ---
@@ -159,17 +159,73 @@ scanned.
 
 ---
 
+## Exempt Surface 5: `docs/reports/` — Dated Point-in-Time Report Snapshots
+
+### What is excluded
+
+All files under `docs/reports/` are excluded from:
+
+- the live-doc scan in `_live_doc_scan_targets()` in
+  `tests/contract/test_terminology_guards.py` (`FORBIDDEN_SCAN_ROOTS`)
+- the non-canonical decision-command-shape scan in
+  `tests/specify_cli/cli/test_decision_command_shape_consistency.py`
+  (`REPORT_SNAPSHOT_PREFIX`)
+
+### Why it is exempt
+
+`docs/reports/` holds dated, point-in-time report snapshots — for example
+`docs/reports/tracer-friction-recon/2026-09-26/`, a recon report generated on
+2026-09-26 that describes, as part of its findings, retired command/flag
+shapes (the removed `--feature` alias; non-canonical decision-subcommand
+phrasing) exactly as they existed in the surfaces it was investigating.
+Rewording those quotations to match current vocabulary would falsify the
+report: the whole value of a dated snapshot is that it records what was true
+on the date it was taken, not what is true today. This is the same rationale
+as the `docs/adr/` exemption above.
+
+`docs/reports/` is already classified as an immutable-historical-snapshot
+prefix by `ARCHIVE_PATH_PREFIXES` in
+`tests/architectural/test_no_dead_src_path_literals.py`; this exemption
+mirrors that existing classification rather than inventing a third,
+divergent list of "which report/archive paths are historical."
+
+Authority: spec.md R6 / #5187 (mission `nightly-drift-reds-01M3M14S`).
+
+### Scope boundary
+
+Only `docs/reports/` is exempt. All other live `docs/` pages remain fully
+scanned. This narrowness is pinned by `test_docs_adr_exemption_is_narrow` in
+`tests/contract/test_terminology_guards.py`, which asserts both that
+`docs/reports/` is excluded and that live `docs/` pages outside every exempt
+root are still being scanned.
+
+Because a "point-in-time snapshot" exemption is only safe as long as those
+snapshots are never *published* as live docs, both guard files also carry a
+`test_docs_reports_exemption_is_not_published_as_live_docs`-style guard that
+asserts `docs/docfx.json`'s `build.content` globs never include a `reports`
+pattern. If that guard ever fails, `docs/reports/` has started being
+published as live documentation and this exemption must be reconsidered, not
+silently kept.
+
+---
+
 ## Invariant: Exemptions Must Stay Narrow
 
 Each exemption above is explicitly bounded. The guards include non-vacuity and
 narrowness checks:
 
 - `test_docs_adr_exemption_is_narrow` (in both guard files) confirms that live
-  `docs/` pages outside the exempt roots are still being scanned.
+  `docs/` pages outside the exempt roots are still being scanned; in
+  `tests/contract/test_terminology_guards.py` it additionally confirms
+  `docs/reports/` is excluded.
 - The CHANGELOG handling must remain via `_extract_changelog_unreleased()` rather
   than a raw glob that would skip the file entirely.
 - `test_grep_guards_do_not_scan_historical_artifacts` confirms that no glob
   pattern in the guards directly targets any `FORBIDDEN_SCAN_ROOTS` root.
+- `test_docs_reports_exemption_is_not_published_as_live_docs` (in both the
+  live-doc guard and the decision-command-shape guard) confirms
+  `docs/docfx.json` never publishes `docs/reports/` as live docs, so the
+  point-in-time-snapshot rationale for that exemption stays true.
 
 If a future change widens an exemption beyond its stated boundary — for example,
 by exempting all of `docs/plans/` instead of only the three archival

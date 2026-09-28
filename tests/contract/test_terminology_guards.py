@@ -21,8 +21,11 @@ from pathlib import Path
 
 import pytest
 
+from tests._support.docfx_reports_guard import assert_docfx_does_not_publish_reports
+
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
+DOCFX_CONFIG_PATH = REPO_ROOT / "docs" / "docfx.json"
 
 # ---------------------------------------------------------------------------
 # T013 in-scope cluster: the 10 internal command files from which the
@@ -82,6 +85,19 @@ FORBIDDEN_SCAN_ROOTS = (
     # docs — the active planning pages at docs/plans/*.md stay scanned.
     "docs/plans/engineering-notes/",
     "docs/plans/initiatives/",
+    # Dated report snapshots (e.g.
+    # docs/reports/tracer-friction-recon/2026-09-26/) are immutable
+    # point-in-time records that legitimately quote retired command/flag
+    # shapes on purpose -- rewording them would falsify the historical
+    # record they exist to preserve. docs/reports/ is already classified
+    # as an immutable-historical-snapshot prefix by ARCHIVE_PATH_PREFIXES
+    # in tests/architectural/test_no_dead_src_path_literals.py; this
+    # mirrors that classification rather than inventing a third, divergent
+    # exemption list. Guarded by
+    # test_docs_reports_exemption_is_not_published_as_live_docs below, which
+    # fails loudly if docs/docfx.json ever publishes reports/ as live docs.
+    # See spec.md R6 / #5187 (nightly-drift-reds-01M3M14S).
+    "docs/reports/",
 )
 
 
@@ -124,15 +140,18 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
     for path_pattern in AGENT_DOC_GLOBS:
         for path in _glob(path_pattern):
             relative_path = path.relative_to(REPO_ROOT).as_posix()
-            # docs/migrations/, docs/adr/, and the relocated archival sub-areas of
-            # docs/plans/ are historical/immutable surfaces, not live first-party
-            # docs (docs/adr/ holds byte-invariant ADR records).
+            # docs/migrations/, docs/adr/, the relocated archival sub-areas of
+            # docs/plans/, and docs/reports/ are historical/immutable surfaces,
+            # not live first-party docs (docs/adr/ holds byte-invariant ADR
+            # records; docs/reports/ holds dated point-in-time snapshots --
+            # see FORBIDDEN_SCAN_ROOTS above).
             if relative_path.startswith(
                 (
                     "docs/migrations/",
                     "docs/adr/",
                     "docs/plans/engineering-notes/",
                     "docs/plans/initiatives/",
+                    "docs/reports/",
                 )
             ):
                 continue
@@ -487,24 +506,53 @@ def test_grep_guards_do_not_scan_historical_artifacts() -> None:
 
 
 def test_docs_adr_exemption_is_narrow() -> None:
-    """docs/adr/ is exempt (immutable historical ADRs), but the rest of docs/ is not.
+    """docs/adr/ and docs/reports/ are exempt, but the rest of docs/ is not.
 
     The common-docs move relocated ADRs from the unscanned architecture/ tree into
     docs/adr/. Their byte-invariant bodies legitimately carry era-correct wording,
     so they must not be scanned — but the exemption must stay narrow: every other
     docs/ page is still a live first-party surface. This pins both halves so a future
     glob change cannot silently widen the carve-out to all of docs/.
+
+    docs/reports/ (dated point-in-time snapshots, e.g.
+    docs/reports/tracer-friction-recon/2026-09-26/) is exempt for the same
+    reason: rewording a dated snapshot to match current vocabulary would
+    falsify the record it exists to preserve. See spec.md R6 / #5187
+    (nightly-drift-reds-01M3M14S).
     """
     scanned = {p.relative_to(REPO_ROOT).as_posix() for p, _ in _live_doc_scan_targets()}
     assert not any(p.startswith("docs/adr/") for p in scanned), (
         "docs/adr/ ADR records must be excluded from the live-docs terminology scan"
     )
+    assert not any(p.startswith("docs/reports/") for p in scanned), (
+        "docs/reports/ dated snapshots must be excluded from the live-docs terminology scan"
+    )
     # Non-vacuity / narrowness: live docs/ pages outside the exempt roots ARE scanned.
     assert any(
         p.startswith("docs/")
-        and not p.startswith(("docs/adr/", "docs/migrations/"))
+        and not p.startswith(("docs/adr/", "docs/migrations/", "docs/reports/"))
         for p in scanned
     ), "the exemption widened too far — no live docs/ page is being scanned"
+
+
+def test_docs_reports_exemption_is_not_published_as_live_docs() -> None:
+    """The docs/reports/ exemption is only safe while docfx never publishes it.
+
+    docs/reports/ snapshots are exempted from the live-doc terminology scan
+    (see FORBIDDEN_SCAN_ROOTS / _live_doc_scan_targets above) because they are
+    dated, immutable point-in-time records. That is only safe as long as
+    docs/docfx.json never turns those snapshots into published, live
+    documentation -- otherwise a reader would see a "live" page that is
+    deliberately allowed to carry retired vocabulary. This guard fails loudly
+    the moment docfx's build.content actually resolves a docs/reports/ path
+    (a **-aware glob match against a probe path, not a bare 'reports'
+    substring test -- see tests/_support/docfx_reports_guard.py for why that
+    was vacuous-prone). Mirrors the equivalent guard in
+    tests/specify_cli/cli/test_decision_command_shape_consistency.py; both
+    call the single shared implementation in
+    tests/_support/docfx_reports_guard.py.
+    """
+    assert_docfx_does_not_publish_reports(DOCFX_CONFIG_PATH)
 
 
 def test_no_feature_alias_in_internal_command_cluster() -> None:
@@ -544,11 +592,11 @@ def test_no_feature_alias_in_internal_command_cluster() -> None:
 
 @pytest.mark.fast
 def test_terminology_exemption_policy_doc_is_present_and_consistent() -> None:
-    """The exemption policy doc exists, is referenced from this file, and covers all three exemptions.
+    """The exemption policy doc exists, is referenced from this file, and covers all five exemptions.
 
     Confirms that the policy rationale captured in the comment above
     FORBIDDEN_SCAN_ROOTS is also reflected in a human-readable policy document,
-    and that both the document and this test agree on the three exempt surfaces.
+    and that both the document and this test agree on the five exempt surfaces.
 
     Authority: FR-013 (policy doc linked from the guard test).
     """
@@ -566,7 +614,7 @@ def test_terminology_exemption_policy_doc_is_present_and_consistent() -> None:
         "Authority: FR-013. The link must appear in the guard test itself."
     )
 
-    # The policy doc must cover ALL four exempt surfaces in FORBIDDEN_SCAN_ROOTS.
+    # The policy doc must cover ALL five exempt surfaces in FORBIDDEN_SCAN_ROOTS.
     # Each token is a substring that must appear in the document to confirm
     # coverage — keeps the doc honest if a future exemption is added/dropped.
     policy_content = policy_doc.read_text(encoding="utf-8")
@@ -574,10 +622,11 @@ def test_terminology_exemption_policy_doc_is_present_and_consistent() -> None:
         "docs/adr/",
         "docs/migrations/",
         "docs/plans/engineering-notes/",
+        "docs/reports/",
         "Unreleased",
     )
     for token in required_tokens:
         assert token in policy_content, (
             f"docs/development/terminology-exemptions.md must contain exemption token {token!r}. "
-            "Authority: FR-013. All four exempt surfaces must be documented."
+            "Authority: FR-013. All five exempt surfaces must be documented."
         )
