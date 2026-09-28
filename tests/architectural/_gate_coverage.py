@@ -224,8 +224,12 @@ def gate_is_always_on_modulo_full_ci_block(
 # word. The optional value is a quoted or bare token that is not the ``pytest``
 # command word itself, so ``uv run --frozen pytest`` and
 # ``coverage run --source src -m pytest`` both keep ``pytest`` as the command.
+# Nor may the value start with ``-``: otherwise a valueless flag swallows the
+# next flag as its "value" (``--frozen`` eating ``--python``), leaving that
+# flag's own value unconsumed, so ``uv run --frozen --python "3.13"
+# --all-extras pytest`` parsed as "no pytest command here" (#3189).
 _FLAG_TOKENS = (
-    r"(?:\s+--\S+(?:\s+'[^']*'|\s+\"[^\"]*\"|\s+(?!pytest\b)\S+)?)*"
+    r"(?:\s+--\S+(?:\s+'[^']*'|\s+\"[^\"]*\"|\s+(?!pytest\b|-)\S+)?)*"
 )
 
 # Runner prefixes that may precede the literal ``pytest`` command token. After

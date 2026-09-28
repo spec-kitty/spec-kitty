@@ -18,24 +18,20 @@ independent ``interpreter-matrix-shard-<N>`` jobs (see
 test now iterates every roster-declared shard job (dynamic discovery, never
 a second hardcoded job list) rather than the single retired job key.
 
-**``--python`` is now deliberately ABSENT from the ``uv run ... pytest``
-line** (plan.md's "Reuse-vs-rejection decision" for mission
-``ci-nightly-interpreter-matrix-45min-timeout-01M3G17F``): each shard's
-Python is already pinned twice over — ``actions/setup-python`` AND the
-job's own ``UV_PROJECT_ENVIRONMENT: .venv-py3.13`` (a per-shard, dedicated
-venv PATH, distinct across shards). ``uv run --frozen`` on a lockfile that
-already resolves cleanly for the active `UV_PROJECT_ENVIRONMENT` does not
-re-target a different interpreter merely because the CLI flag is absent
-from THIS specific invocation — the flag was redundant on the pytest
-invocation specifically, and dropping it there is what makes each shard's
-`run:` string parseable by `tests/architectural/_gate_coverage.py`'s static
-workflow parser (a `--frozen --python "<value>" --all-extras` shape breaks
-that parser's flag-tokenizer; `--frozen --all-extras` alone does not — see
-plan.md for the exact regex root cause). ``--all-extras`` — the OTHER half
-of #4866's original defect — remains required and is still asserted below.
-This test was updated, not weakened: it now asserts the shape the mission
-that split this job actually ships, and still fails if `--all-extras` ever
-goes missing from a shard's `uv run` line.
+**``--python "3.13"`` is REQUIRED on the ``uv run ... pytest`` line**
+(#3189 follow-up to #5244). An earlier revision of this split dropped it on
+the premise that ``actions/setup-python`` plus the job's
+``UV_PROJECT_ENVIRONMENT: .venv-py3.13`` keep the interpreter pinned. They do
+not: without ``--python``, ``uv run`` honours the repo's ``.python-version``
+(3.11.15), removes the ``.venv-py3.13`` environment the preceding sync built,
+and rebuilds it on 3.11 -- reproduced on uv 0.8.17 and 0.12.19 ("Removed
+virtual environment at: .venv-py3.13"). The shards would report "3.13" while
+running every test on 3.11. The flag had been dropped because
+``tests/architectural/_gate_coverage.py``'s runner-prefix tokenizer let
+``--frozen`` swallow ``--python`` as its value; that tokenizer is fixed, so
+the pinned form now parses (see ``test_gate_coverage_runner_prefix.py``).
+Both halves of #4866's original defect -- ``--python`` and ``--all-extras``
+-- are asserted below.
 
 This test parses the REAL ``.github/workflows/ci-nightly.yml`` (never a
 hardcoded copy) and asserts that each shard's ``uv run`` step's own
@@ -86,6 +82,16 @@ _SHARD_BY_JOB_KEY = {shard.job_key: shard for shard in INTERPRETER_SHARDS}
 # steps, distinct from the earlier `uv sync` step (which has no `pytest` in
 # its `run:` string at all).
 _PYTEST_MARKER = 'pytest -m "fast or unit"'
+
+# The interpreter every shard targets; the sync step asserts the same literal.
+_SHARD_PYTHON = "3.13"
+
+
+def _pins_interpreter(uv_run_prefix: str, version: str) -> bool:
+    """True when ``uv run``'s own option prefix carries ``--python <version>``
+    (quoted or bare, space- or ``=``-separated)."""
+    pattern = r"(?<!\S)--python(?:\s+|=)(['\"]?)" + re.escape(version) + r"\1(?!\S)"
+    return re.search(pattern, uv_run_prefix) is not None
 
 
 def _load_workflow() -> dict[str, Any]:
@@ -210,10 +216,8 @@ class TestInterpreterMatrixUvRunStepPinsEnv:
         carries `--all-extras`, so a whole-text match would be vacuously
         green even before the fix lands), then further isolates the prefix
         BEFORE the `pytest` command word, and asserts `--all-extras`
-        appears in that prefix specifically. `--python` is deliberately NOT
-        asserted here -- see the module docstring for why its absence on
-        this specific line is a correct, mission-authorized shape, not a
-        regression of #4866.
+        appears in that prefix specifically. The interpreter pin is
+        asserted separately by `test_uv_run_step_pins_python_before_pytest`.
         """
         workflow = _load_workflow()
         run_step = _find_shard_run_step(workflow, job_key)
@@ -226,6 +230,30 @@ class TestInterpreterMatrixUvRunStepPinsEnv:
             f"`pytest` command word so `uv run --frozen` cannot silently "
             f"re-sync with default (non-test) extras; got run string: {run_str!r}"
         )
+
+    @pytest.mark.parametrize("job_key", INTERPRETER_SHARD_JOB_KEYS)
+    def test_uv_run_step_pins_python_before_pytest(self, job_key: str) -> None:
+        """The other load-bearing assertion (#3189, #4866).
+
+        Without `--python` on this line, `uv run` re-syncs the shard's
+        `UV_PROJECT_ENVIRONMENT` venv onto `.python-version` (3.11) and the
+        "3.13" shard silently tests 3.11. Checked in the prefix before the
+        `pytest` command word, where `uv run` consumes it.
+        """
+        workflow = _load_workflow()
+        run_str = _find_shard_run_step(workflow, job_key)["run"]
+        assert _pins_interpreter(_prefix_before_pytest_command_word(run_str), _SHARD_PYTHON), (
+            f"{job_key}: the `uv run` step must pin --python {_SHARD_PYTHON!r} before the "
+            f"`pytest` command word, or uv rebuilds the venv on .python-version; got run string: {run_str!r}"
+        )
+
+    def test_python_pin_check_rejects_the_unpinned_form(self) -> None:
+        """Standing Order #5 positive control: the exact line an earlier
+        revision of #5244 shipped must fail the pin check."""
+        unpinned = 'uv run --frozen --all-extras pytest -m "fast or unit" tests/unit'
+        assert not _pins_interpreter(_prefix_before_pytest_command_word(unpinned), _SHARD_PYTHON)
+        wrong = 'uv run --frozen --python "3.11" --all-extras pytest -m "fast or unit" tests/unit'
+        assert not _pins_interpreter(_prefix_before_pytest_command_word(wrong), _SHARD_PYTHON)
 
     @pytest.mark.parametrize("job_key", INTERPRETER_SHARD_JOB_KEYS)
     def test_uv_run_step_preserves_existing_pytest_invocation(self, job_key: str) -> None:
@@ -323,12 +351,9 @@ class TestInterpreterMatrixUvRunStepPinsEnv:
 
     @pytest.mark.parametrize("job_key", INTERPRETER_SHARD_JOB_KEYS)
     def test_uv_sync_step_pins_python_and_all_extras(self, job_key: str) -> None:
-        """T002/reviewer guidance: the sync step (unlike the `uv run` step
-        above) MUST keep pinning `--python "3.13"` -- this is the one place
-        the interpreter itself is actually selected via the `uv` CLI (the
-        job's `UV_PROJECT_ENVIRONMENT` env var and `actions/setup-python`
-        step are the other two, independent pins -- see the module
-        docstring)."""
+        """T002/reviewer guidance: the sync step pins `--python "3.13"` too,
+        so the venv is built on 3.13 before the `uv run` step (which carries
+        its own pin, see `test_uv_run_step_pins_python_before_pytest`)."""
         workflow = _load_workflow()
         job = workflow["jobs"][job_key]
         sync_steps = [step for step in job["steps"] if isinstance(step.get("run"), str) and "uv sync" in step["run"]]
