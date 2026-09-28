@@ -27,6 +27,7 @@ from scripts.ci.recapture_charter_shard_timings import (
     RECAPTURE_BRANCH,
     SECRET_NAME,
     CaptureOutcome,
+    capture_is_trustworthy,
     find_open_recapture_pr,
     has_drift,
     require_recapture_token,
@@ -87,6 +88,41 @@ def test_has_drift_false_for_equal_lengths() -> None:
 
 def test_has_drift_true_for_different_lengths() -> None:
     assert has_drift(6219, 6220) is True
+
+
+@pytest.mark.parametrize(
+    ("pytest_exit_code", "after_length", "expected"),
+    [
+        (0, 10, True),
+        (1, 10, True),
+        (0, 0, False),
+        (1, 0, False),
+        (2, 10, False),
+        (2, 0, False),
+        (5, 10, False),
+        (5, 0, False),
+        (None, 10, False),
+    ],
+    ids=[
+        "clean-nonempty",
+        "ordinary-failures-nonempty",
+        "clean-but-empty",
+        "failures-but-empty",
+        "interrupted-nonempty",
+        "interrupted-empty",
+        "no-tests-collected-nonempty",
+        "no-tests-collected-empty",
+        "no-exit-code-nonempty",
+    ],
+)
+def test_capture_is_trustworthy(pytest_exit_code: int | None, after_length: int, expected: bool) -> None:
+    """F2: only exit codes 0/1 (a suite that actually RAN, whether or not tests
+    passed) paired with a non-empty captured module count as trustworthy. A
+    collection-error exit code (2, 5, ...) or an empty captured module -- even
+    if paired with an exit code that would otherwise pass -- must never be
+    treated as a legitimate recapture; committing `charter: []` and opening a
+    PR from a collection error is a fail-open regression."""
+    assert capture_is_trustworthy(pytest_exit_code, after_length) is expected
 
 
 def test_find_open_recapture_pr_matches_fixed_head_branch() -> None:
@@ -518,6 +554,9 @@ def test_fixture9_post_write_logging_failure_fails_closed(monkeypatch: pytest.Mo
 
 
 def test_fixture10_ordinary_failing_measured_test_does_not_abort(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-008's ordinary-failure-continues case: exit code 1 (some measured tests
+    failed) with a genuinely non-empty capture (after_length=12) still commits --
+    only a collection-error exit code or an empty capture (F2) aborts."""
     _set_token(monkeypatch, FAKE_TOKEN)
     lengths = iter([10, 12])
     monkeypatch.setattr(recapture, "_read_charter_length", lambda: next(lengths))
@@ -530,6 +569,45 @@ def test_fixture10_ordinary_failing_measured_test_does_not_abort(monkeypatch: py
 
     assert exit_code == 0
     assert len(push_calls) == 1
+
+
+def test_fixture12_collection_error_exit_code_with_empty_capture_aborts_no_push(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """F2: a pytest collection error (exit code 2) that leaves the captured module
+    empty must abort -- never commit `charter: []` and open a PR. `capture_main`
+    returns exit code 2 without raising (mechanism_ok=True is correct -- the
+    mechanism did not crash), but the RESULT is untrustworthy per
+    `capture_is_trustworthy`, so `main()` must still refuse to push."""
+    _set_token(monkeypatch, FAKE_TOKEN)
+    lengths = iter([10, 0])  # before=10 (previously committed), after=0 (collection error)
+    monkeypatch.setattr(recapture, "_read_charter_length", lambda: next(lengths))
+    monkeypatch.setattr(recapture, "_list_open_recapture_prs", lambda repository, token: [])
+    monkeypatch.setattr(capture_shard_timings, "main", lambda argv: 2)  # collection error, no raise
+    push_calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(recapture, "_push_and_open_pr", lambda *args: push_calls.append(args))
+
+    exit_code = recapture.main()
+
+    assert exit_code == 1
+    assert push_calls == []
+    assert "::error::" in capsys.readouterr().err
+
+
+def test_fixture13_no_tests_collected_exit_code_aborts_no_push(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """F2: pytest's NO_TESTS_COLLECTED exit code (5) must also abort, not just the
+    interrupted (2) case -- same untrustworthy-result reasoning."""
+    _set_token(monkeypatch, FAKE_TOKEN)
+    lengths = iter([10, 0])
+    monkeypatch.setattr(recapture, "_read_charter_length", lambda: next(lengths))
+    monkeypatch.setattr(recapture, "_list_open_recapture_prs", lambda repository, token: [])
+    monkeypatch.setattr(capture_shard_timings, "main", lambda argv: 5)
+    push_calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(recapture, "_push_and_open_pr", lambda *args: push_calls.append(args))
+
+    exit_code = recapture.main()
+
+    assert exit_code == 1
+    assert push_calls == []
+    assert "::error::" in capsys.readouterr().err
 
 
 def test_fixture11_snapshot_before_overwrite_reads_before_length_pre_mutation(monkeypatch: pytest.MonkeyPatch) -> None:

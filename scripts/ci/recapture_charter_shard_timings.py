@@ -32,7 +32,11 @@ mechanism itself crashed" (FR-008's abort case -- an uncaught exception exits th
 interpreter with the same code 1 as a clean non-zero return). :func:`run_capture_or_die`
 calls ``capture_shard_timings.main`` directly and catches any exception/``SystemExit`` at
 the call site, so the two cases are told apart by construction rather than by exit-code
-sniffing. This script's ``MODULE = "charter"`` scope lock (FR-009) is also a precondition
+sniffing. A mechanism that did NOT crash can still have produced an untrustworthy result
+(a pytest collection error, for instance, returns cleanly with an empty capture) --
+:func:`capture_is_trustworthy` (F2) is the separate, second gate that catches that case
+before it can reach ``has_drift``/commit. This script's ``MODULE = "charter"`` scope lock
+(FR-009) is also a precondition
 for that in-process choice being safe: exactly one ``pytest.main()`` invocation happens
 per process, so pytest's own repeated-invocation state (stale ``sys.modules`` entries,
 assertion-rewrite hook accumulation) is never at risk.
@@ -119,6 +123,23 @@ def run_capture_or_die(capture_main: Callable[[list[str]], int], argv: list[str]
         # never swallowed as a mechanism crash.
         return CaptureOutcome(mechanism_ok=False, pytest_exit_code=None, error=str(exc))
     return CaptureOutcome(mechanism_ok=True, pytest_exit_code=exit_code, error=None)
+
+
+def capture_is_trustworthy(pytest_exit_code: int | None, after_length: int) -> bool:
+    """F2/FR-008 amendment: gate a *mechanism-ok* capture on the pytest exit code AND a
+    non-empty captured module before it is eligible to commit.
+
+    ``run_capture_or_die`` already tells a genuine mechanism crash (exception/SystemExit)
+    from a returned exit code apart -- but a returned exit code is not, by itself,
+    trustworthy: pytest's collection-error / interrupted / usage-error / no-tests-collected
+    exit codes (2, 3, 4, 5, ...) mean the measured suite never actually ran, so the
+    captured ``charter`` entry is empty or garbage. Treating that as ``mechanism_ok`` and
+    letting it through to ``has_drift``/commit would silently replace a real timings table
+    with ``[]`` and open a PR for it -- a fail-open regression, not a legitimate recapture.
+    Only exit code 0 (clean) or 1 (ordinary test failures -- FR-008's *not*-abort case)
+    paired with ``after_length > 0`` counts as trustworthy.
+    """
+    return pytest_exit_code in (0, 1) and after_length > 0
 
 
 def has_drift(before_length: int, after_length: int) -> bool:
@@ -328,6 +349,11 @@ def main(argv: list[str] | None = None) -> int:
     4. Run the capture mechanism in-process; abort (no commit/push/PR-open) on a genuine
        mechanism crash -- never merely because the measured suite has failing tests.
     5. Read the freshly-captured ``charter`` length.
+    5b. Abort (no commit/push/PR-open) unless the capture is trustworthy (F2): the
+        recorded pytest exit code must be 0 or 1 AND the freshly-captured length must be
+        non-zero. A collection error (or any other non-0/1 exit code) still returns from
+        ``run_capture_or_die`` with ``mechanism_ok=True`` -- the process did not crash --
+        but its data must never be committed as if it were a real recapture.
     6. Skip if there is no length drift (FR-006) -- no commit/push/PR-open.
     7. Re-check for an open PR immediately before the push (TOCTOU re-check, C-006) --
        skip if one has appeared during the capture window.
@@ -356,6 +382,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     after_length = _read_charter_length()  # Step 5: AFTER the capture call.
+    if not capture_is_trustworthy(outcome.pytest_exit_code, after_length):  # F2
+        print(
+            "::error::recapture aborted: pytest exit code "
+            f"{outcome.pytest_exit_code!r} with captured length {after_length} does not "
+            "look like a real run (collection error, interrupted, or no tests collected) "
+            "-- refusing to commit an untrustworthy `charter` entry",
+            file=sys.stderr,
+        )
+        return 1
     if not has_drift(before_length, after_length):  # Step 6
         return 0
 
