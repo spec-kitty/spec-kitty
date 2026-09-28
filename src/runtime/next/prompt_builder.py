@@ -163,7 +163,7 @@ def _build_wp_prompt(
 
     mission_context = mission_context_for(repo_root, mission_slug)
     task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
-    wp_file, wp_meta, wp_content = _read_wp_task(task_board_dir / "tasks", wp_id, mission_slug)
+    wp_file, wp_meta, wp_content = read_wp_task(task_board_dir / "tasks", wp_id, mission_slug)
 
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
     workspace_path = workspace.worktree_path
@@ -171,7 +171,7 @@ def _build_wp_prompt(
     # WP06 (FR-004) — forward the WP frontmatter ``agent_profile`` to the
     # governance resolver so the profile's directive_references and
     # tactic_references are rendered into the prompt the agent will read.
-    agent_profile_id = wp_meta.agent_profile if wp_meta is not None else None
+    agent_profile_id = wp_meta.agent_profile
 
     lines: list[str] = []
     lines.append("=" * 80)
@@ -459,7 +459,7 @@ def _legacy_governance_context(repo_root: Path) -> str:
     return "\n".join(lines)
 
 
-def _read_wp_task(tasks_dir: Path, wp_id: str, mission_slug: str) -> tuple[Path, WPMetadata, str]:
+def read_wp_task(tasks_dir: Path, wp_id: str, mission_slug: str) -> tuple[Path, WPMetadata, str]:
     """Load the exact WP file, authored metadata, and body from its task surface."""
     expected_file = tasks_dir / f"{wp_id}.md"
     recovery = (

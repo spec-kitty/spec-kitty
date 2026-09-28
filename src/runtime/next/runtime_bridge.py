@@ -3006,7 +3006,7 @@ def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug:
     task file was removed on purpose, and a canceled WP never counts toward
     completion.
     """
-    from runtime.next.prompt_builder import _read_wp_task
+    from runtime.next.prompt_builder import read_wp_task
     from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_all_wp_lanes
 
     try:
@@ -3019,7 +3019,7 @@ def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug:
         if lane == Lane.CANCELED:
             continue
         try:
-            _read_wp_task(tasks_dir, wp_id, mission_slug)
+            read_wp_task(tasks_dir, wp_id, mission_slug)
         except (FileNotFoundError, ValueError) as exc:
             return str(exc)
     return None

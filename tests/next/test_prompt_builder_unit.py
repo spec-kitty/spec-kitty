@@ -16,7 +16,7 @@ from runtime.next.prompt_builder import (
     _mission_context_header,
     build_decision_prompt,
     _governance_context,
-    _read_wp_task,
+    read_wp_task,
     _write_to_temp,
     build_prompt,
 )
@@ -95,13 +95,13 @@ class TestBuildDecisionPrompt:
 
 
 # ---------------------------------------------------------------------------
-# _read_wp_content
+# read_wp_task
 # ---------------------------------------------------------------------------
 
 
 class TestReadWPTask:
     def test_reads_existing_wp(self, feature_with_wp: Path) -> None:
-        wp_file, metadata, content = _read_wp_task(feature_with_wp / "tasks", "WP01", "042-test-feature")
+        wp_file, metadata, content = read_wp_task(feature_with_wp / "tasks", "WP01", "042-test-feature")
         assert wp_file.name == "WP01.md"
         assert metadata.work_package_id == "WP01"
         assert "WP01 Content" in content
@@ -109,11 +109,11 @@ class TestReadWPTask:
     def test_missing_wp_raises_with_recovery(self, feature_dir: Path) -> None:
         (feature_dir / "tasks").mkdir()
         with pytest.raises(FileNotFoundError, match="Restore or regenerate"):
-            _read_wp_task(feature_dir / "tasks", "WP99", "042-test-feature")
+            read_wp_task(feature_dir / "tasks", "WP99", "042-test-feature")
 
     def test_missing_tasks_dir_raises_with_recovery(self, feature_dir: Path) -> None:
         with pytest.raises(FileNotFoundError, match="Canonical WORK_PACKAGE_TASK directory"):
-            _read_wp_task(feature_dir / "tasks", "WP01", "042-test-feature")
+            read_wp_task(feature_dir / "tasks", "WP01", "042-test-feature")
 
     def test_unreadable_wp_raises_with_recovery(self, feature_dir: Path) -> None:
         tasks_dir = feature_dir / "tasks"
@@ -121,7 +121,7 @@ class TestReadWPTask:
         (tasks_dir / "WP01.md").mkdir()
 
         with pytest.raises(ValueError, match="Could not read canonical WORK_PACKAGE_TASK file.*Restore or regenerate"):
-            _read_wp_task(tasks_dir, "WP01", "042-test-feature")
+            read_wp_task(tasks_dir, "WP01", "042-test-feature")
 
 
 # ---------------------------------------------------------------------------
