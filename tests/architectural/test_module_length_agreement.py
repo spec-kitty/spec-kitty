@@ -253,7 +253,13 @@ def _resolve_test_dirs(registry: dict[str, Any], module: str, monkeypatch: pytes
     """
     _capture = _load_capture_shard_timings_module(monkeypatch)
 
-    return _capture.resolve_test_dirs(registry, module)
+    result = _capture.resolve_test_dirs(registry, module)
+    # `_capture` is loaded by file path (see `_load_capture_shard_timings_module`'s docstring),
+    # so mypy sees its attributes as `Any` and cannot narrow this call's return type on its own.
+    # A runtime check (rather than a blind `cast`) keeps this test failing loudly, for the right
+    # reason, if the consumer's own `resolve_test_dirs` ever changes its return shape.
+    assert isinstance(result, tuple) and all(isinstance(item, str) for item in result), f"resolve_test_dirs returned unexpected shape: {result!r}"
+    return result
 
 
 def _live_collected_count(test_dirs: tuple[str, ...]) -> int:
