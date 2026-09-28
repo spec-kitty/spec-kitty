@@ -489,3 +489,125 @@ def test_strict_mode_reads_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _strict_mode() is False
     monkeypatch.setenv(_STRICT_ENV_VAR, "1")
     assert _strict_mode() is True
+
+
+# ---------------------------------------------------------------------------
+# spec-kitty#5189 amendment (WP01): #5240's own 3 unit tests above exercise
+# only the _report_drift/_strict_mode helpers in isolation -- never either
+# production gate function. These tests close that gap by calling the two
+# gate functions directly with constructed fixture-shaped arguments, proving
+# the demotion mechanism actually fires from inside the real gate bodies, not
+# just from the helper it delegates to.
+# ---------------------------------------------------------------------------
+@pytest.mark.fast
+def test_charter_disagreement_emits_shard_timings_drift_warning(monkeypatch: pytest.MonkeyPatch) -> None:
+    """spec-kitty#5189 amendment: catches a revert of test_charter_is_not_allowlisted_and_agrees's
+    mismatch branch back to a bare hard assert -- #5240's own 3 unit tests exercise only the
+    _report_drift/_strict_mode helpers in isolation, never this production function.
+
+    Isolated from the ambient SPEC_KITTY_STRICT_SHARD_TIMINGS (pr-boundary-002): without this,
+    the new strict-shard-timings-check job's SPEC_KITTY_STRICT_SHARD_TIMINGS=1 invocation makes
+    _report_drift take the pytest.fail branch instead of warning, so pytest.warns() itself fails
+    with an unhandled Failed exception -- deterministically red on every run, drift or not."""
+    monkeypatch.delenv(_STRICT_ENV_VAR, raising=False)
+    fake_timings = {"module_test_durations": {"charter": [0.0] * 10}}
+    fake_collected = {"charter": 11}
+    with pytest.warns(ShardTimingsDriftWarning, match="charter drifted"):
+        test_charter_is_not_allowlisted_and_agrees(fake_timings, fake_collected)
+
+
+@pytest.mark.fast
+def test_charter_agreement_emits_no_shard_timings_drift_warning(recwarn: pytest.WarningsRecorder) -> None:
+    """spec-kitty#5189 amendment fix round 2 (AMENDMENT-FRESH-002): FR-004's mandatory
+    agreeing-case fixture and User Story 3 Acceptance Scenario 2 -- dropped when the
+    pre-amendment _charter_disposition design was replaced. Proves the AGREEING case emits no
+    ShardTimingsDriftWarning and the production gate function returns normally."""
+    fake_timings = {"module_test_durations": {"charter": [0.0] * 10}}
+    fake_collected = {"charter": 10}
+    result = test_charter_is_not_allowlisted_and_agrees(fake_timings, fake_collected)
+    assert result is None
+    drift_warnings = [w for w in recwarn.list if issubclass(w.category, ShardTimingsDriftWarning)]
+    assert drift_warnings == [], f"expected no ShardTimingsDriftWarning on agreement, got: {drift_warnings}"
+
+
+@pytest.mark.fast
+def test_non_allowlisted_disagreement_emits_shard_timings_drift_warning(monkeypatch: pytest.MonkeyPatch) -> None:
+    """spec-kitty#5189 amendment: the second live-collection gate #5240 also demoted. Uses a
+    synthetic module name -- never a real SK-247 module -- so this stays in scope (C-001).
+
+    Isolated from the ambient SPEC_KITTY_STRICT_SHARD_TIMINGS (pr-boundary-002); see the sibling
+    charter warning test above for why an un-isolated ambient strict mode makes this test
+    deterministically red under the strict-shard-timings-check job."""
+    monkeypatch.delenv(_STRICT_ENV_VAR, raising=False)
+    fake_registry = {"modules": [{"module": "synthetic_test_module"}]}
+    fake_timings = {"module_test_durations": {"synthetic_test_module": [0.0] * 5}}
+    fake_collected = {"synthetic_test_module": 6}
+    with pytest.warns(ShardTimingsDriftWarning, match="synthetic_test_module"):
+        test_non_allowlisted_modules_agree_with_live_collection(fake_registry, fake_timings, fake_collected)
+
+
+@pytest.mark.fast
+def test_non_allowlisted_agreement_emits_no_shard_timings_drift_warning(recwarn: pytest.WarningsRecorder) -> None:
+    """spec-kitty#5189 amendment fix round 2 (AMENDMENT-FRESH-002): the cross-module gate's own
+    agreeing-case proof, mirroring the charter test above. Uses a synthetic module name --
+    never a real SK-247 module -- so this stays in scope (C-001)."""
+    fake_registry = {"modules": [{"module": "synthetic_test_module"}]}
+    fake_timings = {"module_test_durations": {"synthetic_test_module": [0.0] * 5}}
+    fake_collected = {"synthetic_test_module": 5}
+    result = test_non_allowlisted_modules_agree_with_live_collection(fake_registry, fake_timings, fake_collected)
+    assert result is None
+    drift_warnings = [w for w in recwarn.list if issubclass(w.category, ShardTimingsDriftWarning)]
+    assert drift_warnings == [], f"expected no ShardTimingsDriftWarning on agreement, got: {drift_warnings}"
+
+
+@pytest.mark.fast
+def test_charter_disagreement_fails_in_strict_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """spec-kitty#5189 amendment: strict mode restores the hard failure at the integration
+    level (the disagreeing fixture above), not just at the already-tested _report_drift helper."""
+    monkeypatch.setenv("SPEC_KITTY_STRICT_SHARD_TIMINGS", "1")
+    fake_timings = {"module_test_durations": {"charter": [0.0] * 10}}
+    fake_collected = {"charter": 11}
+    with pytest.raises(pytest.fail.Exception, match="charter drifted"):
+        test_charter_is_not_allowlisted_and_agrees(fake_timings, fake_collected)
+
+
+@pytest.mark.fast
+def test_non_allowlisted_disagreement_fails_in_strict_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """spec-kitty#5189 amendment: same proof for the cross-module gate."""
+    monkeypatch.setenv("SPEC_KITTY_STRICT_SHARD_TIMINGS", "1")
+    fake_registry = {"modules": [{"module": "synthetic_test_module"}]}
+    fake_timings = {"module_test_durations": {"synthetic_test_module": [0.0] * 5}}
+    fake_collected = {"synthetic_test_module": 6}
+    with pytest.raises(pytest.fail.Exception, match="synthetic_test_module"):
+        test_non_allowlisted_modules_agree_with_live_collection(fake_registry, fake_timings, fake_collected)
+
+
+@pytest.mark.fast
+def test_load_timings_fails_loudly_when_artefact_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-004: a genuine infra break (missing artefact) still fails, never silently warns.
+
+    The nonexistent path must stay under `_REPO_ROOT`: `_load_timings()` builds its
+    `pytest.fail(...)` message via `_TIMINGS_PATH.relative_to(_REPO_ROOT)`, which itself raises
+    `ValueError` (not `pytest.fail.Exception`) for a path outside the repo root -- e.g. pytest's
+    own `tmp_path` fixture. Using a repo-relative nonexistent path exercises the intended
+    `pytest.fail` code path instead of that unrelated `ValueError`.
+    """
+    import tests.architectural.test_module_length_agreement as this_module
+
+    monkeypatch.setattr(this_module, "_TIMINGS_PATH", this_module._REPO_ROOT / "does-not-exist-shard-timings-fixture.json")
+    with pytest.raises(pytest.fail.Exception):  # _load_timings() calls pytest.fail(...), raising pytest.fail.Exception
+        this_module._load_timings()
+
+
+@pytest.mark.fast
+def test_load_registry_fails_loudly_when_artefact_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-004: the same infra-break guarantee for the module registry artefact.
+
+    Same repo-relative-path requirement as above (`_load_registry()`'s `pytest.fail(...)`
+    message also calls `.relative_to(_REPO_ROOT)`).
+    """
+    import tests.architectural.test_module_length_agreement as this_module
+
+    monkeypatch.setattr(this_module, "_REGISTRY_PATH", this_module._REPO_ROOT / "does-not-exist-module-registry-fixture.yml")
+    with pytest.raises(pytest.fail.Exception):  # _load_registry() calls pytest.fail(...), raising pytest.fail.Exception
+        this_module._load_registry()
