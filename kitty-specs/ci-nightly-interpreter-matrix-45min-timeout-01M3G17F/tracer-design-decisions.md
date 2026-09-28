@@ -178,3 +178,19 @@ recorded on the two auto-opened nightly-escalation issues
 clarifying these escalations originated from this mission's own
 `workflow_dispatch` measurement/validation runs on the unmerged branch, not
 from a nightly run on `main`. No further action is pending on WP01-R1-003.
+
+## 2026-09-28 — takeover as #5263 (supersedes #5244)
+
+- **Pin `--python "3.13"` on every shard's `uv run … pytest` line** rather than trusting
+  `UV_PROJECT_ENVIRONMENT` plus `setup-python`. The env-pinning guard now requires it,
+  with a positive control on the unpinned and wrong-version forms.
+- **Fix the tokenizer, not the workflow shape.** A flag value may not start with `-`.
+  The census diff is exactly the six shards becoming visible.
+- **Supersede instead of patching in place** (operator decision). #5244's commits are
+  carried unchanged, and `main` is merged in rather than rebased.
+- **Fold #5128 into this PR and escalate it P3 → P0** (operator decision). The override
+  tier's drift is what reds shard 6 on real 3.13. `release.yml` publishes only on a green
+  nightly, which makes the drift a release blocker. The tier is deleted per the operator's
+  triage, not resynced.
+- **Move to ready only after the #5128 fold lands**, so the PR does not sit in ready while
+  further commits are still coming.

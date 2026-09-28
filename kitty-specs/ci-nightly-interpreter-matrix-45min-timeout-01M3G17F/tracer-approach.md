@@ -136,3 +136,19 @@ against `_gate_coverage.py`'s coverage-oracle substrate."
 
 This section must be completed with real run URLs and per-shard conclusions
 before the mission's PR is marked `ready-for-squad` (NFR-005).
+
+## 2026-09-28 — real 3.13 validation (run 36393904544 on #5263)
+
+All six shards ran on CPython 3.13.15 and finished inside their caps:
+- shard 1: 13.0 of 15 min
+- shard 2: 11.2 of 20 min
+- shard 3: 13.2 of 25 min
+- shard 4: 10.6 of 25 min
+- shard 5: 22.1 of 25 min
+- shard 6: 6.1 of 25 min
+
+Shards 3, 4 and 6 are red. A local re-run of each red shard's selection on 3.13.12 and
+3.11.15 gave identical failure sets (24, 11 and 13), with none that fail only on 3.13.
+That is main drift (#4916, #5187, #5128) plus uid-0 permission tests. #5244's timings
+had in fact been measured on 3.11. Shards 1 and 5 run at 87–88% of their caps on 3.13,
+so they are the first to re-tune.

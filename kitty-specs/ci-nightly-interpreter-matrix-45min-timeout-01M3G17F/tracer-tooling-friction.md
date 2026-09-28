@@ -310,3 +310,35 @@ convention — confirmed safe by checking that
 `src/` (an editable install), which this WP never touches or exercises. A WP
 whose diff DOES touch `src/` would need to `uv sync` a lane-local venv first
 to avoid running against stale/mismatched primary-checkout code.
+
+## 2026-09-28 — takeover as #5263 (supersedes #5244)
+
+- **Wrong implementer profile for the #5128 fold.** The orchestrator hand-picked
+  `implementer-ivan` for the override-tier removal instead of routing it. The change is
+  pure Python test code plus a repo-tree deletion, so `python-pedro` (the Python
+  specialist, which inherits Ivan's discipline per `implementer-ivan.agent.yaml`) was
+  the right profile. Root cause: no `spec-kitty dispatch` routing step before delegating
+  to a subagent; the profile was chosen from memory. Remedy for next time: route
+  subagent work through `spec-kitty dispatch "<task>"` (no `--profile`) or pick the
+  language specialist explicitly. Mitigation here: a `python-pedro` review lens over the
+  fold before it is pushed.
+- **`uv run` silently drops the interpreter.** Without `--python`, `uv run` honours
+  `.python-version` (3.11.15) and rebuilds a `UV_PROJECT_ENVIRONMENT` venv synced for
+  3.13. That is how every "3.13" shard in #5244's validation run tested 3.11. The same
+  trap bit a local 3.13 scratch venv built without `--python`.
+- **`_gate_coverage` tokenizer let `--frozen` swallow `--python`**, so the pinned run
+  line resolved to zero gates. That is why the pin had been dropped to begin with.
+- **The shard roster lists loose `tests/specify_cli/*.py` files one by one.** Each new
+  file there reds the zero-gap gate (#5252's `test_analysis_report_symlink_loops.py`
+  did) until someone assigns it a shard.
+- **The CI artifact store is unreachable from the cloud container** (egress proxy 403 on
+  `*.blob.core.windows.net`). The JUnit reports could not be fetched, so red shards had
+  to be re-run locally on 3.11 and 3.13 to classify them.
+- **Dispatched nightlies on a topic branch still run P0 escalation.** They open or update
+  `priority:P0` issues (#5265 was opened by this branch's validation run).
+- Adjacent, found during the parallel doctrine Op (#5266):
+  - `spec-kitty dispatch --profile X` refuses a built-in profile the repo charter has not
+    activated.
+  - `charter activate` refuses to run from a linked worktree, and recompiles all of
+    `charter.yaml` (about 1,100 lines of churn that drops still-activated artifacts).
+  - `profile-invocation complete --artifact <url>` mangles `https://` to `https:/`.
