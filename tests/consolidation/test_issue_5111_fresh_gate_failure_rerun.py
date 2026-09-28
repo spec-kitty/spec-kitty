@@ -315,3 +315,20 @@ def test_5111_strategy_persist_failure_clears_the_fresh_record(approved_repo: Pa
 
     assert not get_state_path(approved_repo, MISSION_ID).exists(), "a failed strategy persist left a zero-progress state"
     assert not _marker_path(approved_repo).exists()
+
+
+def test_5111_failed_record_clear_never_masks_the_original_exit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A cleanup OSError inside the guard must not replace the real exit (e.g. a gate's typer.Exit)."""
+    import typer
+
+    from specify_cli.consolidation import executor
+
+    def _unlink_refused(*_args: object, **_kwargs: object) -> bool:
+        raise PermissionError("state.json is busy")
+
+    monkeypatch.setattr(executor, "clear_state", _unlink_refused)
+    run = MagicMock(is_resume=False, main_repo=tmp_path, canonical_id=MISSION_ID)
+
+    with pytest.raises(typer.Exit) as exit_info, executor._clear_fresh_record_on_pre_mutation_exit(run):
+        raise typer.Exit(1)
+    assert exit_info.value.exit_code == 1

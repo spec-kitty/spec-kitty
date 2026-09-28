@@ -2155,7 +2155,18 @@ def _clear_fresh_record_on_pre_mutation_exit(run: _MergeRunState) -> Iterator[No
         yield
     except BaseException:
         if not run.is_resume:
-            clear_state(run.main_repo, run.canonical_id)
+            try:
+                clear_state(run.main_repo, run.canonical_id)
+            except OSError as clear_error:
+                # Never let a failed cleanup replace the real exit (a gate
+                # failure's typer.Exit, a Ctrl-C) as the operator's headline.
+                # A half-cleared record is at worst an orphan marker, which the
+                # next fresh run re-stamps.
+                logger.warning("Could not clear the fresh consolidation record for %s: %s", run.canonical_id, clear_error)
+                console.print(
+                    f"[yellow]Warning:[/yellow] could not clear this run's consolidation record ({clear_error}); "
+                    "a plain re-run still starts fresh."
+                )
         raise
 
 
