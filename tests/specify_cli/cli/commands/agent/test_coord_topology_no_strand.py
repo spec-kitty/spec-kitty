@@ -100,7 +100,6 @@ def _create_pr_bound(repo: Path, slug: str) -> dict[str, object]:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value=_FEATURE_CHECKOUT),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=repo),
         patch(
