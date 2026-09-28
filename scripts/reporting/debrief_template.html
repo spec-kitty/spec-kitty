@@ -24,6 +24,12 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap');
 
+/* ── Falling Sky display face (mirrored from @spec-kitty/tokens fonts) ──────
+   Relative to this template; a headless print embeds them into the PDF. */
+@font-face { font-family: 'Falling Sky'; src: url('fonts/FallingSky-Regular.otf') format('opentype');   font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Falling Sky'; src: url('fonts/FallingSky-Bold.otf') format('opentype');       font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Falling Sky'; src: url('fonts/FallingSky-Extrabold.otf') format('opentype');  font-weight: 800; font-style: normal; font-display: swap; }
+
 /* ── Brand tokens (curated subset of @spec-kitty/tokens, light theme) ──────
    To ship a fully-branded PDF, embed the Falling Sky OTFs from
    spec-kitty-design/packages/tokens/fonts via @font-face; without them the
