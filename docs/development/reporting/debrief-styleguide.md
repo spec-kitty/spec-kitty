@@ -36,15 +36,29 @@ the metric-tile card has a yellow top-accent bar. Section cards take a warm-gold
 (`--sk-color-haygold`) left edge. Status colour stays green (good) / red
 (attention) only.
 
-**Full-bleed print, with a continuation-page top inset.** The warm-cream page
-colour reaches every edge — no white printer margin — via `print-color-adjust:
-exact` and the cream on both `html` and `body`. Page 1 is flush at the top (its
-`body` padding gives the header room); **pages 2+ get a `~2.6rem` top inset** so
-content is never jammed against the sheet edge. That inset is produced by a
-`@page { margin-top }` (with `@page :first { margin-top: 0 }`), and it stays
-**cream, not white**, because the root (`html`) background propagates across the
-whole sheet including the page margin. Never switch this to a plain `@page`
-margin without the root-background propagation — that reintroduces a white strip.
+**Full-bleed print, with an in-flow continuation-page top inset.** The
+warm-cream page colour reaches every edge — no white printer margin anywhere —
+via `@page { margin: 0 }`, the cream on both `html` and `body`, and
+`print-color-adjust: exact`. Content on pages 2+ is shifted down **in flow**, not
+with a page margin. Two rules make that work and survive a page break:
+
+1. **Never split a top-level block across a page** — `break-inside: avoid` on
+   `.tiles`, `.highlights`, `.section` and `table`, and `break-after: avoid` on
+   `h2` — so every continuation page begins with a whole block, not a torn one.
+2. **Reserve the top space with a transparent top *border*, not a margin.**
+   Chromium *drops* a block's top margin when it starts a continuation page but
+   *keeps* its border, so `h2` and `.section` carry a `~1.6–1.9rem` transparent
+   top border. With `background-clip: padding-box` on the cards, that border
+   shows the cream page through it — the content sits lower, the background does
+   not turn white. (This is why the earlier `@page { margin-top }` attempt failed:
+   Chromium paints the page-margin box white and does **not** propagate the root
+   background into it.) The card's warm-gold left accent is drawn by a `::before`
+   bar from the content top, so it never stubs into the cream gap.
+
+Trade-off: `break-inside: avoid` can push a whole card to the next page, leaving
+cream whitespace at a page bottom. That is intended — cream is easy on the eyes,
+and a clean top edge matters more than dense packing.
+
 These are **light-chromed on purpose**: print/PDF is far easier to read light,
 so the dark-theme tokens are never used here.
 
