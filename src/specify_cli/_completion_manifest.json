@@ -1433,7 +1433,7 @@
    "deprecated": false
   },
   "research": {
-   "help": "Execute Phase 0 research workflow to scaffold artifacts.",
+   "help": "Scaffold research artifacts from the mission type's shipped templates.",
    "hidden": false,
    "deprecated": false
   },

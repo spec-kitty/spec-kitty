@@ -41,6 +41,8 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
+from specify_cli.runtime import agent_commands, agent_skills
+from specify_cli.runtime import bootstrap as runtime_bootstrap
 from tests._factories import provision_test_charter
 from tests.doctrine.test_builtin_cli_command_references import _COMMAND_PATTERN
 
@@ -185,9 +187,9 @@ def _bypass_global_asset_bootstrap(monkeypatch: pytest.MonkeyPatch) -> None:
     the args passed to ``invoke()``. That global asset bootstrap is outside
     this contract (it is exercised by its own tests), so no-op it here.
     """
-    monkeypatch.setattr("specify_cli.runtime.agent_commands.ensure_global_agent_commands", lambda *_a, **_k: None)
-    monkeypatch.setattr("specify_cli.runtime.agent_skills.ensure_global_agent_skills", lambda *_a, **_k: None)
-    monkeypatch.setattr("specify_cli.runtime.bootstrap.ensure_runtime", lambda *_a, **_k: None)
+    monkeypatch.setattr(agent_commands, "ensure_global_agent_commands", lambda *_a, **_k: None)
+    monkeypatch.setattr(agent_skills, "ensure_global_agent_skills", lambda *_a, **_k: None)
+    monkeypatch.setattr(runtime_bootstrap, "ensure_runtime", lambda *_a, **_k: None)
 
 
 @pytest.fixture(autouse=True)
