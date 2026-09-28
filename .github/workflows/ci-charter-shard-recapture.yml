@@ -56,6 +56,12 @@
 # (`@<40-hex> # v<tag>`), matching this repo's DIR-051 convention and the
 # closest structural precedent, `ci-stale-running-sweep.yml`.
 #
+# The recapture job is additionally gated `if: github.ref == 'refs/heads/main'`
+# (F4, #5271 landing pass): a `workflow_dispatch` from a topic branch would
+# otherwise capture THAT branch's suite and commit/push it onto the fixed
+# recapture branch and open a PR from it into `main`. A topic-branch dispatch
+# still runs `strict-shard-timings-check` (read-only) but skips the recapture.
+#
 # The `schedule` trigger firing on its own, and the recapture job actually
 # opening a PR against the real `main` and running normal per-PR CI, are only
 # confirmable post-merge (GitHub only evaluates `schedule` triggers on the
@@ -74,18 +80,16 @@ on:
     - cron: '41 4 * * *'
   workflow_dispatch:
 
-# Static (NOT `${{ github.ref }}`-suffixed), deliberately. A pre-merge manual
-# `workflow_dispatch` rehearsal from a topic branch's own copy of this file
-# is a different ref from a scheduled production run's `main` checkout, but
-# both push to the SAME fixed recapture head branch
-# (`ci/recapture-charter-shard-timings`), because that head branch is a
+# Static (NOT `${{ github.ref }}`-suffixed), deliberately. Every run that
+# can reach the recapture job (the schedule, or a manual `workflow_dispatch`
+# on `main` -- topic-branch dispatches are skipped by its `main` gate) pushes
+# to the SAME fixed recapture head branch (`ci/recapture-charter-shard-
+# timings`) and open-PR-checks against it, because that head branch is a
 # constant, never derived from the triggering ref. A per-ref group (like
-# ci-nightly.yml's) would key the two runs' concurrency slots on different
-# refs, letting a rehearsal race a concurrent `main` run on the one thing
-# they actually share -- the fixed target branch both push to and both
-# open-PR-check against. The static group keys both runs on the same slot
-# regardless of triggering ref, so they correctly queue behind each other
-# (C-006).
+# ci-nightly.yml's) would give a topic-branch dispatch its own slot; the
+# static group keys every run on one slot regardless of triggering ref, so
+# overlapping runs queue behind each other instead of racing on that shared
+# branch (C-006) -- defense-in-depth behind the `main` gate.
 concurrency:
   group: ci-charter-shard-recapture
   cancel-in-progress: false
@@ -99,6 +103,8 @@ permissions:
 
 jobs:
   recapture-charter-shard-timings:
+    # F4: never publish a topic branch's capture -- see the header comment.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     # 18-minute measured local capture time (scripts/ci/capture_shard_timings.py
     # --module charter --write) x ~1.5 headroom, rounded up, mirroring

@@ -936,3 +936,10 @@ def test_workflow_never_overrides_runner_default_github_env_vars() -> None:
     for step in _recapture_job()["steps"]:
         overridden = sorted(key for key in step.get("env", {}) if key.startswith("GITHUB_"))
         assert overridden == [], f"step {step.get('name')!r} overrides {overridden}"
+
+
+def test_recapture_job_only_runs_on_main() -> None:
+    """F4: a `workflow_dispatch` from a topic branch must never commit that branch's
+    capture onto the fixed recapture branch (or open a PR from it) -- the job is gated
+    to `refs/heads/main`."""
+    assert _recapture_job().get("if") == "github.ref == 'refs/heads/main'"
