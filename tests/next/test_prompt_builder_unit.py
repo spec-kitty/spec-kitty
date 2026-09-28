@@ -16,7 +16,7 @@ from runtime.next.prompt_builder import (
     _mission_context_header,
     build_decision_prompt,
     _governance_context,
-    _read_wp_content,
+    _read_wp_task,
     _write_to_temp,
     build_prompt,
 )
@@ -28,6 +28,7 @@ from runtime.next.prompt_builder import (
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
 
 @pytest.fixture
 def feature_dir(tmp_path: Path) -> Path:
@@ -98,19 +99,29 @@ class TestBuildDecisionPrompt:
 # ---------------------------------------------------------------------------
 
 
-class TestReadWPContent:
+class TestReadWPTask:
     def test_reads_existing_wp(self, feature_with_wp: Path) -> None:
-        content = _read_wp_content(feature_with_wp, "WP01")
+        wp_file, metadata, content = _read_wp_task(feature_with_wp / "tasks", "WP01", "042-test-feature")
+        assert wp_file.name == "WP01.md"
+        assert metadata.work_package_id == "WP01"
         assert "WP01 Content" in content
 
-    def test_missing_wp(self, feature_dir: Path) -> None:
+    def test_missing_wp_raises_with_recovery(self, feature_dir: Path) -> None:
         (feature_dir / "tasks").mkdir()
-        content = _read_wp_content(feature_dir, "WP99")
-        assert "not found" in content.lower()
+        with pytest.raises(FileNotFoundError, match="Restore or regenerate"):
+            _read_wp_task(feature_dir / "tasks", "WP99", "042-test-feature")
 
-    def test_missing_tasks_dir(self, feature_dir: Path) -> None:
-        content = _read_wp_content(feature_dir, "WP01")
-        assert "missing" in content.lower()
+    def test_missing_tasks_dir_raises_with_recovery(self, feature_dir: Path) -> None:
+        with pytest.raises(FileNotFoundError, match="Canonical WORK_PACKAGE_TASK directory"):
+            _read_wp_task(feature_dir / "tasks", "WP01", "042-test-feature")
+
+    def test_unreadable_wp_raises_with_recovery(self, feature_dir: Path) -> None:
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01.md").mkdir()
+
+        with pytest.raises(ValueError, match="Could not read canonical WORK_PACKAGE_TASK file.*Restore or regenerate"):
+            _read_wp_task(tasks_dir, "WP01", "042-test-feature")
 
 
 # ---------------------------------------------------------------------------
@@ -183,11 +194,7 @@ def feature_with_planning_artifact_wp_no_owned_files(feature_dir: Path) -> Path:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     (tasks_dir / "WP02-planning.md").write_text(
-        "---\n"
-        "work_package_id: WP02\n"
-        "execution_mode: planning_artifact\n"
-        "---\n"
-        "# WP02 Planning\nDocs work.\n",
+        "---\nwork_package_id: WP02\nexecution_mode: planning_artifact\n---\n# WP02 Planning\nDocs work.\n",
         encoding="utf-8",
     )
     return feature_dir
@@ -197,9 +204,7 @@ class TestBuildPromptWPPlanningArtifact:
     """Coverage for the repo-root planning-artifact branch in _build_wp_prompt."""
 
     @pytest.mark.fast
-    def test_implement_prompt_for_planning_artifact_uses_repo_root_workspace_label(
-        self, feature_with_planning_artifact_wp: Path
-    ) -> None:
+    def test_implement_prompt_for_planning_artifact_uses_repo_root_workspace_label(self, feature_with_planning_artifact_wp: Path) -> None:
         # planning_artifact WPs now use lane-planning (FR-103/FR-105).
         # The workspace label reflects the unified lane contract.
         repo_root = feature_with_planning_artifact_wp.parent.parent
@@ -216,9 +221,7 @@ class TestBuildPromptWPPlanningArtifact:
         path.unlink()
 
     @pytest.mark.fast
-    def test_review_prompt_for_planning_artifact_without_claim_commit_says_unavailable(
-        self, feature_with_planning_artifact_wp: Path
-    ) -> None:
+    def test_review_prompt_for_planning_artifact_without_claim_commit_says_unavailable(self, feature_with_planning_artifact_wp: Path) -> None:
         """planning_artifact WPs now use lane-planning (FR-103/FR-105).
         Review commands use the target branch as the diff base."""
         repo_root = feature_with_planning_artifact_wp.parent.parent
@@ -237,9 +240,7 @@ class TestBuildPromptWPPlanningArtifact:
         path.unlink()
 
     @pytest.mark.git_repo
-    def test_review_prompt_with_claim_commit_emits_pathspec_review_commands(
-        self, feature_with_planning_artifact_wp: Path
-    ) -> None:
+    def test_review_prompt_with_claim_commit_emits_pathspec_review_commands(self, feature_with_planning_artifact_wp: Path) -> None:
         """planning_artifact WPs now use lane-planning (FR-103/FR-105).
         Review commands use the target branch as the diff base (no pathspec scoping)."""
         import subprocess
@@ -269,9 +270,7 @@ class TestBuildPromptWPPlanningArtifact:
         path.unlink()
 
     @pytest.mark.git_repo
-    def test_review_prompt_with_claim_commit_no_owned_files_has_empty_pathspec(
-        self, feature_with_planning_artifact_wp_no_owned_files: Path
-    ) -> None:
+    def test_review_prompt_with_claim_commit_no_owned_files_has_empty_pathspec(self, feature_with_planning_artifact_wp_no_owned_files: Path) -> None:
         import subprocess
 
         repo_root = feature_with_planning_artifact_wp_no_owned_files.parent.parent
@@ -318,6 +317,8 @@ class TestBuildPromptWP:
         assert "WORK PACKAGE PROMPT ENDS" in text
         assert "WP01 Content" in text
         assert "for_review" in text  # completion instruction
+        assert "<subtask-ids>" not in text
+        assert "No subtask completion command is needed" in text
         assert path.exists()
         path.unlink()
 
@@ -358,9 +359,7 @@ class TestBuildPromptWP:
         assert "Production fragility" in text
         path.unlink()
 
-    def test_implement_prompt_for_non_python_charter_contains_no_python_default_bias(
-        self, feature_with_wp: Path
-    ) -> None:
+    def test_implement_prompt_for_non_python_charter_contains_no_python_default_bias(self, feature_with_wp: Path) -> None:
         repo_root = feature_with_wp.parent.parent
         charter_dir = repo_root / ".kittify" / "charter"
         charter_dir.mkdir(parents=True, exist_ok=True)

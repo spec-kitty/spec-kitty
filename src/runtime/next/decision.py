@@ -591,7 +591,7 @@ def _build_prompt_or_error(
         except OSError as exc:
             return None, (f"prompt template path is not stat-able for action '{action}': {exc}")
         return path_str, None
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         # No file-based template for this non-WP step (e.g. workflow-inserted
         # steps like ``design-review``, or global-runtime steps like
         # ``discovery`` that have no mission-step prompt file).  Rather than
@@ -608,7 +608,7 @@ def _build_prompt_or_error(
             os.write(marker_fd, composed_prompt.encode("utf-8"))
             os.close(marker_fd)
             return marker_path, None
-        return None, (f"prompt resolution failed for action '{action}': FileNotFoundError: no template found")
+        return None, (f"prompt resolution failed for action '{action}': FileNotFoundError: {exc}")
     except CharterPackConfigError as exc:
         # A corrupt/unreadable ``.kittify/config.yaml`` (bad encoding or
         # malformed YAML) is an operator-facing configuration fault, not an

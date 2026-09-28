@@ -19,7 +19,9 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
+    from specify_cli.status.wp_metadata import WPMetadata
 
+from pydantic import ValidationError
 from charter.activation.context import build_charter_context
 from charter.activation.pack_context import CharterPackConfigError
 from charter.activation.scope import CharterScopeConflict, CharterScopeNotFound
@@ -30,10 +32,11 @@ from charter.activation.mission_type_profiles import (
 )
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
 from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
+from specify_cli.frontmatter import FrontmatterError
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
-from specify_cli.status import read_wp_frontmatter
+from specify_cli.status import read_authored_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 
@@ -157,21 +160,19 @@ def _build_wp_prompt(
     mission_type: str,
 ) -> str:
     """Build prompt for implement or review actions with WP context."""
+    from mission_runtime import MissionArtifactKind, mission_context_for
+
+    mission_context = mission_context_for(repo_root, mission_slug)
+    task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
+    wp_file, wp_meta, wp_content = _read_wp_task(task_board_dir / "tasks", wp_id, mission_slug)
+
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
     workspace_path = workspace.worktree_path
-    wp_files = sorted((feature_dir / "tasks").glob(f"{wp_id}*.md"))
-    wp_meta = None
-    if wp_files:
-        wp_meta, _ = read_wp_frontmatter(wp_files[0])
-    subtask_ids = [str(item) for item in (wp_meta.subtasks if wp_meta is not None else []) if isinstance(item, str)]
-    subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
+    subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
     # WP06 (FR-004) — forward the WP frontmatter ``agent_profile`` to the
     # governance resolver so the profile's directive_references and
     # tactic_references are rendered into the prompt the agent will read.
     agent_profile_id = wp_meta.agent_profile if wp_meta is not None else None
-
-    # Read WP file content
-    wp_content = _read_wp_content(feature_dir, wp_id)
 
     lines: list[str] = []
     lines.append("=" * 80)
@@ -219,28 +220,26 @@ def _build_wp_prompt(
     if action == "review":
         review_paths = ""
         if not workspace.lane_id:
-            if wp_files:
-                wp_meta, _ = read_wp_frontmatter(wp_files[0])
-                if wp_meta.owned_files:
-                    review_pathspecs = list(wp_meta.owned_files)
-                    mission_root = f"kitty-specs/{mission_slug}/"
-                    if any(path.startswith(mission_root) for path in review_pathspecs):
-                        review_pathspecs.extend(
-                            [
-                                f":(exclude){mission_root}tasks/**",
-                                f":(exclude){mission_root}tasks.md",
-                                f":(exclude){mission_root}status.events.jsonl",
-                                f":(exclude){mission_root}status.json",
-                            ]
-                        )
-                    review_paths = " -- " + " ".join(review_pathspecs)
+            if wp_meta.owned_files:
+                review_pathspecs = list(wp_meta.owned_files)
+                mission_root = f"kitty-specs/{mission_slug}/"
+                if any(path.startswith(mission_root) for path in review_pathspecs):
+                    review_pathspecs.extend(
+                        [
+                            f":(exclude){mission_root}tasks/**",
+                            f":(exclude){mission_root}tasks.md",
+                            f":(exclude){mission_root}status.events.jsonl",
+                            f":(exclude){mission_root}status.json",
+                        ]
+                    )
+                review_paths = " -- " + " ".join(review_pathspecs)
             claim = subprocess.run(
                 [
                     "git",
                     "log",
                     "--format=%H%x00%s",
                     "--",
-                    *(str(path) for path in wp_files),
+                    str(wp_file),
                 ],
                 cwd=repo_root,
                 capture_output=True,
@@ -288,7 +287,11 @@ def _build_wp_prompt(
     # Completion instructions
     lines.append("WHEN DONE:")
     if action == "implement":
-        lines.append(f"  spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+        if subtask_ids:
+            subtask_cmd = " ".join(subtask_ids)
+            lines.append(f"  spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+        else:
+            lines.append("  No subtask completion command is needed; this work package declares no subtasks.")
         lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
     else:
         lines.append(f'  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --mission {mission_slug} --note "Review passed"')
@@ -457,21 +460,25 @@ def _legacy_governance_context(repo_root: Path) -> str:
     return "\n".join(lines)
 
 
-def _read_wp_content(feature_dir: Path, wp_id: str) -> str:
-    """Read WP file content from the tasks directory."""
-    tasks_dir = feature_dir / "tasks"
+def _read_wp_task(tasks_dir: Path, wp_id: str, mission_slug: str) -> tuple[Path, WPMetadata, str]:
+    """Load the exact WP file, authored metadata, and body from its task surface."""
+    recovery = f"Restore or regenerate the task file under {tasks_dir}, then rerun `spec-kitty next --mission {mission_slug}`."
     if not tasks_dir.is_dir():
-        return f"[WP file not found: tasks directory missing at {tasks_dir}]"
+        raise FileNotFoundError(f"Canonical WORK_PACKAGE_TASK directory for {wp_id} is missing at {tasks_dir}. {recovery}")
 
-    # Find matching WP file
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
-        if wp_file.stem.startswith(wp_id):
-            try:
-                return wp_file.read_text(encoding="utf-8")
-            except OSError:
-                return f"[Error reading {wp_file}]"
+    wp_file = next(
+        (path for path in sorted(tasks_dir.glob("WP*.md")) if path.stem == wp_id or path.stem.startswith(f"{wp_id}-")),
+        None,
+    )
+    if wp_file is None:
+        raise FileNotFoundError(f"Canonical WORK_PACKAGE_TASK file for {wp_id} was not found under {tasks_dir}. {recovery}")
 
-    return f"[WP file not found for {wp_id} in {tasks_dir}]"
+    try:
+        wp_meta, _ = read_authored_wp_frontmatter(wp_file)
+        wp_content = wp_file.read_text(encoding="utf-8")
+    except (FrontmatterError, OSError, UnicodeError, ValidationError) as exc:
+        raise ValueError(f"Could not read canonical WORK_PACKAGE_TASK file {wp_file}: {exc}. {recovery}") from exc
+    return wp_file, wp_meta, wp_content
 
 
 def _write_to_temp(

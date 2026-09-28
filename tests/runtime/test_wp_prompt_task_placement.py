@@ -75,7 +75,7 @@ def _assert_task_prompt(decision: Decision, *, action: str, repo_root: Path, mis
 
     prompt = Path(decision.prompt_file).read_text(encoding="utf-8")
     body = prompt.partition(_WP_PROMPT_START)[2].partition(_WP_PROMPT_END)[0]
-    assert body == _EXPECTED_WP_TASK.rstrip("\n")
+    assert body == _EXPECTED_WP_TASK
     assert "agent_profile: implementer-ivan" in body
     assert "subtasks:\n  - WP01.1\n  - WP01.2" in body
     assert "<subtask-ids>" not in prompt
