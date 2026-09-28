@@ -8,9 +8,12 @@ every subsequent extraction WP.
 It pins, independently of the implementation source:
 
 * the exact set of registered subcommand names (set-equality, order-free);
-  24 as of #4130, which added ``bytecode`` (installed-package .pyc
-  corruption check, #4124's detection half) via the same auto-discovery seam,
-  on top of the 23 as of operator-config-ergonomics-01M04YK8, which added the
+  25 as of #4757 (``ed6d34e75``), which added ``decisions`` (diagnose/repair
+  ``decisions/index.json`` vs. the authoritative event log, FR-004/FR-005) as
+  a hand-written ``@app.command`` shell, on top of the 24 as of #4130, which
+  added ``bytecode`` (installed-package .pyc corruption check, #4124's
+  detection half) via the same auto-discovery seam, on top of the 23 as of
+  operator-config-ergonomics-01M04YK8, which added the
   ``provenance`` (WP03, C-PRV-5 leak-check), ``channel`` (WP05, C-CHN-3 rc
   release-channel report), and ``env-file`` (WP06, T019 ``.kitty.env`` health
   report) subcommands -- each registered via the ``doctor.py`` auto-discovery
@@ -62,7 +65,7 @@ _apply_short_help_options(app)
 # 16 de-godding names (#2059) + ``contracts`` (#2441, Contract Registry validator).
 # operator-config-ergonomics adds ``provenance`` (WP03), ``channel`` (WP05), and
 # ``env-file`` (WP06) on top of main's ``mission-type`` (mission-type-guard-registry
-# WP02): 23 total.
+# WP02), ``bytecode`` (#4130), and ``decisions`` (#4757, ``ed6d34e75``): 25 total.
 
 FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
     {
@@ -88,6 +91,7 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "channel",
         "env-file",
         "bytecode",
+        "decisions",
     }
 )
 
@@ -137,6 +141,7 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     "channel": {"--json": "flag"},
     "env-file": {"--json": "flag"},
     "bytecode": {"--json": "flag"},
+    "decisions": {"--mission": "value", "--json": "flag", "--repair": "flag"},
 }
 
 # Golden ``--help`` snapshots (whitespace-normalized) per subcommand.
@@ -410,7 +415,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "without mutating when the coord worktree is on another branch, detached,",
         "or not a worktree of this repository. ``Fast-forwarded`` is printed only",
         "once the coord branch really matches the target. Safe to run on",
-        "100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.",
+        "100%-done missions before ``spec-kitty next`` or ``spec-kitty consolidate``.",
         "With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target",
         "staleness (FR-008) — non-blocking either way.",
         "With ``--mission <handle>``, scopes every per-mission check (and the",
@@ -472,11 +477,11 @@ EXPECTED_HELP: dict[str, list[str]] = {
     ],
     "provenance": [
         "Usage: doctor provenance [OPTIONS]",
-        "Flag committed absolute built-in-pack source_path leaks (C-PRV-5).",
+        "Flag committed absolute built-in-pack leaks and ambiguous template sources (C-PRV-5).",
         "Scans .kittify/charter/charter.yaml's catalog and",
-        ".kittify/agent_profiles_manifest.json for a source_path that should",
-        "be a ${SPEC_KITTY_PACKS_ROOT}/built-in/... token but is not, and",
-        "prints a heal hint for each. Read-only -- never mutates state.",
+        ".kittify/agent_profiles_manifest.json for source_path values that",
+        "should be portable pack tokens. Read-only -- never mutates state;",
+        "ambiguous former-checkout paths are reported without a heal hint.",
         "Examples:",
         "spec-kitty doctor provenance",
         "spec-kitty doctor provenance --json",
@@ -526,6 +531,35 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor bytecode --json",
         "Options",
         "--json Machine-readable JSON output",
+        "--help -h Show this message and exit.",
+    ],
+    "decisions": [
+        "Usage: doctor decisions [OPTIONS]",
+        "Diagnose or repair divergence between ``decisions/index.json`` and the authoritative "
+        "``DecisionPointOpened``/``DecisionPointResolved`` event log (FR-004/FR-005).",
+        "Diagnose (default): read-only; reports decisions present in the event",
+        "log but missing from the index, and index entries with no backing event.",
+        "``--repair``: rebuilds ``index.json`` from the log via the single",
+        "canonical ``event -> IndexEntry`` fold",
+        "(:mod:`specify_cli.decisions.index_fold`) under the same sidecar lock the",
+        "write path uses — never invents an entry absent from the log, never",
+        "drops a log-backed entry. A no-op (no write) when the log and index",
+        "already agree.",
+        "Run ``--repair`` as an offline maintenance step, not concurrently with",
+        "live decision traffic: a decision that is mid-open (its index entry",
+        "written under the sidecar lock, its event not yet appended) is briefly",
+        "invisible to a log-authoritative rebuild, so a repair racing that window",
+        "can drop the in-flight entry (a later ``--repair`` heals it). Like",
+        "``fsck``, it is meant to run when writers are quiesced.",
+        "Informational only: always exits 0.",
+        "Examples:",
+        "spec-kitty doctor decisions --mission my-mission-01ABCD",
+        "spec-kitty doctor decisions --mission my-mission-01ABCD --repair",
+        "spec-kitty doctor decisions --mission my-mission-01ABCD --json",
+        "Options",
+        "* --mission TEXT Mission handle (mission_id / mid8 / slug) [required]",
+        "--json Machine-readable JSON output",
+        "--repair Rebuild decisions/index.json from the event log (run offline; not against live decision traffic)",
         "--help -h Show this message and exit.",
     ],
 }

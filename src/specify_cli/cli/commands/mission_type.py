@@ -186,31 +186,21 @@ def current_cmd(
             console.print(f"[red]Mission not found:[/red] {mission_slug}")
             raise typer.Exit(1)
 
-        # FR-005 (#3831): `get_mission_for_feature` signals a software-dev
-        # fallback substitution only via `warnings.warn` (mission.py, unchanged
-        # by this fix — every other caller keeps that exact signal). Under
-        # default warning filters that never reaches an operator running the
-        # CLI normally (and even under `-W always` it never reaches *this*
-        # command's stdout), so the substitution was previously invisible here.
-        # Capture that one warning locally and re-surface it loudly through the
-        # same `console` object already used for the two sibling exceptions
-        # just below (`MissionNotFoundError` / `MissionError`), without
-        # altering `mission.py`'s own warning behavior for any other caller.
+        # FR-005/#3831 fold (7a9c35728): the former warn-and-substitute-to-
+        # software-dev fallback this loop used to special-case is retired --
+        # an unresolvable typed `mission_type` now raises
+        # `MissionNotFoundError` instead (handled by the sibling `except`
+        # below), so no warning is ever emitted for that case any more.
+        # `catch_warnings(record=True)` still captures EVERY warning raised
+        # inside `get_mission_for_feature` (mission.py); anything that
+        # surfaces here is genuinely unrelated, so it is re-emitted through
+        # the normal `warnings` machinery (so a caller's own filter/handler
+        # still sees it) rather than dropped on the floor.
         with warnings.catch_warnings(record=True) as caught_warnings:
             warnings.simplefilter("always")
             loaded_mission = get_mission_for_feature(feature_dir, project_root)
         for caught in caught_warnings:
-            if issubclass(caught.category, UserWarning) and "using software-dev as default" in str(caught.message):
-                console.print(f"[yellow]Warning:[/yellow] {caught.message}")
-            else:
-                # #3831 fold: `catch_warnings(record=True)` captures EVERY
-                # warning raised inside the block, not just the fallback one
-                # this command specifically surfaces above — anything else
-                # was previously dropped on the floor. Re-emit it through the
-                # normal warnings machinery so it still reaches whatever
-                # filter/handler the caller has configured, instead of being
-                # silently swallowed by this command's own capture.
-                warnings.warn_explicit(caught.message, caught.category, caught.filename, caught.lineno)
+            warnings.warn_explicit(caught.message, caught.category, caught.filename, caught.lineno)
         context = f"Mission: {mission_slug}"
 
     except MissionNotFoundError as exc:

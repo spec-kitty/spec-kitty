@@ -135,7 +135,7 @@ def test_decision_open_corrupt_events_log_presents_typed_error_not_traceback(
 
 
 @pytest.mark.regression
-def test_decision_open_corrupt_events_log_json_envelope_names_the_typed_kind(
+def test_decision_open_corrupt_events_log_json_envelope_names_the_typed_code(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """--json mode: exactly one JSON object naming the typed error kind."""
@@ -153,11 +153,16 @@ def test_decision_open_corrupt_events_log_json_envelope_names_the_typed_kind(
 
     assert exit_code == 1
     captured = capsys.readouterr()
-    assert captured.err == ""
-    lines = [line for line in captured.out.splitlines() if line.strip()]
+    # R21 (#5258, dd808bc4b): `cmd_open` owns the error via the decision-family
+    # stderr handler -- stdout carries nothing, and the single JSON envelope is
+    # on stderr.
+    assert captured.out == ""
+    lines = [line for line in captured.err.splitlines() if line.strip()]
     assert len(lines) == 1
     payload = json.loads(lines[0])
-    assert payload["kind"] == "DecisionEventLogReadError"
+    assert payload["code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
+    assert payload["error"], "the envelope must carry a non-empty human-readable error"
+    assert payload["details"]["events_path"] == str(events_path)
 
 
 def test_opened_event_exists_returns_false_when_events_log_absent() -> None:

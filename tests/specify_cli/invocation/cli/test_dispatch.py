@@ -794,8 +794,12 @@ def test_dispatch_non_git_project_json_envelope_is_parseable(tmp_path: Path) -> 
 
     assert result.exit_code == 1
     error_obj = json.loads(result.output)
-    assert error_obj["error"] == "git_resolution_failed"
-    assert "git init" in error_obj["message"]
+    # R22 (#5258, 45303ca90): adopted the canonical `json_error()` contract
+    # (`{"ok": False, "error": {"code": ..., "message": ...}}`) instead of the
+    # retired flat `{"error": <code>, "message": ...}` shape.
+    assert error_obj["ok"] is False
+    assert error_obj["error"]["code"] == "git_resolution_failed"
+    assert "git init" in error_obj["error"]["message"]
 
 
 def test_dispatch_dry_run_non_git_project_exits_1_with_git_init_advice(tmp_path: Path) -> None:

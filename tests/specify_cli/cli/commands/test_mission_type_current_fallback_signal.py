@@ -1,23 +1,27 @@
-"""FR-005/NFR-002: loud, CLI-visible signal when ``mission current`` falls back.
+"""FR-005/NFR-002 -> fail-closed (#3831, ``7a9c35728``): ``mission current`` on
+an unresolvable mission type.
 
-``get_mission_for_feature`` (``src/specify_cli/mission.py``) silently substitutes
-``software-dev`` when a feature's ``meta.json`` names a mission type that cannot be
-resolved, signalling only via ``warnings.warn`` — a signal that never reaches an
-operator running the CLI normally (default warning filters swallow it, and nothing
-in ``current_cmd`` ever looks at it). Issue #3831 / FR-005.
+The warn-and-substitute-to-``software-dev`` fallback this module originally
+pinned was removed on purpose. ``get_mission_for_feature``
+(``src/specify_cli/mission.py``) no longer emits a ``warnings.warn`` signal for
+a typed-but-unresolvable ``mission_type``; instead ``get_mission_by_name``
+raises ``MissionNotFoundError``, which propagates to ``current_cmd`` unchanged
+-- a visible, diagnosable failure (exit 1, printed to stdout) rather than a
+silent substitution an operator could miss under default warning filters.
 
 These tests drive the real, pre-existing entry point end-to-end
 (``spec-kitty mission-type current`` / ``current_cmd``) through
-:class:`typer.testing.CliRunner`, capturing real stdout the way an operator would
-see it — not ``pytest.warns`` in isolation, which only proves the warning object
-exists. ``get_mission_for_feature`` itself is NOT mocked: the fallback is produced
-for real, via a genuinely-unresolvable ``mission_type`` in a real ``meta.json``,
-resolving against the real packaged ``software-dev`` built-in mission.
+:class:`typer.testing.CliRunner`, capturing real stdout the way an operator
+would see it. ``get_mission_for_feature`` itself is NOT mocked: the failure is
+produced for real, via a genuinely-unresolvable ``mission_type`` in a real
+``meta.json``.
 
 Both directions are proven (SC-004 / NFR-005 non-vacuity):
-* the loud signal is PRESENT when the fallback fires (T001/T003a), and
-* the loud signal is ABSENT when mission-type resolution succeeds normally,
-  including the pinned legacy no-mission-field path (T003b/T004).
+* the fail-closed error IS present, deterministically across repeats, when
+  resolution fails (T001/T003a), and
+* it is ABSENT when mission-type resolution succeeds normally, including the
+  pinned legacy no-mission-field path (T003b/T004) and a resolvable type
+  through which an unrelated warning is still re-emitted (T005, #3831 fold).
 """
 
 from __future__ import annotations
@@ -58,46 +62,30 @@ def _invoke_current(tmp_path: Path, mission_slug: str):
 
 
 class TestFallbackSignalPresent:
-    """T001/T003a: the loud signal IS present when the fallback fires."""
+    """T001/T003a/R15 (re-pinned to fail-closed, #3831 / ``7a9c35728``): an
+    unresolvable mission type is now a loud, deterministic ERROR -- never a
+    silent software-dev substitution."""
 
-    def test_unresolvable_mission_type_prints_loud_cli_warning(self, tmp_path: Path) -> None:
+    def test_unresolvable_mission_type_fails_closed_with_loud_error(self, tmp_path: Path) -> None:
         mission_slug = "999-unresolvable-mission-type"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         _write_meta(feature_dir, mission_type="totally-nonexistent-mission-type-xyz")
 
-        result = _invoke_current(tmp_path, mission_slug)
-
-        assert result.exit_code == 0, result.output
-        # The real fallback fired (proves this is not a mocked/no-op repro):
-        # the panel still renders successfully using the substituted mission.
-        assert "Active Mission" in result.output
-        # SC-004 evidence bar: a real, operator-visible line naming the
-        # substitution — not just the panel rendering silently as if the
-        # requested mission type had been found.
-        assert "Warning" in result.output
-        assert "totally-nonexistent-mission-type-xyz" in result.output
-        assert "software-dev" in result.output
-
-    def test_signal_survives_default_warning_filters(self, tmp_path: Path) -> None:
-        """Repro of the pre-fix defect: under *default* filters (no
-        ``simplefilter('always')``, no ``pytest.warns``), a bare
-        ``warnings.warn`` is frequently suppressed outright (Python's default
-        'once per location' filter) and never lands in CLI output at all. The
-        loud signal must appear in real captured stdout regardless.
-        """
-        mission_slug = "999-repeat-unresolvable"
-        feature_dir = tmp_path / "kitty-specs" / mission_slug
-        _write_meta(feature_dir, mission_type="totally-nonexistent-mission-type-xyz")
-
-        # Invoke twice: a bare module-level warnings.warn is filtered to fire
-        # only once per (message, category, lineno) under the default filter,
-        # so a second invocation is exactly what would previously go silent.
-        _invoke_current(tmp_path, mission_slug)
-        result = _invoke_current(tmp_path, mission_slug)
-
-        assert result.exit_code == 0, result.output
-        assert "Warning" in result.output
-        assert "totally-nonexistent-mission-type-xyz" in result.output
+        # Invoke twice and assert the identical outcome both times: fail-closed
+        # must be deterministic across repeats. (The retired warn-and-substitute
+        # path was the opposite -- a bare module-level `warnings.warn` fires only
+        # once per (message, category, lineno) under default filters, so a
+        # second invocation used to go silent; that flakiness is gone with the
+        # fallback itself.)
+        for _ in range(2):
+            result = _invoke_current(tmp_path, mission_slug)
+            assert result.exit_code == 1, result.output
+            assert "Error" in result.output
+            assert "not found" in result.output
+            assert "totally-nonexistent-mission-type-xyz" in result.output
+            # No silent substitution: the panel that would name the
+            # substituted mission is never reached.
+            assert "Active Mission" not in result.output
 
 
 class TestFallbackSignalAbsent:
@@ -138,19 +126,19 @@ class TestFallbackSignalAbsent:
 
 class TestNonFallbackWarningsReemitted:
     """#3831 fold: ``catch_warnings(record=True)`` captures EVERY warning
-    raised inside the block, not just the fallback substring this command
-    specifically prints -- an unrelated warning raised anywhere in the
-    ``get_mission_for_feature`` call path was previously dropped on the
-    floor with no trace. It must now be re-emitted through the normal
-    ``warnings`` machinery (so a caller's own filter/handler still sees it),
-    while the fallback signal itself keeps printing exactly as before."""
+    raised inside the block -- an unrelated warning raised anywhere in the
+    ``get_mission_for_feature`` call path must not be dropped on the floor
+    with no trace. It is re-emitted through the normal ``warnings`` machinery
+    (so a caller's own filter/handler still sees it) on a RESOLVABLE mission
+    type, so the re-emit loop actually runs (the retired fallback-print
+    branch it used to share a code path with is gone -- see R16)."""
 
-    def test_unrelated_warning_is_reemitted_while_fallback_still_prints(self, tmp_path: Path) -> None:
+    def test_unrelated_warning_is_reemitted_on_resolvable_mission_type(self, tmp_path: Path) -> None:
         from specify_cli.mission import get_mission_for_feature as real_get_mission_for_feature
 
         mission_slug = "999-unrelated-warning"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
-        _write_meta(feature_dir, mission_type="totally-nonexistent-mission-type-xyz")
+        _write_meta(feature_dir, mission_type="software-dev")
 
         def _wrapped(feature_dir_arg: Path, project_root_arg: Path | None = None):
             warnings.warn("unrelated diagnostic warning xyz123", UserWarning, stacklevel=2)
@@ -163,7 +151,8 @@ class TestNonFallbackWarningsReemitted:
             result = _invoke_current(tmp_path, mission_slug)
 
         assert result.exit_code == 0, result.output
-        # The re-emitted unrelated warning must not have replaced or
-        # suppressed the fallback's own loud CLI signal.
-        assert "Warning" in result.output
-        assert "software-dev" in result.output
+        assert "Active Mission" in result.output
+        # The retired fallback-print branch is gone (R16): a resolvable
+        # mission type prints no CLI "Warning" line even though an unrelated
+        # warning was re-emitted through the `warnings` machinery above.
+        assert "Warning" not in result.output
