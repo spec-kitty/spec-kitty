@@ -1,0 +1,269 @@
+{
+  "event_count": 78,
+  "last_event_id": "01M3M62DY6VWZM183DN5JSQXJJ",
+  "materialized_at": "2026-09-28T14:18:00.518419+00:00",
+  "mission_number": "",
+  "mission_slug": "exit-zero-data-intact-01M3KDAS",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3KW62ZM36P9Q92WX6TJXWV7",
+      "last_transition_at": "2026-09-28T11:25:14.612673+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: kernel.text_decode (decode_unambiguous/detect_bom/normalize_newlines, stdlib-only) added; charter.encoding_recovery delegates BOM detection (UTF-32 ordering fix, red-first pinned) and charter.hasher.hash_content delegates newline normalization. Tests: tests/kernel/test_text_decode.py + tests/charter/test_encoding_recovery_bom_delegation.py (new, all green) + tests/charter/test_encoding_recovery.py + test_hasher.py (unchanged/extended, green). Gates: ruff check/format, mypy --strict all clean. Architectural gates (layer_rules, encoding_recovery_unification, meta_decode_l1, ruff_format_enforcement) green. Fast-tier baseline: 2374 passed, 1 pre-existing unrelated fail (test_destination_health_check_oserror_falls_through_to_render, confirmed red on unmodified src/ too), 10 skipped.",
+        "Review passed (reviewer-renata): stdlib-only kernel/text_decode.py; API as contracted; UTF-32 fix red-first verified (4 fail on base); BOM+undecodable still raises; existing recover tests unchanged+green; hasher digest byte-identical; ruff/mypy strict/C901 clean; fast tier 2082 pass, 1 pre-existing red (root-in-container, also red on base)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 12176,
+      "shell_pid_created_at": "1790592268.91",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3KZBQCAY82ZHG5DJVV483D9",
+      "last_transition_at": "2026-09-28T12:20:45.066584+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: order-independent decisions fold (#4919). index_fold.py: single transition-rule authority + order-independent fold_events; service.py delegates; _decisions_doctor.py diagnose now runs the fold and reports malformed_folds/status_mismatch on read-only too; --repair exits 1 on unresolved malformed decisions. Tests: tests/decisions/test_defer_resolve_repair_4919.py (FR-001..FR-004, red-first confirmed against unmodified code, 7 failures -> green). Full gate suite green: tests/decisions tests/specify_cli/decisions tests/architectural/{test_cli_error_surface_seam,test_status_module_boundary,test_layer_rules,test_no_legacy_terminology,test_json_contract_enumeration} tests/integration/test_accept_matrix_coord_partition tests/status/test_authoritative_non_lane_registry_4897 plus mypy --strict/ruff clean on changed files. Fast-tier baseline: 2374 passed, 1 pre-existing unrelated failure (test_agent_commands.py::TestFreshnessShortCircuitOSErrorFallthrough::test_destination_health_check_oserror_falls_through_to_render, outside owned_files, not touched by this diff).",
+        "Rework cycle 1 complete: (1) index_fold._select_terminal_event now derives foldability from ALLOWED_TERMINAL_REOPEN/is_allowed_terminal_reopen (single authority), no hard-coded outcome set. (2) Added malformed-case coverage: parametrized CLI tests (two-resolved, resolved+canceled, two-deferred, 3-event) asserting diagnose malformed_folds/clean:false and --repair exit 1 + byte-identical index/log, plus a fold-level FoldError-message unit test. (3) Stale-status test now asserts the diagnose JSON report (clean:false, exact status_mismatch item) and repair exit code/outcome. (4) --json refusals now carry a remedy field (_malformed_fold_remedy_text, shared with human mode) -- red-first confirmed (KeyError on old code). Non-blocking: FR-001 now drives the root Typer app; type:ignore[type-arg] replaced with typed dict[str, Any]; _fold_diagnostics mirrors _rebuild_index_from_log's slot_key-origin skip. Tests: tests/decisions/test_defer_resolve_repair_4919.py 16 passed (was 8). tests/decisions + tests/specify_cli/decisions: 211 passed, 8 skipped. Named architectural gates + doctor-decisions consumers: 343 passed. mypy --strict/ruff clean.",
+        "Review passed (cycle 2): all 4 blocking + 3 non-blocking cycle-1 items verified in 56c562a7. Fold derives pair acceptance from is_allowed_terminal_reopen (single authority, order-independent, no cycle); malformed combos (two-resolved, resolved+canceled, two-deferred, 3 events) tested at CLI + fold level; mutation probe (accept any pair) killed 6 tests; stale-status test asserts clean:false + status_mismatch item + repair exit 0; JSON refusal carries shared remedy (left in place + agent decision list + status.events.jsonl), asserted; FR-001 via root app; typed dicts replace type-ignores; slot_key-origin skipped in diagnose. Red-first confirmed cycle 1 (7/8 red on base). Tests: decisions 211 passed/8 skipped; doctor consumers + 4 arch gates 377 passed; ruff/format/mypy --strict clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 13848,
+      "shell_pid_created_at": "1790595668.73",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3M2TWKAM5B8AH07GJXRW71P",
+      "last_transition_at": "2026-09-28T13:21:27.658931+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: driver fix (FR-007), unconditional target-tree write + read-back verify (FR-005/006), canonical is_assigned_mission_number leaf. Tests: tests/consolidation/test_mission_number_truthful_4900.py (18 new, shown RED pre-fix on the sequential-consolidate + hand-numbered repros), test_ordering_bake_seam.py (38 pass, re-pinned), test_merge_drivers.py (19 pass), test_no_dead_symbols.py (34 pass, re-pinned + __all__ trim), architectural gates (267 pass, 1 unrelated pre-existing red in test_doctor_cli_surface_golden.py), fast tier (2374 pass, 1 unrelated pre-existing red in test_agent_commands.py), mypy --strict clean on new/changed code (4 pre-existing executor.py no-any-return errors untouched). Deviation noted in commit: ruff format reformatted all of executor.py (pre-existing format-noncompliant baseline, confirmed via git stash; could not revert due to destructive-action guard on git checkout).",
+        "Rework cycle 1 addressed: (1) mission_number_baked moved to post-verification only (executor._verify_and_announce_mission_number), removed from all 3 pre-verification ordering.py sites. (2) FR-007 target-wins via new independent working-tree read (ordering._read_target_tree_mission_number), deliberately NOT the git-show seam verification uses, avoiding a vacuous self-agreeing check. (3) New tests: target-wins (red-confirmed via git-archive base copy), stdout assertions on all 3 consolidate tests, NFR-003 remedy+expected-number assertions on mismatch test, resume test + read_mission_number_from_ref unit tests. (4) regression marker removed. Deviation: did NOT implement literal 'refuse when no number determined' -- verified live it breaks 8 pre-existing unrelated tests that mock/skip the bake entirely (a pervasive, intentional degrade path); the resume-safety gap is closed instead by (2)'s target-first independent resolution. Full rationale + blast-radius test counts in commit 2f402d24 message.",
+        "Review cycle 2 passed (2f402d24). Verified: all 6 cycle-1 items fixed. mission_number_baked is now marked only in executor._verify_and_announce_mission_number after the target assert. Expected-number resolution is target working tree, then this run's bake, then the mission branch (target wins). The new target-wins test fails on 96f66a77 (git archive) and passes now. Exact 'Assigned mission_number=N' stdout assertions added; the resume test takes the success path and records 1. The mismatch test now asserts the expected number and both remedies. Regression marker removed. The None degrade path (no write, no verify, no Assigned line, no flag) is accepted: no false claim is made, and after a failed verify the resume finds the committed value on the target. Tests on lane: 814 passed / 1 xfailed over 46 consolidation files plus the prerequisites and agent-feature tests; named arch gates 268 passed / 1 skipped. The doctor golden reds (2) reproduce identically on a git-archive base copy ('decisions' subcommand): pre-existing. ruff check clean; mypy --strict shows only the 4 no-any-return errors already on base. Coordination: lane-d (WP04) also edits consolidation/executor.py, which WP03 reformatted in full, so expect a textual conflict at consolidation. Non-blocking: test_mission_number_idempotency.py is touched but still unformatted (already unformatted on base); the planning-only path still prints '✓ Assigned' before verification; no integration test pins the flag timing."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 11961,
+      "shell_pid_created_at": "1790600768.81",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3KZQCXTT0V8B8VJD83WFADE",
+      "last_transition_at": "2026-09-28T12:27:07.578686+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T019-T022 done. #4933: coordination/coherence.py::is_self_bookkeeping_churn's meta.json exemption anchored depth-exact ((?:^|/)kitty-specs/[^/]+/meta.json$ + legacy .kittify/meta.json$), replacing the basename-only PurePosixPath(...).name==meta.json check. Red-first: tests/consolidation/test_user_meta_json_dirty_4933.py proved the bug live (dirty src/app/meta.json let spec-kitty consolidate proceed to a full squash-merge commit in the primary-checkout case, and to worktree removal in the lane-worktree case; aggregation dropped meta.json from a multi-file refusal). Green post-fix, FR-010 owned-meta.json controls unchanged. Tests: new+owned files 32 passed; +test_issue_2795_claim_blocker.py 42 passed; full is_self_bookkeeping_churn/is_toolchain_generated_churn caller-class grep sweep (18 files) 212 passed / 5 failed, all 5 confirmed pre-existing on unmodified src/ (CoordinationWorktreeUnmaterialized / LaneNamingSlugMismatch in tests/integration/test_merge_lane_planning_data_loss.py, unrelated to this diff). Architectural gates (exemption_registry_ratchet, destructive_op_routing, layer_rules) 122 passed. ruff check/format clean, mypy --strict clean on coherence.py. make test-fast baseline was still completing at handoff (heavy shared-machine contention, ~15min, 99%+ progress, single F at 78%% consistent with documented pre-existing fast-tier reds) - recorded here for the reviewer to confirm final tally.",
+        "Rework cycle 1 complete, addressing reviewer-renata's feedback + orchestrator-added item. (1) NFR-003 remedy assertion strengthened to the real Remediation:-Commit,-stash,-or-revert-the-local-changes line in primary-arm and aggregation tests. (2) FR-009/NFR-003 assertions added to lane-worktree arm (worktree path + remedy), COLUMNS=400 pinned to avoid Rich line-wrap. (3) pytest.mark.regression removed from pytestmark. (4) Orchestrator-escalated: coherence.py's fix exposed a pre-existing bug in consolidation/executor.py::_report_pre_mutation_refusal -- classify_resume_dirty_remedy misfires BEHIND_OWN_HEAD on every FRESH consolidation (mission branch is trivially an ancestor of HEAD before lanes merge), so the refusal advised git reset --hard HEAD, which would destroy the dirty user meta.json #4933 protects. Fixed by gating the upgraded guidance on preflight.is_pure_behind_head_lag (the same content proof #4997's --resume auto-recovery already requires), threaded via a new base_sha param sourced from a fresh load_state() read at both call sites; base_sha=None on a fresh consolidation (no persisted state) is fail-closed False, so it always falls through to the safe commit/stash/revert remedy. Out-of-map: touches only this one function + its two call sites in executor.py (owned by WP03's lane) -- no overlap with WP03's hunks. Re-pinned test_behind_head_recovery_coverage.py's two mock-call assertions to the new base_sha=None signature, with a #4933 comment. Committed as two separate commits per the orchestrator's instruction: 98b06fd1 (test-only assertion fixes) and 78a4c385 (the executor.py fix + its re-pin). Red-first confirmed live for item 4: reverted the executor.py fix, re-ran the primary-arm test, confirmed reset --hard HEAD appeared in the refusal output and the new assertion failed; restored the fix, confirmed green. Tests: test_user_meta_json_dirty_4933.py test_behind_head_recovery_coverage.py test_behind_head_remedy.py test_executor_lane_naming.py test_self_bookkeeping_allowlist.py test_issue_2795_claim_blocker.py test_exemption_registry_ratchet.py test_destructive_op_routing.py test_cli_error_surface_seam.py test_layer_rules.py -- 225 passed. test_repro_4997.py + test_resume_phantom_only.py (#4997/#5031 --resume recovery paths) re-verified green (126 passed together with ratchet/layer/self-bookkeeping/issue-2795 gates). ruff check + format --check clean on all touched files (scoped -- avoided a whole-file ruff format on executor.py since base has pre-existing line-length-164 drift unrelated to this change; verified new lines individually via an isolated syntactically-valid snippet extraction). mypy --strict on executor.py: same 4 pre-existing no-any-return errors as unmodified src/, none in new code.",
+        "Rework cycle 2 complete: reviewer-renata's coverage gap closed -- the POSITIVE branch of the #4933 executor fix (78a4c385) now has real-git tests. New TestReportPreMutationRefusalBehindHeadGuidance in tests/consolidation/test_user_meta_json_dirty_4933.py calls _report_pre_mutation_refusal directly against a real repo (commit A on main, lane branch commit B, git update-ref refs/heads/main B without touching the checkout -- a pure behind-own-HEAD lag), covering: (a) base_sha=A -> reset --hard HEAD guidance IS printed; (b) base_sha=None -> NOT printed, commit/stash remedy printed instead; (c) lag plus a genuine tracked-file edit with base_sha=A -> NOT printed (content proof fails). Also added test_preflight_with_recovery_threads_persisted_pre_mutation_target_sha_as_base_sha to test_behind_head_recovery_coverage.py: persists a real ConsolidationState via save_state with a distinctive pre_mutation_target_sha, drives the refusal path, and spies the mocked _report_pre_mutation_refusal call to assert base_sha equals the persisted sha (not just the None default the pre-existing tests happened to exercise). No production code changed this cycle -- the executor fix was already correct; this closes only the coverage gap. Committed as 261d188b. All 4 new tests pass individually; re-ran the full gate set (test_user_meta_json_dirty_4933.py test_behind_head_recovery_coverage.py test_behind_head_remedy.py test_executor_lane_naming.py test_self_bookkeeping_allowlist.py test_issue_2795_claim_blocker.py test_exemption_registry_ratchet.py test_destructive_op_routing.py test_cli_error_surface_seam.py test_layer_rules.py) -- 229 passed. ruff check + format --check clean on both touched test files (scoped diff -- verified the format-diff touched only my new lines before applying).",
+        "Review passed (cycle 3, reviewer-renata): depth-exact monorepo-safe meta.json anchor with function-local literals; red-first verified on a base snapshot (8 new tests fail on base, controls pass); FR-008/FR-009 arms go through _run_lane_based_consolidation, the edit survives, and the remedy and worktree path are pinned; the executor #4933 guidance fix is confined to _report_pre_mutation_refusal plus its 2 call sites, with no reformat creep. Mutation checks: dropping base_sha at the first call site fails the threading test; positive branch forced False fails case (a); reverting to the ancestry-only gate fails (b) and (c). Residual: dropping base_sha at the post-recovery call site survives but is near-equivalent (after a successful reset the tree equals HEAD, so pure-lag proof cannot hold). 130 passed on lane head; ruff/format clean on changed files; pre-existing reds (5 in test_merge_lane_planning_data_loss.py, 1 in test_agent_commands.py) also red on base. Follow-up: guidance for impure lag (lag plus user edit) lost the do-not-commit warning."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 30083,
+      "shell_pid_created_at": "1790597957.71",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3M4VF72GAYNKGN5H3AQN91S",
+      "last_transition_at": "2026-09-28T13:56:43.874969+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T023-T029 done. .claude/settings.json decode now routes through kernel.text_decode.decode_unambiguous (BOM or strict UTF-8 only); undecodable files raise SettingsNotDecodableError(GuardedReadError) instead of silently returning {}. Non-plain-UTF-8 sources get a byte-exact backup (asset_preservation.backup.backup_before_overwrite) before the UTF-8 rewrite. Fixed: _load/_save, prepare_commands/apply_prepared (init/upgrade writer path), doctor probe (session-presence-undecodable finding, STATE_UNSAFE, no traceback), has_presence propagates. agent config sync --sync-hooks / live-work install-uninstall already had no swallowing catch and now surface exit 1 with no source change needed. Tests: tests/specify_cli/session_presence/test_settings_encoding_4940.py 23/23 passed. Blast radius: tests/specify_cli/session_presence/ + tool_surface/providers/test_session_presence*.py + live_work/test_install.py + live_work/test_capability.py + cli/commands/test_lint_hooks.py + cli/commands/test_live_work.py + upgrade/migrations/test_m_3_2_0rc39_refresh_orientation_block.py = 413 passed, 1 skipped. Full tests/specify_cli/tool_surface/ = 1098 passed. Architectural gates (test_cli_error_surface_seam.py, test_overwrite_ownership_routing.py, test_layer_rules.py) = 105 passed. Fast-tier baseline = 2374 passed, 10 skipped, 1 pre-existing unrelated failure (test_agent_commands.py::TestFreshnessShortCircuitOSErrorFallthrough::test_destination_health_check_oserror_falls_through_to_render, confirmed red on the unmodified merge-base via git archive). ruff check + ruff format --check clean; mypy --strict clean on all changed src files.",
+        "Review cycle 1 rework (test-only, per feedback-WP05.md): production fix unchanged (commit 0b736d98, already verified end-to-end by reviewer). Added _assert_refusal(excinfo, path) shared helper and applied it at all 11 pytest.raises(SettingsNotDecodableError) sites so every refusal now pins both the settings path and the literal 're-save it as UTF-8' remedy text, not just the exception type. Tightened test_cli_subprocess_true_exit_code_for_sync_hooks to assert returncode == 1 plus path+remedy in the real subprocess output. Added test_cli_subprocess_upgrade_refuses_non_zero_settings_untouched (T024-3): a real 'python -m specify_cli upgrade --project --yes --target 3.2.0rc39 --no-worktrees' subprocess against a project one migration below target with a cp1252 settings.json -- exit 1, path+remedy in output, file byte-identical, no success line for 3_3_0_session_presence_claude_code. Manually verified this exact recipe's captured output before locking it in assertions. Commit f5d6a192 cites the reviewer's behavioural red-first evidence (20 failed/3 passed on a git-archive base with a stub error type, feedback-WP05.md) since it supersedes the import-only red from cycle 0. Tests: tests/specify_cli/session_presence/test_settings_encoding_4940.py now 24/24 passed (was 23). Re-ran blast radius (session_presence/ + tool_surface/providers/test_session_presence*.py + live_work/test_install.py + live_work/test_capability.py + cli/commands/test_lint_hooks.py + cli/commands/test_live_work.py + upgrade/migrations/test_m_3_2_0rc39_refresh_orientation_block.py) = 414 passed, 1 skipped (was 413/1). Architectural gates (test_cli_error_surface_seam.py, test_overwrite_ownership_routing.py, test_layer_rules.py) = 105 passed, unchanged. ruff check + ruff format --check clean on the changed test file. No src/ changes, so mypy --strict and the prior full tool_surface/ (1098 passed) and fast-tier (2374 passed, 10 skipped, 1 pre-existing unrelated red) runs from cycle 0 still hold.",
+        "Review passed (cycle 2): f5d6a192 is test-only and closes all three cycle-1 items. (1) _assert_refusal (path + literal 're-save it as UTF-8') is applied at all 11 pytest.raises(SettingsNotDecodableError) sites. (2) The sync-hooks subprocess test asserts returncode==1, path and remedy. (3) A new real 'python -m specify_cli upgrade --project --yes --target 3.2.0rc39 --no-worktrees' subprocess test asserts exit 1, path, remedy, byte-identical file and no success line for the session-presence migration. The subprocess tests set an explicit PYTHONPATH=<test-tree>/src, which resolves to the lane's specify_cli/kernel (verified). Run from a git-archive base copy (1f4a914c) with a stubbed error type, both subprocess tests FAIL (sync: 0==1; upgrade: output assertion). Lane: 24/24 in test_settings_encoding_4940.py, ruff and format clean. Cycle-1 verification stands: 1445 passed / 1 skipped over the blast radius, 235 passed on the targeted arch gates (dead-symbol transient resolved), mypy --strict clean, and behavioural red on base shown for cp1252 sync-hooks (exit 0, file replaced) and UTF-16 register (entries lost)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18425,
+      "shell_pid_created_at": "1790603450.86",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3M62DY6VWZM183DN5JSQXJJ",
+      "last_transition_at": "2026-09-28T14:18:00.518419+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T030-T035 done. CRLF frontmatter doubling (#4998) fixed: normalize_newlines applied in ensure_skill_frontmatter (T032) and command-skill render() (T033); .gitattributes eol=lf pin + check-attr test (T034); tests/specify_cli/skills/test_crlf_skill_render_4998.py FR-015..FR-019, red-first + half-by-half proof (T031/T035). Tests: new module 6/6 passed; tests/specify_cli/skills/ 431 passed/3 pre-existing failures (confirmed on unmodified base); architectural gates (merge_reconciliation_class_guard, packaging_safety, layer_rules) 80/80 passed; mypy --strict + ruff clean on touched files.",
+        "Rework cycle 1 complete (reviewer-renata feedback addressed). FR-016 fixture switched to marker-free accept/prompt.md (was vacuous with SPDD-marker specify/prompt.md), guard assertion + description/no-\\r assertions added, red-first re-recorded on both a T033-reverted copy and a git-archive base copy (1f4a914c) -- fails on body, not only hash. FR-017 coverage extended: doctrine-skill convergence via install_all_skills (upgrade-migration proxy, real spec-kitty upgrade CLI hits a pre-existing unrelated scaffolding conflict, documented) and command-skill convergence via real 'doctor tool-surfaces --kind command-skill --fix'; also documents that plain 'doctor skills --fix' does not converge self-consistent drift (pre-existing verify() gap, out of WP06 scope). FR-018 now asserts precise consent_required/repair.skipped classification. Non-blocking items fixed: docstring corrected, canonical compute_content_hash used, _single_frontmatter_block restricted to leading block, subprocess import moved to module scope. Tests: module 9/9 passed; tests/specify_cli/skills/ 434 passed/3 pre-existing; architectural gates (merge_reconciliation_class_guard, packaging_safety, layer_rules) 80/80 passed; mypy --strict + ruff clean.",
+        "Rework cycle 2 complete (last cycle, reviewer-renata). Real spec-kitty init + upgrade --yes CLI test added for FR-017 doctrine-skill leg (test_fr017_repair_converges_via_real_upgrade_cli, integration/slow marked, ~50s): the prior 'Owner effect conflict' claim was an artefact of the hand-built _make_project fixture, not of upgrade itself -- confirmed on a real init'd project, red on git-archive base 1f4a914c, green on lane, second run no-op. Docstrings corrected: upgrade repairs doctrine skills via prepare_upgrade_repairs/apply_upgrade_repairs (ManagedSkillsProvider), never install_all_skills, which FR-017b now correctly scopes to the one-shot migration path only. test_fr017c_doctor_skills_fix_... rewritten to assert desired behavior and marked xfail(strict=True, issue #5281) instead of asserting the defect. Non-blocking: read_bytes().decode() fix in _seed_corrupted_install/FR-017b, lone-CR injection now lands after the closing frontmatter delimiter (was landing in the opening), byte-equality check added to test_fr015_..._via_real_cli. Tests: module 9 passed/1 xfailed; tests/specify_cli/skills/ 434 passed/3 pre-existing/1 xfailed; architectural gates 87 passed; mypy --strict + ruff clean.",
+        "Review passed (cycle 3, reviewer-renata): production T030/T032/T033/T034 unchanged since cycle 1 and verified (mypy strict/ruff clean, LF source_hash unchanged, eol=lf coexists with merge= rules, pyproject follow_imports overrides follow #3719 precedent). Tests: module lane 9 passed + 1 strict xfail (#5281, fails on the intended \\r assertion); git-archive base 1f4a914c 7 failed/2 passed/1 xfailed incl. new test_fr017_repair_converges_via_real_upgrade_cli (real init + upgrade --yes, stays doubled on base, converges + no-op on lane). Half-by-half verified cycles 1-2 (T032 -> FR-015/017; T033 -> FR-016 on body). integration+slow excluded from fast tier; test_fast_tier_marker_completeness + test_makefile_tier_topology 14 passed. Blast-radius reds (3 skills installer, test_init_idempotent vibe) pre-existing on real base copy. Real repo/HOME untouched."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24002,
+      "shell_pid_created_at": "1790604701.34",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3KWF4BQZB4ZV62YKRRX75CB",
+      "last_transition_at": "2026-09-28T11:30:10.935659+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T036-T039 done. Extracted _forward_or_refuse_group_flags in migrate_cmd.py's group callback (D7/R6, #4964): forwards --dry-run/--verbose/--force to a subcommand via ctx.default_map when it declares the same flag, else click.UsageError exit 2 naming flag/subcommand/position (NFR-003). tests/cli/test_migrate_group_flags_4964.py (new, 54 tests incl. 1 documented skip): live-registry-parametrised (subcommand x flag) matrix, real end-to-end positive control on backfill-runtime-state (dry-run writes nothing; non-dry-run on same fixture does write), FR-022 ratchets, issue repro cases. Tests run: tests/cli/test_migrate_group_flags_4964.py -> 53 passed, 1 skipped; blast-radius (test_migrate_cmd_messaging.py + all migrate_cmd/'migrate' referencing test files) -> 147 passed, 3 skipped; tests/architectural/test_cli_error_surface_seam.py + test_layer_rules.py -> 83 passed; ruff check/format + mypy --strict clean on both changed files. make test-fast in progress (heavy shared-host CPU contention, ~95%+ through with 0 new failures attributable to this change at last check).",
+        "Review passed (reviewer-renata): helper _forward_or_refuse_group_flags extracted (C901=9; migrate callback unchanged at 19); forwarding via ctx.default_map proven end-to-end by non-spied Tier-2 backfill-runtime-state --dry-run (dry_run:true, no writes) + same-fixture non-dry-run positive control (writes); Tier-1 matrix over live registry (11 subs x 4 flags); refusal is click UsageError exit 2 naming flag/subcommand/trailing position; no-subcommand and trailing paths ratcheted; help text updated. Red-first: 48 fail / 5 ratchets pass on base migrate_cmd. Worktree: 53 passed 1 skipped (justified --no-dry-run skip); migrate blast radius + cli_error_surface_seam + layer_rules: 230 passed 3 skipped. ruff/format/mypy --strict clean. Isolation fixture verified, real repo untouched. Non-blocking: refusal example suggests trailing flag the subcommand does not declare (prompt-dictated text)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26600,
+      "shell_pid_created_at": "1790593337.49",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
+    },
+    "WP08": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3KGEKC0ZTGENWASSEQ6AJ7X",
+      "last_transition_at": "2026-09-28T08:00:10.624445+00:00"
+    }
+  }
+}

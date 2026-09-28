@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-28T07:06:54.865798Z",
+      "decision_id": "01M3KDD2GHGFS7J5616ZNQHE6Y",
+      "final_answer": "Intent confirmed. #4933: refuse with non-zero exit before any reset; only spec-kitty's own mission metadata stays exempt. #4940: decode (BOM/UTF-16 and other tolerated encodings), reuse existing encoding libraries in the stack; a recently merged PR fixed a similar issue in the CLI runtime cycle JSON path; consider extracting a shared encoding helper into kernel. Undecodable files are left untouched with non-zero exit. #4964: honour group-level --dry-run/--force/--verbose by propagating to the subcommand; subcommands without a dry-run mode refuse with a usage error.",
+      "input_key": "failure_policy",
+      "mission_id": "01M3KDASPEDWEDKARFA125Q9RS",
+      "mission_slug": "exit-zero-data-intact-01M3KDAS",
+      "opened_by": "cli",
+      "options": [
+        "Recommended defaults",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "Confirm the intent summary and pick the failure policy for the three open design points: #4933 dirty user meta.json at merge, #4940 undecodable .claude/settings.json, #4964 group-level migrate --dry-run",
+      "rationale": null,
+      "resolved_at": "2026-09-28T07:11:13.660585Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.failure-policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3KDASPEDWEDKARFA125Q9RS",
+  "version": 1
+}
