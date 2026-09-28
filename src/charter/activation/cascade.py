@@ -112,8 +112,8 @@ _REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
 #: Recovery hint surfaced with the no-cascade warning (FR-013, Contract C3.2).
 _NO_CASCADE_HINT: str = (
     "Re-run with `--cascade <scope>` (e.g. `--cascade all` for every referenced "
-    "kind) to activate the referenced artifacts, or run `charter consistency-check` "
-    "to confirm the activation set is coherent."
+    "kind) to activate the referenced artifacts, or run `charter pack "
+    "consistency-check` to confirm the activation set is coherent."
 )
 
 

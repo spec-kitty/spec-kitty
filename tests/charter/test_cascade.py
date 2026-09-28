@@ -325,6 +325,10 @@ def test_referenced_but_not_cascaded_lists_skipped_kinds() -> None:
     # Recovery hint names --cascade and the consistency check (Contract C3.2).
     assert "--cascade" in report.recovery_hint
     assert "consistency-check" in report.recovery_hint
+    # It must name the REAL command `charter pack consistency-check`, not the
+    # nonexistent bare `charter consistency-check` the hint used to print (#5267).
+    assert "charter pack consistency-check" in report.recovery_hint
+    assert "charter consistency-check" not in report.recovery_hint
 
 
 def test_referenced_but_not_cascaded_empty_when_no_refs() -> None:
