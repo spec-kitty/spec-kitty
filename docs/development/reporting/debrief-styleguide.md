@@ -22,7 +22,7 @@ snapshot. Examples: [`examples/`](examples/).
 ## Provenance — this is the design system's style, not ad-hoc
 
 The look is taken from **`@spec-kitty/tokens`** in the sibling
-**`spec-kitty-design`** repo (`packages/tokens/src/tokens.css`, ADR-003
+**`spec-kitty-design`** repo (the `packages/tokens` package, ADR-003
 `--sk-<category>-<name>` naming). The debrief template
 (`scripts/reporting/debrief_template.html`) inlines a **curated light-theme
 subset** of those tokens; when a value here and a token there ever disagree,

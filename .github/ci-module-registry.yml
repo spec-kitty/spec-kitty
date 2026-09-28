@@ -437,6 +437,14 @@ out_of_matrix_test_dirs:
   - tests/e2e
 
 - reason: >-
+    Maintainer-only debrief-tooling tests (guarding scripts/reporting/, not a shipped
+    src package). Enrolled in the nightly interpreter sweep via
+    _interpreter_shard_roster.py shard 3; per-PR module-row enrolment is tracked on
+    spec-kitty#5275. No per-PR lane selects it by directory yet.
+  dirs:
+  - tests/reporting
+
+- reason: >-
     Per-PR home is ci-router.yml's 'architectural battery' job, which runs the full
     tests/architectural tree (this registry's own special_tiers.architectural pole); a
     module row would only double-run it.

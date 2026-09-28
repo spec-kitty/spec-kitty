@@ -41,8 +41,15 @@ import os
 import subprocess
 import sys
 from collections import Counter
-from datetime import datetime, UTC
+from pathlib import Path
 from typing import Any
+
+# Route timestamps through the kernel clock door (FR-012a/b — no raw stdlib
+# datetime or wall-clock reads outside kernel.clock). Resolve src/ from the
+# script path so the bare `python scripts/reporting/collect_debrief.py`
+# invocation still works with PYTHONPATH unset.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+from kernel.clock import now_utc, now_utc_iso  # noqa: E402
 
 #: gh JSON fields we pull for a PR / issue. Kept narrow and explicit so the
 #: contract is stable and the synthesis stage knows exactly what it may cite.
@@ -294,7 +301,7 @@ def _envelope(**parts: Any) -> dict[str, Any]:
     )
     return {
         "meta": {
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": now_utc_iso(),
             "mode": parts["mode"],
             "repos": parts["repos"],
             "filters": parts["filters"],
@@ -347,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.mode == "window":
-            until = args.until or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            until = args.until or now_utc().strftime("%Y-%m-%dT%H:%M:%SZ")
             payload = collect_window(args.repos, args.since, until)
         else:
             if not (args.milestone or args.label or args.query):
