@@ -48,7 +48,10 @@ Live collection is the only non-vacuous comparison -- comparing the
 committed file to a number recorded in the SAME file would be exactly the
 self-validating defect this gate exists to close. It is not free: collecting
 all 21 modules serially measured ~36s locally (2026-09-22, via
-``.venv/bin/python``). This module pays that cost once per pytest session,
+``.venv/bin/python``); a later local run of this whole file under strict mode
+took ~230s wall (2026-09-28, 4 cores), which is what
+``ci-charter-shard-recapture.yml``'s ``strict-shard-timings-check`` timeout is
+sized against. This module pays that cost once per pytest session,
 via the session-scoped ``_collected_counts`` fixture, so every assertion
 below reuses the same 21 subprocess calls instead of repeating them per
 test. The live-collection test is marked ``slow`` (pytest.ini: "expected to

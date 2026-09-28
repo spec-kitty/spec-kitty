@@ -166,12 +166,15 @@ jobs:
   # own permissions: {contents: read}) is sufficient.
   strict-shard-timings-check:
     runs-on: ubuntu-24.04
-    # The file's own docstring records live collection of all 21 registry
-    # modules at ~36 seconds measured locally (2026-09-22) -- 10 minutes
-    # leaves headroom well over 15x the measured collection time, plus
-    # checkout/uv sync overhead, without being large enough to mask a
-    # genuinely hung job.
-    timeout-minutes: 10
+    # A local strict run of this exact command (`SPEC_KITTY_STRICT_SHARD_
+    # TIMINGS=1 pytest tests/architectural/test_module_length_agreement.py
+    # -q`, 4 cores, 2026-09-28) took ~230 s wall -- far above the ~36 s the
+    # test file's docstring records for an earlier collection-only
+    # measurement. 10 minutes would leave under 2x headroom once checkout
+    # and `uv sync --all-extras` are added, so 15 minutes: >=2x over
+    # (capture + ~2 min setup) on a comparably sized runner, still short
+    # enough to surface a genuinely hung job the same morning.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Install uv
