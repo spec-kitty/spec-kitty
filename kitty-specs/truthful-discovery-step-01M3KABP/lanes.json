@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "mission_slug": "truthful-discovery-step-01M3KABP",
+  "mission_id": "01M3KABPMBKV2HNE26NEBY010T",
+  "mission_branch": "kitty/mission-truthful-discovery-step-01M3KABP",
+  "target_branch": "claude/project-thread-silj7c",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/research.py",
+        "src/specify_cli/core/__init__.py",
+        "src/specify_cli/core/project_resolver.py",
+        "tests/agent/test_commands.py",
+        "tests/architectural/test_overwrite_ownership_routing.py",
+        "tests/research/**",
+        "tests/runtime/test_global_runtime_convergence_unit.py",
+        "tests/runtime/test_project_resolver.py",
+        "tests/specify_cli/cli/commands/test_research_preservation.py",
+        "tests/specify_cli/cli/commands/test_research_read_surface.py",
+        "tests/specify_cli/cli/commands/test_research_templates.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "tests/regressions/test_issue_4890_legacy_finalize_effective_graph.py",
+        "tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py",
+        "tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py",
+        "tests/specify_cli/cli/commands/review/test_issue_matrix_finalize_lint.py",
+        "tests/specify_cli/cli/commands/test_finalize_tasks_validate_only_readonly.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/slash-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/spec-driven.md",
+        "packs/built-in/missions/mission-steps/software-dev/plan/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/research/**",
+        "packs/built-in/pack-manifest.yaml",
+        "src/charter/offering/skills/spk-mission-research/**",
+        "src/charter/offering/skills/spk-start-command-map/references/command-map.md",
+        "tests/architectural/_builtin_pack_provenance_baseline.yaml",
+        "tests/next/test_discovery_step_contract.py",
+        "tests/next/test_prompt_file_invariant.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-28T06:27:11.984166+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6e1ce80884b76509fedfaceca6cf4b18d1648581"
+}

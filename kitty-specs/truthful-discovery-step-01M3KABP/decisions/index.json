@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-28T06:14:29.126346Z",
+      "decision_id": "01M3KAD2G6HZMB6TF4W049WCB9",
+      "final_answer": "B: truthful authoring path, plan step stays owner. Taken as the research-squad recommendation under the operator's instruction to kick off a mission from the research (Stijn, 2026-09-28); open to operator override on the PR.",
+      "input_key": "discovery_authoring_path",
+      "mission_id": "01M3KABPMBKV2HNE26NEBY010T",
+      "mission_slug": "truthful-discovery-step-01M3KABP",
+      "opened_by": "cli",
+      "options": [
+        "A: ship a software-dev research scaffold",
+        "B: truthful authoring path, plan step stays owner",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the software-dev discovery step get its own research scaffold (option A) or be rewritten to a truthful authoring path with the plan step keeping ownership of research.md/data-model.md (option B)?",
+      "rationale": null,
+      "resolved_at": "2026-09-28T06:14:35.673646Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.discovery-authoring-path",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3KABPMBKV2HNE26NEBY010T",
+  "version": 1
+}

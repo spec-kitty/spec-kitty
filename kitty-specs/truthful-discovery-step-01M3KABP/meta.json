@@ -1,0 +1,35 @@
+{
+  "accept_commit": "5d24013a7b444e8fc46f69900588c3377a94a4f9",
+  "acceptance_history": [
+    {
+      "accept_commit": "5d24013a7b444e8fc46f69900588c3377a94a4f9",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-28T10:37:31.104379+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "72176f6b11176041f2fbf38a35e9d0e973039e12"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-28T10:37:31.104379+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "72176f6b11176041f2fbf38a35e9d0e973039e12",
+  "baseline_merge_commit": "9c1c34be252b660aa3f5ad92fcfdb99af129c548",
+  "created_at": "2026-09-28T06:13:45.636527+00:00",
+  "flattened": false,
+  "friendly_name": "Truthful software-dev discovery step and finalize shim cleanup",
+  "merged_at": "2026-09-28T10:39:16.078788+00:00",
+  "merged_commit": "1b2639e4c8692ee04290eb3cf6d431c66a647ff0",
+  "mid8": "01M3KABP",
+  "mission_id": "01M3KABPMBKV2HNE26NEBY010T",
+  "mission_number": null,
+  "mission_slug": "truthful-discovery-step-01M3KABP",
+  "mission_type": "software-dev",
+  "purpose_context": "The software-dev discovery prompt tells agents to run spec-kitty research, which scaffolds nothing for software-dev and needs a plan that does not exist yet (#5254). research.py also looks up template names the research pack does not ship. Separately, agent/mission.py keeps a no-op _ensure_branch_checked_out solely for test patches (#5233).",
+  "purpose_tldr": "Make the software-dev discovery step executable as written, fix research template resolution, and remove a test-only no-op shim (#5254, #5233).",
+  "slug": "truthful-discovery-step-01M3KABP",
+  "status_phase": "1",
+  "target_branch": "claude/project-thread-silj7c",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T06:28:44.301296+00:00"
+}

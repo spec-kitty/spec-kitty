@@ -1,0 +1,120 @@
+{
+  "event_count": 29,
+  "last_event_id": "01M3KSJ870Q8SFH0P22KDZB7B9",
+  "materialized_at": "2026-09-28T10:39:27.456117+00:00",
+  "mission_number": "",
+  "mission_slug": "truthful-discovery-step-01M3KABP",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3KSHZ5994Z9YWD1FGEZCG8X",
+      "last_transition_at": "2026-09-28T10:39:18.185437+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Research command scaffolds research.md/data-model.md/CSV stubs via canonical resolve_template (FR-005/FR-006); legacy resolve_template_path retired; red-first regression + blast-radius tests green (117 + 88 passed).",
+        "Approved by reviewer-renata: 1221 passed; non-vacuity proven half-by-half; 100% diff coverage; typeless coalesce follows C-006 precedent."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 5587,
+      "shell_pid_created_at": "1790576918.69",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3KSJ870Q8SFH0P22KDZB7B9",
+      "last_transition_at": "2026-09-28T10:39:27.456117+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Rewrote software-dev discovery/research prompt truthfully (FR-001-003,008,012), fixed plan Phase0 extend-wording (FR-004), aligned skill/command-map/docs (FR-013). Red-first e2e contract test tests/next/test_discovery_step_contract.py (2 failed/4 passed against old prompt, 6 passed after fix). Full targeted suite (discovery+next+doctrine+architectural) 168 passed. Provenance ratchet baseline shrunk 4->1 for research prompt. Changelog updated for #5254 and #5233. #5254",
+        "cycle 2: FR-013 phrase-invariant test w/ positive control added, NFR-004 fixed (47.5s -> 18.70s via bootstrap-bypass fixture), docs index regenerated (freshness errors=0), FR-002 assertion tightened, command extraction scoped to template body via shared _COMMAND_PATTERN, monkeypatch.chdir, discovery-step naming sentence, changelog trimmed. 4355 passed / 3 pre-existing unrelated skills-installer failures (predate this WP, confirmed same on lane-a).",
+        "Cycle 2: the FR-013 phrase-invariant test is added, and its positive control embeds the pre-fix wording as literal strings. Docs index regenerated; freshness errors=0. e2e runtime is 17.2 s, under the 30 s budget. All should-fix items are done. The test goes red against the old prompt. merge-tree is clean and the diff has no kitty-specs paths."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3KSJ3NPP7AGGS9YPKER480K",
+      "last_transition_at": "2026-09-28T10:39:22.806853+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T011-T013 done: deleted the dead _ensure_branch_checked_out shim + its 3 dead patches (red-first, 1 commit); rebuilt the validate-only readonly fixture to be genuinely HEAD!=target divergent with a positive control; dropped the dead fire_dossier_sync patch. SC-004 confirmed (zero grep hits). Full test suites green; 1 unrelated pre-existing make test-fast failure confirmed baseline-red on main.",
+        "Cycle 2: restored kitty-specs to the lane base per review cycle 1; merge-tree clean",
+        "Cycle 2: reviewer-renata's only blocker (lane kitty-specs drift) fixed; lane diff vs base has no kitty-specs paths and merge-tree is clean; code verdict from cycle 1 stands (43 passed, non-vacuity proven)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20260928",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    }
+  }
+}
