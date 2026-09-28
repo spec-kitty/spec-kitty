@@ -1414,15 +1414,20 @@ def _apply_missing_worktree_fix(
             # Defensive: a finding without the mission_slug extra (e.g. an older
             # producer) is skipped rather than crashing the whole `--fix` run.
             continue
-        coord_branch = f.extra.get("coord_branch")
+        extra_branch = f.extra.get("coord_branch")
         try:
             materialize_coord_surface_for_write(repo_root, mission_slug)
         except CoordinationWorktreeUnmaterialized as exc:
-            if (
-                isinstance(coord_branch, str)
-                and coord_branch
-                and not _coord_branch_is_local_head(repo_root, coord_branch)
-            ):
+            # #5258: classify on the branch the refusal itself names when the
+            # finding carries no ``coord_branch`` extra -- relaying the
+            # exception's remote-only text would name ``--fix`` again (the loop
+            # #5113 exists to prevent) and omit the ``git branch`` step.
+            coord_branch = (
+                extra_branch
+                if isinstance(extra_branch, str) and extra_branch
+                else exc.coordination_branch
+            )
+            if coord_branch and not _coord_branch_is_local_head(repo_root, coord_branch):
                 next_step = _coord_worktree_missing_remote_only_steps(
                     repo_root, mission_slug, coord_branch,
                 )

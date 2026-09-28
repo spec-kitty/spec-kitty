@@ -557,7 +557,8 @@ def test_fix_clears_stale_coord_topology_so_backfill_flattens(
 
 
 def test_run_coordination_health_fix_end_to_end(
-    fresh_mission_repo: Path, monkeypatch: pytest.MonkeyPatch,
+    fresh_mission_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """FINDING 3 (#2614, coverage gap): drive ``run_coordination_health(fix=True)``
     end-to-end through the real entry point (no internal-function shortcuts),
@@ -624,7 +625,8 @@ def test_run_coordination_health_fix_end_to_end(
 
 
 def test_mission_scoped_fix_does_not_backfill_another_mission(
-    fresh_mission_repo: Path, monkeypatch: pytest.MonkeyPatch,
+    fresh_mission_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A mission-scoped coordination fix must not mutate another mission."""
     from specify_cli.cli.commands import _coordination_doctor as cd
@@ -760,22 +762,27 @@ def test_apply_missing_worktree_fix_extras_and_defensive_skip(tmp_path: Path) ->
     assert warnings == []
 
 
-def test_apply_missing_worktree_fix_generic_refusal_without_coord_branch_extra(
+def test_apply_missing_worktree_fix_remote_only_refusal_without_coord_branch_extra(
     fresh_mission_repo: Path,
 ) -> None:
-    """#5113: the FALLBACK ``else`` arm
-    (a finding whose ``coord_branch`` extra is absent, or the refusal is not a
-    remote-only one) must still relay the exception's own ``next_step``
-    verbatim -- never crash, never fabricate ordered steps it cannot back up
-    with a real branch name."""
+    """#5258 (re-pins the #5113 test that was red from the day it landed): a
+    remote-only refusal whose finding carries NO ``coord_branch`` extra must
+    still get the truthful ordered fetch/branch/fix steps, classified on the
+    branch the refusal itself names (``exc.coordination_branch``).
+
+    Pre-fix the ``else`` arm relayed the exception's own remote-only text,
+    which names ``doctor coordination --fix`` right after ``git fetch`` -- the
+    very command that just refused (``git fetch`` never creates the local head
+    the write gate requires), looping the operator and omitting the
+    ``git branch <b> origin/<b>`` step.
+    """
     from specify_cli.cli.commands._coordination_doctor import (
         DoctorFinding,
         _apply_missing_worktree_fix,
     )
 
     # A remote-only coord branch (materialize_coord_surface_for_write WILL
-    # raise), but the finding's extra deliberately omits `coord_branch` --
-    # forcing the generic fallback rather than the remote-only classification.
+    # raise), and the finding's extra deliberately omits `coord_branch`.
     # Clone BEFORE deleting the local branch, so the bare "origin" actually
     # carries it.
     remote = fresh_mission_repo.parent / "generic-refusal-origin.git"
@@ -797,7 +804,40 @@ def test_apply_missing_worktree_fix_generic_refusal_without_coord_branch_extra(
     assert len(warnings) == 1
     warning = warnings[0]
     assert warning.next_step is not None
-    # The generic materialize-it-now text, relayed verbatim -- never the ordered
-    # fetch/branch/fix steps (which require a real coord_branch to name).
+    assert warning.next_step.startswith("Run in order:")
+    assert f"branch {COORD_BRANCH} origin/{COORD_BRANCH}" in warning.next_step
+    assert "exists only as a remote-tracking ref" in warning.message
+
+
+def test_apply_missing_worktree_fix_generic_refusal_for_local_head_relays_next_step(
+    fresh_mission_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#5113 / #5258: the genuinely generic fallback -- the branch IS a local
+    head, yet materialization still refuses (resolve fails and the re-probe
+    finds nothing) -- relays the exception's own local-head ``next_step``
+    verbatim and never fabricates fetch steps."""
+    from specify_cli.cli.commands._coordination_doctor import (
+        DoctorFinding,
+        _apply_missing_worktree_fix,
+    )
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    def _refuse(*_args: object, **_kwargs: object) -> None:
+        raise OSError("simulated materialization failure")
+
+    monkeypatch.setattr(CoordinationWorkspace, "resolve", _refuse)
+    finding = DoctorFinding(
+        severity="warning",
+        message="missing worktree",
+        error_code="COORDINATION_WORKTREE_MISSING",
+        extra={"mission_slug": MISSION_SLUG, "mid8": MID8},
+    )
+    warnings = _apply_missing_worktree_fix([finding], fresh_mission_repo)
+    assert len(warnings) == 1
+    warning = warnings[0]
+    assert warning.next_step is not None
+    assert warning.message.endswith(warning.next_step)
     assert "materialize it now" in warning.next_step.lower()
     assert "git fetch" not in warning.next_step
+    assert not warning.next_step.startswith("Run in order:")
