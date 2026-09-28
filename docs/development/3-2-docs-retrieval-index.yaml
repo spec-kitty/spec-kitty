@@ -7598,6 +7598,18 @@ pages:
     - {slug: "scope-boundary-3", text: "Scope boundary", level: 3}
     - {slug: "invariant-exemptions-must-stay-narrow", text: "Invariant: Exemptions Must Stay Narrow", level: 2}
     - {slug: "updating-this-policy", text: "Updating This Policy", level: 2}
+  - path: "docs/development/reporting/debrief-styleguide.md"
+    title: "Executive Debrief House Style"
+    divio_type: "reference"
+    abstract: "House style for Spec Kitty executive debriefs (WTF-happened one-pagers): the layout grammar, pill vocabulary, brand palette, and light-chrome print treatment."
+    anchors:
+    - {slug: "provenance-this-is-the-design-system-s-style-not-ad-hoc", text: "Provenance — this is the design system's style, not ad-hoc", level: 2}
+    - {slug: "palette-light-theme-these-are-printed-one-pagers", text: "Palette (light theme — these are printed one-pagers)", level: 2}
+    - {slug: "typography", text: "Typography", level: 2}
+    - {slug: "layout-grammar-fixed-order", text: "Layout grammar (fixed order)", level: 2}
+    - {slug: "pill-vocabulary-the-design-system-s-sk-tag", text: "Pill vocabulary (the design system's `.sk-tag`)", level: 2}
+    - {slug: "voice-content-conventions", text: "Voice & content conventions", level: 2}
+    - {slug: "promotion-deferred", text: "Promotion (deferred)", level: 2}
   - path: "docs/development/testing/index.md"
     title: "Testing the Spec Kitty codebase"
     divio_type: "none"
