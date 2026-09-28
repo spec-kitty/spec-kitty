@@ -41,3 +41,14 @@ def test_locate_project_root_with_explicit_start(tmp_path: Path, monkeypatch: py
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
     result = locate_project_root(start=tmp_path)
     assert result == tmp_path
+
+
+def test_locate_project_root_walks_up_from_nested_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """locate_project_root walks upward from a nested directory to the .kittify root."""
+    project = tmp_path / "workspace"
+    (project / ".kittify").mkdir(parents=True)
+    nested = project / "nested" / "deeper"
+    nested.mkdir(parents=True)
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+
+    assert locate_project_root(start=nested) == project
