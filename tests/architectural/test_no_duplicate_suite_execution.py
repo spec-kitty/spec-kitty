@@ -200,6 +200,13 @@ PER_CHANGE_PUSH_FILTERS: tuple[str, ...] = (
 # classifier: it pins the exclusion set itself, not merely that *something* was
 # scanned.
 NON_CHANGE_TRIGGERED_WORKFLOWS: dict[str, str] = {
+    "ci-charter-shard-recapture.yml": (
+        "schedule + workflow_dispatch only: the charter shard-timings recapture "
+        "plus strict-mode exact-count invariant home (per-pr-shard-timings-"
+        "recapture-friction-01M3H7V8 WP03). No pull_request/push trigger by "
+        "design — a PR event can never start it, and it never enters a "
+        "merge-blocking needs chain."
+    ),
     "ci-nightly.yml": "schedule + workflow_dispatch: the nightly full/performance/interpreter run.",
     "ci-stale-running-sweep.yml": (
         "schedule + workflow_dispatch only: the reactive stale-running sweep backstop "

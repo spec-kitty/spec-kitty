@@ -128,6 +128,11 @@ WORKFLOW_FILES: tuple[str, ...] = (
     # ``ci-quality.yml`` again when it retired the duplicate reporter.
     "ci-router.yml",
     "packs.yml",
+    # Added by mission per-pr-shard-timings-recapture-friction-01M3H7V8 WP03:
+    # its ``strict-shard-timings-check`` job runs a real, directly-anchored
+    # ``uv run --frozen pytest tests/architectural/test_module_length_agreement.py``
+    # invocation on a schedule (the exact-count invariant's strict-mode home).
+    "ci-charter-shard-recapture.yml",
 )
 
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"
