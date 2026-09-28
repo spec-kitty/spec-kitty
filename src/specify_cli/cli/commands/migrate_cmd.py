@@ -44,6 +44,7 @@ import json
 from pathlib import Path
 from typing import Annotated, Any
 
+import click
 import typer
 from rich.console import Console
 from specify_cli.cli.console import console
@@ -115,13 +116,87 @@ _MISSION_TYPE_MANUAL_DIAGNOSTIC = (
     "Fix: assign a mission type whose governance profile resolves at some layer (built-in / org / project), or author/activate that type. Not necessarily a typo."
 )
 
+#: D7/R6 (#4964): the group's own forwardable flags, by their typer/click
+#: parameter name. Order is the order they are checked in
+#: ``_forward_or_refuse_group_flags``; it has no other significance.
+_GROUP_FORWARDABLE_PARAMS: tuple[str, ...] = ("dry_run", "verbose", "force")
+
+#: Group-flag forward-or-refuse help suffix (C-007), shared by ``--dry-run``,
+#: ``--verbose``/``-v`` and ``--force`` below so the policy is spelled once.
+_GROUP_FLAG_FORWARDING_HELP = "Before a subcommand, forwarded if the subcommand declares it, else rejected (exit 2) — place it after the subcommand when unsure."
+
+
+def _forward_or_refuse_group_flags(ctx: typer.Context) -> None:
+    """Forward group-level flags to the invoked subcommand, or refuse them.
+
+    Design decision **D7** / research **R6** (#4964): a group flag
+    (``--dry-run`` / ``--verbose``/``-v`` / ``--force``) given on the command
+    line before a subcommand is silently dropped by Click's own dispatch —
+    the group callback returns before the subcommand ever sees it. This
+    closes that gap: for each group flag actually typed on the command line
+    (``ctx.get_parameter_source(name) == COMMANDLINE``) with a truthy value,
+    look up the invoked subcommand's own declared params
+    (``ctx.command.get_command(ctx, sub).params``). If the subcommand
+    declares the same flag name, forward the value via ``ctx.default_map``
+    — Click builds the subcommand's own context AFTER this callback
+    returns, so a flag given directly after the subcommand still wins over
+    a forwarded one (FR-022). If the subcommand does not declare it, refuse
+    with a ``click.UsageError`` (exit 2) *before* the subcommand runs, so
+    nothing is ever silently dropped (FR-021) — the message names the flag,
+    the subcommand, and the supported (trailing) position (NFR-003).
+    """
+    sub_name = ctx.invoked_subcommand
+    if sub_name is None:
+        return
+    if not isinstance(ctx.command, click.Group):  # pragma: no cover - the migrate group always is one
+        return
+    sub_command = ctx.command.get_command(ctx, sub_name)
+    if sub_command is None:  # pragma: no cover - Click guarantees a match here
+        return
+    sub_param_names = {param.name for param in sub_command.params}
+
+    forwarded: dict[str, Any] = {}
+    for name in _GROUP_FORWARDABLE_PARAMS:
+        if ctx.get_parameter_source(name) != click.core.ParameterSource.COMMANDLINE:
+            continue
+        value = ctx.params.get(name)
+        if not value:
+            continue
+        group_param = next(p for p in ctx.command.params if p.name == name)
+        flag = group_param.opts[0]
+        if name in sub_param_names:
+            forwarded[name] = value
+        else:
+            raise click.UsageError(
+                f"'{flag}' is not supported by 'migrate {sub_name}'. Place supported flags after the subcommand, e.g. 'spec-kitty migrate {sub_name} {flag}'.",
+                ctx=ctx,
+            )
+
+    if forwarded:
+        default_map = ctx.default_map or {}
+        sub_defaults = {**default_map.get(sub_name, {}), **forwarded}
+        ctx.default_map = {**default_map, sub_name: sub_defaults}
+
 
 @app.callback(invoke_without_command=True)
 def migrate(  # noqa: C901
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would change without modifying the filesystem"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show file-by-file detail"),
-    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help=f"Show what would change without modifying the filesystem. {_GROUP_FLAG_FORWARDING_HELP}",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help=f"Show file-by-file detail. {_GROUP_FLAG_FORWARDING_HELP}",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help=f"Skip confirmation prompt. {_GROUP_FLAG_FORWARDING_HELP}",
+    ),
 ) -> None:
     """Migrate project .kittify/ to centralized model.
 
@@ -137,8 +212,10 @@ def migrate(  # noqa: C901
         spec-kitty migrate --dry-run    # Preview
         spec-kitty migrate --force      # Apply without confirmation
     """
-    # If a subcommand was invoked, don't run the migrate callback body.
+    # If a subcommand was invoked, forward-or-refuse group flags for it
+    # (D7/R6, #4964), then don't run the migrate callback body.
     if ctx.invoked_subcommand is not None:
+        _forward_or_refuse_group_flags(ctx)
         return
 
     # Windows-only: run legacy state migration BEFORE any tracker/sync/daemon reads.
