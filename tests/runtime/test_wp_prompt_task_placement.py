@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology
-from runtime.next.decision import Decision, DecisionKind, _build_prompt_or_error
+from runtime.next.decision import Decision, DecisionKind, _build_prompt_or_error, decide_next
 from runtime.next.runtime_bridge import _materialize_decision, decide_next_via_runtime
 from runtime.next.runtime_bridge_cores import DecisionEnvelope
 from tests.runtime._next_mission_scaffold import (
@@ -174,3 +174,33 @@ def test_unavailable_primary_task_blocks_with_actionable_reason(
     assert decision.reason is not None
     assert str(primary_dir / "tasks") in decision.reason
     assert "restore" in decision.reason.lower() or "regenerate" in decision.reason.lower()
+
+
+@pytest.mark.parametrize("route", ["bridge", "decision_api"], ids=["runtime-bridge", "decision-api"])
+@pytest.mark.parametrize("unreadable", [False, True], ids=["missing", "unreadable"])
+def test_unavailable_primary_task_blocks_public_runtime_route_after_implement(
+    tmp_path: Path,
+    route: str,
+    unreadable: bool,
+) -> None:
+    """An active WP with a lost task blocks before composition advances the run."""
+    repo_root, mission_slug, primary_dir, _ = _scaffold_lanes_with_coord_mission(tmp_path, lane="planned")
+    advance_to_step(repo_root, mission_slug, "software-dev", "implement")
+
+    task_file = primary_dir / "tasks" / "WP01.md"
+    task_file.unlink()
+    if unreadable:
+        task_file.mkdir()
+
+    route_callable = decide_next_via_runtime if route == "bridge" else decide_next
+    decision = route_callable("codex", mission_slug, "success", repo_root)
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.action is None
+    assert decision.wp_id is None
+    assert decision.prompt_file is None
+    assert decision.reason is not None
+    assert str(task_file) in decision.reason
+    assert "restore" in decision.reason.lower() or "regenerate" in decision.reason.lower()
+    assert "composition" not in decision.reason.lower()
+    assert "<subtask-ids>" not in decision.reason
