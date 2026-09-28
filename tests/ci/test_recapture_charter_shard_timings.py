@@ -36,6 +36,7 @@ from scripts.ci.recapture_charter_shard_timings import (
 pytestmark = pytest.mark.fast
 
 FAKE_TOKEN = "fake-recapture-token-not-a-real-secret"  # noqa: S105 (obviously-fake test value)
+FAKE_GITHUB_TOKEN = "fake-ambient-github-token-not-a-real-secret"  # noqa: S105 (obviously-fake test value)
 
 
 def _set_token(monkeypatch: pytest.MonkeyPatch, value: str | None) -> None:
@@ -112,6 +113,26 @@ def test_require_recapture_token_returns_value_when_set(monkeypatch: pytest.Monk
 @pytest.mark.parametrize("token_value", ["", None], ids=["empty-string", "unset"])
 def test_require_recapture_token_raises_for_empty_or_unset(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], token_value: str | None) -> None:
     _set_token(monkeypatch, token_value)
+    with pytest.raises(SystemExit) as exc_info:
+        require_recapture_token()
+    assert exc_info.value.code != 0
+    assert SECRET_NAME in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("github_token_value", [FAKE_GITHUB_TOKEN, ""], ids=["distinct-value", "empty-string"])
+def test_require_recapture_token_ignores_github_token_fallback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], github_token_value: str
+) -> None:
+    """CL-002/FR-005: an ambient GITHUB_TOKEN must never satisfy the dedicated-secret check.
+
+    A fallback to GITHUB_TOKEN would silently defeat the anti-recursion protection this
+    mission exists to add (a GITHUB_TOKEN-authored PR does not trigger other workflows'
+    pull_request events). CHARTER_SHARD_RECAPTURE_TOKEN is unset here in both cases; an
+    ambient GITHUB_TOKEN -- whether a distinct real-looking value or GitHub's own
+    injected-empty-string case -- must still raise SystemExit, never be silently accepted.
+    """
+    monkeypatch.delenv(SECRET_NAME, raising=False)
+    monkeypatch.setenv("GITHUB_TOKEN", github_token_value)
     with pytest.raises(SystemExit) as exc_info:
         require_recapture_token()
     assert exc_info.value.code != 0
@@ -304,6 +325,8 @@ def test_fixture5_missing_secret_fails_loud_before_any_recapture_work(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], token_value: str | None
 ) -> None:
     _set_token(monkeypatch, token_value)
+    # CL-002/FR-005 end-to-end: an ambient GITHUB_TOKEN must not let main() past step 1 either.
+    monkeypatch.setenv("GITHUB_TOKEN", FAKE_GITHUB_TOKEN)
     list_prs_calls: list[tuple[Any, ...]] = []
 
     def _fake_list_open_prs(*args: Any) -> list[dict[str, object]]:
