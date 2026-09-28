@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 import subprocess
 
 import pytest
@@ -12,6 +13,7 @@ from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance impo
     MIGRATION_ID,
     TARGET_VERSION,
     HealTemplateSetProvenanceMigration,
+    describe_template_set_ambiguities,
     _matches_mission_source,
 )
 from specify_cli.upgrade.registry import MigrationRegistry
@@ -155,6 +157,60 @@ def test_template_set_migration_repairs_path_while_former_checkout_still_exists(
     assert migration.apply(tmp_path).success is True
     data = YAML(typ="safe").load(charter_path.read_text(encoding="utf-8"))
     assert data["catalog"]["references"][0]["source_path"] == ("${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml")
+
+
+@pytest.mark.parametrize(
+    ("symlink_component", "expected_index_mode"),
+    [("mission.yaml", "120000"), ("missions", "100644")],
+)
+def test_template_set_migration_rejects_symlinked_former_checkout_paths(
+    tmp_path: Path,
+    packs_root: Path,
+    symlink_component: str,
+    expected_index_mode: str,
+) -> None:
+    checkout = tmp_path / "former-checkout"
+    stale_source = _former_checkout_source(checkout)
+    relative_source = stale_source.relative_to(checkout).as_posix()
+    external_source = tmp_path / "external-authority" / "missions" / "software-dev" / "mission.yaml"
+    external_source.parent.mkdir(parents=True)
+    external_source.write_text("name: mutable-external-authority\n", encoding="utf-8")
+
+    if symlink_component == "mission.yaml":
+        stale_source.unlink()
+        stale_source.symlink_to(external_source)
+        subprocess.run(["git", "-C", str(checkout), "add", "--", relative_source], check=True)
+    else:
+        missions_root = stale_source.parents[1]
+        shutil.rmtree(missions_root)
+        missions_root.symlink_to(external_source.parents[1], target_is_directory=True)
+
+    index_entry = subprocess.run(
+        ["git", "-C", str(checkout), "ls-files", "--stage", "--", relative_source],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert index_entry.split()[0] == expected_index_mode
+
+    charter_path = _charter_path(tmp_path)
+    _write_charter(charter_path, [_template_ref(str(stale_source))])
+    original = charter_path.read_text(encoding="utf-8")
+    migration = HealTemplateSetProvenanceMigration()
+    dry_run = migration.apply(tmp_path, dry_run=True)
+    ambiguities = describe_template_set_ambiguities(tmp_path)
+
+    assert (
+        migration.detect(tmp_path),
+        dry_run.changes_made,
+        len(ambiguities),
+    ) == (False, [], 1)
+    assert "ambiguous" in ambiguities[0]
+
+    result = migration.apply(tmp_path)
+    assert result.success is True
+    assert result.changes_made == []
+    assert charter_path.read_text(encoding="utf-8") == original
 
 
 def test_template_set_migration_is_dry_run_safe_and_idempotent(tmp_path: Path, packs_root: Path) -> None:

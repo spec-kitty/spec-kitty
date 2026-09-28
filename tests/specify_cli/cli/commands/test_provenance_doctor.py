@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 
 import pytest
 import typer
@@ -56,6 +57,25 @@ metadata:
 
 def _charter_yaml_path(project_root: Path) -> Path:
     return project_root / ".kittify" / "charter" / "charter.yaml"
+
+
+def _former_checkout_source(checkout_root: Path) -> Path:
+    source = checkout_root / "packs" / "built-in" / "missions" / "software-dev" / "mission.yaml"
+    _write(source, "name: software-dev\ndescription: Tracked built-in mission.\n")
+    _write(
+        checkout_root / "pyproject.toml",
+        '[project]\nname = "spec-kitty-cli"\n\n[project.urls]\nRepository = "https://github.com/spec-kitty/spec-kitty"\n',
+    )
+    subprocess.run(["git", "init", "--quiet", str(checkout_root)], check=True)
+    subprocess.run(
+        ["git", "-C", str(checkout_root), "remote", "add", "origin", "https://github.com/spec-kitty/spec-kitty.git"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(checkout_root), "add", "--", "pyproject.toml", "packs/built-in/missions/software-dev/mission.yaml"],
+        check=True,
+    )
+    return source
 
 
 @pytest.fixture
@@ -209,6 +229,49 @@ class TestDoctorProvenanceCli:
         assert "TEMPLATE_SET:software-dev-default" in result.output
         assert "ambiguous" in result.output.lower() or "unresolved" in result.output.lower()
         assert "not healed" in result.output.lower()
+
+        json_result = runner.invoke(doctor_module.app, ["provenance", "--json"])
+
+        assert json_result.exit_code == 1, json_result.output
+        payload = json.loads(json_result.output)
+        assert payload["leak_count"] == 0
+        assert payload["unresolved_count"] == payload["finding_count"] == 1
+        assert payload["heal_hint"] is None
+        assert "ambiguous" in payload["unresolved"][0]
+
+    def test_tracked_symlink_template_set_is_unresolved_without_heal_hint(
+        self,
+        tmp_path: Path,
+        packs_root: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        checkout = tmp_path / "former-checkout"
+        source = _former_checkout_source(checkout)
+        external = tmp_path / "mutable-external-authority.yaml"
+        _write(external, "name: mutable-external-authority\n")
+        source.unlink()
+        source.symlink_to(external)
+        subprocess.run(
+            ["git", "-C", str(checkout), "add", "--", "packs/built-in/missions/software-dev/mission.yaml"],
+            check=True,
+        )
+        refs = (
+            "  - id: TEMPLATE_SET:software-dev-default\n"
+            "    kind: template_set\n"
+            "    title: software-dev-default\n"
+            "    summary: x\n"
+            f"    source_path: {source}\n"
+            "    local_path: _LIBRARY/template-set-software-dev-default.md\n"
+        )
+        _write(_charter_yaml_path(tmp_path), _charter_yaml_with_catalog(refs))
+        monkeypatch.setattr(_provenance_doctor, "locate_project_root", lambda *a, **k: tmp_path)
+
+        result = runner.invoke(doctor_module.app, ["provenance"])
+
+        assert result.exit_code == 1, result.output
+        assert "ambiguous" in result.output.lower()
+        assert "not healed" in result.output.lower()
+        assert "Heal verified built-in paths with" not in result.output
 
         json_result = runner.invoke(doctor_module.app, ["provenance", "--json"])
 
