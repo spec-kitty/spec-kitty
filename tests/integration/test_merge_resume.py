@@ -162,6 +162,18 @@ def _patches(
     def fake_mark_done(repo_root, mission_slug, wp_id, target_branch):  # noqa: ANN001
         mark_done_calls.append(wp_id)
 
+    # FR-012: a resumed transaction is post-fix only if it carries the marker a
+    # real attempt-1 writes together with its fresh state.json (#5111).
+    from specify_cli.consolidation.reconciliation import write_post_fix_marker
+    _meta = json.loads((tmp_path / "kitty-specs" / manifest.mission_slug / "meta.json").read_text(encoding="utf-8"))
+    write_post_fix_marker(tmp_path, _meta["mission_id"])
+    if initial_state is not None:
+        # Post-fix attempt-1 persists these BEFORE consolidating any lane
+        # (persist-before-mutate); anchor them to a real commit object.
+        from specify_cli.lanes.compute import lane_created_branch
+        _base = subprocess.run(["git", "-C", str(tmp_path), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        initial_state.pre_mutation_coord_sha = _base
+        initial_state.pre_interrupt_lane_tips = {lane_created_branch(manifest, lane.lane_id): _base for lane in manifest.lanes}
     return [
         patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
         patch("specify_cli.consolidation.resolve.load_state", return_value=initial_state),
@@ -191,6 +203,7 @@ def _patches(
         # baseline seams; the executor binds them — patch there.
         patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
         patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+        patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
     ]
 
 
