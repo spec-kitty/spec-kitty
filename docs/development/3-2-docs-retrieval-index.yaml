@@ -7577,7 +7577,7 @@ pages:
   - path: "docs/development/reference/terminology-exemptions.md"
     title: "Terminology Guard Exemption Policy"
     divio_type: "reference"
-    abstract: "Policy for the four surfaces exempted from spec-kitty terminology guards (docs/adr, docs/migration, archival docs/plans sub-areas, and the Unreleased-only CHANGELOG scan)."
+    abstract: "Policy for the five surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
     anchors:
     - {slug: "background", text: "Background", level: 2}
     - {slug: "exempt-surface-1-docs-adr-immutable-architectural-decision-records", text: "Exempt Surface 1: `docs/adr/` — Immutable Architectural Decision Records", level: 2}
@@ -7596,6 +7596,10 @@ pages:
     - {slug: "what-is-excluded-4", text: "What is excluded", level: 3}
     - {slug: "why-it-is-exempt-4", text: "Why it is exempt", level: 3}
     - {slug: "scope-boundary-3", text: "Scope boundary", level: 3}
+    - {slug: "exempt-surface-5-docs-reports-dated-point-in-time-report-snapshots", text: "Exempt Surface 5: `docs/reports/` — Dated Point-in-Time Report Snapshots", level: 2}
+    - {slug: "what-is-excluded-5", text: "What is excluded", level: 3}
+    - {slug: "why-it-is-exempt-5", text: "Why it is exempt", level: 3}
+    - {slug: "scope-boundary-4", text: "Scope boundary", level: 3}
     - {slug: "invariant-exemptions-must-stay-narrow", text: "Invariant: Exemptions Must Stay Narrow", level: 2}
     - {slug: "updating-this-policy", text: "Updating This Policy", level: 2}
   - path: "docs/development/reporting/debrief-styleguide.md"
