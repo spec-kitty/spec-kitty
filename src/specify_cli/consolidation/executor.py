@@ -143,7 +143,6 @@ from specify_cli.consolidation.reconciliation import (
     VerifyResult,
     VerifyStatus,
     build_approved_wp_set,
-    clear_post_fix_marker,
     detect_legacy_in_flight_state,
     route_terminus,
     write_post_fix_marker,
@@ -2974,10 +2973,10 @@ def _phase_finalize_and_summary(run: _MergeRunState) -> None:
     """Cleanup workspace + clear state, render stale findings."""
     # -- T002: Cleanup workspace (preserves state.json) then clear state --
     cleanup_merge_workspace(run.canonical_id, run.main_repo)
-    # terminus-merge-integrity WP06 (FR-012): drop the post-fix marker before the
-    # state is cleared, so a subsequent, unrelated merge for the same mission
-    # never mistakes a leftover marker for its own in-flight transaction.
-    clear_post_fix_marker(run.main_repo, run.canonical_id)
+    # terminus-merge-integrity WP06 (FR-012) / #5111: ``clear_state`` drops the
+    # state and its post-fix marker together (state first), so a subsequent,
+    # unrelated merge for the same mission never mistakes a leftover marker for
+    # its own in-flight transaction.
     clear_state(run.main_repo, run.canonical_id)
 
     _render_stale_findings(run.stale_report)

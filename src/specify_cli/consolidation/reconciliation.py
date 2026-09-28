@@ -877,24 +877,18 @@ def route_terminus(entry_point: str) -> None:
         )
 
 
-def _post_fix_marker_path(repo_root: Path, mission_id: str) -> Path:
-    # FR-012: the marker a post-fix merge writes at transaction start (#5111: with
-    # its fresh ``state.json``). Its ABSENCE on an in-flight (resumed) merge means
-    # the state was created by pre-fix code, whose shape the new guarantees cannot
-    # be retro-applied to (D6) — refuse.
-    return post_fix_marker_path(mission_id, repo_root)
-
-
 def write_post_fix_marker(repo_root: Path, mission_id: str) -> None:
-    """Stamp the FR-012 post-fix marker for this in-flight merge transaction."""
-    path = _post_fix_marker_path(repo_root, mission_id)
+    """Stamp the FR-012 post-fix marker for this in-flight merge transaction.
+
+    FR-012: the marker a post-fix merge writes at transaction start (#5111: with
+    its fresh ``state.json``). Its ABSENCE on an in-flight (resumed) merge means
+    the state was created by pre-fix code, whose shape the new guarantees cannot
+    be retro-applied to (D6) -- refuse. It is cleared only by
+    :func:`~specify_cli.consolidation.state.clear_state`, together with the state.
+    """
+    path = post_fix_marker_path(mission_id, repo_root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("terminus-reconciliation-gate\n", encoding="utf-8")
-
-
-def clear_post_fix_marker(repo_root: Path, mission_id: str) -> None:
-    """Remove the post-fix marker at terminus finalize (best-effort)."""
-    _post_fix_marker_path(repo_root, mission_id).unlink(missing_ok=True)
 
 
 def detect_legacy_in_flight_state(repo_root: Path, mission_id: str, *, is_resume: bool) -> str | None:
@@ -910,7 +904,7 @@ def detect_legacy_in_flight_state(repo_root: Path, mission_id: str, *, is_resume
     """
     if not is_resume:
         return None
-    if _post_fix_marker_path(repo_root, mission_id).exists():
+    if post_fix_marker_path(mission_id, repo_root).exists():
         return None
     return (
         "a pre-fix in-flight merge state was detected (no reconciliation marker). "
@@ -1391,7 +1385,6 @@ __all__ = [
     "VerifyResult",
     "VerifyStatus",
     "build_approved_wp_set",
-    "clear_post_fix_marker",
     "detect_legacy_in_flight_state",
     "route_terminus",
     "write_post_fix_marker",

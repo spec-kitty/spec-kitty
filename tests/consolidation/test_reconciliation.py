@@ -43,11 +43,11 @@ from specify_cli.consolidation.reconciliation import (
     VerifyResult,
     VerifyStatus,
     build_approved_wp_set,
-    clear_post_fix_marker,
     detect_legacy_in_flight_state,
     route_terminus,
     write_post_fix_marker,
 )
+from specify_cli.consolidation.state import clear_state
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -892,16 +892,17 @@ def test_legacy_detection_passes_resume_with_marker(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     write_post_fix_marker(repo, _MISSION_ID)
     assert detect_legacy_in_flight_state(repo, _MISSION_ID, is_resume=True) is None
-    clear_post_fix_marker(repo, _MISSION_ID)
+    clear_state(repo, _MISSION_ID)
     assert detect_legacy_in_flight_state(repo, _MISSION_ID, is_resume=True) is not None
 
 
-def test_clear_post_fix_marker_is_idempotent(tmp_path: Path) -> None:
+def test_clear_state_marker_clear_is_idempotent(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
-    clear_post_fix_marker(repo, _MISSION_ID)  # missing_ok -> no error
+    clear_state(repo, _MISSION_ID)  # nothing on disk -> no error
     write_post_fix_marker(repo, _MISSION_ID)
-    clear_post_fix_marker(repo, _MISSION_ID)
-    clear_post_fix_marker(repo, _MISSION_ID)
+    clear_state(repo, _MISSION_ID)
+    clear_state(repo, _MISSION_ID)
+    assert detect_legacy_in_flight_state(repo, _MISSION_ID, is_resume=True) is not None
 
 
 # --------------------------------------------------------------------------- #

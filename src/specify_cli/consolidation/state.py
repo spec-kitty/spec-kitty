@@ -17,7 +17,7 @@ from typing import Any
 from kernel.clock import now_utc_iso
 from kernel.errors import GuardedReadError
 from kernel.guarded_read import read_guarded
-from specify_cli.consolidation.workspace import POST_FIX_MARKER_FILENAME, get_merge_runtime_dir
+from specify_cli.consolidation.workspace import get_merge_runtime_dir, post_fix_marker_path
 
 __all__ = [
     "MergeAmbiguousStateError",
@@ -338,7 +338,7 @@ def clear_state(repo_root: Path, mission_id: str | None = None) -> bool:
     outlive it (#5111): a leftover marker would vouch for a later, unrelated
     state, and a marker-less state is refused as pre-fix. Clearing both here
     makes ``--abort``, the pre-mutation refusal clear, and finalize consistent
-    by construction.
+    by construction -- ``clear_state`` is the ONLY owner of that clear.
 
     Args:
         repo_root: Repository root path
@@ -349,13 +349,14 @@ def clear_state(repo_root: Path, mission_id: str | None = None) -> bool:
         marker is still removed, but does not count as cleared state)
     """
     if mission_id is not None:
-        runtime_dir = get_merge_runtime_dir(mission_id, repo_root)
-        (runtime_dir / POST_FIX_MARKER_FILENAME).unlink(missing_ok=True)
-        state_path = runtime_dir / _STATE_FILE
-        if state_path.exists():
-            state_path.unlink()
-            return True
-        return False
+        state_path = get_state_path(repo_root, mission_id)
+        cleared = state_path.exists()
+        # Mirror creation (marker, then state): delete the state FIRST, so a hard
+        # kill between the two unlinks leaves a harmless orphan marker -- never a
+        # marker-less state the next run would refuse as pre-fix.
+        state_path.unlink(missing_ok=True)
+        post_fix_marker_path(mission_id, repo_root).unlink(missing_ok=True)
+        return cleared
 
     # Clear the first active state found
     runtime_merge_dir = repo_root / ".kittify" / "runtime" / "merge"
@@ -363,8 +364,8 @@ def clear_state(repo_root: Path, mission_id: str | None = None) -> bool:
         for candidate in sorted(runtime_merge_dir.iterdir()):
             state_file = candidate / _STATE_FILE
             if state_file.exists():
-                (candidate / POST_FIX_MARKER_FILENAME).unlink(missing_ok=True)
                 state_file.unlink()
+                post_fix_marker_path(candidate.name, repo_root).unlink(missing_ok=True)
                 return True
 
     return False

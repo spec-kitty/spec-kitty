@@ -27,7 +27,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
-from specify_cli.consolidation.reconciliation import detect_legacy_in_flight_state
+from specify_cli.consolidation.reconciliation import detect_legacy_in_flight_state, write_post_fix_marker
 from specify_cli.consolidation.resolve import _load_or_create_merge_state
 from specify_cli.consolidation.state import (
     ConsolidationState,
@@ -36,7 +36,7 @@ from specify_cli.consolidation.state import (
     load_state,
     save_state,
 )
-from specify_cli.consolidation.workspace import get_merge_runtime_dir
+from specify_cli.consolidation.workspace import POST_FIX_MARKER_FILENAME, get_merge_runtime_dir
 from tests.consolidation.test_issue_4764_terminus_safety import (
     MISSION_ID,
     MISSION_SLUG,
@@ -49,7 +49,7 @@ from tests.consolidation.test_issue_4764_terminus_safety import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 _PRE_FIX_REFUSAL = "pre-fix in-flight merge state"
-_MARKER_FILENAME = "reconciliation.post-fix"
+_MARKER_FILENAME = POST_FIX_MARKER_FILENAME
 
 
 def _gate_eval(*, passing: bool) -> MagicMock:
@@ -70,10 +70,13 @@ def _consolidate(
     *args: str,
     gates_pass: bool,
     on_bake: Callable[..., None] | None = None,
+    gates_raise: BaseException | None = None,
 ) -> tuple[int, str, dict[str, MagicMock]]:
     monkeypatch.chdir(repo)
     with _merge_external_mocks() as mocks:
         mocks["gates"].return_value = _gate_eval(passing=gates_pass)
+        if gates_raise is not None:
+            mocks["gates"].side_effect = gates_raise
         if on_bake is not None:
             mocks["bake"].side_effect = on_bake
         result = CliRunner().invoke(
@@ -117,6 +120,30 @@ def test_5111_fresh_gate_failure_leaves_no_transaction_record(approved_repo: Pat
 
     assert not get_state_path(approved_repo, MISSION_ID).exists(), "a gate failure left a stale state.json behind"
     assert not _marker_path(approved_repo).exists(), "a gate failure left an orphan reconciliation marker behind"
+
+
+def test_5111_interrupt_before_mutation_also_clears_the_fresh_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Not only gate failures: Ctrl-C (or a declined prompt) inside the pre-mutation window clears too."""
+    code, out, _ = _consolidate(approved_repo, monkeypatch, gates_pass=True, gates_raise=KeyboardInterrupt())
+    assert code != 0, out
+
+    assert not get_state_path(approved_repo, MISSION_ID).exists(), "an interrupt left a stale state.json behind"
+    assert not _marker_path(approved_repo).exists(), "an interrupt left an orphan reconciliation marker behind"
+
+
+def test_5111_gate_failure_on_resume_preserves_the_resume_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only a FRESH run's own record is cleared; a pre-existing resume record survives a gate failure."""
+    resume_state = ConsolidationState(mission_id=MISSION_ID, mission_slug=MISSION_SLUG, target_branch="main", wp_order=["WP01"])
+    resume_state.current_wp = "WP01"
+    write_post_fix_marker(approved_repo, MISSION_ID)
+    save_state(resume_state, approved_repo)
+
+    code, out, _ = _consolidate(approved_repo, monkeypatch, "--resume", gates_pass=False)
+    assert code == 1, out
+    assert "Merge gates failed" in out, out
+
+    assert get_state_path(approved_repo, MISSION_ID).exists(), "a gate failure destroyed a pre-existing resume record"
+    assert _marker_path(approved_repo).exists(), "a gate failure destroyed a pre-existing resume record's marker"
 
 
 def test_5111_rerun_after_gate_failure_honours_its_own_strategy(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -241,3 +268,23 @@ def test_5111_clear_state_without_state_still_removes_an_orphan_marker(tmp_path:
 
     assert clear_state(tmp_path, MISSION_ID) is False
     assert not (runtime_dir / _MARKER_FILENAME).exists()
+
+
+def test_5111_clear_state_deletes_state_before_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deletion mirrors creation (marker, then state): a kill mid-clear leaves an orphan marker, never a marker-less state."""
+    runtime_dir = get_merge_runtime_dir(MISSION_ID, tmp_path)
+    runtime_dir.mkdir(parents=True)
+    (runtime_dir / "state.json").write_text("{}", encoding="utf-8")
+    (runtime_dir / _MARKER_FILENAME).write_text("x\n", encoding="utf-8")
+    unlinked: list[str] = []
+    real_unlink = Path.unlink
+
+    def _recording_unlink(self: Path, missing_ok: bool = False) -> None:
+        if self.parent == runtime_dir and self.exists():
+            unlinked.append(self.name)
+        real_unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", _recording_unlink)
+    clear_state(tmp_path, MISSION_ID)
+
+    assert unlinked == ["state.json", _MARKER_FILENAME]
