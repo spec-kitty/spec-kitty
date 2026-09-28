@@ -1,0 +1,59 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP01
+cycle: 1
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+verdict: approved
+profile_directives_applied:
+  - "reviewer-renata: directive 030 (Test and Typecheck Quality Gate) -- ran the targeted
+    pytest file plus ruff check/format before verdict, recorded pass/fail counts."
+  - "reviewer-renata: directive 041 (Tests as Scaffold, Not Friction) -- applied the
+    reverse-speccing / self-mutation lens: reverted _report_drift and, separately, the
+    charter gate's mismatch branch to a bare assert, confirmed the WP's own new tests
+    (T003, T004, T005 x2) go red for the right reason, then restored the file exactly
+    (verified via `git diff` and `git status --porcelain`, both empty)."
+  - "reviewer-renata: directive 024 (Locality of Change) -- confirmed the diff's blast
+    radius is exactly tests/architectural/test_module_length_agreement.py, with the two
+    tracer add/undo commits (14a7ef69c, 90f6c2645) netting to zero everywhere including
+    kitty-specs/."
+  - "reviewer-renata: directive 001 (Architectural Integrity) / Standing Order #5 --
+    confirmed the two production gate functions' bodies, the unconditional
+    `assert \"charter\" not in _MISMATCH_ALLOWLIST`, `_MISMATCH_ALLOWLIST` (19 entries),
+    `_BASELINE_ALLOWLIST_COUNT` (20), and the three allowlist-ratchet tests are
+    byte-identical to base commit f8dcce82a -- diff shows only additions plus the
+    isolated T007 mypy fix."
+  - "reviewer-renata: tactic reverse-speccing / test-readability-clarity-check --
+    reconstructed the demotion mechanism from the test file alone (T002's verification
+    claims) and cross-checked against the actual gate-function bodies before trusting
+    any new test's fixture shapes."
+  - "avoidance-boundary honored: did not implement, fix, or rewrite any code; findings
+    only."
+revert_evidence:
+  - what_broken: "_report_drift() body replaced with a silent `return` (no warn, no
+    pytest.fail under any strict value) -- simulates 'silent success' / strict-mode
+    never failing."
+  - tests_that_failed: >-
+      test_report_drift_warns_by_default, test_report_drift_fails_in_strict_mode,
+      test_charter_disagreement_emits_shard_timings_drift_warning,
+      test_non_allowlisted_disagreement_emits_shard_timings_drift_warning,
+      test_charter_disagreement_fails_in_strict_mode,
+      test_non_allowlisted_disagreement_fails_in_strict_mode (6 failed, 2 passed on the
+      filtered `-k` run)
+  - what_broken_2: "test_charter_is_not_allowlisted_and_agrees's mismatch branch reverted
+      to a bare `assert committed == collected` (pre-#5240 shape), _report_drift restored
+      to its real body first."
+  - tests_that_failed_2: >-
+      test_charter_is_not_allowlisted_and_agrees (AssertionError 6219 == 6229),
+      test_charter_disagreement_emits_shard_timings_drift_warning,
+      test_charter_disagreement_fails_in_strict_mode -- all failed for the right reason
+      (propagated AssertionError / DID NOT WARN / DID NOT RAISE), confirming T003/T005
+      are non-vacuous against a reverted production function, not just against the
+      isolated helper.
+  - restored: "yes -- both edits reverted with the exact original text via the Edit tool
+      (never git checkout/restore/reset/stash/clean); `git diff --stat -- tests/architectural/test_module_length_agreement.py`
+      and `git status --porcelain` both returned empty after restoration."
+gates_observed:
+  tsc: unknown
+  tests: pass
+  coverage: unknown
+feedback: []

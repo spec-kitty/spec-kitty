@@ -1,0 +1,111 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+profile_directives_applied:
+  - "DIRECTIVE_044 (Canonical Sources and Unification) — used to identify that tests/release/pinning_rule_inventory.json is a DERIVED artifact with one canonical producer (scripts/ci/derive_pinning_inventory.py) and that this mission's diff drifted it out of sync with that producer without regenerating it."
+  - "DIRECTIVE_043 (Close Defect Classes by Construction) — used to assess whether the new strict-mode CI job structurally produces an attributable signal, or whether it requires an undocumented triage discipline to interpret (it does)."
+  - "DIRECTIVE_041 (Tests as Scaffold, Not Friction) — used to flag that two of the new red-first tests are themselves environment-fragile, so a correct structural change (the strict-mode job) does not stay green/attributable."
+findings:
+  - id: pr-boundary-001
+    lens: kernel/doctrine/CLI seam — canonical-derived-artifact freshness
+    severity: 4
+    title: "Diff shifts line numbers inside tests/architectural/_gate_coverage.py without regenerating the DERIVED tests/release/pinning_rule_inventory.json, and this PR's own CI cannot see the break"
+    evidence:
+      - code: "tests/architectural/_gate_coverage.py:128-133 (5 lines inserted into WORKFLOW_FILES, ahead of several rules the pinning inventory pins by absolute line number, e.g. lines formerly 426/428/434/... now 431/433/439/...)"
+      - code: "tests/release/pinning_rule_inventory.json (DERIVED — do not hand-edit; own header: 'Regenerate with python3 scripts/ci/derive_pinning_inventory.py')"
+      - code: "tests/release/test_pinning_inventory_fresh.py::test_inventory_is_reproducible_by_rerunning_the_derivation — the freshness gate"
+      - code: "scripts/ci/gate_selection.py::select_modules — diff-scoped per-PR module selection"
+      - artifact: ".github/ci-module-registry.yml — the `release` module's roots are `src/specify_cli/release/**` only; `ci` module's roots are `scripts/ci/**` + `.github/workflows/**` with test_dirs `tests/ci` only (neither covers `tests/release/`)"
+    claim: >-
+      Verified by running the actual test: `.venv/bin/python -m pytest
+      tests/release/test_pinning_inventory_fresh.py -q` FAILS on this mission's HEAD
+      (353c6742b) with "tests/release/pinning_rule_inventory.json is stale or
+      hand-edited — re-run `python3 scripts/ci/derive_pinning_inventory.py`", and PASSES
+      cleanly (5 passed) against an `origin/main` (cc788d50e) export of the same
+      checkout — this is a regression this diff introduces, not a pre-existing baseline
+      red. Root cause: this diff inserts 5 lines into
+      tests/architectural/_gate_coverage.py's WORKFLOW_FILES tuple (the
+      ci-charter-shard-recapture.yml registration), which shifts every line number below
+      that insertion point in the same file — several of which
+      tests/release/pinning_rule_inventory.json pins by absolute line number for rules
+      about an unrelated, still-open "retiring sonarcloud job" cleanup — so the committed
+      inventory's line numbers (426, 428, 434, ...) no longer match the file's actual
+      lines (431, 433, 439, ...) and the freshness re-derivation gate fails. Confirmed by
+      direct call: `scripts.ci.gate_selection.select_modules(<this diff's 7 changed
+      paths>)` returns `frozenset({'ci'})` only — the `release` module (whose test tree
+      is `tests/release/`) is never selected, because none of this diff's paths fall
+      under `src/specify_cli/release/**`. Per `ci-modules.yml`'s diff-scoped selection
+      (mission ci-modules-diff-scoping), the `release` module's shard therefore does NOT
+      run on this PR, and `architectural-heavy` (`ci-router.yml`) only ever invokes `uv
+      run --frozen pytest tests/architectural -q ...`, never `tests/release`. This is
+      precisely the invisible-regression pattern implement.ruling.md already flagged and
+      fixed for two OTHER registries (`_gate_coverage.py`'s own WORKFLOW_FILES and
+      `test_no_duplicate_suite_execution.py`'s NON_CHANGE_TRIGGERED_WORKFLOWS, both fixed
+      in this diff) — but this third, line-number-keyed registry was missed. The break
+      will surface only later: on `ci-nightly.yml`'s full-module-matrix sweep, or on a
+      future, unrelated PR that happens to touch `src/specify_cli/release/**`, wrongly
+      attributing this mission's regression to that later change.
+    remediation: >-
+      Run `python3 scripts/ci/derive_pinning_inventory.py` in this branch and commit the
+      refreshed tests/release/pinning_rule_inventory.json as part of this diff (an 8th
+      changed file), the same discipline implement.ruling.md already applied to the two
+      workflow-enumeration registries. Re-run
+      `.venv/bin/python -m pytest tests/release/test_pinning_inventory_fresh.py -q` to
+      confirm it is green before merge.
+
+  - id: pr-boundary-002
+    lens: mission-derived — strict-mode red must be visible and correctly attributable
+    severity: 4
+    title: "Two of the new WP01 unit tests are not isolated from SPEC_KITTY_STRICT_SHARD_TIMINGS, so the new strict-shard-timings-check job is deterministically red on every run, independent of real drift"
+    evidence:
+      - code: "tests/architectural/test_module_length_agreement.py:503 test_charter_disagreement_emits_shard_timings_drift_warning (no monkeypatch fixture; asserts pytest.warns(ShardTimingsDriftWarning))"
+      - code: "tests/architectural/test_module_length_agreement.py:528 test_non_allowlisted_disagreement_emits_shard_timings_drift_warning (same shape)"
+      - code: "tests/architectural/test_module_length_agreement.py:165-166 _strict_mode() -> os.environ.get(_STRICT_ENV_VAR) == \"1\" (reads the ambient process env live, not an injected value)"
+      - code: "tests/architectural/test_module_length_agreement.py:169-173 _report_drift(): strict=True takes pytest.fail(message); only strict=False takes warnings.warn(...)"
+      - code: ".github/workflows/ci-charter-shard-recapture.yml:150-155 strict-shard-timings-check job sets env SPEC_KITTY_STRICT_SHARD_TIMINGS: \"1\" for the WHOLE file invocation (`pytest tests/architectural/test_module_length_agreement.py -q`, unfiltered)"
+      - artifact: "plan.md item (a2), 'A red run must be triaged by test name first' — the plan only anticipates noise from the three pre-existing allowlist-ratchet tests, not from these two new tests"
+    claim: >-
+      Verified by running the exact invocation the new job performs:
+      `SPEC_KITTY_STRICT_SHARD_TIMINGS=1 .venv/bin/python -m pytest
+      tests/architectural/test_module_length_agreement.py -q` produces 4 failed, 15
+      passed. Two of the four failures are the intended alarm (the two production gate
+      functions, correctly hard-failing on today's real charter/agent drift). The other
+      two failures are `test_charter_disagreement_emits_shard_timings_drift_warning` and
+      `test_non_allowlisted_disagreement_emits_shard_timings_drift_warning` — both new
+      tests added by this mission's own diff. Neither isolates
+      `SPEC_KITTY_STRICT_SHARD_TIMINGS` from the ambient environment before calling the
+      production gate function with a constructed disagreement and asserting
+      `pytest.warns(ShardTimingsDriftWarning)`. Because `_strict_mode()` reads the live
+      process environment, and the new `strict-shard-timings-check` job sets that exact
+      variable to `"1"` for its entire, unfiltered `pytest ... -q` invocation, these two
+      tests inherit strict mode: `_report_drift` takes the `pytest.fail(...)` branch
+      instead of emitting a warning, so `pytest.warns()` itself fails with an unhandled
+      `Failed` exception rather than recording "no warning". This means the new
+      scheduled job — introduced by this same diff specifically to be, per plan.md item
+      (a2), "the real, scheduled, hard-failing home" whose red is meant to be visibly and
+      correctly attributable to charter/agent drift — will show these same two tests
+      FAILED on every single run, drift or not, even after the recapture mechanism has
+      fully closed the drift and the two production gates go green. This directly
+      contradicts the mission-derived requirement that the strict-mode red be correctly
+      attributable: a maintainer triaging a red `strict-shard-timings-check` run cannot
+      distinguish "real drift" from "these two tests are structurally incompatible with
+      this job's own environment" without already knowing about this bug, and the run
+      will never go fully green even once drift is fixed, undermining Standing Order
+      #5's "drift stays visible, not silent" argument by replacing it with "job stays red
+      forever, for an unrelated reason."
+    remediation: >-
+      Add explicit environment isolation to both tests (mirroring the isolation already
+      done correctly by their sibling strict-mode tests at lines 553/564, just inverted):
+      at the top of test_charter_disagreement_emits_shard_timings_drift_warning and
+      test_non_allowlisted_disagreement_emits_shard_timings_drift_warning, take a
+      `monkeypatch: pytest.MonkeyPatch` fixture and call
+      `monkeypatch.delenv("SPEC_KITTY_STRICT_SHARD_TIMINGS", raising=False)` (or
+      `monkeypatch.setenv("SPEC_KITTY_STRICT_SHARD_TIMINGS", "0")`) before invoking the
+      production gate function, so both tests pass deterministically regardless of the
+      ambient environment the suite is invoked under. Re-verify with
+      `SPEC_KITTY_STRICT_SHARD_TIMINGS=1 .venv/bin/python -m pytest
+      tests/architectural/test_module_length_agreement.py -q` showing only the two
+      genuine drift-gate failures (or zero failures once WP-level drift is resolved),
+      never these two unit tests.

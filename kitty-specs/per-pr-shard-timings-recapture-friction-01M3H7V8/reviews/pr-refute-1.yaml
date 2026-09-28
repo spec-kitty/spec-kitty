@@ -1,0 +1,97 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+profile_directives_applied:
+  - "debugger-debbie: root-cause-analysis (traced each finding's claim back to the exact
+      code path and, for empirical claims, reproduced the actual failure/pass rather than
+      trusting the write-up)"
+  - "debugger-debbie: hypothesis-driven-debugging (treated each finding as a falsifiable
+      hypothesis and ran the exact commands cited to falsify or confirm it, including
+      diffing behavior between HEAD and origin/main in an isolated scratch worktree)"
+  - "debugger-debbie: trace-based-observability (read actual pytest tracebacks/output
+      rather than accepting the finding's paraphrase of what would fail and why)"
+verdicts:
+  - id: pr-boundary-001
+    verdict: confirmed
+    reason: 'Reproduced exactly: the pinning-inventory freshness test fails on HEAD (1
+      failed, 4 passed) and passes on origin/main (5 passed) in an isolated scratch
+      worktree, and select_modules() on this diff''s 7 non-spec paths returns
+      frozenset({"ci"}) only, confirming the release module (tests/release/) is never
+      selected by this PR''s CI.'
+    evidence: '.venv/bin/python -m pytest tests/release/test_pinning_inventory_fresh.py -q
+      on HEAD 353c6742b -> "1 failed, 4 passed" (stale pinning_rule_inventory.json,
+      shifted line numbers 426/428/434 vs actual). Same test in a git worktree add
+      scratch dir at origin/main (cc788d50e) using this checkout''s venv -> "5 passed".
+      scripts.ci.gate_selection.select_modules(<7 diff paths>) -> frozenset({"ci"});
+      confirmed via .github/ci-module-registry.yml that the release module''s roots are
+      src/specify_cli/release/** only. Scratch worktree removed; git worktree list shows
+      only the main checkout.'
+  - id: pr-boundary-002
+    verdict: confirmed
+    reason: 'Reproduced exactly: SPEC_KITTY_STRICT_SHARD_TIMINGS=1 pytest on
+      test_module_length_agreement.py gives 4 failed, 15 passed; two failures are the
+      real charter/agent drift gates, and the other two are precisely the new tests
+      test_charter_disagreement_emits_shard_timings_drift_warning and
+      test_non_allowlisted_disagreement_emits_shard_timings_drift_warning, which call
+      the production gate functions directly with no monkeypatch isolating the env var,
+      so _report_drift takes the pytest.fail branch and pytest.warns() itself raises
+      Failed.'
+    evidence: 'SPEC_KITTY_STRICT_SHARD_TIMINGS=1 .venv/bin/python -m pytest
+      tests/architectural/test_module_length_agreement.py -q -> "4 failed, 15 passed";
+      failures are test_non_allowlisted_modules_agree_with_live_collection,
+      test_charter_is_not_allowlisted_and_agrees (real drift, expected),
+      test_charter_disagreement_emits_shard_timings_drift_warning,
+      test_non_allowlisted_disagreement_emits_shard_timings_drift_warning (the two new
+      unit tests, unintended). Read test_module_length_agreement.py:165-173
+      (_strict_mode reads os.environ live; _report_drift takes pytest.fail under strict)
+      and :502-535 (the two new tests call the production gate functions directly with
+      no monkeypatch.delenv/setenv for SPEC_KITTY_STRICT_SHARD_TIMINGS). Confirmed
+      .github/workflows/ci-charter-shard-recapture.yml:150-155 sets
+      SPEC_KITTY_STRICT_SHARD_TIMINGS to "1" for the whole unfiltered
+      pytest tests/architectural/test_module_length_agreement.py -q invocation.'
+  - id: pr-contract-001
+    verdict: confirmed
+    reason: 'Code at the cited lines does exactly what the finding claims: a non-list gh
+      JSON payload silently becomes [] and a non-int number silently becomes None, both
+      feeding FR-007''s open-PR gate before main()''s step 8 force-push, and no fixture
+      in tests/ci/test_recapture_charter_shard_timings.py exercises either
+      malformed-shape branch.'
+    evidence: 'scripts/ci/recapture_charter_shard_timings.py:205 returns parsed if
+      isinstance(parsed, list) else [] inside _list_open_recapture_prs (def at :174);
+      :137 returns number if isinstance(number, int) else None inside
+      find_open_recapture_pr (def at :130) -- line numbers match the finding exactly.
+      main() (:296-327) uses these results at step 3 and the TOCTOU step 7 as the sole
+      gate before step 8''s _push_and_open_pr, which does git push --force (:302-303).
+      Grepped tests/ci/test_recapture_charter_shard_timings.py for these function names
+      and malformed-shape terms: only well-formed-list/int fixtures exist, none for a
+      non-list payload or non-int number field.'
+  - id: pr-contract-002
+    verdict: confirmed
+    reason: 'Confirmed: none of the five check=True subprocess.run calls in
+      _list_open_recapture_prs and _push_and_open_pr are wrapped in try/except, so a
+      real gh/git failure raises a raw CalledProcessError traceback instead of the
+      script''s own annotated-error convention used elsewhere (require_recapture_token,
+      main()''s CLI-args and mechanism-crash branches); the finding itself correctly
+      scopes this as a minor, non-blocking observability gap, not a correctness defect.'
+    evidence: 'Grepped scripts/ci/recapture_charter_shard_timings.py for try/except/
+      check=True: check=True appears at lines 202, 236, 249, 255, 275 (the gh pr list
+      call and the four git/gh calls in _push_and_open_pr) with no enclosing try/except
+      in either function; the only try/except in the file is run_capture_or_die
+      (:111-116), unrelated to these two functions. The annotated-error-prefix
+      convention appears only at :148 (require_recapture_token), :300 and :314 (main()''s
+      own branches) -- never at the subprocess call sites cited.'
+  - id: pr-tests-001
+    verdict: confirmed
+    reason: 'Reproduced exactly: injecting a GITHUB_TOKEN fallback into
+      require_recapture_token() in a scratch worktree at HEAD and re-running the full
+      test file still passes all 33 tests, proving no fixture would catch a
+      reintroduced GITHUB_TOKEN fallback (the exact anti-pattern CL-002/FR-005 forbid).'
+    evidence: 'In a git worktree add scratch dir at HEAD (353c6742b), edited
+      scripts/ci/recapture_charter_shard_timings.py:146 to fall back to
+      os.environ.get("GITHUB_TOKEN") when the secret env var is unset, then ran
+      .venv/bin/python -m pytest tests/ci/test_recapture_charter_shard_timings.py -q ->
+      "33 passed". Confirmed test_recapture_charter_shard_timings.py:107-118 (the only
+      two require_recapture_token tests) and its _set_token helper (:41-45) only ever
+      touch CHARTER_SHARD_RECAPTURE_TOKEN, never GITHUB_TOKEN. Scratch worktree removed;
+      git worktree list shows only the main checkout.'

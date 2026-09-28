@@ -1,0 +1,28 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+profile_directives_applied:
+  - profile: debugger-debbie
+    directive: "001 Architectural Integrity Standard"
+    application: >
+      Checked that the revised parametrized test's fake call-order actually mirrors
+      _push_and_open_pr's real call sequence (git add / git commit / git push / gh pr
+      create) rather than just asserting hardcoded literals independent of production
+      wiring.
+  - profile: debugger-debbie
+    directive: "030 Test and Typecheck Quality Gate"
+    application: >
+      Ran the real suite (`.venv/bin/python -m pytest tests/ci/test_recapture_charter_shard_timings.py -q`)
+      and additionally proved the test is non-vacuous by mutating production code in an
+      isolated scratch worktree (mislabeling the "git push" step as "git commit") and
+      confirming the parametrized test fails as expected, instead of trusting a passing
+      run alone.
+  - profile: debugger-debbie
+    directive: "032 Conceptual Alignment"
+    application: >
+      Verified no drift between the fake's step-name expectations and the production
+      step= labels/argv content (checked for coincidental substring matches from repr()'d
+      argv lists that could make an assertion pass vacuously); found none.
+findings: []

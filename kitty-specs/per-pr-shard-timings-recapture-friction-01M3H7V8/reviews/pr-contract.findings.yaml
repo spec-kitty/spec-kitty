@@ -1,0 +1,160 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+profile_directives_applied:
+  - directive: "001 Architectural Integrity Standard"
+    application: "Checked the new script's single new import boundary (scripts.ci.capture_shard_timings) and confirmed no src/** layer is touched (tests/architectural/**, scripts/ci/**, .github/workflows/** only)."
+  - directive: "024 Locality of Change"
+    application: "Confirmed the diff is additive-only outside the two required, already-registered gate-coverage files; flagged nothing as out-of-scope widening."
+  - directive: "030 Test and Typecheck Quality Gate"
+    application: "Ran tests/architectural/test_module_length_agreement.py -m fast (16 passed), tests/ci/test_recapture_charter_shard_timings.py (33 passed), tests/architectural/test_workflow_coherence.py (16 passed), tests/architectural/test_no_duplicate_suite_execution.py (58 passed, 1 skipped) -- all specific files, never a bare directory. Ran ruff check + ruff format --check on every changed file."
+  - directive: "032 Conceptual Alignment"
+    application: "Verified FR/CL terminology (ShardTimingsDriftWarning, RECAPTURE_BRANCH, CHARTER_SHARD_RECAPTURE_TOKEN) is used identically across spec.md, plan.md, the workflow, the script, and both test files."
+  - directive: "041 Tests as Scaffold, Not Friction"
+    application: "Read every one of the 11 plan-mandated fixtures against tests/ci/test_recapture_charter_shard_timings.py and confirmed each asserts an observable contract (push/no-push, warn/fail, exit code), not an implementation detail; found the one contract gap noted in pr-contract-001 (unexercised JSON-shape branch)."
+  - tactic: "code-review-incremental"
+    application: "Read intent (module docstrings, plan.md design-problem section) before line-by-line review; verified the FR-008 write-before-return claim against scripts/ci/capture_shard_timings.py's actual line numbers (268/274) rather than trusting the plan's citation."
+  - tactic: "reverse-speccing / test-readability-clarity-check"
+    application: "Reconstructed the recapture script's contract from tests/ci/test_recapture_charter_shard_timings.py alone (fixtures 1,3-11 map cleanly to FR-005..FR-008); the reconstruction matched spec.md's Acceptance Scenarios without needing the implementation."
+  - directive: "051 Supply-Chain Install Safety"
+    application: "Not applicable -- no dependency/lockfile change in this diff (no pyproject.toml/uv.lock touched)."
+requirement_trace:
+  - id: FR-001
+    title: "Demote test_charter_is_not_allowlisted_and_agrees to non-blocking"
+    status: implemented
+    evidence: "tests/architectural/test_module_length_agreement.py:212-215 (_report_drift, already-merged #5240) + verified/pinned by new test_charter_disagreement_emits_shard_timings_drift_warning (line ~497) and test_charter_agreement_emits_no_shard_timings_drift_warning (line ~508)"
+  - id: FR-002
+    title: "Keep charter out of _MISMATCH_ALLOWLIST"
+    status: implemented
+    evidence: "tests/architectural/test_module_length_agreement.py: test_charter_is_not_allowlisted_and_agrees's unconditional `assert \"charter\" not in _MISMATCH_ALLOWLIST` (unchanged)"
+  - id: FR-003
+    title: "Allowlist-ratchet tests untouched; demotion covers both live-collection gates"
+    status: implemented
+    evidence: "diff shows zero edits to test_allowlist_does_not_exceed_baseline / test_allowlisted_modules_still_genuinely_mismatch / test_allowlist_entries_are_real_registry_modules bodies; test_non_allowlisted_disagreement_emits_shard_timings_drift_warning + test_non_allowlisted_disagreement_fails_in_strict_mode (new) exercise the second gate"
+  - id: FR-004
+    title: "Demoted assertion visibly reports drift; genuine infra break still fails loudly"
+    status: implemented
+    evidence: "test_charter_disagreement_emits_shard_timings_drift_warning / test_non_allowlisted_disagreement_emits_shard_timings_drift_warning (warn case); test_load_timings_fails_loudly_when_artefact_missing / test_load_registry_fails_loudly_when_artefact_missing (infra-break case, new)"
+  - id: FR-005
+    title: "Named secret, fails loudly before any recapture/commit/push, never falls back to GITHUB_TOKEN"
+    status: implemented
+    evidence: "scripts/ci/recapture_charter_shard_timings.py:141-150 (require_recapture_token), called as main()'s first action at line 298; tests/ci/test_recapture_charter_shard_timings.py::test_fixture5_missing_secret_fails_loud_before_any_recapture_work asserts both the open-PR-check and capture callables are never invoked"
+  - id: FR-006
+    title: "No PR opened when there is no drift (length-only, noise-stripped)"
+    status: implemented
+    evidence: "scripts/ci/recapture_charter_shard_timings.py:124-127 (has_drift), orchestrated at line 318; tests/ci/test_recapture_charter_shard_timings.py::test_fixture3_no_drift_no_pr"
+  - id: FR-007
+    title: "Skip entirely (no push/force-push/comment/open) when a recapture PR from the fixed head branch is open against main; one job-summary line naming it"
+    status: implemented
+    evidence: "scripts/ci/recapture_charter_shard_timings.py:130-138 (find_open_recapture_pr, head-branch-only match), :174-205 (_list_open_recapture_prs, --head/--base main/--state open), orchestrated at lines 306-310 and the TOCTOU re-check at 321-325; tests fixture1/fixture2/fixture7"
+  - id: FR-008
+    title: "Fail (no commit/PR) on a genuine mechanism crash; an ordinary failing measured test does not abort"
+    status: implemented
+    evidence: "scripts/ci/recapture_charter_shard_timings.py:102-121 (run_capture_or_die); verified against scripts/ci/capture_shard_timings.py:268(read)/269(_capture_all)/271(merge_capture)/274(write_text) -- write happens strictly after the two calls that can raise, confirming the mechanism-crash-before-write / ordinary-failure-after-write split the design claims; tests fixture4/8/9 (abort) and fixture10 (continues)"
+  - id: FR-009
+    title: "Recapture scoped to charter only, no --module flag"
+    status: implemented
+    evidence: "scripts/ci/recapture_charter_shard_timings.py:63 (MODULE = \"charter\" constant); script exposes no argparse/CLI module flag; test_module_is_hardcoded_to_charter"
+  - id: FR-010
+    title: "Recapture PR carries a bot identity and clear body"
+    status: implemented
+    evidence: "scripts/ci/recapture_charter_shard_timings.py:78-92 (COMMIT_AUTHOR_NAME/EMAIL, COMMIT_MESSAGE, PR_BODY_TEMPLATE) used in _push_and_open_pr:225-276; test_pr_body_template_matches_fr010_verbatim_text, test_commit_message_matches_fr010_verbatim_text, test_push_and_open_pr_runs_git_and_gh_with_expected_arguments"
+  - id: NFR-001
+    title: "Gate protects shard balance, not correctness (correctness-of-claim)"
+    status: not-applicable-to-diff
+    evidence: "This is a claim the PR *description* must not make; module-tests.yml's uniform-weight fallback (unmodified by this diff) is the mechanism that makes the claim true. No PR body is part of the reviewed diff."
+  - id: NFR-002
+    title: "Scheduled job stays within a bounded, documented runtime budget"
+    status: implemented
+    evidence: ".github/workflows/ci-charter-shard-recapture.yml:99-107 (timeout-minutes: 30, with the pre-dispatch-projection rationale documented inline); NFR-002's own post-dispatch measurement is explicitly deferred to post-merge by plan.md item (a), not a code-diff obligation"
+  - id: NFR-003
+    title: "No credential leakage"
+    status: implemented
+    evidence: "scripts/ci/recapture_charter_shard_timings.py:181-182 and :234-235 (token passed only via subprocess env, never interpolated into a string); test_push_and_open_pr_runs_git_and_gh_with_expected_arguments asserts FAKE_TOKEN not in the flattened argv text of any subprocess call"
+  - id: C-001
+    title: "Charter-only recapture scope; demotion/strict-mode job not charter-scoped"
+    status: implemented
+    evidence: "MODULE=\"charter\" hardcoded in the script; strict-shard-timings-check job in .github/workflows/ci-charter-shard-recapture.yml:138-155 runs the unfiltered gate file (covers both charter and agent, per plan item (a2))"
+  - id: C-002
+    title: "No allowlist-mutation tooling"
+    status: implemented
+    evidence: "grep of the diff shows no write access to _MISMATCH_ALLOWLIST/_BASELINE_ALLOWLIST_COUNT anywhere outside the existing manual dict literal"
+  - id: C-003
+    title: "main is PR-only; workflow never pushes directly to main"
+    status: implemented
+    evidence: "scripts/ci/recapture_charter_shard_timings.py:252 pushes only to refs/heads/ci/recapture-charter-shard-timings, never main; gh pr create opens against --base main"
+  - id: C-004
+    title: "No silent auth fallback; presence check runs and fails before any recapture/commit/push"
+    status: implemented
+    evidence: "require_recapture_token() is main()'s first statement (line 298), before the open-PR check or capture call; no GITHUB_TOKEN/GH_TOKEN fallback anywhere in the script (grep clean)"
+  - id: C-005
+    title: "No absolute local paths / credentials in committed artifacts"
+    status: implemented
+    evidence: "scanned the full non-kitty-specs diff for a literal absolute user-home path prefix; no matches found"
+  - id: C-006
+    title: "Scheduled workflow is concurrency-guarded"
+    status: implemented
+    evidence: ".github/workflows/ci-charter-shard-recapture.yml:87-89 (concurrency: {group: ci-charter-shard-recapture, cancel-in-progress: false}, static group, matches ci-stale-running-sweep.yml's pattern)"
+  - id: "CL-002 (auth: PAT, never GITHUB_TOKEN, fail-loud)"
+    status: implemented
+    evidence: "SECRET_NAME = \"CHARTER_SHARD_RECAPTURE_TOKEN\" (scripts/ci/recapture_charter_shard_timings.py:72); .github/workflows/ci-charter-shard-recapture.yml:117-119 wires it into actions/checkout's token: input; no GITHUB_TOKEN reference anywhere in the script or workflow outside explanatory comments"
+  - id: "amendment.ruling.md point 4 (strict-mode exact-count home)"
+    status: implemented
+    evidence: ".github/workflows/ci-charter-shard-recapture.yml:138-155 (strict-shard-timings-check job, SPEC_KITTY_STRICT_SHARD_TIMINGS=1)"
+  - id: "implement.ruling.md (widened owned_files: register the new workflow in every registry that enumerates .github/workflows/*.yml)"
+    status: implemented
+    evidence: "tests/architectural/_gate_coverage.py:131-135 (WORKFLOW_FILES tuple) and tests/architectural/test_no_duplicate_suite_execution.py:203-209 (NON_CHANGE_TRIGGERED_WORKFLOWS); re-ran tests/architectural/test_workflow_coherence.py (which reads gc.WORKFLOW_FILES, not a separate hardcoded list) and confirmed test_pytest_workflow_set_equals_model_allowlist_live now passes without further edits -- the single _gate_coverage.py registration satisfies both registries the ruling named"
+findings:
+  - id: pr-contract-001
+    lens: "Silent success"
+    severity: 3
+    title: "Unexpected gh JSON shape for the open-PR check is silently treated as 'no PR open', not surfaced or tested"
+    evidence:
+      - artifact: "spec.md FR-007 / Key Entities (open-PR detection is the sole gate before a force-push)"
+      - code: "scripts/ci/recapture_charter_shard_timings.py:205 (`return parsed if isinstance(parsed, list) else []`)"
+      - code: "scripts/ci/recapture_charter_shard_timings.py:130-138 (`find_open_recapture_pr`: `number if isinstance(number, int) else None`)"
+    claim: >
+      If `gh pr list --json number,headRefName` ever exits 0 but returns a JSON payload whose
+      top level is not a list (e.g. an object, or a schema change), `_list_open_recapture_prs`
+      silently coerces it to `[]` rather than failing loudly. `find_open_recapture_pr` applies the
+      same silent-coercion pattern to a malformed `number` field, returning `None` (i.e. "no match")
+      instead of raising. Both branches feed directly into FR-007's "is a recapture PR already
+      open" decision -- the one gate standing between this workflow and a `git push --force` to the
+      fixed branch. A malformed/unexpected response is indistinguishable, downstream, from a
+      genuine "no open PR" answer, so the workflow could proceed to force-push in a state where the
+      true answer to "is a PR open" was actually unknown, not "no". Neither branch has a unit test
+      (`tests/ci/test_recapture_charter_shard_timings.py` covers only well-formed lists/ints), so a
+      future refactor that reintroduces or widens this silent path would not be caught red-first,
+      contrary to the reviewer profile's `041`/`test-scaffolding-as-design-smell` expectation that
+      every decision branch of a gating function carry a fixture.
+    remediation: >
+      Raise (e.g. `RuntimeError`/`SystemExit` with an `::error::`-prefixed message, mirroring
+      `require_recapture_token`'s own convention) when the parsed `gh pr list` payload is not a
+      list, or when an entry's `number` field is present but not an int, instead of silently
+      falling back to an empty result / `None`. Add a unit test asserting the loud failure for each
+      case, alongside the existing fixture-1/2 coverage for the well-formed paths.
+  - id: pr-contract-002
+    lens: "Silent success"
+    severity: 2
+    title: "gh/git subprocess failures in the open-PR-check and push/PR-open edge functions surface as raw CalledProcessError tracebacks, not the script's own ::error:: convention"
+    evidence:
+      - code: "scripts/ci/recapture_charter_shard_timings.py:183-203 (`_list_open_recapture_prs`, `subprocess.run(..., check=True)`, no try/except)"
+      - code: "scripts/ci/recapture_charter_shard_timings.py:236-276 (`_push_and_open_pr`, four `subprocess.run(..., check=True)` calls, no try/except)"
+      - code: "scripts/ci/recapture_charter_shard_timings.py:148 (require_recapture_token's own `::error::`-prefixed message) / :314 (run_capture_or_die caller's `::error::` message in main())"
+    claim: >
+      A genuine `gh`/`git` failure at these two call sites (auth expiry, rate limit, transient
+      network error, a rejected force-push) is not silent -- `check=True` raises
+      `subprocess.CalledProcessError` uncaught, which does fail the job -- but it surfaces as a bare
+      Python traceback rather than the `::error::`-annotated, job-summary-visible message the
+      script uses everywhere else for its own defined failure modes (missing secret, mechanism
+      crash). This is a minor inconsistency in observability, not a correctness defect, and no
+      fixture in the required list (item (c), fixtures 1-11) calls for covering it, but it leaves
+      one class of real-world failure (gh/git transport errors) without the loud, named diagnostic
+      the rest of the script deliberately provides.
+    remediation: >
+      Wrap the `gh pr list` / `git add` / `git commit` / `git push` / `gh pr create` subprocess
+      calls in a thin try/except that re-raises with an `::error::`-prefixed message naming which
+      step failed (never the token value), for parity with `require_recapture_token`'s and
+      `run_capture_or_die`'s existing diagnostic convention. Optional polish, not blocking.

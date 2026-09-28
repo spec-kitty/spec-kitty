@@ -1,0 +1,118 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+profile_directives_applied:
+  - "debugger-debbie.agent.yaml adopted as the reviewing lens: falsification discipline over
+     the recapture script's decision functions (require_recapture_token, find_open_recapture_pr,
+     has_drift, run_capture_or_die) via live break-and-run experiments in an isolated scratch
+     worktree, rather than static reading -- the profile's core tactic (bisect/diff/falsify) was
+     applied to each candidate regression in the brief's break list, one at a time, restoring the
+     file between each break."
+  - "Directive 030 (Test and Typecheck Quality Gate) framing: judged whether the new tests are a
+     producer-conformance gate that prevents the mission's target defect class (silent
+     GITHUB_TOKEN fallback / silent gate removal) from recurring -- found one place where they do
+     not (pr-tests-001)."
+  - "Did NOT dispatch the five-paradigm parallel sub-agent swarm (mode: dispatch) -- out of scope
+     for a bounded single-lens PR review with 'no sub-agents' in the dispatch rules; applied the
+     single-agent falsification tactic directly instead."
+revert_evidence:
+  - break: "require_recapture_token(): `if not value:` -> `if value is None:` (truthy-secret-check
+     candidate break)"
+    location: "scripts/ci/recapture_charter_shard_timings.py:147"
+    result: "CAUGHT -- 2 failed: test_require_recapture_token_raises_for_empty_or_unset[empty-string],
+       test_fixture5_missing_secret_fails_loud_before_any_recapture_work[empty-string]"
+  - break: "find_open_recapture_pr(): match by presence of `number` instead of `headRefName ==
+     RECAPTURE_BRANCH` (PR-match-by-number candidate break)"
+    location: "scripts/ci/recapture_charter_shard_timings.py:134-138"
+    result: "CAUGHT -- 1 failed: test_find_open_recapture_pr_ignores_unrelated_head_branch"
+  - break: "removed the `if not has_drift(...): return 0` no-drift early exit in main() (candidate
+     break)"
+    location: "scripts/ci/recapture_charter_shard_timings.py:318-319"
+    result: "CAUGHT -- 1 failed: test_fixture3_no_drift_no_pr"
+  - break: "run_capture_or_die(): swallowed the except branch into mechanism_ok=True (let-a-
+     capture-crash-fall-through-to-commit candidate break)"
+    location: "scripts/ci/recapture_charter_shard_timings.py:115-120"
+    result: "CAUGHT -- 5 failed: test_run_capture_or_die_catches_plain_exception,
+       test_run_capture_or_die_catches_systemexit, test_fixture4_capture_failure_no_commit,
+       test_fixture8_mechanism_crash_via_systemexit_does_not_propagate,
+       test_fixture9_post_write_logging_failure_fails_closed"
+  - break: "require_recapture_token(): added `os.environ.get(SECRET_NAME) or
+     os.environ.get(\"GITHUB_TOKEN\")` fallback (add-a-GITHUB_TOKEN-fallback candidate break --
+     CL-002/FR-005's central anti-pattern)"
+    location: "scripts/ci/recapture_charter_shard_timings.py:146"
+    result: "NOT CAUGHT -- all 33 tests in tests/ci/test_recapture_charter_shard_timings.py still
+       passed. See pr-tests-001."
+  - break: "_report_drift() in tests/architectural/test_module_length_agreement.py (pre-existing,
+     landed by #5240, not part of this diff) replaced with a no-op -- both make-strict-mode-
+     never-fail and make-_report_drift-never-warn candidate breaks at once"
+    location: "tests/architectural/test_module_length_agreement.py:169-173"
+    result: "CAUGHT -- 6 failed: test_report_drift_warns_by_default, test_report_drift_fails_in_strict_mode,
+       test_charter_disagreement_emits_shard_timings_drift_warning,
+       test_non_allowlisted_disagreement_emits_shard_timings_drift_warning,
+       test_charter_disagreement_fails_in_strict_mode,
+       test_non_allowlisted_disagreement_fails_in_strict_mode. This diff's own WP01-amendment
+       tests (added by this mission, not #5240) are what catch it -- #5240's original 3 tests only
+       exercised _report_drift/_strict_mode in isolation and would have missed a revert of the
+       production gate bodies themselves."
+  - break: "drop-a-registry-entry candidate: removed the 'ci-charter-shard-recapture.yml' line
+     this diff adds to _gate_coverage.WORKFLOW_FILES"
+    location: "tests/architectural/_gate_coverage.py:129-133"
+    result: "CAUGHT (by a pre-existing, non-diff test) -- 1 failed:
+       test_workflow_coherence.py::test_pytest_workflow_set_equals_model_allowlist_live. Confirms
+       the WORKFLOW_FILES addition is load-bearing, not decorative."
+  - break: "sanity check that the scratch worktree (not the shared checkout) is what pytest
+     imports: raised RuntimeError inside has_drift() in the scratch copy only"
+    location: "scripts/ci/recapture_charter_shard_timings.py:125 (scratch worktree copy)"
+    result: "CONFIRMED -- test_has_drift_false_for_equal_lengths failed with the injected
+       RuntimeError, proving imports resolved to the scratch worktree's files, not the shared
+       checkout's. Reverted before the real breaks above."
+coverage:
+  script: "scripts/ci/recapture_charter_shard_timings.py: 99% (102/103 statements) via
+     `.venv/bin/python -m pytest tests/ci/test_recapture_charter_shard_timings.py -q
+     --cov=scripts/ci --cov-report=term-missing`, run in the scratch worktree."
+  uncovered_lines:
+    - "scripts/ci/recapture_charter_shard_timings.py:59 -- `sys.path.insert(0, str(REPO_ROOT))`
+       inside the `if str(REPO_ROOT) not in sys.path:` import-time path guard. Not exercised
+       because REPO_ROOT is already on sys.path by the time pytest collects this module in-repo.
+       Non-critical-path boilerplate (mirrors the same guard shape used elsewhere, e.g.
+       stale_running_sweep.py-style scripts); does not threaten the >=90% diff-cover gate (99% >>
+       90%) and needs no remediation."
+findings:
+  - id: pr-tests-001
+    lens: revert-passes / regression-detection (candidate break list)
+    severity: 4
+    title: No test proves require_recapture_token() ignores an ambient GITHUB_TOKEN -- the
+      exact anti-pattern CL-002/FR-005 exist to forbid is a silently unguarded regression
+    evidence:
+      - code: "scripts/ci/recapture_charter_shard_timings.py:141-150 (require_recapture_token)"
+      - code: "tests/ci/test_recapture_charter_shard_timings.py:107-118 (the only two tests of
+          require_recapture_token: test_require_recapture_token_returns_value_when_set and
+          test_require_recapture_token_raises_for_empty_or_unset, both of which only
+          setenv/delenv CHARTER_SHARD_RECAPTURE_TOKEN -- neither ever sets GITHUB_TOKEN)"
+      - code: "tests/ci/test_recapture_charter_shard_timings.py:41-45 (_set_token helper --
+          touches only SECRET_NAME, never GITHUB_TOKEN)"
+    claim: >
+      CL-002/FR-005's whole reason to exist is "never silently fall back to the default
+      GITHUB_TOKEN" -- a fallback would silently defeat the anti-recursion protection the mission
+      exists to add (a GITHUB_TOKEN-authored PR does not trigger other workflows' pull_request
+      events). require_recapture_token() today correctly does NOT fall back -- but I edited it in
+      an isolated scratch worktree to add exactly that fallback
+      (`os.environ.get(SECRET_NAME) or os.environ.get("GITHUB_TOKEN")`) and reran
+      tests/ci/test_recapture_charter_shard_timings.py: all 33 tests still passed. No fixture in
+      the file ever sets GITHUB_TOKEN while leaving CHARTER_SHARD_RECAPTURE_TOKEN unset/empty, so
+      the single most safety-critical property in the whole WP02 module (FR-005's own acceptance
+      scenario 4 / spec.md CL-002) has zero regression coverage. This is precisely the class of
+      defect Standing Order #4 (red-first) and Standing Order #5 (a gate cannot self-validate)
+      warn about: the code is currently correct, but nothing would turn red if a future edit
+      reintroduced the fallback GitHub's own docs describe as the standard (and wrong-for-this-
+      case) pattern.
+    remediation: >
+      Add a fixture to tests/ci/test_recapture_charter_shard_timings.py, e.g.
+      test_require_recapture_token_ignores_github_token_fallback(monkeypatch): delenv
+      CHARTER_SHARD_RECAPTURE_TOKEN, setenv GITHUB_TOKEN to a distinct fake value, and assert
+      require_recapture_token() still raises SystemExit (not that it returns the GITHUB_TOKEN
+      value). Extend the same monkeypatch into
+      test_fixture5_missing_secret_fails_loud_before_any_recapture_work so the end-to-end main()
+      path is covered too, not just the unit-level helper.

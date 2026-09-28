@@ -1,0 +1,198 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+sources:
+- pr-boundary.findings.yaml
+- pr-contract.findings.yaml
+- pr-tests.findings.yaml
+findings:
+- id: pr-boundary-001
+  lens: kernel/doctrine/CLI seam — canonical-derived-artifact freshness
+  severity: 4
+  title: Diff shifts line numbers inside tests/architectural/_gate_coverage.py without regenerating the
+    DERIVED tests/release/pinning_rule_inventory.json, and this PR's own CI cannot see the break
+  evidence:
+  - code: tests/architectural/_gate_coverage.py:128-133 (5 lines inserted into WORKFLOW_FILES, ahead of
+      several rules the pinning inventory pins by absolute line number, e.g. lines formerly 426/428/434/...
+      now 431/433/439/...)
+  - code: 'tests/release/pinning_rule_inventory.json (DERIVED — do not hand-edit; own header: ''Regenerate
+      with python3 scripts/ci/derive_pinning_inventory.py'')'
+  - code: tests/release/test_pinning_inventory_fresh.py::test_inventory_is_reproducible_by_rerunning_the_derivation
+      — the freshness gate
+  - code: scripts/ci/gate_selection.py::select_modules — diff-scoped per-PR module selection
+  - artifact: .github/ci-module-registry.yml — the `release` module's roots are `src/specify_cli/release/**`
+      only; `ci` module's roots are `scripts/ci/**` + `.github/workflows/**` with test_dirs `tests/ci`
+      only (neither covers `tests/release/`)
+  claim: 'Verified by running the actual test: `.venv/bin/python -m pytest tests/release/test_pinning_inventory_fresh.py
+    -q` FAILS on this mission''s HEAD (353c6742b) with "tests/release/pinning_rule_inventory.json is stale
+    or hand-edited — re-run `python3 scripts/ci/derive_pinning_inventory.py`", and PASSES cleanly (5 passed)
+    against an `origin/main` (cc788d50e) export of the same checkout — this is a regression this diff
+    introduces, not a pre-existing baseline red. Root cause: this diff inserts 5 lines into tests/architectural/_gate_coverage.py''s
+    WORKFLOW_FILES tuple (the ci-charter-shard-recapture.yml registration), which shifts every line number
+    below that insertion point in the same file — several of which tests/release/pinning_rule_inventory.json
+    pins by absolute line number for rules about an unrelated, still-open "retiring sonarcloud job" cleanup
+    — so the committed inventory''s line numbers (426, 428, 434, ...) no longer match the file''s actual
+    lines (431, 433, 439, ...) and the freshness re-derivation gate fails. Confirmed by direct call: `scripts.ci.gate_selection.select_modules(<this
+    diff''s 7 changed paths>)` returns `frozenset({''ci''})` only — the `release` module (whose test tree
+    is `tests/release/`) is never selected, because none of this diff''s paths fall under `src/specify_cli/release/**`.
+    Per `ci-modules.yml`''s diff-scoped selection (mission ci-modules-diff-scoping), the `release` module''s
+    shard therefore does NOT run on this PR, and `architectural-heavy` (`ci-router.yml`) only ever invokes
+    `uv run --frozen pytest tests/architectural -q ...`, never `tests/release`. This is precisely the
+    invisible-regression pattern implement.ruling.md already flagged and fixed for two OTHER registries
+    (`_gate_coverage.py`''s own WORKFLOW_FILES and `test_no_duplicate_suite_execution.py`''s NON_CHANGE_TRIGGERED_WORKFLOWS,
+    both fixed in this diff) — but this third, line-number-keyed registry was missed. The break will surface
+    only later: on `ci-nightly.yml`''s full-module-matrix sweep, or on a future, unrelated PR that happens
+    to touch `src/specify_cli/release/**`, wrongly attributing this mission''s regression to that later
+    change.'
+  remediation: Run `python3 scripts/ci/derive_pinning_inventory.py` in this branch and commit the refreshed
+    tests/release/pinning_rule_inventory.json as part of this diff (an 8th changed file), the same discipline
+    implement.ruling.md already applied to the two workflow-enumeration registries. Re-run `.venv/bin/python
+    -m pytest tests/release/test_pinning_inventory_fresh.py -q` to confirm it is green before merge.
+  source_group: boundary
+- id: pr-boundary-002
+  lens: mission-derived — strict-mode red must be visible and correctly attributable
+  severity: 4
+  title: Two of the new WP01 unit tests are not isolated from SPEC_KITTY_STRICT_SHARD_TIMINGS, so the
+    new strict-shard-timings-check job is deterministically red on every run, independent of real drift
+  evidence:
+  - code: tests/architectural/test_module_length_agreement.py:503 test_charter_disagreement_emits_shard_timings_drift_warning
+      (no monkeypatch fixture; asserts pytest.warns(ShardTimingsDriftWarning))
+  - code: tests/architectural/test_module_length_agreement.py:528 test_non_allowlisted_disagreement_emits_shard_timings_drift_warning
+      (same shape)
+  - code: tests/architectural/test_module_length_agreement.py:165-166 _strict_mode() -> os.environ.get(_STRICT_ENV_VAR)
+      == "1" (reads the ambient process env live, not an injected value)
+  - code: 'tests/architectural/test_module_length_agreement.py:169-173 _report_drift(): strict=True takes
+      pytest.fail(message); only strict=False takes warnings.warn(...)'
+  - code: '.github/workflows/ci-charter-shard-recapture.yml:150-155 strict-shard-timings-check job sets
+      env SPEC_KITTY_STRICT_SHARD_TIMINGS: "1" for the WHOLE file invocation (`pytest tests/architectural/test_module_length_agreement.py
+      -q`, unfiltered)'
+  - artifact: plan.md item (a2), 'A red run must be triaged by test name first' — the plan only anticipates
+      noise from the three pre-existing allowlist-ratchet tests, not from these two new tests
+  claim: 'Verified by running the exact invocation the new job performs: `SPEC_KITTY_STRICT_SHARD_TIMINGS=1
+    .venv/bin/python -m pytest tests/architectural/test_module_length_agreement.py -q` produces 4 failed,
+    15 passed. Two of the four failures are the intended alarm (the two production gate functions, correctly
+    hard-failing on today''s real charter/agent drift). The other two failures are `test_charter_disagreement_emits_shard_timings_drift_warning`
+    and `test_non_allowlisted_disagreement_emits_shard_timings_drift_warning` — both new tests added by
+    this mission''s own diff. Neither isolates `SPEC_KITTY_STRICT_SHARD_TIMINGS` from the ambient environment
+    before calling the production gate function with a constructed disagreement and asserting `pytest.warns(ShardTimingsDriftWarning)`.
+    Because `_strict_mode()` reads the live process environment, and the new `strict-shard-timings-check`
+    job sets that exact variable to `"1"` for its entire, unfiltered `pytest ... -q` invocation, these
+    two tests inherit strict mode: `_report_drift` takes the `pytest.fail(...)` branch instead of emitting
+    a warning, so `pytest.warns()` itself fails with an unhandled `Failed` exception rather than recording
+    "no warning". This means the new scheduled job — introduced by this same diff specifically to be,
+    per plan.md item (a2), "the real, scheduled, hard-failing home" whose red is meant to be visibly and
+    correctly attributable to charter/agent drift — will show these same two tests FAILED on every single
+    run, drift or not, even after the recapture mechanism has fully closed the drift and the two production
+    gates go green. This directly contradicts the mission-derived requirement that the strict-mode red
+    be correctly attributable: a maintainer triaging a red `strict-shard-timings-check` run cannot distinguish
+    "real drift" from "these two tests are structurally incompatible with this job''s own environment"
+    without already knowing about this bug, and the run will never go fully green even once drift is fixed,
+    undermining Standing Order #5''s "drift stays visible, not silent" argument by replacing it with "job
+    stays red forever, for an unrelated reason."'
+  remediation: 'Add explicit environment isolation to both tests (mirroring the isolation already done
+    correctly by their sibling strict-mode tests at lines 553/564, just inverted): at the top of test_charter_disagreement_emits_shard_timings_drift_warning
+    and test_non_allowlisted_disagreement_emits_shard_timings_drift_warning, take a `monkeypatch: pytest.MonkeyPatch`
+    fixture and call `monkeypatch.delenv("SPEC_KITTY_STRICT_SHARD_TIMINGS", raising=False)` (or `monkeypatch.setenv("SPEC_KITTY_STRICT_SHARD_TIMINGS",
+    "0")`) before invoking the production gate function, so both tests pass deterministically regardless
+    of the ambient environment the suite is invoked under. Re-verify with `SPEC_KITTY_STRICT_SHARD_TIMINGS=1
+    .venv/bin/python -m pytest tests/architectural/test_module_length_agreement.py -q` showing only the
+    two genuine drift-gate failures (or zero failures once WP-level drift is resolved), never these two
+    unit tests.'
+  source_group: boundary
+- id: pr-contract-001
+  lens: Silent success
+  severity: 3
+  title: Unexpected gh JSON shape for the open-PR check is silently treated as 'no PR open', not surfaced
+    or tested
+  evidence:
+  - artifact: spec.md FR-007 / Key Entities (open-PR detection is the sole gate before a force-push)
+  - code: scripts/ci/recapture_charter_shard_timings.py:205 (`return parsed if isinstance(parsed, list)
+      else []`)
+  - code: 'scripts/ci/recapture_charter_shard_timings.py:130-138 (`find_open_recapture_pr`: `number if
+      isinstance(number, int) else None`)'
+  claim: 'If `gh pr list --json number,headRefName` ever exits 0 but returns a JSON payload whose top
+    level is not a list (e.g. an object, or a schema change), `_list_open_recapture_prs` silently coerces
+    it to `[]` rather than failing loudly. `find_open_recapture_pr` applies the same silent-coercion pattern
+    to a malformed `number` field, returning `None` (i.e. "no match") instead of raising. Both branches
+    feed directly into FR-007''s "is a recapture PR already open" decision -- the one gate standing between
+    this workflow and a `git push --force` to the fixed branch. A malformed/unexpected response is indistinguishable,
+    downstream, from a genuine "no open PR" answer, so the workflow could proceed to force-push in a state
+    where the true answer to "is a PR open" was actually unknown, not "no". Neither branch has a unit
+    test (`tests/ci/test_recapture_charter_shard_timings.py` covers only well-formed lists/ints), so a
+    future refactor that reintroduces or widens this silent path would not be caught red-first, contrary
+    to the reviewer profile''s `041`/`test-scaffolding-as-design-smell` expectation that every decision
+    branch of a gating function carry a fixture.
+
+    '
+  remediation: 'Raise (e.g. `RuntimeError`/`SystemExit` with an `::error::`-prefixed message, mirroring
+    `require_recapture_token`''s own convention) when the parsed `gh pr list` payload is not a list, or
+    when an entry''s `number` field is present but not an int, instead of silently falling back to an
+    empty result / `None`. Add a unit test asserting the loud failure for each case, alongside the existing
+    fixture-1/2 coverage for the well-formed paths.
+
+    '
+  source_group: contract
+- id: pr-contract-002
+  lens: Silent success
+  severity: 2
+  title: 'gh/git subprocess failures in the open-PR-check and push/PR-open edge functions surface as raw
+    CalledProcessError tracebacks, not the script''s own ::error:: convention'
+  evidence:
+  - code: scripts/ci/recapture_charter_shard_timings.py:183-203 (`_list_open_recapture_prs`, `subprocess.run(...,
+      check=True)`, no try/except)
+  - code: scripts/ci/recapture_charter_shard_timings.py:236-276 (`_push_and_open_pr`, four `subprocess.run(...,
+      check=True)` calls, no try/except)
+  - code: scripts/ci/recapture_charter_shard_timings.py:148 (require_recapture_token's own `::error::`-prefixed
+      message) / :314 (run_capture_or_die caller's `::error::` message in main())
+  claim: 'A genuine `gh`/`git` failure at these two call sites (auth expiry, rate limit, transient network
+    error, a rejected force-push) is not silent -- `check=True` raises `subprocess.CalledProcessError`
+    uncaught, which does fail the job -- but it surfaces as a bare Python traceback rather than the `::error::`-annotated,
+    job-summary-visible message the script uses everywhere else for its own defined failure modes (missing
+    secret, mechanism crash). This is a minor inconsistency in observability, not a correctness defect,
+    and no fixture in the required list (item (c), fixtures 1-11) calls for covering it, but it leaves
+    one class of real-world failure (gh/git transport errors) without the loud, named diagnostic the rest
+    of the script deliberately provides.
+
+    '
+  remediation: 'Wrap the `gh pr list` / `git add` / `git commit` / `git push` / `gh pr create` subprocess
+    calls in a thin try/except that re-raises with an `::error::`-prefixed message naming which step failed
+    (never the token value), for parity with `require_recapture_token`''s and `run_capture_or_die`''s
+    existing diagnostic convention. Optional polish, not blocking.
+
+    '
+  source_group: contract
+- id: pr-tests-001
+  lens: revert-passes / regression-detection (candidate break list)
+  severity: 4
+  title: No test proves require_recapture_token() ignores an ambient GITHUB_TOKEN -- the exact anti-pattern
+    CL-002/FR-005 exist to forbid is a silently unguarded regression
+  evidence:
+  - code: scripts/ci/recapture_charter_shard_timings.py:141-150 (require_recapture_token)
+  - code: 'tests/ci/test_recapture_charter_shard_timings.py:107-118 (the only two tests of require_recapture_token:
+      test_require_recapture_token_returns_value_when_set and test_require_recapture_token_raises_for_empty_or_unset,
+      both of which only setenv/delenv CHARTER_SHARD_RECAPTURE_TOKEN -- neither ever sets GITHUB_TOKEN)'
+  - code: tests/ci/test_recapture_charter_shard_timings.py:41-45 (_set_token helper -- touches only SECRET_NAME,
+      never GITHUB_TOKEN)
+  claim: 'CL-002/FR-005''s whole reason to exist is "never silently fall back to the default GITHUB_TOKEN"
+    -- a fallback would silently defeat the anti-recursion protection the mission exists to add (a GITHUB_TOKEN-authored
+    PR does not trigger other workflows'' pull_request events). require_recapture_token() today correctly
+    does NOT fall back -- but I edited it in an isolated scratch worktree to add exactly that fallback
+    (`os.environ.get(SECRET_NAME) or os.environ.get("GITHUB_TOKEN")`) and reran tests/ci/test_recapture_charter_shard_timings.py:
+    all 33 tests still passed. No fixture in the file ever sets GITHUB_TOKEN while leaving CHARTER_SHARD_RECAPTURE_TOKEN
+    unset/empty, so the single most safety-critical property in the whole WP02 module (FR-005''s own acceptance
+    scenario 4 / spec.md CL-002) has zero regression coverage. This is precisely the class of defect Standing
+    Order #4 (red-first) and Standing Order #5 (a gate cannot self-validate) warn about: the code is currently
+    correct, but nothing would turn red if a future edit reintroduced the fallback GitHub''s own docs
+    describe as the standard (and wrong-for-this- case) pattern.
+
+    '
+  remediation: 'Add a fixture to tests/ci/test_recapture_charter_shard_timings.py, e.g. test_require_recapture_token_ignores_github_token_fallback(monkeypatch):
+    delenv CHARTER_SHARD_RECAPTURE_TOKEN, setenv GITHUB_TOKEN to a distinct fake value, and assert require_recapture_token()
+    still raises SystemExit (not that it returns the GITHUB_TOKEN value). Extend the same monkeypatch
+    into test_fixture5_missing_secret_fails_loud_before_any_recapture_work so the end-to-end main() path
+    is covered too, not just the unit-level helper.
+
+    '
+  source_group: tests

@@ -1,0 +1,109 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP03
+cycle: 2
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+verdict: approved
+gates_observed:
+  tsc: unknown
+  tests: pass
+  coverage: unknown
+profile_directives_applied:
+  - "001 Architectural Integrity Standard: re-checked both closed workflow-enumeration registries (NON_CHANGE_TRIGGERED_WORKFLOWS, WORKFLOW_FILES) that WP03-C1-001 named, confirming the new entries close the boundary violation rather than merely silencing the test"
+  - "024 Locality of Change: diffed 054b6434d..d6a225c69 directly and confirmed the cycle-2 commit touches only the two registry files named in reviews/implement.ruling.md's scope-widening ruling, nothing else"
+  - "030 Test and Typecheck Quality Gate: ran the exact named architectural/ci test files (never a bare tests/architectural/ or tests/ directory), plus ruff check on both edited files"
+  - "032 Conceptual Alignment: checked the new registry entries' reasons (schedule + workflow_dispatch only, strict job runs test_module_length_agreement.py) against the actual workflow YAML's on: block and job steps for accuracy"
+  - "041 Tests as Scaffold, Not Friction: performed a live revert check on both entries to confirm each test fails for the right reason (closed-list/discovery mismatch) when its registration is removed, not vacuously"
+  - "051 Supply-Chain Install Safety: not applicable (no dependency/lockfile change in this diff)"
+registries_checked:
+  - registry: tests/architectural/test_no_duplicate_suite_execution.py NON_CHANGE_TRIGGERED_WORKFLOWS dict (line 202)
+    result: pass
+    detail: >-
+      "ci-charter-shard-recapture.yml" entry added (lines 203-209), shaped like the
+      ci-stale-running-sweep.yml entry (schedule + workflow_dispatch only / no
+      pull_request-push trigger / never enters a merge-blocking needs chain). Reason
+      text verified against .github/workflows/ci-charter-shard-recapture.yml's `on:`
+      block (schedule + workflow_dispatch only, no pull_request/push).
+  - registry: tests/architectural/_gate_coverage.py WORKFLOW_FILES tuple (lines 118-133)
+    result: pass
+    detail: >-
+      "ci-charter-shard-recapture.yml" appended with a comment naming WP03 and the
+      strict job's real pytest invocation. Verified against the workflow's
+      strict-shard-timings-check job step, which runs
+      `uv run --frozen pytest tests/architectural/test_module_length_agreement.py -q`
+      under SPEC_KITTY_STRICT_SHARD_TIMINGS=1 — a real, directly-anchored pytest
+      command, matching the comment's claim.
+test_run:
+  command: >-
+    .venv/bin/python -m pytest
+    tests/architectural/test_no_duplicate_suite_execution.py
+    tests/architectural/test_workflow_coherence.py
+    tests/architectural/test_suite_jobs_gate_blocking.py
+    tests/ci/test_ci_module_wiring.py -q
+  result: "90 passed, 1 skipped, 0 failed"
+revert_evidence:
+  entries:
+    - registry: NON_CHANGE_TRIGGERED_WORKFLOWS (tests/architectural/test_no_duplicate_suite_execution.py)
+      method: >-
+        Removed only the "ci-charter-shard-recapture.yml" entry via the Edit tool, ran
+        `.venv/bin/python -m pytest tests/architectural/test_no_duplicate_suite_execution.py -q`.
+      result: >-
+        FAILED test_every_live_workflow_is_classified_and_every_exclusion_is_declared —
+        "Extra items in the left set: 'ci-charter-shard-recapture.yml'" (1 failed, 57
+        passed, 1 skipped) — confirms the test fails for the predicted closed-list
+        mismatch reason.
+      restored: >-
+        Re-applied the identical entry text via the Edit tool; post-restore
+        `git diff --stat` on the file was empty (byte-identical to pre-edit state).
+    - registry: WORKFLOW_FILES (tests/architectural/_gate_coverage.py)
+      method: >-
+        Removed only the "ci-charter-shard-recapture.yml" tuple entry and its comment
+        via the Edit tool, ran
+        `.venv/bin/python -m pytest tests/architectural/test_workflow_coherence.py -q`.
+      result: >-
+        FAILED test_pytest_workflow_set_equals_model_allowlist_live — "Extra items in
+        the left set: 'ci-charter-shard-recapture.yml'" (1 failed, 15 passed) —
+        confirms the test fails for the predicted discovery/model mismatch reason.
+      restored: >-
+        Re-applied the identical entry + comment text via the Edit tool; post-restore
+        `git diff --stat` on the file was empty (byte-identical to pre-edit state).
+  lane_git_status_porcelain_after_restore: "empty (clean)"
+scope_check:
+  detail: >-
+    `git diff 054b6434d d6a225c69` touches exactly two files:
+    tests/architectural/_gate_coverage.py (+5 lines) and
+    tests/architectural/test_no_duplicate_suite_execution.py (+7 lines) — both are
+    the two registry entries WP03-C1-001 required and reviews/implement.ruling.md
+    authorized; nothing else in the diff changed.
+  result: pass
+lint_check:
+  command: >-
+    .venv/bin/python -m ruff check tests/architectural/test_no_duplicate_suite_execution.py
+    tests/architectural/_gate_coverage.py
+  result: "All checks passed!"
+feedback: []
+notes:
+  - id: WP03-C2-N01
+    severity: 1
+    note: >-
+      tests/architectural/_gate_coverage.py fails `ruff format --check` when checked
+      as an explicit path — orchestrator-verified as identical on origin/main (the
+      repo's frozen format-exclude ratchet). CI's directory-level
+      `ruff format --check .` passes over this file (178 files formatted under
+      tests/architectural/). Not filed as a finding per the orchestrator's dispatch;
+      recorded here only for traceability.
+  - id: WP03-C2-N02
+    severity: 1
+    note: >-
+      Strict-mode fact carried over from the dispatch, not independently re-run this
+      cycle: `SPEC_KITTY_STRICT_SHARD_TIMINGS=1 .venv/bin/python -m pytest
+      tests/architectural/test_module_length_agreement.py -q` is orchestrator-verified
+      to currently FAIL 2 (charter 6219 vs 6229, agent 1556 vs 1558) on today's real
+      drift — this is the intended strict-job behaviour the new workflow's
+      strict-shard-timings-check job is designed to surface, not a WP03 defect.
+gates_selection_authority_note: >-
+  Both WP03-C1-001 registry entries are present, correctly shaped, and reason-accurate;
+  the revert check confirms each is load-bearing (removing it reproduces the exact
+  cycle-1 failure); the named test files pass in full; ruff check is clean on both
+  edited files; and the cycle-2 diff touches nothing beyond the two authorized
+  registry entries. No finding at severity >=3. Verdict: approved.

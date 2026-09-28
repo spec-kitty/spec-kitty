@@ -1,0 +1,107 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP03
+cycle: 1
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+verdict: rejected
+gates_observed:
+  tsc: unknown
+  tests: fail
+  coverage: unknown
+profile_directives_applied:
+  - "001 Architectural Integrity Standard: checked every closed workflow-enumeration registry for a required entry, not just the two named in the dispatch"
+  - "024 Locality of Change: cross-checked reviews/implement.ruling.md's explicit scope-widening authorization before treating the missing registry edits as out-of-scope drift rather than a defect"
+  - "030 Test and Typecheck Quality Gate: ran the specific architectural/ci test files the new workflow implicates (never tests/architectural/ or tests/ as a directory) plus the strict-mode gate live"
+  - "032 Conceptual Alignment: checked docs supersession note wording against the actual per-PR/strict-mode behavior for staleness or overclaim"
+  - "041 Tests as Scaffold, Not Friction: confirmed the two registry tests fail for the right reason (closed-list/discovery mismatch), not friction, and are real, fixable defects"
+  - "051 Supply-Chain Install Safety: not applicable (no dependency/lockfile change in this diff)"
+registries_checked:
+  - registry: tests/architectural/test_no_duplicate_suite_execution.py::test_every_live_workflow_is_classified_and_every_exclusion_is_declared (NON_CHANGE_TRIGGERED_WORKFLOWS dict, line 202)
+    result: fail
+    detail: "excluded={ci-charter-shard-recapture.yml, ci-nightly.yml, ci-stale-running-sweep.yml, module-tests.yml, release.yml, sonar.yml} vs declared (missing ci-charter-shard-recapture.yml)"
+  - registry: tests/architectural/test_workflow_coherence.py::test_pytest_workflow_set_equals_model_allowlist_live (WORKFLOW_FILES tuple, _gate_coverage.py lines 118-131)
+    result: fail
+    detail: "discover_pytest_workflows() finds ci-charter-shard-recapture.yml (it runs a real pytest invocation); WORKFLOW_FILES does not list it"
+  - registry: tests/architectural/test_coverage_artefact_contract.py
+    result: pass
+  - registry: tests/architectural/test_ci_router_transcription_guards.py
+    result: pass
+  - registry: tests/architectural/test_dual_mode_contract.py
+    result: pass
+  - registry: tests/architectural/test_gate_selection_authority.py
+    result: pass
+  - registry: tests/architectural/test_coverage_breadth.py
+    result: pass
+  - registry: tests/architectural/test_suite_jobs_gate_blocking.py
+    result: pass
+  - registry: tests/architectural/test_ci_collection_completeness.py
+    result: pass
+  - registry: tests/architectural/test_module_tests_matrix.py
+    result: pass
+  - registry: tests/architectural/test_module_shard_registry.py
+    result: pass
+  - registry: tests/architectural/test_same_tier_uniqueness.py
+    result: pass
+  - registry: tests/architectural/test_performance_marker_guard.py
+    result: pass
+  - registry: tests/architectural/test_local_gate_parity.py (gate_selection.py consumer)
+    result: pass
+  - registry: tests/architectural/test_out_of_matrix_evidence.py (gate_selection.py consumer)
+    result: pass
+  - registry: tests/architectural/test_ci_integrity_oracle_nonvacuous.py (gate_selection.py consumer)
+    result: pass
+  - registry: tests/ci/test_ci_module_wiring.py
+    result: pass
+  - registry: tests/ci/test_coverage_guards.py
+    result: pass
+  - registry: tests/ci/test_workflow_script_import_guard.py
+    result: pass
+  - registry: tests/ci/test_fleet_verdict.py
+    result: pass
+  - registry: tests/release/test_pinning_inventory_fresh.py (pinning_rule_inventory.json — scoped only to the retired ci-quality.yml sonarcloud-duplication rules, not a general SHA-pin registry; new actions/checkout + astral-sh/setup-uv pins here need no entry)
+    result: pass
+  - registry: tests/release/test_sonar_workflow.py
+    result: pass
+  - registry: ".github/ci-module-registry.yml 'ci' module roots (scripts/ci/**, .github/workflows/**)"
+    result: pass (glob-based, no explicit per-file entry required)
+feedback:
+  - id: WP03-C1-001
+    severity: 4
+    claim: >-
+      reviews/implement.ruling.md (orchestrator, 2026-09-28) explicitly ruled that WP03's write
+      scope widens to add a registration entry in every closed registry that enumerates
+      .github/workflows/, "one entry per registry ... mirroring the existing
+      ci-stale-running-sweep.yml entries", and that shipping without them "turns the PR's
+      architectural-heavy check red." The actual diff (472616135..lane-c) touches only
+      .github/workflows/ci-charter-shard-recapture.yml and
+      docs/development/reference/known-friction-points.md — it does not touch
+      tests/architectural/test_no_duplicate_suite_execution.py's NON_CHANGE_TRIGGERED_WORKFLOWS
+      dict (line 202) or tests/architectural/_gate_coverage.py's WORKFLOW_FILES tuple (lines
+      118-131). Reproduced live from the lane
+      (.venv/bin/python -m pytest
+      tests/architectural/test_no_duplicate_suite_execution.py
+      tests/architectural/test_workflow_coherence.py -q): both named tests fail with exactly the
+      predicted diff (extra item 'ci-charter-shard-recapture.yml' in both cases). No other
+      workflow-enumerating registry among the ones checked (test_coverage_artefact_contract,
+      test_dual_mode_contract, test_module_shard_registry, test_same_tier_uniqueness,
+      test_suite_jobs_gate_blocking, test_ci_collection_completeness, test_module_tests_matrix,
+      test_ci_router_transcription_guards, test_gate_selection_authority,
+      test_pinning_inventory_fresh, ci-module-registry.yml's glob-based 'ci' module roots) needs
+      an entry — confirmed by running each specifically and by inspecting how each reads its
+      registry (closed-list literal vs. real on-disk glob).
+    remediation: >-
+      Add "ci-charter-shard-recapture.yml": "<reason: schedule + workflow_dispatch only, no
+      pull_request/push trigger>" to NON_CHANGE_TRIGGERED_WORKFLOWS in
+      tests/architectural/test_no_duplicate_suite_execution.py (mirroring the
+      ci-stale-running-sweep.yml entry's shape), and add "ci-charter-shard-recapture.yml" to the
+      WORKFLOW_FILES tuple in tests/architectural/_gate_coverage.py so
+      discover_pytest_workflows() and the model agree; then re-run both named tests plus
+      test_suite_jobs_gate_blocking.py (which also parses WORKFLOW_FILES) to confirm the new
+      entry's gate is classified correctly (its strict-mode pytest invocation of
+      tests/architectural/test_module_length_agreement.py) without tripping a duplicate-gate
+      finding, since implement.ruling.md places this registration inside WP03's own widened
+      scope rather than deferring it.
+gates_selection_authority_note: >-
+  Findings above are the only ones raised; the strict-mode job, security posture, and docs note
+  otherwise check out (see report to caller for detail) but are not independently blocking given
+  the rejection above.

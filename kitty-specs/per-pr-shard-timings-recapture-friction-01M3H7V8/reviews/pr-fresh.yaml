@@ -1,0 +1,44 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+profile_directives_applied:
+  - "debugger-debbie: hypothesis-driven verification -- every claim in the diff and its
+     docstrings/comments was tested empirically (not taken on faith) before being accepted
+     or flagged, per the profile's root-cause-analysis / evidence-based capabilities."
+  - "debugger-debbie: falsification -- reproduced the pr-boundary-002 ambient
+     SPEC_KITTY_STRICT_SHARD_TIMINGS bug the revision claims to fix by restoring the
+     pre-revision test file in a scratch worktree and re-running under the same env var the
+     strict-shard-timings-check job sets, confirming it actually failed before the fix and
+     passes after -- falsifying/confirming the claim rather than trusting the commit message."
+  - "debugger-debbie: structural-fix-plan discipline -- treated the revision's diff as the
+     candidate structural fix for the prior round's findings and checked it against the
+     surrounding, unchanged code (main()'s orchestration, the workflow file, the pinning
+     inventory) for contradictions, not just in isolation."
+findings:
+  - id: pr-FRESH-001
+    lens: fresh
+    severity: 2
+    title: "test_push_and_open_pr_fails_loudly_on_subprocess_error's docstring claims per-step coverage the test body doesn't exercise"
+    evidence:
+      - code: "tests/ci/test_recapture_charter_shard_timings.py:272-290"
+    claim: >
+      The test's docstring says the fix surfaces a genuine git/gh transport failure "for
+      every step in the commit/push/open sequence, not only the first," but the fake
+      `_fake_run` unconditionally raises `CalledProcessError` on every `subprocess.run`
+      call, so `_push_and_open_pr`'s very first subprocess call (`git add`, via
+      `_run_subprocess_or_die`) always fails first and the test only ever asserts
+      `"git add" in err`. Nothing in this test independently proves that a failure
+      specifically at the later `git commit`, `git push`, or `gh pr create` calls
+      surfaces with the correct `step=` label -- e.g. a copy-paste bug that swapped the
+      `step="git push"` label onto the `git commit` call (both currently correct today,
+      verified by reading the diff) would not be caught by this test, only by manual
+      code review. The shared `_run_subprocess_or_die` helper is used uniformly at all
+      four call sites, so the risk is low, but the docstring's "for every step ... not
+      only the first" claim overstates what this specific test actually verifies.
+    remediation: >
+      Either narrow the docstring to state it proves the mechanism generically (via the
+      shared helper) rather than exercising each step, or strengthen the test with a
+      `_fake_run` that succeeds N times before raising (parametrized over N=0..3) so each
+      of the four step labels is independently asserted in the captured `::error::` output.

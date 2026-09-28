@@ -1,0 +1,63 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP02
+cycle: 1
+mission: per-pr-shard-timings-recapture-friction-01M3H7V8
+verdict: approved
+gates_observed:
+  tsc: unknown
+  tests: pass
+  coverage: "99%"
+feedback: []
+profile_directives_applied:
+  - "DIRECTIVE_001 (Architectural Integrity Standard): confirmed the pure-decision-functions
+     + thin-gh/git-edge shape (has_drift, find_open_recapture_pr, require_recapture_token,
+     run_capture_or_die are pure/injectable; subprocess/filesystem calls live only in the
+     _-prefixed edge functions), mirroring scripts/ci/stale_running_sweep.py per DIRECTIVE_044
+     as WP02.md requires."
+  - "DIRECTIVE_024 (Locality of Change): confirmed the net diff f8dcce82a..lane-b touches only
+     scripts/ci/recapture_charter_shard_timings.py and tests/ci/test_recapture_charter_shard_timings.py;
+     the tracer commit 7cc42e945 and its revert 472616135 net to zero on kitty-specs/ (verified via
+     git diff 7cc42e945 472616135 -- kitty-specs/ producing the exact inverse patch)."
+  - "DIRECTIVE_030 (Test and Typecheck Quality Gate): ran the targeted pytest module pair, ruff
+     check, ruff format --check, and mypy on both files separately before approving; see
+     gates_observed and the REPORT for exact counts."
+  - "DIRECTIVE_032 (Conceptual Alignment): checked FR-005..FR-010/C-001/C-003/C-004/C-005/C-006
+     terminology and behavior against spec.md, WP02-recapture-decision-script.md (T009-T015), and
+     the three ruling files; no drift found (RECAPTURE_BRANCH, SECRET_NAME, COMMIT_MESSAGE, and
+     PR_BODY_TEMPLATE match FR-010's verbatim text character-for-character, confirmed by
+     test_pr_body_template_matches_fr010_verbatim_text / test_commit_message_matches_fr010_verbatim_text)."
+  - "DIRECTIVE_041 (Tests as Scaffold, Not Friction): applied the actually-break-it lens three times
+     (secret truthy-check, FR-007 head-branch match, FR-006 no-drift early exit) in the lane
+     worktree, confirmed each break produces a real, targeted test failure (never a false pass),
+     then restored the file exactly -- see revert_evidence."
+  - "DIRECTIVE_051 (Supply-Chain Install Safety): not applicable -- this WP adds no dependency."
+  - "Tactic code-review-incremental: read WP02-recapture-decision-script.md, spec.md
+     (Clarifications, FR-005..FR-010, C-001/C-003/C-004/C-005/C-006), and all four ruling files
+     before opening the diff."
+  - "Tactic reverse-speccing / test-readability-clarity-check: reconstructed the 11-fixture
+     decision contract from the test file alone and cross-checked it against WP02.md's T014/T015
+     fixture list -- no reconstruction gap found."
+  - "Tactic test-scaffolding-as-design-smell: test setup uses lightweight monkeypatch fakes on the
+     module's own _-prefixed edge functions, not heavy mock-framework machinery -- no smell flagged."
+revert_evidence:
+  - "require_recapture_token: changed `if not value:` to `if value is None:` (dropping the empty-
+     string case). Re-ran tests/ci/test_recapture_charter_shard_timings.py -q: 2 failed, 31 passed
+     -- test_require_recapture_token_raises_for_empty_or_unset[empty-string] and
+     test_fixture5_missing_secret_fails_loud_before_any_recapture_work[empty-string] both failed
+     with 'DID NOT RAISE SystemExit'. Restored the original `if not value:` line via Edit
+     (verbatim); git diff of the file returned empty afterward."
+  - "find_open_recapture_pr: changed the match from `pr.get('headRefName') == RECAPTURE_BRANCH` to
+     matching on any PR carrying an int `number`, ignoring headRefName entirely (the FR-007
+     regression this fixture exists to catch). Re-ran the suite: 1 failed, 32 passed --
+     test_find_open_recapture_pr_ignores_unrelated_head_branch failed with
+     'assert 5177 is None' (got 5177). Restored the original two-line match via Edit (verbatim)."
+  - "main(): replaced `if not has_drift(before_length, after_length): return 0` (step 6, FR-006's
+     no-drift early exit) with `if False: return 0`. Re-ran the suite: 1 failed, 32 passed --
+     test_fixture3_no_drift_no_pr failed because push_calls was non-empty (the no-drift path
+     wrongly proceeded to push). Restored the original has_drift-guarded return via Edit (verbatim)."
+  - "Final verification: `git status --porcelain` in the lane worktree returned empty (no output)
+     after all three restores, and a full re-run of
+     `pytest tests/ci/test_recapture_charter_shard_timings.py tests/ci/test_capture_shard_timings.py -q`
+     plus ruff check / ruff format --check on both files were all green -- confirming the restore
+     was byte-exact and did not regress any gate."

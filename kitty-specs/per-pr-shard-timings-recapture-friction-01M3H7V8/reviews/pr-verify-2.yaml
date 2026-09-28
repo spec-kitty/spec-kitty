@@ -1,0 +1,56 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+profile_directives_applied:
+  - "reviewer-renata directive 041 (Tests as Scaffold, Not Friction): treated the fix as
+     unproven until empirically shown to catch the exact defect class the original finding
+     named (a copy-paste step-label swap) -- anti-laziness per the round-2 brief: a fix that
+     restates the finding without changing test substance is unresolved, so substance was
+     verified by fault injection, not by reading the diff."
+  - "reviewer-renata directive 030 (Test and Typecheck Quality Gate): re-ran the strengthened
+     parametrized test to green on the unmodified fix commit before mutating anything, so the
+     baseline-pass state was established first."
+  - "reviewer-renata tactic delete-the-assertion-not-the-test: confirmed the remediation kept
+     the test's original setup/monkeypatch scaffold and only replaced the single-shot fake +
+     bare 'git add' assertion with the parametrized N-call fake and a per-step assertion,
+     matching the finding's own suggested remediation rather than a superficial rewrite."
+results:
+  - id: pr-FRESH-001
+    status: resolved
+    reason: >
+      Commit 186143daf parametrizes test_push_and_open_pr_fails_loudly_on_subprocess_error
+      over all four steps (git add, git commit, git push, gh pr create) with a fake that
+      succeeds fail_at_call_index times before raising, asserting both the ::error:: step
+      label and that len(calls) == fail_at_call_index + 1 (no later step ran); planting a
+      step-label swap (git commit <-> git push) in scripts/ci/recapture_charter_shard_timings.py
+      in an isolated scratch worktree caused exactly the git-commit and git-push parametrized
+      cases to fail with the expected/actual label mismatch, while git-add and gh-pr-create
+      (whose labels were untouched) still passed -- empirically proving the test now
+      independently catches a copy-paste bug at each of the later three steps, not only the
+      first, which is exactly what the finding said was missing.
+    evidence:
+      - "git log -1 186143daf --stat: only tests/ci/test_recapture_charter_shard_timings.py
+         changed (30 insertions, 5 deletions) -- no production file touched."
+      - "git worktree add ../5189-verify2-scratch HEAD, run from the main checkout (lands the
+         scratch worktree one directory above it, outside the repo)."
+      - "Planted swap in the scratch copy only: scripts/ci/recapture_charter_shard_timings.py
+         step=\"git commit\" (line 289 orig) <-> step=\"git push\" (line 294 orig) exchanged
+         via a 3-step python replace with an assertion guard on each substitution."
+      - "Confirmed import provenance: `python -c \"from scripts.ci import
+         recapture_charter_shard_timings as recapture; print(recapture.__file__)\"` run from
+         inside the scratch worktree with this checkout's venv printed a __file__ rooted at
+         the scratch worktree's own scripts/ci/recapture_charter_shard_timings.py, not the
+         main checkout's copy."
+      - "Ran <checkout>/.venv/bin/python -m pytest
+         tests/ci/test_recapture_charter_shard_timings.py -k
+         test_push_and_open_pr_fails_loudly_on_subprocess_error -v from inside the scratch
+         worktree (that venv, that worktree's test file): git-add PASSED, git-commit FAILED
+         (assert 'git commit' in \"::error::git push failed: ...commit -m...\"), git-push
+         FAILED (assert 'git push' in \"::error::git commit failed: ...push --force...\"),
+         gh-pr-create PASSED -- 2 failed, 2 passed, 38 deselected."
+      - "git worktree remove --force ../5189-verify2-scratch from the main checkout, then
+         git worktree list: the scratch entry no longer present. Note: a second, unrelated
+         worktree (5189-fresh2-scratch, detached at 186143daf) was already present before and
+         after this verification -- not created or touched by this check, presumably another
+         concurrent round-2 reviewer's scratch space; the worktree this task created was
+         cleanly removed and does not appear in the list."
