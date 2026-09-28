@@ -929,6 +929,7 @@ def _seed_arbiter_fixture(repo: Path, mission: str, wp_id: str) -> Path:
     pattern for this exact shape) rather than inventing a second one."""
     _init_repo(repo)
     feature_dir, _wp_file = _build_wp_file(repo, mission, wp_id)
+    _write_lanes_json(feature_dir, mission, wp_id)
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True
