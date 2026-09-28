@@ -239,7 +239,8 @@ def _is_coord_legacy_mission_event_log(repo_rel: str, coord_branch_for_filter: s
     coord claim must leave this exact path untouched rather than trying to
     stage or reconcile either stream. Keep this exception local to the claim
     guard; globally classifying the filename as status/residue could make it
-    discardable by unrelated consumers.
+    discardable by unrelated consumers. The caller must also prove the path is
+    still untracked before applying the exception.
     """
     if coord_branch_for_filter is None:
         return False
@@ -620,11 +621,19 @@ def resolve_planning_artifact_staging(
     if structural:
         return PlanningArtifactStagingPlan(structural=structural, files_to_commit=[], status_paths_to_commit=[])
 
+    untracked_legacy_event_log_paths = {
+        entry.path
+        for entry in entries
+        if entry.xy == "??" and _is_coord_legacy_mission_event_log(entry.path, coord_branch_for_filter)
+    }
+
     def _self_write(repo_rel: str) -> bool:
         return _is_self_write_only_diff(repo_root, repo_rel, coord_branch_for_filter, git=git)
 
-    status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
-    status_paths = _drop_if(status_paths, lambda p: _is_coord_legacy_mission_event_log(p, coord_branch_for_filter))
+    status_paths = _drop_if(
+        _status_paths_for_commit(entries, coord_branch_for_filter),
+        lambda p: p in untracked_legacy_event_log_paths,
+    )
     if not auto_commit:
         status_paths = _drop_if(status_paths, _self_write)
     files_to_commit = list(status_paths)
@@ -643,7 +652,7 @@ def resolve_planning_artifact_staging(
         files_to_commit.extend(
             _drop_if(
                 extra_file_paths,
-                lambda p: is_status_state_path(p) or is_dossier_snapshot(p) or _is_coord_legacy_mission_event_log(p, coord_branch_for_filter),
+                lambda p: is_status_state_path(p) or is_dossier_snapshot(p) or p in untracked_legacy_event_log_paths,
             )
         )
     files_to_commit = list(dict.fromkeys(files_to_commit))
