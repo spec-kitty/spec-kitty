@@ -184,6 +184,9 @@ class MoveTaskRequest:
     # so every pre-existing direct ``MoveTaskRequest(...)`` construction stays
     # valid without updating every call site.
     mission_slug: str | None = None
+    # #5196: the WP's latest implementer (``status.latest_implementer_actor``),
+    # resolved by the shell. ``None`` (default) grants no role allowance.
+    latest_implementer: str | None = None
 
 
 @dataclass(frozen=True)
@@ -436,6 +439,50 @@ def _guard_protected_branch(req: MoveTaskRequest) -> RefuseExit1 | None:
     return None
 
 
+_REVIEWER_ARM_TARGETS = frozenset({Lane.IN_REVIEW.value, Lane.APPROVED.value, Lane.PLANNED.value})
+_IMPLEMENTER_ARM_SOURCES = frozenset({Lane.PLANNED.value, Lane.CLAIMED.value, Lane.IN_PROGRESS.value})
+_IMPLEMENTER_ARM_TARGETS = frozenset({Lane.CLAIMED.value, Lane.IN_PROGRESS.value, Lane.FOR_REVIEW.value})
+_ROLE_HINT = (
+    "   After a review rejection, the implementer resumes with its own --agent and a reviewer distinct from the implementer can review; neither needs --force."
+)
+
+
+def _reviewer_arm(req: MoveTaskRequest) -> bool:
+    """A reviewer distinct from the latest implementer acting on a ``for_review`` WP.
+
+    A generic requester (``user``, ``implement-command``, ``unknown``) names no
+    reviewer at all, so it never qualifies as one.
+    """
+    requester_key = _actor_key(req.agent)
+    return (
+        resolve_lane_alias(req.old_lane) == Lane.FOR_REVIEW.value
+        and resolve_lane_alias(req.target_lane) in _REVIEWER_ARM_TARGETS
+        and requester_key not in GENERIC_IMPLEMENTATION_ACTORS
+        and requester_key != _actor_key(req.latest_implementer)
+    )
+
+
+def _implementer_arm(req: MoveTaskRequest) -> bool:
+    """The latest implementer resuming or resubmitting its own rework."""
+    return (
+        resolve_lane_alias(req.old_lane) in _IMPLEMENTER_ARM_SOURCES
+        and resolve_lane_alias(req.target_lane) in _IMPLEMENTER_ARM_TARGETS
+        and _actor_key(req.agent) == _actor_key(req.latest_implementer)
+    )
+
+
+def _ownership_role_allowance(req: MoveTaskRequest) -> bool:
+    """Pure role allowance (contracts/ownership-role-allowance.md, #5196).
+
+    ``in_review -> *`` and ``-> done`` are never allowed here; an unknown or
+    generic latest implementer allows nothing.
+    """
+    latest_key = _actor_key(req.latest_implementer) if req.latest_implementer else None
+    if latest_key is None or latest_key in GENERIC_IMPLEMENTATION_ACTORS:
+        return False
+    return _reviewer_arm(req) or _implementer_arm(req)
+
+
 def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
     # FIX-M2-03: a WP's assignee is a GENERIC_IMPLEMENTATION_ACTORS placeholder
     # (``implement-command``) whenever it was claimed through the internal
@@ -464,6 +511,8 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
         return None
     if not (current_key and requested_key and current_key != requested_key and not req.force):
         return None
+    if _ownership_role_allowance(req):
+        return None
     warning = (
         "",
         "[bold red]⚠️  AGENT OWNERSHIP WARNING[/bold red]",
@@ -472,6 +521,7 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
         "",
         "   If you are the correct agent, use --force to override.",
         "   If not, you may be modifying the wrong WP!",
+        _ROLE_HINT,
         "",
     )
     error = f"Agent mismatch: {req.task_id} is assigned to '{req.current_agent}', not '{req.agent}'. Use --force to override."

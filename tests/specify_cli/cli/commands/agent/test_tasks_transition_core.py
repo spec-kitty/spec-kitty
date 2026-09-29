@@ -41,7 +41,9 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     MoveTaskRequest,
     RefuseExit1,
     TransitionPlan,
+    _guard_agent_ownership,
     _guard_subtasks,
+    _ownership_role_allowance,
     arbiter_persist_signal,
     build_transition_plan,
     decide_transition,
@@ -135,9 +137,7 @@ def test_coord_skip_arm_sets_skip_primary() -> None:
     exits 0 — the skip is of the *primary* WP-file commit, not the emission. So
     the faithful encoding is ``skip_primary`` on Emit, never a no-emit terminal.
     """
-    outcome = decide_transition(
-        _base_request(auto_commit=True, skip_target_branch_commit=True)
-    )
+    outcome = decide_transition(_base_request(auto_commit=True, skip_target_branch_commit=True))
     assert isinstance(outcome, Emit)
     assert outcome.skip_primary is True
 
@@ -236,9 +236,7 @@ def test_protected_error_ignored_when_skip_active() -> None:
 
 
 def test_agent_mismatch_refuses_with_console_warning() -> None:
-    outcome = decide_transition(
-        _base_request(agent="other-agent", current_agent="testbot", force=False)
-    )
+    outcome = decide_transition(_base_request(agent="other-agent", current_agent="testbot", force=False))
     assert isinstance(outcome, RefuseExit1)
     assert "Agent mismatch" in outcome.error
     assert "testbot" in outcome.error and "other-agent" in outcome.error
@@ -263,10 +261,7 @@ def test_agent_mismatch_on_rejection_save_has_typed_non_durable_diagnostic() -> 
     assert outcome.diagnostic == {
         "result": "error",
         "code": "ownership_refusal",
-        "error": (
-            "Agent mismatch: WP01 is assigned to 'reviewer-b', not "
-            "'reviewer-a'. Use --force to override."
-        ),
+        "error": ("Agent mismatch: WP01 is assigned to 'reviewer-b', not 'reviewer-a'. Use --force to override."),
         "current_lane": "planned",
         "requested_lane": "planned",
         "assigned_agent": "reviewer-b",
@@ -296,17 +291,90 @@ def test_agent_mismatch_on_local_only_rejection_preserves_legacy_diagnostic() ->
 
 
 def test_agent_mismatch_bypassed_by_force() -> None:
-    outcome = decide_transition(
-        _base_request(agent="other-agent", current_agent="testbot", force=True)
-    )
+    outcome = decide_transition(_base_request(agent="other-agent", current_agent="testbot", force=True))
     assert isinstance(outcome, Emit)
 
 
 def test_agent_match_proceeds() -> None:
-    outcome = decide_transition(
-        _base_request(agent="testbot", current_agent="testbot")
-    )
+    outcome = decide_transition(_base_request(agent="testbot", current_agent="testbot"))
     assert isinstance(outcome, Emit)
+
+
+# --- #5196: ownership role allowance (implementer / reviewer arms) -----------
+
+_IMPL = "claude:opus:implementer-ivan:implementer"
+_REVW = "codex:gpt-5:reviewer-renata:reviewer"
+_THIRD = "gemini:2.5-pro:python-pedro:implementer"
+
+
+def _role_request(old: str, target: str, agent: str, current: str, **overrides: Any) -> MoveTaskRequest:
+    overrides.setdefault("latest_implementer", _IMPL)
+    return _base_request(old_lane=old, target_lane=target, agent=agent, current_agent=current, **overrides)
+
+
+@pytest.mark.parametrize("target", ["in_review", "approved", "planned"])
+def test_reviewer_arm_allows_for_review_hops(target: str) -> None:
+    req = _role_request("for_review", target, _REVW, _IMPL, feedback_provided=target == "planned")
+    assert _ownership_role_allowance(req) is True
+    assert _guard_agent_ownership(req) is None
+
+
+def test_reviewer_arm_refused_when_requester_is_the_implementer_tool() -> None:
+    req = _role_request("for_review", "in_review", "claude:opus:reviewer-renata:reviewer", _REVW)
+    assert _ownership_role_allowance(req) is False
+    assert isinstance(_guard_agent_ownership(req), RefuseExit1)
+
+
+@pytest.mark.parametrize("requester", ["user", "implement-command", "unknown"])
+def test_reviewer_arm_refuses_a_generic_requester(requester: str) -> None:
+    # Positive control on the same shape: test_reviewer_arm_allows_for_review_hops.
+    req = _role_request("for_review", "approved", requester, _IMPL)
+    assert _ownership_role_allowance(req) is False
+    assert isinstance(_guard_agent_ownership(req), RefuseExit1)
+
+
+@pytest.mark.parametrize(("old", "target"), [("for_review", "done"), ("in_review", "approved"), ("in_review", "planned"), ("in_review", "in_progress")])
+def test_reviewer_arm_does_not_cover_done_or_in_review_exits(old: str, target: str) -> None:
+    req = _role_request(old, target, _REVW, _THIRD)
+    assert _ownership_role_allowance(req) is False
+    assert isinstance(_guard_agent_ownership(req), RefuseExit1)
+
+
+@pytest.mark.parametrize(("old", "target"), [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review"), ("planned", "in_progress")])
+def test_implementer_arm_allows_own_rework_hops(old: str, target: str) -> None:
+    req = _role_request(old, target, _IMPL, _REVW)
+    assert _ownership_role_allowance(req) is True
+    assert _guard_agent_ownership(req) is None
+
+
+def test_implementer_arm_refused_for_third_tool() -> None:
+    req = _role_request("planned", "claimed", _THIRD, _REVW)
+    assert _ownership_role_allowance(req) is False
+    assert isinstance(_guard_agent_ownership(req), RefuseExit1)
+
+
+@pytest.mark.parametrize("latest", [None, "", "user", "implement-command", "unknown"])
+def test_role_allowance_needs_a_real_latest_implementer(latest: str | None) -> None:
+    req = _role_request("for_review", "in_review", _REVW, _IMPL, latest_implementer=latest)
+    assert _ownership_role_allowance(req) is False
+    assert isinstance(_guard_agent_ownership(req), RefuseExit1)
+
+
+def test_role_allowance_leaves_force_path_unchanged() -> None:
+    req = _role_request("in_review", "approved", _THIRD, _IMPL, force=True)
+    assert _guard_agent_ownership(req) is None
+
+
+def test_refusal_error_is_byte_identical_and_hint_is_warning_only() -> None:
+    req = _role_request("in_review", "approved", _THIRD, _IMPL)
+    outcome = _guard_agent_ownership(req)
+    assert isinstance(outcome, RefuseExit1)
+    assert outcome.error == f"Agent mismatch: WP01 is assigned to '{_IMPL}', not '{_THIRD}'. Use --force to override."
+    hint = (
+        "   After a review rejection, the implementer resumes with its own --agent and a reviewer distinct from the implementer can review; neither needs --force."
+    )
+    assert hint in outcome.console_warning
+    assert hint not in outcome.error
 
 
 @pytest.mark.parametrize("generic_current_agent", sorted(GENERIC_IMPLEMENTATION_ACTORS))
@@ -328,9 +396,7 @@ def test_agent_mismatch_generic_placeholder_proceeds_without_force(generic_curre
     True)`` already grants the claim/in_progress start path for this exact
     placeholder set.
     """
-    outcome = decide_transition(
-        _base_request(agent="claude", current_agent=generic_current_agent, force=False)
-    )
+    outcome = decide_transition(_base_request(agent="claude", current_agent=generic_current_agent, force=False))
     assert isinstance(outcome, Emit)
 
 
@@ -338,9 +404,7 @@ def test_agent_mismatch_real_owner_still_refuses_without_force() -> None:
     """The generic-placeholder allowance above must not widen to real agent
     identities: a genuine two-real-agent mismatch still refuses (unchanged
     from ``test_agent_mismatch_refuses_with_console_warning``)."""
-    outcome = decide_transition(
-        _base_request(agent="claude", current_agent="codex", force=False)
-    )
+    outcome = decide_transition(_base_request(agent="claude", current_agent="codex", force=False))
     assert isinstance(outcome, RefuseExit1)
     assert "Agent mismatch" in outcome.error
     assert "codex" in outcome.error and "claude" in outcome.error
@@ -363,9 +427,7 @@ def _approve_request(**overrides: Any) -> MoveTaskRequest:
 
 
 def test_unparseable_verdict_refuses() -> None:
-    outcome = decide_transition(
-        _approve_request(review_verdict=None, review_artifact_name="review-cycle-1.md")
-    )
+    outcome = decide_transition(_approve_request(review_verdict=None, review_artifact_name="review-cycle-1.md"))
     assert isinstance(outcome, RefuseExit1)
     assert "no parseable review verdict" in outcome.error
 
@@ -383,9 +445,7 @@ def test_rejected_verdict_without_skip_proceeds() -> None:
     (T005's ``_persist_approved_review_cycle``), so this guard's job shrinks
     to the unparseable-verdict and skip-without-note arms only.
     """
-    outcome = decide_transition(
-        _approve_request(review_verdict="rejected", review_artifact_name="review-cycle-1.md")
-    )
+    outcome = decide_transition(_approve_request(review_verdict="rejected", review_artifact_name="review-cycle-1.md"))
     assert isinstance(outcome, Emit)
     # This is the ordinary (non-override) approve path -- the arbiter-override
     # persist must NOT fire; the durable artifact is written by
@@ -423,9 +483,7 @@ def test_rejected_verdict_override_authorizes_and_emits() -> None:
 
 
 def test_approved_verdict_proceeds_without_override() -> None:
-    outcome = decide_transition(
-        _approve_request(review_verdict="approved", review_artifact_name="review-cycle-1.md")
-    )
+    outcome = decide_transition(_approve_request(review_verdict="approved", review_artifact_name="review-cycle-1.md"))
     assert isinstance(outcome, Emit)
     assert outcome.authorize_review_override is False
 
@@ -669,18 +727,14 @@ def test_planned_rollback_positive_control_valid_feedback_passes(tmp_path: Path)
 
 
 def test_unchecked_subtasks_refuse_without_force() -> None:
-    outcome = decide_transition(
-        _base_request(unchecked_subtasks=("T001", "T002"), force=False)
-    )
+    outcome = decide_transition(_base_request(unchecked_subtasks=("T001", "T002"), force=False))
     assert isinstance(outcome, RefuseExit1)
     assert "unchecked subtasks" in outcome.error
     assert "T001" in outcome.error
 
 
 def test_unchecked_subtasks_bypassed_by_force() -> None:
-    outcome = decide_transition(
-        _base_request(unchecked_subtasks=("T001",), force=True)
-    )
+    outcome = decide_transition(_base_request(unchecked_subtasks=("T001",), force=True))
     assert isinstance(outcome, Emit)
 
 
@@ -703,9 +757,7 @@ def _phase1_feature_dir(
     """
     feature_dir = tmp_path / "kitty-specs" / "t008-mission"
     (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"status_phase": "1"}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"status_phase": "1"}), encoding="utf-8")
     append_event(
         feature_dir,
         StatusEvent(
@@ -743,9 +795,7 @@ def test_guard_subtasks_passes_on_snapshot_completion_with_tasks_md_absent(
     """SC-003: completion recorded in the snapshot passes the gate even though the
     legacy ``unchecked_subtasks`` tuple still reports them unchecked AND no
     ``tasks.md`` exists — proving the snapshot slot is the resolution source."""
-    feature_dir = _phase1_feature_dir(
-        tmp_path, wp_id="WP01", subtasks={"T001": Lane.DONE, "T002": Lane.DONE}
-    )
+    feature_dir = _phase1_feature_dir(tmp_path, wp_id="WP01", subtasks={"T001": Lane.DONE, "T002": Lane.DONE})
     assert not (feature_dir / "tasks.md").exists()
     req = _base_request(
         task_id="WP01",
@@ -761,9 +811,7 @@ def test_guard_subtasks_refuses_genuinely_incomplete_from_snapshot(
 ) -> None:
     """The refusal branch survives the re-source: a subtask still ``in_progress``
     in the snapshot is refused with the canonical unchecked-subtasks message."""
-    feature_dir = _phase1_feature_dir(
-        tmp_path, wp_id="WP01", subtasks={"T001": Lane.DONE, "T002": Lane.IN_PROGRESS}
-    )
+    feature_dir = _phase1_feature_dir(tmp_path, wp_id="WP01", subtasks={"T001": Lane.DONE, "T002": Lane.IN_PROGRESS})
     req = _base_request(
         task_id="WP01",
         target_lane="for_review",
@@ -852,9 +900,7 @@ def _done_request(**overrides: Any) -> MoveTaskRequest:
 
 
 def test_code_change_done_without_ancestry_refuses() -> None:
-    outcome = decide_transition(
-        _done_request(done_execution_mode="code_change", done_merged=False, done_merge_msg="no merge")
-    )
+    outcome = decide_transition(_done_request(done_execution_mode="code_change", done_merged=False, done_merge_msg="no merge"))
     assert isinstance(outcome, RefuseExit1)
     assert "without verified merge ancestry" in outcome.error
 
@@ -876,17 +922,13 @@ def test_code_change_done_override_proceeds() -> None:
 
 def test_planning_artifact_done_skips_ancestry() -> None:
     """FR-008a: a planning-artifact WP reaches done WITHOUT ancestry (no refuse)."""
-    outcome = decide_transition(
-        _done_request(done_execution_mode="planning_artifact", done_merged=False)
-    )
+    outcome = decide_transition(_done_request(done_execution_mode="planning_artifact", done_merged=False))
     assert isinstance(outcome, Emit)
     assert outcome.done_override_note is False
 
 
 def test_code_change_done_with_ancestry_proceeds() -> None:
-    outcome = decide_transition(
-        _done_request(done_execution_mode="code_change", done_merged=True)
-    )
+    outcome = decide_transition(_done_request(done_execution_mode="code_change", done_merged=True))
     assert isinstance(outcome, Emit)
 
 
@@ -896,9 +938,7 @@ def test_code_change_done_with_ancestry_proceeds() -> None:
 
 
 def test_issue_matrix_blocker_refuses() -> None:
-    outcome = decide_transition(
-        _approve_request(issue_matrix_blocker="Issue #7 must be resolved before approval.")
-    )
+    outcome = decide_transition(_approve_request(issue_matrix_blocker="Issue #7 must be resolved before approval."))
     assert isinstance(outcome, RefuseExit1)
     assert outcome.error == "Issue #7 must be resolved before approval."
 
@@ -1170,22 +1210,12 @@ def _sentinel_mission(root: Path, slug: str) -> Path:
     (feature_dir / "tasks").mkdir(parents=True)
     (root / ".kittify").mkdir(exist_ok=True)
     (feature_dir / "tasks" / "WP01-fixture.md").write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Fixture WP01\n"
-        "execution_mode: code_change\n"
-        "agent: testbot\n"
-        "subtasks: []\n"
-        "---\n\n# WP01\n\n## Activity Log\n",
+        "---\nwork_package_id: WP01\ntitle: Fixture WP01\nexecution_mode: code_change\nagent: testbot\nsubtasks: []\n---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
-    (feature_dir / "tasks.md").write_text(
-        "# Work Packages\n\n## WP01 - fixture\n- [ ] T001 do a thing\n", encoding="utf-8"
-    )
+    (feature_dir / "tasks.md").write_text("# Work Packages\n\n## WP01 - fixture\n- [ ] T001 do a thing\n", encoding="utf-8")
     (feature_dir / "spec.md").write_text("# Spec\n\nFR-001 do a thing.\n", encoding="utf-8")
-    for ordinal, (frm, to) in enumerate(
-        [("planned", "claimed"), ("claimed", "in_progress")], start=1
-    ):
+    for ordinal, (frm, to) in enumerate([("planned", "claimed"), ("claimed", "in_progress")], start=1):
         append_event(
             feature_dir,
             StatusEvent(
@@ -1203,9 +1233,7 @@ def _sentinel_mission(root: Path, slug: str) -> Path:
     return feature_dir
 
 
-def test_sentinel_refusal_drives_the_command_to_exit_1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_sentinel_refusal_drives_the_command_to_exit_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A sentinel RefuseExit1 flips a would-succeed move to exit 1 with its message."""
     fd = _sentinel_mission(tmp_path, f"sentinel-refuse-{_MID8}")
 
@@ -1213,9 +1241,7 @@ def test_sentinel_refusal_drives_the_command_to_exit_1(
         return RefuseExit1("SENTINEL-REFUSAL-8f2a")
 
     monkeypatch.setattr(tasks_module, "decide_transition", _fake)
-    with setup_mocked_env(
-        fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS
-    ):
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
         result = CliRunner().invoke(
             app,
             ["move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--no-auto-commit"],
@@ -1225,9 +1251,7 @@ def test_sentinel_refusal_drives_the_command_to_exit_1(
     assert "SENTINEL-REFUSAL-8f2a" in result.output
 
 
-def test_sentinel_skip_primary_drives_the_json_envelope(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_sentinel_skip_primary_drives_the_json_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A sentinel ``Emit(skip_primary=True)`` flips the ``--json`` envelope.
 
     On this NON-coord tree the real decision returns ``skip_primary=False`` (no
@@ -1254,9 +1278,7 @@ def test_sentinel_skip_primary_drives_the_json_envelope(
         return sentinel
 
     monkeypatch.setattr(tasks_module, "decide_transition", _fake)
-    with setup_mocked_env(
-        fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS
-    ):
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
         result = CliRunner().invoke(
             app,
             ["move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--no-auto-commit", "--json"],

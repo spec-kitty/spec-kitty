@@ -168,7 +168,7 @@ from specify_cli.status import (
     read_authored_wp_frontmatter,
     resolve_lane_alias,
 )
-from specify_cli.status import _actor_key
+from specify_cli.status import _actor_key, latest_implementer_actor
 from specify_cli.task_utils import (
     WorkPackage,
     ensure_lane,
@@ -628,6 +628,7 @@ def _mt_build_request(
     unchecked_subtasks: tuple[str, ...],
     review_ready: bool,
     review_guidance: tuple[str, ...],
+    latest_implementer: str | None = None,
 ) -> MoveTaskRequest:
     """Assemble the pass-1 ``MoveTaskRequest`` (late facts default to skip-safe)."""
     feedback_source_str, feedback_exists, feedback_is_file, feedback_content = feedback
@@ -669,6 +670,7 @@ def _mt_build_request(
         effective_reviewer=None,
         effective_approval_ref=None,
         mission_slug=st.mission_slug,
+        latest_implementer=latest_implementer,
     )
 
 
@@ -998,6 +1000,22 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
             )
             review_ready = is_valid
             review_guidance = tuple(guidance)
+    # #5196: resolve "who is the WP's latest implementer" once (one extra event
+    # read) so the ownership guard can admit the review-loop roles. Fail closed
+    # toward today's behaviour: any read failure leaves ``None`` (no allowance).
+    latest_implementer: str | None = None
+    try:
+        latest_implementer = latest_implementer_actor(
+            _tasks.read_events_transactional(
+                feature_dir=st.feature_dir,
+                mission_slug=st.mission_slug,
+                repo_root=st.main_repo_root,
+                **({"effective_root": st.owned.root} if st.owned else {}),
+            ),
+            st.task_id,
+        )
+    except Exception:  # noqa: BLE001 — fail closed toward today's behaviour (R-03)
+        latest_implementer = None
     st.request = _mt_build_request(
         st,
         protected_error=protected_error,
@@ -1007,6 +1025,7 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
         unchecked_subtasks=unchecked_subtasks,
         review_ready=review_ready,
         review_guidance=review_guidance,
+        latest_implementer=latest_implementer,
     )
 
 
@@ -3626,9 +3645,10 @@ def _detect_arbiter_override(
 ) -> bool:
     """Return whether this move is an arbiter override (WP03 I/O for the core).
 
-    A ``--force`` forward move from ``planned`` that follows a rejection event is
-    an arbiter override. Detection reads the event log; the pure
-    ``decide_transition`` core consumes the boolean result.
+    A ``--force`` move from ``planned`` straight to ``approved`` or ``done`` that
+    follows a rejection (from ``for_review`` or ``in_review``) is an arbiter
+    override; forced rework moves are not (#5196). Detection reads the event
+    log; the pure ``decide_transition`` core consumes the boolean result.
     """
     try:
         from specify_cli.review.arbiter import _is_arbiter_override

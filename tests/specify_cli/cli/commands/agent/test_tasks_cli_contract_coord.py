@@ -406,15 +406,22 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
 
     # --- T006: every other named move_task decision branch ---
 
-    # arbiter-override: --force forward from planned after a for_review->planned rejection.
+    # arbiter-override: --force planned->approved after a for_review->planned rejection.
+    # Re-targeted from ``--to for_review`` (#5196): a forced rework move out of
+    # ``planned`` is no longer an arbiter override; only a forced
+    # ``planned -> approved/done`` after a rejection is.
     fd = _simple_mission(mkdir(), f"arbiter-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     _seed_event(fd, "for_review", "planned", 4, review_ref="feedback://arbiter/WP01/review-cycle-1.md")
     # lanes.json is now a required precondition to leave 'planned' (#4758).
     _seed_lanes_json_for_wp01(fd, fd.name)
-    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        mock_commit.return_value.status = "committed"
         code, text, _ = _invoke([
-            "move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--force",
+            "move-task", "WP01", "--to", "approved", "--mission", fd.name, "--force",
             "--note", "correctness: override the stale rejection", "--no-auto-commit",
         ])
     # WP12 (FR-009, T051/T052/T056): the arbiter-override persist retires the
@@ -824,7 +831,7 @@ class TestMoveTaskDecisionBranchesFrozen:
     """Freeze each named move_task guard branch WP03 extracts (FR-004)."""
 
     def test_arbiter_override_persists_decision(self, scenarios: dict[str, Scenario]) -> None:
-        """--force forward from planned after a rejection records an arbiter override.
+        """--force planned->approved after a rejection records an arbiter override.
 
         RE-PINNED (WP12, review-cycle-verdict-seam-rebuild-01KZ2W7W, FR-009,
         ADR 2026-07-19-1). The incumbent assertion pinned the BROKEN,
@@ -1057,7 +1064,7 @@ def _arbiter_fixture_ready_for_override(root_mkdir: Any, slug: str) -> Path:
     _seed_event(fd, "for_review", "planned", 4, review_ref="feedback://arbiter/WP01/review-cycle-1.md")
     # lanes.json is now a required precondition to leave 'planned' (#4758,
     # _mt_guard_planned_boundary_lanes) -- fixture update, not a behavior
-    # change: the retry move below (--to for_review, --force) hops WP01 back
+    # change: the retry move below (--to approved, --force) hops WP01 back
     # OUT of the 'planned' rejection landing and would otherwise hit the
     # guard before ever reaching the arbiter-persist code path under test.
     _seed_lanes_json_for_wp01(fd, slug)
@@ -1079,7 +1086,9 @@ def test_arbiter_persist_failure_surfaces_under_plain_output(tmp_path_factory: p
         setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
     ):
         code, text, _ = _invoke([
-            "move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--force",
+            # Re-targeted from ``for_review`` (#5196): only a forced
+            # ``planned -> approved/done`` after a rejection is an override.
+            "move-task", "WP01", "--to", "approved", "--mission", fd.name, "--force",
             "--note", "correctness: override the stale rejection", "--no-auto-commit",
         ])
     assert code != 0, f"an arbiter-persist failure must exit non-zero; got 0 with output: {text}"
@@ -1104,7 +1113,9 @@ def test_arbiter_persist_failure_surfaces_under_json_output(tmp_path_factory: py
         setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
     ):
         code, text, payload = _invoke([
-            "move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--force",
+            # Re-targeted from ``for_review`` (#5196): only a forced
+            # ``planned -> approved/done`` after a rejection is an override.
+            "move-task", "WP01", "--to", "approved", "--mission", fd.name, "--force",
             "--note", "correctness: override the stale rejection", "--no-auto-commit", "--json",
         ])
     assert code != 0, f"an arbiter-persist failure must exit non-zero under --json too; got: {text}"
