@@ -116,6 +116,8 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--retain-worktrees",  # added for the #3131 merge-retention opt-in (2026-09-02)
             "--allow-duplicate",  # added for the #4033 idempotency-guard escape hatch (2026-09-14)
             "--allow-dup",  # alias for --allow-duplicate (#4033)
+            "--commit-to-target",  # added for the #5100 single_branch protected-target opt-out (2026-09-29)
+            "--no-commit-to-target",  # negation of --commit-to-target (#5100)
         }
     ),
     "check-prerequisites": frozenset(
