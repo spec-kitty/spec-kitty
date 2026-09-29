@@ -14,6 +14,8 @@ Nine test cases covering:
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from charter.activation.synthesizer.evidence import (
@@ -180,25 +182,25 @@ def test_evidence_bundle_empty_url_raises() -> None:
 
 def test_code_signals_is_frozen() -> None:
     cs = _make_code_signals()
-    with pytest.raises(Exception):  # FrozenInstanceError
+    with pytest.raises(dataclasses.FrozenInstanceError, match="stack_id"):
         cs.stack_id = "new-id"  # type: ignore[misc]
 
 
 def test_corpus_entry_is_frozen() -> None:
     entry = _make_corpus_entry()
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError, match="topic"):
         entry.topic = "other"  # type: ignore[misc]
 
 
 def test_corpus_snapshot_is_frozen() -> None:
     snap = _make_corpus_snapshot()
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError, match="snapshot_id"):
         snap.snapshot_id = "other-v1.0.0"  # type: ignore[misc]
 
 
 def test_evidence_bundle_is_frozen() -> None:
     bundle = EvidenceBundle()
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError, match="collected_at"):
         bundle.collected_at = "2026-01-01T00:00:00+00:00"  # type: ignore[misc]
 
 

@@ -18,6 +18,7 @@ Covers:
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -798,10 +799,8 @@ class TestMissionTypeMalformedOrgLayerLoudFails:
         bad_file.parent.mkdir(parents=True, exist_ok=True)
         bad_file.write_text("key: [unterminated\n  - a\n", encoding="utf-8")
 
-        with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
+        with pytest.raises(ValueError, match=re.escape(f"Malformed YAML in mission-type file {bad_file}")):
             manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
-
-        assert str(bad_file) in str(exc_info.value)
 
     def test_unreadable_org_layer_directory_raises_naming_the_directory(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
         if os.name != "posix" or os.geteuid() == 0:
@@ -813,9 +812,11 @@ class TestMissionTypeMalformedOrgLayerLoudFails:
 
         os.chmod(mt_dir, 0o000)
         try:
-            with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
+            with pytest.raises(
+                ValueError,
+                match=re.escape(f"mission-type directory exists but cannot be read: {mt_dir}"),
+            ):
                 manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
-            assert str(mt_dir) in str(exc_info.value)
         finally:
             os.chmod(mt_dir, 0o755)
 
@@ -831,8 +832,7 @@ class TestMissionTypeMalformedOrgLayerLoudFails:
         bad_file.parent.mkdir(parents=True, exist_ok=True)
         bad_file.write_text("key: [unterminated\n  - a\n", encoding="utf-8")
 
-        with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
+        with pytest.raises(ValueError, match=re.escape(f"Malformed YAML in mission-type file {bad_file}")) as exc_info:
             manager.activate(ctx, kind="mission-type", artifact_id="broken", layer_roots={"org": org_root})
 
         assert not isinstance(exc_info.value, UnknownActivationIdError)
-        assert str(bad_file) in str(exc_info.value)

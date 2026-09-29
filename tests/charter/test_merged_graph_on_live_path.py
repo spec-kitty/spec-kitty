@@ -15,6 +15,7 @@ import pytest
 
 from charter.activation._drg_helpers import load_validated_graph
 from charter.offering.drg.loader import load_graph_or_dir
+from charter.offering.drg.validator import DRGValidationError
 
 pytestmark = pytest.mark.fast
 
@@ -110,7 +111,7 @@ def test_load_validated_graph_rejects_invalid_merge(tmp_path: Path) -> None:
         "charter.activation._drg_helpers.load_built_in_graph",
         side_effect=lambda: _built_in_from(built_in_root),
     ):
-        with pytest.raises(Exception):  # noqa: B017, assert_valid may raise a variety
+        with pytest.raises(DRGValidationError, match=r"Dangling target: .*directive:missing"):
             load_validated_graph(tmp_path)
 
 
