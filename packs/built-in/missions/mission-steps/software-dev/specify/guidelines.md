@@ -24,7 +24,7 @@ These guidelines govern the quality and authorship standards for mission specifi
 ## Requirement Writing Standards
 
 - Do not mix functional, non-functional, and constraint requirements in one list.
-- Do not emit requirements without stable IDs (`FR-###`, `NFR-###`, `C-###`).
+- Do not emit requirements without stable IDs (`FR-###`, `NFR-###`, `C-###`, `SC-###`, with an optional single lowercase letter suffix such as `FR-###a`). Cite another mission's ID as `<mission-slug>#<ID>`; `setup-plan` refuses a malformed declared ID with `SPEC_REQUIREMENT_IDS_INVALID`.
 - Do not leave requirement status fields empty.
 - Do not write non-functional requirements without measurable thresholds.
 - Do not proceed to planning with unresolved requirement quality checklist failures.

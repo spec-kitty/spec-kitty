@@ -200,13 +200,15 @@ The frontmatter in each WP prompt file MUST include a `dependencies` field:
 work_package_id: "WP02"
 title: "Build API"
 dependencies: ["WP01"]  # From wps.yaml
-requirement_refs: ["FR-001", "NFR-001"]  # From wps.yaml requirement_refs
+requirement_refs: ["FR-001", "NFR-001"]  # Copied verbatim from wps.yaml requirement_refs
 subtasks: ["T001", "T002"]
 owned_files: ["src/api/**"]
 authoritative_surface: "src/api/"
 execution_mode: "code_change"
 ---
 ```
+
+Copy `requirement_refs` from `wps.yaml` exactly as written, including `SC-###`, letter-suffixed (`FR-###a`) and `<mission-slug>#<ID>` items. `finalize-tasks` never erases or rewrites them; a ref it cannot use is reported with a reason (`malformed`, `unknown_spec_id` or `foreign_qualified`) instead.
 
 **Note**: `plan_concern_refs` is a `wps.yaml`-only field. It must NOT appear in WP prompt frontmatter — `WPMetadata` (`extra="forbid"`) will reject any WP file that includes it.
 

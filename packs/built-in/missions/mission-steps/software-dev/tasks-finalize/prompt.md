@@ -40,14 +40,18 @@ This command will:
 - Preview WP frontmatter updates without writing files
 - Validate dependencies (check for cycles, invalid references)
 - Validate requirement mapping:
-  - Every WP has at least one requirement reference
-  - Referenced requirement IDs exist in spec.md
-  - Every FR-### in spec.md is mapped to at least one WP
+  - Every WP has at least one accepted requirement reference (a declared FR, NFR, C or SC; a `<mission-slug>#<ID>` citation does not count)
+  - Every ref gets one verdict: `malformed` and `unknown_spec_id` fail; `foreign_qualified` (another mission's ID) never fails; valid refs always count
+  - Every functional requirement declared in spec.md (`FR-###`, including one with a lowercase letter suffix such as `FR-###a`) is mapped to at least one WP
+  - Declared success criteria (`SC-###`) are tracked, not gating: they appear in `success_criteria_coverage` but never fail validation
+- Keep every authored `requirement_refs` item: finalize never erases or rewrites refs
 
 If the JSON output contains `"error": "Requirement mapping validation failed"`,
 do **not** run finalization. Report the blocking fields
-(`missing_requirement_refs_wps`, `unknown_requirement_refs`, and
-`unmapped_functional_requirements`), then fix mappings with
+(`missing_requirement_refs_wps`, `unknown_requirement_refs`,
+`unmapped_functional_requirements`, and `rejected_requirement_refs` with each
+ref's reason), compare them with `parsed_spec_ids` (the IDs finalize read from
+spec.md, grouped by kind), then fix mappings with
 `spec-kitty agent tasks map-requirements --mission <mission-slug> --json` or by
 updating WP `requirement_refs`.
 
@@ -106,7 +110,10 @@ The JSON output includes:
 - `"dependencies_parsed"` — dependency relationships found
 - `"requirement_refs_parsed"` — requirement reference mapping found
 - `"ownership_warnings"` — soft warnings (glob-pattern zero-match, audit coverage)
-- Validation details when checks fail (`missing_requirement_refs_wps`, `unknown_requirement_refs`, `unmapped_functional_requirements`)
+- `"parsed_spec_ids"` — requirement IDs parsed from spec.md, grouped as `functional`, `non_functional`, `constraint`, `success_criteria`
+- `"rejected_requirement_refs"` — per WP, each unusable ref with one reason: `malformed`, `unknown_spec_id` or `foreign_qualified`
+- `"success_criteria_coverage"` — informational: `referenced` (SC → WPs) and `unreferenced`; never fails the run
+- Validation details when checks fail (`missing_requirement_refs_wps`, `unknown_requirement_refs`, `unmapped_functional_requirements`, `rejected_requirement_refs`)
 
 **CRITICAL — Ownership warnings require action before proceeding:**
 

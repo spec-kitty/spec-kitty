@@ -93,7 +93,7 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 - Ensure every subtask appears in exactly one work package
 - Name with succinct goal (e.g., "User Story 1 – Real-time chat happy path")
 - Record metadata: priority, success criteria, risks, dependencies, included subtasks, and requirement references
-- Every WP must include a `requirement_refs` list referencing IDs from `spec.md` (FR/NFR/C)
+- Every WP must include a `requirement_refs` list referencing IDs declared in `spec.md` (FR/NFR/C/SC, with an optional lowercase letter suffix such as `FR-###a`)
 
 ### 4a. Cite plan concern refs for each WP
 
@@ -175,7 +175,7 @@ work_packages:
 - `title`: Short human-readable name
 - `dependencies`: List of WP IDs this WP depends on. `[]` = explicitly no deps (authoritative); if the key is **absent**, `tasks-packages` may fill it based on analysis.
 - `owned_files`: Glob patterns for files this WP touches — no two WPs may overlap. A `code_change` WP must NOT list any `kitty-specs/` path here (see the staged ownership rule below).
-- `requirement_refs`: Requirement IDs from `spec.md` (FR/NFR/C) addressed by this WP.
+- `requirement_refs`: Requirement IDs declared in `spec.md` (kinds FR/NFR/C/SC, digits, an optional single lowercase letter suffix) addressed by this WP. Success criteria are tracked, not gating. A `<mission-slug>#<ID>` citation of another mission's ID is kept and reported as `foreign_qualified`, but never counts as this mission's coverage. Items are kept exactly as written.
 - `plan_concern_refs`: Implementation concern IDs from `plan.md` (IC-##) addressed by this WP. Use `cross_cutting: true` instead if the WP is shared infrastructure with no specific concern.
 - `cross_cutting`: Set to `true` for infrastructure WPs that span all concerns and have no specific IC-## ref.
 - `subtasks`: Ordered list of subtask IDs included in this WP.

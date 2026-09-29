@@ -81,7 +81,13 @@
 <!--
   ACTION REQUIRED:
   1) Keep requirement types separated (Functional / Non-Functional / Constraints)
-  2) Use unique IDs per type (FR-###, NFR-###, C-###)
+  2) Use unique IDs per type (FR-###, NFR-###, C-###, and SC-### for success
+     criteria). An ID is the kind, a hyphen, digits, and optionally one
+     lowercase letter for a sub-requirement (FR-###a). Digit width is part of
+     the ID. To cite an ID that another mission owns, write
+     <mission-slug>#<ID>; it is never counted as this mission's own.
+     setup-plan refuses a malformed ID in a declared position (first table
+     cell, heading, list-item lead or bold lead).
   3) Keep Status populated for every row
   4) Non-functional requirements must include measurable thresholds
   5) Delivery label + no-op mark on every FR row and success criterion (summary of
@@ -96,7 +102,9 @@
      bullet/heading -- it is a trailing column (or success-criterion suffix) only.
 
   Filled example (summary of tactic acceptance-criteria-non-vacuity; `FR-EXAMPLE`
-  does not match the `FR-###` id pattern, so it declares no requirement id):
+  does not match the requirement-ID grammar, so it declares no requirement
+  id; it stays inside this comment because setup-plan refuses a malformed
+  declared ID):
 
   | FR-EXAMPLE | Refuses malformed input | As an operator, I want malformed input rejected so that downstream state stays consistent. | High | Open | [ratchet] | yes — paired with the well-formed-input row on the same fixture |
 -->
@@ -135,6 +143,10 @@
 <!--
   ACTION REQUIRED: Define measurable success criteria.
   These must be technology-agnostic and measurable.
+  Give each one an SC-### ID in the bold-lead bullet shape below. Success
+  criteria are tracked, not gating: finalize-tasks reports which work
+  packages reference each one, but an unreferenced success criterion never
+  fails it. A work package may list SC-### IDs in its requirement_refs.
 -->
 
 ### Measurable Outcomes

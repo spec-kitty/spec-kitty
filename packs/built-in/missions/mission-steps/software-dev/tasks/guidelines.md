@@ -15,7 +15,7 @@ These guidelines govern the quality and correctness standards for work-package d
 ## Charter Compliance
 
 - Respect locality-of-change (DIRECTIVE_024): each WP must declare a coherent owned-files set and avoid editing surfaces owned by sibling WPs.
-- Respect specification-fidelity (DIRECTIVE_010): every task must trace back to a requirement (`FR-###`, `NFR-###`, `C-###`) or a locked plan decision; do not invent scope.
+- Respect specification-fidelity (DIRECTIVE_010): every task must trace back to a requirement (`FR-###`, `NFR-###`, `C-###` or `SC-###`, with an optional lowercase letter suffix) or a locked plan decision; do not invent scope.
 - Document decomposition rationale via the ADR-drafting and problem-decomposition tactics when a structural choice is non-obvious.
 
 ---

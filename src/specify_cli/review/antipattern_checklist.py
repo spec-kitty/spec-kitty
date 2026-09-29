@@ -27,9 +27,12 @@ item blocks approval.
    must have a documented reason; absent that, it is a silent failure
    candidate.
 
-4. **FR coverage**: every FR in `requirement_refs` has at least one test
+4. **FR coverage**: every functional requirement in `requirement_refs`
+   (`FR-###`, including a letter-suffixed `FR-###a`) has at least one test
    assertion that references the behavior it names, not just a comment or
-   frontmatter entry.
+   frontmatter entry. `SC-###` refs are tracked, not gated, and a
+   `<mission-slug>#<ID>` ref cites another mission, so neither needs a test
+   here.
 
 5. **Frozen surface**: no commit in this WP modifies a file the spec,
    contract, or WP prompt marks as frozen or untouchable. For each frozen file,

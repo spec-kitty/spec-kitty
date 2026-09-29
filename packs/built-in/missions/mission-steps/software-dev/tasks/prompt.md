@@ -240,8 +240,9 @@ Prompts do not rediscover mission context. Commands do.
 
    If the JSON output contains `"error": "Requirement mapping validation failed"`,
    do **not** run the mutating finalization command. Report
-   `missing_requirement_refs_wps`, `unknown_requirement_refs`, and
-   `unmapped_functional_requirements`, then fix mappings with
+   `missing_requirement_refs_wps`, `unknown_requirement_refs`,
+   `unmapped_functional_requirements`, and `rejected_requirement_refs` (each
+   ref's reason), checked against `parsed_spec_ids`, then fix mappings with
    `spec-kitty agent tasks map-requirements --mission <mission-slug> --json` or
    by updating WP `requirement_refs`.
 
@@ -312,7 +313,7 @@ The WP prompt must show the correct command so agents don't branch from the wron
 ## Requirement Reference Mapping (MANDATORY)
 
 After creating all WP sections and prompt files, register requirement mappings using the CLI.
-The CLI validates each ref against spec.md and writes `requirement_refs` directly into each
+The CLI validates each ref against the requirement-ID grammar (FR, NFR, C or SC, digits, an optional lowercase letter suffix) and the IDs spec.md declares, and writes `requirement_refs` directly into each
 WP file's YAML frontmatter — no sidecar files needed.
 
 **Batch mode (recommended)** — register all WP mappings at once:
@@ -326,8 +327,12 @@ spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001,FR-002 --mission
 ```
 
 The response includes a coverage summary showing which FRs are still unmapped. Keep calling
-until `unmapped_functional` is empty. Default mode unions new refs with existing ones in
-frontmatter. Use `--replace` to overwrite a WP's refs (e.g., to correct a bad mapping).
+until `unmapped_functional` is empty. Default mode is append-only: existing items stay exactly
+as written and in order, and new refs are appended in canonical form (kind uppercase, suffix
+lowercase). A refusal lists `parsed_spec_ids` and gives each rejected ref one reason
+(`malformed`, `unknown_spec_id` or `foreign_qualified`). Cite another mission's ID as
+`<mission-slug>#<ID>`; it never blocks and never counts as coverage. Use `--replace` to
+overwrite a WP's refs (e.g., to correct a bad mapping).
 
 ## Issue-Matrix Approval Heads-Up (non-gating, #3469)
 

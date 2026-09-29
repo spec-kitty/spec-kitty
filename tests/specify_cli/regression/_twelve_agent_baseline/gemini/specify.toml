@@ -278,7 +278,7 @@ Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-pla
 ## DO NOT
 
 - Do not mix functional, non-functional, and constraint requirements in one list.
-- Do not emit requirements without stable IDs (`FR-###`, `NFR-###`, `C-###`).
+- Do not emit requirements without stable IDs (`FR-###`, `NFR-###`, `C-###`, `SC-###`, with an optional single lowercase letter suffix such as `FR-###a`). Cite another mission's ID as `<mission-slug>#<ID>`; `setup-plan` refuses a malformed declared ID with `SPEC_REQUIREMENT_IDS_INVALID`.
 - Do not leave requirement status fields empty.
 - Do not write non-functional requirements without measurable thresholds.
 - Do not proceed to planning with unresolved requirement quality checklist failures.
@@ -748,7 +748,7 @@ Given that mission description, do this:
       - [ ] No [NEEDS CLARIFICATION] markers remain
       - [ ] Requirements are testable and unambiguous
       - [ ] Requirement types are separated (Functional / Non-Functional / Constraints)
-      - [ ] IDs are unique across FR-###, NFR-###, and C-### entries
+      - [ ] IDs are unique across FR-###, NFR-###, C-### and SC-### entries, and match the requirement-ID grammar (optional lowercase letter suffix; `<mission-slug>#<ID>` only for another mission's ID)
       - [ ] All requirement rows include a non-empty Status value
       - [ ] Non-functional requirements include measurable thresholds
       - [ ] Every FR row and success criterion carries a delivery label and no-op mark

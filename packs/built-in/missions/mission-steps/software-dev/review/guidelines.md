@@ -19,6 +19,7 @@ These guidelines govern the quality and correctness standards for work package r
 - Verify that the implementation satisfies the acceptance criteria defined in the WP task file.
 - Check that test coverage is adequate for the changes introduced.
 - Verify that no deliverable files were written to the repository root checkout instead of the worktree.
+- Read each rejected requirement ref's reason: `malformed` and `unknown_spec_id` block approval; a `foreign_qualified` ref (`<mission-slug>#<ID>`) cites another mission and never blocks. Success criteria (`SC-###`) are tracked, not gating.
 
 ---
 
