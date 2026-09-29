@@ -111,7 +111,17 @@ def _resolve_lane(main_repo_root: Path, mission_slug: str, wp_id: str) -> tuple[
 # B-3): a bare status/issue-matrix/bookkeeping commit is not implementation
 # work, so a claim/in_progress status transition landing on the same branch
 # must never itself satisfy the gate.
-_STATUS_ONLY_PREFIX_TEMPLATES = ("kitty-specs/{slug}/status.", "kitty-specs/{slug}/issue-matrix.")
+#
+# ``meta.json`` is bookkeeping too: the FIRST claim of a mission writes the VCS
+# lock into it and commits that AFTER the claim base is recorded, so it must
+# never count as implementation work. Only the mission's OWN ``meta.json`` is
+# excluded -- a planning_artifact WP's real work under ``kitty-specs/<slug>/``
+# (spec.md, research.md, ...) still qualifies.
+_STATUS_ONLY_PREFIX_TEMPLATES = (
+    "kitty-specs/{slug}/status.",
+    "kitty-specs/{slug}/issue-matrix.",
+    "kitty-specs/{slug}/meta.json",
+)
 _KITTIFY_PREFIX = ".kittify/"
 
 
