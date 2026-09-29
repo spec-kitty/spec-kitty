@@ -315,3 +315,37 @@ def test_commit_advance_refuses_when_target_is_not_checked_out_in_reconciled_wor
         )
 
     assert _ref_value(repo, "target") == old_sha
+
+
+def test_resync_failure_after_a_successful_cas_raises_ref_resync_error(
+    tmp_path: Path,
+    spy_run_git: Callable[[Callable[[list[str]], None] | None], list[list[str]]],
+) -> None:
+    """Slice-10 F1: the ref MOVED (our CAS won) but the checkout resync failed.
+
+    The caller must be able to tell this from a CAS refusal (another actor moved
+    the ref): :class:`RefResyncError` is a :class:`RefAdvanceError` subclass, the
+    ref is at ``new_sha`` and the message still names the resync repair.
+    """
+    from specify_cli.git.ref_advance import RefResyncError
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    old_sha = _commit(repo, "a.txt", "one", "c0")
+    _git(repo, "checkout", "-q", "-b", "target")
+    new_sha = _commit(repo, "a.txt", "two", "c1")
+    _git(repo, "update-ref", "refs/heads/target", old_sha, new_sha)
+    _git(repo, "reset", "-q", "--hard", "target")
+
+    def _lock_index_on_cas(args: list[str]) -> None:
+        if args and args[0] == "update-ref":
+            (repo / ".git" / "index.lock").write_text("", encoding="utf-8")
+
+    spy_run_git(_lock_index_on_cas)
+
+    with pytest.raises(RefResyncError, match="failed to resync") as raised:
+        advance_branch_ref(repo, "target", new_sha, expected_old_sha=old_sha)
+
+    assert isinstance(raised.value, RefAdvanceError)
+    assert _ref_value(repo, "target") == new_sha, "the CAS succeeded: the ref moved"

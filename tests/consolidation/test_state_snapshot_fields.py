@@ -74,6 +74,23 @@ def test_malformed_map_survives_json_round_trip() -> None:
     assert ConsolidationState.from_dict(data).pre_mutation_refs == {}
 
 
+@pytest.mark.parametrize("bad", ["lane-a", ["lane-a", 3], {"lane-a": "x"}, None])
+def test_malformed_lane_branch_list_loads_as_empty(bad: object) -> None:
+    """Slice-10: a malformed ``snapshot_lane_branches`` fails closed (every branch treated as run-movable)."""
+    data = _state().to_dict()
+    data["snapshot_lane_branches"] = bad
+    assert ConsolidationState.from_dict(data).snapshot_lane_branches == []
+
+
+def test_lane_branch_list_round_trips_and_is_absent_in_older_records() -> None:
+    state = _state()
+    state.snapshot_lane_branches = ["kitty/lane-a"]
+    assert ConsolidationState.from_dict(json.loads(json.dumps(state.to_dict()))).snapshot_lane_branches == ["kitty/lane-a"]
+    older = _state().to_dict()
+    del older["snapshot_lane_branches"]
+    assert ConsolidationState.from_dict(older).snapshot_lane_branches == []
+
+
 def test_defaults_are_independent_dicts() -> None:
     first, second = _state(), _state()
     first.pre_mutation_refs["x"] = "y"

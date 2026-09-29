@@ -94,6 +94,16 @@ def _str_map_or_empty(value: object) -> dict[str, str]:
     return {}
 
 
+_REF_LIST_FIELDS = ("snapshot_lane_branches",)
+
+
+def _str_list_or_empty(value: object) -> list[str]:
+    """Return ``value`` when it is a ``list[str]``; otherwise ``[]`` (fail closed)."""
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return list(value)
+    return []
+
+
 def reconciliation_passed_for_tip(state: ConsolidationState, current_target_sha: str) -> bool:
     """True when a reconciliation PASS was recorded for exactly this target tip."""
     return bool(current_target_sha) and state.reconciliation_passed_target_sha == current_target_sha
@@ -195,6 +205,11 @@ class ConsolidationState:
     pre_mutation_refs: dict[str, str] = field(default_factory=dict)
     post_mutation_refs: dict[str, str] = field(default_factory=dict)
     restore_targets: dict[str, str] = field(default_factory=dict)
+    # Slice-10 folds (F1/F2): ``snapshot_lane_branches`` names the snapshotted
+    # branches that are LANE branches -- report-only (consolidation does not
+    # move them; any move is another actor's). Absent in older records -> ``[]``;
+    # a malformed value loads as ``[]`` (fail closed: every branch run-movable).
+    snapshot_lane_branches: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -214,6 +229,9 @@ class ConsolidationState:
         for name in _REF_MAP_FIELDS:
             if name in filtered:
                 filtered[name] = _str_map_or_empty(filtered[name])
+        for name in _REF_LIST_FIELDS:
+            if name in filtered:
+                filtered[name] = _str_list_or_empty(filtered[name])
         return cls(**filtered)
 
     @property

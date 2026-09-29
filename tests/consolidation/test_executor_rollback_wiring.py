@@ -157,6 +157,28 @@ def test_cas_refused_advance_is_not_recorded_as_this_runs_post_tip(tmp_path: Pat
     assert outcome.kind in {rollback.BranchOutcomeKind.NOT_RESTORED, rollback.BranchOutcomeKind.UNCHANGED_BY_RUN}
 
 
+def test_resync_failure_after_our_own_ref_move_is_recorded_as_this_runs_post_tip(tmp_path: Path) -> None:
+    """Slice-10 F1: ``RefResyncError`` means OUR compare-and-swap won and only the checkout resync failed.
+
+    The ref moved by this run, so its tip IS this run's post tip: recording it lets a
+    rollback undo the advance. (A plain ``RefAdvanceError`` is a CAS refusal -- see above.)
+    """
+    from specify_cli.git.ref_advance import RefResyncError
+
+    env = make_env(tmp_path)
+    run = _begin(env)
+
+    @executor._records_post_mutation_tips
+    def phase(r: Any) -> None:
+        _advance_run_target_only(env)  # this run's own advance
+        raise RefResyncError("Advanced develop but failed to resync the checked-out worktree")
+
+    with pytest.raises(RefResyncError):
+        phase(run)
+
+    assert env.state.post_mutation_refs.get(_TARGET) == _rev(env.repo, _TARGET), "our own advance must be recorded"
+
+
 def test_recorder_failure_never_masks_the_phase_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     env = make_env(tmp_path)
     run = _begin(env)

@@ -132,3 +132,26 @@ def test_default_moves_ref_only_and_leaves_checkout_untouched(advanced: dict[str
     # The documented hazard: HEAD moved under the checkout, files stay, reverse diff is staged.
     assert (linked / "new.txt").exists()
     assert _git(linked, "status", "--porcelain") != ""
+
+
+def test_resync_failure_after_the_ref_moved_raises_ref_resync_error(advanced: dict[str, object], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Slice-10 F1: the restore's CAS won but the checkout resync failed -> ``RefResyncError`` (ref moved)."""
+    from specify_cli.git import ref_advance
+    from specify_cli.git.ref_advance import RefAdvanceError, RefResyncError
+
+    repo, linked, base = Path(str(advanced["repo"])), Path(str(advanced["linked"])), str(advanced["base"])
+    lock = Path(_git(linked, "rev-parse", "--absolute-git-dir")) / "index.lock"
+    real_run_git = ref_advance._run_git
+
+    def _lock_after_cas(cwd: Path, args: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        result = real_run_git(cwd, args, env=env)
+        if args and args[0] == "update-ref":
+            lock.write_text("")  # the linked checkout's reset --hard now fails
+        return result
+
+    monkeypatch.setattr(ref_advance, "_run_git", _lock_after_cas)
+    with pytest.raises(RefResyncError, match="failed to resync") as raised:
+        restore_branch_ref(repo, "feat", base, expected_current_sha=str(advanced["feat_tip"]), resync_checkouts=True)
+
+    assert isinstance(raised.value, RefAdvanceError)
+    assert _git(repo, "rev-parse", "feat") == base, "the CAS succeeded: the ref moved"

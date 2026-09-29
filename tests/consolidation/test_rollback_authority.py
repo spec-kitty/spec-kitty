@@ -5,7 +5,7 @@ No git mocking. Contract guarantees (``contracts/rollback-authority.md``) covere
 * G1 (never moves an unsnapshotted branch): ``test_branch_outside_snapshot_is_never_touched``
 * G2 (CAS on recorded post tip; UNCHANGED_BY_RUN; per-attempt targets):
   ``test_cas_conflict_*``, ``test_operator_fix_between_attempts_*``,
-  ``test_restore_target_truth_table``, ``test_no_post_tip_is_unchanged_by_run``
+  ``test_restore_target_truth_table``, ``test_moved_without_recorded_post_tip_*``
 * G3 (FR-011): ``test_verified_landing_*``, ``test_deleted_snapshotted_branch_*``
 * G4 (resync / dirty refusal): ``test_full_restore``, ``test_dirty_primary_checkout_*``
 * G5 (bookkeeping only after full restore; idempotent): ``test_full_restore``,
@@ -278,14 +278,28 @@ def test_restore_target_truth_table(snapshot: str, previous_post: str | None, at
     assert _restore_target(snapshot, previous_post, attempt_start) == expected
 
 
-def test_no_post_tip_is_unchanged_by_run_and_does_not_block(tmp_path: Path) -> None:
+def test_moved_without_recorded_post_tip_is_not_restored_and_blocks(tmp_path: Path) -> None:
+    """Slice-10 F1: a run-movable branch that moved but has no recorded post tip is NOT reported unchanged.
+
+    The kill window: ``begin_attempt`` resets the post tips, a phase advances the
+    mission branch, and the process dies before the phase's recorder runs. The
+    authority cannot tell this run's advance from another actor's, so it must not
+    restore it AND must not report it as untouched (which let ``--abort`` clear
+    the record over an advanced branch).
+    """
     env = make_env(tmp_path)
     _snapshot_and_begin(env)
+    env.state.completed_wps = ["WP01"]
     tip = _commit_on(env.repo, _MISSION_BRANCH, "advanced-without-post")  # no record_post_mutation_tips
     report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
-    assert report.fully_restored
-    assert _kinds(report)[_MISSION_BRANCH] is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert not report.fully_restored
+    outcome = next(o for o in report.outcomes if o.branch == _MISSION_BRANCH)
+    assert outcome.kind is BranchOutcomeKind.NOT_RESTORED
+    assert outcome.reason is not None and "no post-mutation tip was recorded" in outcome.reason
+    assert "inspect before re-running" in outcome.reason
     assert _rev(env.repo, _MISSION_BRANCH) == tip
+    assert report.advanced_branches == (_MISSION_BRANCH,)
+    assert env.state.completed_wps == ["WP01"], "bookkeeping is kept when a branch was not restored"
 
 
 def test_verified_landing_refuses_and_moves_nothing(tmp_path: Path) -> None:
@@ -418,7 +432,7 @@ def test_render_no_snapshot_and_kept_lane(tmp_path: Path) -> None:
     env = make_env(tmp_path)
     assert "pre-fix record" in rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).render()
     _snapshot_and_begin(env)
-    _commit_on(env.repo, _MISSION_BRANCH, "kept")
+    _commit_on(env.repo, env.lane_branches[0], "kept")
     assert "kept" in rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).render()
 
 

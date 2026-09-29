@@ -105,6 +105,18 @@ class RefAdvanceError(RuntimeError):
     error_code = "REF_ADVANCE_FAILED"
 
 
+class RefResyncError(RefAdvanceError):
+    """The compare-and-swap ref write SUCCEEDED but a checkout resync failed.
+
+    Unlike a plain :class:`RefAdvanceError` (e.g. a CAS refusal: ANOTHER actor
+    moved the ref), the ref now holds the value THIS caller wrote. Callers that
+    attribute ref moves (the consolidation rollback recorder) must treat it as
+    their own move. The worktree named in the message is behind its own HEAD.
+    """
+
+    error_code = "REF_RESYNC_FAILED"
+
+
 class RefRestoreError(RuntimeError):
     """A compare-and-swap branch rollback failed at the git level."""
 
@@ -462,11 +474,14 @@ def _resync_checkouts(
     *,
     context: str,
 ) -> None:
-    """Hard-reset each checkout to the (already moved) ``branch`` ref (#1826)."""
+    """Hard-reset each checkout to the (already moved) ``branch`` ref (#1826).
+
+    Raises :class:`RefResyncError` (the ref already moved) when a reset fails.
+    """
     for worktree in checkouts:
         reset = _run_git(worktree, ["reset", "--hard", branch], env=env)
         if reset.returncode != 0:
-            raise RefAdvanceError(
+            raise RefResyncError(
                 f"{context} but "
                 f"failed to resync the checked-out worktree at {worktree}: "
                 f"{reset.stderr.strip() or reset.stdout.strip()}. "
@@ -528,10 +543,11 @@ def advance_branch_ref(
         RefAdvanceDirtyWorktreeError: a worktree with ``branch`` checked out
             holds uncommitted tracked changes (NFR-002/NFR-003); nothing was
             mutated.
-        RefAdvanceError: the worktree scan or a resync failed at the git
-            level, or the compare-and-swap ``update-ref`` failed because the
-            ref changed since it was read (fail-closed; never a 2-arg fallback
-            or a retry).
+        RefAdvanceError: the worktree scan failed at the git level, or the
+            compare-and-swap ``update-ref`` failed because the ref changed
+            since it was read (fail-closed; never a 2-arg fallback or a retry).
+        RefResyncError: the ``RefAdvanceError`` subclass raised when the ref
+            WAS advanced but a checked-out worktree could not be resynced.
     """
     ref = f"refs/heads/{branch}"
 

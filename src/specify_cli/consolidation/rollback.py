@@ -10,9 +10,12 @@ Guarantees (``contracts/rollback-authority.md``):
 
 1. A branch that is not in ``state.pre_mutation_refs`` is never moved.
 2. A branch whose live tip is not this attempt's recorded post-mutation tip is
-   never moved (reported ``NOT_RESTORED``); a branch with no recorded post tip
-   is ``UNCHANGED_BY_RUN`` (never restored, never blocks a full restore). Each
-   branch is restored to its per-attempt restore target (:func:`begin_attempt`).
+   never moved (reported ``NOT_RESTORED``). A run-movable branch (target,
+   mission, coordination) that moved with NO recorded post tip -- e.g. a kill
+   inside a phase before its recorder ran -- is ``NOT_RESTORED`` too: it is
+   neither restored nor reported untouched, so ``--abort`` keeps the record.
+   Only a lane branch (``state.snapshot_lane_branches``) is ``UNCHANGED_BY_RUN``.
+   Each branch is restored to its per-attempt restore target (:func:`begin_attempt`).
 3. A landing verified by an EARLIER reconciliation
    (``reconciliation_passed_target_sha`` == live target tip) is never rolled
    back (FR-011); neither is anything when a snapshotted branch no longer
@@ -61,6 +64,7 @@ __all__ = [
 _SHORT = 7
 _NO_SNAPSHOT_REASON = "no pre-mutation snapshot recorded (pre-fix record)"
 _MOVED_BY_OTHER_REASON = "moved by another actor since this run"
+_UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was recorded (interrupted phase?); inspect before re-running"
 
 
 class BranchOutcomeKind(StrEnum):
@@ -168,6 +172,12 @@ def _candidate_branches(lanes_manifest: LanesManifest, coord_ref: str | None) ->
     return list(dict.fromkeys(b for b in ordered if b))
 
 
+def _lane_branches(lanes_manifest: LanesManifest, coord_ref: str | None) -> list[str]:
+    """Candidate branches that are LANE branches (never the target, mission or coordination branch)."""
+    movable = {lanes_manifest.target_branch, lanes_manifest.mission_branch, coord_ref}
+    return [b for b in _candidate_branches(lanes_manifest, coord_ref) if b not in movable]
+
+
 def snapshot_branches(repo_root: Path, lanes_manifest: LanesManifest, *, coord_ref: str | None) -> dict[str, str]:
     """Live tips of every branch a consolidation may move; unresolvable ones are skipped."""
     refs: dict[str, str] = {}
@@ -205,6 +215,7 @@ def capture_pre_mutation_snapshot(
     if coord_ref is not None and state.pre_mutation_coord_sha and state.pre_mutation_coord_ref in (None, coord_ref):
         refs[coord_ref] = state.pre_mutation_coord_sha
     state.pre_mutation_refs = refs
+    state.snapshot_lane_branches = [b for b in _lane_branches(lanes_manifest, coord_ref) if b in refs]
     save_state(state, repo_root)
     return dict(refs)
 
@@ -285,7 +296,9 @@ def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, sn
     if live == restore_to:
         return BranchOutcome(branch, BranchOutcomeKind.ALREADY_AT_SNAPSHOT, snapshot, live)
     if post is None:
-        return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live)
+        if branch in state.snapshot_lane_branches:
+            return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live)
+        return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, reason=_UNRECORDED_MOVE_REASON)
     if live != post:
         return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, post, _MOVED_BY_OTHER_REASON)
     return _restore_one(repo_root, branch, snapshot, restore_to, live, post)

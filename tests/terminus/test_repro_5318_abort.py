@@ -112,6 +112,34 @@ def test_5318_abort_refuses_to_destroy_another_actors_commit(tmp_path: Path) -> 
     assert "Kept the consolidation record" in output, f"the operator must be told the record was kept. output={output}"
 
 
+def test_5318_abort_after_a_kill_before_post_tips_were_recorded_keeps_the_record(tmp_path: Path) -> None:
+    """Slice-10 F1 (kill window): an advanced branch with no recorded post tip is never reported restored.
+
+    A SIGKILL inside a ref-moving phase, before its recorder ran, cannot be produced by a
+    real CLI run on demand. It is modelled on the crashed run's REAL ``state.json``: the
+    post tips are emptied, exactly what ``begin_attempt`` leaves before the first
+    recorder runs. Pre-fold, ``--abort`` reported the advanced ``main`` and mission branch
+    as "kept (not moved by this run)", exited 0 and cleared the record over them.
+    """
+    mission, _before = _crashed_lanes_run(tmp_path, "01M5318K")
+    payload = _read_state(mission)
+    payload["post_mutation_refs"] = {}
+    _state_path(mission).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    advanced = ref_shas(mission)
+
+    result = _abort(mission)
+    output = flat(result)
+
+    assert result.returncode == 1, f"an abort that cannot account for an advanced branch exits 1. output={output}"
+    assert _state_path(mission).exists(), "the record is KEPT so the snapshot is not lost"
+    assert ref_shas(mission) == advanced, f"nothing may be moved without a recorded post tip. output={output}"
+    for branch in (mission.target_branch, mission.coord_branch):
+        assert f"NOT restored {branch}" in output, f"{branch} must be named NOT restored. output={output}"
+    assert "no post-mutation tip was recorded" in output, f"the reason must be stated. output={output}"
+    assert "not moved by this run" not in output, f"an advanced branch must never be reported untouched. output={output}"
+    assert "Kept the consolidation record" in output, f"the operator must be told the record was kept. output={output}"
+
+
 def test_5318_abort_keeps_the_operators_fix_and_a_fresh_run_succeeds(tmp_path: Path) -> None:
     """The gate FAIL restored in-process; the operator then fixes the carrier lane; ``--abort`` must keep that fix.
 

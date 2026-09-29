@@ -70,7 +70,7 @@ from specify_cli.git.bookkeeping_commit import (
     commit_merge_bookkeeping,
 )
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
-from specify_cli.git.ref_advance import RefAdvanceError, RefRestoreError, restore_branch_ref
+from specify_cli.git.ref_advance import RefAdvanceError, RefResyncError, RefRestoreError, restore_branch_ref
 from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_PRIMARY_DIRTY,
     DestructiveOpRefused,
@@ -508,6 +508,11 @@ class _MergeRunState:
 _P = ParamSpec("_P")
 
 
+def _moved_by_this_run(exc: BaseException) -> bool:
+    """False only for a compare-and-swap refusal (another actor moved the ref); a resync failure is ours."""
+    return isinstance(exc, RefResyncError) or not isinstance(exc, (RefAdvanceError, RefRestoreError))
+
+
 def _records_post_mutation_tips(phase: Callable[Concatenate[_MergeRunState, _P], None]) -> Callable[Concatenate[_MergeRunState, _P], None]:
     """Record the live post-mutation tips when a ref-moving step exits (#5318 / #5332).
 
@@ -522,7 +527,9 @@ def _records_post_mutation_tips(phase: Callable[Concatenate[_MergeRunState, _P],
       ANOTHER actor moving the ref. Recording that tip would make the foreign
       commit look like this run's own and a later rollback would restore over it
       (FR-007 / #4996), so nothing is recorded; the branch then reports
-      ``NOT_RESTORED``/``UNCHANGED_BY_RUN``.
+      ``NOT_RESTORED``. The exception is its :class:`RefResyncError` subclass:
+      OUR compare-and-swap won and only a checkout resync failed, so the ref
+      holds this run's own tip and IS recorded (slice-10 F1).
     * Recording is best-effort while an error is already propagating: a recorder
       failure (state I/O, missing git) must never replace the phase's own error.
       On the normal path a recorder failure is the only error and propagates.
@@ -533,7 +540,7 @@ def _records_post_mutation_tips(phase: Callable[Concatenate[_MergeRunState, _P],
         try:
             phase(run, *args, **kwargs)
         except BaseException as exc:
-            if not isinstance(exc, (RefAdvanceError, RefRestoreError)):
+            if _moved_by_this_run(exc):
                 with contextlib.suppress(Exception):
                     rollback.record_post_mutation_tips(run.main_repo, run.state)
             raise

@@ -106,16 +106,21 @@ def test_fully_restored_proceeds_and_restores_every_branch(repo: Path) -> None:
     assert output.count("restored") >= 2
 
 
-def test_branches_this_run_never_moved_do_not_block_the_cleanup(repo: Path) -> None:
-    """UNCHANGED_BY_RUN only (no recorded post tip): never guessed at, never blocks."""
+def test_moved_branches_without_a_recorded_post_tip_keep_the_record(repo: Path) -> None:
+    """Slice-10 F1: target/mission moved with no recorded post tip (kill window) -> never guessed at, never "untouched".
+
+    Pre-fold these were reported "not moved by this run" and the abort proceeded to
+    clear the record over two advanced branches.
+    """
     state = _state(repo)
     _advance_both(repo)  # moved, but the run never recorded a post tip for them
     moved = {b: _git(repo, "rev-parse", b) for b in state.pre_mutation_refs}
 
     proceed, output = _run_helper(repo, state)
 
-    assert proceed is True
-    assert "not moved by this run" in output
+    assert proceed is False
+    assert "no post-mutation tip was recorded" in output
+    assert "not moved by this run" not in output
     assert {b: _git(repo, "rev-parse", b) for b in moved} == moved
 
 
