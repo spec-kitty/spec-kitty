@@ -34,7 +34,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
         "http://example.com/a/b",
         "https://example.com/a/../b?q=1#frag",
         "HTTPS://Example.com/Path",
-        "file:///tmp/report.md",
+        "file:///srv/report.md",
         "s3://bucket/key/with//double",
         "git+ssh://git@github.com/org/repo.git",
     ],
