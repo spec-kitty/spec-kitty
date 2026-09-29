@@ -171,3 +171,19 @@ def test_control_lanes_topology_finalize_write_is_unaffected(tmp_path: Path) -> 
 
     assert lanes_path == feature_dir / "lanes.json"
     assert lanes_manifest.lanes  # a real lane got (re)computed, not refused
+
+
+def test_allocate_lane_worktree_fails_closed_on_corrupt_meta(tmp_path: Path) -> None:
+    """(b') A corrupt ``meta.json`` is not "nothing to enforce": the guard
+    raises the typed :class:`MissionMetaReadError` BEFORE any git mutation
+    rather than silently skipping the topology check."""
+    from specify_cli.core.paths import MissionMetaReadError
+
+    feature_dir = tmp_path / "kitty-specs" / _SLUG
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(MissionMetaReadError):
+        allocate_lane_worktree(tmp_path, _SLUG, "WP01", _code_lane_manifest())
+
+    assert not (tmp_path / ".worktrees").exists()

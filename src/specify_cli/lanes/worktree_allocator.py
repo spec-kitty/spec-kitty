@@ -1682,6 +1682,10 @@ def _stored_topology_for_fail_closed_guard(repo_root: Path, mission_slug: str) -
     2. ``meta.json`` exists but carries no EXPLICIT, valid ``topology`` key
        (a legacy mission that predates the field, or one mid-derivation).
 
+    A ``meta.json`` that exists but is corrupt or not a JSON object is NOT
+    "nothing to enforce": it raises
+    :class:`~specify_cli.core.paths.MissionMetaReadError` (fail closed).
+
     Both readers above DERIVE a topology for case 2 from
     ``(coordination_branch, has_lanes)`` when no explicit value is stored --
     and ``has_lanes`` there is read from the mission's ON-DISK
@@ -1707,10 +1711,13 @@ def _stored_topology_for_fail_closed_guard(repo_root: Path, mission_slug: str) -
     fallback entirely" DECISION is local to this guard; the parse itself
     has one owner.
     """
+    from specify_cli.core.paths import load_meta_fail_closed
     from specify_cli.migration.backfill_topology import stored_topology
 
     meta_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    data = load_meta(meta_dir, on_malformed="none")
+    # Fail CLOSED on a corrupt/non-object meta.json (typed MissionMetaReadError):
+    # this guard must never read "unreadable" as "nothing to enforce".
+    data = load_meta_fail_closed(meta_dir)
     if data is None:
         return None
     stored: MissionTopology | None = stored_topology(data)
