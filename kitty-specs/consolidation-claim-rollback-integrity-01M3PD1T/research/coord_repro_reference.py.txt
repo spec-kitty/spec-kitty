@@ -1,0 +1,93 @@
+from __future__ import annotations
+import json, subprocess
+from pathlib import Path
+import pytest
+from tests.terminus.conftest import (
+    blob_present_at, build_coord_mission, plant_canceled_commit, run_terminus, fold_lanes_into_mission_branch,
+)
+
+def _state(m):
+    p = list((m.repo / ".kittify" / "runtime" / "merge").glob("*/state.json"))
+    return json.loads(p[0].read_text()) if p else None
+
+def _refs(m, label):
+    out = {"label": label, "target": m.rev(m.target_branch), "coord": m.rev(m.coord_branch)}
+    for wp, b in m.lane_branches.items():
+        r = subprocess.run(["git","rev-parse","--verify","-q",b], cwd=m.repo, capture_output=True, text=True)
+        out[b.rsplit("-",2)[-2]+"-"+b.rsplit("-",1)[-1]] = r.stdout.strip()[:10] or "<gone>"
+    out["target"] = out["target"][:10]; out["coord"] = out["coord"][:10]
+    st = _state(m)
+    if st:
+        out["state"] = {k: (v[:10] if isinstance(v,str) else v) for k,v in st.items() if k in ("completed_wps","mission_number_baked","pre_mutation_target_sha","pre_mutation_coord_sha","pre_interrupt_lane_tips","reconciliation_passed_target_sha","strategy")}
+    else:
+        out["state"] = None
+    # coord meta mission_number / done events on coord
+    meta = subprocess.run(["git","show",f"{m.coord_branch}:kitty-specs/{m.slug}/meta.json"], cwd=m.repo, capture_output=True, text=True)
+    try: out["coord_mission_number"] = json.loads(meta.stdout).get("mission_number")
+    except Exception: out["coord_mission_number"] = "?"
+    ev = subprocess.run(["git","show",f"{m.coord_branch}:kitty-specs/{m.slug}/status.events.jsonl"], cwd=m.repo, capture_output=True, text=True).stdout
+    out["coord_done_events"] = sum(1 for l in ev.splitlines() if '"to_lane": "done"' in l or '"to_lane":"done"' in l)
+    out["coord_log"] = subprocess.run(["git","log","--oneline",f"{m.target_branch}..{m.coord_branch}"], cwd=m.repo, capture_output=True, text=True).stdout.strip().splitlines()
+    print(json.dumps(out, indent=1, default=str))
+    return out
+
+def _tail(r):
+    txt = (r.stdout + r.stderr)
+    for key in ("Reconciliation", "Error"):
+        for line in txt.splitlines():
+            if key in line: print("   OUT>", line.strip()[:300])
+    print("   rc=", r.returncode)
+
+def test_5318_abort_then_fresh(tmp_path: Path):
+    m = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5318A")
+    _, _, planted = plant_canceled_commit(m, canceled_wp="WP03", carrier_wp="WP02")
+    _refs(m, "before")
+    r = run_terminus(m, ["consolidate", "--mission", m.slug, "--yes"]); _tail(r)
+    _refs(m, "after-run1-FAIL")
+    r2 = run_terminus(m, ["consolidate", "--mission", m.slug, "--resume", "--yes"]); _tail(r2)
+    _refs(m, "after-resume")
+    ra = run_terminus(m, ["consolidate", "--mission", m.slug, "--abort"]); _tail(ra)
+    _refs(m, "after-abort")
+    r3 = run_terminus(m, ["consolidate", "--mission", m.slug, "--yes"]); _tail(r3)
+    _refs(m, "after-fresh-run")
+    print("PLANTED ON TARGET:", blob_present_at(m.repo, m.target_branch, planted))
+
+def test_5338_claim_refuse_missing_lane_branch(tmp_path: Path):
+    m = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5338A")
+    fold_lanes_into_mission_branch(m, ["WP01"])
+    subprocess.run(["git","branch","-D",m.lane_branches["WP01"]], cwd=m.repo, check=True, capture_output=True)
+    _refs(m, "before")
+    r = run_terminus(m, ["consolidate", "--mission", m.slug, "--yes"]); _tail(r)
+    print(r.stdout[-3000:])
+    _refs(m, "after")
+
+def test_5338_resume_claim_refuse_leaves_target_advanced(tmp_path: Path):
+    m = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5338R")
+    _, _, planted = plant_canceled_commit(m, canceled_wp="WP03", carrier_wp="WP02")
+    r = run_terminus(m, ["consolidate", "--mission", m.slug, "--yes"]); _tail(r)
+    _refs(m, "after-run1-FAIL")
+    subprocess.run(["git","branch","-D",m.lane_branches["WP01"]], cwd=m.repo, check=True, capture_output=True)
+    r2 = run_terminus(m, ["consolidate", "--mission", m.slug, "--resume", "--yes"]); _tail(r2)
+    _refs(m, "after-resume-REFUSE")
+    print("PLANTED ON TARGET:", blob_present_at(m.repo, m.target_branch, planted))
+    print(subprocess.run(["git","log","--oneline","-5",m.target_branch], cwd=m.repo, capture_output=True, text=True).stdout)
+
+def test_5318_fresh_after_abort_message(tmp_path: Path):
+    m = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5318B")
+    plant_canceled_commit(m, canceled_wp="WP03", carrier_wp="WP02")
+    run_terminus(m, ["consolidate", "--mission", m.slug, "--yes"])
+    run_terminus(m, ["consolidate", "--mission", m.slug, "--abort"])
+    r3 = run_terminus(m, ["consolidate", "--mission", m.slug, "--yes"])
+    print("FRESH-AFTER-ABORT rc", r3.returncode); print(r3.stdout[-2500:]); print(r3.stderr[-800:])
+
+def test_5318_fresh_after_abort_materialized(tmp_path: Path):
+    m = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5318C")
+    _, _, planted = plant_canceled_commit(m, canceled_wp="WP03", carrier_wp="WP02")
+    run_terminus(m, ["consolidate", "--mission", m.slug, "--yes"])
+    _refs(m, "after-run1-FAIL")
+    run_terminus(m, ["consolidate", "--mission", m.slug, "--abort"])
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    CoordinationWorkspace.resolve(m.repo, m.slug, m.mid8)
+    r3 = run_terminus(m, ["consolidate", "--mission", m.slug, "--yes"]); _tail(r3)
+    _refs(m, "after-fresh-run")
+    print("PLANTED ON TARGET:", blob_present_at(m.repo, m.target_branch, planted))

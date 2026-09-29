@@ -1,0 +1,104 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-29T10:59:29.742738Z",
+      "decision_id": "01M3PD3NAECRSVPYZ6J5KWDTDW",
+      "final_answer": "3 P0s + fold #5332 (#5338 first, then #5318, #5296; #5332 as another rollback caller; residuals R1/R2 not folded)",
+      "input_key": "scope_issue_set",
+      "mission_id": "01M3PD1TXHESSWN98HJ1YARGMK",
+      "mission_slug": "consolidation-claim-rollback-integrity-01M3PD1T",
+      "opened_by": "cli",
+      "options": [
+        "3 P0s + fold #5332",
+        "3 P0s only",
+        "#5338 + #5318 only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which issues does slice 10 cover by 2026-09-30?",
+      "rationale": null,
+      "resolved_at": "2026-09-29T10:59:33.058066Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.issue-set",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-29T10:59:36.257768Z",
+      "decision_id": "01M3PD3VP1YTQ4D17HT96JA0T2",
+      "final_answer": "CAS ref restore: one persisted pre-mutation snapshot + one CAS rollback authority restoring every captured ref; supersedes AC-B3 revert-only on this path; amend ADR 2026-09-19-1",
+      "input_key": "coord_restore_mechanism",
+      "mission_id": "01M3PD1TXHESSWN98HJ1YARGMK",
+      "mission_slug": "consolidation-claim-rollback-integrity-01M3PD1T",
+      "opened_by": "cli",
+      "options": [
+        "CAS ref restore",
+        "Revert + durable anchor",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How does a failed gate restore the mission/coordination branch?",
+      "rationale": null,
+      "resolved_at": "2026-09-29T10:59:39.254614Z",
+      "resolved_by": null,
+      "slot_key": "specify.rollback.coord-restore",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-29T10:59:42.391651Z",
+      "decision_id": "01M3PD41NQ6J6EX8V2HYDDRGPZ",
+      "final_answer": "Refuse (fail closed) when a planning WP dependency self-heal would merge code lanes into the repository-root checkout on the target branch; guidance: consolidate code lanes first; refusal text derived from what actually moved",
+      "input_key": "planning_self_heal_fix",
+      "mission_id": "01M3PD1TXHESSWN98HJ1YARGMK",
+      "mission_slug": "consolidation-claim-rollback-integrity-01M3PD1T",
+      "opened_by": "cli",
+      "options": [
+        "Refuse on root/target",
+        "Gate attributes landed content",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How is the planning-lane dependency self-heal (#5296) fixed?",
+      "rationale": null,
+      "resolved_at": "2026-09-29T10:59:45.537315Z",
+      "resolved_by": null,
+      "slot_key": "specify.planning-lane.self-heal-fix",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-29T12:40:26.899857Z",
+      "decision_id": "01M3PJWGGKTRT9W03MJHFV44Q2",
+      "final_answer": "Skip merge, waive ancestry: when the planning lane worktree is the repository root checkout on the target branch, the dependency self-heal does not merge code lanes and the claim-ancestry gate waives code-lane ancestry; claim proceeds, target untouched; code arrives via consolidation's attribution window. Supersedes DM 01M3PD41NQ6J6EX8V2HYDDRGPZ.",
+      "input_key": "planning_self_heal_fix_v2",
+      "mission_id": "01M3PD1TXHESSWN98HJ1YARGMK",
+      "mission_slug": "consolidation-claim-rollback-integrity-01M3PD1T",
+      "opened_by": "cli",
+      "options": [
+        "Skip merge, waive ancestry",
+        "Refuse at finalize-tasks",
+        "Cut FR-008 to follow-up",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Refusing the planning claim deadlocks (consolidate requires all WPs approved; no per-lane consolidate). What should a planning-lane claim do when its self-heal would merge code lanes onto the target checkout?",
+      "rationale": null,
+      "resolved_at": "2026-09-29T12:40:29.921987Z",
+      "resolved_by": null,
+      "slot_key": "plan.planning-lane.self-heal-v2",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3PD1TXHESSWN98HJ1YARGMK",
+  "version": 1
+}

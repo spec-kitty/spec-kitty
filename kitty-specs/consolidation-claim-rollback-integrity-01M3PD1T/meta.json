@@ -1,0 +1,22 @@
+{
+  "baseline_merge_commit": "2ca30fa5efbd192e145fe70c0e2aec8a233e5fac",
+  "created_at": "2026-09-29T10:58:31.683722+00:00",
+  "flattened": false,
+  "friendly_name": "Consolidation claim, rollback and teardown integrity",
+  "merged_at": "2026-09-29T17:24:57.902117+00:00",
+  "merged_commit": "4c4153fef80acb5d2821f76ce82064da46498d58",
+  "mid8": "01M3PD1T",
+  "mission_id": "01M3PD1TXHESSWN98HJ1YARGMK",
+  "mission_number": 208,
+  "mission_slug": "consolidation-claim-rollback-integrity-01M3PD1T",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators running spec-kitty consolidate can today end up with a refused consolidation that already merged lanes, recorded work as done, numbered the mission or even advanced the target branch, while the message says nothing was mutated. The next attempt then refuses the mission's own work. This mission makes consolidation refuse before it changes anything when it already knows it must refuse, restore every branch it moved when a later check fails, stop a planning work package from writing code-lane content straight onto the target, and report truthfully what moved.",
+  "purpose_tldr": "A refused or failed spec-kitty consolidate never leaves half-mutated branches or state behind, and never claims nothing changed when something did.",
+  "slug": "consolidation-claim-rollback-integrity-01M3PD1T",
+  "status_phase": "1",
+  "target_branch": "issue-5338-consolidation-claim-rollback-integrity",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-29T13:21:05.280720+00:00"
+}

@@ -1,0 +1,10 @@
+# Approach — consolidation-claim-rollback-integrity-01M3PD1T
+
+- 2026-09-29 — Pre-planning squad (code-truth / similar-issues / campsite / architecture) grounded all three P0s on main `e4a1a55c`; code-truth reproduced #5338 and #5318 through the real CLI (repro scaffold kept in the session scratchpad).
+- 2026-09-29 — Order: tidy-first campsite step, then #5338 (refuse at claim, cheapest cut that stops the wedge), then the single snapshot + CAS rollback authority (#5318 + #5332), then #5296 (planning self-heal refusal + truthful refusal text).
+- 2026-09-29 — Base on origin/main while PR #5359 (same gate) is unmerged; avoid its functions, hook #5318 at the call site only; plan to rebase.
+- 2026-09-29 — Post-spec sizing lens found 3 blockers: refusing the planning claim deadlocks (consolidate needs all WPs approved) → operator re-decided to skip+waive (DM 01M3PJWG); CAS expected value undefined → persist post-mutation tips before the gate; rollback could destroy a verified landing → FR-011 guard. Invariant scoped to claim/gate/projection/abort (R3 residual for other in-phase exits).
+- 2026-09-29 — Hook for #5318 chosen at the driver call site (wrapping `_phase_reconcile_before_teardown`) instead of inside the #5359-rewritten gate body, so WPs need not wait for #5359.
+- 2026-09-29 — WP03 landed the wiring with a try/finally `_records_post_mutation_tips` decorator (it covers early returns). #5332 was reproduced with a real `notes/n.md` no-driver trigger, with no monkeypatch. Open item for closeout: `recovery_guidance` (#5359-owned) still prints "no refs/worktrees were mutated" before the rollback report, so SC-004 is not fully met until that wording is reconciled.
+- 2026-09-29 — WP05: on a protected `main` the claim no longer merges or raises, but still exits 1 on the status-bookkeeping refusal (#5385 trap). That case is recorded as a residual rather than hidden.
+- 2026-09-29 — #5359 merged to main during implementation (50 commits of drift; ref_advance.py also changed upstream). Closeout will rebase onto the new origin/main and can now edit recovery_guidance (SC-004) and rewire verify() to claim_integrity_refusal.

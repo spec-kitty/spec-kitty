@@ -1,0 +1,211 @@
+schema_version: 1
+mission_id: 01M3PD1TXHESSWN98HJ1YARGMK
+mission_slug: consolidation-claim-rollback-integrity-01M3PD1T
+mission_number: 208
+friendly_name: Consolidation claim, rollback and teardown integrity
+mission_type: software-dev
+target_branch: issue-5338-consolidation-claim-rollback-integrity
+created_at: '2026-09-29T17:25:50.318473+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-29T17:25:50.318473+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-010
+not_helpful:
+- id: n-007
+  category: doc
+  summary: analysis-report.md records 4 finding(s)
+  evidence_refs:
+  - e-017
+  details: The analysis-report.md artifact for this mission records 4 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-005
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-015
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-006
+  category: implementation
+  summary: WP04 needed 2 implementation cycles
+  evidence_refs:
+  - e-016
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-003
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-013
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-011
+  details: WP WP03 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP04 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-008
+  category: tooling
+  summary: 'Tracer: Per-attempt restore targets'
+  evidence_refs:
+  - e-018
+  details: "- **Per-attempt restore targets** (`begin_attempt`): restore to the snapshot only when the attempt started from
+    the snapshot or from consolidation's own previous post tip; otherwise restore to the attempt-start tip. This keeps an
+    operator's lane fix made between attempts."
+- id: n-010
+  category: tooling
+  summary: "Tracer: Reset this call's own PASS anchor before rollback"
+  evidence_refs:
+  - e-018
+  details: "- **Reset this call's own PASS anchor before rollback**, so FR-011 protects only landings verified by an earlier
+    attempt. Without this, a fresh #5332 rollback would be blocked by the run's own anchor."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: UNCHANGED_BY_RUN'
+  evidence_refs:
+  - e-018
+  details: '- **UNCHANGED_BY_RUN**: a branch with no recorded post tip is never restored, which stops a sticky `--abort`.'
+- id: n-011
+  category: tooling
+  summary: 'Tracer: WP04 red from a real in-phase exit'
+  evidence_refs:
+  - e-018
+  details: "- **WP04 red from a real in-phase exit** (the #5385 protected-target shape), not from synthetic state.\n- 2026-09-29
+    — **Ownership.** `finalize-tasks` accepts `executor.py` being co-owned by WP01 and WP03 because WP03 depends on WP01.
+    The lanes then collapse WP01, WP03 and WP04 into lane-a, so the executor edits are strictly sequential.\n- 2026-09-29
+    — **WP03 review, cycle 1.** Post tips are no longer recorded when a phase fails with a CAS refusal (`RefAdvanceError`/`RefRestoreError`),
+    since the new tip then belongs to another actor. Recording must never mask the original exception. Proposed SC-004 wording
+    for `recovery_guidance` (#5359-owned, to apply at closeout): \"Nothing was torn down. Branches this run moved are rolled
+    back as reported below; any branch marked NOT restored still carries this run's commits — inspect it before re-running
+    the merge.\""
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/tasks/WP01-claim-time-refusal.md
+- id: e-006
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/tasks/WP02-rollback-authority-core.md
+- id: e-007
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/tasks/WP03-wire-rollback-into-consolidation.md
+- id: e-008
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/tasks/WP04-abort-restores-through-authority.md
+- id: e-009
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/tasks/WP05-planning-self-heal-skip.md
+- id: e-010
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/status.events.jsonl
+- id: e-011
+  kind: event_range
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/status.events.jsonl
+  range: 01M3PWXQD86YQWE1KFTNN5V3H9
+- id: e-012
+  kind: event_range
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/status.events.jsonl
+  range: 01M3Q1GKWYXGGCDSTGM06P5A7Y
+- id: e-013
+  kind: event_range
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/status.events.jsonl
+  range: 01M3PWXQD86YQWE1KFTNN5V3H9
+- id: e-014
+  kind: event_range
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/status.events.jsonl
+  range: 01M3Q1GKWYXGGCDSTGM06P5A7Y
+- id: e-015
+  kind: event_range
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/status.events.jsonl
+  range: implementation_cycles
+- id: e-016
+  kind: event_range
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/status.events.jsonl
+  range: implementation_cycles
+- id: e-017
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/analysis-report.md
+- id: e-018
+  kind: file
+  path: kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/traces/design-decisions.md
+generator_version: '1.0'
+provenance_history: []

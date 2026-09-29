@@ -1,0 +1,186 @@
+{
+  "event_count": 45,
+  "last_event_id": "01M3Q364XM45CVBFYPC549VJCY",
+  "materialized_at": "2026-09-29T17:25:19.924978+00:00",
+  "mission_number": "208",
+  "mission_slug": "consolidation-claim-rollback-integrity-01M3PD1T",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Q35P49TAQ589NNQ7XN39WF",
+      "last_transition_at": "2026-09-29T17:25:04.777948+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Claim-time REFUSE now acts before mutation (#5338). Red-first: tests/terminus/test_repro_5338.py 2 red at base (target moved 240dcefa->801b3d07 on refused resume; fresh refused run left state.json), control green; green at tip 5/5 with test_repro_5021. Targeted: 120 passed 1 xfailed; consolidation fast tier 691 passed; arch gates (ratchets, dead_symbols, legacy_terminology) 144 passed; ruff check/format clean; mypy 7 errors base=tip (pre-existing). verify() untouched; rewire to predicate deferred until #5359 lands.",
+        "Review passed (reviewer-renata, opus): red->green verified at 9d67c1ab (2 fail, control pass) -> tip all pass; real SHA/state/event-byte asserts; predicate parity with verify(); no #5359-owned fn touched; 109 passed+1 xfail targeted, 691 fast tier, 144 gates; mypy 7=7 vs base. Nits: vacuous 'Squashing' assert; expect small reconciliation.py conflict with #5359 at claim_integrity_refusal insertion."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 12985,
+      "shell_pid_created_at": "1790689985.88",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Q35HCZDF18WPHE3YK80MXW",
+      "last_transition_at": "2026-09-29T17:24:59.935417+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 core done: T006 tidy extraction (census re-keyed), T007 restore resync, T008 state fields, T009 rollback.py, T010 24 authority tests (NFR-001 measured 0.147s for 6 restored branches), T011 LANES fixture + 3 smoke. Tests: 8 git + 74 state/unit + 24 rollback + 3 smoke pass; fast tier consolidation+git 746 pass; gates destructive_op_routing/ratchets/layer_rules pass; test_no_dead_symbols fails ONLY for new rollback symbols (callers arrive in WP03/WP04). ruff/format clean; mypy no new errors.",
+        "Review passed (reviewer-renata, opus): contract guarantees G1-G5 tested on real repos; CAS expected = recorded post tip; T006 behaviour-preserving, one census key re-keyed; 62 new tests + 196/197 gate+caller tests (only known test_no_dead_symbols on new rollback.py symbols until WP03/WP04 wire callers) + 746 fast tier; NFR-001 0.11s; ruff/mypy clean vs base. Non-blocking: pending_coord_reconcile keep-path test, full-restore anchor-cleared assert, missing-branch refusal wording (rollback.py:111), snapshot_sha naming (rollback.py:278) — folded into WP03."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 5012,
+      "shell_pid_created_at": "1790689729.69",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Q35V1W3Y2VG3YNBD6SRRCF",
+      "last_transition_at": "2026-09-29T17:25:09.820083+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 wired: snapshot+begin_attempt at end of _capture_reconciliation_claim, post-mutation tips via decorator on 9 ref-moving phases, driver wrapper + _report_rollback with anchor_before reset. Red at 66d43a63: 6 failed/1 passed; green 17/17 terminus; fast tier 776 passed; named gates pass (dead symbols resolved by narrowing rollback __all__). Driver edit is the single gate call site; expect #5359 textual conflict. NOTE for #5385: coordination/teardown.py:~115 'no refs/worktrees were mutated' left untouched (post-PASS).",
+        "Cycle 1 fixes: decorator skips recording on RefAdvanceError/RefRestoreError and never masks the phase error; _report_rollback survives authority failure; report-line asserts added; d03184ad touched WP02-owned rollback.py/test_rollback_authority.py (recorded leeway). wiring 72 passed, consolidation fast 781, terminus 5, named gates 85, ruff/format/C901 clean, mypy 6 (= base).",
+        "Review cycle 2 passed (reviewer-renata): decorator skips recording on RefAdvanceError/RefRestoreError (mutation-verified), recorder failure never masks phase error (mutation-verified), _report_rollback never replaces gate Exit, report-line asserts added. Targeted 72+7, fast tier 781, named gates 255 green; ruff/format/C901 clean; mypy 6=base, none on new lines."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23305,
+      "shell_pid_created_at": "1790697160.61",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Q360N3K1MSKZ5XTPH52MCB",
+      "last_transition_at": "2026-09-29T17:25:15.556047+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "--abort restores via rollback authority (lock -> workspace cleanup -> restore -> clear/teardown). Red-first: 5 red + 1 guard at 33b10729; green 6/6 real-CLI. Unit 14 + AST pin floor 2 (52 passed w/ state authority). _dispatch_abort CC 12 (was 13). Fast tier 186+782 passed; named gates 4 files green after dropping stale read_merge_lock_owner dead-symbol allowlist entry; ruff/format clean; mypy: 3 pre-existing errors only. Existing test_abort_of_other_mission_leaves_live_global_lock updated to expect Exit(1).",
+        "Cycle 1 fixes: lock skipped when no snapshot (C-2 test reverted), lock released on every failure path, dead/legacy-lock decision documented. 54 unit/authority, 6 repro, 782 consolidation fast, 122 named gates passed; ruff clean; mypy 3 (base)",
+        "Review passed (cycle 1, reviewer-renata): no-snapshot records skip the lock (FR-005 today's behaviour restored; merge-base test byte-identical and green); snapshot path still refuses on live foreign lock; owner-gated lock release on every exception path (mutation-verified non-vacuous), B's lock never freed; success path trailing release unchanged; legacy/dead-owner decision documented. 54+6+782 tests, 218 named-gate tests green; ruff/format clean; mypy 3 pre-existing; C901 _dispatch_abort=10, _abort_lock_restore_clear=4."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28576,
+      "shell_pid_created_at": "1790701625.4",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Q364XM45CVBFYPC549VJCY",
+      "last_transition_at": "2026-09-29T17:25:19.924978+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Waiver in _approved_dependency_lane_refs only (planning lane + root HEAD == target); notice printed by workflow.py from AncestryCheckResult.code_lanes_deferred_to. Red-first 40603a4e verified red; 15 passed (repro 2, self-heal+waiver 13), 67 other implement_support tests, lanes fast tier 329 passed, named arch gates 207 passed; ruff/mypy clean. Protected-main real-CLI claim: bookkeeping refused separately (#5385), exit code not asserted.",
+        "Review passed (reviewer-renata). Red->green verified at 40603a4e vs 369f378d (red: src/pkg/wp01.py landed on develop; protected main moved + code merged). Waiver single-seam in _approved_dependency_lane_refs; _merge_dependency_lane_tips untouched; off-target controls unchanged. workflow.py +6-line notice is justified ownership leeway (no other WP owns it). Non-blocking: real-CLI protected repro's 'no ProtectedBranchCommitError' assertion is vacuous in the fixture (no .kittify/config.yaml so the guard short-circuits; SHA-unchanged assertion is the load-bearing one, and the unit test covers the raise); consolidate reconciliation PASS line not asserted (rc 0 + blob present covers it); rc 1 on protected main is the pre-existing #5385 bookkeeping refusal, reproduced identically at red."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1765,
+      "shell_pid_created_at": "1790694318.13",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    }
+  }
+}

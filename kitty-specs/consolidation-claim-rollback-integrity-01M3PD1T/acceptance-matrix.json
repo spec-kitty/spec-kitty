@@ -1,0 +1,119 @@
+{
+  "mission_slug": "consolidation-claim-rollback-integrity-01M3PD1T",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5338.py (real CLI; red at 9d67c1ab, green at lane-a tip)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:21:48.362388+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5338.py::test_5338_fr002_already_passed_resume_is_not_refused + tests/consolidation/test_executor_phase_boundary.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:21:55.283180+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_authority.py (capture never recaptures, dedupe) + tests/consolidation/test_executor_rollback_wiring.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:02.247364+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5318.py, test_repro_5318_lanes.py, test_repro_refuse_restores_all.py (red at 66d43a63)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:09.297435+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5318_abort.py (red at 33b10729) + tests/specify_cli/cli/commands/test_consolidate_abort_rollback.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:17.016332+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5332.py (real notes/n.md trigger; red at 66d43a63)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:23.614769+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_authority.py CAS-conflict tests + test_repro_5318_abort.py SC-005 case + test_executor_rollback_wiring.py CAS-refused not recorded",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:30.639290+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5296.py (real CLI; red at 40603a4e) + tests/lanes/test_planning_target_checkout_waiver.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:37.920475+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "rollback report never claims no-mutation (tests pass); gate recovery_guidance wording (#5359-owned) reconciled at closeout after rebase",
+      "pass_fail": "pending",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:59.017921+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_single_rollback_authority.py (AST pin, floor 2, self-mutation)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:45.100300+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_rollback_authority.py verified-landing guard + test_repro_5332.py resume control + test_repro_5318_abort.py FR-011 case",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T17:22:51.903081+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

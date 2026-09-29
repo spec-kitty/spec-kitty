@@ -1,0 +1,63 @@
+"""Scratch LANES-topology (no coordination branch) real-CLI fixture builder."""
+from __future__ import annotations
+import json
+from pathlib import Path
+from typing import Sequence
+from tests.terminus.conftest import (
+    CoordMission, _run, _git, _write_wp_file, _approve_events, _now_iso, _STATUS_EVENTS_FILENAME,
+)
+
+
+def build_lanes_mission(tmp_path: Path, *, wps: Sequence[str] = ("WP01",), target_branch: str = "main",
+                        mid8: str = "01M5318L", with_planning_lane_wp: str | None = None,
+                        planning_depends_on_code: bool = False) -> CoordMission:
+    from specify_cli.lanes.branch_naming import mission_branch_name
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    mid8 = mid8.upper()
+    mission_id = (mid8 + "0" * 26)[:26]
+    slug = f"terminus-{mid8}"
+    repo = tmp_path / "repo"; home = tmp_path / "home"; home.mkdir(parents=True, exist_ok=True)
+    mission_branch = mission_branch_name(slug, mission_id=mission_id)
+    m = CoordMission(repo=repo, home=home, feature_dir=repo / "kitty-specs" / slug, slug=slug,
+                     mission_id=mission_id, mid8=mid8, coord_branch=mission_branch, target_branch=target_branch)
+    repo.mkdir(parents=True, exist_ok=True)
+    _run(["git", "init", "-qb", target_branch, str(repo)])
+    for k, v in (("user.email", "t@t.com"), ("user.name", "T"), ("commit.gpgsign", "false")):
+        _git(repo, "config", k, v)
+    (repo / "README.md").write_text("init\n"); _git(repo, "add", "."); _git(repo, "commit", "-qm", "init")
+
+    (m.feature_dir / "tasks").mkdir(parents=True)
+    meta = {"mission_slug": slug, "mission_id": mission_id, "mid8": mid8, "mission_number": None,
+            "mission_type": "software-dev", "target_branch": target_branch, "topology": "lanes",
+            "purpose_tldr": "lanes fixture", "purpose_context": "lanes fixture"}
+    (m.feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n")
+    lanes = [ExecutionLane(lane_id=f"lane-{chr(ord('a') + i)}", wp_ids=(wp,), write_scope=(f"src/pkg/{wp.lower()}.py",),
+                           predicted_surfaces=("code",), depends_on_lanes=(), parallel_group=0)
+             for i, wp in enumerate(wps)]
+    all_wps = list(wps)
+    if with_planning_lane_wp:
+        lanes.append(ExecutionLane(lane_id="lane-planning", wp_ids=(with_planning_lane_wp,),
+                                   write_scope=(f"kitty-specs/{slug}/**",), predicted_surfaces=("planning",),
+                                   depends_on_lanes=("lane-a",) if planning_depends_on_code else (), parallel_group=1 if planning_depends_on_code else 0))
+        all_wps.append(with_planning_lane_wp)
+    write_lanes_json(m.feature_dir, LanesManifest(version=1, mission_slug=slug, mission_id=mission_id,
+                     mission_branch=mission_branch, target_branch=target_branch, lanes=lanes,
+                     computed_at=_now_iso(), computed_from="lanes-scratch-fixture"))
+    events = []
+    for wp in all_wps:
+        (m.feature_dir / 'tasks' / f'{wp}-work.md').write_text(f'---\nwork_package_id: {wp}\ntitle: {wp} work\n---\n# {wp}\n')
+        events.extend(_approve_events(m, wp))
+    (m.feature_dir / _STATUS_EVENTS_FILENAME).write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events))
+    _git(repo, "add", "."); _git(repo, "commit", "-qm", f"chore({slug}): bootstrap lanes mission")
+    _git(repo, "branch", mission_branch)
+    for i, wp in enumerate(wps):
+        lb = f"kitty/mission-{slug}-lane-{chr(ord('a') + i)}"
+        _git(repo, "branch", lb, mission_branch); _git(repo, "checkout", "-q", lb)
+        code = repo / "src" / "pkg" / f"{wp.lower()}.py"; code.parent.mkdir(parents=True, exist_ok=True)
+        code.write_text(f"def {wp.lower()}() -> int:\n    return {i}\n")
+        _git(repo, "add", str(code)); _git(repo, "commit", "-qm", f"feat({slug}): {wp} approved code")
+        _git(repo, "checkout", "-q", target_branch)
+        m.lane_branches[wp] = lb
+    return m
