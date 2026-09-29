@@ -102,15 +102,34 @@ def _resolve_hooks_dir(repo_root: Path) -> Path:
     return repo_root / hooks_dir
 
 
-def _hooks_path_configured(repo_root: Path) -> bool:
+#: ``git config --show-scope`` scopes at which a ``core.hooksPath`` is private to
+#: THIS repository. Any other scope (``global``/``system``/``command``) names a
+#: directory that every repository the user has would also run hooks from.
+_REPO_PRIVATE_CONFIG_SCOPES = frozenset({"local", "worktree"})
+
+
+def _hooks_path_scope(repo_root: Path) -> str | None:
+    """The config scope that sets ``core.hooksPath``, or ``None`` when it is unset.
+
+    ``git config --get core.hooksPath`` alone also returns a global/system
+    value, indistinguishable from a repository-local one; ``--show-scope``
+    prefixes the winning entry with its scope. An unparsable answer (a git
+    older than 2.26 rejects the flag) reports ``"unknown"`` so the caller fails
+    closed rather than assuming the path is repository-private.
+    """
     result = subprocess.run(
-        ["git", "config", "--get", "core.hooksPath"],
+        ["git", "config", "--show-scope", "--get", "core.hooksPath"],
         cwd=str(repo_root),
         capture_output=True,
         text=True,
         check=False,
     )
-    return result.returncode == 0 and bool(result.stdout.strip())
+    if result.returncode == 1:
+        return None
+    if result.returncode != 0:
+        return "unknown"
+    scope, _sep, value = result.stdout.partition("\t")
+    return scope.strip() if value.strip() else None
 
 
 def _working_tree_roots(repo_root: Path) -> list[Path]:
@@ -129,11 +148,16 @@ def _installable_hooks_dir(repo_root: Path) -> tuple[Path | None, str]:
     Installs only into a real hooks directory that is NOT inside a working
     tree: a user-owned tracked hooks dir (husky ``.husky``, ``.githooks``)
     must never be written to (it dirties the checkout and spreads to
-    collaborators), and a configured ``core.hooksPath`` that is not an
-    existing directory (``/dev/null``, a typo) is never created.
+    collaborators), a configured ``core.hooksPath`` that is not an
+    existing directory (``/dev/null``, a typo) is never created, and a
+    ``core.hooksPath`` set at global/system/command scope is never written
+    (its hooks would then fire in every repository the user has).
     """
     hooks_dir = _resolve_hooks_dir(repo_root)
-    if _hooks_path_configured(repo_root):
+    scope = _hooks_path_scope(repo_root)
+    if scope is not None:
+        if scope not in _REPO_PRIVATE_CONFIG_SCOPES:
+            return None, (f"core.hooksPath ({hooks_dir}) is set at {scope} scope, so its hooks run in every repository, not just this one")
         if not hooks_dir.is_dir():
             return None, f"core.hooksPath resolves to {hooks_dir}, which is not a directory"
         resolved = hooks_dir.resolve()

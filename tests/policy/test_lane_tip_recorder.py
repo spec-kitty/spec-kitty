@@ -153,6 +153,81 @@ def test_in_tree_hooks_path_is_never_written(tmp_path: Path) -> None:
     assert pending_hook_names(repo) == []
 
 
+def _isolate_git_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Point HOME / global / system git config at empty files under ``tmp_path``."""
+    home = tmp_path / "home"
+    home.mkdir()
+    global_cfg = home / ".gitconfig"
+    global_cfg.write_text("", encoding="utf-8")
+    system_cfg = tmp_path / "system-gitconfig"
+    system_cfg.write_text("", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_cfg))
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(system_cfg))
+    monkeypatch.delenv("GIT_CONFIG_NOSYSTEM", raising=False)
+    return global_cfg
+
+
+def test_global_hooks_path_is_never_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A user-global ``core.hooksPath`` outside the repo is shared by EVERY repository.
+
+    Writing the recorder there would run it in all of the user's repositories, so
+    the installer must skip it rather than follow the path.
+    """
+    global_cfg = _isolate_git_config(monkeypatch, tmp_path)
+    global_hooks = tmp_path / "home" / "globalhooks"
+    global_hooks.mkdir()
+    subprocess.run(["git", "config", "--file", str(global_cfg), "core.hooksPath", str(global_hooks)], check=True)
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    assert install_lane_tip_recorder(repo) == []
+    assert list(global_hooks.iterdir()) == []
+    assert pending_hook_names(repo) == []
+
+
+def test_system_hooks_path_is_never_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _isolate_git_config(monkeypatch, tmp_path)
+    system_hooks = tmp_path / "systemhooks"
+    system_hooks.mkdir()
+    subprocess.run(
+        ["git", "config", "--file", str(tmp_path / "system-gitconfig"), "core.hooksPath", str(system_hooks)],
+        check=True,
+    )
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    assert install_lane_tip_recorder(repo) == []
+    assert list(system_hooks.iterdir()) == []
+
+
+def test_command_scope_hooks_path_is_never_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _isolate_git_config(monkeypatch, tmp_path)
+    command_hooks = tmp_path / "commandhooks"
+    command_hooks.mkdir()
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "core.hooksPath")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", str(command_hooks))
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    assert install_lane_tip_recorder(repo) == []
+    assert list(command_hooks.iterdir()) == []
+
+
+def test_local_hooks_path_still_installs_when_global_config_is_isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _isolate_git_config(monkeypatch, tmp_path)
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    custom_hooks = tmp_path / "outside-hooks"
+    custom_hooks.mkdir()
+    _git(repo, "config", "core.hooksPath", str(custom_hooks))
+
+    installed = install_lane_tip_recorder(repo)
+
+    assert sorted(p.name for p in installed) == ["post-commit", "post-rewrite"]
+
+
 def test_nonexistent_configured_hooks_path_is_not_created(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
