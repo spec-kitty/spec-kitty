@@ -2404,7 +2404,7 @@ def _build_mixed_lane_entered_mission(
     _git(repo, "commit", "-qm", "bootstrap mixed-lane mission")
     coord_base = _rev(repo, "HEAD")
 
-    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
     _git(repo, "branch", lane_branch, coord_base)
     _git(repo, "checkout", "-q", lane_branch)
 
@@ -2655,7 +2655,7 @@ def test_mixed_lane_fully_canceled_single_wp_lane_is_not_mixed(tmp_path: Path) -
     is NOT a mixed lane -- there is no surviving WP to compare against, and
     such a lane's branch may legitimately not even exist."""
     repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
-    lane_b_branch = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    lane_b_branch = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     _git(repo, "branch", "-qD", lane_b_branch)  # WP02's lane branch no longer exists
 
     claim = build_approved_wp_set(

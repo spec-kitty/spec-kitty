@@ -118,7 +118,7 @@ def _build_five_wp_mixed_lane(tmp_path: Path, *, slug: str, wp05_canceled: bool)
     _git(repo, "commit", "-qm", "bootstrap")
     coord_base = _rev(repo)
 
-    lane_branch = lane_branch_name(slug, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
     _git(repo, "branch", lane_branch, coord_base)
     _git(repo, "checkout", "-q", lane_branch)
 

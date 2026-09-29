@@ -219,7 +219,7 @@ def test_hunk_level_supersession_ideally_fails(tmp_path: Path) -> None:
     """
     slug = "residual-hunk"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
-    lane_branch = lane_branch_name(slug, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
     _git(repo, "branch", lane_branch, coord_base)
     _git(repo, "checkout", "-q", lane_branch)
 
@@ -294,7 +294,7 @@ def test_other_lane_identical_content_ideally_passes(tmp_path: Path) -> None:
     """
     slug = "residual-otherlane"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
-    lane_a = lane_branch_name(slug, "lane-a", planning_base_branch=_TARGET)
+    lane_a = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
 
     lane_b = ExecutionLane(
         lane_id="lane-b",
@@ -310,7 +310,7 @@ def test_other_lane_identical_content_ideally_passes(tmp_path: Path) -> None:
     _git(repo, "commit", "-qm", "add lane-b to manifest")
     coord_base = _rev(repo)
 
-    lane_branch_b = lane_branch_name(slug, "lane-b", planning_base_branch=_TARGET)
+    lane_branch_b = lane_branch_name(slug, "lane-b", target_branch=_TARGET)
     _git(repo, "branch", lane_a, coord_base)
     _git(repo, "branch", lane_branch_b, coord_base)
 
@@ -388,7 +388,7 @@ def test_post_cancel_reintroduction_is_refused_by_closed_world(tmp_path: Path) -
     """
     slug = "residual-postcancel"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
-    lane_branch = lane_branch_name(slug, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
     _git(repo, "branch", lane_branch, coord_base)
     _git(repo, "checkout", "-q", lane_branch)
 
@@ -459,7 +459,7 @@ def test_never_claimed_wp_commit_is_refused_by_closed_world(tmp_path: Path) -> N
     """
     slug = "residual-neverclaimed"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
-    lane_branch = lane_branch_name(slug, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
     _git(repo, "branch", lane_branch, coord_base)
     _git(repo, "checkout", "-q", lane_branch)
 
@@ -568,7 +568,7 @@ def test_sibling_never_entered_implementation_commit_ideally_not_attributed_to_c
     """
     slug = "residual-siblingneverentered"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02", "WP03"))
-    lane_branch = lane_branch_name(slug, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
     _git(repo, "branch", lane_branch, coord_base)
     _git(repo, "checkout", "-q", lane_branch)
 
@@ -643,7 +643,7 @@ def test_pre_claim_out_of_workflow_commit_ideally_refuses(tmp_path: Path) -> Non
     """
     slug = "residual-preclaim"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
-    lane_branch = lane_branch_name(slug, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
     _git(repo, "branch", lane_branch, coord_base)
     _git(repo, "checkout", "-q", lane_branch)
 
@@ -709,8 +709,8 @@ def test_fully_canceled_dependency_lane_content_ideally_does_not_ship(tmp_path: 
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "add lane-b to manifest")
     coord_base = _rev(repo)
-    branch_a = lane_branch_name(slug, "lane-a", planning_base_branch=_TARGET)
-    branch_b = lane_branch_name(slug, "lane-b", planning_base_branch=_TARGET)
+    branch_a = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
+    branch_b = lane_branch_name(slug, "lane-b", target_branch=_TARGET)
 
     events: list[dict[str, object]] = []
     _git(repo, "branch", branch_a, coord_base)

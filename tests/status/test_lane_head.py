@@ -99,7 +99,7 @@ def flat_mission(tmp_path: Path) -> FlatTopologyContext:
 
 def _create_lane_branch(repo: Path, slug: str, *, lane_id: str = "lane-a") -> str:
     """Create ``lane_id``'s branch off ``main`` with one commit; return its sha."""
-    branch = lane_branch_name(slug, lane_id)
+    branch = lane_branch_name(slug, lane_id, target_branch="main")
     _git(repo, "branch", branch)
     worktree = repo.parent / f"{lane_id}-worktree"
     _git(repo, "worktree", "add", "-q", str(worktree), branch)
