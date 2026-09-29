@@ -46,7 +46,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from charter.activation.language_scope import extract_declared_languages
+from charter.activation.language_scope import extract_declared_languages, is_placeholder_language_answer
 from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 __all__ = [
@@ -267,7 +267,7 @@ def _normalize_language_scope_section(normalized: dict[str, Any]) -> None:
     :func:`_copy_alias_answer_into_canonical_section`, which handles only
     scalar answers.
     """
-    languages = _iter_clean_strings(normalized.get("language_scope", []))
+    languages = _real_languages(_iter_clean_strings(normalized.get("language_scope", [])))
     if not languages and "languages_frameworks" in normalized:
         languages = _extract_languages_from_alias(normalized["languages_frameworks"])
         if languages:
@@ -276,11 +276,16 @@ def _normalize_language_scope_section(normalized: dict[str, Any]) -> None:
         normalized.pop("languages_frameworks", None)
 
 
+def _real_languages(values: tuple[str, ...]) -> tuple[str, ...]:
+    """Drop placeholder/``unknown`` members so they never become a styleguide target."""
+    return tuple(value for value in values if not is_placeholder_language_answer(value))
+
+
 def _extract_languages_from_alias(raw_alias: object) -> tuple[str, ...]:
     """Extract declared languages from the ``languages_frameworks`` alias value."""
     if isinstance(raw_alias, str):
         return tuple(extract_declared_languages(raw_alias))
-    return _iter_clean_strings(raw_alias)
+    return _real_languages(_iter_clean_strings(raw_alias))
 
 
 def _section_answer_with_source(
@@ -409,15 +414,10 @@ def _append_language_scope_results(
 ) -> None:
     """Append one styleguide entry per declared language."""
     source_key = "language_scope"
-    languages = _iter_clean_strings(interview_snapshot.get("language_scope", []))
+    languages = _real_languages(_iter_clean_strings(interview_snapshot.get("language_scope", [])))
     if not languages:
-        raw_alias = interview_snapshot.get("languages_frameworks", "")
         source_key = "languages_frameworks"
-        languages = (
-            tuple(extract_declared_languages(raw_alias))
-            if isinstance(raw_alias, str)
-            else _iter_clean_strings(raw_alias)
-        )
+        languages = _extract_languages_from_alias(interview_snapshot.get("languages_frameworks", ""))
 
     for language in languages:
         normalized_language = language.lower()

@@ -191,10 +191,11 @@ class BaseDoctrineRepository(ABC, Generic[T]):
 
     def _include_item(self, obj: T) -> bool:
         """Return whether a loaded asset applies to the active language scope."""
-        return applies_to_languages_match(
+        included: bool = applies_to_languages_match(
             getattr(obj, "applies_to_languages", None),
             self._active_languages,
         )
+        return included
 
     # ------------------------------------------------------------------ #
     # Concrete implementation                                              #
@@ -357,6 +358,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         self._post_validate(merged, yaml_file)
         self._items[item_id] = merged
         self._provenance[item_id] = layer_name
+        self._scope_filtered_ids.discard(item_id)
 
     def _insert_overlay_item(
         self,
@@ -383,6 +385,9 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         self._post_validate(obj, yaml_file)
         self._items[key] = obj
         self._provenance[key] = layer_name
+        # An admitted overlay supersedes a built-in of the same id that the
+        # language scope filtered out: the id is live, not filtered (F1).
+        self._scope_filtered_ids.discard(key)
 
     def _load(self) -> None:
         """Walk built-in + org + project dirs, parse, merge, warn on failure."""

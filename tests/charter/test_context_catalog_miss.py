@@ -184,6 +184,25 @@ class TestClassifyScopeFilteredMiss:
         assert "styleguide:python-style" in joined
 
 
+class TestScopeFilteredMissUnknownLanguage:
+    """WP02 (#5284): unknown-language projects are advised to extend the local charter."""
+
+    def test_unknown_active_language_suggests_charter_extension(self) -> None:
+        """RED (pins the fix): suggestion carries the charter-extension advisory."""
+        diagnosis = classify_scope_filtered_miss("python-style", ["unknown"])
+        assert diagnosis.cause is CatalogMissCause.SCOPE_FILTERED
+        assert diagnosis.suggestion is not None
+        assert "local charter" in diagnosis.suggestion
+        assert "Add the active language" not in diagnosis.suggestion
+
+    def test_known_language_suggestion_unchanged(self) -> None:
+        """GREEN control (pins unchanged behaviour): python keeps the existing wording."""
+        diagnosis = classify_scope_filtered_miss("python-style", ["python"])
+        assert diagnosis.suggestion is not None
+        assert "Add the active language" in diagnosis.suggestion
+        assert "local charter" not in diagnosis.suggestion
+
+
 # ---------------------------------------------------------------------------
 # Stanza formatting
 # ---------------------------------------------------------------------------
@@ -781,3 +800,26 @@ class TestAgentProfileCatalogListReconciliation:
         assert len(miss) == 1
         assert "agent_profile:absent-profile" in str(miss[0].message)
         assert "java-only" not in str(miss[0].message)
+
+
+class TestDiagnoseCatalogMissExplicitRepoRoot:
+    """An explicit ``repo_root`` wins over the inferred project-layer root."""
+
+    def test_explicit_repo_root_is_forwarded(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        from charter.activation.context_renderers import catalog_diagnosis
+
+        seen: list[Path | None] = []
+
+        def _spy(artifact_id: str, languages: object, root: Path | None = None) -> object:
+            seen.append(root)
+            return classify_scope_filtered_miss(artifact_id, None)
+
+        monkeypatch.setattr(catalog_diagnosis, "classify_scope_filtered_miss", _spy)
+
+        class _Repo:
+            scope_filtered_ids = frozenset({"python-style"})
+            _active_languages = ["rust"]
+
+        catalog_diagnosis._diagnose_catalog_miss("python-style", _Repo(), repo_root=tmp_path)
+        catalog_diagnosis._diagnose_catalog_miss("python-style", _Repo())
+        assert seen == [tmp_path, None]

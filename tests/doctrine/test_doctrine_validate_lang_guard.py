@@ -160,3 +160,34 @@ def test_validate_accepts_legitimate_language_token(tmp_path: Path) -> None:
         "Expected exit 0 for a valid language token 'python'.  "
         f"Full output:\n{result.output}"
     )
+
+
+# ---------------------------------------------------------------------------
+# WP02 (#5284): reserved ``unknown`` language token
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("token", ["unknown", "Unknown"])
+def test_validate_rejects_reserved_unknown(tmp_path: Path, token: str) -> None:
+    """RED (pins the fix): ``unknown`` is reserved and rejected with its own message.
+
+    The message must say the value is reserved and must NOT be the any/all message.
+    """
+    artifact = _write_tactic(tmp_path, token)
+
+    result = runner.invoke(app, ["validate", str(artifact)])
+
+    out = result.output.lower()
+    assert result.exit_code != 0, result.output
+    assert "reserved" in out, result.output
+    assert "unknown" in out, result.output
+    assert "not language tokens" not in out, result.output
+
+
+def test_validate_accepts_python_scope_control(tmp_path: Path) -> None:
+    """GREEN control (pins unchanged behaviour): a real language token still validates."""
+    artifact = _write_tactic(tmp_path, "python")
+
+    result = runner.invoke(app, ["validate", str(artifact)])
+
+    assert result.exit_code == 0, result.output

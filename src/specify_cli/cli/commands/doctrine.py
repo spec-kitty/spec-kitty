@@ -46,6 +46,11 @@ from pathlib import Path
 import typer
 from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
 from charter.drg import ArtifactKind, slug_for
+from charter.offering.shared.scoping import (
+    RESERVED_LANGUAGE_TOKENS,
+    SENTINEL_LANGUAGE_TOKENS,
+    UNKNOWN_LANGUAGE,
+)
 from specify_cli.cli.commands._doctrine_asset import asset_app
 from specify_cli.cli.console import console
 from rich.table import Table
@@ -762,28 +767,27 @@ def _detect_artifact_kind(path: Path) -> tuple[str, str] | None:
     return None
 
 
-#: Sentinel strings that authors mistakenly put in ``applies_to_languages``
-#: to mean "applies to all languages".  These are NOT valid language tokens;
-#: omitting the field entirely is the correct way to express always-applicable.
-_APPLIES_TO_LANGUAGES_SENTINELS: frozenset[str] = frozenset({"any", "all"})
-
-
 def _check_applies_to_languages(data: dict[str, object]) -> str | None:
-    """Return an error message if ``applies_to_languages`` contains a sentinel.
+    """Return an error message if ``applies_to_languages`` holds a non-language token.
 
     Checks the raw YAML dict (before Pydantic) so the guard fires regardless
     of artifact kind and gives authors an actionable message instead of a
-    generic schema error.
+    generic schema error.  Sentinels (``any``/``all``) and reserved tokens
+    (``unknown``) get distinct messages; both sets come from ``scoping``.
     """
     raw = data.get("applies_to_languages")
     if not isinstance(raw, list):
         return None
-    bad = [
-        str(token)
-        for token in raw
-        if isinstance(token, str)
-        and token.strip().lower() in _APPLIES_TO_LANGUAGES_SENTINELS
-    ]
+    tokens = [str(t) for t in raw if isinstance(t, str)]
+    reserved = [t for t in tokens if t.strip().lower() in RESERVED_LANGUAGE_TOKENS]
+    if reserved:
+        quoted = ", ".join(f"'{t}'" for t in reserved)
+        return (
+            f"`{UNKNOWN_LANGUAGE}` is a reserved value set by Spec Kitty for "
+            f"unrecognised project languages; artifacts cannot target it "
+            f"(found: {quoted})"
+        )
+    bad = [t for t in tokens if t.strip().lower() in SENTINEL_LANGUAGE_TOKENS]
     if not bad:
         return None
     quoted = ", ".join(f"'{t}'" for t in bad)

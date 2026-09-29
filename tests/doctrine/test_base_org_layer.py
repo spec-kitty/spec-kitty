@@ -636,3 +636,43 @@ class TestMergeAndInsertOverlayItemDirect:
 
         assert repo.get("newcomer") is not None
         assert repo.get_provenance("newcomer") == "org"
+
+
+class TestOverlayReusingScopeFilteredBuiltInId:
+    """F1: an overlay admitted under an id the built-in layer scope-filtered must clear that id."""
+
+    @staticmethod
+    def _repo(tmp_path: Path, overlay_languages: list[str] | None) -> TacticRepository:
+        shipped = tmp_path / "built-in"
+        _write_tactic(shipped, "shared.tactic.yaml", _tactic_data("shared", applies_to_languages=["python"]))
+        project = tmp_path / "project"
+        _write_tactic(project, "shared.tactic.yaml", _tactic_data("shared", applies_to_languages=overlay_languages))
+        return TacticRepository(built_in_dir=shipped, project_dir=project, active_languages=["rust"])
+
+    def test_unscoped_project_overlay_is_resolved_and_not_reported_scope_filtered(self, tmp_path: Path) -> None:
+        """RED (pins F1): the overlay is live, so the id must not stay in ``scope_filtered_ids``."""
+        repo = self._repo(tmp_path, None)
+
+        assert repo.get("shared") is not None
+        assert repo.get_provenance("shared") == "project"
+        assert "shared" not in repo.scope_filtered_ids
+
+    def test_overlay_that_is_itself_filtered_keeps_the_id_filtered(self, tmp_path: Path) -> None:
+        """GREEN control: an overlay scoped to a non-active language leaves the id filtered."""
+        repo = self._repo(tmp_path, ["python"])
+
+        assert repo.get("shared") is None
+        assert "shared" in repo.scope_filtered_ids
+
+    def test_merge_overlay_item_admitted_discards_filtered_id(self, tmp_path: Path) -> None:
+        """RED (pins F1): the merge branch also discards a stale filtered id once the merged item is admitted."""
+        shipped = tmp_path / "built-in"
+        _write_tactic(shipped, "my-tactic.tactic.yaml", _tactic_data("my-tactic"))
+        repo = TacticRepository(built_in_dir=shipped, active_languages=["java"])
+        repo._scope_filtered_ids.add("my-tactic")
+
+        repo._merge_overlay_item(
+            "my-tactic", _tactic_data("my-tactic"), shipped / "my-tactic.tactic.yaml", repo._items, "org"
+        )
+
+        assert "my-tactic" not in repo._scope_filtered_ids

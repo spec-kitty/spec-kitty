@@ -334,6 +334,38 @@ class TestResolveSectionsLanguageScope:
 
         assert langs == ["python", "typescript"]
 
+    @pytest.mark.parametrize("answer", ["unknown", "N/A", "[]"])
+    def test_string_placeholder_answers_emit_no_language_target(self, answer: str) -> None:
+        """GREEN control (pins unchanged behaviour): string placeholders already yield no target."""
+        results = resolve_sections({"languages_frameworks": answer})
+
+        assert [label for label, _ in results if label == "language_scope"] == []
+
+    @pytest.mark.parametrize("answer", [["unknown"], ["N/A"], ["any", "TBD"]])
+    def test_list_placeholder_answers_emit_no_language_target(self, answer: list[str]) -> None:
+        """RED (pins the fix): list-shaped placeholders/unknown never become a styleguide target."""
+        results = resolve_sections({"languages_frameworks": answer})
+
+        assert [label for label, _ in results if label == "language_scope"] == []
+
+    def test_list_answer_drops_placeholders_but_keeps_real_values(self) -> None:
+        """RED (pins the fix): only the placeholder members of a list are filtered."""
+        results = resolve_sections({"languages_frameworks": ["Rust", "unknown", "N/A"]})
+
+        assert [ctx["language"] for label, ctx in results if label == "language_scope"] == ["rust"]
+
+    def test_unknown_in_explicit_language_scope_emits_no_target(self) -> None:
+        """RED (pins the fix): a persisted ``language_scope: [unknown]`` never yields an Unknown styleguide."""
+        results = resolve_sections({"language_scope": ["unknown"]})
+
+        assert [label for label, _ in results if label == "language_scope"] == []
+
+    def test_normalize_snapshot_does_not_promote_unknown_list(self) -> None:
+        """RED (pins the fix): normalisation leaves no ``language_scope`` for a placeholder list."""
+        normalized = normalize_interview_snapshot({"languages_frameworks": ["unknown"]})
+
+        assert not normalized.get("language_scope")
+
     def test_language_scope_takes_precedence_over_alias(self) -> None:
         """Explicit legacy language_scope remains stable if both keys are present."""
         snapshot = {

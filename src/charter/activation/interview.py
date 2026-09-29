@@ -25,6 +25,7 @@ __all__ = [
     "apply_answer_overrides",
     "apply_org_charter_pre_fill_to_answers",
     "default_interview",
+    "packaged_default_answer",
     "read_interview_answers",
     "validate_local_support_declarations",
     "write_interview_answers",
@@ -760,6 +761,20 @@ def _normalize_optional_string(raw: object) -> str | None:
         return None
     value = str(raw).strip()
     return value or None
+
+
+def packaged_default_answer(key: str) -> str | None:
+    """Return the shipped ``defaults.yaml`` answer text for *key* (``None`` when absent).
+
+    Lightweight alternative to :func:`default_interview`, which also loads the
+    doctrine catalog; callers that only need to recognise the shipped default
+    text (e.g. language resolution, #3292) use this.
+    """
+    answers = _load_packaged_defaults().get("answers")
+    if not isinstance(answers, dict):
+        return None
+    value = answers.get(key)
+    return str(value) if value is not None else None
 
 
 def _load_packaged_defaults() -> dict[str, object]:

@@ -103,3 +103,61 @@ class TestNonSentinelScopingUnchanged:
         the normal overlap path.
         """
         assert applies_to_languages_match(["any", "python"], ["python"]) is True
+
+
+# ---------------------------------------------------------------------------
+# WP02 (#5284): reserved ``unknown`` language vocabulary
+# ---------------------------------------------------------------------------
+
+_MATCH_TABLE = [
+    # (artifact, active, expected)
+    (["python"], ["unknown"], False),  # GREEN control
+    ([], ["unknown"], True),  # GREEN control
+    (None, ["unknown"], True),  # GREEN control
+    (["unknown"], ["unknown"], False),  # RED
+    (["unknown"], ["python"], False),  # GREEN control
+    (["unknown"], None, False),  # RED
+    (["python"], ["python", "unknown"], True),  # GREEN control
+    (["any"], ["unknown"], True),  # GREEN control
+    (["python"], None, True),  # GREEN control
+    (["python"], [], False),  # GREEN control
+]
+
+
+@pytest.mark.parametrize(("artifact", "active", "expected"), _MATCH_TABLE)
+def test_reserved_unknown_truth_table(artifact: list[str] | None, active: list[str] | None, expected: bool) -> None:
+    """RED (pins the fix) for ([unknown],[unknown]) and ([unknown],None); GREEN control otherwise.
+
+    The reserved token ``unknown`` is stripped from both sides; an artifact
+    scoped only to ``unknown`` never loads (invalid scope).
+    """
+    assert applies_to_languages_match(artifact, active) is expected
+
+
+@pytest.mark.parametrize(
+    ("values", "expected"),
+    [
+        (None, False),
+        ([], False),
+        (["unknown"], True),
+        (["UNKNOWN "], True),
+        (["python", "unknown"], False),
+    ],
+)
+def test_is_unknown_language(values: list[str] | None, expected: bool) -> None:
+    """RED (pins the fix): only a set equal to {"unknown"} is an unknown-language project."""
+    from charter.offering.shared import scoping
+
+    # getattr keeps the base failing on an assertion, not an ImportError.
+    is_unknown_language = getattr(scoping, "is_unknown_language", None)
+    assert is_unknown_language is not None, "is_unknown_language missing from scoping"
+    assert is_unknown_language(values) is expected
+
+
+def test_reserved_tokens_constants() -> None:
+    """RED (pins the fix): reserved vocabulary lives in scoping; unknown is NOT a sentinel."""
+    from charter.offering.shared import scoping
+
+    assert getattr(scoping, "UNKNOWN_LANGUAGE", None) == "unknown"
+    assert getattr(scoping, "RESERVED_LANGUAGE_TOKENS", None) == frozenset({"unknown"})
+    assert "unknown" not in _SENTINEL_TOKENS

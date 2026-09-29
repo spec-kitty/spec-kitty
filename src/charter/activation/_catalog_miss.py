@@ -65,6 +65,13 @@ import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
+
+from charter.activation.language_advisory import CHARTER_EXTENSION_ADVISORY
+from charter.activation.language_scope import lacks_specialist_guidance
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 __all__ = [
@@ -261,6 +268,7 @@ def classify_catalog_miss(
 def classify_scope_filtered_miss(
     artifact_id: str,
     active_languages: Iterable[str] | None = None,
+    repo_root: Path | None = None,
 ) -> CatalogMissDiagnosis:
     """Return a ``SCOPE_FILTERED`` diagnosis for a present-but-filtered artifact.
 
@@ -277,13 +285,21 @@ def classify_scope_filtered_miss(
         active_languages: The active language set at the time of filtering,
             used to build an actionable suggestion string.  Pass ``None``
             or an empty iterable when the active language set is unknown.
+        repo_root: Project root used to resolve which languages have
+            installed specialist guidance (``None`` = built-in packs only).
 
     Returns:
         A :class:`CatalogMissDiagnosis` with ``cause=SCOPE_FILTERED`` and
         a ``suggestion`` string that names the active language set.
     """
     active = list(active_languages) if active_languages is not None else []
-    if active:
+    if lacks_specialist_guidance(active, repo_root):
+        suggestion = (
+            f"artifact '{artifact_id}' is scoped to specific languages and "
+            f"does not apply to a project whose language Spec Kitty does not "
+            f"recognise. {CHARTER_EXTENSION_ADVISORY}"
+        )
+    elif active:
         lang_list = ", ".join(repr(lang) for lang in active)
         suggestion = (
             f"artifact '{artifact_id}' is present but its "
