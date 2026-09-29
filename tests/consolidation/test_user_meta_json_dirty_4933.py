@@ -204,7 +204,7 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
     mission_branch = f"kitty/mission-{slug}"
     _git(tmp_path, "branch", mission_branch, "main")
 
-    lane_branch = lane_branch_name(slug, "lane-a")
+    lane_branch = lane_branch_name(slug, "lane-a", target_branch="main")
     _git(tmp_path, "branch", lane_branch, "main")
     _commit_file(
         tmp_path,
@@ -396,7 +396,7 @@ class TestLaneWorktreeUserMetaJsonSafety:
         monkeypatch.setenv("COLUMNS", "400")
         slug = "test-user-meta-json-worktree-dirty"
         _bootstrap_mission(tmp_path, slug)
-        lane_branch = lane_branch_name(slug, "lane-a")
+        lane_branch = lane_branch_name(slug, "lane-a", target_branch="main")
 
         # Track src/app/meta.json ON THE LANE BRANCH so it is a tracked file
         # inside the worktree.
@@ -433,7 +433,7 @@ class TestLaneWorktreeUserMetaJsonSafety:
         exempt; the worktree is still removed."""
         slug = "test-owned-meta-json-worktree-control"
         feature_dir = _bootstrap_mission(tmp_path, slug)
-        lane_branch = lane_branch_name(slug, "lane-a")
+        lane_branch = lane_branch_name(slug, "lane-a", target_branch="main")
         _git(tmp_path, "checkout", "main")
 
         wt_path = _add_lane_worktree(tmp_path, slug, lane_branch)
