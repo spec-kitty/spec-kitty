@@ -326,6 +326,9 @@ _MISSION_NOT_FOUND_MESSAGE = "Mission '{mission}' not found in kitty-specs/"
 _HELP_WP_ID = "Work package ID"
 _HELP_ACTOR = "Actor identity"
 _HELP_POLICY = "Policy metadata JSON (required)"
+
+# Host-CLI create-payload keys that are NOT part of the orchestrator-api contract.
+_SPECIFY_HOST_ONLY_PAYLOAD_KEYS = ("mission_branch", "commit_to_target")
 _HELP_ANALYZER_AGENT = "Agent name that produced the analysis report"
 
 # WP04 / NFR-004 / SK-93: the enforced wall-clock bound record-analysis's
@@ -2559,6 +2562,14 @@ def specify(
         main_repo_root = _get_main_repo_root()
         mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
         payload["mission_slug"] = _mission_identity_payload(mission_dir)["mission_slug"]
+    # #5100 (WP08): the host ``agent mission create --json`` payload gained
+    # ``mission_branch`` / ``commit_to_target``. They are host-CLI create
+    # diagnostics, NOT part of the versioned orchestrator-api contract
+    # (``upstream_contract.json``, pinned by
+    # ``_SPECIFY_SUCCESS_DATA_KEYS``), so they must not leak through this
+    # pass-through. Drop them rather than widening the external contract.
+    for host_only_key in _SPECIFY_HOST_ONLY_PAYLOAD_KEYS:
+        payload.pop(host_only_key, None)
     validate_outbound_payload(payload, "orchestrator_api")
     envelope = make_envelope(command=cmd, success=True, data=payload)
     _emit(envelope)
