@@ -46,7 +46,7 @@ from pathlib import Path
 import typer
 from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
 from charter.drg import ArtifactKind, slug_for
-from charter.offering.shared.scoping import (
+from charter.activation.language_scope import (
     RESERVED_LANGUAGE_TOKENS,
     SENTINEL_LANGUAGE_TOKENS,
     UNKNOWN_LANGUAGE,
@@ -773,7 +773,7 @@ def _check_applies_to_languages(data: dict[str, object]) -> str | None:
     Checks the raw YAML dict (before Pydantic) so the guard fires regardless
     of artifact kind and gives authors an actionable message instead of a
     generic schema error.  Sentinels (``any``/``all``) and reserved tokens
-    (``unknown``) get distinct messages; both sets come from ``scoping``.
+    (``unknown``) get distinct messages; both sets come from ``scoping`` via the ``charter.activation.language_scope`` door.
     """
     raw = data.get("applies_to_languages")
     if not isinstance(raw, list):

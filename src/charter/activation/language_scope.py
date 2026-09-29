@@ -24,6 +24,8 @@ if TYPE_CHECKING:
     from charter.activation.interview import CharterInterview
 
 __all__ = [
+    "RESERVED_LANGUAGE_TOKENS",
+    "SENTINEL_LANGUAGE_TOKENS",
     "UNKNOWN_LANGUAGE",
     "extract_declared_languages",
     "infer_repo_languages",
