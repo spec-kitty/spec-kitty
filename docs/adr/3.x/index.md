@@ -209,3 +209,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-09-27 | [pack skills — share and co-maintain agent commands through charter packs](2026-09-27-1-pack-skills-share-commands-through-charter-packs.md) |
 | 2026-09-29 | [a mixed lane refuses commits outside every WP work window, with an operator-attested override](2026-09-29-1-closed-world-refuse-on-mixed-lanes.md) |
 | 2026-09-29 | [Catalog languages — four states and the reserved `unknown` value](2026-09-29-1-catalog-languages-states-and-reserved-unknown.md) |
+| 2026-09-29 | [one requirement-ID grammar, one authority](2026-09-29-1-requirement-id-grammar-single-authority.md) |

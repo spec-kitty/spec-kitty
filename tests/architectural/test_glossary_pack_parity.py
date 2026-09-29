@@ -107,7 +107,10 @@ def pack_terms_by_surface() -> dict[str, Any]:
 #: adds one more -- ``canonical issue-matrix`` -- so the pack teaches the new
 #: ``issue-matrix.json`` artifact WITHOUT rewording the two pre-existing seed
 #: terms (``post-merge mode`` / ``issue-matrix schema drift``), which must stay
-#: byte-identical to the frozen seed (NFR-002 parity). The seed is read-only
+#: byte-identical to the frozen seed (NFR-002 parity). The requirement-id-grammar
+#: mission (requirement-id-grammar-01M3NRCA, FR-018) adds three more --
+#: ``requirement id``, ``success criterion``, ``qualified citation`` -- defining
+#: the single-grammar policy's vocabulary once, pack-side. The seed is read-only
 #: (C-003, pinned by ``test_glossary_pack_no_regression``), so these additions
 #: live only pack-side; parity is therefore ``pack == seed ∪ {these}``, which
 #: still proves no seed term was dropped and no *unexpected* term invented.
@@ -122,6 +125,9 @@ _MISSION_ADDED_SURFACES: frozenset[str] = frozenset(
         "canonical issue-matrix",
         "adversarial squad",
         "behaviour-driven development",
+        "requirement id",
+        "success criterion",
+        "qualified citation",
     }
 )
 

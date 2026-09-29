@@ -773,3 +773,30 @@ terms:
   synonyms_to_avoid:
   - replaces
   - supersedes
+- confidence: 1.0
+  definition: A stable identifier for one spec requirement -- a kind (FR, NFR,
+    C, or SC), a digit string whose width is significant, an optional single
+    lowercase letter suffix, and an optional mission-slug qualifier; canonical
+    form is kind uppercase, digits verbatim, suffix lowercase. Not to be confused
+    with an implementation-concern ID (a separate plan-level grammar) or a work
+    package ID.
+  status: active
+  surface: requirement id
+- confidence: 1.0
+  definition: A measurable outcome a spec declares with the SC kind; it is a
+    requirement id that is tracked (reported in finalize-tasks' informational
+    success-criteria coverage) but not gating -- an undeclared SC ref cited on
+    a work package still fails as unknown_spec_id. Not to be confused with a
+    user story's acceptance scenario or a functional requirement, whose
+    mapping is coverage-gated.
+  status: active
+  surface: success criterion
+- confidence: 1.0
+  definition: A requirement id prefixed with another mission's slug and a hash
+    separator (foreign-qualified). It belongs to the named mission, is never
+    declared, required, flagged, or warned about, and is reported as
+    foreign-qualified -- never failing -- when cited in a work package's refs;
+    the qualifier itself is never resolved. Not to be confused with a GitHub
+    issue reference or a file path.
+  status: active
+  surface: qualified citation

@@ -350,7 +350,7 @@ constituents:
   kind: directive
   path: directives/use-mutation-testing-to-validate-test-quality.directive.yaml
   provenance_path:
-- content_hash: 89e749045d9d05e1a8f18dda9d47b38cf0d5f028c7a3f4af5e3edcd8bdb29bed
+- content_hash: a77226fd20523c8fe0be5a7296fc06549e17301efb90bdaa247caac4ff6592df
   id: spec-kitty-core
   kind: glossary_pack
   path: glossary_packs/spec-kitty-core.glossary-pack.yaml
@@ -770,7 +770,7 @@ constituents:
   kind: tactic
   path: tactics/canonical-source-unification.tactic.yaml
   provenance_path:
-- content_hash: 2f1b86f04ff1bdf1ec9eb97a57c1be6dd606977cbb9be36f91c55c27b382d04e
+- content_hash: 98049a004a9913a634d9eb31bc0f1e79540cf41a86e8528a43d180b67f940f28
   id: chain-of-responsibility-rule-pipeline
   kind: tactic
   path: tactics/code-patterns/chain-of-responsibility-rule-pipeline.tactic.yaml
@@ -850,7 +850,7 @@ constituents:
   kind: tactic
   path: tactics/testing/delete-the-assertion-not-the-test.tactic.yaml
   provenance_path:
-- content_hash: 4ef2d1b83d40b06917605f2d06949538385f5a3cb46fdf50b69e64cbc1a35288
+- content_hash: 8897273b344d785695be43cbe24caa3fa1b5cffc502f8a349dded7a63a49d962
   id: dependency-hygiene
   kind: tactic
   path: tactics/architecture/dependency-hygiene.tactic.yaml
@@ -1146,7 +1146,7 @@ constituents:
   kind: tactic
   path: tactics/secure-design-checklist.tactic.yaml
   provenance_path:
-- content_hash: fa77babd6339b0aa8dd7836e0348868f24350a06a7b6ba1763a267a522050943
+- content_hash: 5e1aa396fc5cb717637cd557e68952a55d35da94f0436a5197025e1c01e6a918
   id: secure-regex-catastrophic-backtracking
   kind: tactic
   path: tactics/secure-regex-catastrophic-backtracking.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 4aa229c75013b79dc895e4ddd32c2b708948dc981cf136bd20d6358d8f14ca43
+manifest_hash: 1539829740222db484ee81ac39958bd0ec31b09c515065d83e440648cc4efec5
 schema_version: '1'
 source_type: built-in
 source_url:
