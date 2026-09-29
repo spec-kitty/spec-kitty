@@ -817,7 +817,7 @@ Current machine-readable error codes (the authoritative list is
 - `STATUS_READ_PATH_NOT_FOUND`
 - `WP_NOT_FOUND`
 - `TRANSITION_REJECTED`
-- `WP_ALREADY_CLAIMED` (after a reviewer's rework verdict, the WP's implementer of record is admitted as a no-op resume rather than refused; an unrelated actor is still refused)
+- `WP_ALREADY_CLAIMED` (for `start-implementation` on an `in_progress` WP after a reviewer's rework verdict, the WP's implementer of record is admitted as a `no_op` resume rather than refused; an unrelated actor is still refused)
 - `MISSION_NOT_READY`
 - `WORKFLOW_EVIDENCE_REQUIRED`
 - `PREFLIGHT_FAILED`
