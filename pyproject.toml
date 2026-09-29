@@ -651,7 +651,6 @@ exclude = [
     "src/specify_cli/consolidation/done_bookkeeping.py",
     "src/specify_cli/consolidation/executor.py",
     "src/specify_cli/consolidation/forecast.py",
-    "src/specify_cli/consolidation/git_probes.py",
     "src/specify_cli/consolidation/push_preflight.py",
     "src/specify_cli/consolidation/workspace.py",
     "src/specify_cli/migration/backfill_identity.py",

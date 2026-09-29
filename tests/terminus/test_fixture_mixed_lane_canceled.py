@@ -124,8 +124,6 @@ def test_missing_coord_worktree_dir_is_the_unmaterialized_trigger(tmp_path: Path
     assert "unmaterialized" in flat, f"expected the 'is unmaterialized' abort naming the coordination branch, got:\n{result.stdout}\n{result.stderr}"
 
 
-@pytest.mark.unit
-@pytest.mark.fast
 def test_event_policy_metadata_round_trips_through_read_events(tmp_path: Path) -> None:
     """T002 fixture-hygiene validation: ``_event(..., policy_metadata=...)``
     round-trips byte-faithfully through ``specify_cli.status.read_events`` —
