@@ -12,3 +12,10 @@
   - **WP04 red from a real in-phase exit** (the #5385 protected-target shape), not from synthetic state.
 - 2026-09-29 — **Ownership.** `finalize-tasks` accepts `executor.py` being co-owned by WP01 and WP03 because WP03 depends on WP01. The lanes then collapse WP01, WP03 and WP04 into lane-a, so the executor edits are strictly sequential.
 - 2026-09-29 — **WP03 review, cycle 1.** Post tips are no longer recorded when a phase fails with a CAS refusal (`RefAdvanceError`/`RefRestoreError`), since the new tip then belongs to another actor. Recording must never mask the original exception. Proposed SC-004 wording for `recovery_guidance` (#5359-owned, to apply at closeout): "Nothing was torn down. Branches this run moved are rolled back as reported below; any branch marked NOT restored still carries this run's commits — inspect it before re-running the merge."
+- 2026-09-29 — **Pre-PR squad verdict: HOLD.** Fold design:
+  - Lane branches are report-only; consolidation never moves them, so rollback never records or restores them.
+  - A post tip is recorded only for a branch that changed during the phase.
+  - `RefResyncError` marks a ref we moved before the checkout resync failed, so that move is still recorded.
+  - A branch this run can move that differs from its restore target with no post tip is NOT restored, and the record is kept.
+  - A missing branch is reported with its `git branch <b> <sha>` recovery. The only blanket refusal left is the verified-landing one.
+  - Residuals: a foreign commit landing inside the same phase, and `--abort` racing a live run of the same mission (pre-existing owner-token scheme).
