@@ -1,0 +1,47 @@
+# C-001 requirement-ID pattern-literal allowlist (shrink-only).
+#
+# Every entry here is a documented, individually-justified exception to the
+# single-grammar-authority gate
+# (tests/architectural/test_requirement_id_grammar_single_source.py). To
+# drain an entry: remove it AND lower `baseline` by the same amount, in the
+# same edit. Entries are frozen (permanent, C-008 divergence, names a
+# follow-up ticket) or transitional (a named WP removes it).
+#
+# WP01 (requirement-id-grammar-01M3NRCA) landed this allowlist with 3
+# entries / baseline: 3 -- the 2 frozen divergences (HiC ruling, Decision
+# Moment 01M3P2HXKASQY2ZKSEY3MAWA9H, superseding
+# 01M3P07HV88QNVVKP3E2W28VB6) plus 1 transitional entry. WP04 has now
+# removed that transitional entry (the cores take the grammar as an
+# injected, required argument, C-002 -- no local pattern remains) and
+# lowered baseline to 2 in this same edit -- the 2 frozen divergences
+# are all that remain.
+baseline: 2
+
+requirement_id_pattern_literals:
+  - file: src/specify_cli/missions/_substantive.py
+    qualname: "<module>"
+    constant: _FR_TABLE_ROW
+    literal: '^\s*\|\s*\*{0,2}FR-\d{3}\*{0,2}\s*\|(?P<rest>[^\n]+)$'
+    frozen: true
+    followup: "to be filed at closeout"
+    rationale: >
+      The setup-plan substantive-spec gate's own functional-requirement
+      table-row pattern diverges from C-001 by design (HiC ruling): it
+      checks structural row shape as an early, cheap substantive-content
+      heuristic independent of the grammar's full id space (SC, suffixes,
+      qualifiers), and folding it onto grammar.py would couple that
+      cheap check to the full requirement-ID parser. Frozen divergence
+      per C-008.
+
+  - file: src/specify_cli/retrospective/generator.py
+    qualname: "<module>"
+    constant: _FR_REF_RE
+    literal: '\b(FR-\d{3,})\b'
+    frozen: true
+    followup: "to be filed at closeout"
+    rationale: >
+      The retrospective generator's functional-requirement reference
+      pattern is a narrower, retrospective-specific scan (3+ digit FRs
+      only, no NFR/C/SC, no suffix or qualifier support) predating this
+      mission; folding it onto grammar.py is out of scope here per C-008.
+      Frozen divergence.

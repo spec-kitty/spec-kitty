@@ -35,7 +35,13 @@ Error codes used:
   MISSION_CREATE_FAILED       -- specify: mission creation failed for a reason
                                  other than a typed duplicate signal (WP03)
   PLAN_SETUP_FAILED           -- plan: the delegate plan-scaffold call failed and
-                                 carried no more specific error_code of its own (WP03)
+                                 carried no more specific error_code of its own (WP03);
+                                 ALSO the envelope code when the delegate raised a
+                                 typed but contract-unregistered code (e.g.
+                                 SPEC_REQUIREMENT_IDS_INVALID, SPEC_FILE_MISSING,
+                                 TEMPLATE_CONFIGURATION_ERROR, PLAN_CONTEXT_UNRESOLVED)
+                                 -- the real code travels as data["reason"]
+                                 (requirement-id-grammar-01M3NRCA WP05)
   TASKS_FINALIZE_FAILED       -- tasks: the delegate finalize-tasks call failed and
                                  carried no more specific error_code of its own (WP03)
   CHECK_PREREQUISITES_FAILED  -- check-prerequisites: the delegate validation call
@@ -477,6 +483,37 @@ def _fail_from_destructive_op_refused(cmd: str, mission_dir: Path, target_branch
     if exc.dirty_entries:
         data["dirty_entries"] = list(exc.dirty_entries)
     _fail(cmd, envelope_code, "Merge refused: destructive operation safety check failed", data)
+
+
+#: Fallback envelope code for the ``plan`` verb (WP05,
+#: requirement-id-grammar-01M3NRCA). ``PLAN_SETUP_FAILED`` is ALREADY
+#: registered in ``upstream_contract.json``'s ``allowed_error_codes`` -- this
+#: constant exists only so ``_plan_contract_error`` below never restates the
+#: literal, and so the one remaining literal ``_fail(cmd, "PLAN_SETUP_FAILED"``
+#: call the static contract scan sees stays byte-identical to this value.
+_PLAN_SETUP_FAILED_FALLBACK = "PLAN_SETUP_FAILED"
+
+
+def _plan_contract_error(error_code: str, error_data: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """FR-015: keep the ``plan`` verb's envelope in contract.
+
+    ``_classify_delegate_error`` trusts any ``error_code`` the ``setup_plan``
+    delegate payload already carries verbatim -- correct for the
+    contract-registered ones, but ``SPEC_REQUIREMENT_IDS_INVALID`` (WP05) and
+    the pre-existing ``SPEC_FILE_MISSING`` / ``TEMPLATE_CONFIGURATION_ERROR`` /
+    ``PLAN_CONTEXT_UNRESOLVED`` codes ``setup_plan`` can also raise are NOT
+    registered for ``orchestrator_api`` (the latent leak this WP closes,
+    scoped to ``plan`` only -- ``tasks``/``specify`` still share
+    ``_classify_delegate_error`` unchanged and are not touched here). A
+    registered code passes through unchanged; an unregistered one degrades to
+    :data:`_PLAN_SETUP_FAILED_FALLBACK`, with the real code preserved as
+    ``data["reason"]`` (never silently dropped, never leaked past the
+    contract) -- mirrors ``_fail_from_decision_error``'s
+    ``_DECISION_UNREGISTERED_CODE_FALLBACK`` pattern above.
+    """
+    if is_allowed_error_code("orchestrator_api", error_code):
+        return error_code, error_data
+    return _PLAN_SETUP_FAILED_FALLBACK, {**error_data, "reason": error_code}
 
 
 def _fail_decision_index_unreadable(cmd: str, mission: str, exc: DecisionIndexReadError) -> NoReturn:
@@ -2468,9 +2505,15 @@ def plan(
         error_code, message, error_data = _classify_delegate_error(
             payload,
             raw_output,
-            fallback_code="PLAN_SETUP_FAILED",
+            fallback_code=_PLAN_SETUP_FAILED_FALLBACK,
             fallback_message="plan scaffolding failed",
         )
+        # FR-015: keep the envelope in contract -- an unregistered delegate
+        # code (e.g. SPEC_REQUIREMENT_IDS_INVALID) degrades to
+        # PLAN_SETUP_FAILED with the real code preserved as data["reason"];
+        # a registered code (including this except block's own fallback,
+        # already PLAN_SETUP_FAILED) passes through unchanged.
+        error_code, error_data = _plan_contract_error(error_code, error_data)
         _fail(cmd, error_code, message, error_data)
         return
 

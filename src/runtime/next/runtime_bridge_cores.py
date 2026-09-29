@@ -69,10 +69,10 @@ De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2531
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable, Mapping
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from runtime.next.decision import Decision, DecisionKind, InvalidStepDecision
 
@@ -89,8 +89,6 @@ PLAN_ARTIFACT = "plan.md"
 TASKS_ARTIFACT = "tasks.md"
 MISSING_ARTIFACT_MESSAGE = "Required artifact missing: {name}"
 MISSING_TASK_FILES_MESSAGE = "Required: at least one tasks/WP*.md file"
-
-_REQUIREMENT_REF_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -171,15 +169,20 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     return sections
 
 
-def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
-    """Parse requirement references per WP from tasks.md content."""
+def _parse_requirement_refs_from_tasks_md(tasks_content: str, *, grammar: RequirementGrammarLike) -> dict[str, list[str]]:
+    """Parse requirement references per WP from tasks.md content.
+
+    ``grammar`` is required, keyword-only, with no default (C-001/C-002):
+    the cores never compile their own requirement-ID pattern -- see the
+    ``RequirementGrammarLike`` Protocol below.
+    """
     return {
-        wp_id: _collect_requirement_refs_for_section(section_content)
+        wp_id: _collect_requirement_refs_for_section(section_content, grammar=grammar)
         for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
     }
 
 
-def _collect_requirement_refs_for_section(section_content: str) -> list[str]:
+def _collect_requirement_refs_for_section(section_content: str, *, grammar: RequirementGrammarLike) -> list[str]:
     """Collect deduplicated requirement refs from one WP section."""
     refs: list[str] = []
     in_requirement_ref_list = False
@@ -189,22 +192,29 @@ def _collect_requirement_refs_for_section(section_content: str) -> list[str]:
             if not stripped_line:
                 continue
             if stripped_line.startswith(("-", "*")):
-                refs.extend(_iter_requirement_refs(stripped_line))
+                refs.extend(_iter_requirement_refs(stripped_line, grammar=grammar))
                 continue
             in_requirement_ref_list = False
 
         suffix = _requirement_inline_refs_suffix(line)
         if suffix is not None:
-            refs.extend(_iter_requirement_refs(suffix))
+            refs.extend(_iter_requirement_refs(suffix, grammar=grammar))
             continue
         if _is_requirement_heading(stripped_line):
             in_requirement_ref_list = True
     return list(dict.fromkeys(refs))
 
 
-def _iter_requirement_refs(text: str) -> list[str]:
-    """Return normalized requirement refs found in ``text``."""
-    return [ref_id.upper() for ref_id in _REQUIREMENT_REF_PATTERN.findall(text)]
+def _iter_requirement_refs(text: str, *, grammar: RequirementGrammarLike) -> list[str]:
+    """Return normalized requirement refs found in ``text`` via the injected grammar.
+
+    Uses the same ``find_all(text, spec_scan=False)`` mode the tasks.md
+    fallback reader on the ``specify_cli`` side uses (parity, WP04 Step 0),
+    rendered through each result's own ``str()`` -- the qualified form when
+    foreign, else the canonical (kind-uppercase, suffix-lowercase) string.
+    No case change happens here: the grammar already canonicalised it.
+    """
+    return [str(requirement_id) for requirement_id in grammar.find_all(text, spec_scan=False)]
 
 
 def _requirement_inline_refs_suffix(line: str) -> str | None:
@@ -232,7 +242,83 @@ def _is_requirement_heading(stripped_line: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# T023 — requirement-mapping fact-port/pure-core split
+# T021 — RequirementGrammarLike: the injected requirement-ID grammar.
+#
+# Structural typing, not an import (C-001/C-002/IC-08): the cores stay a
+# stdlib-only zero-dependency leaf (module docstring, import-boundary gate)
+# -- they never name ``specify_cli.requirement_mapping.grammar`` in any
+# form. This Protocol (and its two small verdict-shape companions below) is
+# satisfied structurally by that module without the cores importing it;
+# mypy checks the shape match across modules with no runtime coupling
+# either direction, exactly the ``_ArtifactPresenceSnapshotLike`` idiom
+# above. ``@property`` getters (not plain attribute annotations) accept a
+# read-only module-level constant the same way that idiom accepts a frozen
+# dataclass field.
+# ---------------------------------------------------------------------------
+
+
+class _RequirementIdLike(Protocol):
+    """Structural shape read from a parsed requirement id (WP01's
+    ``specify_cli.requirement_mapping.grammar.RequirementId``) — only the
+    unqualified canonical string an *accepted* ref ever needs. A ref found
+    by :meth:`RequirementGrammarLike.find_all` is rendered via plain
+    ``str()`` instead (works on any object; qualifier-aware, unlike this
+    property), never through this Protocol."""
+
+    @property
+    def canonical(self) -> str: ...
+
+
+@runtime_checkable
+class _AcceptedLike(Protocol):
+    """Structural shape of ``grammar.Accepted`` — a ref that parsed, is
+    unqualified and is in the declared set. ``@runtime_checkable`` so the
+    per-ref classifier below can ``isinstance``-narrow the verdict
+    :data:`RequirementGrammarLike.classify` returns, without ever importing
+    ``Accepted`` itself (isinstance here checks attribute PRESENCE only, no
+    concrete class identity)."""
+
+    @property
+    def requirement_id(self) -> _RequirementIdLike: ...
+
+
+@runtime_checkable
+class _RejectedLike(Protocol):
+    """Structural shape of ``grammar.Rejected`` — a ref the grammar could
+    not accept, with exactly one reason. See :class:`_AcceptedLike` for why
+    this is ``@runtime_checkable``."""
+
+    @property
+    def raw(self) -> str: ...
+
+    @property
+    def reason(self) -> str: ...
+
+
+class RequirementGrammarLike(Protocol):
+    """The one requirement-ID grammar authority (C-001), injected.
+
+    Satisfied structurally by ``specify_cli.requirement_mapping.grammar``
+    (a module, not a class instance — passed as-is when it type-checks)
+    without this stdlib-only leaf ever naming that module. Declares only
+    the members the cores call: the failing-reason vocabulary, a ref finder
+    for tasks.md text (the SAME ``find_all`` mode the ``specify_cli`` side's
+    tasks.md fallback reader uses), and the per-ref verdict classifier
+    (FR-019). No default value exists anywhere for this Protocol — see
+    :data:`RequirementMappingFacts.grammar` and the parse-family functions
+    below, all of which take it as a required argument.
+    """
+
+    @property
+    def FAILING_REASONS(self) -> frozenset[str]: ...
+
+    def find_all(self, text: str, *, spec_scan: bool) -> list[_RequirementIdLike]: ...
+
+    def classify(self, raw: str, declared: AbstractSet[str]) -> _AcceptedLike | _RejectedLike: ...
+
+
+# ---------------------------------------------------------------------------
+# T023/WP04 — requirement-mapping fact-port/pure-core split
 # (``_check_requirement_mapping_ready``'s decision tail, CC~22 -> here)
 # ---------------------------------------------------------------------------
 
@@ -241,52 +327,82 @@ def _is_requirement_heading(stripped_line: str) -> bool:
 class RequirementMappingFacts:
     """Facts ``_check_requirement_mapping_ready``'s residual gathers (spec.md
     requirement IDs, WP requirement refs, the WP id list) so the missing
-    /unknown/unmapped decision below can be pure (T023)."""
+    /rejected/unmapped decision below can be pure (T023). ``grammar`` is the
+    WP04-injected requirement-ID authority (C-001/C-002): required, no
+    default and no ``default_factory`` — the decision below has no local
+    fallback grammar of its own."""
 
     spec_requirement_ids: frozenset[str]
     functional_requirement_ids: frozenset[str]
     wp_ids: tuple[str, ...]
     wp_requirement_refs: Mapping[str, tuple[str, ...]]
     feature_dir_name: str
+    grammar: RequirementGrammarLike
+
+
+def _classify_wp_refs(
+    refs: tuple[str, ...],
+    *,
+    grammar: RequirementGrammarLike,
+    declared: AbstractSet[str],
+) -> tuple[list[str], list[tuple[str, str]]]:
+    """Per-ref FR-019 verdicts for one WP's raw refs, via the injected grammar.
+
+    Returns the accepted refs' canonical ids, and every rejected ``(raw,
+    reason)`` pair whose reason is in the injected failing set
+    (``grammar.FAILING_REASONS``) — a ``foreign_qualified`` rejection is
+    reported by neither: it is a rejection (never accepted, never counted)
+    but membership in ``FAILING_REASONS`` is what excludes it here, not a
+    literal string this stdlib-only leaf would otherwise have to know.
+    """
+    accepted: list[str] = []
+    rejected: list[tuple[str, str]] = []
+    for raw in refs:
+        verdict = grammar.classify(raw, declared)
+        if isinstance(verdict, _AcceptedLike):
+            accepted.append(verdict.requirement_id.canonical)
+        elif isinstance(verdict, _RejectedLike) and verdict.reason in grammar.FAILING_REASONS:
+            rejected.append((verdict.raw, verdict.reason))
+    return accepted, rejected
 
 
 def _evaluate_requirement_mapping(facts: RequirementMappingFacts) -> list[str]:
-    """Pure decision tail of ``_check_requirement_mapping_ready`` (T023).
+    """Pure decision tail of ``_check_requirement_mapping_ready`` (T023/WP04).
 
-    Verbatim port of the original function's logic from its
-    ``wp_ids = sorted(...)`` line onward — only the source of ``wp_ids`` /
-    ``wp_requirement_refs`` / the two requirement-id sets changed (now facts,
-    gathered by the residual instead of read here).
+    Per-ref verdicts (FR-019) replace the pre-WP04 all-or-nothing rule: a
+    WP is *missing* when it has NO accepted ref — a WP whose only refs are
+    Success Criteria is not missing (an SC is an accepted ref); a WP whose
+    only ref is ``foreign_qualified`` IS missing (Decision Moment
+    ``01M3NYFZ1P6QBD2DX4DVDA323W``, shared with ``mission_finalize.py``'s
+    ``_classify_wp_requirement_refs``). The bucket order (missing, then
+    rejected, then unmapped) and every other message shape are unchanged
+    from the pre-WP04 verbatim port; only the middle bucket's wording
+    changed, from ``unknown refs: WP: ref`` to ``rejected refs: WP: ref
+    (<reason>)`` (FR-010's shared reason vocabulary).
     """
     missing_requirement_refs_wps: list[str] = []
-    unknown_requirement_refs: dict[str, list[str]] = {}
+    rejected_requirement_refs: dict[str, list[tuple[str, str]]] = {}
     mapped_requirement_ids: set[str] = set()
 
     for wp_id in facts.wp_ids:
         refs = facts.wp_requirement_refs.get(wp_id, ())
-        if not refs:
+        accepted, rejected = _classify_wp_refs(refs, grammar=facts.grammar, declared=facts.spec_requirement_ids)
+        if rejected:
+            rejected_requirement_refs[wp_id] = sorted(rejected)
+        if not accepted:
             missing_requirement_refs_wps.append(wp_id)
-            continue
-
-        unknown_refs = sorted(ref for ref in refs if ref not in facts.spec_requirement_ids)
-        if unknown_refs:
-            unknown_requirement_refs[wp_id] = unknown_refs
-        else:
-            mapped_requirement_ids.update(refs)
+        mapped_requirement_ids.update(accepted)
 
     unmapped_functional_requirements = sorted(facts.functional_requirement_ids - mapped_requirement_ids)
-    if not (missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements):
+    if not (missing_requirement_refs_wps or rejected_requirement_refs or unmapped_functional_requirements):
         return []
 
     details: list[str] = []
     if missing_requirement_refs_wps:
         details.append(f"missing refs for WPs: {', '.join(missing_requirement_refs_wps)}")
-    if unknown_requirement_refs:
-        unknown_parts = [
-            f"{wp_id}: {', '.join(refs)}"
-            for wp_id, refs in sorted(unknown_requirement_refs.items())
-        ]
-        details.append(f"unknown refs: {'; '.join(unknown_parts)}")
+    if rejected_requirement_refs:
+        rejected_parts = [f"{wp_id}: {', '.join(f'{ref} ({reason})' for ref, reason in refs)}" for wp_id, refs in sorted(rejected_requirement_refs.items())]
+        details.append(f"rejected refs: {'; '.join(rejected_parts)}")
     if unmapped_functional_requirements:
         details.append(f"unmapped FRs: {', '.join(unmapped_functional_requirements)}")
 
@@ -875,9 +991,7 @@ def _step_decision(envelope: DecisionEnvelope, guard_failures: list[str]) -> Dec
     )
 
 
-def _blocked_from_step_envelope(
-    envelope: DecisionEnvelope, guard_failures: list[str], *, reason: str | None
-) -> Decision:
+def _blocked_from_step_envelope(envelope: DecisionEnvelope, guard_failures: list[str], *, reason: str | None) -> Decision:
     """Materialize the ``kind="blocked"`` fallback of a ``kind="step"`` envelope."""
     return Decision(
         kind=DecisionKind.blocked,

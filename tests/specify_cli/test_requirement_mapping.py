@@ -2,86 +2,27 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 from specify_cli.cli.commands.agent.tasks_mapping_core import MappingRequest, plan_mapping
 from specify_cli.requirement_mapping import (
-    classify_stale_refs,
     compute_coverage,
     find_bare_prose_requirement_ids,
     find_undeclared_requirement_citations,
-    normalize_requirement_refs_value,
     parse_requirement_ids_from_spec_md,
     read_all_wp_raw_requirement_refs,
-    read_all_wp_requirement_refs,
-    validate_ref_format,
-    validate_refs,
 )
 
 
 import pytest
+from typer.testing import CliRunner
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-
-class TestValidateRefs:
-    """Test ref validation against spec IDs."""
-
-    def test_all_valid(self):
-        valid, unknown = validate_refs(["FR-001", "NFR-002"], {"FR-001", "NFR-002", "FR-003"})
-        assert valid == ["FR-001", "NFR-002"]
-        assert unknown == []
-
-    def test_some_unknown(self):
-        valid, unknown = validate_refs(["FR-001", "FR-999"], {"FR-001", "FR-002"})
-        assert valid == ["FR-001"]
-        assert unknown == ["FR-999"]
-
-    def test_case_insensitive(self):
-        valid, unknown = validate_refs(["fr-001"], {"FR-001"})
-        assert valid == ["FR-001"]
-        assert unknown == []
-
-
-class TestValidateRefFormat:
-    """Test ref format validation."""
-
-    def test_valid_formats(self):
-        well_formed, malformed = validate_ref_format(["FR-001", "NFR-002", "C-003"])
-        assert well_formed == ["FR-001", "NFR-002", "C-003"]
-        assert malformed == []
-
-    def test_malformed_formats(self):
-        well_formed, malformed = validate_ref_format(["FR-001", "INVALID", "REQ-001"])
-        assert well_formed == ["FR-001"]
-        assert malformed == ["INVALID", "REQ-001"]
-
-
-class TestClassifyStaleRefs:
-    """Test #2066 stale-ref diagnostics classification."""
-
-    def test_splits_malformed_and_unknown(self):
-        # FR-003a is malformed (letter suffix); FR-999 is well-formed but absent
-        # from spec → unknown_spec_id.
-        reasons = classify_stale_refs(
-            {"WP02": ["FR-003a", "FR-999"]},
-            malformed=["FR-003A"],
-        )
-        assert reasons == {"WP02": {"malformed": ["FR-003a"], "unknown_spec_id": ["FR-999"]}}
-
-    def test_unfilled_placeholder_is_malformed(self):
-        # An unfilled <FR-XXX> template placeholder is classified malformed, not unknown.
-        reasons = classify_stale_refs({"WP01": ["<FR-XXX>"]}, malformed=[])
-        assert reasons["WP01"] == {"malformed": ["<FR-XXX>"], "unknown_spec_id": []}
-
-    def test_preserves_raw_case_and_sorts(self):
-        reasons = classify_stale_refs(
-            {"WP03": ["fr-002", "FR-001"]},
-            malformed=[],
-        )
-        # Both well-formed-but-unknown here; raw case preserved, sorted.
-        assert reasons["WP03"]["unknown_spec_id"] == ["FR-001", "fr-002"]
-        assert reasons["WP03"]["malformed"] == []
+runner = CliRunner()
 
 
 class TestComputeCoverage:
@@ -134,6 +75,26 @@ class TestParseRequirementIdsFromSpecMd:
         assert "FR-001" in result["all"]
         assert "NFR-002" in result["all"]
 
+    def test_declaration_inside_html_comment_is_not_declared(self):
+        """WP01 / data-model.md "Declared-ID set" / T004 step 2: the scan runs
+        on ``grammar.blank_html_comments(text)``, so a declared-shape row
+        inside an HTML comment is NOT declared. Same-fixture, same-ID positive
+        control: the identical ``| FR-004 |`` row OUTSIDE the comment IS
+        declared -- a different-id control could not distinguish "the comment
+        occurrence is excluded" from "the comment occurrence is wrongly
+        included," since only the same id proves the real row, not the
+        commented one, is what registers it."""
+        content = "<!-- | FR-004 | Commented-out draft. | -->\n\n| FR-004 | Real requirement. |\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["all"] == ["FR-004"]
+
+    def test_declaration_only_inside_html_comment_is_not_declared_at_all(self):
+        """Negative-space twin of the above: with NO uncommented occurrence,
+        a comment-only declaration of FR-004 yields nothing declared."""
+        content = "<!-- | FR-004 | Commented-out draft. | -->\n"
+        result = parse_requirement_ids_from_spec_md(content)
+        assert result["all"] == []
+
 
 class TestDeclaredVsCitedRequirements:
     """#3394: a spec.md may CITE a foreign mission's requirement id in prose
@@ -178,7 +139,8 @@ class TestDeclaredVsCitedRequirements:
         """
         content = "# Spec\n\nAs established by FR-019 in another mission, this holds.\n"
         result = parse_requirement_ids_from_spec_md(content)
-        assert result == {"all": [], "functional": []}
+        # FR-002/FR-003: the dict gained three empty grouped keys (WP01).
+        assert result == {"all": [], "functional": [], "non_functional": [], "constraint": [], "success_criteria": []}
 
     def test_declared_table_row_shape(self):
         content = "### Functional Requirements\n\n| ID | Requirement |\n|---|---|\n| FR-007 | Do the thing. |\n"
@@ -225,7 +187,8 @@ class TestDeclaredVsCitedRequirements:
         deliberately NOT shipped in this Op (real-corpus false-positive rate)."""
         content = "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n"
         result = parse_requirement_ids_from_spec_md(content)
-        assert result == {"all": [], "functional": []}
+        # FR-002/FR-003: the dict gained three empty grouped keys (WP01).
+        assert result == {"all": [], "functional": [], "non_functional": [], "constraint": [], "success_criteria": []}
 
     def test_prose_citation_of_foreign_nfr_and_c_is_excluded_from_all(self):
         """#3394 review F3: the four declared-shape patterns are genuinely
@@ -378,66 +341,33 @@ class TestFindBareProseRequirementIds:
         )
         assert find_bare_prose_requirement_ids(content) == []
 
-
-class TestNormalizeRequirementRefsValue:
-    """Test normalize_requirement_refs_value()."""
-
-    def test_string_input(self):
-        assert normalize_requirement_refs_value("FR-001, FR-002") == [
-            "FR-001",
-            "FR-002",
-        ]
-
-    def test_list_of_strings(self):
-        assert normalize_requirement_refs_value(["FR-001", "NFR-002"]) == [
-            "FR-001",
-            "NFR-002",
-        ]
-
-    def test_mixed_list(self):
-        assert normalize_requirement_refs_value(["FR-001", 42, "NFR-002"]) == [
-            "FR-001",
-            "NFR-002",
-        ]
-
-    def test_empty_list(self):
-        assert normalize_requirement_refs_value([]) == []
-
-    def test_none(self):
-        assert normalize_requirement_refs_value(None) == []
-
-    def test_deduplicates(self):
-        assert normalize_requirement_refs_value(["FR-001", "FR-001"]) == ["FR-001"]
-
-    def test_uppercases(self):
-        assert normalize_requirement_refs_value(["fr-001"]) == ["FR-001"]
-
-
-class TestReadAllWpRequirementRefs:
-    """Test read_all_wp_requirement_refs()."""
-
-    def test_reads_from_wp_frontmatter(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - FR-002\n---\n\n# WP01\n',
-            encoding="utf-8",
-        )
-        (tasks_dir / "WP02-test.md").write_text(
-            '---\nwork_package_id: "WP02"\ntitle: "WP02"\n---\n\n# WP02\n',
-            encoding="utf-8",
-        )
-
-        result = read_all_wp_requirement_refs(tasks_dir)
-        assert result["WP01"] == ["FR-001", "FR-002"]
-        assert result["WP02"] == []
-
-    def test_returns_empty_for_missing_dir(self, tmp_path: Path):
-        assert read_all_wp_requirement_refs(tmp_path / "nonexistent") == {}
+    def test_fr009_qualified_citation_in_requirements_section_not_flagged_bare_fr_is(self):
+        """FR-009 on the production path: a qualified citation
+        (``other-mission-01KAAAAA#FR-010``) inside a Functional Requirements
+        section is never a bare-prose candidate -- neither is it declared --
+        while a bare, undeclared FR-011 in the same section is (same-fixture
+        positive control)."""
+        content = "### Functional Requirements\n\nSee other-mission-01KAAAAA#FR-010 for context. FR-011 must also hold.\n"
+        result = find_bare_prose_requirement_ids(content)
+        assert len(result) == 1
+        assert result[0].ids == ["FR-011"]
 
 
 class TestReadAllWpRawRequirementRefs:
-    """Test read_all_wp_raw_requirement_refs()."""
+    """Test read_all_wp_raw_requirement_refs().
+
+    WP06 (requirement-id-grammar-01M3NRCA, C6/F13 disposal): the typed
+    normalizing reader ``read_all_wp_requirement_refs`` and its sole helper
+    ``normalize_requirement_refs_value`` were deleted from
+    ``requirement_mapping/__init__.py`` -- WP02/WP03/WP04 re-pointed every
+    product caller at this raw reader, leaving both with zero product
+    callers (confirmed by ``tests/architectural/test_no_dead_symbols.py``).
+    ``TestNormalizeRequirementRefsValue`` and ``TestReadAllWpRequirementRefs``
+    (the two classes that exercised the deleted pair) are retired with them;
+    ``test_preserves_malformed_values`` below already covers the raw
+    reader's non-dropping behaviour that the deleted
+    ``test_normalized_reader_drops_malformed`` compared against.
+    """
 
     def test_preserves_malformed_values(self, tmp_path: Path):
         tasks_dir = tmp_path / "tasks"
@@ -451,17 +381,13 @@ class TestReadAllWpRawRequirementRefs:
         assert "FR-001" in result["WP01"]
         assert "BOGUS" in result["WP01"]
 
-    def test_normalized_reader_drops_malformed(self, tmp_path: Path):
-        tasks_dir = tmp_path / "tasks"
-        tasks_dir.mkdir()
-        (tasks_dir / "WP01-test.md").write_text(
-            '---\nwork_package_id: "WP01"\ntitle: "WP01"\nrequirement_refs:\n  - FR-001\n  - BOGUS\n---\n\n# WP01\n',
-            encoding="utf-8",
-        )
-
-        normalized = read_all_wp_requirement_refs(tasks_dir)
-        assert "FR-001" in normalized["WP01"]
-        assert "BOGUS" not in normalized["WP01"]
+    def test_returns_empty_for_missing_dir(self, tmp_path: Path):
+        """Review cycle 2 (reviewer-renata): the retired typed reader's
+        ``TestReadAllWpRequirementRefs.test_returns_empty_for_missing_dir``
+        was the only test of the shared ``_read_wp_frontmatter_values``
+        ``if not tasks_dir.exists()`` branch; restore it here for the
+        surviving raw reader."""
+        assert read_all_wp_raw_requirement_refs(tmp_path / "nonexistent") == {}
 
     def test_splits_scalar_string(self, tmp_path: Path):
         tasks_dir = tmp_path / "tasks"
@@ -623,3 +549,135 @@ FR-099 must hold.
         candidate = result[0]
         assert candidate.ids == ["FR-099"]
         assert "FR-001" not in candidate.ids
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True, encoding="utf-8")
+
+
+def _write_finalize_wp(tasks_dir: Path, wp_id: str, refs: list[str]) -> None:
+    refs_yaml = "\n".join(f"  - {ref}" for ref in refs)
+    (tasks_dir / f"{wp_id}-test.md").write_text(
+        f"---\n"
+        f"work_package_id: {wp_id}\n"
+        f"title: Test {wp_id}\n"
+        f"dependencies: []\n"
+        f"requirement_refs:\n{refs_yaml}\n"
+        f"subtasks: []\n"
+        f"owned_files:\n"
+        f"  - src/module_{wp_id.lower()}/**\n"
+        f"authoritative_surface: src/module_{wp_id.lower()}/\n"
+        f"execution_mode: code_change\n"
+        f"---\n\n# {wp_id}\n\n## Activity Log\n",
+        encoding="utf-8",
+    )
+
+
+def _scaffold_issue_3519_mission(repo: Path, mission_slug: str, mapped_refs: list[str]) -> None:
+    """A minimal, hermetic spec-kitty project on ``main`` declaring FR-001 and
+    the letter-suffixed FR-006a, with one WP mapping *mapped_refs*.
+
+    HEAD stays on the mission's ``target_branch`` throughout (no divergent
+    planning branch), so this fixture exercises only the requirement-mapping
+    gate -- not the branch-checkout machinery the readonly-e2e suite covers.
+    """
+    _git(repo, "init", "--initial-branch", "main")
+    _git(repo, "config", "user.email", "grammar-repro@example.com")
+    _git(repo, "config", "user.name", "Grammar Repro")
+    _git(repo, "config", "commit.gpgsign", "false")
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text("project: grammar-repro\n", encoding="utf-8")
+
+    feature_dir = repo / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    (feature_dir / "spec.md").write_text(
+        "# Spec\n\n"
+        "## Functional Requirements\n\n"
+        "| ID | Requirement |\n"
+        "|----|-------------|\n"
+        "| FR-001 | First requirement. |\n"
+        "| FR-006a | Sixth requirement, sub-a. |\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text("## Work Package WP01\n", encoding="utf-8")
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": mission_slug,
+                "target_branch": "main",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _write_finalize_wp(tasks_dir, "WP01", mapped_refs)
+
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "seed mission")
+
+
+def _run_finalize(repo: Path, mission_slug: str, *extra_args: str) -> object:
+    with (
+        patch(
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
+            return_value=repo,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent.mission.run_git_preflight",
+            return_value=type("P", (), {"passed": True})(),
+        ),
+    ):
+        from specify_cli.cli.commands.agent.mission import app
+
+        return runner.invoke(
+            app,
+            ["finalize-tasks", "--mission", mission_slug, "--json", *extra_args],
+            catch_exceptions=False,
+        )
+
+
+class TestIssue3519RedFirstSuffixedFrCoverage:
+    """#3519 / FR-008: a declared letter-suffixed functional requirement
+    (``FR-006a``) that no WP maps must fail finalize's FR coverage --
+    function-level AND through the real CLI entry point.
+
+    T004a landed these RED (before T004b's grammar rewire, the old
+    ``_REF_FIND_PATTERN``/``_DECLARED_ID_PATTERNS`` never recognised a
+    suffixed id at all); T004b turned them GREEN, and the
+    ``@pytest.mark.regression`` marker was removed in the same commit per
+    the mission's commit sequence (T004a: red-first repro; T004b: rewire +
+    demote).
+    """
+
+    _SPEC = "## Functional Requirements\n\n| ID | Requirement |\n|----|-------------|\n| FR-001 | First requirement. |\n| FR-006a | Sixth requirement, sub-a. |\n"
+
+    def test_function_level_suffixed_fr_is_declared_and_unmapped(self) -> None:
+        """#3519 / FR-008, function level."""
+        parsed = parse_requirement_ids_from_spec_md(self._SPEC)
+        assert "FR-006a" in parsed["functional"]
+        coverage = compute_coverage({}, set(parsed["functional"]))
+        assert "FR-006a" in coverage["unmapped_functional"]
+
+    def test_cli_finalize_validate_only_fails_on_unmapped_suffixed_fr(self, tmp_path: Path) -> None:
+        """#3519 / FR-008, CLI level: only FR-001 mapped -> exit 1, FR-006a named."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _scaffold_issue_3519_mission(repo, "grammar-repro-mission", ["FR-001"])
+
+        result = _run_finalize(repo, "grammar-repro-mission", "--validate-only")
+
+        assert result.exit_code == 1, f"expected finalize to fail on the unmapped suffixed FR, got exit {result.exit_code}:\n{result.output}"
+        payload = json.loads(result.output.strip().splitlines()[-1])
+        assert "FR-006a" in payload["unmapped_functional_requirements"]
+
+    def test_cli_finalize_validate_only_passes_when_suffixed_fr_is_also_mapped(self, tmp_path: Path) -> None:
+        """Positive control on the same fixture: mapping FR-006a too passes."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _scaffold_issue_3519_mission(repo, "grammar-repro-mission", ["FR-001", "FR-006a"])
+
+        result = _run_finalize(repo, "grammar-repro-mission", "--validate-only")
+
+        assert result.exit_code == 0, f"expected finalize to pass once FR-006a is mapped too, got exit {result.exit_code}:\n{result.output}"

@@ -34,7 +34,7 @@ import logging
 from pathlib import Path
 import shutil
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Annotated, Literal, cast
 
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
@@ -85,6 +85,10 @@ SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."
 TASKS_MD_FILENAME = "tasks.md"
+#: FR-013: setup-plan refuses a spec.md that declares a malformed
+#: kind-prefixed requirement ID in a declared position (WP05).
+SPEC_REQUIREMENT_IDS_INVALID = "SPEC_REQUIREMENT_IDS_INVALID"
+SPEC_REQUIREMENT_IDS_INVALID_MESSAGE = "spec.md declares requirement IDs that do not match the requirement-ID grammar"
 
 
 # ---------------------------------------------------------------------------
@@ -460,7 +464,7 @@ def _evaluate_spec_gate(
     spec_is_committed = is_committed(spec_file, repo_root, diagnostics=_commit_diagnostics)
     spec_is_substantive = is_substantive(spec_file, "spec")
     if spec_is_committed and spec_is_substantive:
-        return None, None
+        return _evaluate_requirement_id_gate(spec_file, feature_dir, mission_slug)
 
     blocked_reason = (
         "spec.md must be committed AND substantive before setup-plan can run. "
@@ -490,6 +494,85 @@ def _evaluate_spec_gate(
         SetupPlanLocalOutcome(rendered_payload, 0, "blocked"),
         f"[yellow]Blocked:[/yellow] {blocked_reason}",
     )
+
+
+def _requirement_id_gate_remediation() -> list[str]:
+    """FR-013's remediation list: the kind vocabulary, the suffix rule, the
+    foreign-citation form, and the resolution step -- never a kind
+    alternation literal (C-001)."""
+    return [
+        "Use one of the recognised requirement-ID kinds: FR, NFR, C or SC.",
+        "Write the letter suffix in lowercase (e.g. FR-006a, not FR-006A).",
+        "To cite another mission's ID, write <mission-slug>#<ID> instead of declaring it here.",
+        "Commit spec.md and re-run setup-plan.",
+    ]
+
+
+def _render_requirement_id_gate_message(invalid_ids: list[dict[str, object]]) -> str:
+    """The FR-013 refusal's human-readable rendering, ``SPEC_FILE_MISSING``-styled:
+    one escaped line per offending ID. Escaping matters because
+    ``grammar.RULE_TEXT`` contains ``[<lowercase letter>]``, which rich would
+    otherwise parse as markup."""
+    from rich.markup import escape
+
+    lines = [f"[red]Error:[/red] {escape(SPEC_REQUIREMENT_IDS_INVALID_MESSAGE)}"]
+    for entry in invalid_ids:
+        token = escape(str(entry["token"]))
+        rule = escape(str(entry["rule"]))
+        lines.append(f"  - line {entry['line']}: {token} (rule: {rule})")
+    return "\n".join(lines)
+
+
+def _evaluate_requirement_id_gate(
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+) -> tuple[SetupPlanLocalOutcome | None, str | None]:
+    """FR-013: refuse a spec.md that declares a malformed requirement ID.
+
+    Pure (builds, but does not report, the result), mirroring
+    ``_evaluate_spec_gate``'s own 2-tuple contract -- returns ``(None,
+    None)`` when the spec's declared IDs are all well-formed, so the caller
+    (``_evaluate_spec_gate``) proceeds exactly as it did before this gate
+    existed.
+    """
+    from specify_cli.requirement_mapping.lint import lint_spec_requirement_ids
+
+    result = lint_spec_requirement_ids(spec_file.read_text(encoding="utf-8"))
+    if not result.blocking:
+        return None, None
+
+    invalid_ids = [error.as_dict() for error in result.errors]
+    payload: dict[str, object] = {
+        "result": "error",
+        "phase_complete": False,
+        "error_code": SPEC_REQUIREMENT_IDS_INVALID,
+        "error": SPEC_REQUIREMENT_IDS_INVALID_MESSAGE,
+        "invalid_requirement_ids": invalid_ids,
+        "mission_slug": mission_slug,
+        "mission_dir": str(feature_dir.resolve()),
+        "feature_dir": str(feature_dir.resolve()),  # legacy alias of mission_dir (#5206)
+        "spec_file": str(spec_file.resolve()),
+        "remediation": _requirement_id_gate_remediation(),
+    }
+    message = _render_requirement_id_gate_message(invalid_ids)
+    return SetupPlanLocalOutcome(payload, 1, "error"), message
+
+
+def _spec_requirement_id_warnings(spec_file: Path) -> list[dict[str, object]]:
+    """FR-014: non-blocking prose-token warnings for the current spec.md.
+
+    Returns ``[]`` when *spec_file* is not a file -- the spec gate owns
+    existence, and several ``setup_plan`` unit tests patch
+    ``_enforce_spec_gate`` to bypass it entirely, so ``spec_file`` may not
+    sit at a real file in those tests.
+    """
+    if not spec_file.is_file():
+        return []
+    from specify_cli.requirement_mapping.lint import lint_spec_requirement_ids
+
+    result = lint_spec_requirement_ids(spec_file.read_text(encoding="utf-8"))
+    return [warning.as_dict() for warning in result.warnings]
 
 
 def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResult:
@@ -925,6 +1008,7 @@ def _build_setup_plan_result(
     current_branch: str,
     match_target_branch: str | None = None,
     plan_scaffold_only: bool = False,
+    requirement_id_warnings: Sequence[Mapping[str, object]] = (),
 ) -> SetupPlanLocalOutcome:
     """Build the authoritative setup-plan result without rendering it.
 
@@ -934,6 +1018,12 @@ def _build_setup_plan_result(
     ``mission_create`` twin — instead of ``blocked``. ``phase_complete``
     stays tied to ``plan_is_substantive`` alone, so the scaffold_only case
     still reports ``phase_complete: false``.
+
+    FR-014 / NFR-002: ``requirement_id_warnings`` is additive on every
+    payload this builder produces (success, scaffold, and the
+    plan-not-substantive blocked result) -- none of those carry an
+    ``error_code`` key, unlike the FR-013 gate refusal built by
+    ``_evaluate_requirement_id_gate``, which never reaches this builder.
     """
     result: dict[str, object] = {
         "result": "success" if (plan_is_substantive or plan_scaffold_only) else "blocked",
@@ -944,6 +1034,7 @@ def _build_setup_plan_result(
         "feature_dir": str(feature_dir),  # legacy alias of mission_dir (#5206)
         "spec_file": str(spec_file),
         "plan_substantive": plan_is_substantive,
+        "requirement_id_warnings": [dict(warning) for warning in requirement_id_warnings],
     }
     if plan_scaffold_only:
         result["scaffold_only"] = True
@@ -987,6 +1078,7 @@ def _emit_setup_plan_result(
     match_target_branch: str | None = None,
     json_output: bool,
     plan_scaffold_only: bool = False,
+    requirement_id_warnings: Sequence[Mapping[str, object]] = (),
 ) -> None:
     """Compatibility reporter backed by the side-effect-free result builder."""
     outcome = _build_setup_plan_result(
@@ -1003,8 +1095,15 @@ def _emit_setup_plan_result(
         current_branch=current_branch,
         match_target_branch=match_target_branch,
         plan_scaffold_only=plan_scaffold_only,
+        requirement_id_warnings=requirement_id_warnings,
     )
     if not json_output:
+        from rich.markup import escape
+
+        for warning in requirement_id_warnings:
+            token = escape(str(warning["token"]))
+            message = escape(str(warning["message"]))
+            console.print(f"[yellow]Warning:[/yellow] line {warning['line']}: {token} — {message}")
         console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
         return
     _emit_json(dict(outcome.payload))
@@ -1115,6 +1214,10 @@ def setup_plan(
         ):
             return
 
+        # FR-014: computed once, after the FR-013 gate has already passed --
+        # every non-error setup-plan payload carries it additively.
+        requirement_id_warnings = _spec_requirement_id_warnings(spec_file)
+
         try:
             plan_template = _resolve_plan_template(repo_root, plan_read_dir)
         except FileNotFoundError as exc:
@@ -1162,6 +1265,7 @@ def setup_plan(
             match_target_branch=match_target_branch,
             json_output=json_output,
             plan_scaffold_only=plan_scaffold_only,
+            requirement_id_warnings=requirement_id_warnings,
         )
 
     except typer.Exit:

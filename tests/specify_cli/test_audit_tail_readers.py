@@ -714,7 +714,7 @@ def test_runtime_bridge_companion_assertion_other_three_operations_unaffected(tm
     THREE operations sharing the try block --
     `parse_requirement_ids_from_spec_md` (representative of
     `spec_md.read_text`'s downstream consumer too, since both run before
-    `load_wps_manifest`), `read_all_wp_requirement_refs`, and the
+    `load_wps_manifest`), `read_all_wp_raw_requirement_refs`, and the
     `tasks_md.read_text` prose fallback. Simulates a genuine crash in
     `parse_requirement_ids_from_spec_md` (mirrors the pre-existing
     `tests/next/test_runtime_bridge_unit.py::

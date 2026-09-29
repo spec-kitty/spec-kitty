@@ -41,6 +41,33 @@ def _write_spec_rows(tmp_path: Path, rows: list[tuple[str, str]]) -> MissionFixt
     return mission
 
 
+def _write_spec_rows_with_ids(tmp_path: Path, rows: list[tuple[str, str, str]]) -> MissionFixture:
+    """Like :func:`_write_spec_rows`, but the first (id) cell is explicit per row.
+
+    Each row is ``(id_cell, constraint, status)`` -- T005's grammar-rewire
+    tests need the id cell to vary independently of the auto-generated
+    ``C-{index:03d}`` sequence.
+    """
+    constraint_rows = [f"| {id_cell} | Retention | {constraint} | Operational | High | {status} |" for id_cell, constraint, status in rows]
+    mission = create_mission_fixture(tmp_path)
+    (mission.mission_dir / "spec.md").write_text(
+        "\n".join(
+            [
+                "# Mission",
+                "",
+                "## Constraints",
+                "",
+                "| ID | Title | Constraint | Category | Priority | Status |",
+                "|----|-------|------------|----------|----------|--------|",
+                *constraint_rows,
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return mission
+
+
 @pytest.mark.parametrize(
     ("constraint", "retains_branch", "retains_worktree"),
     [
@@ -126,6 +153,55 @@ def test_load_mission_retention_ignores_negated_retention(
         "Accepted",
     )
     assert load_mission_retention(mission.repo_root, mission.mission_slug) is None
+
+
+class TestConstraintRowIdGrammarRewire:
+    """T005 (HiC ruling, Decision Moment 01M3P2HXKASQY2ZKSEY3MAWA9H): the
+    constraint-row id check now runs through ``grammar.parse`` instead of a
+    hand-written ``_CONSTRAINT_ROW_ID`` pattern.
+    """
+
+    @pytest.mark.parametrize(
+        ("id_cell", "retained"),
+        [
+            ("C-001", True),
+            ("c-001", True),
+            ("C-007a", True),
+            ("other-mission#C-001", False),
+            ("C-S1", False),
+            ("IC-01", False),
+        ],
+    )
+    def test_constraint_row_id_parses_through_the_grammar(self, tmp_path: Path, id_cell: str, retained: bool) -> None:
+        mission = _write_spec_rows_with_ids(
+            tmp_path,
+            [(id_cell, "Keep branches after merge.", "Accepted")],
+        )
+        retention = load_mission_retention(mission.repo_root, mission.mission_slug)
+        if retained:
+            assert retention is not None
+            assert retention.constraint_id == id_cell
+        else:
+            assert retention is None
+
+    def test_multi_row_plain_c_ids_unchanged_from_planning_base(self, tmp_path: Path) -> None:
+        """Existing behaviour for plain C-### rows is unchanged: the same
+        multi-row spec yields the same MissionRetention as before the
+        grammar rewire (first retaining row's id and constraint, OR-ed
+        flags)."""
+        mission = _write_spec_rows(
+            tmp_path,
+            [
+                ("Keep branches after merge.", "Accepted"),
+                ("Keep worktrees after merge.", "Accepted"),
+            ],
+        )
+        retention = load_mission_retention(mission.repo_root, mission.mission_slug)
+        assert retention is not None
+        assert retention.constraint_id == "C-001"
+        assert retention.constraint == "Keep branches after merge."
+        assert retention.retains_branch is True
+        assert retention.retains_worktree is True
 
 
 def test_retention_cleanup_conflicts_requires_each_explicit_choice() -> None:

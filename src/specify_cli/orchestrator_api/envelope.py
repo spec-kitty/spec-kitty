@@ -47,7 +47,21 @@ from kernel.clock import now_utc_iso
 # FR-010 locked pre-stamp verdict guard the host ``accept`` CLI uses.
 # Behavioural tightening (a previously-accepting call can now refuse), so a
 # minor bump rather than additive-only; no field is removed or renamed.
-CONTRACT_VERSION = "1.7.0"
+# 1.8.0: the ``tasks`` verb's pass-through ``data`` gains three keys --
+# ``parsed_spec_ids``, ``rejected_requirement_refs``, ``success_criteria_
+# coverage`` -- from the delegate finalize-tasks ``--json`` payload
+# (requirement-id-grammar-01M3NRCA WP02, FR-010/FR-011). The ``plan`` verb's
+# pass-through ``data`` gains ``requirement_id_warnings`` and remaps every
+# previously-unregistered delegate error code onto the closed
+# ``PLAN_SETUP_FAILED`` envelope with ``data.reason`` naming the concrete
+# failure, e.g. ``SPEC_REQUIREMENT_IDS_INVALID`` (WP05, FR-016). The remap
+# also closes a latent leak: ``SPEC_FILE_MISSING``, ``TEMPLATE_CONFIGURATION_
+# ERROR`` and ``PLAN_CONTEXT_UNRESOLVED`` previously passed through verbatim
+# as ``error_code`` (none of the three was contract-registered); they now
+# surface as ``PLAN_SETUP_FAILED`` too, with the real code in ``data.reason``.
+# Additive keys plus a closed-envelope remap on ``plan``'s previously-leaking
+# codes, so a minor bump rather than purely additive; no field is removed.
+CONTRACT_VERSION = "1.8.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

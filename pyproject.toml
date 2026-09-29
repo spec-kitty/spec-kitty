@@ -2724,6 +2724,25 @@ module = ["specify_cli.auth.errors"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]
+# requirement_mapping.grammar is the single requirement-ID grammar authority
+# (C-001); its concrete ``RequirementId | None`` / ``str`` / ``list[...]``
+# return types are needed by requirement_mapping/lint.py's setup-plan lint
+# (WP05, requirement-id-grammar-01M3NRCA). Under the ``specify_cli.*`` skip
+# above every attribute of the module (functions, patterns, the ``RULE_TEXT``
+# constant) resolves as ``Any``, so a narrow ``mypy --strict`` check on
+# lint.py reports "Returning Any from function declared to return str" even
+# though grammar.py itself is strict-clean in isolation. It imports only
+# ``dataclasses``, ``typing`` and ``kernel._safe_re``, so following it cannot
+# drag bootstrap errors into a narrow check — same shape/precedent as the
+# core.errors/auth.errors entries above (issue #3719); must stay after the
+# ``specify_cli.*`` skip. ``specify_cli.requirement_mapping`` (the package's
+# own ``__init__.py``, home of ``parse_requirement_ids_from_spec_md``) is
+# covered too: it re-exports grammar's names and otherwise imports only
+# stdlib (``re``, ``pathlib``, ``typing``).
+module = ["specify_cli.requirement_mapping", "specify_cli.requirement_mapping.grammar"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
 # When checking charter.activation.neutrality in isolation, mypy walks into other
 # charter submodules (interview, resolver, context, …) that have pre-existing
 # strict issues being addressed in a separate mission. Skip them so that

@@ -523,9 +523,17 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
     "_parse_wp_sections_from_tasks_md", ...)`` a no-op false-green for any
     scenario that reaches it only through this function (the exact
     intra-seam-call trap research.md §Compat documents for
-    ``_primary_runtime_feature_dir``)."""
+    ``_primary_runtime_feature_dir``).
+
+    WP04 (C-002): the signature stays one-argument -- the grammar is
+    resolved lazily here (the existing edge to ``specify_cli.requirement_
+    mapping``, no new layer-ledger key) and threaded into the cores call as
+    ``grammar=``."""
+    from specify_cli.requirement_mapping import grammar
+
     return {
-        wp_id: _cores._collect_requirement_refs_for_section(section_content) for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
+        wp_id: _cores._collect_requirement_refs_for_section(section_content, grammar=grammar)
+        for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
     }
 
 
@@ -1048,7 +1056,7 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     broad ``except Exception`` below still produces, unchanged, for the
     other three operations sharing this ``try`` block
     (``spec_md.read_text``, ``parse_requirement_ids_from_spec_md``,
-    ``read_all_wp_requirement_refs``, and the ``tasks_md.read_text`` prose
+    ``read_all_wp_raw_requirement_refs``, and the ``tasks_md.read_text`` prose
     fallback).
     """
     spec_md = feature_dir / SPEC_ARTIFACT
@@ -1061,8 +1069,9 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
 
     try:
         from specify_cli.requirement_mapping import (
+            grammar,
             parse_requirement_ids_from_spec_md,
-            read_all_wp_requirement_refs,
+            read_all_wp_raw_requirement_refs,
         )
 
         spec_content = spec_md.read_text(encoding="utf-8")
@@ -1075,7 +1084,12 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         wps_manifest, manifest_findings = _load_wps_manifest_findings(feature_dir)
         if manifest_findings is not None:
             return manifest_findings
-        wp_requirement_refs = read_all_wp_requirement_refs(tasks_dir)
+        # WP04 (C-002): the WP01 unified RAW reader, not the normalising
+        # one -- classification (FR-019) needs the raw authored tokens, the
+        # same source ``mission_finalize.py``'s finalize classifies, so a
+        # malformed or foreign-qualified ref does not silently vanish
+        # before the injected grammar's verdict table ever sees it.
+        wp_requirement_refs = read_all_wp_raw_requirement_refs(tasks_dir)
 
         if wps_manifest is None:
             tasks_md = feature_dir / TASKS_ARTIFACT
@@ -1094,6 +1108,7 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         wp_ids=wp_ids,
         wp_requirement_refs={wp_id: tuple(refs) for wp_id, refs in wp_requirement_refs.items()},
         feature_dir_name=feature_dir.name,
+        grammar=grammar,
     )
     return _cores._evaluate_requirement_mapping(facts)
 

@@ -29,7 +29,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.7.0`
+- `CONTRACT_VERSION`: `1.8.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -75,6 +75,18 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   between the readiness check and the stamp is refused rather than silently
   accepted over. A behavioural tightening (a call that previously accepted
   can now refuse), not purely additive.
+- `1.8.0` — the `tasks` verb's pass-through `data` gains three keys
+  (`parsed_spec_ids`, `rejected_requirement_refs`,
+  `success_criteria_coverage`) from the delegate finalize-tasks `--json`
+  payload (requirement-id-grammar-01M3NRCA WP02). The `plan` verb's
+  pass-through `data` gains `requirement_id_warnings`, and its previously
+  unregistered delegate error codes now remap onto the closed
+  `PLAN_SETUP_FAILED` envelope with the real code preserved as
+  `data.reason` (WP05) — this closes a latent leak: `SPEC_FILE_MISSING`,
+  `TEMPLATE_CONFIGURATION_ERROR` and `PLAN_CONTEXT_UNRESOLVED` previously
+  passed through verbatim as `error_code` (none was contract-registered)
+  and now surface as `PLAN_SETUP_FAILED` too. Additive keys plus a
+  closed-envelope remap on `plan`'s previously-leaking codes; minor bump.
 
 ## Response Envelope
 
@@ -334,8 +346,12 @@ spec-kitty orchestrator-api plan \
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_NOT_FOUND`, `PLAN_SETUP_FAILED` (delegate call failed with no more
-specific `error_code` of its own; a typed upstream code is passed through
-verbatim instead).
+specific `error_code` of its own). A typed upstream code that is itself
+contract-registered passes through verbatim; a typed but *unregistered*
+delegate code (e.g. `SPEC_REQUIREMENT_IDS_INVALID`, `SPEC_FILE_MISSING`,
+`TEMPLATE_CONFIGURATION_ERROR`, `PLAN_CONTEXT_UNRESOLVED`) is instead
+reported as `PLAN_SETUP_FAILED`, with the real code preserved as
+`data.reason` (requirement-id-grammar-01M3NRCA WP05).
 
 ### tasks
 

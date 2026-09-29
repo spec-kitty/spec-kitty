@@ -77,7 +77,11 @@ from specify_cli.ownership.validation import (
     validate_glob_matches,
 )
 from specify_cli.status import BootstrapResult, Lane, WPMetadata, _Builder
-from specify_cli.requirement_mapping import find_discarded_sc_refs
+from specify_cli.requirement_mapping import (
+    FAILING_REASONS,
+    grammar,
+    read_all_wp_raw_requirement_refs,
+)
 from specify_cli.core.wps_manifest import (
     WpsManifest,
     check_concern_refs_coverage,
@@ -105,7 +109,6 @@ from specify_cli.cli.commands.agent.mission_parsing import (
     _owned_files_yaml_is_explicit_empty_list,
     _parse_requirement_ids_from_spec_md,
     _parse_requirement_refs_from_tasks_md,
-    _parse_requirement_refs_from_wp_files,
     _raw_frontmatter_dependencies_is_string_form,
     _raw_frontmatter_has_field,
 )
@@ -1009,6 +1012,11 @@ class _DependencyResolution:
     wp_dependencies: dict[str, list[str]] = field(default_factory=dict)
     tasks_md_dependencies: dict[str, list[str]] = field(default_factory=dict)
     wp_requirement_refs: dict[str, list[str]] = field(default_factory=dict)
+    #: T012 (FR-011): the additive requirement diagnostics
+    #: (``parsed_spec_ids``/``rejected_requirement_refs``/
+    #: ``success_criteria_coverage``) ``_validate_requirement_mapping``
+    #: returns on success -- carried through to both success reports.
+    requirement_diagnostics: dict[str, object] = field(default_factory=dict)
 
 
 def _resolve_dependencies_and_refs(
@@ -1026,6 +1034,15 @@ def _resolve_dependencies_and_refs(
        is treated as absent (see below), not as an authoritative declaration
     3. tasks.md text parsing when frontmatter lacks a usable dependencies
        value (field absent entirely, or present-but-empty)
+
+    Requirement refs (T011): the PRIMARY source is
+    :func:`specify_cli.requirement_mapping.read_all_wp_raw_requirement_refs`
+    -- the WP01 unified RAW reader (case-preserved, un-normalised tokens).
+    Classification (FR-019, :func:`_classify_wp_requirement_refs`) needs the
+    AUTHORED tokens, not a pre-filtered/canonicalised list, or a malformed or
+    foreign-qualified ref would silently vanish before the grammar's verdict
+    table ever sees it. WP04's runtime classifies the SAME reader's output,
+    which is what keeps the two gates agreeing on malformed/foreign refs.
 
     An empty frontmatter ``dependencies: []`` is a serialization artifact, not
     a user declaration: ``agent tasks map-requirements`` rewrites WP frontmatter
@@ -1046,8 +1063,10 @@ def _resolve_dependencies_and_refs(
         for entry in wps_manifest.work_packages:
             res.wp_dependencies[entry.id] = list(entry.dependencies) if dependencies_are_explicit(entry) else []
 
-    # PRIMARY: WP frontmatter (map-requirements writes here directly)
-    res.wp_requirement_refs = _parse_requirement_refs_from_wp_files(wp_files)
+    # PRIMARY: WP frontmatter, raw authored tokens (map-requirements writes
+    # here directly; see the docstring above for why this must be the raw
+    # reader rather than a normalising one).
+    res.wp_requirement_refs = read_all_wp_raw_requirement_refs(planning_dir / "tasks")
 
     if wps_manifest is None and tasks_md.exists():
         tasks_content = tasks_md.read_text(encoding="utf-8")
@@ -1159,28 +1178,70 @@ def _validate_dependency_graph(wp_dependencies: dict[str, list[str]], *, json_ou
             raise typer.Exit(1)
 
 
+def _classify_one_wp(refs: list[str], declared: set[str]) -> tuple[set[str], list[dict[str, str]]]:
+    """Classify one WP's raw refs via the grammar verdict table (FR-019).
+
+    Returns the accepted refs' canonical ids (a set: duplicates collapse)
+    and, in authored order, every rejection as ``{"ref": raw, "reason":
+    reason}``. ``reason`` is one of :data:`grammar.MALFORMED`,
+    :data:`grammar.UNKNOWN_SPEC_ID` or :data:`grammar.FOREIGN_QUALIFIED` --
+    a ``foreign_qualified`` ref is a rejection (never accepted, and never
+    resolved against *declared*) but is never a *failing* one (T011/FR-019).
+    """
+    accepted: set[str] = set()
+    rejections: list[dict[str, str]] = []
+    for raw in refs:
+        verdict = grammar.classify(raw, declared)
+        if isinstance(verdict, grammar.Accepted):
+            accepted.add(verdict.requirement_id.canonical)
+        else:
+            rejections.append({"ref": verdict.raw, "reason": verdict.reason})
+    return accepted, rejections
+
+
 def _classify_wp_requirement_refs(
     wp_ids: list[str],
     wp_requirement_refs: dict[str, list[str]],
     all_spec_requirement_ids: set[str],
-) -> tuple[list[str], dict[str, list[str]], set[str]]:
-    """Bucket each WP's requirement refs into missing/unknown/mapped."""
+) -> tuple[list[str], dict[str, list[str]], set[str], dict[str, list[dict[str, str]]]]:
+    """Bucket each WP's requirement refs into missing/unknown/mapped (FR-019, FR-010).
+
+    Per-ref verdicts (T011): every raw ref is classified individually via
+    :func:`_classify_one_wp` rather than an all-or-nothing rule -- a valid
+    sibling ref always counts toward coverage even when another ref on the
+    same WP is rejected.
+
+    - ``missing_requirement_refs_wps``: WPs with NO accepted ref (Decision
+      Moment ``01M3NYFZ1P6QBD2DX4DVDA323W``). A WP whose only accepted refs
+      are success criteria still counts as having refs; a WP with only
+      rejected refs (including an all-foreign WP) is missing AND is listed
+      in ``rejected_requirement_refs`` with its rejections.
+    - ``unknown_requirement_refs``: the sorted raw refs whose rejection
+      reason is in :data:`FAILING_REASONS` -- never ``foreign_qualified``,
+      which is a rejection but never a failing one.
+    - the fourth element is every rejection (every reason, including
+      ``foreign_qualified``), in authored order, for WPs that have at least
+      one -- feeds the additive ``rejected_requirement_refs`` JSON key
+      (FR-011, T012).
+    """
     missing_requirement_refs_wps: list[str] = []
     unknown_requirement_refs: dict[str, list[str]] = {}
     mapped_requirement_ids: set[str] = set()
+    rejected_requirement_refs: dict[str, list[dict[str, str]]] = {}
 
     for wp_id in sorted(set(wp_ids)):
         refs = wp_requirement_refs.get(wp_id, [])
-        if not refs:
+        accepted, rejections = _classify_one_wp(refs, all_spec_requirement_ids)
+        if rejections:
+            rejected_requirement_refs[wp_id] = rejections
+            failing_refs = sorted(entry["ref"] for entry in rejections if entry["reason"] in FAILING_REASONS)
+            if failing_refs:
+                unknown_requirement_refs[wp_id] = failing_refs
+        if not accepted:
             missing_requirement_refs_wps.append(wp_id)
-            continue
-        unknown_refs = sorted(ref for ref in refs if ref not in all_spec_requirement_ids)
-        if unknown_refs:
-            unknown_requirement_refs[wp_id] = unknown_refs
-        else:
-            mapped_requirement_ids.update(refs)
+        mapped_requirement_ids.update(accepted)
 
-    return missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids
+    return missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids, rejected_requirement_refs
 
 
 def _detect_bare_prose_requirement_ids_fail_loud(spec_content: str) -> list[str]:
@@ -1212,6 +1273,91 @@ def _detect_bare_prose_requirement_ids_fail_loud(spec_content: str) -> list[str]
         return [f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"]
 
 
+def _build_success_criteria_coverage(
+    declared_success_criteria: list[str],
+    wp_requirement_refs: dict[str, list[str]],
+    all_spec_requirement_ids: set[str],
+) -> dict[str, object]:
+    """FR-007: track (never gate) which declared SC ids each WP references.
+
+    Success criteria are informational, not coverage-gating: an
+    unreferenced declared SC never fails the run (unlike an unmapped FR).
+    Matching is by canonical form (C-001), through the same grammar verdict
+    table the coverage gate uses -- a rejected/foreign SC-shaped token is
+    never counted as "referenced".
+    """
+    referenced: dict[str, list[str]] = {}
+    for wp_id in sorted(wp_requirement_refs):
+        for raw in wp_requirement_refs[wp_id]:
+            verdict = grammar.classify(raw, all_spec_requirement_ids)
+            if isinstance(verdict, grammar.Accepted) and verdict.requirement_id.is_success_criterion:
+                wps_for_sc = referenced.setdefault(verdict.requirement_id.canonical, [])
+                # A WP that lists the same SC twice (e.g. once bare, once
+                # inside a scalar-string cell) must appear once, not once
+                # per occurrence.
+                if wp_id not in wps_for_sc:
+                    wps_for_sc.append(wp_id)
+    unreferenced = sorted(sc for sc in declared_success_criteria if sc not in referenced)
+    return {"referenced": referenced, "unreferenced": unreferenced}
+
+
+def _build_requirement_diagnostics(
+    spec_content: str,
+    wp_requirement_refs: dict[str, list[str]],
+    all_spec_requirement_ids: set[str],
+    rejected_requirement_refs: dict[str, list[dict[str, str]]],
+) -> dict[str, object]:
+    """Phase: build the three additive FR-011/FR-007/FR-008 diagnostic keys.
+
+    One pure builder (T012), reused by the failure payload, the
+    ``--validate-only`` success report and the real-run success report --
+    every caller gets the SAME three keys with the SAME shape
+    (``contracts/json-payload-deltas.md``).
+    """
+    buckets = _parse_requirement_ids_from_spec_md(spec_content)
+    parsed_spec_ids = {
+        "functional": buckets["functional"],
+        "non_functional": buckets["non_functional"],
+        "constraint": buckets["constraint"],
+        "success_criteria": buckets["success_criteria"],
+    }
+    success_criteria_coverage = _build_success_criteria_coverage(buckets["success_criteria"], wp_requirement_refs, all_spec_requirement_ids)
+    return {
+        "parsed_spec_ids": parsed_spec_ids,
+        "rejected_requirement_refs": rejected_requirement_refs,
+        "success_criteria_coverage": success_criteria_coverage,
+    }
+
+
+def _build_requirement_mapping_failure_payload(
+    *,
+    missing_requirement_refs_wps: list[str],
+    unknown_requirement_refs: dict[str, list[str]],
+    unmapped_functional_requirements: list[str],
+    bare_prose_requirement_ids: list[str],
+    wp_dependencies: dict[str, list[str]],
+    wp_requirement_refs: dict[str, list[str]],
+    requirement_diagnostics: dict[str, object],
+) -> dict[str, object]:
+    """Phase: pure JSON payload builder for the requirement-mapping failure (T009).
+
+    NFR-002: every pre-existing key keeps its name and type; the three
+    ``requirement_diagnostics`` keys (``parsed_spec_ids``,
+    ``rejected_requirement_refs``, ``success_criteria_coverage``) are purely
+    additive.
+    """
+    return {
+        "error": "Requirement mapping validation failed",
+        "missing_requirement_refs_wps": missing_requirement_refs_wps,
+        "unknown_requirement_refs": unknown_requirement_refs,
+        "unmapped_functional_requirements": unmapped_functional_requirements,
+        "bare_prose_requirement_ids": bare_prose_requirement_ids,
+        "dependencies_parsed": wp_dependencies,
+        "requirement_refs_parsed": wp_requirement_refs,
+        **requirement_diagnostics,
+    }
+
+
 def _emit_requirement_mapping_report(
     *,
     json_output: bool,
@@ -1221,19 +1367,21 @@ def _emit_requirement_mapping_report(
     bare_prose_requirement_ids: list[str],
     wp_dependencies: dict[str, list[str]],
     wp_requirement_refs: dict[str, list[str]],
+    requirement_diagnostics: dict[str, object] | None = None,
 ) -> None:
     """Phase: emit the requirement-mapping validation failure (JSON or console)."""
     error_msg = "Requirement mapping validation failed"
+    diagnostics = requirement_diagnostics or {}
     if json_output:
-        payload = {
-            "error": error_msg,
-            "missing_requirement_refs_wps": missing_requirement_refs_wps,
-            "unknown_requirement_refs": unknown_requirement_refs,
-            "unmapped_functional_requirements": unmapped_functional_requirements,
-            "bare_prose_requirement_ids": bare_prose_requirement_ids,
-            "dependencies_parsed": wp_dependencies,
-            "requirement_refs_parsed": wp_requirement_refs,
-        }
+        payload = _build_requirement_mapping_failure_payload(
+            missing_requirement_refs_wps=missing_requirement_refs_wps,
+            unknown_requirement_refs=unknown_requirement_refs,
+            unmapped_functional_requirements=unmapped_functional_requirements,
+            bare_prose_requirement_ids=bare_prose_requirement_ids,
+            wp_dependencies=wp_dependencies,
+            wp_requirement_refs=wp_requirement_refs,
+            requirement_diagnostics=diagnostics,
+        )
         print(json.dumps(payload))
         return
     console.print(f"[red]Error:[/red] {error_msg}")
@@ -1253,6 +1401,12 @@ def _emit_requirement_mapping_report(
         console.print("[red]Bare-prose requirement id(s) found, uncounted:[/red]")
         for req_id in bare_prose_requirement_ids:
             console.print(f"  - {req_id}")
+    rejected = diagnostics.get("rejected_requirement_refs")
+    if isinstance(rejected, dict) and rejected:
+        console.print("[red]Rejected requirement refs:[/red]")
+        for wp_id, entries in rejected.items():
+            for entry in entries:
+                console.print(f"  - {wp_id}: {entry['ref']} ({entry['reason']})")
 
 
 def _validate_requirement_mapping(
@@ -1264,7 +1418,7 @@ def _validate_requirement_mapping(
     spec_content: str = "",
     *,
     json_output: bool,
-) -> None:
+) -> dict[str, object]:
     """Phase: validate every WP maps to known requirement ids (FR coverage).
 
     WP06 (#3396) T031: additionally surfaces ``bare_prose_requirement_ids`` --
@@ -1274,15 +1428,23 @@ def _validate_requirement_mapping(
     merged into ``unmapped_functional_requirements``: "declared but not yet
     mapped to a WP" and "never declared at all" are different remediation
     stories for an operator.
+
+    T012 (FR-011): returns the requirement diagnostics
+    (``parsed_spec_ids``/``rejected_requirement_refs``/
+    ``success_criteria_coverage``) on success, so the caller can carry them
+    into the ``--validate-only`` and real-run success reports. On failure the
+    SAME diagnostics ride the failure JSON instead, and this still raises
+    ``typer.Exit(1)``.
     """
-    missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids = _classify_wp_requirement_refs(
+    missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids, rejected_requirement_refs = _classify_wp_requirement_refs(
         wp_ids, wp_requirement_refs, all_spec_requirement_ids
     )
 
     unmapped_functional_requirements = sorted(functional_spec_requirement_ids - mapped_requirement_ids)
     bare_prose_requirement_ids = _detect_bare_prose_requirement_ids_fail_loud(spec_content)
+    requirement_diagnostics = _build_requirement_diagnostics(spec_content, wp_requirement_refs, all_spec_requirement_ids, rejected_requirement_refs)
     if not (missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements or bare_prose_requirement_ids):
-        return
+        return requirement_diagnostics
 
     _emit_requirement_mapping_report(
         json_output=json_output,
@@ -1292,6 +1454,7 @@ def _validate_requirement_mapping(
         bare_prose_requirement_ids=bare_prose_requirement_ids,
         wp_dependencies=wp_dependencies,
         wp_requirement_refs=wp_requirement_refs,
+        requirement_diagnostics=requirement_diagnostics,
     )
     raise typer.Exit(1)
 
@@ -1373,6 +1536,10 @@ class _BootstrapState:
     #: folding it into an unrelated bucket.
     requirement_extraction_warnings: list[str] = field(default_factory=list)
     post_integration_acceptance_warnings: list[str] = field(default_factory=list)
+    #: T012 (FR-011): the additive requirement diagnostics, copied through
+    #: from ``_DependencyResolution.requirement_diagnostics`` so both success
+    #: reports can spread it without threading a second parameter.
+    requirement_diagnostics: dict[str, object] = field(default_factory=dict)
 
 
 def _branch_strategy_text(target_branch: str, merge_target_branch: str | None = None) -> str:
@@ -1392,15 +1559,29 @@ def _apply_bootstrap_fields(
     deps: list[str],
     has_dependencies_line: bool,
     requirement_refs: list[str],
-    has_requirement_refs_line: bool,
     target_branch: str,
     merge_target_branch: str | None = None,
     dependencies_string_form: bool = False,
 ) -> tuple[bool, dict[str, object]]:
-    """Apply the 4 always-evaluated bootstrap fields, returning (changed, fields).
+    """Apply the always-evaluated bootstrap fields, returning (changed, fields).
 
     Covers dependencies, planning_base_branch, merge_target_branch,
-    branch_strategy, requirement_refs. Ownership fields are applied separately.
+    branch_strategy. Ownership fields are applied separately.
+
+    ``requirement_refs`` (FR-004, #2991) is deliberately NOT an
+    always-evaluated field: an authored ``requirement_refs`` list is never
+    rewritten, whatever the resolved/classified value looks like. The only
+    write this function ever makes to ``requirement_refs`` is a narrow
+    populate-when-empty one -- when ``wp_meta.requirement_refs`` is empty
+    AND the resolved *requirement_refs* is non-empty (the legacy
+    tasks.md-fallback case: a pre-``wps.yaml`` WP with no authored refs at
+    all). Populating an empty list erases nothing; an authored list -- even
+    one the grammar would reject -- is preserved byte-for-byte. When some
+    OTHER field on this WP changes, ``_flush_frontmatter_writes`` re-dumps
+    the whole ``WPMetadata`` model regardless, which is also what turns a
+    legacy scalar-string ``requirement_refs`` into its canonical YAML list
+    form (items, order and spelling unchanged) without a second write path
+    here.
 
     ``dependencies_string_form`` (set by the bootstrap loop when the raw
     frontmatter stores ``dependencies`` as a legacy string — ``"[]"``,
@@ -1430,7 +1611,9 @@ def _apply_bootstrap_fields(
         changed_fields["branch_strategy"] = branch_strategy
         bld.set(branch_strategy=branch_strategy)
         frontmatter_changed = True
-    if not has_requirement_refs_line or list(wp_meta.requirement_refs) != requirement_refs:
+    # FR-004 (#2991): populate-when-empty ONLY -- an authored (non-empty)
+    # requirement_refs is never touched, even when the resolved refs differ.
+    if not wp_meta.requirement_refs and requirement_refs:
         changed_fields["requirement_refs"] = requirement_refs
         bld.set(requirement_refs=requirement_refs)
         frontmatter_changed = True
@@ -1501,6 +1684,7 @@ def _run_bootstrap_loop(
     state = _BootstrapState(
         ownership_warnings=list(concern_coverage_warnings),
         requirement_extraction_warnings=list(requirement_extraction_warnings),
+        requirement_diagnostics=dep_resolution.requirement_diagnostics,
     )
     wp_dependencies = dep_resolution.wp_dependencies
     wp_requirement_refs = dep_resolution.wp_requirement_refs
@@ -1514,7 +1698,6 @@ def _run_bootstrap_loop(
 
         raw_content = wp_file.read_text(encoding="utf-8")
         has_dependencies_line = _raw_frontmatter_has_field(raw_content, "dependencies")
-        has_requirement_refs_line = _raw_frontmatter_has_field(raw_content, "requirement_refs")
         # #3941: a legacy string-form dependencies value ("[]", "WP01, WP02",
         # bare WP01) parses to the same list WPMetadata would write, so the
         # value comparison alone never flags it — normalize it to the
@@ -1547,7 +1730,6 @@ def _run_bootstrap_loop(
             deps=deps,
             has_dependencies_line=has_dependencies_line,
             requirement_refs=requirement_refs,
-            has_requirement_refs_line=has_requirement_refs_line,
             target_branch=target_branch,
             merge_target_branch=merge_target_branch,
             dependencies_string_form=dependencies_string_form,
@@ -1953,6 +2135,7 @@ def _emit_validate_only_report(
                     else "All validations passed. Run without --validate-only to commit."
                 )
             ),
+            **state.requirement_diagnostics,
         }
         _add_planning_commit_to_validation_report(report, planning_sha)
         if planning_sha is not None:
@@ -3404,6 +3587,7 @@ def _emit_success_report(
             },
             "planning_commit": _planning_commit_payload(planning_sha, lanes_manifest),
             **({"commit_diagnostic": commit_outcome.diagnostic} if commit_outcome.diagnostic is not None else {}),
+            **state.requirement_diagnostics,
         }
     )
 
@@ -3973,10 +4157,6 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             requirement_extraction_warnings,
             spec_content,
         ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
-        requirement_extraction_warnings = [
-            *requirement_extraction_warnings,
-            *find_discarded_sc_refs(tasks_dir),
-        ]
 
         # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
         # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
@@ -4001,7 +4181,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
 
         wp_files = list(tasks_dir.glob("WP*.md"))
         wp_ids = _extract_wp_ids_from_task_files(wp_files)
-        _validate_requirement_mapping(
+        dep_resolution.requirement_diagnostics = _validate_requirement_mapping(
             wp_ids,
             dep_resolution.wp_requirement_refs,
             all_spec_requirement_ids,

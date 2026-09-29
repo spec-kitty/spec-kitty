@@ -1374,7 +1374,12 @@ class TestAtomicTaskSteps:
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert len(failures) == 1
-        assert "unknown refs: WP01: FR-999" in failures[0]
+        # WP04/FR-010: the "unknown refs: WP: ref" bucket is replaced, in the
+        # same position, by "rejected refs: WP: ref (<reason>)" naming the
+        # shared reason. WP01's only ref is rejected, so it has no accepted
+        # ref and is also reported missing (T021 step 6).
+        assert "missing refs for WPs: WP01" in failures[0]
+        assert "rejected refs: WP01: FR-999 (unknown_spec_id)" in failures[0]
 
     @pytest.mark.git_repo
     def test_requirement_mapping_preflight_noop_when_no_tasks_dir(self, tmp_path: Path) -> None:

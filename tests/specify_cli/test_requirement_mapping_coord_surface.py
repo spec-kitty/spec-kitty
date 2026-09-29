@@ -57,7 +57,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.requirement_mapping import (
     compute_coverage,
-    read_all_wp_requirement_refs,
+    read_all_wp_raw_requirement_refs,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -218,7 +218,13 @@ def test_map_resolves_primary_planning_surface_on_coord_topology(
 
     # Cross-command consequence: reading the WP frontmatter through the
     # seam-resolved PRIMARY surface yields FULL coverage — zero unmapped FRs.
-    refs = read_all_wp_requirement_refs(map_feature_dir / "tasks")
+    # WP06 (requirement-id-grammar-01M3NRCA, C6/F13 disposal): the typed
+    # normalizing reader this test used (``read_all_wp_requirement_refs``)
+    # was deleted with its zero product callers; the raw reader is
+    # equivalent here since every seeded ref is already well-formed and
+    # canonical (``compute_coverage`` canonicalises via ``grammar.canonical``
+    # regardless of reader).
+    refs = read_all_wp_raw_requirement_refs(map_feature_dir / "tasks")
     coverage = compute_coverage(refs, _FUNCTIONAL_IDS)
     assert coverage["unmapped_functional"] == []
 
@@ -226,7 +232,7 @@ def test_map_resolves_primary_planning_surface_on_coord_topology(
     # pre-#2115 coord-routed read resolved) has an EMPTY ``tasks/`` — reading
     # THERE would surface every FR as unmapped (the spurious-unmapped class of
     # bug). map_requirements no longer routes there.
-    coord_refs = read_all_wp_requirement_refs(finalize_feature_dir / "tasks")
+    coord_refs = read_all_wp_raw_requirement_refs(finalize_feature_dir / "tasks")
     coord_coverage = compute_coverage(coord_refs, _FUNCTIONAL_IDS)
     assert sorted(coord_coverage["unmapped_functional"]) == sorted(_FUNCTIONAL_IDS)
 

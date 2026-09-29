@@ -51,6 +51,7 @@ import typer
 from click.testing import Result
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.orchestrator_api.commands import app
 from tests._factories import provision_test_charter
 
@@ -169,6 +170,7 @@ _PLAN_SUCCESS_DATA_KEYS = frozenset(
         "plan_file",
         "plan_substantive",
         "planning_base_branch",
+        "requirement_id_warnings",  # additive, FR-014/NFR-002 (requirement-id-grammar-01M3NRCA WP05)
         "result",
         "runtime_vars",
         "scaffold_only",
@@ -202,6 +204,12 @@ _TASKS_SUCCESS_DATA_KEYS = frozenset(
         "unchanged_wps",
         "updated_wp_count",
         "wp_count",
+        # WP02 (requirement-id-grammar-01M3NRCA, FR-011/NFR-002): additive
+        # finalize-tasks diagnostic keys, passed through unchanged by the
+        # `tasks` verb.
+        "parsed_spec_ids",
+        "rejected_requirement_refs",
+        "success_criteria_coverage",
     }
 )
 
@@ -669,3 +677,217 @@ def test_specify_plan_tasks_success_data_key_shape_is_pinned(tmp_path: Path) -> 
     tasks_envelope = _envelope(tasks_result)
     assert tasks_envelope["success"] is True, tasks_envelope
     assert set(tasks_envelope["data"].keys()) == _TASKS_SUCCESS_DATA_KEYS
+
+
+# ---------------------------------------------------------------------------
+# WP05 (requirement-id-grammar-01M3NRCA) — US4 AC1-AC4: setup-plan requirement-
+# ID check + orchestrator-api ``plan`` parity (FR-013/FR-014/FR-015/C-009).
+#
+# RED on the WP01 base (T024/T025/T026 not yet landed): AC1 proceeds instead
+# of refusing, AC3's payload carries no ``requirement_id_warnings`` key, AC4
+# is enveloped as success instead of ``PLAN_SETUP_FAILED``, and
+# ``test_requirement_id_lint.py``'s ``lint_spec_requirement_ids`` import fails
+# at collection. AC2 is the positive control and is already green on the base
+# (a spec with no malformed declared ID proceeds today).
+# ---------------------------------------------------------------------------
+
+_WP05_MALFORMED_SPEC = """# Spec — WP05 requirement-ID lint
+
+## Functional Requirements
+
+| ID | Title | Description | Priority | Status |
+|----|-------|-------------|----------|--------|
+| FR-001 | Do the thing | Users can do the thing end to end. | High | Open |
+
+## User Scenarios
+A user does the thing via the orchestrator-api. See FR-099 for background,
+and other-mission-01KAAAAA#FR-013 is a foreign citation that must never warn.
+
+### Constraints
+
+| ID | Title | Constraint | Category | Priority | Status |
+|----|-------|------------|----------|----------|--------|
+| C-007-mission | Scoped constraint | Real description text. | Technical | High | Open |
+"""
+
+_WP05_CORRECTED_SPEC = _WP05_MALFORMED_SPEC.replace("C-007-mission", "C-007")
+
+
+def _run_host_cli(repo: Path, args: list[str]) -> Result:
+    """Invoke the real host-CLI ``agent mission`` app with cwd pinned at ``repo``."""
+    with contextlib.chdir(repo):
+        return runner.invoke(mission_app, args, catch_exceptions=False)
+
+
+def _first_json_object(output: str) -> dict[str, Any]:
+    """The first ``{``-led line of *output*, parsed as JSON (mirrors ``_envelope``)."""
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("{"):
+            return cast("dict[str, Any]", json.loads(stripped))
+    raise AssertionError(f"no JSON object line found in output: {output!r}")
+
+
+def test_setup_plan_refuses_malformed_declared_requirement_id(tmp_path: Path) -> None:
+    """AC1: a malformed declared ID refuses with the exact contract payload."""
+    repo = _init_repo(tmp_path)
+    created = _specify(repo, "wp05-ac1")
+    assert created["success"] is True, created
+    mission_slug = created["data"]["mission_slug"]
+    feature_dir = Path(created["data"]["feature_dir"])
+    spec_file = Path(created["data"]["spec_file"])
+    spec_file.write_text(_WP05_MALFORMED_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "malformed spec")
+
+    result = _run_host_cli(repo, ["setup-plan", "--mission", mission_slug, "--json"])
+
+    assert result.exit_code == 1, result.output
+    payload = _first_json_object(result.output)
+    assert payload["error_code"] == "SPEC_REQUIREMENT_IDS_INVALID"
+    ids = payload["invalid_requirement_ids"]
+    entry = next(item for item in ids if item["token"] == "C-007-mission")
+    assert entry["line"] > 0
+    assert entry["rule"]
+    assert not (feature_dir / "plan.md").exists()
+
+
+def test_setup_plan_proceeds_after_correcting_declared_requirement_id(tmp_path: Path) -> None:
+    """AC2: the same fixture, corrected, proceeds (positive control)."""
+    repo = _init_repo(tmp_path)
+    created = _specify(repo, "wp05-ac2")
+    assert created["success"] is True, created
+    mission_slug = created["data"]["mission_slug"]
+    feature_dir = Path(created["data"]["feature_dir"])
+    spec_file = Path(created["data"]["spec_file"])
+    spec_file.write_text(_WP05_CORRECTED_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "corrected spec")
+
+    result = _run_host_cli(repo, ["setup-plan", "--mission", mission_slug, "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = _first_json_object(result.output)
+    assert "error_code" not in payload
+    assert (feature_dir / "plan.md").exists()
+
+
+def test_setup_plan_warns_on_undeclared_prose_requirement_id(tmp_path: Path) -> None:
+    """AC3: an undeclared prose token warns without blocking; qualified
+    citations never warn."""
+    repo = _init_repo(tmp_path)
+    created = _specify(repo, "wp05-ac3")
+    assert created["success"] is True, created
+    mission_slug = created["data"]["mission_slug"]
+    spec_file = Path(created["data"]["spec_file"])
+    spec_file.write_text(_WP05_CORRECTED_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "corrected spec")
+
+    result = _run_host_cli(repo, ["setup-plan", "--mission", mission_slug, "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = _first_json_object(result.output)
+    warnings = payload["requirement_id_warnings"]
+    assert any(w["token"] == "FR-099" for w in warnings)
+    assert all(w["token"] != "FR-013" for w in warnings)
+
+
+def test_orchestrator_plan_envelope_carries_requirement_id_reason(tmp_path: Path) -> None:
+    """AC4: the orchestrator-api ``plan`` verb keeps the contract-registered
+    ``PLAN_SETUP_FAILED`` envelope and carries the reason + IDs in ``data``."""
+    from specify_cli.core.contract_gate import is_allowed_error_code
+
+    repo = _init_repo(tmp_path)
+    created = _specify(repo, "wp05-ac4")
+    assert created["success"] is True, created
+    mission_slug = created["data"]["mission_slug"]
+    spec_file = Path(created["data"]["spec_file"])
+    spec_file.write_text(_WP05_MALFORMED_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "malformed spec")
+
+    result = _run(repo, ["plan", "--mission", mission_slug, "--policy", _POLICY])
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "PLAN_SETUP_FAILED"
+    assert is_allowed_error_code("orchestrator_api", envelope["error_code"])
+    data = envelope["data"]
+    assert data["reason"] == "SPEC_REQUIREMENT_IDS_INVALID"
+    assert data["invalid_requirement_ids"]
+
+    # Positive control: after correction, plan succeeds and carries the
+    # additive requirement_id_warnings key.
+    spec_file.write_text(_WP05_CORRECTED_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "corrected spec")
+
+    ok_result = _run(repo, ["plan", "--mission", mission_slug, "--policy", _POLICY])
+    ok_envelope = _envelope(ok_result)
+    assert ok_envelope["success"] is True, ok_envelope
+    assert "requirement_id_warnings" in ok_envelope["data"]
+
+
+# ---------------------------------------------------------------------------
+# T026 (requirement-id-grammar-01M3NRCA WP05) — _plan_contract_error helper
+# unit coverage. No git/subprocess needed for these; module-level function
+# calls only.
+# ---------------------------------------------------------------------------
+
+
+def test_plan_contract_error_remaps_an_unregistered_delegate_code() -> None:
+    from specify_cli.orchestrator_api import commands
+
+    code, data = commands._plan_contract_error("SPEC_REQUIREMENT_IDS_INVALID", {"error": "bad ids"})
+
+    assert code == commands._PLAN_SETUP_FAILED_FALLBACK
+    assert code == "PLAN_SETUP_FAILED"
+    assert data["reason"] == "SPEC_REQUIREMENT_IDS_INVALID"
+    assert data["error"] == "bad ids"
+
+
+def test_plan_contract_error_passes_through_a_registered_code_unchanged() -> None:
+    """Positive control: a registered code (including its own fallback) is
+    returned verbatim, with no ``reason`` key added."""
+    from specify_cli.orchestrator_api import commands
+
+    code, data = commands._plan_contract_error("PLAN_SETUP_FAILED", {"message": "m"})
+
+    assert code == "PLAN_SETUP_FAILED"
+    assert data == {"message": "m"}
+    assert "reason" not in data
+
+
+def test_plan_contract_error_remaps_the_pre_existing_spec_file_missing_leak() -> None:
+    """Documents the latent-leak fix: SPEC_FILE_MISSING is unregistered for
+    orchestrator_api too, so it is remapped exactly like WP05's own code."""
+    from specify_cli.orchestrator_api import commands
+
+    code, data = commands._plan_contract_error("SPEC_FILE_MISSING", {"error": "no spec"})
+
+    assert code == "PLAN_SETUP_FAILED"
+    assert data["reason"] == "SPEC_FILE_MISSING"
+
+
+def test_plan_setup_failed_fallback_is_itself_a_registered_code() -> None:
+    from specify_cli.core.contract_gate import is_allowed_error_code
+    from specify_cli.orchestrator_api import commands
+
+    assert is_allowed_error_code("orchestrator_api", commands._PLAN_SETUP_FAILED_FALLBACK)
+
+
+def test_classify_delegate_error_shared_helper_is_unchanged_for_other_verbs() -> None:
+    """``tasks``/``specify`` still share ``_classify_delegate_error``
+    unmodified -- T026 only wraps ``plan``'s own call site with
+    ``_plan_contract_error``, never the shared classifier itself."""
+    from specify_cli.orchestrator_api import commands
+
+    code, message, data = commands._classify_delegate_error(
+        {"error_code": "SPEC_FILE_MISSING", "error": "x"},
+        "",
+        fallback_code="TASKS_FINALIZE_FAILED",
+        fallback_message="m",
+    )
+
+    assert code == "SPEC_FILE_MISSING"

@@ -55,7 +55,7 @@ from specify_cli.cli.commands.agent.tasks_mapping_core import (
     MappingRequest,
 )
 from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
-from specify_cli.requirement_mapping import CoverageSummary
+from specify_cli.requirement_mapping import CoverageSummary, grammar
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 #: ``actor`` recorded on the ``tracker_refs`` ``InnerStateChanged`` annotation
@@ -63,18 +63,54 @@ from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 #: sibling agent commands (e.g. ``mission.FINALIZE_TASKS_COMMAND_NAME``).
 MAP_REQUIREMENTS_COMMAND_NAME = "spec-kitty agent tasks map-requirements"
 
+#: requirement-id-grammar-01M3NRCA WP03 (FR-012, Sonar S1192): the ONE hint
+#: naming the grammar, composed from :data:`grammar.RULE_TEXT` rather than
+#: restating the retired per-kind rule text locally (C-001 -- this string
+#: has no ``<kind>-\d`` shape, so it never trips the single-source
+#: pattern-literal gate). Every refusal site below (the
+#: pre-write malformed gate and the post-write stale gate, JSON and console
+#: legs alike) derives from this ONE constant.
+_REQUIREMENT_ID_GRAMMAR_HINT = (
+    f"Requirement IDs must match {grammar.RULE_TEXT} with kind FR, NFR, C or SC (e.g. FR-003, FR-003a, SC-001); cite another mission's ID as <mission-slug>#<ID>."
+)
+
+#: The post-write stale-gate hint: the grammar hint plus the reason
+#: explanation plus the ``--replace`` recovery example.
+_STALE_REFS_HINT = (
+    f"{_REQUIREMENT_ID_GRAMMAR_HINT} 'malformed' refs violate that format; "
+    "'unknown_spec_id' refs are well-formed but not declared in spec.md "
+    "(see parsed_spec_ids). Re-run with --replace to correct, "
+    "e.g.: map-requirements --wp WP01 --refs FR-001 --replace"
+)
+
+
+def _mr_sorted_spec_ids(spec_ids: set[str]) -> list[str]:
+    """``sorted(spec_ids)`` -- shared between the pre-write and stale gates."""
+    return sorted(spec_ids)
+
+
+def _canonical_input_refs(refs: list[str]) -> list[str]:
+    """Canonicalise operator-supplied refs through the grammar (FR-006).
+
+    A token the grammar cannot parse is passed through VERBATIM (never
+    uppercased), so the pre-write gate reports exactly what the author typed
+    (``bogus`` stays ``bogus``, ``FR_001`` stays ``FR_001``). A well-formed
+    token (SC, letter-suffixed, or foreign-qualified included) is rendered in
+    its canonical form.
+    """
+    return [grammar.canonical(ref) or ref for ref in refs]
+
 
 def _default_map_requirements_ports(target_branch: str | None) -> TasksPorts:
     """Production port bundle for ``map_requirements`` (coord router bound to tasks.py)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     return TasksPorts(
         fs=_tasks.RealFsReader(),
         # map_requirements threads the resolved ``target_branch`` into
         # ``commit_for_mission`` (ff-advance parity) and routes only the commit
         # seam through ``tasks`` (it inherited the base ``commit_status``).
-        coord=_tasks.seam_coord_router(
-            thread_target_branch=True, target_branch=target_branch
-        ),
+        coord=_tasks.seam_coord_router(thread_target_branch=True, target_branch=target_branch),
         git=_tasks.RealGitOps(),
         render=_tasks.RealRender(),
     )
@@ -137,6 +173,7 @@ class _MapReqState:
 def _mr_validate_modes(st: _MapReqState) -> None:
     """Phase A: the operator-mode gates (batch vs wp/refs vs tracker-only)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     # T040 / FR-011 (F-10): tracker_ref values are persisted alongside
     # requirement_refs.  --tracker-ref is repeatable and requires --wp.
     st.tracker_ref_values = [t.strip() for t in (st.tracker_ref or []) if t and t.strip()]
@@ -168,6 +205,7 @@ def _mr_validate_modes(st: _MapReqState) -> None:
 def _mr_resolve_context(st: _MapReqState) -> None:
     """Phase B: repo/mission/target-branch resolution + the protected-branch gate."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     repo_root = _tasks.locate_project_root()
     if repo_root is None:
         _tasks._output_error(st.json_output, "Could not locate project root")
@@ -177,15 +215,9 @@ def _mr_resolve_context(st: _MapReqState) -> None:
     # FR-010 / FR-019: one-shot sparse-checkout session warning.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks map-requirements")
 
-    st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-    )
-    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
-        repo_root, st.mission_slug, st.json_output
-    )
-    st.auto_commit_on = (
-        _tasks.get_auto_commit_default(st.main_repo_root) if st.auto_commit is None else st.auto_commit
-    )
+    st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
+    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
+    st.auto_commit_on = _tasks.get_auto_commit_default(st.main_repo_root) if st.auto_commit is None else st.auto_commit
     st.commit_target = CommitTarget(ref=st.target_branch)
     if st.auto_commit_on:
         from specify_cli.coordination.commit_router import _resolve_planning_placement
@@ -193,9 +225,7 @@ def _mr_resolve_context(st: _MapReqState) -> None:
         # map-requirements edits WP prompt files → WORK_PACKAGE_TASK (primary)
         # (write-surface-coherence WP02 / T009). Resolve the destination through
         # the kind authority instead of the hardcoded target_branch above.
-        st.commit_target = _resolve_planning_placement(
-            st.main_repo_root, st.mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+        st.commit_target = _resolve_planning_placement(st.main_repo_root, st.mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
         protected_error = _tasks._protected_branch_status_commit_error(
             st.commit_target.ref,
             st.main_repo_root,
@@ -209,6 +239,7 @@ def _mr_resolve_context(st: _MapReqState) -> None:
 def _mr_build_new_mappings(st: _MapReqState) -> None:
     """Phase C(i): build the per-WP new-mapping dict from the active input mode."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     if st.batch:
         try:
             parsed_batch = json.loads(st.batch)
@@ -225,7 +256,7 @@ def _mr_build_new_mappings(st: _MapReqState) -> None:
                     f"Refs for {wp_id} must be a list of strings",
                 )
                 raise typer.Exit(1)
-            st.new_mappings[wp_id.upper()] = [ref.upper() for ref in ref_list]
+            st.new_mappings[wp_id.upper()] = _canonical_input_refs(ref_list)
     elif st.tracker_only_mode:
         # Only --wp + --tracker-ref: no requirement refs to validate, but we still
         # register the WP key so the persistence loop visits it.
@@ -236,12 +267,13 @@ def _mr_build_new_mappings(st: _MapReqState) -> None:
             _tasks._output_error(st.json_output, "Both --wp and --refs are required in individual mode.")
             raise typer.Exit(1)
         ref_list_parsed = [ref.strip() for ref in st.refs.split(",") if ref.strip()]
-        st.new_mappings[st.wp.upper()] = [ref.upper() for ref in ref_list_parsed]
+        st.new_mappings[st.wp.upper()] = _canonical_input_refs(ref_list_parsed)
 
 
 def _mr_unknown_wp_gate(st: _MapReqState) -> None:
     """Phase C(ii): reject WP ids the tasks/ dir does not carry."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     existing_wps: set[str] = set()
     if st.tasks_dir.exists():
         for wp_file in st.tasks_dir.glob("WP*.md"):
@@ -323,12 +355,7 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     # files are WORK_PACKAGE_TASK — a PRIMARY-partition kind. Resolve the read dir
     # through the kind-aware seam (the SAME single authority WP01 routed the rest
     # of the gate reads onto) instead of the topology-routed ``feature_dir``.
-    st.tasks_dir = (
-        placement_seam(st.main_repo_root, st.mission_slug).read_dir(
-            MissionArtifactKind.WORK_PACKAGE_TASK
-        )
-        / "tasks"
-    )
+    st.tasks_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
     _mr_unknown_wp_gate(st)
 
 
@@ -351,21 +378,25 @@ def _mr_detect_bare_prose_requirement_ids(spec_content: str) -> frozenset[str]:
         candidates = find_bare_prose_requirement_ids(spec_content)
         return frozenset(req_id for candidate in candidates for req_id in candidate.ids)
     except Exception as exc:  # noqa: BLE001 -- fail-loud: converted below into an explicit, non-empty failure, never swallowed
-        return frozenset(
-            {f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"}
-        )
+        return frozenset({f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"})
 
 
 def _mr_plan(st: _MapReqState) -> None:
     """Phase D: freeze the reads and run the pure WP04 ``plan_mapping`` core."""
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.requirement_mapping import read_all_wp_requirement_refs
+    from specify_cli.requirement_mapping import read_all_wp_raw_requirement_refs
 
-    # WP04 (FR-005 / FR-002): resolve the reads the pure mapping core consumes —
-    # existing per-WP refs (the ONE read feeding BOTH the union-merge base and the
-    # coverage projection) + the tasks.md union fallback — then let ``plan_mapping``
-    # own the FR↔WP mapping, new-ref validation, and coverage decision.
-    existing_all_refs = read_all_wp_requirement_refs(st.tasks_dir)
+    # WP04 (FR-005 / FR-002), re-pointed by requirement-id-grammar-01M3NRCA WP03
+    # (FR-005, T017): the merge base is now the RAW stored items (WP01's unified
+    # raw reader, the same one finalize-tasks/the runtime classify) rather than
+    # the normalising typed-frontmatter reader (deleted, zero product callers,
+    # WP06 C6/F13) -- a letter-suffixed, SC, or foreign-qualified item survives
+    # byte-identical instead of being silently dropped or respelled before
+    # ``plan_mapping`` ever sees it. This
+    # ONE read feeds BOTH the union-merge base and the coverage projection;
+    # ``plan_mapping`` owns the FR↔WP mapping, new-ref verdicts, and coverage
+    # decision.
+    existing_all_refs = read_all_wp_raw_requirement_refs(st.tasks_dir)
     tasks_md_refs: dict[str, list[str]] = {}
     tasks_md_file = st.feature_dir / TASKS_MD_FILENAME
     if tasks_md_file.exists():
@@ -373,9 +404,7 @@ def _mr_plan(st: _MapReqState) -> None:
             _parse_requirement_refs_from_tasks_md,
         )
 
-        tasks_md_refs = _parse_requirement_refs_from_tasks_md(
-            tasks_md_file.read_text(encoding="utf-8")
-        )
+        tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_md_file.read_text(encoding="utf-8"))
 
     if st.tracker_only_mode:
         _mapping_mode = TRACKER_ONLY_MODE
@@ -403,22 +432,28 @@ def _mr_gate_offenders(st: _MapReqState) -> None:
 
     Malformed FIRST, then unknown — the old inline validate_ref_format/validate_refs
     gate is deleted, not shadowed. Runs BEFORE the write loop, so a bad new ref
-    refuses with NO write.
+    refuses with NO write. ``foreign_qualified`` never reaches either arm — it
+    is not an offender (FR-019).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.mapping_plan is not None
     if st.mapping_plan.offenders.malformed:
         malformed = list(st.mapping_plan.offenders.malformed)
+        parsed_spec_ids = _mr_sorted_spec_ids(st.all_spec_ids)
         payload = {
             "error": "Invalid requirement ref format",
             "malformed_refs": malformed,
-            "hint": "Refs must match FR-NNN, NFR-NNN, or C-NNN format",
+            "parsed_spec_ids": parsed_spec_ids,
+            "hint": _REQUIREMENT_ID_GRAMMAR_HINT,
         }
         if st.json_output:
             render = _tasks.RealRender()
             print(render.json_envelope(payload))
         else:
             _tasks.console.print(f"[red]Error:[/red] Invalid ref format: {', '.join(malformed)}")
+            _tasks.console.print(f"  {_REQUIREMENT_ID_GRAMMAR_HINT}")
+            _tasks.console.print(f"  Parsed spec IDs: {', '.join(parsed_spec_ids) or '(none)'}")
         raise typer.Exit(1)
 
     if st.mapping_plan.offenders.unknown_spec_id:
@@ -498,64 +533,99 @@ def _mr_write_frontmatter(st: _MapReqState) -> None:
             )
 
 
+def _mr_classify_wp_refs(all_wp_raw: dict[str, list[str]], declared: set[str]) -> dict[str, dict[str, list[str]]]:
+    """Classify every raw token per WP into the three rejection-reason buckets.
+
+    Pure (no I/O): one :func:`grammar.classify` verdict per raw token.
+    Returns ``{wp_id: {"malformed": [...], "unknown_spec_id": [...],
+    "foreign_qualified": [...]}}`` — sorted, every WP present in *all_wp_raw*
+    gets all three keys (empty lists where nothing offends), so the shell can
+    both decide whether to refuse (``malformed``/``unknown_spec_id`` present
+    ANYWHERE) and report the full partition (``foreign_qualified`` included)
+    without a second pass. Kept a standalone helper (not folded into
+    :func:`_mr_stale_gate`) to keep that phase at complexity <= 15.
+    """
+    result: dict[str, dict[str, list[str]]] = {}
+    for wp_id, tokens in all_wp_raw.items():
+        buckets: dict[str, list[str]] = {
+            grammar.MALFORMED: [],
+            grammar.UNKNOWN_SPEC_ID: [],
+            grammar.FOREIGN_QUALIFIED: [],
+        }
+        for token in tokens:
+            verdict = grammar.classify(token, declared)
+            if isinstance(verdict, grammar.Rejected):
+                buckets[verdict.reason].append(verdict.raw)
+        for bucket in buckets.values():
+            bucket.sort()
+        result[wp_id] = buckets
+    return result
+
+
+def _mr_accepted_refs_by_wp(all_wp_raw: dict[str, list[str]], declared: set[str]) -> dict[str, list[str]]:
+    """Per-WP ACCEPTED refs, canonical and sorted (FR-019 / #3396 C1).
+
+    Companion to :func:`_mr_classify_wp_refs`: reads through the SAME raw
+    tokens + grammar verdicts, but keeps only the ``Accepted`` leg, so a
+    rejected ref (any reason) is never silently counted as a mapping. A WP
+    with zero accepted refs is omitted, matching the pre-existing
+    ``total_mappings`` shape (only WPs with refs are keyed).
+    """
+    result: dict[str, list[str]] = {}
+    for wp_id, tokens in all_wp_raw.items():
+        accepted = sorted({verdict.requirement_id.canonical for token in tokens if isinstance(verdict := grammar.classify(token, declared), grammar.Accepted)})
+        if accepted:
+            result[wp_id] = accepted
+    return result
+
+
 def _mr_stale_gate(st: _MapReqState) -> None:
     """Phase E(ii): post-write hard-fail on stale/invalid refs across ALL WPs.
 
     Runs AFTER the frontmatter write (original sequence position), so a pre-existing
     stale ref on an untouched WP still refuses (exit 1) with the partial write on
     disk — the exact partial-write-on-refusal behaviour WP04 preserved.
+
+    Verdict table (FR-019): the gate refuses (exit 1) iff any rejected ref's
+    reason is in ``grammar.FAILING_REASONS`` (malformed / unknown_spec_id). A
+    WP set whose only rejected refs are ``foreign_qualified`` passes the
+    stale gate silently — no payload is emitted at all.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.requirement_mapping import (
-        classify_stale_refs,
-        read_all_wp_raw_requirement_refs,
-        validate_ref_format,
-        validate_refs,
-    )
+    from specify_cli.requirement_mapping import read_all_wp_raw_requirement_refs
 
     all_wp_raw = read_all_wp_raw_requirement_refs(st.tasks_dir)
-    all_raw_refs: list[str] = []
-    for ref_list in all_wp_raw.values():
-        all_raw_refs.extend(ref_list)
+    classified = _mr_classify_wp_refs(all_wp_raw, st.all_spec_ids)
 
-    # Raw tokens preserve case; uppercase for comparison.
-    uppercased_raw = [r.upper() for r in all_raw_refs if not r.startswith("<")]
-    _, post_merge_malformed = validate_ref_format(uppercased_raw)
-    _, post_merge_unknown = validate_refs(uppercased_raw, st.all_spec_ids)
     stale_refs: dict[str, list[str]] = {}
-    if post_merge_malformed or post_merge_unknown:
-        bad = set(post_merge_malformed) | set(post_merge_unknown)
-        for wp_id, ref_list in all_wp_raw.items():
-            wp_bad = sorted(token for token in ref_list if token.upper() in bad or token.startswith("<"))
-            if wp_bad:
-                stale_refs[wp_id] = wp_bad
+    stale_ref_reasons: dict[str, dict[str, list[str]]] = {}
+    blocking = False
+    for wp_id, reasons in classified.items():
+        combined = sorted(reasons[grammar.MALFORMED] + reasons[grammar.UNKNOWN_SPEC_ID] + reasons[grammar.FOREIGN_QUALIFIED])
+        if not combined:
+            continue
+        stale_refs[wp_id] = combined
+        stale_ref_reasons[wp_id] = reasons
+        if reasons[grammar.MALFORMED] or reasons[grammar.UNKNOWN_SPEC_ID]:
+            blocking = True
 
-    if not stale_refs:
+    if not blocking:
         return
 
-    # Surface the parsed spec FR set and classify each offender so a simple format
-    # mismatch (e.g. FR-003a) is obvious rather than looking like invented IDs (#2066).
-    stale_ref_reasons = classify_stale_refs(stale_refs, post_merge_malformed)
-    parsed_spec_ids = sorted(st.all_spec_ids)
+    parsed_spec_ids = _mr_sorted_spec_ids(st.all_spec_ids)
     payload = {
         "error": "Stale or invalid refs in WP frontmatter",
         "stale_refs": stale_refs,
         "stale_ref_reasons": stale_ref_reasons,
         "parsed_spec_ids": parsed_spec_ids,
-        "hint": (
-            "Requirement IDs must match FR-NNN, NFR-NNN, or C-NNN "
-            "(e.g. FR-003, not FR-003a). 'malformed' refs violate that format; "
-            "'unknown_spec_id' refs are well-formed but not declared in spec.md "
-            "(see parsed_spec_ids). Re-run with --replace to correct, "
-            "e.g.: map-requirements --wp WP01 --refs FR-001 --replace"
-        ),
+        "hint": _STALE_REFS_HINT,
     }
     if st.json_output:
         render = _tasks.RealRender()
         print(render.json_envelope(payload))
     else:
         _tasks.console.print("[red]Error:[/red] Stale or invalid refs in WP frontmatter:")
-        _tasks.console.print("  IDs must match FR-NNN, NFR-NNN, or C-NNN (e.g. FR-003, not FR-003a).")
+        _tasks.console.print(f"  {_REQUIREMENT_ID_GRAMMAR_HINT}")
         for wp_id, bad_refs in sorted(stale_refs.items()):
             _tasks.console.print(f"  {wp_id}: {', '.join(bad_refs)}")
         _tasks.console.print(f"  Parsed spec IDs: {', '.join(parsed_spec_ids) or '(none)'}")
@@ -572,6 +642,7 @@ def _mr_auto_commit(st: _MapReqState, ports: TasksPorts) -> None:
     ``commit_result`` envelope shape (#1891 / FR-013) is reconstructed byte-identically.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     if not st.auto_commit_on:
         return
     written_files: list[Path] = []
@@ -608,14 +679,21 @@ def _mr_auto_commit(st: _MapReqState, ports: TasksPorts) -> None:
 def _mr_emit_output(st: _MapReqState) -> None:
     """Phase F(ii): reconstruct coverage from the core + emit the success envelope."""
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.requirement_mapping import read_all_wp_requirement_refs
+    from specify_cli.requirement_mapping import read_all_wp_raw_requirement_refs
 
     assert st.mapping_plan is not None
-    # ``total_mappings`` reflects the post-write disk state (unchanged read). The
-    # coverage summary is reconstructed from the core's ``unmapped_fr``: every
+    # ``total_mappings`` reflects the post-write disk state. requirement-id-
+    # grammar-01M3NRCA WP03 (C1): re-pointed from the normalising reader to
+    # the RAW reader + ``grammar.classify`` (:func:`_mr_accepted_refs_by_wp`),
+    # so a rejected ref is never silently dropped from the coverage view --
+    # by the time this phase runs the stale gate has already refused on any
+    # failing (malformed/unknown) ref, and a ``foreign_qualified`` ref is
+    # correctly excluded (it is not this mission's own mapping). The coverage
+    # summary is reconstructed from the core's ``unmapped_fr``: every
     # functional FR is either mapped or unmapped, so ``mapped = total - len(unmapped)``
     # is byte-identical to ``compute_coverage`` over the post-write state (WP04).
-    all_wp_refs = read_all_wp_requirement_refs(st.tasks_dir)
+    all_wp_raw = read_all_wp_raw_requirement_refs(st.tasks_dir)
+    all_wp_refs = _mr_accepted_refs_by_wp(all_wp_raw, st.all_spec_ids)
     coverage: CoverageSummary = {
         "total_functional": len(st.functional_ids),
         "mapped_functional": len(st.functional_ids) - len(st.mapping_plan.unmapped_fr),
@@ -637,6 +715,11 @@ def _mr_emit_output(st: _MapReqState) -> None:
         # merged into ``coverage.unmapped_functional`` (Story 1 / FR-001 / FR-004).
         "bare_prose_requirement_ids": st.mapping_plan.bare_prose_requirement_ids,
     }
+    if st.replace:
+        # requirement-id-grammar-01M3NRCA WP03 (FR-005): additive, ``--replace``-
+        # only key -- the default-mode ``map_requirements_success`` byte
+        # contract must not move (NFR-002).
+        payload["replaced_refs_removed"] = st.mapping_plan.replaced_refs_removed
     if st.json_output:
         render = _tasks.RealRender()
         print(render.json_envelope(payload))
@@ -649,13 +732,14 @@ def _mr_emit_output(st: _MapReqState) -> None:
             _tasks.console.print(f"  [yellow]Unmapped:[/yellow] {', '.join(coverage['unmapped_functional'])}")
         if st.committed:
             _tasks.console.print("[cyan]→ Committed mapping changes[/cyan]")
+        if st.replace:
+            for wp_id, removed in sorted(st.mapping_plan.replaced_refs_removed.items()):
+                if removed:
+                    _tasks.console.print(f"  Removed by --replace: {wp_id}: {', '.join(removed)}")
         for warning in st.requirement_extraction_warnings:
             _tasks.console.print(f"[yellow]Warning:[/yellow] {warning}")
         if st.mapping_plan.bare_prose_requirement_ids:
-            _tasks.console.print(
-                f"  [red]Bare-prose requirement id(s) found, uncounted:[/red] "
-                f"{', '.join(st.mapping_plan.bare_prose_requirement_ids)}"
-            )
+            _tasks.console.print(f"  [red]Bare-prose requirement id(s) found, uncounted:[/red] {', '.join(st.mapping_plan.bare_prose_requirement_ids)}")
 
 
 def _do_map_requirements(
@@ -680,6 +764,7 @@ def _do_map_requirements(
     gate (partial-write-on-refusal timing, NFR-001/WP04).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     st = _MapReqState(
         wp=wp,
         refs=refs,
@@ -740,7 +825,5 @@ def _map_requirements_feature_dir(main_repo_root: Path, mission_slug: str) -> Pa
     # WP03 / FR-001 / C-001: tasks/ is WORK_PACKAGE_TASK (PRIMARY-partition).
     # The topology-blind primary_feature_dir_for_mission never raises, so the
     # caller's existence guard preserves the historical user-facing contract.
-    resolved: Path = placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    resolved: Path = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return resolved

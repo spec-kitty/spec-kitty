@@ -128,6 +128,99 @@ def test_to_write_values_sorted_and_deduped() -> None:
 
 
 # ---------------------------------------------------------------------------
+# requirement-id-grammar-01M3NRCA WP03 (T017): append-only merge -- existing
+# items are kept byte-identical, in place, never re-sorted (FR-005).
+# ---------------------------------------------------------------------------
+
+
+def test_append_only_union_preserves_existing_order_not_sorted() -> None:
+    """FR-005 append-only: order preserved (was sorted). Existing FR-002 stays
+    first; the new FR-001 is appended after it, never re-sorted alphabetically."""
+    plan = plan_mapping(
+        _req(
+            new_mappings={"WP01": ["FR-001"]},
+            mode="wp_refs",
+            replace=False,
+            existing_all_refs={"WP01": ["FR-002"]},
+        )
+    )
+    assert plan.to_write == {"WP01": ["FR-002", "FR-001"]}
+
+
+def test_append_only_dedups_new_ref_by_canonical_form_keeps_stored_spelling() -> None:
+    """An existing ``FR-006A`` plus a new canonical ``FR-006a`` gives ONE item,
+    the original spelling -- dedup is by canonical form, never a respell."""
+    plan = plan_mapping(
+        _req(
+            new_mappings={"WP01": ["FR-006a"]},
+            mode="wp_refs",
+            replace=False,
+            existing_all_refs={"WP01": ["FR-006A"]},
+        )
+    )
+    assert plan.to_write == {"WP01": ["FR-006A"]}
+
+
+def test_append_only_never_collapses_pre_existing_duplicates() -> None:
+    """The never-erase contract includes an author's own pre-existing
+    duplicate -- the merge only guards NEW refs against the existing set,
+    never the reverse."""
+    plan = plan_mapping(
+        _req(
+            new_mappings={"WP01": ["FR-002"]},
+            mode="wp_refs",
+            replace=False,
+            existing_all_refs={"WP01": ["FR-001", "FR-001"]},
+        )
+    )
+    assert plan.to_write == {"WP01": ["FR-001", "FR-001", "FR-002"]}
+
+
+def test_replace_preserves_stored_spelling_over_new_retyped_case() -> None:
+    """``--replace`` never respells: a stored ``FR-006A`` stays ``FR-006A``
+    even though the operator retyped it lowercase (analysis B7)."""
+    plan = plan_mapping(
+        _req(
+            new_mappings={"WP01": ["FR-006a"]},
+            mode="wp_refs",
+            replace=True,
+            existing_all_refs={"WP01": ["FR-006A"]},
+        )
+    )
+    assert plan.to_write == {"WP01": ["FR-006A"]}
+
+
+def test_replaced_refs_removed_lists_dropped_items_only_on_replace() -> None:
+    """``--replace`` reports what it dropped, in original on-disk order; the
+    default (union) leg never populates the field for that WP (positive
+    control below)."""
+    plan = plan_mapping(
+        _req(
+            new_mappings={"WP01": ["FR-001"]},
+            mode="wp_refs",
+            replace=True,
+            existing_all_refs={"WP01": ["FR-009", "FR-001", "NFR-001"]},
+        )
+    )
+    assert plan.to_write == {"WP01": ["FR-001"]}
+    assert plan.replaced_refs_removed == {"WP01": ["FR-009", "NFR-001"]}
+
+
+def test_replaced_refs_removed_empty_on_default_union_mode() -> None:
+    """Positive control: the default (union) merge never drops anything, so
+    ``replaced_refs_removed`` is empty for every WP it touches."""
+    plan = plan_mapping(
+        _req(
+            new_mappings={"WP01": ["FR-002"]},
+            mode="wp_refs",
+            replace=False,
+            existing_all_refs={"WP01": ["FR-001"]},
+        )
+    )
+    assert plan.replaced_refs_removed == {}
+
+
+# ---------------------------------------------------------------------------
 # Modes: batch + tracker_only
 # ---------------------------------------------------------------------------
 
@@ -161,15 +254,15 @@ def test_tracker_only_mode_yields_empty_to_write() -> None:
 
 
 def test_malformed_offender_detected() -> None:
+    # requirement-id-grammar-01M3NRCA WP03: FR-1A now parses (a letter suffix
+    # is well-formed grammar), so it is no longer a malformed-offender fixture.
+    # FR_1 (underscore) genuinely fails to parse.
     plan = plan_mapping(
-        _req(new_mappings={"WP01": ["FR-1A"]}, mode="wp_refs", replace=True)
+        _req(new_mappings={"WP01": ["FR_1"]}, mode="wp_refs", replace=True)
     )
-    assert plan.offenders.malformed == ("FR-1A",)
-    # Faithful to the live command: the spec-membership check is computed over the
-    # SAME refs, so a malformed token is ALSO not in spec → it appears in the
-    # unknown bucket too. The shell gates malformed FIRST, so only the malformed
-    # arm is ever surfaced when both are present.
-    assert plan.offenders.unknown_spec_id == ("FR-1A",)
+    assert plan.offenders.malformed == ("FR_1",)
+    # One reason per ref (FR-010): a malformed ref is never ALSO unknown.
+    assert plan.offenders.unknown_spec_id == ()
 
 
 def test_unknown_spec_id_offender_detected() -> None:
@@ -183,21 +276,21 @@ def test_unknown_spec_id_offender_detected() -> None:
 
 def test_both_offender_buckets_populated() -> None:
     plan = plan_mapping(
-        _req(new_mappings={"WP01": ["FR-1A", "FR-999"]}, mode="wp_refs", replace=True)
+        _req(new_mappings={"WP01": ["FR_1", "FR-999"]}, mode="wp_refs", replace=True)
     )
-    # Mirrors the live command: format-check yields FR-1A; the spec-membership
-    # check (computed over the same refs) rejects both. The shell gates malformed
-    # FIRST, so only the malformed arm is surfaced when both are present.
-    assert plan.offenders.malformed == ("FR-1A",)
-    assert plan.offenders.unknown_spec_id == ("FR-1A", "FR-999")
+    # requirement-id-grammar-01M3NRCA WP03 / FR-010: each ref carries exactly
+    # one reason now -- FR_1 is malformed (raw), FR-999 is unknown_spec_id.
+    assert plan.offenders.malformed == ("FR_1",)
+    assert plan.offenders.unknown_spec_id == ("FR-999",)
 
 
-def test_offenders_preserve_input_order_and_case_folding() -> None:
+def test_offenders_preserve_input_order() -> None:
+    # requirement-id-grammar-01M3NRCA WP03: malformed refs are reported AS
+    # TYPED, never uppercased (FR-010) -- "bogus" stays "bogus".
     plan = plan_mapping(
         _req(new_mappings={"WP01": ["fr-002", "bogus", "fr-001"]}, mode="wp_refs", replace=True)
     )
-    # validate_ref_format uppercases; "BOGUS" is the sole malformed token.
-    assert plan.offenders.malformed == ("BOGUS",)
+    assert plan.offenders.malformed == ("bogus",)
 
 
 # ---------------------------------------------------------------------------

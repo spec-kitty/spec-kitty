@@ -23,6 +23,7 @@ from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.validation import _PLANNING_PREFIXES
+from specify_cli.requirement_mapping import grammar
 from specify_cli.status import WPMetadata
 from kernel.clock import now_utc_stamp
 from kernel.paths import to_posix
@@ -105,31 +106,10 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
             re.IGNORECASE,
         )
         for match in ref_line_matches:
-            refs.extend(ref_id.upper() for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", match, re.IGNORECASE))
+            refs.extend(str(requirement_id) for requirement_id in grammar.find_all(match, spec_scan=False))
         requirement_refs[wp_id] = list(dict.fromkeys(refs))
 
     return requirement_refs
-
-
-def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, list[str]]:
-    """Parse requirement refs directly from WP prompt frontmatter."""
-    from specify_cli.requirement_mapping import normalize_requirement_refs_value
-    from specify_cli.status import read_wp_frontmatter
-
-    parsed: dict[str, list[str]] = {}
-    for wp_file in wp_files:
-        wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
-        if not wp_id_match:
-            continue
-        wp_id = wp_id_match.group(1)
-        try:
-            meta, _ = read_wp_frontmatter(wp_file)
-        except Exception:
-            parsed.setdefault(wp_id, [])
-            continue
-        refs = normalize_requirement_refs_value(meta.requirement_refs)
-        parsed[wp_id] = refs
-    return parsed
 
 
 def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:

@@ -95,14 +95,14 @@
       "--wp",
       "WP01",
       "--refs",
-      "FR-001a",
+      "FR_001",
       "--mission",
       "checkout-latency-audit-01KWG4RZ",
       "--json",
       "--no-auto-commit"
     ],
     "exit_code": 1,
-    "expected_stdout": "{\"error\": \"Invalid requirement ref format\", \"malformed_refs\": [\"FR-001A\"], \"hint\": \"Refs must match FR-NNN, NFR-NNN, or C-NNN format\"}\n"
+    "expected_stdout": "{\"error\": \"Invalid requirement ref format\", \"malformed_refs\": [\"FR_001\"], \"parsed_spec_ids\": [\"FR-001\", \"FR-002\"], \"hint\": \"Requirement IDs must match <kind>-<digits>[<lowercase letter>] with kind FR, NFR, C or SC (e.g. FR-003, FR-003a, SC-001); cite another mission's ID as <mission-slug>#<ID>.\"}\n"
   },
   "map_requirements_unknown_spec_ref_error": {
     "site": "tasks.py:3488 map-requirements/error-unknown-spec-id",
@@ -134,7 +134,7 @@
       "--no-auto-commit"
     ],
     "exit_code": 1,
-    "expected_stdout": "{\"error\": \"Stale or invalid refs in WP frontmatter\", \"stale_refs\": {\"WP02\": [\"FR-002a\"]}, \"stale_ref_reasons\": {\"WP02\": {\"malformed\": [\"FR-002a\"], \"unknown_spec_id\": []}}, \"parsed_spec_ids\": [\"FR-001\", \"FR-002\"], \"hint\": \"Requirement IDs must match FR-NNN, NFR-NNN, or C-NNN (e.g. FR-003, not FR-003a). 'malformed' refs violate that format; 'unknown_spec_id' refs are well-formed but not declared in spec.md (see parsed_spec_ids). Re-run with --replace to correct, e.g.: map-requirements --wp WP01 --refs FR-001 --replace\"}\n"
+    "expected_stdout": "{\"error\": \"Stale or invalid refs in WP frontmatter\", \"stale_refs\": {\"WP02\": [\"FR-002a\"]}, \"stale_ref_reasons\": {\"WP02\": {\"malformed\": [], \"unknown_spec_id\": [\"FR-002a\"], \"foreign_qualified\": []}}, \"parsed_spec_ids\": [\"FR-001\", \"FR-002\"], \"hint\": \"Requirement IDs must match <kind>-<digits>[<lowercase letter>] with kind FR, NFR, C or SC (e.g. FR-003, FR-003a, SC-001); cite another mission's ID as <mission-slug>#<ID>. 'malformed' refs violate that format; 'unknown_spec_id' refs are well-formed but not declared in spec.md (see parsed_spec_ids). Re-run with --replace to correct, e.g.: map-requirements --wp WP01 --refs FR-001 --replace\"}\n"
   },
   "map_requirements_success": {
     "site": "tasks.py:3665 map-requirements/success",

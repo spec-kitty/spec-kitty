@@ -12,9 +12,70 @@ import re
 from pathlib import Path
 from typing import Any, NamedTuple, TypedDict
 
-_REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
-_REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
-_SC_REF_FIND_PATTERN = re.compile(r"\bSC-\d+\b", re.IGNORECASE)
+from specify_cli.requirement_mapping import grammar as grammar
+from specify_cli.requirement_mapping.grammar import (
+    FAILING_REASONS as FAILING_REASONS,
+)
+from specify_cli.requirement_mapping.grammar import (
+    FOREIGN_QUALIFIED as FOREIGN_QUALIFIED,
+)
+from specify_cli.requirement_mapping.grammar import (
+    MALFORMED as MALFORMED,
+)
+from specify_cli.requirement_mapping.grammar import (
+    MALFORMED_DECLARED_LEAD as MALFORMED_DECLARED_LEAD,
+)
+from specify_cli.requirement_mapping.grammar import (
+    RULE_TEXT as RULE_TEXT,
+)
+from specify_cli.requirement_mapping.grammar import (
+    UNKNOWN_SPEC_ID as UNKNOWN_SPEC_ID,
+)
+from specify_cli.requirement_mapping.grammar import (
+    Accepted as Accepted,
+)
+from specify_cli.requirement_mapping.grammar import (
+    RefVerdict as RefVerdict,
+)
+from specify_cli.requirement_mapping.grammar import (
+    Rejected as Rejected,
+)
+from specify_cli.requirement_mapping.grammar import (
+    RequirementId as RequirementId,
+)
+from specify_cli.requirement_mapping.grammar import (
+    classify as classify,
+)
+
+# The package re-exports the grammar's public API (plan.md: "re-exports
+# (import path unchanged)"), so ``specify_cli.requirement_mapping.classify``
+# etc. resolve without reaching into the submodule. Several of these names
+# (the verdict machinery: Accepted, Rejected, RefVerdict, classify, the three
+# reason constants, FAILING_REASONS; the lint-only MALFORMED_DECLARED_LEAD
+# and RULE_TEXT) have no consumer inside this WP -- finalize/map-requirements/
+# the runtime wire them in WP02-WP05 (T003's Dead-symbol note). The re-export
+# above is what keeps ``tests/architectural/test_no_dead_symbols.py`` green
+# in the meantime; ``canonical``, ``find_all``, ``tokenize_refs``,
+# ``DECLARED_SHAPE_PATTERNS``, ``blank_html_comments`` and ``parse`` already
+# have real call sites below and need no such re-export.
+
+# --- C-001: the grammar (src/specify_cli/requirement_mapping/grammar.py) is
+# the ONE place that defines a requirement-ID pattern. Everything below reads
+# ids through it; no pattern literal is re-declared here.
+#
+# Two names are kept importable for backward compatibility (T002's surveyed
+# import surface: ``_DECLARED_ID_PATTERNS`` and ``_REF_FIND_PATTERN`` are
+# imported directly by ``tests/specify_cli/test_bare_prose_false_negative_sample.py``):
+#
+# - ``_DECLARED_ID_PATTERNS`` is simply an alias of
+#   :data:`grammar.DECLARED_SHAPE_PATTERNS` (now SC- and suffix-aware).
+# - ``_REF_FIND_PATTERN`` is the grammar-generated LEGACY-COMPAT alias
+#   (unqualified, unsuffixed, no compound check) -- kept ONLY so that frozen
+#   test's own ``finditer``/``group(0)`` scan keeps its pinned figures.
+#   Production code below never uses it; production uses
+#   :func:`grammar.find_all`.
+_DECLARED_ID_PATTERNS = grammar.DECLARED_SHAPE_PATTERNS
+_REF_FIND_PATTERN = grammar._LEGACY_REF_FIND_PATTERN
 
 # --- #3394: declared-requirement scoping -----------------------------------
 #
@@ -52,30 +113,13 @@ _SC_REF_FIND_PATTERN = re.compile(r"\bSC-\d+\b", re.IGNORECASE)
 # durable record of the number and the rationale. See
 # :func:`find_undeclared_requirement_citations` below for the soft,
 # non-blocking warning shipped instead of that rejected hard-fail layer.
-_TABLE_ROW_ID_PATTERN = re.compile(r"^\s*\|\s*(?:\*\*|~~){0,2}((?:FR|NFR|C)-\d+)(?:\*\*|~~){0,2}\s*\|", re.IGNORECASE)
-_HEADING_ID_PATTERN = re.compile(r"^#{1,6}\s*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
-# A leading bullet/number marker is itself the "this is a list item, not a
-# sentence" signal, so bold is OPTIONAL once that marker is present
-# (``- FR-001: ...`` and ``- **FR-001**: ...`` both declare FR-001).
-_BULLET_LEAD_ID_PATTERN = re.compile(r"^\s*(?:[-*]|\d+\.)\s*\*{0,2}((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
-# A bold id leading a bare paragraph (``**FR-001**: text``,
-# ``**FR-001 — Title.** body text``, common across kitty-specs/) also declares
-# FR-001. NOTE (pre-merge SSOT review, 2026-08-18): this pattern is a
-# readability alias -- every line it matches, ``_BULLET_LEAD_ID_PATTERN``
-# already matches (its ``[-*]`` marker slot consumes the first ``*`` and its
-# ``\*{0,2}`` slot the second), so it adds nothing to ``_declared_ids`` /
-# ``find_bare_prose_requirement_ids``. It is kept only to spell the
-# bold-without-bullet case out explicitly; do not assume bold-led paragraphs
-# flow *exclusively* through here. A bare, un-bulleted, un-bolded line opening
-# with an id (``FR-001 must hold...``) matches neither and must NOT count as
-# declared (that is the #3394 bug).
-_BOLD_PARAGRAPH_LEAD_ID_PATTERN = re.compile(r"^\s*\*\*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
-_DECLARED_ID_PATTERNS = (
-    _TABLE_ROW_ID_PATTERN,
-    _HEADING_ID_PATTERN,
-    _BULLET_LEAD_ID_PATTERN,
-    _BOLD_PARAGRAPH_LEAD_ID_PATTERN,
-)
+#
+# WP01 (requirement-id-grammar): every shape now also recognises SC and a
+# single lowercase letter suffix (FR-003), and the scan runs on
+# ``grammar.blank_html_comments(text)`` first, so a declaration inside an
+# HTML comment is not declared (data-model.md "Declared-ID set"). A candidate
+# lead whose text is a compound (``C-007-mission``) is rejected rather than
+# silently truncated to a shorter well-formed prefix.
 
 
 def _declared_ids(spec_content: str) -> set[str]:
@@ -100,18 +144,42 @@ def _declared_ids(spec_content: str) -> set[str]:
     in as declarations, reintroducing #3394.
     """
     found: set[str] = set()
-    for line in spec_content.splitlines():
+    blanked = grammar.blank_html_comments(spec_content)
+    for line in blanked.splitlines():
         for pattern in _DECLARED_ID_PATTERNS:
             match = pattern.match(line)
-            if match is not None:
-                found.add(match.group(1).upper())
-                break
+            if match is None:
+                continue
+            if grammar.is_compound_tail(line, match.end(1)):
+                continue
+            canonical_id = grammar.canonical(match.group(1))
+            if canonical_id is not None:
+                found.add(canonical_id)
+            break
     return found
 
 
+_BARE_PROSE_KINDS: frozenset[str] = frozenset({"FR", "NFR", "C"})
+
+
+def _unqualified_unsuffixed_ids(text: str) -> list[grammar.RequirementId]:
+    """Bare-prose candidate ids: unqualified, unsuffixed FR/NFR/C only (C-009).
+
+    A qualified citation (``slug#FR-001``) is never a candidate; SC and
+    letter-suffixed ids stay out of the bare-prose candidate set, exactly as
+    today -- only the compound-token exclusion (``FR-008-mandated``) can
+    shrink it further (C-009).
+    """
+    return [
+        requirement_id
+        for requirement_id in grammar.find_all(text, spec_scan=True)
+        if requirement_id.mission is None and requirement_id.suffix is None and requirement_id.kind in _BARE_PROSE_KINDS
+    ]
+
+
 def _raw_ref_tokens(text: str) -> set[str]:
-    """Every ``FR-``/``NFR-``/``C-`` token anywhere in ``text`` (pre-#3394 scan)."""
-    return {token.upper() for token in _REF_FIND_PATTERN.findall(text)}
+    """Every unqualified, unsuffixed FR-/NFR-/C- id anywhere in ``text`` (pre-#3394 scan)."""
+    return {requirement_id.canonical for requirement_id in _unqualified_unsuffixed_ids(text)}
 
 
 def _is_requirement_heading(line: str) -> bool:
@@ -185,32 +253,7 @@ def find_undeclared_requirement_citations(spec_content: str) -> list[str]:
     for heading_text, section in _requirement_named_sections(spec_content):
         section_raw_tokens = _raw_ref_tokens(section)
         if section_raw_tokens and not _declared_ids(section):
-            warnings.append(
-                _undeclared_citation_warning(sorted(section_raw_tokens), scope=f"The {heading_text!r} section")
-            )
-    return warnings
-
-
-def _discarded_sc_warning(wp_id: str, sc_tokens: list[str]) -> str:
-    joined = ", ".join(sc_tokens)
-    return (
-        f"{wp_id} declares Success-Criteria token(s) ({joined}) in requirement_refs "
-        "that the FR/NFR/C ref graph does not admit -- they are DROPPED, not traced. "
-        "Success-Criteria ids are not first-class requirement refs; move the coverage "
-        "claim to the WP's success-criteria surface, or restate it as an FR/NFR/C "
-        "requirement if it must be traced."
-    )
-
-
-def find_discarded_sc_refs(tasks_dir: Path) -> list[str]:
-    """Signal ``SC-###`` refs that are silently dropped from the ref graph."""
-    warnings: list[str] = []
-    for wp_id, raw_tokens in read_all_wp_raw_requirement_refs(tasks_dir).items():
-        sc_tokens = sorted(
-            {token.upper() for token in raw_tokens if _SC_REF_FIND_PATTERN.fullmatch(token)}
-        )
-        if sc_tokens:
-            warnings.append(_discarded_sc_warning(wp_id, sc_tokens))
+            warnings.append(_undeclared_citation_warning(sorted(section_raw_tokens), scope=f"The {heading_text!r} section"))
     return warnings
 
 
@@ -369,8 +412,8 @@ def find_bare_prose_requirement_ids(spec_content: str) -> BareProseResult:
         for line in body.splitlines():
             if any(pattern.match(line) for pattern in _DECLARED_ID_PATTERNS):
                 continue
-            for match in _REF_FIND_PATTERN.finditer(line):
-                token = match.group(0).upper()
+            for requirement_id in _unqualified_unsuffixed_ids(line):
+                token = requirement_id.canonical
                 if token not in document_declared and token not in section_ids:
                     section_ids.append(token)
         if section_ids:
@@ -386,74 +429,18 @@ class CoverageSummary(TypedDict):
     unmapped_functional: list[str]
 
 
-def validate_refs(refs: list[str], spec_requirement_ids: set[str]) -> tuple[list[str], list[str]]:
-    """Validate refs against spec.
-
-    Returns:
-        (valid_refs, unknown_refs) — both lists are uppercased.
-    """
-    valid: list[str] = []
-    unknown: list[str] = []
-    for ref in refs:
-        upper = ref.upper()
-        if upper in spec_requirement_ids:
-            valid.append(upper)
-        else:
-            unknown.append(upper)
-    return valid, unknown
-
-
-def validate_ref_format(refs: list[str]) -> tuple[list[str], list[str]]:
-    """Check refs match FR|NFR|C-\\d+ format.
-
-    Returns:
-        (well_formed, malformed) — both lists are uppercased.
-    """
-    well_formed: list[str] = []
-    malformed: list[str] = []
-    for ref in refs:
-        upper = ref.upper()
-        if _REF_PATTERN.match(upper):
-            well_formed.append(upper)
-        else:
-            malformed.append(upper)
-    return well_formed, malformed
-
-
-def classify_stale_refs(
-    stale_refs: dict[str, list[str]],
-    malformed: list[str],
-) -> dict[str, dict[str, list[str]]]:
-    """Split each WP's offending refs into format-malformed vs unknown-spec-id buckets.
-
-    Lets diagnostics explain *why* a ref is stale: a ``malformed`` ref violates the
-    ``FR-NNN`` / ``NFR-NNN`` / ``C-NNN`` shape (e.g. ``FR-003a`` or an unfilled
-    ``<FR-XXX>`` placeholder), whereas an ``unknown_spec_id`` ref is well-formed but
-    not declared in ``spec.md``.
-
-    Args:
-        stale_refs: per-WP offending raw tokens (case preserved).
-        malformed: uppercased tokens that fail the format check (from
-            :func:`validate_ref_format`).
-
-    Returns:
-        ``{wp_id: {"malformed": [...], "unknown_spec_id": [...]}}`` — raw tokens,
-        sorted, each offending token in exactly one bucket.
-    """
-    malformed_set = set(malformed)
-    reasons: dict[str, dict[str, list[str]]] = {}
-    for wp_id, bad_refs in stale_refs.items():
-        wp_malformed = sorted(r for r in bad_refs if r.startswith("<") or r.upper() in malformed_set)
-        wp_unknown = sorted(r for r in bad_refs if not r.startswith("<") and r.upper() not in malformed_set)
-        reasons[wp_id] = {"malformed": wp_malformed, "unknown_spec_id": wp_unknown}
-    return reasons
-
-
 def compute_coverage(mappings: dict[str, list[str]], functional_ids: set[str]) -> CoverageSummary:
-    """Compute coverage summary: total, mapped, unmapped FRs."""
+    """Compute coverage summary: total, mapped, unmapped FRs.
+
+    Matching is by canonical form (C-001); a malformed ref never maps
+    anything.
+    """
     mapped: set[str] = set()
     for refs in mappings.values():
-        mapped.update(ref.upper() for ref in refs)
+        for ref in refs:
+            canonical_form = grammar.canonical(ref)
+            if canonical_form is not None:
+                mapped.add(canonical_form)
     mapped_functional = sorted(mapped & functional_ids)
     unmapped_functional = sorted(functional_ids - mapped)
     return {
@@ -463,62 +450,79 @@ def compute_coverage(mappings: dict[str, list[str]], functional_ids: set[str]) -
     }
 
 
+_KIND_TO_BUCKET: dict[str, str] = {
+    "FR": "functional",
+    "NFR": "non_functional",
+    "C": "constraint",
+    "SC": "success_criteria",
+}
+
+
 def parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
     """Parse DECLARED requirement IDs from spec.md content.
 
     Shared between map-requirements and finalize-tasks.
 
     Scoped to ids the spec genuinely *declares* -- a markdown table row
-    (``| FR-001 | ... |``), a heading naming the id (``### FR-001``), or a
-    bold-led definition (``- **FR-001**: ...``) -- not every
-    ``FR-NNN``/``NFR-NNN``/``C-NNN`` token anywhere in the document (#3394).
-    A spec's prose may cite another mission's already-shipped requirement as
-    background context (e.g. "...easy to miss, see FR-021's default-pack
-    materialization"); that citation is not a requirement THIS spec's work
-    packages must cover, so it is excluded from both keys below.
+    (``| FR-001 | ... |``), a heading naming the id (``### FR-001``), a
+    bulleted/numbered item, or a bold-led definition -- not every
+    ``FR-NNN``/``NFR-NNN``/``C-NNN``/``SC-NNN`` token anywhere in the
+    document (#3394). A spec's prose may cite another mission's
+    already-shipped requirement as background context (e.g. "...easy to
+    miss, see FR-021's default-pack materialization"); that citation is not
+    a requirement THIS spec's work packages must cover, so it is excluded
+    from every key below.
+
+    ``all`` now includes success criteria and letter-suffixed ids (WP01,
+    FR-003); ``functional`` includes suffixed FRs. ``non_functional``,
+    ``constraint`` and ``success_criteria`` are new, each sorted.
 
     Returns:
-        {"all": [...], "functional": [...]} -- "all" is every declared FR/
-        NFR/C id (used to check a WP-declared ref is *known*); "functional"
-        is the FR-prefixed subset (used for FR coverage gating).
+        ``{"all": [...], "functional": [...], "non_functional": [...],
+        "constraint": [...], "success_criteria": [...]}`` -- "all" is every
+        declared id (used to check a WP-declared ref is *known*);
+        "functional" is the FR subset (used for FR coverage gating).
     """
     declared = _declared_ids(spec_content)
-    functional_ids = {req_id for req_id in declared if req_id.startswith("FR-")}
+    buckets: dict[str, list[str]] = {"functional": [], "non_functional": [], "constraint": [], "success_criteria": []}
+    for req_id in declared:
+        requirement_id = grammar.parse(req_id)
+        if requirement_id is None:
+            continue
+        buckets[_KIND_TO_BUCKET[requirement_id.kind]].append(req_id)
     return {
         "all": sorted(declared),
-        "functional": sorted(functional_ids),
+        "functional": sorted(buckets["functional"]),
+        "non_functional": sorted(buckets["non_functional"]),
+        "constraint": sorted(buckets["constraint"]),
+        "success_criteria": sorted(buckets["success_criteria"]),
     }
 
 
-def normalize_requirement_refs_value(value: Any) -> list[str]:
-    """Normalize frontmatter requirement_refs to list[str].
-
-    Handles str, list (of str/int/mixed), None, and empty values.
-    Extracts FR-NNN / NFR-NNN / C-NNN patterns and uppercases them.
-    """
-    refs: list[str] = []
-    if isinstance(value, list):
-        for item in value:
-            if isinstance(item, str):
-                refs.extend(ref_id.upper() for ref_id in _REF_FIND_PATTERN.findall(item))
-    elif isinstance(value, str):
-        refs.extend(ref_id.upper() for ref_id in _REF_FIND_PATTERN.findall(value))
-    return list(dict.fromkeys(refs))
-
-
-def _read_all_wp_refs(
+def _read_wp_frontmatter_values(
     tasks_dir: Path,
-    extractor: Any,
+    load_value: Any,
 ) -> dict[str, list[str]]:
-    """Read requirement_refs from all WP files' frontmatter.
+    """Shared WP*.md frontmatter-scan loop (T001 tidy-first).
+
+    WP06 (requirement-id-grammar-01M3NRCA, C6/F13 disposal): this loop
+    originally served two readers -- the typed-frontmatter
+    ``read_all_wp_requirement_refs`` and the raw-dict
+    ``read_all_wp_raw_requirement_refs``. WP02/WP03/WP04 re-pointed every
+    product caller at the raw reader (classification needs the raw authored
+    tokens, not a pre-normalized/respelled list), leaving the typed reader
+    (and its sole caller, ``normalize_requirement_refs_value``) with zero
+    product callers; both were deleted here (``tests/architectural/
+    test_no_dead_symbols.py`` confirmed the zero-caller state). This shell
+    now has exactly one caller, kept as a named helper because
+    :func:`read_all_wp_raw_requirement_refs` may grow a sibling again.
 
     Args:
         tasks_dir: Directory containing WP*.md files.
-        extractor: Callable(value) -> list[str] applied to the raw
-            ``requirement_refs`` frontmatter value of each WP file.
+        load_value: Callable(wp_file) -> list[str]; any exception it raises
+            yields ``[]`` for that WP (matches the reader's own try/except
+            behaviour).
     """
-    from specify_cli.status import read_wp_frontmatter
-
     result: dict[str, list[str]] = {}
     if not tasks_dir.exists():
         return result
@@ -528,17 +532,10 @@ def _read_all_wp_refs(
             continue
         wp_id = match.group(1)
         try:
-            wp_meta_dict, _ = read_wp_frontmatter(wp_file)
+            result[wp_id] = load_value(wp_file)
         except Exception:
             result[wp_id] = []
-            continue
-        result[wp_id] = extractor(wp_meta_dict.requirement_refs)
     return result
-
-
-def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
-    """Read requirement_refs from all WP files' frontmatter (normalized)."""
-    return _read_all_wp_refs(tasks_dir, normalize_requirement_refs_value)
 
 
 def read_all_wp_raw_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
@@ -546,42 +543,29 @@ def read_all_wp_raw_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
 
     Uses the raw frontmatter dict (not the typed model) so that non-string
     items (e.g. integers) are preserved as ``<NON_STRING:...>`` tokens by
-    :func:`_extract_raw_tokens`.
+    :func:`_extract_raw_tokens`. This is the WP01 unified raw reader: WP02's
+    finalize, WP03's map-requirements and WP04's runtime all classify its
+    output, so its name and ``dict[wp_id, list[str]]`` raw-token shape are
+    load-bearing.
     """
     from specify_cli.frontmatter import FrontmatterManager
 
-    result: dict[str, list[str]] = {}
-    if not tasks_dir.exists():
-        return result
     fm = FrontmatterManager()
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
-        match = re.match(r"(WP\d{2})", wp_file.name)
-        if not match:
-            continue
-        wp_id = match.group(1)
-        try:
-            raw_dict, _ = fm.read(wp_file)
-        except Exception:  # MIGRATION-ONLY: raw dict access is intentional here
-            result[wp_id] = []
-            continue
-        result[wp_id] = _extract_raw_tokens(raw_dict.get("requirement_refs"))  # MIGRATION-ONLY: raw dict access is intentional here
-    return result
+
+    def _load(wp_file: Path) -> list[str]:
+        raw_dict, _ = fm.read(wp_file)  # MIGRATION-ONLY: raw dict access is intentional here
+        return _extract_raw_tokens(raw_dict.get("requirement_refs"))  # MIGRATION-ONLY: raw dict access is intentional here
+
+    return _read_wp_frontmatter_values(tasks_dir, _load)
 
 
 def _extract_raw_tokens(value: Any) -> list[str]:
     """Extract individual tokens from a frontmatter value, preserving case.
 
-    Case is preserved so that diagnostics can show exactly what was written
-    (e.g. ``BOGUS`` vs ``bogus``).  Callers that need uppercased tokens for
-    comparison should uppercase themselves.
+    Delegates to :func:`grammar.tokenize_refs` (T004 step 9; C-001: the one
+    tokenisation of ``requirement_refs``). Case is preserved so that
+    diagnostics can show exactly what was written (e.g. ``BOGUS`` vs
+    ``bogus``). Callers that need uppercased tokens for comparison should
+    uppercase themselves.
     """
-    tokens: list[str] = []
-    if isinstance(value, list):
-        for item in value:
-            if isinstance(item, str):
-                tokens.extend(token for token in re.split(r"[,\s]+", item) if token.strip())
-            else:
-                tokens.append(f"<NON_STRING:{item}>")
-    elif isinstance(value, str):
-        tokens.extend(token for token in re.split(r"[,\s]+", value) if token.strip())
-    return tokens
+    return grammar.tokenize_refs(value)

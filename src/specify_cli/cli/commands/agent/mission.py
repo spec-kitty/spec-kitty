@@ -134,7 +134,6 @@ from specify_cli.cli.commands.agent.mission_parsing import (
     _owned_files_yaml_is_explicit_empty_list as _owned_files_yaml_is_explicit_empty_list,
     _parse_requirement_ids_from_spec_md as _parse_requirement_ids_from_spec_md,
     _parse_requirement_refs_from_tasks_md as _parse_requirement_refs_from_tasks_md,
-    _parse_requirement_refs_from_wp_files as _parse_requirement_refs_from_wp_files,
     _raw_frontmatter_has_field as _raw_frontmatter_has_field,
 )
 

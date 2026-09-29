@@ -1,13 +1,17 @@
 """WP07 (design-phase-orchestrator-api-01M1HE6M) -- CONTRACT_VERSION bump to
 1.4.0.
 
-(Superseded: the pin below now reads ``1.7.0`` after WP03 of
-accept-fails-closed-01M3HS4V (#4934) made ``accept-mission`` apply the host
-readiness verdict (a behavioural tightening, not purely additive); the 1.4.0
-narrative is kept as the WP's historical record. It was previously
-superseded to ``1.5.0`` by the ``tasks`` pass-through ``planning_commit``
-object (#4141), then to ``1.6.0`` by the ``planning_commit.action``
-vocabulary gaining ``"repinned"`` (#4827).)
+(Superseded: the pin below now reads ``1.8.0`` after WP06 of
+requirement-id-grammar-01M3NRCA made the ``tasks`` verb's pass-through
+``data`` additive (``parsed_spec_ids`` / ``rejected_requirement_refs`` /
+``success_criteria_coverage``) and the ``plan`` verb's ``data`` additive
+(``requirement_id_warnings``) plus remapped its previously-unregistered
+delegate error codes onto the closed ``PLAN_SETUP_FAILED`` envelope with
+``data.reason``; the 1.4.0 narrative is kept as the WP's historical record.
+It was previously superseded to ``1.5.0`` by the ``tasks`` pass-through
+``planning_commit`` object (#4141), then to ``1.6.0`` by the
+``planning_commit.action`` vocabulary gaining ``"repinned"`` (#4827), then to
+``1.7.0`` by ``accept-mission`` applying the host readiness verdict (#4934).)
 
 ``CONTRACT_VERSION`` is currently ``"1.3.0"`` (envelope.py:28), so this test
 is authentically RED before this WP's change: it pins the new value AND that
@@ -61,13 +65,13 @@ _NEW_VERBS = (
 )
 
 
-def test_contract_version_response_reports_1_7_0() -> None:
+def test_contract_version_response_reports_1_8_0() -> None:
     result = runner.invoke(app, ["contract-version"])
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is True
-    assert envelope["data"]["api_version"] == "1.7.0"
-    assert envelope["contract_version"] == "1.7.0"
+    assert envelope["data"]["api_version"] == "1.8.0"
+    assert envelope["contract_version"] == "1.8.0"
 
 
 def test_min_provider_version_unchanged() -> None:
@@ -82,7 +86,7 @@ def test_changelog_comment_names_all_eleven_new_verbs() -> None:
     Guidance, WP07 task file)."""
     source = inspect.getsource(envelope_module)
     changelog_start = source.index("# 1.1.0:")
-    changelog_end = source.index('CONTRACT_VERSION = "1.7.0"')
+    changelog_end = source.index('CONTRACT_VERSION = "1.8.0"')
     changelog_block = source[changelog_start:changelog_end]
 
     missing = [verb for verb in _NEW_VERBS if verb not in changelog_block]

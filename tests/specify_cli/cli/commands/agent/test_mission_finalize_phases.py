@@ -339,20 +339,83 @@ def test_requirement_mapping_rejects_unknown_ref() -> None:
 
 
 def test_classify_wp_requirement_refs_buckets_missing_unknown_mapped() -> None:
-    missing, unknown, mapped = seam._classify_wp_requirement_refs(
+    """T011 re-pin: a 4th return element (rejections) joins the 3 pinned ones.
+
+    T011 behavioural change (FR-019): a WP whose only ref is REJECTED (WP02
+    here) has no accepted ref, so it is now ALSO ``missing`` -- not merely
+    ``unknown`` -- and is listed with its rejection.
+    """
+    missing, unknown, mapped, rejected = seam._classify_wp_requirement_refs(
         ["WP01", "WP02", "WP03"],
         {"WP01": [], "WP02": ["FR-999"], "WP03": ["FR-001", "FR-002"]},
         {"FR-001", "FR-002"},
     )
-    assert missing == ["WP01"]
+    assert missing == ["WP01", "WP02"]
     assert unknown == {"WP02": ["FR-999"]}
     assert mapped == {"FR-001", "FR-002"}
+    assert rejected == {"WP02": [{"ref": "FR-999", "reason": "unknown_spec_id"}]}
+
+
+def test_classify_wp_requirement_refs_accepts_one_sibling_while_another_fails() -> None:
+    """T011 Half 1: a valid ref still counts toward coverage while a sibling
+    ref on the SAME WP is rejected as an undeclared spec id."""
+    missing, unknown, mapped, rejected = seam._classify_wp_requirement_refs(
+        ["WP01"],
+        {"WP01": ["FR-001", "SC-009"]},
+        {"FR-001"},
+    )
+    assert missing == []
+    assert unknown == {"WP01": ["SC-009"]}
+    assert mapped == {"FR-001"}
+    assert rejected == {"WP01": [{"ref": "SC-009", "reason": "unknown_spec_id"}]}
+
+
+def test_classify_wp_requirement_refs_foreign_qualified_never_fails() -> None:
+    """T011 Half 2: a foreign-qualified citation is rejected but never a
+    FAILING reason -- it never lands in ``unknown_requirement_refs``."""
+    missing, unknown, mapped, rejected = seam._classify_wp_requirement_refs(
+        ["WP01"],
+        {"WP01": ["FR-001", "other-mission-01KAAAAA#FR-013"]},
+        {"FR-001"},
+    )
+    assert missing == []
+    assert unknown == {}
+    assert mapped == {"FR-001"}
+    assert rejected == {"WP01": [{"ref": "other-mission-01KAAAAA#FR-013", "reason": "foreign_qualified"}]}
+
+
+def test_classify_wp_requirement_refs_foreign_only_wp_is_missing() -> None:
+    """Decision Moment ``01M3NYFZ1P6QBD2DX4DVDA323W``: a WP whose only ref is
+    foreign-qualified is ``missing`` (no accepted ref) but its citation is
+    NOT reported as an ``unknown_requirement_refs`` failure."""
+    missing, unknown, mapped, rejected = seam._classify_wp_requirement_refs(
+        ["WP01"],
+        {"WP01": ["other-mission-01KAAAAA#FR-013"]},
+        {"FR-001"},
+    )
+    assert missing == ["WP01"]
+    assert unknown == {}
+    assert mapped == set()
+    assert rejected == {"WP01": [{"ref": "other-mission-01KAAAAA#FR-013", "reason": "foreign_qualified"}]}
+
+
+def test_classify_wp_requirement_refs_sc_only_wp_counts_as_having_refs() -> None:
+    """A WP whose only accepted refs are Success Criteria is not ``missing``."""
+    missing, unknown, mapped, rejected = seam._classify_wp_requirement_refs(
+        ["WP01"],
+        {"WP01": ["SC-001"]},
+        {"SC-001"},
+    )
+    assert missing == []
+    assert unknown == {}
+    assert mapped == {"SC-001"}
+    assert rejected == {}
 
 
 def test_classify_wp_requirement_refs_dedupes_and_sorts_wp_ids() -> None:
     # Duplicate wp_ids collapse via `sorted(set(...))`; unsorted input still
     # produces deterministic (sorted) bucket membership.
-    missing, unknown, mapped = seam._classify_wp_requirement_refs(
+    missing, unknown, mapped, rejected = seam._classify_wp_requirement_refs(
         ["WP02", "WP01", "WP01"],
         {},
         set(),
@@ -360,6 +423,118 @@ def test_classify_wp_requirement_refs_dedupes_and_sorts_wp_ids() -> None:
     assert missing == ["WP01", "WP02"]
     assert unknown == {}
     assert mapped == set()
+    assert rejected == {}
+
+
+# ---------------------------------------------------------------------------
+# _build_success_criteria_coverage / _build_requirement_diagnostics /
+# _build_requirement_mapping_failure_payload (review cycle 1, item #7:
+# direct focused tests for the pure builders, not only indirect coverage)
+# ---------------------------------------------------------------------------
+
+
+def test_build_success_criteria_coverage_tracks_referenced_and_unreferenced() -> None:
+    coverage = seam._build_success_criteria_coverage(
+        ["SC-001", "SC-002"],
+        {"WP01": ["SC-001"], "WP02": []},
+        {"SC-001", "SC-002"},
+    )
+    assert coverage == {"referenced": {"SC-001": ["WP01"]}, "unreferenced": ["SC-002"]}
+
+
+def test_build_success_criteria_coverage_dedupes_same_wp_listing_same_sc_twice() -> None:
+    """Review cycle 1, item #9: a WP that lists the same SC twice (once via
+    a scalar-string ref, once via a list ref -- both classify to the same
+    canonical id) appears once in ``referenced[SC]``, not twice."""
+    coverage = seam._build_success_criteria_coverage(
+        ["SC-001"],
+        {"WP01": ["SC-001", "sc-001"]},
+        {"SC-001"},
+    )
+    assert coverage == {"referenced": {"SC-001": ["WP01"]}, "unreferenced": []}
+
+
+def test_build_success_criteria_coverage_ignores_rejected_tokens() -> None:
+    """A rejected (unknown/foreign) SC-shaped token is never counted as referenced."""
+    coverage = seam._build_success_criteria_coverage(
+        ["SC-001"],
+        {"WP01": ["SC-999", "other-mission-01KAAAAA#SC-001"]},
+        {"SC-001"},
+    )
+    assert coverage == {"referenced": {}, "unreferenced": ["SC-001"]}
+
+
+_DIAGNOSTICS_SPEC = """# Test Spec
+
+## Functional Requirements
+
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | First requirement. | Covered. | proposed |
+
+## Success Criteria
+
+- **SC-001**: First success criterion.
+"""
+
+
+def test_build_requirement_diagnostics_shape() -> None:
+    diagnostics = seam._build_requirement_diagnostics(
+        _DIAGNOSTICS_SPEC,
+        {"WP01": ["FR-001"]},
+        {"FR-001", "SC-001"},
+        {},
+    )
+    assert diagnostics == {
+        "parsed_spec_ids": {
+            "functional": ["FR-001"],
+            "non_functional": [],
+            "constraint": [],
+            "success_criteria": ["SC-001"],
+        },
+        "rejected_requirement_refs": {},
+        "success_criteria_coverage": {"referenced": {}, "unreferenced": ["SC-001"]},
+    }
+
+
+def test_build_requirement_diagnostics_passes_through_rejections() -> None:
+    rejected = {"WP01": [{"ref": "FR-999", "reason": "unknown_spec_id"}]}
+    diagnostics = seam._build_requirement_diagnostics(
+        _DIAGNOSTICS_SPEC,
+        {"WP01": ["FR-999"]},
+        {"FR-001", "SC-001"},
+        rejected,
+    )
+    assert diagnostics["rejected_requirement_refs"] == rejected
+
+
+def test_build_requirement_mapping_failure_payload_is_additive() -> None:
+    """NFR-002: the 7 pre-existing keys keep their name/type; the 3
+    diagnostic keys are additive, direct-tested against the builder itself."""
+    diagnostics = {
+        "parsed_spec_ids": {"functional": ["FR-002"], "non_functional": [], "constraint": [], "success_criteria": []},
+        "rejected_requirement_refs": {},
+        "success_criteria_coverage": {"referenced": {}, "unreferenced": []},
+    }
+    payload = seam._build_requirement_mapping_failure_payload(
+        missing_requirement_refs_wps=["WP01"],
+        unknown_requirement_refs={},
+        unmapped_functional_requirements=["FR-002"],
+        bare_prose_requirement_ids=[],
+        wp_dependencies={"WP01": []},
+        wp_requirement_refs={"WP01": []},
+        requirement_diagnostics=diagnostics,
+    )
+    assert payload == {
+        "error": "Requirement mapping validation failed",
+        "missing_requirement_refs_wps": ["WP01"],
+        "unknown_requirement_refs": {},
+        "unmapped_functional_requirements": ["FR-002"],
+        "bare_prose_requirement_ids": [],
+        "dependencies_parsed": {"WP01": []},
+        "requirement_refs_parsed": {"WP01": []},
+        **diagnostics,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -368,6 +543,13 @@ def test_classify_wp_requirement_refs_dedupes_and_sorts_wp_ids() -> None:
 
 
 def test_emit_requirement_mapping_report_json(capsys: pytest.CaptureFixture[str]) -> None:
+    """NFR-002: the 7 pre-existing keys keep their name/type; the 3 additive
+    T012 diagnostic keys ride along unchanged when supplied by the caller."""
+    diagnostics = {
+        "parsed_spec_ids": {"functional": ["FR-002"], "non_functional": [], "constraint": [], "success_criteria": []},
+        "rejected_requirement_refs": {"WP02": [{"ref": "FR-999", "reason": "unknown_spec_id"}]},
+        "success_criteria_coverage": {"referenced": {}, "unreferenced": []},
+    }
     seam._emit_requirement_mapping_report(
         json_output=True,
         missing_requirement_refs_wps=["WP01"],
@@ -376,6 +558,7 @@ def test_emit_requirement_mapping_report_json(capsys: pytest.CaptureFixture[str]
         bare_prose_requirement_ids=[],
         wp_dependencies={"WP01": []},
         wp_requirement_refs={"WP02": ["FR-999"]},
+        requirement_diagnostics=diagnostics,
     )
     payload = json.loads(capsys.readouterr().out)
     assert payload == {
@@ -386,6 +569,7 @@ def test_emit_requirement_mapping_report_json(capsys: pytest.CaptureFixture[str]
         "bare_prose_requirement_ids": [],
         "dependencies_parsed": {"WP01": []},
         "requirement_refs_parsed": {"WP02": ["FR-999"]},
+        **diagnostics,
     }
 
 
@@ -407,6 +591,27 @@ def test_emit_requirement_mapping_report_console(capsys: pytest.CaptureFixture[s
     assert "- WP02: FR-999" in output
     assert "Unmapped functional requirements:" in output
     assert "- FR-002" in output
+
+
+def test_emit_requirement_mapping_report_console_includes_rejected_refs(capsys: pytest.CaptureFixture[str]) -> None:
+    """T012: the console failure path also names each per-ref rejection."""
+    seam._emit_requirement_mapping_report(
+        json_output=False,
+        missing_requirement_refs_wps=["WP02"],
+        unknown_requirement_refs={},
+        unmapped_functional_requirements=[],
+        bare_prose_requirement_ids=[],
+        wp_dependencies={"WP02": []},
+        wp_requirement_refs={"WP02": ["other-mission-01KAAAAA#FR-013"]},
+        requirement_diagnostics={
+            "parsed_spec_ids": {"functional": [], "non_functional": [], "constraint": [], "success_criteria": []},
+            "rejected_requirement_refs": {"WP02": [{"ref": "other-mission-01KAAAAA#FR-013", "reason": "foreign_qualified"}]},
+            "success_criteria_coverage": {"referenced": {}, "unreferenced": []},
+        },
+    )
+    output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+    assert "Rejected requirement refs:" in output
+    assert "- WP02: other-mission-01KAAAAA#FR-013 (foreign_qualified)" in output
 
 
 def test_emit_requirement_mapping_report_json_includes_bare_prose_ids(
@@ -575,6 +780,7 @@ def test_detect_dependency_conflicts_raises_on_disagreement(tmp_path: Path) -> N
 
 
 def test_apply_bootstrap_fields_marks_changes() -> None:
+    """FR-004: an EMPTY WP is still populate-when-empty seeded."""
     meta = WPMetadata(work_package_id="WP01", title="t")
     bld = meta.builder()
     changed, fields = seam._apply_bootstrap_fields(
@@ -583,15 +789,16 @@ def test_apply_bootstrap_fields_marks_changes() -> None:
         deps=["WP00"],
         has_dependencies_line=False,
         requirement_refs=["FR-001"],
-        has_requirement_refs_line=False,
         target_branch="prog/x",
     )
     assert changed is True
     assert fields["dependencies"] == ["WP00"]
     assert fields["merge_target_branch"] == "prog/x"
+    assert fields["requirement_refs"] == ["FR-001"]
     built = bld.build()
     assert list(built.dependencies) == ["WP00"]
     assert built.merge_target_branch == "prog/x"
+    assert list(built.requirement_refs) == ["FR-001"]
 
 
 def test_apply_bootstrap_fields_keeps_planning_and_final_targets_distinct() -> None:
@@ -604,7 +811,6 @@ def test_apply_bootstrap_fields_keeps_planning_and_final_targets_distinct() -> N
         deps=[],
         has_dependencies_line=True,
         requirement_refs=["FR-001"],
-        has_requirement_refs_line=True,
         target_branch="op/mission-planning",
         merge_target_branch="main",
     )
@@ -620,6 +826,8 @@ def test_apply_bootstrap_fields_keeps_planning_and_final_targets_distinct() -> N
 
 
 def test_apply_bootstrap_fields_noop_when_already_set() -> None:
+    """FR-004 (DIRECTIVE_041): an AUTHORED requirement_refs list is never
+    touched, even though a different resolved value is passed in."""
     branch = "prog/x"
     meta = WPMetadata(
         work_package_id="WP01",
@@ -637,11 +845,60 @@ def test_apply_bootstrap_fields_noop_when_already_set() -> None:
         deps=["WP00"],
         has_dependencies_line=True,
         requirement_refs=["FR-001"],
-        has_requirement_refs_line=True,
         target_branch=branch,
     )
     assert changed is False
     assert fields == {}
+    assert "requirement_refs" not in fields
+
+
+def test_apply_bootstrap_fields_never_rewrites_authored_refs_even_when_resolved_differs() -> None:
+    """FR-004 (#2991, DIRECTIVE_041): the resolved *requirement_refs* input
+    differing from the authored list is NOT sufficient to trigger a
+    rewrite -- only emptiness of the authored list is. This is the exact
+    #2991 shape: a bootstrap-resolved value the grammar would respell/reorder
+    must never overwrite what the WP author wrote."""
+    branch = "prog/x"
+    meta = WPMetadata(
+        work_package_id="WP01",
+        title="t",
+        requirement_refs=["FR-001", "FR-006A"],
+        planning_base_branch=branch,
+        merge_target_branch=branch,
+        branch_strategy=seam._branch_strategy_text(branch),
+    )
+    bld = meta.builder()
+    changed, fields = seam._apply_bootstrap_fields(
+        bld,
+        meta,
+        deps=[],
+        has_dependencies_line=True,
+        requirement_refs=["FR-001", "FR-006a"],  # a differently-cased resolved value
+        target_branch=branch,
+    )
+    assert "requirement_refs" not in fields
+    built = bld.build()
+    assert list(built.requirement_refs) == ["FR-001", "FR-006A"]
+    assert changed is False
+
+
+def test_apply_bootstrap_fields_populates_empty_refs_from_fallback() -> None:
+    """FR-004: the OTHER half -- an empty WP is populated from the resolved
+    (tasks.md-fallback) value."""
+    meta = WPMetadata(work_package_id="WP01", title="t")
+    bld = meta.builder()
+    changed, fields = seam._apply_bootstrap_fields(
+        bld,
+        meta,
+        deps=[],
+        has_dependencies_line=True,
+        requirement_refs=["FR-002"],
+        target_branch="prog/x",
+    )
+    assert changed is True
+    assert fields["requirement_refs"] == ["FR-002"]
+    built = bld.build()
+    assert list(built.requirement_refs) == ["FR-002"]
 
 
 # ---------------------------------------------------------------------------
@@ -708,12 +965,12 @@ def test_apply_bootstrap_fields_normalizes_string_form_even_when_values_equal() 
         deps=["WP00"],
         has_dependencies_line=True,
         requirement_refs=["FR-001"],
-        has_requirement_refs_line=True,
         target_branch=branch,
         dependencies_string_form=True,
     )
     assert changed is True
     assert fields == {"dependencies": ["WP00"]}
+    assert "requirement_refs" not in fields
     built = bld.build()
     assert list(built.dependencies) == ["WP00"]
 
@@ -751,23 +1008,49 @@ title: t
     assert seam.detect_post_integration_acceptance(planning_wp, ["kitty-specs/001-m/plan.md"]) == []
 
 
-def test_discarded_sc_refs_warning_names_dropped_token(tmp_path: Path) -> None:
-    tasks_dir = tmp_path / "tasks"
-    tasks_dir.mkdir()
-    (tasks_dir / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: t\nrequirement_refs: [FR-001, SC-008]\n---\nbody\n",
-        encoding="utf-8",
+_SC_RETIREMENT_SPEC = """# Test Spec
+
+- **FR-001**: First requirement, declared here.
+
+## Functional Requirements
+
+FR-001 is mentioned again here, but only in bare prose (no table, heading,
+bullet, or bold lead) -- this triggers the soft, non-blocking
+undeclared-citation warning for this section, WITHOUT tripping the stricter
+blocking bare-prose gate (FR-001 is already document-declared above).
+
+## Success Criteria
+
+- **SC-008**: Traced success criterion.
+"""
+
+
+def test_referenced_sc_is_traced_and_the_discard_warning_is_retired(tmp_path: Path) -> None:
+    """T013 (FR-007): the retired "DROPPED, not traced" SC warning no longer
+    appears anywhere; a referenced SC is tracked via
+    ``success_criteria_coverage`` instead, and the OTHER (undeclared-citation)
+    warning class stays alive on the same fixture (positive control)."""
+    from tests.specify_cli.cli.commands.agent.test_finalize_requirement_id_grammar import (
+        _invoke_finalize,
+        _last_json,
+        _seed_mission,
     )
 
-    warnings = seam.find_discarded_sc_refs(tasks_dir)
+    feature_dir = _seed_mission(tmp_path, spec_md=_SC_RETIREMENT_SPEC, wp_refs={"WP01": ["FR-001", "SC-008"]})
 
-    assert warnings == [
-        "WP01 declares Success-Criteria token(s) (SC-008) in requirement_refs "
-        "that the FR/NFR/C ref graph does not admit -- they are DROPPED, not traced. "
-        "Success-Criteria ids are not first-class requirement refs; move the coverage "
-        "claim to the WP's success-criteria surface, or restate it as an FR/NFR/C "
-        "requirement if it must be traced."
-    ]
+    result = _invoke_finalize(tmp_path, feature_dir, validate_only=True)
+
+    payload = _last_json(result.stdout)
+    assert result.exit_code == 0, result.stdout
+    warnings = payload["requirement_extraction_warnings"]
+    # (i) the retirement check: the old discard warning's language is gone.
+    assert not any("DROPPED, not traced" in w or "Success-Criteria token" in w for w in warnings)
+    # (ii) positive control: the OTHER warning class is still alive, so (i)
+    # is not vacuously true because no warning fired at all.
+    assert warnings
+    assert any("FR-001" in w and "declared shapes" in w for w in warnings)
+    # (iii) the SC is tracked (not dropped) via success_criteria_coverage.
+    assert payload["success_criteria_coverage"]["referenced"] == {"SC-008": ["WP01"]}
 
 
 # ---------------------------------------------------------------------------

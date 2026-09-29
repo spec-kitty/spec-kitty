@@ -19,6 +19,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from specify_cli.requirement_mapping import grammar
 from specify_cli.status.models import NON_DISPLAY_LANES, AgentAssignment, Lane
 
 logger = logging.getLogger(__name__)
@@ -330,10 +331,13 @@ class WPMetadata(BaseModel):
         if "dependencies" in data:
             data["dependencies"] = coerce_legacy_dependencies(data["dependencies"])
 
-        # Legacy: some files store requirement_refs as scalar string
+        # Legacy: some files store requirement_refs as scalar string. Tokenised
+        # through the single grammar authority (C-001): a whitespace-only
+        # scalar ("FR-001 FR-002") now splits into two items, where it used
+        # to stay one (FR-001, WP01); comma-separated scalars are unchanged.
         refs = data.get("requirement_refs")
         if isinstance(refs, str):
-            data["requirement_refs"] = [s.strip() for s in refs.split(",") if s.strip()]
+            data["requirement_refs"] = grammar.tokenize_refs(refs)
 
         # T040 / FR-011 (F-10): tracker_refs may also be stored as a scalar string
         tracker_refs_val = data.get("tracker_refs")

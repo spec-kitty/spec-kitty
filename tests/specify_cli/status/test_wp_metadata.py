@@ -531,6 +531,27 @@ class TestWPMetadataLegacyNormalization:
         assert meta.dependencies == ["WP01"]
 
 
+class TestRequirementRefsScalarCoercion:
+    """T005 / FR-001: legacy scalar ``requirement_refs`` is now tokenised
+    through the single grammar authority (``grammar.tokenize_refs``)."""
+
+    def test_comma_scalar_is_unchanged(self) -> None:
+        """A comma-separated scalar splits the same way as before WP01."""
+        meta = WPMetadata.model_validate({"work_package_id": "WP01", "title": "T", "requirement_refs": "FR-001, FR-002"})
+        assert meta.requirement_refs == ["FR-001", "FR-002"]
+
+    def test_whitespace_scalar_now_splits(self) -> None:
+        """The new behaviour (FR-001): a whitespace-only-separated scalar now
+        splits into two items where it used to stay one."""
+        meta = WPMetadata.model_validate({"work_package_id": "WP01", "title": "T", "requirement_refs": "FR-001 FR-002"})
+        assert meta.requirement_refs == ["FR-001", "FR-002"]
+
+    def test_list_input_is_left_untouched(self) -> None:
+        """A list input never goes through the scalar-coercion branch."""
+        meta = WPMetadata.model_validate({"work_package_id": "WP01", "title": "T", "requirement_refs": ["FR-001", "FR-002"]})
+        assert meta.requirement_refs == ["FR-001", "FR-002"]
+
+
 class TestCoerceLegacyDependencies:
     """The shared pure coercion behind ``WPMetadata`` and the FSM shells (single parser, FR-014)."""
 

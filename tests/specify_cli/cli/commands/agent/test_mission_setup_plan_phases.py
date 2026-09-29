@@ -444,9 +444,7 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
     # authority, so ``resolve_mission_type_context`` fails closed without this.
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir(parents=True, exist_ok=True)
-    (kittify_dir / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (kittify_dir / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     template_src = tmp_path / "configured-plan.md"
     template_src.write_text("CONFIGURED PLAN", encoding="utf-8")
     load_calls = 0
@@ -527,9 +525,7 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
     # authority, so ``resolve_mission_type_context`` fails closed without this.
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir(parents=True, exist_ok=True)
-    (kittify_dir / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (kittify_dir / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     template_src = tmp_path / "configured-plan.md"
     template_src.write_text("CONFIGURED PLAN", encoding="utf-8")
     configured_calls: list[tuple[str, Path, ResolvedMissionType]] = []
@@ -805,9 +801,7 @@ def test_documentation_wiring_runs_both_documentation_phases(monkeypatch: pytest
     assert generators == [generator]
 
 
-def test_documentation_wiring_on_coord_husk_writes_gap_analysis_to_primary(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_documentation_wiring_on_coord_husk_writes_gap_analysis_to_primary(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """T024 (WP04 review, WP08 T039 nice-to-have): a documentation mission whose
     coordination worktree is a HUSK (materialised, no ``meta.json``) still
     anchors ``gap-analysis.md`` on the PRIMARY dir, never the husk.
@@ -836,23 +830,18 @@ def test_documentation_wiring_on_coord_husk_writes_gap_analysis_to_primary(
 
     captured: dict[str, object] = {}
 
-    def _capture_gap_analysis(
-        primary_dir_arg: Path, *args: object, **kwargs: object
-    ) -> str:
+    def _capture_gap_analysis(primary_dir_arg: Path, *args: object, **kwargs: object) -> str:
         captured["primary_dir_arg"] = primary_dir_arg
         return "gap-analysis.md"
 
     monkeypatch.setattr(seam, "_run_documentation_gap_analysis", _capture_gap_analysis)
     monkeypatch.setattr(seam, "_detect_and_configure_generators", lambda *a, **k: [])
 
-    gap, _generators = seam._run_documentation_wiring(
-        mission_slug, tmp_path, target_branch="main", json_output=True
-    )
+    gap, _generators = seam._run_documentation_wiring(mission_slug, tmp_path, target_branch="main", json_output=True)
 
     assert gap == "gap-analysis.md"
     assert captured["primary_dir_arg"] == primary_dir, (
-        "gap-analysis.md's write target must be the PRIMARY dir, never the "
-        f"coord husk {coord_dir} — got {captured['primary_dir_arg']}"
+        f"gap-analysis.md's write target must be the PRIMARY dir, never the coord husk {coord_dir} — got {captured['primary_dir_arg']}"
     )
     assert captured["primary_dir_arg"] != coord_dir
 
@@ -1035,3 +1024,174 @@ def test_warn_commit_failed_recipe_names_to_branch(capsys: pytest.CaptureFixture
     )
     output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
     assert "--to-branch kitty/mission-demo-lane-a" in output
+
+
+# ---------------------------------------------------------------------------
+# WP05 (requirement-id-grammar-01M3NRCA, T025): _evaluate_requirement_id_gate
+# / _spec_requirement_id_warnings / requirement_id_warnings wiring.
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_requirement_id_gate_refuses_malformed_declared_id(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# Spec\n\n| C-007-mission | x | y |\n", encoding="utf-8")
+
+    outcome, message = seam._evaluate_requirement_id_gate(spec_file, feature_dir, "001-demo")
+
+    assert outcome is not None
+    assert outcome.exit_code == 1
+    assert outcome.render_kind == "error"
+    assert outcome.payload["error_code"] == seam.SPEC_REQUIREMENT_IDS_INVALID
+    invalid_ids = outcome.payload["invalid_requirement_ids"]
+    assert isinstance(invalid_ids, list)
+    assert invalid_ids[0]["token"] == "C-007-mission"
+    assert message is not None
+    assert "C-007-mission" in message
+
+
+def test_evaluate_requirement_id_gate_passes_corrected_spec(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# Spec\n\n| C-007 | x | y |\n", encoding="utf-8")
+
+    outcome, message = seam._evaluate_requirement_id_gate(spec_file, feature_dir, "001-demo")
+
+    assert outcome is None
+    assert message is None
+
+
+def test_evaluate_spec_gate_refuses_malformed_declared_id_when_committed_and_substantive(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# Spec\n\n| C-007-mission | x | y |\n", encoding="utf-8")
+    monkeypatch.setattr("specify_cli.missions._substantive.is_committed", lambda *a, **k: True)
+    monkeypatch.setattr("specify_cli.missions._substantive.is_substantive", lambda *a, **k: True)
+
+    outcome, message = seam._evaluate_spec_gate(
+        spec_file,
+        feature_dir,
+        "001-demo",
+        tmp_path,
+        target_branch="main",
+        current_branch="main",
+    )
+
+    assert outcome is not None
+    assert outcome.exit_code == 1
+    assert outcome.render_kind == "error"
+    assert outcome.payload["error_code"] == seam.SPEC_REQUIREMENT_IDS_INVALID
+    assert message is not None
+
+
+def test_evaluate_spec_gate_still_passes_when_committed_substantive_and_well_formed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Positive control: the pre-existing ``# real`` case (:136-152) stays
+    green unchanged -- no declared IDs at all is still a pass."""
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# real", encoding="utf-8")
+    monkeypatch.setattr("specify_cli.missions._substantive.is_committed", lambda *a, **k: True)
+    monkeypatch.setattr("specify_cli.missions._substantive.is_substantive", lambda *a, **k: True)
+
+    outcome, message = seam._evaluate_spec_gate(
+        spec_file,
+        feature_dir,
+        "001-demo",
+        tmp_path,
+        target_branch="main",
+        current_branch="main",
+    )
+
+    assert outcome is None
+    assert message is None
+
+
+def test_requirement_id_gate_message_escapes_the_rule_text(tmp_path: Path) -> None:
+    """Rich markup escaping: ``grammar.RULE_TEXT`` contains
+    ``[<lowercase letter>]``, which rich would otherwise parse as markup."""
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# Spec\n\n| C-007-mission | x | y |\n", encoding="utf-8")
+
+    _, message = seam._evaluate_requirement_id_gate(spec_file, feature_dir, "001-demo")
+
+    assert message is not None
+    assert "[<lowercase letter>]" in message
+
+
+def test_spec_requirement_id_warnings_absent_file_returns_empty(tmp_path: Path) -> None:
+    assert seam._spec_requirement_id_warnings(tmp_path / "missing-spec.md") == []
+
+
+def test_spec_requirement_id_warnings_returns_one_dict_per_prose_token(tmp_path: Path) -> None:
+    spec_file = tmp_path / "spec.md"
+    spec_file.write_text("# Spec\n\n## User Scenarios\nsee FR-099 here.\n", encoding="utf-8")
+
+    warnings = seam._spec_requirement_id_warnings(spec_file)
+
+    assert len(warnings) == 1
+    assert warnings[0]["token"] == "FR-099"
+
+
+def test_build_setup_plan_result_carries_requirement_id_warnings(tmp_path: Path) -> None:
+    outcome = seam._build_setup_plan_result(
+        plan_file=tmp_path / "plan.md",
+        spec_file=tmp_path / "spec.md",
+        feature_dir=tmp_path,
+        mission_slug="001-demo",
+        plan_is_substantive=True,
+        plan_blocked_reason=None,
+        plan_commit_result=None,
+        gap_analysis_path=None,
+        generators_detected=[],
+        target_branch="main",
+        current_branch="main",
+    )
+
+    assert outcome.payload["requirement_id_warnings"] == []
+
+
+def test_build_setup_plan_result_default_empty_and_passes_through_warnings(tmp_path: Path) -> None:
+    outcome = seam._build_setup_plan_result(
+        plan_file=tmp_path / "plan.md",
+        spec_file=tmp_path / "spec.md",
+        feature_dir=tmp_path,
+        mission_slug="001-demo",
+        plan_is_substantive=True,
+        plan_blocked_reason=None,
+        plan_commit_result=None,
+        gap_analysis_path=None,
+        generators_detected=[],
+        target_branch="main",
+        current_branch="main",
+        requirement_id_warnings=[{"token": "FR-099", "line": 4, "message": "msg"}],
+    )
+
+    assert outcome.payload["requirement_id_warnings"] == [{"token": "FR-099", "line": 4, "message": "msg"}]
+
+
+def test_emit_result_human_prints_requirement_id_warning_line(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    seam._emit_setup_plan_result(
+        plan_file=tmp_path / "plan.md",
+        spec_file=tmp_path / "spec.md",
+        feature_dir=tmp_path,
+        mission_slug="001-demo",
+        plan_is_substantive=True,
+        plan_blocked_reason=None,
+        plan_commit_result=None,
+        gap_analysis_path=None,
+        generators_detected=[],
+        target_branch="main",
+        current_branch="main",
+        json_output=False,
+        requirement_id_warnings=[{"token": "FR-099", "line": 4, "message": "looks like a requirement ID"}],
+    )
+    output = capsys.readouterr().out
+    assert "Warning" in output
+    assert "FR-099" in output
+    assert "line 4" in output

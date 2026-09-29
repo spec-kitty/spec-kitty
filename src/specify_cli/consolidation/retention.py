@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.requirement_mapping import grammar
 
 MISSION_RETENTION_CLEANUP_CONFLICT = "MISSION_RETENTION_CLEANUP_CONFLICT"
-_CONSTRAINT_ROW_ID = re.compile(r"^C-\d+$", re.IGNORECASE)
 _NEGATED_RETENTION = re.compile(
     r"\b(?:do not|must not|never)\b[^.;\n]*\b(?:keep|retain|preserve)\b",
     re.IGNORECASE,
@@ -61,7 +61,14 @@ def load_mission_retention(repo_root: Path, mission_slug: str) -> MissionRetenti
         cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
         if len(cells) < 6:
             continue
-        if not _CONSTRAINT_ROW_ID.fullmatch(cells[0]):
+        # C-001 / T005 (HiC ruling, Decision Moment 01M3P2HXKASQY2ZKSEY3MAWA9H):
+        # accept the cell only when it parses as an unqualified constraint id
+        # through the single grammar authority. Kind input stays
+        # case-insensitive, as before; a letter-suffixed constraint (C-007a)
+        # now counts (intended behaviour change); a qualified citation
+        # (other-mission#C-001) never counts.
+        row_constraint_id = grammar.parse(cells[0])
+        if row_constraint_id is None or row_constraint_id.mission is not None or row_constraint_id.kind != "C":
             continue
         if cells[-1].casefold() not in _TERMINAL_STATUSES:
             continue

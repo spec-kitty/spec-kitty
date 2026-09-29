@@ -99,32 +99,18 @@ def test_parse_requirement_refs_empty_when_none() -> None:
     assert seam._parse_requirement_refs_from_tasks_md(content)["WP01"] == []
 
 
-# ---------------------------------------------------------------------------
-# _parse_requirement_refs_from_wp_files
-# ---------------------------------------------------------------------------
+def test_parse_requirement_refs_suffixed_and_sc_are_canonicalised() -> None:
+    """WP01 grammar rewire: a letter-suffixed FR (case-tolerant) and an SC id
+    are now recognised and rendered canonical."""
+    content = "## WP01\nRequirements: fr-006A, SC-001\n"
+    assert seam._parse_requirement_refs_from_tasks_md(content)["WP01"] == ["FR-006a", "SC-001"]
 
 
-def test_parse_requirement_refs_from_wp_files(tmp_path: Path) -> None:
-    wp = tmp_path / "WP01-thing.md"
-    wp.write_text(
-        "---\nwork_package_id: WP01\nrequirement_refs:\n- FR-001\n- C-002\n---\nbody\n",
-        encoding="utf-8",
-    )
-    parsed = seam._parse_requirement_refs_from_wp_files([wp])
-    assert parsed["WP01"] == ["FR-001", "C-002"]
-
-
-def test_parse_requirement_refs_from_wp_files_skips_non_wp(tmp_path: Path) -> None:
-    other = tmp_path / "notes.md"
-    other.write_text("nothing", encoding="utf-8")
-    assert seam._parse_requirement_refs_from_wp_files([other]) == {}
-
-
-def test_parse_requirement_refs_from_wp_files_malformed_yields_empty(tmp_path: Path) -> None:
-    wp = tmp_path / "WP01-broken.md"
-    wp.write_text("not even frontmatter", encoding="utf-8")
-    parsed = seam._parse_requirement_refs_from_wp_files([wp])
-    assert parsed.get("WP01") == []
+def test_parse_requirement_refs_qualified_citation_kept_foreign() -> None:
+    """A qualified citation is kept as-is (foreign), never folded into a
+    local, unqualified id."""
+    content = "## WP01\nRequirements: other-mission#FR-001\n"
+    assert seam._parse_requirement_refs_from_tasks_md(content)["WP01"] == ["other-mission#FR-001"]
 
 
 # ---------------------------------------------------------------------------

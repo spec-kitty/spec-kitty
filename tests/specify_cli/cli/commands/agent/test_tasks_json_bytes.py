@@ -116,8 +116,10 @@ Instrument the checkout pipeline with per-stage latency probes.
 """
 
 # ``{refs}`` is filled per scenario: ``[]`` for the healthy mission,
-# ``["FR-002a"]`` (malformed per the FR-NNN format rule) for the
-# stale-frontmatter scenario that triggers the tasks.py:3585 error leg.
+# ``["FR-002a"]`` (well-formed grammar, but not declared in ``_SPEC_MD`` --
+# requirement-id-grammar-01M3NRCA WP03: a letter suffix is now valid grammar,
+# so this reads as unknown_spec_id, not malformed) for the stale-frontmatter
+# scenario that triggers the tasks.py:3585 error leg.
 _WP02_MD_TEMPLATE = """\
 ---
 work_package_id: WP02

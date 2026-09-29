@@ -765,8 +765,11 @@ class TestSpecTemplateDeliveryLabels:
 
     def test_declared_id_set_is_unchanged_by_the_new_columns(self) -> None:
         """(3) The template's declared id set equals the frozen pre-existing
-        set (FR-001..003, NFR-001..003, C-001..003) -- the legend's filled
-        example (``FR-EXAMPLE``) declares nothing extra.
+        set (FR-001..003, NFR-001..003, C-001..003, plus SC-001..004 -- the
+        grammar-rewire mission (requirement-id-grammar-01M3NRCA, FR-003)
+        makes success criteria a declared kind, and the live template
+        already declares SC-001..004 in its Success Criteria section) --
+        the legend's filled example (``FR-EXAMPLE``) declares nothing extra.
 
         Positive control on the same fixture: the example line is genuinely
         present in the template text, so the exact-set equality below is a
@@ -787,6 +790,10 @@ class TestSpecTemplateDeliveryLabels:
             "C-001",
             "C-002",
             "C-003",
+            "SC-001",
+            "SC-002",
+            "SC-003",
+            "SC-004",
         }
 
     # -----------------------------------------------------------------
