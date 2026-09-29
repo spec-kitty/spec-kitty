@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01M3QCBA5P9WKXNPQBTQYM4HFY", "profile_id": "reviewer-renata", "action": "audit", "request_text": "Independent review of the #5353 consolidation test-quality branch issue-5353-consolidation-test-quality against main", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "6375e0238097d08c", "governance_context_available": true, "started_at": "2026-09-29T20:05:30.204185+00:00", "model_id": "claude-opus-4-6"}
+{"event": "completed", "invocation_id": "01M3QCBA5P9WKXNPQBTQYM4HFY", "completed_at": "2026-09-29T20:17:01.722917+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "commit_link", "invocation_id": "01M3QCBA5P9WKXNPQBTQYM4HFY", "at": "2026-09-29T20:17:01.723232+00:00", "sha": "a431308698"}
