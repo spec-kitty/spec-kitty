@@ -14,10 +14,17 @@ from __future__ import annotations
 
 import pytest
 
+from specify_cli.lanes import branch_naming, compute
 from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_branch_name
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 
 pytestmark = pytest.mark.fast
+
+
+def test_planning_lane_id_has_a_single_definition() -> None:
+    """``compute.PLANNING_LANE_ID`` re-exposes ``branch_naming``'s constant, never a restated literal."""
+    assert compute.PLANNING_LANE_ID is branch_naming.PLANNING_LANE_ID
+    assert branch_naming.PLANNING_LANE_ID == "lane-planning"
 
 
 class TestLaneBranchNamePlanningLane:

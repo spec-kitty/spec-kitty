@@ -22,16 +22,16 @@ from mission_runtime import MissionTopology
 
 from specify_cli.core.dependency_graph import topological_sort
 from kernel.clock import now_utc_iso
-from specify_cli.lanes.branch_naming import lane_branch_name, mission_branch_name
+from specify_cli.lanes.branch_naming import (
+    # Single definition lives in branch_naming; the ``as`` alias is the explicit
+    # (mypy --strict) re-export the existing ``compute.PLANNING_LANE_ID`` callers rely on.
+    PLANNING_LANE_ID as PLANNING_LANE_ID,
+    lane_branch_name,
+    mission_branch_name,
+)
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
 from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import _globs_overlap
-
-
-# Canonical lane-id for all planning-artifact WPs.
-# Planning-artifact WPs are first-class lane-owned entities; they share one
-# canonical lane that resolves to the main repository checkout (never a worktree).
-PLANNING_LANE_ID = "lane-planning"
 
 
 def is_planning_lane(lane: object) -> bool:
@@ -78,9 +78,7 @@ def is_repo_root_lane(lane: object) -> bool:
     shares the exact same backing as :func:`is_planning_lane` — this
     delegates to that predicate rather than restating the
     ``PLANNING_LANE_ID`` comparison a second time, so the two names cannot
-    silently drift apart (mirrors the single-source contract
-    ``lanes/branch_naming.py``'s ``_PLANNING_LANE_ID`` literal already
-    documents for this exact pairing). New code should ask the question via
+    silently drift apart. New code should ask the question via
     this name; :func:`is_planning_lane` stays for existing callers that ask
     the planning-specific question by its historical name.
     """

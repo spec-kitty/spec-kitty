@@ -54,6 +54,7 @@ __all__ = [
     "BranchIdentityUnresolved",
     "InvalidMissionIdentity",
     "LEGACY_FAILOVER_SUPPRESS_ENV",
+    "PLANNING_LANE_ID",
     "code_lane_branch_name",
     "coord_branch_name",
     "coord_dir_name",
@@ -81,15 +82,13 @@ _COORD_DIR_SUFFIX = "-coord"
 # Root directory (relative to repo root) under which lane/coord worktrees live.
 _WORKTREES_DIRNAME = ".worktrees"
 
-# Canonical lane-id for all planning-artifact WPs (mirrors
-# ``specify_cli.lanes.compute.PLANNING_LANE_ID``). Duplicated here as a
-# private literal, not imported, to avoid a circular import — ``lanes.compute``
-# already imports ``lane_branch_name`` from this module.
-# WP02 review cycle 2 nit: WP03's planned ``is_planning_lane`` ->
-# ``is_repo_root_lane`` rename touches BOTH this literal and
-# ``compute.PLANNING_LANE_ID`` — update them together, they cannot drift
-# independently without breaking this module's guard checks.
-_PLANNING_LANE_ID = "lane-planning"
+# Canonical lane-id for all planning-artifact WPs. Planning-artifact WPs are
+# first-class lane-owned entities; they share one canonical lane that resolves
+# to the main repository checkout (never a worktree). This module is the single
+# definition; ``specify_cli.lanes.compute`` imports it (``compute`` already
+# imports from here, so the reverse direction would be circular) and re-exposes
+# it as ``compute.PLANNING_LANE_ID`` for the existing callers.
+PLANNING_LANE_ID = "lane-planning"
 
 # Env var that suppresses the one-shot legacy-failover deprecation warning,
 # mirroring the project's selector_resolution suppress-env pattern.
@@ -524,7 +523,7 @@ def code_lane_branch_name(mission_slug: str, lane_id: str) -> str:
     Raises:
         ValueError: ``lane_id`` is the canonical planning lane id.
     """
-    if lane_id == _PLANNING_LANE_ID:
+    if lane_id == PLANNING_LANE_ID:
         raise ValueError("code_lane_branch_name() does not resolve the planning lane; use lane_branch_name(..., target_branch=...) instead")
     # Idempotency-preserving (#1949): embedded-mid8 slugs dedup their stale
     # NNN- prefix; pure legacy NNN- slugs are preserved verbatim.
@@ -572,7 +571,7 @@ def lane_branch_name(
         lane_branch_name("083-my-feature", "lane-planning", target_branch="release/3.x")
           -> "release/3.x"
     """
-    if lane_id == _PLANNING_LANE_ID:
+    if lane_id == PLANNING_LANE_ID:
         return target_branch
     return code_lane_branch_name(mission_slug, lane_id)
 
