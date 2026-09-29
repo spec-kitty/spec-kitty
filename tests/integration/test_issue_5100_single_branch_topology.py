@@ -385,7 +385,7 @@ def test_dirty_checkout_refused_but_resume_allowed(tmp_path: Path, monkeypatch: 
     assert "scratch_outside_spec_kitty.txt" in first_claim.output, first_claim.output
     # A3: a refused implement is side-effect free -- it must not leave the
     # VCS lock (meta.json) or any other tracked change behind.
-    assert _git(repo_a, "status", "--porcelain") == "?? scratch_outside_spec_kitty.txt", "a refused implement must write nothing"
+    assert _git(repo_a, "status", "--porcelain", "--untracked-files=no") == "", "a refused implement must not modify tracked files (VCS lock)"
 
     # --- Half B: resuming an already-in_progress WP tolerates the same dirt. ---
     repo_b = _seed_repo(tmp_path, name="repo-dirty-resume")

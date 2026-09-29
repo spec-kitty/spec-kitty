@@ -486,3 +486,45 @@ class TestRepoRootBannerWording:
     def test_real_lane_worktree_keeps_lane_banner(self) -> None:
         text = self._render(lane_id="lane-a", resolution_kind="lane_workspace")
         assert "Lane worktree ready" in text
+
+
+class TestPlanningCommitBranch:
+    """A3: the "planning artifacts must be committed on <branch>" message and
+    commit target name the ACTUAL write branch for mission-branch missions."""
+
+    @staticmethod
+    def _resolve(monkeypatch: pytest.MonkeyPatch, meta: dict[str, object] | None) -> str:
+        from specify_cli.cli.commands import implement as impl
+
+        monkeypatch.setattr(impl, "_load_primary_anchored_mission_meta", lambda _r, _s: meta)
+        return impl._planning_commit_branch(Path("."), "m", "main")
+
+    def test_single_branch_mission_branch_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        meta = {"topology": "single_branch", "mission_branch": "kitty/mission-m-01ABCDEF"}
+        assert self._resolve(monkeypatch, meta) == "kitty/mission-m-01ABCDEF"
+
+    def test_single_branch_without_mission_branch_keeps_target(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert self._resolve(monkeypatch, {"topology": "single_branch"}) == "main"
+
+    def test_other_topology_or_missing_meta_keeps_target(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert self._resolve(monkeypatch, {"topology": "lanes", "mission_branch": "x"}) == "main"
+        assert self._resolve(monkeypatch, None) == "main"
+
+    def test_refusal_message_names_the_mission_branch_not_the_protected_target(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Full message path: the branch fed to the "must be committed on" refusal
+        is the mission branch, so it names it and never the protected ``main``."""
+        import typer
+
+        from specify_cli.cli.commands import implement as impl
+
+        mission_branch = "kitty/mission-m-01ABCDEF"
+        meta = {"topology": "single_branch", "mission_branch": mission_branch}
+        monkeypatch.setattr(impl, "_load_primary_anchored_mission_meta", lambda _r, _s: meta)
+        planning_branch = impl._planning_commit_branch(Path("."), "m", "main")
+
+        with impl.console.capture() as capture, pytest.raises(typer.Exit):
+            impl._print_planning_artifact_commit_instructions("some-other-branch", planning_branch, True, Path("kitty-specs/m"), "m")
+        text = capture.get()
+
+        assert f"Planning artifacts must be committed on {mission_branch}" in text
+        assert "committed on main" not in text

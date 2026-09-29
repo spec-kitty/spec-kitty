@@ -1868,6 +1868,38 @@ def _report_workspace_created(tracker: StepTracker, result: Any, workspace_path:
         console.print("[cyan]→ Workspace contract: repository root planning workspace[/cyan]")
 
 
+def _refuse_repo_root_checkout_if_unavailable(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    resolved_workspace: Any,
+) -> None:
+    """Run the repo-root write-checkout refusals early (no side effects)."""
+    from specify_cli.lanes.compute import is_repo_root_lane
+    from specify_cli.lanes.implement_support import _ensure_repo_root_checkout_available
+
+    if is_repo_root_lane(resolved_workspace):
+        _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace)
+
+
+def _planning_commit_branch(repo_root: Path, mission_slug: str, target_branch: str) -> str:
+    """The branch planning artifacts must be committed on.
+
+    For a single_branch mission that minted a mission branch (protected target)
+    this is ``meta.mission_branch`` -- never the protected target the operator is
+    deliberately NOT on. Every other mission keeps the resolved target branch.
+    """
+    from mission_runtime import MissionTopology
+
+    from specify_cli.migration.backfill_topology import stored_topology
+
+    meta = _load_primary_anchored_mission_meta(repo_root, mission_slug)
+    if meta is None or stored_topology(meta) is not MissionTopology.SINGLE_BRANCH:
+        return target_branch
+    mission_branch = meta.get("mission_branch")
+    return mission_branch if isinstance(mission_branch, str) and mission_branch else target_branch
+
+
 def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
     """Human-readable "workspace ready" banner (repo-root planning vs lane
     worktree), plus the FR-006 lane-test-env export block."""
@@ -1882,6 +1914,16 @@ def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
         console.print()
         console.print("[dim]This WP does not get a lane worktree or workspace context file.[/dim]")
         console.print("[dim]Make planning-artifact changes directly in the repository root.[/dim]")
+        return
+
+    if getattr(result, "resolution_kind", None) == "repo_root" and result.branch_name:
+        # single_branch code WP: executes in the write checkout, no lane worktree.
+        console.print("\n[bold green]✓ Repository-root workspace ready[/bold green]")
+        console.print()
+        console.print(f"  Work in the repository root checkout on branch [bold]{result.branch_name}[/bold]")
+        console.print(f"  [bold]cd {workspace_path}[/bold]")
+        console.print()
+        console.print("[dim]This WP runs directly in the repository root; commit your work on this branch yourself.[/dim]")
         return
 
     console.print("\n[bold green]✓ Lane worktree ready[/bold green]")
@@ -2031,7 +2073,7 @@ def implement(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
-            planning_branch=planning_branch,
+            planning_branch=_planning_commit_branch(repo_root, mission_slug, planning_branch),
             auto_commit=bool(auto_commit),
             placement_ref=_placement_ref,
         )
@@ -2097,6 +2139,10 @@ def implement(
         # _start_wp_implementation_status below). The former frontmatter
         # dual-write mirror was removed in the #2816 unconditional cutover, so
         # `spec-kitty implement` writes 0 runtime bytes to the WP file.
+        # #5100 A3: refusals (wrong branch / occupied / dirty) run BEFORE the VCS
+        # lock is written into meta.json, so a refused implement leaves nothing
+        # behind (the read-only check is repeated, idempotently, at allocation).
+        _refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
         # #3571: when --base is provided, validate the ref (planning-lane
