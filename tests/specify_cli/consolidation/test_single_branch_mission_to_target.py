@@ -215,3 +215,46 @@ def test_collect_authored_uses_mission_branch_window(protected_repo: Path) -> No
     without = _collect_authored(protected_repo, manifest, wps, "main", None)
     assert ("src/impl.py", _git(protected_repo, "rev-parse", f"{_MISSION_BRANCH}:src/impl.py").stdout.strip()) in with_window[2]
     assert not without[2], "control: without the window the repo-root lane resolves to the target and has no authored blobs"
+
+
+# ---------------------------------------------------------------------------
+# Post-landing bookkeeping resolves to the target (#5100 B4)
+# ---------------------------------------------------------------------------
+
+
+def test_protected_landing_clears_mission_branch_and_keeps_tree_clean(protected_repo: Path) -> None:
+    from mission_runtime.resolution import _resolve_single_branch_write_ref
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    run = _build_run(protected_repo, _protected_lanes_manifest())
+    feature_dir = protected_repo / "kitty-specs" / _SLUG
+
+    ex._phase_mission_to_target(run)
+    ex._switch_write_checkout_after_single_branch_landing(run)
+    ex._cleanup_mission_branch_and_coordination(run)
+
+    meta = load_meta_or_empty(feature_dir)
+    assert "mission_branch" not in meta, "the deleted mission branch must not stay recorded (mission reopen / write routing)"
+    assert meta["topology"] == "single_branch"
+    assert not _branch_exists(protected_repo, _MISSION_BRANCH)
+    assert _current_branch(protected_repo) == "main"
+    # The clear was committed ON the target: nothing left dirty.
+    assert _git(protected_repo, "status", "--porcelain").stdout.strip() == ""
+    assert '"mission_branch"' not in _git(protected_repo, "show", "main:kitty-specs/" + _SLUG + "/meta.json").stdout
+    # A later post-landing write resolves to the target, not the deleted branch.
+    ref = _resolve_single_branch_write_ref("single_branch", "main", protected_repo, _SLUG)
+    assert ref == "main"
+
+
+def test_retained_mission_branch_keeps_meta_mission_branch(protected_repo: Path) -> None:
+    """Control: --keep-branch retains the branch, so the recorded name stays valid."""
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    run = _build_run(protected_repo, _protected_lanes_manifest(), delete_branch=False)
+
+    ex._phase_mission_to_target(run)
+    ex._switch_write_checkout_after_single_branch_landing(run)
+    ex._cleanup_mission_branch_and_coordination(run)
+
+    assert _branch_exists(protected_repo, _MISSION_BRANCH)
+    assert load_meta_or_empty(protected_repo / "kitty-specs" / _SLUG)["mission_branch"] == _MISSION_BRANCH
