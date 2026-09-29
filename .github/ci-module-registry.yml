@@ -322,6 +322,12 @@ modules:
   - tests/specify_cli/live_work
   - tests/specify_cli/tasks_authoring
   - tests/specify_cli/bootstrap
+  # single_branch topology honesty (#5100/#5115): the resolver-arm and
+  # single_branch resolution unit tests for src/specify_cli/workspace/context.py.
+  # No row roots src/specify_cli/workspace/**; this row's `specify_cli`
+  # cov_target covers it, so the tree is enrolled here for per-PR execution
+  # (same precedent as the bootstrap/config/live_work enrolments above).
+  - tests/specify_cli/workspace
 - module: unit
   roots:
   - src/specify_cli/status/**

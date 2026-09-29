@@ -406,6 +406,7 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/specify_cli/test_runtime_hard_fail.py",
             "tests/specify_cli/test_state_doctor.py",
             "tests/specify_cli/test_workspace_context_tombstone.py",
+            "tests/specify_cli/workspace",
             "tests/state",
             "tests/test_dashboard",
             "tests/upgrade",
