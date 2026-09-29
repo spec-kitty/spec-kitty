@@ -71,7 +71,6 @@ def _finish_wp_frontmatter(repo_root: Path, feature_dir: Path) -> None:
             deps=[],
             has_dependencies_line=True,
             requirement_refs=["FR-001" if metadata.work_package_id == "WP01" else "FR-002"],
-            has_requirement_refs_line=True,
             target_branch=TARGET_BRANCH,
             merge_target_branch=TARGET_BRANCH,
         )
