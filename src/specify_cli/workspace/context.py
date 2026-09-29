@@ -20,7 +20,7 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.core.atomic import atomic_write
 from kernel.git_topology import GitTopologyError, git_toplevel
@@ -33,6 +33,12 @@ from specify_cli.ownership.workspace_strategy import create_planning_workspace
 # Deep import: status.emit imports this module during status/__init__ execution,
 # so the status facade is not yet initialized here — importing from it would cycle.
 from specify_cli.status.wp_metadata import WPMetadata, read_authored_wp_frontmatter
+
+if TYPE_CHECKING:
+    # WP01 campsite split: type-only -- the runtime import lives inside
+    # ``_resolve_workspace_for_wp_impl`` (mirrors the module's existing
+    # lazy-import style) to avoid a module-level cross-package import.
+    from specify_cli.lanes.models import ExecutionLane
 
 
 #: Operator recovery command named by workspace husk resolution errors
@@ -744,110 +750,147 @@ def resolve_workspace_for_wp(
     return resolved
 
 
-def _resolve_workspace_for_wp_impl(
+def _resolve_planning_artifact_arm(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
-) -> ResolvedWorkspace:
-    """Resolve the ResolvedWorkspace for a WP (pure resolution, no identity gate).
+    normalized_wp: NormalizedWorkPackage,
+    execution_mode: WorkProductKind,
+) -> ResolvedWorkspace | None:
+    """Resolve a ``planning_artifact`` WP to the repo-root ``lane-planning`` lane.
 
-    The Seam-B checkout-identity refusal is layered on by the public
-    :func:`resolve_workspace_for_wp` wrapper so every one of this function's
-    early-return arms is gated identically without duplicating the check.
+    Returns ``None`` when ``execution_mode`` is not ``PLANNING_ARTIFACT``, so
+    the caller falls through to the next arm. WP01 campsite split (behaviour-
+    preserving) out of ``_resolve_workspace_for_wp_impl``.
     """
-    normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id)
-    execution_mode = WorkProductKind(normalized_wp.metadata.execution_mode or WorkProductKind.CODE_CHANGE)
+    if execution_mode != WorkProductKind.PLANNING_ARTIFACT:
+        return None
 
-    if execution_mode == WorkProductKind.PLANNING_ARTIFACT:
-        # planning_artifact WPs are first-class lane-owned entities assigned to
-        # "lane-planning".  That lane resolves to the main repository checkout.
-        # We still call create_planning_workspace() for the path, but we now
-        # populate lane_id so the ResolvedWorkspace contract is uniform.
-        from specify_cli.lanes.compute import PLANNING_LANE_ID
-        from specify_cli.lanes.persistence import read_lanes_json
+    # planning_artifact WPs are first-class lane-owned entities assigned to
+    # "lane-planning".  That lane resolves to the main repository checkout.
+    # We still call create_planning_workspace() for the path, but we now
+    # populate lane_id so the ResolvedWorkspace contract is uniform.
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
+    from specify_cli.lanes.persistence import read_lanes_json
 
-        planning_workspace = create_planning_workspace(
-            mission_slug=mission_slug,
-            wp_code=wp_id,
-            owned_files=list(normalized_wp.metadata.owned_files),
-            repo_root=repo_root,
-        )
-        # Try to populate lane_wp_ids from lanes.json if available.
-        # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-        # read-side-placement-seam-migration WP07: named via the seam
-        # authority instead of the kind-blind ``resolve_planning_read_dir``;
-        # behavior-identical since LANE_STATE is PRIMARY-partition (no
-        # fail-loud arm reachable here).
-        lane_wp_ids: list[str] = []
-        lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
-        lanes_manifest = read_lanes_json(lanes_read_dir)
-        if lanes_manifest is not None:
-            planning_lane = lanes_manifest.lane_for_wp(wp_id)
-            if planning_lane is not None:
-                lane_wp_ids = list(planning_lane.wp_ids)
-
-        return ResolvedWorkspace(
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            execution_mode=execution_mode.value,
-            mode_source=normalized_wp.mode_source,
-            resolution_kind="repo_root",
-            workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
-            worktree_path=planning_workspace,
-            branch_name=None,
-            lane_id=PLANNING_LANE_ID,
-            lane_wp_ids=lane_wp_ids,
-            context=None,
-        )
-
-    context = find_context_for_wp(repo_root, mission_slug, wp_id)
-    if context is not None:
-        worktree_path = repo_root / context.worktree_path
-        return ResolvedWorkspace(
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            execution_mode=execution_mode.value,
-            mode_source=normalized_wp.mode_source,
-            resolution_kind="lane_workspace",
-            workspace_name=worktree_path.name,
-            worktree_path=worktree_path,
-            branch_name=context.branch_name,
-            lane_id=context.lane_id,
-            lane_wp_ids=list(context.lane_wp_ids),
-            context=context,
-        )
-
+    planning_workspace = create_planning_workspace(
+        mission_slug=mission_slug,
+        wp_code=wp_id,
+        owned_files=list(normalized_wp.metadata.owned_files),
+        repo_root=repo_root,
+    )
+    # Try to populate lane_wp_ids from lanes.json if available.
     # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-    # read-side-placement-seam-migration WP07: named via the seam authority
-    # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
-    # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
-    # reachable here).
+    # read-side-placement-seam-migration WP07: named via the seam
+    # authority instead of the kind-blind ``resolve_planning_read_dir``;
+    # behavior-identical since LANE_STATE is PRIMARY-partition (no
+    # fail-loud arm reachable here).
+    lane_wp_ids: list[str] = []
     lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
+    lanes_manifest = read_lanes_json(lanes_read_dir)
+    if lanes_manifest is not None:
+        planning_lane = lanes_manifest.lane_for_wp(wp_id)
+        if planning_lane is not None:
+            lane_wp_ids = list(planning_lane.wp_ids)
+
+    return ResolvedWorkspace(
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        execution_mode=execution_mode.value,
+        mode_source=normalized_wp.mode_source,
+        resolution_kind="repo_root",
+        workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
+        worktree_path=planning_workspace,
+        branch_name=None,
+        lane_id=PLANNING_LANE_ID,
+        lane_wp_ids=lane_wp_ids,
+        context=None,
+    )
+
+
+def _resolve_context_arm(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    normalized_wp: NormalizedWorkPackage,
+    execution_mode: WorkProductKind,
+) -> ResolvedWorkspace | None:
+    """Resolve a WP to its already-persisted lane :class:`WorkspaceContext`.
+
+    Returns ``None`` when no context is persisted yet, so the caller falls
+    through to the ``lanes.json`` arms. WP01 campsite split (behaviour-
+    preserving) out of ``_resolve_workspace_for_wp_impl``.
+    """
+    context = find_context_for_wp(repo_root, mission_slug, wp_id)
+    if context is None:
+        return None
+    worktree_path = repo_root / context.worktree_path
+    return ResolvedWorkspace(
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        execution_mode=execution_mode.value,
+        mode_source=normalized_wp.mode_source,
+        resolution_kind="lane_workspace",
+        workspace_name=worktree_path.name,
+        worktree_path=worktree_path,
+        branch_name=context.branch_name,
+        lane_id=context.lane_id,
+        lane_wp_ids=list(context.lane_wp_ids),
+        context=context,
+    )
+
+
+def _resolve_planning_lane_arm(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    normalized_wp: NormalizedWorkPackage,
+    execution_mode: WorkProductKind,
+    lane: ExecutionLane,
+    target_branch: str,
+) -> ResolvedWorkspace | None:
+    """Resolve a WP whose ``lanes.json`` lane is ``lane-planning``.
+
+    Returns ``None`` when ``lane`` is not the planning lane, so the caller
+    falls through to the code-lane arm. WP01 campsite split (behaviour-
+    preserving) out of ``_resolve_workspace_for_wp_impl``.
+    """
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_planning_lane
-    from specify_cli.lanes.persistence import require_lanes_json, resolve_lanes_dir
-
-    lanes_manifest = require_lanes_json(lanes_read_dir)
-    lane = lanes_manifest.lane_for_wp(wp_id)
-    if lane is None:
-        raise ValueError(f"{wp_id} resolved to execution_mode={execution_mode.value!r} but is not assigned to any lane in {resolve_lanes_dir(lanes_read_dir)}")
 
     # lane-planning resolves to the main repository checkout, not a .worktrees/ path.
-    if is_planning_lane(lane):
-        target_branch = lanes_manifest.target_branch
-        return ResolvedWorkspace(
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            execution_mode=execution_mode.value,
-            mode_source=normalized_wp.mode_source,
-            resolution_kind="repo_root",
-            workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
-            worktree_path=repo_root,
-            branch_name=lane_branch_name(mission_slug, PLANNING_LANE_ID, planning_base_branch=target_branch),
-            lane_id=PLANNING_LANE_ID,
-            lane_wp_ids=list(lane.wp_ids),
-            context=None,
-        )
+    if not is_planning_lane(lane):
+        return None
+    return ResolvedWorkspace(
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        execution_mode=execution_mode.value,
+        mode_source=normalized_wp.mode_source,
+        resolution_kind="repo_root",
+        workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
+        worktree_path=repo_root,
+        branch_name=lane_branch_name(mission_slug, PLANNING_LANE_ID, planning_base_branch=target_branch),
+        lane_id=PLANNING_LANE_ID,
+        lane_wp_ids=list(lane.wp_ids),
+        context=None,
+    )
+
+
+def _resolve_code_lane_arm(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    normalized_wp: NormalizedWorkPackage,
+    execution_mode: WorkProductKind,
+    lane: ExecutionLane,
+) -> ResolvedWorkspace:
+    """Resolve a WP to its ``lanes.json`` code-change lane worktree.
+
+    The final, always-non-``None`` arm: every WP that reaches this point has
+    a code lane assigned. WP01 campsite split (behaviour-preserving) out of
+    ``_resolve_workspace_for_wp_impl``.
+    """
+    from specify_cli.lanes.branch_naming import lane_branch_name
 
     # Route the COMPOSE (not just the .worktrees join) through the seam so no
     # name-guess survives the assign-then-join indirection (FR-005, WP09 ratchet).
@@ -866,6 +909,60 @@ def _resolve_workspace_for_wp_impl(
         lane_wp_ids=list(lane.wp_ids),
         context=None,
     )
+
+
+def _resolve_workspace_for_wp_impl(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+) -> ResolvedWorkspace:
+    """Resolve the ResolvedWorkspace for a WP (pure resolution, no identity gate).
+
+    The Seam-B checkout-identity refusal is layered on by the public
+    :func:`resolve_workspace_for_wp` wrapper so every one of this function's
+    early-return arms is gated identically without duplicating the check.
+
+    Reads as a short dispatch over the per-arm helpers (WP01 campsite split),
+    in today's precedence order: planning_artifact kind -> persisted context
+    -> lanes.json planning lane -> code lane.
+    """
+    normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id)
+    execution_mode = WorkProductKind(normalized_wp.metadata.execution_mode or WorkProductKind.CODE_CHANGE)
+
+    planning_artifact_workspace = _resolve_planning_artifact_arm(repo_root, mission_slug, wp_id, normalized_wp, execution_mode)
+    if planning_artifact_workspace is not None:
+        return planning_artifact_workspace
+
+    context_workspace = _resolve_context_arm(repo_root, mission_slug, wp_id, normalized_wp, execution_mode)
+    if context_workspace is not None:
+        return context_workspace
+
+    # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
+    # read-side-placement-seam-migration WP07: named via the seam authority
+    # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
+    # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
+    # reachable here).
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
+    from specify_cli.lanes.persistence import require_lanes_json, resolve_lanes_dir
+
+    lanes_manifest = require_lanes_json(lanes_read_dir)
+    lane = lanes_manifest.lane_for_wp(wp_id)
+    if lane is None:
+        raise ValueError(f"{wp_id} resolved to execution_mode={execution_mode.value!r} but is not assigned to any lane in {resolve_lanes_dir(lanes_read_dir)}")
+
+    planning_lane_workspace = _resolve_planning_lane_arm(
+        repo_root,
+        mission_slug,
+        wp_id,
+        normalized_wp,
+        execution_mode,
+        lane,
+        lanes_manifest.target_branch,
+    )
+    if planning_lane_workspace is not None:
+        return planning_lane_workspace
+
+    return _resolve_code_lane_arm(repo_root, mission_slug, wp_id, normalized_wp, execution_mode, lane)
 
 
 def resolve_lane_base_ref(

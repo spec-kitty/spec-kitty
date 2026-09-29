@@ -22,7 +22,7 @@ import subprocess
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
@@ -297,6 +297,52 @@ def _lane_base_reachable_from_target(
     return result.returncode == 0
 
 
+#: The destroyed-lane guard's decision-table outcome (WP01 campsite split,
+#: single-branch-topology-honesty-01M3M22V): ``"proceed"`` lets allocation
+#: fall through to the normal FRESH route; the two ``refuse_*`` verdicts both
+#: raise :class:`DestroyedLaneError`, kept distinct so a future caller can
+#: report *why* without re-deriving it. WP07 swaps the ``base_reachable``
+#: input for a tip-based one without touching this table's shape.
+_GuardVerdict = Literal["proceed", "refuse_destroyed", "refuse_unreadable"]
+
+
+def _destroyed_lane_verdict(
+    *,
+    has_context: bool,
+    wp_state: str | None,
+    status_unreadable: bool,
+    base_reachable: bool,
+) -> _GuardVerdict:
+    """Return the destroyed-lane guard's verdict for one input combination.
+
+    Pure decision table (see ``../data-model.md#4889-destroyed-lane-decision-
+    table``), extracted from ``_refuse_if_lane_destroyed`` (WP01 campsite
+    split) so its shape is directly testable and so WP07 can swap
+    ``base_reachable`` for a tip-based reachability input without touching
+    the table itself. Rows, in evaluation order:
+
+    - no persisted context -> ``proceed`` (a genuinely fresh lane, FR-001);
+    - a persisted context but an unreadable status surface -> ``refuse_
+      unreadable`` (fail closed -- see ``_refuse_if_lane_destroyed``'s
+      docstring for why an unreadable surface is never "never finalized"
+      once context is confirmed present);
+    - ``wp_state`` outside ``_DESTROYED_LANE_TRIGGER_STATES`` -> ``proceed``
+      (terminal or pre-allocation state, nothing to strand);
+    - ``base_reachable`` -> ``proceed`` (FR-009 resume: the lineage already
+      landed on the target branch);
+    - otherwise -> ``refuse_destroyed`` (the decision table's last row).
+    """
+    if not has_context:
+        return "proceed"
+    if status_unreadable:
+        return "refuse_unreadable"
+    if wp_state not in _DESTROYED_LANE_TRIGGER_STATES:
+        return "proceed"
+    if base_reachable:
+        return "proceed"
+    return "refuse_destroyed"
+
+
 def _refuse_if_lane_destroyed(
     repo_root: Path,
     mission_slug: str,
@@ -330,6 +376,11 @@ def _refuse_if_lane_destroyed(
     exact #4889 P0, reachable from inside the very coord topology the
     original fix claimed to fully close. Fail closed instead: worst case is a
     recoverable "materialize the coord worktree" refusal, never data loss.
+
+    WP01 campsite split: gathers the inputs, delegates the decision to
+    :func:`_destroyed_lane_verdict`, then raises for either refuse verdict --
+    the exception-chaining (``from None``) and the raised-error shape are
+    unchanged from before the split.
     """
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
     from specify_cli.status import CanonicalStatusNotFoundError
@@ -342,12 +393,14 @@ def _refuse_if_lane_destroyed(
     try:
         state = _canonical_wp_lane_value(repo_root, mission_slug, wp_id)
     except (CanonicalStatusNotFoundError, StatusReadPathNotFound):
-        raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch) from None
-
-    if state not in _DESTROYED_LANE_TRIGGER_STATES:
+        verdict = _destroyed_lane_verdict(has_context=True, wp_state=None, status_unreadable=True, base_reachable=False)
+        if verdict != "proceed":
+            raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch) from None
         return
 
-    if _lane_base_reachable_from_target(repo_root, context, target_branch):
+    base_reachable = state in _DESTROYED_LANE_TRIGGER_STATES and _lane_base_reachable_from_target(repo_root, context, target_branch)
+    verdict = _destroyed_lane_verdict(has_context=True, wp_state=state, status_unreadable=False, base_reachable=base_reachable)
+    if verdict == "proceed":
         return
 
     raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch)
