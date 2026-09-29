@@ -35,6 +35,7 @@ from specify_cli.lanes.consolidation import (
     _make_merge_env,
     reconcile_derived_status_snapshot_conflicts,
 )
+from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, read_tip, record_tip, tip_ref
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.mission_metadata import load_meta
@@ -201,27 +202,103 @@ class DestroyedLaneError(StructuredError):
     and surface a structured ``LANE_ALLOCATION_FAILED`` envelope rather than a
     raw traceback (NFR-004) -- without any edit to that file (it is outside
     this WP's owned files).
+
+    WP07 (#5115) / contract ``lane-work-tip.md``: ``tip_sha`` is optional and
+    ADDITIVE. When ``None`` (the pre-WP07 shape -- the coord-topology base-
+    unreachable check fired with no lane-tip ref consulted at all) the
+    message stays byte-identical to before. When set (the tip-based path
+    found a recorded, non-absorbed work tip) the message additionally names
+    the SHA plus the restore (``git branch``) and abandon
+    (``git update-ref -d``) commands against ``refs/spec-kitty/lane-tip/<branch>``.
     """
 
     error_code: str = "DESTROYED_LANE"
+
+    def __init__(self, *, lane_id: str, wp_id: str, branch_name: str, tip_sha: str | None = None) -> None:
+        self.lane_id = lane_id
+        self.wp_id = wp_id
+        self.branch_name = branch_name
+        self.tip_sha = tip_sha
+        if tip_sha is None:
+            self.next_step = (
+                f"the commit(s) are not deleted, only unreferenced -- recover the tip "
+                f"first: check `git reflog {branch_name}` (if the reflog entry survived) "
+                f"or `git fsck --lost-found` (dangling commits) in the repository, "
+                f"re-create the branch with `git branch {branch_name} <recovered-sha>`, "
+                f"then re-run the implement command for {wp_id!r}."
+            )
+            super().__init__(
+                f"cannot allocate lane {lane_id!r} for {wp_id!r}: its branch "
+                f"{branch_name!r} and worktree are both gone, the WP is still "
+                f"non-terminal, and its committed work is not reachable from the "
+                f"target branch -- refusing to silently re-cut an empty lane and "
+                f"strand that work. {self.next_step}"
+            )
+            return
+
+        tip_ref_name = tip_ref(branch_name)
+        self.next_step = (
+            f"the recorded lane work tip is {tip_sha} ({tip_ref_name}) -- restore it "
+            f"with `git branch {branch_name} {tip_ref_name}`, or deliberately abandon "
+            f"it with `git update-ref -d {tip_ref_name}`, then re-run the implement "
+            f"command for {wp_id!r}."
+        )
+        super().__init__(
+            f"cannot allocate lane {lane_id!r} for {wp_id!r}: its branch "
+            f"{branch_name!r} and worktree are both gone, the WP is still "
+            f"non-terminal, and its recorded lane work tip {tip_sha!r} is not "
+            f"absorbed by the target branch -- refusing to silently re-cut an empty "
+            f"lane and strand that work. {self.next_step}"
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        payload = super().to_dict()
+        payload["lane_id"] = self.lane_id
+        payload["wp_id"] = self.wp_id
+        payload["branch_name"] = self.branch_name
+        payload["next_step"] = self.next_step
+        if self.tip_sha is not None:
+            payload["tip_sha"] = self.tip_sha
+        return payload
+
+
+class LaneWorkTipUnknownError(StructuredError):
+    """Raised when a destroyed lane's work tip was never recorded (#5115 / FR-021).
+
+    A persisted :class:`~specify_cli.workspace.context.WorkspaceContext` (or a
+    recorded lane-tip ref, per the context-missing arm of the guard decision
+    table) proves the lane was allocated, but neither ``refs/spec-kitty/lane-tip/
+    <branch>`` nor the live branch itself exists any more -- there is no basis
+    to classify this lane as safe to re-cut (a genuinely empty lane) or as
+    stranding real work (a destroyed one). Fails CLOSED rather than guessing:
+    a lane that predates tip recording (an upgraded clone that was never
+    "touched" again before its branch was deleted) is the expected trigger,
+    not a bug -- FR-021's backfill-on-touch closes this for every lane a later
+    spec-kitty command reaches BEFORE it is destroyed.
+    """
+
+    error_code: str = "LANE_WORK_TIP_UNKNOWN"
 
     def __init__(self, *, lane_id: str, wp_id: str, branch_name: str) -> None:
         self.lane_id = lane_id
         self.wp_id = wp_id
         self.branch_name = branch_name
+        tip_ref_name = tip_ref(branch_name)
         self.next_step = (
-            f"the commit(s) are not deleted, only unreferenced -- recover the tip "
-            f"first: check `git reflog {branch_name}` (if the reflog entry survived) "
-            f"or `git fsck --lost-found` (dangling commits) in the repository, "
-            f"re-create the branch with `git branch {branch_name} <recovered-sha>`, "
-            f"then re-run the implement command for {wp_id!r}."
+            f"no lane work tip was ever recorded for {branch_name!r} (it predates "
+            f"tip recording, or its ref was cleared) and its branch is also gone -- "
+            f"inspect `git reflog {branch_name}` or `git fsck --lost-found` for "
+            f"stranded commits; if you find one, record it yourself with "
+            f"`git update-ref {tip_ref_name} <recovered-sha>` and re-run the "
+            f"implement command for {wp_id!r}; if you are certain no work was ever "
+            f"committed on this lane, run `spec-kitty context cleanup` to clear its "
+            f"stale workspace record and retry."
         )
         super().__init__(
             f"cannot allocate lane {lane_id!r} for {wp_id!r}: its branch "
             f"{branch_name!r} and worktree are both gone, the WP is still "
-            f"non-terminal, and its committed work is not reachable from the "
-            f"target branch -- refusing to silently re-cut an empty lane and "
-            f"strand that work. {self.next_step}"
+            f"non-terminal, and no lane work tip is recorded to classify it by -- "
+            f"refusing rather than guessing. {self.next_step}"
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -352,59 +429,99 @@ def _refuse_if_lane_destroyed(
     branch: str,
     target_branch: str,
 ) -> None:
-    """Raise :class:`DestroyedLaneError` when a WP's destroyed lane must fail closed.
+    """Raise when a WP's destroyed lane must fail closed (#4889 + #5115/WP07).
 
     Called only once neither the lane branch nor its worktree exists (the
-    REUSE / CRASH_RECOVERY gates above already ruled those two out), so this
-    is purely the decision table's last row: CTX present, STATE non-terminal,
-    base unreachable from target (see ``../data-model.md#4889-destroyed-lane-
-    decision-table``). A genuinely fresh lane (no persisted context -- FR-001)
-    or a lane whose base already landed on the target branch (FR-009 resume)
-    are both no-ops here, falling through to the normal FRESH route.
+    REUSE / CRASH_RECOVERY gates above already ruled those two out). Gathers
+    BOTH a persisted :class:`WorkspaceContext` and the recorded lane-tip ref
+    (``../../contracts/lane-work-tip.md``), then evaluates the guard decision
+    table (``../../data-model.md#guard-decision-table``), in order:
 
-    Landing-pass follow-up to #4889 (the destroyed-lane-guard husk fail-open):
-    a persisted ``WorkspaceContext`` proves this lane was allocated AFTER
-    ``finalize-tasks``, which bootstraps the canonical event log together
-    with it -- so once CTX is confirmed present, an unreadable status surface
-    is NEVER "never finalized". It is a de-materialized/unreachable coord
-    husk (``CoordState.EMPTY`` degrading to a PRIMARY checkout with no event
-    log, #4959/#4966) or an unresolved coordination surface
-    (``CoordinationBranchDeleted`` / ``CoordinationWorktreeUnmaterialized``).
-    The prior code flattened both to ``None`` inside
-    ``_canonical_wp_lane_value`` and treated the flattened ``None`` as a
-    legitimate non-trigger state, silently falling through to the FRESH route
-    and re-cutting an empty lane over the WP's real, committed work -- the
-    exact #4889 P0, reachable from inside the very coord topology the
-    original fix claimed to fully close. Fail closed instead: worst case is a
-    recoverable "materialize the coord worktree" refusal, never data loss.
-
-    WP01 campsite split: gathers the inputs, delegates the decision to
-    :func:`_destroyed_lane_verdict`, then raises for either refuse verdict --
-    the exception-chaining (``from None``) and the raised-error shape are
-    unchanged from before the split.
+    1. Neither a context nor a tip ref exists -> proceed (FR-001, a
+       genuinely fresh lane -- nothing to strand).
+    2. The status surface is unreadable while a context IS present -> refuse
+       (unchanged landing-pass-to-#4889 behaviour; see the prior revision of
+       this docstring for why an unreadable surface is never legitimately
+       "never finalized" once CTX proves finalize-tasks ran). Unreadable
+       while context is absent (only a tip ref proves prior allocation) is
+       treated the SAME as "no context" (proceed) -- there is no state to
+       classify against either way.
+    3. ``wp_state`` outside ``_DESTROYED_LANE_TRIGGER_STATES`` -> proceed
+       (terminal or pre-allocation state, nothing to strand).
+    4. **#4889, unchanged**: a persisted context whose creation BASE is
+       unreachable from ``target_branch`` refuses immediately, exactly as
+       before WP07 -- this is coord topology's own original defect
+       condition and never needed a lane-tip ref to detect (a coordination
+       branch is never an ancestor of the mission's target until
+       consolidation lands it).
+    5. Otherwise (context absent, OR context present with a REACHABLE base
+       -- the #5115 gap M7 closes: for a non-coord topology the base is
+       ALWAYS reachable, so step 4 alone silently waved every one of these
+       through) -> :func:`_refuse_on_tip` decides on the recorded tip's
+       absorption. This is the base-reachable early-return-to-"proceed"
+       that plan.md M7 removes: reachability alone no longer ends the
+       guard, it only decides whether step 4's coord-specific refusal
+       applies before the tip is even consulted.
     """
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
     from specify_cli.status import CanonicalStatusNotFoundError
     from specify_cli.workspace.context import find_context_for_wp
 
     context = find_context_for_wp(repo_root, mission_slug, wp_id)
-    if context is None:
+    tip = read_tip(repo_root, branch)
+    if context is None and tip is None:
         return
 
     try:
         state = _canonical_wp_lane_value(repo_root, mission_slug, wp_id)
     except (CanonicalStatusNotFoundError, StatusReadPathNotFound):
-        verdict = _destroyed_lane_verdict(has_context=True, wp_state=None, status_unreadable=True, base_reachable=False)
+        verdict = _destroyed_lane_verdict(has_context=context is not None, wp_state=None, status_unreadable=True, base_reachable=False)
         if verdict != "proceed":
             raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch) from None
         return
 
-    base_reachable = state in _DESTROYED_LANE_TRIGGER_STATES and _lane_base_reachable_from_target(repo_root, context, target_branch)
-    verdict = _destroyed_lane_verdict(has_context=True, wp_state=state, status_unreadable=False, base_reachable=base_reachable)
-    if verdict == "proceed":
+    if state not in _DESTROYED_LANE_TRIGGER_STATES:
         return
 
-    raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch)
+    if context is not None and not _lane_base_reachable_from_target(repo_root, context, target_branch):
+        raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch)
+
+    _refuse_on_tip(repo_root, lane_id=lane_id, wp_id=wp_id, branch=branch, target_branch=target_branch, tip=tip, context=context)
+
+
+def _refuse_on_tip(
+    repo_root: Path,
+    *,
+    lane_id: str,
+    wp_id: str,
+    branch: str,
+    target_branch: str,
+    tip: str | None,
+    context: WorkspaceContext | None,
+) -> None:
+    """The tip-based half of the guard decision table (rows 3-5, WP07/#5115).
+
+    Reached only for a confirmed trigger-state WP whose base-reachability
+    check (:func:`_refuse_if_lane_destroyed`'s step 4) did not already
+    refuse. ``tip=None`` fails closed with :class:`LaneWorkTipUnknownError`
+    (FR-021) rather than guessing -- a lane that predates tip recording, or
+    whose ref was cleared while the lane itself is gone, cannot be classified
+    as safe. ``context=None`` (the context-cleanup fail-open FR-020 closes)
+    evaluates absorption with no ``base`` leg at all, never a spurious
+    ``tip == base`` match against a base this call never confirmed.
+    """
+    if tip is None:
+        raise LaneWorkTipUnknownError(lane_id=lane_id, wp_id=wp_id, branch_name=branch)
+
+    base = context.base_commit if context is not None else None
+    try:
+        absorbed = is_absorbed(repo_root, tip, target_branch, base)
+    except AbsorptionUnsupported:
+        raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch, tip_sha=tip) from None
+
+    if absorbed:
+        return
+    raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch, tip_sha=tip)
 
 
 class PlanningCommitMergeConflictError(StructuredError):
@@ -748,6 +865,62 @@ def _fresh_lane_parent_ref(
     return resolved
 
 
+def _backfill_context_if_missing(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    lane: ExecutionLane,
+    worktree_path: Path,
+    branch: str,
+    lanes_manifest: LanesManifest,
+) -> None:
+    """FR-022: ensure every allocation route leaves a ``WorkspaceContext`` behind.
+
+    The CLI ``implement`` flow (``implement_support.create_lane_workspace``)
+    writes a richer context immediately after :func:`allocate_lane_worktree`
+    returns -- honored ``--base``, declared WP dependencies, frontmatter
+    updates -- which simply overwrites this best-effort record with the
+    fuller one (last-write-wins, no conflict). This backfill exists for the
+    orchestrator-api path (``orchestrator_api/commands.py::_resolve_start_
+    workspace``), which calls this function directly and, before WP07, wrote
+    NO context at all -- leaving an orchestrator-allocated lane invisible to
+    every context-keyed guard, most importantly this module's own destroyed-
+    lane check (#5115). A no-op when a context already exists: this never
+    re-bases or refreshes an existing record, only :func:`create_lane_workspace`
+    and :func:`~specify_cli.lanes.implement_support.refresh_reused_lane_context`
+    do that.
+    """
+    from kernel.clock import now_utc_iso
+
+    from specify_cli.lanes.lane_env import lane_test_env
+    from specify_cli.workspace.context import WorkspaceContext, find_context_for_wp, save_context
+
+    if find_context_for_wp(repo_root, mission_slug, wp_id) is not None:
+        return
+
+    coordination_branch = _read_coordination_branch(repo_root, mission_slug)
+    base_branch = coordination_branch if coordination_branch is not None else lanes_manifest.mission_branch
+    base_commit = capture_branch_tip(repo_root, base_branch)
+
+    context = WorkspaceContext(
+        wp_id=wp_id,
+        mission_slug=mission_slug,
+        worktree_path=str(worktree_path.relative_to(repo_root)),
+        branch_name=branch,
+        base_branch=base_branch,
+        base_commit=base_commit,
+        dependencies=[],
+        created_at=now_utc_iso(),
+        created_by="allocate-lane-worktree-backfill",
+        vcs_backend="git",
+        lane_id=lane.lane_id,
+        lane_wp_ids=list(lane.wp_ids),
+        current_wp=wp_id,
+        lane_test_env=lane_test_env(mission_slug, lane.lane_id),
+    )
+    save_context(repo_root, context)
+
+
 def allocate_lane_worktree(
     repo_root: Path,
     mission_slug: str,
@@ -846,7 +1019,24 @@ def allocate_lane_worktree(
 
     # Placement (path + branch) comes from the single predict seam — the write
     # authority and the read-only mirrors must never diverge on this decision.
+    # Raises ValueError for the canonical planning (repo-root) lane -- before
+    # any git mutation, and before the recorder install below (a repo-root
+    # lane, and a caller testing against a non-git path, must never pay for
+    # or fail on a hooks-dir probe that is meaningless for it).
     worktree_path, branch = predict_lane_worktree(repo_root, mission_slug, lane.lane_id)
+
+    # #5115/WP07 (FR-018/FR-024): install the lane-tip recorder hooks here --
+    # the SINGLE choke point every CODE-lane route (FRESH/REUSE/CRASH_
+    # RECOVERY) and every caller (the CLI's ``implement`` and the
+    # orchestrator-api's ``start-implementation``, which never goes through
+    # ``implement_support.create_lane_workspace``) passes through. Idempotent
+    # and cheap (a `git rev-parse --git-path hooks` plus, at most, two small
+    # file writes); installing it here rather than only in the CLI wrapper is
+    # what makes an orchestrator-allocated lane's OWN raw commits get
+    # recorded too, not just spec-kitty's own advance points.
+    from specify_cli.policy.lane_tip_recorder import install_lane_tip_recorder
+
+    install_lane_tip_recorder(repo_root)
 
     if worktree_path.exists():
         # FL1 (D3): an existing lane worktree cannot be re-parented onto a
@@ -869,6 +1059,14 @@ def allocate_lane_worktree(
         # so the dependent lane sees them. Idempotent: already-merged tips are
         # ancestors and skip.
         _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
+        # #5115/WP07 (FR-018/FR-021): refresh the lane-tip ref to the reused
+        # worktree's current HEAD -- backfills a lane that predates tip
+        # recording, and self-heals a stale tip left by a prior touch with
+        # no spec-kitty-managed hook installed yet.
+        record_tip(repo_root, branch)
+        # FR-022: an orchestrator-only caller never wrote a context on this
+        # lane's original FRESH allocation -- backfill it now, on reuse.
+        _backfill_context_if_missing(repo_root, mission_slug, wp_id, lane, worktree_path, branch, lanes_manifest)
         return worktree_path, branch
 
     # #1348 (WP04): pick the parent branch.
@@ -928,6 +1126,11 @@ def allocate_lane_worktree(
         # below — a re-attached lane picks up the recorded planning commit too.
         _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip)
         _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
+        # #5115/WP07 (FR-018/FR-021): the branch survived (worktree dir was
+        # lost) -- backfill/refresh its tip from the re-attached HEAD.
+        record_tip(repo_root, branch)
+        # FR-022: see the REUSE arm above.
+        _backfill_context_if_missing(repo_root, mission_slug, wp_id, lane, worktree_path, branch, lanes_manifest)
         return worktree_path, branch
 
     # #4889 (P0) fail-closed pre-flight: neither the branch nor the worktree
@@ -1041,6 +1244,18 @@ def allocate_lane_worktree(
     # of the chosen base (coordination or legacy mission branch) so the
     # dependent lane sees sibling code.
     _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
+
+    # #5115/WP07 (FR-018): record the freshly created lane's tip. At this
+    # point HEAD is still the fork point (equal to the chosen parent/base --
+    # nothing lane-specific has been committed yet), so a lane destroyed
+    # before any real work is committed correctly reads as absorbed
+    # (``tip == base``) rather than ``LANE_WORK_TIP_UNKNOWN`` on its very
+    # first touch.
+    record_tip(repo_root, branch)
+
+    # FR-022: an orchestrator-only caller (no ``create_lane_workspace`` wrapper)
+    # gets a context on its very first (FRESH) allocation too.
+    _backfill_context_if_missing(repo_root, mission_slug, wp_id, lane, worktree_path, branch, lanes_manifest)
 
     return worktree_path, branch
 

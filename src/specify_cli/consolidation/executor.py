@@ -3213,6 +3213,7 @@ def _delete_lane_branches(run: _MergeRunState) -> None:
     coupled to ``teardown_coordination`` for a coord mission.
     """
     from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.lanes.lane_tip import clear_tip
 
     lanes_manifest = run.lanes_manifest
     for lane in lanes_manifest.lanes:
@@ -3235,6 +3236,10 @@ def _delete_lane_branches(run: _MergeRunState) -> None:
             )
         else:
             logger.debug("Branch %s does not exist, skipping deletion", branch_name)
+        # #5115/WP07 (sibling-owned, one line): the lane-tip ref outlives the
+        # branch it was keyed on -- clear it here too, or a future recut of
+        # the SAME branch name would inherit a stale tip.
+        clear_tip(run.main_repo, branch_name)
     console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es)")
 
 

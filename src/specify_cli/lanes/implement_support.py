@@ -327,6 +327,9 @@ def create_lane_workspace(
     from specify_cli.policy.hook_installer import install_commit_guard
 
     hook_guard_record = install_commit_guard(workspace_path, repo_root)
+    # #5115/WP07: the lane-tip recorder is installed inside
+    # ``allocate_lane_worktree`` itself (worktree_allocator.py), the single
+    # choke point every route/caller passes through -- not duplicated here.
     # #4895: a foreign (non-spec-kitty) pre-existing hook was backed up
     # before being overwritten -- surface the sidecar path in `implement`'s
     # output so the operator can recover it, instead of leaving the
@@ -520,8 +523,9 @@ def reenter_lane_self_heal(
         # the fully approved tips required by the existing claim predicate.
         approved = _approved_dependency_lane_refs(main_repo_root, mission_slug, status_dir, lane, manifest)
         lane = replace(lane, depends_on_lanes=tuple(dep_id for dep_id, _ref in approved))
+        branch: str | None = None
     else:
-        workspace_path, _branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
+        workspace_path, branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
     if not workspace_path.exists():
         return None
     # #4827/WP03/T014: thread the target-branch tip through the shared merge
@@ -531,6 +535,13 @@ def reenter_lane_self_heal(
     target_tip = capture_branch_tip(main_repo_root, manifest.target_branch)
     _merge_recorded_planning_commit(main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha, target_tip)
     _merge_dependency_lane_tips(main_repo_root, workspace_path, mission_slug, lane, manifest)
+    if branch is not None:
+        # #5115/WP07 (FR-018): a CODE lane self-heal re-entry (never the
+        # planning lane, which has no ``-lane-``-matching branch of its own
+        # to record a tip for) refreshes its tip too.
+        from specify_cli.lanes.lane_tip import record_tip
+
+        record_tip(main_repo_root, branch)
     return workspace_path
 
 

@@ -860,6 +860,7 @@ def _finalize_auto_rebase(
     classifications: list[ConflictClassification],
     init_py_touched: list[Path],
     uvlock_seen: bool,
+    branch: str,
 ) -> AutoRebaseReport:
     """Run post-resolution steps: uv.lock regen, ruff fix, commit."""
     if uvlock_seen:
@@ -916,6 +917,13 @@ def _finalize_auto_rebase(
             f"merge commit failed: "
             f"{(commit_result.stderr or commit_result.stdout).strip()}",
         )
+
+    # #5115/WP07 (FR-018): spec-kitty's own lane advance also records the
+    # tip explicitly -- defense in depth alongside the post-commit hook,
+    # which this same ``git commit`` above already triggers when installed.
+    from specify_cli.lanes.lane_tip import record_tip
+
+    record_tip(repo_root, branch)
 
     return AutoRebaseReport(
         lane_id=lane_id,
@@ -1048,5 +1056,5 @@ def attempt_auto_rebase(
 
     return _finalize_auto_rebase(
         lane.lane_id, worktree_path, repo_root,
-        classifications, init_py_touched, uvlock_seen,
+        classifications, init_py_touched, uvlock_seen, branch,
     )

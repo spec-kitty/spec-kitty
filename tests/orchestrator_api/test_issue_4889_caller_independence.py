@@ -39,7 +39,7 @@ from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.orchestrator_api.commands import _resolve_start_workspace
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
-from specify_cli.workspace.context import WorkspaceContext, save_context
+from specify_cli.workspace.context import WorkspaceContext, find_context_for_wp, save_context
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.regression]
 
@@ -291,3 +291,101 @@ class TestOrchestratorApiCallerIndependence:
         captured = capsys.readouterr()
         assert "Traceback (most recent call last)" not in captured.out
         assert "Traceback (most recent call last)" not in captured.err
+
+
+def _build_fresh_coord_mission(tmp_path: Path, ids: MissionIds) -> tuple[Path, LanesManifest]:
+    """A coord mission with lane-a UNALLOCATED and NO manual context write.
+
+    Before WP07 (#5115 T033 / FR-022), ``_resolve_start_workspace`` called
+    ``allocate_lane_worktree`` directly and never wrote a
+    :class:`WorkspaceContext` -- unlike ``_build_destroyed_lane_fixture``
+    above, which manually calls ``save_context`` to SIMULATE what should
+    happen. This fixture proves the real call chain does it on its own now.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    coord_result = ensure_coordination_branch(
+        repo_root=repo,
+        mission_slug=ids.mission_slug,
+        mission_id=ids.mission_id,
+        target_branch=TARGET_BRANCH,
+    )
+    assert coord_result.created
+    coord_branch = coord_result.branch_name
+
+    feature_dir = repo / "kitty-specs" / ids.mission_slug
+    _write_meta(feature_dir, ids, coordination_branch=coord_branch)
+    manifest = _make_manifest(ids, coord_branch)
+    write_lanes_json(feature_dir, manifest)
+    _git(repo, "add", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "docs: meta + lanes.json")
+
+    coord_root = CoordinationWorkspace.resolve(repo, ids.mission_slug, ids.mid8)
+    coord_status_dir = coord_feature_dir(repo, ids.mission_slug, ids.mid8)
+    coord_status_dir.mkdir(parents=True, exist_ok=True)
+    (coord_root / "coord-marker.txt").write_text("coord progress\n", encoding="utf-8")
+    _git(coord_root, "add", "coord-marker.txt")
+    _git(coord_root, "commit", "-q", "-m", "coord: progress")
+
+    _seed_status(coord_status_dir, ids)
+
+    return repo, manifest
+
+
+class TestOrchestratorAllocationGetsContextAndTip:
+    """FR-022 / FR-018 (#5115 T033): the orchestrator's OWN allocation call
+    -- never ``implement_support.create_lane_workspace`` -- leaves a real
+    ``WorkspaceContext`` behind, AND the recorder hook it installs (single
+    choke point: ``allocate_lane_worktree`` itself, WP07) records a tip for
+    a commit the orchestrator's own caller makes afterward.
+    """
+
+    def test_orchestrator_allocated_lane_has_a_context(self, tmp_path: Path, request: pytest.FixtureRequest) -> None:
+        ids = _ids(request.node.name)
+        repo, manifest = _build_fresh_coord_mission(tmp_path, ids)
+        mission_dir = repo / "kitty-specs" / ids.mission_slug
+
+        start_workspace = _resolve_start_workspace(
+            "start-implementation",
+            repo,
+            ids.mission_slug,
+            mission_dir,
+            WP_ID,
+        )
+
+        context = find_context_for_wp(repo, ids.mission_slug, WP_ID)
+        assert context is not None
+        assert context.branch_name == start_workspace.lane_branch
+        assert context.worktree_path == str(Path(start_workspace.workspace_path).relative_to(repo))
+        assert context.lane_id == LANE_ID
+
+    def test_orchestrator_allocated_lane_records_tip_after_commit(self, tmp_path: Path, request: pytest.FixtureRequest) -> None:
+        ids = _ids(request.node.name)
+        repo, manifest = _build_fresh_coord_mission(tmp_path, ids)
+        mission_dir = repo / "kitty-specs" / ids.mission_slug
+
+        start_workspace = _resolve_start_workspace(
+            "start-implementation",
+            repo,
+            ids.mission_slug,
+            mission_dir,
+            WP_ID,
+        )
+        assert find_context_for_wp(repo, ids.mission_slug, WP_ID) is not None
+        worktree_path = Path(start_workspace.workspace_path)
+        branch = start_workspace.lane_branch
+
+        (worktree_path / "feature.py").write_text("value = 42\n", encoding="utf-8")
+        _git(worktree_path, "add", "feature.py")
+        _git(worktree_path, "commit", "-q", "-m", "feat: WP01 real work")
+        head = _git(worktree_path, "rev-parse", "HEAD")
+
+        recorded = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", f"refs/spec-kitty/lane-tip/{branch}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert recorded.returncode == 0
+        assert recorded.stdout.strip() == head

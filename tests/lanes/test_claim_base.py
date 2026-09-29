@@ -7,6 +7,7 @@ repo-root lane's ``for_review`` starting point -- see
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -673,3 +674,118 @@ def test_allocate_lane_worktree_refuses_planning_lane(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="repo-root lane has no worktree"):
         allocate_lane_worktree(repo_root=tmp_path, mission_slug="demo", wp_id="WP01", lanes_manifest=manifest)
+
+
+# ---------------------------------------------------------------------------
+# #5115/WP07: on_wp_terminal ALSO clears the lane-tip ref, once every WP
+# sharing that lane is terminal (out-of-map edit -- "the terminal-transition
+# clear site" -- justified in the WP07 Activity Log: extends this module's
+# existing single terminal hook rather than adding a second one, per
+# plan.md post-tasks fold M-3).
+# ---------------------------------------------------------------------------
+
+
+def _build_lanes_fixture_for_tip_clear(repo: Path, mission_slug: str, wp_ids: tuple[str, ...]) -> None:
+    """A minimal, no-coord ``lanes``-topology fixture: one lane sharing *wp_ids*."""
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    _init_repo(repo)
+    feature_dir = repo / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        f'{{"mission_id": "{mission_slug}", "mission_slug": "{mission_slug}", "topology": "lanes", "target_branch": "main"}}\n',
+        encoding="utf-8",
+    )
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=mission_slug,
+        mission_id=mission_slug,
+        mission_branch=f"kitty/mission-{mission_slug}",
+        target_branch="main",
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=wp_ids,
+                write_scope=("src/**",),
+                predicted_surfaces=("core",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
+        ],
+        computed_at="2026-01-01T00:00:00Z",
+        computed_from="test",
+    )
+    write_lanes_json(feature_dir, manifest)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "planning: lanes.json + meta.json")
+
+
+def _seed_wp_lane(repo: Path, mission_slug: str, wp_id: str, to_lane: str) -> None:
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    feature_dir = repo / "kitty-specs" / mission_slug
+    chain = {
+        "in_progress": [("genesis", "planned"), ("planned", "claimed"), ("claimed", "in_progress")],
+        "done": [
+            ("genesis", "planned"),
+            ("planned", "claimed"),
+            ("claimed", "in_progress"),
+            ("in_progress", "for_review"),
+            ("for_review", "in_review"),
+            ("in_review", "approved"),
+            ("approved", "done"),
+        ],
+    }[to_lane]
+    digest = hashlib.sha1(f"{wp_id}-{to_lane}".encode()).hexdigest()[:6].upper()
+    for index, (from_lane, dest_lane) in enumerate(chain):
+        event = StatusEvent(
+            event_id=f"01{digest}{index:018d}",
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            from_lane=Lane(from_lane),
+            to_lane=Lane(dest_lane),
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=False,
+            execution_mode="worktree",
+        )
+        append_event(feature_dir, event)
+
+
+def test_on_wp_terminal_clears_lane_tip_when_the_whole_lane_is_terminal(tmp_path: Path) -> None:
+    from specify_cli.lanes.lane_tip import read_tip, record_tip
+
+    mission_slug = "tip-clear-solo-01KZZTES"
+    repo = tmp_path / "repo"
+    _build_lanes_fixture_for_tip_clear(repo, mission_slug, ("WP01",))
+    branch = f"kitty/mission-{mission_slug}-lane-a"
+    _git(repo, "checkout", "-q", "-b", branch)
+    sha = _git(repo, "rev-parse", "HEAD")
+    record_tip(repo, branch, sha=sha)
+    assert read_tip(repo, branch) == sha
+    _seed_wp_lane(repo, mission_slug, "WP01", "done")
+
+    on_wp_terminal(repo, mission_slug, "WP01")
+
+    assert read_tip(repo, branch) is None
+
+
+def test_on_wp_terminal_preserves_lane_tip_when_a_sibling_wp_is_still_in_flight(tmp_path: Path) -> None:
+    """A shared lane must not lose its tip while a sibling WP is non-terminal."""
+    from specify_cli.lanes.lane_tip import read_tip, record_tip
+
+    mission_slug = "tip-clear-shared-01KZZTES"
+    repo = tmp_path / "repo"
+    _build_lanes_fixture_for_tip_clear(repo, mission_slug, ("WP01", "WP02"))
+    branch = f"kitty/mission-{mission_slug}-lane-a"
+    _git(repo, "checkout", "-q", "-b", branch)
+    sha = _git(repo, "rev-parse", "HEAD")
+    record_tip(repo, branch, sha=sha)
+    _seed_wp_lane(repo, mission_slug, "WP01", "done")
+    _seed_wp_lane(repo, mission_slug, "WP02", "in_progress")
+
+    on_wp_terminal(repo, mission_slug, "WP01")
+
+    assert read_tip(repo, branch) == sha

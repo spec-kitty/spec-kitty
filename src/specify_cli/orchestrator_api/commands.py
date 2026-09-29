@@ -1966,6 +1966,16 @@ def transition(
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
 
+    # T032 (#5115 review cycle 2, Issue 2): this for_review transition does
+    # not always auto-commit, so under a foreign post-commit hook it is
+    # otherwise the only chance to record this lane's tip before a later
+    # touch. Gated on the RESOLVED event lane (covers --force too). Best-
+    # effort: never raises, never fails a transition that already landed.
+    if event.to_lane == Lane.FOR_REVIEW:
+        from specify_cli.lanes.lane_tip import record_tip_for_wp
+
+        record_tip_for_wp(main_repo_root, mission, wp)
+
     data = {
         **_mission_identity_payload(mission_dir),
         "wp_id": wp,

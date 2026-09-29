@@ -402,8 +402,9 @@ def emit(
         _enforce_emit_for_review_gate(json_output, main_repo_root, mission_slug, wp_id, to, force)
 
         # Lazy import to avoid circular imports
-        from specify_cli.status import TransitionError
+        from specify_cli.status import Lane, TransitionError
         from specify_cli.status import TransitionRequest
+        from specify_cli.lanes.lane_tip import record_tip_for_wp
 
         # FR-004: the MissionStatus aggregate is the sole write entry point.
         # ms.transition() validates and delegates to the transactional path,
@@ -425,6 +426,16 @@ def emit(
             execution_mode=execution_mode,
             repo_root=main_repo_root,
         ))
+
+        # T032 (#5115 review cycle 2, Issue 2): this for_review transition
+        # does not always auto-commit (unlike move-task), so under a foreign
+        # post-commit hook it is otherwise the only chance to record this
+        # lane's tip before a later touch. Gated on the RESOLVED lane (not
+        # the pre-transition gate decision, which loses lane_branch under
+        # --force) so a forced transition still records. Best-effort: never
+        # raises, never fails a transition that has already landed.
+        if event.to_lane == Lane.FOR_REVIEW:
+            record_tip_for_wp(main_repo_root, mission_slug, wp_id)
 
         # ``transition()`` can materialize the coordination worktree and write
         # there even when the initial aggregate read from primary during the

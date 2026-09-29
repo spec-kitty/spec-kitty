@@ -951,6 +951,14 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
             message=f"chore({st.task_id}): commit lane deliverables for review",
             paths=paths,
         )
+        # #5115/WP07 (FR-018): spec-kitty's own for_review auto-commit is a
+        # lane advance -- record the tip explicitly (defense in depth
+        # alongside the post-commit hook this same commit already triggers
+        # when installed). Harmless no-op for a repo-root/owned checkout's
+        # non-lane branch (nothing ever reads a tip ref keyed on that name).
+        from specify_cli.lanes.lane_tip import record_tip
+
+        record_tip(st.main_repo_root, workspace.branch_name)
         if not st.json_output:
             _tasks.console.print(f"[cyan]Committed lane deliverables for {st.task_id} on {workspace.branch_name} before review.[/cyan]")
     except Exception as exc:  # noqa: BLE001 — best-effort; the guard explains on failure
