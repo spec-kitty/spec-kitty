@@ -34,6 +34,24 @@ from specify_cli.zeitgeist_client import resolution
 
 pytestmark = pytest.mark.fast
 
+_MOMENT_KILL_SWITCHES = (
+    "SPEC_KITTY_NO_MOMENT_HANDLERS",
+    "SPEC_KITTY_SYNC_DISABLE",
+    "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
+)
+
+
+@pytest.fixture
+def moment_handlers_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clear the ambient moment-handler kill switches.
+
+    ``moment_handlers_disabled_reason()`` returns early *before* the drain
+    gate, so with any of these set a drain-off test passes even when the
+    drain gate is deleted (vacuous). Drain-gate tests must reach the gate.
+    """
+    for name in _MOMENT_KILL_SWITCHES:
+        monkeypatch.delenv(name, raising=False)
+
 
 def _observation(**overrides: object) -> Observation:
     base: dict[str, object] = {
@@ -181,7 +199,9 @@ class TestOfferWithBoundedRetryNonRetryableSet:
 
 
 class TestRetrospectiveLiveWorkFanoutDrainGate:
-    def test_skips_publish_observations_under_drain_off(self, drain_off: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_skips_publish_observations_under_drain_off(
+        self, drain_off: None, moment_handlers_enabled: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from specify_cli.retrospective import lifecycle_events
 
         monkeypatch.setattr(
@@ -195,7 +215,7 @@ class TestRetrospectiveLiveWorkFanoutDrainGate:
 
         publish_observations.assert_not_called()
 
-    def test_unaffected_under_drain_on_still_publishes(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_unaffected_under_drain_on_still_publishes(self, moment_handlers_enabled: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Baseline regression guard (root fixture: drain on).
 
         Hermetic against the dispatch environment's own kill switch: this
@@ -206,9 +226,6 @@ class TestRetrospectiveLiveWorkFanoutDrainGate:
         SPEC_KITTY_SYNC_MINIMAL_IMPORT env vars (set for every agent in this
         mission's dispatch environment) must not silence it before the drain
         check is ever reached (review cycle 1, Issue 1)."""
-        monkeypatch.delenv("SPEC_KITTY_NO_MOMENT_HANDLERS", raising=False)
-        monkeypatch.delenv("SPEC_KITTY_SYNC_DISABLE", raising=False)
-        monkeypatch.delenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", raising=False)
         from specify_cli.retrospective import lifecycle_events
 
         monkeypatch.setattr(
@@ -229,7 +246,7 @@ class TestRetrospectiveLiveWorkFanoutDrainGate:
 
 
 class TestLiveWorkHookDrainGate:
-    def test_hook_exits_cleanly_without_resolving_an_adapter(self, drain_off: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_hook_exits_cleanly_without_resolving_an_adapter(self, drain_off: None, moment_handlers_enabled: None, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.cli.commands import live_work as live_work_cli
 
         get_adapter = Mock(name="get_adapter")
