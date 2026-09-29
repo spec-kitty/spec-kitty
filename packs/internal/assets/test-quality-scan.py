@@ -194,13 +194,13 @@ def _coupling_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef, calls: list[ast.
 
 
 def _text_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef, seg: str) -> list[str]:
-    """Flags read off the test's source text (R4, R6, R7, R9, skips)."""
+    """Flags read off the test's source text or, for R6 and R7, its AST (R4, R6, R7, R9, skips)."""
     checks = (
         (
             "literal-source-scan",
             _SOURCE_READ.search(seg) and _SOURCE_PATH.search(seg) and _SUBSTRING_ASSERT.search(seg) and "ast.parse" not in seg,
         ),
-        ("line-number-pin", _LINE_PIN.search(seg)),
+        ("line-number-pin", _asserts_line_pin(fn)),
         ("broad-raises", _BROAD_RAISES.search(seg)),
         ("fake-short-ulid", _has_fake_ulid(fn)),
         ("sleep", "time.sleep(" in seg),
@@ -208,6 +208,31 @@ def _text_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef, seg: str) -> list[st
         ("skip-or-xfail", re.search(r"pytest\.(skip|xfail)\(", seg) or _unguarded_skip(fn)),
     )
     return [code for code, hit in checks if hit]
+
+
+def _asserts_line_pin(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """True when a ``file.py:NN`` literal is part of an oracle, not prose (R6).
+
+    Counts an assert's test expression (never its message) and a
+    ``pytest.raises(..., match=...)`` pattern. Docstrings, comments and
+    assertion messages cite locations for the reader and are not pins.
+    """
+    oracles: list[ast.expr] = []
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Assert):
+            oracles.append(node.test)
+        elif isinstance(node, ast.With | ast.AsyncWith):
+            oracles.extend(_raises_match_patterns(node))
+    return any(_mentions_line(oracle) for oracle in oracles)
+
+
+def _raises_match_patterns(node: ast.With | ast.AsyncWith) -> list[ast.expr]:
+    calls = [item.context_expr for item in node.items if isinstance(item.context_expr, ast.Call)]
+    return [kw.value for call in calls if ast.unparse(call.func).endswith("raises") for kw in call.keywords if kw.arg == "match"]
+
+
+def _mentions_line(expr: ast.expr) -> bool:
+    return any(isinstance(n, ast.Constant) and isinstance(n.value, str) and _LINE_PIN.search(n.value) for n in ast.walk(expr))
 
 
 def _fold_str(node: ast.expr) -> str | None:
