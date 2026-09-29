@@ -252,6 +252,17 @@ def _describe_canceled_content(entry: CanceledPathState) -> str:
     return f"{situation}; {recovery}"
 
 
+#: #5318/#5296 (FR-009): printed BEFORE the single rollback authority runs, so it
+#: describes the restore as in progress and defers to the per-branch report that
+#: follows; it never claims that nothing was mutated.
+_RESTORE_IN_PROGRESS = (
+    "Every branch this consolidation moved (target, mission and coordination "
+    "branches) is being restored to its pre-consolidation commit; the rollback "
+    "report below names each branch, and a branch marked NOT restored still "
+    "carries this run's commits."
+)
+
+
 @dataclass(frozen=True)
 class VerifyResult:
     """Result of a single :meth:`MergeOutcomeVerifier.verify` call."""
@@ -274,18 +285,12 @@ class VerifyResult:
             # the restore as in progress; the executor warns separately if it could
             # not be applied. Reasons that already end in a period are not doubled.
             reason = (self.refusal_reason or "").rstrip(".")
-            return (
-                f"Reconciliation refused (fail-closed): {reason}. "
-                "The target branch is being restored to its pre-consolidation tip "
-                "(a warning follows if that is not possible); no teardown ran. "
-                "Resolve the issue above, then re-run the merge."
-            )
+            return f"Reconciliation refused (fail-closed): {reason}. {_RESTORE_IN_PROGRESS} no teardown ran. Resolve the issue above, then re-run the merge."
         detail = self.divergence.describe() if self.divergence else "unknown divergence"
         return (
-            f"Reconciliation FAILED: {detail.rstrip('.')}. The target branch is being "
-            "restored to its pre-consolidation tip (a warning follows if that is not "
-            "possible); nothing was torn down. Inspect the target branch and the lane "
-            "tips, then re-run the merge."
+            f"Reconciliation FAILED: {detail.rstrip('.')}. {_RESTORE_IN_PROGRESS} "
+            "nothing was torn down. Inspect the target branch and the lane tips, then "
+            "re-run the merge."
         )
 
     @classmethod
@@ -564,16 +569,13 @@ class MergeOutcomeVerifier:
         10. a git probe error while scanning the window → REFUSE (#5001 FOLD-3);
         11. otherwise → PASS (or FAIL, if step 4 collected canceled-content entries).
         """
-        refusal = self._refusal_reason(approved_wp_set)
+        # Claim integrity is STRATEGY-INDEPENDENT (#5001 FOLD-1) and has ONE
+        # authority (#5338): the same predicate refuses at claim time, before any
+        # mutation, so a claim reaching this gate normally passes it. The empty-claim
+        # check stays hoisted ABOVE the squash early-return (PP-F3).
+        refusal = claim_integrity_refusal(approved_wp_set)
         if refusal is not None:
             return VerifyResult.refused(refusal)
-
-        # Claim integrity is STRATEGY-INDEPENDENT (#5001 FOLD-1): an empty derived
-        # claim while the manifest lists WPs is a vacuous-pass risk (PP-F3) and
-        # must refuse for ALL strategies — hoisted ABOVE the squash early-return so
-        # a squash merge whose claim came back empty can no longer pass vacuously.
-        if approved_wp_set.is_vacuous_against_manifest:
-            return VerifyResult.refused(f"derived claim is empty while the manifest lists {len(approved_wp_set.manifest_wp_ids)} WP(s)")
 
         # Mixed-lane canceled-content axis (#5046 WP05): strategy-independent,
         # same as the claim-integrity checks above — it runs for squash too.
@@ -1380,10 +1382,8 @@ def claim_integrity_refusal(claim: ApprovedWpCommitSet) -> str | None:
     lists WPs. The squash "empty authored-blob set" REFUSE and every other
     content check stay gate-time (they need the post-merge target).
 
-    ``verify()`` still spells the vacuous text inline (its body was rewritten
-    by #5359 and is left untouched here);
-    ``tests/consolidation/test_claim_integrity_refusal.py`` pins the two to the
-    same verdict and text until ``verify()`` is rewired.
+    ``MergeOutcomeVerifier.verify`` calls this same predicate for its steps 1-3,
+    so claim time and gate time cannot drift.
     """
     reason = MergeOutcomeVerifier._refusal_reason(claim)
     if reason is not None:

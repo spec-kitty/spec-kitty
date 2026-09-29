@@ -2769,13 +2769,17 @@ def test_refuse_recovery_guidance_does_not_double_a_trailing_period() -> None:
     result = VerifyResult.refused("mixed lane lane-a: canceled WP02 cannot be attributed, then re-run spec-kitty consolidate.")
     guidance = result.recovery_guidance()
     assert "consolidate.." not in guidance
-    assert "then re-run spec-kitty consolidate. The target branch is being restored" in guidance
+    # Re-pinned 2026-09-29 (#5318/#5296 FR-009): the restore sentence now names every
+    # branch the single rollback authority restores, not only the target.
+    assert "then re-run spec-kitty consolidate. Every branch this consolidation moved" in guidance
 
 
 def test_fail_recovery_guidance_reflects_target_restoration() -> None:
     result = VerifyResult.failed(Divergence(unattributable_deletions=("src/pkg/legacy.py",)))
     guidance = result.recovery_guidance()
-    assert "being restored to its pre-consolidation tip" in guidance
+    # Re-pinned 2026-09-29 (#5318/#5296 FR-009): see the REFUSE twin above.
+    assert "is being restored to its pre-consolidation commit" in guidance
+    assert "a branch marked NOT restored still carries this run's commits" in guidance
     assert "no refs/worktrees were mutated" not in guidance
 
 
