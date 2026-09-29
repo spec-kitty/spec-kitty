@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionTopology
+
 from specify_cli.lanes.compute_and_persist import (
     LaneGlobValidationError,
     compute_and_write_lanes,
@@ -77,6 +79,7 @@ class TestComputeAndWriteLanesCore:
             "main",
             planning_commit_sha="deadbeef" * 5,
             mission_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            topology=MissionTopology.LANES,
         )
 
         assert lanes_path == feature_dir / "lanes.json"
@@ -109,6 +112,7 @@ class TestComputeAndWriteLanesCore:
             "main",
             planning_commit_sha=None,
             mission_id=None,
+            topology=MissionTopology.LANES,
         )
 
         assert lanes_manifest.planning_commit_sha is None
@@ -137,6 +141,7 @@ class TestComputeAndWriteLanesCore:
                 "main",
                 planning_commit_sha=None,
                 mission_id=None,
+                topology=MissionTopology.LANES,
             )
 
         assert exc_info.value.result.errors
@@ -180,6 +185,7 @@ class TestComputeAndWriteLanesDeterminism:
             "main",
             planning_commit_sha="abc123",
             mission_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            topology=MissionTopology.LANES,
         )
         first_bytes = first_path.read_bytes()
 
@@ -195,6 +201,7 @@ class TestComputeAndWriteLanesDeterminism:
             "main",
             planning_commit_sha="abc123",
             mission_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            topology=MissionTopology.LANES,
         )
         second_bytes = second_path.read_bytes()
 

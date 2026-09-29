@@ -3183,6 +3183,7 @@ def _compute_and_write_lanes(
         json_output=json_output,
     )
     from specify_cli.lanes.compute_and_persist import LaneGlobValidationError, compute_and_write_lanes
+    from specify_cli.migration.backfill_topology import topology_from_meta
 
     raw_mission_id = meta.get("mission_id") if meta else None
     mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
@@ -3208,6 +3209,12 @@ def _compute_and_write_lanes(
     # ``test_mission_finalize_phases.py`` monkeypatches this helper to return
     # ``None``, the pre-#4141 shape's value the manifest was assigned verbatim.
     resolved_sha = planning_sha.sha if planning_sha is not None else None
+    # #5100 M3 (review cycle-1 nit 3): derived from the ALREADY-loaded,
+    # tolerant `meta` parameter this wrapper already accepts (never a
+    # second, stricter meta.json read) -- mirrors tasks_finalize.py's
+    # identical fix. Read-only (C-003): never the fail-closed writer check
+    # compute_and_write_lanes does not yet call.
+    topology = topology_from_meta(meta or {}, planning_dir)
     try:
         lanes_path, lanes_manifest = compute_and_write_lanes(
             planning_dir,
@@ -3220,6 +3227,7 @@ def _compute_and_write_lanes(
             target_branch,
             planning_commit_sha=resolved_sha,
             mission_id=mission_id,
+            topology=topology,
         )
     except LaneGlobValidationError as exc:
         glob_result = exc.result

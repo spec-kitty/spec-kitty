@@ -60,9 +60,7 @@ def _scope_to_mission(
     # is the artifact kind for a mission's ``meta.json`` -- exactly what
     # ``classify_mission`` reads -- and is a PRIMARY-partition kind, so
     # ``read_dir`` resolves the topology-blind primary directory directly.
-    target_dir = placement_seam(repo_root, mission).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    target_dir = placement_seam(repo_root, mission).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     if target_dir.is_dir():
         return [classify_mission(target_dir)]
     return []
@@ -108,9 +106,7 @@ def _print_dup_and_ambig(
         console.print("[green]No duplicate prefixes or ambiguous selectors.[/green]\n")
 
 
-def _print_identity_summary_table(
-    all_states: list[IdentityState], summary: dict[str, object]
-) -> None:
+def _print_identity_summary_table(all_states: list[IdentityState], summary: dict[str, object]) -> None:
     """Print the per-state count table (extracted to keep callers <=15 CC)."""
     counts_dict: dict[str, int] = summary["counts"]  # type: ignore[assignment]
     total = len(all_states)
@@ -159,22 +155,13 @@ def _print_identity_human(
     _print_identity_path_sections(summary)
 
     if fail_on_triggered:
-        console.print(
-            f"[bold red]FAIL:[/bold red] --fail-on {fail_on!r} triggered "
-            f"(one or more missions in: {', '.join(sorted(fail_on_states))})"
-        )
+        console.print(f"[bold red]FAIL:[/bold red] --fail-on {fail_on!r} triggered (one or more missions in: {', '.join(sorted(fail_on_states))})")
 
 
-def _compute_fail_on(
-    fail_on: str | None, all_states: list[IdentityState]
-) -> tuple[set[str], bool]:
+def _compute_fail_on(fail_on: str | None, all_states: list[IdentityState]) -> tuple[set[str], bool]:
     """Parse ``--fail-on`` states and determine whether the gate is triggered."""
-    fail_on_states: set[str] = (
-        {s.strip() for s in fail_on.split(",") if s.strip()} if fail_on else set()
-    )
-    fail_on_triggered = bool(
-        fail_on_states and any(s.state in fail_on_states for s in all_states)
-    )
+    fail_on_states: set[str] = {s.strip() for s in fail_on.split(",") if s.strip()} if fail_on else set()
+    fail_on_triggered = bool(fail_on_states and any(s.state in fail_on_states for s in all_states))
     return fail_on_states, fail_on_triggered
 
 
@@ -189,21 +176,13 @@ def _build_identity_json(
     return {
         "summary": summary["counts"],
         "missions": [s.to_dict() for s in all_states],
-        "duplicate_prefixes": {
-            prefix: [s.to_dict() for s in items]
-            for prefix, items in dup_prefixes.items()
-        },
-        "ambiguous_selectors": {
-            handle: [s.to_dict() for s in items]
-            for handle, items in ambig_selectors.items()
-        },
+        "duplicate_prefixes": {prefix: [s.to_dict() for s in items] for prefix, items in dup_prefixes.items()},
+        "ambiguous_selectors": {handle: [s.to_dict() for s in items] for handle, items in ambig_selectors.items()},
         "fail_on_triggered": fail_on_triggered,
     }
 
 
-def run_identity_audit(
-    repo_root: Path, json_output: bool, mission: str | None, fail_on: str | None
-) -> None:
+def run_identity_audit(repo_root: Path, json_output: bool, mission: str | None, fail_on: str | None) -> None:
     """Entry point for ``doctor identity`` — preserves the original exit contract.
 
     *repo_root* is resolved by the ``doctor.py`` command shell (which owns the
@@ -235,9 +214,7 @@ def run_identity_audit(
     fail_on_states, fail_on_triggered = _compute_fail_on(fail_on, all_states)
 
     if json_output:
-        report = _build_identity_json(
-            all_states, summary, dup_prefixes, ambig_selectors, fail_on_triggered
-        )
+        report = _build_identity_json(all_states, summary, dup_prefixes, ambig_selectors, fail_on_triggered)
         sys.stdout.write(json.dumps(report, indent=2) + "\n")
         sys.stdout.flush()
         raise typer.Exit(1 if fail_on_triggered else 0)
@@ -255,6 +232,46 @@ def run_identity_audit(
 
 
 # --- topology helpers --------------------------------------------------------
+
+
+_SINGLE_BRANCH_CODE_LANES_UNMIGRATED_FINDING = "SINGLE_BRANCH_CODE_LANES_UNMIGRATED"
+# Review cycle-1 blocker: a stored single_branch mission whose lanes.json
+# exists but the canonical reader rejects (e.g. a legacy feature_slug-keyed
+# manifest, #064) must NEVER report as clean just because the reader could
+# not tell whether it has a code lane. This finding is the honest "cannot
+# verify Invariant T-1" signal -- distinct from
+# SINGLE_BRANCH_CODE_LANES_UNMIGRATED (which means "verified violation") so
+# an operator knows a manual/manifest-level fix is needed, not a re-stamp.
+_LANES_MANIFEST_UNREADABLE_FINDING = "LANES_MANIFEST_UNREADABLE"
+
+
+def _topology_finding(topology: object, feature_dir: Path) -> str | None:
+    """Return the doctor finding code for one mission's topology row (#5100 IC-02 / T014).
+
+    ``SINGLE_BRANCH_CODE_LANES_UNMIGRATED`` when the mission's STORED
+    ``topology`` is ``single_branch`` (Invariant T-1, ``data-model.md``) but
+    its ``lanes.json`` has a code lane — the exact selection
+    :func:`~specify_cli.migration.backfill_topology.restamp_single_branch_with_code_lanes`
+    uses, so the finding and the migration's selection never drift apart.
+    ``LANES_MANIFEST_UNREADABLE`` when ``topology`` is ``single_branch`` and
+    ``lanes.json`` exists but the canonical reader cannot parse it (never
+    silently ``None`` -- an unreadable manifest might still hide a code
+    lane, so it must not read as clean). ``None`` for every other mission: a
+    clean ``single_branch`` mission (the negative control), any other
+    topology, or a mission with no ``lanes.json`` at all.
+    """
+    if topology != "single_branch":
+        return None
+    from specify_cli.lanes import CorruptLanesError, read_lanes_json
+    from specify_cli.lanes.compute import has_code_lanes
+
+    try:
+        manifest = read_lanes_json(feature_dir)
+    except CorruptLanesError:
+        return _LANES_MANIFEST_UNREADABLE_FINDING
+    if manifest is None or not has_code_lanes(manifest):
+        return None
+    return _SINGLE_BRANCH_CODE_LANES_UNMIGRATED_FINDING
 
 
 def _read_stored_topology(feature_dir: Path) -> dict[str, object | None]:
@@ -279,14 +296,16 @@ def _read_stored_topology(feature_dir: Path) -> dict[str, object | None]:
     try:
         meta = load_meta_fail_closed(feature_dir)
     except MissionMetaReadError as exc:
-        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": f"corrupt json: {exc}"}
+        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": f"corrupt json: {exc}", "finding": None}
     if meta is None:
-        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": "meta.json not found"}
+        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": "meta.json not found", "finding": None}
+    topology = meta.get("topology")
     return {
         "slug": feature_dir.name,
-        "topology": meta.get("topology"),
+        "topology": topology,
         "flattened": meta.get("flattened"),
         "error": None,
+        "finding": _topology_finding(topology, feature_dir),
     }
 
 
@@ -300,15 +319,9 @@ def _collect_topology_rows(repo_root: Path, mission: str | None) -> list[dict[st
         # seam (see ``_scope_to_mission`` above for the full rationale) --
         # ``PRIMARY_METADATA`` again, since this reads the mission's
         # ``meta.json``-bearing directory.
-        target = placement_seam(repo_root, mission).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        target = placement_seam(repo_root, mission).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         return [_read_stored_topology(target)] if target.is_dir() else []
-    return [
-        _read_stored_topology(entry)
-        for entry in sorted(specs_dir.iterdir())
-        if entry.is_dir()
-    ]
+    return [_read_stored_topology(entry) for entry in sorted(specs_dir.iterdir()) if entry.is_dir()]
 
 
 def _print_topology_human(rows: list[dict[str, object | None]]) -> None:
@@ -318,11 +331,14 @@ def _print_topology_human(rows: list[dict[str, object | None]]) -> None:
     table.add_column("Mission", style="cyan")
     table.add_column("Topology")
     table.add_column("Flattened")
+    table.add_column("Finding")
     for row in rows:
         topology = row["topology"]
         rendered = str(topology) if topology is not None else "[red]null[/red]"
         flattened = "" if row["flattened"] is None else str(row["flattened"])
-        table.add_row(str(row["slug"]), rendered, flattened)
+        finding = row.get("finding")
+        rendered_finding = f"[yellow]{finding}[/yellow]" if finding else ""
+        table.add_row(str(row["slug"]), rendered, flattened, rendered_finding)
     console.print(table)
 
 

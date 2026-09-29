@@ -28,6 +28,7 @@ Single-derivation invariants (T009 / FR-012 / C-CTX-3): ``mid8`` is derived
 ``target_branch`` is resolved **exactly once** (carried on
 :class:`BranchRefFragment`); no other call site recomputes either value.
 """
+
 from __future__ import annotations
 
 import enum
@@ -49,9 +50,9 @@ class MissionTopology(enum.Enum):
     SINGLE_BRANCH/LANES + a `flattened` provenance mark (see spec Domain Language).
     """
 
-    SINGLE_BRANCH = "single_branch"        # no coord, no lanes
-    LANES = "lanes"                        # no coord, lanes
-    COORD = "coord"                        # coord, no lanes
+    SINGLE_BRANCH = "single_branch"  # no coord, no lanes
+    LANES = "lanes"  # no coord, lanes
+    COORD = "coord"  # coord, no lanes
     LANES_WITH_COORD = "lanes_with_coord"  # coord, lanes
 
 
@@ -99,9 +100,7 @@ class CommitTarget:
 # SINGLE definition: ``resolution.py`` / ``surface_resolver.py`` /
 # ``runtime_bridge.py`` / ``status_transition.py`` import it rather than restating
 # the literal ``{COORD, LANES_WITH_COORD}`` set.
-_COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
-    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
-)
+_COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset({MissionTopology.COORD, MissionTopology.LANES_WITH_COORD})
 
 
 def is_single_branch(topology: MissionTopology | None) -> bool:
@@ -142,6 +141,79 @@ def routes_through_coordination(topology: MissionTopology) -> bool:
     return topology in _COORD_ROUTING_TOPOLOGIES
 
 
+_SINGLE_BRANCH_CODE_LANES_UNMIGRATED = "SINGLE_BRANCH_CODE_LANES_UNMIGRATED"
+
+
+class TopologyManifestMismatch(RuntimeError):
+    """A mission's stored ``topology`` contradicts its lane manifest (#5100 IC-02).
+
+    Raised by :func:`_assert_topology_matches_manifest` when ``topology`` is
+    ``SINGLE_BRANCH`` but the mission's lane manifest has a code lane —
+    Invariant T-1's violation (``data-model.md``): a ``single_branch`` mission
+    was never re-stamped to ``lanes`` after its manifest grew a code lane (the
+    #5100 write-path defect the migration `4_0_0rc5_single_branch_code_lanes_restamp`
+    repairs).
+
+    ``StructuredError``-style (a stable ``error_code`` class attribute +
+    :meth:`to_dict`) WITHOUT subclassing
+    :class:`specify_cli.core.errors.StructuredError`: that import would cross
+    the forbidden ``mission_runtime -> specify_cli`` layer edge — this
+    package sits BELOW ``specify_cli`` in the landscape
+    (``kernel <- charter <- mission_runtime <- specify_cli``,
+    ``tests/architectural/test_layer_rules.py``). Mirrors the same
+    plain-``RuntimeError`` + inline ``error_code`` idiom this module's own
+    :class:`ActionContextError` sibling (in ``mission_runtime.resolution``)
+    already uses for the same reason.
+    """
+
+    error_code: str = _SINGLE_BRANCH_CODE_LANES_UNMIGRATED
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable representation for tooling (NFR-007)."""
+        return {"error_code": self.error_code, "message": str(self)}
+
+
+def _assert_topology_matches_manifest(
+    topology: MissionTopology,
+    *,
+    has_code_lanes: bool,
+    mission_slug: str,
+) -> None:
+    """Fail closed when a ``SINGLE_BRANCH`` mission's manifest has code lanes.
+
+    The pure writer-chokepoint guard (#5100 IC-02 / research.md R-4): every
+    writer that would act on the new lane-presence semantics over an
+    old, un-migrated manifest must refuse rather than silently treating a
+    ``single_branch`` mission as though it had real code lanes. Takes a
+    *bool* (never the lane-manifest object) so this module keeps importing
+    **nothing** from ``specify_cli`` (layer rules —
+    ``tests/architectural/test_layer_rules.py``).
+
+    PURE and read-path-safe (C-003): no read path may call this — every
+    un-migrated mission's status/accept/doctor read must keep working, only
+    the two WRITER chokepoints refuse. Currently uncalled from ``src/``: it
+    is wired at ``compute_and_write_lanes`` and ``allocate_lane_worktree`` in
+    a later work package of this mission (post-tasks fold B-2), which is also
+    when this is promoted out of module-private status and into
+    :data:`__all__` — see ``tests/architectural/test_no_dead_symbols.py``
+    (mirrors this mission's own WP02 precedent:
+    ``lanes/claim_base.py``'s ``_claim_base_ref``/``_clear_claim_base``).
+
+    Raises:
+        TopologyManifestMismatch: *topology* is ``SINGLE_BRANCH`` and
+            *has_code_lanes* is ``True``. The message names *mission_slug*
+            and both remedies (``spec-kitty upgrade`` or
+            ``spec-kitty migrate backfill-topology --restamp-single-branch``).
+    """
+    if topology is MissionTopology.SINGLE_BRANCH and has_code_lanes:
+        raise TopologyManifestMismatch(
+            f"Mission {mission_slug!r} is stamped topology=single_branch but its lane "
+            "manifest has a code lane (never re-stamped after #5100). Run "
+            "'spec-kitty upgrade' or 'spec-kitty migrate backfill-topology "
+            "--restamp-single-branch' to fix."
+        )
+
+
 @dataclass(frozen=True)
 class IdentityFragment:
     """F0 — the canonical mission identity every other fragment keys on.
@@ -160,9 +232,7 @@ class IdentityFragment:
         expected = self.mission_id[:8]
         if self.mid8 != expected:
             raise ValueError(
-                "IdentityFragment.mid8 must be mission_id[:8] "
-                f"(got mid8={self.mid8!r}, mission_id={self.mission_id!r}); "
-                "mid8 is single-derived (FR-012 / C-CTX-3)."
+                f"IdentityFragment.mid8 must be mission_id[:8] (got mid8={self.mid8!r}, mission_id={self.mission_id!r}); mid8 is single-derived (FR-012 / C-CTX-3)."
             )
 
     @classmethod
@@ -363,6 +433,7 @@ __all__ = [
     "MissionExecutionContext",
     "MissionTopology",
     "StatusSurfaceFragment",
+    "TopologyManifestMismatch",
     "WorkspaceFragment",
     "classify_topology",
     "routes_through_coordination",

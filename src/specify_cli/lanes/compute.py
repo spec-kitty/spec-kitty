@@ -13,6 +13,7 @@ fan-in WPs become the synchronization point.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import combinations
 from typing import ClassVar
@@ -57,9 +58,69 @@ def is_planning_artifact_only(lanes_manifest: object) -> bool:
     directly to the target branch without a mission branch. See
     :func:`is_planning_lane` for the forward-compatibility note on the backing
     of this classification (#1666).
+
+    Stays lane-based and UNCHANGED by #5100 IC-02 / plan fold B3: it is
+    deliberately NOT split by work-package kind. :func:`_has_code_wps` is the
+    kind-based sibling predicate WP04 wires in where a WP-kind question (not
+    a lane-shape question) is the right one to ask.
     """
     lanes = list(getattr(lanes_manifest, "lanes", None) or [])
     return bool(lanes) and all(is_planning_lane(lane) for lane in lanes)
+
+
+def is_repo_root_lane(lane: object) -> bool:
+    """Return True when *lane* resolves to the repository-root checkout.
+
+    The new CANONICAL name for asking "does this lane resolve to the main
+    repo checkout, never a ``.worktrees/`` directory" (#5100 IC-02). Today it
+    shares the exact same backing as :func:`is_planning_lane` — this
+    delegates to that predicate rather than restating the
+    ``PLANNING_LANE_ID`` comparison a second time, so the two names cannot
+    silently drift apart (mirrors the single-source contract
+    ``lanes/branch_naming.py``'s ``_PLANNING_LANE_ID`` literal already
+    documents for this exact pairing). New code should ask the question via
+    this name; :func:`is_planning_lane` stays for existing callers that ask
+    the planning-specific question by its historical name.
+    """
+    return is_planning_lane(lane)
+
+
+def has_code_lanes(manifest: LanesManifest) -> bool:
+    """Return True when *manifest* has at least one non-repo-root lane.
+
+    The single authority :func:`specify_cli.migration.backfill_topology._has_lanes`
+    delegates to (#5100 IC-02 / R-3): "has lanes" for topology-derivation
+    purposes means "has a CODE lane", never merely "a lanes.json exists" —
+    the canonical ``lane-planning`` lane every mission (single_branch and
+    lanes alike) carries does not, by itself, make a mission's topology
+    ``LANES``. See :data:`data-model.md`'s Invariant T-1: ``topology ==
+    single_branch`` implies this predicate is False.
+    """
+    return any(not is_repo_root_lane(lane) for lane in manifest.lanes)
+
+
+def _has_code_wps(manifest: LanesManifest, wp_kinds: Mapping[str, WorkProductKind]) -> bool:
+    """Return True when any WP referenced by *manifest* is ``code_change``.
+
+    The kind-based sibling of :func:`has_code_lanes` (#5100 IC-02 / plan fold
+    B3): callers that need "does this mission have any code work" (a WP-kind
+    question) use this instead of splitting :func:`is_planning_artifact_only`
+    (which stays lane-based and unchanged). *wp_kinds* is the already-resolved
+    WP id -> :class:`WorkProductKind` index a caller already holds (e.g. from
+    the WP ownership manifests this module's own :func:`compute_lanes` reads)
+    — this never re-parses WP frontmatter itself.
+
+    Private for now (dead-symbol gate,
+    ``tests/architectural/test_no_dead_symbols.py``): zero ``src/`` callers
+    until a later work package of this mission wires it in at
+    ``acceptance/gates_core.py`` and ``consolidation/executor.py`` (plan
+    fold B3, owned by WP04) — mirrors this mission's own WP02 precedent
+    (``lanes/claim_base.py``'s ``_claim_base_ref``/``_clear_claim_base``,
+    privatized for the identical reason). Widen back to public when that
+    caller lands.
+    """
+    all_wp_ids = {wp_id for lane in manifest.lanes for wp_id in lane.wp_ids}
+    return any(wp_kinds.get(wp_id) == WorkProductKind.CODE_CHANGE for wp_id in all_wp_ids)
 
 
 def lane_created_branch(lanes_manifest: LanesManifest, lane_id: str) -> str:

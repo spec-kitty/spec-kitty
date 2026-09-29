@@ -32,6 +32,7 @@ import pytest
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.migration.mission_state import (
     LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION,
+    LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION,
     LANES_REBUILT_ACTION,
     repair_repo,
 )
@@ -197,6 +198,38 @@ def test_repair_does_not_rebuild_lanes_when_execution_has_not_begun(tmp_path: Pa
     result = next(m for m in report.missions if m.mission_slug == mission_slug)
     assert LANES_REBUILT_ACTION not in result.meta_actions
     assert read_lanes_json(feature_dir) is None
+
+
+def test_repair_reports_topology_manifest_mismatch_as_a_finding_not_a_crash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5100 T012: a TopologyManifestMismatch from the pure core is a FINDING.
+
+    Simulates the Invariant T-1 violation (data-model.md) that WP05 wires
+    the real fail-closed assertion to raise, by monkeypatching
+    ``compute_and_write_lanes`` at its defining module (the local-import
+    call site in ``_rebuild_lanes_if_wedged`` re-resolves it there on every
+    call). Asserts ``doctor mission-state --fix`` reports the finding via
+    ``LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION`` and exits cleanly
+    (``status != "error"``, no unhandled exception) -- never crashes.
+    """
+    from mission_runtime import TopologyManifestMismatch
+
+    import specify_cli.lanes.compute_and_persist as compute_and_persist_module
+
+    feature_dir = _build_wedged_mission(tmp_path)
+
+    def _raise_mismatch(*_args: object, **_kwargs: object) -> None:
+        raise TopologyManifestMismatch(
+            f"Mission {_MISSION_SLUG!r} is stamped topology=single_branch but its lane manifest has a code lane (never re-stamped after #5100)."
+        )
+
+    monkeypatch.setattr(compute_and_persist_module, "compute_and_write_lanes", _raise_mismatch)
+
+    report = repair_repo(tmp_path, mission=_MISSION_SLUG)
+
+    result = next(m for m in report.missions if m.mission_slug == _MISSION_SLUG)
+    assert result.status != "error", result.validation_errors
+    assert LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION in result.meta_actions
+    assert read_lanes_json(feature_dir) is None, "no partial lanes.json on a topology-mismatch refusal"
 
 
 def test_repair_fails_closed_on_corrupt_event_log_without_partial_lanes(tmp_path: Path) -> None:

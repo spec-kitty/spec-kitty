@@ -1486,6 +1486,12 @@ def _count_jsonl_rows(path: Path) -> int:
 LANES_REBUILT_ACTION = "lanes_rebuilt_from_event_log"
 LANES_REBUILD_SKIPPED_NO_WP_FILES_ACTION = "lanes_rebuild_skipped_no_wp_files"
 LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION = "lanes_rebuild_skipped_no_owned_files"
+# #5100 IC-02 / T012: the rebuild refused because the mission is stamped
+# ``topology=single_branch`` but its lanes.json (or the event log this
+# rebuild would derive one from) has a code lane -- Invariant T-1's
+# violation. Reported as a FINDING (this action string), never a crash: the
+# remedy is the re-stamp migration/CLI, not this repair.
+LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION = "lanes_rebuild_skipped_topology_unmigrated"
 
 
 def _execution_has_begun_in_snapshot(snapshot: StatusSnapshot) -> bool:
@@ -1548,6 +1554,7 @@ def _rebuild_lanes_if_wedged(
     mission_id: str | None,
     target_branch: str,
     snapshot: StatusSnapshot,
+    meta: Mapping[str, Any],
 ) -> str | None:
     """Rebuild ``lanes.json`` from the event log when the #4758 wedge holds.
 
@@ -1588,12 +1595,15 @@ def _rebuild_lanes_if_wedged(
             the fail-closed path: never a partial rebuild that masks a
             corrupt/inconsistent WP ownership declaration.
     """
+    from mission_runtime import TopologyManifestMismatch
+
     from specify_cli.core.vcs.git import capture_branch_tip
     from specify_cli.lanes.compute_and_persist import (
         LaneGlobValidationError,
         compute_and_write_lanes,
     )
     from specify_cli.lanes.persistence import is_execution_wedged, read_lanes_json
+    from specify_cli.migration.backfill_topology import topology_from_meta
     from specify_cli.ownership.frontmatter_source import (
         InMemoryFrontmatterSource,
         resolve_wp_manifests,
@@ -1616,6 +1626,13 @@ def _rebuild_lanes_if_wedged(
 
     wp_dependencies = {wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items()}
     planning_commit_sha = capture_branch_tip(repo_root, target_branch)
+    # #5100 M3 (review cycle-1 nit 3, extended for consistency across all
+    # three callers): derived from the ALREADY-loaded `meta` this repair's
+    # canonicalization already produced (`_canonicalize_meta`, tolerant by
+    # construction), never a second, stricter meta.json read. Read-only
+    # (C-003): never the fail-closed writer check compute_and_write_lanes
+    # does not yet call.
+    topology = topology_from_meta(meta, mission_dir)
 
     try:
         compute_and_write_lanes(
@@ -1629,6 +1646,7 @@ def _rebuild_lanes_if_wedged(
             target_branch,
             planning_commit_sha=planning_commit_sha,
             mission_id=mission_id,
+            topology=topology,
         )
     except LaneGlobValidationError as exc:
         raise MissionStateRepairError(
@@ -1637,6 +1655,12 @@ def _rebuild_lanes_if_wedged(
             f"({'; '.join(exc.result.errors)}). Fix the paths in the WP frontmatter, "
             "then re-run 'spec-kitty doctor mission-state --fix'."
         ) from exc
+    except TopologyManifestMismatch:
+        # #5100 T012: a violation of Invariant T-1 (data-model.md) is a
+        # FINDING, not a crash -- this repair is not the remedy (the re-stamp
+        # migration / CLI is), so it reports and returns cleanly rather than
+        # letting the typed mismatch propagate as an unhandled repair error.
+        return LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION
     return LANES_REBUILT_ACTION
 
 
@@ -1787,6 +1811,7 @@ def _repair_mission(
                 mission_id=mission_id or None,
                 target_branch=str(meta.get("target_branch") or "main"),
                 snapshot=snapshot,
+                meta=meta,
             )
             after_lanes = _file_fingerprint(lanes_path)
             if before_lanes != after_lanes:

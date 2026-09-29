@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionTopology
+
 from specify_cli.lanes.branch_naming import BranchIdentityUnresolved
 from specify_cli.lanes.compute import LaneComputationError
 from specify_cli.lanes.compute_and_persist import (
@@ -88,6 +90,7 @@ def _finalize(
         "main",
         planning_commit_sha=None,
         mission_id=mission_id,
+        topology=MissionTopology.LANES,
     )
     return manifest
 

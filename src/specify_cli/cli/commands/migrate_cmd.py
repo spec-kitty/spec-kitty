@@ -702,6 +702,58 @@ def backfill_merge_commit_cmd(
         raise typer.Exit(1)
 
 
+def _run_restamp_single_branch(repo_root: Path, *, dry_run: bool, json_output: bool, mission: str | None) -> None:
+    """``--restamp-single-branch`` arm of ``backfill-topology`` (#5100 IC-02).
+
+    Calls the same :func:`~specify_cli.migration.backfill_topology.restamp_single_branch_with_code_lanes`
+    the forward migration ``m_4_0_0rc5_single_branch_code_lanes_restamp`` drives
+    -- re-stamps every ``single_branch`` mission whose ``lanes.json`` has a
+    code lane (Invariant T-1 violation) to ``topology: lanes``. Kept as its
+    own function so the command entry point stays simple (Sonar complexity).
+    Honours ``--mission`` (review cycle-1 nit 4: it must never be silently
+    ignored).
+    """
+    from specify_cli.migration.backfill_topology import restamp_single_branch_with_code_lanes
+
+    results = restamp_single_branch_with_code_lanes(repo_root, dry_run=dry_run, mission_slug=mission)
+    restamped = [r for r in results if r.action == "restamped"]
+    skipped = [r for r in results if r.action == "skip"]
+    errored = [r for r in results if r.action == "error"]
+
+    if json_output:
+        payload = {
+            "dry_run": dry_run,
+            "summary": {
+                "total": len(results),
+                "restamped": len(restamped),
+                "skip": len(skipped),
+                "error": len(errored),
+            },
+            "results": [{"slug": r.slug, "action": r.action, "reason": r.reason} for r in results],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+        console.print(f"\n{prefix}[bold]backfill-topology --restamp-single-branch summary[/bold]")
+        console.print(f"  Total missions scanned      : {len(results)}")
+        console.print(f"  Re-stamped (single_branch -> lanes) : {len(restamped)}")
+        console.print(f"  Skipped (no violation)      : {len(skipped)}")
+        console.print(f"  Errors                      : {len(errored)}")
+        if errored:
+            console.print("\n[red]Errors:[/red]")
+            for r in errored:
+                console.print(f"  [red]{r.slug}:[/red] {r.reason}")
+        if dry_run:
+            console.print("\n[dim]Dry run — no files were modified.[/dim]")
+        elif restamped:
+            console.print(f"\n[green]Done.[/green] {len(restamped)} mission(s) re-stamped to ``lanes``.")
+        else:
+            console.print("\n[green]Done.[/green] No un-migrated single_branch mission found.")
+
+    if errored:
+        raise typer.Exit(1)
+
+
 @app.command(name="backfill-topology")
 def backfill_topology(
     json_output: Annotated[
@@ -723,6 +775,18 @@ def backfill_topology(
             metavar="SLUG",
         ),
     ] = None,
+    restamp_single_branch: Annotated[
+        bool,
+        typer.Option(
+            "--restamp-single-branch",
+            help=(
+                "Re-stamp every single_branch mission whose lanes.json has a code lane "
+                "to topology: lanes (Invariant T-1 repair, #5100). Mutually exclusive "
+                "with the ordinary backfill this command otherwise runs; combine with "
+                "--dry-run to preview."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Persist each legacy mission's MissionTopology into its meta.json.
 
@@ -744,13 +808,19 @@ def backfill_topology(
         spec-kitty migrate backfill-topology --mission 083-foo-bar
 
         spec-kitty migrate backfill-topology
-    """
-    from specify_cli.migration.backfill_topology import backfill_topology_repo
 
+        spec-kitty migrate backfill-topology --restamp-single-branch --dry-run
+    """
     repo_root = locate_project_root()
     if repo_root is None:
         _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
+
+    if restamp_single_branch:
+        _run_restamp_single_branch(repo_root, dry_run=dry_run, json_output=json_output, mission=mission)
+        return
+
+    from specify_cli.migration.backfill_topology import backfill_topology_repo
 
     results = backfill_topology_repo(repo_root, dry_run=dry_run, mission_slug=mission)
 

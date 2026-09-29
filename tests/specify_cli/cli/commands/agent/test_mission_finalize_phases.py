@@ -205,6 +205,11 @@ def test_compute_and_write_lanes_empty_code_change_inputs_fail_loud(monkeypatch:
 def test_compute_and_write_lanes_empty_planning_artifact_inputs_are_laneless(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(seam, "_preserve_or_capture_planning_commit_sha", lambda *args, **kwargs: None)
     monkeypatch.setattr(seam, "_report_parallelization_risk", lambda *args, **kwargs: None)
+    # #5100 M3: _compute_and_write_lanes now reads the mission's stored
+    # topology (via read_topology) from ``planning_dir`` before calling the
+    # pure core -- this fixture flattens planning_dir == tmp_path (a real
+    # repo nests it under kitty-specs/<slug>/), so meta.json must live here.
+    (tmp_path / "meta.json").write_text(json.dumps({"topology": "lanes"}), encoding="utf-8")
 
     lanes_path, lanes_manifest, planning_sha = seam._compute_and_write_lanes(
         tmp_path,

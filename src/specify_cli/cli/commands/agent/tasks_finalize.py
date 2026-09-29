@@ -340,6 +340,7 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
             compute_and_write_lanes,
         )
         from specify_cli.lanes.persistence import is_execution_wedged, read_lanes_json
+        from specify_cli.migration.backfill_topology import topology_from_meta
         from specify_cli.mission_metadata import load_meta_or_empty
         from specify_cli.ownership.frontmatter_source import (
             InMemoryFrontmatterSource,
@@ -378,6 +379,14 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
         mission_id: str | None = raw_mission_id if isinstance(raw_mission_id, str) else None
 
         planning_commit_sha = capture_branch_tip(st.main_repo_root, st.target_branch)
+        # #5100 M3 (review cycle-1 nit 3): derived from the ALREADY-loaded,
+        # tolerant `raw_meta` above (never a second, stricter meta.json
+        # read) -- this call site already tolerates a missing/malformed
+        # meta.json via load_meta_or_empty, and topology_from_meta inherits
+        # that tolerance instead of adding a new raw raise here. Read-only
+        # (C-003): never the fail-closed writer check compute_and_write_lanes
+        # does not yet call.
+        topology = topology_from_meta(raw_meta, st.primary_feature_dir)
         try:
             compute_and_write_lanes(
                 st.primary_feature_dir,
@@ -389,6 +398,7 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
                 wp_bodies,
                 st.target_branch,
                 planning_commit_sha=planning_commit_sha,
+                topology=topology,
                 mission_id=mission_id,
             )
         except LaneGlobValidationError as exc:

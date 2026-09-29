@@ -34,6 +34,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from mission_runtime import MissionTopology
+
 from specify_cli.lanes.branch_naming import InvalidMissionIdentity
 from specify_cli.lanes.compute import LaneComputationError, compute_lanes
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
@@ -94,6 +96,7 @@ def compute_and_write_lanes(
     *,
     planning_commit_sha: str | None,
     mission_id: str | None,
+    topology: MissionTopology,
 ) -> tuple[Path, LanesManifest]:
     """Compute execution lanes and persist ``lanes.json`` -- the pure core.
 
@@ -121,6 +124,16 @@ def compute_and_write_lanes(
             SHA (or ``None``) to freeze into the written manifest.
         mission_id: Already-resolved mission id (or ``None``) from
             ``meta.json``.
+        topology: The mission's already-resolved :class:`MissionTopology`
+            (#5100 IC-02 / M3), read by the caller via
+            :func:`specify_cli.migration.backfill_topology.read_topology`.
+            Threaded through by all three callers of this function; a
+            LATER work package of this mission (post-tasks fold B-2) wires
+            it into the fail-closed
+            :func:`mission_runtime.context._assert_topology_matches_manifest`
+            call this function does not yet make. Validated at this
+            boundary (``input-validation-fail-fast``) so a caller passing
+            the wrong type fails loud here rather than downstream.
 
     Returns:
         A ``(lanes_path, lanes_manifest)`` tuple.
@@ -129,7 +142,10 @@ def compute_and_write_lanes(
         LaneGlobValidationError: a literal-path ``owned_files`` entry
             matches zero files in the repository. No ``lanes.json`` is
             written.
+        TypeError: *topology* is not a :class:`MissionTopology` member.
     """
+    if not isinstance(topology, MissionTopology):
+        raise TypeError(f"compute_and_write_lanes: topology must be a MissionTopology, got {type(topology)!r}")
     create_intent = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
     glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=create_intent)
     if not glob_result.passed:

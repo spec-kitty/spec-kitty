@@ -347,6 +347,14 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register; never statically imported by runtime
         # code -- same sibling shape as the m_zz_* backfill migrations above.
         "specify_cli.upgrade.migrations.m_4_0_0rc5_hosted_endpoint_session_backfill",
+        # single-branch-topology-honesty-01M3M22V WP03 (#5100 IC-02): re-stamps
+        # a single_branch mission whose lanes.json has a code lane to
+        # topology: lanes (Invariant T-1 repair). Auto-discovered via
+        # pkgutil.iter_modules + @MigrationRegistry.register; never statically
+        # imported by runtime code -- same sibling shape as the migrations
+        # above (registered/verified by registry lookup in
+        # tests/specify_cli/upgrade/migrations/test_single_branch_code_lanes_restamp.py).
+        "specify_cli.upgrade.migrations.m_4_0_0rc5_single_branch_code_lanes_restamp",
     }
 )
 

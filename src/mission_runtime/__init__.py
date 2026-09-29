@@ -30,6 +30,7 @@ submodule instead of widening the public surface for test convenience.
 
 See ADR ``docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md``.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -39,6 +40,7 @@ from mission_runtime.context import (
     MissionContext,
     MissionExecutionContext,
     MissionTopology,
+    TopologyManifestMismatch,
     classify_topology,
     is_single_branch,
     routes_through_coordination,
@@ -100,6 +102,7 @@ __all__ = [
     "PlacementSeam",
     "ReadDegradeStrategy",
     "ReadDirDecision",
+    "TopologyManifestMismatch",
     "TopologySurface",
     # coord-read-fail-closed landing (#5001): the basename->kind classifier map
     # itself, re-exported so ``specify_cli.coordination.surface_resolver`` can
