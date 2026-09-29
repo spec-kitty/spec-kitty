@@ -1281,3 +1281,36 @@ def test_coord_seed_commit_best_effort_never_raises(tmp_path: Path) -> None:
         ),
     )
     _commit_coord_seed_events(broken, status_feature_dir)  # must not raise
+
+
+def test_birth_cutover_seed_projects_onto_primary_target(tmp_path: Path) -> None:
+    """#4787: a seed appended to the COORD leg after the bookkeeping projection is
+    re-projected onto the PRIMARY copy — the post-merge status authority — so the
+    torn-down coord triple never takes the deterministic seed rows with it."""
+    from specify_cli.consolidation.executor import _project_birth_cutover_seed_to_target
+
+    run, _coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
+    primary_events = run.main_repo / "kitty-specs" / run.mission_slug / "status.events.jsonl"
+    assert not primary_events.exists()
+
+    _project_birth_cutover_seed_to_target(run, status_feature_dir)
+    assert "01JSEEDBIRTHCUTOVER0000000" in primary_events.read_text(encoding="utf-8")
+
+    # Idempotent union: a resume re-run never duplicates the seed row.
+    _project_birth_cutover_seed_to_target(run, status_feature_dir)
+    assert primary_events.read_text(encoding="utf-8").count("01JSEEDBIRTHCUTOVER0000000") == 1
+
+
+def test_birth_cutover_seed_projection_best_effort_never_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#4787: a projection failure is logged, never raised — the birth-cutover
+    must not abort an otherwise successful merge."""
+    from specify_cli.consolidation import executor
+
+    def _boom(**_kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(executor, "_project_status_bookkeeping_to_target", _boom)
+    run, _coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
+    executor._project_birth_cutover_seed_to_target(run, status_feature_dir)  # must not raise

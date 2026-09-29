@@ -1880,10 +1880,12 @@ def _run_birth_cutover(run: _MergeRunState) -> None:
     already resolved at merge entry via ``resolve_status_surface`` — the SAME
     port-routed authority ``_project_status_bookkeeping_to_target`` above just
     read from) is the seed+verify leg. They collapse to the same directory
-    under flat/single-branch topology (T047's degenerate case). Running AFTER
-    the projection call above means a genuinely-seeded event is present on the
-    COORD authority but absent from the (already-fixed) PRIMARY projected copy
-    — the T047 partition-surface assertion.
+    under flat/single-branch topology (T047's degenerate case). Because this runs
+    AFTER the projection call above, a seed appended to the COORD leg is then
+    re-projected onto the PRIMARY copy (:func:`_project_birth_cutover_seed_to_target`,
+    #4787): PRIMARY is the post-merge status authority and the coord triple is
+    torn down, so a COORD-only seed would leave the flipped mission's canonical
+    log without its deterministic seed rows.
 
     **Resume-heal (T045 / IC-08 risk 3):** no new marker/transaction is
     introduced. ``cutover_mission`` is idempotent by construction (the seed
@@ -1931,6 +1933,30 @@ def _run_birth_cutover(run: _MergeRunState) -> None:
     # ``_commit_coord_seed_events`` (PR #2920 review F1/F2).
     if status_feature_dir != run.target_feature_dir:
         _commit_coord_seed_events(run, status_feature_dir)
+        _project_birth_cutover_seed_to_target(run, status_feature_dir)
+
+
+def _project_birth_cutover_seed_to_target(run: _MergeRunState, status_feature_dir: Path) -> None:
+    """Carry birth-cutover seed events from the COORD leg onto the target (#4787).
+
+    The cutover runs AFTER :func:`_project_status_bookkeeping_to_target`, so any
+    seed it appends to the COORD ``status.events.jsonl`` would be missing from
+    the PRIMARY copy — yet PRIMARY is the post-merge status authority
+    (``resolve_status_surface`` re-anchors a merged mission there) and the coord
+    triple is torn down afterwards. Re-run the status-only projection (the
+    idempotent event-log union + ``status.json`` rematerialization; no checkpoint,
+    so the non-status window is not re-projected and the teardown CAS anchor is
+    untouched). The target paths are already in the final bookkeeping commit.
+    Best-effort, like the rest of the birth-cutover: logged, never raised.
+    """
+    try:
+        _project_status_bookkeeping_to_target(
+            main_repo=run.main_repo,
+            mission_slug=run.mission_slug,
+            status_feature_dir=status_feature_dir,
+        )
+    except Exception as exc:  # noqa: BLE001 — best-effort, must never abort the merge
+        logger.warning("birth-cutover seed projection failed for %s: %s", run.mission_slug, exc)
 
 
 def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> None:
