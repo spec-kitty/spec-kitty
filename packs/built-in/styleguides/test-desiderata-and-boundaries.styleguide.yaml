@@ -35,8 +35,39 @@ principles:
   - "Stub infrastructure at the boundary: external services, data access, and IO (filesystem, database, clock, network, randomness, git) live OUTSIDE the boundary and are replaced by test doubles or pure inputs."
   - "Assert observable outcomes, not mechanisms: test the behavior crossing the boundary, not internal call counts or field values, to stay structure-insensitive."
   - "If a unit test needs heavy infrastructure scaffolding to run, the boundary is wrong: extract a pure seam that takes domain inputs so the behavior is testable without IO."
+  # — Detect as far left as possible: every desideratum a machine can check is
+  #   checked before a human (or a slow suite) has to notice it.
+  - "Shift detection left: catch each violation at the earliest, cheapest point that can see it. What a formatter, linter, or static check can reject never waits for a test run; what a unit test can catch never waits for an integration or end-to-end run; what a lint-time check can catch never waits for review."
+  - "Behavioral is proven, not assumed: a test that guards a contract shows it can go red — plant the break (or run against the unfixed code) and watch it fail. A test that asserts on data it built itself, or on a stub's return value, is not Behavioral however green it is."
+  - "The name is the contract: Readable and Specific require that the body asserts exactly what the name promises. A test named 'does not leak X' that asserts X is present, or 'exits non-zero on Y' that accepts any exit, is a defect in the test."
 
 patterns:
+  - name: Map each desideratum to its earliest detector
+    description: >
+      For every property, know where a violation is caught first, and move the
+      check as far left as the tooling allows. In a Python/pytest codebase:
+      Specific is linted (ruff PT018 composite assertions, one behaviour per
+      test); Behavioral is partly linted (ruff PT011/PT030 broad raises or warns
+      without match=, PT017 assertion inside an except, PT012/PT031 multi-statement
+      raises or warns blocks) and otherwise proven by a planted-break self-test;
+      Isolated and Deterministic are checked statically (banned wall-clock and
+      global-state APIs) before they surface as flaky reruns; Realistic data is
+      checked by a static literal-shape scan of identifiers in fixtures;
+      Structure-insensitive is checked by a census of internal patches and
+      private-name imports per test. Review is for judgement a machine cannot
+      make: whether the assertion matches the name, whether a stub hides the path
+      under test.
+    bad_example: |
+      # Found three reviews later, by a human:
+      with pytest.raises(Exception):   # passes on ANY failure, including a typo
+          run(bad_input)
+    good_example: |
+      # pyproject.toml: rejected by the linter, before any test runs
+      [tool.ruff.lint]
+      select = [..., "PT011", "PT012", "PT017", "PT030"]
+      # Legacy hits are frozen per file in a shrink-only baseline, with a guard
+      # test that fails on growth, on stale entries, and on a planted violation.
+
   - name: Draw the boundary by functional responsibility
     description: >
       Pick the behavior to validate, identify the components responsible for it,
@@ -117,6 +148,59 @@ anti_patterns:
       result = decide(domain_inputs)
       assert result == expected
 
+  - name: Stubbing a new gate out of an old harness
+    description: >
+      A new safety gate lands, an older mock-heavy test goes red because the gate
+      now runs in its flow, and the "fix" patches the gate out of that test's
+      fixture so it stays green. Each such stub makes the test check less than it
+      did before the gate existed (loss of Predictive). The pressure comes from a
+      harness that is not Writable: when adding one real step costs another patch,
+      people stub. Move the test onto a real (git, filesystem) fixture that is
+      cheap to extend, or retire it and name the test that already covers its
+      contract.
+    bad_example: |
+      # Commit message: "stub the new verification gate in the merge fixtures"
+      stack.enter_context(patch("pkg.executor._verify_new_gate", return_value=None))
+      # ... 25 other executor internals patched ...
+      assert commit_mock.call_args.kwargs["files"] == expected_files
+    good_example: |
+      # Drive the real command against a real temp repo; the new gate runs too.
+      result = run_cli(repo, "consolidate", "--mission", slug)
+      assert result.exit_code == 0
+      assert read_committed_meta(repo, "main", slug)["mission_number"] == 1
+
+  - name: Self-constructed oracle (an "injection proof" that never injects)
+    description: >
+      A test meant to prove a gate or ratchet goes red builds two divergent
+      inputs and asserts they differ, without ever calling the gate. It is green
+      whatever the product does, so it is not Behavioral. A non-vacuity proof
+      invokes the real check on the planted input and asserts the check fails.
+    bad_example: |
+      main_lane = reduce(read_events(main_log))
+      worktree_lane = reduce(read_events(worktree_log))   # data the test wrote
+      assert main_lane != worktree_lane                    # never runs the gate
+    good_example: |
+      plant_divergence(worktree_log)
+      with pytest.raises(AssertionError, match="CWD parity"):
+          assert_cwd_parity(repo, worktree)                # the real check goes red
+
+  - name: Development-assist scaffolding left in the suite
+    description: >
+      Characterization oracles, before/after parity checks, per-WP shape or
+      `hasattr` pins, and red-first repro variants are legitimate while a mission
+      slice is in flight. Once it lands they become inert (both sides of the
+      oracle now run the same code), duplicative (the same truth table in several
+      files), or structure-sensitive (they fight the next refactor). They cost
+      Fast, Structure-insensitive and Inspiring for no Predictive gain. Judge them
+      at mission wrap-up with the development-assist-test-cleanup procedure, and
+      strip WP/T/FR/issue labels from the tests you keep.
+    bad_example: |
+      def test_wp03_before_after_parity():
+          assert new_resolver(x) == old_resolver(x)   # old_resolver now delegates to new
+    good_example: |
+      def test_resolver_routes_coord_topology_to_the_coordination_branch():
+          assert resolve(coord_mission).branch == coord_branch(coord_mission)
+
 quality_test: >
   Can the behavior under test be validated with plain in-memory inputs and at
   most one mock at a true system boundary? If the test needs real files, a git
@@ -132,3 +216,5 @@ references:
   - "packs/built-in/tactics/testing/function-over-form-testing.tactic.yaml"
   - "packs/built-in/directives/030-test-and-typecheck-quality-gate.directive.yaml"
   - "packs/built-in/directives/034-test-first-development.directive.yaml"
+  - "packs/built-in/directives/041-tests-as-scaffold-not-friction.directive.yaml"
+  - "packs/built-in/procedures/development-assist-test-cleanup.procedure.yaml"

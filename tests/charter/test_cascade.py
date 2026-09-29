@@ -824,9 +824,9 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(fresh
 #: re-verify the new total, not a regression by itself.
 _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
     "documentation": 130,
-    "research": 119,
+    "research": 120,
     "software-dev": 165,
-    "plan": 138,
+    "plan": 139,
 }
 #: Cascade totals after the single-owner doctrine change, measured with
 #: ``cascade_activation_targets`` on the regenerated graph (the arrows start
@@ -890,6 +890,14 @@ _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
 #: totals are unchanged. The edge is advisory only -- it never auto-activates
 #: (activation cascade requires an explicit ``--cascade`` flag); this ratchet
 #: tracks reachability, not activation.
+#:
+#: #5351: ``styleguide:test-desiderata-and-boundaries`` now suggests
+#: ``procedure:development-assist-test-cleanup`` (and DIRECTIVE_041, already
+#: reached everywhere). ``plan`` and ``research`` reach the styleguide but not
+#: the procedure by any other path, so each gains +1 on top of the single-owner
+#: baseline above (plan 138 -> 139, research 119 -> 120).
+#: ``software-dev`` already reached the procedure through the wrap-up sequence;
+#: ``documentation`` does not reach the styleguide. Advisory reachability only.
 
 
 @pytest.mark.parametrize("mission_type_id", ("documentation", "plan", "research", "software-dev"))

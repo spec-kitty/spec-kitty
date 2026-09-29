@@ -5,7 +5,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/analyst-annie.agent.yaml
   provenance_path:
-- content_hash: 4bb8d2478259d776b3b9c94ffca4eaae64f46f8ebe971a42e25196b88ed6279a
+- content_hash: b7b1ce2a3c8ce665e2a18ceba4987d696c177256ed0f69786764ed2b1ebcd07e
   id: architect-alphonso
   kind: agent_profile
   path: agent_profiles/architect-alphonso.agent.yaml
@@ -20,7 +20,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/curator-carla.agent.yaml
   provenance_path:
-- content_hash: 84485d9915b7b090cfc644e13dc82ef8fc253c3da7ee1847e566ada767a03ad0
+- content_hash: e22df3c8a040fea35dd2a03509b8b21da117fa66a412aa274439b5b93b2474cb
   id: debugger-debbie
   kind: agent_profile
   path: agent_profiles/debugger-debbie.agent.yaml
@@ -40,12 +40,12 @@ constituents:
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
   provenance_path:
-- content_hash: 4abc5883bfa67fa88ee24e852f7aa1ea004246209394d156bce021b69741bc72
+- content_hash: a8a63c6d77f813e54a03cf1b487173de7865a338dae17b8099c6a82ddaa32d27
   id: drupal-dries
   kind: agent_profile
   path: agent_profiles/drupal-dries.agent.yaml
   provenance_path:
-- content_hash: 5a709fbefe06f192a12f829f76ebe6e65460b5105b830caca6ec4b8ad8472d3a
+- content_hash: 6ba3f319690688c7816c528db5c61093820df736bcd418e3f7d5315a5d45530d
   id: frontend-freddy
   kind: agent_profile
   path: agent_profiles/frontend-freddy.agent.yaml
@@ -60,12 +60,12 @@ constituents:
   kind: agent_profile
   path: agent_profiles/human-in-charge.agent.yaml
   provenance_path:
-- content_hash: d31147245e98b300125d966ea32f9ba411de0bab683774b4d4c0b190c70f99b2
+- content_hash: 594a504aa0fb2c708d2aff7365d5458110800f2439e850d824b95a1fd5dc6a75
   id: implementer-ivan
   kind: agent_profile
   path: agent_profiles/implementer-ivan.agent.yaml
   provenance_path:
-- content_hash: 5fe490e66479990ff03f6b66a5f4a2b8f07bd76fd191685df303088fbf4d824f
+- content_hash: da07e2c52a6c730b83ca9935a4976c831f1972538702b2aa91709940201b34d1
   id: java-jenny
   kind: agent_profile
   path: agent_profiles/java-jenny.agent.yaml
@@ -80,12 +80,12 @@ constituents:
   kind: agent_profile
   path: agent_profiles/minutes-mahad.agent.yaml
   provenance_path:
-- content_hash: 0a7b5f6f138902466487b243de4d6c19e9f3f72193163d2c176ee354a5b26654
+- content_hash: 8bc673d323d963598b30e46d941d4cbe3151de4d509445d945b63e2a9c9cf674
   id: node-norris
   kind: agent_profile
   path: agent_profiles/node-norris.agent.yaml
   provenance_path:
-- content_hash: 0926d47d576bdbe8dd8e9ad794209ad29e360832a570333382271d3f6c8450cc
+- content_hash: 9a77e5bc10ecda6fff4464f7ed3dab08ad25a8db7d94a70981699d17358ca9ab
   id: paula-patterns
   kind: agent_profile
   path: agent_profiles/paula-patterns.agent.yaml
@@ -95,7 +95,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/planner-priti.agent.yaml
   provenance_path:
-- content_hash: 7184286bd3a7e781c593940a235fd4171647f89c60dfd201c3498bc48e1328ea
+- content_hash: be446235b46f934a8a68071a91d1d1e047aa7d6d6d32231a550e33dcc79b9b96
   id: python-pedro
   kind: agent_profile
   path: agent_profiles/python-pedro.agent.yaml
@@ -115,7 +115,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/retrospective-facilitator.agent.yaml
   provenance_path:
-- content_hash: 9ae3b1c8fe9f97506a67b69ecc4e681fa6d6c8fb7e3e82b13031c5058328ad17
+- content_hash: 6ed595685f47c86596a7a7ed3c1dae26b0408193813c1104b78e54d59ac01c4e
   id: reviewer-renata
   kind: agent_profile
   path: agent_profiles/reviewer-renata.agent.yaml
@@ -130,7 +130,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/synthesizer-sam.agent.yaml
   provenance_path:
-- content_hash: c2aa1c3cb8f04af8d1c9eb54b7d7fd5e6c9812041da19f196481bad1d8a3ad6c
+- content_hash: 5c591ca1e71e8cec75b70ad7a1089ed57c2db399be10d513e1b13b865ac949cd
   id: common-docs-structural-lint
   kind: asset
   path: assets/docs_structural_lint.py.asset.yaml
@@ -190,7 +190,7 @@ constituents:
   kind: directive
   path: directives/024-locality-of-change.directive.yaml
   provenance_path:
-- content_hash: 4552dcd9abb098c942cd0a17d17b436229287120e6692a1bc75305dd417a3e76
+- content_hash: 7dfcbdd4361e2ce7f1c3c60b5af0d771eb97888cef2a4de59b22234f25ba195c
   id: DIRECTIVE_025
   kind: directive
   path: directives/025-boy-scout-rule.directive.yaml
@@ -250,12 +250,12 @@ constituents:
   kind: directive
   path: directives/038-structured-prompt-boundary.directive.yaml
   provenance_path:
-- content_hash: 089884ca8bb43a42c549e706922e98fc83c2c5e07051f9ea70d43777663da3db
+- content_hash: c0f1f8983d53233610f30b89eb972b6e574201e0516e5bc5db21ed11bd2c73b2
   id: DIRECTIVE_039
   kind: directive
   path: directives/039-lynn-cole-engineering-culture.directive.yaml
   provenance_path:
-- content_hash: 9d2e1146d04bf75b6c5ff75cbbaa907a69a7e905e24716a0bcd46c2332da4b70
+- content_hash: 10030a0365c7260f60d09d3a95425995d6736eccf607a491e4db191eb5c7eacb
   id: DIRECTIVE_040
   kind: directive
   path: directives/040-recurring-bug-structural-intervention.directive.yaml
@@ -265,12 +265,12 @@ constituents:
   kind: directive
   path: directives/041-tests-as-scaffold-not-friction.directive.yaml
   provenance_path:
-- content_hash: ddaf1b2acbde98913bc98b74c7e17d916ac8f5d21e239a4b42007c4c48ed0f18
+- content_hash: ae7238db3cece9a34bdcc8c5ad96c9113852fd301f36a3ec1143eeddbfc20cdd
   id: DIRECTIVE_042
   kind: directive
   path: directives/042-common-docs.directive.yaml
   provenance_path:
-- content_hash: e0c102d70149694693e5fca91ed8386496b66a6068235d94eab1a6487e4fab13
+- content_hash: 41ffb3fe148f44b54f87060325d5f5b157d476e3353bcfa934efc9c580f10f44
   id: DIRECTIVE_043
   kind: directive
   path: directives/043-close-defect-class-by-construction.directive.yaml
@@ -310,12 +310,12 @@ constituents:
   kind: directive
   path: directives/050-credential-handling-discipline.directive.yaml
   provenance_path:
-- content_hash: f80dce8201605741c190051238bd45638a4c09816d4b08c0a960af5737945454
+- content_hash: 8f54667ad6dc225c7c53f1e4b4086e1a112697c79673d6d75701ed196aaaec28
   id: DIRECTIVE_051
   kind: directive
   path: directives/051-supply-chain-install-safety.directive.yaml
   provenance_path:
-- content_hash: 3a7e4700c842ee2d5d80ab73277092c4d3b23ee9bd386eae5d49e05412e90772
+- content_hash: ffe7b98e6498e242fc9119a608a1fb47894b410dd116b12c3e2c02ad8b13eb41
   id: DIRECTIVE_052
   kind: directive
   path: directives/052-prefer-durable-fixes.directive.yaml
@@ -335,7 +335,7 @@ constituents:
   kind: directive
   path: directives/minutes-stand-alone.directive.yaml
   provenance_path:
-- content_hash: 2eb97689855511e43e4752fbf777a6ca35bdfdc2bfa860e3f189611dd9455dc4
+- content_hash: 2e57008e1fb6f1e46a3833193c5d0ea0a7951df640727444933b3d93a04c08e1
   id: RECONCILE_CHANGE_SCOPE_TENSIONS
   kind: directive
   path: directives/reconcile-change-scope-tensions.directive.yaml
@@ -350,7 +350,7 @@ constituents:
   kind: directive
   path: directives/use-mutation-testing-to-validate-test-quality.directive.yaml
   provenance_path:
-- content_hash: 89e749045d9d05e1a8f18dda9d47b38cf0d5f028c7a3f4af5e3edcd8bdb29bed
+- content_hash: d093cd55645a52f35999f2a08c935198e9cf1193342d0baff8e7daf8bd0b678d
   id: spec-kitty-core
   kind: glossary_pack
   path: glossary_packs/spec-kitty-core.glossary-pack.yaml
@@ -360,12 +360,12 @@ constituents:
   kind: paradigm
   path: paradigms/atomic-design.paradigm.yaml
   provenance_path:
-- content_hash: d8d53e78d44454ec9d327d8c34c317e140b8addb2c6c51de944bc53000947a71
+- content_hash: 8241e5d4e69f8f3987ef5f68d4139c7cb0ec899a3d3876008463666e5c08e013
   id: behaviour-driven-development
   kind: paradigm
   path: paradigms/behaviour-driven-development.paradigm.yaml
   provenance_path:
-- content_hash: d7001632c05f3a373c6a698c4590a6256cca213c09b61de3de8269dde5618b0b
+- content_hash: adc5a511f94cafbd151b226b0bfbf018d448e7ce0f2ccbab54f534bb3b4e17be
   id: brownfield-onboarding
   kind: paradigm
   path: paradigms/brownfield-onboarding.paradigm.yaml
@@ -425,12 +425,12 @@ constituents:
   kind: paradigm
   path: paradigms/trunk-based.paradigm.yaml
   provenance_path:
-- content_hash: 9fc8a2e133dfeb5301740e2f41bf224cbfec9c0b2a5ef8c6b73f7ef2d62d75d9
+- content_hash: bf531d46d5d6ae35e85456379e2e920ded3a65d1cf422dbb2d18df876ce34431
   id: adversarial-squad-deployment
   kind: procedure
   path: procedures/adversarial-squad-deployment.procedure.yaml
   provenance_path:
-- content_hash: 362a0eb97d75e95531ea7dc367c86e63e2fbe6e40aca42c921902e9712f6eac8
+- content_hash: 7102722c43e0e85a131fb80ee66466b5330ae47fc1b96266cc5109712b0d11b2
   id: bdd-scenario-lifecycle
   kind: procedure
   path: procedures/bdd-scenario-lifecycle.procedure.yaml
@@ -440,7 +440,7 @@ constituents:
   kind: procedure
   path: procedures/development-assist-test-cleanup.procedure.yaml
   provenance_path:
-- content_hash: c00b34ee2fd2686f390d3032eca5bd10ee99af7e9dc5e50d60a9f0f1a0f1afa2
+- content_hash: 818fabbf769179b130b00782c7288fed2f19171cc4ff698d5d25b54ee496e034
   id: disciplined-defect-diagnosis
   kind: procedure
   path: procedures/disciplined-defect-diagnosis.procedure.yaml
@@ -495,7 +495,7 @@ constituents:
   kind: procedure
   path: procedures/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml
   provenance_path:
-- content_hash: bd8587b3636f716aaa283a6067c9a22463a86ee1180f92d4dd27903f60dea42c
+- content_hash: 036a1911fa9754e35a5f1a2b84cbaef749b5aa9cbe33fa16cd87d5c7c07d5ced
   id: mission-tracer-files
   kind: procedure
   path: procedures/mission-tracer-files.procedure.yaml
@@ -535,22 +535,27 @@ constituents:
   kind: procedure
   path: procedures/spike-timebox-policy.procedure.yaml
   provenance_path:
-- content_hash: b398f79e52ef8cf000a1cc14e9f1725a27ab23d42da98be662afda68dee2abae
+- content_hash: 893e439e434154a5e2a06efbd583da8596d78bb14fe71ee90170cd280a2f6035
   id: test-first-bug-fixing
   kind: procedure
   path: procedures/test-first-bug-fixing.procedure.yaml
+  provenance_path:
+- content_hash: 8e4b480c4980a2c162cdac6fc097c5a2f053104ea2daf689c2b88922e6684f33
+  id: tracker-organisation-workflow
+  kind: procedure
+  path: procedures/tracker-organisation-workflow.procedure.yaml
+  provenance_path:
+- content_hash: bf757f84acdd8d75651068b85fb05b6de27df47ef3368cb413da46c4660d2f89
+  id: adversarial-squad-cadence
+  kind: styleguide
+  path: styleguides/adversarial-squad-cadence.styleguide.yaml
   provenance_path:
 - content_hash: f188c50d7abb5410395b138b593c1bb680f7f84022d65fd8bf2a8e14f1facae2
   id: aggregate-design-rules
   kind: styleguide
   path: styleguides/aggregate-design-rules.styleguide.yaml
   provenance_path:
-- content_hash: 8d23fec725dddc42453c241d75f6bcc3219ad0a2d6bd1f5920c5e673343f197b
-  id: boring-code-review
-  kind: styleguide
-  path: styleguides/boring-code-review.styleguide.yaml
-  provenance_path:
-- content_hash: f565303cda6a046696ecb6d1ad17afec31597a6dd1ea5744c4a3528a47189180
+- content_hash: a7e838b94d3edbf75a2d1738851fb1c590a7795099cdb397f86d3e6d149271e4
   id: common-docs
   kind: styleguide
   path: styleguides/common-docs.styleguide.yaml
@@ -570,7 +575,7 @@ constituents:
   kind: styleguide
   path: styleguides/docs-accessibility.styleguide.yaml
   provenance_path:
-- content_hash: 1e142201e005a09eb30a498ce854f6870a0ad452bfa0d3abf09f1cac83196779
+- content_hash: 2f12c5956ace03b7b84ab01c9fdefbffc167d9e5a5b51f6e0d5d9d02ddd93036
   id: docs-freshness-sla
   kind: styleguide
   path: styleguides/docs-freshness-sla.styleguide.yaml
@@ -605,7 +610,7 @@ constituents:
   kind: styleguide
   path: styleguides/meeting-minutes-format.styleguide.yaml
   provenance_path:
-- content_hash: 381b83b54f7083ab258fb44469bcd7803dc1e3356106f7bc6f8ba0131f79ee43
+- content_hash: dde5e314db5a54b36abd9bf5c85a5c5d888bcbcf632b8650fed4f521ef586c03
   id: mutation-aware-test-design
   kind: styleguide
   path: styleguides/mutation-aware-test-design.styleguide.yaml
@@ -625,7 +630,7 @@ constituents:
   kind: styleguide
   path: styleguides/professional-communications.styleguide.yaml
   provenance_path:
-- content_hash: cb20faf6a191c0a48009fa48a8d3167b6c486716075dc2c8fd5a7eb7e733a70e
+- content_hash: 2a759fe53d73d5ad661560443b09c66b569bd2889ae0b0111e0bd89647c787fe
   id: publication-authority
   kind: styleguide
   path: styleguides/publication-authority.styleguide.yaml
@@ -650,12 +655,12 @@ constituents:
   kind: styleguide
   path: styleguides/research-citation-discipline.styleguide.yaml
   provenance_path:
-- content_hash: 8bf057fa3bf758452798978a2419870d4b5e754bf262de9bdcf2eef644f9f2d8
+- content_hash: 217c4c5060f794ea615448ebc62f5d16246da4eb9f160b2b5e20fa97eaefa672
   id: test-desiderata-and-boundaries
   kind: styleguide
   path: styleguides/test-desiderata-and-boundaries.styleguide.yaml
   provenance_path:
-- content_hash: 0d44d5c650d9a0ccdb6b5a5cd82c55db658925a0b9f5a6b2826fae0a6ec3065c
+- content_hash: 1fb3dea026a91b67f6cc8b017783b944df24b00d93e2568edeba8fb04ff86e09
   id: testing-principles
   kind: styleguide
   path: styleguides/testing-principles.styleguide.yaml
@@ -665,7 +670,7 @@ constituents:
   kind: styleguide
   path: styleguides/tiered-standards.styleguide.yaml
   provenance_path:
-- content_hash: 293e9480138f64a2e87cc03859ac64e13777701ebf14630d194726ff42c1b7fc
+- content_hash: aa2bce8aca537fc06ee5664e93443bf16257882a4979b16279d90ea829d12ddd
   id: acceptance-criteria-non-vacuity
   kind: tactic
   path: tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml
@@ -735,20 +740,25 @@ constituents:
   kind: tactic
   path: tactics/autonomous-operation-protocol.tactic.yaml
   provenance_path:
-- content_hash: 69e80920b700c801e5da5d1270e3b1a83e2a1c21b5679bcd7e4b6df114a2c586
+- content_hash: 35701eed26acee1c9c7601836a9b94c55362f23fb507922ef26fc1af3b8c8e27
   id: avoid-gold-plating
   kind: tactic
   path: tactics/avoid-gold-plating.tactic.yaml
   provenance_path:
-- content_hash: da82f4fda7d2dc58e9037cfb1497fb9399c160372e9ef3b28723b983b5960978
-  id: bdd-scenario-formulation
+- content_hash: b7aac6a49aa6e7e95661a4ef589754ec150b6fc080c2a90f1f89462ee842a7d2
+  id: behavior-driven-development
   kind: tactic
-  path: tactics/testing/bdd-scenario-formulation.tactic.yaml
+  path: tactics/behavior-driven-development.tactic.yaml
   provenance_path:
 - content_hash: dcb82e4d127d9a780f340178be7f166f1be35d141ee174fe52ed6625bcd92e1e
   id: black-box-integration-testing
   kind: tactic
   path: tactics/testing/black-box-integration-testing.tactic.yaml
+  provenance_path:
+- content_hash: d5449edbd9f12d297819f18762eb344ee09074cb50b8f082dd7276e5f56cde5d
+  id: boring-code-review
+  kind: tactic
+  path: tactics/boring-code-review.tactic.yaml
   provenance_path:
 - content_hash: 9229dd23fbe7f03324da9dfafa6a1197e0ae2857c37623e9c4259d364cde028b
   id: bounded-context-canvas-fill
@@ -759,6 +769,11 @@ constituents:
   id: bounded-context-identification
   kind: tactic
   path: tactics/analysis/bounded-context-identification.tactic.yaml
+  provenance_path:
+- content_hash: 8d35a57c99f1ad17f1c6afc87806bcd93863c2c845c2e0311077655e15665678
+  id: bug-fixing-checklist
+  kind: tactic
+  path: tactics/testing/bug-fixing-checklist.tactic.yaml
   provenance_path:
 - content_hash: a2296735727e2d230440a2097602f4a83f0e80f110baab9f86f5700fca6cdd4c
   id: c4-zoom-in-architecture-documentation
@@ -775,7 +790,7 @@ constituents:
   kind: tactic
   path: tactics/code-patterns/chain-of-responsibility-rule-pipeline.tactic.yaml
   provenance_path:
-- content_hash: 4d4e37809cc2aaec53661f60cd0201a6d907ba910c374507acddcf0d0c7bf9b8
+- content_hash: e63325c3f7967b5d1e201a73721d594778a9822cd2acf678bfaf077b05da9a48
   id: change-apply-smallest-viable-diff
   kind: tactic
   path: tactics/change-apply-smallest-viable-diff.tactic.yaml
@@ -790,22 +805,27 @@ constituents:
   kind: tactic
   path: tactics/analysis/code-documentation-analysis.tactic.yaml
   provenance_path:
-- content_hash: 4db04a9d37f110f8449a1b7777566c2398f080372cd6114fc6cc5ef281dce374
+- content_hash: 5efc27c5936521010941e84a1da939987c617096ed97632d868e4c2eaa6ea85a
   id: code-review-incremental
   kind: tactic
   path: tactics/code-review-incremental.tactic.yaml
   provenance_path:
-- content_hash: 2517927f2b9eb57dd41806e56cea99e4718d3440b6c9394762a7deb4b905461e
+- content_hash: 2b15af537f9279a66e55a4aa92f72b19b72f297237f83768bc53c2424d86ff3c
+  id: common-docs-curation
+  kind: tactic
+  path: tactics/common-docs-curation.tactic.yaml
+  provenance_path:
+- content_hash: 715401c41d95f37d23fc215df5b279bc6d2acd12c81a3cfe41a542da3117cba7
   id: common-docs-find
   kind: tactic
   path: tactics/common-docs-find.tactic.yaml
   provenance_path:
-- content_hash: 7f3e2872084ff5e68783837dd3903aaefd7afa0cd92c09ffa4c6a3a7359e8cd1
+- content_hash: 19e5fc6890a5c1d1205562b8dcec869b8d29a44b512efd98b5571318f26cdec9
   id: common-docs-scaffold
   kind: tactic
   path: tactics/common-docs-scaffold.tactic.yaml
   provenance_path:
-- content_hash: 37897afb862e200a6caf82b6a6db0ffbb8520646d4a390ca97f2f9c8890fa15d
+- content_hash: 93749e6d02a1e84bbfeb3c3d7aafdb54bbba4e82be5833d9cbf0123af48f84d2
   id: common-docs-write
   kind: tactic
   path: tactics/common-docs-write.tactic.yaml
@@ -840,7 +860,7 @@ constituents:
   kind: tactic
   path: tactics/communication/decision-marker-capture.tactic.yaml
   provenance_path:
-- content_hash: 763a42a5704c999aba022e15b3208281d4045d4c1fb82475879356c35a57ae91
+- content_hash: 261c57458b5507845be7858d3526c6498f708c475643a287f77bf25a24464c29
   id: deepening-opportunity-assessment
   kind: tactic
   path: tactics/architecture/deepening-opportunity-assessment.tactic.yaml
@@ -850,12 +870,12 @@ constituents:
   kind: tactic
   path: tactics/testing/delete-the-assertion-not-the-test.tactic.yaml
   provenance_path:
-- content_hash: 8897273b344d785695be43cbe24caa3fa1b5cffc502f8a349dded7a63a49d962
+- content_hash: 822fe38b2c3f11ffa8a5f21b230ac45077eff4bd5bbcdfbe5a8a21d640aa61aa
   id: dependency-hygiene
   kind: tactic
   path: tactics/architecture/dependency-hygiene.tactic.yaml
   provenance_path:
-- content_hash: 6540af422a3364366f9ec8178d3d2ed181b29586e3c6c0bf57eb2bcef7710642
+- content_hash: ea87160d152f6548bfd880ef83620b17019f82f7a5f3a0815ac7d483440a1b31
   id: development-bdd
   kind: tactic
   path: tactics/architecture/development-bdd.tactic.yaml
@@ -875,7 +895,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/domain-event-capture.tactic.yaml
   provenance_path:
-- content_hash: 4c755ed6ac8afdfe768054f8bb425b2c54fcaf6951587a49b3ea4e6c7a40b1ee
+- content_hash: 8ea90f8552c1d020108300e5ea2c3ccaa4461f50284b9da375fbe46e241c51b8
   id: easy-to-change
   kind: tactic
   path: tactics/easy-to-change.tactic.yaml
@@ -890,7 +910,7 @@ constituents:
   kind: tactic
   path: tactics/analysis/entity-value-object-classification.tactic.yaml
   provenance_path:
-- content_hash: eac5ad54da2ede5291cebb0209955a218194ef6b77131b25c3b47d9f2d21d872
+- content_hash: 3416fb678e975f73ac85724046b2b8c8698c94c8670f2e291a55e35d31148fa8
   id: five-paradigm-parallel-debugging
   kind: tactic
   path: tactics/five-paradigm-parallel-debugging.tactic.yaml
@@ -915,12 +935,12 @@ constituents:
   kind: tactic
   path: tactics/frozen-baseline-shrink-only-ratchet.tactic.yaml
   provenance_path:
-- content_hash: f6e2d6edaeb06552f87581734c41dab2a160596b356fc22435633d748298e3da
+- content_hash: ac877b6b10e0a8453052f2b101508278afb84fbef163402c79f980cb4eddcb2d
   id: function-over-form-testing
   kind: tactic
   path: tactics/testing/function-over-form-testing.tactic.yaml
   provenance_path:
-- content_hash: 1d2d7542fffb172508cfa9c6c4d516eab610916b4b1fc6df91aadaee7fd51df0
+- content_hash: 900ea3b01abc93356edee108fe27bdd11c9c84e5ac6943db7bc6712450e4d5c0
   id: generated-code-stewardship
   kind: tactic
   path: tactics/generated-code-stewardship.tactic.yaml
@@ -940,22 +960,32 @@ constituents:
   kind: tactic
   path: tactics/architecture/interface-variation-design.tactic.yaml
   provenance_path:
+- content_hash: 0725c9b971aaecea4275f13abefb001d77667231f3ed6d461be4ee3483ab9d08
+  id: iterative-deepening-review
+  kind: tactic
+  path: tactics/iterative-deepening-review.tactic.yaml
+  provenance_path:
 - content_hash: 933f9b8100950b6073338fd8b9987ed21c5f6c93e796899a2ce2870d22fad557
   id: language-driven-design
   kind: tactic
   path: tactics/architecture/language-driven-design.tactic.yaml
+  provenance_path:
+- content_hash: bd6324a6a63a0ef085546834335e95bf279142f9b27c757466df68fec45b950c
+  id: locality-of-change
+  kind: tactic
+  path: tactics/locality-of-change.tactic.yaml
   provenance_path:
 - content_hash: 509bac5393221dacac92ed6c849ade3a9054684b30a11bba7c05ca9ceef7ccd1
   id: model-task-routing
   kind: tactic
   path: tactics/model-task-routing.tactic.yaml
   provenance_path:
-- content_hash: 79a8ff03e31666c2c29ce66d0d85a9ced5bbc8681a557d266a17db0d6b005a0c
+- content_hash: ae0a64cc6ca0cdde904153947c3516be7864aa0a6d2f3e4df6def3285ac1e9e8
   id: moscow-scoping-lens
   kind: tactic
   path: tactics/moscow-scoping-lens.tactic.yaml
   provenance_path:
-- content_hash: 1b832800dc615c3d51ef39815196b49c1a0a61af9449a35336dbbc0684a40b48
+- content_hash: abe25dbbcf4f327713bb953de3ac36d8a5c89f2fd8ff9c7416866787731a6eb3
   id: mutation-testing-workflow
   kind: tactic
   path: tactics/testing/mutation-testing-workflow.tactic.yaml
@@ -980,7 +1010,7 @@ constituents:
   kind: tactic
   path: tactics/ownership-map-leeway.tactic.yaml
   provenance_path:
-- content_hash: 0dfc9a063df02efae3ad98053a38ed6f8ad38fe794778f9e46e11291ec7116c7
+- content_hash: cdf71c12f3ed8a5bcb2678e2320e275a525d4edeef5049095ac337f4cda5c6b5
   id: paula-patterns-architecture-scout-review
   kind: tactic
   path: 
@@ -1126,7 +1156,7 @@ constituents:
   kind: tactic
   path: tactics/analysis/reverse-speccing.tactic.yaml
   provenance_path:
-- content_hash: d2bd9e1394135a7c7f472f99b5a43b1269419a51fc73e7f1c7bb3652dde2d515
+- content_hash: 87d3e2fd1684ea62d76d912d258d4cc9e0802b7908fd0c8f3564c7ec6d4737dd
   id: review-intent-and-risk-first
   kind: tactic
   path: tactics/review-intent-and-risk-first.tactic.yaml
@@ -1207,7 +1237,7 @@ constituents:
   kind: tactic
   path: tactics/analysis/strategic-domain-classification.tactic.yaml
   provenance_path:
-- content_hash: efe95bc6d4391ae90f9723fbf49053c7ce145ba8a24e802fa631ed82dda3cf01
+- content_hash: fcda066c9839e2885732490854d075026df921a8a987eafcbe6582a94e83b56d
   id: supply-chain-install-safety
   kind: tactic
   path: tactics/security/supply-chain-install-safety.tactic.yaml
@@ -1237,7 +1267,7 @@ constituents:
   kind: tactic
   path: tactics/testing/test-pyramid-progression.tactic.yaml
   provenance_path:
-- content_hash: 89be8694de7630e46ae08704e5bc1bda52a0b28d6c939b980e4aa5258a78e63f
+- content_hash: 98b5f34fbb12adb26ac9f96c43599dfe9f8c85f141bc6e53c30bb1c540278253
   id: test-readability-clarity-check
   kind: tactic
   path: tactics/testing/test-readability-clarity-check.tactic.yaml
@@ -1247,7 +1277,7 @@ constituents:
   kind: tactic
   path: tactics/testing/test-scaffolding-as-design-smell.tactic.yaml
   provenance_path:
-- content_hash: 064d9b2d1f860385b22551934000e12753eb3f2bb7d40800798a23298ff91439
+- content_hash: 7d7d7b8739796c9333264ac9724d667007a334afbc68922c193bfd4fb85732c2
   id: test-to-system-reconstruction
   kind: tactic
   path: tactics/testing/test-to-system-reconstruction.tactic.yaml
@@ -1317,16 +1347,6 @@ constituents:
   kind: toolguide
   path: toolguides/github-tracker.toolguide.yaml
   provenance_path:
-- content_hash: b0e79407c53a21740a722b99fd89f5ac6fe1989bf78d107a463b31f7093a97e7
-  id: java-supply-chain
-  kind: toolguide
-  path: toolguides/java-supply-chain.toolguide.yaml
-  provenance_path:
-- content_hash: 2b4944c01c9b3f700e6cd7a14bd07f4b26da716d7b004fa5bd651f8a05d2e1b8
-  id: javascript-supply-chain
-  kind: toolguide
-  path: toolguides/javascript-supply-chain.toolguide.yaml
-  provenance_path:
 - content_hash: 65c4455b338f49349c3cdb09e66844cfd7a406104e9d50ed345560efd965903f
   id: maven-review-checks
   kind: toolguide
@@ -1357,11 +1377,6 @@ constituents:
   kind: toolguide
   path: toolguides/python-review-checks.toolguide.yaml
   provenance_path:
-- content_hash: e7011e9ba6a739fe80e718327461cb9f529b0b97af1bc416d4cf56760c1f60ce
-  id: python-supply-chain
-  kind: toolguide
-  path: toolguides/python-supply-chain.toolguide.yaml
-  provenance_path:
 - content_hash: b675315a13a1585f5d3f4eaf5e0308d512bd02f3637d0aba2e7290590d91d5d2
   id: sonar
   kind: toolguide
@@ -1375,7 +1390,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 4904b42214f35943219d2f579509149cf480718dc0cd127d7b9516127446128d
+manifest_hash: 554aa3d90d2ac47e73b5f723c58a23a9af78e0c3c2d0c1d4642a28eee510e75d
 schema_version: '1'
 source_type: built-in
 source_url:

@@ -224,6 +224,12 @@ edges:
   target: directive:DIRECTIVE_034
   relation: suggests
 - source: styleguide:test-desiderata-and-boundaries
+  target: directive:DIRECTIVE_041
+  relation: suggests
+- source: styleguide:test-desiderata-and-boundaries
+  target: procedure:development-assist-test-cleanup
+  relation: suggests
+- source: styleguide:test-desiderata-and-boundaries
   target: styleguide:mutation-aware-test-design
   relation: suggests
 - source: styleguide:test-desiderata-and-boundaries
