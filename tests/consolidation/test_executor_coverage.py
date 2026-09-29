@@ -176,17 +176,31 @@ def test_phase_merge_lanes_success_marks_unintegrated(tmp_path: Path) -> None:
     assert run.any_lane_had_unintegrated_code is True
 
 
-def test_phase_merge_lanes_resume_tolerates_already_merged(tmp_path: Path) -> None:
-    run = _make_run(tmp_path, is_resume=True)
+@pytest.mark.parametrize("is_resume", [True, False], ids=["resume-tolerates", "fresh-run-fails"])
+def test_phase_merge_lanes_already_merged_tolerated_only_on_resume(tmp_path: Path, is_resume: bool) -> None:
+    """An "already merged" lane error is tolerated on resume and nowhere else.
+
+    A fresh run that hits the same error has not merged anything yet, so it
+    must fail loud rather than continue as though the lane were integrated.
+    """
+    run = _make_run(tmp_path, is_resume=is_resume)
     result = SimpleNamespace(success=False, errors=["lane already up to date"])
     with (
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
         patch.object(ex, "_lane_already_integrated", return_value=False),
         patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=result),
+        ex.console.capture() as captured,
     ):
-        # No Exit raised because resume + "already" error is tolerated.
-        ex._phase_merge_lanes(run)
+        if is_resume:
+            ex._phase_merge_lanes(run)
+        else:
+            with pytest.raises(typer.Exit) as exc:
+                ex._phase_merge_lanes(run)
+            assert exc.value.exit_code == 1
+
+    tolerated = "lane-a already merged, continuing" in captured.get()
+    assert tolerated is is_resume
 
 
 def test_phase_merge_lanes_hard_failure_exits(tmp_path: Path) -> None:
@@ -335,11 +349,25 @@ def test_handle_result_rejects_zero_diff_noop_squash(tmp_path: Path) -> None:
     restore_mock.assert_called_once_with(run)
 
 
-def test_handle_result_resume_tolerates_already_merged(tmp_path: Path) -> None:
-    run = _make_run(tmp_path, is_resume=True)
+@pytest.mark.parametrize("is_resume", [True, False], ids=["resume-tolerates", "fresh-run-fails"])
+def test_handle_result_already_merged_tolerated_only_on_resume(tmp_path: Path, is_resume: bool) -> None:
+    """Equal trees + an "already" error are tolerated on resume only.
+
+    On a fresh run the same result is a failed integration: it must exit 1
+    and restore the target, never continue to done-marking.
+    """
+    run = _make_run(tmp_path, is_resume=is_resume)
     result = SimpleNamespace(success=False, errors=["already up to date"], commit=None, already_applied=False)
-    # No Exit because resume tolerates the already-merged error.
-    ex._handle_mission_merge_result(run, result, mission_integrated_into_target=True)
+    restored: list[object] = []
+    with patch.object(ex, "_restore_pre_target_if_at_baseline", side_effect=restored.append):
+        if is_resume:
+            ex._handle_mission_merge_result(run, result, mission_integrated_into_target=True)
+        else:
+            with pytest.raises(typer.Exit) as exc:
+                ex._handle_mission_merge_result(run, result, mission_integrated_into_target=True)
+            assert exc.value.exit_code == 1
+
+    assert restored == ([] if is_resume else [run])
 
 
 def test_handle_result_resume_never_tolerates_content_conflict(tmp_path: Path) -> None:
@@ -703,13 +731,33 @@ def test_phase_push_noop_without_push_flag(tmp_path: Path) -> None:
     cmd_mock.assert_not_called()
 
 
-def test_phase_push_success(tmp_path: Path) -> None:
-    run = _make_run(tmp_path, push=True)
-    with (
-        patch.object(ex, "has_remote", return_value=True),
-        patch.object(ex, "run_command", return_value=(0, "", "")),
-    ):
-        ex._phase_push(run)
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout.strip()
+
+
+def test_phase_push_publishes_the_target_branch_to_origin(tmp_path: Path) -> None:
+    """A real push lands the TARGET branch tip on origin — not the mission branch.
+
+    Both branches exist locally at different commits, so pushing the wrong ref
+    would still "succeed" and only the remote ref state tells them apart.
+    """
+    remote = tmp_path / "origin.git"
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "mission tip")
+    _git(repo, "branch", "kitty/mission-m")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "target tip")
+    _git(repo, "remote", "add", "origin", str(remote))
+    run = _make_run(repo, push=True)
+
+    ex._phase_push(run)
+
+    remote_heads = _git(remote, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads/")
+    assert remote_heads == f"refs/heads/main {_git(repo, 'rev-parse', 'main')}"
 
 
 def test_phase_push_failure_with_linear_history_hint_exits(tmp_path: Path) -> None:
@@ -857,16 +905,32 @@ def _finding(confidence: Confidence, *, test_line: int = 10) -> StaleAssertionFi
     )
 
 
-def test_render_stale_findings_none_report() -> None:
-    ex._render_stale_findings(None)
-
-
-def test_render_stale_findings_no_findings(tmp_path: Path) -> None:
-    report = StaleAssertionReport(
-        base_ref="a", head_ref="HEAD", repo_root=tmp_path, findings=[],
-        elapsed_seconds=0.1, files_scanned=1, findings_per_100_loc=0.0,
+@pytest.mark.parametrize(
+    ("has_report", "expected_line"),
+    [
+        # The operator-honesty line: a check that did not run must say so,
+        # never render as an empty (clean-looking) findings block.
+        (False, "Stale-assertion check could not run."),
+        (True, "No likely-stale assertions detected."),
+    ],
+    ids=["check-could-not-run", "no-findings"],
+)
+def test_render_stale_findings_short_circuit_states_are_named(
+    tmp_path: Path, has_report: bool, expected_line: str
+) -> None:
+    report = (
+        StaleAssertionReport(
+            base_ref="a", head_ref="HEAD", repo_root=tmp_path, findings=[],
+            elapsed_seconds=0.1, files_scanned=1, findings_per_100_loc=0.0,
+        )
+        if has_report
+        else None
     )
-    ex._render_stale_findings(report)
+
+    with ex.console.capture() as captured:
+        ex._render_stale_findings(report)
+
+    assert expected_line in captured.get()
 
 
 def test_render_stale_findings_all_grades(tmp_path: Path) -> None:
