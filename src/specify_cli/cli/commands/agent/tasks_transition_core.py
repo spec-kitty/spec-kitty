@@ -452,6 +452,11 @@ def _reviewer_arm(req: MoveTaskRequest) -> bool:
 
     A generic requester (``user``, ``implement-command``, ``unknown``) names no
     reviewer at all, so it never qualifies as one.
+
+    Precondition — call only via :func:`_ownership_role_allowance`: this arm does
+    not itself reject a ``None``/generic ``latest_implementer`` (``_actor_key(None)``
+    is truthy and would spuriously satisfy the ``!=`` check). The sole caller guards
+    that first. A future direct reuse must replicate that guard. (#5196)
     """
     requester_key = _actor_key(req.agent)
     return (
@@ -463,7 +468,11 @@ def _reviewer_arm(req: MoveTaskRequest) -> bool:
 
 
 def _implementer_arm(req: MoveTaskRequest) -> bool:
-    """The latest implementer resuming or resubmitting its own rework."""
+    """The latest implementer resuming or resubmitting its own rework.
+
+    Precondition — call only via :func:`_ownership_role_allowance`, which rejects a
+    ``None``/generic ``latest_implementer`` before this arm runs. (#5196)
+    """
     return (
         resolve_lane_alias(req.old_lane) in _IMPLEMENTER_ARM_SOURCES
         and resolve_lane_alias(req.target_lane) in _IMPLEMENTER_ARM_TARGETS

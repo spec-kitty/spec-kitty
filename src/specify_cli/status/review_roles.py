@@ -25,7 +25,14 @@ _REVIEWER_SOURCE_LANES: frozenset[str] = frozenset({Lane.FOR_REVIEW.value, Lane.
 
 
 def _is_reviewer_rework_verdict(event: StatusEvent) -> bool:
-    """A reviewer rework verdict: leaves a review lane with a ``review_ref`` set."""
+    """A reviewer rework verdict: leaves a review lane with a ``review_ref`` set.
+
+    Sibling predicate — keep in lockstep: ``review.arbiter._is_rejection_event``
+    encodes the same "a reviewer verdict happened" concept for the arbiter-override
+    check and so uses a deliberately NARROWER lane set (``to == planned`` only,
+    sources ``for_review``/``in_review``). A future change to "what counts as a
+    reviewer verdict" must be weighed against both. (#5196)
+    """
     return Lane(event.from_lane).value in _REVIEWER_SOURCE_LANES and bool(event.review_ref)
 
 

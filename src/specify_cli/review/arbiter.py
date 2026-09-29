@@ -342,7 +342,14 @@ _REJECTION_SOURCES = frozenset({Lane.FOR_REVIEW, Lane.IN_REVIEW})
 
 
 def _is_rejection_event(event: StatusEvent) -> bool:
-    """True iff ``event`` is a review rejection (back to ``planned`` with a ``review_ref``)."""
+    """True iff ``event`` is a review rejection (back to ``planned`` with a ``review_ref``).
+
+    Sibling predicate — keep in lockstep: ``review_roles._is_reviewer_rework_verdict``
+    encodes the same "a reviewer verdict happened" concept for a different purpose
+    (the latest-implementer projection) and so uses a deliberately WIDER lane set
+    (it also admits ``approved`` as a source and any target lane). A future change
+    to "what counts as a reviewer verdict" must be weighed against both. (#5196)
+    """
     return event.to_lane == Lane.PLANNED and event.from_lane in _REJECTION_SOURCES and event.review_ref is not None
 
 
