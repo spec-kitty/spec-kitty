@@ -65,13 +65,19 @@ def _minimal_meta(mission_slug: str) -> dict[str, Any]:
 
 
 def _write_wp_file(tasks_dir: Path, wp_id: str) -> None:
+    # ``planning_artifact`` WPs on the ``lane-planning`` manifest below make this
+    # a genuinely planning-artifact-only mission. Since #5100 the acceptance
+    # "has code" answer is the WP kind (``lanes.compute.mission_has_code``), not
+    # the lane shape: explicit ``code_change`` WPs on the repo-root lane are real
+    # code (a single_branch mission) and would rightly require the acceptance
+    # matrix, which is irrelevant to the acceptable-ending behaviour under test.
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / f"{wp_id}.md").write_text(
         f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\n"
-        f"execution_mode: code_change\nagent: testbot\n"
+        f"execution_mode: planning_artifact\nagent: testbot\n"
         f"subtasks: []\n"
-        f"owned_files:\n  - src/{wp_id.lower()}/**\n"
-        f"authoritative_surface: src/{wp_id.lower()}/\n---\n\n# {wp_id}\n\n## Activity Log\n",
+        f"owned_files:\n  - docs/{wp_id.lower()}/**\n"
+        f"authoritative_surface: docs/{wp_id.lower()}/\n---\n\n# {wp_id}\n\n## Activity Log\n",
         encoding="utf-8",
     )
 
@@ -96,8 +102,9 @@ def _scaffold_mission(tmp_path: Path, mission_slug: str, wp_ids: list[str]) -> P
         _write_wp_file(feature_dir / "tasks", wp_id)
 
     # #4891: accept fails closed when lanes.json is absent. A planning-lane
-    # manifest keeps the (irrelevant here) acceptance-matrix gate a no-op
-    # while satisfying the now-unconditional lanes gate; target_branch matches
+    # manifest holding only planning_artifact WPs keeps the (irrelevant here)
+    # acceptance-matrix gate a no-op while satisfying the now-unconditional
+    # lanes gate; target_branch matches
     # the mocked "main" branch _collect() uses throughout this module.
     write_single_lane_manifest(
         feature_dir,
