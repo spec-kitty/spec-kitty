@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#5258": {
+      "evidence_ref": "run 36553997695 out-of-matrix: sole failure was the SC-011 census test fixed by WP01",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5367": {
+      "evidence_ref": "lane-a 97291ed8+03190f7b; red 26==19 -> 20==19 -> green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5378": {
+      "evidence_ref": "lane-b a175a493; old caps violate recorded headroom for shards 1/2/3/5 + out-of-matrix",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

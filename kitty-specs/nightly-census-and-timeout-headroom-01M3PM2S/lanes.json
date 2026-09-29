@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-census-and-timeout-headroom-01M3PM2S",
+  "mission_id": "01M3PM2SHGNAFEYFEFD8GVGEF3",
+  "mission_branch": "kitty/mission-nightly-census-and-timeout-headroom-01M3PM2S",
+  "target_branch": "issue-5367-nightly-census-and-timeout-headroom",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/pack-manifest.yaml",
+        "packs/built-in/toolguides/java-supply-chain.toolguide.yaml",
+        "packs/built-in/toolguides/javascript-supply-chain.toolguide.yaml",
+        "packs/built-in/toolguides/python-supply-chain.toolguide.yaml",
+        "tests/specify_cli/bulk_edit/test_occurrence_map_field_paths.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "docs/changelog/CHANGELOG.md",
+        "tests/architectural/_interpreter_shard_roster.py",
+        "tests/ci/test_nightly_timeout_headroom.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-29T13:32:31.876146+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "cd66a2ca8869ed25909fc0616aa81cdab45304ae"
+}

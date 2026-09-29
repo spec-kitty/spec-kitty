@@ -1,0 +1,103 @@
+schema_version: 1
+mission_id: 01M3PM2SHGNAFEYFEFD8GVGEF3
+mission_slug: nightly-census-and-timeout-headroom-01M3PM2S
+mission_number: 209
+friendly_name: Nightly census re-pin and timeout headroom
+mission_type: software-dev
+target_branch: issue-5367-nightly-census-and-timeout-headroom
+created_at: '2026-09-29T13:34:04.948090+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-29T13:34:04.948090+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-007
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-007
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 2 finding(s)
+  evidence_refs:
+  - e-008
+  details: The analysis-report.md artifact for this mission records 2 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+gaps:
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/nightly-census-and-timeout-headroom-01M3PM2S/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/nightly-census-and-timeout-headroom-01M3PM2S/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/nightly-census-and-timeout-headroom-01M3PM2S/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/nightly-census-and-timeout-headroom-01M3PM2S/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/nightly-census-and-timeout-headroom-01M3PM2S/tasks/WP01-census-honesty.md
+- id: e-006
+  kind: file
+  path: kitty-specs/nightly-census-and-timeout-headroom-01M3PM2S/tasks/WP02-nightly-timeout-headroom.md
+- id: e-007
+  kind: file
+  path: kitty-specs/nightly-census-and-timeout-headroom-01M3PM2S/status.events.jsonl
+- id: e-008
+  kind: file
+  path: kitty-specs/nightly-census-and-timeout-headroom-01M3PM2S/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "f14b5768ed7c7ba34276b1369d9860fe6e135dfe",
+  "created_at": "2026-09-29T13:01:22.907880+00:00",
+  "flattened": false,
+  "friendly_name": "Nightly census re-pin and timeout headroom",
+  "merged_at": "2026-09-29T13:33:50.607132+00:00",
+  "merged_commit": "a01282d0ed4039aeacb2df87392627415d71c3ea",
+  "mid8": "01M3PM2S",
+  "mission_id": "01M3PM2SHGNAFEYFEFD8GVGEF3",
+  "mission_number": 209,
+  "mission_slug": "nightly-census-and-timeout-headroom-01M3PM2S",
+  "mission_type": "software-dev",
+  "purpose_context": "Two P0 release blockers (#5367, #5378) keep ci-nightly red: a pinned RAW_MATERIAL census broken by #5324's bare-id toolguide references, and interpreter shard 2 / specify_cli out-of-matrix legs whose timeout caps were sized from one fast sample and now conclude cancelled.",
+  "purpose_tldr": "Un-red the main nightly: drop inert supply-chain toolguide references (SC-011 census 26->20) and re-derive ci-nightly timeout caps from measured wall-clock.",
+  "slug": "nightly-census-and-timeout-headroom-01M3PM2S",
+  "status_phase": "1",
+  "target_branch": "issue-5367-nightly-census-and-timeout-headroom",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-29T13:11:21.111998+00:00"
+}
