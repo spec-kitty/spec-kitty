@@ -10,7 +10,8 @@ from __future__ import annotations
 import pytest
 
 from kernel._safe_re import is_re2_active
-from specify_cli.requirement_mapping import grammar
+from specify_cli.requirement_mapping import grammar, parse_requirement_ids_from_spec_md
+from specify_cli.requirement_mapping.lint import lint_spec_requirement_ids
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -202,6 +203,58 @@ def test_unicode_suffix_behaves_identically_under_re2() -> None:
 def test_dotted_number_is_not_an_id() -> None:
     assert grammar.parse("FR-001.1") is None
     assert grammar.parse("FR-001") is not None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "see FR-002.3 in the table",
+        "### FR-001.1 Title",
+        "**FR-004.1** x",
+    ],
+)
+def test_dotted_id_is_dropped_not_truncated_by_find_all(text: str) -> None:
+    """A dotted sub-id must never be silently truncated to its well-formed
+    prefix (``FR-002.3`` -> ``FR-002``): that would let ``find_all``/the
+    declared-id scan accept a token as if the shorter id alone had been
+    written, disagreeing with the setup-plan lint, which refuses the SAME
+    dotted token as malformed (both read the same lead charset,
+    ``[A-Za-z0-9_.-]``, so they must agree on what the token even is)."""
+    assert grammar.find_all(text, spec_scan=True) == []
+
+
+def test_dotted_id_sentence_final_period_positive_control() -> None:
+    """A sentence-final period (not a dotted tail) must still yield the id --
+    the compound-tail check only fires when a following ``.`` is itself
+    immediately followed by an alphanumeric character."""
+    assert [i.canonical for i in grammar.find_all("see FR-001. Next sentence.", spec_scan=True)] == ["FR-001"]
+    assert [i.canonical for i in grammar.find_all("see FR-001.", spec_scan=True)] == ["FR-001"]
+
+
+@pytest.mark.parametrize(
+    ("shape_line", "dotted_id"),
+    [
+        ("| FR-002.3 | text |", "FR-002.3"),
+        ("### FR-001.1 Title", "FR-001.1"),
+        ("**FR-004.1** x", "FR-004.1"),
+    ],
+)
+def test_declared_scan_and_lint_agree_on_dotted_ids(shape_line: str, dotted_id: str) -> None:
+    """FR-013 agreement: the declared-ID scan (via
+    ``parse_requirement_ids_from_spec_md``) and the setup-plan lint must
+    agree that a dotted lead is NOT a well-formed declaration -- the scan
+    drops it (never silently counts the truncated prefix as declared), and
+    the lint refuses it as malformed. A same-fixture positive control (the
+    sentence-final ``FR-001.``) proves the lint is still scanning the text,
+    not vacuously silent."""
+    text = f"# Spec\n\n{shape_line}\n\nsee FR-001.\n"
+
+    truncated_prefix = dotted_id.split(".")[0]
+    declared = parse_requirement_ids_from_spec_md(text)
+    assert truncated_prefix not in declared["all"], f"{dotted_id} must not be truncated into the declared set as {truncated_prefix}"
+
+    lint_result = lint_spec_requirement_ids(text)
+    assert any(error.token == dotted_id for error in lint_result.errors), lint_result.errors
 
 
 # --------------------------------------------------------------------------- #

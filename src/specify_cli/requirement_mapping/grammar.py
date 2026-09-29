@@ -195,16 +195,28 @@ def canonical(token: str) -> str | None:
 
 _TOKEN_LOWER_SUFFIX: Pattern[str] = re.compile(rf"\b{_QUALIFIED_KIND_DIGITS}(?P<suffix>(?-i:[a-z]))?\b")
 _TOKEN_ANY_SUFFIX: Pattern[str] = re.compile(rf"\b{_QUALIFIED_KIND_DIGITS}(?P<suffix>[a-zA-Z])?\b")
-_COMPOUND_TAIL: Pattern[str] = re.compile(r"^-[A-Za-z0-9]")
+_COMPOUND_TAIL: Pattern[str] = re.compile(r"^[-.][A-Za-z0-9]")
 _INVALID_QUALIFIER_LEAD: Pattern[str] = re.compile(r"[#.]$")
 
 
 def is_compound_tail(text: str, end: int) -> bool:
-    """True when a token boundary is immediately followed by a ``-<letter|digit>``.
+    """True when a token boundary is immediately followed by a
+    ``-<letter|digit>`` or a ``.<letter|digit>``.
 
     ``FR-008-mandated`` is not an ID in prose and not well-formed in a
     declared position (contract: token boundary + in-code compound check,
-    no lookahead). Public: reused by :func:`find_all` and by the
+    no lookahead). ``FR-002.3`` is likewise not an ID: the grammar has no
+    dotted-tail form, so a following ``.`` + alphanumeric (a dotted
+    sub-requirement id, e.g. ``FR-002.3``, ``### FR-001.1 Title``,
+    ``**FR-004.1** x``) must drop the whole token rather than silently
+    truncate it to the well-formed prefix (``FR-002``) -- truncation would
+    let a spec-scan/declared-id consumer accept a token the setup-plan lint
+    (:mod:`specify_cli.requirement_mapping.lint`, which reads the same
+    ``.``-inclusive lead charset) refuses as malformed, disagreeing about
+    what the document declares. A sentence-final period is NOT a dotted
+    tail: ``.`` followed by whitespace or end-of-string (``see FR-001.``)
+    leaves nothing alphanumeric for this check to match, so it still yields
+    ``FR-001``. Public: reused by :func:`find_all` and by the
     declared-shape scan in ``requirement_mapping/__init__.py``.
     """
     return _COMPOUND_TAIL.match(text[end : end + 2]) is not None
