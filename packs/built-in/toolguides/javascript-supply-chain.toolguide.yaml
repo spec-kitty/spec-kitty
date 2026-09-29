@@ -24,6 +24,3 @@ commands:
   - yarn install --immutable
   - node --version
 last_updated: "2026-09-28"
-references:
-  - DIRECTIVE_051
-  - supply-chain-install-safety

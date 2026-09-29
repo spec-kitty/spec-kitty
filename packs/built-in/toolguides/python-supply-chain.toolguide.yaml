@@ -19,6 +19,3 @@ commands:
   - poetry lock
   - poetry sync
 last_updated: "2026-09-28"
-references:
-  - DIRECTIVE_051
-  - supply-chain-install-safety
