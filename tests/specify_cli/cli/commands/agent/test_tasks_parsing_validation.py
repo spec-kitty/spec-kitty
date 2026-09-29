@@ -669,13 +669,17 @@ def test_validate_research_artifacts_clean_returns_none(tmp_path: Path) -> None:
 
 
 def test_validate_research_artifacts_blocks_research_commit_format(tmp_path: Path) -> None:
+    """FR-005 per-line attribution (T007): the header no longer claims
+    ownership; the one blocking path here is genuinely WP01's own residue
+    (under WP01's own task directory, so the real ``owning_wp_for_path``
+    resolves it to WP01), so its guidance line carries ``owned by WP01``."""
     console = MagicMock()
-    porcelain = " M kitty-specs/demo/data-model.md\n"
+    porcelain = " M kitty-specs/demo/tasks/WP01-demo/data-model.md\n"
     with (
         patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
         patch(
             "specify_cli.review.dirty_classifier.classify_dirty_paths",
-            return_value=(["kitty-specs/demo/data-model.md"], []),
+            return_value=(["kitty-specs/demo/tasks/WP01-demo/data-model.md"], []),
         ),
     ):
         guidance = _validate_research_artifacts(
@@ -689,12 +693,17 @@ def test_validate_research_artifacts_blocks_research_commit_format(tmp_path: Pat
         )
     assert guidance is not None
     text = "\n".join(guidance)
-    assert "Blocking: 1 uncommitted file(s) owned by WP01" in text
+    assert "Blocking: 1 uncommitted file(s):" in text
+    assert "Blocking: 1 uncommitted file(s) owned by WP01" not in text
+    assert "owned by WP01" in text
     assert 'research(WP01)' in text
     assert "move-task WP01 --to for_review" in text
 
 
 def test_validate_research_artifacts_benign_only_passes_with_note(tmp_path: Path) -> None:
+    """Unaffected by T006/T007's per-line-attribution rewrite (T007 step 3):
+    this test's assertions are about the benign-only console note path, not
+    the blocking-guidance wording this WP changes — left unmodified."""
     console = MagicMock()
     porcelain = " M kitty-specs/demo/other-wp.md\n"
     with (
@@ -716,6 +725,219 @@ def test_validate_research_artifacts_benign_only_passes_with_note(tmp_path: Path
     assert result is None
     console.print.assert_called_once()
     assert "not owned by WP01" in console.print.call_args.args[0]
+
+
+def test_validate_research_artifacts_unattributable_path_not_owned_by_moving_wp(tmp_path: Path) -> None:
+    """FR-005: a blocking path that is not the moving WP's own residue must be
+    stated as unattributable, never claimed as ``owned by {wp_id}`` regardless
+    of which WP is being moved (charter C-011 RED-first pin, T005)."""
+    console = MagicMock()
+    porcelain = " M kitty-specs/demo/scratch/some-file.txt\n"
+    with (
+        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch(
+            "specify_cli.review.dirty_classifier.classify_dirty_paths",
+            return_value=(["kitty-specs/demo/scratch/some-file.txt"], []),
+        ),
+    ):
+        guidance = _validate_research_artifacts(
+            main_repo_root=tmp_path,
+            feature_dir=tmp_path / "kitty-specs" / "demo",
+            mission_slug="demo",
+            wp_id="WP01",
+            mission_type="research",
+            target_lane="for_review",
+            console=console,
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "not attributable to a specific work package" in text
+    assert "owned by WP01" not in text
+
+
+def test_validate_research_artifacts_mixed_outcome_per_line_attribution(tmp_path: Path) -> None:
+    """User Story 2 AC3 / SC-004 (T007): a single refusal's blocking list can
+    span both reachable outcomes in the same call — the moving WP's own
+    residue and a genuinely unattributable path. Each line must carry its
+    own attribution, not one shared header applied to both (a weak assertion
+    that both phrases appear *somewhere* would pass even if attribution were
+    scrambled between lines, so this asserts attribution per specific line)."""
+    console = MagicMock()
+    own_path = "kitty-specs/demo/tasks/WP01-demo/notes.md"
+    unattributable_path = "kitty-specs/demo/data-model.md"
+    porcelain = f" M {own_path}\n M {unattributable_path}\n"
+    with (
+        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch(
+            "specify_cli.review.dirty_classifier.classify_dirty_paths",
+            return_value=([own_path, unattributable_path], []),
+        ),
+    ):
+        guidance = _validate_research_artifacts(
+            main_repo_root=tmp_path,
+            feature_dir=tmp_path / "kitty-specs" / "demo",
+            mission_slug="demo",
+            wp_id="WP01",
+            mission_type="research",
+            target_lane="for_review",
+            console=console,
+        )
+    assert guidance is not None
+    own_line = next(line for line in guidance if own_path in line)
+    unattributable_line = next(line for line in guidance if unattributable_path in line)
+    assert "owned by WP01" in own_line
+    assert "not attributable to a specific work package" not in own_line
+    assert "not attributable to a specific work package" in unattributable_line
+    assert "owned by WP01" not in unattributable_line
+
+
+def test_validate_research_artifacts_truncation_branch_carries_attribution(tmp_path: Path) -> None:
+    """FR-009: the pre-existing blocking-lines truncation ("... and N more")
+    branch previously had zero test coverage in this file. This adds it as
+    new coverage, and confirms the shown (first 5) lines each carry the
+    correct per-line attribution even when truncated."""
+    console = MagicMock()
+    paths = [
+        "kitty-specs/demo/tasks/WP01-demo/a.md",  # owned by WP01
+        "kitty-specs/demo/tasks/WP01-demo/b.md",  # owned by WP01
+        "kitty-specs/demo/scratch/c.txt",  # not attributable
+        "kitty-specs/demo/scratch/d.txt",  # not attributable
+        "kitty-specs/demo/tasks/WP01-demo/e.md",  # owned by WP01 (5th shown)
+        "kitty-specs/demo/scratch/f.txt",  # not attributable, truncated
+    ]
+    porcelain = "".join(f" M {p}\n" for p in paths)
+    with (
+        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch(
+            "specify_cli.review.dirty_classifier.classify_dirty_paths",
+            return_value=(paths, []),
+        ),
+    ):
+        guidance = _validate_research_artifacts(
+            main_repo_root=tmp_path,
+            feature_dir=tmp_path / "kitty-specs" / "demo",
+            mission_slug="demo",
+            wp_id="WP01",
+            mission_type="research",
+            target_lane="for_review",
+            console=console,
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "... and 1 more" in text
+    for shown_owned in paths[:2] + [paths[4]]:
+        line = next(line for line in guidance if shown_owned in line)
+        assert "owned by WP01" in line
+    for shown_unattributable in paths[2:4]:
+        line = next(line for line in guidance if shown_unattributable in line)
+        assert "not attributable to a specific work package" in line
+    # The 6th (truncated) path is not itself rendered as its own line.
+    assert not any(paths[5] in line for line in guidance)
+
+
+def test_validate_research_artifacts_rename_attributes_from_blocking_side_lanes_json(tmp_path: Path) -> None:
+    """PR-FRESH2-001: a rename entry's attribution must derive ONLY from the
+    side(s) classify_dirty_paths itself put in the blocking set, never from
+    re-deriving ownership over a benign-exempted side. Here the rename's OLD
+    side (``mystery.py``) is genuinely unattributable and is the actual
+    reason the entry blocks; the NEW side (``lanes.json``) is excluded as a
+    review-handoff-only benign survivor by ``_is_benign`` (basename-matched
+    by ``_is_review_handoff_survivor_path`` regardless of nesting depth)
+    before ``owning_wp_for_path`` is ever consulted for it, yet it happens to
+    sit under WP01's own task directory so ``owning_wp_for_path`` alone would
+    resolve it to WP01. The real (unmocked) classifier is used end-to-end so
+    the divergence bug actually manifests.
+
+    Re-pinned 2026-09-28 during landing: main a4770f3f5 (#4933) anchored the
+    ``is_self_bookkeeping_churn`` meta.json churn exemption to the mission
+    root (``kitty-specs/<mission>/meta.json``, depth-exact), so a
+    ``meta.json`` inside a WP task directory (the fixture's original
+    destination, ``kitty-specs/demo/tasks/WP01-mine/meta.json``) no longer
+    qualifies as benign and both rename sides would now block, invalidating
+    this test's benign-other-side premise. No meta.json path can be both
+    exempt under the new depth-exact anchor AND nested under a WP task
+    directory (the two patterns target different tree depths), so the
+    destination moved to ``lanes.json`` -- exempted by the separate,
+    depth-independent ``_is_review_handoff_survivor_path`` leg -- under
+    WP01's own task directory, restoring the original bug shape (benign side
+    that would resolve to the moving WP's own id if ownership were derived
+    without the blocking-set filter). Renamed from
+    ``..._meta_json`` to ``..._lanes_json`` to match; the sibling
+    ``..._flat_task_file`` / ``..._own_directory_control`` tests are
+    unaffected."""
+    console = MagicMock()
+    porcelain = "R  kitty-specs/demo/scratch/mystery.py -> kitty-specs/demo/tasks/WP01-mine/lanes.json\n"
+    with patch("subprocess.run", return_value=_make_subproc(0, porcelain)):
+        guidance = _validate_research_artifacts(
+            main_repo_root=tmp_path,
+            feature_dir=tmp_path / "kitty-specs" / "demo",
+            mission_slug="demo",
+            wp_id="WP01",
+            mission_type="research",
+            target_lane="for_review",
+            console=console,
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "Blocking: 1 uncommitted file(s):" in text
+    line = next(line for line in guidance if "mystery.py" in line)
+    assert "not attributable to a specific work package" in line
+    assert "owned by WP01" not in line
+
+
+def test_validate_research_artifacts_rename_attributes_from_blocking_side_flat_task_file(tmp_path: Path) -> None:
+    """PR-FRESH2-001's second repro: the rename's NEW side is WP01's own flat
+    task file (``tasks/WP01-mine.md``) -- benign for ANY wp_id per
+    ``_is_review_handoff_survivor_path``'s ``wp_task_pattern`` -- while the
+    OLD side (``mystery.py``) is the genuinely unattributable path that
+    actually blocks. Attribution must not claim WP01 ownership from the
+    benign-exempted side."""
+    console = MagicMock()
+    porcelain = "R  kitty-specs/demo/scratch/mystery.py -> kitty-specs/demo/tasks/WP01-mine.md\n"
+    with patch("subprocess.run", return_value=_make_subproc(0, porcelain)):
+        guidance = _validate_research_artifacts(
+            main_repo_root=tmp_path,
+            feature_dir=tmp_path / "kitty-specs" / "demo",
+            mission_slug="demo",
+            wp_id="WP01",
+            mission_type="research",
+            target_lane="for_review",
+            console=console,
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "Blocking: 1 uncommitted file(s):" in text
+    line = next(line for line in guidance if "mystery.py" in line)
+    assert "not attributable to a specific work package" in line
+    assert "owned by WP01" not in line
+
+
+def test_validate_research_artifacts_rename_attributes_own_directory_control(tmp_path: Path) -> None:
+    """Control (regression guard): when the rename's blocking side genuinely
+    IS the moving WP's own residue (renamed FROM a different WP's directory
+    INTO WP01's own directory, the PR-FRESH-001 Bug B shape -- now fixed --
+    so the OLD side resolves as WP02's own provable residue and is benign,
+    while the NEW side is WP01's own non-task-file residue and blocks), the
+    guidance must still say ``owned by WP01`` -- the fix must not flatten
+    every rename entry to "not attributable"."""
+    console = MagicMock()
+    porcelain = "R  kitty-specs/demo/tasks/WP02-other/old.py -> kitty-specs/demo/tasks/WP01-mine/new.py\n"
+    with patch("subprocess.run", return_value=_make_subproc(0, porcelain)):
+        guidance = _validate_research_artifacts(
+            main_repo_root=tmp_path,
+            feature_dir=tmp_path / "kitty-specs" / "demo",
+            mission_slug="demo",
+            wp_id="WP01",
+            mission_type="research",
+            target_lane="for_review",
+            console=console,
+        )
+    assert guidance is not None
+    text = "\n".join(guidance)
+    assert "Blocking: 1 uncommitted file(s):" in text
+    line = next(line for line in guidance if "new.py" in line)
+    assert "owned by WP01" in line
+    assert "not attributable to a specific work package" not in line
 
 
 # ---------------------------------------------------------------------------

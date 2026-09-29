@@ -51,6 +51,7 @@ from specify_cli.status.models import (
 )
 from specify_cli.status.store import append_annotations_atomic_verified, append_event
 from tests.mocked_env import setup_mocked_env
+from tests.utils import run
 
 pytestmark = pytest.mark.fast
 
@@ -1551,3 +1552,297 @@ class TestLaneGuardErrorMessage:
         assert f"{coord_branch}..HEAD" in seen_rev_lists
         assert "HEAD..fix/pr-branch" not in seen_rev_lists
         assert "fix/pr-branch..HEAD" not in seen_rev_lists
+
+
+# ---------------------------------------------------------------------------
+# WP01 (dirty-tree-guard-wp-scoped-01M3M3TT), T001: RED-first ATDD
+# reproduction of #5151 ask 3, #5159 item 4, and kentonium3's Friction 2
+# through the real ``move-task`` CLI entry point (FR-009, SC-001).
+#
+# Unlike the rest of this file's fixtures (which mock ``subprocess.run`` for
+# git calls), these three occurrences are all shapes of real
+# ``git status --porcelain`` output -- reproducing them faithfully requires a
+# REAL git repository under ``tmp_path``, not a synthetic porcelain string.
+# ---------------------------------------------------------------------------
+
+
+def _init_real_git_mission_repo(tmp_path: Path, mission_slug: str) -> tuple[Path, Path]:
+    """Create a REAL git repo at *tmp_path* with a committed WP01 baseline.
+
+    Returns ``(feature_dir, wp01_file)`` -- same shape as ``_build_wp_file``.
+    """
+    run(["git", "init", "-b", "main"], cwd=tmp_path)
+    run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path)
+    run(["git", "config", "user.name", "Test"], cwd=tmp_path)
+    feature_dir, wp01_file = _build_wp_file(tmp_path, mission_slug, "WP01")
+    run(["git", "add", "."], cwd=tmp_path)
+    run(["git", "commit", "-m", "init"], cwd=tmp_path)
+    return feature_dir, wp01_file
+
+
+def _commit_tracked_wp_dir(repo_root: Path, feature_dir: Path, wp_dir_name: str) -> Path:
+    """Commit a placeholder file so *wp_dir_name* becomes a tracked ancestor directory.
+
+    A subsequently-added untracked file inside is then reported by
+    ``git status --porcelain`` as a bare FILE path (not a bare directory) --
+    the shape #5151 ask 3 and #5159 item 4 need. Contrast
+    ``kentonium3``'s Friction 2, which needs the WP directory to stay
+    wholly untracked instead (see the test below).
+    """
+    wp_dir = feature_dir / "tasks" / wp_dir_name
+    wp_dir.mkdir(parents=True, exist_ok=True)
+    (wp_dir / "keep.txt").write_text("keep\n", encoding="utf-8")
+    run(["git", "add", "."], cwd=repo_root)
+    run(["git", "commit", "-m", f"track {wp_dir_name}"], cwd=repo_root)
+    return wp_dir
+
+
+def _porcelain_paths(repo_root: Path) -> list[str]:
+    """Return the file-part of every ``git status --porcelain`` line."""
+    result = run(["git", "status", "--porcelain"], cwd=repo_root)
+    return [line[3:] for line in result.stdout.splitlines() if line.strip()]
+
+
+def test_move_task_ignores_other_wp_residue_regardless_of_shape(tmp_path: Path) -> None:
+    """FR-001/FR-002/FR-003: another WP's dirty residue never blocks WP01.
+
+    Reproduces all three concretely-reported occurrences through the real
+    ``move-task`` CLI entry point, in one git-tracked mission fixture:
+
+    - **#5151 ask 3**: a non-``.md`` file (``notes.py``) left uncommitted
+      under a DIFFERENT WP's (WP02) already-tracked task directory.
+    - **#5159 item 4**: an uncommitted ``review-cycle`` DIRECTORY nested
+      under a different WP's (WP03) already-tracked task directory.
+    - **kentonium3's Friction 2**: a WHOLLY untracked WP task directory
+      (WP04, never committed at all) containing one new
+      ``review-cycle-1.md`` -- git reports the bare directory path, no
+      filename.
+
+    Pre-fix (RED -- ``_is_benign`` never reads ``wp_id``, so every one of
+    these dirty paths wrongly blocks WP01's transition regardless of who
+    produced it): the transition wrongly refuses. Post-fix (GREEN): all
+    three are recognised as another WP's provable residue and the
+    transition proceeds.
+    """
+    mission_slug = "test-ownership-cross-wp"
+    feature_dir, _wp01_file = _init_real_git_mission_repo(tmp_path, mission_slug)
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+
+    # Commit BOTH WP02's and WP03's ancestor directories before adding any
+    # untracked residue below -- ``_commit_tracked_wp_dir`` runs a repo-wide
+    # ``git add .`` + commit, which would otherwise swallow an
+    # already-written residue file from an earlier step in this fixture.
+    wp02_dir = _commit_tracked_wp_dir(tmp_path, feature_dir, "WP02-other")
+    wp03_dir = _commit_tracked_wp_dir(tmp_path, feature_dir, "WP03-other")
+
+    # #5151 ask 3 -- non-.md file under WP02's already-tracked directory.
+    (wp02_dir / "notes.py").write_text("# in-progress script\n", encoding="utf-8")
+
+    # #5159 item 4 -- a nested review-cycle DIRECTORY under WP03's already-tracked directory.
+    review_cycle_dir = wp03_dir / "review-cycle"
+    review_cycle_dir.mkdir()
+    (review_cycle_dir / "verdict.md").write_text("verdict: approved\n", encoding="utf-8")
+
+    # kentonium3's Friction 2 -- a wholly untracked WP directory (never committed at all).
+    wp04_dir = feature_dir / "tasks" / "WP04-other"
+    wp04_dir.mkdir(parents=True)
+    (wp04_dir / "review-cycle-1.md").write_text("verdict: approved\n", encoding="utf-8")
+
+    # Empirically verify the fixture reproduces the exact reported shapes
+    # before asserting anything about move-task's behaviour (charter C-011:
+    # "verify this shape empirically in your fixture, do not assume it").
+    dirty_paths = _porcelain_paths(tmp_path)
+    assert f"kitty-specs/{mission_slug}/tasks/WP02-other/notes.py" in dirty_paths
+    assert f"kitty-specs/{mission_slug}/tasks/WP03-other/review-cycle/" in dirty_paths
+    assert f"kitty-specs/{mission_slug}/tasks/WP04-other/" in dirty_paths
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={"_check_unchecked_subtasks": []},
+    ):
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "for_review", "--mission", mission_slug, "--no-auto-commit"],
+        )
+
+    assert result.exit_code == 0, result.output
+    for path in (
+        f"kitty-specs/{mission_slug}/tasks/WP02-other/notes.py",
+        f"kitty-specs/{mission_slug}/tasks/WP03-other/review-cycle",
+        f"kitty-specs/{mission_slug}/tasks/WP04-other",
+    ):
+        assert path not in result.output, result.output
+
+
+def test_move_task_still_blocks_own_directory_residue_same_fixture(tmp_path: Path) -> None:
+    """FR-007 / spec.md AC3 positive control, same fixture shape as above.
+
+    A WP's own non-task-file residue under its own task directory must keep
+    blocking -- this mission narrows only cross-WP false positives, not a
+    WP's own commit discipline. Also asserts the guidance correctly excludes
+    a simultaneously-present cross-WP residue path from the blocking list
+    (User Story 2 Acceptance Scenario 3's per-line-attribution shape, at the
+    ATDD level -- WP02's own message-content assertions live in WP02).
+    """
+    mission_slug = "test-ownership-own-residue"
+    feature_dir, wp01_file = _init_real_git_mission_repo(tmp_path, mission_slug)
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+
+    # Commit both ancestor directories before adding any untracked residue
+    # below (see the comment in the test above for why order matters).
+    wp01_dir = _commit_tracked_wp_dir(tmp_path, feature_dir, wp01_file.stem)
+    wp02_dir = _commit_tracked_wp_dir(tmp_path, feature_dir, "WP02-other")
+
+    # WP01's own directory residue (not its task .md file, which is already benign).
+    (wp01_dir / "scratch.md").write_text("scratch notes\n", encoding="utf-8")
+
+    # A simultaneously-present, different-WP residue that must stay excluded.
+    (wp02_dir / "notes.py").write_text("# in-progress script\n", encoding="utf-8")
+
+    dirty_paths = _porcelain_paths(tmp_path)
+    assert f"kitty-specs/{mission_slug}/tasks/{wp01_file.stem}/scratch.md" in dirty_paths
+    assert f"kitty-specs/{mission_slug}/tasks/WP02-other/notes.py" in dirty_paths
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={"_check_unchecked_subtasks": []},
+    ):
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "for_review", "--mission", mission_slug, "--no-auto-commit"],
+        )
+
+    assert result.exit_code != 0, result.output
+    assert f"{wp01_file.stem}/scratch.md" in result.output
+    assert "WP02-other/notes.py" not in result.output
+
+
+def test_move_task_to_approved_ignores_other_wp_uncommitted_review_cycle_dir(
+    tmp_path: Path,
+) -> None:
+    """PR-TESTS-001 / #5159 item 4: reproduce the reported ``--to approved`` transition.
+
+    #5159 item 4 was reported specifically against ``move-task --to approved``
+    (another WP's uncommitted ``review-cycle`` DIRECTORY blocked approval of an
+    unrelated WP) -- not ``--to for_review``, which
+    ``test_move_task_ignores_other_wp_residue_regardless_of_shape`` above already
+    covers. ``_validate_ready_for_review`` runs identically for
+    ``Lane.FOR_REVIEW``/``Lane.APPROVED``/``Lane.DONE`` (only the retry-hint text
+    differs), but the letter of FR-009 requires each reported occurrence to be
+    reproduced through its actually-reported entry point, so this drives the real
+    CLI at ``--to approved`` against the same real-git fixture shape, with the
+    real dirty classifier running (unmocked).
+
+    Pre-fix (RED -- ``_is_benign`` never reads ``wp_id``): the composite
+    ``in_progress`` -> ``for_review`` -> ``in_review`` -> ``approved`` move wrongly
+    refuses because WP03's uncommitted ``review-cycle`` directory is misread as
+    WP01's own residue. Post-fix (GREEN): the transition reaches ``approved``.
+    """
+    mission_slug = "test-ownership-approved-cross-wp"
+    feature_dir, _wp01_file = _init_real_git_mission_repo(tmp_path, mission_slug)
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+    _seed_snapshot_agent(feature_dir, "WP01", "testbot")
+
+    # Commit WP03's ancestor directory before adding the uncommitted residue below
+    # (see the comment on the sibling ATDD test above for why order matters).
+    wp03_dir = _commit_tracked_wp_dir(tmp_path, feature_dir, "WP03-other")
+
+    # #5159 item 4 -- an uncommitted review-cycle DIRECTORY nested under a
+    # DIFFERENT WP's (WP03) already-tracked task directory.
+    review_cycle_dir = wp03_dir / "review-cycle"
+    review_cycle_dir.mkdir()
+    (review_cycle_dir / "verdict.md").write_text("verdict: approved\n", encoding="utf-8")
+
+    # Empirically verify the fixture reproduces the exact reported shape before
+    # asserting anything about move-task's behaviour (charter C-011).
+    dirty_paths = _porcelain_paths(tmp_path)
+    assert f"kitty-specs/{mission_slug}/tasks/WP03-other/review-cycle/" in dirty_paths
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={"_check_unchecked_subtasks": []},
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "approved",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert f"kitty-specs/{mission_slug}/tasks/WP03-other/review-cycle" not in result.output
+    events = [
+        json.loads(line)
+        for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    emitted = [event for event in events if event.get("kind") != "annotation"][1:]
+    assert [event["to_lane"] for event in emitted] == ["for_review", "in_review", "approved"]
+
+
+def test_move_task_refuses_real_git_rename_into_own_directory(tmp_path: Path) -> None:
+    """PR-FRESH-001 (#5007) Bug B, end-to-end through the real ``move-task``
+    CLI entry point and a REAL git-staged rename (``git mv``): a file
+    renamed from a DIFFERENT WP's already-tracked directory INTO the MOVING
+    WP's own already-tracked directory must still block the transition.
+
+    ``git status --porcelain`` reports a staged rename as one composite line,
+    ``R  old -> new``. Bug B was that ``owning_wp_for_path``'s unbounded
+    ``/.*$`` alternation absorbed the rename arrow and the new path whole,
+    so ownership resolved from the OLD path's WP02 prefix only -- WP01's own
+    newly-renamed-in file was wrongly classified as WP02's benign residue
+    and the transition wrongly succeeded, violating FR-007 / Clarifications
+    Q2 (never a silent pass for the moving WP's own residue).
+
+    Pre-fix (RED): ``result.exit_code == 0`` -- the rename is wrongly waved
+    through as another WP's residue. Post-fix (GREEN): the rename is judged
+    on both sides; the NEW side is WP01's own residue, so the transition is
+    refused and the guidance names it honestly.
+    """
+    mission_slug = "test-ownership-rename-into-own-dir"
+    feature_dir, wp01_file = _init_real_git_mission_repo(tmp_path, mission_slug)
+    _seed_wp_event(feature_dir, "WP01", "in_progress")
+
+    wp01_dir = _commit_tracked_wp_dir(tmp_path, feature_dir, wp01_file.stem)
+    wp02_dir = _commit_tracked_wp_dir(tmp_path, feature_dir, "WP02-other")
+
+    # Commit a file under WP02's directory so `git mv` has a tracked source.
+    source_file = wp02_dir / "old.py"
+    source_file.write_text("# wp02 script\n", encoding="utf-8")
+    run(["git", "add", "."], cwd=tmp_path)
+    run(["git", "commit", "-m", "track wp02 source file"], cwd=tmp_path)
+
+    # Real staged rename: WP02's tracked file -> WP01's own directory.
+    dest_file = wp01_dir / "new.py"
+    run(["git", "mv", str(source_file), str(dest_file)], cwd=tmp_path)
+
+    # Empirically verify the fixture reproduces the exact reported porcelain
+    # shape (charter C-011: "verify this shape empirically, do not assume")
+    # before asserting anything about move-task's behaviour.
+    dirty_paths = _porcelain_paths(tmp_path)
+    rename_line = next((p for p in dirty_paths if "->" in p), None)
+    assert rename_line is not None, dirty_paths
+    assert f"kitty-specs/{mission_slug}/tasks/WP02-other/old.py" in rename_line
+    assert f"kitty-specs/{mission_slug}/tasks/{wp01_file.stem}/new.py" in rename_line
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        extra_patches={"_check_unchecked_subtasks": []},
+    ):
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "for_review", "--mission", mission_slug, "--no-auto-commit"],
+        )
+
+    assert result.exit_code != 0, result.output
+    assert "new.py" in result.output
+    assert "owned by WP01" in result.output
