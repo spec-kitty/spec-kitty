@@ -20,7 +20,7 @@ Equivalence/regression proof, not a smoke test. Three things are asserted:
 
 from __future__ import annotations
 
-import inspect
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -29,9 +29,13 @@ import charter.activation.resolver as charter_resolver_module
 import charter.offering.resolver as doctrine_resolver_module
 import specify_cli.runtime.resolver as runtime_resolver_module
 from charter.resolution import ResolutionResult, ResolutionTier
+from charter.activation.pack_context import PackContext
 from charter.activation.resolver import DoctrineService
 from charter.activation.template_resolver import CharterTemplateResolver
 from charter.offering.missions.repository import MissionTemplateRepository
+from tests.architectural.test_charter_sole_door_resolver_imports import (
+    scan_file_resolver_imports,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -402,27 +406,65 @@ def test_factory_methods_delegate_to_doctrine_tier_functions(
         assert method(_CONTENT_NAME, project_dir, _MISSION) is marker
 
 
-@pytest.mark.parametrize(
-    "method_name",
-    [
-        "resolve_content_asset",
-        "resolve_command_asset",
-        "resolve_mission_definition",
-        "resolve_package_default_asset_path",
-        "resolve_package_default_mission_config_path",
-    ],
+#: A project config that deactivates every kind but directives (so
+#: ``templates`` is NOT an activated kind) while staying a valid config.
+_TEMPLATES_DEACTIVATED_CONFIG = (
+    "activated_kinds:\n  - directives\nmission_type_activations:\n  - software-dev\n"
 )
-def test_tier_axis_methods_are_static_because_the_axis_is_ungated(method_name: str) -> None:
-    """The tier axis reads no instance state — encoded as ``@staticmethod``.
 
-    The 5-tier chain has no activation concept (no ``activated_templates`` key
-    exists), so these methods must not consult ``_pack_context``. Declaring
-    them static makes that structural: a future edit cannot start reading
-    activation state without changing the signature.
+
+def _override_content(project_dir: Path) -> tuple[Path, ResolutionResult, ResolutionResult]:
+    path = _write(project_dir / ".kittify" / "overrides" / "templates" / _CONTENT_NAME, "o")
+    return (
+        path,
+        DoctrineService.resolve_content_asset(_CONTENT_NAME, project_dir, _MISSION),
+        doctrine_resolver_module.resolve_template(_CONTENT_NAME, project_dir, _MISSION),
+    )
+
+
+def _override_command(project_dir: Path) -> tuple[Path, ResolutionResult, ResolutionResult]:
+    path = _write(project_dir / ".kittify" / "overrides" / "command-templates" / _COMMAND_NAME, "o")
+    return (
+        path,
+        DoctrineService.resolve_command_asset(_COMMAND_NAME, project_dir, _MISSION),
+        doctrine_resolver_module.resolve_command(_COMMAND_NAME, project_dir, _MISSION),
+    )
+
+
+def _override_mission(project_dir: Path) -> tuple[Path, ResolutionResult, ResolutionResult]:
+    path = _write(project_dir / ".kittify" / "overrides" / "missions" / _MISSION / "mission.yaml", "o")
+    return (
+        path,
+        DoctrineService.resolve_mission_definition(_MISSION, project_dir),
+        doctrine_resolver_module.resolve_mission(_MISSION, project_dir),
+    )
+
+
+@pytest.mark.parametrize(
+    "resolve_override",
+    [_override_content, _override_command, _override_mission],
+    ids=["content", "command", "mission"],
+)
+def test_tier_axis_is_ungated_by_activation_state(
+    resolve_override: Callable[[Path], tuple[Path, ResolutionResult, ResolutionResult]],
+    project_dir: Path,
+    fake_home: Path,
+    package_missions_root: Path,
+) -> None:
+    """The tier axis has no activation concept: a project that deactivates
+    ``templates`` still resolves every asset shape exactly like the doctrine
+    tier functions do.
     """
-    assert isinstance(
-        inspect.getattr_static(DoctrineService, method_name), staticmethod
-    ), f"{method_name} must stay a staticmethod (ungated-by-design contract)"
+    _write(project_dir / ".kittify" / "config.yaml", _TEMPLATES_DEACTIVATED_CONFIG)
+    # Assumption: the config really does deactivate templates.
+    assert "templates" not in PackContext.from_config(project_dir).activated_kinds
+
+    override_path, via_factory, via_doctrine = resolve_override(project_dir)
+
+    assert via_factory == ResolutionResult(
+        path=override_path, tier=ResolutionTier.OVERRIDE, mission=_MISSION
+    )
+    assert via_factory == via_doctrine
 
 
 @pytest.mark.parametrize(
@@ -440,28 +482,25 @@ def test_new_factory_method_names_do_not_collide_with_the_delegate(method_name: 
     assert not hasattr(DoctrineService, method_name)
 
 
-def test_only_charter_resolver_imports_the_doctrine_tier_functions() -> None:
-    """One charter-layer door: the seam FR-003 closes stays closed.
+def test_template_resolver_does_not_import_the_doctrine_tier_functions() -> None:
+    """One charter-layer door: the delegate reaches the tiers only via the factory.
 
-    ``charter/template_resolver.py`` and ``specify_cli/runtime/resolver.py``
-    must not name ``charter.offering.resolver`` in an import at all; ``charter/
-    resolver.py`` is the sole charter-layer importer of its tier functions.
+    ``tests/architectural/test_charter_sole_door_resolver_imports.py`` guards
+    every module outside ``src/charter/**`` and exempts the charter layer, so
+    this is the only guard that ``charter/activation/template_resolver.py``
+    does not import ``charter.offering.resolver`` itself. The gate's AST
+    scanner catches every spelling at every scope, including
+    ``from charter.offering import resolver``.
     """
-    src = Path(charter_resolver_module.__file__).parent.parent.parent
-    for module_path in (
-        src / "charter" / "activation" / "template_resolver.py",
-        src / "specify_cli" / "runtime" / "resolver.py",
-    ):
-        body = module_path.read_text(encoding="utf-8")
-        offending = [
-            line.strip()
-            for line in body.splitlines()
-            if line.lstrip().startswith(("import ", "from ")) and "charter.offering.resolver" in line
-        ]
-        assert not offending, f"{module_path} must not import charter.offering.resolver: {offending}"
+    activation_dir = Path(charter_resolver_module.__file__).parent
+    delegate = activation_dir / "template_resolver.py"
+    sole_door = activation_dir / "resolver.py"
 
-    charter_body = (src / "charter" / "activation" / "resolver.py").read_text(encoding="utf-8")
-    assert "from charter.offering.resolver import (" in charter_body
+    # Assumption: the scanner does see the sanctioned import in the sole door.
+    assert scan_file_resolver_imports(sole_door, "src/charter/activation/resolver.py")
+
+    sites = scan_file_resolver_imports(delegate, "src/charter/activation/template_resolver.py")
+    assert sites == [], [site.describe() for site in sites]
 
 
 def test_mission_template_repository_cache_reuses_one_instance(tmp_path: Path) -> None:
