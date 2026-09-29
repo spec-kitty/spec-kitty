@@ -69,8 +69,8 @@ def test_write_compiled_charter_rejects_symlinked_output_dir(tmp_path: Path) -> 
     with pytest.raises(FileExistsError, match="Charter output path"):
         write_compiled_charter(output_dir, compiled, force=True, repo_root=tmp_path)
 
-    assert not (outside_dir / "charter.md").exists()
-    assert not (outside_dir / "references.yaml").exists()
+    assert not (outside_dir / "charter.yaml").exists()
+    assert list(outside_dir.iterdir()) == []
 
 
 @pytest.mark.requires_symlinks
@@ -96,7 +96,8 @@ def test_write_compiled_charter_rejects_symlinked_output_dir_without_repo_root(t
     with pytest.raises(FileExistsError, match="Charter output directory"):
         write_compiled_charter(output_dir, compiled, force=True)
 
-    assert not (outside_dir / "charter.md").exists()
+    assert not (outside_dir / "charter.yaml").exists()
+    assert list(outside_dir.iterdir()) == []
 
 
 def test_write_compiled_charter_rejects_output_dir_that_resolves_outside_repo(tmp_path: Path) -> None:
