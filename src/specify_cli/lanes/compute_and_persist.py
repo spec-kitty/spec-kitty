@@ -34,10 +34,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from mission_runtime import MissionTopology
+from mission_runtime import MissionTopology, assert_topology_matches_manifest
 
 from specify_cli.lanes.branch_naming import InvalidMissionIdentity
-from specify_cli.lanes.compute import LaneComputationError, compute_lanes
+from specify_cli.lanes.compute import LaneComputationError, compute_lanes, has_code_lanes
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.ownership.validation import validate_glob_matches
 
@@ -67,13 +67,28 @@ class LaneGlobValidationError(Exception):
         super().__init__("Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written.")
 
 
-def _preserved_mission_branch(previous: LanesManifest | None, computed: str) -> str:
+def _preserved_mission_branch(previous: LanesManifest | None, computed: str, *, topology: MissionTopology) -> str:
     """FR-011: a re-finalize keeps the Mission branch the first finalize recorded.
 
     The first finalize defines the Mission branch that lane creation later
     creates from the manifest (``_ensure_mission_branch``); recomputing it from a
     since-backfilled identity would name a branch that was never created.
+
+    #5100 WP05 fold B3 (out-of-map edit to WP03's file, plan "Post-plan squad
+    folds"): a ``SINGLE_BRANCH`` mission NEVER preserves a previously-recorded
+    ``mission_branch``. ``compute_lanes`` already resolved the correct value
+    (``meta.mission_branch`` or ``target_branch``, T022) for THIS topology;
+    the FR-011 preserve-on-re-finalize rule below exists to protect a REAL
+    mission branch that lane creation already created on disk (research Part
+    A §4) -- a single_branch mission never creates that branch, so
+    re-injecting a stale ``previous.mission_branch`` (e.g. a ``kitty/mission-
+    …`` value recorded before the mission adopted single_branch, or from a
+    legacy re-finalize) would defeat the contract
+    (``contracts/single-branch-execution.md``, "Finalize") instead of
+    honouring it.
     """
+    if topology is MissionTopology.SINGLE_BRANCH:
+        return computed
     if previous is not None and previous.mission_branch:
         # ``cast``, not a suppression: a narrow-file mypy check resolves
         # ``LanesManifest`` (from ``specify_cli.lanes.models``) through the
@@ -97,6 +112,7 @@ def compute_and_write_lanes(
     planning_commit_sha: str | None,
     mission_id: str | None,
     topology: MissionTopology,
+    mission_branch: str | None = None,
 ) -> tuple[Path, LanesManifest]:
     """Compute execution lanes and persist ``lanes.json`` -- the pure core.
 
@@ -133,10 +149,15 @@ def compute_and_write_lanes(
             :func:`mission_runtime.assert_topology_matches_manifest`
             call this function does not yet make (WP04 promoted that
             assertion to public and wired its first real caller into the
-            review path -- ``agent/workflow.py`` -- but not here; this
-            function's own writer chokepoint is still WP05's). Validated at
-            this boundary (``input-validation-fail-fast``) so a caller
-            passing the wrong type fails loud here rather than downstream.
+            review path -- ``agent/workflow.py``; #5100 WP05 wires this
+            function's own writer chokepoint below). Validated at this
+            boundary (``input-validation-fail-fast``) so a caller passing
+            the wrong type fails loud here rather than downstream.
+        mission_branch: The caller's already-resolved ``meta.json``
+            ``mission_branch`` (or ``None``), threaded into
+            :func:`~specify_cli.lanes.compute.compute_lanes` for
+            ``SINGLE_BRANCH`` only (#5100 WP05 T022). Ignored for every
+            other topology.
 
     Returns:
         A ``(lanes_path, lanes_manifest)`` tuple.
@@ -146,6 +167,12 @@ def compute_and_write_lanes(
             matches zero files in the repository. No ``lanes.json`` is
             written.
         TypeError: *topology* is not a :class:`MissionTopology` member.
+        TopologyManifestMismatch: the mission is stamped ``SINGLE_BRANCH``
+            but its EXISTING on-disk ``lanes.json`` (the manifest this call
+            is about to overwrite) already has a code lane -- Invariant T-1
+            (data-model.md), never re-stamped after #5100. No ``lanes.json``
+            write happens; the pre-existing manifest on disk is left
+            untouched (contracts/single-branch-execution.md, "Finalize").
     """
     if not isinstance(topology, MissionTopology):
         raise TypeError(f"compute_and_write_lanes: topology must be a MissionTopology, got {type(topology)!r}")
@@ -170,6 +197,8 @@ def compute_and_write_lanes(
             wp_bodies=wp_bodies,
             mission_id=mission_id,
             previous_lanes=previous_lanes,
+            topology=topology,
+            mission_branch=mission_branch,
         )
     except InvalidMissionIdentity as exc:
         # U1: ``compute_lanes`` (untouched) composes the Mission branch via
@@ -182,11 +211,29 @@ def compute_and_write_lanes(
         # inventing a second, potentially-wrong one at this call site.
         raise LaneComputationError(f"cannot compute lanes for mission {mission_slug!r}: {exc.next_step}") from exc
 
+    # #5100 IC-02 / WP05 (T022, writer chokepoint promised by WP03's own
+    # docstring above): fail closed BEFORE overwriting an existing on-disk
+    # manifest that still has a code lane under a SINGLE_BRANCH stamp -- the
+    # #5100 write-path defect the re-stamp migration exists to repair.
+    # Checked against ``previous_lanes`` (the manifest ABOUT TO BE
+    # OVERWRITTEN), never the freshly-computed ``lanes_manifest`` above: for
+    # SINGLE_BRANCH the freshly-computed manifest is ALWAYS the one
+    # repo-root lane (T022), so checking it would never catch the drift this
+    # guard exists for. ``previous_lanes is None`` (a first finalize, or a
+    # caller-level "never rewrite existing lanes" guard already returned
+    # before reaching here) has nothing on disk to guard.
+    if previous_lanes is not None:
+        assert_topology_matches_manifest(
+            topology,
+            has_code_lanes=has_code_lanes(previous_lanes),
+            mission_slug=mission_slug,
+        )
+
     # FR-011 / PD-6 / PD-13: a re-finalize must not recompose the Mission
     # branch from a since-backfilled identity -- the first finalize's recorded
     # branch is what lane creation already created on disk (research Part A
     # §4). ``compute_lanes`` itself stays untouched (Complexity Tracking).
-    lanes_manifest.mission_branch = _preserved_mission_branch(previous_lanes, lanes_manifest.mission_branch)
+    lanes_manifest.mission_branch = _preserved_mission_branch(previous_lanes, lanes_manifest.mission_branch, topology=topology)
     lanes_manifest.planning_commit_sha = planning_commit_sha
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     return lanes_path, lanes_manifest

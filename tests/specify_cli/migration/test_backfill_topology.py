@@ -28,6 +28,7 @@ from specify_cli.migration.backfill_topology import (
     backfill_mission_topology,
     backfill_topology_repo,
     read_topology,
+    stored_topology,
     topology_from_meta,
 )
 
@@ -412,3 +413,25 @@ def test_topology_from_meta_absent_field_derives_via_lanes_signal(tmp_path: Path
     result = topology_from_meta({"coordination_branch": "kitty/x"}, feature_dir)
 
     assert result is MissionTopology.LANES_WITH_COORD
+
+
+# ---------------------------------------------------------------------------
+# #5100 WP05 cycle 2 (review Issue 3) — stored_topology: the stored-only,
+# no-derive-fallback authority topology_from_meta layers its derive on top of.
+# ---------------------------------------------------------------------------
+
+
+def test_stored_topology_returns_explicit_valid_value() -> None:
+    assert stored_topology({"topology": "single_branch"}) is MissionTopology.SINGLE_BRANCH
+
+
+def test_stored_topology_returns_none_when_absent() -> None:
+    """No derive fallback -- unlike topology_from_meta, an absent field is
+    ``None``, never a classified topology."""
+    assert stored_topology({}) is None
+    assert stored_topology({"coordination_branch": "kitty/x"}) is None
+
+
+def test_stored_topology_returns_none_for_invalid_value() -> None:
+    assert stored_topology({"topology": "not-a-real-topology"}) is None
+    assert stored_topology({"topology": 42}) is None

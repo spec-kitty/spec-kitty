@@ -159,7 +159,7 @@ def _build_single_branch_mission_with_in_progress_wp(
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "init")
 
-    # `main` is protected; single_branch missions run on a dedicated,
+    # `main` is protected; this fixture's mission runs on a dedicated,
     # non-protected target branch checked out in the primary checkout.
     _git(repo, "checkout", "-b", "feature-work")
 
@@ -177,13 +177,26 @@ def _build_single_branch_mission_with_in_progress_wp(
                 "Drive the #2684 invariant-1 reproduction end to end so the "
                 "review gate's subtask-completion source of truth stays proven."
             ),
-            topology=MissionTopology.SINGLE_BRANCH,
+            # #5100 WP05 (T024 blast radius): this fixture hand-writes a
+            # ``lane-a`` CODE lane below and asserts ``.worktrees/*-lane-a``
+            # -- exactly the manifest shape ``compute_lanes(topology=
+            # single_branch)`` (WP05, IC-03) no longer allows: a mission
+            # explicitly stamped ``single_branch`` now fails closed
+            # (``SINGLE_BRANCH_CODE_LANES_UNMIGRATED``) against a hand-written
+            # code-lane manifest, both at ``implement`` and at
+            # ``finalize-tasks`` (``assert_topology_matches_manifest``,
+            # ``mission_runtime/context.py``). This fixture's own concern
+            # (#2684 -- subtask-completion event-sourcing) is orthogonal to
+            # topology; a genuine ``lanes`` mission exercises the identical
+            # ordinary code-lane worktree path this test needs, without
+            # tripping the new single_branch guard.
+            topology=MissionTopology.LANES,
         )
     feature_dir = result.feature_dir
     mission_slug = result.mission_slug
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
-    assert meta.get("topology") == "single_branch"
-    assert meta.get("coordination_branch") is None, "single_branch mission is coordination-less"
+    assert meta.get("topology") == "lanes"
+    assert meta.get("coordination_branch") is None, "a lanes (non-coord) mission is coordination-less"
 
     # #2684 target state requires the phase-1 cutover ON; the foundation
     # convention (status/emit.py::_phase1_snapshot_authority_active) is flag ON ->

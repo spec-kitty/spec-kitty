@@ -220,16 +220,27 @@ def _manifest(mission_branch: str) -> LanesManifest:
 
 
 class TestPreservedMissionBranchHelper:
+    # #5100 WP05 (out-of-map edit to WP03's file, fold B3): ``topology`` is
+    # now a required keyword -- these tests pin the pre-existing LANES
+    # preserve-on-re-finalize behaviour, which the SINGLE_BRANCH-only new
+    # branch leaves byte-identical. The SINGLE_BRANCH short-circuit itself
+    # is pinned in ``tests/lanes/test_compute_lanes_single_branch.py``.
     def test_no_previous_manifest_returns_computed(self) -> None:
-        assert _preserved_mission_branch(None, "kitty/mission-computed") == "kitty/mission-computed"
+        assert _preserved_mission_branch(None, "kitty/mission-computed", topology=MissionTopology.LANES) == "kitty/mission-computed"
 
     def test_previous_with_empty_mission_branch_returns_computed(self) -> None:
         previous = _manifest("")
-        assert _preserved_mission_branch(previous, "kitty/mission-computed") == "kitty/mission-computed"
+        assert _preserved_mission_branch(previous, "kitty/mission-computed", topology=MissionTopology.LANES) == "kitty/mission-computed"
 
     def test_previous_with_value_wins_over_computed(self) -> None:
         previous = _manifest("kitty/mission-057-foo")
-        assert _preserved_mission_branch(previous, "kitty/mission-foo-01KV6510") == "kitty/mission-057-foo"
+        assert _preserved_mission_branch(previous, "kitty/mission-foo-01KV6510", topology=MissionTopology.LANES) == "kitty/mission-057-foo"
+
+    def test_single_branch_never_preserves_stale_value(self) -> None:
+        """Fold B3: SINGLE_BRANCH always takes the freshly-computed value."""
+        previous = _manifest("kitty/mission-057-foo")
+        computed = "issue-5100-single-branch-topology"
+        assert _preserved_mission_branch(previous, computed, topology=MissionTopology.SINGLE_BRANCH) == computed
 
 
 # ---------------------------------------------------------------------------

@@ -81,6 +81,26 @@ def _derive_topology(meta: dict[str, Any], feature_dir: Path) -> MissionTopology
     return classify_topology(coordination_branch, _has_lanes(feature_dir))
 
 
+def stored_topology(meta: Mapping[str, Any]) -> MissionTopology | None:
+    """Return the EXPLICITLY stored ``topology`` value, or ``None`` (#5100 WP05 cycle 2, Issue 3).
+
+    The SINGLE stored-only authority: a valid :class:`MissionTopology` string
+    under ``TOPOLOGY_KEY``, with NO derive-from-signals fallback and no disk
+    access beyond the already-in-hand ``meta`` mapping. :func:`topology_from_meta`
+    layers the derive fallback on top of this (stored-or-derive); a caller that
+    must never accept a DERIVED value -- because deriving would read a signal
+    (e.g. ``lanes.json``) the caller's own in-flight operation has not written
+    yet, and so would misclassify -- calls this directly instead of
+    re-implementing the ``stored in _VALID_TOPOLOGY_VALUES`` check a second
+    time. See :func:`~specify_cli.lanes.worktree_allocator._stored_topology_for_fail_closed_guard`,
+    the first such caller.
+    """
+    stored = meta.get(TOPOLOGY_KEY)
+    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
+        return MissionTopology(stored)
+    return None
+
+
 def topology_from_meta(meta: Mapping[str, Any], feature_dir: Path) -> MissionTopology:
     """Tolerant sibling of :func:`read_topology`: derives from an ALREADY-loaded meta dict.
 
@@ -93,9 +113,9 @@ def topology_from_meta(meta: Mapping[str, Any], feature_dir: Path) -> MissionTop
     it never touches ``meta.json``, so it inherits the caller's own
     tolerance instead of adding a new raise on a path that had none.
     """
-    stored = meta.get(TOPOLOGY_KEY)
-    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
-        return MissionTopology(stored)
+    stored = stored_topology(meta)
+    if stored is not None:
+        return stored
     return _derive_topology(dict(meta), feature_dir)
 
 
@@ -431,5 +451,6 @@ __all__ = [
     "backfill_topology_repo",
     "read_topology",
     "restamp_single_branch_with_code_lanes",
+    "stored_topology",
     "topology_from_meta",
 ]

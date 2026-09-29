@@ -1630,9 +1630,15 @@ def _rebuild_lanes_if_wedged(
     # three callers): derived from the ALREADY-loaded `meta` this repair's
     # canonicalization already produced (`_canonicalize_meta`, tolerant by
     # construction), never a second, stricter meta.json read. Read-only
-    # (C-003): never the fail-closed writer check compute_and_write_lanes
-    # does not yet call.
+    # (C-003): the fail-closed writer check now lives inside
+    # compute_and_write_lanes itself (WP05); this caller's own "lanes.json
+    # absent" precondition (checked above) means it can only ever reach this
+    # call with `previous_lanes is None`, so that check is a structural
+    # no-op here -- the `except TopologyManifestMismatch` below is retained
+    # as a defensive, never-triggered-in-practice safety net.
     topology = topology_from_meta(meta, mission_dir)
+    raw_mission_branch = meta.get("mission_branch")
+    resolved_mission_branch = raw_mission_branch if isinstance(raw_mission_branch, str) else None
 
     try:
         compute_and_write_lanes(
@@ -1647,6 +1653,7 @@ def _rebuild_lanes_if_wedged(
             planning_commit_sha=planning_commit_sha,
             mission_id=mission_id,
             topology=topology,
+            mission_branch=resolved_mission_branch,
         )
     except LaneGlobValidationError as exc:
         raise MissionStateRepairError(

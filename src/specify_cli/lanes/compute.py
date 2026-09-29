@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import ClassVar
 
+from mission_runtime import MissionTopology
+
 from specify_cli.core.dependency_graph import topological_sort
 from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name, mission_branch_name
@@ -568,6 +570,89 @@ def _assign_stable_lane_ids(
 
 
 # ---------------------------------------------------------------------------
+# SINGLE_BRANCH manifest (#5100 IC-03 / WP05)
+# ---------------------------------------------------------------------------
+
+
+def _build_single_branch_manifest(
+    *,
+    dependency_graph: dict[str, list[str]],
+    ownership_manifests: dict[str, OwnershipManifest],
+    mission_slug: str,
+    target_branch: str,
+    mission_id: str | None,
+    mission_branch: str | None,
+) -> LanesManifest:
+    """Build the SINGLE_BRANCH manifest: one repo-root lane holding every WP.
+
+    Contract (``contracts/single-branch-execution.md``, "Finalize"):
+    ``compute_lanes(..., topology=single_branch)`` returns a manifest that
+    holds exactly one lane -- ``lane_id == PLANNING_LANE_ID`` -- whose
+    ``wp_ids`` is EVERY work package in the mission, ``code_change`` and
+    ``planning_artifact`` alike, in dependency order. This is the ONLY
+    topology arm that puts CODE WPs into the canonical planning lane; every
+    other topology keeps routing code WPs through the union-find code-lane
+    algorithm in :func:`compute_lanes`, unchanged.
+
+    Every WP is classified the SAME way :func:`compute_lanes` classifies WPs
+    for every other topology (mirrors that loop verbatim): a WP with no
+    ownership manifest that is not a ``planning_artifact`` is a genuine input
+    error (malformed frontmatter / a caller that skipped ownership
+    inference), so it still raises :class:`LaneComputationError` here too --
+    SINGLE_BRANCH tolerates a different LANE SHAPE, never a different input
+    validation floor.
+
+    ``mission_branch`` follows the resolve-table fallback: the caller's
+    already-resolved ``meta.mission_branch`` (a protected-target mission,
+    WP08/IC-05) when set, otherwise ``target_branch``. Passed in as an
+    ALREADY-RESOLVED parameter (never read from ``meta.json`` here) so this
+    module stays meta-free.
+
+    ``planning_artifact_wps`` on the returned manifest stays KIND-derived
+    (WP05 note, ``mission_finalize.py`` consumers): it names the WPs whose
+    ``execution_mode`` is ``PLANNING_ARTIFACT``, NOT "every WP in the lane" --
+    a single_branch mission's one lane holds code WPs too, and a caller that
+    asks "which of this mission's WPs are planning artifacts" must still get
+    the kind answer, not the lane-membership answer.
+    """
+    ordered_wps = topological_sort(dependency_graph)
+
+    write_scope: set[str] = set()
+    planning_artifact_wp_ids: list[str] = []
+    for wp_id in ordered_wps:
+        manifest = ownership_manifests.get(wp_id)
+        if manifest is None:
+            raise LaneComputationError(
+                f"Executable WP '{wp_id}' has no ownership manifest. "
+                f"Ensure owned_files and execution_mode are set in WP frontmatter, "
+                f"or run finalize-tasks to infer them."
+            )
+        if manifest.execution_mode == WorkProductKind.PLANNING_ARTIFACT:
+            planning_artifact_wp_ids.append(wp_id)
+        write_scope.update(manifest.owned_files)
+
+    lane = ExecutionLane(
+        lane_id=PLANNING_LANE_ID,
+        wp_ids=tuple(ordered_wps),
+        write_scope=tuple(sorted(write_scope)),
+        predicted_surfaces=(),
+        depends_on_lanes=(),
+        parallel_group=0,
+    )
+    return LanesManifest(
+        version=1,
+        mission_slug=mission_slug,
+        mission_id=mission_id,
+        mission_branch=mission_branch or target_branch,
+        target_branch=target_branch,
+        lanes=[lane],
+        computed_at=now_utc_iso(),
+        computed_from="dependency_graph+ownership",
+        planning_artifact_wps=planning_artifact_wp_ids,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main computation
 # ---------------------------------------------------------------------------
 
@@ -580,10 +665,14 @@ def compute_lanes(
     wp_bodies: dict[str, str] | None = None,
     mission_id: str | None = None,
     previous_lanes: LanesManifest | None = None,
+    *,
+    topology: MissionTopology = MissionTopology.LANES,
+    mission_branch: str | None = None,
 ) -> LanesManifest:
     """Compute execution lanes from dependency graph and ownership manifests.
 
-    Algorithm:
+    Algorithm (every topology except ``SINGLE_BRANCH``, unchanged by #5100
+    IC-03 / WP05 — golden-compared against the pre-WP05 behaviour):
     1. Separate planning_artifact WPs from code WPs.
     2. Union code WPs with overlapping owned_files (rule 1).
     3. Union code WPs sharing predicted surfaces when ownership is not
@@ -597,6 +686,13 @@ def compute_lanes(
     canonical ``PLANNING_LANE_ID`` (``"lane-planning"``).  That lane resolves to
     the main repository checkout, never a ``.worktrees/`` directory.
 
+    ``topology is MissionTopology.SINGLE_BRANCH`` short-circuits the whole
+    algorithm above (#5100 IC-03 / WP05 T022): a single_branch mission has NO
+    code lanes at all -- every WP, code_change and planning_artifact alike,
+    is assigned to the ONE canonical ``PLANNING_LANE_ID`` lane, which resolves
+    to the write checkout (never a ``.worktrees/`` directory). See
+    :func:`_build_single_branch_manifest`.
+
     Args:
         dependency_graph: WP ID → list of dependency WP IDs.
         ownership_manifests: WP ID → OwnershipManifest.
@@ -609,7 +705,21 @@ def compute_lanes(
             PP-F5) — a surviving lane keeps its ``lane_id`` across a WP-removal
             re-finalize instead of being re-lettered positionally onto a
             different WP's branch (#4945). ``None`` (a first finalize) mints
-            positional ids exactly as before.
+            positional ids exactly as before. Ignored for ``SINGLE_BRANCH``
+            (there is only ever one lane, with a fixed id).
+        topology: The mission's stored :class:`~mission_runtime.MissionTopology`
+            (#5100 IC-03 / WP05). Defaults to ``LANES`` so every existing
+            caller that has not yet threaded a real topology keeps today's
+            behaviour byte-identical.
+        mission_branch: The caller's ALREADY-RESOLVED ``meta.json``
+            ``mission_branch`` (or ``None``), consulted ONLY for
+            ``SINGLE_BRANCH`` (contracts/single-branch-execution.md,
+            "Finalize"): the manifest's ``mission_branch`` field becomes this
+            value when set, otherwise ``target_branch``. Passed in as an
+            already-resolved parameter, never read from ``meta.json`` here —
+            this module stays meta-free (Complexity Tracking / layer purity).
+            Ignored for every other topology (those keep minting
+            ``mission_branch`` from ``mission_branch_name`` as before).
 
     Returns:
         An acyclic LanesManifest ready for persistence.
@@ -623,6 +733,16 @@ def compute_lanes(
     all_wp_ids = sorted(dependency_graph.keys())
     if not all_wp_ids:
         return _empty_manifest(mission_slug, target_branch, resolved_mission_id, planning_artifact_wps=[])
+
+    if topology is MissionTopology.SINGLE_BRANCH:
+        return _build_single_branch_manifest(
+            dependency_graph=dependency_graph,
+            ownership_manifests=ownership_manifests,
+            mission_slug=mission_slug,
+            target_branch=target_branch,
+            mission_id=resolved_mission_id,
+            mission_branch=mission_branch,
+        )
 
     # Separate planning_artifact WPs from code WPs.
     # Both sets receive lane assignments:

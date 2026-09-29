@@ -384,9 +384,15 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
         # read) -- this call site already tolerates a missing/malformed
         # meta.json via load_meta_or_empty, and topology_from_meta inherits
         # that tolerance instead of adding a new raw raise here. Read-only
-        # (C-003): never the fail-closed writer check compute_and_write_lanes
-        # does not yet call.
+        # (C-003): the fail-closed writer check now lives inside
+        # compute_and_write_lanes itself (WP05); this caller's own
+        # "never rewrite existing lanes" guard above means it can only ever
+        # reach this call with `previous_lanes is None`, so that check is a
+        # structural no-op here -- included for consistency with the other
+        # two callers, not because this path can trigger it.
         topology = topology_from_meta(raw_meta, st.primary_feature_dir)
+        raw_mission_branch = raw_meta.get("mission_branch")
+        resolved_mission_branch = raw_mission_branch if isinstance(raw_mission_branch, str) else None
         try:
             compute_and_write_lanes(
                 st.primary_feature_dir,
@@ -400,6 +406,7 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
                 planning_commit_sha=planning_commit_sha,
                 topology=topology,
                 mission_id=mission_id,
+                mission_branch=resolved_mission_branch,
             )
         except LaneGlobValidationError as exc:
             # Single-source the abort message through the exception the pure core

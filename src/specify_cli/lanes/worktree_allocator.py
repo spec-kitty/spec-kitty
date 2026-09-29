@@ -17,7 +17,7 @@ policy registered so it cannot see ``status.events.jsonl`` or
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, MissionTopology, assert_topology_matches_manifest, placement_seam
 import subprocess
 from dataclasses import dataclass
 from enum import Enum
@@ -29,7 +29,7 @@ from specify_cli.core.errors import StructuredError
 from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_branch_name, resolve_mid8, worktree_path as _worktree_path
-from specify_cli.lanes.compute import PLANNING_LANE_ID
+from specify_cli.lanes.compute import PLANNING_LANE_ID, has_code_lanes
 from specify_cli.lanes.consolidation import (
     _ephemeral_merge_driver_activation,
     _make_merge_env,
@@ -805,7 +805,30 @@ def allocate_lane_worktree(
         UnhonorableBaseError: If ``base`` is supplied but the active route
             cannot honor it (D2/D3/FR-009/FR-010).
         RuntimeError: If git operations fail.
+        TopologyManifestMismatch: the mission is stamped ``SINGLE_BRANCH``
+            but *lanes_manifest* (the manifest the caller resolved and is
+            about to allocate against) has a code lane -- Invariant T-1
+            (data-model.md), never re-stamped after #5100. Raised BEFORE any
+            git mutation (#5100 IC-02 / WP05 T022): no worktree, no branch,
+            no directory is created.
     """
+    # #5100 IC-02 / WP05 (T022): the fail-closed writer chokepoint promised
+    # by ``mission_runtime.assert_topology_matches_manifest``'s own
+    # docstring. Checked FIRST, before ``lane_for_wp`` or any git mutation
+    # below, so an unmigrated single_branch mission whose ``lanes.json``
+    # still carries a code lane (a hand-written or pre-#5100 manifest) can
+    # never reach ``git worktree add``. A mission with no ``meta.json`` at
+    # all (see :func:`_stored_topology_for_fail_closed_guard`) has no stored
+    # topology to violate, so the guard is skipped rather than enforced
+    # against a manufactured default.
+    _guard_topology = _stored_topology_for_fail_closed_guard(repo_root, mission_slug)
+    if _guard_topology is not None:
+        assert_topology_matches_manifest(
+            _guard_topology,
+            has_code_lanes=has_code_lanes(lanes_manifest),
+            mission_slug=mission_slug,
+        )
+
     lane = lanes_manifest.lane_for_wp(wp_id)
     if lane is None:
         raise LaneNotFoundError(f"{wp_id} is not assigned to any execution lane in lanes.json")
@@ -1411,6 +1434,54 @@ def _register_sparse_checkout_if_coord(
     """
     if coordination_branch is not None and short_id is not None:
         register_lane_sparse_checkout(worktree_path, mission_slug, short_id)
+
+
+def _stored_topology_for_fail_closed_guard(repo_root: Path, mission_slug: str) -> MissionTopology | None:
+    """Read *mission_slug*'s EXPLICITLY stored topology for the T022 guard, or ``None``.
+
+    Returns ``None`` -- "nothing to enforce" -- for BOTH of these cases,
+    deliberately narrower than the general-purpose
+    :func:`mission_runtime.resolve_topology` / :func:`~specify_cli.
+    migration.backfill_topology.topology_from_meta` readers:
+
+    1. ``meta.json`` does not exist at all (no mission scaffold -- a bare
+       allocator-mechanics fixture that never wrote one, or a bootstrap
+       window).
+    2. ``meta.json`` exists but carries no EXPLICIT, valid ``topology`` key
+       (a legacy mission that predates the field, or one mid-derivation).
+
+    Both readers above DERIVE a topology for case 2 from
+    ``(coordination_branch, has_lanes)`` when no explicit value is stored --
+    and ``has_lanes`` there is read from the mission's ON-DISK
+    ``lanes.json``, which a caller allocating a lane for the FIRST time
+    (the ordinary case: the manifest exists only in memory, not yet
+    persisted) has not written yet. That derivation would read "no lanes on
+    disk yet" and classify the mission ``SINGLE_BRANCH`` -- a false
+    positive against the very manifest THIS call is allocating from (the
+    #5100 WP05 regression this narrower helper closes; see
+    ``tests/specify_cli/lanes/test_lane_base_honoring.py``'s "legacy" AC2
+    fixtures). This writer-chokepoint guard only means to catch a mission
+    someone EXPLICITLY, positively stamped ``single_branch`` (via ``mission
+    create --topology single_branch`` or the re-stamp migration's inverse)
+    whose lane manifest still disagrees -- never a legacy/undecided mission
+    that has not been classified at all.
+
+    #5100 WP05 cycle 2 (review Issue 3, single canonical authority): the
+    "is this a valid, EXPLICITLY stored topology string" check itself is
+    NOT re-implemented here -- it delegates to
+    :func:`~specify_cli.migration.backfill_topology.stored_topology`, the
+    same stored-only reader :func:`~specify_cli.migration.backfill_topology.topology_from_meta`
+    layers its derive fallback on top of. Only the "skip the derive
+    fallback entirely" DECISION is local to this guard; the parse itself
+    has one owner.
+    """
+    from specify_cli.migration.backfill_topology import stored_topology
+
+    meta_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    data = load_meta(meta_dir, on_malformed="none")
+    if data is None:
+        return None
+    return stored_topology(data)
 
 
 def _read_coordination_branch(

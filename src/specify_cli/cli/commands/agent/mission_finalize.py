@@ -47,7 +47,7 @@ from specify_cli.cli.console import err_console
 
 from kernel._safe_re import re
 from kernel.paths import repo_tree_path
-from mission_runtime import ActionContextError, MissionArtifactKind
+from mission_runtime import ActionContextError, MissionArtifactKind, TopologyManifestMismatch
 from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -3212,9 +3212,11 @@ def _compute_and_write_lanes(
     # #5100 M3 (review cycle-1 nit 3): derived from the ALREADY-loaded,
     # tolerant `meta` parameter this wrapper already accepts (never a
     # second, stricter meta.json read) -- mirrors tasks_finalize.py's
-    # identical fix. Read-only (C-003): never the fail-closed writer check
-    # compute_and_write_lanes does not yet call.
+    # identical fix. Read-only (C-003): the fail-closed writer check now
+    # lives inside compute_and_write_lanes itself (WP05).
     topology = topology_from_meta(meta or {}, planning_dir)
+    raw_mission_branch = meta.get("mission_branch") if meta else None
+    resolved_mission_branch = raw_mission_branch if isinstance(raw_mission_branch, str) else None
     try:
         lanes_path, lanes_manifest = compute_and_write_lanes(
             planning_dir,
@@ -3228,6 +3230,7 @@ def _compute_and_write_lanes(
             planning_commit_sha=resolved_sha,
             mission_id=mission_id,
             topology=topology,
+            mission_branch=resolved_mission_branch,
         )
     except LaneGlobValidationError as exc:
         glob_result = exc.result
@@ -3241,6 +3244,18 @@ def _compute_and_write_lanes(
         error_msg = str(exc)
         if json_output:
             _emit_json({"error": error_msg, "ownership_literal_path_errors": glob_result.errors})
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1) from None
+    except TopologyManifestMismatch as exc:
+        # #5100 WP05: a single_branch mission whose on-disk lanes.json still
+        # has a code lane (never re-stamped after #5100) -- the manifest
+        # write is refused, so no lanes.json changed. Reported the same way
+        # the sibling LaneGlobValidationError branch above is: JSON envelope
+        # or console, never a raw traceback.
+        error_msg = str(exc)
+        if json_output:
+            _emit_json({"error": error_msg, "error_code": exc.error_code})
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1) from None
