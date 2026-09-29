@@ -196,7 +196,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
     ),
     CensusKey(
         rel="src/specify_cli/git/ref_advance.py",
-        qualname="advance_branch_ref",
+        qualname="_resync_checkouts",
         token_line="reset = _run_git ( worktree , [ , , branch ] , env = env )",
         op="reset_hard",
         op_ordinal=0,
@@ -209,7 +209,11 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "(consumed by merge/preflight.py::is_pure_behind_head_lag, INV-3) "
         "was added earlier in the file, shifting this line; same "
         "advance_branch_ref resync site/rationale, confirmed by a direct read "
-        "-- not a new destructive op."
+        "-- not a new destructive op. Extracted from advance_branch_ref into "
+        "_resync_checkouts (tidy-first, consolidation-claim-rollback-integrity "
+        "WP02); shared by advance_branch_ref and "
+        "restore_branch_ref(resync_checkouts=True); both dirty-check "
+        "(_checkouts_ready_for) before the ref moves."
     ),
     CensusKey(
         rel="src/specify_cli/lanes/worktree_allocator.py",

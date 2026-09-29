@@ -418,6 +418,63 @@ def reset_would_obstruct_untracked(
     return any(_RESET_OBSTRUCTION_MARKER in entry for entry in dirty)
 
 
+def _checkouts_ready_for(
+    repo_root: Path,
+    branch: str,
+    new_sha: str,
+    env: dict[str, str] | None,
+    is_residue: Callable[[str], bool] | None,
+    *,
+    old_sha: str,
+) -> list[Path]:
+    """List worktrees with ``branch`` checked out, refusing if any is dirty.
+
+    Runs strictly BEFORE the ref moves so a refusal is atomic (nothing
+    advanced, nothing reset). Shared by :func:`advance_branch_ref` and
+    :func:`restore_branch_ref` (``resync_checkouts=True``).
+    """
+    ref = f"refs/heads/{branch}"
+    checkouts = [entry.path for entry in _list_worktrees(repo_root, env) if not entry.detached and entry.branch == ref]
+    target_paths = _target_tree_paths(repo_root, new_sha, env)
+    for worktree in checkouts:
+        dirty = _dirty_entries(
+            worktree,
+            env,
+            new_sha=new_sha,
+            target_paths=target_paths,
+            is_residue=is_residue,
+        )
+        if dirty:
+            raise RefAdvanceDirtyWorktreeError(
+                worktree_path=worktree.resolve(),
+                branch=branch,
+                old_sha=old_sha,
+                new_sha=new_sha,
+                dirty_entries=dirty,
+            )
+    return checkouts
+
+
+def _resync_checkouts(
+    checkouts: list[Path],
+    branch: str,
+    env: dict[str, str] | None,
+    *,
+    context: str,
+) -> None:
+    """Hard-reset each checkout to the (already moved) ``branch`` ref (#1826)."""
+    for worktree in checkouts:
+        reset = _run_git(worktree, ["reset", "--hard", branch], env=env)
+        if reset.returncode != 0:
+            raise RefAdvanceError(
+                f"{context} but "
+                f"failed to resync the checked-out worktree at {worktree}: "
+                f"{reset.stderr.strip() or reset.stdout.strip()}. "
+                f"The worktree is behind its own HEAD (#1826); repair with "
+                f"`git -C {worktree} reset --hard` once the cause is fixed."
+            )
+
+
 def advance_branch_ref(
     repo_root: Path,
     branch: str,
@@ -496,27 +553,7 @@ def advance_branch_ref(
         if ff_check.returncode != 0:
             raise RefAdvanceError(f"Could not verify fast-forward ancestry for {branch}: {ff_check.stderr.strip() or ff_check.stdout.strip()}")
 
-    checkouts = [entry.path for entry in _list_worktrees(repo_root, env) if not entry.detached and entry.branch == ref]
-    target_paths = _target_tree_paths(repo_root, new_sha, env)
-
-    # Dirty check strictly BEFORE the ref mutation and BEFORE any reset path:
-    # a refusal must be atomic (nothing advanced, nothing reset).
-    for worktree in checkouts:
-        dirty = _dirty_entries(
-            worktree,
-            env,
-            new_sha=new_sha,
-            target_paths=target_paths,
-            is_residue=is_residue,
-        )
-        if dirty:
-            raise RefAdvanceDirtyWorktreeError(
-                worktree_path=worktree.resolve(),
-                branch=branch,
-                old_sha=old_sha,
-                new_sha=new_sha,
-                dirty_entries=dirty,
-            )
+    checkouts = _checkouts_ready_for(repo_root, branch, new_sha, env, is_residue, old_sha=old_sha)
 
     expected_old = _cas_expected_old(expected_old_sha, old_sha)
     result = _update_branch_ref_cas(repo_root, ref, new_sha, expected_old, env=env)
@@ -530,16 +567,12 @@ def advance_branch_ref(
             f"git: {result.stderr.strip() or result.stdout.strip()}"
         )
 
-    for worktree in checkouts:
-        reset = _run_git(worktree, ["reset", "--hard", branch], env=env)
-        if reset.returncode != 0:
-            raise RefAdvanceError(
-                f"Advanced {branch} ({old_sha[:12]} -> {new_sha[:12]}) but "
-                f"failed to resync the checked-out worktree at {worktree}: "
-                f"{reset.stderr.strip() or reset.stdout.strip()}. "
-                f"The worktree is behind its own HEAD (#1826); repair with "
-                f"`git -C {worktree} reset --hard` once the cause is fixed."
-            )
+    _resync_checkouts(
+        checkouts,
+        branch,
+        env,
+        context=f"Advanced {branch} ({old_sha[:12]} -> {new_sha[:12]})",
+    )
 
 
 def restore_branch_ref(
@@ -548,20 +581,48 @@ def restore_branch_ref(
     restored_sha: str,
     *,
     expected_current_sha: str,
+    resync_checkouts: bool = False,
+    is_residue: Callable[[str], bool] | None = None,
+    env: dict[str, str] | None = None,
 ) -> None:
     """Restore a branch ref with compare-and-swap semantics after failure.
 
     This is the rollback-only counterpart to :func:`advance_branch_ref`.
     It deliberately permits a non-fast-forward move, but only when the ref is
-    still at ``expected_current_sha``. Callers own restoration of the affected
-    checkout's index and intentionally retain worktree files for diagnosis.
+    still at ``expected_current_sha``.
+
+    By DEFAULT (``resync_checkouts=False``) callers own restoration of the
+    affected checkout's index and intentionally retain worktree files for
+    diagnosis. With ``resync_checkouts=True`` every worktree that has
+    ``branch`` checked out is dirty-checked BEFORE the ref moves (a dirty
+    checkout raises :class:`RefAdvanceDirtyWorktreeError` and nothing is
+    mutated; ``is_residue`` excludes toolchain churn exactly as in
+    :func:`advance_branch_ref`), the ref then moves under the same
+    compare-and-swap, and each checkout is hard-reset to the restored ref via
+    the shared :func:`_resync_checkouts` (HEAD == index == worktree).
     """
     ref = f"refs/heads/{branch}"
-    result = _update_branch_ref_cas(repo_root, ref, restored_sha, expected_current_sha)
+    checkouts: list[Path] = []
+    if resync_checkouts:
+        checkouts = _checkouts_ready_for(
+            repo_root,
+            branch,
+            restored_sha,
+            env,
+            is_residue,
+            old_sha=expected_current_sha,
+        )
+    result = _update_branch_ref_cas(repo_root, ref, restored_sha, expected_current_sha, env=env)
     if result.returncode != 0:
         raise RefRestoreError(
             f"Failed to restore {branch!r} from {expected_current_sha[:12]} to {restored_sha[:12]}: {result.stderr.strip() or result.stdout.strip()}"
         )
+    _resync_checkouts(
+        checkouts,
+        branch,
+        env,
+        context=f"Restored {branch} ({expected_current_sha[:12]} -> {restored_sha[:12]})",
+    )
 
 
 def advance_branch_ref_for_commit(
