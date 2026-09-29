@@ -460,6 +460,47 @@ def _refuse_target_without_commit(effective_root: Path, target_branch: str) -> N
     )
 
 
+def _target_is_protected(effective_root: Path, target_branch: str) -> bool:
+    """True when *target_branch* is a protected target under the #5100 rule (C-002).
+
+    The ONE protection decision the protected single_branch mint and the
+    create-time re-create refusal both consult (:func:`_protected_mint_applies`).
+    """
+    from specify_cli.core.git_ops import resolve_primary_branch
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy.resolve(effective_root)
+    # bias=False (mission_branch_context._resolve_primary_branch_for_recommendation's
+    # rationale applies verbatim here): the CURRENT checkout is virtually
+    # ALWAYS the target branch at create time (single_branch missions are
+    # created from wherever the operator is standing), so the default
+    # feature-bias resolution would treat EVERY target as "primary" and mint
+    # unconditionally. The genuine repository primary (main/master/origin
+    # default) is what the #5100 rule means by "primary".
+    primary_branch = resolve_primary_branch(effective_root, bias=False)
+    return bool(policy.is_protected_target(target_branch, primary_branch=primary_branch))
+
+
+def _protected_mint_applies(
+    effective_root: Path,
+    *,
+    topology: MissionTopology,
+    commit_to_target: bool,
+    target_branch: str,
+) -> bool:
+    """True when create will mint a protected-target mission branch (#5100 WP08).
+
+    Only then does a re-create of an already-scaffolded mission collide on the
+    deterministic mission branch (same slug + mid8), so only then must the
+    re-create be refused up front as MISSION_ALREADY_EXISTS rather than surface
+    the mint's MISSION_BRANCH_EXISTS. Every other shape keeps origin/main's
+    idempotent resume (the #4033 guard already refuses a LIVE duplicate).
+    """
+    if topology is not MissionTopology.SINGLE_BRANCH or commit_to_target:
+        return False
+    return _target_is_protected(effective_root, target_branch)
+
+
 def _mint_protected_single_branch_mission_branch(
     effective_root: Path,
     mission_slug_formatted: str,
@@ -491,20 +532,9 @@ def _mint_protected_single_branch_mission_branch(
     mutation of *meta* on the refusal paths -- the git branch/checkout writes
     only happen after both refusal checks pass).
     """
-    from specify_cli.core.git_ops import resolve_primary_branch
-    from specify_cli.git.protection_policy import ProtectionPolicy
     from specify_cli.lanes.worktree_allocator import _git_status_porcelain_lines
 
-    policy = ProtectionPolicy.resolve(effective_root)
-    # bias=False (mission_branch_context._resolve_primary_branch_for_recommendation's
-    # rationale applies verbatim here): the CURRENT checkout is virtually
-    # ALWAYS the target branch at create time (single_branch missions are
-    # created from wherever the operator is standing), so the default
-    # feature-bias resolution would treat EVERY target as "primary" and mint
-    # unconditionally. The genuine repository primary (main/master/origin
-    # default) is what the #5100 rule means by "primary".
-    primary_branch = resolve_primary_branch(effective_root, bias=False)
-    if not policy.is_protected_target(target_branch, primary_branch=primary_branch):
+    if not _target_is_protected(effective_root, target_branch):
         return
     _refuse_target_without_commit(effective_root, target_branch)
 
@@ -1152,13 +1182,20 @@ def _create_mission_core_impl(
     )
 
     feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted
-    # An already-scaffolded mission under this exact directory name is a
-    # duplicate, and must report MISSION_ALREADY_EXISTS. This runs BEFORE any
-    # write and before the #5100 protected-target mint (6.7), whose
-    # "mission branch exists" refusal would otherwise mask it: the mission
-    # branch name is derived from the same slug + mid8, so a re-create of an
-    # existing mission always collides on the branch too.
-    if (feature_dir / "meta.json").exists():
+    # A re-create of an already-scaffolded mission that the #5100
+    # protected-target mint (6.7) would handle must report
+    # MISSION_ALREADY_EXISTS. This runs BEFORE any write and before the mint,
+    # whose "mission branch exists" refusal would otherwise mask it: the
+    # mission branch name is derived from the same slug + mid8, so such a
+    # re-create always collides on the branch too. Scoped to the mint's own
+    # predicate: every other shape keeps origin/main's idempotent resume of a
+    # genesis-only prior (the #4033 guard above already refused a LIVE one).
+    if (feature_dir / "meta.json").exists() and _protected_mint_applies(
+        effective_root,
+        topology=topology,
+        commit_to_target=commit_to_target,
+        target_branch=planning_branch,
+    ):
         raise MissionAlreadyExistsError(
             f"Mission directory {mission_slug_formatted} already exists ({KITTY_SPECS_DIR}/{mission_slug_formatted}/meta.json is present). "
             "Refusing to overwrite an existing mission."

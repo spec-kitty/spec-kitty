@@ -419,3 +419,37 @@ def test_minted_mission_branch_not_classified_by_recovery_or_doctor(tmp_path: Pa
     assert _topology_finding("single_branch", result.feature_dir) is None
     findings = _collect_coordination_findings(repo, mission_filter=slug)
     assert not [f for f in findings if minted in str(f.message) or minted in str(f.extra)], findings
+
+
+# ---------------------------------------------------------------------------
+# _protected_mint_applies: the ONE predicate scoping the re-create refusal to
+# exactly the shapes the protected-target mint handles. Every other shape keeps
+# origin/main's idempotent resume of a genesis-only prior mission
+# (tests/specify_cli/core/test_mission_creation_fire_once.py).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("topology", "commit_to_target", "target", "expected"),
+    [
+        (MissionTopology.SINGLE_BRANCH, False, "main", True),
+        (MissionTopology.SINGLE_BRANCH, False, "feature-x", False),
+        (MissionTopology.SINGLE_BRANCH, True, "main", False),
+        (MissionTopology.COORD, False, "main", False),
+        (MissionTopology.LANES, False, "main", False),
+    ],
+)
+def test_protected_mint_applies_only_to_a_protected_single_branch_mint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    topology: MissionTopology,
+    commit_to_target: bool,
+    target: str,
+    expected: bool,
+) -> None:
+    from specify_cli.core.mission_creation import _protected_mint_applies
+
+    repo = _seed_repo(tmp_path, name="mint-applies")
+    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda *_a, **_k: "main")
+
+    assert _protected_mint_applies(repo, topology=topology, commit_to_target=commit_to_target, target_branch=target) is expected
