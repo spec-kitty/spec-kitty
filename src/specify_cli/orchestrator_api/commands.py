@@ -1299,8 +1299,11 @@ class _StartWorkspace:
     lane_base_ref: str | None = None
 
 
-def _status_execution_mode_for_start_workspace(start_ws: _StartWorkspace) -> str:
+def _status_execution_mode_for_start_workspace(start_ws: _StartWorkspace | None) -> str:
     """``ResolvedWorkspace.status_execution_mode``'s value for a ``_StartWorkspace`` (#5100 R-10).
+
+    ``None`` (no workspace was resolved -- every topology except single_branch
+    for a non-claim transition) stamps ``"worktree"``, exactly as before R-10.
 
     The orchestrator-api's own workspace resolver (:func:`_resolve_start_workspace`
     / :func:`_resolve_existing_workspace`) returns ``_StartWorkspace``, not a
@@ -1313,7 +1316,7 @@ def _status_execution_mode_for_start_workspace(start_ws: _StartWorkspace) -> str
     """
     from specify_cli.lanes.compute import is_repo_root_lane
 
-    return "direct_repo" if is_repo_root_lane(start_ws) else "worktree"
+    return "direct_repo" if start_ws is not None and is_repo_root_lane(start_ws) else "worktree"
 
 
 def _repo_root_lane_branch(main_repo_root: Path, mission: str, manifest: Any) -> str:
@@ -1410,6 +1413,7 @@ def _lane_assignment_or_legacy(main_repo_root: Path, mission: str, wp: str) -> t
 
 def _ensure_repo_root_checkout_or_fail(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> None:
     """Run ``implement``'s WRITE_CHECKOUT_* refusals for a repo-root lane (#5100 B5)."""
+    from kernel.errors import GuardedReadError
     from specify_cli.core.errors import StructuredError
     from specify_cli.lanes.implement_support import _ensure_repo_root_checkout_available
     from specify_cli.workspace.context import resolve_workspace_for_wp
@@ -1419,6 +1423,11 @@ def _ensure_repo_root_checkout_or_fail(cmd: str, main_repo_root: Path, mission: 
         _ensure_repo_root_checkout_available(main_repo_root, mission, wp, resolved)
     except StructuredError as exc:
         _fail(cmd, exc.error_code, str(exc), {**_mission_identity_payload(mission_dir), "wp_id": wp, **exc.to_dict()})
+    except (ValueError, FileNotFoundError, GuardedReadError) as exc:
+        # The resolver's real failure set: unusable WP metadata / a WP outside
+        # every lane (ValueError), a missing WP file (FileNotFoundError), and
+        # the typed corrupt/missing lanes.json + meta reads (GuardedReadError).
+        _fail(cmd, "LANE_ALLOCATION_FAILED", str(exc), {**_mission_identity_payload(mission_dir), "wp_id": wp, "reason": str(exc)})
 
 
 def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> _StartWorkspace:
@@ -1566,6 +1575,28 @@ def _resolve_existing_workspace(main_repo_root: Path, mission: str, wp: str) -> 
         lane_branch=lane_branch,
         lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
     )
+
+
+def _existing_workspace_for_stamp(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> _StartWorkspace | None:
+    """Existing-lane mirror used ONLY to stamp a status event's ``execution_mode`` (#5100 R-10).
+
+    A repo-root-lane WP exists only in a STORED ``single_branch`` mission, so
+    only there does the stamp differ from the historical ``"worktree"``; every
+    other topology returns ``None`` (stamp ``"worktree"``) WITHOUT reading
+    ``lanes.json`` -- a corrupt manifest must not break a ``--to done`` /
+    ``--to approved`` transition on a mission that never needed it. Inside
+    single_branch, an unreadable manifest / WP maps to the error envelope, not
+    a traceback.
+    """
+    from kernel.errors import GuardedReadError
+    from mission_runtime import is_single_branch, resolve_topology
+
+    if not is_single_branch(resolve_topology(main_repo_root, mission)):
+        return None
+    try:
+        return _resolve_existing_workspace(main_repo_root, mission, wp)
+    except (ValueError, FileNotFoundError, GuardedReadError) as exc:
+        _fail(cmd, "TRANSITION_REJECTED", str(exc), {**_mission_identity_payload(mission_dir), "wp_id": wp, "reason": str(exc)})
 
 
 @app.command(name="resolve-workspace")
@@ -1803,7 +1834,7 @@ def start_review(
     # #5100 R-10: read-only mirror of the WP's EXISTING lane assignment (no
     # allocation) -- start-review runs after implementation, so the WP is
     # already lane-assigned; this is the honest stamp, not a hardcoded guess.
-    review_ws = _resolve_existing_workspace(main_repo_root, mission, wp)
+    review_ws = _existing_workspace_for_stamp(cmd, main_repo_root, mission, mission_dir, wp)
 
     try:
         start_result = start_review_status(
@@ -1958,7 +1989,7 @@ def transition(
 
     if to_lane == Lane.FOR_REVIEW:
         _enforce_for_review_commit_gate(cmd, main_repo_root, mission, mission_dir, wp, force)
-        transition_ws = _resolve_existing_workspace(main_repo_root, mission, wp)
+        transition_ws = _existing_workspace_for_stamp(cmd, main_repo_root, mission, mission_dir, wp)
     elif to_lane == Lane.CLAIMED:
         # Seam C-005 (#3281/FR-007): early-return-equivalent for every OTHER
         # target lane -- this predicate only ever runs for a raw `--to
@@ -1969,8 +2000,9 @@ def transition(
         _enforce_claim_ancestry(cmd, main_repo_root, mission, mission_dir, wp, Path(transition_ws.workspace_path))
     else:
         # #5100 R-10: every other target lane still needs an honest stamp --
-        # read-only mirror of the WP's EXISTING lane, no allocation.
-        transition_ws = _resolve_existing_workspace(main_repo_root, mission, wp)
+        # read-only mirror of the WP's EXISTING lane, no allocation, and only
+        # for single_branch (elsewhere the historical "worktree" stamp stands).
+        transition_ws = _existing_workspace_for_stamp(cmd, main_repo_root, mission, mission_dir, wp)
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionError

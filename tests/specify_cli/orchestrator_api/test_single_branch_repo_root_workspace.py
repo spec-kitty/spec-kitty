@@ -154,3 +154,69 @@ def test_lanes_topology_planning_wp_read_only_resolver_reports_target_branch(rep
     ws = oc._resolve_existing_workspace(repo, slug, "WP01")
 
     assert ws.lane_branch == "trunk"
+
+
+# ---------------------------------------------------------------------------
+# Error mapping + topology restriction of the workspace resolution (#5100 R-10)
+# ---------------------------------------------------------------------------
+
+
+def _corrupt_lanes_json(repo: Path, slug: str) -> None:
+    (repo / "kitty-specs" / slug / "lanes.json").write_text("{not valid json", encoding="utf-8")
+
+
+def test_repo_root_refusal_path_maps_invalid_wp_metadata_to_the_error_envelope(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """``resolve_workspace_for_wp`` raises ``ValueError`` for unusable WP metadata;
+    the orchestrator must answer with an envelope, never a traceback."""
+    slug = "orch-bad-wp"
+    feature_dir = repo / "kitty-specs" / slug
+    _build_mission(repo, slug, "01ORCHBW000000000000000001")
+    wp_file = next((feature_dir / "tasks").glob("WP01*.md"))
+    wp_file.write_text(wp_file.read_text(encoding="utf-8").replace("execution_mode: code_change", "execution_mode: bogus"), encoding="utf-8")
+
+    with pytest.raises(typer.Exit):
+        oc._ensure_repo_root_checkout_or_fail("start-implementation", repo, slug, feature_dir, "WP01")
+
+    out = capsys.readouterr().out
+    assert '"success": false' in out
+    assert "LANE_ALLOCATION_FAILED" in out
+    assert "bogus" in out
+
+
+def test_transition_workspace_is_not_resolved_outside_single_branch(repo: Path) -> None:
+    """A corrupt lanes.json must not break ``--to done`` / ``--to approved`` on a
+    non-single_branch mission: main never resolved a workspace for those targets."""
+    slug = "orch-lanes-corrupt"
+    _build_mission(repo, slug, "01ORCHLC000000000000000001", topology="lanes")
+    _corrupt_lanes_json(repo, slug)
+
+    for to_lane in ("done", "approved", "for_review", "in_progress"):
+        assert oc._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01") is None, to_lane
+
+
+def test_transition_workspace_stamp_is_direct_repo_for_single_branch(repo: Path) -> None:
+    slug = "orch-sb-stamp"
+    _build_mission(repo, slug, "01ORCHSS000000000000000001")
+
+    ws = oc._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01")
+
+    assert ws is not None
+    assert oc._status_execution_mode_for_start_workspace(ws) == "direct_repo"
+
+
+def test_transition_workspace_stamp_maps_corrupt_lanes_to_the_error_envelope(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    slug = "orch-sb-corrupt"
+    _build_mission(repo, slug, "01ORCHSC000000000000000001")
+    _corrupt_lanes_json(repo, slug)
+
+    with pytest.raises(typer.Exit):
+        oc._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01")
+
+    out = capsys.readouterr().out
+    assert '"success": false' in out
+    assert "TRANSITION_REJECTED" in out
+    assert "lanes.json" in out
+
+
+def test_no_workspace_stamp_defaults_to_worktree() -> None:
+    assert oc._status_execution_mode_for_start_workspace(None) == "worktree"
