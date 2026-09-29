@@ -3249,6 +3249,15 @@ pages:
     - {slug: "option-6-alias-layer-in-the-command-skill-pipeline-2470", text: "Option 6: alias layer in the command-skill pipeline (#2470)", level: 3}
     - {slug: "open-questions", text: "Open questions", level: 2}
     - {slug: "related-drift-found-during-research", text: "Related drift found during research", level: 2}
+  - path: "docs/adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md"
+    title: "ADR: Catalog languages — four states and the reserved unknown value"
+    divio_type: "none"
+    abstract: "Accepted: catalog.languages keeps absent, empty and recognised states and gains a reserved unknown value, with a regenerate-only precedence bypass and tech-agnostic doctrine."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md"
     title: "ADR: a mixed lane refuses commits outside every WP work window, with an operator-attested override"
     divio_type: "none"
@@ -7936,6 +7945,16 @@ pages:
     - {slug: "error-dangling-drg-edge", text: "Error: \"Dangling DRG edge\"", level: 3}
     - {slug: "error-drg-extension-attempts-to-modify-a-built-in-node", text: "Error: \"DRG extension attempts to modify a built-in node\"", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/guides/how-to/governance/extend-charter-for-unsupported-language.md"
+    title: "Extend your charter for an unsupported language"
+    divio_type: "how-to"
+    abstract: "What \"Languages unknown\" means, how to add tech-specific guidelines to your local charter, and what review reports for non-Python missions."
+    anchors:
+    - {slug: "what-languages-unknown-means", text: "What `Languages: unknown` means", level: 2}
+    - {slug: "how-spec-kitty-decides", text: "How Spec Kitty decides", level: 2}
+    - {slug: "add-tech-specific-guidelines-to-your-local-charter", text: "Add tech-specific guidelines to your local charter", level: 2}
+    - {slug: "regenerate-after-correcting-the-interview", text: "Regenerate after correcting the interview", level: 2}
+    - {slug: "what-spec-kitty-review-reports-for-non-python-missions", text: "What `spec-kitty review` reports for non-Python Missions", level: 2}
   - path: "docs/guides/how-to/governance/index.md"
     title: "Governance & Doctrine"
     divio_type: "explanation"
@@ -8056,6 +8075,7 @@ pages:
     - {slug: "3-compact-context-limitation", text: "3. Compact-context limitation", level: 2}
     - {slug: "4-retrospective-gate-failure", text: "4. Retrospective gate failure", level: 2}
     - {slug: "5-synthesizer-rejection", text: "5. Synthesizer rejection", level: 2}
+    - {slug: "6-context-says-languages-python-or-unknown-for-a-non-python-project", text: "6. Context says `Languages: python` (or `unknown`) for a non-Python project", level: 2}
     - {slug: "diagnostic-quick-reference", text: "Diagnostic Quick Reference", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/governance/use-retrospective-learning.md"
