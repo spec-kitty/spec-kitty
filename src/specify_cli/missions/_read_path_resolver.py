@@ -129,13 +129,7 @@ def stored_topology_from_meta(meta: Mapping[str, object]) -> MissionTopology | N
     """
     from mission_runtime import MissionTopology
 
-    raw = meta.get("topology")
-    if not isinstance(raw, str):
-        return None
-    try:
-        return MissionTopology(raw)
-    except ValueError:
-        return None
+    return MissionTopology.from_stored(meta.get("topology"))
 
 
 def classify_from_meta(

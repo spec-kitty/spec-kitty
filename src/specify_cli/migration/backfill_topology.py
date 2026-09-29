@@ -48,9 +48,6 @@ TOPOLOGY_KEY = "topology"
 FLATTENED_KEY = "flattened"
 _COORDINATION_BRANCH_KEY = "coordination_branch"
 
-# Valid stored topology string values (the enum's stable .value forms).
-_VALID_TOPOLOGY_VALUES = frozenset(member.value for member in MissionTopology)
-
 
 def _has_lanes(feature_dir: Path) -> bool:
     """Return whether the mission has a CODE lane (corrupt ⇒ treated absent).
@@ -87,21 +84,19 @@ def _derive_topology(meta: dict[str, Any], feature_dir: Path) -> MissionTopology
 def stored_topology(meta: Mapping[str, Any]) -> MissionTopology | None:
     """Return the EXPLICITLY stored ``topology`` value, or ``None`` (#5100 WP05 cycle 2, Issue 3).
 
-    The SINGLE stored-only authority: a valid :class:`MissionTopology` string
-    under ``TOPOLOGY_KEY``, with NO derive-from-signals fallback and no disk
-    access beyond the already-in-hand ``meta`` mapping. :func:`topology_from_meta`
-    layers the derive fallback on top of this (stored-or-derive); a caller that
-    must never accept a DERIVED value -- because deriving would read a signal
-    (e.g. ``lanes.json``) the caller's own in-flight operation has not written
-    yet, and so would misclassify -- calls this directly instead of
-    re-implementing the ``stored in _VALID_TOPOLOGY_VALUES`` check a second
-    time. See :func:`~specify_cli.lanes.worktree_allocator._stored_topology_for_fail_closed_guard`,
+    The stored-only reader: a valid :class:`MissionTopology` string under
+    ``TOPOLOGY_KEY``, with NO derive-from-signals fallback and no disk access
+    beyond the already-in-hand ``meta`` mapping. It delegates the string parsing
+    to :meth:`MissionTopology.from_stored`, the ONE parser that
+    ``missions._read_path_resolver.stored_topology_from_meta`` and
+    ``core.owned_mission`` share. :func:`topology_from_meta` layers the derive
+    fallback on top of this (stored-or-derive); a caller that must never accept
+    a DERIVED value -- because deriving would read a signal (e.g.
+    ``lanes.json``) the caller's own in-flight operation has not written yet,
+    and so would misclassify -- calls this directly. See :func:`~specify_cli.lanes.worktree_allocator._stored_topology_for_fail_closed_guard`,
     the first such caller.
     """
-    stored = meta.get(TOPOLOGY_KEY)
-    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
-        return MissionTopology(stored)
-    return None
+    return MissionTopology.from_stored(meta.get(TOPOLOGY_KEY))
 
 
 def topology_from_meta(meta: Mapping[str, Any], feature_dir: Path) -> MissionTopology:
@@ -169,8 +164,8 @@ def read_topology(feature_dir: Path) -> MissionTopology:
 
     # Single authority (#5100 WP04 folded nit, post-WP03-review): the
     # stored-value-or-derive check is :func:`topology_from_meta`'s own body —
-    # delegate rather than re-run the identical ``stored in
-    # _VALID_TOPOLOGY_VALUES`` check a second time here. Un-backfilled legacy
+    # delegate rather than re-run the identical stored-value parse a second
+    # time here. Un-backfilled legacy
     # missions still derive the shape ONCE from current signals and return it
     # WITHOUT persisting (the read-only contract — #1814); the explicit
     # backfill command / mint path is the only writer.
@@ -247,13 +242,13 @@ def backfill_mission_topology(feature_dir: Path, *, dry_run: bool = False) -> To
             reason=f"corrupt json: {exc}",
         )
 
-    stored = meta.get(TOPOLOGY_KEY)
-    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
+    stored = stored_topology(meta)
+    if stored is not None:
         return TopologyBackfillResult(
             feature_dir=feature_dir,
             slug=slug,
             action="skip",
-            topology=stored,
+            topology=stored.value,
             reason="topology already present",
         )
 

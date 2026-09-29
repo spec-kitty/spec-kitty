@@ -85,7 +85,8 @@ _CLASSIFY_TOPOLOGY_FN = "classify_topology"
 _STORED_TOPOLOGY_READ_MARKERS: tuple[str, ...] = (
     "read_topology",
     "stored_topology_from_meta",
-    "_VALID_TOPOLOGY_VALUES",
+    "stored_topology(",
+    "MissionTopology.from_stored",
 )
 
 # The single SSOT derivation helper: ``backfill_topology._derive_topology`` is the
@@ -201,8 +202,8 @@ def _live_relayed_classify_sites(path: Path) -> list[int]:
     RELAYED spelling of the retired ``coordination_branch is None`` topology
     decision — equally a parallel inference when it is the sole shape disposal.
     It is flagged UNLESS its enclosing function FIRST reads the stored topology
-    (``read_topology`` / ``stored_topology_from_meta`` / ``_VALID_TOPOLOGY_VALUES``
-    membership), in which case the relay is the legitimate un-backfilled-legacy
+    (``read_topology`` / ``stored_topology_from_meta`` / ``stored_topology`` /
+    ``MissionTopology.from_stored``), in which case the relay is the legitimate un-backfilled-legacy
     fallback arm. The SSOT derivation helper ``_derive_topology`` is allowlisted by
     name (it IS the single authority the relay-ban routes through).
     """

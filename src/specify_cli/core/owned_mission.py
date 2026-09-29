@@ -50,6 +50,10 @@ def effective_root_kwargs(root: Path | None) -> _EffectiveRootKwargs:
 def _stored_topology(meta: dict[str, Any] | None) -> MissionTopology | None:
     """Parse the stored ``topology`` meta value to the enum; anything else is ``None``.
 
+    Delegates to :meth:`mission_runtime.MissionTopology.from_stored`, the ONE
+    stored-value parser shared with ``stored_topology`` and
+    ``stored_topology_from_meta``.
+
     The enum-based front half of the owned single_branch refusal (#3862 item A):
     a missing/corrupt meta (``None``), an absent key, a non-string value, or an
     unknown string all degrade to ``None`` here, which the shared
@@ -59,13 +63,7 @@ def _stored_topology(meta: dict[str, Any] | None) -> MissionTopology | None:
     :class:`mission_runtime.MissionTopology` enum the placement arms use, so
     the two representations cannot drift.
     """
-    raw = meta.get("topology") if meta is not None else None
-    if not isinstance(raw, str):
-        return None
-    try:
-        return MissionTopology(raw)
-    except ValueError:
-        return None
+    return MissionTopology.from_stored(meta.get("topology") if meta is not None else None)
 
 
 def expected_write_branch(meta: dict[str, Any] | None) -> str:

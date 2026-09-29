@@ -203,3 +203,50 @@ def test_mission_context_for_owned_arm_is_repo_root_invariant(tmp_path: Path) ->
 )
 def test_single_branch_write_ref_rule(topology: MissionTopology | None, mission_branch: object, expected: str) -> None:
     assert single_branch_write_ref(topology, mission_branch, "main") == expected
+
+
+# ---------------------------------------------------------------------------
+# #5100 -- ONE stored-topology parser. ``MissionTopology.from_stored`` pins the
+# edge cases once; the three public readers must agree with it exactly.
+# ---------------------------------------------------------------------------
+
+_STORED_TOPOLOGY_CASES: list[tuple[object, MissionTopology | None]] = [
+    ("single_branch", MissionTopology.SINGLE_BRANCH),
+    ("lanes", MissionTopology.LANES),
+    ("coord", MissionTopology.COORD),
+    ("lanes_with_coord", MissionTopology.LANES_WITH_COORD),
+    ("SINGLE_BRANCH", None),  # value form is case-sensitive; the NAME is not a value
+    ("", None),
+    ("not-a-real-topology", None),
+    (42, None),
+    (["single_branch"], None),
+    (None, None),
+]
+
+
+@pytest.mark.parametrize(("raw", "expected"), _STORED_TOPOLOGY_CASES)
+def test_from_stored_parses_only_exact_member_values(raw: object, expected: MissionTopology | None) -> None:
+    assert MissionTopology.from_stored(raw) is expected
+
+
+@pytest.mark.parametrize(("raw", "expected"), _STORED_TOPOLOGY_CASES)
+def test_every_stored_topology_reader_agrees_with_from_stored(raw: object, expected: MissionTopology | None) -> None:
+    from specify_cli.core.owned_mission import _stored_topology
+    from specify_cli.migration.backfill_topology import stored_topology
+    from specify_cli.missions._read_path_resolver import stored_topology_from_meta
+
+    meta = {"topology": raw}
+    assert stored_topology(meta) is expected
+    assert stored_topology_from_meta(meta) is expected
+    assert _stored_topology(meta) is expected
+
+
+def test_every_stored_topology_reader_treats_absent_key_and_missing_meta_as_none() -> None:
+    from specify_cli.core.owned_mission import _stored_topology
+    from specify_cli.migration.backfill_topology import stored_topology
+    from specify_cli.missions._read_path_resolver import stored_topology_from_meta
+
+    assert stored_topology({}) is None
+    assert stored_topology_from_meta({}) is None
+    assert _stored_topology({}) is None
+    assert _stored_topology(None) is None

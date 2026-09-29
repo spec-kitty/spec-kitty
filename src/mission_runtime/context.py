@@ -55,6 +55,23 @@ class MissionTopology(enum.Enum):
     COORD = "coord"  # coord, no lanes
     LANES_WITH_COORD = "lanes_with_coord"  # coord, lanes
 
+    @classmethod
+    def from_stored(cls, raw: object) -> MissionTopology | None:
+        """Parse a raw stored ``meta.json`` ``topology`` value; anything unusable is ``None``.
+
+        The ONE parser of the stored value (#5100): a string that is exactly one
+        member's ``.value`` yields that member; a missing key (``None``), a
+        non-string, or an unrecognised string all degrade to ``None`` -- never
+        raises, never derives. Callers read the raw value themselves
+        (``meta.get("topology")``) so this stays free of any ``meta`` shape.
+        """
+        if not isinstance(raw, str):
+            return None
+        try:
+            return cls(raw)
+        except ValueError:
+            return None
+
 
 def classify_topology(
     coordination_branch: str | None,
