@@ -117,10 +117,14 @@ def test_5296_protected_target_claim_does_not_raise_or_commit(tmp_path: Path) ->
 
     _rc, out = _claim(m)
 
-    # Contract of THIS fix: the dependency self-heal neither raises ProtectedBranchCommitError nor
-    # commits on the protected target. (The exit code is deliberately not asserted: a LANES mission's
-    # claim status bookkeeping onto a protected `main` is refused separately -- the #5385 protected-target
-    # trap, outside #5296 -- and that refusal happens before any commit lands.)
+    # Contract of THIS fix: the claim never commits on the protected target and never lands the
+    # code lane there; the load-bearing assertions are the unchanged `main` SHA and the absent code
+    # file. (The exit code is deliberately not asserted: a LANES mission's claim status bookkeeping
+    # onto a protected `main` is refused separately -- the #5385 protected-target trap, outside
+    # #5296 -- and that refusal happens before any commit lands.) This fixture carries no
+    # `.kittify/config.yaml`, so `assert_not_protected_branch` does not run here and the
+    # `ProtectedBranchCommitError` check below is only a smoke check; the raise itself is pinned by
+    # tests/lanes/test_planning_claim_self_heal.py::test_planning_claim_on_protected_target_checkout_does_not_raise.
     assert "ProtectedBranchCommitError" not in out, out
     assert _NOTICE in out, out
     assert git_rev(m.repo, "main") == target_before, "claim committed on the protected target"
