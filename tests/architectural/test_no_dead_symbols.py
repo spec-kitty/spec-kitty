@@ -2334,15 +2334,6 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
             "ab4e79f1559ad1b71468df4342fa35d3a294f525ad4304f13abbab30e4833e99",
             source_module="specify_cli.consolidation.git_probes",
         ),
-        # specify_cli.consolidation.state::read_merge_lock_owner -- FR-008
-        # owner-token lock-ownership probe; consumed only from within its
-        # own module (acquire_merge_lock) and by
-        # tests/consolidation/test_merge_state_authority.py today.
-        SymbolKey(
-            "read_merge_lock_owner",
-            "152d2a612a16091432a35d186dbb9b234ad12e673816a683bf61f4bfae44f0d7",
-            source_module="specify_cli.consolidation.state",
-        ),
     }
 )
 

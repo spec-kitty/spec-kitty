@@ -26,9 +26,9 @@ import specify_cli
 
 pytestmark = pytest.mark.fast
 
-# tasks.md T016 requires >= 2 callers once WP04 wires the ``--abort`` helper; WP03
-# wires only ``executor._report_rollback``, so the floor is 1 here and WP04 raises it to 2.
-_CALLER_FLOOR = 1
+# tasks.md T016 requires >= 2 callers: ``executor._report_rollback`` (WP03) and the
+# ``--abort`` helper ``consolidate._abort_restore_or_keep_record`` (WP04).
+_CALLER_FLOOR = 2
 
 _SRC_ROOT = Path(specify_cli.__file__).resolve().parent.parent
 _EXECUTOR = "specify_cli/consolidation/executor.py"
@@ -37,10 +37,11 @@ _CLI_CONSOLIDATE = "specify_cli/cli/commands/consolidate.py"
 _DRIVER = "_run_lane_based_consolidation_locked"
 _GATE_PHASE = "_phase_reconcile_before_teardown"
 _WRAPPER_HELPER = "_report_rollback"
+_ABORT_HELPER = "_abort_restore_or_keep_record"
 
 # (module path relative to src/, enclosing function or ``None`` for any) allowed to call the authority.
-# The ``--abort`` helper is WP04's; it may live anywhere in the consolidate CLI module.
-_ALLOWED_CALLERS: frozenset[tuple[str, str | None]] = frozenset({(_EXECUTOR, _WRAPPER_HELPER), (_CLI_CONSOLIDATE, None)})
+# The ``--abort`` helper is the only allowed caller in the consolidate CLI module.
+_ALLOWED_CALLERS: frozenset[tuple[str, str | None]] = frozenset({(_EXECUTOR, _WRAPPER_HELPER), (_CLI_CONSOLIDATE, _ABORT_HELPER)})
 
 
 @dataclass(frozen=True)
@@ -133,6 +134,7 @@ def test_rollback_to_snapshot_is_called_only_from_allowed_callers() -> None:
     assert not stray, f"rollback_to_snapshot called from non-allow-listed sites: {stray}"
     assert len(discovered) >= _CALLER_FLOOR, f"non-vacuity: expected >= {_CALLER_FLOOR} authority caller(s), found {discovered}"
     assert _Call(_EXECUTOR, _WRAPPER_HELPER) in discovered, "the executor wrapper must be the (or a) caller"
+    assert _Call(_CLI_CONSOLIDATE, _ABORT_HELPER) in discovered, "the --abort helper must be the (or a) caller"
 
 
 def test_resyncing_restore_lives_only_in_the_authority() -> None:
@@ -179,3 +181,13 @@ def test_scanner_flags_a_stray_resyncing_restore() -> None:
     assert scan_resyncing_restores(synthetic, "specify_cli/other.py") == [_Call("specify_cli/other.py", "sneaky")]
     benign = "def fine(repo):\n    restore_branch_ref(repo, 'b', 'sha', expected_current_sha='x')\n"
     assert scan_resyncing_restores(benign, "specify_cli/other.py") == []
+
+
+def test_scanner_flags_a_second_rollback_door_in_the_consolidate_cli() -> None:
+    """Only the ``--abort`` helper may call the authority from the consolidate CLI module."""
+    stray = "def _dispatch_abort(repo, state):\n    return rollback_to_snapshot(repo, state, target_branch='main')\n"
+    (call,) = scan_authority_callers(stray, _CLI_CONSOLIDATE)
+    assert not _is_allowed(call)
+    helper = f"def {_ABORT_HELPER}(repo, state):\n    return rollback_to_snapshot(repo, state, target_branch='main')\n"
+    (allowed,) = scan_authority_callers(helper, _CLI_CONSOLIDATE)
+    assert _is_allowed(allowed)
