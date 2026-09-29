@@ -504,11 +504,9 @@ def test_print_remediation_lines_list_and_scalar(capsys: pytest.CaptureFixture[s
 # --- _enforce_canonical_status_history --------------------------------------
 
 
-def test_canonical_status_history_noop_without_wps(tmp_path: Path) -> None:
-    # Empty wp_ids -> early return regardless of log presence.
-    preflight._enforce_canonical_status_history(
-        feature_dir=tmp_path, mission_slug="m", wp_ids=[]
-    )
+# The empty-``wp_ids`` skip and the real-history pass are covered against real
+# JSONL logs in test_merge_bootstrap_history_gate.py (test_gate_skips_when_no_wp_ids,
+# test_gate_allows_real_lane_transition).
 
 
 def test_canonical_status_history_noop_without_log(tmp_path: Path) -> None:
@@ -528,14 +526,6 @@ def test_canonical_status_history_bootstrap_only_exits(tmp_path: Path) -> None:
             feature_dir=tmp_path, mission_slug="m", wp_ids=["WP01"]
         )
     assert exc.value.exit_code == 1
-
-
-def test_canonical_status_history_passes_with_real_history(tmp_path: Path) -> None:
-    (tmp_path / "status.events.jsonl").write_text("{}\n", encoding="utf-8")
-    with patch("specify_cli.status.has_non_bootstrap_status_history", return_value=True):
-        preflight._enforce_canonical_status_history(
-            feature_dir=tmp_path, mission_slug="m", wp_ids=["WP01"]
-        )
 
 
 # --- review-artifact gate: schema_error + verdict diagnostic keys -----------
@@ -571,18 +561,21 @@ def test_enforce_review_artifact_blocks_with_optional_keys(tmp_path: Path) -> No
 
 
 def test_warn_or_confirm_noop_without_warnings(tmp_path: Path) -> None:
-    with patch.object(preflight, "_collect_hollow_review_warnings", return_value={}):
+    """No hollow reviews: no banner and no prompt, even at an interactive terminal.
+
+    The terminal is forced interactive and the prompt would decline, so the
+    empty-warnings early return is the only thing that keeps the merge going.
+    """
+    with (
+        patch.dict("os.environ", {"SPEC_KITTY_FORCE_INTERACTIVE": "1"}),
+        patch.object(preflight.typer, "confirm", return_value=False) as confirm_mock,
+        preflight.console.capture() as captured,
+    ):
         preflight._warn_or_confirm_hollow_reviews(
             feature_dir=tmp_path, wp_ids=["WP01"], assume_yes=False
         )
-
-
-def test_warn_or_confirm_proceeds_with_assume_yes(tmp_path: Path) -> None:
-    with patch.object(preflight, "_collect_hollow_review_warnings", return_value={"WP01": ["force_count=2"]}):
-        # assume_yes short-circuits the interactive confirm without raising.
-        preflight._warn_or_confirm_hollow_reviews(
-            feature_dir=tmp_path, wp_ids=["WP01"], assume_yes=True
-        )
+    assert "Hollow reviews detected" not in captured.get()
+    confirm_mock.assert_not_called()
 
 
 def test_warn_or_confirm_aborts_when_user_declines(tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+import typer
 
 from specify_cli.cli.commands.consolidate import (
     _collect_hollow_review_warnings,
@@ -39,7 +40,23 @@ def test_collect_hollow_review_warnings_reads_force_count_and_self_approval(tmp_
     assert "WP03" not in warnings
 
 
-def test_warn_or_confirm_hollow_reviews_assume_yes_does_not_prompt(tmp_path: Path, capsys) -> None:
+def test_warn_or_confirm_hollow_reviews_assume_yes_does_not_prompt(
+    tmp_path: Path, capsys, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``--yes`` skips the confirm prompt even at an interactive terminal.
+
+    The terminal is forced interactive and the prompt would decline, so the
+    merge proceeds only because ``assume_yes`` short-circuits the prompt (under
+    pytest's non-TTY stdin the non-interactive arm alone would proceed).
+    """
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+    prompts: list[str] = []
+
+    def _declining_confirm(text: str, **_kwargs: object) -> bool:
+        prompts.append(text)
+        return False
+
+    monkeypatch.setattr(typer, "confirm", _declining_confirm)
     feature_dir = tmp_path / "kitty-specs" / "034-test"
     feature_dir.mkdir(parents=True)
     (feature_dir / "status.json").write_text(
@@ -52,6 +69,7 @@ def test_warn_or_confirm_hollow_reviews_assume_yes_does_not_prompt(tmp_path: Pat
     out = capsys.readouterr().out
     assert "Hollow reviews detected" in out
     assert "Proceeding without interactive confirmation" in out
+    assert prompts == []
 
 
 def test_warn_or_confirm_hollow_reviews_non_interactive_env_does_not_prompt(
