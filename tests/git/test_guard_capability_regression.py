@@ -138,9 +138,11 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
         # ``fix(finalize): make planning refresh atomic and fail closed``
         # (505c6aeeb5) added two ``refresh_bootstrap_result`` call sites that
         # both default to STANDARD; the count pin was never joined, so this test
-        # was red on main. The per-site protected-refusal assertion below already
-        # covers all four (each is STANDARD); only the count needed updating.
-        ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission", 4),
+        # was red on main. Re-pinned 4 -> 3 (2026-09-30, #5100): the second of
+        # those sites was a duplicate re-plan fallback, replaced by a fail-closed
+        # refusal. The per-site protected-refusal assertion below still checks
+        # every remaining site (each is STANDARD); only the count changed.
+        ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission", 3),
         # Wave 2 degod (#2305) relocated the finalize-tasks family out of the
         # tasks.py shim; its canonical-seeding call site now lives in
         # tasks_finalize.py (routed ``_tasks.bootstrap_canonical_state(...)`` —

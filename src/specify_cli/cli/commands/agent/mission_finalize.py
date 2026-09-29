@@ -4300,12 +4300,10 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             if planning_sha is None:
                 _refuse_planning_pin_refresh("the planning pin decision is missing", json_output=json_output)
             if refresh_bootstrap_result is None:
-                refresh_bootstrap_result = _bootstrap_canonical_state_via_mission(
-                    planning_dir,
-                    mission_slug,
-                    dry_run=True,
-                    **({"owned": owned} if owned else {}),
-                )
+                # Unreachable in the normal flow: the non-validate-only refresh
+                # preflight above always computes this dry-run plan. Fail closed
+                # rather than re-planning a second time (mirrors planning_sha).
+                _refuse_planning_pin_refresh("the canonical bootstrap plan is missing", json_output=json_output)
             _commit_planning_pin_refresh(
                 planning_dir,
                 repo_root,
