@@ -98,17 +98,26 @@ class TestMergePackageAssets:
 
         assert (dest / "AGENTS.md").read_text() == "# New agents"
 
-    def test_missing_source_dir_no_error(self, tmp_path: Path) -> None:
-        """Missing source directory does not raise an error."""
+    def test_empty_source_leaves_dest_managed_assets_intact(self, tmp_path: Path) -> None:
+        """A managed asset the source lacks is left alone in dest, byte for byte.
+
+        Replacement is per asset and only when the source ships it; an empty
+        source must never wipe the installed managed dirs or files.
+        """
         source = tmp_path / "source"
         dest = tmp_path / "dest"
-
-        # Source has nothing (empty)
         source.mkdir(parents=True)
-        dest.mkdir(parents=True)
+        for managed_dir in MANAGED_DIRS:
+            (dest / managed_dir).mkdir(parents=True)
+            (dest / managed_dir / "installed.yaml").write_bytes(f"installed {managed_dir}\n".encode())
+        for managed_file in MANAGED_FILES:
+            (dest / managed_file).write_bytes(f"installed {managed_file}\n".encode())
+        before = {p.relative_to(dest): p.read_bytes() for p in dest.rglob("*") if p.is_file()}
 
-        # Should not raise
         merge_package_assets(source, dest)
+
+        after = {p.relative_to(dest): p.read_bytes() for p in dest.rglob("*") if p.is_file()}
+        assert after == before
 
     def test_parent_dirs_created(self, tmp_path: Path) -> None:
         """Dest parent directories are created if they don't exist."""
