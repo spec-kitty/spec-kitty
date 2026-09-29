@@ -34,6 +34,7 @@ DEVELOPMENT_CONCERN_SUBDIRS: tuple[str, ...] = (
     "getting-started",
     "how-to",
     "reference",
+    "reporting",
     "testing",
 )
 
