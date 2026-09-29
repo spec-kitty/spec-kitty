@@ -1,10 +1,15 @@
 """Tests for charter parser module."""
 
+from pathlib import Path
+
 import pytest
 
 from charter.parser import CharterParser, CharterSection
 
 pytestmark = pytest.mark.fast
+
+#: Repository root, anchored to this file (tests/charter/test_parser.py).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 class TestCharterSection:
     """Tests for CharterSection dataclass."""
@@ -288,24 +293,27 @@ We believe in clear specifications."""
         assert section.requires_ai is True
 
     def test_real_charter_parsing(self, parser):
-        """T026: Parse real charter file successfully."""
-        from pathlib import Path
+        """The committed charter parses into exactly one section per ``##`` /
+        ``###`` heading, in document order, whatever the heading text holds
+        (backticks, parentheses, slashes).
 
+        The path is anchored to this file, so the test runs from any working
+        directory; the repository always carries its charter.
+        """
+        charter_path = _REPO_ROOT / ".kittify" / "charter" / "charter.md"
+        content = charter_path.read_text(encoding="utf-8")
 
-        charter_path = Path(".kittify/charter/charter.md")
-        if not charter_path.exists():
-            pytest.skip("Real charter not found")
+        # Independent oracle: every line whose first token is ``##`` or ``###``.
+        expected_headings = []
+        for line in content.splitlines():
+            marker, _, text = line.partition(" ")
+            if marker in ("##", "###") and text.strip():
+                expected_headings.append((len(marker), text.strip()))
+        # Assumption: the charter is non-trivial and uses both levels.
+        assert len(expected_headings) >= 10
+        assert {level for level, _ in expected_headings} == {2, 3}
 
-        content = charter_path.read_text()
         result = parser.parse(content)
 
-        # Verify we got sections
-        assert len(result) > 0
-
-        # Verify some expected sections exist
-        section_headings = [s.heading for s in result]
-        assert "Purpose" in section_headings or "Technical Standards" in section_headings
-
-        # Verify at least some sections have structured data
-        structured_sections = [s for s in result if not s.requires_ai]
-        assert len(structured_sections) > 0
+        assert [(s.level, s.heading) for s in result if s.level] == expected_headings
+        assert [s for s in result if not s.requires_ai], "no section yielded structured data"
