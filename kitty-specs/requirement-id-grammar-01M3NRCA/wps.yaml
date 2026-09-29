@@ -196,9 +196,9 @@ work_packages:
   - "packs/built-in/missions/mission-steps/software-dev/tasks-packages/prompt.md"
   - "packs/built-in/missions/mission-steps/software-dev/tasks-finalize/prompt.md"
   - "packs/built-in/missions/mission-steps/software-dev/review/prompt.md"
-  - "packs/built-in/missions/software-dev/actions/specify/guidelines.md"
-  - "packs/built-in/missions/software-dev/actions/tasks/guidelines.md"
-  - "packs/built-in/missions/software-dev/actions/review/guidelines.md"
+  - "packs/built-in/missions/mission-steps/software-dev/specify/guidelines.md"
+  - "packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md"
+  - "packs/built-in/missions/mission-steps/software-dev/review/guidelines.md"
   - "src/specify_cli/review/antipattern_checklist.py"
   - "tests/specify_cli/review/test_antipattern_checklist.py"
   requirement_refs:

@@ -84,7 +84,7 @@ src/runtime/next/runtime_bridge_cores.py       # Protocol + required grammar arg
 src/runtime/next/runtime_bridge.py             # :511-528, :1063 supply the grammar
 packs/built-in/missions/software-dev/templates/spec-template.md
 packs/built-in/missions/mission-steps/software-dev/{specify,tasks-outline,tasks-packages,tasks-finalize,review,tasks}/prompt.md
-packs/built-in/missions/software-dev/actions/{specify,tasks,review}/guidelines.md
+packs/built-in/missions/mission-steps/software-dev/{specify,tasks,review}/guidelines.md   # relocated from software-dev/actions/ by upstream #5202 (rebase, 2026-09-29)
 packs/built-in/glossary_packs/…                # Requirement ID, Success criterion, Qualified citation
 docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md
 docs/context/spec-driven.md

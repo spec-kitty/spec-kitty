@@ -28,17 +28,21 @@ Added keys, present on both success and requirement-mapping failure:
 }
 ```
 
-- `requirement_refs_parsed`, `unmapped_*` and all other existing keys are unchanged.
+- `unmapped_*` and all other existing keys keep their name and type. Two existing keys change meaning (pre-PR squad finding, recorded here and in the changelog):
+  - `requirement_refs_parsed` now lists each WP's refs as authored (raw tokens, case preserved, including malformed and foreign ones), where it previously listed the uppercase-normalised subset the old parser recognised.
+  - `unknown_requirement_refs` now lists every ref whose verdict fails (`malformed` or `unknown_spec_id`), not only undeclared well-formed IDs.
 - `requirement_extraction_warnings` no longer contains the "SC … DROPPED, not traced" entry. The key stays.
 - Pass/fail: the command fails if any `rejected_requirement_refs` entry has a reason in `{malformed, unknown_spec_id}`, or if any declared functional ID is unmapped. It never fails on `success_criteria_coverage.unreferenced`.
 
 ## `spec-kitty agent tasks map-requirements --json`
 
-- **Pre-write refusal** (`--refs` or `--batch` holding an unusable ID): the existing `malformed_refs` keys are kept, and `parsed_spec_ids` (flat list, as on the stale gate) is added. The hint names the grammar: kinds FR/NFR/C/SC, a digit string, an optional lowercase letter, and an optional `<mission-slug>#` prefix for another mission's ID.
-- **Stale gate:** `stale_ref_reasons` gains a `foreign_qualified` bucket next to `malformed` and `unknown_spec_id`.
+- **Input tokenisation:** each `--refs` value and each `--batch` list item is split with the grammar's ref tokenizer (commas and/or whitespace), the same split used for stored items, so `"FR-001, FR-002"` is two refs.
+- **Pre-write refusal** (`--refs` or `--batch` holding an unusable ID): the existing `malformed_refs` / `unknown_refs` keys are kept, and `parsed_spec_ids` (flat list, as on the stale gate) is added to both the malformed and the unknown-ID refusal. The hint names the grammar: kinds FR/NFR/C/SC, a digit string, an optional lowercase letter, and an optional `<mission-slug>#` prefix for another mission's ID.
+- **Stale gate:** `stale_ref_reasons` gains a `foreign_qualified` bucket next to `malformed` and `unknown_spec_id`. Foreign-qualified refs are reported only there: they never appear in `stale_refs` (which the hint tells the operator to `--replace`), and a WP whose only offenders are foreign is not listed.
 - **Byte-contract fixture flips** (`byte_contracts.json`):
   - `map_requirements_malformed_ref_error`: `FR-001a` is no longer malformed. If it is undeclared in the fixture spec it becomes `unknown_spec_id`; the fixture is re-pinned to a genuinely malformed token.
   - `map_requirements_stale_frontmatter_error`: `FR-002a` moves from `malformed` to `unknown_spec_id`.
+  - `map_requirements_unknown_spec_ref_error`: gains `parsed_spec_ids` (additive).
   - Hint text: re-pinned.
 - **Success:** added refs are written in canonical form and existing items stay byte-identical, in their original order.
 - **`--replace` success (FR-005):** `--replace` is the explicit, operator-invoked overwrite. Its success payload gains one additive key, `replaced_refs_removed: {WP: [item, …]}`: for every WP the run replaced, the previously stored items that the replacement dropped, raw as they were on disk and in their original order (an empty list when nothing was dropped). The key appears only on `--replace` runs, so the default-mode `map_requirements_success` byte contract does not move.
