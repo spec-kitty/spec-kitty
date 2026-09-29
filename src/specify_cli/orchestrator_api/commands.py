@@ -1313,6 +1313,23 @@ def _status_execution_mode_for_start_workspace(start_ws: _StartWorkspace) -> str
     return "direct_repo" if is_repo_root_lane(start_ws) else "worktree"
 
 
+def _repo_root_lane_branch(main_repo_root: Path, mission: str, manifest: Any) -> str:
+    """Branch a repo-root lane WP executes on (#5100 B1).
+
+    ``manifest.mission_branch`` applies ONLY to a mission whose STORED topology is
+    ``single_branch``. In a ``lanes`` / coordination mission it names the
+    integration branch, while a repo-root (planning-artifact) WP runs on the
+    target branch.
+    """
+    from specify_cli.migration.backfill_topology import stored_topology
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    meta = load_meta_or_empty(main_repo_root / "kitty-specs" / mission)
+    if stored_topology(meta) is MissionTopology.SINGLE_BRANCH and manifest.mission_branch:
+        return str(manifest.mission_branch)
+    return str(manifest.target_branch)
+
+
 def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
     """Back-compat delegator to the hoisted single base-ref authority.
 
@@ -1445,7 +1462,7 @@ def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, missi
         return _StartWorkspace(
             workspace_path=str(main_repo_root),
             lane_id=lane.lane_id,
-            lane_branch=manifest.mission_branch or manifest.target_branch,
+            lane_branch=_repo_root_lane_branch(main_repo_root, mission, manifest),
             lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
         )
 
@@ -1537,7 +1554,7 @@ def _resolve_existing_workspace(main_repo_root: Path, mission: str, wp: str) -> 
         return _StartWorkspace(
             workspace_path=str(main_repo_root),
             lane_id=lane.lane_id,
-            lane_branch=manifest.mission_branch or manifest.target_branch,
+            lane_branch=_repo_root_lane_branch(main_repo_root, mission, manifest),
             lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
         )
 
