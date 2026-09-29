@@ -118,7 +118,6 @@ class TestValidateReadyForReview:
         # Create feature and worktree directories
         feature_dir = tmp_path / "kitty-specs" / "008-feature"
         feature_dir.mkdir(parents=True)
-        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
         worktree_path = lane_worktree_path(tmp_path, "008-feature")
         _mark_fake_worktree(worktree_path)
 
@@ -137,6 +136,16 @@ class TestValidateReadyForReview:
                 return Mock(returncode=0, stdout=f"{lane_branch_name('008-feature')}\n")
             elif "rev-parse" in cmd and "--show-toplevel" in cmd:
                 return Mock(returncode=0, stdout=f"{worktree_path}\n")
+            elif "rev-parse" in cmd and "--git-common-dir" in cmd:
+                # tmp_path is not a real git repository in this fixture — the
+                # lanes.json lock's git-topology probe (kernel.git_topology)
+                # must see a real "not a git repository" failure so it takes
+                # its non-git lock fallback path instead of raising.
+                return Mock(
+                    returncode=128,
+                    stdout="",
+                    stderr="fatal: not a git repository (or any of the parent directories): .git\n",
+                )
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations (MERGE_HEAD, REBASE_HEAD, etc. don't exist)
                 return Mock(returncode=1, stdout="")
@@ -151,6 +160,15 @@ class TestValidateReadyForReview:
             return Mock(returncode=0, stdout="")
 
         mock_run.side_effect = subprocess_side_effect
+
+        # write_single_lane_manifest locks lanes.json via the same
+        # kernel.git_topology probe _validate_ready_for_review uses below, so
+        # it must run only after subprocess_side_effect is wired up (#5408
+        # landing: it previously ran before mock_run.side_effect was set,
+        # hitting the unconfigured default MagicMock and raising
+        # GitTopologyUnavailableError instead of exercising the intended
+        # uncommitted-worktree assertion).
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
 
         is_valid, guidance = _validate_ready_for_review(tmp_path, "008-feature", "WP01", force=False)
 
@@ -186,7 +204,6 @@ class TestValidateReadyForReview:
         # Create feature and worktree directories
         feature_dir = tmp_path / "kitty-specs" / "008-feature"
         feature_dir.mkdir(parents=True)
-        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
         worktree_path = lane_worktree_path(tmp_path, "008-feature")
         _mark_fake_worktree(worktree_path)
 
@@ -201,6 +218,16 @@ class TestValidateReadyForReview:
                 return Mock(returncode=0, stdout=f"{lane_branch_name('008-feature')}\n")
             elif "rev-parse" in cmd and "--show-toplevel" in cmd:
                 return Mock(returncode=0, stdout=f"{worktree_path}\n")
+            elif "rev-parse" in cmd and "--git-common-dir" in cmd:
+                # tmp_path is not a real git repository in this fixture — the
+                # lanes.json lock's git-topology probe (kernel.git_topology)
+                # must see a real "not a git repository" failure so it takes
+                # its non-git lock fallback path instead of raising.
+                return Mock(
+                    returncode=128,
+                    stdout="",
+                    stderr="fatal: not a git repository (or any of the parent directories): .git\n",
+                )
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations
                 return Mock(returncode=1, stdout="")
@@ -209,6 +236,15 @@ class TestValidateReadyForReview:
             return Mock(returncode=0, stdout="")
 
         mock_run.side_effect = subprocess_side_effect
+
+        # write_single_lane_manifest locks lanes.json via the same
+        # kernel.git_topology probe _validate_ready_for_review uses below, so
+        # it must run only after subprocess_side_effect is wired up (#5408
+        # landing: it previously ran before mock_run.side_effect was set,
+        # hitting the unconfigured default MagicMock and raising
+        # GitTopologyUnavailableError instead of exercising the intended
+        # no-commits assertion).
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
 
         is_valid, guidance = _validate_ready_for_review(tmp_path, "008-feature", "WP01", force=False)
 
