@@ -152,8 +152,8 @@ def test_squash_merge_preserves_target_newer_planning_files(tmp_path: Path) -> N
     # Target-newer planning content must survive the squash merge.
     merged_spec = _read_on_target(repo, SPEC_REL)
     merged_wp = _read_on_target(repo, WP_REL)
-    assert merged_spec == SPEC_TARGET_NEWER, "target-newer spec.md was clobbered by the older mission-branch copy via -X theirs (lanes/merge.py:635)"
-    assert merged_wp == WP_TARGET_NEWER, "target-newer tasks/WP01.md was clobbered by the older mission-branch copy via -X theirs (lanes/merge.py:635)"
+    assert merged_spec == SPEC_TARGET_NEWER, "target-newer spec.md was clobbered by the older mission-branch copy"
+    assert merged_wp == WP_TARGET_NEWER, "target-newer tasks/WP01.md was clobbered by the older mission-branch copy"
 
 
 def test_squash_merge_preserves_source_newer_planning_policy(tmp_path: Path) -> None:
