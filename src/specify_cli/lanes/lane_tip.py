@@ -210,7 +210,12 @@ def is_absorbed(repo_root: Path, tip: str, target: str, base: str | None) -> boo
     Checked in order (contract ``lane-work-tip.md``):
 
     1. ``tip == base`` -- no work was ever committed beyond the lane's
-       creation base (the control case: nothing to strand).
+       creation base (the control case: nothing to strand). Trusted ONLY
+       while the lane-tip recorder is verifiably active in this
+       repository's effective hooks dir: otherwise commits never moved the
+       tip, so an unmoved tip proves nothing and the answer is ``False``
+       (fail closed -- the caller refuses and names the recovery), also
+       skipping legs 2-3, which would trivially accept ``base`` itself.
     2. ``git merge-base --is-ancestor tip target`` -- a real (non-squash)
        merge already carried ``tip`` into ``target``.
     3. ``git merge-tree --write-tree target tip`` produces a tree equal to
@@ -227,7 +232,11 @@ def is_absorbed(repo_root: Path, tip: str, target: str, base: str | None) -> boo
             CLOSED on this (refuse), never treat "unsupported" as "absorbed".
     """
     if base is not None and tip == base:
-        return True
+        # Function-local: ``policy.lane_tip_recorder`` imports this package for
+        # the branch-name grammar, so a top-level import here would be circular.
+        from specify_cli.policy.lane_tip_recorder import lane_tip_recorder_active
+
+        return lane_tip_recorder_active(repo_root)
 
     ancestor = subprocess.run(
         ["git", "merge-base", "--is-ancestor", tip, target],

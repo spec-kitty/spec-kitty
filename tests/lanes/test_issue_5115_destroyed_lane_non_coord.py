@@ -341,6 +341,42 @@ def test_tip_equals_base_reopens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert reopened.exit_code == 0, reopened.output
 
 
+def test_destroyed_lane_refuses_when_the_recorder_hook_is_not_active(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
+    """The recorder never installed (husky-style in-tree ``core.hooksPath``): fail CLOSED.
+
+    Commits then never move the lane-tip ref, so ``tip == base`` after the lane is
+    destroyed says nothing about whether real work was committed. Trusting it
+    re-cut an empty lane and left the committed work unreachable (#5115 P0).
+    """
+    ids = _ids(request.node.name)
+    repo_root, mission_dirname = _build_lanes_mission(tmp_path, monkeypatch, mission_slug=ids.mission_slug)
+    husky = repo_root / ".husky" / "_"
+    husky.mkdir(parents=True)
+    (husky / ".gitignore").write_text("*\n", encoding="utf-8")
+    _git(repo_root, "config", "core.hooksPath", ".husky/_")
+
+    claim = _run_cli_implement(mission_dirname, "WP01")
+    assert claim.exit_code == 0, claim.output
+    context = _wp_context(repo_root, mission_dirname, "WP01")
+    worktree_path = Path(repo_root) / context.worktree_path
+    branch_name = context.branch_name
+    assert not (husky / "post-commit").exists()
+
+    _commit_real_work(worktree_path)
+    _destroy_lane(repo_root, worktree_path, branch_name)
+
+    refusal = _run_cli_implement(mission_dirname, "WP01")
+
+    assert refusal.exit_code != 0, refusal.output
+    assert "Lane worktree ready" not in refusal.output
+    assert not branch_exists(repo_root, branch_name)
+    from specify_cli.lanes.worktree_allocator import DestroyedLaneError
+
+    exc = _underlying_exception(refusal)
+    assert isinstance(exc, DestroyedLaneError)
+    assert "git update-ref -d" in exc.next_step
+
+
 def test_ancestor_merged_lane_reopens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
     """US6.3: a real (non-squash) merge already carried the lane's work; destroy it, still re-opens."""
     ids = _ids(request.node.name)

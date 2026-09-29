@@ -16,6 +16,7 @@ import pytest
 if TYPE_CHECKING:
     from specify_cli.lanes.models import ExecutionLane
 
+from specify_cli.policy.lane_tip_recorder import install_lane_tip_recorder
 from specify_cli.lanes.lane_tip import (
     AbsorptionUnsupported,
     clear_tip,
@@ -107,12 +108,48 @@ def test_clear_tip_deletes_the_ref_and_is_idempotent(tmp_path: Path) -> None:
     assert read_tip(repo, "kitty/mission-foo-lane-a") is None
 
 
-def test_is_absorbed_true_when_tip_equals_base(tmp_path: Path) -> None:
+def test_is_absorbed_true_when_tip_equals_base_and_the_recorder_is_active(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    install_lane_tip_recorder(repo)
+    base = _rev(repo, "HEAD")
+
+    assert is_absorbed(repo, tip=base, target="main", base=base) is True
+
+
+def test_is_absorbed_false_when_tip_equals_base_but_no_recorder_is_installed(tmp_path: Path) -> None:
+    """``tip == base`` proves "no work" only if commits WOULD have moved the tip.
+
+    Without the recorder, work committed on the lane never advanced the tip ref,
+    so an unmoved tip is no evidence of an empty lane (the #5115 fail-open).
+    """
     repo = tmp_path / "repo"
     _init_repo(repo)
     base = _rev(repo, "HEAD")
 
-    assert is_absorbed(repo, tip=base, target="main", base=base) is True
+    assert is_absorbed(repo, tip=base, target="main", base=base) is False
+
+
+def test_is_absorbed_false_when_tip_equals_base_under_a_foreign_post_commit_hook(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    hook = repo / ".git" / "hooks" / "post-commit"
+    hook.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    hook.chmod(0o755)
+    install_lane_tip_recorder(repo)  # leaves the foreign hook untouched
+    base = _rev(repo, "HEAD")
+
+    assert is_absorbed(repo, tip=base, target="main", base=base) is False
+
+
+def test_is_absorbed_false_when_tip_equals_base_and_the_recorder_hook_is_not_executable(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    install_lane_tip_recorder(repo)
+    (repo / ".git" / "hooks" / "post-commit").chmod(0o644)
+    base = _rev(repo, "HEAD")
+
+    assert is_absorbed(repo, tip=base, target="main", base=base) is False
 
 
 def test_is_absorbed_true_when_tip_is_ancestor_of_target(tmp_path: Path) -> None:

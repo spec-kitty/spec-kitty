@@ -35,7 +35,7 @@ from pathlib import Path
 from specify_cli.cli.console import console
 from specify_cli.lanes.branch_naming import lane_branch_shell_glob
 
-__all__ = ["install_lane_tip_recorder", "pending_hook_names"]
+__all__ = ["install_lane_tip_recorder", "lane_tip_recorder_active", "pending_hook_names"]
 
 #: The signature line every hook this installer writes carries. Distinct
 #: from :data:`specify_cli.policy.hook_installer.SPEC_KITTY_HOOK_SIGNATURE`
@@ -208,6 +208,25 @@ def _install_one_hook(hooks_dir: Path, name: str) -> Path | None:
             os.unlink(tmp_path_str)
         raise
     return hook_path
+
+
+def lane_tip_recorder_active(repo_root: Path) -> bool:
+    """True iff spec-kitty's own recorder is the ``post-commit`` hook git will run here.
+
+    The lane work-tip ref only tracks a lane's commits while the recorder
+    fires on them, so a tip that never moved proves "no work" only when this
+    holds. It is checked against the EFFECTIVE hooks dir (``core.hooksPath``
+    and a linked worktree's shared common dir both honored) rather than
+    against whether :func:`install_lane_tip_recorder` ever ran: the installer
+    skips an in-tree or global hooks dir, a ``/dev/null`` path and a foreign
+    hook, and every one of those leaves commits unrecorded. Read-only; never
+    raises (a non-repository or unreadable hook reads as "not active").
+    """
+    try:
+        hook_path = _resolve_hooks_dir(repo_root) / "post-commit"
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return _is_lane_tip_hook(hook_path) and os.access(hook_path, os.X_OK)
 
 
 def pending_hook_names(repo_root: Path) -> list[str]:
