@@ -1,0 +1,446 @@
+"""The single rollback authority on REAL temp git repos (WP02 / T010).
+
+No git mocking. Contract guarantees (``contracts/rollback-authority.md``) covered:
+
+* G1 (never moves an unsnapshotted branch): ``test_branch_outside_snapshot_is_never_touched``
+* G2 (CAS on recorded post tip; UNCHANGED_BY_RUN; per-attempt targets):
+  ``test_cas_conflict_*``, ``test_operator_fix_between_attempts_*``,
+  ``test_restore_target_truth_table``, ``test_no_post_tip_is_unchanged_by_run``
+* G3 (FR-011): ``test_verified_landing_*``, ``test_deleted_snapshotted_branch_*``
+* G4 (resync / dirty refusal): ``test_full_restore``, ``test_dirty_primary_checkout_*``
+* G5 (bookkeeping only after full restore; idempotent): ``test_full_restore``,
+  ``test_cas_conflict_*``, ``test_rollback_is_idempotent``
+* NFR-001: ``test_four_lane_rollback_is_fast``
+"""
+
+from __future__ import annotations
+
+import subprocess
+import time
+from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+
+from specify_cli.consolidation.rollback import (
+    BranchOutcomeKind,
+    RollbackReport,
+    _restore_target,
+    begin_attempt,
+    capture_pre_mutation_snapshot,
+    missing_snapshot_branches,
+    record_post_mutation_tips,
+    rollback_to_snapshot,
+    snapshot_branches,
+)
+from specify_cli.consolidation.state import ConsolidationState, load_state
+from specify_cli.lanes.compute import lane_created_branch
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+
+pytestmark = [pytest.mark.git_repo, pytest.mark.fast]
+
+_SLUG = "m-01ABCDEF"
+_MISSION_BRANCH = f"kitty/mission-{_SLUG}"
+_TARGET = "develop"
+
+
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout.strip()
+
+
+def _commit(repo: Path, name: str) -> str:
+    (repo / f"{name.replace('/', '_')}.txt").write_text(f"{name}\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", name)
+    return _git(repo, "rev-parse", "HEAD")
+
+
+def _rev(repo: Path, branch: str) -> str:
+    return _git(repo, "rev-parse", f"refs/heads/{branch}")
+
+
+def _commit_on(repo: Path, branch: str, name: str) -> str:
+    """Commit on ``branch`` without disturbing the primary checkout (uses a temp worktree if needed)."""
+    if _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == branch:
+        return _commit(repo, name)
+    wt = repo.parent / f"wt-{name}"
+    _git(repo, "worktree", "add", "-q", str(wt), branch)
+    try:
+        return _commit(wt, name)
+    finally:
+        _git(repo, "worktree", "remove", "--force", str(wt))
+
+
+@dataclass
+class Env:
+    repo: Path
+    manifest: LanesManifest
+    state: ConsolidationState
+    lane_branches: list[str]
+
+
+def _manifest(lane_ids: list[str], *, planning: bool = False) -> LanesManifest:
+    lanes = [ExecutionLane(lane_id=lid, wp_ids=("WP01",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0) for lid in lane_ids]
+    if planning:
+        lanes.append(ExecutionLane(lane_id="lane-planning", wp_ids=("WP99",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0))
+    return LanesManifest(
+        version=1,
+        mission_slug=_SLUG,
+        mission_id="01ABCDEF" + "0" * 18,
+        mission_branch=_MISSION_BRANCH,
+        target_branch=_TARGET,
+        lanes=lanes,
+        computed_at="2026-01-01T00:00:00+00:00",
+        computed_from="test",
+    )
+
+
+def make_env(tmp_path: Path, lane_ids: list[str] | None = None, *, planning: bool = False) -> Env:
+    repo = tmp_path / "repo"
+    repo.mkdir(parents=True)
+    subprocess.run(["git", "init", "-qb", _TARGET, str(repo)], check=True)
+    for key, value in (("user.email", "t@t.com"), ("user.name", "T"), ("commit.gpgsign", "false")):
+        _git(repo, "config", key, value)
+    (repo / ".gitignore").write_text(".kittify/runtime/\n")  # as in real projects: merge state is never tracked
+    _commit(repo, "base")
+    manifest = _manifest(lane_ids or ["lane-a", "lane-b"], planning=planning)
+    _git(repo, "branch", _MISSION_BRANCH)
+    lane_branches = []
+    for lane in manifest.lanes:
+        branch = lane_created_branch(manifest, lane.lane_id)
+        if branch != _TARGET:
+            _git(repo, "branch", branch, _MISSION_BRANCH)
+            lane_branches.append(branch)
+    state = ConsolidationState(mission_id="M1", mission_slug=_SLUG, target_branch=_TARGET, wp_order=["WP01"])
+    return Env(repo, manifest, state, lane_branches)
+
+
+def _advance_run(env: Env) -> dict[str, str]:
+    """Simulate a consolidation attempt: advance target + mission branch, record post tips."""
+    _commit_on(env.repo, _MISSION_BRANCH, "mission-advance")
+    _commit_on(env.repo, _TARGET, "target-advance")
+    record_post_mutation_tips(env.repo, env.state)
+    return dict(env.state.post_mutation_refs)
+
+
+def _snapshot_and_begin(env: Env, coord_ref: str | None = None) -> dict[str, str]:
+    snap = capture_pre_mutation_snapshot(env.repo, env.state, env.manifest, coord_ref=coord_ref)
+    begin_attempt(env.repo, env.state)
+    return snap
+
+
+def _kinds(report: RollbackReport) -> dict[str, BranchOutcomeKind]:
+    return {o.branch: o.kind for o in report.outcomes}
+
+
+# ------------------------------------------------------------------ capture
+
+
+def test_capture_snapshots_all_branches_and_persists(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    snap = _snapshot_and_begin(env)
+    assert set(snap) == {_TARGET, _MISSION_BRANCH, *env.lane_branches}
+    assert all(snap[b] == _rev(env.repo, b) for b in snap)
+    persisted = load_state(env.repo, "M1")
+    assert persisted is not None and persisted.pre_mutation_refs == snap
+
+
+def test_capture_never_recaptures(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    first = _snapshot_and_begin(env)
+    _advance_run(env)
+    second = capture_pre_mutation_snapshot(env.repo, env.state, env.manifest, coord_ref=None)
+    assert second == first
+
+
+def test_capture_lanes_topology_dedupes_planning_lane_onto_target(tmp_path: Path) -> None:
+    env = make_env(tmp_path, ["lane-a"], planning=True)
+    snap = snapshot_branches(env.repo, env.manifest, coord_ref=None)
+    assert list(snap).count(_TARGET) == 1
+    assert set(snap) == {_TARGET, _MISSION_BRANCH, *env.lane_branches}
+
+
+def test_capture_skips_missing_lane_branch_and_reports_it(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _git(env.repo, "branch", "-D", env.lane_branches[0])
+    snap = snapshot_branches(env.repo, env.manifest, coord_ref=None)
+    assert env.lane_branches[0] not in snap
+    assert missing_snapshot_branches(env.repo, env.manifest, coord_ref=None) == [env.lane_branches[0]]
+
+
+def test_capture_seeds_target_and_coord_from_persisted_anchors(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    coord = "kitty/coord-x"
+    _git(env.repo, "branch", coord)
+    seed_target, seed_coord = "a" * 40, "b" * 40
+    env.state.pre_mutation_target_sha = seed_target
+    env.state.pre_mutation_coord_sha = seed_coord
+    env.state.pre_mutation_coord_ref = coord
+    snap = capture_pre_mutation_snapshot(env.repo, env.state, env.manifest, coord_ref=coord)
+    assert snap[_TARGET] == seed_target
+    assert snap[coord] == seed_coord
+
+
+# ------------------------------------------------------------------ rollback
+
+
+def test_full_restore(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    snap = _snapshot_and_begin(env)
+    env.state.mission_number_baked = True
+    env.state.completed_wps = ["WP01"]
+    env.state.reconciliation_passed_target_sha = "f" * 40  # this attempt's own (non-matching) anchor
+    _advance_run(env)
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert report.fully_restored and not report.advanced_branches
+    kinds = _kinds(report)
+    assert kinds[_TARGET] is kinds[_MISSION_BRANCH] is BranchOutcomeKind.RESTORED
+    restored = {o.branch: o for o in report.outcomes if o.kind is BranchOutcomeKind.RESTORED}
+    assert all(o.restored_to_sha == snap[b] and o.snapshot_sha == snap[b] for b, o in restored.items())
+    assert [kinds[b] for b in env.lane_branches] == [BranchOutcomeKind.ALREADY_AT_SNAPSHOT] * 2
+    assert {b: _rev(env.repo, b) for b in snap} == snap
+    # primary checkout (on develop) is resynced: HEAD == index == worktree
+    assert _git(env.repo, "status", "--porcelain") == ""
+    assert not (env.repo / "target-advance.txt").exists()
+    # bookkeeping cleared, snapshot + restore targets kept
+    assert env.state.completed_wps == [] and env.state.mission_number_baked is False
+    assert env.state.reconciliation_passed_target_sha is None
+    assert env.state.post_mutation_refs == {} and env.state.pre_mutation_refs == snap
+    assert env.state.restore_targets == snap
+
+
+def test_cas_conflict_reports_not_restored_and_keeps_bookkeeping(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    env.state.completed_wps = ["WP01"]
+    post = _advance_run(env)
+    other = _commit_on(env.repo, _MISSION_BRANCH, "other-actor")
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert not report.fully_restored
+    outcome = next(o for o in report.outcomes if o.branch == _MISSION_BRANCH)
+    assert outcome.kind is BranchOutcomeKind.NOT_RESTORED
+    assert outcome.reason is not None and "moved by another actor" in outcome.reason
+    assert outcome.expected_sha == post[_MISSION_BRANCH] == env.state.post_mutation_refs[_MISSION_BRANCH]
+    assert outcome.observed_sha == other
+    assert _rev(env.repo, _MISSION_BRANCH) == other
+    assert env.state.completed_wps == ["WP01"]
+    assert report.advanced_branches == (_MISSION_BRANCH,)
+
+
+def test_operator_fix_between_attempts_is_kept_and_never_reverted(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    lane = env.lane_branches[0]
+    snap = _snapshot_and_begin(env)
+    _advance_run(env)
+    assert rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).fully_restored
+
+    fix = _commit_on(env.repo, lane, "operator-fix")
+    begin_attempt(env.repo, env.state)
+    assert env.state.restore_targets[lane] == fix
+    assert env.state.restore_targets[_TARGET] == snap[_TARGET]
+
+    _advance_run(env)  # the attempt advances target + mission only
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert report.fully_restored
+    assert _kinds(report)[lane] is BranchOutcomeKind.ALREADY_AT_SNAPSHOT  # at its attempt-start target
+    assert _rev(env.repo, lane) == fix
+
+
+def test_operator_fix_without_attempt_in_flight_is_unchanged_by_run(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    lane = env.lane_branches[0]
+    _snapshot_and_begin(env)
+    _advance_run(env)
+    assert rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).fully_restored
+    fix = _commit_on(env.repo, lane, "operator-fix")
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)  # e.g. a later --abort
+
+    assert report.fully_restored
+    assert _kinds(report)[lane] is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert _rev(env.repo, lane) == fix
+
+
+@pytest.mark.parametrize(
+    ("snapshot", "previous_post", "attempt_start", "expected"),
+    [
+        ("S", None, "S", "S"),  # attempt starts at the snapshot
+        ("S", "P", "P", "S"),  # attempt starts at consolidation's own previous post tip
+        ("S", "P", "X", "X"),  # somebody else moved it: keep
+        ("S", None, "X", "X"),
+    ],
+)
+def test_restore_target_truth_table(snapshot: str, previous_post: str | None, attempt_start: str, expected: str) -> None:
+    assert _restore_target(snapshot, previous_post, attempt_start) == expected
+
+
+def test_no_post_tip_is_unchanged_by_run_and_does_not_block(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    tip = _commit_on(env.repo, _MISSION_BRANCH, "advanced-without-post")  # no record_post_mutation_tips
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+    assert report.fully_restored
+    assert _kinds(report)[_MISSION_BRANCH] is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert _rev(env.repo, _MISSION_BRANCH) == tip
+
+
+def test_verified_landing_refuses_and_moves_nothing(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    _advance_run(env)
+    tips = {b: _rev(env.repo, b) for b in env.state.pre_mutation_refs}
+    env.state.reconciliation_passed_target_sha = _rev(env.repo, _TARGET)
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert report.refused_verified_landing and not report.fully_restored
+    assert {b: _rev(env.repo, b) for b in tips} == tips
+    assert "nothing was rolled back" in report.render()
+
+
+def test_deleted_snapshotted_branch_refuses_and_moves_nothing(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    _advance_run(env)
+    _git(env.repo, "branch", "-D", env.lane_branches[0])
+    target_tip = _rev(env.repo, _TARGET)
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert not report.fully_restored and not report.outcomes
+    assert env.lane_branches[0] in (report.reason or "")
+    assert _rev(env.repo, _TARGET) == target_tip
+    text = report.render()
+    assert "no longer exists" in text and "nothing was rolled back" in text.lower()
+    assert "Kept the landing" not in text  # its own truthful line, not the FR-011 verified-landing one
+
+
+def test_dirty_primary_checkout_is_not_restored(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    post = _advance_run(env)
+    (env.repo / "target-advance.txt").write_text("operator edit\n")
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert not report.fully_restored
+    assert _kinds(report)[_TARGET] is BranchOutcomeKind.NOT_RESTORED
+    assert _rev(env.repo, _TARGET) == post[_TARGET]
+    assert (env.repo / "target-advance.txt").read_text() == "operator edit\n"
+
+
+def test_pre_fix_record_without_snapshot_is_a_noop(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    tips = {b: _rev(env.repo, b) for b in (_TARGET, _MISSION_BRANCH)}
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+    assert not report.fully_restored and report.outcomes == ()
+    assert "pre-fix record" in (report.reason or "")
+    assert {b: _rev(env.repo, b) for b in tips} == tips
+
+
+def test_branch_outside_snapshot_is_never_touched(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _git(env.repo, "branch", "unrelated")
+    _snapshot_and_begin(env)
+    _advance_run(env)
+    tip = _commit_on(env.repo, "unrelated", "unrelated-work")
+    rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+    assert _rev(env.repo, "unrelated") == tip
+
+
+def test_rollback_is_idempotent(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    _advance_run(env)
+    assert rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).fully_restored
+    again = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+    assert again.fully_restored
+    assert set(_kinds(again).values()) == {BranchOutcomeKind.ALREADY_AT_SNAPSHOT}
+
+
+def test_coord_restore_clears_pending_coord_reconcile(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    coord = "kitty/coord-x"
+    _git(env.repo, "branch", coord)
+    env.state.pre_mutation_coord_ref = coord
+    _snapshot_and_begin(env, coord_ref=coord)
+    _commit_on(env.repo, coord, "coord-advance")
+    _advance_run(env)
+    env.state.pending_coord_reconcile = {"coord_ref": coord}
+    assert rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).fully_restored
+    assert env.state.pending_coord_reconcile is None
+
+
+def test_coord_cas_conflict_keeps_pending_coord_reconcile(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    coord = "kitty/coord-x"
+    _git(env.repo, "branch", coord)
+    env.state.pre_mutation_coord_ref = coord
+    _snapshot_and_begin(env, coord_ref=coord)
+    _commit_on(env.repo, coord, "coord-advance")
+    _advance_run(env)
+    _commit_on(env.repo, coord, "other-actor-on-coord")  # the coord CAS now conflicts
+    env.state.pending_coord_reconcile = {"coord_ref": coord}
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert not report.fully_restored
+    assert _kinds(report)[coord] is BranchOutcomeKind.NOT_RESTORED
+    assert env.state.pending_coord_reconcile == {"coord_ref": coord}, "the marker must survive a coord ref that was NOT restored"
+
+
+# -------------------------------------------------------------------- render
+
+
+def test_render_full_restore_and_conflict_text(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    _advance_run(env)
+    text = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).render()
+    assert text.startswith("Rollback to the pre-consolidation snapshot:")
+    assert "restored" in text and "unchanged" in text
+    assert "no refs/worktrees were mutated" not in text
+
+    env2 = make_env(tmp_path / "second")
+    _snapshot_and_begin(env2)
+    _advance_run(env2)
+    _commit_on(env2.repo, _MISSION_BRANCH, "other-actor")
+    conflict = rollback_to_snapshot(env2.repo, env2.state, target_branch=_TARGET).render()
+    assert "NOT restored" in conflict and "moved by another actor" in conflict
+    assert "no refs/worktrees were mutated" not in conflict
+
+
+def test_render_no_snapshot_and_kept_lane(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    assert "pre-fix record" in rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).render()
+    _snapshot_and_begin(env)
+    _commit_on(env.repo, _MISSION_BRANCH, "kept")
+    assert "kept" in rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).render()
+
+
+# ------------------------------------------------------------------- NFR-001
+
+
+def test_four_lane_rollback_is_fast(tmp_path: Path) -> None:
+    """NFR-001: restoring 4 branches (with checkout resync) completes in < 2 s."""
+    env = make_env(tmp_path, ["lane-a", "lane-b", "lane-c", "lane-d"])
+    _snapshot_and_begin(env)
+    for index, lane in enumerate(env.lane_branches):  # each lane checked out in its own linked worktree
+        wt = tmp_path / f"lane-wt-{index}"
+        _git(env.repo, "worktree", "add", "-q", str(wt), lane)
+        _commit(wt, f"adv-{index}")
+    _advance_run(env)  # records post tips for all 6 branches (target, mission, 4 lanes)
+
+    started = time.monotonic()
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+    elapsed = time.monotonic() - started
+
+    restored = [o for o in report.outcomes if o.kind is BranchOutcomeKind.RESTORED]
+    assert report.fully_restored and len(restored) == 6
+    assert all(_git(tmp_path / f"lane-wt-{i}", "status", "--porcelain") == "" for i in range(4))
+    print(f"NFR-001 measured rollback time: {elapsed:.3f}s for {len(restored)} restored branches")
+    assert elapsed < 2.0, f"rollback took {elapsed:.3f}s (NFR-001 bound 2s)"

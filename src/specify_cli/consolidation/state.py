@@ -24,6 +24,7 @@ __all__ = [
     "MergeLockError",
     "ConsolidationStateReadError",
     "ConsolidationState",
+    "reconciliation_passed_for_tip",
     "save_state",
     "load_state",
     "clear_state",
@@ -81,6 +82,21 @@ class MergeLockError(Exception):
             "Another merge operation may be running. "
             "If not, remove the lock file manually: spec-kitty consolidate --abort"
         )
+
+
+_REF_MAP_FIELDS = ("pre_mutation_refs", "post_mutation_refs", "restore_targets")
+
+
+def _str_map_or_empty(value: object) -> dict[str, str]:
+    """Return ``value`` when it is a ``dict[str, str]``; otherwise ``{}`` (fail closed)."""
+    if isinstance(value, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in value.items()):
+        return dict(value)
+    return {}
+
+
+def reconciliation_passed_for_tip(state: ConsolidationState, current_target_sha: str) -> bool:
+    """True when a reconciliation PASS was recorded for exactly this target tip."""
+    return bool(current_target_sha) and state.reconciliation_passed_target_sha == current_target_sha
 
 
 @dataclass
@@ -169,6 +185,16 @@ class ConsolidationState:
     # Round-trips through ``from_dict``'s known-fields filter like the other
     # anchors (absent key -> default ``None``).
     reconciliation_passed_target_sha: str | None = None
+    # consolidation-claim-rollback-integrity-01M3PD1T WP02 (#5318/#5332): the
+    # single pre-mutation snapshot (short branch name -> sha), written ONCE by
+    # ``consolidation.rollback.capture_pre_mutation_snapshot`` and never
+    # recaptured; ``post_mutation_refs`` holds the tips THIS attempt produced
+    # (the compare-and-swap expected value of a rollback); ``restore_targets``
+    # is the per-attempt restore commit (``rollback.begin_attempt``). Malformed
+    # values load as ``{}`` (fail closed: "no snapshot"), never coerced.
+    pre_mutation_refs: dict[str, str] = field(default_factory=dict)
+    post_mutation_refs: dict[str, str] = field(default_factory=dict)
+    restore_targets: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -185,6 +211,9 @@ class ConsolidationState:
         """
         known_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in known_fields}
+        for name in _REF_MAP_FIELDS:
+            if name in filtered:
+                filtered[name] = _str_map_or_empty(filtered[name])
         return cls(**filtered)
 
     @property
