@@ -581,6 +581,10 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
 # ===========================================================================
 from specify_cli.cli.commands.agent.tasks_map_requirements import (
     _MapReqState as _MapReqState,
+    # #2991: grammar-backed requirement-ID helpers re-exported so the compat
+    # surface guard (test_tasks_compat_surface.py) sees every native seam
+    # symbol bound on ``tasks``, matching the existing ``_mr_*`` re-exports.
+    _canonical_input_refs as _canonical_input_refs,
     _default_map_requirements_ports as _default_map_requirements_ports,
     _do_map_requirements as _do_map_requirements,
     # WP09 (FR-008, IC-07): the family straggler that stayed behind at WP06 —
@@ -591,8 +595,14 @@ from specify_cli.cli.commands.agent.tasks_map_requirements import (
     # test_tasks_map_requirements_seam.py) and a direct-import surface
     # (test_coord_loop_tasks.py, test_requirement_mapping_coord_surface.py).
     _map_requirements_feature_dir as _map_requirements_feature_dir,
+    # #2991: grammar-backed accepted-refs-by-WP classifier (companion to
+    # _mr_classify_wp_refs below), re-exported per the compat surface guard.
+    _mr_accepted_refs_by_wp as _mr_accepted_refs_by_wp,
     _mr_auto_commit as _mr_auto_commit,
     _mr_build_new_mappings as _mr_build_new_mappings,
+    # #2991: grammar-backed per-WP ref classifier, re-exported per the
+    # compat surface guard.
+    _mr_classify_wp_refs as _mr_classify_wp_refs,
     # bare-prose-requirements-uncounted-01KZYV3C WP06 (#3396) T032a: the
     # fail-loud bare-prose requirement-id detector wrapper _mr_plan calls.
     _mr_detect_bare_prose_requirement_ids as _mr_detect_bare_prose_requirement_ids,
@@ -601,6 +611,9 @@ from specify_cli.cli.commands.agent.tasks_map_requirements import (
     _mr_plan as _mr_plan,
     _mr_resolve_context as _mr_resolve_context,
     _mr_resolve_read_dirs as _mr_resolve_read_dirs,
+    # #2991: grammar-backed sorted spec-id helper, re-exported per the
+    # compat surface guard.
+    _mr_sorted_spec_ids as _mr_sorted_spec_ids,
     _mr_stale_gate as _mr_stale_gate,
     _mr_unknown_wp_gate as _mr_unknown_wp_gate,
     _mr_validate_modes as _mr_validate_modes,

@@ -79,7 +79,7 @@ _TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols
     "_do_finalize_tasks",
 )
 
-_TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396) — 16 symbols
+_TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396, +4 #2991) — 20 symbols
     "_default_map_requirements_ports",
     "_MapReqState",
     "_mr_validate_modes",
@@ -98,6 +98,12 @@ _TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396) — 
     "_mr_emit_output",
     "_do_map_requirements",
     "_map_requirements_feature_dir",
+    # one-requirement-ID-grammar (#2991): grammar-backed classification helpers
+    # added to the map-requirements seam.
+    "_canonical_input_refs",
+    "_mr_accepted_refs_by_wp",
+    "_mr_classify_wp_refs",
+    "_mr_sorted_spec_ids",
 )
 
 _TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
@@ -602,7 +608,13 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     golden count 184 -> 185. #4899 (WP01, review-feedback-to-implementer-
     01M3GKZ8, T004 campsite tidy-first) then added
     ``_mt_persist_rejection_cycle`` (the extracted rejection-cycle persist
-    helper) as a native move-task seam def — golden count 185 -> 186."""
+    helper) as a native move-task seam def — golden count 185 -> 186.
+    one-requirement-ID-grammar (#2991) then added the four grammar-backed
+    map-requirements classification helpers — ``_canonical_input_refs``,
+    ``_mr_accepted_refs_by_wp``, ``_mr_classify_wp_refs`` and
+    ``_mr_sorted_spec_ids`` (tasks_map_requirements 16 -> 20) — native
+    tasks_map_requirements seam defs, re-exported on ``tasks.py`` per the
+    compat surface contract — golden count 186 -> 190."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -610,4 +622,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether this file's own hardcoded-count guard should be
     # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 186  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 190  # golden-count: cardinality-is-contract
