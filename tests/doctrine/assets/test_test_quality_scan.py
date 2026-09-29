@@ -45,6 +45,10 @@ _PLANTED: list[tuple[str, str]] = [
         "def test_guard_present():\n    text = Path('src/specify_cli/x.py').read_text()\n    assert 'guard(' in text\n",
     ),
     ("line-number-pin", "def test_points_at_line():\n    assert error_location() == 'emit.py:42'\n"),
+    (
+        "line-number-pin",
+        "def test_raises_at_line():\n    with pytest.raises(ValueError, match=r'emit\\.py:42'):\n        parse('x')\n",
+    ),
     ("fake-short-ulid", "def test_mission():\n    meta = {'mission_id': 'ABC123'}\n    assert load(meta).ok\n"),
     ("fake-short-ulid", "def test_short_folded():\n    meta = {'mission_id': '01M' + '0' * 5}\n    assert load(meta).ok\n"),
     ("sleep", "def test_waits():\n    time.sleep(0.5)\n    assert done()\n"),
@@ -58,6 +62,8 @@ _PLANTED: list[tuple[str, str]] = [
 _NOT_FLAGGED: list[tuple[str, str]] = [
     ("fake-short-ulid", "def test_real():\n    meta = {'mission_id': '01M' + '0' * 23}\n    assert load(meta).ok\n"),
     ("fake-short-ulid", "def test_real2():\n    assert load(mission_id='01K3N7ZQ8X1V2B3C4D5E6F7G8H').ok\n"),
+    ("line-number-pin", 'def test_doc():\n    """Regression for emit.py:42."""\n    assert run() == 1\n'),
+    ("line-number-pin", "def test_msg():\n    assert run() == 1, 'see emit.py:42'\n"),
 ]
 
 
