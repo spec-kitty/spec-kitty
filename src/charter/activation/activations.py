@@ -116,9 +116,9 @@ ALLOWED_ACTIONS: frozenset[str] = frozenset(
         "merge",
         "accept",
         # Charter-loop verbs (charter context resolution itself is an action).
-        "charter.activation.interview",
+        "charter.interview",
         "charter.generate",
-        "charter.activation.context",
+        "charter.context",
     }
 )
 

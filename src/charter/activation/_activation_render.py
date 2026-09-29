@@ -103,9 +103,9 @@ _FINE_GRAINED_ACTION_PROSE: dict[str, str] = {
 #: grammatical after ``are about to``.
 _ACTION_PROSE: dict[str, str] = {
     "tasks": "work on tasks",
-    "charter.activation.interview": "conduct a charter interview",
+    "charter.interview": "conduct a charter interview",
     "charter.generate": "generate a charter",
-    "charter.activation.context": "load charter context",
+    "charter.context": "load charter context",
 }
 
 

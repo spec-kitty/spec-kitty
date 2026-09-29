@@ -26,6 +26,7 @@ from charter.activation.activations import (
     ActivationEntry,
     resolve_for_context,
 )
+from charter.activation._activation_render import render_activation_stanza
 
 
 pytestmark = [pytest.mark.unit]
@@ -211,6 +212,50 @@ def test_allowed_mission_types_is_a_frozenset() -> None:
     assert isinstance(ALLOWED_MISSION_TYPES, frozenset)
 
 
+@pytest.mark.parametrize("action", ["charter.interview", "charter.generate", "charter.context"])
+def test_charter_loop_action_tokens_are_accepted(action: str) -> None:
+    """The charter-loop verbs are the short dotted tokens of data-model.md §7."""
+    entry = ActivationEntry(
+        activation_context={"action": action},
+        doctrine_pack_id="project",
+        artifact_id="x",
+    )
+    assert entry.activation_context == {"action": action}
+
+
+@pytest.mark.parametrize("action", ["charter.activation.interview", "charter.activation.context"])
+def test_module_path_shaped_action_tokens_are_rejected(action: str) -> None:
+    """The module-path spellings are not action tokens, and no alias maps them
+    (single canonical authority)."""
+    with pytest.raises(ValidationError, match="activation_context"):
+        ActivationEntry(
+            activation_context={"action": action},
+            doctrine_pack_id="project",
+            artifact_id="x",
+        )
+
+
+@pytest.mark.parametrize(
+    ("action", "prose"),
+    [
+        ("charter.interview", "are about to conduct a charter interview"),
+        ("charter.generate", "are about to generate a charter"),
+        ("charter.context", "are about to load charter context"),
+    ],
+)
+def test_charter_loop_action_renders_operator_prose(action: str, prose: str) -> None:
+    entry = ActivationEntry(
+        activation_context={"action": action},
+        doctrine_pack_id="project",
+        artifact_id="caveman-comments",
+        artifact_kind="styleguides",
+    )
+    rendered = render_activation_stanza(
+        [entry], None, mission_type="software-dev", action=action
+    )
+    assert f"When you {prose}," in rendered
+
+
 def test_allowed_actions_is_the_canonical_10_token_set() -> None:
     assert isinstance(ALLOWED_ACTIONS, frozenset)
     expected_actions = frozenset(
@@ -222,9 +267,9 @@ def test_allowed_actions_is_the_canonical_10_token_set() -> None:
             "review",
             "merge",
             "accept",
-            "charter.activation.interview",
+            "charter.interview",
             "charter.generate",
-            "charter.activation.context",
+            "charter.context",
         }
     )
     assert expected_actions == ALLOWED_ACTIONS, (
