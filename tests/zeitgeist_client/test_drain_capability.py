@@ -170,8 +170,39 @@ class TestResolveFocusCapabilityDrainGate:
         assert any("drain-off" in record.message for record in caplog.records)
 
 
+def _store_unexpired_focus_lease() -> None:
+    """Persist a complete, in-scope, unexpired credential + focus lease for the ``clone`` checkout.
+
+    With this in the store and drain ON, ``resolve_focus_lease`` answers with a
+    ``FocusLease`` -- so a ``None`` under drain-off can only come from the gate.
+    """
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://relay",
+        token="bearer",
+        token_kind="presence",
+        expires_at=_iso_in(3600),
+        host="github.com",
+        repo_slug="acme/widget",
+        team="demo",
+    )
+    credentials.store_focus_capability(
+        repo="github.com/acme/widget",
+        capability_credential="focus-capability",
+        expires_at=_iso_in(3600),
+        session_ref="focus-session-ref",
+    )
+
+
 class TestResolveFocusLeaseDrainGate:
+    def test_resolves_the_stored_lease_when_drain_is_on(self, state_root: Path, clone: Path) -> None:
+        """Baseline: the fixture state really yields a lease, so the drain-off
+        test below cannot pass for an unrelated reason (missing credential)."""
+        _store_unexpired_focus_lease()
+        assert resolution.resolve_focus_lease(clone) == resolution.FocusLease("focus-capability", "focus-session-ref")
+
     def test_returns_none_when_drain_is_off(self, state_root: Path, clone: Path, drain_off: None) -> None:
+        _store_unexpired_focus_lease()
         assert resolution.resolve_focus_lease(clone) is None
 
 
