@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "mission_slug": "test-suite-quality-p0-01M3NYXQ",
+  "mission_id": "01M3NYXQ3VPG25Y123YFWGYPCM",
+  "mission_branch": "kitty/mission-test-suite-quality-p0-01M3NYXQ",
+  "target_branch": "claude/p0-5353-test-suite-quality-g3tt8f",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/acceptance/test_post_consolidation.py",
+        "tests/architectural/test_execution_context_parity.py",
+        "tests/charter/test_context_bootstrap_markers.py",
+        "tests/specify_cli/cli/commands/test_upgrade_command.py",
+        "tests/specify_cli/live_work/test_drain_live_work.py",
+        "tests/zeitgeist_client/test_drain_capability.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/cli/commands/test_merge_status_commit.py",
+        "tests/integration/test_post_merge_unrelated_untracked.py",
+        "tests/specify_cli/acceptance/test_acceptance_cores.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/adversarial/test_infrastructure.py",
+        "tests/architectural/_symbol_identity.py",
+        "tests/architectural/test_charter_owner_map_executed.py",
+        "tests/coordination/test_surface_authority_goldens.py",
+        "tests/missions/test_resolution_convergence.py",
+        "tests/unit/test_symbol_identity_spike.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-29T06:53:47.064348+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a2f46cc48e4de16a8df705d7b2adab7037442de1"
+}
