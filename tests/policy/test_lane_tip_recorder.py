@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.lanes.lane_tip import LANE_TIP_REF_PREFIX
 from specify_cli.policy.lane_tip_recorder import (
     LANE_TIP_HOOK_SIGNATURE,
     install_lane_tip_recorder,
@@ -70,6 +71,18 @@ def test_install_into_an_empty_slot(tmp_path: Path) -> None:
         assert hook_path.exists()
         assert LANE_TIP_HOOK_SIGNATURE in hook_path.read_text(encoding="utf-8")
         assert (hook_path.stat().st_mode & 0o777) == 0o755
+
+
+def test_rendered_hook_writes_the_ref_under_the_lane_tip_prefix(tmp_path: Path) -> None:
+    """The hook script and ``lane_tip.tip_ref`` share ONE prefix constant, rendered verbatim."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    install_lane_tip_recorder(repo)
+
+    for name in ("post-commit", "post-rewrite"):
+        text = (repo / ".git" / "hooks" / name).read_text(encoding="utf-8")
+        assert f'git update-ref "{LANE_TIP_REF_PREFIX}${{b#refs/heads/}}" HEAD >/dev/null 2>&1\n' in text
 
 
 def test_skips_a_foreign_hook_and_leaves_its_bytes_unchanged(tmp_path: Path) -> None:

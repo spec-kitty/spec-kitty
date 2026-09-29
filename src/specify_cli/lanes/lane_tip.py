@@ -25,6 +25,7 @@ from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, 
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
 
 __all__ = [
+    "LANE_TIP_REF_PREFIX",
     "AbsorptionUnsupported",
     "clear_tip",
     "is_absorbed",
@@ -34,7 +35,9 @@ __all__ = [
     "tip_ref",
 ]
 
-_LANE_TIP_REF_PREFIX = "refs/spec-kitty/lane-tip/"
+#: Namespace of the hidden, never-pushed lane work-tip refs. The recorder hook
+#: (``policy/lane_tip_recorder.py``) renders this same constant into its script.
+LANE_TIP_REF_PREFIX = "refs/spec-kitty/lane-tip/"
 
 
 class AbsorptionUnsupported(Exception):
@@ -47,7 +50,7 @@ class AbsorptionUnsupported(Exception):
 
 def tip_ref(branch: str) -> str:
     """Return the hidden ref name that records ``branch``'s lane work tip."""
-    return f"{_LANE_TIP_REF_PREFIX}{branch}"
+    return f"{LANE_TIP_REF_PREFIX}{branch}"
 
 
 def record_tip(repo_root: Path, branch: str, sha: str | None = None) -> str | None:

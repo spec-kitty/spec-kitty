@@ -34,6 +34,7 @@ from pathlib import Path
 
 from specify_cli.cli.console import console
 from specify_cli.lanes.branch_naming import lane_branch_shell_glob
+from specify_cli.lanes.lane_tip import LANE_TIP_REF_PREFIX
 
 __all__ = ["install_lane_tip_recorder", "lane_tip_recorder_active", "pending_hook_names"]
 
@@ -67,7 +68,7 @@ b=$(git symbolic-ref -q HEAD) || exit 0
 case "$b" in refs/heads/{lane_branch_shell_glob()}) ;; *) exit 0 ;; esac
 id=${{b##*-lane-}}
 case "$id" in ''|*[!a-z]*) exit 0 ;; esac
-git update-ref "refs/spec-kitty/lane-tip/${{b#refs/heads/}}" HEAD >/dev/null 2>&1
+git update-ref "{LANE_TIP_REF_PREFIX}${{b#refs/heads/}}" HEAD >/dev/null 2>&1
 exit 0
 """
 
