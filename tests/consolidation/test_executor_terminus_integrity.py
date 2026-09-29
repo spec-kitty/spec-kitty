@@ -292,17 +292,27 @@ def test_enforce_resume_anchor_absent_base_without_consolidation_is_noop(tmp_pat
 
 
 def test_enforce_resume_anchor_fresh_is_noop(tmp_path: Path) -> None:
-    """A fresh merge has nothing persisted yet; the guard must never fire on it."""
+    """A fresh merge has nothing persisted yet; the guard must never fire on it.
+
+    The state is the H4-refusing shape (consolidated work, no persisted coord
+    base, coord topology), so only the fresh-run early return keeps it quiet.
+    ``_capture_reconciliation_claim`` calls the guard unconditionally, which is
+    why that early return is load-bearing.
+    """
     repo, _base, _tips = _make_repo(tmp_path)
-    state = _state(repo, pre_mutation_coord_sha=None)
+    state = _state(repo, pre_mutation_coord_sha=None, completed_wps=["WP01"])
     run = _run(repo, state, _manifest(), is_resume=False)
     ex._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
 
 
 def test_enforce_resume_anchor_non_coord_is_noop(tmp_path: Path) -> None:
-    """A non-coord resume (no coord checkpoint) never requires a persisted base."""
+    """A non-coord resume (no coord checkpoint) never requires a persisted base.
+
+    Same H4-refusing shape as the refusal test above (resume, consolidated
+    work, no persisted base); only the non-coord topology differs.
+    """
     repo, _base, _tips = _make_repo(tmp_path)
-    state = _state(repo, pre_mutation_coord_sha=None)
+    state = _state(repo, pre_mutation_coord_sha=None, completed_wps=["WP01"])
     run = _run(repo, state, _manifest(), is_resume=True)
     ex._enforce_resume_anchor_integrity(run, coord_topology=False)  # no raise
 
