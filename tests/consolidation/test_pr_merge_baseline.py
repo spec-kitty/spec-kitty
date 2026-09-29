@@ -873,6 +873,11 @@ def test_verify_effective_root_resolves_declared_target_from_owned_checkout(
     worktree_meta_path = worktree_root / "kitty-specs" / _SLUG / "meta.json"
     worktree_meta = json.loads(worktree_meta_path.read_text(encoding="utf-8"))
     worktree_meta["target_branch"] = "main"
+    # An owned checkout is always a STORED single_branch mission: the owned
+    # preflight (``resolve_owned_mission``) refuses anything else, and an
+    # unstamped mission reads as ``lanes`` at runtime (#5100 FR-013), which the
+    # owned placement arm refuses with OWNED_TOPOLOGY_UNSUPPORTED.
+    worktree_meta["topology"] = "single_branch"
     worktree_meta_path.write_text(json.dumps(worktree_meta) + "\n", encoding="utf-8")
 
     # Bare call (no effective_root): falls back to the PRIMARY repo's bogus
