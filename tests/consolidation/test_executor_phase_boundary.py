@@ -84,9 +84,7 @@ def test_executor_does_not_import_command_shim() -> None:
             modules.add(node.module)
         elif isinstance(node, ast.Import):
             modules.update(alias.name for alias in node.names)
-    assert not any(
-        m.startswith("specify_cli.cli.commands.consolidate") for m in modules
-    ), sorted(modules)
+    assert not any(m.startswith("specify_cli.cli.commands.consolidate") for m in modules), sorted(modules)
 
 
 # --- INV-5: phase ordering in the linear driver -----------------------------
@@ -128,7 +126,8 @@ def test_record_then_commit_then_assert_ordering(tmp_path: Path) -> None:
         patch.object(ex, "_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
         patch.object(ex, "_capture_merge_snapshots", lambda *_a, **_k: {}),
         patch.object(
-            ex, "_target_bookkeeping_status_paths",
+            ex,
+            "_target_bookkeeping_status_paths",
             lambda **_k: (tmp_path / "e.jsonl", tmp_path / "s.json"),
         ),
         patch.object(ex, "_record_baseline_merge_commit", side_effect=_record_baseline),
@@ -136,7 +135,8 @@ def test_record_then_commit_then_assert_ordering(tmp_path: Path) -> None:
         patch.object(ex, "commit_merge_bookkeeping", side_effect=lambda **_k: events.append("commit")),
         patch.object(ex, "_assert_merged_wps_done_on_target", lambda *_a, **_k: None),
         patch.object(
-            ex, "_assert_baseline_merge_commit_on_target",
+            ex,
+            "_assert_baseline_merge_commit_on_target",
             side_effect=lambda *_a, **_k: events.append("assert"),
         ),
     ):
@@ -161,15 +161,18 @@ def test_baseline_record_error_restores_then_exits(tmp_path: Path) -> None:
         patch.object(ex, "_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
         patch.object(ex, "_capture_merge_snapshots", lambda *_a, **_k: {}),
         patch.object(
-            ex, "_target_bookkeeping_status_paths",
+            ex,
+            "_target_bookkeeping_status_paths",
             lambda **_k: (tmp_path / "e.jsonl", tmp_path / "s.json"),
         ),
         patch.object(
-            ex, "_record_baseline_merge_commit",
+            ex,
+            "_record_baseline_merge_commit",
             side_effect=BaselineMergeCommitError("boom"),
         ),
         patch.object(
-            ex, "restore_generated_artifact_snapshots",
+            ex,
+            "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
         pytest.raises(typer.Exit) as exc,
@@ -193,7 +196,8 @@ def test_commit_failure_restores_then_reraises(tmp_path: Path) -> None:
         patch.object(ex, "_paths_have_status_changes", lambda *_a, **_k: True),
         patch.object(ex, "commit_merge_bookkeeping", side_effect=boom),
         patch.object(
-            ex, "restore_generated_artifact_snapshots",
+            ex,
+            "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
         pytest.raises(RuntimeError, match="commit failed"),
@@ -213,7 +217,8 @@ def test_porcelain_invariant_violation_restores_then_exits(tmp_path: Path) -> No
         patch.object(ex, "_raw_porcelain_status", lambda *_a, **_k: (0, " M src/unexpected.py\n")),
         patch.object(ex, "_classify_porcelain_lines", lambda *_a, **_k: ([" M src/unexpected.py"], 0)),
         patch.object(
-            ex, "restore_generated_artifact_snapshots",
+            ex,
+            "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
         pytest.raises(typer.Exit) as exc,
@@ -253,3 +258,61 @@ def test_capture_reconciliation_claim_aborts_clean_on_git_probe_error(tmp_path: 
     assert exc.value.exit_code == 1
     # Strictly pre-mutation: the claim is never partially populated.
     assert run.approved_wp_set is None
+
+
+def _capture_claim_with(run: ex._MergeRunState, claim: object) -> None:
+    """Drive ``_capture_reconciliation_claim`` with every collaborator stubbed except the refusal handling."""
+    with (
+        patch.object(ex, "detect_legacy_in_flight_state", lambda *_a, **_k: None),
+        patch.object(ex, "write_post_fix_marker", lambda *_a, **_k: None),
+        patch.object(ex, "_capture_coord_checkpoint", lambda *_a, **_k: None),
+        patch.object(ex, "_enforce_resume_anchor_integrity", lambda *_a, **_k: None),
+        patch.object(ex, "_resolve_pre_mutation_coord_sha", lambda *_a, **_k: None),
+        patch.object(ex, "_resolve_pre_mutation_target_sha", lambda *_a, **_k: "abc123"),
+        patch.object(ex, "build_approved_wp_set", return_value=claim),
+        # The pre-mutation snapshot/attempt (WP03, #5318) is covered by test_executor_rollback_wiring.
+        patch.object(ex, "_capture_snapshot_and_begin_attempt", lambda *_a, **_k: None),
+    ):
+        ex._capture_reconciliation_claim(run)
+
+
+def _refusing_claim() -> object:
+    from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet
+
+    return ApprovedWpCommitSet(refusal="approved lane lane-a: branch missing", manifest_wp_ids=frozenset({"WP01"}))
+
+
+def test_capture_reconciliation_claim_exits_on_claim_integrity_refusal(tmp_path: Path) -> None:
+    """#5338: a refusing claim exits 1 at claim time, before any mutating phase."""
+    run = _make_run(tmp_path)
+    with pytest.raises(typer.Exit) as exc:
+        _capture_claim_with(run, _refusing_claim())
+    assert exc.value.exit_code == 1
+
+
+def test_capture_reconciliation_claim_accepts_healthy_claim(tmp_path: Path) -> None:
+    from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet
+
+    run = _make_run(tmp_path)
+    claim = ApprovedWpCommitSet(approved={"WP01": ("a" * 40,)}, manifest_wp_ids=frozenset({"WP01"}), surface_resolved=True)
+    _capture_claim_with(run, claim)
+    assert run.approved_wp_set is claim
+
+
+def test_capture_reconciliation_claim_exempts_already_passed_resume(tmp_path: Path) -> None:
+    """FR-002: a resume whose reconciliation PASSed for the current target tip is not refused (#5021)."""
+    run = _make_run(tmp_path)
+    run.is_resume = True
+    run.state.reconciliation_passed_target_sha = "tip"
+    with patch.object(ex, "_resolve_ref_sha", lambda *_a, **_k: "tip"):
+        _capture_claim_with(run, _refusing_claim())
+    assert run.approved_wp_set is not None
+
+
+def test_capture_reconciliation_claim_refuses_resume_when_target_moved_since_pass(tmp_path: Path) -> None:
+    """The exemption is a compare-and-swap: a target that moved since the PASS is refused."""
+    run = _make_run(tmp_path)
+    run.is_resume = True
+    run.state.reconciliation_passed_target_sha = "tip"
+    with patch.object(ex, "_resolve_ref_sha", lambda *_a, **_k: "moved"), pytest.raises(typer.Exit):
+        _capture_claim_with(run, _refusing_claim())

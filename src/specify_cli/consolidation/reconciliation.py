@@ -1370,6 +1370,29 @@ def _closed_world_anchors(lanes_manifest: LanesManifest, lane: ExecutionLane, ta
     return anchors
 
 
+def claim_integrity_refusal(claim: ApprovedWpCommitSet) -> str | None:
+    """Strategy-independent claim-integrity refusal (``verify()`` steps 1-3), or ``None``.
+
+    #5338: the single claim-integrity authority for CLAIM time (acted on in
+    ``_capture_reconciliation_claim`` before any mutation). It covers exactly the
+    three strategy-independent checks: an explicit ``claim.refusal``, an
+    unresolved coordination surface, and a claim that is empty while the manifest
+    lists WPs. The squash "empty authored-blob set" REFUSE and every other
+    content check stay gate-time (they need the post-merge target).
+
+    ``verify()`` still spells the vacuous text inline (its body was rewritten
+    by #5359 and is left untouched here);
+    ``tests/consolidation/test_claim_integrity_refusal.py`` pins the two to the
+    same verdict and text until ``verify()`` is rewired.
+    """
+    reason = MergeOutcomeVerifier._refusal_reason(claim)
+    if reason is not None:
+        return reason
+    if claim.is_vacuous_against_manifest:
+        return f"derived claim is empty while the manifest lists {len(claim.manifest_wp_ids)} WP(s)"
+    return None
+
+
 def _missing_branch_refusal_text(unresolvable: list[tuple[str, str]]) -> str:
     """Compose the PD-5 refusal text, joining multiple lanes deterministically."""
     return "; ".join(
@@ -1774,6 +1797,7 @@ __all__ = [
     "VerifyResult",
     "VerifyStatus",
     "build_approved_wp_set",
+    "claim_integrity_refusal",
     "detect_legacy_in_flight_state",
     "route_terminus",
     "write_post_fix_marker",
