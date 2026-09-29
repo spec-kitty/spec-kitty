@@ -84,7 +84,7 @@ from specify_cli.status import (
     validate_transition,
     wp_state_for,
 )
-from specify_cli.status import _actor_key
+from specify_cli.status import _actor_key, is_latest_implementer
 
 # Terminal lanes that build approval evidence + run the rejected-verdict guard.
 _APPROVAL_LANES: tuple[str, ...] = (Lane.APPROVED, Lane.DONE)
@@ -470,13 +470,14 @@ def _reviewer_arm(req: MoveTaskRequest) -> bool:
 def _implementer_arm(req: MoveTaskRequest) -> bool:
     """The latest implementer resuming or resubmitting its own rework.
 
-    Precondition — call only via :func:`_ownership_role_allowance`, which rejects a
-    ``None``/generic ``latest_implementer`` before this arm runs. (#5196)
+    Key equality is the shared :func:`is_latest_implementer` predicate (#5377), which
+    itself rejects a ``None``/generic ``latest_implementer``; the sole caller
+    :func:`_ownership_role_allowance` also guards that up front. (#5196)
     """
     return (
         resolve_lane_alias(req.old_lane) in _IMPLEMENTER_ARM_SOURCES
         and resolve_lane_alias(req.target_lane) in _IMPLEMENTER_ARM_TARGETS
-        and _actor_key(req.agent) == _actor_key(req.latest_implementer)
+        and is_latest_implementer(req.latest_implementer, req.agent)
     )
 
 

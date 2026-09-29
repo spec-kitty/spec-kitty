@@ -6,7 +6,7 @@ from typing import cast
 
 import pytest
 
-from specify_cli.status import latest_implementer_actor
+from specify_cli.status import is_latest_implementer, latest_implementer_actor
 from specify_cli.status.models import ActorField, Lane, StatusEvent
 from specify_cli.status.work_package_lifecycle import _actor_key
 
@@ -97,3 +97,26 @@ def test_dict_shaped_actor_is_returned_and_projects_through_actor_key() -> None:
     result = latest_implementer_actor([_ev(Lane.PLANNED, Lane.CLAIMED, actor)], "WP01")
     assert result == "codex"
     assert _actor_key(result) == _actor_key(actor) == "codex"
+
+
+@pytest.mark.parametrize("latest", [None, "", "implement-command", "user", "unknown"])
+def test_is_latest_implementer_false_for_missing_or_generic_latest(latest: str | None) -> None:
+    assert is_latest_implementer(latest, IMPL) is False
+    # Even a requester that projects to the same generic key is not an implementer.
+    assert is_latest_implementer(latest, latest or "user") is False
+
+
+def test_is_latest_implementer_same_tool_compact_vs_dict_shaped() -> None:
+    dict_actor = {"tool": "claude", "model": "opus", "profile": "implementer-ivan", "role": "implementer"}
+    assert is_latest_implementer(IMPL, dict_actor) is True
+    assert is_latest_implementer("claude", IMPL) is True
+    assert is_latest_implementer(IMPL, IMPL) is True
+
+
+def test_is_latest_implementer_false_for_a_different_tool() -> None:
+    assert is_latest_implementer(IMPL, REVW) is False
+    assert is_latest_implementer(IMPL, {"tool": "codex", "model": "gpt-5"}) is False
+
+
+def test_is_latest_implementer_false_when_requester_projects_to_no_key() -> None:
+    assert is_latest_implementer(IMPL, None) is False
