@@ -399,7 +399,7 @@ def test_requirement_mapping_facts_grammar_field_has_no_default() -> None:
 
     grammar_field = next(f for f in dataclasses.fields(cores.RequirementMappingFacts) if f.name == "grammar")
     assert grammar_field.default is dataclasses.MISSING
-    assert grammar_field.default_factory is dataclasses.MISSING  # type: ignore[comparison-overlap]
+    assert grammar_field.default_factory is dataclasses.MISSING
 
 
 def test_parse_family_grammar_parameter_has_no_default() -> None:

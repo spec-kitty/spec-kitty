@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -166,6 +167,27 @@ def _last_json(stdout: str) -> dict[str, object]:
     return json.loads(json_lines[-1])
 
 
+def _rejected_refs(payload: dict[str, object], wp_id: str) -> list[dict[str, str]]:
+    """Typed view of ``payload["rejected_requirement_refs"][wp_id]``.
+
+    ``_last_json`` types as ``dict[str, object]`` (arbitrary JSON), so every
+    assertion site over a nested key needs one narrowing point instead of a
+    per-assertion ``# type: ignore``.
+    """
+    rejected = payload["rejected_requirement_refs"]
+    assert isinstance(rejected, dict)
+    refs = rejected[wp_id]
+    assert isinstance(refs, list)
+    return cast("list[dict[str, str]]", refs)
+
+
+def _str_list(payload: dict[str, object], key: str) -> list[str]:
+    """Typed view of a top-level ``payload[key]`` known to be a string list."""
+    value = payload[key]
+    assert isinstance(value, list)
+    return cast("list[str]", value)
+
+
 def _runtime_findings(feature_dir: Path) -> list[str]:
     """The SAME function ``runtime_bridge_io.py`` calls for ``spec-kitty next``."""
     from runtime.next.runtime_bridge import _check_requirement_mapping_ready
@@ -206,7 +228,7 @@ def test_undeclared_sc_positive_control_both_gates_fail_same_reason(tmp_path: Pa
 
     assert finalize_result.exit_code == 1
     payload = _last_json(finalize_result.stdout)
-    assert {"ref": "SC-009", "reason": "unknown_spec_id"} in payload["rejected_requirement_refs"]["WP02"]  # type: ignore[operator]
+    assert {"ref": "SC-009", "reason": "unknown_spec_id"} in _rejected_refs(payload, "WP02")
     assert runtime_findings != []
     assert any("SC-009" in finding and "unknown_spec_id" in finding for finding in runtime_findings)
 
@@ -226,8 +248,8 @@ def test_malformed_ref_parity(tmp_path: Path) -> None:
 
     assert finalize_result.exit_code == 1
     payload = _last_json(finalize_result.stdout)
-    assert payload["rejected_requirement_refs"]["WP01"] == [{"ref": "C-007-mission", "reason": "malformed"}]  # type: ignore[index]
-    assert "FR-001" not in payload["unmapped_functional_requirements"]  # type: ignore[operator]
+    assert _rejected_refs(payload, "WP01") == [{"ref": "C-007-mission", "reason": "malformed"}]
+    assert "FR-001" not in _str_list(payload, "unmapped_functional_requirements")
     assert runtime_findings != []
     assert any("C-007-mission (malformed)" in finding for finding in runtime_findings)
 
@@ -251,9 +273,7 @@ def test_foreign_qualified_ref_parity(tmp_path: Path) -> None:
 
     assert finalize_result.exit_code == 0, finalize_result.stdout
     payload = _last_json(finalize_result.stdout)
-    assert payload["rejected_requirement_refs"]["WP01"] == [  # type: ignore[index]
-        {"ref": "other-mission-01KAAAAA#FR-013", "reason": "foreign_qualified"}
-    ]
+    assert _rejected_refs(payload, "WP01") == [{"ref": "other-mission-01KAAAAA#FR-013", "reason": "foreign_qualified"}]
     assert runtime_findings == []
 
 
@@ -278,7 +298,7 @@ def test_foreign_only_wp_is_missing_in_both_gates(tmp_path: Path) -> None:
 
     assert finalize_result.exit_code == 1
     payload = _last_json(finalize_result.stdout)
-    assert "WP02" in payload["missing_requirement_refs_wps"]  # type: ignore[operator]
+    assert "WP02" in _str_list(payload, "missing_requirement_refs_wps")
     assert payload.get("unknown_requirement_refs", {}) == {}
     assert runtime_findings != []
     assert any("missing refs for WPs" in finding and "WP02" in finding for finding in runtime_findings)
