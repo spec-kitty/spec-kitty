@@ -83,6 +83,34 @@ def test_asset_path_unknown_id_exits_nonzero_naming_it() -> None:
     assert "no-such-asset-xyz" in result.output
 
 
+#: The repository's own org-tier pack; its sidecars anchor at this ``assets/`` dir.
+_INTERNAL_ASSETS_DIR = Path(__file__).resolve().parents[4] / "packs" / "internal" / "assets"
+_INTERNAL_ASSET_IDS = sorted(
+    YAML(typ="safe").load(sidecar.read_text(encoding="utf-8"))["id"]
+    for sidecar in _INTERNAL_ASSETS_DIR.glob("*.asset.yaml")
+)
+
+
+@pytest.mark.parametrize("asset_id", _INTERNAL_ASSET_IDS)
+def test_asset_path_resolves_every_internal_pack_asset_to_its_blob(asset_id: str) -> None:
+    """Each org-tier asset in ``packs/internal`` resolves to a file that exists.
+
+    Org sidecar ``path`` values are relative to the pack's ``assets/`` folder;
+    a ``path: assets/<blob>`` sidecar resolves to a doubled ``assets/assets/``
+    path that is not on disk.
+    """
+    result = runner.invoke(
+        doctrine_app,
+        ["asset", "path", asset_id, "--json"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["tier"] == "org"
+    assert Path(payload["path"]).parent == _INTERNAL_ASSETS_DIR
+    assert Path(payload["path"]).is_file()
+
+
 def test_asset_list_includes_shipped_asset_and_tier() -> None:
     """``asset list`` names the shipped asset and its built-in tier."""
     result = runner.invoke(

@@ -1,4 +1,4 @@
 id: spec-kitty-branded-pdf
 mime: text/x-python
-path: assets/spec-kitty-branded-pdf.py
+path: spec-kitty-branded-pdf.py
 title: Spec Kitty branded PDF generator (Markdown to cream/paper print PDF)
