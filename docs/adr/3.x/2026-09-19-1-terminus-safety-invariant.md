@@ -193,19 +193,31 @@ The "unify, don't fork" rule above is kept and extended; on the rollback path it
   the current target tip is exempt (#5021).
 - **A2 — One snapshot.** Before the first mutation the run persists
   `ConsolidationState.pre_mutation_refs` (target, mission branch, coordination branch when
-  present, every lane branch). `--resume` never recaptures it. After every mutating phase the
-  run records `post_mutation_refs` — the compare-and-swap expected value — except when the phase
-  failed on a compare-and-swap refusal (that tip belongs to another actor). Per attempt,
-  `restore_targets` keeps an operator's own change made between attempts.
+  present, every lane branch). `--resume` never recaptures it; a snapshot first captured when an
+  older record (no snapshot) was resumed lists its live-captured entries in
+  `resume_seeded_refs`, and the report calls them "snapshot taken when this record was resumed",
+  not pre-consolidation. **Lane branches are report-only** (`snapshot_lane_branches`):
+  consolidation never moves them, so they are snapshotted for the report but never recorded and
+  never restored. After every mutating phase the run records `post_mutation_refs` — the
+  compare-and-swap expected value — **only for the target/mission/coordination branches whose tip
+  changed during that phase** (entry tips captured before the phase), except when the phase
+  failed on a compare-and-swap refusal (`RefAdvanceError`/`RefRestoreError`: that tip belongs to
+  another actor). A `RefResyncError` (the CAS write succeeded, only a checkout resync failed) IS
+  recorded: the ref holds this run's tip. Per attempt, `restore_targets` keeps an operator's own
+  change made between attempts.
 - **A3 — One rollback authority.** `consolidation/rollback.py::rollback_to_snapshot` restores
   each snapshotted branch only while it is still at this run's recorded post tip, resyncs every
   checkout of it (dirty-checked first, via the shared `ref_advance._resync_checkouts`), reports
-  per branch (restored / already at snapshot / unchanged by this run / NOT restored with observed
-  vs expected), and clears the bake/completed/passed bookkeeping only after a full restore. It
-  is called by the gate/projection wrapper in the driver and by `consolidate --abort` (before the
-  record is cleared, under the consolidation lock); an AST pin keeps the caller set closed. A
-  landing verified by an earlier attempt, or a snapshot whose branch no longer exists, is never
-  rolled back.
+  per branch (restored / already at snapshot / lane kept / lane missing / NOT restored with
+  observed vs expected), and clears the bake/completed/passed bookkeeping only after a full
+  restore. A run-movable branch that moved with **no** recorded post tip (a kill inside a phase
+  before its recorder ran) is NOT restored — never reported untouched — so `--abort` keeps the
+  record and exits 1. A **missing** snapshotted branch never blocks the rest: a missing lane
+  branch is reported with a `git branch <b> <sha>` recreate hint; a missing target/mission/
+  coordination branch is NOT restored with the same hint. It is called by the gate/projection
+  wrapper in the driver and by `consolidate --abort` (before the record is cleared, under the
+  consolidation lock); an AST pin keeps the caller set closed. A landing verified by an earlier
+  attempt (anchor == live target tip) is never rolled back.
 - **A4 — Truthful text.** Refusal and failure output is followed by the rollback report; no
   message in these paths claims that nothing was mutated when a branch moved.
 - **A5 — No dependency self-heal onto the target checkout.** A planning-lane claim whose
@@ -218,6 +230,17 @@ The "unify, don't fork" rule above is kept and extended; on the rollback path it
 reports as already-at-snapshot) and `coordination/coherence.py::repair_coord_strand`, plus the
 other in-phase exits between the first mutation and the gate — tracked as #5385. Resume-side
 residuals #5371 and #5372 are out of scope.
+
+**Residuals of A2/A3 (pre-PR squad, not closed here).**
+
+- *Same-phase foreign commit.* Recording compares tips at phase entry and exit, so a foreign
+  commit that lands on a run-movable branch inside the same phase, after this run's own CAS
+  advance of that branch and before the phase's recorder runs, is recorded as this run's and a
+  later rollback restores over it. The window is one phase long.
+- *Same-mission `--abort` racing a live run (F7).* `--abort` takes the global consolidation lock
+  owner-gated by the mission id, which a live run of the SAME mission also holds; an abort issued
+  while that run is still mutating is not excluded by the lock. This is the pre-existing
+  owner-token scheme, unchanged by this amendment.
 
 ## Consequences
 
