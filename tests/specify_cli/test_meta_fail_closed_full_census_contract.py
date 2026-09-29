@@ -201,6 +201,7 @@ def _drive_acceptance(feature_dir: Path) -> Any:
     still runs against the real product function.
     """
     import specify_cli.acceptance as acc
+    from specify_cli.acceptance.gates_core import PLANNING_ARTIFACT_ONLY_SKIP_REASON
 
     repo_root = feature_dir.parent.parent
 
@@ -236,6 +237,11 @@ def _drive_acceptance(feature_dir: Path) -> Any:
         git_dirty=[],
         path_violations=[],
         warnings=[],
+        # FR-010 (#4974): without a recorded matrix-gate outcome the pre-stamp
+        # verdict guard refuses before the routed read under test. A
+        # planning-artifact-only mission is the one legitimate bypass, so the
+        # probe takes it to keep reaching the meta.json read.
+        acceptance_matrix_gate_skip_reason=PLANNING_ARTIFACT_ONLY_SKIP_REASON,
     )
 
     original = acc.record_acceptance
