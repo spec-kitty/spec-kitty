@@ -2,7 +2,7 @@
 title: Orchestrator API Reference
 description: Machine-contract API for external orchestration providers.
 doc_status: active
-updated: '2026-09-03'
+updated: '2026-09-29'
 related:
 - docs/api/event-envelope.md
 - docs/migrations/feature-flag-deprecation.md
@@ -817,7 +817,7 @@ Current machine-readable error codes (the authoritative list is
 - `STATUS_READ_PATH_NOT_FOUND`
 - `WP_NOT_FOUND`
 - `TRANSITION_REJECTED`
-- `WP_ALREADY_CLAIMED`
+- `WP_ALREADY_CLAIMED` (after a reviewer's rework verdict, the WP's implementer of record is admitted as a no-op resume rather than refused; an unrelated actor is still refused)
 - `MISSION_NOT_READY`
 - `WORKFLOW_EVIDENCE_REQUIRED`
 - `PREFLIGHT_FAILED`

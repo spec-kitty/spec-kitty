@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,7 @@ from specify_cli.status.work_package_lifecycle import (
     GENERIC_IMPLEMENTATION_ACTORS,
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
+    WorkPackageStartResult,
     _actor_key,
     _actors_compatible,
     start_implementation_status,
@@ -757,3 +759,127 @@ def test_start_implementation_resume_is_not_regated_when_dependency_regresses(tm
     assert result.no_op is True
     assert result.events == ()
     assert reduce(read_events(feature_dir)).work_packages["WP02"]["lane"] == Lane.IN_PROGRESS
+
+
+def _rel_event(
+    event_id: str,
+    *,
+    from_lane: Lane,
+    to_lane: Lane,
+    actor: str,
+    minutes_ago: int,
+    review_ref: str | None = None,
+) -> StatusEvent:
+    """Event stamped relative to now so ordering vs real emits is stable (#3157)."""
+    return StatusEvent(
+        event_id=event_id,
+        mission_slug=_SLUG,
+        wp_id="WP01",
+        from_lane=from_lane,
+        to_lane=to_lane,
+        at=(datetime.now(UTC) - timedelta(minutes=minutes_ago)).isoformat(),
+        actor=actor,
+        force=False,
+        execution_mode="worktree",
+        review_ref=review_ref,
+    )
+
+
+_IMPL = "claude:opus:implementer-ivan:implementer"
+_REVW = "codex:gpt-5:reviewer-renata:reviewer"
+
+
+def _seed_rework_verdict(feature_dir: Path, *, review_ref: str | None) -> None:
+    """implementer claims + starts, hands off, reviewer rejects back to in_progress."""
+    steps = [
+        (Lane.PLANNED, Lane.CLAIMED, _IMPL, None),
+        (Lane.CLAIMED, Lane.IN_PROGRESS, _IMPL, None),
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, _IMPL, None),
+        (Lane.FOR_REVIEW, Lane.IN_REVIEW, _REVW, None),
+        (Lane.IN_REVIEW, Lane.IN_PROGRESS, _REVW, review_ref),
+    ]
+    for i, (frm, to, actor, ref) in enumerate(steps):
+        append_event(
+            feature_dir,
+            _rel_event(
+                f"01CCCC00000000000000000{i}A0",
+                from_lane=frm,
+                to_lane=to,
+                actor=actor,
+                minutes_ago=60 - i,
+                review_ref=ref,
+            ),
+        )
+
+
+def _start(feature_dir: Path, tmp_path: Path, actor: str) -> WorkPackageStartResult:
+    return start_implementation_status(
+        feature_dir=feature_dir,
+        mission_slug=_SLUG,
+        wp_id="WP01",
+        actor=actor,
+        workspace_context="worktree:/nonexistent/wp01",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+    )
+
+
+def test_implementer_of_record_admitted_after_reviewer_rework_verdict(tmp_path: Path) -> None:
+    """#5377: the slot holds the reviewer, but the implementer resumes as a no-op."""
+    feature_dir = _feature_dir(tmp_path)
+    _seed_rework_verdict(feature_dir, review_ref="review-cycle-1")
+    before = len(read_events(feature_dir))
+
+    result = _start(feature_dir, tmp_path, _IMPL)
+
+    assert result.no_op is True
+    assert result.claimed_by == _IMPL
+    assert len(read_events(feature_dir)) == before
+
+
+def test_third_actor_refused_after_reviewer_rework_verdict(tmp_path: Path) -> None:
+    feature_dir = _feature_dir(tmp_path)
+    _seed_rework_verdict(feature_dir, review_ref="review-cycle-1")
+
+    with pytest.raises(WorkPackageClaimConflict):
+        _start(feature_dir, tmp_path, "gemini:pro:other:implementer")
+
+
+def test_forced_reviewer_move_without_review_ref_does_not_admit_original_implementer(tmp_path: Path) -> None:
+    """No review_ref => the reviewer's move counts as an implementing claim."""
+    feature_dir = _feature_dir(tmp_path)
+    _seed_rework_verdict(feature_dir, review_ref=None)
+
+    with pytest.raises(WorkPackageClaimConflict):
+        _start(feature_dir, tmp_path, _IMPL)
+
+
+def test_implementer_of_record_read_failure_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.coordination.status_transition as st
+
+    feature_dir = _feature_dir(tmp_path)
+    _seed_rework_verdict(feature_dir, review_ref="review-cycle-1")
+
+    def _boom(**_kwargs: object) -> object:
+        raise OSError("event log unreadable")
+
+    monkeypatch.setattr(st, "read_events_transactional", _boom)
+
+    with pytest.raises(WorkPackageClaimConflict):
+        _start(feature_dir, tmp_path, _IMPL)
+
+
+def test_slot_occupant_resume_does_no_extra_event_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: the happy path (occupant resumes) never consults the events."""
+    import specify_cli.coordination.status_transition as st
+
+    feature_dir = _feature_dir(tmp_path)
+    append_event(feature_dir, _rel_event("01DDDD0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor="claude", minutes_ago=10))
+    append_event(feature_dir, _rel_event("01DDDD0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, actor="claude", minutes_ago=9))
+
+    def _boom(**_kwargs: object) -> object:
+        raise AssertionError("happy path must not read events")
+
+    monkeypatch.setattr(st, "read_events_transactional", _boom)
+
+    assert _start(feature_dir, tmp_path, "claude").no_op is True

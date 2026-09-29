@@ -95,7 +95,30 @@ def test_role_read_failure_fails_closed_to_the_old_refusal(tmp_path: Path, monke
     assert allowed.exit_code == 0, allowed.output
 
 
-@pytest.mark.regression
+def test_implementer_resume_read_failure_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5377: if the implementer-of-record read fails, ``action implement`` keeps refusing.
+
+    Same fixture, both halves: with the transactional event read raising, the
+    implementer is refused (exit 1); with it restored, the identical resume succeeds.
+    """
+    import specify_cli.coordination.status_transition as status_transition
+
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    h.reject(m, "in_review_to_in_progress")
+
+    def _boom(*_a: object, **_k: object) -> list[object]:
+        raise RuntimeError("simulated event-log read failure")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(status_transition, "read_events_transactional", _boom)
+        refused = h.implement(m, h.IMPLEMENTER, monkeypatch)
+    assert refused.exit_code == 1, refused.output
+
+    allowed = h.implement(m, h.IMPLEMENTER, monkeypatch)
+    assert allowed.exit_code == 0, allowed.output
+
+
 def test_action_implement_resumes_after_in_progress_rejection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#5377: the implementer of record resumes via ``agent action implement``, unforced.
 
