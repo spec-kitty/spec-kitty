@@ -119,6 +119,47 @@ def test_body_hash_changes_on_genuine_field_edit() -> None:
     assert body_hash(_BASE_CLASS_SRC, span_a) != body_hash(mutated, span_b)
 
 
+def _class_body_hash(source: str) -> str:
+    span = definition_span(ast.parse(source), "Sample")
+    assert span is not None
+    return body_hash(source, span)
+
+
+def test_body_hash_stable_under_intra_class_comment_insertion() -> None:
+    """A comment inserted inside the class body must not move the key (NFR-001)."""
+    mutated = '''class Sample:
+    """Doc."""
+
+    field_one: int
+    # a comment describing field_two, added later
+    field_two: str
+'''
+    assert _class_body_hash(_BASE_CLASS_SRC) == _class_body_hash(mutated)
+
+
+def test_body_hash_stable_under_intra_line_whitespace_reformat() -> None:
+    """Intra-line whitespace reformatting must not move the key (NFR-001)."""
+    mutated = '''class Sample:
+    """Doc."""
+
+    field_one   :    int
+    field_two:str
+'''
+    assert _class_body_hash(_BASE_CLASS_SRC) == _class_body_hash(mutated)
+
+
+def test_body_hash_control_real_edit_alters_key_despite_noise() -> None:
+    """Control: comment + whitespace noise PLUS a real edit still changes the key."""
+    mutated = '''class Sample:
+    """Doc."""
+
+    field_one   :    int
+    # noise
+    field_two:bool
+'''
+    assert _class_body_hash(_BASE_CLASS_SRC) != _class_body_hash(mutated)
+
+
 def test_definition_span_plain_assign() -> None:
     src = "TIMEOUT = 30\n"
     tree = ast.parse(src)
@@ -228,9 +269,7 @@ def test_single_alias_hash_differs_for_different_bound_names() -> None:
     """Negative control: distinct aliases must not collapse to the same hash."""
     src = "from foo.bar import Alpha, Beta as B, Gamma\n"
     tree = ast.parse(src)
-    assert alias_body_hash(src, _find_alias(tree, "Alpha")) != alias_body_hash(
-        src, _find_alias(tree, "Gamma")
-    )
+    assert alias_body_hash(src, _find_alias(tree, "Alpha")) != alias_body_hash(src, _find_alias(tree, "Gamma"))
 
 
 def test_resolve_symbol_key_bare_import_from_single_name() -> None:
@@ -247,7 +286,7 @@ def test_resolve_symbol_key_bare_import_from_single_name() -> None:
 # T003 — facade-dict KEY-side resolver, both shapes (FR-003, rescoped)
 # ---------------------------------------------------------------------------
 
-_SYNC_STYLE_FACADE_SRC = '''
+_SYNC_STYLE_FACADE_SRC = """
 _EVENTS_MODULE = ".events"
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Foo": (".bar", "Foo"),
@@ -257,7 +296,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
 
 def __getattr__(name):
     module_path, attr = _LAZY_IMPORTS[name]
-'''
+"""
 
 _SYNC_TARGET_BAR_SRC = '''class Foo:
     """Doc."""
@@ -303,7 +342,7 @@ def test_facade_sync_style_two_tuple_resolves_str_const_module() -> None:
     assert key.body_hash == target_key.body_hash
 
 
-_RUNTIME_STYLE_FACADE_SRC = '''
+_RUNTIME_STYLE_FACADE_SRC = """
 from importlib import import_module
 
 _MIGRATE_MODULE = "pkg.migrate"
@@ -317,7 +356,7 @@ def __getattr__(name):
     module_name = _EXPORT_MODULES[name]
     value = getattr(import_module(module_name), name)
     return value
-'''
+"""
 
 _RUNTIME_TARGET_MIGRATE_SRC = '''class AssetDisposition:
     """Doc."""
@@ -339,9 +378,7 @@ def test_facade_runtime_style_one_value_dict_is_keyable() -> None:
     must not."""
     corpus = _runtime_style_corpus()
     key = resolve_symbol_key("AssetDisposition", "pkg.runtime", corpus["pkg.runtime"], corpus=corpus)
-    target_key = resolve_symbol_key(
-        "AssetDisposition", "pkg.migrate", corpus["pkg.migrate"], corpus=corpus
-    )
+    target_key = resolve_symbol_key("AssetDisposition", "pkg.migrate", corpus["pkg.migrate"], corpus=corpus)
     assert key is not None
     assert target_key is not None
     assert key.body_hash == target_key.body_hash
@@ -541,8 +578,8 @@ class Widget:
 # this substrate property only for ClassDef/FunctionDef.
 # ---------------------------------------------------------------------------
 
-_FSTRING_ANN_ASSIGN_SRC = '''GREETING: str = f"hello {name}"
-'''
+_FSTRING_ANN_ASSIGN_SRC = """GREETING: str = f"hello {name}"
+"""
 
 
 def test_dod_j_ann_assign_fstring_interpolation_stripped_both_interpreters() -> None:
@@ -557,9 +594,7 @@ def test_dod_j_ann_assign_fstring_interpolation_stripped_both_interpreters() -> 
 
 
 def test_dod_j_ann_assign_hash_unaffected_by_fstring_interpolation_change() -> None:
-    reinterpolated = _FSTRING_ANN_ASSIGN_SRC.replace(
-        'f"hello {name}"', 'f"a totally different greeting {other_var}"'
-    )
+    reinterpolated = _FSTRING_ANN_ASSIGN_SRC.replace('f"hello {name}"', 'f"a totally different greeting {other_var}"')
     assert reinterpolated != _FSTRING_ANN_ASSIGN_SRC  # sanity: a real textual change
     tree_a, tree_b = ast.parse(_FSTRING_ANN_ASSIGN_SRC), ast.parse(reinterpolated)
     span_a = definition_span(tree_a, "GREETING")
@@ -592,13 +627,7 @@ def test_dod_j_single_alias_hash_unaffected_by_unrelated_fstring_sibling() -> No
 def _synthetic_corpus(module_count: int) -> dict[str, CorpusModule]:
     corpus: dict[str, CorpusModule] = {}
     for i in range(module_count):
-        src = (
-            f"class Thing{i}:\n"
-            f'    """Doc {i}."""\n\n'
-            f"    field: int\n\n"
-            f"CONST_{i}: int = {i}\n\n"
-            f"__all__ = ['Thing{i}', 'CONST_{i}']\n"
-        )
+        src = f'class Thing{i}:\n    """Doc {i}."""\n\n    field: int\n\nCONST_{i}: int = {i}\n\n__all__ = [\'Thing{i}\', \'CONST_{i}\']\n'
         module_path = f"pkg.synthetic_{i}"
         corpus[module_path] = _module(src, containing_pkg=module_path)
     return corpus
@@ -649,18 +678,14 @@ def test_source_module_ignored_by_equality_content_tier() -> None:
     """G1: two content-tier keys equal in (bare_name, body_hash) but differing
     in source_module (None vs set) compare equal."""
     resolver_key = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef")
-    allowlist_key = SymbolKey(
-        bare_name="ArtifactKind", body_hash="deadbeef", source_module="charter.offering.artifact_kinds"
-    )
+    allowlist_key = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef", source_module="charter.offering.artifact_kinds")
     assert resolver_key == allowlist_key
 
 
 def test_source_module_ignored_by_equality_collision_tier() -> None:
     """G1, escalated tier: an equal (bare_name, module_path, body_hash) triple
     still compares equal regardless of source_module."""
-    resolver_key = SymbolKey(
-        bare_name="ArtifactKind", body_hash="deadbeef", module_path="charter.offering.directives"
-    )
+    resolver_key = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef", module_path="charter.offering.directives")
     allowlist_key = SymbolKey(
         bare_name="ArtifactKind",
         body_hash="deadbeef",
@@ -676,9 +701,7 @@ def test_source_module_ignored_by_hash_and_frozenset_membership() -> None:
     resolver-minted key carrying NO provenance must still be found `in` an
     allowlist frozenset whose entry carries a non-None source_module."""
     resolver_key = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef")
-    allowlist_entry = SymbolKey(
-        bare_name="ArtifactKind", body_hash="deadbeef", source_module="charter.offering.artifact_kinds"
-    )
+    allowlist_entry = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef", source_module="charter.offering.artifact_kinds")
     assert hash(resolver_key) == hash(allowlist_entry)
     allowlist = frozenset({allowlist_entry})
     assert resolver_key in allowlist
@@ -698,9 +721,7 @@ def test_source_module_does_not_escalate_content_tier() -> None:
     resolved = resolve_symbol_key("Solo", "pkg.solo", module, corpus=corpus)
     assert resolved is not None
 
-    key = SymbolKey(
-        bare_name=resolved.bare_name, body_hash=resolved.body_hash, source_module="pkg.solo"
-    )
+    key = SymbolKey(bare_name=resolved.bare_name, body_hash=resolved.body_hash, source_module="pkg.solo")
     assert key.is_content_tier
 
     tiered = key_tier(key, "pkg.solo", index)
@@ -731,9 +752,7 @@ def test_source_module_does_not_affect_body_hash_and_resolver_key_has_none() -> 
     assert resolved is not None
     assert resolved.source_module is None  # resolver never mints provenance
 
-    with_provenance = SymbolKey(
-        bare_name=resolved.bare_name, body_hash=resolved.body_hash, source_module="pkg.widgets"
-    )
+    with_provenance = SymbolKey(bare_name=resolved.bare_name, body_hash=resolved.body_hash, source_module="pkg.widgets")
     assert with_provenance.body_hash == resolved.body_hash
 
     # A sibling key (different bare_name) is unaffected by this one gaining provenance.

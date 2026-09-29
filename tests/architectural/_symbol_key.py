@@ -10,14 +10,14 @@ contracts/symbol-key-resolver.md) for the full design record.
 .. warning::
    **Test-infra scaffolding, NOT a src/ module.** ``_``-prefixed, non-collected
    by pytest, and lives under ``tests/architectural/`` exactly like
-   ``_ratchet_keys.py`` / ``_symbol_identity.py``: a ``src/`` module imported
-   only by tests would RED ``test_no_dead_modules`` (zero non-test callers).
-   Do NOT edit or delete the WP06 spike (``_symbol_identity.py`` /
-   ``tests/unit/test_symbol_identity_spike.py``) — this module owns its own
-   file but may lift the spike's proven ``ClassDef``/``FunctionDef`` logic
-   (C-002). The spike's ``definition_span`` has NO ``AnnAssign`` branch and
-   hashes the *whole* ``ImportFrom`` statement — this module fixes both gaps
-   and carries its own stability proofs (spec.md Assumptions).
+   ``_ratchet_keys.py``: a ``src/`` module imported only by tests would RED
+   ``test_no_dead_modules`` (zero non-test callers). This module lifted the
+   proven ``ClassDef``/``FunctionDef`` logic from the retired WP06 spike
+   (``_symbol_identity.py``, deleted once this resolver and
+   ``tests/unit/test_symbol_key.py`` covered the same contract) and fixes its
+   gaps: the spike's ``definition_span`` had NO ``AnnAssign`` branch and hashed
+   the *whole* ``ImportFrom`` statement. This module carries its own stability
+   proofs (spec.md Assumptions).
 
 Honest downscope (C-001, load-bearing)
 ---------------------------------------
@@ -197,8 +197,7 @@ def _hash_text(normalized: str) -> str:
     # specific (BOM/CRLF normalization, "sha256:" prefix format) and is the
     # wrong domain for a source-code token-span digest. TID251's own message
     # names "body checksums" as a sanctioned non-charter exception. Mirrors
-    # the identical, reviewed rationale in the WP06 spike
-    # (``_symbol_identity.py::_hash_token_span``).
+    # the identical, reviewed rationale of the retired WP06 spike.
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()  # noqa: TID251
 
 
