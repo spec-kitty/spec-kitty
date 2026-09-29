@@ -382,6 +382,41 @@ class TestMapRequirementsGrammarFocused:
         assert result.exit_code == 0, result.stdout
         assert _raw_refs(feature_dir, "WP01") == ["SC-001", "FR-006a"]
 
+    def test_batch_comma_joined_item_splits_into_two_refs(self, mock_locate: Mock, mock_slug: Mock, mock_branch: Mock, tmp_path: Path) -> None:
+        """C4: a ``--batch`` list item may itself be a comma-joined pair --
+        the shell must route it through ``grammar.tokenize_refs`` (the same
+        ``[,\\s]+`` split stored items get), not accept it verbatim as one
+        token."""
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        feature_dir = _setup_feature(tmp_path, wp_refs={"WP01": "[]"})
+
+        batch = json.dumps({"WP01": ["FR-001, FR-002"]})
+        result = runner.invoke(tasks_app, ["map-requirements", "--batch", batch, "--json"])
+        assert result.exit_code == 0, result.stdout
+        assert _raw_refs(feature_dir, "WP01") == ["FR-001", "FR-002"]
+
+    def test_refs_whitespace_separated_splits_into_two_refs(self, mock_locate: Mock, mock_slug: Mock, mock_branch: Mock, tmp_path: Path) -> None:
+        """C4: ``--refs`` split on ``,`` only before this fold; whitespace-
+        separated tokens (no comma) must also be accepted as separate refs
+        via ``grammar.tokenize_refs``."""
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        feature_dir = _setup_feature(tmp_path, wp_refs={"WP01": "[]"})
+
+        result = _invoke("--wp", "WP01", "--refs", "FR-001 FR-002")
+        assert result.exit_code == 0, result.stdout
+        assert _raw_refs(feature_dir, "WP01") == ["FR-001", "FR-002"]
+
+        # Positive control (same fixture): a genuinely malformed token,
+        # whitespace-joined with a well-formed one, is still refused -- the
+        # shared tokenizer splits the input, it never widens what's accepted.
+        control = _invoke("--wp", "WP01", "--refs", "FR-001 FR_bad")
+        assert control.exit_code == 1
+        assert _raw_refs(feature_dir, "WP01") == ["FR-001", "FR-002"]
+
 
 class TestCanonicalInputRefs:
     """T016 pure helper: ``_canonical_input_refs``."""

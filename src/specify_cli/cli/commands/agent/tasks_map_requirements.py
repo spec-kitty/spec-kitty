@@ -256,7 +256,7 @@ def _mr_build_new_mappings(st: _MapReqState) -> None:
                     f"Refs for {wp_id} must be a list of strings",
                 )
                 raise typer.Exit(1)
-            st.new_mappings[wp_id.upper()] = _canonical_input_refs(ref_list)
+            st.new_mappings[wp_id.upper()] = _canonical_input_refs(grammar.tokenize_refs(ref_list))
     elif st.tracker_only_mode:
         # Only --wp + --tracker-ref: no requirement refs to validate, but we still
         # register the WP key so the persistence loop visits it.
@@ -266,7 +266,7 @@ def _mr_build_new_mappings(st: _MapReqState) -> None:
         if st.wp is None or st.refs is None:
             _tasks._output_error(st.json_output, "Both --wp and --refs are required in individual mode.")
             raise typer.Exit(1)
-        ref_list_parsed = [ref.strip() for ref in st.refs.split(",") if ref.strip()]
+        ref_list_parsed = grammar.tokenize_refs(st.refs)
         st.new_mappings[st.wp.upper()] = _canonical_input_refs(ref_list_parsed)
 
 
