@@ -55,7 +55,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | A lane that resolves to a `.worktrees/` lane worktree and a lane branch. Only `lanes`, `lanes_with_coord` and flat missions have code lanes. A [repo-root lane](#repo-root-lane) is never a code lane. A `single_branch` mission whose `lanes.json` holds a code lane is unmigrated and fails closed with `SINGLE_BRANCH_CODE_LANES_UNMIGRATED`; the remedy is the re-stamp migration or `spec-kitty migrate backfill-topology --restamp-single-branch`. |
+| **Definition** | A lane that resolves to a `.worktrees/` lane worktree and a lane branch. Only `lanes` and `lanes_with_coord` missions have code lanes. A [repo-root lane](#repo-root-lane) is never a code lane. A `single_branch` mission whose `lanes.json` holds a code lane is unmigrated and fails closed with `SINGLE_BRANCH_CODE_LANES_UNMIGRATED`; the remedy is the re-stamp migration or `spec-kitty migrate backfill-topology --restamp-single-branch`. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -94,11 +94,11 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The last commit made on a lane branch, recorded when the commit happens, independent of any spec-kitty command. It is stored in `refs/spec-kitty/lane-tip/<branch>`, written by a POSIX `post-commit` / `post-rewrite` hook when the recorder is installed (migration `m_4_0_0rc5_install_lane_tip_recorder`; a foreign hook is left untouched), plus spec-kitty's own record points (`implement`, `for_review` transitions, crash recovery, auto-rebase; `src/specify_cli/lanes/lane_tip.py`). It is distinct from the lane's creation base. A destroyed lane with unabsorbed work is refused with `DESTROYED_LANE`, which names the SHA and the restore command `git branch <b> refs/spec-kitty/lane-tip/<b>`. |
+| **Definition** | The last commit made on a lane branch, recorded when the commit happens, independent of any spec-kitty command. It is stored in `refs/spec-kitty/lane-tip/<branch>`, written by a POSIX `post-commit` / `post-rewrite` hook when the recorder is installed (migration `4_0_0rc5_install_lane_tip_recorder`; a foreign hook is left untouched; the hooks are skipped with a warning when `core.hooksPath` is `/dev/null`, missing, or inside the working tree), plus spec-kitty's own record points (`implement`, `for_review` transitions, crash recovery, auto-rebase; `src/specify_cli/lanes/lane_tip.py`). It is distinct from the lane's creation base. A destroyed lane with unabsorbed work is refused with `DESTROYED_LANE`, which names the SHA and the restore command `git branch <b> refs/spec-kitty/lane-tip/<b>`. `LANE_WORK_TIP_UNKNOWN` (`LaneWorkTipUnknownError`) fires when a lane's branch was deleted before any work tip was recorded, or after its `refs/spec-kitty/lane-tip/<branch>` ref was deleted: nothing is left to classify the lane by, so the guard fails closed. Its message says to look for stranded commits (`git reflog <branch>` or `git fsck --lost-found`); if you find one, record it with `git update-ref refs/spec-kitty/lane-tip/<branch> <sha>` and re-run `implement`; if you are sure no work was ever committed, run `spec-kitty context cleanup` to clear the stale workspace record and retry. Abandoning a destroyed lane (`DESTROYED_LANE`) is two steps today: `git update-ref -d refs/spec-kitty/lane-tip/<branch>`, then `spec-kitty context cleanup`. Squash-absorption detection needs git >= 2.38 (`git merge-tree --write-tree`); on older git the guard fails closed and refuses even a genuinely squash-merged lane. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the commit a lane was cut from — say "lane base". Never write bare "head" or "lane tip" for the work tip. |
+| **Do NOT use when** | The concept is the commit a lane was cut from — say "lane base". Never write a bare "head" or a bare "tip" for the work tip. |
 | **Related terms** | [absorbed lane](#absorbed-lane), [code lane](#code-lane), [Lane](./orchestration.md#lane) |
 
 ---
@@ -107,7 +107,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | A lane whose [work tip](#lane-work-tip) is an ancestor of the target, equals the lane's base (`tip == base`, nothing was ever committed), or whose integration into the target would change nothing (for example after a squash). The destroyed-lane guard treats an absorbed lane as safe to re-cut; an unabsorbed one is refused. If git cannot evaluate absorption the check fails closed and the lane is not treated as absorbed. |
+| **Definition** | A lane whose [work tip](#lane-work-tip) is an ancestor of the target, equals the lane's base (`tip == base`, nothing was ever committed), or whose integration into the target would change nothing (for example after a squash). The destroyed-lane guard treats an absorbed lane as safe to re-cut; an unabsorbed one is refused. Squash detection needs git >= 2.38; if git cannot evaluate absorption (including any older git) the check fails closed and the lane is not treated as absorbed. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

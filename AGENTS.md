@@ -364,7 +364,7 @@ Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releas
   required to run `/spec-kitty.specify` / `/spec-kitty.plan` / `/spec-kitty.tasks`.
 - `spec-kitty implement WP##` creates/reuses the execution workspace via
   `resolve_workspace_for_wp` (`src/specify_cli/workspace/context.py`).
-  `lanes` / `lanes_with_coord` / flat missions resolve
+  `lanes` / `lanes_with_coord` missions resolve
   `.worktrees/<slug>-lane-<id>` from `lanes.json`; a missing manifest fails
   closed with `MissingLanesError` (`src/specify_cli/lanes/persistence.py`).
   There is no `-WP##` fallback.
@@ -378,19 +378,23 @@ Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releas
   exempt), all in `src/specify_cli/lanes/implement_support.py`.
 - **Create-time topology.** On a non-primary branch the create default is `lanes`.
   `single_branch` comes only from `--topology single_branch` or `--owned-checkout`.
+  Caveat: in a repository with no `origin/HEAD` (for example no remote), primary-branch
+  detection falls back to the current branch (`resolve_primary_branch`, `src/specify_cli/core/git_ops.py`),
+  so a create on that branch resolves to `coord`, not `lanes`. That behaviour is pre-existing.
   When a `single_branch` mission targets a *protected target* (the primary branch or a
   configured protected branch), `agent mission create` mints and checks out
   `kitty/mission-<slug>-<mid8>` in the write checkout and records it in `meta.json`;
-  `--commit-to-target` opts out: it is persisted in `meta.json` and `ProtectionPolicy` (`resolve_for_mission` / `mission_write_bypass`) then lets that mission's own writes reach its own `target_branch` (no env var; other missions, non-mission commits and mixed code+mission-dir `safe_commit` commits stay refused; a non-boolean value refuses). `consolidate` lands the mission branch onto the target.
+  `--commit-to-target` (accepted only with `single_branch`) opts out: it is persisted in `meta.json` and `ProtectionPolicy` (`resolve_for_mission` / `mission_write_bypass`) then lets that mission's own writes reach its own `target_branch` (no env var; other missions, non-mission commits and mixed code+mission-dir `safe_commit` commits stay refused; a non-boolean value refuses). `consolidate` lands the mission branch onto the target.
 - **Unmigrated `single_branch` missions with code lanes fail closed** with
   `SINGLE_BRANCH_CODE_LANES_UNMIGRATED` (`src/mission_runtime/context.py`). Remedy: the
   re-stamp migration, or `spec-kitty migrate backfill-topology --restamp-single-branch`.
   `spec-kitty doctor topology` reports it, plus `LANES_MANIFEST_UNREADABLE`.
-- **Lane work tips.** When the recorder hook is installed (migration `m_4_0_0rc5_install_lane_tip_recorder`), a POSIX `post-commit` / `post-rewrite` hook, plus spec-kitty's own
+- **Lane work tips.** When the recorder hook is installed (migration `4_0_0rc5_install_lane_tip_recorder`), a POSIX `post-commit` / `post-rewrite` hook, plus spec-kitty's own
   record points (lane allocation in `implement`, `for_review` transitions, crash recovery, auto-rebase), write `refs/spec-kitty/lane-tip/<branch>` (`src/specify_cli/lanes/lane_tip.py`).
   A destroyed lane with unabsorbed work is refused with `DESTROYED_LANE`
   (`src/specify_cli/lanes/worktree_allocator.py`), naming the SHA and the restore
-  command `git branch <b> refs/spec-kitty/lane-tip/<b>`.
+  command `git branch <b> refs/spec-kitty/lane-tip/<b>`. `LANE_WORK_TIP_UNKNOWN` (`LaneWorkTipUnknownError`) fires when a lane's branch was deleted before any work tip was recorded, or after its `refs/spec-kitty/lane-tip/<branch>` ref was deleted: nothing is left to classify the lane by, so the guard fails closed. Its message says to look for stranded commits (`git reflog <branch>` or `git fsck --lost-found`); if you find one, record it with `git update-ref refs/spec-kitty/lane-tip/<branch> <sha>` and re-run `implement`; if you are sure no work was ever committed, run `spec-kitty context cleanup` to clear the stale workspace record and retry. Abandoning a destroyed lane (`DESTROYED_LANE`) is two steps today: `git update-ref -d refs/spec-kitty/lane-tip/<branch>`, then `spec-kitty context cleanup`. Squash-absorption detection needs git >= 2.38 (`git merge-tree --write-tree`); on older git the guard fails closed and refuses even a genuinely squash-merged lane.
+  The recorder hooks are installed into `.git/hooks` and are skipped, with a warning, when `core.hooksPath` is `/dev/null`, missing, or points inside the working tree; then tips are recorded only at spec-kitty's own record points.
 
 **Planning artifacts** (land on the primary partition):
 - `/spec-kitty.specify` → `kitty-specs/<mission>/`

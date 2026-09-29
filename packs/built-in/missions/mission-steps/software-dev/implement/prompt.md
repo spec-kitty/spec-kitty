@@ -39,7 +39,7 @@ guardrails for bulk operations.
 ## Working Directory
 
 **IMPORTANT**: This step works inside the execution workspace (worktree)
-allocated by `spec-kitty agent action implement WPxx --agent <name>`. Prefer to stay within
+allocated by `spec-kitty agent action implement WPxx --agent <name>`. For a `single_branch` mission the WP instead runs in the repository root checkout, which must be on the mission's write branch and clean, and only one WP may be in progress at a time. Prefer to stay within
 your `owned_files` boundaries. If a small, well-justified change to a file outside the map is
 genuinely needed to deliver the WP (e.g. a one-line prerequisite or a stale assertion that
 pins a now-deleted internal), make it and record a one-line rationale in the commit message —

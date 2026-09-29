@@ -11,7 +11,7 @@ related:
 
 Spec Kitty uses a lane-based execution model.
 
-- For `lanes`, `lanes_with_coord` and flat missions, `finalize_tasks` computes `lanes.json` from dependencies, ownership, and predicted surfaces. A `single_branch` mission gets a one-lane repo-root manifest instead.
+- For `lanes` and `lanes_with_coord` missions, `finalize_tasks` computes `lanes.json` from dependencies, ownership, and predicted surfaces. A `single_branch` mission gets a one-lane repo-root manifest instead.
 - Each code lane gets exactly one git worktree and one lane branch.
 - Sequential work packages in the same lane reuse that same worktree.
 - Independent lanes can run in parallel in separate worktrees.
@@ -37,7 +37,7 @@ Spec Kitty uses a lane-based execution model.
 
 `require_lanes_json` is fail-closed: when `lanes.json` is absent it raises
 `MissingLanesError` rather than degrading to a name-guessed path. **There is
-no `-WP##` legacy worktree fallback** — flat, `LANES` and `LANES_WITH_COORD`
+no `-WP##` legacy worktree fallback** — `LANES` and `LANES_WITH_COORD`
 missions require a computed `lanes.json`; a mission that hasn't run
 `finalize-tasks` cannot resolve a workspace at all. A `SINGLE_BRANCH` mission
 also needs its `lanes.json`, but that manifest is not computed from
