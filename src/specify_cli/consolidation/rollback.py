@@ -14,8 +14,15 @@ Guarantees (``contracts/rollback-authority.md``):
    mission, coordination) that moved with NO recorded post tip -- e.g. a kill
    inside a phase before its recorder ran -- is ``NOT_RESTORED`` too: it is
    neither restored nor reported untouched, so ``--abort`` keeps the record.
-   Only a lane branch (``state.snapshot_lane_branches``) is ``UNCHANGED_BY_RUN``.
    Each branch is restored to its per-attempt restore target (:func:`begin_attempt`).
+2a. Lane branches (``state.snapshot_lane_branches``) are REPORT-ONLY: consolidation
+   never moves a lane branch, so a lane move is another actor's. Lanes are
+   snapshotted for the report, never recorded, never restored
+   (``UNCHANGED_BY_RUN`` / ``ALREADY_AT_SNAPSHOT``).
+2b. A phase records a post tip only for a run-movable branch whose tip CHANGED
+   during that phase (:func:`movable_branch_tips` at phase entry, compared by
+   :func:`record_post_mutation_tips` at exit). A foreign commit landing on the
+   target BETWEEN phases is therefore never attributed to this run.
 3. A landing verified by an EARLIER reconciliation
    (``reconciliation_passed_target_sha`` == live target tip) is never rolled
    back (FR-011); neither is anything when a snapshotted branch no longer
@@ -26,6 +33,13 @@ Guarantees (``contracts/rollback-authority.md``):
 5. Bookkeeping is cleared only after a full restore; a second call is
    idempotent (``ALREADY_AT_SNAPSHOT`` everywhere).
 
+Residual (documented, not closed): a foreign commit that lands on a run-movable
+branch INSIDE the same phase, after this run's own advance of that branch, is
+indistinguishable from this run's own move at the phase exit and IS recorded, so
+a later rollback restores over it. The window is one phase long and the forward
+advances are compare-and-swap, so the foreign commit must land after our CAS and
+before the phase's recorder.
+
 This module takes primitives (repo root, ``ConsolidationState``, manifest) --
 not the executor's run state -- so ``--abort`` can call it with only the
 persisted record.
@@ -34,7 +48,7 @@ persisted record.
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -57,6 +71,7 @@ __all__ = [
     "begin_attempt",
     "capture_pre_mutation_snapshot",
     "missing_snapshot_branches",
+    "movable_branch_tips",
     "record_post_mutation_tips",
     "rollback_to_snapshot",
 ]
@@ -64,6 +79,7 @@ __all__ = [
 _SHORT = 7
 _NO_SNAPSHOT_REASON = "no pre-mutation snapshot recorded (pre-fix record)"
 _MOVED_BY_OTHER_REASON = "moved by another actor since this run"
+_LANE_REPORT_ONLY_REASON = "lane branch: not moved by consolidation"
 _UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was recorded (interrupted phase?); inspect before re-running"
 
 
@@ -136,7 +152,7 @@ def _render_outcome(outcome: BranchOutcome, width: int) -> str:
     if kind is BranchOutcomeKind.ALREADY_AT_SNAPSHOT:
         return f"  unchanged  {name}  (already at {_short(outcome.observed_sha)})"
     if kind is BranchOutcomeKind.UNCHANGED_BY_RUN:
-        return f"  kept       {name}  (not moved by this run; at {_short(outcome.observed_sha)})"
+        return f"  kept       {name}  ({outcome.reason or _LANE_REPORT_ONLY_REASON}; at {_short(outcome.observed_sha)})"
     detail = f"observed {_short(outcome.observed_sha)}"
     if outcome.expected_sha:
         detail += f", expected {_short(outcome.expected_sha)}"
@@ -246,12 +262,33 @@ def begin_attempt(repo_root: Path, state: ConsolidationState) -> None:
     save_state(state, repo_root)
 
 
-def record_post_mutation_tips(repo_root: Path, state: ConsolidationState) -> None:
-    """Persist the live tip of every snapshotted branch (the CAS expected values)."""
-    post: dict[str, str] = {}
-    for branch in state.pre_mutation_refs:
+def _movable_branches(state: ConsolidationState) -> list[str]:
+    """Snapshotted branches this run can move (target, mission, coordination) -- never a lane branch."""
+    lanes = set(state.snapshot_lane_branches)
+    return [b for b in state.pre_mutation_refs if b not in lanes]
+
+
+def movable_branch_tips(repo_root: Path, state: ConsolidationState) -> dict[str, str | None]:
+    """Live tips of the run-movable snapshotted branches (a phase's entry tips for :func:`record_post_mutation_tips`)."""
+    return {branch: _live_tip(repo_root, branch) for branch in _movable_branches(state)}
+
+
+def record_post_mutation_tips(
+    repo_root: Path,
+    state: ConsolidationState,
+    *,
+    entry_tips: Mapping[str, str | None] | None = None,
+) -> None:
+    """Persist this run's post-mutation tips (the CAS expected values); never a lane branch.
+
+    With ``entry_tips`` (the phase recorder), only a branch whose live tip differs
+    from its tip at phase entry is (re)recorded; every other recorded tip is kept.
+    Without it, every run-movable branch's live tip is recorded afresh.
+    """
+    post: dict[str, str] = dict(state.post_mutation_refs) if entry_tips is not None else {}
+    for branch in _movable_branches(state):
         live = _live_tip(repo_root, branch)
-        if live is not None:
+        if live is not None and (entry_tips is None or entry_tips.get(branch) != live):
             post[branch] = live
     state.post_mutation_refs = post
     save_state(state, repo_root)
@@ -295,9 +332,9 @@ def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, sn
     post = state.post_mutation_refs.get(branch)
     if live == restore_to:
         return BranchOutcome(branch, BranchOutcomeKind.ALREADY_AT_SNAPSHOT, snapshot, live)
+    if branch in state.snapshot_lane_branches:
+        return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live, reason=_LANE_REPORT_ONLY_REASON)
     if post is None:
-        if branch in state.snapshot_lane_branches:
-            return BranchOutcome(branch, BranchOutcomeKind.UNCHANGED_BY_RUN, snapshot, live)
         return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, reason=_UNRECORDED_MOVE_REASON)
     if live != post:
         return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, post, _MOVED_BY_OTHER_REASON)

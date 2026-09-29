@@ -519,7 +519,10 @@ def _records_post_mutation_tips(phase: Callable[Concatenate[_MergeRunState, _P],
     The rollback authority CAS-restores each snapshotted branch against the tip
     this attempt LEFT it at. Recording on the normal end, every early ``return``
     and a raising phase alike attributes a partial advance to this attempt (so
-    ``--abort`` can undo it) instead of looking foreign.
+    ``--abort`` can undo it) instead of looking foreign. Only branches whose tip
+    CHANGED during this phase are (re)recorded (slice-10 F2): the entry tips are
+    captured before the phase runs, so a foreign commit that landed between
+    phases is never attributed to this run. Lane branches are never recorded.
 
     Two exceptions on the raising path (review cycle 1):
 
@@ -537,14 +540,15 @@ def _records_post_mutation_tips(phase: Callable[Concatenate[_MergeRunState, _P],
 
     @functools.wraps(phase)
     def recorded(run: _MergeRunState, *args: _P.args, **kwargs: _P.kwargs) -> None:
+        entry_tips = rollback.movable_branch_tips(run.main_repo, run.state)
         try:
             phase(run, *args, **kwargs)
         except BaseException as exc:
             if _moved_by_this_run(exc):
                 with contextlib.suppress(Exception):
-                    rollback.record_post_mutation_tips(run.main_repo, run.state)
+                    rollback.record_post_mutation_tips(run.main_repo, run.state, entry_tips=entry_tips)
             raise
-        rollback.record_post_mutation_tips(run.main_repo, run.state)
+        rollback.record_post_mutation_tips(run.main_repo, run.state, entry_tips=entry_tips)
 
     return cast("Callable[Concatenate[_MergeRunState, _P], None]", recorded)
 
@@ -3572,8 +3576,10 @@ def _run_lane_based_consolidation_locked(
     # (non-zero), restores the target ref, and tears down nothing (ordering
     # guarantee: teardown executes only after verify == PASS). On a non-zero
     # exit every other snapshotted branch is rolled back too (#5318 / #5332);
-    # the target the gate already restored reports ALREADY_AT_SNAPSHOT.
-    rollback.record_post_mutation_tips(run.main_repo, run.state)
+    # the target the gate already restored reports ALREADY_AT_SNAPSHOT. The post
+    # tips are the ones each ref-moving phase recorded for the branches it moved
+    # (slice-10 F2): no blanket re-record here, which would attribute a foreign
+    # commit that landed between phases to this run.
     anchor_before = run.state.reconciliation_passed_target_sha
     try:
         _phase_reconcile_before_teardown(run)

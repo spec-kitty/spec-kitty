@@ -27,7 +27,7 @@ from specify_cli.consolidation import rollback
 from specify_cli.consolidation.rollback import record_post_mutation_tips
 from specify_cli.git.ref_advance import RefAdvanceError, RefRestoreError
 from specify_cli.consolidation.state import load_state
-from tests.consolidation.test_rollback_authority import _MISSION_BRANCH, _TARGET, Env, _advance_run, _git, _rev, make_env
+from tests.consolidation.test_rollback_authority import _MISSION_BRANCH, _TARGET, Env, _advance_run, _commit_on, _git, _rev, make_env
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.fast]
 
@@ -100,8 +100,10 @@ def test_phase_decorator_records_after_a_normal_return(tmp_path: Path) -> None:
         _advance_run_target_only(env)
 
     phase(run)
-    assert env.state.post_mutation_refs == _live(env)
-    assert load_state(env.repo, "M1").post_mutation_refs == _live(env)  # type: ignore[union-attr]
+    recorded = {_TARGET: _rev(env.repo, _TARGET)}  # slice-10 F2: only the branch THIS phase moved
+    assert env.state.post_mutation_refs == recorded
+    persisted = load_state(env.repo, "M1")
+    assert persisted is not None and persisted.post_mutation_refs == recorded
 
 
 def test_phase_decorator_records_before_an_early_return(tmp_path: Path) -> None:
@@ -179,6 +181,61 @@ def test_resync_failure_after_our_own_ref_move_is_recorded_as_this_runs_post_tip
     assert env.state.post_mutation_refs.get(_TARGET) == _rev(env.repo, _TARGET), "our own advance must be recorded"
 
 
+def test_foreign_lane_commit_during_a_phase_is_never_reverted(tmp_path: Path) -> None:
+    """Slice-10 F2: another actor's lane commit landing while a phase runs is never recorded nor rolled back."""
+    env = make_env(tmp_path)
+    run = _begin(env)
+    lane = env.lane_branches[0]
+    mission_snapshot = _rev(env.repo, _MISSION_BRANCH)
+
+    @executor._records_post_mutation_tips
+    def phase(r: Any) -> None:
+        _commit_on(env.repo, _MISSION_BRANCH, "run-merge")  # this run's own advance
+        _commit_on(env.repo, lane, "agent-late-commit")  # ANOTHER actor, concurrently
+
+    phase(run)
+    foreign = _rev(env.repo, lane)
+    assert lane not in env.state.post_mutation_refs
+
+    report = rollback.rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _rev(env.repo, lane) == foreign, "the foreign lane commit must survive the rollback"
+    assert _rev(env.repo, _MISSION_BRANCH) == mission_snapshot, "the run's own advance is undone"
+    assert report.fully_restored
+
+
+def test_foreign_commit_on_the_target_between_phases_is_not_recorded(tmp_path: Path) -> None:
+    """Slice-10 F2: a phase records only the branches whose tip changed DURING it.
+
+    A foreign commit landing on the target between two phases is not attributed to
+    the later phase (which did not move the target), so the rollback reports the
+    target NOT_RESTORED instead of overwriting the other actor's commit.
+    """
+    env = make_env(tmp_path)
+    run = _begin(env)
+
+    @executor._records_post_mutation_tips
+    def phase_a(r: Any) -> None:
+        _advance_run_target_only(env)
+
+    @executor._records_post_mutation_tips
+    def phase_b(r: Any) -> None:
+        _commit_on(env.repo, _MISSION_BRANCH, "phase-b")
+
+    phase_a(run)
+    ours = _rev(env.repo, _TARGET)
+    foreign = _commit_on(env.repo, _TARGET, "foreign-between-phases")
+    phase_b(run)
+
+    assert env.state.post_mutation_refs[_TARGET] == ours, "phase_b did not move the target and must not re-record it"
+    report = rollback.rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    target = next(o for o in report.outcomes if o.branch == _TARGET)
+    assert target.kind is rollback.BranchOutcomeKind.NOT_RESTORED and "moved by another actor" in (target.reason or "")
+    assert _rev(env.repo, _TARGET) == foreign, "another actor's commit is never overwritten"
+    assert not report.fully_restored
+
+
 def test_recorder_failure_never_masks_the_phase_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     env = make_env(tmp_path)
     run = _begin(env)
@@ -245,7 +302,7 @@ def test_restore_pre_target_if_at_baseline_records(tmp_path: Path, monkeypatch: 
 
     executor._restore_pre_target_if_at_baseline(run)
 
-    assert env.state.post_mutation_refs == _live(env)
+    assert env.state.post_mutation_refs == {_TARGET: _rev(env.repo, _TARGET)}
 
 
 # ------------------------------------------------------------------- T015
@@ -345,7 +402,11 @@ def test_persisted_post_tips_equal_live_tips_after_every_real_phase(tmp_path: Pa
                 state = load_state(run.main_repo, run.canonical_id)
                 assert state is not None and state.pre_mutation_refs, "the snapshot must exist before the first mutating phase"
                 live = {b: _rev(run.main_repo, b) for b in state.pre_mutation_refs if _resolves(run.main_repo, b)}
-                checks[name] = state.post_mutation_refs == live
+                movable = set(live) - set(state.snapshot_lane_branches)
+                # slice-10 F2: every recorded tip is live, no lane is recorded, and every
+                # run-movable branch the run moved off its restore target is recorded.
+                moved = {b for b in movable if live[b] != state.restore_targets.get(b, state.pre_mutation_refs[b])}
+                checks[name] = all(live.get(b) == sha for b, sha in state.post_mutation_refs.items()) and moved <= set(state.post_mutation_refs) <= movable
 
         return wrapper
 

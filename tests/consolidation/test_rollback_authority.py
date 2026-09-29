@@ -231,23 +231,35 @@ def test_cas_conflict_reports_not_restored_and_keeps_bookkeeping(tmp_path: Path)
 
 
 def test_operator_fix_between_attempts_is_kept_and_never_reverted(tmp_path: Path) -> None:
+    """An operator commit on a RUN-MOVABLE branch between attempts becomes that branch's restore target.
+
+    Slice-10 F2 premise change: lane branches are report-only now, so a lane fix is
+    kept trivially (never restored). The per-attempt restore target still matters
+    for the mission branch, which the next attempt advances ON TOP of the fix: the
+    rollback must return it to the fix, not to the snapshot.
+    """
     env = make_env(tmp_path)
     lane = env.lane_branches[0]
     snap = _snapshot_and_begin(env)
     _advance_run(env)
     assert rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).fully_restored
 
-    fix = _commit_on(env.repo, lane, "operator-fix")
+    fix = _commit_on(env.repo, _MISSION_BRANCH, "operator-fix")
+    lane_fix = _commit_on(env.repo, lane, "operator-lane-fix")
     begin_attempt(env.repo, env.state)
-    assert env.state.restore_targets[lane] == fix
+    assert env.state.restore_targets[_MISSION_BRANCH] == fix
     assert env.state.restore_targets[_TARGET] == snap[_TARGET]
 
-    _advance_run(env)  # the attempt advances target + mission only
+    _advance_run(env)  # the attempt advances target + mission (on top of the fix)
     report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
 
     assert report.fully_restored
-    assert _kinds(report)[lane] is BranchOutcomeKind.ALREADY_AT_SNAPSHOT  # at its attempt-start target
-    assert _rev(env.repo, lane) == fix
+    mission = next(o for o in report.outcomes if o.branch == _MISSION_BRANCH)
+    assert mission.kind is BranchOutcomeKind.RESTORED and mission.restored_to_sha == fix
+    assert _rev(env.repo, _MISSION_BRANCH) == fix, "the operator's fix survives; only this attempt's advance is undone"
+    assert _rev(env.repo, _TARGET) == snap[_TARGET]
+    assert _kinds(report)[lane] is BranchOutcomeKind.ALREADY_AT_SNAPSHOT  # at its attempt-start value
+    assert _rev(env.repo, lane) == lane_fix
 
 
 def test_operator_fix_without_attempt_in_flight_is_unchanged_by_run(tmp_path: Path) -> None:
@@ -263,6 +275,33 @@ def test_operator_fix_without_attempt_in_flight_is_unchanged_by_run(tmp_path: Pa
     assert report.fully_restored
     assert _kinds(report)[lane] is BranchOutcomeKind.UNCHANGED_BY_RUN
     assert _rev(env.repo, lane) == fix
+
+
+def test_lane_branches_are_report_only_even_with_a_recorded_post_tip(tmp_path: Path) -> None:
+    """Slice-10 F2: consolidation never moves a lane branch, so a lane move is another actor's and is never reverted."""
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    lane = env.lane_branches[0]
+    _advance_run(env)
+    foreign = _commit_on(env.repo, lane, "agent-late-commit")
+    env.state.post_mutation_refs[lane] = foreign  # even a (legacy) record naming the lane must not make it restorable
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _rev(env.repo, lane) == foreign, "another actor's lane commit must never be rolled back"
+    assert _kinds(report)[lane] is BranchOutcomeKind.UNCHANGED_BY_RUN
+    assert report.fully_restored, "a report-only lane never blocks the restore of the run's own branches"
+    assert "lane branch: not moved by consolidation" in report.render()
+
+
+def test_record_never_records_a_lane_branch(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    lane = env.lane_branches[0]
+    _commit_on(env.repo, lane, "lane-move")
+    _advance_run(env)
+    assert lane not in env.state.post_mutation_refs
+    assert set(env.state.post_mutation_refs) == {_TARGET, _MISSION_BRANCH}
 
 
 @pytest.mark.parametrize(
@@ -440,21 +479,33 @@ def test_render_no_snapshot_and_kept_lane(tmp_path: Path) -> None:
 
 
 def test_four_lane_rollback_is_fast(tmp_path: Path) -> None:
-    """NFR-001: restoring 4 branches (with checkout resync) completes in < 2 s."""
+    """NFR-001: a 4-lane rollback (3 restores with checkout resync, 4 report-only lanes) completes in < 2 s.
+
+    Slice-10 F2: lanes are report-only, so the restored set is the run-movable one
+    (target, mission, coordination), each checked out and resynced.
+    """
     env = make_env(tmp_path, ["lane-a", "lane-b", "lane-c", "lane-d"])
-    _snapshot_and_begin(env)
+    coord = "kitty/coord-x"
+    _git(env.repo, "branch", coord)
+    _snapshot_and_begin(env, coord_ref=coord)
     for index, lane in enumerate(env.lane_branches):  # each lane checked out in its own linked worktree
         wt = tmp_path / f"lane-wt-{index}"
         _git(env.repo, "worktree", "add", "-q", str(wt), lane)
         _commit(wt, f"adv-{index}")
-    _advance_run(env)  # records post tips for all 6 branches (target, mission, 4 lanes)
+    checkouts = {_MISSION_BRANCH: tmp_path / "mission-wt", coord: tmp_path / "coord-wt"}
+    for branch, wt in checkouts.items():
+        _git(env.repo, "worktree", "add", "-q", str(wt), branch)
+        _commit(wt, f"adv-{wt.name}")
+    _commit(env.repo, "target-advance")
+    record_post_mutation_tips(env.repo, env.state)  # target, mission, coord -- never the lanes
 
     started = time.monotonic()
     report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
     elapsed = time.monotonic() - started
 
     restored = [o for o in report.outcomes if o.kind is BranchOutcomeKind.RESTORED]
-    assert report.fully_restored and len(restored) == 6
-    assert all(_git(tmp_path / f"lane-wt-{i}", "status", "--porcelain") == "" for i in range(4))
+    assert report.fully_restored and {o.branch for o in restored} == {_TARGET, _MISSION_BRANCH, coord}
+    assert all(_kinds(report)[lane] is BranchOutcomeKind.UNCHANGED_BY_RUN for lane in env.lane_branches)
+    assert all(_git(wt, "status", "--porcelain") == "" for wt in checkouts.values())
     print(f"NFR-001 measured rollback time: {elapsed:.3f}s for {len(restored)} restored branches")
     assert elapsed < 2.0, f"rollback took {elapsed:.3f}s (NFR-001 bound 2s)"
