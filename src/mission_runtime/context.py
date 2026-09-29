@@ -79,6 +79,25 @@ def classify_topology(
     return MissionTopology.SINGLE_BRANCH
 
 
+def unstamped_runtime_topology(derived: MissionTopology) -> MissionTopology:
+    """Runtime topology for a mission with NO stored ``topology`` (#5100 FR-013 / #2602).
+
+    *derived* is the :func:`classify_topology` cell the caller's existing
+    un-backfilled-legacy fallback already computed. That coord-less, lane-less
+    cell is ``SINGLE_BRANCH``, which is the right answer for the explicit
+    ``migrate backfill-topology`` writer: it persists a shape an operator then
+    owns. At RUNTIME, though, ``single_branch`` is honoured only when it was
+    explicitly requested and STORED -- a derived one would collapse an
+    unstamped legacy mission's code WPs into the repo-root ``lane-planning``
+    lane at finalize and arm the ``WRITE_CHECKOUT_*`` refusals it never opted
+    into. So a derived ``SINGLE_BRANCH`` reads as ``LANES``; every other cell
+    passes through (the coord-routing answer is identical either way).
+    """
+    if derived is MissionTopology.SINGLE_BRANCH:
+        return MissionTopology.LANES
+    return derived
+
+
 @dataclass(frozen=True)
 class CommitTarget:
     """The ONE ref that artifacts + status events resolve to (ADR-2026-06-03-2).

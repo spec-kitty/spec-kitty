@@ -109,6 +109,11 @@ _PUBLIC_SURFACE = sorted(
         # ``mission_runtime.artifacts`` submodule directly (MR-1/MR-2).
         "_MISSION_FILE_KIND_BY_BASENAME",
         "classify_topology",
+        # single-branch-topology-honesty (#5100 FR-013 / #2602, squad N7): the
+        # runtime reading of a mission with NO stored topology -- never a
+        # derived ``single_branch``. ``specify_cli.migration.backfill_topology``
+        # consumes it via the package root.
+        "unstamped_runtime_topology",
         # coord-commit-integrity SURFACE A (#5): the ONE topology-guarded coord-read
         # helper both gates_core._acceptance_matrix_read_dir and accept._coord_
         # worktree_root consume — a package-root public symbol, so it is pinned here.

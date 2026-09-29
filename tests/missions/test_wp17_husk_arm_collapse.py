@@ -127,7 +127,9 @@ def test_absent_topology_field_classifies_concrete_never_none(tmp_path: Path) ->
 
     topology = classify_from_meta(meta, primary)
     assert topology is not None
-    assert topology is MissionTopology.SINGLE_BRANCH  # flattened → PRIMARY routing
+    # #5100 FR-013 / #2602: an unstamped coord-less meta never derives
+    # ``single_branch`` at runtime -- LANES (still PRIMARY routing).
+    assert topology is MissionTopology.LANES
     # Negative control: a coord-declaring readable meta classifies to a DIFFERENT
     # (coord-routing) concrete topology — proving classification reads the signal,
     # not a constant.

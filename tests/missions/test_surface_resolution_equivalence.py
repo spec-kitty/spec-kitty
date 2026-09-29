@@ -54,6 +54,7 @@ from mission_runtime import (
     classify_topology,
     is_primary_artifact_kind,
     routes_through_coordination,
+    unstamped_runtime_topology,
 )
 from specify_cli.coordination.surface_resolver import (
     resolve_status_surface_with_anchor,
@@ -729,13 +730,18 @@ def test_classify_on_read_equals_backfill_then_read(
     result = backfill_mission_topology(backfill_dir)
     backfill_then_read = read_topology(backfill_dir)
 
-    # The two legs converge (differential equivalence) ...
-    assert classify_on_read is backfill_then_read, (
-        f"classify-on-read derived {classify_on_read} but backfill-then-read derived {backfill_then_read} — the classify arm is NOT behaviour-neutral"
-    )
-    # ... AND both equal the expected cell (the absolute anchor, not pure leg-equality:
-    # leg-vs-leg equality alone would pass even if BOTH derived the wrong topology).
-    assert classify_on_read is topology
+    # #5100 FR-013 / #2602 (squad N7): the backfill writer persists the classic
+    # 2x2 cell (a STORED value an operator then owns), but the runtime
+    # classify-on-read arm never derives ``single_branch`` -- that cell reads as
+    # LANES until it is stored. Every other cell converges (differential
+    # equivalence), and the coord-routing answer converges for ALL cells.
+    assert backfill_then_read is topology
+    assert classify_on_read is unstamped_runtime_topology(topology)
+    if topology is not MissionTopology.SINGLE_BRANCH:
+        assert classify_on_read is backfill_then_read, (
+            f"classify-on-read derived {classify_on_read} but backfill-then-read derived {backfill_then_read} — the classify arm is NOT behaviour-neutral"
+        )
+    assert routes_through_coordination(classify_on_read) is routes_through_coordination(backfill_then_read)
     # The backfill actually persisted the same value (idempotent migration contract).
     assert result.action == "wrote"
     assert result.topology == topology.value

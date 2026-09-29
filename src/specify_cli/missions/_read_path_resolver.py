@@ -173,7 +173,7 @@ def classify_from_meta(
     touches no disk. The lanes axis never changes the coord-routing answer, so a
     corrupt ``lanes.json`` degrades to "no lanes" rather than failing the read.
     """
-    from specify_cli.migration.backfill_topology import _derive_topology
+    from specify_cli.migration.backfill_topology import topology_from_meta
 
     stored = stored_topology_from_meta(meta)
     if stored is not None:
@@ -184,16 +184,16 @@ def classify_from_meta(
         # to the caller's historical probe-based husk derivation (C-004 / FR-003).
         return None
     # Absent ``topology`` field in a READABLE meta (un-backfilled legacy / flattened):
-    # classify ONCE via WP01's single authority from the in-hand meta + the disk lanes
-    # signal. ``_derive_topology`` reads ``coordination_branch`` from ``meta`` and
-    # probes ``lanes.json`` under ``feature_dir`` — the SAME derivation
-    # ``read_topology`` uses, kept pure (no write) here at the read boundary.
+    # classify ONCE from the in-hand meta + the disk lanes signal through
+    # ``topology_from_meta`` — the SAME runtime derivation ``read_topology`` uses
+    # (never a derived ``single_branch``, #5100 FR-013), kept pure (no write) here
+    # at the read boundary.
     #
-    # ``_derive_topology`` is typed -> MissionTopology, but mypy widens it to ``Any``
+    # ``topology_from_meta`` is typed -> MissionTopology, but mypy widens it to ``Any``
     # through the late-import chain (``follow_imports=skip`` on ``specify_cli.*``);
     # bind explicitly so the return narrows back (the same pattern as
     # ``_compose_mission_dir``'s cast in this module).
-    derived: MissionTopology = _derive_topology(dict(meta), feature_dir)
+    derived: MissionTopology = topology_from_meta(meta, feature_dir)
     return derived
 
 

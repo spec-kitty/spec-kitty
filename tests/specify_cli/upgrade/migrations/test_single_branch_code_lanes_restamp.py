@@ -263,9 +263,14 @@ def test_restamp_unreadable_lanes_never_writes_meta(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_planning_only_unstamped_mission_derives_single_branch_and_is_never_restamped(tmp_path: Path) -> None:
-    """A meta without ``topology`` + a planning-only manifest derives SINGLE_BRANCH
-    (both before and after the restamp migration runs) and is never selected.
+def test_planning_only_unstamped_mission_derives_lanes_and_is_never_restamped(tmp_path: Path) -> None:
+    """A meta without ``topology`` + a planning-only manifest derives LANES at
+    runtime (both before and after the restamp migration runs) and is never selected.
+
+    #5100 FR-013 / #2602 (squad N7): a DERIVED ``single_branch`` never reaches a
+    runtime reader -- only a STORED one is honoured -- so ``read_topology``
+    returns LANES here (origin/main's runtime answer for this shape too). The
+    history below describes the intermediate R-3 state.
 
     Review cycle-1 nit 2: this test was previously named/documented as
     "classification unchanged", which was misleading -- at the RED commit it
@@ -301,7 +306,7 @@ def test_planning_only_unstamped_mission_derives_single_branch_and_is_never_rest
     meta_before = meta_path.read_bytes()
 
     before = read_topology(dir_)
-    assert before is MissionTopology.SINGLE_BRANCH
+    assert before is MissionTopology.LANES
 
     auto_discover_migrations()
     migration = MigrationRegistry.get_by_id(_MIGRATION_ID)
@@ -312,5 +317,5 @@ def test_planning_only_unstamped_mission_derives_single_branch_and_is_never_rest
     assert meta_path.read_bytes() == meta_before, "meta.json must be untouched by the restamp migration"
 
     after = read_topology(dir_)
-    assert after is MissionTopology.SINGLE_BRANCH
+    assert after is MissionTopology.LANES
     assert after is before

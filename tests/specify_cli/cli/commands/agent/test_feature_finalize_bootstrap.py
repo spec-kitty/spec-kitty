@@ -588,13 +588,7 @@ def _setup_lane_based_feature(tmp_path: Path, mission_slug: str = "061-lane-feat
         "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nNo dependencies.\n",
         encoding="utf-8",
     )
-    # Pin the topology explicitly (#5100): without a stored ``topology`` and with
-    # no ``coordination_branch`` / ``lanes.json`` the legacy derivation classifies
-    # this mission ``single_branch``, which has no code lanes (one repo-root
-    # ``lane-planning`` lane) -- not the lane-based mission this fixture models.
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"mission_slug": mission_slug, "topology": "lanes"}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": mission_slug}), encoding="utf-8")
 
     src_dir = tmp_path / "src"
     src_dir.mkdir(parents=True)

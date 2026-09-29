@@ -94,7 +94,9 @@ def test_read_topology_unbackfilled_derives_WITHOUT_persisting(tmp_path: Path) -
 
     result = read_topology(feature_dir)
 
-    assert result is MissionTopology.SINGLE_BRANCH
+    # #5100 FR-013 / #2602: the RUNTIME reader never derives ``single_branch``
+    # for an unstamped mission -- only an explicitly stored value is honoured.
+    assert result is MissionTopology.LANES
     assert _bytes(meta_path) == before, (
         "read_topology MUST NOT persist a derived topology (the #1814 read-only contract); only ensure_topology / backfill may write."
     )
@@ -379,7 +381,7 @@ def test_topology_from_meta_stored_value_no_disk_read(tmp_path: Path) -> None:
     assert result is MissionTopology.COORD
 
 
-def test_topology_from_meta_empty_mapping_derives_single_branch(tmp_path: Path) -> None:
+def test_topology_from_meta_empty_mapping_derives_lanes_never_single_branch(tmp_path: Path) -> None:
     """The tolerant caller contract: an EMPTY dict (never a raise) still derives
     a concrete topology -- mirrors what a missing/malformed meta.json degrades to
     via ``load_meta_or_empty`` at every one of this function's three real callers.
@@ -389,7 +391,8 @@ def test_topology_from_meta_empty_mapping_derives_single_branch(tmp_path: Path) 
 
     result = topology_from_meta({}, feature_dir)
 
-    assert result is MissionTopology.SINGLE_BRANCH
+    # #5100 FR-013 / #2602: nothing stored => never a derived ``single_branch``.
+    assert result is MissionTopology.LANES
 
 
 def test_topology_from_meta_never_touches_meta_json_on_disk(tmp_path: Path) -> None:
@@ -435,3 +438,47 @@ def test_stored_topology_returns_none_when_absent() -> None:
 def test_stored_topology_returns_none_for_invalid_value() -> None:
     assert stored_topology({"topology": "not-a-real-topology"}) is None
     assert stored_topology({"topology": 42}) is None
+
+
+# ---------------------------------------------------------------------------
+# #5100 FR-013 / #2602 (pre-PR squad N7) — an UNSTAMPED mission never derives
+# ``single_branch`` at runtime; the explicit backfill writer keeps the 2x2 cell.
+# ---------------------------------------------------------------------------
+
+
+def test_unstamped_coordless_mission_derives_lanes_at_runtime_but_backfill_keeps_single_branch(
+    tmp_path: Path,
+) -> None:
+    """The same unstamped, coord-less, lane-less mission reads ``LANES`` through
+    every runtime reader (``topology_from_meta`` / ``read_topology``) -- so finalize
+    groups its code WPs into lanes and no ``WRITE_CHECKOUT_*`` refusal arms -- while
+    the explicit ``backfill_mission_topology`` writer still persists the
+    origin/main ``single_branch`` classification an operator then owns.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "legacy-unstamped"
+    meta_path = _write_meta(feature_dir, {"mission_slug": "legacy-unstamped"})
+
+    assert topology_from_meta({"mission_slug": "legacy-unstamped"}, feature_dir) is MissionTopology.LANES
+    assert read_topology(feature_dir) is MissionTopology.LANES
+
+    result = backfill_mission_topology(feature_dir)
+
+    assert result.topology == "single_branch"
+    assert json.loads(meta_path.read_text(encoding="utf-8"))["topology"] == "single_branch"
+    # Once STORED (explicitly), single_branch is honoured verbatim.
+    assert read_topology(feature_dir) is MissionTopology.SINGLE_BRANCH
+
+
+@pytest.mark.parametrize(
+    ("derived", "expected"),
+    [
+        (MissionTopology.SINGLE_BRANCH, MissionTopology.LANES),
+        (MissionTopology.LANES, MissionTopology.LANES),
+        (MissionTopology.COORD, MissionTopology.COORD),
+        (MissionTopology.LANES_WITH_COORD, MissionTopology.LANES_WITH_COORD),
+    ],
+)
+def test_unstamped_runtime_topology_never_returns_single_branch(derived: MissionTopology, expected: MissionTopology) -> None:
+    from mission_runtime import unstamped_runtime_topology
+
+    assert unstamped_runtime_topology(derived) is expected

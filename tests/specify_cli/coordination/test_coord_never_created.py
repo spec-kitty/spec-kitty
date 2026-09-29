@@ -213,9 +213,10 @@ def test_read_topology_pure_no_subprocess(tmp_path: Path) -> None:
         mock_run.assert_not_called()
     assert result is MissionTopology.COORD
 
-    # Case 3: un-backfilled coord-less mission — derives SINGLE_BRANCH without git.
+    # Case 3: un-backfilled coord-less mission — derives LANES without git
+    # (#5100 FR-013 / #2602: never a derived ``single_branch`` at runtime).
     _write_meta(feature_dir, {})
     with patch("subprocess.run") as mock_run:
         result = read_topology(feature_dir)
         mock_run.assert_not_called()
-    assert result is MissionTopology.SINGLE_BRANCH
+    assert result is MissionTopology.LANES

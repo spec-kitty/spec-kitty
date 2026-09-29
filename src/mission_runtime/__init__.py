@@ -45,6 +45,7 @@ from mission_runtime.context import (
     classify_topology,
     is_single_branch,
     routes_through_coordination,
+    unstamped_runtime_topology,
 )
 from mission_runtime.artifacts import (
     MissionArtifactKind,
@@ -137,6 +138,7 @@ __all__ = [
     "resolve_topology",
     "resolve_write_target_or_degrade",
     "routes_through_coordination",
+    "unstamped_runtime_topology",
 ]
 
 _COMPAT_ATTRS = frozenset(

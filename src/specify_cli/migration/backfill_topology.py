@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
+from mission_runtime import MissionTopology, classify_topology, routes_through_coordination, unstamped_runtime_topology
 
 from specify_cli.lanes import CorruptLanesError, read_lanes_json
 from specify_cli.lanes.compute import has_code_lanes
@@ -72,7 +72,10 @@ def _has_lanes(feature_dir: Path) -> bool:
         return False
     if manifest is None:
         return False
-    return has_code_lanes(manifest)
+    # Bind explicitly: mypy widens the late-bound ``specify_cli.lanes`` return to
+    # ``Any`` (``follow_imports=skip``); the annotation narrows it back.
+    has_code: bool = has_code_lanes(manifest)
+    return has_code
 
 
 def _derive_topology(meta: dict[str, Any], feature_dir: Path) -> MissionTopology:
@@ -116,7 +119,11 @@ def topology_from_meta(meta: Mapping[str, Any], feature_dir: Path) -> MissionTop
     stored = stored_topology(meta)
     if stored is not None:
         return stored
-    return _derive_topology(dict(meta), feature_dir)
+    # #5100 FR-013 / #2602 (squad N7): an UNSTAMPED mission never derives
+    # ``single_branch`` at runtime -- only the explicit backfill writer
+    # (:func:`backfill_mission_topology` via :func:`_derive_topology`) keeps
+    # the classic 2x2 cell. See :func:`mission_runtime.unstamped_runtime_topology`.
+    return unstamped_runtime_topology(_derive_topology(dict(meta), feature_dir))
 
 
 def _write_meta_canonical(meta_path: Path, meta: dict[str, Any]) -> None:
