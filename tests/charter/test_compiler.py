@@ -7,7 +7,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog
-from charter.activation.compiler import _resolve_template_set, compile_charter, write_compiled_charter
+from charter.activation.compiler import (
+    _resolve_template_set,
+    _sanitize_catalog_selection,
+    _unregistered_tool_message,
+    compile_charter,
+    write_compiled_charter,
+)
 from charter.activation.interview import (
     CharterInterview,
     LocalSupportDeclaration,
@@ -726,3 +732,83 @@ def test_write_compiled_charter_no_library_materialization(tmp_path: Path) -> No
     # Only charter.yaml should be written (WP03: charter.md clobber removed,
     # references.yaml writer retired -- data-model.md Landmine 3).
     assert set(result.files_written) == {"charter.yaml"}
+
+
+# ---------------------------------------------------------------------------
+# #4614 / FR-013: label-specific diagnostic for unregistered tool ids
+# ---------------------------------------------------------------------------
+
+
+def test_unregistered_tool_message_single_id_names_a_tool_id() -> None:
+    assert _unregistered_tool_message(["zig"]) == (
+        "available_tools: 'zig' is not a registered tool id; ignored (tool ids are validated separately from project languages)"
+    )
+
+
+def test_unregistered_tool_message_lists_all_ids_sorted_in_one_message() -> None:
+    assert _unregistered_tool_message(["b", "a"]) == (
+        "available_tools: 'a', 'b' are not registered tool ids; ignored (tool ids are validated separately from project languages)"
+    )
+
+
+def test_sanitize_catalog_selection_uses_custom_missing_message() -> None:
+    diagnostics: list[str] = []
+
+    kept = _sanitize_catalog_selection(
+        values=["git", "zig"],
+        allowed={"git"},
+        label="available_tools",
+        diagnostics=diagnostics,
+        missing_message=_unregistered_tool_message,
+    )
+
+    assert kept == ["git"]
+    assert diagnostics == [_unregistered_tool_message(["zig"])]
+
+
+def test_sanitize_catalog_selection_default_message_is_unchanged_for_other_labels() -> None:
+    diagnostics: list[str] = []
+
+    _sanitize_catalog_selection(values=["nope"], allowed={"yes"}, label="widgets", diagnostics=diagnostics)
+
+    assert diagnostics == ["Ignored unknown widgets: nope"]
+
+
+def test_sanitize_catalog_selection_emits_no_message_when_nothing_is_missing() -> None:
+    diagnostics: list[str] = []
+
+    _sanitize_catalog_selection(
+        values=["git"], allowed={"git"}, label="available_tools", diagnostics=diagnostics, missing_message=_unregistered_tool_message
+    )
+
+    assert diagnostics == []
+
+
+def test_compile_charter_reports_unregistered_tool_as_tool_id_and_keeps_registry() -> None:
+    interview = apply_answer_overrides(
+        default_interview(mission="software-dev", profile="minimal"),
+        available_tools=["git", "zig"],
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview)
+
+    assert "zig" not in compiled.available_tools
+    assert any(line.startswith("available_tools: 'zig' is not a registered tool id") for line in compiled.diagnostics)
+    assert not any("Ignored unknown available_tools" in line for line in compiled.diagnostics)
+
+
+def test_compile_charter_rederive_languages_ignores_stale_compiled_list(tmp_path: Path) -> None:
+    """``rederive_languages=True`` derives from the interview; the default stays compiled-first."""
+    charter_yaml = tmp_path / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml.parent.mkdir(parents=True)
+    charter_yaml.write_text("schema_version: '2.0.0'\ncatalog:\n  languages: [python]\n  references: []\n", encoding="utf-8")
+    interview = apply_answer_overrides(
+        default_interview(mission="software-dev", profile="minimal"),
+        answers={"languages_frameworks": "Rust with cargo"},
+    )
+
+    kept = compile_charter(mission="software-dev", interview=interview, repo_root=tmp_path)
+    rederived = compile_charter(mission="software-dev", interview=interview, repo_root=tmp_path, rederive_languages=True)
+
+    assert kept.active_languages == ["python"]
+    assert rederived.active_languages == ["rust"]

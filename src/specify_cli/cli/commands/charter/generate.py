@@ -26,7 +26,12 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["generate"]
 
 
-def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
+def _build_doctrine_service_with_org_layer(
+    repo_root: Path,
+    *,
+    interview: Any = None,
+    prefer_interview: bool = False,
+) -> Any:
     """Return an activation-filtered ``DoctrineService`` for charter generation.
 
     FR-002/FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA
@@ -44,10 +49,14 @@ def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
     a bare ``except Exception: pass`` that silently degraded to an
     unfiltered service on ANY failure, not just the "not yet available"
     case it was written for).
+
+    #4614 / FR-011: *interview* / *prefer_interview* are forwarded so a
+    regenerate resolves the doctrine references under the SAME re-derived
+    languages ``compile_charter`` stamps into ``catalog.languages``.
     """
     from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 
-    return build_activation_aware_doctrine_service(repo_root)
+    return build_activation_aware_doctrine_service(repo_root, interview=interview, prefer_interview=prefer_interview)
 
 
 def _is_inside_git_worktree(repo_root: Path) -> bool:
@@ -486,13 +495,26 @@ def generate(
         # record (`_user_profile_reference`) and non-doctrine answers
         # (testing/quality/deployment prose); it is no longer read for
         # activation selection.
+        #
+        # #4614 / FR-011: keyed on the EFFECTIVE interview source (not the raw
+        # ``--from-interview`` flag). Only an interview actually loaded from
+        # ``answers.yaml`` may re-derive ``catalog.languages``; the ``defaults``
+        # source (``--no-from-interview``) stays compiled-first. The two agree
+        # today (``--from-interview`` with no answers fails closed), but the
+        # source is the value that describes what was really loaded.
+        rederive_languages = interview_source == "interview"
         compiled = compile_charter(
             mission=resolved_mission,
             interview=interview_data,
             template_set=template_set,
             repo_root=repo_root,
-            doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
+            doctrine_service=_build_doctrine_service_with_org_layer(
+                repo_root,
+                interview=interview_data,
+                prefer_interview=rederive_languages,
+            ),
             pack_context=PackContext.from_config(repo_root),
+            rederive_languages=rederive_languages,
         )
         bundle_result = write_compiled_charter(
             charter_dir,

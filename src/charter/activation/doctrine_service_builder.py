@@ -74,11 +74,12 @@ unification.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from charter.activation.resolver import DoctrineService as _ActivationAwareDoctrineService
     import charter.offering.service as _doctrine_service_module
+    from charter.activation.interview import CharterInterview
 
 from charter.activation._doctrine_paths import resolve_project_root
 
@@ -94,6 +95,8 @@ def _build_doctrine_service(
     *,
     org_roots: list[Path] | None = None,
     agent_profile_overlay_dir: Path | None = None,
+    interview: CharterInterview | None = None,
+    prefer_interview: bool = False,
 ) -> _doctrine_service_module.DoctrineService:
     """Build a DoctrineService for the given repo root.
 
@@ -118,6 +121,13 @@ def _build_doctrine_service(
     (e.g. ``.kittify/agent_profiles``). Like *org_roots*, it is passed into
     :class:`~charter.offering.service.DoctrineService` **only when set**, so
     charter-internal callers that omit it see byte-identical kwargs (NFR-002).
+
+    #4614 / FR-011 (split-brain fix): a *regenerate* re-derives the project
+    languages from the current interview, so the language gate this service
+    applies must resolve under the SAME languages ``compile_charter`` stamps.
+    *interview* / *prefer_interview* are forwarded to the one
+    ``infer_repo_languages`` call **only when set**; every other caller keeps the
+    compiled-first, argument-free ``infer_repo_languages(repo_root)`` call.
     """
     from charter.offering.service import DoctrineService
     # Patch seam, see module docstring.
@@ -131,7 +141,10 @@ def _build_doctrine_service(
     # ``resolve_doctrine_root()`` here would point at the emptied ``src/doctrine``
     # tree and silently load nothing.
     project_root = resolve_project_root(repo_root)
-    active_languages = infer_repo_languages(repo_root)
+    if interview is None and not prefer_interview:
+        active_languages = infer_repo_languages(repo_root)
+    else:
+        active_languages = infer_repo_languages(repo_root, interview=interview, prefer_interview=prefer_interview)
     # Only pass ``org_roots``/``agent_profile_overlay_dir`` when each carries a
     # value so charter-internal callers see byte-identical kwargs (preserves
     # existing test stubs and downstream constructors that may not declare the
@@ -176,7 +189,8 @@ def _self_resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     """
     from charter.offering.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
 
-    return resolve_existing_org_roots(repo_root)
+    roots: list[Path] = resolve_existing_org_roots(repo_root)
+    return roots
 
 
 def _build_activation_aware_doctrine_service(
@@ -184,6 +198,8 @@ def _build_activation_aware_doctrine_service(
     *,
     org_roots: list[Path] | None = None,
     agent_profile_overlay_dir: Path | None = None,
+    interview: CharterInterview | None = None,
+    prefer_interview: bool = False,
 ) -> _ActivationAwareDoctrineService:
     """Build an *activation-aware* doctrine service for ``--include`` fetches.
 
@@ -229,14 +245,20 @@ def _build_activation_aware_doctrine_service(
     # extra kwarg unconditionally raises ``TypeError`` against those stubs
     # (NFR-002). The overlay is still threaded through whenever a caller
     # (e.g. the profiles projection) actually supplies it.
+    # *interview* / *prefer_interview* (#4614) follow the same "only when set"
+    # rule so a stub without those parameters keeps working.
+    language_kwargs: dict[str, Any] = {}
+    if interview is not None or prefer_interview:
+        language_kwargs = {"interview": interview, "prefer_interview": prefer_interview}
     if agent_profile_overlay_dir is not None:
         inner = _build_doctrine_service(
             repo_root,
             org_roots=resolved_org_roots,
             agent_profile_overlay_dir=agent_profile_overlay_dir,
+            **language_kwargs,
         )
     else:
-        inner = _build_doctrine_service(repo_root, org_roots=resolved_org_roots)
+        inner = _build_doctrine_service(repo_root, org_roots=resolved_org_roots, **language_kwargs)
     pack_context = PackContext.from_config(repo_root)
     return ActivationAwareDoctrineService(inner, pack_context=pack_context)
 
@@ -245,6 +267,8 @@ def build_activation_aware_doctrine_service(
     repo_root: Path,
     *,
     agent_profile_overlay_dir: Path | None = None,
+    interview: CharterInterview | None = None,
+    prefer_interview: bool = False,
 ) -> _ActivationAwareDoctrineService:
     """Build the ONE canonical activation-aware ``DoctrineService`` (FR-008, C-001).
 
@@ -271,6 +295,11 @@ def build_activation_aware_doctrine_service(
     ----------
     repo_root:
         Repository root containing ``.kittify/config.yaml``.
+    interview, prefer_interview:
+        #4614 / FR-011: ``charter generate --from-interview`` passes the
+        current interview with ``prefer_interview=True`` so the language gate
+        resolves under the languages the regenerate is about to stamp, not the
+        stale compiled list. Defaults keep the compiled-first behaviour.
 
     Returns
     -------
@@ -305,6 +334,11 @@ def build_activation_aware_doctrine_service(
     ``None`` keeps the delegation byte-identical (NFR-002); this stays a thin
     delegate — no second wrapper construction site (C-006).
     """
+    if interview is None and not prefer_interview:
+        return _build_activation_aware_doctrine_service(repo_root, agent_profile_overlay_dir=agent_profile_overlay_dir)
     return _build_activation_aware_doctrine_service(
-        repo_root, agent_profile_overlay_dir=agent_profile_overlay_dir
+        repo_root,
+        agent_profile_overlay_dir=agent_profile_overlay_dir,
+        interview=interview,
+        prefer_interview=prefer_interview,
     )

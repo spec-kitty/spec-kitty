@@ -466,7 +466,7 @@ def _activation_keys() -> tuple[str, ...]:
     """
     from charter.activation.pack_manager import ACTIVATION_YAML_KEYS  # noqa: PLC0415 -- avoids import cycle (WP05)
 
-    return ACTIVATION_YAML_KEYS
+    return tuple(str(key) for key in ACTIVATION_YAML_KEYS)
 
 
 def __getattr__(name: str) -> object:

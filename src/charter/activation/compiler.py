@@ -382,6 +382,7 @@ def compile_charter(
     doctrine_service: DoctrineService | None = None,
     repo_root: Path | None = None,
     pack_context: PackContext | None = None,
+    rederive_languages: bool = False,
 ) -> CompiledCharter:
     """Compile charter markdown, references manifest, and library docs.
 
@@ -411,6 +412,14 @@ def compile_charter(
     _promote_interview_selections``). Re-aliasing here was a no-op for that
     path and had zero effect on the config-sourced activation set for any
     path (#2530) -- removed rather than re-applied a second time.
+
+    *rederive_languages* (#4614 / FR-011): when ``True``, ``catalog.languages``
+    is derived from *interview* alone instead of reading back the previously
+    compiled list (``infer_repo_languages(..., prefer_interview=True)``). Only
+    ``charter generate`` from a loaded interview sets it -- a regenerate is the
+    one place a stale compiled language must not survive. ``charter activate``
+    and pack recompiles keep the default ``False`` (compiled-first, #2395/#3292:
+    a recompile never re-litigates the recorded languages).
     """
     # Single authority (issue #3292): route through the SAME function the
     # doctrine-service language gate (charter.activation.doctrine_service_builder) uses,
@@ -421,7 +430,7 @@ def compile_charter(
     # `catalog.languages`, which the next run's `infer_repo_languages` then
     # read back as authoritative "admit none" — see that function's
     # docstring for the full feedback-loop this closes.
-    active_languages = infer_repo_languages(repo_root, interview=interview)
+    active_languages = infer_repo_languages(repo_root, interview=interview, prefer_interview=rederive_languages)
     catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
     diagnostics: list[str] = []
 
@@ -444,6 +453,7 @@ def compile_charter(
         allowed=set(DEFAULT_TOOL_REGISTRY),
         label="available_tools",
         diagnostics=diagnostics,
+        missing_message=_unregistered_tool_message,
     )
 
     # Validate and normalize local support file declarations.
@@ -942,12 +952,27 @@ def _resolve_template_set(
     return mission_default
 
 
+def _unregistered_tool_message(missing: list[str]) -> str:
+    """Diagnostic for ``available_tools`` entries outside the tool registry.
+
+    Names the entries as *tool ids* (#4614 / FR-013): ``available_tools`` is
+    validated against ``DEFAULT_TOOL_REGISTRY``, which is unrelated to project
+    languages, so a language such as ``zig`` listed there is an unregistered
+    tool id -- not an "unknown" language. The registry is deliberately not
+    widened.
+    """
+    quoted = ", ".join(f"'{name}'" for name in sorted(missing))
+    verb = "is not a registered tool id" if len(missing) == 1 else "are not registered tool ids"
+    return f"available_tools: {quoted} {verb}; ignored (tool ids are validated separately from project languages)"
+
+
 def _sanitize_catalog_selection(
     *,
     values: list[str],
     allowed: set[str],
     label: str,
     diagnostics: list[str],
+    missing_message: Callable[[list[str]], str] | None = None,
 ) -> list[str]:
     seen: list[str] = []
     missing: list[str] = []
@@ -966,7 +991,10 @@ def _sanitize_catalog_selection(
             seen.append(canonical)
 
     if missing:
-        diagnostics.append(f"Ignored unknown {label}: {', '.join(sorted(missing))}")
+        if missing_message is not None:
+            diagnostics.append(missing_message(missing))
+        else:
+            diagnostics.append(f"Ignored unknown {label}: {', '.join(sorted(missing))}")
 
     if seen:
         return seen
