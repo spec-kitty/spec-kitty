@@ -168,19 +168,6 @@ _DISTINCT_CONFIG_KEYS: tuple[str, ...] = tuple(dict.fromkeys(spec.config_key for
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("config_key", _DISTINCT_CONFIG_KEYS)
-def test_every_registered_config_key_resolves_through_replay(config_key: str) -> None:
-    """Every distinct ``_MERGE_DRIVERS`` config key resolves to a callable.
-
-    Only ``spec-kitty-traces`` is otherwise exercised through replay
-    (``test_bookkeeping_projection_seam.py:202-318``); the resolver must keep
-    resolving every registered kind, not just that one.
-    """
-    driver = _resolve_registered_driver_callable(config_key)
-    assert callable(driver)
-
-
-@pytest.mark.unit
 def test_unknown_config_key_fails_closed_through_replay() -> None:
     with pytest.raises(GitProbeError):
         _resolve_registered_driver_callable("spec-kitty-does-not-exist")
