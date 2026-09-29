@@ -99,3 +99,29 @@ def test_wrong_branch_single_branch_checkout_is_refused_on_orchestrator_path(rep
         oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     assert "WRITE_CHECKOUT_WRONG_BRANCH" in capsys.readouterr().out
+
+
+def _build_lanes_planning_mission(repo: Path, slug: str, mission_id: str) -> None:
+    """A ``lanes`` (NOT single_branch) mission whose planning_artifact WP runs in the
+    repo root and whose ``lanes.json`` carries a ``kitty/mission-...`` branch."""
+    _build_mission(repo, slug, mission_id, topology="lanes", wp_kind="planning_artifact")
+    _mint(repo, slug)
+    _git(repo, "checkout", "-q", "trunk")
+
+
+def test_lanes_topology_planning_wp_start_reports_target_branch(repo: Path) -> None:
+    slug = "orch-lanes-plan"
+    _build_lanes_planning_mission(repo, slug, "01ORCHLP000000000000000001")
+
+    ws = oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
+
+    assert ws.lane_branch == "trunk"
+
+
+def test_lanes_topology_planning_wp_read_only_resolver_reports_target_branch(repo: Path) -> None:
+    slug = "orch-lanes-plan"
+    _build_lanes_planning_mission(repo, slug, "01ORCHLP000000000000000001")
+
+    ws = oc._resolve_existing_workspace(repo, slug, "WP01")
+
+    assert ws.lane_branch == "trunk"
