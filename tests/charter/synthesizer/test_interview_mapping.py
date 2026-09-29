@@ -442,7 +442,7 @@ class TestResolveFullSnapshot:
             assert isinstance(item, tuple)
             assert len(item) == 2
 
-    def test_context_is_dict(self) -> None:
+    def test_answer_context_carries_answer_kinds_and_provenance(self) -> None:
         """answer_context carries the answer, kinds, and provenance keys
         that ``targets.py`` reads (``kinds``, ``source_section``)."""
         contexts = dict(resolve_sections({"testing_philosophy": "tdd"}))

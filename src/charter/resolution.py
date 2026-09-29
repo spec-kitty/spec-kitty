@@ -80,7 +80,8 @@ def resolve_canonical_repo_root(path: Path) -> Path:
     """Resolve ``path`` to the canonical (main-checkout) project root.
 
     See ``contracts/canonical-root-resolver.contract.md`` for the full
-    behavioral matrix and error surface. The function performs at most one
+    behavioral matrix and error surface. Its submodule row (``<repo>/.git/modules``)
+    is superseded by the submodule rule below (#5353). The function performs at most one
     ``git rev-parse --git-common-dir`` invocation per cold call and zero on
     warm (LRU-cached) calls. A common dir that is not named ``.git`` (a
     submodule's absorbed ``<super>/.git/modules/<name>``) costs one extra cold

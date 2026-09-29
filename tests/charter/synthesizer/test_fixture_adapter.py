@@ -258,8 +258,10 @@ def _record_fixture(fixture_root: Path, request: SynthesisRequest) -> str:
 class TestPresentFixture:
     """A recorded fixture is served back verbatim with fixture provenance.
 
-    Hermetic: each test records its own fixture in ``tmp_path`` and never
-    skips, so a hashing or path regression fails instead of skipping.
+    Hermetic: each test records its own fixture in ``tmp_path`` (at the path
+    derived from the request's public hash) and never skips, so a lookup or
+    path regression fails instead of skipping. Hash stability itself is pinned
+    by the golden hashes in ``test_request.py``.
     """
 
     def test_present_fixture_returns_adapter_output(self, tmp_path: Path) -> None:

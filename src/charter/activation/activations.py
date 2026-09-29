@@ -8,25 +8,13 @@ the operator-authored block in `governance.yaml` that pairs an
 Canonical vocabulary
 --------------------
 The closed vocabularies for ``activation_context.mission_type`` and
-``activation_context.action`` are pinned by the architectural guard
-:mod:`tests.architectural.test_activation_registry_schema` and (for
-actions / triggers) by
-:mod:`tests.architectural.test_trigger_registry_coverage`.
-
-Per data-model.md §7, the canonical home for ``_ALLOWED_ACTIONS`` and
-``_REGISTERED_TRIGGERS`` is
-``tests/architectural/test_trigger_registry_coverage``; this module
-MUST expose the byte-identical ``ALLOWED_ACTIONS`` and
-``REGISTERED_TRIGGERS`` re-exports so runtime callers (resolvers,
-prompt builders, validators) never copy/paste a divergent literal.
-
-WP01 introduced a *local* definition of the vocabulary (the runtime
-contract is byte-identical equality, not re-export through a particular
-import path).  WP05 landed ``_ALLOWED_ACTIONS`` /
-``_REGISTERED_TRIGGERS`` in ``test_trigger_registry_coverage.py``
-together with ``test_trigger_registry_runtime_export_in_sync`` — the
-architectural cross-check that asserts byte-identical equality with the
-constants exposed here.
+``activation_context.action`` are pinned by ``tests/charter/test_activations.py``
+(``test_allowed_actions_is_the_canonical_10_token_set`` and
+``test_registered_triggers_is_superset_of_allowed_actions``), against the
+token lists in data-model.md §7. This module is the single runtime home of
+``ALLOWED_ACTIONS`` and ``REGISTERED_TRIGGERS``, so runtime callers
+(resolvers, prompt builders, validators) import them and never copy/paste a
+divergent literal.
 
 Action vocabulary boundaries
 ----------------------------
@@ -102,9 +90,8 @@ ALLOWED_MISSION_TYPES: frozenset[str] = frozenset(
 
 
 #: 10-token operator-side closed vocabulary for ``activation_context.action``.
-#: Per data-model.md §7 this MUST stay byte-identical to
-#: ``tests.architectural.test_trigger_registry_coverage._ALLOWED_ACTIONS``
-#: (cross-check landed in WP05).
+#: The tokens are the data-model.md §7 list, pinned by
+#: ``tests/charter/test_activations.py::test_allowed_actions_is_the_canonical_10_token_set``.
 ALLOWED_ACTIONS: frozenset[str] = frozenset(
     {
         # Mission-type verbs (the prompt builder emits these as action labels).
@@ -127,9 +114,8 @@ ALLOWED_ACTIONS: frozenset[str] = frozenset(
 #: rendered artifact stanzas.
 #: ``_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS ∪ {fine-grained tokens}`` —
 #: the formula's only authoritative definition lives in data-model.md §7.
-#: Per data-model.md §7 this MUST stay byte-identical to
-#: ``tests.architectural.test_trigger_registry_coverage._REGISTERED_TRIGGERS``
-#: (cross-check landed in WP05).
+#: Pinned by
+#: ``tests/charter/test_activations.py::test_registered_triggers_is_superset_of_allowed_actions``.
 REGISTERED_TRIGGERS: frozenset[str] = ALLOWED_ACTIONS | frozenset(
     {
         "write_comment",

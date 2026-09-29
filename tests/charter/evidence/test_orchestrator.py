@@ -16,7 +16,10 @@ from charter.activation.evidence.orchestrator import (
     EvidenceResult,
     load_url_list_from_config,
 )
-from charter.resolution import resolve_canonical_repo_root
+from specify_cli.cli.commands.charter._charter_write_root import (
+    CharterWriteRootError,
+    resolve_charter_write_root,
+)
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: python -m specify_cli subprocess
@@ -195,10 +198,12 @@ def test_dry_run_evidence_on_spec_kitty_repo(
 
     repo_root = Path(__file__).resolve().parents[3]  # the spec-kitty checkout under test
     # Topology precondition: ``charter synthesize`` fails closed from a linked git
-    # worktree by design (#4785, ``resolve_charter_write_root``), so this real-repo run
-    # needs the canonical checkout, like the #3908 repository-level assertion.
-    if resolve_canonical_repo_root(repo_root) != repo_root:
-        pytest.skip("charter synthesize refuses linked git worktrees by design (#4785)")
+    # worktree by design (#4785), so this real-repo run needs a checkout that the
+    # command's own write-root check accepts.
+    try:
+        resolve_charter_write_root(repo_root)
+    except CharterWriteRootError:
+        pytest.skip("charter synthesize refuses this checkout topology by design (#4785)")
 
     src_path = str(repo_root / "src")
     env = os.environ.copy()

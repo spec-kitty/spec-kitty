@@ -194,8 +194,9 @@ def git_configured_worktree(common_dir: Path) -> Path | None:
     resolved = common_dir.resolve()
     try:
         result = subprocess.run(
-            ["git", "--git-dir", str(resolved), "config", "--get", "core.worktree"],
-            cwd=str(resolved),
+            # ``--local``: git honours only the repository's own core.worktree;
+            # a global or system value must never redirect the root.
+            ["git", "--git-dir", str(resolved), "config", "--local", "--get", "core.worktree"],
             capture_output=True,
             text=True,
             encoding="utf-8",

@@ -16,6 +16,7 @@ from charter.resolution import (    GitCommonDirUnavailableError,
     NotInsideRepositoryError,
     resolve_canonical_repo_root,
 )
+from kernel.git_topology import clear_caches as clear_topology_caches, git_configured_worktree
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: subprocess
@@ -279,6 +280,25 @@ def test_submodule_worktree_probe_failure_raises_git_common_dir_unavailable(
         pytest.raises(GitCommonDirUnavailableError, match="bad config line 7"),
     ):
         resolve_canonical_repo_root(submod_dir)
+
+
+def test_worktree_probe_ignores_a_global_core_worktree(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only the repository's own ``core.worktree`` counts, as in git itself.
+
+    A ``--separate-git-dir`` repo records no local ``core.worktree``, so a
+    value in the user's global config must not be read as the working tree.
+    """
+    base = tmp_path_factory.mktemp("separate")
+    git_dir, work = base / "gitdir", base / "work"
+    _git("init", "--quiet", "--separate-git-dir", str(git_dir), str(work))
+    global_config = base / "global.gitconfig"
+    global_config.write_text(f"[core]\n\tworktree = {base / 'bogus'}\n")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+    clear_topology_caches()
+
+    assert git_configured_worktree(git_dir) is None
 
 
 @pytest.mark.skipif(platform.system() == "Windows", reason=_SUBMODULE_SKIP_REASON)
