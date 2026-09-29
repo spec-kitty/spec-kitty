@@ -118,7 +118,7 @@
       "--no-auto-commit"
     ],
     "exit_code": 1,
-    "expected_stdout": "{\"error\": \"Invalid requirement refs\", \"unknown_refs\": [\"FR-014\"], \"hint\": \"Refs not found in spec.md. Available: FR-001, FR-002\"}\n"
+    "expected_stdout": "{\"error\": \"Invalid requirement refs\", \"unknown_refs\": [\"FR-014\"], \"parsed_spec_ids\": [\"FR-001\", \"FR-002\"], \"hint\": \"Refs not found in spec.md. Available: FR-001, FR-002\"}\n"
   },
   "map_requirements_stale_frontmatter_error": {
     "site": "tasks.py:3585 map-requirements/error-stale-frontmatter-refs",

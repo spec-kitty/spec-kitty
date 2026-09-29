@@ -458,10 +458,12 @@ def _mr_gate_offenders(st: _MapReqState) -> None:
 
     if st.mapping_plan.offenders.unknown_spec_id:
         unknown_refs = list(st.mapping_plan.offenders.unknown_spec_id)
-        available_range = f"Available: {', '.join(sorted(st.all_spec_ids))}" if st.all_spec_ids else "No requirement IDs found in spec.md"
+        parsed_spec_ids = _mr_sorted_spec_ids(st.all_spec_ids)
+        available_range = f"Available: {', '.join(parsed_spec_ids)}" if parsed_spec_ids else "No requirement IDs found in spec.md"
         payload = {
             "error": "Invalid requirement refs",
             "unknown_refs": sorted(set(unknown_refs)),
+            "parsed_spec_ids": parsed_spec_ids,
             "hint": f"Refs not found in spec.md. {available_range}",
         }
         if st.json_output:

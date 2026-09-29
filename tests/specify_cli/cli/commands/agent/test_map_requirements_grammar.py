@@ -194,6 +194,10 @@ class TestMapRequirementsGrammarFocused:
         payload = json.loads(result.stdout.strip())
         assert payload["error"] == "Invalid requirement refs"
         assert payload["unknown_refs"] == ["SC-009"]
+        # FR-012 parity: the unknown_spec_id refusal names the parsed set the
+        # same way the malformed refusal does (test_pre_write_malformed_refusal_
+        # names_grammar_no_write below), not just the "Available:" hint prose.
+        assert payload["parsed_spec_ids"] == ["FR-001", "FR-002", "FR-006a", "NFR-001", "SC-001"]
         assert _raw_refs(feature_dir, "WP01") == []
 
         # Positive control (FR-006 pairing): the declared SC-001 is accepted.
