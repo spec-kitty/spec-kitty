@@ -23,7 +23,7 @@ requirement_id_pattern_literals:
     constant: _FR_TABLE_ROW
     literal: '^\s*\|\s*\*{0,2}FR-\d{3}\*{0,2}\s*\|(?P<rest>[^\n]+)$'
     frozen: true
-    followup: "to be filed at closeout"
+    followup: "#5387"
     rationale: >
       The setup-plan substantive-spec gate's own functional-requirement
       table-row pattern diverges from C-001 by design (HiC ruling): it
@@ -38,7 +38,7 @@ requirement_id_pattern_literals:
     constant: _FR_REF_RE
     literal: '\b(FR-\d{3,})\b'
     frozen: true
-    followup: "to be filed at closeout"
+    followup: "#5388"
     rationale: >
       The retrospective generator's functional-requirement reference
       pattern is a narrower, retrospective-specific scan (3+ digit FRs
