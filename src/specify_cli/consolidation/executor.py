@@ -89,6 +89,7 @@ from specify_cli.lanes.compute import lane_created_branch as _created_lane_branc
 from specify_cli.lanes.compute import lane_fully_canceled as _lane_fully_canceled
 from specify_cli.lanes.persistence import read_lanes_json, require_lanes_json
 from specify_cli.consolidation._constants import (
+    GLOBAL_MERGE_LOCK_ID as _GLOBAL_MERGE_LOCK_ID,
     _STATUS_EVENTS_FILENAME,
     _STATUS_FILENAME,
     TARGET_BRANCH_CONTENT_CONFLICT,
@@ -180,7 +181,6 @@ from mission_runtime import (
 )
 from specify_cli.post_merge.stale_assertions import StaleAssertionFinding, StaleAssertionReport, run_check
 
-_GLOBAL_MERGE_LOCK_ID = "__global_merge__"
 
 # lane-branch-naming-authority-01M3EVC4 WP02 (T032, S1192): the single source
 # for the abort-and-retry remediation text every resume-refusal message

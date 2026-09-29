@@ -34,6 +34,11 @@ TARGET_BRANCH_CONTENT_CONFLICT = "TARGET_BRANCH_CONTENT_CONFLICT"
 TARGET_BRANCH_CONTENT_CONFLICT_HEADER = "Default squash integration would conflict with newer target-branch content."
 TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE = "Update the mission branch against the current target branch."
 
+# The shared global consolidation lock key: held by a live consolidation
+# (``executor``) and taken/released owner-gated by ``consolidate --abort``.
+# One definition so the two sides can never drift apart (slice-10 F6).
+GLOBAL_MERGE_LOCK_ID = "__global_merge__"
+
 # Canonical status-surface filenames.
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 _STATUS_FILENAME = "status.json"

@@ -93,6 +93,7 @@ from specify_cli.consolidation.config import MergeStrategy, load_merge_config
 # Re-imported here (and re-exported via ``__all__``) so the public surface and
 # every importer stay byte-stable (FR-003, C-008, INV-8).
 from specify_cli.consolidation._constants import (
+    GLOBAL_MERGE_LOCK_ID,
     HollowReviewWarnings,
     LINEAR_HISTORY_REJECTION_TOKENS,
     MissionBranchBlocker,
@@ -407,7 +408,7 @@ def _teardown_coordination_for_abort(
     teardown_coordination_topology(*abort_teardown_args, persist=False)
 
 
-_GLOBAL_MERGE_LOCK = "__global_merge__"
+_GLOBAL_MERGE_LOCK = GLOBAL_MERGE_LOCK_ID
 _ABORT_NO_SNAPSHOT_NOTICE = (
     "[yellow]Notice:[/yellow] no pre-mutation snapshot was recorded for this consolidation (older record); aborting without restoring branches."
 )
@@ -557,7 +558,7 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
     # mission's canonical id) — ``None`` when no state was resolved, in which
     # case only a provably-dead lock is reclaimable, never a live one.
     _abort_owner_token = state_entry[1].mission_id if state_entry is not None else None
-    _lock_outcome = release_merge_lock_if_owned("__global_merge__", repo_root, owner_token=_abort_owner_token)
+    _lock_outcome = release_merge_lock_if_owned(_GLOBAL_MERGE_LOCK, repo_root, owner_token=_abort_owner_token)
     if _lock_outcome in ("released_owned", "released_stale"):
         console.print("[green]Removed merge lock.[/green]")
     elif _lock_outcome == "left_live":

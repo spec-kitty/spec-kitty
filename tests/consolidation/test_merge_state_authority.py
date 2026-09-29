@@ -616,3 +616,16 @@ class TestRollbackTargetAfterFailedReconciliation:
             check=True,
         ).stdout
         assert after_refs == before_refs
+
+
+def test_global_merge_lock_id_has_a_single_definition() -> None:
+    """Slice-10 F6: the executor and ``consolidate --abort`` share ONE lock-id constant, not duplicate literals."""
+    import ast
+
+    src = Path(__file__).resolve().parents[2] / "src" / "specify_cli"
+    defining = sorted(
+        str(path.relative_to(src))
+        for path in src.rglob("*.py")
+        if any(isinstance(node, ast.Constant) and node.value == _GLOBAL_LOCK_ID for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))))
+    )
+    assert defining == ["consolidation/_constants.py"], f"'{_GLOBAL_LOCK_ID}' literal must live only in consolidation/_constants.py, found in {defining}"
