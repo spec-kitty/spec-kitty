@@ -401,6 +401,15 @@ commit belongs to some WP's window:
 | REFUSE (merged with an independent change) | The target is neither the canceled state, its pre-state, nor the window base's state | Target restored. Recovery: supersede through a surviving WP and re-run, or attest after verifying by hand |
 | REFUSE (infrastructure) | The status event log or the lane's git history cannot be read | Target restored. Repair the log or history and re-run. **Not overridable.** |
 
+"Target restored" in this table is the minimum: every FAIL/REFUSE (and every
+squash-projection refusal) also runs the single rollback authority
+(`consolidation/rollback.py`), which restores every branch the run moved —
+target, mission branch, coordination branch — to its pre-consolidation commit
+with compare-and-swap and prints a per-branch report; a branch another actor
+moved is named, never overwritten. A claim whose integrity already fails
+(explicit refusal, unresolved surface, empty claim) is refused before any
+mutation instead (ADR `2026-09-19-1`, Amendment 2026-09-29; #5338, #5318).
+
 REFUSE takes precedence over FAIL: an attribution failure is always reported
 as missing evidence, never silently downgraded to (or masked by) a content
 verdict.

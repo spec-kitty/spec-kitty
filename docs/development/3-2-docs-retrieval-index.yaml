@@ -3117,6 +3117,7 @@ pages:
     - {slug: "d6-fold-2745-s-completion-affordances-operator-post-spec", text: "D6 — Fold #2745's completion affordances (operator, post-spec)", level: 3}
     - {slug: "d7-4474-gets-a-delivering-requirement-agent-post-spec-repair", text: "D7 — #4474 gets a delivering requirement (agent, post-spec repair)", level: 3}
     - {slug: "transactional-rollback-unify-don-t-fork", text: "Transactional rollback: unify, don't fork", level: 3}
+    - {slug: "amendment-2026-09-29-one-pre-mutation-snapshot-one-cas-rollback-authority-slice-10", text: "Amendment 2026-09-29 — one pre-mutation snapshot, one CAS rollback authority (slice 10)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
