@@ -19,9 +19,10 @@ import json
 import os
 import subprocess
 import sys
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -173,6 +174,22 @@ def output_names_content_fail(result: subprocess.CompletedProcess[str]) -> bool:
     return "reconciliation failed" in flat or "attributable" in flat
 
 
+def reached_reconciliation_verdict(result: subprocess.CompletedProcess[str]) -> bool:
+    """True iff *result*'s output NAMES one of the gate's three verdicts.
+
+    ``VerifyResult.recovery_guidance()`` / ``_reconciliation_pass_message()``
+    (``consolidation/reconciliation.py`` / ``consolidation/executor.py``) always
+    prefix the operator-facing line with ``"Reconciliation verified"`` (PASS),
+    ``"Reconciliation FAILED"`` (FAIL), or ``"Reconciliation refused"`` (REFUSE)
+    — a run that reached the gate says one of these, whatever it decided (T004:
+    "reached the verdict", not which one). Whitespace-collapsed so a
+    rich-console line wrap still matches (mirrors
+    :func:`output_names_content_fail`).
+    """
+    flat = " ".join((result.stdout + "\n" + result.stderr).split()).lower()
+    return any(marker in flat for marker in ("reconciliation verified", "reconciliation failed", "reconciliation refused"))
+
+
 def sha_reachable(repo: Path, sha: str, ref: str) -> bool:
     """True iff *sha* is an ancestor of (reachable from) *ref*."""
     if not sha:
@@ -289,9 +306,16 @@ def _write_wp_file(mission: CoordMission, wp_id: str) -> None:
     )
 
 
-def _event(mission: CoordMission, wp_id: str, from_lane: str, to_lane: str) -> dict[str, object]:
+def _event(
+    mission: CoordMission,
+    wp_id: str,
+    from_lane: str,
+    to_lane: str,
+    *,
+    policy_metadata: dict[str, object] | None = None,
+) -> dict[str, object]:
     mission._event_seq += 1
-    return {
+    event: dict[str, object] = {
         "actor": "reviewer-renata" if to_lane == "approved" else "implementer-ivan",
         "at": _now_iso(),
         "event_id": f"01HXYZ5001{mission._event_seq:016d}",
@@ -305,10 +329,159 @@ def _event(mission: CoordMission, wp_id: str, from_lane: str, to_lane: str) -> d
         "to_lane": to_lane,
         "wp_id": wp_id,
     }
+    if policy_metadata is not None:
+        event["policy_metadata"] = policy_metadata
+    return event
 
 
 def _approve_events(mission: CoordMission, wp_id: str) -> list[dict[str, object]]:
     return [_event(mission, wp_id, frm, to) for frm, to in _APPROVE_CHAIN]
+
+
+_GITIGNORE_WORKTREES_LINE = ".worktrees/"
+
+
+def _merged_gitignore_content(extra_base_files: Mapping[str, str] | None) -> str:
+    """Build the init commit's ``.gitignore`` content (T002 fixture hygiene).
+
+    Every fixture repo ignores ``.worktrees/`` so a POST-build ``git status``
+    never sees the coordination worktree as an untracked/dirty path (the
+    gitlink hazard T002 closes). Merged with any caller-supplied
+    ``.gitignore`` passed via ``extra_base_files`` (``test_resume_phantom_only.py``
+    passes one) so neither line set is lost; lines are de-duplicated and the
+    caller's own ordering is preserved after the ``.worktrees/`` line.
+    """
+    lines = [_GITIGNORE_WORKTREES_LINE]
+    caller_gitignore = (extra_base_files or {}).get(".gitignore", "")
+    for line in caller_gitignore.splitlines():
+        if line and line not in lines:
+            lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
+def _init_fixture_repo(
+    tmp_path: Path,
+    *,
+    mid8: str,
+    slug: str,
+    target_branch: str,
+    extra_base_files: Mapping[str, str] | None = None,
+) -> CoordMission:
+    """Materialize the base repo + isolated HOME shared by every coord-mission
+    builder (T001): real ``git init``, test identity config, and a single
+    init commit carrying ``README.md`` and a ``.gitignore`` that always
+    ignores ``.worktrees/`` (merged with any ``extra_base_files[".gitignore"]``
+    — see :func:`_merged_gitignore_content`). Every other ``extra_base_files``
+    entry is committed alongside as genuinely PRE-EXISTING content, before the
+    coordination branch or any lane branch is cut (#5022: a canceled WP's
+    deletion of a pre-existing product file no approved lane re-authors).
+
+    Stages the init commit with EXPLICIT paths (never ``git add .`` / ``-A``
+    — T002): today every builder runs a blanket ``git add`` before
+    :meth:`CoordinationWorkspace.resolve` materializes the coordination
+    worktree, so the gitlink hazard only bites a POST-build ``git add .``
+    (which then trips the dirty-target refusal in ``git/ref_advance.py``);
+    this helper simply never introduces that risk in the first place.
+
+    Returns a :class:`CoordMission` with empty ``lane_branches`` — the caller
+    still owns writing planning artifacts, cutting the coordination branch
+    (:func:`_cut_coord_branch`), cutting lane branches
+    (:func:`_cut_lane_branch`), and finishing (:func:`_finish_coord_mission`).
+    """
+    mid8 = mid8.upper()
+    mission_id = (mid8 + "0" * 26)[:26]
+    repo = tmp_path / "repo"
+    home = tmp_path / "home"
+    home.mkdir(parents=True, exist_ok=True)
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    coord_branch = CoordinationWorkspace.branch_name(slug, mid8)
+
+    mission = CoordMission(
+        repo=repo,
+        home=home,
+        feature_dir=repo / "kitty-specs" / slug,
+        slug=slug,
+        mission_id=mission_id,
+        mid8=mid8,
+        coord_branch=coord_branch,
+        target_branch=target_branch,
+    )
+
+    repo.mkdir(parents=True, exist_ok=True)
+    _run(["git", "init", "-qb", target_branch, str(repo)])
+    _git(repo, "config", "user.email", "test@test.com")
+    _git(repo, "config", "user.name", "Terminus Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+
+    (repo / "README.md").write_text("init\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(_merged_gitignore_content(extra_base_files), encoding="utf-8")
+    staged = ["README.md", ".gitignore"]
+    for rel_path, content in (extra_base_files or {}).items():
+        if rel_path == ".gitignore":
+            continue
+        base_file = repo / rel_path
+        base_file.parent.mkdir(parents=True, exist_ok=True)
+        base_file.write_text(content, encoding="utf-8")
+        staged.append(rel_path)
+    _git(repo, "add", *staged)
+    _git(repo, "commit", "-qm", "init")
+    return mission
+
+
+def _cut_coord_branch(mission: CoordMission) -> None:
+    """Cut the coordination branch at the current HEAD of ``mission.repo``."""
+    _git(mission.repo, "branch", mission.coord_branch)
+
+
+def _commit_planning_artifacts(mission: CoordMission, message: str) -> None:
+    """Stage the whole ``kitty-specs/<slug>/`` planning-artifact tree with an
+    EXPLICIT path (never ``git add .`` / ``-A`` — T002) and commit it.
+    """
+    repo = mission.repo
+    _git(repo, "add", str(mission.feature_dir.relative_to(repo)))
+    _git(repo, "commit", "-qm", message)
+
+
+def _cut_lane_branch(
+    mission: CoordMission,
+    lane_id: str,
+    commits: Sequence[Callable[[Path], None]],
+    *,
+    base: str | None = None,
+) -> str:
+    """Cut one lane branch off *base* (default: the coordination branch),
+    check it out, run each of ``commits`` in order, then return to
+    ``mission.target_branch``.
+
+    Each callable in ``commits`` receives the repo path and is responsible
+    for its own file writes, EXPLICIT-path ``git add`` (T002 — never
+    ``git add .`` / ``-A``), and ``git commit``. Returns the lane branch
+    name; callers register ``mission.lane_branches[wp_id] = branch`` for
+    every WP the lane carries, since the WP<->lane mapping differs per
+    builder (one lane per WP vs. one shared lane for several WPs).
+    """
+    repo = mission.repo
+    lane_branch = f"kitty/mission-{mission.slug}-{lane_id}"
+    _git(repo, "branch", lane_branch, base or mission.coord_branch)
+    _git(repo, "checkout", "-q", lane_branch)
+    for commit in commits:
+        commit(repo)
+    _git(repo, "checkout", "-q", mission.target_branch)
+    return lane_branch
+
+
+def _finish_coord_mission(mission: CoordMission) -> CoordMission:
+    """Materialize the coordination worktree (production topology) and
+    return *mission*. Callers finish planting on every branch FIRST — this
+    is always the LAST step of a builder (T005: no post-build mutation is
+    needed for a correct fixture, but planting after resolve is untested and
+    unnecessary).
+    """
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    CoordinationWorkspace.resolve(mission.repo, mission.slug, mission.mid8)
+    return mission
 
 
 def build_coord_mission(
@@ -338,39 +511,8 @@ def build_coord_mission(
     lane re-authors).
     """
     mid8 = mid8.upper()
-    mission_id = (mid8 + "0" * 26)[:26]
     slug = f"terminus-{mid8}"
-    repo = tmp_path / "repo"
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    from specify_cli.coordination.workspace import CoordinationWorkspace
-
-    coord_branch = CoordinationWorkspace.branch_name(slug, mid8)
-
-    mission = CoordMission(
-        repo=repo,
-        home=home,
-        feature_dir=repo / "kitty-specs" / slug,
-        slug=slug,
-        mission_id=mission_id,
-        mid8=mid8,
-        coord_branch=coord_branch,
-        target_branch=target_branch,
-    )
-
-    # -- base repo ---------------------------------------------------------
-    repo.mkdir(parents=True, exist_ok=True)
-    _run(["git", "init", "-qb", target_branch, str(repo)])
-    _git(repo, "config", "user.email", "test@test.com")
-    _git(repo, "config", "user.name", "Terminus Test")
-    _git(repo, "config", "commit.gpgsign", "false")
-    (repo / "README.md").write_text("init\n", encoding="utf-8")
-    for rel_path, content in (extra_base_files or {}).items():
-        base_file = repo / rel_path
-        base_file.parent.mkdir(parents=True, exist_ok=True)
-        base_file.write_text(content, encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-qm", "init")
+    mission = _init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch=target_branch, extra_base_files=extra_base_files)
 
     # -- planning artifacts + approved status log --------------------------
     (mission.feature_dir / "tasks").mkdir(parents=True)
@@ -384,34 +526,35 @@ def build_coord_mission(
         "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
         encoding="utf-8",
     )
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-qm", f"chore({slug}): bootstrap coord mission")
+    _commit_planning_artifacts(mission, f"chore({slug}): bootstrap coord mission")
 
     # -- coordination branch at the bootstrap tip --------------------------
-    _git(repo, "branch", coord_branch)
+    _cut_coord_branch(mission)
 
     # -- one lane branch per WP, each carrying real approved code ----------
     for idx, wp_id in enumerate(wps):
+
+        def _plant_code(repo: Path, wp_id: str = wp_id, idx: int = idx) -> None:
+            code = repo / "src" / "pkg" / f"{wp_id.lower()}.py"
+            code.parent.mkdir(parents=True, exist_ok=True)
+            code.write_text(f"def {wp_id.lower()}() -> int:\n    return {idx}\n", encoding="utf-8")
+            _git(repo, "add", str(code))
+            _git(repo, "commit", "-qm", f"feat({slug}): {wp_id} approved code")
+
         lane_id = f"lane-{chr(ord('a') + idx)}"
-        lane_branch = f"kitty/mission-{slug}-{lane_id}"
-        _git(repo, "branch", lane_branch, coord_branch)
-        _git(repo, "checkout", "-q", lane_branch)
-        code = repo / "src" / "pkg" / f"{wp_id.lower()}.py"
-        code.parent.mkdir(parents=True, exist_ok=True)
-        code.write_text(f"def {wp_id.lower()}() -> int:\n    return {idx}\n", encoding="utf-8")
-        _git(repo, "add", str(code))
-        _git(repo, "commit", "-qm", f"feat({slug}): {wp_id} approved code")
-        _git(repo, "checkout", "-q", target_branch)
-        mission.lane_branches[wp_id] = lane_branch
+        mission.lane_branches[wp_id] = _cut_lane_branch(mission, lane_id, [_plant_code])
 
     # -- materialize the coordination worktree (production topology) -------
-    from specify_cli.coordination.workspace import CoordinationWorkspace
-
-    CoordinationWorkspace.resolve(repo, slug, mid8)
-    return mission
+    return _finish_coord_mission(mission)
 
 
-def _cancel_event(mission: CoordMission, wp_id: str, *, from_lane: str = "planned") -> dict[str, object]:
+def _cancel_event(
+    mission: CoordMission,
+    wp_id: str,
+    *,
+    from_lane: str = "planned",
+    policy_metadata: dict[str, object] | None = None,
+) -> dict[str, object]:
     """A single operator-authored canceled-with-provenance transition event.
 
     ``reason_source: "operator"`` is set explicitly (mirrors
@@ -422,7 +565,7 @@ def _cancel_event(mission: CoordMission, wp_id: str, *, from_lane: str = "planne
     synthetic/unauthorized cancellation.
     """
     mission._event_seq += 1
-    return {
+    event: dict[str, object] = {
         "actor": "operator",
         "at": _now_iso(),
         "event_id": f"01HXYZ5001{mission._event_seq:016d}",
@@ -437,6 +580,9 @@ def _cancel_event(mission: CoordMission, wp_id: str, *, from_lane: str = "planne
         "to_lane": "canceled",
         "wp_id": wp_id,
     }
+    if policy_metadata is not None:
+        event["policy_metadata"] = policy_metadata
+    return event
 
 
 def build_coord_mission_mixed_lane(
@@ -459,38 +605,21 @@ def build_coord_mission_mixed_lane(
     therefore carries exactly one commit, and that commit is 100% *survivor_wp*'s
     own authored work — so a correct, commit-granular exclusion must never
     exclude it, while the pre-fix lane-granular exclusion does.
+
+    **Record correction (T005 / FR-008):** contrary to an earlier claim
+    elsewhere in this file, a fixture built by this function DOES tolerate a
+    post-build lane-branch ref mutation and a post-build coordination-worktree
+    content mutation once :meth:`CoordinationWorkspace.resolve` has run — see
+    ``build_coord_mission_shared_file``'s docstring and
+    ``tests/terminus/test_fixture_mixed_lane_canceled.py`` for the pinned
+    observed behaviour and the real "unmaterialized" trigger.
     """
-    mid8 = mid8.upper()
-    mission_id = (mid8 + "0" * 26)[:26]
-    slug = f"terminus-{mid8}"
-    repo = tmp_path / "repo"
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    from specify_cli.coordination.workspace import CoordinationWorkspace
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.lanes.persistence import write_lanes_json
 
-    coord_branch = CoordinationWorkspace.branch_name(slug, mid8)
-    mission = CoordMission(
-        repo=repo,
-        home=home,
-        feature_dir=repo / "kitty-specs" / slug,
-        slug=slug,
-        mission_id=mission_id,
-        mid8=mid8,
-        coord_branch=coord_branch,
-        target_branch=target_branch,
-    )
-
-    # -- base repo ---------------------------------------------------------
-    repo.mkdir(parents=True, exist_ok=True)
-    _run(["git", "init", "-qb", target_branch, str(repo)])
-    _git(repo, "config", "user.email", "test@test.com")
-    _git(repo, "config", "user.name", "Terminus Test")
-    _git(repo, "config", "commit.gpgsign", "false")
-    (repo / "README.md").write_text("init\n", encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-qm", "init")
+    mid8 = mid8.upper()
+    slug = f"terminus-{mid8}"
+    mission = _init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch=target_branch)
 
     # -- planning artifacts: ONE lane, TWO WPs, mixed status ----------------
     (mission.feature_dir / "tasks").mkdir(parents=True)
@@ -498,8 +627,8 @@ def build_coord_mission_mixed_lane(
     manifest = LanesManifest(
         version=1,
         mission_slug=slug,
-        mission_id=mission_id,
-        mission_branch=coord_branch,
+        mission_id=mission.mission_id,
+        mission_branch=mission.coord_branch,
         target_branch=target_branch,
         lanes=[
             ExecutionLane(
@@ -522,29 +651,26 @@ def build_coord_mission_mixed_lane(
         "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
         encoding="utf-8",
     )
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-qm", f"chore({slug}): bootstrap mixed-lane coord mission")
+    _commit_planning_artifacts(mission, f"chore({slug}): bootstrap mixed-lane coord mission")
 
     # -- coordination branch at the bootstrap tip --------------------------
-    _git(repo, "branch", coord_branch)
+    _cut_coord_branch(mission)
 
     # -- ONE shared lane branch, carrying ONLY the survivor's real commit ---
-    lane_branch = f"kitty/mission-{slug}-lane-a"
-    _git(repo, "branch", lane_branch, coord_branch)
-    _git(repo, "checkout", "-q", lane_branch)
-    code = repo / "src" / "pkg" / f"{survivor_wp.lower()}.py"
-    code.parent.mkdir(parents=True, exist_ok=True)
-    code.write_text(f"def {survivor_wp.lower()}() -> int:\n    return 0\n", encoding="utf-8")
-    _git(repo, "add", str(code))
-    _git(repo, "commit", "-qm", f"feat({slug}): {survivor_wp} approved code")
-    _git(repo, "checkout", "-q", target_branch)
+    def _plant_survivor_code(repo: Path) -> None:
+        code = repo / "src" / "pkg" / f"{survivor_wp.lower()}.py"
+        code.parent.mkdir(parents=True, exist_ok=True)
+        code.write_text(f"def {survivor_wp.lower()}() -> int:\n    return 0\n", encoding="utf-8")
+        _git(repo, "add", str(code))
+        _git(repo, "commit", "-qm", f"feat({slug}): {survivor_wp} approved code")
+
+    lane_branch = _cut_lane_branch(mission, "lane-a", [_plant_survivor_code])
     mission.lane_branches[survivor_wp] = lane_branch
     mission.lane_branches[canceled_wp] = lane_branch
     mission.canceled_wps.add(canceled_wp)
 
     # -- materialize the coordination worktree (production topology) -------
-    CoordinationWorkspace.resolve(repo, slug, mid8)
-    return mission
+    return _finish_coord_mission(mission)
 
 
 def build_coord_mission_shared_file(
@@ -562,54 +688,50 @@ def build_coord_mission_shared_file(
     adjacent, WP01 T004).
 
     ``build_coord_mission`` gives every WP its OWN write-scope file, and
-    ``build_coord_mission_mixed_lane`` supports only ``--strategy merge`` and
-    cannot tolerate a lane-branch mutation after construction (it
-    de-materializes the coordination worktree -- project memory
-    ``terminus-mixed-lane-fixture-repro-friction``). This is an ADDITIVE new
-    builder, not a mutation of either: every lane branch commits its edit
-    INLINE, during construction, and the coordination worktree is materialized
-    exactly ONCE at the very end -- mirroring ``build_coord_mission_mixed_lane``'s
-    "build it all, then resolve once" shape. WP02 (Seam B) reuses this builder.
+    ``build_coord_mission_mixed_lane`` supports only ``--strategy merge``. This
+    is an ADDITIVE new builder, not a mutation of either: every lane branch
+    commits its edit INLINE, during construction, and the coordination
+    worktree is materialized exactly ONCE at the very end -- mirroring
+    ``build_coord_mission_mixed_lane``'s "build it all, then resolve once"
+    shape. WP02 (Seam B) reuses this builder.
+
+    **Record correction (T005 / FR-008, grounded 2026-09-28):** an earlier
+    revision of this docstring claimed ``build_coord_mission_mixed_lane``
+    "cannot tolerate a lane-branch mutation after construction (it
+    de-materializes the coordination worktree)". That claim does not hold:
+    ``tests/terminus/test_fixture_mixed_lane_canceled.py::
+    test_post_build_lane_update_ref_still_consolidates`` plants an EXTRA
+    commit on the lane branch (via ``commit-tree`` + a CAS ``update-ref``)
+    AFTER a builder has already resolved the coordination worktree, and the
+    run still reaches the reconciliation verdict -- a post-build lane-ref or
+    coordination-worktree-content mutation is fine. What actually triggers the
+    "coordination branch ... is unmaterialized" abort is the coordination
+    WORKTREE DIRECTORY being missing (``git worktree remove --force``), pinned
+    by that same file's ``test_missing_coord_worktree_dir_is_the_unmaterialized_
+    trigger``. The one genuine fixture hazard is staging the repository ROOT
+    with ``git add .`` / ``-A`` AFTER a builder has resolved the coordination
+    worktree, which would stage the coordination worktree's gitlink into a
+    lane commit -- every builder here (and this one) only ever stages
+    EXPLICIT paths, and only BEFORE resolving, so the hazard never triggers.
 
     ``edits`` maps each WP id to ``(line_index, replacement_line)`` -- the
     caller picks DISJOINT indices so the lanes' own diffs never overlap and the
     aggregate squash resolves cleanly via ``git``'s own 3-way merge machinery.
     """
-    mid8 = mid8.upper()
-    mission_id = (mid8 + "0" * 26)[:26]
-    slug = f"terminus-{mid8}"
-    repo = tmp_path / "repo"
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    from specify_cli.coordination.workspace import CoordinationWorkspace
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.lanes.persistence import write_lanes_json
 
-    coord_branch = CoordinationWorkspace.branch_name(slug, mid8)
-    mission = CoordMission(
-        repo=repo,
-        home=home,
-        feature_dir=repo / "kitty-specs" / slug,
-        slug=slug,
-        mission_id=mission_id,
-        mid8=mid8,
-        coord_branch=coord_branch,
-        target_branch=target_branch,
-    )
-
-    # -- base repo, seeded with the shared file --------------------------------
-    repo.mkdir(parents=True, exist_ok=True)
-    _run(["git", "init", "-qb", target_branch, str(repo)])
-    _git(repo, "config", "user.email", "test@test.com")
-    _git(repo, "config", "user.name", "Terminus Test")
-    _git(repo, "config", "commit.gpgsign", "false")
-    (repo / "README.md").write_text("init\n", encoding="utf-8")
+    mid8 = mid8.upper()
+    slug = f"terminus-{mid8}"
     lines = list(initial_lines or (f"line {i}\n" for i in range(1, 11)))
-    shared_file = repo / shared_path
-    shared_file.parent.mkdir(parents=True, exist_ok=True)
-    shared_file.write_text("".join(lines), encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-qm", "init")
+    mission = _init_fixture_repo(
+        tmp_path,
+        mid8=mid8,
+        slug=slug,
+        target_branch=target_branch,
+        extra_base_files={shared_path: "".join(lines)},
+    )
+    shared_file = mission.repo / shared_path
 
     # -- planning artifacts: one lane per WP, ALL declaring shared_path --------
     (mission.feature_dir / "tasks").mkdir(parents=True)
@@ -628,8 +750,8 @@ def build_coord_mission_shared_file(
     manifest = LanesManifest(
         version=1,
         mission_slug=slug,
-        mission_id=mission_id,
-        mission_branch=coord_branch,
+        mission_id=mission.mission_id,
+        mission_branch=mission.coord_branch,
         target_branch=target_branch,
         lanes=lanes,
         computed_at=_now_iso(),
@@ -644,30 +766,361 @@ def build_coord_mission_shared_file(
         "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
         encoding="utf-8",
     )
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-qm", f"chore({slug}): bootstrap shared-file coord mission")
+    _commit_planning_artifacts(mission, f"chore({slug}): bootstrap shared-file coord mission")
 
     # -- coordination branch at the bootstrap tip ------------------------------
-    _git(repo, "branch", coord_branch)
+    _cut_coord_branch(mission)
 
     # -- one lane branch per WP, each committing its OWN disjoint-hunk edit ----
     for idx, wp_id in enumerate(wps):
+
+        def _plant_edit(repo: Path, wp_id: str = wp_id) -> None:
+            line_index, replacement = edits[wp_id]
+            edited = shared_file.read_text(encoding="utf-8").splitlines(keepends=True)
+            edited[line_index] = replacement
+            shared_file.write_text("".join(edited), encoding="utf-8")
+            _git(repo, "add", shared_path)
+            _git(repo, "commit", "-qm", f"feat({slug}): {wp_id} edits {shared_path}@{line_index}")
+
         lane_id = f"lane-{chr(ord('a') + idx)}"
-        lane_branch = f"kitty/mission-{slug}-{lane_id}"
-        _git(repo, "branch", lane_branch, coord_branch)
-        _git(repo, "checkout", "-q", lane_branch)
-        line_index, replacement = edits[wp_id]
-        edited = shared_file.read_text(encoding="utf-8").splitlines(keepends=True)
-        edited[line_index] = replacement
-        shared_file.write_text("".join(edited), encoding="utf-8")
-        _git(repo, "add", shared_path)
-        _git(repo, "commit", "-qm", f"feat({slug}): {wp_id} edits {shared_path}@{line_index}")
-        _git(repo, "checkout", "-q", target_branch)
-        mission.lane_branches[wp_id] = lane_branch
+        mission.lane_branches[wp_id] = _cut_lane_branch(mission, lane_id, [_plant_edit])
 
     # -- materialize the coordination worktree ONCE (production topology) -----
-    CoordinationWorkspace.resolve(repo, slug, mid8)
-    return mission
+    return _finish_coord_mission(mission)
+
+
+@dataclass(frozen=True)
+class PlantedChange:
+    """One file-level edit to plant as its own real commit.
+
+    ``content is None`` means DELETE *path* (the path must already exist in
+    the lane's tree at that point — e.g. seeded via ``extra_base_files``, or
+    added by an earlier :class:`PlantedChange`). Any other ``content`` value
+    is written verbatim and added/committed (create or overwrite).
+    """
+
+    path: str
+    content: str | None
+
+
+def _plant_change(repo: Path, change: PlantedChange, *, message: str) -> None:
+    if change.content is None:
+        _git(repo, "rm", "-q", change.path)
+    else:
+        target = repo / change.path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(change.content, encoding="utf-8")
+        _git(repo, "add", change.path)
+    _git(repo, "commit", "-qm", message)
+
+
+def _plant_lane_sync_merge(mission: CoordMission, lane_branch: str) -> None:
+    """Merge a side commit into *lane_branch* (already checked out) so the
+    lane spine carries a merge commit inside the canceled WP's session
+    (``lane_sync_merge_in_canceled_session``).
+
+    The side commit touches a harmless path under the mission's OWN planning
+    dir (``kitty-specs/<slug>/notes/``) -- never ``status.events.jsonl``
+    itself, whose exact content other assertions depend on. A planning-dir
+    path is mission bookkeeping, which the squash content-attribution axis
+    (``consolidation/reconciliation.py::_unattributable_content_squash``)
+    already excludes, so this merge can never trip the very check the T003
+    shapes exist to exercise — mirroring how a real "sync the lane with the
+    coordination branch" workflow merge behaves (Edge Cases, spec.md).
+    """
+    repo = mission.repo
+    side_branch = f"kitty/mission-{mission.slug}-lane-a-sync"
+    _git(repo, "branch", side_branch, lane_branch)
+    _git(repo, "checkout", "-q", side_branch)
+    marker = mission.feature_dir / "notes" / "lane-sync-touch.md"
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("lane sync marker\n", encoding="utf-8")
+    _git(repo, "add", str(marker.relative_to(repo)))
+    _git(repo, "commit", "-qm", f"chore({mission.slug}): lane-sync side commit")
+    _git(repo, "checkout", "-q", lane_branch)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", side_branch)
+    _git(repo, "branch", "-qD", side_branch)
+
+
+def build_coord_mission_mixed_lane_canceled(
+    tmp_path: Path,
+    *,
+    canceled_changes: Sequence[PlantedChange],
+    survivor_after: Sequence[PlantedChange] = (),
+    survivor_before: Sequence[PlantedChange] = (),
+    lane_sync_merge_in_canceled_session: bool = False,
+    stamp_attribution: bool = True,
+    canceled_entered_implementation: bool = True,
+    canceled_lifecycle: Literal["synthetic", "none"] = "synthetic",
+    wp02_final: Literal["canceled", "approved"] = "canceled",
+    mid8: str = "01M5046A",
+    extra_base_files: Mapping[str, str] | None = None,
+) -> CoordMission:
+    """One shared lane holding a real committed-then-canceled WP02 beside an
+    approved WP01 (FR-007, SC-005, T003) — the fixture that reproduces #5046's
+    shapes in ONE builder call, with no post-build lane mutation, so the
+    default squash strategy AND ``--strategy merge`` both reach the
+    reconciliation gate.
+
+    **Parameters, in terms of the spec's scenarios:**
+
+    - ``canceled_changes`` — WP02's own real commits (US1, add/modify/delete
+      via :class:`PlantedChange`), planted DURING WP02's ``in_progress``
+      session, each its own explicit-path commit on the shared lane branch.
+      This is the "canceled work cannot ship silently" core shape (US1
+      Acceptance Scenarios 1–4): nothing on the target branch may end up
+      carrying this content unless a survivor later re-authors it.
+    - ``survivor_after`` — WP01 commits planted AFTER WP02's cancel stamp,
+      inside a synthesized WP01 REWORK window (US2 "superseded canceled work
+      does not block a good consolidation"): when every path
+      ``canceled_changes`` touched is later rewritten (or restored) by
+      ``survivor_after``, consolidation must exit 0 (US2 Acceptance Scenario
+      1) — including the survivor-undone shapes SC-007 pins (an add the
+      survivor later deletes; a change the survivor later reverts to base).
+    - ``survivor_before`` — WP01 commits planted BEFORE WP02's session opens,
+      used to seed content that ``canceled_changes`` or ``survivor_after``
+      then edits/deletes (US2 Acceptance Scenario 2/3's pre-state).
+    - ``lane_sync_merge_in_canceled_session`` — plants a workflow-shaped merge
+      commit (touching only a mission-bookkeeping path) INSIDE WP02's window,
+      so the lane spine has a merge commit the gate must not mistake for
+      WP02's own content (Edge Cases: "workflow merges on the lane ... never
+      counted as the canceled WP's content").
+    - ``stamp_attribution`` — when ``True`` (default), WP02's claim/in_progress
+      and cancel events (and the ``survivor_after`` rework window's open/close
+      events, when planted) carry ``policy_metadata.lane_head`` the way the
+      real governed workflow records it (US5). ``False`` omits the key
+      everywhere, producing US3's "no commit attribution exists" REFUSE shape.
+    - ``canceled_entered_implementation`` — ``False`` cancels WP02 straight
+      from ``planned`` with NO commits and NO claim/in_progress events (US2
+      Acceptance Scenario 4 — "canceled before it entered implementation").
+      ``canceled_changes`` is ignored in this mode.
+    - ``canceled_lifecycle`` — ``"none"`` leaves WP02 at ``planned`` with NO
+      events and NO commits at all (for WP06, which drives WP02 through the
+      real governed CLI shells instead of hand-writing its events/commits —
+      US5). ``"synthetic"`` (default) is this builder's own hand-written
+      lifecycle.
+    - ``wp02_final`` — ``"approved"`` walks WP02 to ``approved`` instead of
+      canceling it (an all-approved-lane legacy twin used to prove a fixture
+      change did not regress the ordinary case, distinct from the mixed-lane
+      shape this builder exists for).
+    - ``extra_base_files`` (``{repo_relative_path: content}``) — committed as
+      part of the repo's INIT commit, BEFORE the coordination branch or
+      ``lane-a`` are cut (mirrors :func:`build_coord_mission`'s parameter of
+      the same name), so a path here is genuinely PRE-EXISTING at the mission
+      base rather than authored on the lane. Needed for the US1 "canceled WP
+      modifies/deletes a file that pre-dates the mission" shapes and for the
+      SC-007 revert-to-mission-base residual, neither of which
+      ``survivor_before`` (which authors content ON the lane, after the
+      coordination branch is cut) can express (WP02 review cycle 1).
+
+    **Stamping**: each ``lane_head`` is the REAL
+    ``git rev-parse refs/heads/<lane branch>`` at the moment the event is
+    appended — planting order is always event → commits → event, matching how
+    the real workflow would observe the lane tip.
+
+    **Event surface (FR-008 / T003)**: this builder writes ONE
+    ``status.events.jsonl`` — into *mission*'s PRIMARY feature dir
+    (``mission.repo / "kitty-specs" / mission.slug``), committed on
+    ``target_branch`` as its own commit AFTER the coordination branch is cut
+    and the lane's commits/events are known (so ``policy_metadata.lane_head``
+    can name a real SHA), then ``coord_branch`` is fast-forwarded to that same
+    commit before :func:`_finish_coord_mission` materializes the coordination
+    worktree — so the coordination worktree's COPY carries byte-identical
+    content. ``spec-kitty consolidate``'s reconciliation claim
+    (``build_approved_wp_set(..., feature_dir=run.feature_dir, ...)``) reads
+    whichever of the two the resolved status surface names (coord branch for
+    coord topologies); WP06, which appends further events after this builder
+    returns through the production shells, should therefore write to BOTH
+    copies (or resolve the same coordination surface this builder used) to
+    keep them in sync.
+
+    **No post-build mutation (SC-005)**: every commit, merge, and event is
+    planted BEFORE :func:`_finish_coord_mission` resolves the coordination
+    worktree — the single call this function makes.
+    """
+    survivor_wp, canceled_wp = "WP01", "WP02"
+    mid8 = mid8.upper()
+    slug = f"terminus-{mid8}"
+
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    mission = _init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch="main", extra_base_files=extra_base_files)
+
+    (mission.feature_dir / "tasks").mkdir(parents=True)
+    _write_meta(mission)
+    planted_paths = {pc.path for pc in (*canceled_changes, *survivor_after, *survivor_before)}
+    write_scope = tuple(sorted(planted_paths)) or (f"src/pkg/{survivor_wp.lower()}.py",)
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=slug,
+        mission_id=mission.mission_id,
+        mission_branch=mission.coord_branch,
+        target_branch=mission.target_branch,
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=(survivor_wp, canceled_wp),
+                write_scope=write_scope,
+                predicted_surfaces=("code",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
+        ],
+        computed_at=_now_iso(),
+        computed_from="terminus-red-first-fixture-mixed-lane-canceled",
+    )
+    write_lanes_json(mission.feature_dir, manifest)
+    _write_wp_file(mission, survivor_wp)
+    _write_wp_file(mission, canceled_wp)
+    # No status.events.jsonl yet -- the lane doesn't exist, so no lane_head
+    # SHA can be known. Committed separately below once the lane is built.
+    _commit_planning_artifacts(mission, f"chore({slug}): bootstrap mixed-lane-canceled coord mission")
+
+    _cut_coord_branch(mission)
+
+    lane_branch = f"kitty/mission-{slug}-lane-a"
+    _git(mission.repo, "branch", lane_branch, mission.coord_branch)
+    _git(mission.repo, "checkout", "-q", lane_branch)
+    mission.lane_branches[survivor_wp] = lane_branch
+    mission.lane_branches[canceled_wp] = lane_branch
+
+    def _lane_head() -> str:
+        return git_rev(mission.repo, lane_branch)
+
+    # WP01's own approve chain, stamped like a real governed workflow would
+    # (contract C1) when stamp_attribution=True -- NOT the shared, never-
+    # stamped `_approve_events` helper: WP01 shares this lane with canceled
+    # WP02, and `wp_attribution.resolve_canceled_wp` refuses the WHOLE
+    # resolution (never silently narrows it) when ANY sibling that entered
+    # implementation has an unresolvable window (review cycle 1, issue 1) --
+    # an unstamped WP01 would turn every mixed-lane FAIL/PASS scenario below
+    # into a spurious REFUSE naming WP01 instead of WP02.
+    #
+    # ``survivor_before`` commits are WP01's OWN work, so they are planted
+    # INSIDE WP01's implementation window (after ``claimed -> in_progress``,
+    # before ``in_progress -> for_review``), each stamp read at the moment its
+    # event is appended. Planting them after the whole approve chain (the
+    # pre-FR-013 order) left them outside every WP window — a shape the
+    # real governed workflow never produces and the FR-013 closed world
+    # (ADR 2026-09-29-1) now correctly REFUSEs.
+    def _stamped(frm: str, to: str) -> dict[str, object]:
+        return _event(mission, survivor_wp, frm, to, policy_metadata={"lane_head": _lane_head()} if stamp_attribution else None)
+
+    events: list[dict[str, object]] = [_stamped(frm, to) for frm, to in _APPROVE_CHAIN[:2]]
+    for idx, change in enumerate(survivor_before):
+        _plant_change(mission.repo, change, message=f"feat({slug}): {survivor_wp} {change.path} (before #{idx})")
+    events.extend(_stamped(frm, to) for frm, to in _APPROVE_CHAIN[2:])
+
+    if canceled_lifecycle == "none":
+        pass  # WP02 stays `planned`; no events, no commits (WP06 drives it live).
+    elif wp02_final == "approved":
+        events.extend(_approve_events(mission, canceled_wp))
+        for idx, change in enumerate(canceled_changes):
+            _plant_change(mission.repo, change, message=f"feat({slug}): {canceled_wp} {change.path} (#{idx})")
+    elif not canceled_entered_implementation:
+        events.append(_cancel_event(mission, canceled_wp, from_lane="planned"))
+    else:
+        # Stamp BOTH the claim and the claimed->in_progress transitions (not
+        # claimed->in_progress alone): the lane branch already exists by the
+        # time WP02 (sharing lane-a with WP01) is claimed, so a real governed
+        # workflow would stamp planned->claimed too (contract C1, "every
+        # persisted transition"). wp_attribution._windows() records a
+        # window's open_head from the FIRST transition into its class only
+        # (same-class continuations never overwrite it) -- an unstamped
+        # planned->claimed would therefore leave the whole implementation
+        # window unattributable (NO_STAMP) even with stamp_attribution=True,
+        # which is not the scenario this parameter is documented to produce.
+        head_at_planned_claimed = _lane_head()
+        events.append(
+            _event(
+                mission,
+                canceled_wp,
+                "planned",
+                "claimed",
+                policy_metadata={"lane_head": head_at_planned_claimed} if stamp_attribution else None,
+            )
+        )
+        head_at_claim = _lane_head()
+        events.append(
+            _event(
+                mission,
+                canceled_wp,
+                "claimed",
+                "in_progress",
+                policy_metadata={"lane_head": head_at_claim} if stamp_attribution else None,
+            )
+        )
+        for idx, change in enumerate(canceled_changes):
+            _plant_change(mission.repo, change, message=f"feat({slug}): {canceled_wp} {change.path} (#{idx})")
+        if lane_sync_merge_in_canceled_session:
+            _plant_lane_sync_merge(mission, lane_branch)
+        head_after_last_commit = _lane_head()
+        events.append(
+            _cancel_event(
+                mission,
+                canceled_wp,
+                from_lane="in_progress",
+                policy_metadata={"lane_head": head_after_last_commit} if stamp_attribution else None,
+            )
+        )
+
+    if survivor_after:
+        head_at_rework_open = _lane_head()
+        events.append(
+            _event(
+                mission,
+                survivor_wp,
+                "approved",
+                "in_progress",
+                policy_metadata={"lane_head": head_at_rework_open} if stamp_attribution else None,
+            )
+        )
+        for idx, change in enumerate(survivor_after):
+            _plant_change(mission.repo, change, message=f"feat({slug}): {survivor_wp} {change.path} (after #{idx})")
+        head_at_rework_close = _lane_head()
+        # This closes the rework IMPLEMENTATION window (`_windows()` reads the
+        # CLOSING event's own stamp, not the opening one) -- must carry the
+        # SAME real stamp as the "approved" event below, or WP01's rework
+        # window is unresolvable (NO_STAMP) and REFUSEs the whole mixed-lane
+        # attribution, same rationale as the approve-chain fix above.
+        events.append(
+            _event(
+                mission,
+                survivor_wp,
+                "in_progress",
+                "for_review",
+                policy_metadata={"lane_head": head_at_rework_close} if stamp_attribution else None,
+            )
+        )
+        events.append(_event(mission, survivor_wp, "for_review", "in_review"))
+        events.append(
+            _event(
+                mission,
+                survivor_wp,
+                "in_review",
+                "approved",
+                policy_metadata={"lane_head": head_at_rework_close} if stamp_attribution else None,
+            )
+        )
+
+    if canceled_lifecycle != "none" and wp02_final == "canceled":
+        mission.canceled_wps.add(canceled_wp)
+
+    _git(mission.repo, "checkout", "-q", mission.target_branch)
+    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text(
+        "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
+        encoding="utf-8",
+    )
+    _git(mission.repo, "add", str((mission.feature_dir / _STATUS_EVENTS_FILENAME).relative_to(mission.repo)))
+    _git(mission.repo, "commit", "-qm", f"chore({slug}): mixed-lane-canceled events")
+    # Fast-forward coord_branch to include the events commit; this does NOT
+    # change lane_branch's own base (still the earlier bootstrap-artifacts
+    # commit), so `commits_between(coord_branch, lane_branch)` still names
+    # exactly the lane's own planted commits.
+    _git(mission.repo, "branch", "-f", mission.coord_branch, mission.target_branch)
+
+    return _finish_coord_mission(mission)
 
 
 def fold_lanes_into_mission_branch(mission: CoordMission, wp_ids: Sequence[str]) -> None:
@@ -816,22 +1269,34 @@ def plant_canceled_deletion(
 # ---------------------------------------------------------------------------
 
 
-def run_terminus(mission: CoordMission, args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+def run_terminus(
+    mission: CoordMission,
+    args: Sequence[str],
+    *,
+    env: Mapping[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     """Invoke the REAL ``spec-kitty`` CLI in *mission*'s repo (no mocking).
 
     Runs ``python -m specify_cli <args>`` against this worktree's ``src`` with an
     isolated ``HOME`` so the whole terminus stack -- including
     ``git/ref_advance.py``'s ``update-ref`` argv -- executes for real.
+
+    ``env`` optionally overlays extra variables onto the environment this
+    helper builds by default (WP06) -- it is applied LAST, so a caller can
+    override any of the defaults above (including ``HOME``) as well as add
+    new ones.
     """
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(_SRC)
-    env["HOME"] = str(mission.home)
-    env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
-    env.pop("VIRTUAL_ENV", None)
+    process_env = os.environ.copy()
+    process_env["PYTHONPATH"] = str(_SRC)
+    process_env["HOME"] = str(mission.home)
+    process_env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
+    process_env.pop("VIRTUAL_ENV", None)
+    if env is not None:
+        process_env.update(env)
     return subprocess.run(
         [sys.executable, "-m", "specify_cli", *args],
         cwd=str(mission.repo),
-        env=env,
+        env=process_env,
         capture_output=True,
         text=True,
         check=False,
@@ -858,3 +1323,94 @@ def terminus_env() -> dict[str, object]:
         "plant_canceled_commit": plant_canceled_commit,
         "run_terminus": run_terminus,
     }
+
+
+def build_coord_mission_mixed_lane_with_dependency(
+    tmp_path: Path,
+    *,
+    canceled_leaks: bool,
+    mid8: str = "01M5046D",
+) -> CoordMission:
+    """A mixed lane (``lane-b``: approved WP01 + canceled WP02) that DEPENDS on
+    another lane (``lane-a``: approved WP03) — the governed allocator shape
+    (``lanes/worktree_allocator.py`` merges a dependency lane into the dependent
+    lane WITHOUT ``--no-ff``, so ``lane-a``'s WP03 commit fast-forwards onto
+    ``lane-b``'s first-parent history BEFORE ``lane-b``'s first claim stamp).
+
+    Every WP commit lands inside its own stamped window. ``canceled_leaks``
+    plants one WP02 file inside WP02's window (unsuperseded → FAIL); otherwise
+    WP02 is canceled without commits (→ exit 0).
+    """
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    mid8 = mid8.upper()
+    slug = f"terminus-{mid8}"
+    mission = _init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch="main")
+    (mission.feature_dir / "tasks").mkdir(parents=True)
+    _write_meta(mission)
+
+    def _lane(lane_id: str, wp_ids: tuple[str, ...], deps: tuple[str, ...]) -> ExecutionLane:
+        return ExecutionLane(
+            lane_id=lane_id,
+            wp_ids=wp_ids,
+            write_scope=("src/pkg",),
+            predicted_surfaces=("code",),
+            depends_on_lanes=deps,
+            parallel_group=0,
+        )
+
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=slug,
+        mission_id=mission.mission_id,
+        mission_branch=mission.coord_branch,
+        target_branch=mission.target_branch,
+        lanes=[_lane("lane-a", ("WP03",), ()), _lane("lane-b", ("WP01", "WP02"), ("lane-a",))],
+        computed_at=_now_iso(),
+        computed_from="terminus-red-first-fixture-dependency-lane",
+    )
+    write_lanes_json(mission.feature_dir, manifest)
+    for wp in ("WP01", "WP02", "WP03"):
+        _write_wp_file(mission, wp)
+    _commit_planning_artifacts(mission, f"chore({slug}): bootstrap dependency-lane coord mission")
+    _cut_coord_branch(mission)
+
+    repo = mission.repo
+    lane_a = f"kitty/mission-{slug}-lane-a"
+    lane_b = f"kitty/mission-{slug}-lane-b"
+    events: list[dict[str, object]] = []
+
+    def _stamped(wp: str, frm: str, to: str, branch: str) -> dict[str, object]:
+        return _event(mission, wp, frm, to, policy_metadata={"lane_head": git_rev(repo, branch)})
+
+    def _approved_session(wp: str, branch: str, path: str) -> None:
+        events.extend(_stamped(wp, frm, to, branch) for frm, to in _APPROVE_CHAIN[:2])
+        _plant_change(repo, PlantedChange(path, f"{wp} = 'approved work'\n"), message=f"feat({slug}): {wp} work")
+        events.extend(_stamped(wp, frm, to, branch) for frm, to in _APPROVE_CHAIN[2:])
+
+    # lane-a: WP03's approved work.
+    _git(repo, "branch", lane_a, mission.coord_branch)
+    _git(repo, "checkout", "-q", lane_a)
+    _approved_session("WP03", lane_a, "src/pkg/wp03.py")
+
+    # lane-b: cut at the coord base, then the allocator's dependency merge
+    # (fast-forward — no --no-ff) BEFORE any lane-b claim.
+    _git(repo, "branch", lane_b, mission.coord_branch)
+    _git(repo, "checkout", "-q", lane_b)
+    _git(repo, "merge", "--no-edit", "-m", "Merge dependency lane lane-a into lane-b", lane_a)
+    _approved_session("WP01", lane_b, "src/pkg/wp01.py")
+    events.append(_stamped("WP02", "planned", "claimed", lane_b))
+    events.append(_stamped("WP02", "claimed", "in_progress", lane_b))
+    if canceled_leaks:
+        _plant_change(repo, PlantedChange("src/pkg/wp02_new.py", "WP02 = 'canceled work'\n"), message=f"feat({slug}): WP02 work")
+    events.append(_cancel_event(mission, "WP02", from_lane="in_progress", policy_metadata={"lane_head": git_rev(repo, lane_b)}))
+
+    mission.lane_branches.update({"WP03": lane_a, "WP01": lane_b, "WP02": lane_b})
+    mission.canceled_wps.add("WP02")
+    _git(repo, "checkout", "-q", mission.target_branch)
+    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text("".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events), encoding="utf-8")
+    _git(repo, "add", str((mission.feature_dir / _STATUS_EVENTS_FILENAME).relative_to(repo)))
+    _git(repo, "commit", "-qm", f"chore({slug}): dependency-lane events")
+    _git(repo, "branch", "-f", mission.coord_branch, mission.target_branch)
+    return _finish_coord_mission(mission)
