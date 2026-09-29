@@ -1317,12 +1317,12 @@ constituents:
   kind: toolguide
   path: toolguides/github-tracker.toolguide.yaml
   provenance_path:
-- content_hash: b0e79407c53a21740a722b99fd89f5ac6fe1989bf78d107a463b31f7093a97e7
+- content_hash: 7d1c2f2866acd91edad878e5e524b6d016525a2ac2577c8547ff0ff1d9475e10
   id: java-supply-chain
   kind: toolguide
   path: toolguides/java-supply-chain.toolguide.yaml
   provenance_path:
-- content_hash: 2b4944c01c9b3f700e6cd7a14bd07f4b26da716d7b004fa5bd651f8a05d2e1b8
+- content_hash: 494a19767d060cfa07b448f3663e5675a845664e4fb8fc13cf5a988872ed8b81
   id: javascript-supply-chain
   kind: toolguide
   path: toolguides/javascript-supply-chain.toolguide.yaml
@@ -1357,7 +1357,7 @@ constituents:
   kind: toolguide
   path: toolguides/python-review-checks.toolguide.yaml
   provenance_path:
-- content_hash: e7011e9ba6a739fe80e718327461cb9f529b0b97af1bc416d4cf56760c1f60ce
+- content_hash: d6782191299508f898838568044726f6b0ba135bba98747db51a3ea59346d1a6
   id: python-supply-chain
   kind: toolguide
   path: toolguides/python-supply-chain.toolguide.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 16d96895a1abe9d3bb5a6dd9e44931983d13dc81465afd4ce268f026c599067a
+manifest_hash: 4aa229c75013b79dc895e4ddd32c2b708948dc981cf136bd20d6358d8f14ca43
 schema_version: '1'
 source_type: built-in
 source_url:
