@@ -98,9 +98,7 @@ def _resolve_wp02_base_commit() -> str | None:
 
     Returns ``None`` (rather than raising) if that historical commit is
     unavailable locally (e.g. a shallow clone) -- callers skip rather than
-    false-red, mirroring
-    ``tests/architectural/test_charter_owner_map_executed.py``'s
-    ``_git_diff_is_empty`` shallow-clone guard.
+    false-red, via the shallow-clone guard (``git cat-file -e``) below.
     """
     result = subprocess.run(
         ["git", "cat-file", "-e", f"{_WP02_BASE_COMMIT}^{{commit}}"],
