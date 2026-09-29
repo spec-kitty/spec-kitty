@@ -33,6 +33,12 @@ def _init_git_repo(repo: Path) -> None:
     provision_test_charter(repo)
     (repo / "kitty-specs").mkdir(exist_ok=True)
     subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    # Pin the branch the checkout is really on to the one ``_patched_context``
+    # reports (``get_current_branch`` -> "main"): ``git init``'s default branch
+    # is environment-dependent (``init.defaultBranch``; ``master`` when unset),
+    # so without this the protected single_branch mint is asked to fork from a
+    # ``main`` that exists only in the patch.
+    subprocess.run(["git", "symbolic-ref", "HEAD", "refs/heads/main"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
@@ -147,3 +153,77 @@ def test_coordinationless_create_persists_topology_so_2453_routing_is_not_cwd(
     # (genuinely-legacy) and silently reopens #2647.
     mid8 = str(meta["mission_id"])[:8]
     assert _warrants_legacy_warning(tmp_path, "topology-2453-linkage", mid8) is False
+
+
+# ---------------------------------------------------------------------------
+# #5100 WP08 follow-up: the protected single_branch mint when the target branch
+# names no commit. ``create_mission_core`` already refuses an unborn checkout
+# HEAD up front (#4033, tests/core/test_mission_creation_unborn_head.py), so the
+# mint only ever sees a committed HEAD; a target that still resolves to no
+# commit (never created, or the operator's unborn default branch while HEAD sits
+# elsewhere) must be refused with an actionable message, never git's raw
+# "'<target>' is not a commit", and before any ref or meta mutation.
+# ---------------------------------------------------------------------------
+
+
+def _git_out(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=False).stdout.strip()
+
+
+def _committed_repo_on(repo: Path, branch: str) -> None:
+    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "symbolic-ref", "HEAD", f"refs/heads/{branch}"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
+
+
+def test_protected_mint_refuses_clearly_when_target_branch_has_no_commit(tmp_path: Path) -> None:
+    from specify_cli.core.mission_creation import MissionCreationError, _mint_protected_single_branch_mission_branch
+
+    _committed_repo_on(tmp_path, "trunk")
+    meta: dict[str, object] = {}
+
+    with (
+        patch("specify_cli.core.git_ops.resolve_primary_branch", return_value="main"),
+        pytest.raises(MissionCreationError) as excinfo,
+    ):
+        _mint_protected_single_branch_mission_branch(
+            tmp_path,
+            "unborn-target-01M3Q4EC",
+            mission_id="01M3Q4ECZZZZZZZZZZZZZZZZZZ",
+            target_branch="main",
+            meta=meta,
+        )
+
+    message = str(excinfo.value)
+    assert "'main'" in message
+    assert "has no commit" in message
+    assert "is not a commit" not in message  # never git's raw start-point error
+    # Fail-closed before any mutation: no meta write, no ref, checkout untouched.
+    assert "mission_branch" not in meta
+    assert _git_out(tmp_path, "branch", "--list", "kitty/*") == ""
+    assert _git_out(tmp_path, "symbolic-ref", "--short", "HEAD") == "trunk"
+
+
+def test_protected_mint_still_forks_from_an_existing_target(tmp_path: Path) -> None:
+    """Positive control: a target with a commit is minted from and checked out."""
+    from specify_cli.core.mission_creation import _mint_protected_single_branch_mission_branch
+    from specify_cli.lanes.branch_naming import mission_branch_name
+
+    _committed_repo_on(tmp_path, "main")
+    meta: dict[str, object] = {}
+
+    with patch("specify_cli.core.git_ops.resolve_primary_branch", return_value="main"):
+        _mint_protected_single_branch_mission_branch(
+            tmp_path,
+            "born-target-01M3Q4ED",
+            mission_id="01M3Q4EDZZZZZZZZZZZZZZZZZZ",
+            target_branch="main",
+            meta=meta,
+        )
+
+    expected = mission_branch_name("born-target-01M3Q4ED", mission_id="01M3Q4EDZZZZZZZZZZZZZZZZZZ")
+    assert meta["mission_branch"] == expected
+    assert _git_out(tmp_path, "symbolic-ref", "--short", "HEAD") == expected
+    assert _git_out(tmp_path, "rev-parse", expected) == _git_out(tmp_path, "rev-parse", "main")

@@ -340,3 +340,24 @@ def test_issue_1706_ahead_and_behind_does_not_block_no_push_merge() -> None:
     assert status.is_safe is True  # deprecated alias — local merge always safe
     # is_safe_to_push would block a push, but is irrelevant for local-only merge
     assert status.is_safe_to_push is False  # diverged
+
+
+def test_validate_target_branch_refuses_clearly_when_target_has_no_commit(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """#5100 WP08 follow-up: consolidate never lands onto a target that names no
+    commit (unborn / deleted, no origin copy) -- it refuses up front with the
+    target named, before any landing mutation, instead of crashing mid-landing."""
+    import json
+
+    from specify_cli.consolidation.preflight import _validate_target_branch
+
+    _run(["git", "init", "-b", "kitty/mission-x-01M3Q4EE", str(tmp_path)])
+    _run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path)
+    _run(["git", "config", "user.name", "Test User"], cwd=tmp_path)
+    _commit(tmp_path, "a.txt", "a", "mission work")
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _validate_target_branch(tmp_path, "x-01M3Q4EE", "main", "meta.json", json_output=True)
+
+    assert excinfo.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert "Target branch 'main' (from meta.json) does not exist locally or on origin" in payload["error"]

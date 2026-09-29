@@ -434,6 +434,32 @@ class MissionBranchExistsError(MissionCreationError):
     error_code: str = "MISSION_BRANCH_EXISTS"
 
 
+def _refuse_target_without_commit(effective_root: Path, target_branch: str) -> None:
+    """Refuse a protected mint whose *target_branch* names no commit (#5100 WP08 follow-up).
+
+    The mission branch forks from the target's tip, so a target that resolves to
+    no commit -- never created, or the operator's still-unborn default branch
+    while this checkout sits on another -- cannot be minted from. (An unborn
+    HEAD in the write checkout itself is refused earlier by
+    :func:`_create_mission_core_impl`'s #4033 guard.) Raise an actionable
+    :class:`MissionCreationError` naming the target BEFORE any ref or meta
+    mutation, instead of surfacing git's raw "'<target>' is not a commit".
+    """
+    probe = subprocess.run(
+        ["git", "-C", str(effective_root), "rev-parse", "--verify", "--quiet", f"{target_branch}^{{commit}}"],
+        capture_output=True,
+        check=False,
+    )
+    if probe.returncode == 0:
+        return
+    raise MissionCreationError(
+        f"Cannot mint the protected-target mission branch: target branch {target_branch!r} "
+        f"has no commit in {effective_root} (it does not exist yet, or is still unborn). "
+        f"Create it with at least one commit (for example: git branch {target_branch} <start-point>), "
+        "or pass --target-branch naming an existing branch, then retry."
+    )
+
+
 def _mint_protected_single_branch_mission_branch(
     effective_root: Path,
     mission_slug_formatted: str,
@@ -480,6 +506,7 @@ def _mint_protected_single_branch_mission_branch(
     primary_branch = resolve_primary_branch(effective_root, bias=False)
     if not policy.is_protected_target(target_branch, primary_branch=primary_branch):
         return
+    _refuse_target_without_commit(effective_root, target_branch)
 
     # This mission's own (still-untracked) scaffold is never "dirty" here --
     # only the operator's unrelated uncommitted work is. A bidirectional
