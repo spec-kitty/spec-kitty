@@ -1,0 +1,35 @@
+{
+  "accept_commit": "a4d55fffffe15a1ed21e3eb77503a58fd6aa21d0",
+  "acceptance_history": [
+    {
+      "accept_commit": "a4d55fffffe15a1ed21e3eb77503a58fd6aa21d0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-29T08:58:35.355592+00:00",
+      "accepted_by": "claude-orchestrator",
+      "accepted_from_commit": "fe235923f7c6905b6d8880037a625b6f7f392695"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-29T08:58:35.355592+00:00",
+  "accepted_by": "claude-orchestrator",
+  "accepted_from_commit": "fe235923f7c6905b6d8880037a625b6f7f392695",
+  "baseline_merge_commit": "c1d2813a5701b2da0d8766e2cb5ae93d6d6ba21c",
+  "created_at": "2026-09-29T04:18:22.058687+00:00",
+  "flattened": false,
+  "friendly_name": "Tech-agnostic fallback for non-Python consumers",
+  "merged_at": "2026-09-29T09:01:38.545212+00:00",
+  "merged_commit": "99287a0bc9ab947afe56fbf0ebef9f1b5a55c968",
+  "mid8": "01M3NP53",
+  "mission_id": "01M3NP53XX8Q1YC2HXRZCJYTXA",
+  "mission_number": 207,
+  "mission_slug": "tech-agnostic-language-fallback-01M3NP53",
+  "mission_type": "software-dev",
+  "purpose_context": "Consumers building in languages Spec Kitty has no specialist guidance for (Zig, Go, ...) currently get a mission review that always fails its Python-only dead-code gate and a charter context that labels them Python. This mission makes the unknown-language path honest and neutral: the gate reports itself not applicable, unknown languages resolve to an explicit unknown value with tech-agnostic guidance and an advisory to extend the local charter, and a corrected interview answer takes effect on regeneration.",
+  "purpose_tldr": "Non-Python projects get an honest, language-neutral review and charter context instead of false Python failures and labels.",
+  "slug": "tech-agnostic-language-fallback-01M3NP53",
+  "status_phase": "1",
+  "target_branch": "issue-5283-tech-agnostic-language-fallback",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-29T05:11:34.967766+00:00"
+}

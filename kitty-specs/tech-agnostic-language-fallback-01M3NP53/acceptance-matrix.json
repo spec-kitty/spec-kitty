@@ -1,0 +1,179 @@
+{
+  "mission_slug": "tech-agnostic-language-fallback-01M3NP53",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (lane-a, approved; independent reviewer re-ran red->green on base product files): tests/specify_cli/cli/commands/review/test_dead_code_not_applicable.py Zig/Go-only cases (lightweight+post-merge) not applicable naming .go, .zig; 16/16 green",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:56:05.964614+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (lane-a, approved; independent reviewer re-ran red->green on base product files): gate result skip + one dead_code_not_applicable finding + MISSION_REVIEW_DEAD_CODE_NOT_APPLICABLE + pass_with_notes rc0 + no '0 unreferenced' on stdout; half-by-half revert of skip mapping turns it red",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:56:13.385346+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (lane-a, approved; independent reviewer re-ran red->green on base product files): neutrality test on _NOT_APPLICABLE_REMEDIATION (no .py/src//pytest, mentions local charter); remediation revert turns it red",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:56:20.484913+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (lane-a, approved; independent reviewer re-ran red->green on base product files): mixed Zig+py fixture still reports the unreferenced Python symbol with not-applicable note; Python-only control shows no note",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:56:27.545426+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (lane-a, approved; independent reviewer re-ran red->green on base product files): undeterminable git-unavailable/diff-failure/unreadable tests unchanged in review/ suite (160 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:56:34.748604+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (lane-a, approved; independent reviewer re-ran red->green on base product files): ERROR_CODES.md DEAD_CODE_NOT_APPLICABLE section; test_diagnostic_codes_documented.py count 16 green",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:56:42.149820+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (lane-a, approved; independent reviewer re-ran red->green on base product files): missing-pytest case warns MISSION_REVIEW_TEST_EXTRA_MISSING (JSON severity warning), gates run, report written; test_review.py re-pinned",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:56:49.253371+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP03 (lanes b,c approved; reviewers re-ran red->green): tests/charter/test_language_scope.py table \u2014 Zig -> [unknown], defaults/placeholders -> None, list-shaped answers; 129 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:56:56.309931+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/WP03 (lanes b,c approved; reviewers re-ran red->green) + WP05: scoping truth table (tests/doctrine/shared/test_scoping_any_all.py), validator rejects unknown; WP05 CLI test shows no language-scoped ids or python-pedro for a Zig project",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:57:03.417463+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (lane-e approved): tests/charter/test_context_unknown_language.py \u2014 Zig via real generate: bootstrap+compact advisory exactly once, compact Languages: unknown; Python/default controls without advisory",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:57:11.664982+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (lane-d approved): tests/charter/test_regenerate_rederives_languages.py tool case \u2014 label-specific 'is not a registered tool id' message, zig not in catalog.languages",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:57:18.891353+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 prefer_interview + WP04: stale [python] + Zig/Rust/default regenerate -> [unknown]/[rust]/absent; half-by-half T023/T024 enforced by reviewer",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:57:26.225698+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03/WP04: guard tests test_language_scope.py:49, test_active_languages_idempotency.py:185/:196 untouched and green; --no-from-interview and activate preserve cases green; WP05 control (d) stale [python] context stays python",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:57:34.157823+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03-WP05 GREEN controls: recognised languages (python/rust/ruby) and language-less interviews resolve as before; context Python control lists python-conventions",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:57:42.505168+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03: hyphen-prefix guard \u2014 librespot-java/my-python-thing not activated; Java-based/Python-based/Java 21 controls still activate",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:57:50.640566+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 (approved after 3 review cycles): docs/guides/how-to/governance/extend-charter-for-unsupported-language.md, troubleshoot-charter section 6, ADR 2026-09-29-1; check_docs_freshness errors=0, related_validator/description_length 6 pages clean",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:57:57.899533+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03: tests/charter/test_language_vocabulary.py + end-to-end elixir overlay via infer_repo_languages -> [elixir]; YAML scan, no hardcoded list, sole-door gates green",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-09-29T08:58:05.592747+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

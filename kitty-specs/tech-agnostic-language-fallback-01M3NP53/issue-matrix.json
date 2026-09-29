@@ -1,0 +1,173 @@
+{
+  "rows": {
+    "#2213": {
+      "evidence_ref": "Context citation only; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2330": {
+      "evidence_ref": "Umbrella; slice parent only (items 2-3 deferred to #2535)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2395": {
+      "evidence_ref": "Context citation only; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2535": {
+      "evidence_ref": "Context citation only; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2987": {
+      "evidence_ref": "Context citation only; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3292": {
+      "evidence_ref": "Context citation only; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4613": {
+      "evidence_ref": "Hyphen-compound half fixed (WP03); negation/structured-languages-field remainder stays open in #4613 (Refs, not Closes)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP03"
+    },
+    "#4614": {
+      "evidence_ref": "mission tech-agnostic-language-fallback-01M3NP53 consolidated; see WP evidence + CHANGELOG",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#5202": {
+      "evidence_ref": "Context citation only; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5283": {
+      "evidence_ref": "mission tech-agnostic-language-fallback-01M3NP53 consolidated; see WP evidence + CHANGELOG",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5284": {
+      "evidence_ref": "mission tech-agnostic-language-fallback-01M3NP53 consolidated; see WP evidence + CHANGELOG",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#5335": {
+      "evidence_ref": "Follow-up filed from post-spec squad; out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5341": {
+      "evidence_ref": "Follow-up filed from WP07 review; out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5357": {
+      "evidence_ref": "closeout folds ef3049e05 (red-first) + 84ad79a33 (fix)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

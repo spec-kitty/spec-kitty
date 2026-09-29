@@ -1,0 +1,254 @@
+{
+  "event_count": 59,
+  "last_event_id": "01M3P6CWY7D7KVAHRDK8PV5VQP",
+  "materialized_at": "2026-09-29T09:02:12.423381+00:00",
+  "mission_number": "207",
+  "mission_slug": "tech-agnostic-language-fallback-01M3NP53",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P6BY1A4AN9BPCVN03VCN15",
+      "last_transition_at": "2026-09-29T09:01:40.778062+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Commits 1de629c76 (red-first test), 6e0d3d36f (fix), 491ab96cc (docs), b8d7b1f48 (re-pins + unit/neutrality tests). Targeted: review dir + test_review.py + test_review_git_baseline.py + test_test_env_check.py = 160 passed (baseline 129 before; new 16 acceptance + 15 unit). ruff check/mypy(src review/) exit 0; ruff format clean on touched files except pre-existing unformatted test_dead_code_baseline_git.py (base also unformatted, not touched). Half-by-half: revert skip mapping -> 5 red; remediation -> neutrality red; formatter -> 7 red.",
+        "Review passed (reviewer-renata, independent opus reviewer; recorded by orchestrator after issue-matrix evidence refs were filled): red->green proven (base product files: 9 RED fail on assertions, 7 GREEN controls; 16/16 at tip); half-by-half enforced (skip mapping, remediation, formatter each turn tests red); 160 passed review dir + test_review + git_baseline + env_check; terminology + format-exclude ratchet 102 passed; ruff/format(--force-exclude)/mypy/C901 clean. MINOR: no console note when a mixed set's only unscanned part is test-only Python."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3851,
+      "shell_pid_created_at": "1790659610.99",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P6C2P4Z7HC2MXTP119EEQA",
+      "last_transition_at": "2026-09-29T09:01:45.540234+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "4 commits: red test 92008513e; feat scoping a45c11f74; validator f73decd20; advisory+catalog-miss 44c1cea1d. Tests: 4 target files 73 passed; +scoping/language_scope/builder_unification/doctrine.shared 185 passed; dead_symbols+dead_modules+neutrality_lint+test_catalog 54 passed 1 skipped; layer_rules passed. ruff/mypy exit 0.",
+        "Review passed (reviewer-renata). Red->green: base scoping/doctrine/_catalog_miss checked out from issue-5283 + language_advisory.py removed -> 18 new tests RED (11 AssertionError incl. truth-table rows ([unknown],[unknown]),([unknown],None), is_unknown_language x5, constants, validator x2, catalog-miss; 7 advisory tests ModuleNotFoundError at call time = accepted new-module case), 55 controls green; restored HEAD -> 73/73 green. Commit order red(92008513e)->fixes. Fast tier + matcher/catalog-miss consumers: 282 passed, 1 skipped, 1 failed (test_recompile_preserves_mission_4908 catalog.mission reader in m_4_0_0rc5 migration - pre-existing, untouched by WP02). Gates: test_no_dead_symbols+test_layer_rules 108 passed; test_no_legacy_terminology 96 passed. ruff check/format(--force-exclude)/mypy/C901 clean on touched files; no new noqa/type:ignore; duplicate sentinel set removed from doctrine.py; no upward import from charter.offering. MINOR: neutrality-lint test has no positive control (inject a banned term to prove the harness bites); validator reports only reserved tokens when both unknown and any/all are present."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6104,
+      "shell_pid_created_at": "1790659678.42",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P6CD6JECJC6M8BNKBXK3GG",
+      "last_transition_at": "2026-09-29T09:01:56.306078+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Commits 30cb716a2 ed00dc1b7 953da4d6d caf6337d5 dbed86e11 376483567 086e07182. Tests: language_scope+vocabulary+idempotency+interview_mapping 129 passed; gates dead_symbols/layer_rules/sole_door x5 + doctrine_service_builder_unification + test_catalog 151 passed. ruff/format/mypy exit 0. Vocab cold ~262ms, warm ~0ms.",
+        "Review passed (reviewer-renata). Red->green: base 44c1cea1d language_scope.py+interview_mapping.py checked out -> 20 new tests RED (14 AssertionError incl. elixir-overlay e2e via infer_repo_languages, hyphen, unknown table, synthesizer list placeholders; 5 TypeError prefer_interview kw; 1 AttributeError re-export), controls green; also with language_vocabulary.py removed on red commit the 7 vocab tests fail ModuleNotFoundError at runtime (collection OK) - accepted as the natural red for a new module/API; restored HEAD -> 129 passed (scope+idempotency+vocabulary+interview_mapping). Gates: no_dead_symbols+layer_rules+sole_door doctrine_service+agent_profile_repository 122 passed; synthesizer/+test_catalog+doctrine_service_builder_unification 475 passed/15 skipped. ruff check/format(--force-exclude; new files formatted raw)/mypy 0, C901<=15, no noqa/type-ignore. Commit order campsite->red->fixes OK; guard tests untouched; no language added to _LANGUAGE_PATTERNS; vocabulary is YAML scan, no DoctrineService, no hardcoded list; packaged_default_answer has live caller + tests. MINOR: vocab cold 270-540ms measured (>300ms target; only on tier-2 path, cached); overlay path hardcodes .kittify/doctrine rather than resolve_project_root; packaged_default_answer tests landed one commit after the accessor; ast.literal_eval RecursionError on pathologically nested answers not caught; 'we go with Zig' -> [go] accepted-risk tokenization."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 20660,
+      "shell_pid_created_at": "1790661560.85",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P6CJ6CV9V6HTAAFBTTZ6WP",
+      "last_transition_at": "2026-09-29T09:02:01.421001+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Commits: 75fc5ce42 campsite; 6abf1bffd red-first (7 RED, 3 controls); 1eb58e171 rederive_languages kwarg; 007c5187c generate/builder wiring; c0340698e tool-id diagnostic. Tests: regenerate 10/10, test_compiler + idempotency + builder_unification 71 pass; neighbours 300 pass, 8 fail (7 test_charter_cli = linked-worktree write guard env, 1 = known #5342). ruff/format exit 0; mypy charter_yaml_io clean; pre-existing narrow-mode mypy errors elsewhere unchanged.",
+        "Review passed (reviewer-renata). Red->green: base=WP03 tip 086e07182 product files -> new CLI module 7 RED fail on assertions (stale [python]/[rust], python-* refs, 'Ignored unknown available_tools: zig'), 3 GREEN controls pass; tip -> 10/10 green. Half-by-half: revert T023 only -> 5 language cases red, case 5 green; revert T024 only (generate stops forwarding interview to builder) -> only case 5 (python-* refs) red. Tests at tip: regenerate+compiler+idempotency+builder_unification 71 passed; test_charter_cli.py from primary w/ lane code 17 passed (implementer's 7 fails were linked-worktree guard only); 19 neighbour files incl test_layer_rules + sole-door gates 217 passed, 1 failed = #5342 (also red on base). ruff check/format(--force-exclude)/C901 clean; mypy 2 errors vs 3 on base (no-any-return fixed, none new); no noqa/type:ignore. Only generate passes interview/prefer_interview/rederive_languages; activate/pack unchanged. Commit order campsite->red->fixes OK. MINOR: --no-from-interview now forwards the default interview to the builder (prefer False) so its tier-2 fallback matches compile_charter's rather than reading the disk transcript; consistent, not a regression."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 639,
+      "shell_pid_created_at": "1790663701.58",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P6CPZNW1QGGWYRTCVA7CS4",
+      "last_transition_at": "2026-09-29T09:02:06.325442+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Commits: 697c769b3 campsite, a0cc97e75 RED tests, 80998dfd3 compact advisory, 2570d2ed4 bootstrap advisory, db4ecdfb0 bundle scope-filtered id drop (out-of-map), b4cb5b4c6 unit tests. Tests: charter context suite 320 passed; bundle neighbours 12 passed; gates dead_symbols/bootstrap_import_purity/no_specify_cli_import/legacy_terminology 137 passed. ruff/format/mypy exit 0.",
+        "Review passed (reviewer-renata). Red->green: base 086e07182 src (compact.py, bootstrap_text.py, action_doctrine_bundle.py) -> the 4 Zig CLI RED tests + hand-written-unknown compact test fail by AssertionError/IndexError (post-fix helper unit tests ImportError, expected: added after fix); half reverts isolate cleanly (bundle-only -> 2 leak tests red; renderers-only -> 2 advisory tests red); tip green. Tests: new file + test_compact.py 37 passed; ripple (test_context, token_budget, bootstrap_markers, selection_render, context_renderers/, action_doctrine_bundle consumers, mission_step_contracts executor) 249 passed. ruff/format(--force-exclude)/mypy/C901 clean, no noqa. Advisory once per render, appended before _enforce_token_budget, absent for python/default/stale-compiled. MINOR follow-ups: (1) PRE-EXISTING defect: DRG action walk language-blind for RECOGNISED languages too - a Rust project (catalog.languages [rust]) renders python-conventions/python-review-checks/python-mutation-tools/typescript-mutation-tools in both renders; unknown-only restriction accepted under FR-014, needs follow-up issue (drop the is_unknown gate in _drop_scope_filtered_ids). (2) out-of-map edits (action_doctrine_bundle.py, tests/charter/test_compact.py) not recorded in traces/. (3) implementer-ivan pinned via charter.yaml catalog.references, not rendered text; verified by probe that --action implement renders implementer-ivan and not python-pedro - add a rendered assertion. (4) bootstrap _append_language_advisory does not share compact's OSError/CharterEncodingError degradation (inconsistent, low risk)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 8199,
+      "shell_pid_created_at": "1790665025.08",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P6CWY7D7KVAHRDK8PV5VQP",
+      "last_transition_at": "2026-09-29T09:02:12.423381+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "docs commit; freshness errors=0, related 0 dangling, terminology+diagram_drift 96 passed, description check 0 violations",
+        "Cycle 2: resynthesize re-derives (how-to+ADR+troubleshoot); detection scans all answers, only languages_frameworks yields unknown; ADR names charter validate; advisory 'includes'. Freshness errors=0, 96 passed",
+        "Cycle 3: how-to rewritten as two sources (detector scans all answers; doctrine vocab only languages_frameworks; unknown rule), ADR decisions 1-2, troubleshoot cause, plural fixed. Verified infer_repo_languages on lane-e: RoR->ruby, Zig->unknown, Zig+pytest->python, Twig->twig, twig in testing only->None, {}->None. freshness errors=0, related 0 dangling, desc 0 violations, terminology+drift 96 passed.",
+        "Review passed (cycle 3): b87db74f8 two-source wording verified against lane-e language_scope.py (_LANGUAGE_PATTERNS all-answer scan, compound guard, vocabulary only on languages_frameworks and only when detector empty, unknown otherwise) by probing infer_repo_languages(prefer_interview=True) on 14 cases (Ruby/Swift/Rust recognised; Zig->unknown; Twig->twig; twig outside lf ignored; Zig+pytest->python; librespot-java ignored; Django->unknown; placeholders->None). ADR decisions 1-2 and troubleshoot #6 now accurate. Advisory title matches CHARTER_EXTENSION_ADVISORY. Red-green N/A (docs-only planning_artifact). Gates: check_docs_freshness --ci errors=0; related_validator --changed-from affa99841 12 edges 0 dangling; description_length_check 6 pages 0 violations; terminology+diagram_drift 96 passed. Minor non-blocking: placeholder item numbered '4.' after the Consequences paragraph (renders as a separate list); 'Go' is unknown only once WP07 de-scopes secure-regex tactic (lane-e alone still has go in vocab)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 15942,
+      "shell_pid_created_at": "1790671847.26",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P6C84D3CENPW610V714TN7",
+      "last_transition_at": "2026-09-29T09:01:51.117342+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Commits 7c5f77f4d(red) 4ce3695b3 c42723d1b 663facf00. Tests: 182 passed/1 skipped in named set + 13 passed unscoped file; ruff/format/mypy exit 0; regenerate-graph --check green.",
+        "Review passed (reviewer-renata + doctrine-daphne lens, independent opus reviewer; recorded by orchestrator after issue-matrix evidence refs were filled): red->green proven vs base (10 fail on AssertionError / 10 pass; green at tip); loophole revert turns 5 tests red; positive control confirms bias test now flags de-scoped content; 183 passed 1 skipped incl. packaging safety, provenance ratchet, terminology; regenerate-graph --check fresh. MINORs: in-house-reference check lacks a found-3 floor; cosmetic blank lines/long lines; glossary-curation-interview tactic in-house paths need a follow-up issue."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1013,
+      "shell_pid_created_at": "1790659509.13",
+      "subtasks": {
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done"
+      }
+    }
+  }
+}
