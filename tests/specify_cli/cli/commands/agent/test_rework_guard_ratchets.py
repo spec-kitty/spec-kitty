@@ -100,9 +100,11 @@ def test_action_implement_rework_after_in_review_rejection_is_unforced(tmp_path:
     """FR-008: canonical rework via ``agent action implement`` needs no override.
 
     Uses the production ``workflow`` Typer app (the ``agent action implement``
-    entry point), in-process, against the harness mission. Only the
-    ``in_review -> planned`` route is pinned; ``in_review -> in_progress`` is a
-    known residual (research R-07).
+    entry point), in-process, against the harness mission. This pins the
+    ``in_review -> planned`` route; the ``in_review -> in_progress`` route (the
+    former research R-07 residual) is covered by
+    ``test_rework_unforced_loop.test_action_implement_resumes_after_in_progress_rejection``
+    (#5377).
     """
     m = h.build_mission(tmp_path, monkeypatch)
     h.drive_to_for_review(m)
@@ -117,3 +119,17 @@ def test_action_implement_rework_after_in_review_rejection_is_unforced(tmp_path:
     assert all("--force" not in argv for argv in h.argv_log(m)[-1:])
     probes = h.override_probes(m, move_output=result.output)
     assert not any(probes.values()), probes
+
+
+def test_unrelated_agent_refused_by_action_implement_after_in_progress_rejection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A third tool cannot take over a WP the reviewer rejected back to ``in_progress`` (#5377 FR-002)."""
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    h.reject(m, "in_review_to_in_progress")
+    before = len(h.events(m))
+
+    result = h.implement(m, h.THIRD, monkeypatch)
+
+    assert result.exit_code == 1, result.output
+    assert "already claimed for implementation" in result.output, result.output
+    assert len(h.events(m)) == before, "a refused implement must append 0 raw log lines"

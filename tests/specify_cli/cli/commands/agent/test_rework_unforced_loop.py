@@ -93,3 +93,23 @@ def test_role_read_failure_fails_closed_to_the_old_refusal(tmp_path: Path, monke
 
     allowed = h.move(m, h.WP, "in_review", h.REVIEWER)
     assert allowed.exit_code == 0, allowed.output
+
+
+@pytest.mark.regression
+def test_action_implement_resumes_after_in_progress_rejection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5377: the implementer of record resumes via ``agent action implement``, unforced.
+
+    After ``in_review -> in_progress`` the slot occupant is the reviewer. The
+    resume is an idempotent no-op on the lane (no event), and the rework then
+    resubmits through the ordinary unforced move.
+    """
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    rejection_idx = h.reject(m, "in_review_to_in_progress")
+
+    resumed = h.implement(m, h.IMPLEMENTER, monkeypatch)
+
+    assert resumed.exit_code == 0, resumed.output
+    assert h.lane_events_after(m, rejection_idx) == []
+    resubmitted = _ok(m, "for_review", h.IMPLEMENTER)
+    _assert_no_force_and_no_override(m, rejection_idx, resubmitted.output)
