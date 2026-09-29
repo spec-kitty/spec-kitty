@@ -370,11 +370,17 @@ def test_destroyed_lane_refuses_when_the_recorder_hook_is_not_active(tmp_path: P
     assert refusal.exit_code != 0, refusal.output
     assert "Lane worktree ready" not in refusal.output
     assert not branch_exists(repo_root, branch_name)
-    from specify_cli.lanes.worktree_allocator import DestroyedLaneError
+    # The unmoved tip is the lane's base, not lost work, so the refusal must not
+    # name it as a stranded commit: it is LANE_WORK_TIP_UNKNOWN, naming why the
+    # tip cannot be trusted and how to recover or confirm the lane was empty.
+    from specify_cli.lanes.worktree_allocator import LaneWorkTipUnknownError
 
     exc = _underlying_exception(refusal)
-    assert isinstance(exc, DestroyedLaneError)
-    assert "git update-ref -d" in exc.next_step
+    assert isinstance(exc, LaneWorkTipUnknownError)
+    assert exc.error_code == "LANE_WORK_TIP_UNKNOWN"
+    assert "recorder hook is not active" in exc.next_step
+    assert "git fsck --lost-found" in exc.next_step
+    assert "spec-kitty context cleanup" in exc.next_step
 
 
 def test_ancestor_merged_lane_reopens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:

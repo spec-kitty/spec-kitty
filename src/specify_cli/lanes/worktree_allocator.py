@@ -279,14 +279,24 @@ class LaneWorkTipUnknownError(StructuredError):
 
     error_code: str = "LANE_WORK_TIP_UNKNOWN"
 
-    def __init__(self, *, lane_id: str, wp_id: str, branch_name: str) -> None:
+    def __init__(self, *, lane_id: str, wp_id: str, branch_name: str, recorder_inactive: bool = False) -> None:
         self.lane_id = lane_id
         self.wp_id = wp_id
         self.branch_name = branch_name
         tip_ref_name = tip_ref(branch_name)
+        if recorder_inactive:
+            # The tip ref exists but still equals the lane's base: with the
+            # recorder hook inactive, commits never moved it, so it proves nothing.
+            cause = (
+                f"the lane-tip recorder hook is not active in this repository (a "
+                f"`core.hooksPath` spec-kitty does not install into, or a foreign "
+                f"`post-commit` hook), so commits made on {branch_name!r} were never "
+                f"recorded and its branch is also gone"
+            )
+        else:
+            cause = f"no lane work tip was ever recorded for {branch_name!r} (it predates tip recording, or its ref was cleared) and its branch is also gone"
         self.next_step = (
-            f"no lane work tip was ever recorded for {branch_name!r} (it predates "
-            f"tip recording, or its ref was cleared) and its branch is also gone -- "
+            f"{cause} -- "
             f"inspect `git reflog {branch_name}` or `git fsck --lost-found` for "
             f"stranded commits; if you find one, record it yourself with "
             f"`git update-ref {tip_ref_name} <recovered-sha>` and re-run the "
@@ -297,7 +307,7 @@ class LaneWorkTipUnknownError(StructuredError):
         super().__init__(
             f"cannot allocate lane {lane_id!r} for {wp_id!r}: its branch "
             f"{branch_name!r} and worktree are both gone, the WP is still "
-            f"non-terminal, and no lane work tip is recorded to classify it by -- "
+            f"non-terminal, and no trustworthy lane work tip is recorded to classify it by -- "
             f"refusing rather than guessing. {self.next_step}"
         )
 
@@ -514,6 +524,14 @@ def _refuse_on_tip(
         raise LaneWorkTipUnknownError(lane_id=lane_id, wp_id=wp_id, branch_name=branch)
 
     base = context.base_commit if context is not None else None
+    if base is not None and tip == base:
+        # An unmoved tip is trustworthy only while the recorder hook is active;
+        # otherwise it is the lane's base, not lost work -- refuse as unknown
+        # rather than naming the base as a stranded commit.
+        from specify_cli.policy.lane_tip_recorder import lane_tip_recorder_active
+
+        if not lane_tip_recorder_active(repo_root):
+            raise LaneWorkTipUnknownError(lane_id=lane_id, wp_id=wp_id, branch_name=branch, recorder_inactive=True)
     try:
         absorbed = is_absorbed(repo_root, tip, target_branch, base)
     except AbsorptionUnsupported:
