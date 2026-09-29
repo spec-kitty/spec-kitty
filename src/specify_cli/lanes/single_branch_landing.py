@@ -90,13 +90,13 @@ def minted_mission_branch(repo: Path, mission_slug: str, target_branch: str) -> 
 
 def minted_branch_from_meta(meta: Mapping[str, Any], target_branch: str) -> str | None:
     """:func:`minted_mission_branch` over an already-loaded ``meta.json`` mapping."""
-    from mission_runtime import MissionTopology
+    from mission_runtime import is_single_branch
     from specify_cli.migration.backfill_topology import stored_topology
 
     minted = meta.get("mission_branch")
     if not (isinstance(minted, str) and minted and minted != target_branch):
         return None
-    return minted if stored_topology(meta) == MissionTopology.SINGLE_BRANCH else None
+    return minted if is_single_branch(stored_topology(meta)) else None
 
 
 def _is_protected_single_branch(repo: Path, mission_slug: str, target_branch: str) -> bool:
