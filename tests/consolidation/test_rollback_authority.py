@@ -181,6 +181,41 @@ def test_capture_seeds_target_and_coord_from_persisted_anchors(tmp_path: Path) -
     assert snap[coord] == seed_coord
 
 
+def test_resume_seeded_snapshot_is_marked_and_worded_as_such(tmp_path: Path) -> None:
+    """Slice-10 F8: resuming a pre-fix record (no snapshot) captures the mission branch and lanes LIVE.
+
+    Those entries are not "pre-consolidation" commits: they are marked in the state
+    and the report words them as the snapshot taken when this record was resumed.
+    The target, seeded from the persisted pre-mutation anchor, stays pre-consolidation.
+    """
+    env = make_env(tmp_path)
+    env.state.pre_mutation_target_sha = _rev(env.repo, _TARGET)  # the older record's persisted anchor
+    capture_pre_mutation_snapshot(env.repo, env.state, env.manifest, coord_ref=None, is_resume=True)
+    begin_attempt(env.repo, env.state)
+    assert env.state.resume_seeded_refs == [_MISSION_BRANCH, *env.lane_branches]
+    persisted = load_state(env.repo, "M1")
+    assert persisted is not None and persisted.resume_seeded_refs == env.state.resume_seeded_refs
+    _advance_run(env)
+
+    text = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).render()
+
+    mission_line = next(line for line in text.splitlines() if _MISSION_BRANCH in line and "lane" not in line)
+    target_line = next(line for line in text.splitlines() if _TARGET in line)
+    assert "snapshot taken when this record was resumed" in mission_line
+    assert "snapshot taken when this record was resumed" not in target_line
+    assert not text.startswith("Rollback to the pre-consolidation snapshot:")
+
+
+def test_fresh_snapshot_is_not_marked_resume_seeded(tmp_path: Path) -> None:
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    assert env.state.resume_seeded_refs == []
+    _advance_run(env)
+    text = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET).render()
+    assert text.startswith("Rollback to the pre-consolidation snapshot:")
+    assert "resumed" not in text
+
+
 # ------------------------------------------------------------------ rollback
 
 

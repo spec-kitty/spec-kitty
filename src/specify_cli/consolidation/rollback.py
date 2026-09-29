@@ -52,7 +52,7 @@ from __future__ import annotations
 
 import subprocess
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
@@ -82,6 +82,8 @@ __all__ = [
 _SHORT = 7
 _NO_SNAPSHOT_REASON = "no pre-mutation snapshot recorded (pre-fix record)"
 _MOVED_BY_OTHER_REASON = "moved by another actor since this run"
+_SEEDED_NOTE = "snapshot taken when this record was resumed"
+_SEEDED_HEADER = f"Rollback to the snapshot (pre-consolidation unless marked [{_SEEDED_NOTE}]):"
 _LANE_REPORT_ONLY_REASON = "lane branch: not moved by consolidation"
 _UNRECORDED_MOVE_REASON = "moved since the snapshot but no post-mutation tip was recorded (interrupted phase?); inspect before re-running"
 
@@ -109,6 +111,8 @@ class BranchOutcome:
     # For RESTORED only: the commit the branch was moved to. It is the snapshot
     # unless someone else moved the branch between attempts (``begin_attempt``).
     restored_to_sha: str | None = None
+    # The snapshot entry was captured live when an older record was resumed (F8).
+    resume_seeded: bool = False
 
 
 _OK_KINDS = frozenset({BranchOutcomeKind.RESTORED, BranchOutcomeKind.ALREADY_AT_SNAPSHOT, BranchOutcomeKind.UNCHANGED_BY_RUN, BranchOutcomeKind.LANE_MISSING})
@@ -138,7 +142,8 @@ class RollbackReport:
             return f"Kept the landing verified by an earlier reconciliation; nothing was rolled back. {self.reason or ''}".rstrip()
         if self.reason is not None and not self.outcomes:
             return f"Nothing was rolled back: {self.reason}."
-        lines = ["Rollback to the pre-consolidation snapshot:"]
+        seeded = any(o.resume_seeded for o in self.outcomes)
+        lines = [_SEEDED_HEADER if seeded else "Rollback to the pre-consolidation snapshot:"]
         width = max((len(o.branch) for o in self.outcomes), default=0)
         lines.extend(_render_outcome(o, width) for o in self.outcomes)
         return "\n".join(lines)
@@ -149,6 +154,11 @@ def _short(sha: str | None) -> str:
 
 
 def _render_outcome(outcome: BranchOutcome, width: int) -> str:
+    line = _render_outcome_line(outcome, width)
+    return f"{line} [{_SEEDED_NOTE}]" if outcome.resume_seeded else line
+
+
+def _render_outcome_line(outcome: BranchOutcome, width: int) -> str:
     name = outcome.branch.ljust(width)
     kind = outcome.kind
     if kind is BranchOutcomeKind.RESTORED:
@@ -221,6 +231,7 @@ def capture_pre_mutation_snapshot(
     lanes_manifest: LanesManifest,
     *,
     coord_ref: str | None,
+    is_resume: bool = False,
 ) -> dict[str, str]:
     """Capture (and persist) the pre-mutation snapshot ONCE; never recapture.
 
@@ -228,16 +239,23 @@ def capture_pre_mutation_snapshot(
     (``pre_mutation_target_sha`` / ``pre_mutation_coord_sha``) seed the
     target/coord entries so a resume of an older record snapshots the true
     pre-run tips; this function is the single writer of ``pre_mutation_refs``.
+    On a resume (``is_resume``) every entry NOT seeded from those anchors was
+    captured live, after the earlier attempt ran; it is listed in
+    ``state.resume_seeded_refs`` so the report does not call it pre-consolidation.
     """
     if state.pre_mutation_refs:
         return dict(state.pre_mutation_refs)
     refs = snapshot_branches(repo_root, lanes_manifest, coord_ref=coord_ref)
+    seeded: set[str] = set()
     if state.pre_mutation_target_sha:
         refs[lanes_manifest.target_branch] = state.pre_mutation_target_sha
+        seeded.add(lanes_manifest.target_branch)
     if coord_ref is not None and state.pre_mutation_coord_sha and state.pre_mutation_coord_ref in (None, coord_ref):
         refs[coord_ref] = state.pre_mutation_coord_sha
+        seeded.add(coord_ref)
     state.pre_mutation_refs = refs
     state.snapshot_lane_branches = [b for b in _lane_branches(lanes_manifest, coord_ref) if b in refs]
+    state.resume_seeded_refs = [b for b in refs if b not in seeded] if is_resume else []
     save_state(state, repo_root)
     return dict(refs)
 
@@ -372,7 +390,11 @@ def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_b
     refused = _refusal(state, repo_root, target_branch)
     if refused is not None:
         return refused
-    outcomes = tuple(_rollback_branch(repo_root, state, branch, snapshot) for branch, snapshot in state.pre_mutation_refs.items())
+    seeded = set(state.resume_seeded_refs)
+    outcomes = tuple(
+        replace(outcome, resume_seeded=outcome.branch in seeded)
+        for outcome in (_rollback_branch(repo_root, state, branch, snapshot) for branch, snapshot in state.pre_mutation_refs.items())
+    )
     report = RollbackReport(outcomes=outcomes)
     if report.fully_restored:
         _clear_bookkeeping(state, outcomes)

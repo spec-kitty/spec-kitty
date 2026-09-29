@@ -94,7 +94,7 @@ def _str_map_or_empty(value: object) -> dict[str, str]:
     return {}
 
 
-_REF_LIST_FIELDS = ("snapshot_lane_branches",)
+_REF_LIST_FIELDS = ("snapshot_lane_branches", "resume_seeded_refs")
 
 
 def _str_list_or_empty(value: object) -> list[str]:
@@ -210,6 +210,11 @@ class ConsolidationState:
     # move them; any move is another actor's). Absent in older records -> ``[]``;
     # a malformed value loads as ``[]`` (fail closed: every branch run-movable).
     snapshot_lane_branches: list[str] = field(default_factory=list)
+    # Slice-10 F8: snapshot entries captured LIVE when an older record (one with
+    # no snapshot) was RESUMED -- not pre-consolidation commits, so the rollback
+    # report words them as "snapshot taken when this record was resumed".
+    # Absent in older records -> ``[]``.
+    resume_seeded_refs: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""

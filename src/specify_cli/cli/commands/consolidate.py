@@ -483,9 +483,10 @@ def _abort_merge_workspace(repo_root: Path, state: ConsolidationState) -> bool:
     return workspace_path.exists() and bool(abort_git_merge(workspace_path))
 
 
-def _abort_success_line(resolved: str | None, *, restored: bool) -> str:
+def _abort_success_line(resolved: str | None, *, restored: bool, resume_seeded: bool = False) -> str:
     if restored:
-        return f"[green]Aborted[/green] consolidation for {resolved}. Branches restored to their pre-consolidation commits; state and workspace cleaned up."
+        commits = "snapshot commits (snapshot taken when this record was resumed)" if resume_seeded else "pre-consolidation commits"
+        return f"[green]Aborted[/green] consolidation for {resolved}. Branches restored to their {commits}; state and workspace cleaned up."
     return f"[green]Aborted[/green] merge for {resolved}. State and workspace cleaned up."
 
 
@@ -533,7 +534,7 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
         active_state = state_entry[1]
         git_merge_aborted, cleared = _abort_lock_restore_clear(repo_root, resolved, state_entry)
         if cleared:
-            console.print(_abort_success_line(resolved, restored=bool(active_state.pre_mutation_refs)))
+            console.print(_abort_success_line(resolved, restored=bool(active_state.pre_mutation_refs), resume_seeded=bool(active_state.resume_seeded_refs)))
         else:
             console.print(f"[yellow]No active merge state found for {resolved}.[/yellow] Workspace cleaned up.")
         if git_merge_aborted:

@@ -2388,7 +2388,7 @@ def _capture_snapshot_and_begin_attempt(run: _MergeRunState) -> None:
     not snapshotted -- warn so the operator knows a rollback will not cover it.
     """
     coord_ref = run.coord_checkpoint.ref if run.coord_checkpoint is not None else None
-    rollback.capture_pre_mutation_snapshot(run.main_repo, run.state, run.lanes_manifest, coord_ref=coord_ref)
+    rollback.capture_pre_mutation_snapshot(run.main_repo, run.state, run.lanes_manifest, coord_ref=coord_ref, is_resume=run.is_resume)
     for branch in rollback.missing_snapshot_branches(run.main_repo, run.lanes_manifest, coord_ref=coord_ref):
         console.print(f"[yellow]Warning:[/yellow] branch {branch!r} does not exist and is not snapshotted; a rollback will not cover it.")
     rollback.begin_attempt(run.main_repo, run.state)

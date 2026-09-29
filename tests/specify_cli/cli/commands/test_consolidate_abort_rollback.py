@@ -253,3 +253,10 @@ def test_an_exception_after_the_lock_is_taken_releases_it_and_propagates(repo: P
         consolidate._abort_lock_restore_clear(repo, "abort-unit", (None, state))
 
     assert not is_merge_locked(_LOCK, repo), "a failed abort must not leave the global lock owned by its record"
+
+
+def test_abort_success_line_does_not_call_a_resume_seeded_snapshot_pre_consolidation() -> None:
+    """Slice-10 F8: after resuming an older record the snapshot was taken at that resume."""
+    assert "pre-consolidation" in consolidate._abort_success_line("m", restored=True)
+    seeded = consolidate._abort_success_line("m", restored=True, resume_seeded=True)
+    assert "pre-consolidation" not in seeded and "snapshot taken when this record was resumed" in seeded
