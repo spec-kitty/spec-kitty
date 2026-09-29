@@ -57,6 +57,23 @@ def test_error_message_names_the_mission_and_both_remedies() -> None:
     assert "spec-kitty migrate backfill-topology --restamp-single-branch" in message
 
 
+def test_error_message_lists_the_always_working_migrate_command_before_upgrade() -> None:
+    """`upgrade` can be a no-op ("No migrations needed": the migration is recorded per
+    tracked metadata.yaml, so a branch that received an already-upgraded metadata.yaml
+    skips it), while `migrate backfill-topology --restamp-single-branch` always works.
+    The reliable command must lead; `upgrade` is only the alternative."""
+    with pytest.raises(TopologyManifestMismatch) as excinfo:
+        assert_topology_matches_manifest(
+            MissionTopology.SINGLE_BRANCH,
+            has_code_lanes=True,
+            mission_slug=_SLUG,
+        )
+    message = str(excinfo.value)
+    migrate = message.index("spec-kitty migrate backfill-topology --restamp-single-branch")
+    upgrade = message.index("spec-kitty upgrade")
+    assert migrate < upgrade
+
+
 def test_to_dict_carries_the_stable_error_code() -> None:
     with pytest.raises(TopologyManifestMismatch) as excinfo:
         assert_topology_matches_manifest(

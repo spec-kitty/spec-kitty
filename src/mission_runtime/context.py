@@ -221,15 +221,18 @@ def assert_topology_matches_manifest(
     Raises:
         TopologyManifestMismatch: *topology* is ``SINGLE_BRANCH`` and
             *has_code_lanes* is ``True``. The message names *mission_slug*
-            and both remedies (``spec-kitty upgrade`` or
-            ``spec-kitty migrate backfill-topology --restamp-single-branch``).
+            and both remedies, the always-working
+            ``spec-kitty migrate backfill-topology --restamp-single-branch``
+            first and ``spec-kitty upgrade`` as the alternative (``upgrade``
+            can be a no-op where its migration is already recorded).
     """
     if topology is MissionTopology.SINGLE_BRANCH and has_code_lanes:
         raise TopologyManifestMismatch(
             f"Mission {mission_slug!r} is stamped topology=single_branch but its lane "
             "manifest has a code lane (never re-stamped after #5100). Run "
-            "'spec-kitty upgrade' or 'spec-kitty migrate backfill-topology "
-            "--restamp-single-branch' to fix."
+            "'spec-kitty migrate backfill-topology --restamp-single-branch' to fix "
+            "(or 'spec-kitty upgrade', which can be a no-op where its migration is "
+            "already recorded)."
         )
 
 

@@ -55,7 +55,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | A lane that resolves to a `.worktrees/` lane worktree and a lane branch. Only `lanes` and `lanes_with_coord` missions have code lanes. A [repo-root lane](#repo-root-lane) is never a code lane. A `single_branch` mission whose `lanes.json` holds a code lane is unmigrated and fails closed with `SINGLE_BRANCH_CODE_LANES_UNMIGRATED`; the remedy is the re-stamp migration or `spec-kitty migrate backfill-topology --restamp-single-branch`. |
+| **Definition** | A lane that resolves to a `.worktrees/` lane worktree and a lane branch. Only `lanes` and `lanes_with_coord` missions have code lanes. A [repo-root lane](#repo-root-lane) is never a code lane. A `single_branch` mission whose `lanes.json` holds a code lane is unmigrated and fails closed with `SINGLE_BRANCH_CODE_LANES_UNMIGRATED`; the remedy is `spec-kitty migrate backfill-topology --restamp-single-branch` (always works), or `spec-kitty upgrade` (its re-stamp migration can be a no-op where it is already recorded). |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
