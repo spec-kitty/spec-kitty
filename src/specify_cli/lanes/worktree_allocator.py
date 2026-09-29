@@ -1283,9 +1283,10 @@ def allocate_lane_worktree(
     # #5115/WP07 (FR-018): record the freshly created lane's tip. At this
     # point HEAD is still the fork point (equal to the chosen parent/base --
     # nothing lane-specific has been committed yet), so a lane destroyed
-    # before any real work is committed correctly reads as absorbed
-    # (``tip == base``) rather than ``LANE_WORK_TIP_UNKNOWN`` on its very
-    # first touch.
+    # before any real work is committed reads as absorbed (``tip == base``)
+    # rather than ``LANE_WORK_TIP_UNKNOWN`` on its very first touch -- but only
+    # while the recorder hook is active; otherwise an unmoved tip proves
+    # nothing and ``_refuse_on_tip`` refuses it as unknown.
     record_tip(repo_root, branch)
 
     # FR-022: an orchestrator-only caller (no ``create_lane_workspace`` wrapper)
