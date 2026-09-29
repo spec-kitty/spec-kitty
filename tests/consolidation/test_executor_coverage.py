@@ -845,10 +845,10 @@ def test_phase_finalize_and_summary_runs_all_steps(tmp_path: Path) -> None:
 # --- _render_stale_findings -------------------------------------------------
 
 
-def _finding(confidence: Confidence) -> StaleAssertionFinding:
+def _finding(confidence: Confidence, *, test_line: int = 10) -> StaleAssertionFinding:
     return StaleAssertionFinding(
         test_file=Path("tests/test_x.py"),
-        test_line=10,
+        test_line=test_line,
         source_file=Path("src/x.py"),
         source_line=5,
         changed_symbol="foo",
@@ -870,17 +870,33 @@ def test_render_stale_findings_no_findings(tmp_path: Path) -> None:
 
 
 def test_render_stale_findings_all_grades(tmp_path: Path) -> None:
+    """Every finding line carries its literal grade label, actionable first.
+
+    The grade is the operator's only cue to tell actionable findings from
+    noise, so ``[high]`` / ``[medium]`` / ``[low]`` / ``[info]`` must survive
+    Rich rendering verbatim (Rich parses a bare ``[high]`` as a markup tag and
+    silently drops it). Order: actionable, then the info block, then low.
+    """
     report = StaleAssertionReport(
         base_ref="a", head_ref="HEAD", repo_root=tmp_path,
         findings=[
-            _finding("high"),
-            _finding("medium"),
-            _finding("low"),
-            _finding("info"),
+            _finding("low", test_line=12),
+            _finding("info", test_line=13),
+            _finding("medium", test_line=11),
+            _finding("high", test_line=10),
         ],
         elapsed_seconds=0.1, files_scanned=2, findings_per_100_loc=1.0,
     )
-    ex._render_stale_findings(report)
+
+    with ex.console.capture() as captured:
+        ex._render_stale_findings(report)
+    output = captured.get()
+
+    for line in ("[high] test_x.py:10", "[medium] test_x.py:11", "[info] test_x.py:13", "[low] test_x.py:12"):
+        assert line in output
+    last_actionable = max(output.index("[high] test_x.py:10"), output.index("[medium] test_x.py:11"))
+    assert last_actionable < output.index("Message-content assertions")
+    assert output.index("[info] test_x.py:13") < output.index("[low] test_x.py:12")
 
 
 def test_render_stale_findings_info_block_is_prominent(tmp_path: Path) -> None:

@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 import typer
+from rich.markup import escape
 
 if TYPE_CHECKING:
     from specify_cli.lanes.consolidation import MissionConsolidationResult
@@ -174,7 +175,7 @@ from mission_runtime import (
     placement_seam,
     resolve_placement_only,
 )
-from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
+from specify_cli.post_merge.stale_assertions import StaleAssertionFinding, StaleAssertionReport, run_check
 
 _GLOBAL_MERGE_LOCK_ID = "__global_merge__"
 
@@ -3079,13 +3080,23 @@ def _render_stale_findings(stale_report: StaleAssertionReport | None) -> None:
     info_grade = [f for f in stale_report.findings if f.confidence == "info"]
 
     for finding in actionable:
-        console.print(f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
+        console.print(_stale_finding_line(finding.confidence, finding))
     if info_grade:
         console.print(f"  Message-content assertions skipped as info grade ({len(info_grade)}) — review manually if diagnostic text changed:")
         for finding in info_grade:
-            console.print(f"  [info] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
+            console.print(_stale_finding_line("info", finding))
     for finding in low_grade:
-        console.print(f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
+        console.print(_stale_finding_line(finding.confidence, finding))
+
+
+def _stale_finding_line(grade: str, finding: StaleAssertionFinding) -> str:
+    """One ``[grade] file:line — hint`` finding line, escaped for Rich.
+
+    The line is operator data, not markup: unescaped, Rich parses the bracketed
+    grade label (``[high]``, ``[info]`` ...) as an unknown style tag and drops
+    it, so the operator could not tell actionable findings from noise.
+    """
+    return "  " + escape(f"[{grade}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
 
 
 def _resolve_coord_worktree_for_preflight(
