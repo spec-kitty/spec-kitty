@@ -37,7 +37,7 @@ from tests.terminus.conftest import build_coord_mission, run_terminus
 from tests.terminus.conftest import _git_out as git_out
 
 
-pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
 class TestClassifyPorcelainLines:
@@ -89,6 +89,7 @@ class TestClassifyPorcelainLines:
 class TestMergeToleratesUntrackedFiles:
     """End to end on real git: the merge succeeds when only untracked entries exist."""
 
+    @pytest.mark.slow  # real `spec-kitty consolidate` subprocess on a real coord mission (>30s)
     def test_merge_succeeds_with_untracked_worktrees_and_tmp(self, tmp_path: Path) -> None:
         mission = build_coord_mission(tmp_path)
         scratch = mission.repo / ".worktrees" / "scratch"
