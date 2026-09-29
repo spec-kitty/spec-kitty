@@ -586,7 +586,33 @@ class TestRollbackTargetAfterFailedReconciliation:
 
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         # target branch does not exist -> _resolve_ref_sha returns "" -> the fixed
-        # ``not current_sha`` guard skips cleanly (pre-fix the dead ``is None`` guard
-        # fell through to a restore with expected_current_sha="" and warned).
+        # ``not current_sha`` guard skips cleanly. Pre-fix, the dead ``is None``
+        # guard let this fall through to ``restore_branch_ref(..., expected_current_sha="")``:
+        # an empty old-value tells git "the ref must not exist yet", so
+        # ``git update-ref refs/heads/ghost-branch <sha> ""`` SILENTLY CREATES
+        # ghost-branch (rc=0, no exception, no warning) instead of skipping.
+        before_refs = subprocess.run(
+            ["git", "-C", str(repo), "for-each-ref", "refs/heads"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        before_main = _rev(repo, "main")
         run = self._run(repo, target="ghost-branch", pre_sha=_rev(repo, "main"))
+
         _rollback_target_after_failed_reconciliation(run)  # must not raise
+
+        ghost_lookup = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", "refs/heads/ghost-branch"],
+            capture_output=True,
+            text=True,
+        )
+        assert ghost_lookup.returncode != 0, "ghost-branch must never be created by the rollback guard"
+        assert _rev(repo, "main") == before_main
+        after_refs = subprocess.run(
+            ["git", "-C", str(repo), "for-each-ref", "refs/heads"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        assert after_refs == before_refs
