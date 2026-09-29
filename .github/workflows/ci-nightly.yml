@@ -396,7 +396,8 @@ jobs:
   interpreter-matrix-shard-1:
     name: "Interpreter matrix shard 1 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # headroom (#5378): max-suite=12:35 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 20
     # `issues: write` for the FR-007 escalation step below.
     permissions:
       contents: read
@@ -471,7 +472,8 @@ jobs:
   interpreter-matrix-shard-2:
     name: "Interpreter matrix shard 2 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # headroom (#5378): max-suite>=20:09 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 31
     permissions:
       contents: read
       issues: write
@@ -536,7 +538,8 @@ jobs:
   interpreter-matrix-shard-3:
     name: "Interpreter matrix shard 3 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # headroom (#5378): max-suite=22:12 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 35
     permissions:
       contents: read
       issues: write
@@ -597,6 +600,7 @@ jobs:
   interpreter-matrix-shard-4:
     name: "Interpreter matrix shard 4 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
+    # headroom (#5378): max-suite=14:27 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
     timeout-minutes: 25
     permissions:
       contents: read
@@ -658,7 +662,8 @@ jobs:
   interpreter-matrix-shard-5:
     name: "Interpreter matrix shard 5 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # headroom (#5378): max-suite=22:32 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 35
     permissions:
       contents: read
       issues: write
@@ -719,6 +724,7 @@ jobs:
   interpreter-matrix-shard-6:
     name: "Interpreter matrix shard 6 (Python 3.13, nightly-only, FR-021)"
     runs-on: ubuntu-24.04
+    # headroom (#5378): max-suite=7:26 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
     timeout-minutes: 25
     permissions:
       contents: read
@@ -995,7 +1001,8 @@ jobs:
   specify-cli-out-of-matrix:
     name: specify_cli out-of-matrix trees (nightly-only, #5201)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # headroom (#5378): max-suite>=45:01 runs=36300726806,36393904544,36482214935,36517786727,36553997695 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 69
     # `issues: write` for the FR-007 escalation step below.
     permissions:
       contents: read

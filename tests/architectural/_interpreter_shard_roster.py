@@ -86,14 +86,15 @@ workflow_dispatch run 36294808024 on `ubuntu-24.04`, mode=full):**
   so a stale or mis-bucketed regeneration is a loud, named CI failure, not a
   silently trusted one.
 
-Per-shard `timeout-minutes` (landing pass #5244, LAND-PAT-005): the actual
-values live in ONE place -- each shard job's own `timeout-minutes:` key in
-`ci-nightly.yml` -- and are deliberately NOT restated here, so this
-docstring can never drift from the committed workflow. The arithmetic behind
-those committed values (shard 1/2 from run 1's direct measurement; shards
-3-6 EXTRAPOLATED from shard 3's pre-redraw aggregate rate, headroomed ~2.15x,
-pending run 2's real per-shard validation per plan.md SS B point 3) is
-recorded in `tracer-design-decisions.md`.
+Per-shard `timeout-minutes` (landing pass #5244, LAND-PAT-005; re-derived
+#5378): the actual values live in ONE place -- each shard job's own
+`timeout-minutes:` key in `ci-nightly.yml` -- and are deliberately NOT
+restated here, so this docstring can never drift from the committed
+workflow. The recorded derivation (measured maximum suite wall-clock, the
+runs it came from, and the headroom formula) is the structured
+`# headroom (#5378)` comment directly above each `timeout-minutes:` line in
+`ci-nightly.yml`; `tests/ci/test_nightly_timeout_headroom.py` fails if a cap
+falls below its own comment's formula.
 """
 
 from __future__ import annotations
