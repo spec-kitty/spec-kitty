@@ -1,0 +1,4 @@
+id: test-quality-scan
+mime: text/x-python
+path: test-quality-scan.py
+title: Test-quality static triage scanner (ranks test files for squad review; runs no tests)

@@ -4,9 +4,11 @@ required_procedures:
   - project-evolution-postmortem
   - memory-curation-and-escalation
   - executive-debrief-generation
+  - test-suite-quality-assessment
 required_directives:
   - NO_FULL_HEAVY_SUITES_IN_MISSION
 required_glossary_packs:
   - spk-internal-glossary
 required_toolguides:
   - terminology-guard
+  - test-quality-triage

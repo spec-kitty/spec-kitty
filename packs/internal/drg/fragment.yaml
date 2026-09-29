@@ -100,6 +100,21 @@ nodes:
     kind: procedures
     title: "Tracker Organisation Workflow (backlog triage)"
     body_path: procedures/tracker-organisation-workflow.procedure.yaml
+  # Test-suite quality assessment: static triage asset, its toolguide, and the
+  # squad procedure that reads the ranked ledgers against the built-in
+  # test-desiderata doctrine.
+  - id: test-quality-scan
+    kind: assets
+    title: "Test-quality static triage scanner (ranks test files; runs no tests)"
+    body_path: assets/test-quality-scan.py
+  - id: test-quality-triage
+    kind: toolguides
+    title: "Test-Quality Triage (static scan of the pytest corpus)"
+    body_path: toolguides/test-quality-triage.toolguide.yaml
+  - id: test-suite-quality-assessment
+    kind: procedures
+    title: "Test-Suite Quality Assessment (static triage, domain squads, shrink-only follow-through)"
+    body_path: procedures/test-suite-quality-assessment.procedure.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
@@ -215,3 +230,30 @@ edges:
   - source: tracker-organisation-workflow
     target: "toolguide:github-tracker"
     relation: suggests
+  # Test-suite quality assessment chain: the procedure requires the scan
+  # toolguide, which requires the scanner asset; the review itself applies the
+  # built-in test doctrine rather than restating it.
+  - source: test-suite-quality-assessment
+    target: "toolguide:test-quality-triage"
+    relation: requires
+  - source: test-quality-triage
+    target: "asset:test-quality-scan"
+    relation: requires
+  - source: test-suite-quality-assessment
+    target: "styleguide:test-desiderata-and-boundaries"
+    relation: suggests
+  - source: test-suite-quality-assessment
+    target: "styleguide:testing-principles"
+    relation: suggests
+  - source: test-suite-quality-assessment
+    target: "directive:DIRECTIVE_041"
+    relation: suggests
+  - source: test-suite-quality-assessment
+    target: "procedure:development-assist-test-cleanup"
+    relation: suggests
+  - source: test-suite-quality-assessment
+    target: "procedure:adversarial-squad-deployment"
+    relation: suggests
+  - source: test-suite-quality-assessment
+    target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
+    relation: requires

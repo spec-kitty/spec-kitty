@@ -1,0 +1,160 @@
+schema_version: "1.0"
+id: test-suite-quality-assessment
+name: Test-Suite Quality Assessment (static triage, domain squads, shrink-only follow-through)
+purpose: >
+  The maintainer workflow for assessing the quality of Spec Kitty's own test
+  corpus, either the tests added in a recent window or the whole suite. The
+  corpus is too large to read end to end (over three thousand modules), so the
+  assessment runs cheapest-first: a static triage pass ranks every file
+  without running a single test, then profile-loaded review squads read only
+  the top of each domain's ranked list against the Test Desiderata, and every
+  confirmed finding lands as a fix, a retirement with its covering guard named,
+  or a shrink-only baseline entry. The deliverable is a set of per-domain
+  ledgers with a verdict for each reviewed file and the issues or PRs that act
+  on them; it is not a report that restates the flags.
+entry_condition: >
+  A maintainer has asked for a test-quality review of a window (for example
+  the tests added in the last 48 hours) or of the whole corpus, or a nightly or
+  landing pass has surfaced a pattern of vacuous or implementation-coupled
+  tests. The repository is checked out at the revision under review with enough
+  git history for the window (a shallow clone reports its graft point as the
+  "added" date of older files).
+exit_condition: >
+  Every domain in scope has a ledger under work/test-quality/<date>/ledger/
+  whose top-ranked files each carry a verdict (KEEP, FIX, RETIRE with the
+  covering guard named, or SPLIT-BY-KIND). Confirmed defects are fixed in a PR,
+  filed as issues, or frozen in a shrink-only baseline, and the maintainer has
+  a short summary per domain with the counts and the links. No test was run
+  as part of the triage itself.
+steps:
+  - title: Fix the scope and the output folder
+    description: >
+      Decide whether the run covers a window (use --since with the base
+      revision of the window) or the whole corpus, and which domains are in
+      scope. Outputs go under the gitignored work/test-quality/<date>/ folder so
+      a later run can be compared with this one and a stopped run can be
+      resumed.
+    actor: agent
+
+  - title: Run the static triage pass
+    description: >
+      Kick off the pass with `make test-quality-scan` (whole corpus) or run
+      the asset directly through the doctrine layer:
+      python "$(spec-kitty doctrine asset path test-quality-scan)" --out
+      work/test-quality/<date> [--paths tests/<domain>] [--since <rev>].
+      It parses every test with ast and runs none of them, so the whole
+      corpus scans in well under a minute. It flags the weak-oracle and
+      coupling patterns the test-quality-triage toolguide lists, attaches git
+      provenance, and writes tests.json, files.json, summary.md and one ledger
+      per domain. Run ruff's flake8-pytest-style rules in the same pass; they
+      are the lint-time half of the same detection.
+    actor: agent
+    on_failure: >
+      If git history is unavailable, rerun with --no-git and say in the
+      summary that provenance (and so the development-assist lens) is missing.
+
+  - title: Split the review by domain, not by timeline
+    description: >
+      Assign one review squad per owning subsystem from summary.md (status,
+      consolidation, charter and doctrine, runtime, the CLI slices, the
+      architectural gates, and so on). Deciding whether a test is redundant or
+      vacuous needs to know which guard covers the behaviour, and that
+      knowledge lives with the owning domain. A split by era makes every squad
+      relearn every domain. Load each squad with a profile that fits the
+      domain and cap each one at the top of its ledger (the --top value,
+      twenty-five by default); the long tail is left for a later run.
+    actor: agent
+
+  - title: Read each ranked file against the Test Desiderata
+    description: >
+      For each file in the ledger, read the flagged tests and decide whether
+      the flag is real. Judge them against the built-in
+      test-desiderata-and-boundaries and testing-principles styleguides:
+      does the test go red when the contract breaks (non-vacuous), does it
+      assert observable behaviour rather than the call graph, does it mock only
+      at true boundaries, does it test one behaviour its name promises, is it
+      deterministic, and does it sit at the layer where the behaviour means
+      something. The static flags are candidates, never verdicts: a
+      "no-assertion" test that calls a helper which asserts is fine, and an
+      unflagged test can still be vacuous (a self-constructed oracle, a new
+      gate stubbed out of an old harness). Record the verdict in the ledger
+      with a one-line reason.
+    actor: agent
+
+  - title: Apply the development-assist lens inside each domain
+    description: >
+      Use the ledger's provenance (added date, the commit that added the file)
+      and the provenance-tokens flag (WP, FR, T-ids, issue numbers in names or
+      docstrings) to find tests written to drive a Mission that has since
+      closed. Classify them with the built-in development-assist-test-cleanup
+      procedure: KEEP when the test is the only guard of a still-live
+      behaviour, RETIRE when a named broader guard already covers it, and
+      SPLIT-BY-KIND when one file mixes both. Never retire a test without
+      naming the guard that covers its behaviour.
+    actor: agent
+
+  - title: Verify each proposed fix or retirement with a planted break
+    description: >
+      Before a FIX or RETIRE verdict becomes a change, show it: for a FIX,
+      the corrected test goes red on a planted break of the behaviour it
+      names; for a RETIRE, the named covering guard goes red on the same
+      planted break. Run only the specific test files involved, never whole
+      heavy directories (NO_FULL_HEAVY_SUITES_IN_MISSION).
+    actor: agent
+    on_failure: >
+      If the covering guard stays green on the planted break, the test is not
+      redundant: change the verdict to KEEP or FIX and say which.
+
+  - title: Land the follow-through where it shrinks the debt
+    description: >
+      Turn verdicts into changes in small, domain-scoped PRs: fixes and
+      retirements with the planted-break evidence in the PR body, new
+      lint-time detectors where a pattern recurs, and shrink-only baseline
+      entries for what cannot be fixed yet, so the debt can only go down. File
+      an issue for anything larger than one domain PR. Report back per domain
+      in a few lines: files reviewed, verdict counts, and the links.
+    actor: agent
+
+anti_patterns:
+  - name: Reading the corpus in commit order
+    description: >
+      Splitting the work by date range instead of by domain makes every
+      squad reload the context of every subsystem, and it hides the covering
+      guard that decides whether a test is redundant.
+  - name: Treating a static flag as a verdict
+    description: >
+      Filing or deleting on the scanner's word alone. The flags rank what to
+      read; the verdict comes from reading the test against its behaviour and
+      proving it with a planted break.
+  - name: Running the suite to find weak tests
+    description: >
+      A weak oracle passes, so running the suite cannot find it. Detection
+      belongs at the leftmost layer that can see it: the linter, then the
+      static scan, then a human or agent read, and only then a planted break.
+  - name: Retiring without a named guard
+    description: >
+      Deleting a development-assist test because its Mission closed, without
+      naming and proving the broader test that still covers the behaviour.
+
+references:
+  - type: styleguide
+    id: test-desiderata-and-boundaries
+    reason: The twelve desiderata, the shift-left detector map and the harness anti-patterns the review applies.
+  - type: styleguide
+    id: testing-principles
+    reason: The good-test rubric (truthful, minimal, specific, realistic, isolated) the verdicts are judged against.
+  - type: directive
+    id: DIRECTIVE_041
+    reason: Tests are scaffold, not friction; a green test that stays green on a regression gives no coverage.
+  - type: procedure
+    id: development-assist-test-cleanup
+    reason: The KEEP, RETIRE and SPLIT-BY-KIND classification for Mission-scaffold tests.
+  - type: procedure
+    id: adversarial-squad-deployment
+    reason: How to run the domain review squads as bounded, profile-loaded lenses.
+  - type: toolguide
+    id: test-quality-triage
+    reason: How to run the static triage asset and read its outputs.
+  - type: directive
+    id: NO_FULL_HEAVY_SUITES_IN_MISSION
+    reason: Verification runs named test files only, never whole heavy suites.

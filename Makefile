@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup lint format-check typecheck test-fast test-full convergence-census ci-parity
+.PHONY: help dev-setup lint format-check typecheck test-fast test-full convergence-census ci-parity test-quality-scan
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -31,6 +31,15 @@ typecheck: ## Run targeted mypy strict type checking
 
 ci-parity: ## Preview locally which CI gates/shards your diff selects (#2476 parity)
 	uv run --frozen python scripts/ci/local_gate_parity.py
+
+# Static first pass of the internal `test-suite-quality-assessment` procedure:
+# ranks every test file for squad review and runs no tests. The scanner is the
+# internal-pack asset `test-quality-scan` (same file `spec-kitty doctrine asset
+# path test-quality-scan` resolves). Extra flags via SCAN_ARGS, e.g.
+# SCAN_ARGS="--paths tests/status" or SCAN_ARGS="--since <rev>".
+TEST_QUALITY_OUT ?= work/test-quality/$(shell date +%F)
+test-quality-scan: ## Rank test files for a quality review (static; runs no tests)
+	uv run --frozen python packs/internal/assets/test-quality-scan.py --out $(TEST_QUALITY_OUT) $(SCAN_ARGS)
 
 # The subsystem directories an implementer's blast radius typically covers
 # (see AGENTS.md "Test policy"). `make test-fast` is a baseline, not a

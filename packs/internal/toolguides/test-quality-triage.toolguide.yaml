@@ -1,0 +1,22 @@
+schema_version: "1.0"
+id: test-quality-triage
+tool: test-quality-scan.py
+title: Test-Quality Triage (static scan of the pytest corpus)
+guide_path: packs/internal/toolguides/TEST_QUALITY_TRIAGE.md
+applies_to_languages:
+  - python
+summary: >
+  How to run the maintainer-only static triage asset that opens a
+  test-suite quality assessment. It parses every test module with ast, runs no
+  tests, flags weak-oracle and implementation-coupling patterns per test,
+  attaches git provenance (when a file was added, by which commit, when it was
+  last touched), and writes a ranked worklist plus one resumable review ledger
+  per domain. Covers the make target, the direct invocation through the
+  doctrine asset resolver, the window mode (--since), what each flag code
+  means and how it maps to the review rubric, how to read the outputs, and the
+  known false positives that make every flag a candidate rather than a
+  verdict.
+commands:
+  - make test-quality-scan
+  - spec-kitty doctrine asset path test-quality-scan
+  - test-quality-scan.py

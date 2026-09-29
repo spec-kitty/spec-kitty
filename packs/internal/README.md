@@ -33,6 +33,7 @@ packs/internal/
 │   ├── landing-contributor-prs.procedure.yaml       # maintainer PR-landing runbook
 │   ├── memory-curation-and-escalation.procedure.yaml  # agent-memory curation and escalation
 │   ├── project-evolution-postmortem.procedure.yaml  # cycle postmortem: research squads + branded report
+│   ├── test-suite-quality-assessment.procedure.yaml # static triage, domain review squads, shrink-only follow-through
 │   ├── spec-kitty-arch-gate-adjudication.procedure.yaml  # refines built-in post-merge-arch-gate-adjudication
 │   └── spec-kitty-red-main-policy.procedure.yaml    # refines built-in red-main-release-discipline
 ├── styleguides/
@@ -47,16 +48,30 @@ packs/internal/
 │   ├── branded-document-generation.toolguide.yaml   # the branded-PDF pipeline manifest
 │   ├── BRANDED_DOCUMENT_GENERATION.md               # its how-to guide
 │   ├── terminology-guard.toolguide.yaml             # this repo's legacy-terminology test (moved from built-in)
-│   └── TERMINOLOGY_GUARD.md                         # its how-to guide
+│   ├── TERMINOLOGY_GUARD.md                         # its how-to guide
+│   ├── test-quality-triage.toolguide.yaml           # how to run the test-quality scanner
+│   └── TEST_QUALITY_TRIAGE.md                       # its how-to guide (flag codes, outputs, false positives)
 └── assets/
     ├── spec-kitty-branded-pdf.py                    # the Markdown -> branded-PDF generator
-    └── spec-kitty-branded-pdf.py.asset.yaml         # its asset sidecar
+    ├── spec-kitty-branded-pdf.py.asset.yaml         # its asset sidecar
+    ├── test-quality-scan.py                         # static test-quality triage (runs no tests)
+    └── test-quality-scan.py.asset.yaml              # its asset sidecar
 ```
+
+Asset sidecar `path` values are relative to this `assets/` folder (org-tier
+anchor), so `spec-kitty doctrine asset path <id>` resolves them to a real file.
 
 The `project-evolution-postmortem` procedure `suggests` the `report-writing`
 styleguide and the `branded-deliverable` tactic; the tactic `requires` the
 `branded-document-generation` toolguide, which `requires` the
 `spec-kitty-branded-pdf` asset — one authoring chain, wired in `drg/fragment.yaml`.
+
+The `test-suite-quality-assessment` procedure `requires` the
+`test-quality-triage` toolguide, which `requires` the `test-quality-scan`
+asset, and it `suggests` the built-in test doctrine it applies
+(`test-desiderata-and-boundaries`, `testing-principles`, `DIRECTIVE_041`,
+`development-assist-test-cleanup`, `adversarial-squad-deployment`). Kick off a
+run with `make test-quality-scan`.
 
 ## Reference, don't duplicate
 
