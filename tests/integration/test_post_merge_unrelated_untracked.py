@@ -1,24 +1,29 @@
-"""WP01/T004 — post-merge bookkeeping tolerates untracked files (FR-004).
+"""Post-merge bookkeeping tolerates untracked files (FR-004).
 
 Untracked ``.worktrees/`` and unrelated untracked files (e.g. a stray
 ``tmp.txt``) must not block the post-merge bookkeeping pass. The contract is:
 
-* **Untracked entries** (``??`` in porcelain v1) — silently dropped. Untracked
+* **Untracked entries** (``??`` in porcelain v1) -- silently dropped. Untracked
   files cannot diverge from HEAD, so they are not a merge concern.
-* **Tracked diverging entries** outside of the two expected status files —
+* **Tracked diverging entries** outside of the expected status files --
   surfaced as a structured error. NO silent suppression.
 
-This test pins both halves of the contract through ``_classify_porcelain_lines``
-(the helper that the merge invariant uses) and through a full
-``_run_lane_based_consolidation`` drive-through.
+The contract is pinned twice:
+
+* directly on ``_classify_porcelain_lines`` (the helper the merge invariant
+  uses), and
+* end to end on a REAL coordination mission (``tests/terminus`` harness: real
+  git, real lanes, real reconciliation / bake / teardown gates -- nothing in the
+  merge pipeline is stubbed). The untracked half drives the real CLI; the
+  tracked half drives the real executor in-process with exactly ONE seam
+  injected -- the raw ``git status --porcelain`` read -- because a genuinely
+  dirty tracked file is refused by the earlier ``MERGE_UNSAFE_PRIMARY_DIRTY``
+  preflight and so can never reach the post-merge invariant with real git.
 """
 
 from __future__ import annotations
 
-import contextlib
-import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
@@ -28,78 +33,11 @@ from specify_cli.cli.commands.consolidate import (
     _run_lane_based_consolidation,
 )
 from specify_cli.consolidation.config import MergeStrategy
+from tests.terminus.conftest import build_coord_mission, run_terminus
+from tests.terminus.conftest import _git_out as git_out
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
-
-
-def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        cmd,
-        cwd=str(cwd) if cwd else None,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-
-
-def _init_git_repo(repo: Path) -> None:
-    repo.mkdir(parents=True, exist_ok=True)
-    _run(["git", "init", "-qb", "main", str(repo)])
-    _run(["git", "-C", str(repo), "config", "user.email", "test@test.com"])
-    _run(["git", "-C", str(repo), "config", "user.name", "Test"])
-    _run(["git", "-C", str(repo), "config", "commit.gpgsign", "false"])
-    (repo / "README.md").write_text("init\n")
-    _run(["git", "-C", str(repo), "add", "."])
-    _run(["git", "-C", str(repo), "commit", "-m", "init"])
-
-
-def _make_manifest(slug: str) -> MagicMock:
-    manifest = MagicMock()
-    # Lane naming is keyed
-    # on lanes_manifest.mission_slug; keep it aligned with the real slug.
-    manifest.mission_slug = slug
-    manifest.target_branch = "main"
-    manifest.mission_branch = f"kitty/mission-{slug}"
-    lane = MagicMock()
-    lane.lane_id = "lane-a"
-    lane.wp_ids = ["WP01"]
-    manifest.lanes = [lane]
-    return manifest
-
-
-def _seed_wp01_done(feature_dir: Path, mission_slug: str) -> None:
-    """Seed WP01 as ``done`` on the real event log (#4764/T007).
-
-    ``_assert_mission_terminal_ready`` reads ``status.events.jsonl`` directly
-    and now refuses the merge before any mutation when WP01 is absent from
-    the log. This module's tests exercise the untracked/tracked-porcelain
-    tolerance, not readiness (one currently asserts a ``typer.Exit`` too, so
-    without this seed it would pass vacuously for the wrong reason), so seed
-    WP01 to let the merge proceed to the invariant under test.
-    """
-    import json
-
-    event = {
-        "actor": "test",
-        "at": "2026-04-06T12:00:00+00:00",
-        "event_id": "01TESTWP01UNTRACKED",
-        "evidence": None,
-        "execution_mode": "worktree",
-        "feature_slug": mission_slug,
-        "force": True,
-        "from_lane": "approved",
-        "reason": "test seed",
-        "review_ref": None,
-        "to_lane": "done",
-        "wp_id": "WP01",
-    }
-    (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    from specify_cli.status.reducer import materialize
-
-    materialize(feature_dir)
 
 
 class TestClassifyPorcelainLines:
@@ -108,9 +46,7 @@ class TestClassifyPorcelainLines:
     def test_untracked_worktrees_dir_dropped(self):
         lines = ["?? .worktrees/scratch/", "?? tmp.txt"]
         offending, skipped = _classify_porcelain_lines(lines, expected_paths=set())
-        assert offending == [], (
-            f"Untracked entries must be silently dropped (FR-004), got: {offending!r}"
-        )
+        assert offending == [], f"Untracked entries must be silently dropped (FR-004), got: {offending!r}"
         assert skipped == 2
 
     def test_expected_status_files_dropped(self):
@@ -125,9 +61,7 @@ class TestClassifyPorcelainLines:
                 "kitty-specs/test/status.json",
             },
         )
-        assert offending == [], (
-            f"The two status files in expected_paths must be allowlisted: {offending!r}"
-        )
+        assert offending == [], f"The two status files in expected_paths must be allowlisted: {offending!r}"
 
     def test_tracked_unrelated_modification_is_offending(self):
         """No silent suppression: a tracked change outside the allowlist must surface."""
@@ -137,8 +71,7 @@ class TestClassifyPorcelainLines:
             expected_paths={"kitty-specs/test/status.events.jsonl"},
         )
         assert offending == [" M src/unexpected_file.py"], (
-            "Tracked diverging changes outside expected_paths MUST be reported. "
-            "FR-004 forbids silent suppression of operator-supplied tracked changes."
+            "Tracked diverging changes outside expected_paths MUST be reported. FR-004 forbids silent suppression of operator-supplied tracked changes."
         )
 
     def test_mixed_untracked_and_tracked(self):
@@ -154,184 +87,62 @@ class TestClassifyPorcelainLines:
 
 
 class TestMergeToleratesUntrackedFiles:
-    """End-to-end: merge succeeds when only untracked entries are present."""
+    """End to end on real git: the merge succeeds when only untracked entries exist."""
 
     def test_merge_succeeds_with_untracked_worktrees_and_tmp(self, tmp_path: Path) -> None:
-        slug = "test-untracked-tolerance"
-        _init_git_repo(tmp_path)
-        feature_dir = tmp_path / "kitty-specs" / slug
-        feature_dir.mkdir(parents=True)
-        _seed_wp01_done(feature_dir, slug)
+        mission = build_coord_mission(tmp_path)
+        scratch = mission.repo / ".worktrees" / "scratch"
+        scratch.mkdir(parents=True)
+        (scratch / "notes.txt").write_text("operator scratch\n", encoding="utf-8")
+        (mission.repo / "tmp.txt").write_text("stray\n", encoding="utf-8")
+        target_before = mission.rev(mission.target_branch)
 
-        manifest = _make_manifest(slug)
+        result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
 
-        lane_result = MagicMock()
-        lane_result.success = True
-        lane_result.errors = []
+        assert result.returncode == 0, f"untracked entries must not block the merge\nstdout={result.stdout}\nstderr={result.stderr}"
+        assert "invariant violated" not in result.stdout
+        # The merge really landed: the WP01 lane code is on the target branch...
+        assert mission.rev(mission.target_branch) != target_before
+        assert "def wp01()" in git_out(mission.repo, "show", f"{mission.target_branch}:src/pkg/wp01.py")
+        # ...and the operator's untracked files were neither committed nor destroyed.
+        tracked = git_out(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch).splitlines()
+        assert "tmp.txt" not in tracked
+        assert not any(name.startswith(".worktrees/") for name in tracked)
+        assert (mission.repo / "tmp.txt").read_text(encoding="utf-8") == "stray\n"
+        assert (scratch / "notes.txt").exists()
 
-        mission_result = MagicMock()
-        mission_result.success = True
-        mission_result.commit = "abc1234"
-        mission_result.errors = []
+    def test_merge_aborts_on_unrelated_tracked_change(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A tracked change outside the allowlist trips the post-merge invariant (exit 1 + named path)."""
+        mission = build_coord_mission(tmp_path)
+        monkeypatch.setenv("HOME", str(mission.home))
+        monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
+        monkeypatch.chdir(mission.repo)
 
-        # Simulate `git status --porcelain` reporting two untracked entries:
-        # an untracked .worktrees/ directory and a stray tmp.txt.
-        def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
-            if "merge-base" in cmd:
-                return (0, "abc123\n", "")
-            if "status" in cmd and "--porcelain" in cmd:
-                return (0, "?? .worktrees/scratch/\n?? tmp.txt\n", "")
-            return (0, "", "")
+        # The ONLY injected seam: what ``git status --porcelain`` reports after
+        # the merge. Untracked noise is tolerated; the tracked modification is not.
+        monkeypatch.setattr(
+            "specify_cli.consolidation.executor._raw_porcelain_status",
+            lambda _repo_root: (0, "?? .worktrees/\n M src/operator_change.py\n"),
+        )
 
-        # The post-merge invariant reads porcelain RAW (not via run_command,
-        # whose whole-output .strip() would corrupt the first line). Inject the
-        # raw stdout the invariant classifies via _raw_porcelain_status.
-        def fake_raw_porcelain(repo_root):  # noqa: ANN001
-            return (0, "?? .worktrees/scratch/\n?? tmp.txt\n")
-
-        patches = [
-            patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
-            patch("specify_cli.consolidation.resolve.load_state", return_value=None),
-            patch("specify_cli.consolidation.done_bookkeeping.save_state"),
-            patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
-            patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result),
-            patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
-            patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
-            patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
-            patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
-            patch("specify_cli.post_merge.stale_assertions.run_check"),
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
-            patch("specify_cli.policy.config.load_policy_config"),
-            patch("specify_cli.consolidation.executor.run_command", side_effect=fake_run_command),
-            patch("specify_cli.consolidation.executor._raw_porcelain_status", side_effect=fake_raw_porcelain),
-            patch("specify_cli.consolidation.executor.has_remote", return_value=False),
-            patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
-            patch("specify_cli.consolidation.executor.clear_state"),
-            patch(
-                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
-                return_value=None,
-            ),
-                        # WP10 (#2057): branch preflight + target asserts moved to the
-            # preflight / done_bookkeeping / baseline seams; appended last to
-            # keep positional mock indices stable.
-            patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
-            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
-            patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
-        ]
-
-        with contextlib.ExitStack() as stack:
-            mocks = [stack.enter_context(p) for p in patches]
-            stale = MagicMock()
-            stale.findings = []
-            mocks[10].return_value = stale
-
-            gate_eval = MagicMock()
-            gate_eval.overall_pass = True
-            gate_eval.gates = []
-            mocks[11].return_value = gate_eval
-
-            policy = MagicMock()
-            policy.merge_gates = []
-            mocks[12].return_value = policy
-
-            # No exception: the untracked entries are tolerated.
+        with pytest.raises(typer.Exit) as excinfo:
             _run_lane_based_consolidation(
-                repo_root=tmp_path,
-                mission_slug=slug,
+                repo_root=mission.repo,
+                mission_slug=mission.slug,
                 push=False,
                 delete_branch=False,
                 remove_worktree=False,
                 strategy=MergeStrategy.SQUASH,
             )
 
-    def test_merge_aborts_on_unrelated_tracked_change(self, tmp_path: Path) -> None:
-        """Operator-supplied tracked changes still cause a clear, structured error."""
-        slug = "test-unrelated-tracked"
-        _init_git_repo(tmp_path)
-        feature_dir = tmp_path / "kitty-specs" / slug
-        feature_dir.mkdir(parents=True)
-        _seed_wp01_done(feature_dir, slug)
-
-        manifest = _make_manifest(slug)
-
-        lane_result = MagicMock()
-        lane_result.success = True
-        lane_result.errors = []
-
-        mission_result = MagicMock()
-        mission_result.success = True
-        mission_result.commit = "abc1234"
-        mission_result.errors = []
-
-        def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
-            if "merge-base" in cmd:
-                return (0, "abc123\n", "")
-            if "status" in cmd and "--porcelain" in cmd:
-                # Mix: untracked tolerated, but a tracked modification is real.
-                return (0, "?? .worktrees/\n M src/operator_change.py\n", "")
-            return (0, "", "")
-
-        # The post-merge invariant reads porcelain RAW (not via run_command).
-        # Inject the same mixed status via _raw_porcelain_status so the tracked
-        # modification reaches classification and trips the invariant.
-        def fake_raw_porcelain(repo_root):  # noqa: ANN001
-            return (0, "?? .worktrees/\n M src/operator_change.py\n")
-
-        patches = [
-            patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
-            patch("specify_cli.consolidation.resolve.load_state", return_value=None),
-            patch("specify_cli.consolidation.done_bookkeeping.save_state"),
-            patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
-            patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result),
-            patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
-            patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
-            patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
-            patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
-            patch("specify_cli.post_merge.stale_assertions.run_check"),
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
-            patch("specify_cli.policy.config.load_policy_config"),
-            patch("specify_cli.consolidation.executor.run_command", side_effect=fake_run_command),
-            patch("specify_cli.consolidation.executor._raw_porcelain_status", side_effect=fake_raw_porcelain),
-            patch("specify_cli.consolidation.executor.has_remote", return_value=False),
-            patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
-            patch("specify_cli.consolidation.executor.clear_state"),
-            patch(
-                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
-                return_value=None,
-            ),
-                        # WP10 (#2057): branch preflight + target asserts moved to the
-            # preflight / done_bookkeeping / baseline seams; appended last to
-            # keep positional mock indices stable.
-            patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
-            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
-            patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
-        ]
-
-        with contextlib.ExitStack() as stack:
-            mocks = [stack.enter_context(p) for p in patches]
-            stale = MagicMock()
-            stale.findings = []
-            mocks[10].return_value = stale
-
-            gate_eval = MagicMock()
-            gate_eval.overall_pass = True
-            gate_eval.gates = []
-            mocks[11].return_value = gate_eval
-
-            policy = MagicMock()
-            policy.merge_gates = []
-            mocks[12].return_value = policy
-
-            with pytest.raises(typer.Exit):
-                _run_lane_based_consolidation(
-                    repo_root=tmp_path,
-                    mission_slug=slug,
-                    push=False,
-                    delete_branch=False,
-                    remove_worktree=False,
-                    strategy=MergeStrategy.SQUASH,
-                )
+        out = capsys.readouterr().out
+        assert excinfo.value.exit_code == 1
+        assert "Post-merge working-tree invariant violated" in out
+        assert "src/operator_change.py" in out
+        # The tolerated untracked entry must NOT be reported as offending.
+        assert ".worktrees/" not in out.split("invariant violated", 1)[1]

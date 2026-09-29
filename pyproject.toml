@@ -1561,7 +1561,6 @@ exclude = [
     "tests/integration/test_planning_artifact_wp.py",
     "tests/integration/test_post_merge_custom_mission_loader.py",
     "tests/integration/test_post_merge_index_refresh.py",
-    "tests/integration/test_post_merge_unrelated_untracked.py",
     "tests/integration/test_pre30_layout_coord_husk_noop.py",
     "tests/integration/test_protected_primary_spec_commit.py",
     "tests/integration/test_quickstart_end_to_end.py",
