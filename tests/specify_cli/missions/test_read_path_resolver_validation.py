@@ -481,6 +481,10 @@ def test_delegator_propagates_status_read_path_not_found(
             real_git_repo, _REAL_SLUG, on_missing_meta=real_git_repo
         )
     assert caught.value.error_code == rpr.STATUS_READ_PATH_NOT_FOUND_CODE
+    # Pin the diagnostic message frame operators/callers rely on.
+    message = str(caught.value)
+    assert "Status read path not found for" in message
+    assert _REAL_SLUG in message
 
 
 def test_delegator_propagates_ambiguous_selector(real_git_repo: Path) -> None:

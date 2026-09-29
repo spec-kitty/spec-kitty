@@ -1687,7 +1687,6 @@ exclude = [
     "tests/missions/test_mission_switching_integration.py",
     "tests/missions/test_mission_topology_seam.py",
     "tests/missions/test_mission_type_profile_resolution.py",
-    "tests/missions/test_resolution_convergence.py",
     "tests/missions/test_specify_metadata_explicit_integration.py",
     "tests/missions/test_wp02_coord_routing_consolidation.py",
     "tests/missions/test_wp04_planning_read_split.py",
