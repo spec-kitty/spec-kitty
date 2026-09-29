@@ -1033,7 +1033,7 @@
      "deprecated": false
     },
     "backfill-topology": {
-     "help": "Persist each legacy mission's MissionTopology into its meta.json.\n\nComputes every mission's topology (the coordination × lanes grid cell) from\nits current on-disk signals via the single WP01 classifier and writes it to\n``meta.json`` as the authoritative ``topology`` value. This command is\n**idempotent** — a mission that already has a valid ``topology`` is skipped\nand its value is never overwritten.\n\nExit codes:\n\n- ``0`` — all results are ``wrote`` or ``skip``\n- ``1`` — one or more ``error`` results (corrupt / unreadable meta.json)\n\nExamples:\n\n    spec-kitty migrate backfill-topology --dry-run --json\n\n    spec-kitty migrate backfill-topology --mission 083-foo-bar\n\n    spec-kitty migrate backfill-topology",
+     "help": "Persist each legacy mission's MissionTopology into its meta.json.\n\nComputes every mission's topology (the coordination × lanes grid cell) from\nits current on-disk signals via the single WP01 classifier and writes it to\n``meta.json`` as the authoritative ``topology`` value. This command is\n**idempotent** — a mission that already has a valid ``topology`` is skipped\nand its value is never overwritten.\n\nExit codes:\n\n- ``0`` — all results are ``wrote`` or ``skip``\n- ``1`` — one or more ``error`` results (corrupt / unreadable meta.json)\n\nExamples:\n\n    spec-kitty migrate backfill-topology --dry-run --json\n\n    spec-kitty migrate backfill-topology --mission 083-foo-bar\n\n    spec-kitty migrate backfill-topology\n\n    spec-kitty migrate backfill-topology --restamp-single-branch --dry-run",
      "hidden": false,
      "deprecated": false
     },
