@@ -246,7 +246,7 @@ def test_is_absorbed_raises_absorption_unsupported_on_old_git(tmp_path: Path, mo
     _git(repo, "commit", "-q", "-m", "lane work")
     tip = _rev(repo, "HEAD")
 
-    monkeypatch.setattr("specify_cli.lanes.lane_tip._git_supports_merge_tree_write_tree", lambda _repo_root: False)
+    monkeypatch.setattr("specify_cli.lanes.lane_tip.merge_tree_write_tree_available", lambda _repo_root: False)
 
     with pytest.raises(AbsorptionUnsupported):
         is_absorbed(repo, tip=tip, target="main", base=base)

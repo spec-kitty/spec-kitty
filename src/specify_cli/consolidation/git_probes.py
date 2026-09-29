@@ -29,6 +29,7 @@ from specify_cli.git.destructive_guard import (
     DestructiveOpRefused,
     assert_checkout_on_target,
 )
+from specify_cli.git.merge_tree_probe import merge_tree_write_tree_available
 from specify_cli.consolidation._constants import LINEAR_HISTORY_REJECTION_TOKENS, logger
 
 
@@ -647,31 +648,6 @@ def is_merge_commit(repo_root: Path, sha: str) -> bool:
 # resolution a real squash of those two lanes would have produced (Seam A
 # Decision 1, ``research.md``).
 # ---------------------------------------------------------------------------
-
-_GIT_VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
-_MERGE_TREE_WRITE_TREE_MIN_VERSION: tuple[int, int] = (2, 38)
-
-
-def merge_tree_write_tree_available(repo_root: Path) -> bool:
-    """Return True iff the installed git supports ``git merge-tree --write-tree`` (git>=2.38).
-
-    Probed via ``git --version`` rather than by invoking the flag itself, so a
-    caller can gate the (more expensive, per-path) :func:`three_way_merge_blob`
-    call without paying for a doomed invocation on old git. A failing
-    ``git --version``, or output that does not contain a recognizable
-    ``X.Y[.Z]`` version, is treated as unavailable — fail-closed: the caller
-    then leaves the path unattributable rather than attempting an unsupported
-    flag (Decision 3, ``research.md`` — old-git users keep today's false-FAIL
-    until they upgrade; no unsound raw-``merge-file`` fallback).
-    """
-    ret, out, _err = run_command(["git", "--version"], capture=True, check_return=False, cwd=repo_root)
-    if ret != 0:
-        return False
-    match = _GIT_VERSION_PATTERN.search(out or "")
-    if not match:
-        return False
-    version = (int(match.group(1)), int(match.group(2)))
-    return version >= _MERGE_TREE_WRITE_TREE_MIN_VERSION
 
 
 def three_way_merge_blob(repo_root: Path, lane_a_commit: str, lane_b_commit: str, path: str) -> str | None:

@@ -10,18 +10,18 @@ gone. See ``research.md`` R-6 for why a git ref rather than a
 ref survives branch/worktree deletion while keeping the commits reachable
 through ``gc``.
 
-Plan.md Minors: this module must NEVER import ``consolidation.*`` -- the
-merge-tree absorption probe (:func:`is_absorbed`) is self-contained here,
-reusing the *approach* (not the code) of the version probe at
-``consolidation/reconciliation.py``/``consolidation/git_probes.py``.
+Plan.md Minors: this module must NEVER import ``consolidation.*``. The
+``git merge-tree --write-tree`` version probe :func:`is_absorbed` needs is the
+same one ``consolidation/git_probes.py`` uses; both import it from the neutral
+:mod:`specify_cli.git.merge_tree_probe` rather than keeping two copies.
 """
 
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 
+from specify_cli.git.merge_tree_probe import MERGE_TREE_WRITE_TREE_MIN_VERSION, merge_tree_write_tree_available
 from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
 
 __all__ = [
@@ -35,13 +35,6 @@ __all__ = [
 ]
 
 _LANE_TIP_REF_PREFIX = "refs/spec-kitty/lane-tip/"
-
-#: ``git merge-tree --write-tree`` (used by :func:`is_absorbed`'s squash leg)
-#: is only available from git 2.38 onward. Mirrors
-#: ``consolidation/git_probes.py``'s ``_MERGE_TREE_WRITE_TREE_MIN_VERSION``
-#: without importing that module (plan.md Minors).
-_MERGE_TREE_MIN_GIT: tuple[int, int] = (2, 38)
-_GIT_VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 
 
 class AbsorptionUnsupported(Exception):
@@ -142,25 +135,6 @@ def clear_tip(repo_root: Path, branch: str) -> None:
     delete_bookkeeping_ref(repo_root, tip_ref(branch))
 
 
-def _git_supports_merge_tree_write_tree(repo_root: Path) -> bool:
-    """Probe the installed git for ``merge-tree --write-tree`` support (>= 2.38).
-
-    Probed via ``git --version`` rather than invoking the flag itself (mirrors
-    ``consolidation/git_probes.py::merge_tree_write_tree_available``'s
-    rationale, reimplemented here without importing it -- plan.md Minors). A
-    failing ``git --version``, or output with no recognizable ``X.Y[.Z]``
-    version, is treated as unavailable -- fail-closed.
-    """
-    result = subprocess.run(["git", "--version"], cwd=str(repo_root), capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        return False
-    match = _GIT_VERSION_PATTERN.search(result.stdout or "")
-    if not match:
-        return False
-    version = (int(match.group(1)), int(match.group(2)))
-    return version >= _MERGE_TREE_MIN_GIT
-
-
 def _merge_tree_no_op(repo_root: Path, target: str, tip: str) -> bool:
     """Return True iff merging ``tip`` into ``target`` is a squash-absorbed no-op.
 
@@ -236,7 +210,7 @@ def is_absorbed(repo_root: Path, tip: str, target: str, base: str | None) -> boo
         # the branch-name grammar, so a top-level import here would be circular.
         from specify_cli.policy.lane_tip_recorder import lane_tip_recorder_active
 
-        return lane_tip_recorder_active(repo_root)
+        return bool(lane_tip_recorder_active(repo_root))
 
     ancestor = subprocess.run(
         ["git", "merge-base", "--is-ancestor", tip, target],
@@ -248,7 +222,7 @@ def is_absorbed(repo_root: Path, tip: str, target: str, base: str | None) -> boo
     if ancestor.returncode == 0:
         return True
 
-    if not _git_supports_merge_tree_write_tree(repo_root):
-        raise AbsorptionUnsupported(f"git merge-tree --write-tree needs git >= {_MERGE_TREE_MIN_GIT[0]}.{_MERGE_TREE_MIN_GIT[1]}")
+    if not merge_tree_write_tree_available(repo_root):
+        raise AbsorptionUnsupported(f"git merge-tree --write-tree needs git >= {MERGE_TREE_WRITE_TREE_MIN_VERSION[0]}.{MERGE_TREE_WRITE_TREE_MIN_VERSION[1]}")
 
     return _merge_tree_no_op(repo_root, target, tip)
