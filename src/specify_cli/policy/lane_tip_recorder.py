@@ -33,6 +33,7 @@ from contextlib import suppress
 from pathlib import Path
 
 from specify_cli.cli.console import console
+from specify_cli.lanes.branch_naming import lane_branch_shell_glob
 
 __all__ = ["install_lane_tip_recorder", "pending_hook_names"]
 
@@ -63,7 +64,7 @@ _HOOK_BODY = f"""\
 #!/bin/sh
 {LANE_TIP_HOOK_SIGNATURE} Do not edit by hand.
 b=$(git symbolic-ref -q HEAD) || exit 0
-case "$b" in refs/heads/kitty/mission-*-lane-*) ;; *) exit 0 ;; esac
+case "$b" in refs/heads/{lane_branch_shell_glob()}) ;; *) exit 0 ;; esac
 id=${{b##*-lane-}}
 case "$id" in ''|*[!a-z]*) exit 0 ;; esac
 git update-ref "refs/spec-kitty/lane-tip/${{b#refs/heads/}}" HEAD >/dev/null 2>&1

@@ -200,7 +200,10 @@ def _merge_tree_no_op(repo_root: Path, target: str, tip: str) -> bool:
 
     produced_tree = merge_tree.stdout.strip().splitlines()[0] if merge_tree.stdout.strip() else ""
     target_tree = subprocess.run(
-        ["git", "rev-parse", "--verify", "--quiet", f"{target}^{{tree}}"],
+        # ``show -s --format=%T <rev> --`` names the commit's tree without
+        # composing a ``<rev>^{tree}`` revision string; the trailing ``--``
+        # forces ``target`` to parse as a revision (unknown -> non-zero exit).
+        ["git", "show", "-s", "--format=%T", target, "--"],
         cwd=str(repo_root),
         capture_output=True,
         text=True,

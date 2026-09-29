@@ -60,6 +60,7 @@ __all__ = [
     "coord_mission_dir_name",
     "coord_reconstruct_branch",
     "is_valid_bare_slug_body",
+    "lane_branch_shell_glob",
     "lane_id_for_worktree_dir",
     "mid8_from_slug",
     "mission_branch_name_required",
@@ -809,6 +810,19 @@ def is_mission_branch(branch_name: str) -> bool:
 def is_lane_branch(branch_name: str) -> bool:
     """Return True if branch matches a lane branch pattern (legacy, plain-legacy, or new)."""
     return _LEGACY_LANE_RE.match(branch_name) is not None or _PLAIN_LEGACY_LANE_RE.match(branch_name) is not None or _NEW_LANE_RE.match(branch_name) is not None
+
+
+def lane_branch_shell_glob() -> str:
+    """Return the POSIX ``case`` glob that recognizes a lane branch name.
+
+    For consumers that cannot call :func:`is_lane_branch` -- the lane-tip
+    recorder's ``post-commit``/``post-rewrite`` shell hook -- so the
+    ``kitty/mission-...-lane-...`` grammar still has one owner. The glob is
+    deliberately coarser than the regexes above (a shell ``case`` has no
+    character classes over a variable-length id); the hook narrows the
+    trailing lane-id fragment itself.
+    """
+    return f"{_MISSION_PREFIX}*-lane-*"
 
 
 def parse_lane_worktree_dir(dir_name: str) -> tuple[str, str] | None:
