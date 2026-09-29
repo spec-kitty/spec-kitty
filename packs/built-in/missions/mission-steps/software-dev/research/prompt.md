@@ -25,8 +25,9 @@ ground.
 
 This step runs before a spec or plan exists, on whatever branch your mission's
 planning artifacts land on — that may be `main` or any other checkout; there is
-no branch this step must refuse to run on. If you need the deterministic branch
-contract, run:
+no branch this step must refuse to run on. Work in the repository root checkout:
+planning steps need no worktree, and this step creates none. If you need the
+deterministic branch contract, run:
 
 ```bash
 spec-kitty agent mission branch-context --json
