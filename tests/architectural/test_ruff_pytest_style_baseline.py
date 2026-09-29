@@ -95,9 +95,26 @@ def test_every_pt_baseline_entry_still_fires() -> None:
     assert not stale, f"{len(stale)} PT baseline entries no longer fire; drop them from ruff.toml: {stale[:20]}"
 
 
-def test_planted_weak_oracle_is_flagged_under_repo_config(tmp_path: Path) -> None:
-    """Non-vacuity: the live config rejects a fresh ``pytest.raises`` without ``match=``."""
-    planted = "import pytest\n\n\ndef test_planted() -> None:\n    with pytest.raises(ValueError):\n        int('x')\n"
+# (planted snippet, the weak-oracle rule it must trip under the repo config).
+# Spans more than one rule so a single rule silently moved to [lint].ignore
+# (still "selected", so test_weak_oracle_rules_are_selected stays green) is
+# caught here by its planted oracle no longer firing.
+_PLANTED_WEAK_ORACLES = (
+    ("PT011", "import pytest\n\n\ndef test_planted() -> None:\n    with pytest.raises(ValueError):\n        int('x')\n"),
+    (
+        "PT030",
+        "import warnings\n\nimport pytest\n\n\ndef test_planted() -> None:\n    with pytest.warns(Warning):\n        warnings.warn('x', stacklevel=2)\n",
+    ),
+    (
+        "PT017",
+        "def test_planted() -> None:\n    try:\n        int('x')\n    except ValueError as exc:\n        assert str(exc)\n",
+    ),
+)
+
+
+@pytest.mark.parametrize(("rule", "planted"), _PLANTED_WEAK_ORACLES, ids=[rule for rule, _ in _PLANTED_WEAK_ORACLES])
+def test_planted_weak_oracle_is_flagged_under_repo_config(rule: str, planted: str) -> None:
+    """Non-vacuity: the live config rejects a fresh weak oracle for each guarded rule."""
     proc = subprocess.run(
         [sys.executable, "-m", "ruff", "check", "--no-cache", "--output-format", "json", "--stdin-filename", "tests/unit/test_planted_weak_oracle.py", "-"],
         cwd=_REPO_ROOT,
@@ -107,4 +124,4 @@ def test_planted_weak_oracle_is_flagged_under_repo_config(tmp_path: Path) -> Non
         check=False,
     )
     codes = {item["code"] for item in json.loads(proc.stdout or "[]")}
-    assert "PT011" in codes, f"PT011 did not fire on a planted broad pytest.raises; got {sorted(codes)}\n{proc.stderr}"
+    assert rule in codes, f"{rule} did not fire on its planted weak oracle; got {sorted(codes)}\n{proc.stderr}"
