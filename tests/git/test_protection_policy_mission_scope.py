@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -97,30 +98,101 @@ def test_flag_never_unprotects_a_different_branch(tmp_path: Path) -> None:
     assert policy.is_protected_target("master", primary_branch="master") is True
 
 
-def test_mission_write_bypass_helper_matches_policy_fold(tmp_path: Path) -> None:
-    from specify_cli.git.protection_policy import mission_write_bypass
-
+def test_resolve_for_mission_decision_matrix(tmp_path: Path) -> None:
+    """The mission-scoped fold, end to end, through the one surviving entry point."""
     repo = _repo(tmp_path)
     _mission(repo, "flagged-mission", commit_to_target=True)
     _mission(repo, "other-mission")
     _mission(repo, "bad-flag", commit_to_target="yes")
 
-    assert mission_write_bypass(repo, "flagged-mission", "main") is True
-    assert mission_write_bypass(repo, "flagged-mission", "master") is False
-    assert mission_write_bypass(repo, "other-mission", "main") is False
-    assert mission_write_bypass(repo, "bad-flag", "main") is False
-    assert mission_write_bypass(repo, None, "main") is False
-    assert mission_write_bypass(repo, "no-such-mission", "main") is False
+    assert ProtectionPolicy.resolve_for_mission(repo, "flagged-mission").is_protected("main") is False
+    assert ProtectionPolicy.resolve_for_mission(repo, "flagged-mission").is_protected("master") is True
+    assert ProtectionPolicy.resolve_for_mission(repo, "other-mission").is_protected("main") is True
+    assert ProtectionPolicy.resolve_for_mission(repo, "bad-flag").is_protected("main") is True
+    assert ProtectionPolicy.resolve_for_mission(repo, None).is_protected("main") is True
+    assert ProtectionPolicy.resolve_for_mission(repo, "no-such-mission").is_protected("main") is True
+
+
+def test_for_mission_scopes_an_already_resolved_policy(tmp_path: Path) -> None:
+    """``for_mission`` is the instance step ``resolve_for_mission`` composes.
+
+    It exists for callers that hold a policy resolved against a DIFFERENT root
+    (e.g. a worktree) than the one the mission's ``meta.json`` lives under.
+    """
+    repo = _repo(tmp_path)
+    _mission(repo, "flagged-mission", commit_to_target=True)
+    resolved = ProtectionPolicy.resolve(repo)
+
+    assert resolved.is_protected("main") is True
+    assert resolved.for_mission(repo, "flagged-mission").is_protected("main") is False
+    assert resolved.for_mission(repo, "flagged-mission") == ProtectionPolicy.resolve_for_mission(repo, "flagged-mission")
 
 
 @pytest.mark.parametrize("topology", ["lanes", "coord", "lanes_with_coord", "not-a-topology", None])
 def test_flag_on_non_single_branch_topology_never_bypasses(tmp_path: Path, topology: object) -> None:
     """A4: ``commit_to_target`` is single_branch-only; a hand-edited meta on any
     other (or unstored) topology must not un-protect the target."""
-    from specify_cli.git.protection_policy import mission_write_bypass
-
     repo = _repo(tmp_path)
     _mission(repo, "hand-edited", commit_to_target=True, topology=topology)
 
     assert ProtectionPolicy.resolve_for_mission(repo, "hand-edited").is_protected("main") is True
-    assert mission_write_bypass(repo, "hand-edited", "main") is False
+
+
+# ---------------------------------------------------------------------------
+# #5100 -- ONE mission-scoped decision. The former call-site idiom
+# ``resolve(root).is_protected(b) and not mission_write_bypass(root, slug, b)``
+# is now ``resolve_for_mission(root, slug).is_protected(b)``; these pin that the
+# real call sites still answer identically for the three canonical cases.
+# ---------------------------------------------------------------------------
+
+_SLUG_OPT_OUT = "opted-out"
+_SLUG_PROTECTED = "protected-no-opt-out"
+
+
+def _call_site_repo(tmp_path: Path) -> Path:
+    repo = _repo(tmp_path)
+    _mission(repo, _SLUG_OPT_OUT, commit_to_target=True)
+    _mission(repo, _SLUG_PROTECTED)
+    return repo
+
+
+def _implement_refuses(repo: Path, slug: str, branch: str) -> bool:
+    from specify_cli.cli.commands.implement import _protected_branch_status_commit_error
+
+    return _protected_branch_status_commit_error(branch, repo, slug) is not None
+
+
+def _tasks_shared_refuses(repo: Path, slug: str, branch: str) -> bool:
+    from specify_cli.cli.commands.agent.tasks_shared import _protected_branch_status_commit_error
+
+    return _protected_branch_status_commit_error(branch, repo, "mark-status", slug) is not None
+
+
+def _tasks_shared_skips(repo: Path, slug: str, branch: str) -> bool:
+    from unittest.mock import patch
+
+    from specify_cli.cli.commands.agent.tasks_shared import _skip_target_branch_commit
+
+    with patch("specify_cli.cli.commands.agent.tasks._coord_topology_active", return_value=True):
+        return _skip_target_branch_commit(repo, slug or "", branch)
+
+
+@pytest.mark.parametrize("decide", [_implement_refuses, _tasks_shared_refuses, _tasks_shared_skips])
+@pytest.mark.parametrize(
+    ("slug", "branch", "expected_protected"),
+    [
+        (_SLUG_OPT_OUT, "main", False),  # protected + single_branch + commit_to_target -> opted out
+        (_SLUG_PROTECTED, "main", True),  # protected, no opt-out -> still protected
+        (_SLUG_OPT_OUT, "master", True),  # the opt-out is for the mission's own target only
+        (_SLUG_PROTECTED, "feature-x", False),  # unprotected branch -> not protected
+        (_SLUG_OPT_OUT, "feature-x", False),
+        (None, "main", True),  # no mission scope -> plain policy
+    ],
+)
+def test_call_sites_match_the_mission_scoped_policy_decision(
+    tmp_path: Path, decide: Callable[[Path, str | None, str], bool], slug: str | None, branch: str, expected_protected: bool
+) -> None:
+    repo = _call_site_repo(tmp_path)
+
+    assert ProtectionPolicy.resolve_for_mission(repo, slug).is_protected(branch) is expected_protected
+    assert decide(repo, slug, branch) is expected_protected

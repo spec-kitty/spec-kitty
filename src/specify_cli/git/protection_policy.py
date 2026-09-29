@@ -175,6 +175,14 @@ class ProtectionPolicy:
     def for_mission(self, repo_root: Path, mission_slug: str | None) -> ProtectionPolicy:
         """Return this policy scoped to *mission_slug*'s persisted ``commit_to_target``.
 
+        Entry-point map for the mission-scoped decision (one decision, three
+        layers): :meth:`scoped_to_mission` is the pure fold over an in-hand
+        ``meta`` mapping; this instance method adds the meta read for a policy
+        the caller already resolved (needed when the policy was resolved against
+        a different root than the one holding the mission, e.g. a worktree);
+        :meth:`resolve_for_mission` is the one-call form for the common case
+        where both roots are the same.
+
         The single I/O step of the mission-scoped fold: loads the mission's
         primary ``meta.json`` (fail-closed) and delegates the decision to
         :meth:`scoped_to_mission`. A ``None``/unknown slug or an unreadable
@@ -187,7 +195,13 @@ class ProtectionPolicy:
 
     @classmethod
     def resolve_for_mission(cls, repo_root: Path, mission_slug: str | None) -> ProtectionPolicy:
-        """:meth:`resolve` followed by :meth:`for_mission` -- the mission-write entry point."""
+        """:meth:`resolve` followed by :meth:`for_mission` -- the mission-write entry point.
+
+        Call sites that used to combine ``resolve(...).is_protected(b)`` with a
+        separate mission-bypass probe use ``resolve_for_mission(root, slug).is_protected(b)``
+        instead: the mission's own ``commit_to_target`` target is un-protected,
+        every other branch (and a ``None``/unknown slug) keeps the plain answer.
+        """
         return cls.resolve(repo_root).for_mission(repo_root, mission_slug)
 
     def is_protected_target(self, branch: str, *, primary_branch: str) -> bool:
@@ -244,14 +258,14 @@ def _mission_bypass_branch(meta: Mapping[str, Any] | None) -> str | None:
     :func:`specify_cli.core.paths.read_commit_to_target`) or a missing
     ``target_branch`` yields ``None`` -- refuse, never bypass.
     """
-    from mission_runtime import MissionTopology
+    from mission_runtime import is_single_branch
 
     from specify_cli.core.paths import CommitToTargetMetaError, read_commit_to_target
     from specify_cli.migration.backfill_topology import stored_topology
 
     # ``commit_to_target`` is single_branch-only: a hand-edited meta on any other
     # (or unstored) topology must never un-protect the target.
-    if meta is None or stored_topology(meta) is not MissionTopology.SINGLE_BRANCH:
+    if meta is None or not is_single_branch(stored_topology(meta)):
         return None
     try:
         opted_out = read_commit_to_target(dict(meta) if meta is not None else None)
@@ -260,21 +274,6 @@ def _mission_bypass_branch(meta: Mapping[str, Any] | None) -> str | None:
         return None
     target = (meta or {}).get("target_branch")
     return target if opted_out and isinstance(target, str) and target else None
-
-
-def mission_write_bypass(repo_root: Path, mission_slug: str | None, branch: str) -> bool:
-    """``True`` iff *branch* is *mission_slug*'s own ``commit_to_target`` target (#5100 FR-008).
-
-    The mission-scoped hatch fold for call sites that ask a resolved
-    ``ProtectionPolicy`` first and then consult this only for a would-be
-    refusal (``policy.is_protected(b) and not mission_write_bypass(...)``).
-    Same decision as :meth:`ProtectionPolicy.for_mission`; ``False`` for a
-    ``None`` slug, unknown mission, unreadable meta or non-bool flag.
-    """
-    if not mission_slug:
-        return False
-    meta = _load_mission_meta(repo_root, mission_slug)
-    return meta is not None and _mission_bypass_branch(meta) == branch
 
 
 def _load_mission_meta(repo_root: Path, mission_slug: str) -> dict[str, Any] | None:

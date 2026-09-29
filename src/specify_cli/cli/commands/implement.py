@@ -32,7 +32,7 @@ from specify_cli.git.commit_helpers import (
     SafeCommitHeadMismatch,
     SafeCommitPathPolicyError,
 )
-from specify_cli.git.protection_policy import ProtectionPolicy, mission_write_bypass
+from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.core.constants import WORKTREES_DIR
 from mission_runtime import (
     CommitTarget,
@@ -110,10 +110,10 @@ _BANNER_CLOSE = "[/bold yellow]"
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path, mission_slug: str | None = None) -> str | None:
-    # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
-    # config+hatch reads happen once; is_protected() is I/O-free. A mission-scoped
+    # ProtectionPolicy.resolve_for_mission is the sole I/O boundary (FR-007/NFR-003):
+    # config+hatch+meta reads happen once; is_protected() is I/O-free. A mission-scoped
     # write also honours that mission's ``commit_to_target`` for its own target (#5100 FR-008).
-    if not ProtectionPolicy.resolve(repo_root).is_protected(branch) or mission_write_bypass(repo_root, mission_slug, branch):
+    if not ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(branch):
         return None
     return (
         f"Refusing to start implementation status on protected branch '{branch}' "
@@ -1201,7 +1201,7 @@ def _commit_planning_artifacts_transaction(
             files=files_to_commit,
             commit_msg=commit_msg,
         )
-    elif ProtectionPolicy.resolve(repo_root).is_protected(planning_branch) and not mission_write_bypass(repo_root, mission_slug, planning_branch):
+    elif ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(planning_branch):
         # #2648 (WP01) narrow-triple fail-close: ``placement_ref is None`` AND
         # the meta-derived ``coord_branch`` is truthy AND
         # ``is_protected(planning_branch)`` -- EXACTLY the precondition where

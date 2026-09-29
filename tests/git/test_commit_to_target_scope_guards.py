@@ -134,7 +134,7 @@ def test_preflight_ambiguous_selector_yields_no_bypass_instead_of_raising(tmp_pa
 
     with pytest.raises(ProtectedBranchRefused):
         _preflight(repo, f"kitty-specs/{CTT}/spec.md")
-    assert protection_policy.mission_write_bypass(repo, CTT, "main") is False
+    assert protection_policy.ProtectionPolicy.resolve_for_mission(repo, CTT).is_protected("main") is True
 
 
 @pytest.fixture

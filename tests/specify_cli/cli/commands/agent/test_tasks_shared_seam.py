@@ -184,7 +184,7 @@ def test_patched_coord_topology_intercepts_skip_target_branch_commit(tmp_path: P
         result = tasks._skip_target_branch_commit(tmp_path, "some-mission", "main")
     assert result is False
     coord_mock.assert_called_once_with(tmp_path, "some-mission")
-    policy_mock.resolve.assert_not_called()
+    policy_mock.resolve_for_mission.assert_not_called()
 
 
 def test_patched_protection_policy_intercepts_skip_target_branch_commit(
@@ -195,19 +195,19 @@ def test_patched_protection_policy_intercepts_skip_target_branch_commit(
         patch(f"{_TASKS}._coord_topology_active", return_value=True),
         patch(f"{_TASKS}.ProtectionPolicy") as policy_mock,
     ):
-        policy_mock.resolve.return_value.is_protected.return_value = True
+        policy_mock.resolve_for_mission.return_value.is_protected.return_value = True
         result = tasks._skip_target_branch_commit(tmp_path, "some-mission", "main")
     assert result is True
-    policy_mock.resolve.assert_called_once_with(tmp_path)
-    policy_mock.resolve.return_value.is_protected.assert_called_once_with("main")
+    policy_mock.resolve_for_mission.assert_called_once_with(tmp_path, "some-mission")
+    policy_mock.resolve_for_mission.return_value.is_protected.assert_called_once_with("main")
 
 
 def test_patched_protection_policy_intercepts_protected_branch_error(tmp_path: Path) -> None:
     """``tasks.ProtectionPolicy`` route inside ``_protected_branch_status_commit_error``."""
     with patch(f"{_TASKS}.ProtectionPolicy") as policy_mock:
-        policy_mock.resolve.return_value.is_protected.return_value = True
+        policy_mock.resolve_for_mission.return_value.is_protected.return_value = True
         message = tasks._protected_branch_status_commit_error("main", tmp_path, "mark-status")
-        policy_mock.resolve.return_value.is_protected.return_value = False
+        policy_mock.resolve_for_mission.return_value.is_protected.return_value = False
         cleared = tasks._protected_branch_status_commit_error("main", tmp_path, "mark-status")
     assert message is not None and "mark-status" in message and "'main'" in message
     assert cleared is None

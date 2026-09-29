@@ -50,7 +50,6 @@ from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.coordination.coherence import is_coord_residue_churn
 from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
 from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files
-from specify_cli.git.protection_policy import mission_write_bypass
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
@@ -383,9 +382,9 @@ def _protected_branch_status_commit_error(branch: str, repo_root: Path, command:
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
-    # config+hatch reads happen once; is_protected() is I/O-free.
-    primary_protected = _tasks.ProtectionPolicy.resolve(repo_root).is_protected(branch) and not mission_write_bypass(repo_root, mission_slug, branch)
+    # ProtectionPolicy.resolve_for_mission is the sole I/O boundary (FR-007/NFR-003):
+    # config+hatch+meta reads happen once; is_protected() is I/O-free.
+    primary_protected = _tasks.ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(branch)
     verdict = resolve_surface_authority(
         topology=MissionTopology.SINGLE_BRANCH,
         primary_target=branch,
@@ -452,9 +451,9 @@ def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch
     # mission ever reaches the protection resolve (no policy I/O on flat missions).
     if not _tasks._coord_topology_active(repo_root, mission_slug):
         return False
-    # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
-    # config+hatch reads happen once; is_protected() is I/O-free.
-    primary_protected = _tasks.ProtectionPolicy.resolve(repo_root).is_protected(target_branch) and not mission_write_bypass(repo_root, mission_slug, target_branch)
+    # ProtectionPolicy.resolve_for_mission is the sole I/O boundary (FR-007/NFR-003):
+    # config+hatch+meta reads happen once; is_protected() is I/O-free.
+    primary_protected = _tasks.ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(target_branch)
     verdict = resolve_surface_authority(
         topology=MissionTopology.COORD,
         primary_target=target_branch,
