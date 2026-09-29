@@ -317,6 +317,9 @@ from .tail_reader import (
 from .views import (
     format_post_mission_events,
 )
+from .review_roles import (
+    latest_implementer_actor,
+)
 from .work_package_lifecycle import (
     GENERIC_IMPLEMENTATION_ACTORS,
     WorkPackageClaimConflict,
@@ -458,6 +461,7 @@ __all__ = [
     "MissionNotCompletedError",
     "TransitionRequest",
     "GENERIC_IMPLEMENTATION_ACTORS",
+    "latest_implementer_actor",
     "WorkPackageClaimConflict",
     "WorkPackageStartRejected",
     "build_saas_lifecycle_queue_event",
