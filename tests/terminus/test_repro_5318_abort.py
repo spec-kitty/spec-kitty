@@ -223,3 +223,28 @@ def test_5318_abort_refuses_while_another_missions_merge_is_live(tmp_path: Path)
     assert ref_shas(mission) == advanced, "nothing may be restored while another merge is live"
     assert _state_path(mission).exists(), "nothing may be cleared while another merge is live"
     assert "another mission" in output, f"the refusal must say why. output={output}"
+
+
+def test_5318_abort_after_a_crashed_resume_still_restores(tmp_path: Path) -> None:
+    """A resumed attempt that re-moves nothing must not orphan attempt 1's post tips.
+
+    Real #5385 crash, then ``--resume`` (crashes the same way: lanes already
+    consolidated, target already squashed, so no phase re-moves a branch), then
+    ``--abort``. The post tips attempt 1 recorded are still the CAS expectation for
+    every branch sitting at them, so the abort restores instead of wedging on
+    "no post-mutation tip was recorded".
+    """
+    mission, before = _crashed_lanes_run(tmp_path, "01M5318R")
+    resumed = run_terminus(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
+    assert resumed.returncode != 0, f"precondition: the resume crashes the same way. output={flat(resumed)}"
+    assert ref_shas(mission)["target"] != before["target"], "precondition: the target is still advanced"
+
+    result = _abort(mission)
+    output = flat(result)
+    after = ref_shas(mission)
+
+    assert result.returncode == 0, f"--abort after a crashed resume must restore, not wedge. output={output}"
+    assert after["target"] == before["target"], f"target left advanced. output={output}"
+    assert after["coord"] == before["coord"], f"mission branch left advanced. output={output}"
+    assert not _state_path(mission).exists(), "the record is cleared after a full restore"
+    assert "no post-mutation tip was recorded" not in output, output
