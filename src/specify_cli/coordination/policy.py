@@ -264,7 +264,7 @@ class WorkflowMutationPolicy:
         # cannot disagree; ``evaluate`` itself stays environment-free.
         # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
         # all config+hatch reads happen once here; is_protected() is I/O-free.
-        is_protected = ProtectionPolicy.resolve(repo_root).is_protected(ref)
+        is_protected = ProtectionPolicy.resolve_for_mission(repo_root, change_set.mission_slug).is_protected(ref)
         # The guard decision reads only ``target.ref`` (commit_guard.evaluate is
         # ref-only, C-GUARD-3a); the topology ``.kind`` was vestigial carrier here
         # and is dropped (WP04 drain) — the VO field defaults transitionally until

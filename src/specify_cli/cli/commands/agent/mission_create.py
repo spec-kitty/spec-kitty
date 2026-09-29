@@ -484,6 +484,7 @@ def _run_create_core_phase(
     topology: MissionTopology = MissionTopology.COORD,
     retain_branches: bool = False,
     retain_worktrees: bool = False,
+    commit_to_target: bool = False,
     allow_duplicate: bool = False,
 ) -> MissionCreationResult:
     """Invoke ``create_mission_core`` with the deterministic error funnel.
@@ -516,6 +517,7 @@ def _run_create_core_phase(
             owned_checkout=owned_checkout.resolve() if owned_checkout is not None else None,
             retain_branches=retain_branches,
             retain_worktrees=retain_worktrees,
+            commit_to_target=commit_to_target,
             allow_duplicate=allow_duplicate,
         )
     except CoordinationBranchDiverged as exc:
@@ -619,6 +621,11 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         "meta_file": str(meta_file),
         "created_at": str(result.meta.get("created_at", "")),
         "created_files": [str(path) for path in result.created_files],
+        # #5100 FR-007/FR-008 (WP08): the protected-target single_branch mint,
+        # when it fired, or the explicit `commit_to_target` override, when
+        # set. `None` for every other mission (never a written empty string).
+        "mission_branch": result.meta.get("mission_branch"),
+        "commit_to_target": result.meta.get("commit_to_target"),
         # #2693: spec.md is scaffolded empty and left uncommitted on purpose
         # (#846) — it is committed later by /spec-kitty.specify once it holds
         # substantive content. Disclose it as a structured uncommitted artifact
@@ -799,6 +806,18 @@ def create_mission(
             help="Opt this mission's worktrees out of post-merge cleanup deletion.",
         ),
     ] = False,
+    commit_to_target: Annotated[
+        bool,
+        typer.Option(
+            "--commit-to-target/--no-commit-to-target",
+            help=(
+                "single_branch only: skip the protected-target mission-branch "
+                "mint (#5100 FR-008) and commit directly onto --target-branch, "
+                "even when it is protected. Persisted; honoured through "
+                "ProtectionPolicy for every later write."
+            ),
+        ),
+    ] = False,
     allow_duplicate: Annotated[
         bool,
         typer.Option(
@@ -885,6 +904,7 @@ def create_mission(
             json_output=json_output,
             retain_branches=retain_branches,
             retain_worktrees=retain_worktrees,
+            commit_to_target=commit_to_target,
             allow_duplicate=allow_duplicate,
         )
     _emit_create_result_phase(

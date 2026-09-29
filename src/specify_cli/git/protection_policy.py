@@ -39,8 +39,10 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 from ruamel.yaml import YAML
 
@@ -92,6 +94,11 @@ class ProtectionPolicy:
 
     protected_branches: frozenset[str]
     operator_hatch_active: bool
+    #: Mission-scoped fold of the operator-hatch concept (#5100 FR-008): the ONE
+    #: branch a mission with ``meta.commit_to_target: true`` may write to
+    #: directly. ``None`` (the default) means no mission scope. Set only via
+    #: :meth:`scoped_to_mission` / :meth:`resolve_for_mission`, never by env.
+    mission_bypass_branch: str | None = None
 
     # ------------------------------------------------------------------
     # Constructor / resolver
@@ -141,12 +148,143 @@ class ProtectionPolicy:
             ``True`` when *ref* is protected; ``False`` when the hatch is active
             or *ref* is not in the protected set.
         """
+        if self.mission_bypass_branch is not None and ref == self.mission_bypass_branch:
+            return False
         return ref in self.protected_branches and not self.operator_hatch_active
+
+    # ------------------------------------------------------------------
+    # Mission-scoped hatch fold (#5100 FR-008, WP08 cycle 4)
+    # ------------------------------------------------------------------
+
+    def scoped_to_mission(self, meta: Mapping[str, Any] | None) -> ProtectionPolicy:
+        """Return a copy that honours *meta*'s ``commit_to_target`` for its own target.
+
+        ``commit_to_target: true`` is a MISSION-SCOPED operator hatch (C-002:
+        the same hatch concept as ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS``,
+        no second mechanism and no new env var). It un-protects exactly the
+        mission's own ``target_branch`` and only on the policy returned here;
+        the receiver, other missions and non-mission commits stay protected.
+
+        Fail-closed: a non-bool ``commit_to_target`` (see
+        :func:`specify_cli.core.paths.read_commit_to_target`) or a missing
+        ``target_branch`` yields NO bypass -- it refuses, never grants.
+        """
+        bypass = _mission_bypass_branch(meta)
+        return self if bypass is None else replace(self, mission_bypass_branch=bypass)
+
+    def for_mission(self, repo_root: Path, mission_slug: str | None) -> ProtectionPolicy:
+        """Return this policy scoped to *mission_slug*'s persisted ``commit_to_target``.
+
+        The single I/O step of the mission-scoped fold: loads the mission's
+        primary ``meta.json`` (fail-closed) and delegates the decision to
+        :meth:`scoped_to_mission`. A ``None``/unknown slug or an unreadable
+        ``meta.json`` leaves the policy unchanged (protected).
+        """
+        if not mission_slug:
+            return self
+        meta = _load_mission_meta(repo_root, mission_slug)
+        return self if meta is None else self.scoped_to_mission(meta)
+
+    @classmethod
+    def resolve_for_mission(cls, repo_root: Path, mission_slug: str | None) -> ProtectionPolicy:
+        """:meth:`resolve` followed by :meth:`for_mission` -- the mission-write entry point."""
+        return cls.resolve(repo_root).for_mission(repo_root, mission_slug)
+
+    def is_protected_target(self, branch: str, *, primary_branch: str) -> bool:
+        """Return ``True`` iff *branch* is protected under the #5100 rule.
+
+        The #5100 operator decision (comment 5870360497, option E) defines a
+        single_branch mission's "protected target" as **primary plus
+        configured** — the repository's Primary Branch (``primary_branch``,
+        e.g. the resolved default branch) counts as protected even when it is
+        not itself named in ``.kittify/config.yaml``'s configured
+        ``protected_branches`` list (or that list is empty/absent). This
+        differs from :meth:`is_protected` alone in exactly the two ways
+        ``research.md`` R-5 documents: an explicit configured list *replaces*
+        the defaults, so a primary branch with a non-default name (e.g.
+        ``trunk``) drops out of :attr:`protected_branches` the moment the
+        operator configures ANY other list; and a primary branch with no
+        ``origin/HEAD`` resolves unprotected under the plain defaults
+        (:func:`_default_branches_with_remote` only adds ``{main, master}``
+        plus the remote default, which is ``None`` with no ``origin/HEAD``).
+
+        One query on the existing authority (C-002: no second protection
+        check) closes both gaps: ``branch == primary_branch`` is checked
+        FIRST and unconditionally (still gated by the operator hatch, so the
+        escape hatch keeps working identically to :meth:`is_protected`), then
+        falls back to the configured-set check for every other branch.
+
+        Args:
+            branch: The candidate target branch (short name, not
+                ``refs/heads/…``).
+            primary_branch: The repository's resolved Primary Branch name
+                (e.g. from :func:`specify_cli.core.git_ops.resolve_primary_branch`).
+                Required keyword — there is no default, so a caller cannot
+                silently pass no primary and get the plain :meth:`is_protected`
+                answer without naming it.
+
+        Returns:
+            ``True`` when *branch* is the primary branch or is in the
+            configured protected set, and the operator hatch is not active.
+        """
+        if self.operator_hatch_active or (self.mission_bypass_branch is not None and branch == self.mission_bypass_branch):
+            return False
+        return branch == primary_branch or self.is_protected(branch)
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _mission_bypass_branch(meta: Mapping[str, Any] | None) -> str | None:
+    """The mission's own ``target_branch`` iff ``commit_to_target`` is the JSON ``true``, else ``None``.
+
+    Fail-closed: a non-bool ``commit_to_target`` (via the canonical
+    :func:`specify_cli.core.paths.read_commit_to_target`) or a missing
+    ``target_branch`` yields ``None`` -- refuse, never bypass.
+    """
+    from specify_cli.core.paths import CommitToTargetMetaError, read_commit_to_target
+
+    try:
+        opted_out = read_commit_to_target(dict(meta) if meta is not None else None)
+    except CommitToTargetMetaError:
+        logger.warning("meta.json commit_to_target is not a boolean; keeping the target protected (fail-closed).")
+        return None
+    target = (meta or {}).get("target_branch")
+    return target if opted_out and isinstance(target, str) and target else None
+
+
+def mission_write_bypass(repo_root: Path, mission_slug: str | None, branch: str) -> bool:
+    """``True`` iff *branch* is *mission_slug*'s own ``commit_to_target`` target (#5100 FR-008).
+
+    The mission-scoped hatch fold for call sites that ask a resolved
+    ``ProtectionPolicy`` first and then consult this only for a would-be
+    refusal (``policy.is_protected(b) and not mission_write_bypass(...)``).
+    Same decision as :meth:`ProtectionPolicy.for_mission`; ``False`` for a
+    ``None`` slug, unknown mission, unreadable meta or non-bool flag.
+    """
+    if not mission_slug:
+        return False
+    meta = _load_mission_meta(repo_root, mission_slug)
+    return meta is not None and _mission_bypass_branch(meta) == branch
+
+
+def _load_mission_meta(repo_root: Path, mission_slug: str) -> dict[str, Any] | None:
+    """Load the mission's primary ``meta.json``; ``None`` when absent or unreadable."""
+    from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
+    from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
+        _compose_primary_feature_dir,
+    )
+
+    try:
+        main_root = get_main_repo_root(repo_root)
+        feature_dir = _compose_primary_feature_dir(main_root, _canonicalize_primary_read_handle(main_root, mission_slug))
+        return load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
+        logger.warning("mission meta.json unreadable for %s; keeping the target protected (fail-closed).", mission_slug)
+        return None
 
 
 def _resolve_hatch() -> bool:

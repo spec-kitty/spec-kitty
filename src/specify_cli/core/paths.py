@@ -550,6 +550,31 @@ class StatusReadUnsupported(RuntimeError):
     """
 
 
+class CommitToTargetMetaError(RuntimeError):
+    """Raised when ``meta.json``'s ``commit_to_target`` value is present but not a bool.
+
+    (WP08 / #5100 FR-008, T034.) Mirrors ``read_retention_from_meta``'s
+    ``isinstance(value, bool)`` discipline -- a malformed value is never
+    coerced by truthiness (``bool("false")`` is ``True``, the exact class of
+    bug this guards against). It intentionally does NOT reuse retention's
+    "malformed -> treated as retaining (fail-closed)" WARN-and-continue shape:
+    retention has one safe default direction (retain is always the harmless
+    guess), but ``commit_to_target`` has none -- guessing ``True`` silently
+    skips the #5100 protective mission-branch mint onto a protected target,
+    while guessing ``False`` re-mints a branch the operator may have
+    deliberately opted out of. With no safe default, the fail-closed answer is
+    to raise loudly rather than silently pick a side.
+    """
+
+    def __init__(self, raw_value: object) -> None:
+        self.raw_value = raw_value
+        super().__init__(
+            f"meta.json 'commit_to_target' must be a JSON boolean; got "
+            f"{raw_value!r} ({type(raw_value).__name__}). Fix or remove the "
+            "field -- it is never truthiness-coerced."
+        )
+
+
 class MissionMetaReadError(GuardedReadError, RuntimeError):
     """Raised when meta.json exists but cannot be decoded.
 
@@ -796,6 +821,42 @@ def read_retention_from_meta(
     if not data:
         return None, None
     return data.get("retain_branches"), data.get("retain_worktrees")
+
+
+def read_commit_to_target(meta: dict[str, Any] | None) -> bool:
+    """Read the ``commit_to_target`` override from an already-loaded meta dict.
+
+    Mirrors :func:`read_retention_from_meta`'s field-level pattern (WP08 /
+    #5100 FR-008, T034), but operates on the caller's already-loaded
+    ``meta.json`` mapping rather than doing its own I/O -- ``mission
+    create``'s create-time mint decision (:mod:`specify_cli.core.mission_creation`)
+    already holds the in-progress ``meta`` dict before it is written to disk,
+    and re-reading from a not-yet-committed file would answer the wrong
+    question.
+
+    Args:
+        meta: The parsed ``meta.json`` mapping, or ``None`` (field-absent
+            case, e.g. a mission that predates this field).
+
+    Returns:
+        ``False`` when the field is absent (the default: no override, so a
+        protected-target single_branch mission mints a mission branch).
+        ``True`` only when the raw value is the JSON boolean ``true``.
+
+    Raises:
+        CommitToTargetMetaError: The field is present but not a real
+            ``bool`` (fail-closed -- never truthiness-coerced; see the error
+            class docstring for why this raises rather than warns, unlike
+            :func:`read_retention_from_meta`'s per-field resolver).
+    """
+    if not meta:
+        return False
+    raw = meta.get("commit_to_target")
+    if raw is None:
+        return False
+    if not isinstance(raw, bool):
+        raise CommitToTargetMetaError(raw)
+    return raw
 
 
 def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:

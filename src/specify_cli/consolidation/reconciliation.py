@@ -1172,22 +1172,25 @@ def build_approved_wp_set(
             excluded_window_base,
             _missing_branch_refusal_text(unresolvable),
         )
+    from specify_cli.lanes.single_branch_landing import authorship_window
+
+    sb_window = authorship_window(repo_root, lanes_manifest.mission_slug, lanes_manifest.mission_branch, lanes_manifest.target_branch)
     # Mixed-lane canceled-content resolution (T022/T023, #5046 WP05) — after the
     # snapshot and the branch-resolvability check, before any of the existing
     # collectors, per plan.md D-3. Any Unattributable outcome refuses the WHOLE
     # claim immediately (refusals take precedence over FAIL by construction).
     canceled_content, attested_wp_ids, mixed_lane_refusal = _resolve_mixed_lane_canceled_content(
-        repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, coord_base_ref, planning_prefix, excluded_window_base
+        repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, coord_base_ref, planning_prefix, excluded_window_base, sb_window
     )
     if mixed_lane_refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, mixed_lane_refusal)
 
-    approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref)
+    approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window)
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
     authored_shas, authored_patch_ids, authored_blobs, authored_deletions, multi_lane_paths = _collect_authored(
-        repo_root, lanes_manifest, work_packages, coord_base_ref
+        repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
@@ -1283,6 +1286,7 @@ def _resolve_mixed_lane_canceled_content(
     coord_base_ref: str,
     planning_prefix: str | None,
     target_base: str | None = None,
+    sb_window: tuple[str, str] | None = None,
 ) -> tuple[frozenset[CanceledPathState], frozenset[str], str | None]:
     """Resolve every mixed lane's canceled-with-provenance WPs (T022/T023).
 
@@ -1324,7 +1328,9 @@ def _resolve_mixed_lane_canceled_content(
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
     canceled_content: set[CanceledPathState] = set()
     for lane in mixed_lanes:
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        # #5100: a protected single_branch repo-root lane reads its authored
+        # window ``fork_point..mission_branch`` (same source as the collectors).
+        lane_base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
         lane_canceled = sorted(wp for wp in lane.wp_ids if wp in excluded_canceled_wp_ids)
         attestation_anchors = [stamp for wp in lane_canceled if (stamp := stamps.get(wp))]
         for wp_id in lane_canceled:
@@ -1335,7 +1341,7 @@ def _resolve_mixed_lane_canceled_content(
                 lane_wp_ids=lane.wp_ids,
                 canceled_wp_id=wp_id,
                 lane_branch=branch,
-                coord_base_ref=coord_base_ref,
+                coord_base_ref=lane_base,
                 is_bookkeeping=is_bookkeeping,
                 closed_world_anchors=[*_closed_world_anchors(lanes_manifest, lane, target_base), *attestation_anchors],
             )
@@ -1505,18 +1511,19 @@ def _collect_approved_shas(
     lanes_manifest: LanesManifest,
     work_packages: Mapping[str, Mapping[str, object]],
     coord_base_ref: str,
+    sb_window: tuple[str, str] | None = None,
 ) -> dict[str, tuple[str, ...]]:
     """Approved WPs → their lane-tip commit SHAs (Lamport membership + git tips)."""
     approved: dict[str, tuple[str, ...]] = {}
     for lane in lanes_manifest.lanes:
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
         for wp_id in lane.wp_ids:
             state = work_packages.get(wp_id)
             if state is None:
                 continue
             lane_value = str(state.get("lane", ""))
             if lane_value in _APPROVED_MEMBERSHIP_LANES:
-                approved[wp_id] = tuple(_lane_tip_commits(repo_root, coord_base_ref, branch))
+                approved[wp_id] = tuple(_lane_tip_commits(repo_root, base, branch))
     return approved
 
 
@@ -1726,6 +1733,7 @@ def _collect_authored(
     lanes_manifest: LanesManifest,
     work_packages: Mapping[str, Mapping[str, object]],
     coord_base_ref: str,
+    sb_window: tuple[str, str] | None = None,
 ) -> tuple[
     frozenset[str],
     frozenset[str],
@@ -1773,8 +1781,8 @@ def _collect_authored(
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
-        first_parent = _lane_first_parent_spine(repo_root, coord_base_ref, branch)
+        base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
+        first_parent = _lane_first_parent_spine(repo_root, base, branch)
         for sha in first_parent:
             shas.add(sha)
             pid = patch_id_of(repo_root, sha)

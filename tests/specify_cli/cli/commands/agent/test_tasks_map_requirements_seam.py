@@ -113,7 +113,7 @@ def test_c001_refuse_arm_intercepts_through_tasks_namespace(tmp_path: Path) -> N
     branch_mock.assert_called_once_with(tmp_path, "034-feature", True)
     placement_mock.assert_called_once()
     protected_mock.assert_called_once_with(
-        "main", tmp_path, "spec-kitty agent tasks map-requirements"
+        "main", tmp_path, "spec-kitty agent tasks map-requirements", "034-feature"
     )
     skip_mock.assert_not_called()
     error_mock.assert_called_once_with(True, "protected: refuse")

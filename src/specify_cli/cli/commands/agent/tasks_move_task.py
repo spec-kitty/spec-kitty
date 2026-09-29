@@ -523,7 +523,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     # let an un-bootstrapped event log raise "Canonical status not found" first,
     # masking the protected-branch refusal (issue #1386 regression).
     if st.resolved_auto_commit and not st.skip_target_branch_commit:
-        protected_error = _tasks._protected_branch_status_commit_error(st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task")
+        protected_error = _tasks._protected_branch_status_commit_error(st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task", st.mission_slug)
         if protected_error is not None:
             self_review_error = _self_review_fallback_option_error(
                 enabled=st.self_review_fallback,

@@ -12,9 +12,9 @@ defect) this file is RED on assertions, never a fixture crash:
   materialises an ordinary lane worktree for the single_branch mission's
   code WP).
 
-Tests 7 and 8 are ``xfail(strict=True, reason="WP08")`` -- the
-protected-target mission-branch mint and the ``--commit-to-target``
-override land in a LATER work package of this mission.
+Tests 7 and 8 (the protected-target mission-branch mint and the
+``--commit-to-target`` override) landed in WP08 (T038) and are no longer
+``xfail``.
 """
 
 from __future__ import annotations
@@ -354,11 +354,16 @@ def test_dirty_checkout_refused_but_resume_allowed(tmp_path: Path, monkeypatch: 
     assert wp01_in_progress and wp01_in_progress[-1].get("execution_mode") == "direct_repo"
 
 
-@pytest.mark.xfail(strict=True, reason="WP08")
 def test_protected_target_mints_mission_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """AS1 (US3): a single_branch mission created on a protected target
     (``main``, no override) mints ``kitty/mission-<slug>-<mid8>``, checked
-    out in the write checkout, with no worktree. Lands in WP08 (IC-05)."""
+    out in the write checkout, with no worktree. Lands in WP08 (IC-05).
+
+    T038: also asserts that `implement WP01` on the protected mission runs
+    on `mission_branch` (US3.2's "the write checkout resolves to the
+    expected branch" positive case)."""
+    from specify_cli.lanes.branch_naming import mission_branch_name
+
     repo = _seed_repo(tmp_path, name="protected-repo")
     monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
     monkeypatch.chdir(repo)
@@ -366,18 +371,34 @@ def test_protected_target_mints_mission_branch(tmp_path: Path, monkeypatch: pyte
     _git(repo, "checkout", "main")
 
     result = make_mission(repo, "issue-5100-protected", topology=MissionTopology.SINGLE_BRANCH, target_branch="main")
+    mission_slug, feature_dir = result.mission_slug, result.feature_dir
+    _write_two_code_wps(repo, feature_dir)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", f"seed mission {mission_slug}")
 
-    minted_branch = f"kitty/mission-issue-5100-protected-{result.meta.get('mission_id', '')[:8].lower()}"
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    minted_branch = mission_branch_name(mission_slug, mission_id=str(meta.get("mission_id", "")))
     assert _git(repo, "branch", "--show-current") == minted_branch
-    assert result.meta.get("mission_branch") == minted_branch
+    assert meta.get("mission_branch") == minted_branch
     assert not (repo / ".worktrees").exists()
 
+    # T038: implement WP01 runs on mission_branch (never switches branches).
+    _assert_setup_ok("finalize-tasks (protected)", _finalize(mission_slug))
+    result = _implement("WP01", mission_slug, json_output=True)
+    assert result.exit_code == 0, result.output
+    assert _git(repo, "branch", "--show-current") == minted_branch
 
-@pytest.mark.xfail(strict=True, reason="WP08")
+
 def test_commit_to_target_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """AS3 (US3): ``--commit-to-target`` mints no mission branch. A usage
-    error today (the flag does not exist yet); lands in WP08."""
+    """AS3 (US3): ``--commit-to-target`` mints no mission branch."""
+    from tests._factories import provision_test_charter
+
     repo = _seed_repo(tmp_path, name="commit-to-target-repo")
+    # T038: this test drives `agent mission create` directly (never
+    # `make_mission()`, which provisions internally) -- `_seed_repo`'s own
+    # charter seeding is not sufficient for the raw CLI path (unrelated,
+    # pre-existing gap this xfail test never actually exercised before now).
+    provision_test_charter(repo)
     monkeypatch.chdir(repo)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     _git(repo, "checkout", "main")
@@ -401,3 +422,45 @@ def test_commit_to_target_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert payload.get("mission_branch") is None
     mission_refs = _git(repo, "for-each-ref", "--format=%(refname)", "refs/heads/kitty/mission-*")
     assert mission_refs == ""
+
+    # FR-008 / cycle 4: the persisted opt-out must be HONOURED after create as
+    # a mission-scoped protection bypass. ``main`` is protected by default and
+    # the operator hatch env var is explicitly unset -- the ONLY thing that can
+    # let this mission's own writes onto ``main`` is ``meta.commit_to_target``.
+    monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+    mission_slug = payload["mission_slug"]
+    feature_dir = repo / "kitty-specs" / mission_slug
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta.get("commit_to_target") is True
+    assert meta.get("target_branch") == "main"
+
+    _write_two_code_wps(repo, feature_dir)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", f"seed mission {mission_slug}")
+
+    finalized = _finalize(mission_slug)
+    assert finalized.exit_code == 0, finalized.output
+    assert "PROTECTED_BRANCH_REFUSED" not in finalized.output
+    assert _git(repo, "branch", "--show-current") == "main"
+
+    implemented = _implement("WP01", mission_slug, json_output=True)
+    assert implemented.exit_code == 0, implemented.output
+    assert json.loads(implemented.output)["workspace_path"] == "."
+    assert _git(repo, "branch", "--show-current") == "main"
+    wp01_events = [e for e in _read_events(feature_dir) if e.get("wp_id") == "WP01"]
+    claimed = [e for e in wp01_events if e.get("to_lane") == "claimed"]
+    assert claimed and claimed[-1].get("execution_mode") == "direct_repo"
+
+    (repo / "src" / "wp01.py").write_text("VALUE = 100\n", encoding="utf-8")
+    _git(repo, "add", "src/wp01.py")
+    _git(repo, "commit", "-m", "feat(WP01): deliverable")
+    mark_done = runner.invoke(root_app, ["agent", "tasks", "mark-status", "T001", "--status", "done", "--mission", mission_slug, "--json"])
+    assert mark_done.exit_code == 0, mark_done.output
+
+    before = _git(repo, "rev-list", "--count", "main")
+    moved = _move_to_for_review("WP01", mission_slug)
+    assert moved.exit_code == 0, moved.output
+    assert int(_git(repo, "rev-list", "--count", "main")) > int(before), "status commit must land on main"
+    for_review = [e for e in _read_events(feature_dir) if e.get("wp_id") == "WP01" and e.get("to_lane") == "for_review"]
+    assert for_review and for_review[-1].get("execution_mode") == "direct_repo"
+    assert _git(repo, "branch", "--show-current") == "main"

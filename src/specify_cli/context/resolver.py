@@ -95,12 +95,18 @@ def _read_meta_json(feature_dir: Path, repo_root: Path) -> dict[str, str]:
         read_mission_type(data),  # rc3 M5 (FR-002): canonical field only; legacy retired
     )
 
-    return {
+    fields = {
         "mission_id": mission_id,
         "target_branch": target_branch,
         "mission_number": identity["mission_number"],
         "mission_type": identity["mission_type"],
     }
+    # WP08 (#5100): carry the protected-target mint through to resolve_context
+    # (this hydrated dict otherwise drops every field it does not name).
+    raw_mission_branch = data.get("mission_branch")
+    if isinstance(raw_mission_branch, str) and raw_mission_branch:
+        fields["mission_branch"] = raw_mission_branch
+    return fields
 
 
 def _read_wp_metadata(feature_dir: Path, wp_code: str) -> WPMetadata:
@@ -267,10 +273,18 @@ def resolve_context(
             f"to compute lanes."
         )
         raise MissingIdentityError(msg)
+    # WP08 (#5100 FR-007/012, IC-05): a protected-target single_branch
+    # mission's mint records `meta.mission_branch`; `lane_branch_name`'s
+    # `lane-planning` arm otherwise returns `target_branch` verbatim, which
+    # would name the PROTECTED branch here. Route through it only for the
+    # composer, never touching `context.target_branch` below (that field
+    # stays the mission's real target).
+    raw_mission_branch = meta.get("mission_branch")
+    authoritative_target = str(raw_mission_branch) if isinstance(raw_mission_branch, str) and raw_mission_branch else target_branch
     authoritative_ref = lane_branch_name(
         mission_slug,
         lane.lane_id,
-        target_branch=target_branch,
+        target_branch=authoritative_target,
     )
 
     # Compute dependency_mode

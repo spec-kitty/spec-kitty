@@ -422,6 +422,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 message=f"<pending: {operation}>",
                 operation=operation,
                 capability=capability,
+                mission_slug=safe_mission_slug,
             )
             caller_verdict = WorkflowMutationPolicy.assert_allowed(
                 caller_change_set,
@@ -501,6 +502,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             message=f"<pending: {operation}>",
             operation=operation,
             capability=capability,
+            mission_slug=safe_mission_slug,
         )
         from specify_cli.coordination.commit_router import (
             mission_has_coordination_branch,

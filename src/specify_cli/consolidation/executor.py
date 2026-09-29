@@ -80,6 +80,7 @@ from specify_cli.git.destructive_guard import (
 )
 from specify_cli.consolidation.git_probes import _paths_have_status_changes
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
+from specify_cli.lanes.single_branch_landing import worktree_lanes
 
 # Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
 # (single canonical home in ``lanes.compute`` — see its docstrings); re-exported
@@ -807,7 +808,10 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
         run.baseline_mission_id = None
 
     status_surface_path = resolve_status_surface(run.main_repo, run.mission_slug)
-    run.done_marked_before_target = is_under_worktrees_segment(status_surface_path) and not run.planning_artifact_only
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch
+
+    in_worktree_surface = is_under_worktrees_segment(status_surface_path) and not run.planning_artifact_only
+    run.done_marked_before_target = in_worktree_surface or lands_mission_branch(run.main_repo, run.lanes_manifest)
     run.canonical_events_path = status_surface_path
     run.canonical_status_path = status_surface_path.parent / _STATUS_FILENAME
     run.merge_state_path = get_state_path(run.main_repo, run.state.mission_id)
@@ -1687,6 +1691,14 @@ def _record_mission_number_on_target_tree(run: _MergeRunState) -> None:
             run.target_feature_dir,
             expected_number,
         )
+
+
+def _switch_write_checkout_after_single_branch_landing(run: _MergeRunState) -> None:
+    """WP08/IC-05: back to target_branch before teardown (non-coord only; see lanes.single_branch_landing)."""
+    from specify_cli.lanes.single_branch_landing import switch_checkout_to_target
+
+    if not _is_coord_topology_mission(run):
+        switch_checkout_to_target(run.main_repo, run.lanes_manifest.mission_branch, run.lanes_manifest.target_branch)
 
 
 def _phase_capture_and_baseline(run: _MergeRunState) -> None:
@@ -3140,7 +3152,12 @@ def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
         # yet strand the paired ``coordination_branch`` marker. A no-op here
         # (non-coord mission carries no ``coordination_branch`` key).
         _flatten_coordination_metadata_after_branch_delete(run)
-    if run.remove_worktree:
+    # A landed protected single_branch mission has NO coordination worktree; its
+    # checkpoint ref is the (now deleted) mission branch, so the projection
+    # teardown gate would false-abort. Nothing to tear down.
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch
+
+    if run.remove_worktree and not lands_mission_branch(run.main_repo, run.lanes_manifest):
         _teardown_coord_worktree(run)
 
 
@@ -3172,7 +3189,7 @@ def _remove_lane_worktrees(run: _MergeRunState) -> None:
         mission_slug=run.mission_slug,
         topology=_stored_topology_for(run.target_feature_dir),
     )
-    for idx, lane in enumerate(lanes_manifest.lanes):
+    for idx, lane in enumerate(worktree_lanes(lanes_manifest)):
         # lane-branch-naming-authority-01M3EVC4 WP02 (T035): the CREATED
         # worktree (never keyed by ``run.baseline_mission_id``), so a
         # divergent-identity mission's worktree is never orphaned.
@@ -3180,7 +3197,7 @@ def _remove_lane_worktrees(run: _MergeRunState) -> None:
         if wt_path.exists():
             guarded_worktree_remove(wt_path, retain=False, is_residue=is_residue)
             console.print(f"  Removed worktree: {wt_path.name}")
-            if delay > 0 and idx < len(lanes_manifest.lanes) - 1:
+            if delay > 0 and idx < len(worktree_lanes(lanes_manifest)) - 1:
                 time.sleep(delay)
         else:
             logger.debug("Worktree %s does not exist, skipping removal", wt_path)
@@ -3197,7 +3214,7 @@ def _remove_lane_worktrees(run: _MergeRunState) -> None:
     # (e.g. a planning-artifact lane) or one already tombstoned. The
     # filename MUST equal ``_created_lane_worktree(...).name`` (the string
     # ``save_context`` wrote) — never independently composed.
-    for lane in lanes_manifest.lanes:
+    for lane in worktree_lanes(lanes_manifest):
         workspace_name = _created_lane_worktree(run.main_repo, lanes_manifest.mission_slug, lane.lane_id).name
         delete_context(run.main_repo, workspace_name)
 
@@ -3397,7 +3414,9 @@ def _pre_mutation_safety_preflight(
         topology=_stored_topology_for(primary_meta_dir),
     )
 
-    assert_checkout_on_target(main_repo, target_branch)
+    from specify_cli.lanes.single_branch_landing import expected_consolidate_checkout
+
+    assert_checkout_on_target(main_repo, expected_consolidate_checkout(main_repo, lanes_manifest, target_branch))
     assert_worktree_clean(
         main_repo,
         is_residue=is_residue,
@@ -3407,7 +3426,7 @@ def _pre_mutation_safety_preflight(
     if not remove_worktree:
         return
 
-    for lane in lanes_manifest.lanes:
+    for lane in worktree_lanes(lanes_manifest):
         # lane-branch-naming-authority-01M3EVC4 WP02 (T033): the CREATED
         # worktree (never a Mission-identity form) — the same placement
         # ``_phase_cleanup_worktrees_and_branches`` removes.
@@ -3504,6 +3523,7 @@ def _run_lane_based_consolidation_locked(
     are preserved exactly within and across the phase boundaries.
     """
     from specify_cli.lanes.compute import is_planning_artifact_only
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch
 
     # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
     # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
@@ -3522,7 +3542,7 @@ def _run_lane_based_consolidation_locked(
     # acceptable ending. Resolved once here and threaded to the lane-consolidation phase.
     excluded_canceled_wp_ids = frozenset(acceptably_canceled_wp_ids(main_repo, mission_slug))
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids]
-    planning_artifact_only = is_planning_artifact_only(lanes_manifest)
+    planning_artifact_only = is_planning_artifact_only(lanes_manifest) and not lands_mission_branch(main_repo, lanes_manifest)
     # FR-012: record any operator attestation BEFORE the claim is captured, so
     # the reconciliation gate reads it from the event log it already reads.
     recorded_attestations = _record_operator_attestations(
@@ -3668,6 +3688,7 @@ def _run_lane_based_consolidation_locked(
         _phase_bake_and_pre_target_done(run)
         _capture_pre_target_gate_artifacts(run)
         _phase_mission_to_target(run)
+        _switch_write_checkout_after_single_branch_landing(run)
         _phase_capture_and_baseline(run)
         _phase_record_done_and_project(run)
         _phase_porcelain_invariant(run)
@@ -4081,6 +4102,7 @@ def _run_lane_based_consolidation(
     )
 
     from specify_cli.lanes.compute import is_planning_artifact_only
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch
 
     if skip_lanes:
         lanes_manifest = read_lanes_json(lanes_read_dir)
@@ -4096,7 +4118,7 @@ def _run_lane_based_consolidation(
         lanes_manifest = require_lanes_json(lanes_read_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
-    planning_artifact_only = is_planning_artifact_only(lanes_manifest)
+    planning_artifact_only = is_planning_artifact_only(lanes_manifest) and not lands_mission_branch(main_repo, lanes_manifest)
 
     # -- Resolve canonical mission_id from meta.json (WP04/FR-004) --
     identity = resolve_mission_identity(primary_meta_dir)

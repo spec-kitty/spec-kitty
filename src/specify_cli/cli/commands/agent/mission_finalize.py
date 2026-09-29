@@ -928,7 +928,7 @@ def _scaffold_issue_matrix_if_present(
             spec_md,
             repo_root=owned.primary if owned else repo_root,
             mission_slug=mission_slug,
-            policy=ProtectionPolicy.resolve(owned.primary if owned else repo_root),
+            policy=ProtectionPolicy.resolve_for_mission(owned.primary if owned else repo_root, mission_slug),
             target_branch=target_branch,
             **({"effective_root": owned.root} if owned else {}),
         )
@@ -3364,7 +3364,7 @@ def _scaffold_acceptance_matrix_if_lane_based(
             requirement_ids=sorted(functional_spec_requirement_ids),
             home_dir=home_dir,
             repo_root=owned.primary if owned else repo_root,
-            policy=ProtectionPolicy.resolve(owned.primary if owned else repo_root),
+            policy=ProtectionPolicy.resolve_for_mission(owned.primary if owned else repo_root, mission_slug),
             **({"effective_root": owned.root} if owned else {}),
         )
     except Exception as acc_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
@@ -3469,7 +3469,7 @@ def _commit_finalize_artifacts(
         from specify_cli.coordination.commit_router import commit_for_mission
         from specify_cli.git.protection_policy import ProtectionPolicy
 
-        tasks_policy = ProtectionPolicy.resolve(owned.primary if owned else repo_root)
+        tasks_policy = ProtectionPolicy.resolve_for_mission(owned.primary if owned else repo_root, mission_slug)
         if owned:
             files_to_commit = owned.files(files_to_commit)
         primary_created = frozenset(path for path in files_to_commit if path not in preexisting_primary_files)

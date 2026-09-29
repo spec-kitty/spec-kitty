@@ -89,6 +89,7 @@ class MissionMetaOptional(TypedDict, total=False):
     change_mode: str
     retain_branches: bool
     retain_worktrees: bool
+    commit_to_target: bool
 
 
 # ---------------------------------------------------------------------------

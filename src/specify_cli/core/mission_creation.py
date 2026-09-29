@@ -41,6 +41,7 @@ from specify_cli.core.mission_payload import (
 )
 from specify_cli.core.paths import (
     MissionMetaReadError,
+    read_commit_to_target,
     is_worktree_context,
     load_meta_fail_closed,
     locate_project_root,
@@ -54,7 +55,7 @@ from specify_cli.git.commit_helpers import (
     SafeCommitStagedTreeUnchanged,
 )
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
-from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8, strip_numeric_prefix
+from specify_cli.lanes.branch_naming import mission_branch_name, mission_dir_name, resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
 logger = logging.getLogger(__name__)
@@ -419,6 +420,122 @@ def _find_live_duplicate_mission(
     return None
 
 
+class MissionBranchExistsError(MissionCreationError):
+    """Raised when the deterministically-composed mission branch already exists.
+
+    #5100 FR-007 (WP08): a protected-target ``single_branch`` mission mints
+    ``kitty/mission-<slug>-<mid8>`` and refuses outright rather than reusing
+    or recreating a same-named branch -- an existing branch under that exact
+    name could hold unrelated content (a stale branch from a prior, deleted
+    mission whose mid8 happened to collide, or an operator's own local
+    branch), and silently checking it out would corrupt the mission's history.
+    """
+
+    error_code: str = "MISSION_BRANCH_EXISTS"
+
+
+def _mint_protected_single_branch_mission_branch(
+    effective_root: Path,
+    mission_slug_formatted: str,
+    *,
+    mission_id: str,
+    target_branch: str,
+    meta: dict[str, Any],
+) -> None:
+    """Mint + check out the mission branch for a protected single_branch target.
+
+    #5100 FR-007/FR-012 (WP08 / IC-05, research.md R-5/R-8). A no-op unless
+    the target is protected under the #5100 "primary plus configured" rule
+    (:meth:`~specify_cli.git.protection_policy.ProtectionPolicy.is_protected_target`,
+    C-002: the single protection authority). When it fires:
+
+    1. Refuses if the write checkout (*effective_root*) has uncommitted
+       changes outside this mission's own (still-untracked) scaffold --
+       switching branches under the operator's unrelated dirty work would be
+       unsafe (mirrors FR-009's write-checkout dirty refusal, scoped here to
+       the narrower create-time question).
+    2. Composes the deterministic name via :func:`mission_branch_name` (the
+       ONE composer -- never re-derived here) and refuses with
+       :class:`MissionBranchExistsError` if that ref already exists.
+    3. Creates the branch at ``target_branch``'s tip and checks it out in
+       *effective_root* -- no worktree.
+    4. Records ``meta["mission_branch"]``.
+
+    Mutates *meta* in place; raises on any refusal (fail-closed, no partial
+    mutation of *meta* on the refusal paths -- the git branch/checkout writes
+    only happen after both refusal checks pass).
+    """
+    from specify_cli.core.git_ops import resolve_primary_branch
+    from specify_cli.git.protection_policy import ProtectionPolicy
+    from specify_cli.lanes.worktree_allocator import _git_status_porcelain_lines
+
+    policy = ProtectionPolicy.resolve(effective_root)
+    # bias=False (mission_branch_context._resolve_primary_branch_for_recommendation's
+    # rationale applies verbatim here): the CURRENT checkout is virtually
+    # ALWAYS the target branch at create time (single_branch missions are
+    # created from wherever the operator is standing), so the default
+    # feature-bias resolution would treat EVERY target as "primary" and mint
+    # unconditionally. The genuine repository primary (main/master/origin
+    # default) is what the #5100 rule means by "primary".
+    primary_branch = resolve_primary_branch(effective_root, bias=False)
+    if not policy.is_protected_target(target_branch, primary_branch=primary_branch):
+        return
+
+    # This mission's own (still-untracked) scaffold is never "dirty" here --
+    # only the operator's unrelated uncommitted work is. A bidirectional
+    # prefix match (unlike ``lanes.checkout_occupancy.dirty_paths``'s
+    # one-directional ``_is_owned_path``) is required: on a freshly-scaffolded
+    # ``kitty-specs/`` (this mission is the first ever created), git's default
+    # ``--untracked-files=normal`` collapses the whole new directory to the
+    # single line ``kitty-specs/`` -- an ANCESTOR of, not a match for, the
+    # mission-scoped prefix below.
+    own_prefix = f"{KITTY_SPECS_DIR}/{mission_slug_formatted}/"
+    owned_prefixes = (".kittify/", own_prefix)
+    dirty: list[str] = []
+    for line in _git_status_porcelain_lines(effective_root):
+        raw = line[3:] if len(line) > 3 else line.strip()
+        path = raw.split(" -> ", 1)[-1].strip()
+        if not path:
+            continue
+        if any(path == prefix or path.startswith(prefix) or prefix.startswith(path) for prefix in owned_prefixes):
+            continue
+        dirty.append(path)
+    if dirty:
+        raise MissionCreationError(
+            "Cannot mint the protected-target mission branch: the write "
+            f"checkout at {effective_root} has uncommitted changes outside "
+            f"this mission's own scaffold: {', '.join(dirty)}. Commit or "
+            "discard them, then retry."
+        )
+
+    branch_name = mission_branch_name(mission_slug_formatted, mission_id=mission_id)
+    exists = (
+        subprocess.run(
+            ["git", "-C", str(effective_root), "rev-parse", "--verify", f"refs/heads/{branch_name}"],
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    )
+    if exists:
+        raise MissionBranchExistsError(
+            f"Mission branch {branch_name!r} already exists. Choose a "
+            "different mission slug, remove the stale branch, or pass "
+            "--commit-to-target to commit directly onto the target."
+        )
+
+    create_result = subprocess.run(
+        ["git", "-C", str(effective_root), "checkout", "-b", branch_name, target_branch],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if create_result.returncode != 0:
+        detail = (create_result.stderr or create_result.stdout or "").strip()
+        raise MissionCreationError(f"Failed to create and check out mission branch {branch_name!r} from {target_branch!r}: {detail}")
+    meta["mission_branch"] = branch_name
+
+
 def _path_is_tracked_by_git(repo_root: Path, path: Path) -> bool:
     """True when git tracks any file under ``path``.
 
@@ -597,6 +714,7 @@ def create_mission_core(
     owned_checkout: Path | None = None,
     retain_branches: bool = False,
     retain_worktrees: bool = False,
+    commit_to_target: bool = False,
     allow_duplicate: bool = False,
 ) -> MissionCreationResult:
     """Create a new mission, restoring git state if creation fails (FR-011).
@@ -661,6 +779,7 @@ def create_mission_core(
             owned_checkout=owned_checkout,
             retain_branches=retain_branches,
             retain_worktrees=retain_worktrees,
+            commit_to_target=commit_to_target,
             allow_duplicate=allow_duplicate,
         )
     except BaseException as _create_exc:
@@ -708,6 +827,7 @@ def _create_mission_core_impl(
     owned_checkout: Path | None = None,
     retain_branches: bool = False,
     retain_worktrees: bool = False,
+    commit_to_target: bool = False,
     allow_duplicate: bool = False,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
@@ -776,6 +896,14 @@ def _create_mission_core_impl(
     retain_worktrees:
         Create-time retention opt-in (#3131 FR-009) for worktrees, mirroring
         ``retain_branches``. Defaults to ``False`` (field left ABSENT).
+    commit_to_target:
+        Operator override (#5100 FR-008, WP08). When ``True`` on a
+        ``SINGLE_BRANCH`` mission, skips the protected-target mission-branch
+        mint below and mints ``commit_to_target: true`` into ``meta.json`` so
+        the override is durable across the mission's lifetime. Defaults to
+        ``False``, in which case the field is left ABSENT from ``meta.json``
+        (mirrors ``retain_branches``/``retain_worktrees`` -- never written as
+        ``false``).
     allow_duplicate:
         Escape hatch for the idempotency guard (#4033, FR-004). Defaults to
         ``False``, preserving the guard: creation is refused with
@@ -1081,6 +1209,10 @@ def _create_mission_core_impl(
         meta["retain_branches"] = True
     if retain_worktrees:
         meta["retain_worktrees"] = True
+    # #5100 FR-008 (WP08): mirrors the retention pattern above -- mint ONLY
+    # when True, never a written ``false``.
+    if commit_to_target:
+        meta["commit_to_target"] = True
 
     # ------------------------------------------------------------------
     # 6.5 Coordination branch (WP03 / issue #1348, #2218)
@@ -1135,6 +1267,38 @@ def _create_mission_core_impl(
             )
     meta["topology"] = topology.value
     meta.setdefault("flattened", False)
+
+    # ------------------------------------------------------------------
+    # 6.7 Protected-target mission branch (#5100 FR-007/FR-012, WP08 / IC-05,
+    # research.md R-8)
+    #
+    # Mint and check out the mission branch BEFORE any mission file is
+    # committed (step 8.5 below): commit-router rule 3 refuses a coordination-
+    # less commit to a protected target, planning artifacts included, so a
+    # branch that did not exist until implement could never receive the spec,
+    # plan or tasks. Scoped to SINGLE_BRANCH only (COORD/LANES_WITH_COORD
+    # already mint their OWN, unconditional coordination branch above; LANES
+    # keeps committing straight to target_branch per its own contract).
+    # ------------------------------------------------------------------
+    if topology is MissionTopology.SINGLE_BRANCH and not read_commit_to_target(meta):
+        _mint_protected_single_branch_mission_branch(
+            effective_root,
+            mission_slug_formatted,
+            mission_id=mission_id,
+            target_branch=planning_branch,
+            meta=meta,
+        )
+        minted_branch = meta.get("mission_branch")
+        if isinstance(minted_branch, str) and minted_branch:
+            # The scaffold commit below (step 8.5) must land on the branch
+            # the mint just checked out -- `create_time_target` was resolved
+            # BEFORE the mint, from the (protected) planning branch. Without
+            # this, `safe_commit`'s HEAD-vs-destination check sees the write
+            # checkout on `minted_branch` but a destination of the protected
+            # `planning_branch`, raises `SafeCommitHeadMismatch`, and step 8.5
+            # silently treats it as an ordinary protected-target skip --
+            # leaving the just-minted branch with no scaffold commit at all.
+            create_time_target = CommitTarget(ref=minted_branch)
 
     from specify_cli.mission_metadata import set_documentation_state, write_meta
 

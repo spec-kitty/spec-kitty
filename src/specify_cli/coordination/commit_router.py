@@ -94,6 +94,19 @@ class _ProtectionPolicyProtocol(Protocol):
 logger = logging.getLogger(__name__)
 
 
+def _mission_scoped(policy: _ProtectionPolicyProtocol, repo_root: Path, mission_slug: str) -> _ProtectionPolicyProtocol:
+    """Fold the mission's ``commit_to_target`` into *policy* for this mission's own write (#5100 FR-008).
+
+    Only a real ``ProtectionPolicy`` carries the mission-scoped hatch; a duck-typed
+    stand-in is returned untouched (no bypass -- fail-closed).
+    """
+    for_mission = getattr(policy, "for_mission", None)
+    if for_mission is None:
+        return policy
+    scoped: _ProtectionPolicyProtocol = for_mission(repo_root, mission_slug)
+    return scoped
+
+
 # ---------------------------------------------------------------------------
 # Result type
 # ---------------------------------------------------------------------------
@@ -356,7 +369,7 @@ def _commit_partition_group(
         verdict = resolve_surface_authority(
             topology,
             primary_target,
-            primary_protected=policy.is_protected(placement.ref),
+            primary_protected=_mission_scoped(policy, repo_root, mission_slug).is_protected(placement.ref),
             current_branch="",
             artifact_kind=kind,
             coord_ref=placement.ref,

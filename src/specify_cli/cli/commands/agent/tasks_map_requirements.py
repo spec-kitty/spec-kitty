@@ -230,6 +230,7 @@ def _mr_resolve_context(st: _MapReqState) -> None:
             st.commit_target.ref,
             st.main_repo_root,
             "spec-kitty agent tasks map-requirements",
+            st.mission_slug,
         )
         if protected_error is not None:
             _tasks._output_error(st.json_output, protected_error)

@@ -68,6 +68,33 @@ def _stored_topology(meta: dict[str, Any] | None) -> MissionTopology | None:
         return None
 
 
+def expected_write_branch(
+    meta: dict[str, Any] | None,
+    policy: ProtectionPolicy,
+    primary_branch: str,
+) -> str:
+    """The branch a single_branch mission's write checkout must be on (WP08).
+
+    Returns ``meta["mission_branch"]`` when the field is recorded (the #5100
+    protected-target mint at ``mission create`` -- FR-007/012); otherwise the
+    mission's ``target_branch``. *policy*/*primary_branch* are accepted so
+    every call site routes the protection question through the ONE #5100
+    authority (C-002) rather than re-deriving it ad hoc -- they are not
+    consulted for the return value itself (``del policy`` below) because
+    ``mission_branch`` is already the create-time-authoritative record of
+    that decision (mint-once, read-many; a later protection-config change
+    must never move an already-created mission's write branch -- spec.md
+    "Protection config changes after create").
+    """
+    del policy, primary_branch  # accepted for call-site symmetry, see docstring
+    data = meta or {}
+    mission_branch = data.get("mission_branch")
+    if isinstance(mission_branch, str) and mission_branch:
+        return mission_branch
+    target = data.get("target_branch")
+    return str(target) if isinstance(target, str) and target else ""
+
+
 def resolve_owned_mission(
     primary: Path,
     checkout: Path,
@@ -110,11 +137,23 @@ def resolve_owned_mission(
         raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "--owned-checkout currently requires single_branch.")
     current = get_current_branch(root)
     target = str(meta.get("target_branch") or "")
-    if current is None or not target or current != target or (target_override is not None and target_override != target):
-        raise ActionContextError("OWNED_BRANCH_REFUSED", "The current branch and mission target must match; detached HEAD is unsupported.")
-    if ProtectionPolicy.resolve(primary).is_protected(target) or ProtectionPolicy.resolve(root).is_protected(target):
-        raise ActionContextError("OWNED_BRANCH_REFUSED", f"Protected destination refused: {target}")
-    result = OwnedMission(primary.resolve(), root, directory, mission.feature_dir.name, target)
+    # WP08 (#5100 FR-007/012): the branch the checkout must actually be ON is
+    # `mission_branch` for a protected-target mint, else `target_branch`
+    # unchanged. `target_override` still validates against the mission's real
+    # `target_branch` -- it names which TARGET the caller expects, not which
+    # branch the write checkout sits on.
+    from specify_cli.core.git_ops import resolve_primary_branch
+
+    policy = ProtectionPolicy.resolve(primary).scoped_to_mission(meta)  # #5100 FR-008: mission-scoped commit_to_target
+    expected = expected_write_branch(meta, policy, str(resolve_primary_branch(primary)))
+    if current is None or not expected or current != expected or (target_override is not None and target_override != target):
+        raise ActionContextError(
+            "OWNED_BRANCH_REFUSED",
+            f"The current branch ({current!r}) must match the mission's expected write branch ({expected!r}); detached HEAD is unsupported.",
+        )
+    if policy.is_protected(expected) or ProtectionPolicy.resolve(root).scoped_to_mission(meta).is_protected(expected):
+        raise ActionContextError("OWNED_BRANCH_REFUSED", f"Protected destination refused: {expected}")
+    result = OwnedMission(primary.resolve(), root, directory, mission.feature_dir.name, expected)
     # #3866: the resolve-time validation is a bounded top-level tripwire, not a
     # full-tree scan. ``directory.rglob("*")`` stat'd every entry of the mission
     # tree on every resolve (~8 call sites, several calls per command) — an

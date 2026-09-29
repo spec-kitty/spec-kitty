@@ -32,7 +32,7 @@ from specify_cli.git.commit_helpers import (
     SafeCommitHeadMismatch,
     SafeCommitPathPolicyError,
 )
-from specify_cli.git.protection_policy import ProtectionPolicy
+from specify_cli.git.protection_policy import ProtectionPolicy, mission_write_bypass
 from specify_cli.core.constants import WORKTREES_DIR
 from mission_runtime import (
     CommitTarget,
@@ -109,10 +109,11 @@ _BANNER_OPEN = "[bold yellow]"
 _BANNER_CLOSE = "[/bold yellow]"
 
 
-def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
+def _protected_branch_status_commit_error(branch: str, repo_root: Path, mission_slug: str | None = None) -> str | None:
     # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
-    # config+hatch reads happen once; is_protected() is I/O-free.
-    if not ProtectionPolicy.resolve(repo_root).is_protected(branch):
+    # config+hatch reads happen once; is_protected() is I/O-free. A mission-scoped
+    # write also honours that mission's ``commit_to_target`` for its own target (#5100 FR-008).
+    if not ProtectionPolicy.resolve(repo_root).is_protected(branch) or mission_write_bypass(repo_root, mission_slug, branch):
         return None
     return (
         f"Refusing to start implementation status on protected branch '{branch}' "
@@ -1200,7 +1201,7 @@ def _commit_planning_artifacts_transaction(
             files=files_to_commit,
             commit_msg=commit_msg,
         )
-    elif ProtectionPolicy.resolve(repo_root).is_protected(planning_branch):
+    elif ProtectionPolicy.resolve(repo_root).is_protected(planning_branch) and not mission_write_bypass(repo_root, mission_slug, planning_branch):
         # #2648 (WP01) narrow-triple fail-close: ``placement_ref is None`` AND
         # the meta-derived ``coord_branch`` is truthy AND
         # ``is_protected(planning_branch)`` -- EXACTLY the precondition where
@@ -1472,13 +1473,13 @@ def _detect_wp_context(
     return auto_commit, mission_slug, feature_dir, wp_file, declared_deps
 
 
-def _raise_if_status_commit_protected(repo_root: Path, planning_branch: str, auto_commit: bool | None) -> None:
+def _raise_if_status_commit_protected(repo_root: Path, planning_branch: str, auto_commit: bool | None, mission_slug: str | None = None) -> None:
     """Raise ``ValueError`` when auto-commit is on and the pre-lane status
     commit would target a protected branch."""
     if not auto_commit:
         return
     status_destination = _status_commit_destination_branch(repo_root, fallback_branch=planning_branch)
-    protected_error = _protected_branch_status_commit_error(status_destination, repo_root)
+    protected_error = _protected_branch_status_commit_error(status_destination, repo_root, mission_slug)
     if protected_error is not None:
         raise ValueError(protected_error)
 
@@ -1989,7 +1990,7 @@ def implement(
     tracker.start("validate")
     try:
         planning_branch = resolve_feature_target_branch(mission_slug, repo_root)
-        _raise_if_status_commit_protected(repo_root, planning_branch, auto_commit)
+        _raise_if_status_commit_protected(repo_root, planning_branch, auto_commit, mission_slug)
 
         from specify_cli.coordination.surface_resolver import (
             resolve_status_surface_with_anchor as _resolve_status_surface,

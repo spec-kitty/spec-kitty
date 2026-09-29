@@ -54,6 +54,10 @@ class GitChangeSet:
             ``GuardCapability.TEST_MODE``. The protected-branch decision in the
             policy gate is delegated to ``commit_guard.evaluate`` over this
             capability — never derived from message text, file content, or env.
+        mission_slug: The mission this write belongs to, when it is a
+            mission-scoped write. Lets the protection decision honour that
+            mission's persisted ``commit_to_target`` (#5100 FR-008) for its own
+            target branch only; ``None`` for non-mission commits.
     """
 
     destination_ref: str
@@ -63,6 +67,7 @@ class GitChangeSet:
     message: str
     operation: str
     capability: GuardCapability = field(default=GuardCapability.STANDARD)
+    mission_slug: str | None = None
 
 
 @dataclass(frozen=True)

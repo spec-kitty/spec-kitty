@@ -105,6 +105,7 @@ from typing import Any
 
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from kernel.git_topology import (
     GitTopologyError,
@@ -900,6 +901,17 @@ def _run_commit_capture_sha(
     return sha, commit_result.stdout, commit_result.stderr
 
 
+def _single_mission_slug(normalized_files: list[str]) -> str | None:
+    """Return the mission slug when every path is under one ``kitty-specs/<slug>/``, else ``None``."""
+    slugs: set[str] = set()
+    for rel in normalized_files:
+        parts = Path(rel).parts
+        if len(parts) < 3 or parts[0] != KITTY_SPECS_DIR:
+            return None
+        slugs.add(parts[1])
+    return next(iter(slugs)) if len(slugs) == 1 else None
+
+
 def _run_git_for_commit(
     worktree_root: Path,
     args: list[str],
@@ -1305,8 +1317,14 @@ def preflight_commit(
     #    Both repo_root and worktree_root are checked (the worktree may be on a
     #    different branch when run from inside a lane worktree).  Each resolves
     #    its own ProtectionPolicy so the correct config is read for each root.
-    _policy_repo = ProtectionPolicy.resolve(repo_root)
-    _policy_wt = ProtectionPolicy.resolve(worktree_root)
+    #    Mission-scoped fold (#5100 FR-008): when EVERY staged path lives under one
+    #    mission's ``kitty-specs/<slug>/``, the commit is that mission's own write
+    #    and ``ProtectionPolicy.for_mission`` honours its persisted
+    #    ``commit_to_target`` for its own target branch only. Any path outside a
+    #    single mission dir (or no ``commit_to_target``) leaves the policy as-is.
+    _mission_slug = _single_mission_slug(normalized_files)
+    _policy_repo = ProtectionPolicy.resolve(repo_root).for_mission(repo_root, _mission_slug)
+    _policy_wt = ProtectionPolicy.resolve(worktree_root).for_mission(repo_root, _mission_slug)
     is_protected = _policy_repo.is_protected(destination_ref) or _policy_wt.is_protected(destination_ref)
     guard_verdict: GuardVerdict = evaluate_commit_guard(
         target,
