@@ -1,0 +1,256 @@
+{
+  "event_count": 72,
+  "last_event_id": "01M3MXKWPFD86C77RVM9C8CZ4Y",
+  "materialized_at": "2026-09-28T21:09:29.935522+00:00",
+  "mission_number": "",
+  "mission_slug": "mixed-lane-authorship-soundness-01M3M7Y0",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3MCHA557QS0PR61PDXAZ8JY",
+      "last_transition_at": "2026-09-28T16:10:59.621448+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Extracted shared conftest scaffolding (T001), fixture hygiene + policy_metadata kwarg (T002), new build_coord_mission_mixed_lane_canceled builder (T003), fixture-behaviour tests pinning the real unmaterialized trigger (T004), corrected the retracted mixed-lane docstring claim (T005). All build_coord_mission/_mixed_lane/_shared_file consumers in tests/terminus/ re-verified green (35 tests, 0 failures).",
+        "Review passed (reviewer-renata): 3 builders behaviour-preserved (5018/5022/5051/phantom_only/4997/noop_adjudication green); new build_coord_mission_mixed_lane_canceled verified live - default squash exit 0 with canceled src/pkg/wp02.py on main (#5046 reproduced), --strategy merge reaches verdict, rich variant stamps real lane SHAs (open pre-WP02, close post-merge-commit; rework window open/close); events commit on main + coord ff does not move lane base. FR-008 tests non-vacuous (4 passed). ruff/format/mypy clean. Non-blocking: (1) bcd6ae7b mixes tidy-first extraction with T003 builder + T005 docs under a 'refactor' subject - split at closeout history clean-up (Standing Order #2); (2) event-surface docstring hedges - consolidate reads STATUS_STATE = coord worktree copy for coord topology, tell WP06; (3) test_post_build docstring mentions a survivor commit the default call does not plant; default builder leaves WP01 contentless - WP02 should pass survivor_before for the canonical #5046 shape; (4) last unit test lacks markers (terminus not a fast-tier dir). Shared-file note: conftest.py also consumed by WP02/WP06 (dependents rebase on this)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 31054,
+      "shell_pid_created_at": "1790611480.1",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3MGMM8R0Z5M417K2EPPKMPD",
+      "last_transition_at": "2026-09-28T17:22:42.584971+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: T006-T008 red-first repros of #5046 (add/modify/delete FAIL, survivor-undone FAIL, no-attribution REFUSE) via real spec-kitty consolidate CLI against WP01's build_coord_mission_mixed_lane_canceled; all 4 confirmed RED for the correct reason (exit 0 today, verdict text absent). T009: 6 same-builder positive controls, all GREEN. test_repro_5018.py unchanged GREEN. RED file (test_repro_5046.py) will flip GREEN once WP05+WP07 land -- intentional, not a defect.",
+        "Review cycle 1 fixes applied (reviewer-renata): Issue 1/2 (BLOCKER) - added extra_base_files param to build_coord_mission_mixed_lane_canceled (own commit, orchestrator-granted out-of-map edit), rebuilt T006 modify/delete targets and T007 Shape B as genuine mission-base-seeded shapes (T007 Shape B now writes back the EXACT base bytes); superseded control's modify also base-seeded. Issue 3 (MAJOR) - lane/WP/recovery assertions now bound to the verdict block (text after the FAIL/REFUSE header), not anywhere in stdout. Issue 4 (MINOR) - _collapse strips backticks. Issue 5 (MINOR) - per-path wording bound to its own semicolon-delimited clause. Issue 6 (BLOCKER, process) - T010 evidence captured via a temporary uncommitted debug script: T006 exit=0, blob_present_at(wp02_new.py)=True, shared.py=WP02's content (not base), legacy.py absent (deleted); T008 exit=0, blob_present_at(wp02_new.py)=True. All 4 repros re-confirmed RED for the correct reason after every fix; all 6 controls + test_repro_5018.py + test_fixture_mixed_lane_canceled.py (4 tests, re-run after the conftest edit) all GREEN.",
+        "Review passed (reviewer-renata, cycle 2): red-first verified - test_repro_5046.py 4 RED on the exit assertion (exit 0, no builder errors); spot-check of T007 shows exit 0 with WP01 v1 undone to the exact base bytes and survivor.py dropped on main; controls 6/6, test_repro_5018 1/1 and test_fixture_mixed_lane_canceled 4/4 GREEN; ruff, format and mypy clean. Cycle-1 issues 1-6 resolved. Conftest extra_base_files pass-through (65c284cf) defaults to None, so existing callers are unaffected. Non-blocking notes for WP05: _clause_for_path expects single-quoted paths in semicolon-delimited clauses, so WP05 must render the FAIL detail in that format; the verdict block is an unbounded suffix of the output; T010 evidence lives in the status-event note rather than the WP Activity Log."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23096,
+      "shell_pid_created_at": "1790615664.18",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3MGBXYXHVFZFY5MF6E7657N",
+      "last_transition_at": "2026-09-28T17:17:57.597795+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-001: lane-head stamping capture (lane_head.py probe, transition_pipeline stamping, 4 call sites wired, cutover_eligibility campsite re-keyed). Tests: test_lane_head.py, test_transition_pipeline.py, test_cutover_eligibility.py all green; targeted status/coordination/architectural gates green; ruff+mypy clean.",
+        "Review cycle 1 fixes: (1) AST pin now walks all of src/specify_cli/, matches bare+attribute call forms, adds attribute-call self-mutation cases; (2) fixed emit.py _repo_root_for_lane_head no-any-return via annotated local; (3) transactional e2e test now reads the persisted event back off the coord branch and asserts claim keys survive alongside lane_head; (4) dropped typing.cast for an annotated local in _stamped_policy_metadata; (5) cutover_eligibility conservative fix — excludes only a lane_head-only policy_metadata dict, keeps counting claim/approval/pre-review-gate/migration shapes as before, format-campsited only the touched lines. 57+99+79+190 targeted tests green, ruff+mypy clean.",
+        "Review passed (reviewer-renata, cycle 2): all 5 review-feedback-1 items resolved. Whole-tree AST pin (Name+Attribute, floor 4, 5 self-mutation tests) - my own attribute-call mutations (5th call in lanes/recovery.py; emit.py call via _tp.prepare_transition with lane_head_probe=None) both caught. emit.py mypy clean (3 status_transition.py errors pre-existing). cast removed. Transactional test reads persisted event back off coord branch with claim keys. cutover_eligibility conservative (any key != lane_head), docstring corrected, approval-only tested, no unrelated reformat. 435 passed/1 skipped + gates; test_dogfood_corpus_backfilled::test_all_eligible_missions_snapshot_non_empty_and_verify_ok red identically on base (pre-existing, not WP03). WP04/WP06 consume LANE_HEAD_KEY via facade."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 15897,
+      "shell_pid_created_at": "1790615362.33",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3MMV2V9ZCWEGRKWT350XS97",
+      "last_transition_at": "2026-09-28T18:36:08.425436+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "wp_attribution.py implemented: window reconstruction (T016), stamp validity/commit resolution (T017), contested-commit detection (T018), canceled-content spine walk (T019), outcome types (T020), 21 git-backed tests (T021). git_probes.py gained path_state_at + is_merge_commit (7 new tests). Named gates pass (test_status_module_boundary, test_layer_rules, test_merge_pipeline_ratchets, test_no_read_side_bypass = 134 passed); ruff/mypy clean. test_no_dead_symbols flags the 6 new __all__ exports as uncalled -- expected, WP05 wires reconciliation.py onto this module.",
+        "Review cycle 1 addressed. Issue 1 (HIGH, fail-open): _resolve_wp_windows no longer has a lenient mode -- any unresolvable sibling window (missing/open/invalid stamp) now REFUSEs the whole resolution, naming the sibling + lane; red-first tests committed (85c97fc4, 3 failed/23 passed) before the fix (dbab4633, 26/26 green). Issue 2: added a conflict-resolved merge test that lists the canceled path; manually confirmed it goes red if the merge filter is removed (not committed). Issue 3: added an append-order (not sorted by at) pin. Issue 4: _entered_implementation now gates on {claimed, in_progress} only, not blocked; test added. Issue 5: documented pre_state_by_survivor's full semantics (any non-canceled commit, including another canceled WP's) in CanceledPathState. Named gates re-run clean: 134 passed (test_status_module_boundary/test_layer_rules/test_merge_pipeline_ratchets/test_no_read_side_bypass); test_no_dead_symbols unchanged (1 failed/33 passed -- same 6 expected __all__ exports pending WP05). ruff/format/mypy clean.",
+        "Review cycle 2 addressed. Issue 6 (MEDIUM, false REFUSE): the sibling loop now skips any sibling for which _entered_implementation is False, before resolving its windows -- same gate the canceled WP itself gets (T020/D-3 step 2). A sibling that only went planned->blocked->canceled (never claimed/in_progress) no longer has its (legal, R6) blocked interval mistaken for real overlap. Red-first: two tests committed failing against pre-fix code (406459e2, 2 failed/26 passed -- reproduced the reviewer's exact contested_commit/no_stamp shapes), fix committed after (9719f439, 28/28 green). Cycle-1 regression check: test_sibling_missing_open_stamp_refuses_whole_resolution (a sibling that DID enter implementation with a missing stamp) still explicitly verified green. Reviewer's test_cycle2.py reproducer re-run clean (13/13, both blocked-from-planned shapes now Attributed). Named gates re-run clean: 134 passed; test_no_dead_symbols unchanged (1 failed/33 passed -- same 6 expected __all__ exports pending WP05). ruff/format/mypy clean.",
+        "Review passed (reviewer-renata, cycle 3): cycle-1/2 items verified; never-entered siblings skipped (406459e2 red-first, 9719f439 fix); sibling that entered impl w/o stamp still REFUSEs; 61/61 WP tests; gates 167 passed, sole failure = expected dead-symbol flag on 6 wp_attribution exports (WP05 must clear it); ruff/format/C901/mypy clean. Residual: a never-entered sibling's out-of-workflow commit inside the canceled window is treated like an unowned commit (issue-5069 documented limitation, no widened exposure)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28674,
+      "shell_pid_created_at": "1790620107.77",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3MSRE1R0XVKM1E2D8JP7QWC",
+      "last_transition_at": "2026-09-28T20:02:04.472583+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 done: canceled-content divergence axis + mixed-lane refusal wired into build_approved_wp_set/verify(). All 4 WP02 repros GREEN (FAIL x3, REFUSE x1), 6 controls GREEN, test_repro_5018/5022 GREEN, full T027 unit suite GREEN, named architectural gates GREEN, ruff/mypy clean. Two out-of-owned-files deviations (see commit messages): refreshed the Divergence dead-symbol allowlist hash, and fixed a stamp-coverage gap in tests/terminus/conftest.py's build_coord_mission_mixed_lane_canceled that made stamp_attribution=True miss WP01/WP02's planned->claimed and WP01's rework-close transitions.",
+        "Review passed (reviewer-renata): red->green proven (pre-WP05 reconciliation.py on 90b6446d: test_repro_5046 4/4 RED at exit 0 with canceled content shipped; lane-e: 4/4 GREEN). Controls 6/6, 5018/5022 1/1 each, fixture 4/4, test_reconciliation 111p+1xf, wp_attribution 28, refuse_restores_target 5, executor_terminus_integrity 17, arch gates (ratchets 14, dead_symbols 34, status_boundary 6, read_side_bypass 40) green; ruff/format/C901 clean; mypy only pre-existing no-any-return (_is_legitimate_resolution, present at base). Eval order matches D-4/C3; REFUSE precedes FAIL; strategy REFUSE preserved; axis runs before strategy branch for every strategy. Divergence body_hash independently recomputed = 366f59f9 (single-value refresh). Fixture fix 90b6446d faithful to WP03 C1 stamping (every transition via transition_pipeline). Shared-file coordination: 90b6446d edits WP01/WP02-owned tests/terminus/conftest.py and f774a4cc edits tests/architectural/test_no_dead_symbols.py (outside WP05 owned_files) - both justified. Closeout folds (non-blocking): (1) REFUSE text double period 'consolidate..' (_mixed_lane_unattributable_refusal/_refuse_merged_independent_change end with '.' and recovery_guidance appends '. '); (2) REFUSE guidance says target 'has been restored' but is printed before the best-effort rollback, which can no-op/warn; (3) FAIL guidance still says 'no refs/worktrees were mutated beyond what already landed' though FAIL also rolls back; (4) 'assert isinstance(outcome, Attributed)' in production path justified only by dead-symbol gate. Follow-up (pre-existing, not WP05): --strategy merge false-FAILs on a post-approval bookkeeping-only side-branch merge commit on a mixed lane (excluded-SHA axis), identical at pre-WP05 base; realistic coord->lane sync passes both strategies."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 20224,
+      "shell_pid_created_at": "1790624830.12",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3MXKWPFD86C77RVM9C8CZ4Y",
+      "last_transition_at": "2026-09-28T21:09:29.935522+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T028: SC-006 production-path proof (unsuperseded FAIL + superseded PASS) via emit_status_transition_transactional. T029: half-by-half via CLI (capture-off=REFUSE, axis-off=exit0). T030: 4 strict xfail residuals (hunk-level supersession, other-lane-identical, post-cancel, never-claimed-WP). T031: NFR-001 benchmark, delta=0.63s. T032: docs/architecture/status-model.md lane_head section + verdict table, updated 2026-09-28.",
+        "Review cycle 1 fixes: Issue 1 (HIGH) 5th residual pin (sibling-never-entered-implementation misattribution, WP04 cycle-3 decision / issue 5069), verified empirically today=FAIL ideal=PASS. Issue 2 (MEDIUM) docs: added 5th residual, softened whole-path-vs-hunk PASS claim. Issue 3 (LOW) sentinel file proves axis-off patch actually ran. Issue 4 (LOW) benchmark asserts mixed=FAIL/baseline=PASS, min-of-3 timing, new delta=0.4963s. Issue 5 (LOW) raises=AssertionError on all 5 xfails, confirmed via --runxfail.",
+        "Review cycle 2 fix: residual 5's ideal was PASS (unsafe direction, XPASS-on-regression risk, contradicted residual #4) — rewritten to assert status != PASS AND no canceled_content finding for wp03_stray.py names WP02 (ideal names WP03 or REFUSEs). Confirmed via --runxfail: fails on the misattribution AssertionError today. Docstring states FAIL is the safe direction, only the named WP is wrong. Docs residual clause updated with 'gate still FAILs (safe direction)'; no heading changed, docs_index --write --strict confirms drift=False.",
+        "Review passed (reviewer-renata, cycle 3): residual 5 now pins the safe ideal (not PASS + no finding naming WP02), fails under --runxfail on the WP02 misattribution assertion; docstring and docs state today's FAIL is the safe direction; residuals 1-4 unchanged, all 5 strict with raises=AssertionError (5 xfailed / 5 failed-on-assertion under --runxfail). Cycle-1 items (sentinel, benchmark verdicts + min-of-3, docs precision) verified in cycle 2; prod-path 4 passed, benchmark delta 0.55s. ruff/format/mypy clean, docs freshness 0 errors, terminology 96 passed. Out-of-map: docs retrieval index regenerated canonically (1-line heading diff)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28620,
+      "shell_pid_created_at": "1790629667.55",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3MBZASMM8MKSBQABD84KWW6",
+      "last_transition_at": "2026-09-28T16:01:10.452515+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "REFUSE now restores the target via the existing CAS rollback (FR-010). Red-first T033, fix T034, T035 verdict-axis suite green. See activity log note for WP05 (reconciliation.py recovery_guidance wording).",
+        "Review passed (reviewer-renata, opus): red-first 55e7b810 RED for the right reason (target stayed advanced), GREEN on head; reuses the existing CAS rollback; truthful comment; 151 passed / 1 xfailed across neighbours. Non-blocking notes carried to closeout: stale docstring/call-site comment and warning text in executor.py; recovery_guidance REFUSE wording (WP05); squash projection refusal path without rollback (follow-up)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 9099,
+      "shell_pid_created_at": "1790610842.61",
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
+    }
+  }
+}

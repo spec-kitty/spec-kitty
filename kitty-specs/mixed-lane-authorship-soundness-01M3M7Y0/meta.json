@@ -1,0 +1,31 @@
+{
+  "accept_commit": "cecaa113d62bb008697cbd48d3636f145f839f35",
+  "acceptance_history": [
+    {
+      "accept_commit": "cecaa113d62bb008697cbd48d3636f145f839f35",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-28T21:11:47.582725+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "077d04c1e2c0d8920f59c34723c59b4621a894d1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-28T21:11:47.582725+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "077d04c1e2c0d8920f59c34723c59b4621a894d1",
+  "created_at": "2026-09-28T14:50:34.317546+00:00",
+  "flattened": false,
+  "friendly_name": "Mixed-lane authorship soundness",
+  "mid8": "01M3M7Y0",
+  "mission_id": "01M3M7Y0E1H5EDMNMAM8F43FFK",
+  "mission_number": null,
+  "mission_slug": "mixed-lane-authorship-soundness-01M3M7Y0",
+  "mission_type": "software-dev",
+  "purpose_context": "The terminus reconciliation gate treats a lane as approved if any WP in it is approved and attributes the whole lane spine, so a canceled sibling's commits pass under both squash and merge (#5046). This mission adds per-WP commit provenance so canceled content is detected precisely, REFUSEs when provenance is missing, and builds the squash-capable mixed-lane fixture (#5047).",
+  "purpose_tldr": "A canceled WP sharing a lane with an approved WP can no longer ship its content through consolidation unnoticed.",
+  "slug": "mixed-lane-authorship-soundness-01M3M7Y0",
+  "target_branch": "issue-5046-mixed-lane-authorship",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T15:37:34.351343+00:00"
+}

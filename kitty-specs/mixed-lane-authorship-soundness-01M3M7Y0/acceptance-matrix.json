@@ -1,0 +1,109 @@
+{
+  "mission_slug": "mixed-lane-authorship-soundness-01M3M7Y0",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 tests/status/test_lane_head.py (AST pin floor 4, both shells, read-back) + WP06 tests/terminus/test_repro_5046_production_path.py (real transactional shell, stamps == rev-parse); reviewer-renata approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:10:37.346227+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 tests/consolidation/test_wp_attribution.py (28) + WP05 claim wiring tests in tests/consolidation/test_reconciliation.py; reviewer-renata approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:10:44.564833+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5046.py default squash + --strategy merge FAIL (RED at base exit 0, GREEN after WP05; reviewer re-verified); verdict-table unit tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:10:50.663732+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5046_controls.py 6 GREEN (superseded rewrite/delete both strategies, self-revert, lane-sync merge) + tests/terminus/test_repro_5018.py GREEN",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:10:55.922351+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5046.py::test_no_commit_attribution_is_refused_as_refuse + WP04 unattributable reasons + WP05 events_unreadable/merged-independent-change REFUSE unit tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:11:02.601128+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "byte-identical claim pin (non-mixed + mixed) in tests/consolidation/test_reconciliation.py; never-implemented squash twin + legacy all-approved control; 33 build_approved_wp_set/run_terminus consumer files green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:11:09.327058+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 build_coord_mission_mixed_lane_canceled + tests/terminus/test_fixture_mixed_lane_canceled.py; all WP02/WP06 repros build in one call, default squash and merge",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:11:15.656565+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_fixture_mixed_lane_canceled.py: post-build update-ref still consolidates; missing coord worktree dir is the unmaterialized trigger; docstrings corrected",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:11:21.371322+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_canceled_content_residuals.py: 5 strict xfails (raises=AssertionError), hunk-level supersession included; documented in docs/architecture/status-model.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:11:27.483060+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 tests/consolidation/test_refuse_restores_target.py (RED at 55e7b810, GREEN at head); REFUSE repro asserts target restored",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:11:33.223081+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
