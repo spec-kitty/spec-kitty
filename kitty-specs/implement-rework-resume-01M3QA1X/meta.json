@@ -10,6 +10,7 @@
   "purpose_context": "After a reviewer rejects a WP back to in_progress, agent action implement refuses the implementer because it compares against the latest event actor (the reviewer). Reuse the status.review_roles latest-implementer projection so the ordinary review loop completes without --force (#5377).",
   "purpose_tldr": "Let the implementer of record resume after a reviewer's in_review to in_progress rework verdict without --force",
   "slug": "implement-rework-resume-01M3QA1X",
+  "status_phase": "1",
   "target_branch": "ccr-806fafb9-5qycab",
   "topology": "single_branch",
   "vcs": "git",
