@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "mission_slug": "requirement-id-grammar-01M3NRCA",
+  "mission_id": "01M3NRCAZE9MM44Q1KP18RZDV5",
+  "mission_branch": "kitty/mission-requirement-id-grammar-01M3NRCA",
+  "target_branch": "issue-2991-requirement-id-grammar",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_parsing.py",
+        "src/specify_cli/consolidation/retention.py",
+        "src/specify_cli/requirement_mapping.py",
+        "src/specify_cli/requirement_mapping/__init__.py",
+        "src/specify_cli/requirement_mapping/grammar.py",
+        "src/specify_cli/status/wp_metadata.py",
+        "tests/architectural/requirement_id_pattern_allowlist.yaml",
+        "tests/architectural/test_requirement_id_grammar_single_source.py",
+        "tests/consolidation/test_retention.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_parsing.py",
+        "tests/specify_cli/status/test_wp_metadata.py",
+        "tests/specify_cli/test_bare_prose_false_negative_sample.py",
+        "tests/specify_cli/test_requirement_id_grammar.py",
+        "tests/specify_cli/test_requirement_mapping.py",
+        "tests/specify_cli/test_requirement_mapping_coord_surface.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_requirement_id_grammar.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_map_requirements.py",
+        "src/specify_cli/cli/commands/agent/tasks_mapping_core.py",
+        "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json",
+        "tests/specify_cli/cli/commands/agent/test_map_requirements_grammar.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_map_requirements_seam.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_mapping_core.py",
+        "tests/specify_cli/test_cli/test_map_requirements.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/requirement_mapping/lint.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py",
+        "tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py",
+        "tests/specify_cli/test_requirement_id_lint.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_cores.py",
+        "tests/next/test_runtime_bridge_unit.py",
+        "tests/runtime/test_bridge_cores.py",
+        "tests/runtime/test_requirement_grammar_parity.py",
+        "tests/specify_cli/next/test_runtime_bridge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/mission-steps/software-dev/review/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/tasks-finalize/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/tasks-outline/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/tasks-packages/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md",
+        "packs/built-in/missions/software-dev/actions/review/guidelines.md",
+        "packs/built-in/missions/software-dev/actions/specify/guidelines.md",
+        "packs/built-in/missions/software-dev/actions/tasks/guidelines.md",
+        "packs/built-in/missions/software-dev/templates/spec-template.md",
+        "src/specify_cli/review/antipattern_checklist.py",
+        "tests/specify_cli/review/test_antipattern_checklist.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md",
+        "docs/context/spec-driven.md",
+        "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml",
+        "packs/built-in/pack-manifest.yaml",
+        "tests/specify_cli/test_requirement_reason_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "kitty-specs/requirement-id-grammar-01M3NRCA/research/**"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-09-29T08:12:18.547141+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP08"
+  ],
+  "planning_commit_sha": "fb562d7a202a8b6af5b4fba3bb61df912d36b958"
+}

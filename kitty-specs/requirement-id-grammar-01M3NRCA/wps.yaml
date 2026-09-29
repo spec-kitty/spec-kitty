@@ -1,0 +1,234 @@
+work_packages:
+- id: WP01
+  title: "Requirement-ID grammar package and single-source gate"
+  dependencies: []
+  owned_files:
+  - "src/specify_cli/requirement_mapping.py"
+  - "src/specify_cli/requirement_mapping/__init__.py"
+  - "src/specify_cli/requirement_mapping/grammar.py"
+  - "src/specify_cli/cli/commands/agent/mission_parsing.py"
+  - "src/specify_cli/status/wp_metadata.py"
+  - "src/specify_cli/consolidation/retention.py"
+  - "tests/specify_cli/test_requirement_mapping.py"
+  - "tests/specify_cli/test_requirement_mapping_coord_surface.py"
+  - "tests/specify_cli/test_bare_prose_false_negative_sample.py"
+  - "tests/specify_cli/test_requirement_id_grammar.py"
+  - "tests/specify_cli/cli/commands/agent/test_mission_parsing.py"
+  - "tests/specify_cli/status/test_wp_metadata.py"
+  - "tests/consolidation/test_retention.py"
+  - "tests/architectural/test_requirement_id_grammar_single_source.py"
+  - "tests/architectural/requirement_id_pattern_allowlist.yaml"
+  requirement_refs:
+  - FR-001
+  - FR-002
+  - FR-003
+  - FR-008
+  - FR-009
+  - C-001
+  - C-003
+  - C-004
+  - C-005
+  - C-009
+  - NFR-004
+  - NFR-005
+  plan_concern_refs:
+  - IC-00
+  - IC-01
+  subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+  - T005
+  - T006
+  - T007
+
+  prompt_file: tasks/WP01-requirement-id-grammar-package.md
+- id: WP02
+  title: "finalize-tasks keeps authored refs, applies per-ref verdicts, reports parsed IDs"
+  dependencies:
+  - WP01
+  owned_files:
+  - "src/specify_cli/cli/commands/agent/mission_finalize.py"
+  - "tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py"
+  - "tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py"
+  - "tests/specify_cli/cli/commands/agent/test_finalize_requirement_id_grammar.py"
+  requirement_refs:
+  - FR-004
+  - FR-007
+  - FR-008
+  - FR-010
+  - FR-011
+  - FR-019
+  - NFR-002
+  - NFR-005
+  plan_concern_refs:
+  - IC-00
+  - IC-02
+  subtasks:
+  - T008
+  - T009
+  - T010
+  - T011
+  - T012
+  - T013
+  - T014
+
+  prompt_file: tasks/WP02-finalize-tasks-authored-refs-and-diagnostics.md
+- id: WP03
+  title: "map-requirements accepts the grammar, is append-only, explains refusals"
+  dependencies:
+  - WP01
+  owned_files:
+  - "src/specify_cli/cli/commands/agent/tasks_map_requirements.py"
+  - "src/specify_cli/cli/commands/agent/tasks_mapping_core.py"
+  - "tests/specify_cli/test_cli/test_map_requirements.py"
+  - "tests/specify_cli/cli/commands/agent/test_tasks_map_requirements_seam.py"
+  - "tests/specify_cli/cli/commands/agent/test_tasks_mapping_core.py"
+  - "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json"
+  - "tests/specify_cli/cli/commands/agent/test_map_requirements_grammar.py"
+  requirement_refs:
+  - FR-005
+  - FR-006
+  - FR-010
+  - FR-012
+  - FR-019
+  - NFR-002
+  - NFR-005
+  plan_concern_refs:
+  - IC-03
+  subtasks:
+  - T015
+  - T016
+  - T017
+  - T018
+  - T019
+
+  prompt_file: tasks/WP03-map-requirements-grammar-append-only.md
+- id: WP04
+  title: "Runtime readiness uses the injected grammar and the shared verdicts"
+  dependencies:
+  - WP01
+  - WP02
+  owned_files:
+  - "src/runtime/next/runtime_bridge_cores.py"
+  - "src/runtime/next/runtime_bridge.py"
+  - "tests/runtime/test_bridge_cores.py"
+  - "tests/next/test_runtime_bridge_unit.py"
+  - "tests/specify_cli/next/test_runtime_bridge.py"
+  - "tests/runtime/test_requirement_grammar_parity.py"
+  requirement_refs:
+  - FR-016
+  - FR-019
+  - C-002
+  plan_concern_refs:
+  - IC-04
+  subtasks:
+  - T020
+  - T021
+  - T022
+  - T023
+
+  prompt_file: tasks/WP04-runtime-readiness-grammar-parity.md
+- id: WP05
+  title: "setup-plan requirement-ID check and orchestrator-api plan parity"
+  dependencies:
+  - WP01
+  owned_files:
+  - "src/specify_cli/requirement_mapping/lint.py"
+  - "src/specify_cli/cli/commands/agent/mission_setup_plan.py"
+  - "src/specify_cli/orchestrator_api/commands.py"
+  - "tests/specify_cli/test_requirement_id_lint.py"
+  - "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py"
+  - "tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py"
+  requirement_refs:
+  - FR-013
+  - FR-014
+  - FR-015
+  - C-009
+  plan_concern_refs:
+  - IC-05
+  subtasks:
+  - T024
+  - T025
+  - T026
+  - T027
+
+  prompt_file: tasks/WP05-setup-plan-requirement-id-check.md
+- id: WP06
+  title: "ADR and glossary: record the single-grammar policy"
+  dependencies:
+  - WP02
+  - WP03
+  - WP04
+  - WP05
+  owned_files:
+  - "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
+  - "docs/context/spec-driven.md"
+  - "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
+  - "packs/built-in/pack-manifest.yaml"
+  - "tests/specify_cli/test_requirement_reason_parity.py"
+  requirement_refs:
+  - FR-010
+  - FR-018
+  - FR-019
+  - NFR-002
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T028
+  - T029
+  - T030
+  - T038
+
+  prompt_file: tasks/WP06-adr-and-glossary-grammar-policy.md
+- id: WP07
+  title: "Consumer guidance: templates, prompts and checklist describe the grammar"
+  dependencies:
+  - WP02
+  - WP03
+  - WP05
+  owned_files:
+  - "packs/built-in/missions/software-dev/templates/spec-template.md"
+  - "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md"
+  - "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md"
+  - "packs/built-in/missions/mission-steps/software-dev/tasks-outline/prompt.md"
+  - "packs/built-in/missions/mission-steps/software-dev/tasks-packages/prompt.md"
+  - "packs/built-in/missions/mission-steps/software-dev/tasks-finalize/prompt.md"
+  - "packs/built-in/missions/mission-steps/software-dev/review/prompt.md"
+  - "packs/built-in/missions/software-dev/actions/specify/guidelines.md"
+  - "packs/built-in/missions/software-dev/actions/tasks/guidelines.md"
+  - "packs/built-in/missions/software-dev/actions/review/guidelines.md"
+  - "src/specify_cli/review/antipattern_checklist.py"
+  - "tests/specify_cli/review/test_antipattern_checklist.py"
+  requirement_refs:
+  - FR-017
+  - C-006
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T031
+  - T032
+  - T033
+  - T034
+
+  prompt_file: tasks/WP07-consumer-guidance-grammar.md
+- id: WP08
+  title: "Compatibility evidence: corpus scan and latency micro-benchmark"
+  dependencies:
+  - WP06
+  - WP07
+  owned_files:
+  - "kitty-specs/requirement-id-grammar-01M3NRCA/research/**"
+  requirement_refs:
+  - NFR-001
+  - NFR-003
+  - C-007
+  - C-008
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T035
+  - T036
+  - T037
+  prompt_file: tasks/WP08-compatibility-evidence-corpus-and-latency.md

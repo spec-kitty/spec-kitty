@@ -1,0 +1,44 @@
+{
+  "accept_commit": "9c95358ebddcc2a1e78d653d24079f1141c29498",
+  "acceptance_history": [
+    {
+      "accept_commit": "b1cb9a9ea673118c0e7c01dee77817b4138d30ab",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-29T13:49:18.360133+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "18fe56ba87de2ba2d3f57900c27d546add5d97a7"
+    },
+    {
+      "accept_commit": "9c95358ebddcc2a1e78d653d24079f1141c29498",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-29T13:49:27.409758+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "b381722590bb206b6391d87b93a1a9930cdb1bcb"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-29T13:49:27.409758+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "b381722590bb206b6391d87b93a1a9930cdb1bcb",
+  "baseline_merge_commit": "f33a6c4e5df80af5cb11f48bfadbdaa170e7d42c",
+  "coordination_branch": "kitty/mission-requirement-id-grammar-01M3NRCA",
+  "created_at": "2026-09-29T04:57:13.983455+00:00",
+  "flattened": false,
+  "friendly_name": "Requirement-ID grammar and finalize-tasks diagnostics",
+  "merged_at": "2026-09-29T13:52:42.796412+00:00",
+  "merged_commit": "f2e109f357d1256f21b01dfcb93dd6d8f8b89b5d",
+  "mid8": "01M3NRCA",
+  "mission_id": "01M3NRCAZE9MM44Q1KP18RZDV5",
+  "mission_number": 208,
+  "mission_slug": "requirement-id-grammar-01M3NRCA",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Authors lose traceability silently today. finalize-tasks and map-requirements delete success-criteria and letter-suffixed requirement refs that authors wrote, a declared FR-006a can go unmapped without any failure, and coverage errors do not show which IDs the spec actually declared. This mission gives Spec Kitty one requirement-ID grammar, keeps authored refs intact, catches malformed IDs when the spec is handed to planning, and makes every rejection name its reason. Slice 5 toward 4.0.0rc5 under epic #1676; closes #2991, #3519 part 2 and the remaining scope of #2066.",
+  "purpose_tldr": "Make requirement IDs (FR/NFR/C/SC, letter-suffixed, cross-mission citations) parse the same way everywhere, stop finalize-tasks erasing authored refs, and explain every rejected ID.",
+  "slug": "requirement-id-grammar-01M3NRCA",
+  "status_phase": "1",
+  "target_branch": "issue-2991-requirement-id-grammar",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-29T08:12:06.810548+00:00"
+}
