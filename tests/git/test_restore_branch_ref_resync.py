@@ -17,7 +17,7 @@ from specify_cli.git.ref_advance import (
     restore_branch_ref,
 )
 
-pytestmark = [pytest.mark.git_repo, pytest.mark.fast]
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
 def _git(repo: Path, *args: str) -> str:
