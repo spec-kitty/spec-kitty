@@ -1,0 +1,4 @@
+{"event": "started", "invocation_id": "01M3QB4E6CAW8ZC9MM0R2GSC68", "profile_id": "python-pedro", "action": "generate", "request_text": "Fix #5402: test-quality-scan precision (fake-short-ulid, line-number-pin, provenance across renames)", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "de38aa4db3ad78cd", "governance_context_available": true, "started_at": "2026-09-29T19:44:15.791880+00:00", "model_id": "claude-sonnet-5"}
+{"event": "completed", "invocation_id": "01M3QB4E6CAW8ZC9MM0R2GSC68", "completed_at": "2026-09-29T19:59:33.434122+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01M3QB4E6CAW8ZC9MM0R2GSC68", "at": "2026-09-29T19:59:33.434421+00:00", "kind": "artifact", "ref": "https://github.com/spec-kitty/spec-kitty/pull/5404"}
+{"event": "commit_link", "invocation_id": "01M3QB4E6CAW8ZC9MM0R2GSC68", "at": "2026-09-29T19:59:33.434548+00:00", "sha": "23297d9515"}
