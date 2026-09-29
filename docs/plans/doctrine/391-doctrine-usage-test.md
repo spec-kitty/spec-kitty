@@ -15,7 +15,7 @@ This record is the usage-test of the doctrine authored in WP04/WP05 — the
 [tracker-organisation-workflow procedure](../../../packs/internal/procedures/tracker-organisation-workflow.procedure.yaml),
 the [planning-and-tracking styleguide](../../../packs/built-in/styleguides/planning-and-tracking.styleguide.yaml),
 the [github-tracker toolguide](../../../packs/built-in/toolguides/GITHUB_TRACKER.md),
-the [iterative-deepening-review](../../../packs/internal/tactics/tracker-backlog-iterative-deepening.tactic.yaml)
+the [tracker-backlog-iterative-deepening](../../../packs/internal/tactics/tracker-backlog-iterative-deepening.tactic.yaml)
 and [moscow-scoping-lens](../../../packs/built-in/tactics/moscow-scoping-lens.tactic.yaml) tactics,
 and the planning-and-tracking glossary subset — applied to the real #391 epic
 using **only** that doctrine as the method.
