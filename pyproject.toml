@@ -846,7 +846,6 @@ exclude = [
     "tests/_support/test_wall_clock_assertions.py",
     "tests/_support/wall_clock_assertions.py",
     "tests/acceptance/test_issue_3231_scaffold_pending_poisons_acceptance.py",
-    "tests/acceptance/test_post_consolidation.py",
     "tests/acceptance/test_provenance_and_deferral.py",
     "tests/adversarial/test_distribution.py",
     "tests/agent/cli/commands/test_agent_config.py",
