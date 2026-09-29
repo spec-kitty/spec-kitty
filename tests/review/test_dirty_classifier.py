@@ -8,7 +8,11 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.review.dirty_classifier import classify_dirty_paths
+from specify_cli.review.dirty_classifier import (
+    _is_review_handoff_survivor_path,
+    classify_dirty_paths,
+    owning_wp_for_path,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -173,3 +177,188 @@ def test_wp_task_file_other_double_digit_is_benign():
     blocking, benign = _classify(paths, wp_id="WP01")
     assert blocking == []
     assert benign == paths
+
+
+# ---------------------------------------------------------------------------
+# WP01 (dirty-tree-guard-wp-scoped-01M3M3TT), T003: owning_wp_for_path /
+# classify_dirty_paths ownership-attribution unit coverage (FR-001/002/003/
+# 004/007/008, PLAN-ARCH-001, Compatibility & Reflexivity).
+# ---------------------------------------------------------------------------
+
+
+def test_cross_wp_directory_file_is_benign_regardless_of_extension():
+    """FR-001/FR-002: a non-.md file nested under a DIFFERENT WP's task
+    directory is benign, extension-independent (#5151 ask 3's in-progress
+    script). Mutation control: the extension itself does not matter."""
+    for suffix in (".py", ".md", ""):
+        path = f"kitty-specs/066-test/tasks/WP02-foo/script{suffix}"
+        blocking, benign = _classify([path], wp_id="WP01")
+        assert blocking == [], f"suffix={suffix!r} wrongly blocked"
+        assert benign == [path]
+
+
+def test_wholly_untracked_wp_directory_path_is_benign():
+    """FR-003: the bare WP directory path itself (trailing slash, no
+    filename -- the shape git reports for a wholly-untracked WP subdirectory,
+    kentonium3's Friction 2) is benign for a different WP."""
+    path = "kitty-specs/066-test/tasks/WP02-foo/"
+    blocking, benign = _classify([path], wp_id="WP01")
+    assert blocking == []
+    assert benign == [path]
+
+
+def test_unattributable_path_still_blocks_for_every_wp_id():
+    """FR-004 (fail-closed): a stray path matching no WP directory always
+    blocks, for every wp_id -- paired with FR-001's positive control above
+    (SC-003)."""
+    paths = ["kitty-specs/066-test/some-stray-file.txt"]
+    for wp_id in ("WP01", "WP02", "WP10"):
+        blocking, benign = _classify(paths, wp_id=wp_id)
+        assert blocking == paths, f"expected blocking for wp_id={wp_id}"
+        assert benign == []
+
+
+def test_own_directory_non_task_file_residue_still_blocks():
+    """FR-007: a non-task-file nested under the MOVING WP's own directory
+    keeps blocking -- the cross-WP exemption must not leak to a WP's own
+    residue. Mutation control: still blocks regardless of extension."""
+    for suffix in (".py", ""):
+        path = f"kitty-specs/066-test/tasks/WP01-foo/scratch{suffix}"
+        blocking, benign = _classify([path], wp_id="WP01")
+        assert blocking == [path], f"suffix={suffix!r} wrongly passed as benign"
+        assert benign == []
+
+
+def test_cross_mission_wp_directory_is_not_a_match():
+    """FR-008: a same-numbered WP under a DIFFERENT mission's kitty-specs/
+    tree is never mistaken for an owner -- the path still blocks (or at
+    minimum is not benign) when the caller's mission_slug is the current
+    mission, not the other one. Mutation control: mission_slug itself is
+    what flips the outcome, not the WP number."""
+    path = "kitty-specs/077-other/tasks/WP01-foo/x.md"
+    blocking, benign = _classify([path], wp_id="WP01", mission_slug="066-test")
+    assert blocking == [path]
+    assert benign == []
+
+
+def test_own_directory_nested_md_file_still_blocks():
+    """PLAN-ARCH-001 regression: spec.md's own literal AC3 path -- a nested
+    .md file under the MOVING WP's own directory -- must resolve to
+    blocking. The un-tightened wp_task_pattern (`.+` crossing `/`) wrongly
+    classified this benign before owning_wp_for_path was ever consulted."""
+    path = "kitty-specs/066-test/tasks/WP01-foo/scratch.md"
+    blocking, benign = _classify([path], wp_id="WP01")
+    assert blocking == [path]
+    assert benign == []
+
+
+def test_cross_mission_nested_md_file_still_blocks():
+    """PLAN-ARCH-001 regression, FR-008 companion: a nested cross-mission
+    .md path must not reach benign via the (now-tightened) flat-file
+    short-circuit before owning_wp_for_path's own mission-scoping is
+    consulted."""
+    path = "kitty-specs/077-other/tasks/WP01-foo/x.md"
+    blocking, benign = _classify([path], wp_id="WP01", mission_slug="066-test")
+    assert blocking == [path]
+    assert benign == []
+
+
+def test_flat_non_task_file_directly_in_tasks_dir_is_not_wp_owned():
+    """Risk control: a bare flat non-.md file directly in tasks/ (NOT inside
+    a WP subdirectory) must not be mistaken for WP-owned residue -- the
+    `(?:\\.md|/.*)` alternation requires either a flat `.md` suffix or a `/`
+    boundary, neither of which a bare `tasks/WP01-foo.py` satisfies."""
+    path = "kitty-specs/066-test/tasks/WP01-foo.py"
+    blocking, benign = _classify([path], wp_id="WP01")
+    assert blocking == [path]
+    assert benign == []
+
+
+def test_no_previously_benign_path_becomes_blocking():
+    """Compatibility & Reflexivity (plan.md Design Decision (d)): benign only
+    ever grows, never shrinks. Sweeps every path this file's *existing*
+    benign-classification tests already exercise, across a representative
+    set of wp_id values, and asserts every one stays benign after this
+    mission's ownership-attribution change."""
+    previously_benign_paths = [
+        "kitty-specs/066-test/status.events.jsonl",
+        "kitty-specs/066-test/status.json",
+        "kitty-specs/066-test/tasks/WP02-some-feature.md",
+        "kitty-specs/066-test/tasks/WP03-another-feature.md",
+        "kitty-specs/066-test/tasks/WP10-double-digit.md",
+        "kitty-specs/066-test/tasks/WP01-my-feature.md",
+        "kitty-specs/066-test/meta.json",
+        ".kittify/config.yaml",
+        ".kittify/metadata.yaml",
+        ".kittify/skills-manifest.json",
+        "kitty-specs/066-test/lanes.json",
+        "kitty-specs/066-test/tasks.md",
+    ]
+    for wp_id in ("WP01", "WP02", "WP10", "WP99"):
+        blocking, benign = _classify(previously_benign_paths, wp_id=wp_id)
+        assert blocking == [], f"regressed to blocking for wp_id={wp_id}: {blocking}"
+        assert set(benign) == set(previously_benign_paths)
+
+
+# ---------------------------------------------------------------------------
+# PR-FRESH-001 (issue #5007): a "git status --porcelain" rename entry
+# ("R  old -> new") is a single composite path string. Neither
+# ``_is_review_handoff_survivor_path``'s ``wp_task_pattern`` (Bug A,
+# pre-existing) nor ``owning_wp_for_path``'s trailing alternation (Bug B,
+# introduced by this diff) was anchored/bounded against an embedded
+# " -> new-path" tail, so a composite string could satisfy either end-to-end
+# and fail-open. These are unit tests on the two helpers/entry points
+# directly -- the real end-to-end repro (a REAL git-staged rename through the
+# CLI) lives in test_tasks.py.
+# ---------------------------------------------------------------------------
+
+
+def test_wp_task_pattern_rejects_composite_rename_tail_bug_a():
+    """Bug A: a rename whose NEW side happens to look like a flat WPxx task
+    file must not short-circuit to benign via
+    ``_is_review_handoff_survivor_path`` -- the un-anchored ``.search()``
+    let a composite "garbage -> real-taskfile" string match on its trailing
+    component alone, even though the composite as a whole is not itself a
+    flat task-file path."""
+    composite = "not-even-a-real-path -> kitty-specs/066-test/tasks/WP05-x.md"
+    assert _is_review_handoff_survivor_path(composite) is False
+
+
+def test_classify_dirty_paths_rename_composite_bug_a_stays_blocking():
+    """Bug A reproduced through the public classify_dirty_paths entry point,
+    using the exact composite from PR-FRESH-001's evidence: an
+    unattributable rename must not resolve benign just because the rename's
+    *new* side happens to look like a flat task file for an unrelated WP."""
+    composite = "not-even-a-real-path -> kitty-specs/066-test/tasks/WP05-x.md"
+    blocking, benign = classify_dirty_paths([composite], wp_id="WP01", mission_slug="066-test")
+    assert blocking == [composite]
+    assert benign == []
+
+
+def test_owning_wp_for_path_rejects_composite_rename_bug_b():
+    """Bug B: owning_wp_for_path's ``(?:\\.md|/.*)$`` alternation absorbed an
+    embedded " -> new-path" tail, so a rename whose OLD side matched a
+    different WP's directory resolved ownership from the OLD path's prefix
+    alone -- even though the NEW side lands inside the moving WP's own
+    directory. A composite string must resolve to None (unattributable),
+    never to the old side's WP."""
+    composite = "kitty-specs/066-test/tasks/WP02-foo/old.py -> kitty-specs/066-test/tasks/WP01-own/new.py"
+    assert owning_wp_for_path(composite, "066-test") is None
+
+
+def test_classify_dirty_paths_rename_composite_bug_b_stays_blocking():
+    """Bug B reproduced through classify_dirty_paths: a rename INTO the
+    moving WP's own directory from a different WP's directory must not
+    resolve benign via the old path's prefix (FR-007, Clarifications Q2)."""
+    composite = "kitty-specs/066-test/tasks/WP02-foo/old.py -> kitty-specs/066-test/tasks/WP01-own/new.py"
+    blocking, benign = classify_dirty_paths([composite], wp_id="WP01", mission_slug="066-test")
+    assert blocking == [composite]
+    assert benign == []
+
+
+def test_owning_wp_for_path_rejects_second_kitty_specs_occurrence():
+    """Defensive hardening companion to Bug B: a composite whose tail embeds
+    a second ``kitty-specs/`` occurrence (not just a bare rename arrow) must
+    also fail to resolve to a WP, not just the literal ``" -> "`` shape."""
+    composite = "kitty-specs/066-test/tasks/WP01-own/kitty-specs/066-test/tasks/WP01-own/x.py"
+    assert owning_wp_for_path(composite, "066-test") is None

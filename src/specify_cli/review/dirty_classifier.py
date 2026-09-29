@@ -77,9 +77,26 @@ def _is_review_handoff_survivor_path(normalised: str) -> bool:
     if normalised.startswith(kittify_prefixes) or normalised == ".kittify":
         return True
 
-    # Any WP's task file (WORK_PACKAGE_TASK, PRIMARY-partition) — bullet 3.
-    wp_task_pattern = re.compile(r"kitty-specs/[^/]+/tasks/WP\d+-.+\.md$")
-    if wp_task_pattern.search(normalised):
+    # Any WP's FLAT task file (WORK_PACKAGE_TASK, PRIMARY-partition) — bullet
+    # 3. Tightened per adversarial plan review (PLAN-ARCH-001): the prior
+    # `.+` was not `/`-anchored, so it over-matched ANY nested `.md` file
+    # under ANY WP directory in ANY mission (e.g. a WP's own
+    # `tasks/WP01-foo/scratch.md`, or a different mission's
+    # `tasks/WP01-foo/x.md`), short-circuiting `_is_benign` to `True` before
+    # `owning_wp_for_path` was ever consulted — silently defeating spec.md
+    # AC3 and FR-008 for a nested-`.md` shape. `[^/]+` cannot cross a `/`, so
+    # only a FLAT `tasks/WPxx-*.md` file matches here now; a nested path
+    # falls through to `owning_wp_for_path` in `classify_dirty_paths`, which
+    # resolves it correctly (own-WP → blocking; unattributable/cross-mission
+    # → blocking; genuine cross-WP → benign).
+    # Anchored full-string match (PR-FRESH-001 Bug A): ``.search()`` with no
+    # ``^`` let a composite "old -> new" rename-porcelain string (or any
+    # other larger string) match on a trailing substring alone -- e.g. a
+    # rename whose *new* side happens to look like a flat WPxx task file
+    # short-circuited to benign regardless of what the *old* side was.
+    # ``fullmatch`` requires the ENTIRE string to satisfy the pattern.
+    wp_task_pattern = re.compile(r"kitty-specs/[^/]+/tasks/WP\d+-[^/]+\.md$")
+    if wp_task_pattern.fullmatch(normalised):
         return True
 
     # Mission-root tasks.md (TASKS_INDEX, PRIMARY-partition) — bullet 3.
@@ -115,6 +132,47 @@ def _is_benign(path: str, wp_id: str) -> bool:
     return _is_review_handoff_survivor_path(normalised)
 
 
+def owning_wp_for_path(path: str, mission_slug: str) -> str | None:
+    """Return the WP id that owns *path* by directory/file-naming convention, or None.
+
+    Generalizes the flat ``.md``-only convention ``_is_review_handoff_survivor_path``'s
+    ``wp_task_pattern`` implements (now tightened to a flat-only match — see that
+    function) to also cover:
+
+    - any file nested under a WP's task directory, any extension (FR-002)
+    - the WP task directory reported as a bare, wholly-untracked path (FR-003)
+
+    Scoped to *mission_slug* (FR-008): a same-numbered WP under a different
+    mission's ``kitty-specs/<other-slug>/tasks/`` tree never matches.
+
+    This is a pure path-string regex over the ``kitty-specs/<mission_slug>/
+    tasks/WP<n>-*`` directory-naming convention — it does not read, import, or
+    extend ``src/specify_cli/ownership/`` (the ``owned_files``
+    frontmatter-driven module), which cannot answer this question for
+    ``kitty-specs/`` paths on ``code_change`` WPs (C-001).
+
+    Deliberately public (no leading underscore) — consumed cross-module by
+    ``tasks_parsing_validation.py`` via a direct submodule import, mirroring
+    how that module already imports :func:`classify_dirty_paths`.
+
+    Guarded against a rename-form composite ``"old -> new"`` porcelain
+    string (PR-FRESH-001 Bug B): the trailing ``(?:\\.md|/.*)$`` alternation's
+    ``.*`` matches any character, so it would otherwise absorb an embedded
+    ``" -> "`` rename arrow and the new path whole, resolving ownership from
+    the OLD path's prefix alone even when the new path lands inside a
+    different WP's own directory. A composite is never a single real path,
+    so it is explicitly rejected (returns ``None`` -- unattributable,
+    fail-closed) before the regex ever runs, rather than trying to teach the
+    regex two-sided rename semantics.
+    """
+    normalised = to_posix(path).strip()
+    if " -> " in normalised or normalised.count("kitty-specs/") > 1:
+        return None
+    pattern = re.compile(rf"^kitty-specs/{re.escape(mission_slug)}/tasks/WP(\d+)-[^/]+(?:\.md|/.*)$")
+    match = pattern.fullmatch(normalised)
+    return f"WP{match.group(1)}" if match else None
+
+
 def classify_dirty_paths(
     dirty_paths: list[str],
     wp_id: str,
@@ -137,6 +195,15 @@ def classify_dirty_paths(
     Returns:
         A tuple ``(blocking, benign)`` — two lists of path strings.  Each
         input path appears in exactly one of the two lists.
+
+    Ownership attribution (FR-001–004, FR-007, FR-008): a path not already
+    benign under :func:`_is_benign` (toolchain churn, or a flat any-WP
+    ``tasks/WPxx-*.md`` task file) is checked against
+    :func:`owning_wp_for_path`. When it resolves to a *different* WP than
+    *wp_id*, the path is provably that other WP's residue and is benign
+    (FR-001/002/003). When it resolves to *wp_id* itself (the WP's own
+    non-task-file residue, FR-007) or to ``None`` (unattributable, FR-004 —
+    fail-closed), the path stays blocking.
     """
     blocking: list[str] = []
     benign: list[str] = []
@@ -146,7 +213,11 @@ def classify_dirty_paths(
             continue
         if _is_benign(path, wp_id):
             benign.append(path)
+            continue
+        owner = owning_wp_for_path(path, mission_slug)
+        if owner is not None and owner != wp_id:
+            benign.append(path)  # FR-001/002/003 — provably another WP's residue
         else:
-            blocking.append(path)
+            blocking.append(path)  # owner == wp_id (FR-007) or owner is None (FR-004)
 
     return blocking, benign
