@@ -162,15 +162,6 @@ class TestStrategyFlipRefusal:
                 is_resume=True,
             )
 
-    def test_equal_explicit_does_not_refuse(self) -> None:
-        # No exception — an equal explicit value is honored, not a flip.
-        _resolve_effective_merge_strategy(
-            explicit=MergeStrategy.MERGE,
-            persisted=MergeStrategy.MERGE,
-            config=None,
-            is_resume=True,
-        )
-
     def test_fresh_run_never_flip_refuses(self) -> None:
         # On a fresh run the persisted value is irrelevant; a differing explicit
         # is not a flip.

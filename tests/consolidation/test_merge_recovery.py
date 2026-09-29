@@ -485,20 +485,8 @@ class TestRetryTolerance:
         loaded = load_state(git_repo, MISSION_ID)
         assert loaded is not None
 
-    def test_cleanup_tolerates_already_removed_worktree(self, git_repo: Path):
-        """Double cleanup should not raise."""
-        branch = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=git_repo, capture_output=True, text=True, check=True,
-        ).stdout.strip()
-
-        create_merge_workspace(MISSION_ID, branch, git_repo)
-
-        # First cleanup removes worktree
-        cleanup_merge_workspace(MISSION_ID, git_repo)
-
-        # Second cleanup should be safe (workspace already gone)
-        cleanup_merge_workspace(MISSION_ID, git_repo)
+    # Double cleanup (workspace already gone) is covered by
+    # test_merge_workspace_unit.py::TestCleanupMergeWorkspace::test_cleanup_is_idempotent.
 
     def test_resume_after_partial_cleanup(self, git_repo: Path):
         """After cleanup removes worktree but state persists, resume works."""
