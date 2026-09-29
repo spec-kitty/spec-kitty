@@ -556,6 +556,48 @@ def test_fix_clears_stale_coord_topology_so_backfill_flattens(
     )
 
 
+def test_fix_flatten_stamps_the_runtime_reading_never_single_branch(
+    fresh_mission_repo: Path,
+) -> None:
+    """#5100 UX-3: the implicit flatten writer must not opt a mission into single_branch.
+
+    A coord mission whose coordination branch was never created has no code
+    lanes yet, so ``backfill_topology_repo``'s explicit 2x2 derivation lands in
+    the coord-less, lane-less ``single_branch`` cell. ``single_branch`` is
+    honoured at runtime only when explicitly requested and STORED (repo-root
+    execution, ``WRITE_CHECKOUT_*`` refusals, no protected mint), so an
+    unattended ``doctor coordination --fix`` stamping it silently switches the
+    mission onto that runtime. The flatten repair stamps the RUNTIME reading of
+    the derived cell (``lanes``), i.e. exactly what the same unstamped mission
+    already behaved as.
+    """
+    from mission_runtime import MissionTopology
+
+    from specify_cli.cli.commands import _coordination_doctor as cd
+    from specify_cli.migration.backfill_topology import read_topology
+
+    spec_dir = fresh_mission_repo / "kitty-specs" / MISSION_SLUG
+    stale_meta = {
+        **_meta(),
+        "coordination_branch": "kitty/mission-never-created-00000000",
+        "topology": "coord",
+        "flattened": False,
+    }
+    (spec_dir / "meta.json").write_text(json.dumps(stale_meta))
+    runtime_before_flatten = MissionTopology.LANES  # what an unstamped, lane-less mission reads as
+
+    findings = cd._collect_coordination_findings(fresh_mission_repo)
+    cd._apply_never_created_fix(findings, fresh_mission_repo)
+
+    written = json.loads((spec_dir / "meta.json").read_text())
+    assert "coordination_branch" not in written
+    assert written.get("flattened") is True
+    assert written.get("topology") == runtime_before_flatten.value, (
+        "the flatten repair must stamp the runtime reading (lanes), never a derived single_branch"
+    )
+    assert read_topology(spec_dir) is MissionTopology.LANES
+
+
 def test_run_coordination_health_fix_end_to_end(
     fresh_mission_repo: Path,
     monkeypatch: pytest.MonkeyPatch,

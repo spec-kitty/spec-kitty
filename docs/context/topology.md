@@ -2,7 +2,7 @@
 title: 'Context: Topology'
 description: 'Glossary context for mission topology: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, and absorbed lane.'
 doc_status: active
-updated: '2026-09-29'
+updated: '2026-09-30'
 related:
 - docs/context/orchestration.md
 - docs/context/execution.md
@@ -16,7 +16,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The shape a mission is given at creation, stored as `topology` in `meta.json`. Exactly four values, the 2x2 product of "has a coordination branch" and "has lanes": `single_branch` (no coordination, no lanes: every work package runs in the [write checkout](#write-checkout)), `lanes` (no coordination, computed code lanes), `coord` (coordination, no lanes), `lanes_with_coord` (coordination and code lanes). Realized by the `MissionTopology` enum in `src/mission_runtime/context.py`. On a non-primary branch the create-time default is `lanes`; `single_branch` comes only from an explicit `--topology single_branch` or from `--owned-checkout`. |
+| **Definition** | The shape a mission is given at creation, stored as `topology` in `meta.json`. Exactly four values, the 2x2 product of "has a coordination branch" and "has lanes": `single_branch` (no coordination, no lanes: every work package runs in the [write checkout](#write-checkout)), `lanes` (no coordination, computed code lanes), `coord` (coordination, no lanes), `lanes_with_coord` (coordination and code lanes). Realized by the `MissionTopology` enum in `src/mission_runtime/context.py`. Create-time default (when `--topology` is omitted): `coord` on the primary branch, `lanes` on any other branch, with `--pr-bound` keeping `coord` only where coordination is reachable and `lanes` otherwise; `single_branch` comes only from an explicit `--topology single_branch` or from `--owned-checkout`, never implicitly. A mission with no stored `topology` (created before the field existed) is read as `lanes` at runtime, whereas `spec-kitty migrate backfill-topology` writes the derived 2x2 cell, which can be `single_branch` for a mission with no code lane yet; the write is an explicit operator choice that switches the mission onto the `single_branch` runtime. `doctor coordination --fix` does not make that choice for you: after flattening a mission whose coordination branch was never created it stamps the runtime reading (`lanes`), not a derived `single_branch`. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
