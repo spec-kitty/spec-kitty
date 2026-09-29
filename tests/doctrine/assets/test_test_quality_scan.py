@@ -13,7 +13,7 @@ import importlib.util
 import json
 import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
 
@@ -151,12 +151,7 @@ def test_rerun_keeps_a_ledger_a_squad_already_filled_in(scan: ModuleType, tmp_pa
 
 @pytest.mark.git_repo
 def test_since_scores_only_tests_changed_after_the_revision(scan: ModuleType, tmp_path: Path) -> None:
-    def git(*args: str) -> None:
-        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True)
-
-    git("init", "-q")
-    git("config", "user.email", "t@example.com")
-    git("config", "user.name", "t")
+    git = _git_repo(tmp_path)
     _write(tmp_path, "tests/billing/test_old.py", "def test_old():\n    build_report()\n\ndef test_edited():\n    build_report()\n")
     git("add", ".")
     git("commit", "-qm", "base")
@@ -170,3 +165,43 @@ def test_since_scores_only_tests_changed_after_the_revision(scan: ModuleType, tm
     assert set(_flags_by_test(out)) == {"test_edited", "test_new"}
     files = {f["file"]: f for f in json.loads((out / "files.json").read_text(encoding="utf-8"))}
     assert files["tests/billing/test_new.py"]["added_by"].endswith("WP02 add billing tests")
+
+
+def _git_repo(root: Path) -> Callable[..., None]:
+    def git(*args: str) -> None:
+        subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+
+    git("init", "-q")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "t")
+    return git
+
+
+@pytest.mark.git_repo
+def test_provenance_follows_a_rename_back_to_the_commit_that_added_the_file(scan: ModuleType, tmp_path: Path) -> None:
+    git = _git_repo(tmp_path)
+    _write(tmp_path, "tests/billing/test_a.py", _CLEAN_TEST)
+    git("add", ".")
+    git("commit", "-qm", "add billing")
+    git("mv", "tests/billing/test_a.py", "tests/billing/test_b.py")
+    git("commit", "-qm", "rename")
+
+    out = _run(scan, tmp_path)
+
+    files = {f["file"]: f for f in json.loads((out / "files.json").read_text(encoding="utf-8"))}
+    assert files["tests/billing/test_b.py"]["added_by"].endswith("add billing")
+
+
+@pytest.mark.git_repo
+def test_provenance_follows_a_move_in_from_outside_the_scanned_root(scan: ModuleType, tmp_path: Path) -> None:
+    git = _git_repo(tmp_path)
+    _write(tmp_path, "tests/legacy/test_a.py", _CLEAN_TEST)
+    git("add", ".")
+    git("commit", "-qm", "add legacy")
+    git("mv", "tests/legacy", "tests/billing")
+    git("commit", "-qm", "move legacy to billing")
+
+    out = _run(scan, tmp_path, "--paths", "tests/billing")
+
+    files = {f["file"]: f for f in json.loads((out / "files.json").read_text(encoding="utf-8"))}
+    assert files["tests/billing/test_a.py"]["added_by"].endswith("add legacy")
