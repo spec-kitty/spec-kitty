@@ -1110,18 +1110,31 @@ def test_evaluate_spec_gate_still_passes_when_committed_substantive_and_well_for
     assert message is None
 
 
-def test_requirement_id_gate_message_escapes_the_rule_text(tmp_path: Path) -> None:
-    """Rich markup escaping: ``grammar.RULE_TEXT`` contains
-    ``[<lowercase letter>]``, which rich would otherwise parse as markup."""
-    feature_dir = tmp_path / "001-demo"
-    feature_dir.mkdir()
-    spec_file = feature_dir / "spec.md"
-    spec_file.write_text("# Spec\n\n| C-007-mission | x | y |\n", encoding="utf-8")
+def test_requirement_id_gate_message_escapes_the_rule_text() -> None:
+    """Rich markup escaping: ``_render_requirement_id_gate_message`` must
+    escape ``[...]``-shaped content in a token/rule before it reaches rich
+    markup rendering.
 
-    _, message = seam._evaluate_requirement_id_gate(spec_file, feature_dir, "001-demo")
+    ``grammar.RULE_TEXT`` (``"<kind>-<digits>[<lowercase letter>]"``) is NOT
+    a usable fixture for this: ``<lowercase letter>`` inside the brackets
+    contains characters (``<``, ``>``, a space) that rich's own tag grammar
+    never matches, so ``rich.markup.escape`` leaves it byte-for-byte
+    unchanged -- asserting its presence in the rendered message passes
+    whether or not ``escape`` is called at all (vacuous). ``[bold]`` IS a
+    tag rich's grammar matches, so it round-trips through ``escape`` as
+    ``\\[bold]`` (a leading backslash, escape only ever needs to guard the
+    opening bracket). Constructing the ``invalid_ids`` dict directly (rather
+    than routing text through the grammar's declared-lead capture, whose
+    charset ``[A-Za-z0-9_.-]`` cannot itself produce bracket characters)
+    isolates the escaping behaviour of the renderer from the grammar."""
+    invalid_ids: list[dict[str, object]] = [
+        {"line": 3, "token": "FR-001", "rule": "use [bold]this[/bold] format"},
+    ]
 
-    assert message is not None
-    assert "[<lowercase letter>]" in message
+    message = seam._render_requirement_id_gate_message(invalid_ids)
+
+    assert "\\[bold]this\\[/bold]" in message
+    assert "[bold]this[/bold]" not in message
 
 
 def test_spec_requirement_id_warnings_absent_file_returns_empty(tmp_path: Path) -> None:

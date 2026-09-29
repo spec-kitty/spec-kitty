@@ -166,9 +166,14 @@ def test_malformed_lead_is_case_sensitive_and_runs_outside_requirements_sections
     ],
 )
 def test_lead_capture_charset_stops_at_first_other_char_so_no_error(line: str) -> None:
-    text = f"# Spec\n\n{line}\n"
+    """Positive control (same fixture): a genuinely malformed declared ID
+    (``C-S1``) alongside *line* in the SAME text still errors, proving the
+    lint is actually scanning this text rather than vacuously matching
+    nothing (e.g. because the whole file failed to parse)."""
+    text = f"# Spec\n\n{line}\n| C-S1 |\n"
     result = lint_spec_requirement_ids(text)
-    assert result.errors == (), result.errors
+    assert len(result.errors) == 1
+    assert result.errors[0].token == "C-S1"
 
 
 # --------------------------------------------------------------------------- #

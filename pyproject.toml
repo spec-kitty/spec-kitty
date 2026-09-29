@@ -2735,11 +2735,13 @@ follow_imports = "normal"
 # ``dataclasses``, ``typing`` and ``kernel._safe_re``, so following it cannot
 # drag bootstrap errors into a narrow check — same shape/precedent as the
 # core.errors/auth.errors entries above (issue #3719); must stay after the
-# ``specify_cli.*`` skip. ``specify_cli.requirement_mapping`` (the package's
-# own ``__init__.py``, home of ``parse_requirement_ids_from_spec_md``) is
-# covered too: it re-exports grammar's names and otherwise imports only
-# stdlib (``re``, ``pathlib``, ``typing``).
-module = ["specify_cli.requirement_mapping", "specify_cli.requirement_mapping.grammar"]
+# ``specify_cli.*`` skip. Scoped to the grammar module only:
+# ``specify_cli.requirement_mapping`` (the package's own ``__init__.py``) is
+# NOT included here — it does function-local imports of
+# ``specify_cli.frontmatter`` (see ``read_all_wp_raw_requirement_refs``), so
+# following it normally would risk dragging non-grammar modules into a
+# narrow strict check.
+module = ["specify_cli.requirement_mapping.grammar"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]

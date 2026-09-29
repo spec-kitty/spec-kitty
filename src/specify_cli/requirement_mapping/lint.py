@@ -58,8 +58,8 @@ _LEAD_WRAP_CHARS = "*~"
 _LEAD_TRAILING_PUNCTUATION = (".", ":", ",")
 
 #: The declaration-shape non-blocking-warning remediation, in the vocabulary
-#: FR-013's own rule text imports rather than restating (C-001: never an
-#: alternation literal such as "FR|NFR").
+#: FR-013's own rule text imports rather than restating (C-001: never a
+#: requirement-kind alternation literal of its own).
 _WARNING_REMEDIATION = (
     "Declare it in a recognised shape (a table row, an id-naming heading, a "
     "bulleted or numbered item, or a bold-led paragraph), or if it belongs to "
