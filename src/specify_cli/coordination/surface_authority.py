@@ -15,8 +15,9 @@ per the shared-package boundary).
 This module is **pure**: no filesystem, git, or network I/O. Callers resolve the
 inputs (topology, primary target branch, its protection, the current checkout, the
 artifact kind) and consume the returned :class:`SurfaceVerdict`. Freezing the rule
-here — with the golden characterization harness in
-``tests/coordination/test_surface_authority_goldens.py`` — is what lets the
+here — with the behaviour tests in
+``tests/specify_cli/cli/commands/agent/test_tasks_surface_authority.py`` and
+``tests/coordination/test_surface_authority.py`` — is what lets the
 consumer refactors (WP02/WP03/WP04) align to ONE authority without drifting the
 observable per-command behavior (contract ``authoritative-surface.md``; NFR-001,
 INV-1..INV-4).

@@ -16,10 +16,9 @@ per-command logic:
 
 The exit-code rows (genuine-no-op → 0, wrong-surface → 1 not collapsed) are
 asserted through the canonical ``_exit_code_for`` / ``_classify_noncommit_outcome``
-mapping — the same single source the CLI and the WP01 golden harness use. The
-WP01 golden harness (``tests/coordination/test_surface_authority_goldens.py``) is
-re-run unchanged to prove no drift; this file adds the CLI-facing diffs that live
-in WP03's owned surface.
+mapping — the same single source the CLI uses. (The WP01 golden harness that once
+froze these rows was retired; its commit-router rows live in
+``tests/coordination/test_commit_router*.py``.)
 """
 
 from __future__ import annotations

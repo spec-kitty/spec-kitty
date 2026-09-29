@@ -393,5 +393,5 @@ def test_2739_genuine_no_op_unchanged_stays_exit0(tmp_path: Path) -> None:
         )
 
     assert result.status == "unchanged"
-    assert result.reason is not None
+    assert result.reason == "no_op_no_changes"
     assert _cli_exit_code(result.status) == 0

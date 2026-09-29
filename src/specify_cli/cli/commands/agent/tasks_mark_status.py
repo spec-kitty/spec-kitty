@@ -27,9 +27,8 @@ artifact commit refusal does not apply"). ``--auto-commit`` is a compatibility
 input with no commit behind it. The dead ``_ms_commit`` helper below is a
 compat-shim/test-only symbol — it is defined for the frozen ``tasks.<name>``
 re-export surface but is NOT reachable from ``_do_mark_status`` (reviving a
-commit path here is a #2816 regression, structurally guarded by
-``test_surface_authority_goldens.test_row3_mark_status_is_event_log_only_no_commit``
-and ``test_tasks_surface_authority`` WP03). ``mark_status`` also owns the
+commit path here is a #2816 regression, guarded by
+``test_tasks_surface_authority.test_mark_status_is_frozen_no_commit``). ``mark_status`` also owns the
 no-IDs error byte case (research.md D3, routed through Render by WP04) — the
 ``_ms_report_none_resolved`` emission moved verbatim.
 
