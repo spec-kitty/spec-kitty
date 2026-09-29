@@ -25,8 +25,11 @@ Guarantees (``contracts/rollback-authority.md``):
    target BETWEEN phases is therefore never attributed to this run.
 3. A landing verified by an EARLIER reconciliation
    (``reconciliation_passed_target_sha`` == live target tip) is never rolled
-   back (FR-011); neither is anything when a snapshotted branch no longer
-   exists (a possibly completed landing) -- reported on its own line.
+   back (FR-011) -- reported on its own line. A snapshotted branch that no
+   longer exists never blocks the rest (slice-10 F3): a missing lane branch is
+   reported (``LANE_MISSING``, with a ``git branch <b> <sha>`` recreate hint); a
+   missing target/mission/coordination branch is ``NOT_RESTORED`` with the same
+   hint -- never recreated silently.
 4. Every worktree with a restored branch checked out is resynced, and refuses
    (``NOT_RESTORED``) when dirty -- via ``git.ref_advance``; no raw
    ``reset --hard`` lives here.
@@ -89,6 +92,7 @@ class BranchOutcomeKind(StrEnum):
     RESTORED = "restored"
     ALREADY_AT_SNAPSHOT = "already_at_snapshot"
     UNCHANGED_BY_RUN = "unchanged_by_run"
+    LANE_MISSING = "lane_missing"
     NOT_RESTORED = "not_restored"
 
 
@@ -107,7 +111,7 @@ class BranchOutcome:
     restored_to_sha: str | None = None
 
 
-_OK_KINDS = frozenset({BranchOutcomeKind.RESTORED, BranchOutcomeKind.ALREADY_AT_SNAPSHOT, BranchOutcomeKind.UNCHANGED_BY_RUN})
+_OK_KINDS = frozenset({BranchOutcomeKind.RESTORED, BranchOutcomeKind.ALREADY_AT_SNAPSHOT, BranchOutcomeKind.UNCHANGED_BY_RUN, BranchOutcomeKind.LANE_MISSING})
 
 
 @dataclass(frozen=True)
@@ -151,6 +155,8 @@ def _render_outcome(outcome: BranchOutcome, width: int) -> str:
         return f"  restored   {name}  {_short(outcome.observed_sha)} -> {_short(outcome.restored_to_sha or outcome.snapshot_sha)}"
     if kind is BranchOutcomeKind.ALREADY_AT_SNAPSHOT:
         return f"  unchanged  {name}  (already at {_short(outcome.observed_sha)})"
+    if kind is BranchOutcomeKind.LANE_MISSING:
+        return f"  missing    {name}  ({outcome.reason})"
     if kind is BranchOutcomeKind.UNCHANGED_BY_RUN:
         return f"  kept       {name}  ({outcome.reason or _LANE_REPORT_ONLY_REASON}; at {_short(outcome.observed_sha)})"
     detail = f"observed {_short(outcome.observed_sha)}"
@@ -298,17 +304,22 @@ def record_post_mutation_tips(
 
 
 def _refusal(state: ConsolidationState, repo_root: Path, target_branch: str) -> RollbackReport | None:
-    """FR-011 guard: a verified landing, or a vanished snapshotted branch, is never rolled back."""
+    """FR-011 guard: a landing verified by an earlier reconciliation is never rolled back."""
     live_target = _live_tip(repo_root, target_branch) or ""
     if reconciliation_passed_for_tip(state, live_target):
         return RollbackReport(
             refused_verified_landing=True,
             reason=f"target {target_branch} is at {_short(live_target)}, verified by an earlier reconciliation",
         )
-    for branch in state.pre_mutation_refs:
-        if _live_tip(repo_root, branch) is None:
-            return RollbackReport(reason=f"snapshotted branch {branch!r} no longer exists")
     return None
+
+
+def _missing_branch_outcome(state: ConsolidationState, branch: str, snapshot: str) -> BranchOutcome:
+    """A snapshotted branch that no longer exists: report it with a recreate hint, never block the rest (F3)."""
+    hint = f"no longer exists; snapshot {snapshot}; recreate with `git branch {branch} {snapshot}` if you still need it"
+    if branch in state.snapshot_lane_branches:
+        return BranchOutcome(branch, BranchOutcomeKind.LANE_MISSING, snapshot, "", reason=f"lane branch {branch} {hint}")
+    return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, "", reason=f"branch {branch} {hint}")
 
 
 def _restore_one(repo_root: Path, branch: str, snapshot: str, restore_to: str, live: str, expected: str) -> BranchOutcome:
@@ -327,7 +338,9 @@ def _restore_one(repo_root: Path, branch: str, snapshot: str, restore_to: str, l
 
 
 def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, snapshot: str) -> BranchOutcome:
-    live = _live_tip(repo_root, branch) or ""
+    live = _live_tip(repo_root, branch)
+    if live is None:
+        return _missing_branch_outcome(state, branch, snapshot)
     restore_to = state.restore_targets.get(branch, snapshot)
     post = state.post_mutation_refs.get(branch)
     if live == restore_to:

@@ -123,6 +123,40 @@ def test_5338_resume_claim_refuse_acts_before_any_mutation(tmp_path: Path) -> No
     assert "Squashing" not in output, f"#5338: the run reached the squash phase before refusing. output={output}"
 
 
+def test_5338_abort_after_a_lane_branch_was_deleted_is_not_wedged(tmp_path: Path) -> None:
+    """Slice-10 F3: a vanished snapshotted LANE branch is reported, never a wedge.
+
+    The #5338 recovery path: gate FAIL (restored in-process), the operator deletes an
+    approved lane branch, ``--resume`` refuses at claim time, then ``--abort``. Pre-fold
+    the authority refused outright because "snapshotted branch ... no longer exists",
+    so ``--abort`` exited 1 and kept the record forever. Everything else is already at
+    its snapshot, so the abort must succeed and tell the operator how to recreate the lane.
+    """
+    mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M9WEDG")
+    plant_canceled_commit(mission, canceled_wp="WP03", carrier_wp="WP02")
+    first = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
+    assert first.returncode != 0, f"fixture precondition: the fresh run must gate-FAIL. stdout={first.stdout}\nstderr={first.stderr}"
+    lane = mission.lane_branches["WP01"]
+    state_path = _state_path(mission)
+    assert state_path is not None, "fixture precondition: the failed run leaves a resumable record"
+    lane_snapshot = json.loads(state_path.read_text(encoding="utf-8"))["pre_mutation_refs"][lane]
+    _delete_lane_branch(mission, "WP01")
+    resumed = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--resume", "--yes"])
+    assert resumed.returncode != 0, "fixture precondition: the resume refuses at claim time"
+    before = _snapshot(mission)
+
+    aborted = run_terminus(mission, ["consolidate", "--abort", "--mission", mission.slug])
+    output = " ".join((aborted.stdout + aborted.stderr).split())
+
+    assert aborted.returncode == 0, f"F3: a missing lane branch must not wedge --abort. output={output}"
+    assert _state_path(mission) is None, f"F3: the record is cleared after the (otherwise full) restore. output={output}"
+    after = _snapshot(mission)
+    assert (after["target"], after["coord"]) == (before["target"], before["coord"]), f"nothing needed restoring. output={output}"
+    assert f"lane branch {lane} no longer exists" in output, f"the report must name the vanished lane. output={output}"
+    assert f"git branch {lane} {lane_snapshot}" in output, f"the report must give the recreate command. output={output}"
+    assert "nothing was rolled back" not in output.lower(), f"no blanket refusal. output={output}"
+
+
 def test_5338_fresh_claim_refuse_leaves_no_state(tmp_path: Path) -> None:
     """US1-AS2: a FRESH run whose claim REFUSEs leaves no state.json and moves nothing."""
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5338B")

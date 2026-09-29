@@ -6,7 +6,7 @@ No git mocking. Contract guarantees (``contracts/rollback-authority.md``) covere
 * G2 (CAS on recorded post tip; UNCHANGED_BY_RUN; per-attempt targets):
   ``test_cas_conflict_*``, ``test_operator_fix_between_attempts_*``,
   ``test_restore_target_truth_table``, ``test_moved_without_recorded_post_tip_*``
-* G3 (FR-011): ``test_verified_landing_*``, ``test_deleted_snapshotted_branch_*``
+* G3 (FR-011): ``test_verified_landing_*``; missing branches (F3): ``test_deleted_*``
 * G4 (resync / dirty refusal): ``test_full_restore``, ``test_dirty_primary_checkout_*``
 * G5 (bookkeeping only after full restore; idempotent): ``test_full_restore``,
   ``test_cas_conflict_*``, ``test_rollback_is_idempotent``
@@ -355,21 +355,41 @@ def test_verified_landing_refuses_and_moves_nothing(tmp_path: Path) -> None:
     assert "nothing was rolled back" in report.render()
 
 
-def test_deleted_snapshotted_branch_refuses_and_moves_nothing(tmp_path: Path) -> None:
+def test_deleted_lane_branch_is_reported_with_a_recreate_hint_and_does_not_block(tmp_path: Path) -> None:
+    """Slice-10 F3: a vanished LANE branch no longer wedges the rollback (was: refuse everything)."""
     env = make_env(tmp_path)
-    _snapshot_and_begin(env)
+    snap = _snapshot_and_begin(env)
     _advance_run(env)
-    _git(env.repo, "branch", "-D", env.lane_branches[0])
-    target_tip = _rev(env.repo, _TARGET)
+    lane = env.lane_branches[0]
+    _git(env.repo, "branch", "-D", lane)
 
     report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
 
-    assert not report.fully_restored and not report.outcomes
-    assert env.lane_branches[0] in (report.reason or "")
-    assert _rev(env.repo, _TARGET) == target_tip
+    assert report.fully_restored, "the run's own branches are restored; the missing lane is only reported"
+    assert _kinds(report)[lane] is BranchOutcomeKind.LANE_MISSING
+    assert _kinds(report)[_TARGET] is _kinds(report)[_MISSION_BRANCH] is BranchOutcomeKind.RESTORED
+    assert {b: _rev(env.repo, b) for b in (_TARGET, _MISSION_BRANCH)} == {b: snap[b] for b in (_TARGET, _MISSION_BRANCH)}
     text = report.render()
-    assert "no longer exists" in text and "nothing was rolled back" in text.lower()
-    assert "Kept the landing" not in text  # its own truthful line, not the FR-011 verified-landing one
+    assert f"lane branch {lane} no longer exists" in text
+    assert f"snapshot {snap[lane]}" in text and f"`git branch {lane} {snap[lane]}`" in text
+    assert "nothing was rolled back" not in text.lower() and "Kept the landing" not in text
+
+
+def test_deleted_run_movable_branch_is_not_restored_with_a_recreate_hint(tmp_path: Path) -> None:
+    """Slice-10 F3: a vanished target/mission/coordination branch is NOT_RESTORED (never recreated silently)."""
+    env = make_env(tmp_path)
+    snap = _snapshot_and_begin(env)
+    _advance_run(env)
+    _git(env.repo, "branch", "-D", _MISSION_BRANCH)
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert not report.fully_restored
+    mission = next(o for o in report.outcomes if o.branch == _MISSION_BRANCH)
+    assert mission.kind is BranchOutcomeKind.NOT_RESTORED
+    assert f"`git branch {_MISSION_BRANCH} {snap[_MISSION_BRANCH]}`" in (mission.reason or "")
+    assert _kinds(report)[_TARGET] is BranchOutcomeKind.RESTORED, "the other branches are still restored"
+    assert report.advanced_branches == (_MISSION_BRANCH,)
 
 
 def test_dirty_primary_checkout_is_not_restored(tmp_path: Path) -> None:
