@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -176,31 +178,38 @@ def test_phase_merge_lanes_success_marks_unintegrated(tmp_path: Path) -> None:
     assert run.any_lane_had_unintegrated_code is True
 
 
-@pytest.mark.parametrize("is_resume", [True, False], ids=["resume-tolerates", "fresh-run-fails"])
-def test_phase_merge_lanes_already_merged_tolerated_only_on_resume(tmp_path: Path, is_resume: bool) -> None:
-    """An "already merged" lane error is tolerated on resume and nowhere else.
+_ALREADY_MERGED_LANE_RESULT = SimpleNamespace(success=False, errors=["lane already up to date"])
 
-    A fresh run that hits the same error has not merged anything yet, so it
-    must fail loud rather than continue as though the lane were integrated.
-    """
-    run = _make_run(tmp_path, is_resume=is_resume)
-    result = SimpleNamespace(success=False, errors=["lane already up to date"])
+
+@contextmanager
+def _merge_lanes_hitting_already_merged() -> Iterator[None]:
+    """Patch ``_phase_merge_lanes`` collaborators so lane-a reports "already merged"."""
     with (
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
         patch.object(ex, "_lane_already_integrated", return_value=False),
-        patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=result),
-        ex.console.capture() as captured,
+        patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=_ALREADY_MERGED_LANE_RESULT),
     ):
-        if is_resume:
-            ex._phase_merge_lanes(run)
-        else:
-            with pytest.raises(typer.Exit) as exc:
-                ex._phase_merge_lanes(run)
-            assert exc.value.exit_code == 1
+        yield
 
-    tolerated = "lane-a already merged, continuing" in captured.get()
-    assert tolerated is is_resume
+
+def test_phase_merge_lanes_resume_tolerates_already_merged_lane(tmp_path: Path) -> None:
+    """On resume, an "already merged" lane error is tolerated and announced."""
+    run = _make_run(tmp_path, is_resume=True)
+    with _merge_lanes_hitting_already_merged(), ex.console.capture() as captured:
+        ex._phase_merge_lanes(run)
+
+    assert "lane-a already merged, continuing" in captured.get()
+
+
+def test_phase_merge_lanes_fresh_run_fails_on_already_merged_lane(tmp_path: Path) -> None:
+    """A fresh run has merged nothing yet, so the same error must fail loud."""
+    run = _make_run(tmp_path, is_resume=False)
+    with _merge_lanes_hitting_already_merged(), ex.console.capture() as captured, pytest.raises(typer.Exit) as exc:
+        ex._phase_merge_lanes(run)
+
+    assert exc.value.exit_code == 1
+    assert "already merged, continuing" not in captured.get()
 
 
 def test_phase_merge_lanes_hard_failure_exits(tmp_path: Path) -> None:
@@ -349,25 +358,32 @@ def test_handle_result_rejects_zero_diff_noop_squash(tmp_path: Path) -> None:
     restore_mock.assert_called_once_with(run)
 
 
-@pytest.mark.parametrize("is_resume", [True, False], ids=["resume-tolerates", "fresh-run-fails"])
-def test_handle_result_already_merged_tolerated_only_on_resume(tmp_path: Path, is_resume: bool) -> None:
-    """Equal trees + an "already" error are tolerated on resume only.
+def _already_merged_mission_result() -> SimpleNamespace:
+    return SimpleNamespace(success=False, errors=["already up to date"], commit=None, already_applied=False)
 
-    On a fresh run the same result is a failed integration: it must exit 1
-    and restore the target, never continue to done-marking.
-    """
-    run = _make_run(tmp_path, is_resume=is_resume)
-    result = SimpleNamespace(success=False, errors=["already up to date"], commit=None, already_applied=False)
+
+def test_handle_result_resume_tolerates_already_merged(tmp_path: Path) -> None:
+    """On resume, equal trees + an "already" error continue without restoring the target."""
+    run = _make_run(tmp_path, is_resume=True)
     restored: list[object] = []
     with patch.object(ex, "_restore_pre_target_if_at_baseline", side_effect=restored.append):
-        if is_resume:
-            ex._handle_mission_merge_result(run, result, mission_integrated_into_target=True)
-        else:
-            with pytest.raises(typer.Exit) as exc:
-                ex._handle_mission_merge_result(run, result, mission_integrated_into_target=True)
-            assert exc.value.exit_code == 1
+        ex._handle_mission_merge_result(run, _already_merged_mission_result(), mission_integrated_into_target=True)
 
-    assert restored == ([] if is_resume else [run])
+    assert restored == []
+
+
+def test_handle_result_fresh_run_fails_on_already_merged(tmp_path: Path) -> None:
+    """On a fresh run the same result is a failed integration: exit 1 and restore the target."""
+    run = _make_run(tmp_path, is_resume=False)
+    restored: list[object] = []
+    with (
+        patch.object(ex, "_restore_pre_target_if_at_baseline", side_effect=restored.append),
+        pytest.raises(typer.Exit) as exc,
+    ):
+        ex._handle_mission_merge_result(run, _already_merged_mission_result(), mission_integrated_into_target=True)
+
+    assert exc.value.exit_code == 1
+    assert restored == [run]
 
 
 def test_handle_result_resume_never_tolerates_content_conflict(tmp_path: Path) -> None:

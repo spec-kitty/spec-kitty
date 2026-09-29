@@ -161,7 +161,7 @@ def _read_case_json(case_dir: Path) -> _CaseJson:
 
 
 # ---------------------------------------------------------------------------
-# All-six-resolve replay test
+# Config-key registry: fail-closed lookup and driver-count guard
 # ---------------------------------------------------------------------------
 
 _DISTINCT_CONFIG_KEYS: tuple[str, ...] = tuple(dict.fromkeys(spec.config_key for spec in _MERGE_DRIVERS))
