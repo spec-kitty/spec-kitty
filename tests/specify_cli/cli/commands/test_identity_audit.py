@@ -295,6 +295,43 @@ def test_read_stored_topology_unreadable_lanes_flags_lanes_manifest_unreadable(t
     assert row["finding"] != "SINGLE_BRANCH_CODE_LANES_UNMIGRATED"
 
 
+# --- Operator decision (PR #5398 handoff): doctor skips TERMINAL (archived) --
+# missions. A completed single_branch + code-lane mission is never run again, so
+# reporting SINGLE_BRANCH_CODE_LANES_UNMIGRATED on it is pointless churn on a
+# frozen dossier. The skip keys on the same canonical completion predicate
+# (:func:`specify_cli.status.lifecycle.is_mission_completed`) the re-stamp
+# migration uses, so the finding and the migration's selection never drift
+# apart. A LIVE mission is still flagged -- the guard still applies to it.
+
+
+def test_read_stored_topology_archived_single_branch_code_lane_has_no_finding(tmp_path: Path) -> None:
+    """A completed (merged) single_branch + code-lane mission produces no finding."""
+    d = tmp_path / "archived-sb"
+    d.mkdir()
+    (d / "meta.json").write_text(
+        json.dumps({"topology": "single_branch", "merged_at": "2026-09-25T14:19:52.098680+00:00"}),
+        encoding="utf-8",
+    )
+    _write_lanes(d, [{"lane_id": "lane-a", "wp_ids": ["WP01"]}])
+
+    row = ia._read_stored_topology(d)
+
+    assert row["finding"] is None
+    assert row["remedy"] is None
+
+
+def test_read_stored_topology_live_single_branch_code_lane_still_flags(tmp_path: Path) -> None:
+    """Twin control: a LIVE (un-merged, non-terminal) mission is still flagged."""
+    d = tmp_path / "live-sb"
+    d.mkdir()
+    (d / "meta.json").write_text(json.dumps({"topology": "single_branch"}), encoding="utf-8")
+    _write_lanes(d, [{"lane_id": "lane-a", "wp_ids": ["WP01"]}])
+
+    row = ia._read_stored_topology(d)
+
+    assert row["finding"] == "SINGLE_BRANCH_CODE_LANES_UNMIGRATED"
+
+
 # --- _collect_topology_rows --------------------------------------------------
 
 

@@ -251,6 +251,61 @@ def test_restamp_unreadable_lanes_never_writes_meta(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Operator decision (PR #5398 handoff addendum): the re-stamp migration skips
+# TERMINAL (archived) missions. A completed mission is never run again, so its
+# stale ``single_branch`` stamp never reaches the fail-closed writer guard --
+# re-stamping it would only churn a frozen ``kitty-specs/`` dossier. The skip
+# keys on the canonical completion predicate
+# :func:`specify_cli.status.lifecycle.is_mission_completed` (a ``merged_at``
+# marker OR every WP terminal), the single authority for "this mission reached
+# completion". A LIVE mission still re-stamps -- the guard still applies to it.
+# ---------------------------------------------------------------------------
+
+
+def test_archived_single_branch_code_lane_mission_is_not_restamped(tmp_path: Path) -> None:
+    """A completed (merged) single_branch + code-lane mission is skipped, meta untouched."""
+    from specify_cli.migration.backfill_topology import restamp_single_branch_with_code_lanes
+
+    kitty_specs = tmp_path / "kitty-specs"
+    slug = "archived-single-branch-code-lane"
+    dir_ = kitty_specs / slug
+    meta = _single_branch_meta(slug)
+    meta["merged_at"] = "2026-09-25T14:19:52.098680+00:00"
+    meta_path = _write_meta(dir_, meta)
+    _write_lanes(dir_, [{"lane_id": "lane-a", "wp_ids": ["WP01"]}])
+    meta_before = meta_path.read_bytes()
+
+    results = restamp_single_branch_with_code_lanes(tmp_path, dry_run=False)
+
+    assert len(results) == 1
+    result = results[0]
+    assert result.slug == slug
+    assert result.action == "skip"
+    assert result.reason is not None
+    assert "archived" in result.reason
+    assert "terminal" in result.reason
+    # A skip never touches meta.json -- the frozen dossier stays byte-identical.
+    assert meta_path.read_bytes() == meta_before
+
+
+def test_live_single_branch_code_lane_mission_still_restamped(tmp_path: Path) -> None:
+    """Twin control: a LIVE (un-merged, non-terminal) mission is still re-stamped."""
+    from specify_cli.migration.backfill_topology import restamp_single_branch_with_code_lanes
+
+    kitty_specs = tmp_path / "kitty-specs"
+    slug = "live-single-branch-code-lane"
+    dir_ = kitty_specs / slug
+    meta_path = _write_meta(dir_, _single_branch_meta(slug))  # no merged_at, no event log
+    _write_lanes(dir_, [{"lane_id": "lane-a", "wp_ids": ["WP01"]}])
+
+    results = restamp_single_branch_with_code_lanes(tmp_path, dry_run=False)
+
+    assert len(results) == 1
+    assert results[0].action == "restamped"
+    assert json.loads(meta_path.read_text(encoding="utf-8"))["topology"] == "lanes"
+
+
+# ---------------------------------------------------------------------------
 # T010 test 3 (moved to WP05 T022 — post-tasks fold B-2): the fail-closed
 # writer call sites land together with the single_branch compute_lanes arm.
 # ---------------------------------------------------------------------------
