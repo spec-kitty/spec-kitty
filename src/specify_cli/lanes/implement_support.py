@@ -127,7 +127,7 @@ def _ensure_repo_root_checkout_available(
 
     from specify_cli.lanes.checkout_occupancy import dirty_paths, in_progress_wps_in_write_checkout
     from specify_cli.status import Lane
-    from specify_cli.status.lane_reader import get_wp_lane, has_event_log
+    from specify_cli.status import get_wp_lane, has_event_log
 
     write_checkout = resolved_workspace.worktree_path
     expected_branch = resolved_workspace.branch_name
@@ -150,7 +150,7 @@ def _ensure_repo_root_checkout_available(
             f"{mission_slug} {wp_id}."
         )
 
-    status_feature_dir = repo_root / "kitty-specs" / mission_slug
+    status_feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     # has_event_log guard: a caller reaching this arm before the event log
     # is bootstrapped (e.g. a direct unit-level call to this function,
     # bypassing implement's own earlier ``_ensure_wp_claim_preconditions``

@@ -22,11 +22,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from mission_runtime import is_single_branch
+from mission_runtime import MissionArtifactKind, is_single_branch, placement_seam
 
 __all__ = ["dirty_paths", "in_progress_wps_in_write_checkout"]
-
-_KITTY_SPECS_DIR = "kitty-specs"
 
 
 def in_progress_wps_in_write_checkout(
@@ -72,15 +70,17 @@ def in_progress_wps_in_write_checkout(
     occupied: list[tuple[str, str]] = []
     for listing in list_missions_for_selection(repo_root):
         mission_slug = listing.mission_slug
-        feature_dir = repo_root / _KITTY_SPECS_DIR / mission_slug
+        seam = placement_seam(repo_root, mission_slug)
         try:
-            topology = read_topology(feature_dir)
+            topology = read_topology(seam.read_dir(MissionArtifactKind.PRIMARY_METADATA))
         except (FileNotFoundError, MissionMetaReadError, ValueError):
             continue
         if not is_single_branch(topology):
             continue
 
-        snapshot = _reduce_events(_read_events(feature_dir))
+        # single_branch has no coordination partition: the status log is read
+        # through the same seam, which resolves it to the primary mission dir.
+        snapshot = _reduce_events(_read_events(seam.read_dir(MissionArtifactKind.STATUS_STATE)))
         for wp_id, wp_state in snapshot.work_packages.items():
             if exclude == (mission_slug, wp_id):
                 continue

@@ -53,11 +53,11 @@ def _is_protected_single_branch(repo: Path, mission_slug: str, target_branch: st
     legacy manifest) and never a DERIVED topology (unstamped planning-only
     missions derive single_branch): both would land legacy missions.
     """
+    from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
     from specify_cli.migration.backfill_topology import stored_topology
     from specify_cli.mission_metadata import load_meta_or_empty
-    from mission_runtime import MissionTopology
 
-    meta = load_meta_or_empty(repo / "kitty-specs" / mission_slug)
+    meta = load_meta_or_empty(placement_seam(repo, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
     minted = meta.get("mission_branch")
     if not (isinstance(minted, str) and minted and minted != target_branch):
         return False
