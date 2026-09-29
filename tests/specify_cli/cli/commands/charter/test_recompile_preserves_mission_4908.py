@@ -39,7 +39,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.activation.charter_yaml_io import read_catalog_field, read_catalog_mission
+from charter.activation.charter_yaml_io import catalog_field_from_document, read_catalog_field, read_catalog_mission
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.charter.generate import (
     _read_catalog_mission_from_charter_yaml,
@@ -319,6 +319,23 @@ def test_generate_reader_and_shared_accessor_agree_on_absent_result(tmp_path: Pa
 
     assert _read_catalog_mission_from_charter_yaml(tmp_path) is None
     assert read_catalog_mission(tmp_path) is None
+
+
+@pytest.mark.parametrize(
+    ("document", "expected"),
+    [
+        ({"catalog": {"mission": "research"}}, "research"),
+        ({"catalog": {"template_set": "x"}}, None),
+        ({"catalog": ["not", "a", "mapping"]}, None),
+        ({}, None),
+        (["not", "a", "mapping"], None),
+    ],
+)
+def test_catalog_field_from_document_reads_only_a_mapping_catalog(document: object, expected: str | None) -> None:
+    """The document-level accessor callers use when they load charter.yaml
+    themselves (the rc5 provenance migration, which must fail closed on an
+    unreadable file) applies the same shape rules as ``read_catalog_field``."""
+    assert catalog_field_from_document(document, "mission") == expected
 
 
 def test_catalog_mission_has_exactly_one_reader_outside_the_shared_accessor() -> None:

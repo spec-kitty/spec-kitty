@@ -241,6 +241,8 @@ def _load_charter_document(charter_path: Path) -> Any:
 
 
 def _healable_references(charter_path: Path, document: Any | None = None) -> list[tuple[dict[str, Any], str]]:
+    from charter.activation.charter_yaml_io import catalog_field_from_document  # noqa: PLC0415
+
     if not charter_path.is_file():
         return []
 
@@ -250,7 +252,7 @@ def _healable_references(charter_path: Path, document: Any | None = None) -> lis
     if not isinstance(catalog, dict):
         return []
 
-    mission = catalog.get("mission")
+    mission = catalog_field_from_document(document, "mission")
     template_set = catalog.get("template_set")
     if not isinstance(template_set, str) or not template_set:
         return []
@@ -285,6 +287,8 @@ def describe_template_set_leaks(project_path: Path) -> list[str]:
 
 def describe_template_set_ambiguities(project_path: Path) -> list[str]:
     """Return candidate legacy template paths whose checkout identity is unproven."""
+    from charter.activation.charter_yaml_io import catalog_field_from_document  # noqa: PLC0415
+
     charter_path = _charter_path(project_path)
     if not charter_path.is_file():
         return []
@@ -293,7 +297,7 @@ def describe_template_set_ambiguities(project_path: Path) -> list[str]:
     catalog = document.get("catalog") if hasattr(document, "get") else None
     if not isinstance(catalog, dict):
         return []
-    suffix = _expected_mission_suffix(catalog.get("mission"))
+    suffix = _expected_mission_suffix(catalog_field_from_document(document, "mission"))
     if suffix is None:
         return []
     template_set = catalog.get("template_set")

@@ -49,6 +49,7 @@ __all__ = [
     "render_yaml_document",
     "prepare_charter_yaml_section",
     "yaml_documents_equal",
+    "catalog_field_from_document",
     "read_catalog_field",
     "read_catalog_mission",
 ]
@@ -560,6 +561,17 @@ def read_catalog_field(repo_root: Path, field: str) -> Any | None:
     except (YAMLError, OSError, UnicodeDecodeError):
         return None
 
+    return catalog_field_from_document(document, field)
+
+
+def catalog_field_from_document(document: Any, field: str) -> Any | None:
+    """Read ``catalog.<field>`` from an already-loaded ``charter.yaml`` document.
+
+    The document-level half of :func:`read_catalog_field`, for callers that
+    must load the file themselves (for example to fail closed on an unreadable
+    charter, where :func:`read_catalog_field` fails open). Returns ``None``
+    when ``catalog`` is absent or not a mapping, or ``field`` is absent.
+    """
     catalog = document.get("catalog") if isinstance(document, dict) else None
     if not isinstance(catalog, dict):
         return None
