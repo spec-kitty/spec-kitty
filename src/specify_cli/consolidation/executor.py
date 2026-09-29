@@ -3172,18 +3172,21 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
 
 
 def _clear_landed_single_branch_mission_branch(run: _MergeRunState) -> None:
-    """#5100 B4: drop ``meta.mission_branch`` once the landed branch is deleted.
+    """#5100 B4: drop ``meta.mission_branch`` once the branch has been landed.
 
     A protected single_branch mission records its minted ``mission_branch`` in
-    ``meta.json``. After landing + deletion it names a dead branch: post-merge
-    writes (retrospective, status) would route to it and ``mission reopen``
-    refuses. Clearing it (mirroring the coord flatten) makes later writes
-    resolve to ``target_branch``. No-op unless the branch was landed and is gone.
+    ``meta.json``. After landing it no longer is the write target whether the
+    branch was deleted (it names a dead branch) or kept (``--keep-branch`` /
+    ``retain_branches``; the write checkout is already back on the target, so a
+    retained ``mission_branch`` would route the retrospective and every later
+    status write to a branch the checkout is not on). Clearing it (mirroring the
+    coord flatten) makes later writes resolve to ``target_branch``. No-op unless
+    the mission lands a protected mission branch.
     """
     from specify_cli.lanes.single_branch_landing import lands_mission_branch
     from specify_cli.mission_metadata import load_meta_or_empty, write_meta
 
-    if not lands_mission_branch(run.main_repo, run.lanes_manifest) or _mission_branch_exists(run):
+    if not lands_mission_branch(run.main_repo, run.lanes_manifest):
         return
     feature_dir = run.target_feature_dir
     meta = load_meta_or_empty(feature_dir)
@@ -3231,7 +3234,9 @@ def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
     landed_single_branch = lands_mission_branch(run.main_repo, run.lanes_manifest)
     if run.delete_branch:
         _delete_mission_branch(run)
-        _clear_landed_single_branch_mission_branch(run)
+    # Landed => the branch is no longer the write target, kept or deleted.
+    _clear_landed_single_branch_mission_branch(run)
+    if run.delete_branch:
         # issue #3086: the coordination branch is now gone from git; flatten the
         # mission's meta.json in the SAME gate so we can never delete the branch
         # yet strand the paired ``coordination_branch`` marker. A no-op here

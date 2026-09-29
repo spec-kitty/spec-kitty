@@ -258,8 +258,9 @@ def test_protected_landing_clears_mission_branch_and_keeps_tree_clean(protected_
     assert ref == "main"
 
 
-def test_retained_mission_branch_keeps_meta_mission_branch(protected_repo: Path) -> None:
-    """Control: --keep-branch retains the branch, so the recorded name stays valid."""
+def test_retained_mission_branch_still_clears_meta_mission_branch(protected_repo: Path) -> None:
+    """--keep-branch retains the landed branch but it stops being the write target (#5100)."""
+    from mission_runtime.resolution import _resolve_single_branch_write_ref
     from specify_cli.mission_metadata import load_meta_or_empty
 
     run = _build_run(protected_repo, _protected_lanes_manifest(), delete_branch=False)
@@ -269,7 +270,8 @@ def test_retained_mission_branch_keeps_meta_mission_branch(protected_repo: Path)
     ex._cleanup_mission_branch_and_coordination(run)
 
     assert _branch_exists(protected_repo, _MISSION_BRANCH)
-    assert load_meta_or_empty(protected_repo / "kitty-specs" / _SLUG)["mission_branch"] == _MISSION_BRANCH
+    assert "mission_branch" not in load_meta_or_empty(protected_repo / "kitty-specs" / _SLUG)
+    assert _resolve_single_branch_write_ref("single_branch", "main", protected_repo, _SLUG) == "main"
 
 
 # ---------------------------------------------------------------------------

@@ -86,6 +86,28 @@ def test_protected_single_branch_consolidate_honours_retain_branches(tmp_path: P
     assert "VALUE = 100" in _git(repo, "show", "main:src/wp01.py")
     assert _git(repo, "branch", "--show-current") == "main"
     assert _branch_exists(repo, minted), "retain_branches keeps the mission branch"
+    _assert_landed_mission_branch_cleared(repo, slug)
+
+
+def _assert_landed_mission_branch_cleared(repo: Path, slug: str) -> None:
+    """The branch is landed: post-merge writes target ``target_branch``, the tree is clean."""
+    import json
+
+    meta = json.loads((repo / "kitty-specs" / slug / "meta.json").read_text(encoding="utf-8"))
+    assert "mission_branch" not in meta, "a landed (even if retained) mission branch must not stay the write target"
+    assert _git(repo, "status", "--porcelain") == "", "no post-merge write may be left uncommitted"
+
+
+def test_protected_single_branch_consolidate_keep_branch_clears_write_target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--keep-branch`` (delete_branch=False): landed branch kept, but meta stops routing writes to it."""
+    repo, slug, minted = _approved_mission(tmp_path, monkeypatch, "cons-keep")
+
+    _consolidate(repo, slug, delete_branch=False)
+
+    assert "VALUE = 100" in _git(repo, "show", "main:src/wp01.py")
+    assert _git(repo, "branch", "--show-current") == "main"
+    assert _branch_exists(repo, minted), "--keep-branch keeps the mission branch"
+    _assert_landed_mission_branch_cleared(repo, slug)
 
 
 def _legacy_repo(tmp_path: Path, meta: dict[str, object]) -> tuple[Path, object]:
