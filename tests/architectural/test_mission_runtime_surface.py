@@ -72,6 +72,11 @@ _PUBLIC_SURFACE = sorted(
         # mission_runtime/mission_resolver_port.py for the full rationale.
         "MissionResolver",
         "MissionTopology",
+        # #5100 WP04 (T020b): the SINGLE_BRANCH-manifest fail-closed writer
+        # guard, promoted off module-private status onto the root once the
+        # review path (``agent/workflow.py``) became its first real src/
+        # caller (tests/architectural/test_no_dead_symbols.py).
+        "assert_topology_matches_manifest",
         # issue-matrix-partition-integrity followups (#5222/F2): the ONE typed
         # refusal ``read_issue_matrix_ref_content`` raises, promoted onto the
         # root so review/doctor consumers of

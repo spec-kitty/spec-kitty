@@ -1447,7 +1447,7 @@ def implement(
         # checkout the mission does not own. write_intent gates the
         # checkout-identity refusal (pure reads leave it False).
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id, write_intent=True)
-        status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
+        status_execution_mode = workspace.status_execution_mode
 
         def _create_workspace() -> None:
             top_level_implement(

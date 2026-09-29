@@ -260,6 +260,27 @@ def test_stale_fallback_planning_artifact_repo_root_reason() -> None:
     )
 
 
+def test_stale_fallback_repo_root_code_wp_is_not_reported_stale_detection_unavailable() -> None:
+    """#5100 WP04 T019: a single_branch repo-root CODE work package must get
+    the SAME ``planning_artifact_repo_root_shared_workspace`` fallback reason
+    a planning_artifact repo-root WP does, never
+    ``stale_detection_unavailable`` -- the gate is ``workspace_kind ==
+    "repo_root"`` alone (line 147, ``fallback_reason``), NOT also
+    ``execution_mode == "planning_artifact"``. Mutation-checked: restoring
+    the retired ``execution_mode``-gated form makes this test fail (see the
+    docstring's contrast test below)."""
+    results = build_stale_fallback_results(
+        [{"id": "WP01", "workspace_kind": "repo_root", "execution_mode": "code_change"}],
+        RuntimeError("boom"),
+    )
+    result = cast(StaleCheckResult, results["WP01"])
+    assert result.stale.reason != "stale_detection_unavailable"
+    assert (
+        cast(StaleCheckResult, results["WP01"]).stale.reason
+        == "planning_artifact_repo_root_shared_workspace"
+    )
+
+
 def test_stale_fallback_skips_rows_without_an_id() -> None:
     results = build_stale_fallback_results([{"title": "no id here"}], RuntimeError("boom"))
     assert results == {}

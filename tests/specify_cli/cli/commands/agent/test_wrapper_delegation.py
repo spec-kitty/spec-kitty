@@ -28,6 +28,9 @@ def _workspace(exists: bool) -> SimpleNamespace:
         is_husk=False,
         worktree_path=Path("/nonexistent/spec-kitty-test-worktree"),
         resolution_kind="repo_root",
+        # #5100: ResolvedWorkspace.status_execution_mode, read by the review
+        # claim/gate resolver alongside resolution_kind.
+        status_execution_mode="direct_repo",
     )
 
 

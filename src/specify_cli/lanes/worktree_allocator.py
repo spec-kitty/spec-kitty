@@ -1460,11 +1460,14 @@ def _ensure_branch_exists(
     _create_branch_from(repo_root, branch, fallback_parent)
 
 
-def _validate_worktree_clean(worktree_path: Path, lane_id: str) -> None:
-    """Fail if the worktree has uncommitted changes.
+def _git_status_porcelain_lines(worktree_path: Path) -> list[str]:
+    """Run ``git status --porcelain`` in *worktree_path* and return its output lines.
 
-    This prevents a WP from inheriting dirty state from a prior WP
-    in the same lane.
+    The single low-level ``git status`` vehicle shared by
+    :func:`_validate_worktree_clean` (dirty-or-not, this module) and
+    :func:`specify_cli.lanes.checkout_occupancy.dirty_paths` (which paths,
+    filtered by spec-kitty ownership, #5100 T018) -- so the two never issue a
+    second, independently-drifting ``git status`` subprocess call.
     """
     result = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -1474,7 +1477,16 @@ def _validate_worktree_clean(worktree_path: Path, lane_id: str) -> None:
     )
     if result.returncode != 0:
         raise RuntimeError(f"git status failed in {worktree_path}: {result.stderr.strip()}")
-    if result.stdout.strip():
+    return result.stdout.splitlines()
+
+
+def _validate_worktree_clean(worktree_path: Path, lane_id: str) -> None:
+    """Fail if the worktree has uncommitted changes.
+
+    This prevents a WP from inheriting dirty state from a prior WP
+    in the same lane.
+    """
+    if _git_status_porcelain_lines(worktree_path):
         raise DirtyWorktreeError(f"Lane {lane_id} worktree at {worktree_path} has uncommitted changes. Commit or stash before starting the next WP.")
 
 

@@ -128,12 +128,15 @@ def compute_and_write_lanes(
             (#5100 IC-02 / M3), read by the caller via
             :func:`specify_cli.migration.backfill_topology.read_topology`.
             Threaded through by all three callers of this function; a
-            LATER work package of this mission (post-tasks fold B-2) wires
-            it into the fail-closed
-            :func:`mission_runtime.context._assert_topology_matches_manifest`
-            call this function does not yet make. Validated at this
-            boundary (``input-validation-fail-fast``) so a caller passing
-            the wrong type fails loud here rather than downstream.
+            LATER work package of this mission (WP05, IC-03) wires it into
+            the fail-closed
+            :func:`mission_runtime.assert_topology_matches_manifest`
+            call this function does not yet make (WP04 promoted that
+            assertion to public and wired its first real caller into the
+            review path -- ``agent/workflow.py`` -- but not here; this
+            function's own writer chokepoint is still WP05's). Validated at
+            this boundary (``input-validation-fail-fast``) so a caller
+            passing the wrong type fails loud here rather than downstream.
 
     Returns:
         A ``(lanes_path, lanes_manifest)`` tuple.

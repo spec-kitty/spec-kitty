@@ -328,7 +328,7 @@ class TestCheckLaneGates:
             lambda _fd: SimpleNamespace(target_branch="feat/target", mission_branch="kitty/mission-x"),
         )
         monkeypatch.setattr(acceptance_module, "read_target_branch_from_meta", lambda _fd: None)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: True)
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
         blocked: list[AcceptanceCheckDiagnostic] = []
@@ -344,7 +344,7 @@ class TestCheckLaneGates:
             lambda _fd: SimpleNamespace(target_branch="feat/target", mission_branch="kitty/mission-x"),
         )
         monkeypatch.setattr(acceptance_module, "read_target_branch_from_meta", lambda _fd: None)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: True)
         activity_issues: list[str] = []
 
         acceptance_module._check_lane_gates(tmp_path, tmp_path, None, activity_issues, [], [])
@@ -357,7 +357,7 @@ class TestCheckLaneGates:
             lambda _fd: SimpleNamespace(target_branch="feat/target", mission_branch="kitty/mission-x"),
         )
         monkeypatch.setattr(acceptance_module, "read_target_branch_from_meta", lambda _fd: None)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: True)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: False)
 
         def _fail_if_called(_fd: Path) -> Any:
             raise AssertionError("read_acceptance_matrix must not be called for planning-artifact-only missions")
@@ -383,7 +383,7 @@ class TestCheckLaneGates:
             lambda _fd: SimpleNamespace(target_branch="feat/target", mission_branch="kitty/mission-x"),
         )
         monkeypatch.setattr(acceptance_module, "read_target_branch_from_meta", lambda _fd: None)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: True)
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: None)
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
@@ -404,7 +404,7 @@ class TestCheckLaneGates:
             lambda _fd: SimpleNamespace(target_branch="feat/target", mission_branch="kitty/mission-x"),
         )
         monkeypatch.setattr(acceptance_module, "read_target_branch_from_meta", lambda _fd: None)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: True)
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: evidence_errors or [])
         # WP02 (accept-fails-closed): the gate now persists the recomputed

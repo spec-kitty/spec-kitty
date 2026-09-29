@@ -603,6 +603,9 @@ class TestImplementCommand:
                 lane_wp_ids=["WP02"],
                 resolution_kind="repo_root",
                 exists=True,
+                # #5100: ResolvedWorkspace.status_execution_mode, read alongside
+                # resolution_kind by every status emit path.
+                status_execution_mode="direct_repo",
             )
             mock_create_lane_workspace.return_value = MagicMock(
                 workspace_path=tmp_path,

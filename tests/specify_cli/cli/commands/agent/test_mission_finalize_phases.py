@@ -980,6 +980,41 @@ def test_apply_bootstrap_fields_normalizes_string_form_even_when_values_equal() 
     assert list(built.dependencies) == ["WP00"]
 
 
+def test_apply_ownership_inference_writes_execution_mode_for_a_single_branch_repo_root_code_wp() -> None:
+    """#5100 WP04 cycle-3: verifies the single_branch assumption
+    ``lanes/compute.py::mission_has_code``'s docstring relies on -- a
+    single_branch mission's repo-root-lane CODE WP is not gated on
+    topology here (``_apply_ownership_inference`` runs identically for
+    every WP of every topology): a WP with NO ``execution_mode`` at all
+    gets one written (``changed is True``, ``execution_mode`` present in
+    ``changed_fields``), so after ``finalize-tasks`` persists it, the NEXT
+    read (``build_normalized_wp_index``) sees ``mode_source ==
+    "frontmatter"`` for it, never ``"inferred_legacy"``. This is why
+    ``mission_has_code`` can safely rely on the frontmatter-only filter for
+    the single_branch repo-root-lane case without ALSO needing the
+    lane-shape floor there (a single_branch mission's ONE lane is always
+    repo-root, so the floor can never fire for it anyway)."""
+    meta = WPMetadata(
+        work_package_id="WP01",
+        title="Implement parser",
+        owned_files=["src/**"],
+    )
+    bld = meta.builder()
+
+    changed, warnings, contradiction = seam._apply_ownership_inference(
+        bld,
+        meta,
+        "---\nwork_package_id: WP01\n---\n\nImplement `src/parser.py`.\n",
+        "single-branch-mission",
+        {},
+    )
+
+    assert contradiction is None
+    assert changed is True
+    built = bld.build()
+    assert built.execution_mode == str(WorkProductKind.CODE_CHANGE)
+
+
 def test_apply_ownership_inference_skips_when_present() -> None:
     meta = WPMetadata(
         work_package_id="WP01",

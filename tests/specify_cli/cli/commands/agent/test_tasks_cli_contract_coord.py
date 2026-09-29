@@ -571,7 +571,14 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
     # planning-artifact-WP done (FR-008a): ancestry check SKIPPED for a non-code_change WP.
     fd = _simple_mission(mkdir(), f"planart-{_MID8}", execution_mode="planning_artifact")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review"), ("for_review", "approved")])
-    ws_plan = SimpleNamespace(execution_mode="planning_artifact", worktree_path=str(fd.parent.parent), branch_name="none", resolution_kind="lane_workspace")
+    ws_plan = SimpleNamespace(
+        execution_mode="planning_artifact",
+        worktree_path=str(fd.parent.parent),
+        branch_name="none",
+        resolution_kind="lane_workspace",
+        # #5100: ResolvedWorkspace.status_execution_mode, read alongside resolution_kind.
+        status_execution_mode="worktree",
+    )
     with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, workspace_resolution=ws_plan, extra_patches=_REVIEW_GATE_BYPASS):
         code, text, _ = _invoke(["move-task", "WP01", "--to", "done", "--mission", fd.name, "--force", "--no-auto-commit"])
     out["planning_artifact_done"] = Scenario(code, text)
@@ -579,7 +586,14 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
     # code-change contrast: the SAME move with a code_change WP DEMANDS ancestry/override.
     fd = _simple_mission(mkdir(), f"codechange-{_MID8}", execution_mode="code_change")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review"), ("for_review", "approved")])
-    ws_code = SimpleNamespace(execution_mode="code_change", worktree_path=str(fd.parent.parent), branch_name="kitty/none", resolution_kind="lane_workspace")
+    ws_code = SimpleNamespace(
+        execution_mode="code_change",
+        worktree_path=str(fd.parent.parent),
+        branch_name="kitty/none",
+        resolution_kind="lane_workspace",
+        # #5100: ResolvedWorkspace.status_execution_mode, read alongside resolution_kind.
+        status_execution_mode="worktree",
+    )
     with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, workspace_resolution=ws_code, extra_patches=_REVIEW_GATE_BYPASS):
         code, text, _ = _invoke(["move-task", "WP01", "--to", "done", "--mission", fd.name, "--force", "--no-auto-commit"])
     out["code_change_done_blocked"] = Scenario(code, text)

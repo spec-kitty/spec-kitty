@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
-from specify_cli.lanes.compute import is_planning_lane
+from specify_cli.lanes.compute import is_repo_root_lane
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -121,7 +121,7 @@ def sync_lane_after_coordination_commit(
         return None
 
     lane = lanes_manifest.lane_for_wp(wp_id)
-    if lane is None or is_planning_lane(lane):
+    if lane is None or is_repo_root_lane(lane):
         return None
 
     # Placement (path + branch) comes from the single predict seam (PD-1):

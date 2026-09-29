@@ -720,7 +720,7 @@ def _created_lane_worktree(main_repo: Path, mission_slug: str, lane_id: str) -> 
 @_records_post_mutation_tips
 def _phase_merge_lanes(run: _MergeRunState) -> None:
     """Merge each lane branch into the mission branch (skipping integrated lanes)."""
-    from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.lanes.compute import is_repo_root_lane
     from specify_cli.lanes.consolidation import consolidate_lane_into_mission
 
     lanes_manifest = run.lanes_manifest
@@ -735,7 +735,14 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
             "(lane naming is keyed on the manifest slug alone)"
         )
     for lane in lanes_manifest.lanes:
-        if run.planning_artifact_only and is_planning_lane(lane):
+        # #5100 T020: keyed on the LANE (is_repo_root_lane), never on
+        # ``run.planning_artifact_only`` -- a single_branch repo-root lane
+        # holding CODE WPs has no lane branch to merge regardless of whether
+        # the whole run is planning-artifact-only (it is not, for a
+        # single_branch mission with code WPs). This replaces the former
+        # ``planning_artifact_only``-gated skip; that field keeps its other
+        # uses in this module unchanged.
+        if is_repo_root_lane(lane):
             console.print(f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}")
             continue
 
@@ -751,7 +758,7 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         # FR-037: skip ONLY when the lane branch is already fully integrated into
         # the mission branch (real tree state), never on the ``done`` proxy.
         _lane_branch = _created_lane_branch(lanes_manifest, lane.lane_id)
-        if not is_planning_lane(lane) and (
+        if not is_repo_root_lane(lane) and (
             _lane_already_integrated(run.main_repo, _lane_branch, lanes_manifest.mission_branch) or _lane_completed_but_branch_gone(run, lane, _lane_branch)
         ):
             console.print(f"  [dim]Skipping {lane.lane_id} (already integrated into {lanes_manifest.mission_branch})[/dim]")
@@ -1499,15 +1506,76 @@ def _handle_mission_merge_result(
             console.print(f"  Commit: {mission_result.commit[:7]}")
 
 
+def _run_has_code_wps(run: _MergeRunState) -> bool:
+    """The WP-kind "has code" question for *run* (#5100 T020 / plan fold B3).
+
+    Delegates to :func:`specify_cli.lanes.compute.has_code_wps` over a
+    freshly-built WP-kind index (:func:`build_normalized_wp_index`), never
+    ``run.planning_artifact_only`` (lane-based, unchanged for its other
+    callers in this module) -- a single_branch mission's ONE repo-root lane
+    reads as lane-based "planning-only" even when it holds real CODE WPs.
+
+    #5100 WP04 cycle-2 fix (review issue 2): ONLY an EXPLICIT frontmatter
+    ``execution_mode`` (``mode_source == "frontmatter"``) counts as a
+    reliable "code" signal here. A WP with no ``execution_mode`` in its
+    frontmatter normalizes via :func:`~specify_cli.ownership.inference.infer_execution_mode`,
+    which DEFAULTS to ``code_change`` when the body carries neither a
+    planning nor a code signal (``mode_source == "inferred_legacy"``) -- the
+    prior ``entry.metadata.execution_mode or WorkProductKind.CODE_CHANGE``
+    trusted that bare default as "real" code, flipping a genuinely
+    lane-planning-only legacy mission into "has code" and wrongly running
+    the birth cutover for a bookkeeping-only merge (regression:
+    ``test_planning_only_bookkeeping_reaches_target_branch``). Excluding an
+    ``inferred_legacy`` entry from the index entirely (never defaulting it)
+    means an untyped legacy WP simply does not vote either way, restoring
+    the base's conservative lane-based floor for that case while still
+    letting an EXPLICITLY-authored ``code_change`` WP (this mission's own
+    single_branch-with-code contract) register as real code.
+
+    #5100 WP04 cycle-3 fix (review issue 1): the frontmatter-only filter
+    above over-corrected -- it also drops a REAL legacy lanes/coord
+    mission's body-evidenced code WP (no explicit ``execution_mode``, but
+    the body says e.g. ``src/parser.py``), which ALSO normalizes to
+    ``mode_source == "inferred_legacy"``. Delegates to
+    :func:`~specify_cli.lanes.compute.mission_has_code`, which ORs this same
+    frontmatter-only kind check with the lane-shape floor
+    (``has_code_lanes``) -- a real code lane always means code, so a legacy
+    mission's per-WP frontmatter ambiguity can never flip it to "no code"
+    the way the bare kind check alone just did.
+    """
+    from specify_cli.lanes.compute import mission_has_code
+    from specify_cli.ownership.models import WorkProductKind
+    from specify_cli.workspace.context import build_normalized_wp_index
+
+    index = build_normalized_wp_index(run.main_repo, run.mission_slug)
+    wp_kinds = {wp_id: WorkProductKind(entry.metadata.execution_mode) for wp_id, entry in index.items() if entry.mode_source == "frontmatter"}
+    # bool(...): the project's ``specify_cli.*`` follow_imports=skip mypy
+    # setting means this deferred cross-module import's return type is not
+    # visible here -- see gates_core.py's module docstring for the same
+    # note. ``mission_has_code`` is declared ``-> bool``; this reasserts it.
+    return bool(mission_has_code(run.lanes_manifest, wp_kinds))
+
+
 @_records_post_mutation_tips
 def _phase_mission_to_target(run: _MergeRunState) -> None:
     """Merge the mission branch into the target branch (honoring strategy)."""
+    lanes_manifest = run.lanes_manifest
+    if lanes_manifest.mission_branch == lanes_manifest.target_branch:
+        # #5100 T020 / research.md R-9: the unprotected single_branch
+        # bookkeeping-only case -- there is no separate mission branch to
+        # land, so this phase is a no-op. Checked BEFORE
+        # ``run.planning_artifact_only`` below: a single_branch mission's
+        # ONE repo-root lane always reads as lane-based "planning-only"
+        # (plan fold B3) even when it holds CODE WPs, so gating this skip on
+        # that flag alone would also incorrectly no-op a PROTECTED
+        # single_branch mission (WP08/IC-05) whose ``mission_branch``
+        # genuinely differs from ``target_branch`` and needs to land.
+        return
     if run.planning_artifact_only:
         return
 
     from specify_cli.lanes.consolidation import integrate_mission_into_target
 
-    lanes_manifest = run.lanes_manifest
     # FR-037 (#1772 Bug 3): gate the no-op squash recovery on tree equivalence.
     _mission_integrated_into_target = _branch_trees_equal(
         run.main_repo,
@@ -1797,10 +1865,16 @@ def _run_birth_cutover(run: _MergeRunState) -> None:
     Best-effort / non-fatal: a cutover failure must not abort an otherwise
     successful merge (the runtime-state gap remains repairable via the
     standing ``migrate backfill-runtime-state`` command) — logged, never
-    raised, and skipped entirely for a planning-artifact-only mission (no WPs
-    to reconcile).
+    raised, and skipped entirely for a mission with no code WPs to
+    reconcile.
+
+    #5100 T020 / plan fold B3: keyed on :func:`_run_has_code_wps` (a WP-kind
+    question), never ``run.planning_artifact_only`` (lane-based) -- a
+    single_branch mission's ONE repo-root lane reads as lane-based
+    "planning-only" even when it holds real CODE WPs, which would wrongly
+    skip their runtime-state reconciliation.
     """
-    if run.planning_artifact_only:
+    if not _run_has_code_wps(run):
         return
 
     from specify_cli.migration.runtime_state_cutover import cutover_mission
@@ -2912,8 +2986,21 @@ def _delete_mission_branch(run: _MergeRunState) -> bool:
     worktree and ``check_return=False`` swallows that (#3926), so the caller
     that couples this to the rest of the coord triple needs the answer rather
     than an assumed success.
+
+    #5100 T020 safety fix: an UNPROTECTED single_branch mission's manifest
+    carries ``mission_branch == target_branch`` (contracts/single-branch-
+    execution.md's consolidate table -- bookkeeping only, no branch merge or
+    deletion). Without this guard, ``git branch -D <mission_branch>`` would
+    delete the mission's TARGET branch itself (e.g. ``main``) the moment
+    ``run.delete_branch`` is True -- the single most dangerous consequence
+    of ``lanes_manifest.mission_branch`` being unconditionally derived
+    ``kitty/mission-...`` for every other topology previously made
+    unreachable. Returns ``True`` (nothing to delete, target is untouched)
+    rather than attempting it.
     """
     lanes_manifest = run.lanes_manifest
+    if lanes_manifest.mission_branch == lanes_manifest.target_branch:
+        return True
     if _mission_branch_exists(run):
         run_command(
             ["git", "branch", "-D", lanes_manifest.mission_branch],

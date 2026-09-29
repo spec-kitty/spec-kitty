@@ -219,6 +219,22 @@ class ResolvedWorkspace:
     context: WorkspaceContext | None = None
 
     @property
+    def status_execution_mode(self) -> str:
+        """The status-event ``execution_mode`` stamp for this resolution (#5100 R-10).
+
+        ``"direct_repo"`` when this workspace resolves to a repository-root
+        checkout (``resolution_kind == "repo_root"`` -- a planning-artifact WP
+        or a single_branch repo-root-lane WP), else ``"worktree"``. This is
+        the SINGLE derivation every status-emit call site uses; it replaces
+        three previously copied ``"direct_repo" if ... else "worktree"``
+        one-liners (``implement.py``, ``agent/workflow.py``,
+        ``agent/workflow_executor.py``) and the hardcoded ``"worktree"``
+        literals at the orchestrator-api and ``move-task`` call sites, so the
+        stamp can never drift from ``resolution_kind`` at any of them.
+        """
+        return "direct_repo" if self.resolution_kind == "repo_root" else "worktree"
+
+    @property
     def exists(self) -> bool:
         """Return True when the resolved worktree is an actual git worktree on disk.
 
@@ -709,14 +725,17 @@ def resolve_workspace_for_wp(
     *,
     write_intent: bool = False,
     current_cwd: Path | None = None,
+    effective_root: Path | None = None,
 ) -> ResolvedWorkspace:
     """Resolve the real workspace/branch contract for a work package.
 
     Resolution order:
     1. Normalize WP metadata and execution mode once per process
     2. planning_artifact -> repository root
-    3. Existing lane workspace context for code_change
-    4. `lanes.json` lane mapping for code_change
+    3. `lanes.json` repo-root lane (single_branch, #5100 M8) -- BEFORE the
+       persisted context lookup, so a stale context record can never shadow it
+    4. Existing lane workspace context for code_change
+    5. `lanes.json` lane mapping for code_change
 
     The returned path may not exist yet; callers can inspect `.exists`.
 
@@ -733,8 +752,14 @@ def resolve_workspace_for_wp(
     mission's own worktrees are never refused. The comparison is pure-path — no
     git subprocess is invoked (NFR-004). ``current_cwd`` defaults to the process
     CWD; it is injectable for tests.
+
+    ``effective_root`` (#5100 IC-03 / R-12, adapted from PR #5009, re-keyed on
+    the STORED topology rather than mere presence): when given, the mission
+    MUST be ``single_branch`` -- :func:`_resolve_workspace_for_wp_impl` raises
+    ``ValueError`` otherwise -- and a single_branch repo-root-lane WP resolves
+    to ``effective_root`` instead of ``repo_root``.
     """
-    resolved = _resolve_workspace_for_wp_impl(repo_root, mission_slug, wp_id)
+    resolved = _resolve_workspace_for_wp_impl(repo_root, mission_slug, wp_id, effective_root=effective_root)
     if write_intent:
         from mission_runtime import enforce_checkout_identity
         from specify_cli.core.paths import get_main_repo_root
@@ -840,6 +865,76 @@ def _resolve_context_arm(
     )
 
 
+def _validate_effective_root_topology(repo_root: Path, mission_slug: str) -> None:
+    """Fail closed when ``effective_root`` is given for a non-single_branch mission.
+
+    ``effective_root`` names an alternate write checkout for the OWNED
+    (single_branch, protected-target) placement mode only (ADR
+    2026-09-03-1) -- #5100 IC-03 / T017. A caller that passes it for any
+    other topology has mis-keyed the call; refusing here, once, keeps every
+    resolution arm from having to re-derive this invariant.
+    """
+    from mission_runtime import is_single_branch, resolve_topology
+
+    topology = resolve_topology(repo_root, mission_slug)
+    if not is_single_branch(topology):
+        raise ValueError(f"effective_root is only supported for single_branch missions (mission {mission_slug!r} is topology {topology.value!r})")
+
+
+def _resolve_repo_root_lane_arm(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    normalized_wp: NormalizedWorkPackage,
+    execution_mode: WorkProductKind,
+    *,
+    effective_root: Path | None,
+) -> ResolvedWorkspace | None:
+    """Resolve a WP whose ``lanes.json`` lane is a repo-root lane (#5100 M8).
+
+    Checked BEFORE the persisted :class:`WorkspaceContext` arm (plan fold M8):
+    a single_branch repo-root lane can hold CODE work packages (unlike the
+    planning-only ``lane-planning`` lane every other topology carries), and a
+    stale context record left over from before the mission adopted
+    single_branch -- or from an unrelated prior run -- must never shadow this
+    routing. Returns ``None`` when ``lanes.json`` is absent, the WP has no
+    lane, or its lane is not a repo-root lane, so the caller falls through to
+    the existing context / code-lane arms unchanged.
+
+    The resolved ``branch_name`` follows the contract's resolve table
+    (``contracts/single-branch-execution.md``): the manifest's own
+    ``mission_branch`` when set (a protected-target single_branch mission,
+    IC-05), else its ``target_branch``. ``worktree_path`` is ``effective_root``
+    when given, else the repository root checkout.
+    """
+    from specify_cli.lanes.compute import PLANNING_LANE_ID, is_repo_root_lane
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
+    lanes_manifest = read_lanes_json(lanes_read_dir)
+    if lanes_manifest is None:
+        return None
+    lane = lanes_manifest.lane_for_wp(wp_id)
+    if lane is None or not is_repo_root_lane(lane):
+        return None
+
+    worktree_path = effective_root if effective_root is not None else repo_root
+    branch_name = lanes_manifest.mission_branch or lanes_manifest.target_branch
+    return ResolvedWorkspace(
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        execution_mode=execution_mode.value,
+        mode_source=normalized_wp.mode_source,
+        resolution_kind="repo_root",
+        workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
+        worktree_path=worktree_path,
+        branch_name=branch_name,
+        lane_id=PLANNING_LANE_ID,
+        lane_wp_ids=list(lane.wp_ids),
+        context=None,
+    )
+
+
 def _resolve_planning_lane_arm(
     repo_root: Path,
     mission_slug: str,
@@ -915,6 +1010,8 @@ def _resolve_workspace_for_wp_impl(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
+    *,
+    effective_root: Path | None = None,
 ) -> ResolvedWorkspace:
     """Resolve the ResolvedWorkspace for a WP (pure resolution, no identity gate).
 
@@ -923,15 +1020,24 @@ def _resolve_workspace_for_wp_impl(
     early-return arms is gated identically without duplicating the check.
 
     Reads as a short dispatch over the per-arm helpers (WP01 campsite split),
-    in today's precedence order: planning_artifact kind -> persisted context
-    -> lanes.json planning lane -> code lane.
+    in today's precedence order: planning_artifact kind -> lanes.json
+    repo-root lane (#5100 M8) -> persisted context -> lanes.json planning
+    lane -> code lane. The repo-root-lane arm runs BEFORE the persisted
+    context lookup so a stale context record can never shadow it.
     """
+    if effective_root is not None:
+        _validate_effective_root_topology(repo_root, mission_slug)
+
     normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id)
     execution_mode = WorkProductKind(normalized_wp.metadata.execution_mode or WorkProductKind.CODE_CHANGE)
 
     planning_artifact_workspace = _resolve_planning_artifact_arm(repo_root, mission_slug, wp_id, normalized_wp, execution_mode)
     if planning_artifact_workspace is not None:
         return planning_artifact_workspace
+
+    repo_root_lane_workspace = _resolve_repo_root_lane_arm(repo_root, mission_slug, wp_id, normalized_wp, execution_mode, effective_root=effective_root)
+    if repo_root_lane_workspace is not None:
+        return repo_root_lane_workspace
 
     context_workspace = _resolve_context_arm(repo_root, mission_slug, wp_id, normalized_wp, execution_mode)
     if context_workspace is not None:

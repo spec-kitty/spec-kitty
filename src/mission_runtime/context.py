@@ -147,7 +147,7 @@ _SINGLE_BRANCH_CODE_LANES_UNMIGRATED = "SINGLE_BRANCH_CODE_LANES_UNMIGRATED"
 class TopologyManifestMismatch(RuntimeError):
     """A mission's stored ``topology`` contradicts its lane manifest (#5100 IC-02).
 
-    Raised by :func:`_assert_topology_matches_manifest` when ``topology`` is
+    Raised by :func:`assert_topology_matches_manifest` when ``topology`` is
     ``SINGLE_BRANCH`` but the mission's lane manifest has a code lane —
     Invariant T-1's violation (``data-model.md``): a ``single_branch`` mission
     was never re-stamped to ``lanes`` after its manifest grew a code lane (the
@@ -173,7 +173,7 @@ class TopologyManifestMismatch(RuntimeError):
         return {"error_code": self.error_code, "message": str(self)}
 
 
-def _assert_topology_matches_manifest(
+def assert_topology_matches_manifest(
     topology: MissionTopology,
     *,
     has_code_lanes: bool,
@@ -191,11 +191,11 @@ def _assert_topology_matches_manifest(
 
     PURE and read-path-safe (C-003): no read path may call this — every
     un-migrated mission's status/accept/doctor read must keep working, only
-    the two WRITER chokepoints refuse. Currently uncalled from ``src/``: it
-    is wired at ``compute_and_write_lanes`` and ``allocate_lane_worktree`` in
-    a later work package of this mission (post-tasks fold B-2), which is also
-    when this is promoted out of module-private status and into
-    :data:`__all__` — see ``tests/architectural/test_no_dead_symbols.py``
+    WRITER chokepoints refuse. Promoted out of module-private status and into
+    :data:`__all__` by #5100 WP04 (T020b), which wires this in as the
+    repo-root review path's unmigrated-mission guard (``agent/workflow.py``);
+    ``compute_and_write_lanes`` and ``allocate_lane_worktree`` wire it in at
+    activation (WP05, IC-03) — see ``tests/architectural/test_no_dead_symbols.py``
     (mirrors this mission's own WP02 precedent:
     ``lanes/claim_base.py``'s ``_claim_base_ref``/``_clear_claim_base``).
 

@@ -60,7 +60,7 @@ def is_planning_artifact_only(lanes_manifest: object) -> bool:
     of this classification (#1666).
 
     Stays lane-based and UNCHANGED by #5100 IC-02 / plan fold B3: it is
-    deliberately NOT split by work-package kind. :func:`_has_code_wps` is the
+    deliberately NOT split by work-package kind. :func:`has_code_wps` is the
     kind-based sibling predicate WP04 wires in where a WP-kind question (not
     a lane-shape question) is the right one to ask.
     """
@@ -99,7 +99,7 @@ def has_code_lanes(manifest: LanesManifest) -> bool:
     return any(not is_repo_root_lane(lane) for lane in manifest.lanes)
 
 
-def _has_code_wps(manifest: LanesManifest, wp_kinds: Mapping[str, WorkProductKind]) -> bool:
+def has_code_wps(manifest: LanesManifest, wp_kinds: Mapping[str, WorkProductKind]) -> bool:
     """Return True when any WP referenced by *manifest* is ``code_change``.
 
     The kind-based sibling of :func:`has_code_lanes` (#5100 IC-02 / plan fold
@@ -110,17 +110,54 @@ def _has_code_wps(manifest: LanesManifest, wp_kinds: Mapping[str, WorkProductKin
     the WP ownership manifests this module's own :func:`compute_lanes` reads)
     — this never re-parses WP frontmatter itself.
 
-    Private for now (dead-symbol gate,
-    ``tests/architectural/test_no_dead_symbols.py``): zero ``src/`` callers
-    until a later work package of this mission wires it in at
-    ``acceptance/gates_core.py`` and ``consolidation/executor.py`` (plan
-    fold B3, owned by WP04) — mirrors this mission's own WP02 precedent
-    (``lanes/claim_base.py``'s ``_claim_base_ref``/``_clear_claim_base``,
-    privatized for the identical reason). Widen back to public when that
-    caller lands.
+    Promoted to public by #5100 WP04 (plan fold B3): wired in at
+    ``acceptance/gates_core.py`` (the "no code" branch-gate / matrix-presence
+    claims) and ``consolidation/executor.py`` (the runtime-state-cutover and
+    mission→target-phase "no code" claims) — mirrors this mission's own WP02
+    precedent (``lanes/claim_base.py``'s
+    ``_claim_base_ref``/``_clear_claim_base``, privatized then widened back
+    the same way once its caller landed).
     """
     all_wp_ids = {wp_id for lane in manifest.lanes for wp_id in lane.wp_ids}
     return any(wp_kinds.get(wp_id) == WorkProductKind.CODE_CHANGE for wp_id in all_wp_ids)
+
+
+def mission_has_code(manifest: LanesManifest, wp_kinds: Mapping[str, WorkProductKind]) -> bool:
+    """THE single "does this mission have real code" answer (#5100 WP04 cycle-3).
+
+    ``has_code_lanes(manifest) or has_code_wps(manifest, wp_kinds)`` -- the
+    lane-shape floor OR the WP-kind check, never the kind check alone.
+
+    Cycle-2 review fix narrowed ``has_code_wps``'s *wp_kinds* input to
+    ``mode_source == "frontmatter"`` entries only, to stop an untyped legacy
+    WP's bare-default-inferred ``code_change`` from flipping a genuinely
+    lane-planning-only mission into "has code" (base 3ca95083's own
+    lane-based answer for that case is False). That fix over-corrected
+    (cycle-3 review issue 1): a REAL legacy lanes/coord mission whose CODE
+    lane WP has no explicit ``execution_mode`` but genuine body code
+    signals (``src/``, ``tests/``, ...) ALSO normalizes to
+    ``mode_source == "inferred_legacy"`` and so was ALSO dropped, even
+    though ``has_code_lanes`` -- and base's own ``not
+    is_planning_artifact_only`` -- correctly say this mission has code.
+
+    ``has_code_lanes`` is the FLOOR: a real (non-repo-root) code lane always
+    means code, catching every legacy lanes/coord mission's frontmatter
+    ambiguity for free, regardless of what any individual WP's
+    ``mode_source`` says. ``has_code_wps`` can only ADD to that floor, never
+    subtract from it -- it is the sole source of truth for the ONE shape
+    ``has_code_lanes`` cannot see: a single_branch mission's ONE repo-root
+    lane holding real CODE WPs. A single_branch mission's CODE WPs are
+    verified to always carry an EXPLICIT ``execution_mode`` after
+    ``finalize-tasks`` (``mission_finalize.py::_apply_ownership_inference``
+    writes it for every WP missing one, regardless of topology) -- so this
+    never needs the wider legacy-inference tolerance ``has_code_lanes``
+    already covers for lanes/coord.
+
+    THE single call site both ``consolidation/executor.py::_run_has_code_wps``
+    and ``acceptance/gates_core.py``'s branch-gate/lane-gate "no code" claims
+    delegate to, so the lane-floor-plus-kind rule cannot drift between them.
+    """
+    return has_code_lanes(manifest) or has_code_wps(manifest, wp_kinds)
 
 
 def lane_created_branch(lanes_manifest: LanesManifest, lane_id: str) -> str:

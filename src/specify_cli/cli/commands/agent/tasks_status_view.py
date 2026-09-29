@@ -134,12 +134,17 @@ def build_stale_fallback_results(
         if not wp_id:
             continue
         workspace_kind = str(wp.get("workspace_kind", "unknown"))
-        execution_mode = str(wp.get("execution_mode", ""))
-        fallback_reason = (
-            PLANNING_ARTIFACT_REPO_ROOT_REASON
-            if workspace_kind == "repo_root" and execution_mode == "planning_artifact"
-            else "stale_detection_unavailable"
-        )
+        # #5100 T019: mirrors ``check_doing_wps_for_staleness``'s own
+        # unconditional ``resolution_kind == "repo_root"`` branch, which
+        # never gates on ``execution_mode`` -- a repo-root WP is a SHARED
+        # workspace (no isolated lane to compare staleness against)
+        # regardless of whether it is a planning_artifact or a single_branch
+        # CODE work package. Gating this fallback on ``execution_mode ==
+        # "planning_artifact"`` too would mis-report a repo-root code WP as
+        # "stale_detection_unavailable" the moment the primary detector
+        # raises, when it would have reported the SAME not_applicable
+        # verdict as a planning_artifact WP had detection succeeded.
+        fallback_reason = PLANNING_ARTIFACT_REPO_ROOT_REASON if workspace_kind == "repo_root" else "stale_detection_unavailable"
         results[str(wp_id)] = StaleCheckResult(
             wp_id=str(wp_id),
             stale=StaleState(status="not_applicable", reason=fallback_reason),

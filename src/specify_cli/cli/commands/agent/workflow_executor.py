@@ -1536,6 +1536,41 @@ class ReviewLaneContext:
     is_review_claimed: bool
 
 
+def _refuse_review_of_unmigrated_single_branch(main_repo_root: Path, mission_slug: str) -> None:
+    """Fail loud (``SINGLE_BRANCH_CODE_LANES_UNMIGRATED``) for an unmigrated single_branch mission (#5100 T020b).
+
+    Review, unlike ``implement`` (contracts/single-branch-execution.md), does
+    NOT get this refusal for free from manifest-shape routing alone: an
+    unmigrated single_branch mission's WPs still sit on CODE lanes in
+    ``lanes.json``, so they would otherwise resolve to an ordinary
+    ``.worktrees/`` lane workspace and review would silently create one --
+    contradicting the mission's stored ``single_branch`` topology instead of
+    surfacing the drift. This is the writer chokepoint that catches it before
+    :func:`_prepare_review_workspace` would ever run ``git worktree add``.
+    """
+    from mission_runtime import (
+        TopologyManifestMismatch,
+        assert_topology_matches_manifest,
+        is_single_branch,
+        resolve_topology,
+    )
+    from specify_cli.lanes.compute import has_code_lanes
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    topology = resolve_topology(main_repo_root, mission_slug)
+    if not is_single_branch(topology):
+        return
+    lanes_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
+    lanes_manifest = read_lanes_json(lanes_dir)
+    if lanes_manifest is None:
+        return
+    try:
+        assert_topology_matches_manifest(topology, has_code_lanes=has_code_lanes(lanes_manifest), mission_slug=mission_slug)
+    except TopologyManifestMismatch as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(1) from exc
+
+
 def review_resolve_wp_and_lane_gate(
     repo_root: Path, main_repo_root: Path, mission_slug: str, normalized_wp_id: str
 ) -> ReviewLaneContext:
@@ -1572,7 +1607,8 @@ def review_resolve_wp_and_lane_gate(
     review_workspace = _wf().resolve_workspace_for_wp(
         main_repo_root, mission_slug, normalized_wp_id, write_intent=True
     )
-    status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
+    status_execution_mode = review_workspace.status_execution_mode
+    _refuse_review_of_unmigrated_single_branch(main_repo_root, mission_slug)
     latest_event = None
     for event in reversed(rv_events):
         if getattr(event, "wp_id", None) == normalized_wp_id:

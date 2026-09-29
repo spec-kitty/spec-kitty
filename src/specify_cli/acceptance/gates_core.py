@@ -244,7 +244,33 @@ def _resolve_lanes_manifest_or_stop(
         return None
 
 
+def _wp_kinds_for_manifest(repo_root: Path, mission_slug: str) -> Mapping[str, Any]:
+    """Build the WP id -> :class:`WorkProductKind` index :func:`has_code_wps` needs.
+
+    #5100 T020 / plan fold B3: the ONE place this module derives WP kinds,
+    reusing the canonical normalized-WP index (:func:`build_normalized_wp_index`)
+    rather than re-parsing frontmatter -- so this can never drift from what
+    ``resolve_workspace_for_wp`` itself classifies a WP as.
+
+    #5100 WP04 cycle-2 fix (review issue 2, mirrors
+    ``consolidation/executor.py::_run_has_code_wps``'s identical fix): ONLY
+    an EXPLICIT frontmatter ``execution_mode`` (``mode_source ==
+    "frontmatter"``) is trusted as a "code" signal. A WP with no
+    ``execution_mode`` normalizes via bare-default inference
+    (``mode_source == "inferred_legacy"``, defaulting to ``code_change``
+    when the body carries no signal at all) -- trusting that default here
+    would flip a genuinely lane-planning-only legacy mission's branch gate
+    into "has code" from a WP that never claimed to be one.
+    """
+    from specify_cli.ownership.models import WorkProductKind
+    from specify_cli.workspace.context import build_normalized_wp_index
+
+    index = build_normalized_wp_index(repo_root, mission_slug)
+    return {wp_id: WorkProductKind(entry.metadata.execution_mode) for wp_id, entry in index.items() if entry.mode_source == "frontmatter"}
+
+
 def _evaluate_branch_gate(
+    repo_root: Path,
     lanes_manifest: Any,
     feature_dir: Path,
     branch: str | None,
@@ -252,13 +278,13 @@ def _evaluate_branch_gate(
     skipped_checks: list[AcceptanceCheckDiagnostic],
     blocked_checks: list[AcceptanceCheckDiagnostic],
 ) -> bool:
-    """Target-branch mismatch + allowed-branch + planning-only gate.
+    """Target-branch mismatch + allowed-branch + no-code gate.
 
     Returns ``True`` when the caller should continue on to the acceptance
-    matrix evaluation, ``False`` when it should stop (blocked or a
-    planning-artifact-only mission, which never carries a matrix).
+    matrix evaluation, ``False`` when it should stop (blocked, or a mission
+    with no code WPs -- which never carries a matrix).
     """
-    from specify_cli.lanes.compute import is_planning_artifact_only
+    from specify_cli.lanes.compute import mission_has_code as _mission_has_code_fn
 
     from specify_cli import acceptance as _acceptance_pkg
 
@@ -274,9 +300,18 @@ def _evaluate_branch_gate(
         )
         return False
 
-    planning_artifact_only = is_planning_artifact_only(lanes_manifest)
+    # #5100 T020 / plan fold B3: the "no code" claims below use the WP-kind
+    # question (has_code_wps), never the lane-shape ``is_planning_artifact_only``
+    # -- a single_branch repo-root lane can hold CODE WPs, which the lane-shape
+    # predicate alone cannot see (it stays lane-based, unchanged, for its own
+    # other callers).
+    # #5100 WP04 cycle-3 fix (review issue 1): delegates to
+    # ``lanes.compute.mission_has_code`` (has_code_lanes floor OR has_code_wps),
+    # so a legacy lanes/coord mission's per-WP frontmatter ambiguity can never
+    # flip this to "no code" the way the bare kind check alone did.
+    mission_has_code = _mission_has_code_fn(lanes_manifest, _wp_kinds_for_manifest(repo_root, feature_dir.name))
     allowed_branches = {lanes_manifest.target_branch}
-    if not planning_artifact_only:
+    if mission_has_code:
         allowed_branches.add(lanes_manifest.mission_branch)
 
     if branch is None or branch not in allowed_branches:
@@ -292,7 +327,7 @@ def _evaluate_branch_gate(
         )
         return False
 
-    if planning_artifact_only:
+    if not mission_has_code:
         _append_skipped_lane_checks(
             skipped_checks,
             reason="planning_artifact-only missions do not produce acceptance-matrix.json",
@@ -759,15 +794,22 @@ def _check_lane_gates(
         return LaneGateOutcome()
 
     blocked_before = len(blocked_checks)
-    should_continue = _evaluate_branch_gate(lanes_manifest, feature_dir, branch, activity_issues, skipped_checks, blocked_checks)
+    should_continue = _evaluate_branch_gate(repo_root, lanes_manifest, feature_dir, branch, activity_issues, skipped_checks, blocked_checks)
     if not should_continue:
-        from specify_cli.lanes.compute import is_planning_artifact_only
-
         # The bypass is granted only when the branch gate stopped at its
-        # planning-only branch; a planning-only mission the branch gate
-        # BLOCKED (target mismatch, wrong branch) gets no skip reason.
+        # no-code branch; a mission the branch gate BLOCKED for another
+        # reason (target mismatch, wrong branch) gets no skip reason -- and
+        # never needs the has_code_wps read at all (short-circuits before
+        # it, so a blocked-before-lanes-resolved manifest never needs a
+        # ``.lanes`` attribute).
         branch_gate_blocked = len(blocked_checks) > blocked_before
-        if is_planning_artifact_only(lanes_manifest) and not branch_gate_blocked:
+        if branch_gate_blocked:
+            return LaneGateOutcome()
+
+        from specify_cli.lanes.compute import mission_has_code as _mission_has_code_fn
+
+        mission_has_code = _mission_has_code_fn(lanes_manifest, _wp_kinds_for_manifest(repo_root, feature_dir.name))
+        if not mission_has_code:
             return LaneGateOutcome(skip_reason=PLANNING_ARTIFACT_ONLY_SKIP_REASON)
         return LaneGateOutcome()
 

@@ -780,7 +780,13 @@ def _mt_owned_workspace(st: _MoveTaskState) -> ResolvedWorkspace:
         wp_id=st.task_id,
         execution_mode=extract_scalar(st.wp.frontmatter, "execution_mode") or "code_change",
         mode_source="owned_checkout",
-        resolution_kind="lane_workspace",
+        # #5100 R-10: the owned single-branch checkout IS the repository-root
+        # checkout, not a `.worktrees/` lane worktree -- `resolution_kind`
+        # drives `status_execution_mode`, so this must be `repo_root` for the
+        # stamp to read `direct_repo` here (it was mis-stamped
+        # `lane_workspace` before this WP, which the `ResolvedWorkspace.exists`
+        # husk-check also silently tolerated -- see the class docstring).
+        resolution_kind="repo_root",
         workspace_name=st.owned.root.name,
         worktree_path=st.owned.root,
         branch_name=st.target_branch,
@@ -886,9 +892,15 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
             # No resolvable lane workspace (missions without lanes.json included) —
             # nothing to recover; the readiness guard stays authoritative.
             return
-    # Only a real lane worktree carries deliverables to commit; a planning-artifact
-    # / repo-root WP has no lane branch (branch_name is None) — nothing to do.
-    if workspace.resolution_kind != "lane_workspace" or workspace.branch_name is None:
+    # Only a workspace with a real branch to commit onto carries deliverables
+    # to auto-commit; a planning-artifact WP has no lane branch at all
+    # (branch_name is None) — nothing to do. #5100 WP04: ``branch_name`` is
+    # the actual discriminator, not ``resolution_kind`` -- an owned checkout
+    # and a single_branch repo-root code WP are BOTH honestly ``repo_root``
+    # (never ``lane_workspace``) yet each has a real branch (the owned
+    # target branch, or the mission/target branch) with genuine deliverables
+    # to auto-commit, same as an isolated lane worktree.
+    if workspace.branch_name is None:
         return
     worktree_path = workspace.worktree_path
     if not worktree_path.exists():
@@ -2770,6 +2782,8 @@ def _mt_hop_review_ref(emit_review_ref: str | None, target: str, hop_review_resu
 
 def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Emit each lane hop through the coord WRITE ``commit_status`` capability."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.emit_plan is not None
     emit_plan = st.emit_plan
     emit_force = emit_plan.emit_force
@@ -2778,6 +2792,22 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     current_event_lane = _mt_current_event_lane(st)
     event: StatusEvent | None = None
     final_hop_actor = st.actor
+    # #5100 R-10: the honest stamp for every hop this call emits -- resolved
+    # ONCE (the WP's lane assignment does not change mid-call), reusing the
+    # SAME owned-vs-lane branch every other workspace read in this module
+    # takes, so it can never drift from what those reads report.
+    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError
+
+    try:
+        emit_workspace = _mt_owned_workspace(st) if st.owned is not None else _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
+        emit_execution_mode = emit_workspace.status_execution_mode
+    except (ValueError, FileNotFoundError, MissingLanesError, CorruptLanesError):
+        # Mirrors the SAME tolerant fallback ``_mt_commit_lane_deliverables`` /
+        # ``_mt_done_ancestry_facts`` already apply for a mission without a
+        # resolvable lane workspace (missions without lanes.json included) --
+        # the stamp degrades to the model default rather than failing the
+        # transition this function's caller has already committed to emitting.
+        emit_execution_mode = "worktree"
     for target in emit_plan.transition_targets:
         st.authoritative_lane_at_emit = event.to_lane if event is not None else Lane(resolve_lane_alias(current_event_lane))
         hop_actor = _mt_hop_actor(st, event, current_event_lane, target)
@@ -2840,6 +2870,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 workspace_context=f"move-task:{st.repo_root}",
                 subtasks_complete=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                 implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
+                execution_mode=emit_execution_mode,
                 repo_root=st.main_repo_root,
                 effective_root=st.owned.root if st.owned else None,
                 # #3866: thread the validated value object so the per-hop

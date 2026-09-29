@@ -41,6 +41,7 @@ from mission_runtime.context import (
     MissionExecutionContext,
     MissionTopology,
     TopologyManifestMismatch,
+    assert_topology_matches_manifest,
     classify_topology,
     is_single_branch,
     routes_through_coordination,
@@ -110,6 +111,7 @@ __all__ = [
     # ``mission_runtime.artifacts`` submodule directly (MR-1/MR-2).
     "_MISSION_FILE_KIND_BY_BASENAME",
     "assert_coord_write_materialized",
+    "assert_topology_matches_manifest",
     "classify_topology",
     "coord_read_dir_for",
     "declared_read_surface",

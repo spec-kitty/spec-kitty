@@ -1296,6 +1296,23 @@ class _StartWorkspace:
     lane_base_ref: str | None = None
 
 
+def _status_execution_mode_for_start_workspace(start_ws: _StartWorkspace) -> str:
+    """``ResolvedWorkspace.status_execution_mode``'s value for a ``_StartWorkspace`` (#5100 R-10).
+
+    The orchestrator-api's own workspace resolver (:func:`_resolve_start_workspace`
+    / :func:`_resolve_existing_workspace`) returns ``_StartWorkspace``, not a
+    :class:`~specify_cli.workspace.context.ResolvedWorkspace` -- so it cannot
+    read the property directly. ``is_repo_root_lane`` is duck-typed on any
+    object carrying a ``lane_id`` attribute (the same trick ``implement.py``'s
+    ``_resolve_execution_lane`` already relies on for ``ResolvedWorkspace``
+    itself), so this reuses the ONE canonical repo-root-lane predicate instead
+    of re-deriving a second, divergent ``"direct_repo"`` check.
+    """
+    from specify_cli.lanes.compute import is_repo_root_lane
+
+    return "direct_repo" if is_repo_root_lane(start_ws) else "worktree"
+
+
 def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
     """Back-compat delegator to the hoisted single base-ref authority.
 
@@ -1397,9 +1414,9 @@ def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, missi
         return assignment
     manifest, lane = assignment
 
-    from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.lanes.compute import is_repo_root_lane
 
-    if is_planning_lane(lane):
+    if is_repo_root_lane(lane):
         # Repo-root lane: the WP executes directly in the write checkout,
         # never a ``.worktrees/…`` path — ``allocate_lane_worktree`` /
         # ``predict_lane_worktree`` refuse the planning lane id (#5100,
@@ -1489,7 +1506,7 @@ def _resolve_existing_workspace(main_repo_root: Path, mission: str, wp: str) -> 
     so the read-only mirror can never diverge from what the write authority
     would create.
     """
-    from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.lanes.compute import is_repo_root_lane
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
     assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
@@ -1497,7 +1514,7 @@ def _resolve_existing_workspace(main_repo_root: Path, mission: str, wp: str) -> 
         return assignment
     manifest, lane = assignment
 
-    if is_planning_lane(lane):
+    if is_repo_root_lane(lane):
         # Repo-root lane: mirrors _resolve_start_workspace's read side, but
         # this function is read-only (no allocation, no claim-base write).
         return _StartWorkspace(
@@ -1632,6 +1649,7 @@ def start_implementation(
     start_ws = _resolve_start_workspace(cmd, main_repo_root, mission, mission_dir, wp)
     workspace_path = start_ws.workspace_path
     prompt_path = str(wp_path)
+    status_execution_mode = _status_execution_mode_for_start_workspace(start_ws)
 
     # Seam C-005 (#3281/FR-007): POST-materialize, after allocation/self-heal
     # above, BEFORE the claim transition below emits any status event. Never
@@ -1663,7 +1681,7 @@ def start_implementation(
             wp_id=wp,
             actor=actor,
             workspace_context=workspace_path,
-            execution_mode="worktree",
+            execution_mode=status_execution_mode,
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
@@ -1747,6 +1765,10 @@ def start_review(
     from specify_cli.status import WorkPackageClaimConflict, start_review_status
 
     prompt_path = str(wp_path)
+    # #5100 R-10: read-only mirror of the WP's EXISTING lane assignment (no
+    # allocation) -- start-review runs after implementation, so the WP is
+    # already lane-assigned; this is the honest stamp, not a hardcoded guess.
+    review_ws = _resolve_existing_workspace(main_repo_root, mission, wp)
 
     try:
         start_result = start_review_status(
@@ -1756,7 +1778,7 @@ def start_review(
             actor=actor,
             review_ref=review_ref,
             workspace_context=f"orchestrator-api:{main_repo_root}",
-            execution_mode="worktree",
+            execution_mode=_status_execution_mode_for_start_workspace(review_ws),
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
@@ -1901,14 +1923,19 @@ def transition(
 
     if to_lane == Lane.FOR_REVIEW:
         _enforce_for_review_commit_gate(cmd, main_repo_root, mission, mission_dir, wp, force)
+        transition_ws = _resolve_existing_workspace(main_repo_root, mission, wp)
     elif to_lane == Lane.CLAIMED:
         # Seam C-005 (#3281/FR-007): early-return-equivalent for every OTHER
         # target lane -- this predicate only ever runs for a raw `--to
         # claimed` transition. Allocates/self-heals the lane workspace
         # (mirrors start_implementation's own `_resolve_start_workspace`
         # call) and enforces ancestry BEFORE the `claimed` event below.
-        claim_ws = _resolve_start_workspace(cmd, main_repo_root, mission, mission_dir, wp)
-        _enforce_claim_ancestry(cmd, main_repo_root, mission, mission_dir, wp, Path(claim_ws.workspace_path))
+        transition_ws = _resolve_start_workspace(cmd, main_repo_root, mission, mission_dir, wp)
+        _enforce_claim_ancestry(cmd, main_repo_root, mission, mission_dir, wp, Path(transition_ws.workspace_path))
+    else:
+        # #5100 R-10: every other target lane still needs an honest stamp --
+        # read-only mirror of the WP's EXISTING lane, no allocation.
+        transition_ws = _resolve_existing_workspace(main_repo_root, mission, wp)
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionError
@@ -1929,7 +1956,7 @@ def transition(
                 review_result=review_result,
                 subtasks_complete=subtasks_complete,
                 implementation_evidence_present=implementation_evidence_present,
-                execution_mode="worktree",
+                execution_mode=_status_execution_mode_for_start_workspace(transition_ws),
                 repo_root=main_repo_root,
                 policy_metadata=policy_dict,
             ),

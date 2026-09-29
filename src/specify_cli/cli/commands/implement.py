@@ -1483,12 +1483,6 @@ def _raise_if_status_commit_protected(repo_root: Path, planning_branch: str, aut
         raise ValueError(protected_error)
 
 
-def _execution_mode_for_workspace(resolved_workspace: Any) -> str:
-    """``"direct_repo"`` for a repository-root planning workspace, else
-    ``"worktree"``."""
-    return "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
-
-
 def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declared_deps: Any) -> None:
     """Raise if *wp_id* is unseeded (T012 / Contract 3) or a declared
     dependency is not yet ``approved``/``done``."""
@@ -1580,9 +1574,9 @@ def _resolve_execution_lane(resolved_workspace: Any, lanes_feature_dir: Path, wp
     """Resolve ``(lanes_manifest, lane)`` for a lane workspace, or ``(None,
     None)`` for a repository-root planning workspace. Completes the
     ``validate`` tracker step either way."""
-    from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.lanes.compute import is_repo_root_lane
 
-    if is_planning_lane(resolved_workspace):
+    if is_repo_root_lane(resolved_workspace):
         tracker.complete("validate", "Execution: repository root planning workspace")
         return None, None
     lanes_manifest = require_lanes_json(lanes_feature_dir)
@@ -2087,7 +2081,7 @@ def implement(
     tracker.start("create")
     effective_actor = actor or "implement-command"
     status_result = None
-    status_execution_mode = _execution_mode_for_workspace(resolved_workspace)
+    status_execution_mode = resolved_workspace.status_execution_mode
     # #4888/T025: distinguishes a failure that occurred BEFORE the workspace
     # existed (create_lane_workspace itself failed -- the WP is still
     # `planned`, matching the comment below) from a failure that occurred

@@ -140,14 +140,14 @@ def read_topology(feature_dir: Path) -> MissionTopology:
         raise FileNotFoundError(feature_dir / "meta.json")
     meta: dict[str, Any] = meta_result or {}
 
-    stored = meta.get(TOPOLOGY_KEY)
-    if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
-        return MissionTopology(stored)
-
-    # Un-backfilled legacy mission: derive the shape ONCE from current signals and
-    # return it WITHOUT persisting (the read-only contract — #1814). The explicit
+    # Single authority (#5100 WP04 folded nit, post-WP03-review): the
+    # stored-value-or-derive check is :func:`topology_from_meta`'s own body —
+    # delegate rather than re-run the identical ``stored in
+    # _VALID_TOPOLOGY_VALUES`` check a second time here. Un-backfilled legacy
+    # missions still derive the shape ONCE from current signals and return it
+    # WITHOUT persisting (the read-only contract — #1814); the explicit
     # backfill command / mint path is the only writer.
-    return _derive_topology(meta, feature_dir)
+    return topology_from_meta(meta, feature_dir)
 
 
 # ---------------------------------------------------------------------------

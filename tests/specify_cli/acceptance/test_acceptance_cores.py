@@ -395,7 +395,7 @@ class TestEvaluateBranchGate:
         activity_issues: list[str] = []
         blocked: list[AcceptanceCheckDiagnostic] = []
 
-        should_continue = _evaluate_branch_gate(self._manifest(), tmp_path, "feat/target", activity_issues, [], blocked)
+        should_continue = _evaluate_branch_gate(tmp_path, self._manifest(), tmp_path, "feat/target", activity_issues, [], blocked)
 
         assert should_continue is False
         assert len(blocked) == 1 and blocked[0].check == "mission_branch"
@@ -403,23 +403,23 @@ class TestEvaluateBranchGate:
 
     def test_branch_outside_allowed_set_stops(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("specify_cli.acceptance._target_branch_for_feature", lambda _fd: None)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: True)
         activity_issues: list[str] = []
         blocked: list[AcceptanceCheckDiagnostic] = []
 
-        should_continue = _evaluate_branch_gate(self._manifest(), tmp_path, "some-other-branch", activity_issues, [], blocked)
+        should_continue = _evaluate_branch_gate(tmp_path, self._manifest(), tmp_path, "some-other-branch", activity_issues, [], blocked)
 
         assert should_continue is False
         assert "must run on mission or target branch" in activity_issues[0]
 
     def test_planning_artifact_only_stops_with_skip_only(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("specify_cli.acceptance._target_branch_for_feature", lambda _fd: None)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: True)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: False)
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
         blocked: list[AcceptanceCheckDiagnostic] = []
 
-        should_continue = _evaluate_branch_gate(self._manifest(), tmp_path, "feat/target", activity_issues, skipped, blocked)
+        should_continue = _evaluate_branch_gate(tmp_path, self._manifest(), tmp_path, "feat/target", activity_issues, skipped, blocked)
 
         assert should_continue is False
         assert activity_issues == [] and blocked == []
@@ -427,9 +427,9 @@ class TestEvaluateBranchGate:
 
     def test_all_gates_pass_continues(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("specify_cli.acceptance._target_branch_for_feature", lambda _fd: None)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: True)
 
-        should_continue = _evaluate_branch_gate(self._manifest(), tmp_path, "kitty/mission-x", [], [], [])
+        should_continue = _evaluate_branch_gate(tmp_path, self._manifest(), tmp_path, "kitty/mission-x", [], [], [])
 
         assert should_continue is True
 
@@ -444,7 +444,7 @@ class TestCheckLaneGatesPlanningOnlyBypass:
     def _run(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, meta_target: str | None, branch: str) -> tuple[Any, list[AcceptanceCheckDiagnostic]]:
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: self._manifest())
         monkeypatch.setattr("specify_cli.acceptance._target_branch_for_feature", lambda _fd: meta_target)
-        monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: True)
+        monkeypatch.setattr("specify_cli.lanes.compute.mission_has_code", lambda _m, _k: False)
         blocked: list[AcceptanceCheckDiagnostic] = []
         outcome = _check_lane_gates(tmp_path, tmp_path, branch, [], [], blocked)
         return outcome, blocked
