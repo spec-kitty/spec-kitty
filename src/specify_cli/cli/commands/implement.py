@@ -1893,16 +1893,17 @@ def _planning_commit_branch(repo_root: Path, mission_slug: str, target_branch: s
     For a single_branch mission that minted a mission branch (protected target)
     this is ``meta.mission_branch`` -- never the protected target the operator is
     deliberately NOT on. Every other mission keeps the resolved target branch.
+    The rule itself is :func:`mission_runtime.single_branch_write_ref` (the one
+    authority every write-branch site shares); this only supplies the values.
     """
-    from mission_runtime import MissionTopology
+    from mission_runtime import single_branch_write_ref
 
     from specify_cli.migration.backfill_topology import stored_topology
 
     meta = _load_primary_anchored_mission_meta(repo_root, mission_slug)
-    if meta is None or stored_topology(meta) is not MissionTopology.SINGLE_BRANCH:
+    if meta is None:
         return target_branch
-    mission_branch = meta.get("mission_branch")
-    return mission_branch if isinstance(mission_branch, str) and mission_branch else target_branch
+    return single_branch_write_ref(stored_topology(meta), meta.get("mission_branch"), target_branch)
 
 
 def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:

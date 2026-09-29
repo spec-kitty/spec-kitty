@@ -1,7 +1,8 @@
 """Orchestrator-api repo-root lane workspace for single_branch (#5100 B5).
 
 The orchestrator's hand-built ``lane_branch`` must agree with the canonical
-resolver (``mission_branch or target_branch``), and the start path must run the
+resolver (``meta.mission_branch`` for a stored single_branch mission, else
+``target_branch``), and the start path must run the
 same WRITE_CHECKOUT_* refusals as ``implement`` so sequential execution cannot
 be bypassed.
 """
@@ -9,6 +10,7 @@ be bypassed.
 from __future__ import annotations
 
 import dataclasses
+import json
 from pathlib import Path
 
 import pytest
@@ -38,10 +40,16 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def _mint(repo: Path, slug: str) -> None:
+    """Mint the mission branch the way ``mission create`` does: meta.json (the
+    authority) AND the lanes.json copy record it."""
     feature_dir = repo / "kitty-specs" / slug
     manifest = read_lanes_json(feature_dir)
     assert manifest is not None
     write_lanes_json(feature_dir, dataclasses.replace(manifest, mission_branch=_MINTED))
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["mission_branch"] = _MINTED
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "mint")
     _git(repo, "checkout", "-q", "-b", _MINTED)
@@ -65,6 +73,27 @@ def test_protected_target_read_only_resolver_reports_minted_branch(repo: Path) -
     ws = oc._resolve_existing_workspace(repo, slug, "WP01")
 
     assert ws.lane_branch == _MINTED
+
+
+def test_landed_mission_start_ignores_stale_lanes_json_mission_branch(repo: Path) -> None:
+    """A protected landing clears ``meta.mission_branch`` but leaves the lanes.json
+    copy naming the deleted branch; both orchestrator resolvers follow meta.json."""
+    slug = "orch-landed"
+    _build_mission(repo, slug, "01ORCHLD000000000000000001")
+    _mint(repo, slug)
+    _git(repo, "checkout", "-q", "trunk")
+    meta_path = repo / "kitty-specs" / slug / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["mission_branch"]
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "landed")
+
+    started = oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
+    existing = oc._resolve_existing_workspace(repo, slug, "WP01")
+
+    assert started.lane_branch == "trunk"
+    assert existing.lane_branch == "trunk"
 
 
 def test_unprotected_start_reports_target_branch(repo: Path) -> None:

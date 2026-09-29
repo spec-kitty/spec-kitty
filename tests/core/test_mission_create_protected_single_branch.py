@@ -260,20 +260,27 @@ def test_lanes_topology_protected_target_unchanged(tmp_path: Path) -> None:
 
 def test_expected_write_branch_prefers_mission_branch() -> None:
     from specify_cli.core.owned_mission import expected_write_branch
-    from specify_cli.git.protection_policy import ProtectionPolicy
 
-    meta = {"target_branch": "main", "mission_branch": "kitty/mission-x-aaaaaaaa"}
-    policy = ProtectionPolicy(protected_branches=frozenset({"main"}), operator_hatch_active=False)
-    assert expected_write_branch(meta, policy, "main") == "kitty/mission-x-aaaaaaaa"
+    meta = {"target_branch": "main", "topology": "single_branch", "mission_branch": "kitty/mission-x-aaaaaaaa"}
+    assert expected_write_branch(meta) == "kitty/mission-x-aaaaaaaa"
 
 
 def test_expected_write_branch_falls_back_to_target() -> None:
     from specify_cli.core.owned_mission import expected_write_branch
-    from specify_cli.git.protection_policy import ProtectionPolicy
 
-    meta = {"target_branch": "issue-work"}
-    policy = ProtectionPolicy(protected_branches=frozenset(), operator_hatch_active=False)
-    assert expected_write_branch(meta, policy, "main") == "issue-work"
+    meta = {"target_branch": "issue-work", "topology": "single_branch"}
+    assert expected_write_branch(meta) == "issue-work"
+
+
+def test_expected_write_branch_is_topology_gated() -> None:
+    """The mission-branch rule applies to STORED single_branch only -- the same
+    gate every other write-branch site shares (mission_runtime.single_branch_write_ref)."""
+    from specify_cli.core.owned_mission import expected_write_branch
+
+    meta = {"target_branch": "main", "topology": "lanes", "mission_branch": "kitty/mission-x-aaaaaaaa"}
+    assert expected_write_branch(meta) == "main"
+    assert expected_write_branch({"target_branch": "main", "mission_branch": "kitty/mission-x-aaaaaaaa"}) == "main"
+    assert expected_write_branch(None) == ""
 
 
 def _finalized_protected_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str, **create_overrides: object) -> tuple[Path, str, str, Path]:
@@ -347,7 +354,7 @@ def test_implement_wrong_branch_refused_naming_mission_branch(tmp_path: Path, mo
 # ---------------------------------------------------------------------------
 
 
-def _resolver_project(tmp_path: Path, *, mission_branch: str | None) -> tuple[Path, str]:
+def _resolver_project(tmp_path: Path, *, mission_branch: str | None, topology: str = "single_branch") -> tuple[Path, str]:
     import json
 
     from tests.lane_test_utils import write_single_lane_manifest
@@ -361,7 +368,7 @@ def _resolver_project(tmp_path: Path, *, mission_branch: str | None) -> tuple[Pa
         "mission_slug": slug,
         "mission": "software-dev",
         "target_branch": "main",
-        "topology": "single_branch",
+        "topology": topology,
         "created_at": "2026-03-27T16:00:00+00:00",
     }
     if mission_branch:
@@ -389,6 +396,16 @@ def test_authoritative_ref_is_target_when_no_mission_branch(tmp_path: Path) -> N
     from specify_cli.context import resolve_context
 
     repo, slug = _resolver_project(tmp_path, mission_branch=None)
+    assert resolve_context("WP01", slug, "claude", repo).authoritative_ref == "main"
+
+
+def test_authoritative_ref_ignores_mission_branch_of_non_single_branch_mission(tmp_path: Path) -> None:
+    """The mission-branch rule is gated on STORED single_branch (the one
+    mission_runtime rule): a lanes-topology meta that carries a stray
+    ``mission_branch`` keeps the target branch for its ``lane-planning`` lane."""
+    from specify_cli.context import resolve_context
+
+    repo, slug = _resolver_project(tmp_path, mission_branch="kitty/mission-x-01ARZ3ND", topology="lanes")
     assert resolve_context("WP01", slug, "claude", repo).authoritative_ref == "main"
 
 

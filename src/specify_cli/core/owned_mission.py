@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypedDict
 
-from mission_runtime import ActionContextError, MissionTopology, is_single_branch
+from mission_runtime import ActionContextError, MissionTopology, is_single_branch, single_branch_write_ref
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.core.utils import ensure_within_directory
@@ -68,31 +68,23 @@ def _stored_topology(meta: dict[str, Any] | None) -> MissionTopology | None:
         return None
 
 
-def expected_write_branch(
-    meta: dict[str, Any] | None,
-    policy: ProtectionPolicy,
-    primary_branch: str,
-) -> str:
+def expected_write_branch(meta: dict[str, Any] | None) -> str:
     """The branch a single_branch mission's write checkout must be on (WP08).
 
-    Returns ``meta["mission_branch"]`` when the field is recorded (the #5100
-    protected-target mint at ``mission create`` -- FR-007/012); otherwise the
-    mission's ``target_branch``. *policy*/*primary_branch* are accepted so
-    every call site routes the protection question through the ONE #5100
-    authority (C-002) rather than re-deriving it ad hoc -- they are not
-    consulted for the return value itself (``del policy`` below) because
-    ``mission_branch`` is already the create-time-authoritative record of
-    that decision (mint-once, read-many; a later protection-config change
-    must never move an already-created mission's write branch -- spec.md
-    "Protection config changes after create").
+    Routes through :func:`mission_runtime.single_branch_write_ref` -- the ONE
+    write-branch rule: ``meta["mission_branch"]`` when the mission's STORED
+    topology is ``single_branch`` and the field is recorded (the #5100
+    protected-target mint at ``mission create`` -- FR-007/012), otherwise the
+    mission's ``target_branch`` (``""`` when meta carries none). It is
+    deliberately not a function of the protection policy: ``mission_branch``
+    is already the create-time-authoritative record of that decision
+    (mint-once, read-many; a later protection-config change must never move
+    an already-created mission's write branch -- spec.md "Protection config
+    changes after create").
     """
-    del policy, primary_branch  # accepted for call-site symmetry, see docstring
     data = meta or {}
-    mission_branch = data.get("mission_branch")
-    if isinstance(mission_branch, str) and mission_branch:
-        return mission_branch
     target = data.get("target_branch")
-    return str(target) if isinstance(target, str) and target else ""
+    return single_branch_write_ref(_stored_topology(meta), data.get("mission_branch"), str(target) if isinstance(target, str) and target else "")
 
 
 def resolve_owned_mission(
@@ -142,10 +134,8 @@ def resolve_owned_mission(
     # unchanged. `target_override` still validates against the mission's real
     # `target_branch` -- it names which TARGET the caller expects, not which
     # branch the write checkout sits on.
-    from specify_cli.core.git_ops import resolve_primary_branch
-
     policy = ProtectionPolicy.resolve(primary).scoped_to_mission(meta)  # #5100 FR-008: mission-scoped commit_to_target
-    expected = expected_write_branch(meta, policy, str(resolve_primary_branch(primary)))
+    expected = expected_write_branch(meta)
     if current is None or not expected or current != expected or (target_override is not None and target_override != target):
         raise ActionContextError(
             "OWNED_BRANCH_REFUSED",

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 from specify_cli.core.atomic import atomic_write
 from kernel.git_topology import GitTopologyError, git_toplevel
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, placement_seam, resolve_single_branch_write_ref
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
@@ -902,9 +902,10 @@ def _resolve_repo_root_lane_arm(
     the existing context / code-lane arms unchanged.
 
     The resolved ``branch_name`` follows the contract's resolve table
-    (``contracts/single-branch-execution.md``): the manifest's own
-    ``mission_branch`` when set (a protected-target single_branch mission,
-    IC-05), else its ``target_branch``. ``worktree_path`` is ``effective_root``
+    (``contracts/single-branch-execution.md``): the mission's recorded
+    ``meta.mission_branch`` when its STORED topology is ``single_branch`` (a
+    protected-target mint, IC-05), else the manifest's ``target_branch`` --
+    via :func:`mission_runtime.resolve_single_branch_write_ref`. ``worktree_path`` is ``effective_root``
     when given, else the repository root checkout.
     """
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_repo_root_lane
@@ -919,7 +920,13 @@ def _resolve_repo_root_lane_arm(
         return None
 
     worktree_path = effective_root if effective_root is not None else repo_root
-    branch_name = lanes_manifest.mission_branch or lanes_manifest.target_branch
+    # The write branch comes from the ONE mission_runtime rule over meta.json
+    # (stored single_branch + meta.mission_branch, else the target branch) --
+    # never from ``lanes.json.mission_branch``, which is a stale copy after a
+    # protected landing clears the meta field, and which names the
+    # integration branch (not the write branch) for a lanes/coord mission
+    # whose code WP happens to sit in ``lane-planning``.
+    branch_name = resolve_single_branch_write_ref(repo_root, mission_slug, lanes_manifest.target_branch)
     return ResolvedWorkspace(
         mission_slug=mission_slug,
         wp_id=wp_id,

@@ -976,6 +976,54 @@ def _resolve_mission_branch(
     return str(raw) if raw else None
 
 
+def single_branch_write_ref(
+    stored_topology: MissionTopology | None,
+    mission_branch: object,
+    target_branch: str,
+) -> str:
+    """The ONE write-branch rule for a mission (#5100 FR-007/012, IC-05) -- pure.
+
+    A mission whose STORED topology is ``single_branch`` and whose ``meta.json``
+    records a non-empty ``mission_branch`` (the protected-target mint) writes
+    to that branch; every other combination -- any other topology, an absent
+    or unreadable topology, an unprotected single_branch mission with no
+    ``mission_branch`` -- writes to ``target_branch``. Callers that already
+    hold the ``meta.json`` values pass them in (``meta.json`` is the only
+    authority: ``lanes.json.mission_branch`` is a stale copy after a protected
+    landing clears the meta field); callers holding only the repository use
+    :func:`resolve_single_branch_write_ref`. Pure so ``mission_runtime`` stays
+    free of ``specify_cli`` imports -- *mission_branch* is ``object`` because
+    it is the raw, untyped ``meta.json`` value; anything but a non-empty
+    string reads as "not recorded".
+    """
+    if not is_single_branch(stored_topology):
+        return target_branch
+    if isinstance(mission_branch, str) and mission_branch:
+        return mission_branch
+    return target_branch
+
+
+def resolve_single_branch_write_ref(
+    repo_root: Path,
+    mission_handle: str,
+    target_branch: str,
+    *,
+    resolver: MissionResolver | None = None,
+) -> str:
+    """Shell over :func:`single_branch_write_ref` for callers with only a repository.
+
+    Reads the STORED topology and ``mission_branch`` from the mission's PRIMARY
+    ``meta.json`` (the same anchored reads :func:`_resolve_single_branch_write_ref`
+    uses for the placement arms) so a caller that does not already hold the
+    meta dict cannot re-derive the rule from ``lanes.json`` or a second meta
+    read of its own.
+    """
+    from specify_cli.core.paths import get_main_repo_root
+
+    topology = resolve_topology(repo_root, mission_handle, resolver=resolver)
+    return _resolve_single_branch_write_ref(topology, target_branch, get_main_repo_root(repo_root), mission_handle, resolver=resolver)
+
+
 def _resolve_single_branch_write_ref(
     topology: MissionTopology,
     target_branch: str,
@@ -1005,7 +1053,7 @@ def _resolve_single_branch_write_ref(
     if not is_single_branch(topology):
         return target_branch
     mission_branch = _resolve_mission_branch(primary_root, mission_slug, resolver=resolver, effective_root=effective_root)
-    return mission_branch or target_branch
+    return single_branch_write_ref(topology, mission_branch, target_branch)
 
 
 def _resolve_topology(

@@ -135,14 +135,54 @@ def test_repo_root_lane_with_no_effective_root_resolves_to_repository_root(tmp_p
     assert resolved.status_execution_mode == "direct_repo"
 
 
+def _set_meta_mission_branch(feature_dir: Path, mission_branch: str | None) -> None:
+    """Record (or clear) ``meta.mission_branch`` -- the write-branch authority."""
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    if mission_branch is None:
+        meta.pop("mission_branch", None)
+    else:
+        meta["mission_branch"] = mission_branch
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+
 def test_repo_root_lane_branch_name_prefers_mission_branch_when_set(tmp_path: Path) -> None:
     feature_dir = _seed_mission(tmp_path, topology="single_branch")
     _write_code_wp(feature_dir, "WP01", owned_files=["src/a.py"])
+    _set_meta_mission_branch(feature_dir, "kitty/mission-single-branch-resolve-01kzz")
     write_lanes_json(feature_dir, _repo_root_manifest(mission_branch="kitty/mission-single-branch-resolve-01kzz"))
 
     resolved = resolve_workspace_for_wp(tmp_path, _MISSION_SLUG, "WP01")
 
     assert resolved.branch_name == "kitty/mission-single-branch-resolve-01kzz"
+
+
+def test_repo_root_lane_branch_ignores_stale_lanes_json_mission_branch_after_landing(tmp_path: Path) -> None:
+    """After a protected landing clears ``meta.mission_branch`` the stale
+    ``lanes.json`` still names the (deleted) mission branch; the write branch
+    -- the WRONG_BRANCH refusal's expectation -- must follow meta.json (the
+    authority commit placement reads), i.e. the target branch."""
+    feature_dir = _seed_mission(tmp_path, topology="single_branch")
+    _write_code_wp(feature_dir, "WP01", owned_files=["src/a.py"])
+    _set_meta_mission_branch(feature_dir, None)
+    write_lanes_json(feature_dir, _repo_root_manifest(mission_branch="kitty/mission-single-branch-resolve-01kzz"))
+
+    resolved = resolve_workspace_for_wp(tmp_path, _MISSION_SLUG, "WP01")
+
+    assert resolved.branch_name == "main"
+
+
+def test_lanes_topology_code_wp_in_planning_lane_keeps_target_branch(tmp_path: Path) -> None:
+    """The mission-branch rule is gated on STORED single_branch: a code WP that
+    sits in ``lane-planning`` of a LANES mission resolves to the target branch
+    (as on main), never to ``lanes.json.mission_branch`` (the integration branch)."""
+    feature_dir = _seed_mission(tmp_path, topology="lanes")
+    _write_code_wp(feature_dir, "WP01", owned_files=["src/a.py"])
+    write_lanes_json(feature_dir, _repo_root_manifest(mission_branch=f"kitty/mission-{_MISSION_SLUG}"))
+
+    resolved = resolve_workspace_for_wp(tmp_path, _MISSION_SLUG, "WP01")
+
+    assert resolved.branch_name == "main"
 
 
 def test_repo_root_lane_with_effective_root_resolves_to_that_path(tmp_path: Path) -> None:

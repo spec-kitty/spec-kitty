@@ -72,7 +72,9 @@ from mission_runtime.resolution import (
     resolve_artifact_surface,
     resolve_create_time_write_target,
     resolve_placement_only,
+    resolve_single_branch_write_ref,
     resolve_topology,
+    single_branch_write_ref,
 )
 from mission_runtime.issue_matrix_partition import resolve_issue_matrix_partition
 from mission_runtime.mission_resolver_port import MissionResolver
@@ -135,9 +137,11 @@ __all__ = [
     "resolve_mid8",
     "resolve_placement_only",
     "resolve_read_dir_or_degrade",
+    "resolve_single_branch_write_ref",
     "resolve_topology",
     "resolve_write_target_or_degrade",
     "routes_through_coordination",
+    "single_branch_write_ref",
     "unstamped_runtime_topology",
 ]
 

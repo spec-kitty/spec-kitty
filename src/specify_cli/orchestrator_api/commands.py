@@ -1319,18 +1319,16 @@ def _status_execution_mode_for_start_workspace(start_ws: _StartWorkspace) -> str
 def _repo_root_lane_branch(main_repo_root: Path, mission: str, manifest: Any) -> str:
     """Branch a repo-root lane WP executes on (#5100 B1).
 
-    ``manifest.mission_branch`` applies ONLY to a mission whose STORED topology is
-    ``single_branch``. In a ``lanes`` / coordination mission it names the
-    integration branch, while a repo-root (planning-artifact) WP runs on the
-    target branch.
+    The mission's recorded ``meta.mission_branch`` applies ONLY to a mission whose
+    STORED topology is ``single_branch``; in a ``lanes`` / coordination mission a
+    repo-root (planning-artifact) WP runs on the target branch. The rule is the
+    one :func:`mission_runtime.resolve_single_branch_write_ref` -- never
+    ``manifest.mission_branch``, a stale copy after a protected landing clears
+    the meta field.
     """
-    from specify_cli.migration.backfill_topology import stored_topology
-    from specify_cli.mission_metadata import load_meta_or_empty
+    from mission_runtime import resolve_single_branch_write_ref
 
-    meta = load_meta_or_empty(main_repo_root / "kitty-specs" / mission)
-    if stored_topology(meta) is MissionTopology.SINGLE_BRANCH and manifest.mission_branch:
-        return str(manifest.mission_branch)
-    return str(manifest.target_branch)
+    return resolve_single_branch_write_ref(main_repo_root, mission, str(manifest.target_branch))
 
 
 def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:

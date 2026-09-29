@@ -33,6 +33,7 @@ from mission_runtime import (
     mission_context_for,
     resolve_artifact_surface,
     resolve_placement_only,
+    single_branch_write_ref,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -181,3 +182,24 @@ def test_mission_context_for_owned_arm_is_repo_root_invariant(tmp_path: Path) ->
     ):
         context = mission_context_for(vestigial_root, _SLUG_WITH_MID8, effective_root=repo)
         assert context == baseline
+
+
+# ---------------------------------------------------------------------------
+# single_branch_write_ref -- the ONE write-branch rule (#5100 FR-007/012)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("topology", "mission_branch", "expected"),
+    [
+        (MissionTopology.SINGLE_BRANCH, "kitty/mission-x-aaaaaaaa", "kitty/mission-x-aaaaaaaa"),
+        (MissionTopology.SINGLE_BRANCH, None, "main"),
+        (MissionTopology.SINGLE_BRANCH, "", "main"),
+        (MissionTopology.SINGLE_BRANCH, 7, "main"),
+        (MissionTopology.LANES, "kitty/mission-x-aaaaaaaa", "main"),
+        (MissionTopology.COORD, "kitty/mission-x-aaaaaaaa", "main"),
+        (None, "kitty/mission-x-aaaaaaaa", "main"),
+    ],
+)
+def test_single_branch_write_ref_rule(topology: MissionTopology | None, mission_branch: object, expected: str) -> None:
+    assert single_branch_write_ref(topology, mission_branch, "main") == expected

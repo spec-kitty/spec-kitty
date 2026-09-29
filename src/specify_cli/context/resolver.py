@@ -30,7 +30,7 @@ from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.mission_metadata import mission_identity_fields
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, placement_seam, single_branch_write_ref
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from specify_cli.status import WPMetadata, read_authored_wp_frontmatter
 
@@ -101,11 +101,13 @@ def _read_meta_json(feature_dir: Path, repo_root: Path) -> dict[str, str]:
         "mission_number": identity["mission_number"],
         "mission_type": identity["mission_type"],
     }
-    # WP08 (#5100): carry the protected-target mint through to resolve_context
-    # (this hydrated dict otherwise drops every field it does not name).
-    raw_mission_branch = data.get("mission_branch")
-    if isinstance(raw_mission_branch, str) and raw_mission_branch:
-        fields["mission_branch"] = raw_mission_branch
+    # WP08 (#5100): carry the branch the mission writes to through to
+    # resolve_context (this hydrated dict otherwise drops every field it does
+    # not name). The rule -- stored single_branch + meta.mission_branch, else
+    # target_branch -- is the ONE mission_runtime authority, never re-derived.
+    from specify_cli.migration.backfill_topology import stored_topology  # lazy: keeps this module's import graph unchanged
+
+    fields["write_branch"] = single_branch_write_ref(stored_topology(data), data.get("mission_branch"), target_branch)
     return fields
 
 
@@ -253,12 +255,6 @@ def resolve_context(
     # lane_branch_name() returns target_branch for lane-planning (T011).
     # lanes.json is LANE_STATE (PRIMARY-partition) — use its truthful kind so a
     # future LANE_STATE re-partition does not silently misroute.
-    # OUT of FR-008 / #2139 routing (by design, per D-03/squad triage): this is
-    # a hard-KeyError read of the already-hydrated `meta` dict built by
-    # `_read_meta_json` above (which itself now routes through the
-    # read_target_branch_from_meta authority and always populates the key) --
-    # a construction-time dataclass-hydration read, not a meta.json field read.
-    target_branch = meta["target_branch"]
     # read-side-placement-seam-migration WP07: routed through
     # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
     # instead of the kind-blind ``resolve_planning_read_dir``.
@@ -279,12 +275,10 @@ def resolve_context(
     # would name the PROTECTED branch here. Route through it only for the
     # composer, never touching `context.target_branch` below (that field
     # stays the mission's real target).
-    raw_mission_branch = meta.get("mission_branch")
-    authoritative_target = str(raw_mission_branch) if isinstance(raw_mission_branch, str) and raw_mission_branch else target_branch
     authoritative_ref = lane_branch_name(
         mission_slug,
         lane.lane_id,
-        target_branch=authoritative_target,
+        target_branch=meta["write_branch"],
     )
 
     # Compute dependency_mode

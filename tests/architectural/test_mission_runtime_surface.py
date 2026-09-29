@@ -138,6 +138,14 @@ _PUBLIC_SURFACE = sorted(
         # of each restating a raw ``"single_branch"`` meta string or a second
         # enum comparison — a package-root public symbol, so it is pinned here.
         "is_single_branch",
+        # single_branch write-ref single authority (#5100 fold): the pure rule
+        # (stored single_branch + meta.mission_branch, else target_branch) and
+        # its repository-reading shell. Every write-branch site (implement's
+        # planning commit, the owned-checkout preflight, workspace resolution,
+        # the context resolver, the orchestrator API) routes through them
+        # instead of re-deriving from meta.json / lanes.json.
+        "single_branch_write_ref",
+        "resolve_single_branch_write_ref",
         # lifecycle-gate-execution-context-01KY72GQ WP11 (IC-07a): the
         # self-bookkeeping allowlist predicate ``is_self_bookkeeping_path`` (gate-
         # read-surface-completion WP05 / FR-003) was retired onto the canonical
