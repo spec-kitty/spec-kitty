@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M3QHD9HKCVR2QV4GZ8R3H8MT",
+  "completed_at": "2026-09-29T23:29:27.135567+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "work/test-quality/2026-09-29/charter/slice2-ledger.md"
+}
