@@ -606,10 +606,16 @@ def _mr_stale_gate(st: _MapReqState) -> None:
         combined = sorted(reasons[grammar.MALFORMED] + reasons[grammar.UNKNOWN_SPEC_ID] + reasons[grammar.FOREIGN_QUALIFIED])
         if not combined:
             continue
-        stale_refs[wp_id] = combined
-        stale_ref_reasons[wp_id] = reasons
-        if reasons[grammar.MALFORMED] or reasons[grammar.UNKNOWN_SPEC_ID]:
+        # A foreign_qualified citation is never stale (FR-019): it is a
+        # valid cross-mission reference, not something --replace should
+        # correct. Keep it visible in stale_ref_reasons (informational) but
+        # never in stale_refs, whose "--replace to correct" hint invites
+        # deleting it -- and never let a foreign-only WP set the gate.
+        blocking_refs = sorted(reasons[grammar.MALFORMED] + reasons[grammar.UNKNOWN_SPEC_ID])
+        if blocking_refs:
+            stale_refs[wp_id] = blocking_refs
             blocking = True
+        stale_ref_reasons[wp_id] = reasons
 
     if not blocking:
         return

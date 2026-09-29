@@ -250,6 +250,7 @@ class TestMapRequirementsGrammarFocused:
             wp_refs={
                 "WP01": "[]",
                 "WP02": '["other-mission-01KAAAAA#FR-013"]',
+                "WP03": '["other-mission-01KAAAAA#FR-014"]',
             },
         )
 
@@ -272,6 +273,16 @@ class TestMapRequirementsGrammarFocused:
         payload = json.loads(fails.stdout.strip())
         assert payload["stale_ref_reasons"]["WP02"]["foreign_qualified"] == ["other-mission-01KAAAAA#FR-013"]
         assert payload["stale_ref_reasons"]["WP02"]["malformed"] == ["FR_001"]
+
+        # C6: a foreign_qualified citation is never "stale" -- it must never
+        # appear in stale_refs (whose hint invites --replace, i.e. deletion),
+        # even for a WP (WP02) that IS listed there for its genuine malformed
+        # offender. And WP03, whose ONLY ref is foreign-qualified, must never
+        # be listed in stale_refs at all, even though the payload as a whole
+        # IS emitted (blocking on WP02's malformed ref).
+        assert payload["stale_refs"]["WP02"] == ["FR_001"]
+        assert "WP03" not in payload["stale_refs"]
+        assert payload["stale_ref_reasons"]["WP03"]["foreign_qualified"] == ["other-mission-01KAAAAA#FR-014"]
 
     def test_pre_write_malformed_refusal_names_grammar_no_write(self, mock_locate: Mock, mock_slug: Mock, mock_branch: Mock, tmp_path: Path) -> None:
         mock_locate.return_value = tmp_path
