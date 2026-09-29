@@ -275,14 +275,25 @@ def begin_attempt(repo_root: Path, state: ConsolidationState) -> None:
     consolidation itself produced (live tip == snapshot or the previous
     attempt's post tip) is undone to the snapshot; a change someone else made
     between attempts (e.g. the operator fixing the carrier lane) is KEPT.
+
+    A previous attempt's post tip is carried forward for every branch still
+    sitting at it: a resumed attempt that re-moves nothing (lanes already
+    consolidated, target already squashed) must not orphan that CAS expectation,
+    or a later rollback would report the branch as moved-but-unrecorded. A branch
+    that moved between attempts drops its post tip, so another actor's commit is
+    never adopted as this run's.
     """
+    carried: dict[str, str] = {}
     for branch, snapshot in state.pre_mutation_refs.items():
         live = _live_tip(repo_root, branch)
         if live is None:
             state.restore_targets.setdefault(branch, snapshot)
             continue
-        state.restore_targets[branch] = _restore_target(snapshot, state.post_mutation_refs.get(branch), live)
-    state.post_mutation_refs = {}
+        previous_post = state.post_mutation_refs.get(branch)
+        state.restore_targets[branch] = _restore_target(snapshot, previous_post, live)
+        if previous_post is not None and live == previous_post:
+            carried[branch] = previous_post
+    state.post_mutation_refs = carried
     save_state(state, repo_root)
 
 

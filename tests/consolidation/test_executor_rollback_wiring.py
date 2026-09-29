@@ -56,13 +56,16 @@ def test_snapshot_is_captured_once_and_reused_by_a_resume(tmp_path: Path) -> Non
     env = make_env(tmp_path)
     executor._capture_snapshot_and_begin_attempt(_run_for(env))
     first = dict(env.state.pre_mutation_refs)
-    _advance_run(env)
+    posts = _advance_run(env)
 
     executor._capture_snapshot_and_begin_attempt(_run_for(env, is_resume=True))
 
     assert env.state.pre_mutation_refs == first, "a resume must reuse the persisted snapshot"
     assert env.state.restore_targets[_TARGET] == first[_TARGET], "consolidation's own advance is undone to the snapshot"
-    assert env.state.post_mutation_refs == {}, "every attempt resets its post tips"
+    # Re-pinned 2026-09-29 (slice-10 pre-PR verification): a resume carries forward the
+    # previous post tip of every branch still sitting at it; resetting them wedged
+    # `--abort` after a crashed resume (tests/terminus/test_repro_5318_abort.py).
+    assert env.state.post_mutation_refs == {b: posts[b] for b in posts}, "tips still at the previous post tip are carried"
 
 
 def test_missing_lane_branch_is_warned_about(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

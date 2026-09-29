@@ -564,3 +564,31 @@ def test_four_lane_rollback_is_fast(tmp_path: Path) -> None:
     assert all(_git(wt, "status", "--porcelain") == "" for wt in checkouts.values())
     print(f"NFR-001 measured rollback time: {elapsed:.3f}s for {len(restored)} restored branches")
     assert elapsed < 2.0, f"rollback took {elapsed:.3f}s (NFR-001 bound 2s)"
+
+
+def test_begin_attempt_carries_forward_a_post_tip_for_a_branch_still_at_it(tmp_path: Path) -> None:
+    """A resumed attempt that re-moves nothing keeps attempt 1's CAS expectation (restores, no wedge)."""
+    env = make_env(tmp_path)
+    snap = _snapshot_and_begin(env)
+    posts = _advance_run(env)  # attempt 1 advanced target + mission branch and recorded them
+    begin_attempt(env.repo, env.state)  # attempt 2 (resume) starts; no phase re-moves anything
+    assert env.state.post_mutation_refs == posts, "tips still at attempt 1's post tip are carried forward"
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+    assert report.fully_restored, report.render()
+    assert _rev(env.repo, _TARGET) == snap[_TARGET]
+    assert _rev(env.repo, _MISSION_BRANCH) == snap[_MISSION_BRANCH]
+
+
+def test_begin_attempt_drops_the_post_tip_of_a_branch_moved_between_attempts(tmp_path: Path) -> None:
+    """A commit landing between attempts breaks the carry-forward: it is never adopted as this run's."""
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    _advance_run(env)
+    foreign = _commit_on(env.repo, _MISSION_BRANCH, "between-attempts")
+    begin_attempt(env.repo, env.state)
+    assert _MISSION_BRANCH not in env.state.post_mutation_refs
+    assert env.state.restore_targets[_MISSION_BRANCH] == foreign, "the between-attempts commit is the new restore target"
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+    assert _rev(env.repo, _MISSION_BRANCH) == foreign, "never overwritten"
+    kinds = _kinds(report)
+    assert kinds[_MISSION_BRANCH] is BranchOutcomeKind.ALREADY_AT_SNAPSHOT
