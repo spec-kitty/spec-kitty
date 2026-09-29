@@ -22,6 +22,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
+
 __all__ = [
     "AbsorptionUnsupported",
     "clear_tip",
@@ -76,13 +78,7 @@ def record_tip(repo_root: Path, branch: str, sha: str | None = None) -> str | No
             return None
         resolved = rev.stdout.strip()
 
-    subprocess.run(
-        ["git", "update-ref", tip_ref(branch), resolved],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    write_bookkeeping_ref(repo_root, tip_ref(branch), resolved)
     return resolved
 
 
@@ -143,13 +139,7 @@ def read_tip(repo_root: Path, branch: str) -> str | None:
 
 def clear_tip(repo_root: Path, branch: str) -> None:
     """Delete the recorded lane-tip ref for ``branch``. A no-op when already absent."""
-    subprocess.run(
-        ["git", "update-ref", "-d", tip_ref(branch)],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    delete_bookkeeping_ref(repo_root, tip_ref(branch))
 
 
 def _git_supports_merge_tree_write_tree(repo_root: Path) -> bool:

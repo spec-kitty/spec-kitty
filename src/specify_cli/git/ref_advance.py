@@ -690,3 +690,56 @@ def advance_branch_ref_for_commit(
             f"{expected_old_sha[:12]}; refusing to clobber a concurrent ref update. "
             f"git: {detail or 'git update-ref failed'}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Spec Kitty bookkeeping refs (``refs/spec-kitty/**``)
+# ---------------------------------------------------------------------------
+
+#: Namespace of the bookkeeping refs spec-kitty records for itself (lane work
+#: tips, repo-root claim bases). They are never branches and never checked
+#: out, so the #1826 worktree-resync hazard :func:`advance_branch_ref` guards
+#: against cannot arise; they still go through this module so the AC-B3
+#: ratchet keeps every raw ``update-ref`` in one place.
+BOOKKEEPING_REF_PREFIX: str = "refs/spec-kitty/"
+
+
+class BookkeepingRefError(ValueError):
+    """A bookkeeping-ref write named a ref outside ``refs/spec-kitty/``."""
+
+    error_code = "BOOKKEEPING_REF_OUT_OF_NAMESPACE"
+
+
+def _require_bookkeeping_ref(ref: str) -> None:
+    if not ref.startswith(BOOKKEEPING_REF_PREFIX) or ref == BOOKKEEPING_REF_PREFIX:
+        raise BookkeepingRefError(
+            f"Refusing to write {ref!r}: only {BOOKKEEPING_REF_PREFIX}** bookkeeping refs are written here; branch refs go through advance_branch_ref()."
+        )
+
+
+def write_bookkeeping_ref(repo_root: Path, ref: str, sha: str) -> bool:
+    """Point the bookkeeping ref *ref* at *sha*; return ``True`` on success.
+
+    A plain (2-arg) ``git update-ref``: bookkeeping refs are single-writer
+    records owned by their caller, which decides whether a failure matters
+    (a best-effort recorder ignores ``False``; a mandatory one raises).
+
+    Raises:
+        BookkeepingRefError: *ref* is not under ``refs/spec-kitty/`` -- a
+            branch or any other namespace must never be moved through here.
+    """
+    _require_bookkeeping_ref(ref)
+    return _run_git(repo_root, ["update-ref", ref, sha]).returncode == 0
+
+
+def delete_bookkeeping_ref(repo_root: Path, ref: str) -> bool:
+    """Delete the bookkeeping ref *ref*; return ``True`` on success.
+
+    Deleting an already-absent ref succeeds (``git update-ref -d`` is a
+    no-op for a missing ref), so callers may treat this as idempotent.
+
+    Raises:
+        BookkeepingRefError: *ref* is not under ``refs/spec-kitty/``.
+    """
+    _require_bookkeeping_ref(ref)
+    return _run_git(repo_root, ["update-ref", "-d", ref]).returncode == 0

@@ -33,6 +33,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from specify_cli.git.ref_advance import delete_bookkeeping_ref, write_bookkeeping_ref
+
 __all__ = [
     "on_wp_terminal",
     "read_claim_base",
@@ -113,12 +115,8 @@ def record_claim_base(repo_root: Path, write_checkout: Path, mission_slug: str, 
         raise RuntimeError(f"cannot record claim base for {mission_slug}/{wp_id}: HEAD does not resolve in {write_checkout}")
     head_sha = head_result.stdout.strip()
 
-    subprocess.run(
-        ["git", "-C", str(repo_root), "update-ref", _claim_base_ref(mission_slug, wp_id), head_sha],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    if not write_bookkeeping_ref(repo_root, _claim_base_ref(mission_slug, wp_id), head_sha):
+        raise RuntimeError(f"cannot record claim base for {mission_slug}/{wp_id}: git update-ref failed in {repo_root}")
     return head_sha
 
 
@@ -129,12 +127,7 @@ def _clear_claim_base(repo_root: Path, mission_slug: str, wp_id: str) -> None:
     :func:`on_wp_terminal`, which IS the public, externally-called clear
     primitive.
     """
-    subprocess.run(
-        ["git", "-C", str(repo_root), "update-ref", "-d", _claim_base_ref(mission_slug, wp_id)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    delete_bookkeeping_ref(repo_root, _claim_base_ref(mission_slug, wp_id))
 
 
 def _clear_lane_tip_if_lane_fully_terminal(repo_root: Path, mission_slug: str, wp_id: str) -> None:
