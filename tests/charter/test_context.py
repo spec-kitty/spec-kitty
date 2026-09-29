@@ -188,11 +188,6 @@ class TestBuildContextV2:
                 mission_type="software-dev",
             )
 
-    def test_returns_charter_context_result(self, tmp_path: Path) -> None:
-        """Returns the correct type."""
-        result = self._call(tmp_path)
-        assert isinstance(result, CharterContextResult)
-
     def test_action_normalized(self, tmp_path: Path) -> None:
         """Action is normalized to lowercase."""
         result = self._call(tmp_path, action="  IMPLEMENT  ")

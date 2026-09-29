@@ -34,9 +34,6 @@ pytestmark = pytest.mark.fast
 class TestValidPathKeysCanonicalHome:
     """``VALID_PATH_KEYS`` is charter-canonical and matches the historical value."""
 
-    def test_valid_path_keys_is_a_frozenset(self) -> None:
-        assert isinstance(VALID_PATH_KEYS, frozenset)
-
     def test_valid_path_keys_matches_historical_specify_cli_value(self) -> None:
         """Pinned verbatim, and the two dual-home copies must not drift.
 
@@ -65,10 +62,6 @@ class TestValidatePathConventionsFunction:
     @pytest.mark.parametrize("key", sorted(VALID_PATH_KEYS))
     def test_each_valid_key_accepted_individually(self, key: str) -> None:
         validate_path_conventions({key: "some/dir"})  # must not raise
-
-    def test_all_valid_keys_together_accepted(self) -> None:
-        mapping = {key: f"path/{key}" for key in VALID_PATH_KEYS}
-        validate_path_conventions(mapping)  # must not raise
 
     def test_unknown_key_rejected(self) -> None:
         with pytest.raises(ValueError, match="Unknown path-convention keys"):

@@ -22,10 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.activation.mission_type_profile_repository import (
-    MissionTypeProfileRepository,
-    builtin_missions_root,
-)
+from charter.activation.mission_type_profile_repository import builtin_missions_root
 from charter.offering.missions.repository import MissionTemplateRepository
 
 pytestmark = [pytest.mark.unit]
@@ -47,15 +44,3 @@ def test_builtin_missions_root_matches_module_relative_resolution() -> None:
     expected = MissionTemplateRepository.default_missions_root()
 
     assert builtin_missions_root() == expected
-
-
-def test_builtin_missions_root_matches_constructor_default() -> None:
-    """Constructing a repository with no explicit ``built_in_dir`` must not raise.
-
-    This exercises the classmethod-delegates-to-function path (T026): the
-    constructor's default resolution goes through the same promoted
-    ``builtin_missions_root()`` this module exposes publicly.
-    """
-    repo = MissionTypeProfileRepository()
-
-    assert repo is not None

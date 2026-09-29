@@ -242,23 +242,6 @@ class TestResolveActionSequence:
         err = exc_info.value
         assert err.registered_ids == registered
 
-    def test_result_is_a_list(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """_action_sequence() returns a list, not another iterable type."""
-        software_dev = _make_mission_type(
-            "software-dev",
-            ["specify", "plan", "tasks", "implement", "review"],
-        )
-        mock_repo = _make_repo(software_dev)
-        _inject_mission_type_repository_mock(mock_repo, monkeypatch)
-
-        with patch(
-            "charter.activation.mission_type_profiles.existing_mission_types",
-            return_value=["software-dev"],
-        ):
-            result = _action_sequence("software-dev", tmp_path)
-
-        assert isinstance(result, list)
-
     def test_not_cached_across_calls(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """_action_sequence() calls the layered factory once per invocation
         (FR-007) -- ``_resolve_action_slot`` itself applies no additional

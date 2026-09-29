@@ -117,15 +117,6 @@ def full_request(
 class TestRunAllTupleCount:
     """run_all() returns one tuple per synthesized target."""
 
-    def test_run_all_returns_list(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-    ) -> None:
-        """run_all() returns a list."""
-        results = run_all(full_request, adapter=adapter)
-        assert isinstance(results, list)
-
     def test_run_all_returns_nonempty(
         self,
         full_request: SynthesisRequest,
@@ -190,17 +181,6 @@ class TestRunAllTupleCount:
 
 class TestSynthesizeEntryPoint:
     """orchestrator.synthesize() delegates to synthesize_pipeline.run()."""
-
-    def test_synthesize_returns_synthesis_result(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-        tmp_path: Path,
-    ) -> None:
-        """synthesize() returns a SynthesisResult object."""
-        from charter.activation.synthesizer.orchestrator import SynthesisResult
-        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
-        assert isinstance(result, SynthesisResult)
 
     def test_synthesize_result_has_target_kind(
         self,

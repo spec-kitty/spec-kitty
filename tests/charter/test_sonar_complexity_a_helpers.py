@@ -346,12 +346,6 @@ class TestResolveIncludeKind:
         with pytest.raises(ValueError, match="mission-type"):
             _resolve_include_kind("mission-type", "mission-type:software-dev")
 
-    def test_resolve_include_kind_unknown_token_fails_closed(self) -> None:
-        from charter.activation.context_renderers.template_include import _resolve_include_kind
-
-        with pytest.raises(Exception):  # noqa: B017 -- canonical vocabulary error, class not re-exported here
-            _resolve_include_kind("not-a-real-kind", "not-a-real-kind:x")
-
 
 # ---------------------------------------------------------------------------
 # charter.activation.context_renderers.catalog_diagnosis

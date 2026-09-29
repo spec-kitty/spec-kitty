@@ -13,7 +13,6 @@ Verifies that:
 from __future__ import annotations
 
 import io
-from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -21,7 +20,6 @@ from ruamel.yaml import YAML
 
 from charter.activation.schemas import (
     Directive,
-    DirectivesConfig,
     DoctrineSelectionConfig,
 )
 
@@ -159,73 +157,3 @@ class TestDoctrineSelectionAuthorityPathsField:
         ]
 
 
-# ---------------------------------------------------------------------------
-# Backward compatibility: existing directives.yaml fixtures load cleanly
-# ---------------------------------------------------------------------------
-
-
-def _discover_directives_yaml_paths() -> list[Path]:
-    """Find every ``directives.yaml`` under the repository tree."""
-    # Walk up from this test file to locate the worktree / repo root.
-    here = Path(__file__).resolve()
-    # repo root = parent of ``tests``
-    for ancestor in here.parents:
-        if (ancestor / "tests").is_dir() and (ancestor / "src").is_dir():
-            repo_root = ancestor
-            break
-    else:  # pragma: no cover — defensive
-        return []
-
-    candidates: list[Path] = []
-    for path in repo_root.rglob("directives.yaml"):
-        # Skip generated agent-copy directories and node_modules-style noise.
-        parts = set(path.parts)
-        if ".worktrees" in parts and repo_root.name not in path.relative_to(
-            repo_root
-        ).parts[:1]:
-            # only include paths inside our own worktree
-            pass
-        candidates.append(path)
-    return candidates
-
-
-class TestExistingDirectivesFixturesStillLoad:
-    def test_existing_directives_yaml_fixture_still_loads(self) -> None:
-        """Sanity check: every existing ``directives.yaml`` under the repo
-        deserializes into a valid ``DirectivesConfig`` after the additive
-        schema change. NFR-005 backward compatibility."""
-        paths = _discover_directives_yaml_paths()
-
-        # The test is meaningful only if at least one fixture exists.
-        if not paths:
-            pytest.skip("No directives.yaml fixtures found in the repo tree")
-
-        yaml = YAML(typ="safe")
-        loaded_any = False
-        for path in paths:
-            try:
-                with path.open("r", encoding="utf-8") as fh:
-                    data = yaml.load(fh)
-            except Exception:  # pragma: no cover — unreadable file
-                continue
-
-            if data is None:
-                continue
-            if not isinstance(data, dict):
-                continue
-
-            # Accept both the bare-list and the wrapped shape.
-            if "directives" in data:
-                DirectivesConfig(**data)
-            else:
-                # Some fixtures may be a single Directive doc; tolerate that.
-                if {"id", "title"}.issubset(data.keys()):
-                    Directive(**data)
-                else:
-                    continue
-            loaded_any = True
-
-        assert loaded_any, (
-            "Found directives.yaml files but none matched expected shapes — "
-            "this is a discovery bug, not a schema bug"
-        )

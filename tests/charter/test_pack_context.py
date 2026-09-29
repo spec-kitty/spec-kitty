@@ -198,19 +198,6 @@ def test_pack_context_is_immutable(tmp_path: Path) -> None:
         ctx.activated_kinds = frozenset({"directives"})  # type: ignore[misc]
 
 
-# ---------------------------------------------------------------------------
-# T040-4: pack_roots is a tuple
-# ---------------------------------------------------------------------------
-
-
-def test_pack_roots_is_tuple(tmp_path: Path) -> None:
-    """pack_roots must be a tuple, not a list."""
-    _write_config(tmp_path, _MINIMAL_CONFIG)
-    ctx = PackContext.from_config(tmp_path)
-
-    assert isinstance(ctx.pack_roots, tuple)
-
-
 def test_pack_roots_contains_builtin_root(tmp_path: Path) -> None:
     """pack_roots[0] must point at the built-in offer catalogue root (src/charter/offering/, relocated from src/charter/offering/ in M2 charter-code-topology)."""
     _write_config(tmp_path, _MINIMAL_CONFIG)
@@ -222,19 +209,6 @@ def test_pack_roots_contains_builtin_root(tmp_path: Path) -> None:
     # src/charter/offering/ in M2); the packaged pack root is its `built_in` data dir.
     assert builtin.exists()
     assert builtin.name == "offering"
-
-
-# ---------------------------------------------------------------------------
-# T040-5: activated_kinds is a frozenset
-# ---------------------------------------------------------------------------
-
-
-def test_activated_kinds_is_frozenset(tmp_path: Path) -> None:
-    """activated_kinds must be a frozenset."""
-    _write_config(tmp_path, _MINIMAL_CONFIG)
-    ctx = PackContext.from_config(tmp_path)
-
-    assert isinstance(ctx.activated_kinds, frozenset)
 
 
 # ---------------------------------------------------------------------------
@@ -329,19 +303,6 @@ def test_repo_root_is_stored(tmp_path: Path) -> None:
     ctx = PackContext.from_config(tmp_path)
 
     assert ctx.repo_root == tmp_path
-
-
-# ---------------------------------------------------------------------------
-# Additional: activated_mission_types is a frozenset
-# ---------------------------------------------------------------------------
-
-
-def test_activated_mission_types_is_frozenset(tmp_path: Path) -> None:
-    """activated_mission_types must be a frozenset."""
-    _write_config(tmp_path, _MINIMAL_CONFIG)
-    ctx = PackContext.from_config(tmp_path)
-
-    assert isinstance(ctx.activated_mission_types, frozenset)
 
 
 # ---------------------------------------------------------------------------

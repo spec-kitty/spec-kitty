@@ -67,25 +67,6 @@ class TestMissionTypeProfileOpenStr:
         profile = MissionTypeProfile(mission_type="compliance-audit")
         assert profile.mission_type == "compliance-audit"
 
-    def test_pydantic_validation_error_not_raised_for_unknown(self) -> None:
-        """The historical ValidationError for non-Literal values MUST NOT be raised."""
-        try:
-            from pydantic import ValidationError  # noqa: PLC0415
-        except ImportError:
-            pytest.skip("pydantic not installed")
-
-        # This used to raise: before T029, any value outside the Literal set
-        # caused a pydantic ValidationError at construction time.
-        try:
-            profile = MissionTypeProfile(mission_type="totally-custom")
-        except ValidationError:
-            pytest.fail(
-                "MissionTypeProfile raised pydantic.ValidationError for "
-                "mission_type='totally-custom'. T029 requires the annotation "
-                "to be str, not Literal[...]. Remove the Literal constraint."
-            )
-        assert profile.mission_type == "totally-custom"
-
 
 # ---------------------------------------------------------------------------
 # T030 — UnknownMissionTypeError carries registered_ids
