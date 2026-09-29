@@ -188,6 +188,42 @@ def test_existing_mission_branch_name_refuses_create(tmp_path: Path, monkeypatch
     assert forced_name in str(exc_info.value)
 
 
+def test_recreate_of_existing_mission_reports_mission_already_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A second create of an ALREADY-CREATED mission reports
+    MISSION_ALREADY_EXISTS, not MISSION_BRANCH_EXISTS.
+
+    The minted branch name derives from the same slug + mid8, so a duplicate
+    also collides on the branch; the existing-mission check must win. The
+    first mission stays byte-identical (fail-closed, no partial writes).
+    """
+    from ulid import ULID as _ULID
+
+    repo = _seed_repo(tmp_path, name="recreate-existing")
+    provision_test_charter(repo)
+    fixed_mission_id = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+    monkeypatch.setattr(
+        "specify_cli.core.mission_creation.ULID",
+        lambda: _ULID.from_str(fixed_mission_id),
+    )
+    kwargs = {
+        "topology": MissionTopology.SINGLE_BRANCH,
+        "target_branch": "main",
+        "allow_worktree_context": True,
+        "friendly_name": "Recreate Existing",
+        "purpose_tldr": "Second create must report the existing mission.",
+        "purpose_context": "The second create of the same mission must be refused as already existing.",
+    }
+    first = create_mission_core(repo, "recreate-existing-a", **kwargs)
+    meta_path = first.feature_dir / "meta.json"
+    meta_before = meta_path.read_text(encoding="utf-8")
+
+    with pytest.raises(MissionCreationError) as exc_info:
+        create_mission_core(repo, "recreate-existing-a", **kwargs)
+
+    assert exc_info.value.error_code == "MISSION_ALREADY_EXISTS"
+    assert meta_path.read_text(encoding="utf-8") == meta_before
+
+
 def test_unprotected_target_no_mint(tmp_path: Path) -> None:
     """Control: an UNPROTECTED target never mints a mission branch."""
     repo = _seed_repo(tmp_path, name="unprotected")

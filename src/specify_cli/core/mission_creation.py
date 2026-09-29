@@ -1125,6 +1125,17 @@ def _create_mission_core_impl(
     )
 
     feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted
+    # An already-scaffolded mission under this exact directory name is a
+    # duplicate, and must report MISSION_ALREADY_EXISTS. This runs BEFORE any
+    # write and before the #5100 protected-target mint (6.7), whose
+    # "mission branch exists" refusal would otherwise mask it: the mission
+    # branch name is derived from the same slug + mid8, so a re-create of an
+    # existing mission always collides on the branch too.
+    if (feature_dir / "meta.json").exists():
+        raise MissionAlreadyExistsError(
+            f"Mission directory {mission_slug_formatted} already exists ({KITTY_SPECS_DIR}/{mission_slug_formatted}/meta.json is present). "
+            "Refusing to overwrite an existing mission."
+        )
     scaffold_paths = (
         feature_dir / "meta.json",
         feature_dir / "status.events.jsonl",
