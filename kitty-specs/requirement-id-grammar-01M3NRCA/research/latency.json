@@ -1,0 +1,381 @@
+{
+  "base_phase_ms": {
+    "max": 0.28279,
+    "median": 0.24246299999999998,
+    "min": 0.228006
+  },
+  "base_samples": [
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 247292,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 171429521
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 234368,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 168396427
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 243315,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 174096693
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 240379,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 178224215
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 233095,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 170657103
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 266188,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 175080851
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 282790,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 173004515
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 228006,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 170960801
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 279173,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 183428623
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 243355,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 175155591
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 228247,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 168293215
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 234908,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 168754355
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 243245,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 171931362
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 231142,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 173714287
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 241681,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 179550742
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 264665,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 185010560
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 252372,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 182957599
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 258264,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 187275765
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 238897,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 169704215
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 229899,
+      "porcelain_clean": true,
+      "side": "base",
+      "total_ns": 171912262
+    }
+  ],
+  "base_sha": "ddf114f06c54e5454bad5c3172e7049a95f7f862",
+  "base_total_ms": {
+    "max": 187.275765,
+    "median": 173.359401,
+    "min": 168.293215
+  },
+  "fixture": {
+    "c_count": 3,
+    "nfr_count": 5,
+    "sc_count": 4,
+    "wp_count": 30
+  },
+  "head_phase_ms": {
+    "max": 7.010118,
+    "median": 6.580878500000001,
+    "min": 6.280054
+  },
+  "head_samples": [
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6613461,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 163998177
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6429069,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 161421646
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6423749,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 158344930
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6752577,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 167441943
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 7010118,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 164622688
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6498312,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 161850974
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6671622,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 157415943
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6697201,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 159174431
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6280054,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 158973917
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6404762,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 154649338
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6508991,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 159951063
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6902764,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 167939278
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6559458,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 155511914
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6622868,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 159459483
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6447854,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 157051592
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6500295,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 164471825
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6691831,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 161887047
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6513259,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 160505579
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6602299,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 162998338
+    },
+    {
+      "finalize_ok": true,
+      "isolation_ok": true,
+      "phase_ns": 6941747,
+      "porcelain_clean": true,
+      "side": "head",
+      "total_ns": 168360399
+    }
+  ],
+  "head_sha": "fdf383f34a746104d15afe44cf97d9d9d7310749",
+  "head_total_ms": {
+    "max": 168.360399,
+    "median": 160.9636125,
+    "min": 154.649338
+  },
+  "machine": {
+    "cpu_count": 32,
+    "cpu_model": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "load_avg_after": [
+      1.4765625,
+      1.81689453125,
+      2.11572265625
+    ],
+    "load_avg_before": [
+      1.2578125,
+      1.8408203125,
+      2.140625
+    ],
+    "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+    "python_version": "3.11.15"
+  },
+  "rounds": 20,
+  "verdict": {
+    "overall": "PASS",
+    "phase_budget_ms": 50.0,
+    "phase_delta_ms": 6.338415500000001,
+    "phase_pass": true,
+    "summary": "NFR-003: PASS (phase \u0394 = +6.3 ms <= 50 ms; total head = 161.0 ms < 2000 ms)",
+    "total_budget_ms": 2000.0,
+    "total_delta_ms": -12.39578849999998,
+    "total_pass": true
+  }
+}

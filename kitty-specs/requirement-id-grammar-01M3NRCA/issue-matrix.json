@@ -1,0 +1,161 @@
+{
+  "rows": {
+    "#1676": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2066": {
+      "evidence_ref": "finalize parsed_spec_ids + rejected_requirement_refs (WP02 FR-011); map-requirements refusal diagnostics (WP03 FR-012); setup-plan authoring-time check SPEC_REQUIREMENT_IDS_INVALID + warnings (WP05 FR-013/014)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#2093": {
+      "evidence_ref": "out of scope per spec C-008 (context citation only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2644": {
+      "evidence_ref": "out of scope per spec C-008 (context citation only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2991": {
+      "evidence_ref": "finalize-tasks never erases/rewrites authored refs (WP02 FR-004); map-requirements append-only (WP03 FR-005); SC tracked-not-gating (FR-007)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#3394": {
+      "evidence_ref": "precedent citation in WP prompts (context only; closed prior work, no work owed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3519": {
+      "evidence_ref": "part 2: SC + letter-suffixed ids accepted (WP01 grammar, WP03 map-requirements), declared unmapped FR-006a fails finalize (FR-008); part 1 resolved earlier by c0f775ee4a; qualified citation closes last false positive (FR-009)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#3941": {
+      "evidence_ref": "precedent citation in WP prompts (context only; closed prior work, no work owed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4141": {
+      "evidence_ref": "precedent citation in WP prompts (context only; closed prior work, no work owed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4827": {
+      "evidence_ref": "precedent citation in WP prompts (context only; closed prior work, no work owed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4934": {
+      "evidence_ref": "precedent citation in WP prompts (context only; closed prior work, no work owed by this mission)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5065": {
+      "evidence_ref": "out of scope per spec C-008 (context citation only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5079": {
+      "evidence_ref": "out of scope per spec C-008 (context citation only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

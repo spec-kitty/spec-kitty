@@ -1,0 +1,4340 @@
+{
+  "bare_prose": {
+    "base_count": 1,
+    "base_flagged": {
+      "kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md": [
+        "C-1",
+        "C-3"
+      ]
+    },
+    "head_count": 1,
+    "head_flagged": {
+      "kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md": [
+        "C-1",
+        "C-3"
+      ]
+    },
+    "newly_flagged": {},
+    "no_longer_flagged": {},
+    "verdict": "PASS"
+  },
+  "base_sha": "ddf114f06c54e5454bad5c3172e7049a95f7f862",
+  "declared_growth": {
+    "growth": {
+      "kitty-specs/002-lightweight-pypi-release/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/003-auto-protect-agent/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/004-modular-code-refactoring/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/005-refactor-mission-system/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014",
+        "SC-015",
+        "SC-016",
+        "SC-017"
+      ],
+      "kitty-specs/007-frontmatter-only-lane/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/008-unified-python-cli/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/010-workspace-per-work-package-for-parallel-development/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/012-documentation-mission/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/013-fix-and-test-dashboard/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/014-comprehensive-end-user-documentation/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/017-smarter-feature-merge-with-preflight/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/018-merge-preflight-documentation/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/019-autonomous-multi-agent-orchestration-research/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/020-autonomous-multi-agent-orchestrator/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/025-cli-event-log-integration/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/028-cli-event-emission-sync/spec.md": [
+        "FR-028a",
+        "FR-028b",
+        "FR-028c",
+        "FR-028d",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012"
+      ],
+      "kitty-specs/032-identity-aware-cli-event-sync/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/034-feature-status-state-model-remediation/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/035-frontmatter-history-to-canonical-jsonl/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/036-kittify-runtime-centralization/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/037-mission-dsl-foundation/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/039-cli-2x-readiness/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/041-mission-glossary-semantic-integrity/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/042-local-mission-dossier-authority-parity-export/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/045-agent-profile-system/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014"
+      ],
+      "kitty-specs/045-mission-handoff-package-version-matrix/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/046-doctrine-artifact-domain-models/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/047-mutmut-mutation-testing-ci/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/047-namespace-aware-artifact-body-sync/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/048-structured-agent-identity-and-constitution-profile-integration/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/048-tracker-publish-resource-routing/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/049-fix-merge-target-resolution/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/051-canonical-state-authority-single-metadata-writer/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/052-acceptance-pipeline-regression-fixes/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/053-orchestrator-api-json-contract-fidelity/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/054-constitution-interview-compiler-and-bootstrap/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011"
+      ],
+      "kitty-specs/054-state-architecture-cleanup-phase-2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/055-agent-skills-pack/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/057-canonical-context-architecture-cleanup/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/057-doctrine-stack-init-and-profile-integration/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/059-saas-mediated-cli-tracker-reflow/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/060-canonical-status-model-cleanup/spec.md": [
+        "FR-009a",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/062-fix-doctrine-migration-test-failures/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/065-tasks-and-lane-stabilization/spec.md": [
+        "FR-002a",
+        "FR-010a",
+        "FR-010b"
+      ],
+      "kitty-specs/065-wp-metadata-state-type-hardening/spec.md": [
+        "FR-012a",
+        "FR-012b",
+        "FR-012c",
+        "FR-012d",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/069-planning-pipeline-integrity/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/078-planning-artifact-and-query-consistency/spec.md": [
+        "FR-002a",
+        "FR-008a",
+        "FR-014a"
+      ],
+      "kitty-specs/082-stealth-gated-saas-sync-hardening/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/083-agent-skills-codex-vibe/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/accept-fail-closed-missing-lanes-01M3CC1V/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/accept-fails-closed-01M3HS4V/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/accept-path-remediation-honesty-01M0TWZP/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/actor-identity-representation-01M2T0ER/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/advancing-next-board-unification-01M3BGQ0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/alphabetical-command-listing-01KW6N8W/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/analyze-prompt-context-load-01M3F4BV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/annoying-bugs-sweep-01KYHQ9F/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/asset-preservation-migrate-fetch-01M3E857/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/audit-archived-missions-conflict-markers-4957-01M3G1GP/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/auth-local-trust-and-multi-process-hardening-01KQW587/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/autonomous-runtime-safety-followups-01KS52BD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/backward-transition-cli-emit-01KRV8GC/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/bind-occurrence-map-guard-finalize-01KWQ4WC/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/blocked-planned-refusal-message-01M2Q4E0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/blocked-wp-unblock-path-01M29093/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/canonical-seams-path-trust-guard-capability-01KVBBT6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/canonical-state-recovery-01M2ZE3D/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/cascade-asset-silent-drop-01M0RME0/spec.md": [
+        "FR-005a",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/cascade-org-inert-01M07E9P/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/census-freshness-loc-insensitive-01KWVD6Y/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/chain-b-consent-bypass-3167-01KZ63HK/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/charter-activate-empty-action-sequence-01M0STSX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/charter-activation-split-01M16ZSE/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
+      ],
+      "kitty-specs/charter-authority-flip-01M14RB3/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/charter-catalog-coherence-01M2XQQF/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/charter-code-topology-01M152G1/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/charter-contract-cleanup-tranche-1-01KQATS4/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/charter-deadcode-noop-campsite-01KXW0NY/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/charter-delivery-finish-context-degod-01KYT4BY/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/charter-golden-path-e2e-tranche-1-01KQ806X/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/charter-pack-usage-journey-01KYWWTF/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/charter-preflight-missing-charter-advisory-01M050PD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/charter-sole-door-bypass-closure-01KZ3WAA/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/charter-sync-sonar-remediation-01KZPPZW/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/charter-synthesize-reconciliation-01KZJQN6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/ci-aggregate-source-eligibility-01M2MFDD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/ci-coverage-honesty-01M3CZVN/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/ci-health-charter-path-and-arch-shard-01KWRTB2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/ci-honesty-actionable-fixes-01M2JAXX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/ci-local-preflight-parity-01KWXWY0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/ci-main-concurrency-fanout-cap-01M2K46V/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/ci-nightly-interpreter-matrix-45min-timeout-01M3G17F/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/ci-pipeline-reinstatement-01M1X35E/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011"
+      ],
+      "kitty-specs/ci-prose-only-downroute-01M31T5S/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/ci-scoping-gate-reliability-01KZP80D/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/ci-suite-map-bind-01KWNPMP/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/ci-suite-stability-test-isolation-01M22MM5/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/ci-terminal-cancel-verdict-01M2NC7Z/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/ci-test-topology-performance-01KXBJRT/spec.md": [
+        "SC-001",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/ci-topology-shrink-01KWQAVX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/cli-autocompletion-01KW6N5G/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/cli-boundary-robustness-01M2NQCB/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/cli-decision-moment-widen-mode-readiness-01KRC12S/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
+      ],
+      "kitty-specs/cli-error-surface-seam-01M2WJD2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/cli-interview-decision-moments-01KPWT8P/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5",
+        "SC-6",
+        "SC-7"
+      ],
+      "kitty-specs/cli-saas-fanout-preserves-local-at-01KRNS87/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
+      ],
+      "kitty-specs/cli-session-survival-daemon-singleton-01KQ9M3M/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/cli-widen-mode-and-write-back-01KPXFGJ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/cmd-output-file-leak-guard-01KWVZX7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
+      ],
+      "kitty-specs/codebase-sanitization-1060-1622-01KV5F0B/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/common-docs-consolidation-01KW3Q6M/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/common-docs-convergence-01KZMTR9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/common-docs-query-01KY541A/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/common-docs-structural-move-01KW3SBK/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/compat-planner-contract-ci-portable-01KWVKYH/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/concurrent-template-config-race-4589-01M35M6B/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/consolidate-canonical-terminology-01M3GSSV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/consolidate-charter-bundle-01KXSYB9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/content-address-ratchet-allowlists-01KX8M4D/spec.md": [
+        "FR-007b",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/contract-ownership-boundary-01KWYRE5/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/coord-authority-gate-hardening-01KW4T2F/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/coord-authority-trio-degod-01KX7094/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/coord-branch-remote-probe-01M3F6M7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/coord-commit-integrity-01KY5JS8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/coord-commit-surface-authority-01M1M553/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/coord-primary-partition-lock-01KWZ46V/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/coord-read-fail-closed-01M38VVH/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/coord-shadows-arm-closeout-01KXAST2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/coord-shadows-followups-01KXBCZ1/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/coord-write-placement-closure-01KYCF83/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/coordination-doctor-branch-safety-01M35EN8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/corrupt-state-file-guards-01M2VZS0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/criterion-labels-positive-controls-01M3EWRT/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/cross-os-primitive-unification-01M2T1CM/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/custom-mission-guard-failure-blocking-inert-01M0STY0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/custom-mission-type-second-class-citizens-01M1FQXD/spec.md": [
+        "SC-001",
+        "SC-001a",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/dead-port-disposition-01M1TZVN/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/dead-port-disposition-01M1VRA2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/decide-out-of-matrix-test-dirs-01M2TKC7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/decompose-doctor-god-module-01KVXHFB/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/decompose-merge-god-module-01KVXHDK/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/decompose-mission-god-module-01KVXHF8/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5",
+        "SC-6",
+        "SC-7",
+        "SC-8"
+      ],
+      "kitty-specs/design-phase-orchestrator-api-01M1HE6M/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/dev-assist-retire-path-hardening-01KXAVR0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/dispatch-dry-run-route-only-01M1HKV2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/doc-quality-hardening-2245-01KW9AKV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/docs-gate-hardening-01KZGAG2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/docs-plans-closeout-and-doctrine-diagrams-01KZTK2J/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/docs-structural-sanity-01KY53KJ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/doctrine-activation-freshness-01KXRSDN/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/doctrine-built-in-seam-consolidation-01KYW3TX/spec.md": [
+        "FR-001b",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/doctrine-canonical-structure-remediation-01KYEYSD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014",
+        "SC-015",
+        "SC-016",
+        "SC-017",
+        "SC-018",
+        "SC-019",
+        "SC-020",
+        "SC-021",
+        "SC-022",
+        "SC-023",
+        "SC-024"
+      ],
+      "kitty-specs/doctrine-catfooding-2196-01KWE16N/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/doctrine-charter-split-unification-01KZ0SRB/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/doctrine-controlled-transition-gates-01KY51Z7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/doctrine-delivery-activation-01KYQVQK/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/doctrine-delivery-reachability-01KYMXD6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011"
+      ],
+      "kitty-specs/doctrine-drg-silent-drop-boundary-01M0PE7E/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5",
+        "SC-6",
+        "SC-7"
+      ],
+      "kitty-specs/doctrine-governance-fidelity-01KW42KY/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/doctrine-org-init-from-template-01KXNA6P/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/doctrine-public-api-surface-01KZPDSR/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/doctrine-schema-diagrams-01KZTQTH/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/doctrine-silence-guards-01KYFV7Q/spec.md": [
+        "SC-001",
+        "SC-001a",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013"
+      ],
+      "kitty-specs/doctrine-slug-canonicalization-01M31SP9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/doctrine-tension-edges-01KY1WPC/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/documentation-mission-composition-fixup-01KQ6N5X/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/documentation-mission-composition-rewrite-01KQ5M1Y/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/dossier-parity-reconciler-01KXYXVP/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/drg-reachability-metric-wiring-01KZS5VR/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/drg-read-path-bridge-01M0CHVZ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/drg-relation-parity-activation-gate-01KY48PD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/drupal-dries-profile-01M28X69/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/durable-concurrent-review-cycle-records-01M0QRX7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014",
+        "SC-015",
+        "SC-016",
+        "SC-017",
+        "SC-018",
+        "SC-019",
+        "SC-020",
+        "SC-021",
+        "SC-022",
+        "SC-023",
+        "SC-024",
+        "SC-025"
+      ],
+      "kitty-specs/egress-single-authority-01KZN7CB/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/event-push-watch-channel-01M1K6W2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/event-sync-retention-delivery-01KVYWRG/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011"
+      ],
+      "kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/spec.md": [
+        "NFR-002a",
+        "NFR-002b"
+      ],
+      "kitty-specs/execution-context-unification-01KTPKST/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5",
+        "SC-6",
+        "SC-7"
+      ],
+      "kitty-specs/execution-state-canonical-surface-01KTG6P9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011"
+      ],
+      "kitty-specs/exit-zero-data-intact-01M3KDAS/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/expected-artifacts-loader-unification-01M1C9VQ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/explicit-worktree-commands-01M1A5VJ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014",
+        "SC-015"
+      ],
+      "kitty-specs/feature-alias-removal-01KW0N87/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/finalize-repin-orphaned-planning-commit-01M31TAT/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/frozen-baseline-toll-reduction-01M0A42D/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/fsm-write-path-integrity-01M1TZV6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/gate-artifact-merge-driver-unit-gate-01KZPG7V/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/git-tip-helper-consolidation-01M3D4RT/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/glossary-drg-chokepoint-01KPTE0P/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/glossary-modeling-delta-01M1GXV9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/glossary-pack-doctrine-kind-01KY30SW/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/governed-state-surface-coherence-01KVCGQC/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/home-pin-census-owner-adoption-01M05C50/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/home-pin-census-r1b-tombstone-subsystem-01M05FS1/spec.md": [
+        "SC-101",
+        "SC-102",
+        "SC-103",
+        "SC-104",
+        "SC-105",
+        "SC-106"
+      ],
+      "kitty-specs/honest-consolidation-txn-start-01M3M0YW/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/hosted-opt-in-drain-ledger-01M3FFEV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/identity-boundary-ci-gate-rerun-01KS51YK/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/implement-claim-precondition-partition-01KXGWSP/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/implement-lane-recut-and-planning-commit-integrity-01M3CM55/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/implement-loop-commit-hardening-01KXJ1ZX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/implement-loop-coord-authority-completion-01KW2E7A/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/implement-review-loop-recovery-01KXG2TD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/implement-review-retrospect-reliability-01KQQSCW/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/installed-runtime-domain-01KW0NR6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/spec.md": [
+        "SC-000",
+        "SC-001",
+        "SC-002",
+        "SC-002b",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013"
+      ],
+      "kitty-specs/issue-matrix-partition-integrity-01M3H10A/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/journal-project-consent-3030-01KYKWQS/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/kernel-clock-single-door/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/landing-hygiene-01KWYRE1/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
+      ],
+      "kitty-specs/landing-pass-campsite-followups-01KXKWD7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/lane-branch-naming-authority-01M3EVC4/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/legacy-journal-capture-cutover-01M03BSX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/legacy-sparse-and-review-lock-hardening-01KP54ZW/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/lifecycle-gate-execution-context-01KY72GQ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/lifecycle-tooling-friction-01KW4V6C/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/local-write-safety-01M2ZPZD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/loop-friction-quickwins-2-01KXBWA4/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/loop-reliability-ci-red-burndown-01KXWWD6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/merge-base-diff-ssot-01KX44SD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
+      ],
+      "kitty-specs/merge-coord-rollback-transactionality-01KXTM59/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/merge-destructive-op-safety-01M2XQF8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/merge-honor-retention-policy-01M1CA0E/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/merge-seam-test-isolation-campsite-01M3F61E/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/merge-squash-provenance-and-rollback-coherence-01KXRRB7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/meta-json-fail-closed-routing-01KZPJ1F/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/mission-a-p0-consistency-01KZWHY1/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/mission-completion-terminal-state-01M129MV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW/spec.md": [
+        "SC-01",
+        "SC-02",
+        "SC-03",
+        "SC-04",
+        "SC-05",
+        "SC-06",
+        "SC-07",
+        "SC-08",
+        "SC-09",
+        "SC-10",
+        "SC-11",
+        "SC-12"
+      ],
+      "kitty-specs/mission-handle-resolution-consistency-01M2TPWG/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/mission-identity-seam-and-1908-panel-01KV6510/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5",
+        "SC-6"
+      ],
+      "kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/mission-state-audit-trail-durability-01M37PWG/spec.md": [
+        "NFR-003a",
+        "NFR-003b",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/mission-step-authority-01KXNZMT/spec.md": [
+        "NFR-001a",
+        "NFR-001b",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/mission-step-creatability-01KXQA6R/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/mission-surface-resolver-safety-net-01KVN754/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/mission-type-canonical-source-01M302V9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/mission-type-doctrine-authority-01KXH6GE/spec.md": [
+        "FR-003a",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/mission-type-drg-edges-01KXKY2N/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/mission-type-guard-registry-01KZY2FG/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/mission-type-single-source-gate-wiring-01KXKHVZ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/model-discipline-dispatch-binding-01KWPW36/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/modular-per-package-ci-01M025GV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/move-task-approval-ergonomics-01M302R0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/mvp-cli-sync-boundary-completion-01KRX11M/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/mvp-sync-boundary-cli-01KRVCQS/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5",
+        "SC-6"
+      ],
+      "kitty-specs/name-vs-authority-remediation-01KTYGTE/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4"
+      ],
+      "kitty-specs/naming-identity-routing-rider-01KV7SFD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/next-committed-state-authority-01M1CA8W/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/next-latency-durable-fix-01M14RM3/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/nightly-drift-reds-01M3M14S/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/operator-config-ergonomics-01M04YK8/spec.md": [
+        "C-003a",
+        "FR-004a",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/org-activation-scan-dirs-01KZY1PT/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/org-charter-activations-runtime-wiring-01KWPS9E/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/org-init-template-security-remediation-01KY4S90/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/org-pack-authoring-diagnostics-01KZY463/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/org-pack-subdir-and-doctrine-qol-01KVSRJ6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/ownership-boundary-overwrite-hardening-01M35ER3/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/ownership-boundary-preservation-01M32KEN/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/pack-metadata-manifest-unification-01M052PT/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/pack-path-env-indirection-01KWY79W/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
+      ],
+      "kitty-specs/partition-authority-residuals-01M021K9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/per-pr-shard-timings-recapture-friction-01M3H7V8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/per-project-sync-consent-ledgers-01KZKMQZ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014"
+      ],
+      "kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/phase6-composition-stabilization-01KQ2JAS/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/placement-port-residuals-closure-01KYDEF0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/planning-artifact-kitty-specs-ownership-01M0AEV7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/playwright-ui-e2e-bootstrap-01KWX72W/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/post-convergence-governance-01M1TMPH/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/post-merge-partition-integrity-01M2FQ80/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/post-merge-write-authoring-finish-01KYRRM5/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011"
+      ],
+      "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/primary-merge-vocabulary-01KXP11C/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/private-teamspace-ingress-safeguards-01KQH03Y/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/profile-invocation-runtime-audit-trail-01KPQRX2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012"
+      ],
+      "kitty-specs/python-interpreter-surface-honesty-01M3JCW8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/read-path-error-fidelity-adoption-01KV8NPC/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/read-side-placement-seam-migration-01KYHP67/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/read-side-seam-primary-primitive-closure-01KYKMMT/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014",
+        "SC-015",
+        "SC-016",
+        "SC-017",
+        "SC-018",
+        "SC-019",
+        "SC-020",
+        "SC-021"
+      ],
+      "kitty-specs/read-side-surface-resolver-adoption-01KVJPEQ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/read-surface-ssot-closeout-01KWZV91/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/reconcile-flake-family-01M34HR7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/refactor-stable-gate-substrate-01KWK3FY/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/rehome-writing-comms-doctrine-01KZ9V0S/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/release-3-2-0a6-tranche-2-01KQ9MKP/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/release-320-workflow-reliability-01KQKV85/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/reliability-papercut-sweep-01KWD0V5/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/relocate-builtin-doctrine-packs-01KYT87F/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/relocate-saas-sync-flag-to-core-01KWQ3RV/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4"
+      ],
+      "kitty-specs/relocation-hardened-dead-code-scanners-01KX958P/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/requirement-id-grammar-01M3NRCA/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/resolution-activation-foundation-01KZ9FKG/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/resolver-seam-completion-01KXK0KG/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/resume-primary-staged-deletion-integrity-01M3CCH9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/retire-standalone-tasks-cli-01KWAMQ3/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5"
+      ],
+      "kitty-specs/retro-summary-nfr-investigation-01KWQARM/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/retrospective-default-policy-01KS049J/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/retrospective-durable-home-01KVYM1W/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013"
+      ],
+      "kitty-specs/review-feedback-to-implementer-01M3GKZ8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/review-ref-wire-bound-01M2QNMY/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/review-regression-gate-01KWX6DF/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/review-verdict-write-integrity-01KZ1CGF/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/rework-is-not-an-override-01M3MQV6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/spec.md": [
+        "SC-003",
+        "SC-005",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/runtime-bridge-degod-01KX8M1C/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/runtime-state-corpus-cutover-01KXZ0AX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011"
+      ],
+      "kitty-specs/scopesource-gate-followup-01KY6S9P/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/self-documenting-repo-01M0287X/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/session-reaper-and-tmp-leak-hygiene-01KWWAE7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/short-help-flag-01KW6N7D/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/silent-destructive-write-hardening-01M355VK/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/silent-write-hardening-residuals-01M37QN4/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/single-authority-resolution-gates-01KW1P0F/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/single-authority-resolution-parity-01M0CEBQ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/single-authority-topology-cleanup-01KVRJ6P/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/single-mission-surface-resolver-01KVGCE8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/single-planning-surface-authority-01KVPR00/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/slice-f-multi-context-extensibility-01KRX5C8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/software-dev-composition-rewrite-01KQ26CY/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4"
+      ],
+      "kitty-specs/sonar-bug-blocker-remediation-01KZP2P2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/sonar-per-pr-coverage-reuse-01M2FR32/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010"
+      ],
+      "kitty-specs/sonar-qa-config-remediation-01KWYCX7/spec.md": [
+        "SC-001a",
+        "SC-001b",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/spec.md": [
+        "SC-01",
+        "SC-02",
+        "SC-03",
+        "SC-04",
+        "SC-05",
+        "SC-06"
+      ],
+      "kitty-specs/spec-kitty-home-isolation-01KW1JXX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/specify-protected-primary-coherence-01KVMBD6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012"
+      ],
+      "kitty-specs/stable-320-p0-cli-stabilization-01KQSNGY/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/stable-320-p1-release-confidence-01KQTPZC/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/stale-assertion-analyzer-precision-01KWWZBQ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/startup-assess-cold-concurrency-01M3EQ9S/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/status-state-read-dir-dedup-01M3HNNV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
+      ],
+      "kitty-specs/supply-chain-security-checks-layer-01KZBFBS/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/symbolkey-source-module-01M0B0SF/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/sync-batch-400-poison-isolation-01KXW08B/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/sync-daemon-orphan-cleanup-01KWC2A3/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/sync-sleep-count-3136-01KZ9B5A/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014",
+        "SC-015",
+        "SC-016"
+      ],
+      "kitty-specs/sync-strict-json-auth-01KWA6KN/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/sync-worktree-clean-invariant-01KWC9Y0/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/synthesized-drg-stale-refresh-01KXN8KZ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/tasks-py-degod-01KWF08S/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/tasks-py-degod-wave2-01KWH9EQ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/templates-as-config-01KXMS1G/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/terminus-integrity-followups-01M393QR/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/terminus-merge-integrity-01M380R6/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/terminus-projection-driver-replay-01M3EC1K/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/test-guard-non-vacuity-hardening-01M37EW8/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/test-suite-acceleration-01KV3H59/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/test-suite-friction-remediation-01KXDKBX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/tidy-charter-cutover-surface-01M18R5B/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/tmp-literal-offender-burndown-01KWWRW2/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/token-target-issuer-guard-01M319HS/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/tool-surface-contract-residuals-01KV4S5B/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5",
+        "SC-6"
+      ],
+      "kitty-specs/tool-surface-projection-fidelity-01M2Z1T7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/tooling-friction-fresh-env-remediation-01M3GN66/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/tooling-stability-guard-coherence-01KTRC04/spec.md": [
+        "SC-1",
+        "SC-2",
+        "SC-3",
+        "SC-4",
+        "SC-5",
+        "SC-6"
+      ],
+      "kitty-specs/topology-aware-legacy-warning-01KWQ8WH/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/tracker-egress-refusal-3108-01KYWF1R/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-005a",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014",
+        "SC-015",
+        "SC-016",
+        "SC-017",
+        "SC-018",
+        "SC-019",
+        "SC-020"
+      ],
+      "kitty-specs/truthful-discovery-step-01M3KABP/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/unify-charter-activation-surfaces-01KX5SJ9/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/unshim-wave1-01KWKVHB/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/unshim-wave2-01KWMCAX/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/untrusted-path-containment-hardening-01KVFTFV/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/up-mission-type-seam-01KZY1JB/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/up-org-doctrine-consumers-01M05YAB/spec.md": [
+        "FR-006a",
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/up-org-template-fsm-01M06F9K/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/upgrade-preview-mission-health-01M1V6E1/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/user-content-preservation-01M3549Q/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/verdict-matrix-rmw-preservation-01M32M9G/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/verdict-seam-boundary-hardening-01KZG179/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/verdict-seam-write-unification-01KZ9Q35/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/verification-trust-3115-01KYVYWM/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-007",
+        "SC-008",
+        "SC-009",
+        "SC-010",
+        "SC-011",
+        "SC-012",
+        "SC-013",
+        "SC-014",
+        "SC-015",
+        "SC-016",
+        "SC-017",
+        "SC-018"
+      ],
+      "kitty-specs/windows-upgrade-mode-fidelity-01M35C25/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/workflow-mechanics-self-doc-01M02SF1/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/workflow-parity-988-989-991-01KRKTT5/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/worktree-owned-root-3328-01KZRG01/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005"
+      ],
+      "kitty-specs/wp-lane-state-machine-fsm-01KTGZAZ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007"
+      ],
+      "kitty-specs/wp-prompt-latency-flake-isolation-01KWWWAC/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ],
+      "kitty-specs/wp-runtime-state-eviction-01KXWN13/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/write-path-integrity-01KZZD69/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
+      "kitty-specs/write-side-context-factory-adoption-01KV9W0X/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008",
+        "SC-009"
+      ],
+      "kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006"
+      ],
+      "kitty-specs/write-surface-coherence-01KVTVZS/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004"
+      ]
+    },
+    "shrink": {}
+  },
+  "file_list_count": 3542,
+  "file_list_hash": "1ebfbd651a0f6712270d41699282c187c0c7bbbe34eb121866b6d053ff40b813",
+  "head_sha": "fdf383f34a746104d15afe44cf97d9d9d7310749",
+  "isolation": {
+    "base": {
+      "ok": true,
+      "resolved": {
+        "charter": "charter/__init__.py",
+        "kernel": "kernel/__init__.py",
+        "runtime": "runtime/__init__.py",
+        "specify_cli": "specify_cli/__init__.py"
+      }
+    },
+    "head": {
+      "ok": true,
+      "resolved": {
+        "charter": "charter/__init__.py",
+        "kernel": "kernel/__init__.py",
+        "runtime": "runtime/__init__.py",
+        "specify_cli": "specify_cli/__init__.py"
+      }
+    }
+  },
+  "lint_refusals": {
+    "refused": {
+      "kitty-specs/coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V/spec.md": [
+        {
+          "line": 138,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-009-mirror"
+        },
+        {
+          "line": 139,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-EXCL-2167"
+        },
+        {
+          "line": 140,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-EXCL-FALLBACK"
+        },
+        {
+          "line": 141,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-SEQ"
+        }
+      ],
+      "kitty-specs/doctrine-enrichment-frontend-brownfield-normalization-01KQ48XA/spec.md": [
+        {
+          "line": 37,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.1"
+        },
+        {
+          "line": 38,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.2"
+        },
+        {
+          "line": 39,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.3"
+        },
+        {
+          "line": 40,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.4"
+        },
+        {
+          "line": 41,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.5"
+        },
+        {
+          "line": 42,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.6"
+        },
+        {
+          "line": 43,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.7"
+        },
+        {
+          "line": 44,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.8"
+        },
+        {
+          "line": 45,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.9"
+        },
+        {
+          "line": 46,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.10"
+        },
+        {
+          "line": 47,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.11"
+        },
+        {
+          "line": 48,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-001.12"
+        },
+        {
+          "line": 60,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.1"
+        },
+        {
+          "line": 61,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.2"
+        },
+        {
+          "line": 62,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.3"
+        },
+        {
+          "line": 63,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.4"
+        },
+        {
+          "line": 64,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.5"
+        },
+        {
+          "line": 65,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.6"
+        },
+        {
+          "line": 66,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.7"
+        },
+        {
+          "line": 67,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.8"
+        },
+        {
+          "line": 68,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.9"
+        },
+        {
+          "line": 69,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.10"
+        },
+        {
+          "line": 70,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.11"
+        },
+        {
+          "line": 71,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-002.12"
+        },
+        {
+          "line": 81,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-003.1"
+        },
+        {
+          "line": 82,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-003.2"
+        },
+        {
+          "line": 83,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-003.3"
+        },
+        {
+          "line": 84,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-003.4"
+        },
+        {
+          "line": 85,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-003.5"
+        },
+        {
+          "line": 86,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-003.6"
+        },
+        {
+          "line": 96,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-004.1"
+        },
+        {
+          "line": 97,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-004.2"
+        },
+        {
+          "line": 98,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-004.3"
+        },
+        {
+          "line": 99,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-004.4"
+        },
+        {
+          "line": 100,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-004.5"
+        },
+        {
+          "line": 101,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-004.6"
+        },
+        {
+          "line": 102,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-004.7"
+        },
+        {
+          "line": 124,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-005.1"
+        },
+        {
+          "line": 125,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-005.2"
+        },
+        {
+          "line": 126,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-005.3"
+        },
+        {
+          "line": 127,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-005.4"
+        },
+        {
+          "line": 135,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-006.1"
+        },
+        {
+          "line": 136,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-006.2"
+        },
+        {
+          "line": 137,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-006.3"
+        },
+        {
+          "line": 138,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-006.4"
+        },
+        {
+          "line": 146,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-007.1"
+        },
+        {
+          "line": 147,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-007.2"
+        },
+        {
+          "line": 148,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-007.3"
+        },
+        {
+          "line": 149,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-007.4"
+        },
+        {
+          "line": 150,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-007.5"
+        },
+        {
+          "line": 162,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-009.1"
+        },
+        {
+          "line": 163,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-009.2"
+        },
+        {
+          "line": 164,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-009.3"
+        },
+        {
+          "line": 165,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-009.4"
+        },
+        {
+          "line": 166,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-009.5"
+        },
+        {
+          "line": 178,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-010.1"
+        },
+        {
+          "line": 179,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-010.2"
+        },
+        {
+          "line": 180,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-010.3"
+        },
+        {
+          "line": 181,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-010.4"
+        },
+        {
+          "line": 182,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-010.5"
+        },
+        {
+          "line": 183,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-010.6"
+        },
+        {
+          "line": 209,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-012.1"
+        },
+        {
+          "line": 210,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-012.2"
+        },
+        {
+          "line": 211,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-012.3"
+        },
+        {
+          "line": 212,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-012.4"
+        },
+        {
+          "line": 213,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-012.5"
+        },
+        {
+          "line": 221,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-008.1"
+        },
+        {
+          "line": 222,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-008.2"
+        },
+        {
+          "line": 223,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-008.3"
+        },
+        {
+          "line": 224,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-008.4"
+        },
+        {
+          "line": 225,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "FR-008.5"
+        }
+      ],
+      "kitty-specs/doctrine-public-api-surface-01KZPDSR/spec.md": [
+        {
+          "line": 202,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-007-mission"
+        }
+      ],
+      "kitty-specs/mission-type-drg-edges-01KXKY2N/spec.md": [
+        {
+          "line": 202,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-S1"
+        },
+        {
+          "line": 203,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-S2"
+        },
+        {
+          "line": 204,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-S3"
+        },
+        {
+          "line": 205,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-S4"
+        },
+        {
+          "line": 206,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "C-S5"
+        },
+        {
+          "line": 226,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "SC-S1"
+        },
+        {
+          "line": 227,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "SC-S2"
+        },
+        {
+          "line": 228,
+          "rule": "<kind>-<digits>[<lowercase letter>]",
+          "token": "SC-S3"
+        }
+      ]
+    },
+    "refused_count": 4
+  },
+  "python_version": "3.11.15",
+  "spec_count": 520,
+  "wp_count": 3022,
+  "wp_ref_transitions": {
+    "changed": [
+      {
+        "after": "rejected:malformed",
+        "before": "dropped",
+        "mission": "kitty-specs/058-mission-template-repository-refactor",
+        "respelled_to": null,
+        "token": "Constitution",
+        "wp_id": "WP08"
+      },
+      {
+        "after": "rejected:malformed",
+        "before": "dropped",
+        "mission": "kitty-specs/058-mission-template-repository-refactor",
+        "respelled_to": null,
+        "token": "terminology",
+        "wp_id": "WP08"
+      },
+      {
+        "after": "rejected:malformed",
+        "before": "dropped",
+        "mission": "kitty-specs/058-mission-template-repository-refactor",
+        "respelled_to": null,
+        "token": "canon",
+        "wp_id": "WP08"
+      },
+      {
+        "after": "rejected:malformed",
+        "before": "dropped",
+        "mission": "kitty-specs/058-mission-template-repository-refactor",
+        "respelled_to": null,
+        "token": "ADR",
+        "wp_id": "WP10"
+      },
+      {
+        "after": "rejected:malformed",
+        "before": "dropped",
+        "mission": "kitty-specs/058-mission-template-repository-refactor",
+        "respelled_to": null,
+        "token": "2026-03-27-1",
+        "wp_id": "WP10"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/065-wp-metadata-state-type-hardening",
+        "respelled_to": null,
+        "token": "FR-012a",
+        "wp_id": "WP05"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/065-wp-metadata-state-type-hardening",
+        "respelled_to": null,
+        "token": "FR-012b",
+        "wp_id": "WP05"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/065-wp-metadata-state-type-hardening",
+        "respelled_to": null,
+        "token": "FR-012c",
+        "wp_id": "WP05"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/065-wp-metadata-state-type-hardening",
+        "respelled_to": null,
+        "token": "FR-012d",
+        "wp_id": "WP05"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/cascade-asset-silent-drop-01M0RME0",
+        "respelled_to": null,
+        "token": "FR-005a",
+        "wp_id": "WP03"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-011",
+        "wp_id": "WP01"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-010",
+        "wp_id": "WP02"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-011",
+        "wp_id": "WP02"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-004",
+        "wp_id": "WP03"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-005",
+        "wp_id": "WP03"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-015",
+        "wp_id": "WP03"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-012",
+        "wp_id": "WP04"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-007",
+        "wp_id": "WP05"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-008",
+        "wp_id": "WP05"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-009",
+        "wp_id": "WP05"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-007",
+        "wp_id": "WP06"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-007",
+        "wp_id": "WP07"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-008",
+        "wp_id": "WP07"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-010",
+        "wp_id": "WP08"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-001",
+        "wp_id": "WP09"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-002",
+        "wp_id": "WP09"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-003",
+        "wp_id": "WP09"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-001",
+        "wp_id": "WP10"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-003",
+        "wp_id": "WP10"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-006",
+        "wp_id": "WP11"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-018",
+        "wp_id": "WP11"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-019",
+        "wp_id": "WP12"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-013",
+        "wp_id": "WP13"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-014",
+        "wp_id": "WP13"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-016",
+        "wp_id": "WP14"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-017",
+        "wp_id": "WP14"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/charter-doctrine-mission-type-configuration-01KSWJVX",
+        "respelled_to": null,
+        "token": "FR-008",
+        "wp_id": "WP15"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35",
+        "respelled_to": null,
+        "token": "SC-001",
+        "wp_id": "WP02"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35",
+        "respelled_to": null,
+        "token": "SC-005",
+        "wp_id": "WP03"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35",
+        "respelled_to": null,
+        "token": "SC-002",
+        "wp_id": "WP06"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35",
+        "respelled_to": null,
+        "token": "SC-003",
+        "wp_id": "WP08"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35",
+        "respelled_to": null,
+        "token": "SC-004",
+        "wp_id": "WP08"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35",
+        "respelled_to": null,
+        "token": "SC-005",
+        "wp_id": "WP08"
+      },
+      {
+        "after": "accepted",
+        "before": "dropped",
+        "mission": "kitty-specs/common-docs-consolidation-01KW3Q6M",
+        "respelled_to": null,
+        "token": "SC-006",
+        "wp_id": "WP04"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6",
+        "respelled_to": null,
+        "token": "NFR-002",
+        "wp_id": "WP03"
+      },
+      {
+        "after": "rejected:unknown_spec_id",
+        "before": "kept/unknown",
+        "mission": "kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN",
+        "respelled_to": null,
+        "token": "C-004",
+        "wp_id": "WP01"
+      }
+    ],
+    "matrix": {
+      "dropped -> accepted": 12,
+      "dropped -> rejected:malformed": 5,
+      "kept/known -> accepted": 10808,
+      "kept/unknown -> rejected:unknown_spec_id": 29
+    },
+    "total_tokens_compared": 10854
+  }
+}

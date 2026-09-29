@@ -1,0 +1,199 @@
+{
+  "mission_slug": "requirement-id-grammar-01M3NRCA",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_id_grammar.py; tests/architectural/test_requirement_id_grammar_single_source.py; tests/runtime/test_requirement_grammar_parity.py; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:15.742116+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_id_grammar.py (canonical/suffix/digit-width/placeholder cases); integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:18.152955+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_mapping.py (declared SC + suffixed shapes); tests/specify_cli/missions/test_substantive_gate_formats.py; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:20.505002+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_requirement_id_grammar.py::test_real_run_keeps_qualified_citation_and_suffixed_ref; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:22.828318+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_map_requirements_grammar.py (append-only, legacy scalar/compound pin, --replace removed); integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:25.189290+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_map_requirements_grammar.py (declared SC/FR-006a accepted); integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:27.484285+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_finalize_requirement_id_grammar.py::test_unreferenced_success_criterion_is_reported_and_does_not_fail (+positive control); retired SC warning absent in test_mission_finalize_phases.py; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:29.821771+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_mapping.py (T004a CLI repro #3519) + test_finalize_requirement_id_grammar.py; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:32.230699+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_id_grammar.py (qualifier consumed, invalid-qualifier leak); test_requirement_mapping.py bare-prose qualified case; test_requirement_id_lint.py; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:34.615282+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_reason_parity.py (cross-command reason parity); integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:37.011637+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_finalize_requirement_id_grammar.py (#2066 parsed_spec_ids repro) + builder tests; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:39.414712+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_cli/test_map_requirements.py + test_tasks_json_bytes.py (malformed refusal parsed_spec_ids + grammar hint); integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:41.698095+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_id_lint.py; test_mission_setup_plan_phases.py (SPEC_REQUIREMENT_IDS_INVALID exit 1 + corrected-spec control); integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:44.012874+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_id_lint.py; test_mission_setup_plan_phases.py (requirement_id_warnings non-blocking); integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:46.341102+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py (PLAN_SETUP_FAILED + data.reason, contract-registered); integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:48.606680+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_requirement_grammar_parity.py; tests/runtime/test_bridge_cores.py; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:50.883563+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/review/test_antipattern_checklist.py (guidance names the grammar); test_builtin_pack_provenance_ratchet.py; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:53.198775+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md; test_glossary_pack_parity.py; test_no_legacy_terminology.py; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:55.625850+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_requirement_reason_parity.py (valid sibling stays mapped; mutation-verified); test_finalize_requirement_id_grammar.py CLI half-by-half tests; integrated head f46e728 + fixes: 1106 passed/1 skipped (35 files incl. named arch gates), 2026-09-29",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:48:58.035504+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

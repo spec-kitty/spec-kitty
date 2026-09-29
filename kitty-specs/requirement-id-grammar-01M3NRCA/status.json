@@ -1,0 +1,277 @@
+{
+  "event_count": 81,
+  "last_event_id": "01M3PQ0MWA73TJEP8BN4RE04QE",
+  "materialized_at": "2026-09-29T13:52:36.746055+00:00",
+  "mission_number": "208",
+  "mission_slug": "requirement-id-grammar-01M3NRCA",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M3PQ0BPP5JFXXPEAP6EPVSQW",
+      "last_transition_at": "2026-09-29T13:52:27.350036+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 implemented: grammar package, 4 parser migrations incl. retention.py, C-001 single-source gate; 556 targeted tests + named gates green; one WP03-owned smoke break (FR-003a malformed bucket) expected",
+        "cycle 2: fixed all 3 blockers (classify_stale_refs re-pin, single detectable core literal for MALFORMED_DECLARED_LEAD, find_all qualifier-leak fix with red-first repro), folded 5 cheap non-blocking items",
+        "Review passed (reviewer-renata, cycle 2): all 3 cycle-1 blockers closed; red->green for FR-009 qualifier leak verified at dfdccf111f vs tip; 568 targeted tests + 8 named gates green; C-001 floor asserts _KIND_ALT by name; static checks clean. Recorded by orchestrator after issue-matrix precedent rows were resolved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20260929",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 303170,
+      "shell_pid_created_at": "1790675491.77",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M3PQ0D1Y6Q0XGKSPAMM16T2C",
+      "last_transition_at": "2026-09-29T13:52:28.734037+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: FR-004 never-rewrite, FR-019 per-ref verdicts, FR-011 additive JSON keys, FR-007 SC tracking/retirement. See PR/hand-off for details.",
+        "cycle 2: added all 6 mandated tests (qualified-citation+suffixed real-run retention, scalar-to-list real-run, no-SC-section named test+control, malformed real-run byte-identity, FR-007 unreferenced-SC pin killing mutation M8, CLI-level T011 halves) plus non-blocking builder unit tests and SC-dedup fix; production code was already correct per cycle 1 review.",
+        "Review passed (cycle 2): all 6 blocking test gaps closed; M1-M8 + dedup mutants killed; CLI tests use real finalize-tasks entry; 365 surface + 48 arch gates pass; 4 fast-tier reds are pre-existing WP03 map-requirements; ruff/format/C901 clean, mypy unchanged (3 pre-existing). Integration: keep both WP02 'grammar as grammar' re-export and WP05 pyproject follow_imports override (complementary)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20260929",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 524993,
+      "shell_pid_created_at": "1790680113.32",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M3PQ0EBJBAZXD2HDZ5328XW8",
+      "last_transition_at": "2026-09-29T13:52:30.066490+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "map-requirements now consumes the WP01 grammar: canonical input (T016), append-only merge with --replace preserving stored spelling (T017), grammar.classify verdicts with one hint constant and no double-listed offenders (T018), byte contracts re-pinned (T019). Validation surface: 233 passed (incl. 2 named architectural gates). ruff check/format/mypy --strict clean on owned files.",
+        "cycle 2: B1 fixed (legacy scalar/compound-item edge pinned through the real CLI + _merge_refs docstring exception note); L1/L2/L4 folded (docstring reworded off  open, FR-NNN comment reworded, positive-control WP-choice comment added). 235 passed (187 surface + 48 named gates); ruff check/format --check/mypy --strict clean on touched files.",
+        "Review passed (cycle 2): B1 legacy scalar/compound split pinned via CLI (mutation-proven: no-split and drop-id mutants both red); L1/L2/L4 folded; 235 passed (surface+gates), mypy --strict/ruff/format clean. L3 accepted as-is (compute_coverage canonical-matches; equivalent). Coordination: requirement_mapping/__init__.py shared with WP02, WP03 hunk is a minimal deletion."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20260929",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 484522,
+      "shell_pid_created_at": "1790679032.92",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M3PQ0GZFZ6C1DT72XFFC6H9R",
+      "last_transition_at": "2026-09-29T13:52:32.751523+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Grammar injected into runtime readiness (RequirementGrammarLike Protocol, per-ref FR-019 verdicts); switched to raw ref reader; allowlist baseline 3->2. Validation surface + named architectural gates green; ruff/mypy --strict clean.",
+        "Review passed: RED 6/1 at 659021d031 reproduced, GREEN at tip (411 passed/1 skipped, 5 named arch gates green). C-002 holds (stdlib-only cores, required grammar, no pattern/.upper/default, no ledger or baseline change); allowlist baseline 3->2 two-sided via check_allowlist_ratchet. Parity holds on malformed/unknown/foreign/foreign-only. Non-blocking: parity malformed case lacks the runtime-side 'FR-001 not unmapped' assertion (all-or-nothing mutation caught only by cores tests), fold into WP06 T038; stale read_all_wp_requirement_refs in runtime_bridge.py:1059 docstring; bare type: ignore in tests. Shared file: allowlist yaml is WP01-owned, sanctioned out-of-map edit."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260929",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 618679,
+      "shell_pid_created_at": "1790682336.08",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M3PQ0FPASRJ2420YKY922916",
+      "last_transition_at": "2026-09-29T13:52:31.434509+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T024-T027 done: lint.py (FR-013/FR-014), setup-plan gate+warnings, orchestrator plan PLAN_SETUP_FAILED remap (FR-015). ATDD RED confirmed on WP01 base; all validation-surface tests green (163+91+49); corpus smoke matches expected 4 specs; ruff/mypy clean.",
+        "Review passed: FR-013/014/015 + C-009 verified; ATDD red->green proven (AC1/3/4 red, AC2 green at ccf6cd420e); 163+91+58 tests green; corpus smoke = exactly 4 specs; setup_plan C901=11; mypy --strict/ruff clean; pyproject mypy override acceptable (grammar-only entry would suffice). Low nits for closeout: lint.py:62 comment trips the C-001 review grep; escape test non-discriminating; AC1 line not pinned exactly; T026 helper tests landed in T025 commit. Shared file test_specify_plan_tasks_verbs.py: only _PLAN_SUCCESS_DATA_KEYS hunk + import + appended tests; _TASKS hunk (WP02) untouched."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260929",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 428834,
+      "shell_pid_created_at": "1790678101.09",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M3PQ0KJQMFNYWZ3FDR0X3V2K",
+      "last_transition_at": "2026-09-29T13:52:35.415196+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: ADR + glossary terms shipped, CONTRACT_VERSION 1.8.0, C6 dead-code disposal, T038 cross-command parity test (green ratchet on merged base). Full report in hand-off.",
+        "cycle 2: known residuals + all Decision Moment citations added, citation precision fixed, Purely-additive wording corrected, stale read_all_wp_requirement_refs refs fixed, missing-dir branch coverage restored",
+        "Review passed (cycle 2): all 5 cycle-1 items closed — Known residuals section (4, live-verified), 8 DM citations, citation precision, 'purely additive' corrected, stale reader refs fixed + missing-dir test restored (mutant killed). 381+48 passed, docs gates errors=0, drift=False."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20260929",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 748067,
+      "shell_pid_created_at": "1790686563.66",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T038": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M3PQ0J8TWQ6BTV2NWTHTAMB3",
+      "last_transition_at": "2026-09-29T13:52:34.074512+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: spec-template, specify/tasks-outline/tasks-packages/tasks-finalize/tasks/review prompts, specify/tasks/review guidelines and antipattern_checklist.py item 4 all describe the requirement-ID grammar (FR/NFR/C/SC, lowercase letter suffix, <mission-slug>#<ID> citation, malformed/unknown_spec_id/foreign_qualified verdicts, SC tracked-not-gating). Validation surface + named gates green; provenance ratchet unchanged.",
+        "Review passed: SOURCE-only guidance (C-006) quotes shipped keys/reasons/codes; RED 4f/2p at 31ee3fc377 -> GREEN at tip; 809 passed+1 xfailed validation surface, 116 arch gates, provenance net-zero, template lints clean, 3 snapshots 2 lines each. Non-blocking LOW: tasks/prompt.md:332 'A refusal lists parsed_spec_ids' does not hold for the unknown_spec_id pre-write refusal (tasks_map_requirements.py:461-465)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260929",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 593563,
+      "shell_pid_created_at": "1790681575.52",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M3PQ0MWA73TJEP8BN4RE04QE",
+      "last_transition_at": "2026-09-29T13:52:36.746055+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: NFR-001 corpus scan (base=1/head=1 bare-prose PASS, 4/4 lint refusals matched, 419 specs grown / 0 shrunk, all classified intended, zero regressions) + NFR-003 latency micro-benchmark (phase delta +6.3ms <= 50ms budget, head total 157ms < 2000ms, PASS).",
+        "cycle 2: fixed (d) base-gate semantics (base already blocks on unknown refs + missing spec.md, so 28/29 kept/unknown items and 058's WP08 were fail->fail; only 058's WP10 newly fails), (b) token count (71 not 74, total 84 not 87), (c) removed false script-assertion claim (replaced with documented post-hoc check); added base_token==head_token pairing assert, base_src!=head_src driver assert, and a TemporaryDirectory fixture in latency_bench.py. Re-ran both scripts: corpus-scan.json byte-identical apart from head_sha; latency verdict unchanged (PASS, +6.3ms). Static checks and the named gate stay green.",
+        "Review passed (cycle 2): all 3 blocking report errors corrected and verified against ddf114f06c source; new token-equality and base!=head asserts run (scan exit 0; same-src raises); scan reproduces byte-identical except head_sha; bench +6.2ms PASS with TemporaryDirectory fixture cleaned; ruff/format/C901/mypy --strict clean; ratchet 5 passed; research/ only. Nit: 058 already failed finalize at base via WP08, so WP10 adds a new failure reason rather than a newly failing mission; latency.md command path still research/latency_bench.py."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20260929",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 829507,
+      "shell_pid_created_at": "1790689366.82",
+      "subtasks": {
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
+    }
+  }
+}
