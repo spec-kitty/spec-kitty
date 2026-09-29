@@ -378,6 +378,18 @@ class TestJsonEntryPointParity:
 # ---------------------------------------------------------------------------
 
 
+def _directive_id_rail(text: str) -> list[str]:
+    """Return the entries listed under the ``Directive IDs:`` header of a compact render."""
+    lines = text.splitlines()
+    assert "Directive IDs:" in lines, "compact render lost its Directive IDs rail"
+    entries: list[str] = []
+    for line in lines[lines.index("Directive IDs:") + 1 :]:
+        if not line.startswith("  - "):
+            break
+        entries.append(line.removeprefix("  - "))
+    return entries
+
+
 class TestEmptyCharterProvenance:
     def test_empty_charter_fallback_does_not_leak_directive_canon(self, tmp_path: Path) -> None:
         """The empty-charter generic fallback must not leak the directive canon.
@@ -415,8 +427,11 @@ class TestEmptyCharterProvenance:
         )
 
         # Provenance proof (Decision 10): the WP01/WP03 suppression must be
-        # in effect — the full built-in directive canon must NOT leak.
-        assert "Directive IDs:" in result.text or result.mode == "compact"
+        # in effect — the full built-in directive canon must NOT leak. The
+        # ``Directive IDs:`` rail must therefore list no directive id at all
+        # (the resolver's catalog default would list every built-in directive).
+        assert result.mode == "compact"
+        assert _directive_id_rail(result.text) == ["(none)"]
 
 
 # ---------------------------------------------------------------------------
