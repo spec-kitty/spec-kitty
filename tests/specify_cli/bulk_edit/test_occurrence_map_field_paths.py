@@ -1,12 +1,14 @@
 """Occurrence-map field-path granularity (WP02, FR-002/C-005/SC-011).
 
 ``exceptions[]`` matches by *path glob* alone. Mission B2's exemptions are
-*field*-scoped, and the two do not line up: **all 17** of its GOVERNANCE
-files also carry MIGRATE entries, and **5 of 7** RAW_MATERIAL files do too
-(re-derived below from the canonical measurement tool, not hardcoded — see
+*field*-scoped, and the two do not line up: many of its GOVERNANCE
+files also carry MIGRATE entries, and most RAW_MATERIAL files do too (at
+#5367: 13 of 25 GOVERNANCE files and 7 of 10 RAW_MATERIAL files overlap
+MIGRATE; the pinned counts live in the asserts below, re-derived from the
+canonical measurement tool — see
 ``scripts/doctrine/inline_reference_inventory.py``). No file-level cut
-separates the 559 MIGRATE occurrences from the 188 GOVERNANCE + 14 RAW ones,
-so the guardrail cannot express its own mission.
+separates the MIGRATE occurrences from the GOVERNANCE + RAW ones, so the
+guardrail cannot express its own mission.
 
 This module is the ATDD contract (charter C-011 / mission C-006): its first
 commit is RED against the schema/code as they stood before this WP — a
@@ -484,6 +486,16 @@ class TestB2RealExemptionSet:
         already-shipped directive, not a profile ``directive-references`` entry
         or a styleguide/toolguide path reference, so GOVERNANCE/RAW_MATERIAL
         are unaffected by it.
+
+        NOTE (mission nightly-census-and-timeout-headroom-01M3PM2S, #5367):
+        ``3e09226f`` (#5324) added 7 RAW_MATERIAL entries. Six were bare-id
+        ``references: [DIRECTIVE_051, supply-chain-install-safety]`` on the
+        three supply-chain toolguides; they minted no DRG edge and violated ADR
+        2026-07-26-1, so that mission removed them. The 7th,
+        ``common-docs`` -> ``packs/built-in/assets/docs_structural_lint.config.yaml``,
+        is a legitimate non-artefact data file (the lint policy moved there on
+        purpose) -> RAW 19 -> 20; ``common-docs`` joins ``raw_files`` and the
+        RAW/MIGRATE overlap.
         """
         inv = _load_inventory_module(monkeypatch)
         inventory = inv.collect()
@@ -503,9 +515,10 @@ class TestB2RealExemptionSet:
         # styleguides + drupal-review-checks toolguide) moved GOVERNANCE 94 -> 100
         # and RAW_MATERIAL 14 -> 21, then planner-priti -> DIRECTIVE_053
         # (``3e3bcb4da``) moved GOVERNANCE 100 -> 101, then #5203
-        # (``414bbe89b``) moved RAW_MATERIAL 21 -> 19.
+        # (``414bbe89b``) moved RAW_MATERIAL 21 -> 19, then ``3e09226f`` (#5324)
+        # moved it 19 -> 20 (common-docs' lint config; #5367).
         assert len(gov) == 101
-        assert len(raw) == 19
+        assert len(raw) == 20
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
         assert gov_files == {
@@ -541,6 +554,7 @@ class TestB2RealExemptionSet:
         assert raw_files == {
             f"styleguides/{name}.styleguide.yaml"
             for name in (
+                "common-docs",
                 "deployable-skill-authoring",
                 "divio-type-discipline",
                 "drupal-conventions",
@@ -557,7 +571,9 @@ class TestB2RealExemptionSet:
             "the drupal doctrine pack (2 styleguides + 1 toolguide), minus "
             "python-conventions (#5203, 414bbe89b, removed its only dead "
             "src/doctrine path reference; it still carries MIGRATE entries, so "
-            "it survives in migrate_files, just not here)"
+            "it survives in migrate_files, just not here), plus common-docs "
+            "(#5324, 3e09226f: its lint config is a legitimate non-artefact "
+            "data file)"
         )
         # Post-consolidation (mission doctrine-drg-silent-drop-boundary): the
         # retired ``context-sources.directives`` used to add a MIGRATE entry to
@@ -588,12 +604,14 @@ class TestB2RealExemptionSet:
                 "reviewer-renata",
             )
         }, "the GOVERNANCE/MIGRATE overlap (profiles carrying both a governed and a migrated field) moved"
-        # The overlap is the harder half of the same argument: these seven files
-        # need per-field disposition, so name them rather than count them.
-        # (drupal-conventions + drupal-security-performance from the drupal pack.)
+        # The overlap is the harder half of the same argument: these files need
+        # per-field disposition, so name them rather than count them.
+        # (drupal-conventions + drupal-security-performance from the drupal pack;
+        # common-docs from #5324 / 3e09226f — it carries MIGRATE path refs too.)
         assert raw_files & migrate_files == {
             f"styleguides/{name}.styleguide.yaml"
             for name in (
+                "common-docs",
                 "divio-type-discipline",
                 "drupal-conventions",
                 "drupal-security-performance",
@@ -604,7 +622,8 @@ class TestB2RealExemptionSet:
         }, (
             "the RAW_MATERIAL/MIGRATE overlap moved — python-conventions dropped "
             "out (#5203, 414bbe89b): it lost its only RAW_MATERIAL entry, so it "
-            "is no longer in raw_files at all and cannot be in this intersection"
+            "is no longer in raw_files at all and cannot be in this intersection; "
+            "common-docs joined it (#5324, 3e09226f)"
         )
 
     def test_every_real_governance_field_is_expressible_as_field_path_exception(
@@ -641,8 +660,8 @@ class TestB2RealExemptionSet:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Honest boundary, not oversold: RAW and MIGRATE share the exact same
-        field name (``references``) in 5 of the 7 RAW files, so a field-path
-        exception can name the FIELD for reviewer attention but — by
+        field name (``references``) in 7 of the 10 RAW files (at #5367), so a
+        field-path exception can name the FIELD for reviewer attention but — by
         design — cannot, on its own, separate individual list entries within
         it. B2's own map delegates that finer, entry-level cut to the FR-015
         inventory-based gate, not to this schema. This test pins that the
