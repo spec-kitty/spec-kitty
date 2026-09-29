@@ -30,7 +30,7 @@ LANE_ID = "lane-a"
 CONTEXT_NAME = f"{MISSION_SLUG}-{LANE_ID}"
 
 
-def _context(*, current_wp: str = "WP01") -> WorkspaceContext:
+def _context(*, current_wp: str = "WP01", planning_commit_sha: str | None = None) -> WorkspaceContext:
     return WorkspaceContext(
         wp_id=current_wp,
         mission_slug=MISSION_SLUG,
@@ -46,6 +46,7 @@ def _context(*, current_wp: str = "WP01") -> WorkspaceContext:
         lane_wp_ids=["WP01", "WP02"],
         current_wp=current_wp,
         lane_test_env={},
+        planning_commit_sha=planning_commit_sha,
     )
 
 
@@ -54,7 +55,7 @@ def test_refresh_updates_existing_context(tmp_path: Path) -> None:
     from specify_cli.lanes.implement_support import refresh_reused_lane_context
     from specify_cli.workspace.context import load_context, save_context
 
-    save_context(tmp_path, _context(current_wp="WP01"))
+    save_context(tmp_path, _context(current_wp="WP01", planning_commit_sha="a" * 40))
 
     refreshed = refresh_reused_lane_context(tmp_path, MISSION_SLUG, LANE_ID, "WP02", ["WP01"])
 
@@ -64,6 +65,7 @@ def test_refresh_updates_existing_context(tmp_path: Path) -> None:
     assert ctx.current_wp == "WP02"
     assert ctx.wp_id == "WP02"
     assert ctx.dependencies == ["WP01"]
+    assert ctx.planning_commit_sha == "a" * 40
 
 
 def test_refresh_is_a_noop_without_a_persisted_context(tmp_path: Path) -> None:
@@ -162,6 +164,12 @@ def test_create_lane_workspace_reuse_advances_current_wp(tmp_path: Path) -> None
     from specify_cli.lanes.persistence import read_lanes_json
 
     manifest = read_lanes_json(feature_dir)
+    assert manifest is not None
+    seed_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+    manifest.planning_commit_sha = seed_sha
+    write_lanes_json(feature_dir, manifest)
+    _git(repo, "add", str((feature_dir / "lanes.json").relative_to(repo)))
+    _git(repo, "commit", "-q", "-m", "record claim-time planning pin")
 
     def _start(wp_id: str):
         resolved = ResolvedWorkspace(
@@ -192,6 +200,7 @@ def test_create_lane_workspace_reuse_advances_current_wp(tmp_path: Path) -> None
     ctx = load_context(repo, CONTEXT_NAME)
     assert ctx is not None
     assert ctx.current_wp == "WP01"
+    assert ctx.planning_commit_sha == seed_sha
 
     # The prior WP is approved; the lane hosts both WPs (lanes.json), so the
     # second claim reuses the lane worktree — the normal sequential-WP outcome.

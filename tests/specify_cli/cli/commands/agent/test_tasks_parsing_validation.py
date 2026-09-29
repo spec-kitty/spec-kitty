@@ -1164,6 +1164,8 @@ def test_check_kitty_specs_contamination_blocks_with_planning_branch(tmp_path: P
     assert "Committed kitty-specs files on this lane branch:" in text
     assert "Planning artifacts must live on: kitty/plan" in text
     assert "git show kitty/plan:kitty-specs/demo/spec.md" in text
+    assert "Do not restore the entire kitty-specs/ tree" in text
+    assert "git restore --source" not in text
 
 
 def test_check_kitty_specs_contamination_unknown_planning_branch(tmp_path: Path) -> None:
@@ -1193,19 +1195,12 @@ def test_check_kitty_specs_contamination_clean_returns_none(tmp_path: Path) -> N
 
 
 def test_check_kitty_specs_contamination_diffs_against_planning_branch(tmp_path: Path) -> None:
-    """#3271 red-first: the lane-hygiene delta must be measured against the
-    PLANNING branch, not the lane's coordination/mission base ref.
-
-    Pre-fix the guard passed ``check_branch`` (the coord/mission branch) to the
-    lister, so a lane that legitimately inherited kitty-specs from the base — or
-    got this mission's planning artifacts via the #2993 recorded-planning-commit
-    merge — false-positived on every transition. The captured ``base_branch``
-    must now be the planning branch resolved from meta.json.
-    """
+    """Use the workspace base for provenance and planning ref for content."""
     captured: dict[str, object] = {}
 
     def _spy(**kwargs: object) -> list[str]:
         captured["base_branch"] = kwargs["base_branch"]
+        captured["planning_base_branch"] = kwargs["planning_base_branch"]
         return []  # clean delta against the planning branch → guard passes
 
     with patch(
@@ -1222,8 +1217,8 @@ def test_check_kitty_specs_contamination_diffs_against_planning_branch(tmp_path:
         )
 
     assert result is None
-    # RED pre-fix: was "kitty/mission-coord-01ABC" (the coordination base ref).
-    assert captured["base_branch"] == "kitty/plan"
+    assert captured["base_branch"] == "kitty/mission-coord-01ABC"
+    assert captured["planning_base_branch"] == "kitty/plan"
 
 
 def test_check_kitty_specs_contamination_falls_back_to_check_branch_without_meta(
@@ -1239,6 +1234,7 @@ def test_check_kitty_specs_contamination_falls_back_to_check_branch_without_meta
 
     def _spy(**kwargs: object) -> list[str]:
         captured["base_branch"] = kwargs["base_branch"]
+        captured["planning_base_branch"] = kwargs["planning_base_branch"]
         return []
 
     with patch("specify_cli.mission_metadata.load_meta", return_value=None):
@@ -1252,6 +1248,25 @@ def test_check_kitty_specs_contamination_falls_back_to_check_branch_without_meta
         )
 
     assert captured["base_branch"] == "kitty/mission-legacy"
+    assert captured["planning_base_branch"] == "kitty/mission-legacy"
+
+
+def test_check_kitty_specs_contamination_fails_closed_when_refs_unverifiable(
+    tmp_path: Path,
+) -> None:
+    result = _check_kitty_specs_contamination(
+        worktree_path=tmp_path,
+        check_branch="missing-coordination-ref",
+        feature_dir=tmp_path,
+        wp_id="WP01",
+        target_lane="for_review",
+        list_wp_branch_specs_changes_for_guard=lambda **_k: None,
+    )
+
+    assert result is not None
+    text = "\n".join(result).lower()
+    assert "could not verify" in text
+    assert "missing-coordination-ref" in text
 
 
 # ---------------------------------------------------------------------------

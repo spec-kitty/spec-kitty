@@ -17,9 +17,10 @@ from typing import Any, cast
 from spec_kitty_events.diary import State, reduce_parsed
 from spec_kitty_events.status import reduce as reduce_shared_state
 
-from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.mission_metadata import MissionIdentity, resolve_mission_identity
 
 from .models import (
+    EventStream,
     InnerStateChanged,
     Lane,
     RetrospectiveSnapshot,
@@ -27,7 +28,13 @@ from .models import (
     StatusEvent,
     StatusSnapshot,
 )
-from .store import StoreError, read_event_stream, read_events_raw
+from .store import (
+    StoreError,
+    read_event_stream,
+    read_event_stream_from_text,
+    read_events_raw,
+    read_events_raw_from_text,
+)
 
 #: Prefixes of the CLI's auto-synthesized cancel reasons. A legacy canceled
 #: event whose reason matches one is classified ``synthetic``; any other
@@ -364,10 +371,13 @@ def materialize_to_json(snapshot: StatusSnapshot) -> str:
     )
 
 
-def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
-    """Read events and reduce them to the exact snapshot materialize writes."""
-    stream = read_event_stream(feature_dir)
-    raw_events = read_events_raw(feature_dir)
+def _materialize_snapshot_from_parts(
+    feature_dir: Path,
+    stream: EventStream,
+    raw_events: list[dict[str, Any]],
+    identity: MissionIdentity,
+) -> StatusSnapshot:
+    """Apply the canonical snapshot projections to already-read inputs."""
     snapshot = _state_to_snapshot(reduce_shared_state(raw_events))
     _project_cancellation_provenance(stream.transitions, snapshot)
     # #4786 archive-freeze fix: the implementer-of-record projection is a NEW
@@ -391,7 +401,6 @@ def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
     # schema_version only when set -- so a legacy replay stays byte-identical.
     if target > _LEGACY_SNAPSHOT_SCHEMA_VERSION:
         snapshot.schema_version = target
-    identity = resolve_mission_identity(feature_dir)
     snapshot.mission_number = str(identity.mission_number) if identity.mission_number is not None else None
     snapshot.mission_type = identity.mission_type
 
@@ -400,6 +409,53 @@ def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
         snapshot.retrospective = retro_snapshot
 
     return snapshot
+
+
+def materialize_snapshot_from_text(
+    feature_dir: Path,
+    events_text: str,
+    *,
+    mission_slug: str,
+) -> StatusSnapshot:
+    """Replay an event-log snapshot using its companion metadata and snapshot.
+
+    ``feature_dir`` contains the source ``meta.json`` and ``status.json``;
+    ``events_text`` is the committed event log supplied in memory. Legacy
+    event identities resolve only against that metadata and never fall back to
+    unrelated on-disk mission metadata.
+    """
+    identity = resolve_mission_identity(feature_dir, fallback_slug=mission_slug)
+    if identity.mission_slug != mission_slug:
+        # Modern mission directories carry an authoritative mid8 suffix while
+        # meta.json retains the human-facing slug. Accept that canonical physical
+        # directory form only when its suffix is derived from this metadata's ID;
+        # arbitrary valid-but-different slugs (including a divergent mid8) fail
+        # closed.
+        from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
+
+        mid8 = resolve_mid8(identity.mission_slug, mission_id=identity.mission_id)
+        if not mid8 or mission_dir_name(identity.mission_slug, mid8=mid8) != mission_slug:
+            raise ValueError(f"Committed mission metadata does not match the requested status replay slug: {identity.mission_slug!r} != {mission_slug!r}")
+    mission_ids_by_slug = {mission_slug: identity.mission_id}
+    # Legacy events may retain the human-facing metadata slug even when the
+    # containing directory uses its identity suffix. Both names are proven
+    # aliases for this one metadata record; no other slug falls back to disk.
+    mission_ids_by_slug[identity.mission_slug] = identity.mission_id
+    stream = read_event_stream_from_text(
+        feature_dir,
+        events_text,
+        mission_ids_by_slug=mission_ids_by_slug,
+    )
+    raw_events = read_events_raw_from_text(events_text)
+    return _materialize_snapshot_from_parts(feature_dir, stream, raw_events, identity)
+
+
+def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
+    """Read events and reduce them to the exact snapshot materialize writes."""
+    stream = read_event_stream(feature_dir)
+    raw_events = read_events_raw(feature_dir)
+    identity = resolve_mission_identity(feature_dir)
+    return _materialize_snapshot_from_parts(feature_dir, stream, raw_events, identity)
 
 
 def materialize(feature_dir: Path) -> StatusSnapshot:

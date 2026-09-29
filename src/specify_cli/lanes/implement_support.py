@@ -255,6 +255,7 @@ def create_lane_workspace(
             lane_wp_ids=list(lane.wp_ids) if lane else [],
             current_wp=wp_id,
             lane_test_env=persisted_lane_test_env,
+            planning_commit_sha=lanes_manifest.planning_commit_sha if lanes_manifest is not None else None,
         )
         save_context(repo_root, context)
 

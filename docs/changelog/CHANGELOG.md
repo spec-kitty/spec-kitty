@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-28'
+updated: '2026-09-29'
 ---
 # Changelog
 
@@ -13,13 +13,14 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 4.0.0rc5
+## [Unreleased] - 4.0.0rc6
 
-_4.0.0rc5 candidate cycle. Entries land here until the release chore finalizes
+_4.0.0rc6 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
 ### Changed
 
+- **Status snapshots can now be replayed directly from committed event text without creating a temporary event-log file** (#5151). The `agent tasks move-task` handoff guard uses the public status facade for byte-identical provenance checks.
 - **`spec-kitty research` now finds its templates through the same resolver as every other mission template** (#5254). Project overrides go in `.kittify/overrides/templates/` (or `.kittify/overrides/missions/<type>/templates/`); org packs, `~/.kittify` and the shipped pack defaults apply as for other templates. **Migration:** research templates placed in `.kittify/missions/<type>/templates/` or in a project-root `templates/` directory are no longer read; move them to `.kittify/overrides/templates/`. The unused Python helper `specify_cli.core.resolve_template_path` was removed.
 - **Per-PR charter shard-timings drift is now a visible warning, not a red build, and a scheduled workflow keeps the count itself converging automatically** (#5189; absorbs and tests the interim #5240 demotion). **Before:** `test_charter_is_not_allowlisted_and_agrees` and `test_non_allowlisted_modules_agree_with_live_collection` hard-failed on any drift between the committed shard-timings artifact and live test collection, forcing a manual ~18-minute local recapture as mandatory landing work on any PR that added or moved a test under an affected module (#5164, #5175). **After:** a disagreement now emits a `ShardTimingsDriftWarning` instead of failing the PR build (restorable to a hard failure via `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`); a new scheduled workflow, `.github/workflows/ci-charter-shard-recapture.yml`, re-derives `charter`'s live shard-timing count on a schedule and, on drift, commits the regenerated artifact and opens (or updates) a PR — authenticated with a dedicated repository secret, `CHARTER_SHARD_RECAPTURE_TOKEN`, never the ambient `GITHUB_TOKEN` (a PR opened with `GITHUB_TOKEN` would not trigger the normal per-PR CI, so the recapture PR is pushed with the dedicated token and gets the same CI as a human-authored PR). The token is exposed only to the publish step: the checkout does not persist it and the capture step runs without it. A recapture whose pytest run ends in a collection error or records no durations aborts instead of opening a PR. An independent strict-mode job in the same workflow runs the same gate with `SPEC_KITTY_STRICT_SHARD_TIMINGS=1` on a schedule, keeping the exact-count invariant hard-failing outside the per-PR path. **Maintainer action:** create the `CHARTER_SHARD_RECAPTURE_TOKEN` secret (fine-grained, this repository only, Contents and Pull requests read/write); until it exists the recapture job fails loudly and the strict job is unaffected.
 - **`spec-kitty merge` is renamed to `spec-kitty consolidate`** (#3080). **Before:** `merge` was overloaded across three distinct senses — lane consolidation (the local, LOCAL-only operation this command performs), branch integration (`git merge`), and publish-to-origin (`--push`) — so the command name itself invited misreading a local lane-consolidation run as a publish. **After:** the lane-consolidation command is `spec-kitty consolidate`, carrying the exact same flag set (`--resume`/`--abort`/`--dry-run`/`--keep-branch`/`--keep-worktree`/`--mission`/`--target`/`--push`/…) and behavior, unchanged. `spec-kitty merge` still exists as a hidden, deprecated command but now only prints a migration message naming `spec-kitty consolidate` and exits non-zero — it never performs consolidation, silently or otherwise. The `orchestrator-api merge-mission` verb is renamed to `orchestrator-api consolidate-mission` for the same reason. **Frozen, unchanged:** the `baseline_merge_commit` meta.json key, the `MergeStrategy` enum and its `"merge"`/`"squash"`/`"rebase"` serialized values, the `state.json` resume-state filename and its `.kittify/runtime/merge/<id>/` directory, and every `spec-kitty merge-driver-*` git merge-driver subcommand — none of these name the CLI command, and none moved. **Migration:** replace `spec-kitty merge` with `spec-kitty consolidate` (same flags) in scripts, aliases, and CI steps; replace `orchestrator-api merge-mission` with `orchestrator-api consolidate-mission`.

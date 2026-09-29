@@ -22,7 +22,8 @@ import logging
 import os
 import re
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -124,11 +125,17 @@ class _SlugResolver:
     a ``mission_id``) are logged as a warning and return ``None``.
     """
 
-    def __init__(self, feature_dir: Path) -> None:
+    def __init__(
+        self,
+        feature_dir: Path,
+        *,
+        mission_ids_by_slug: Mapping[str, str | None] | None = None,
+    ) -> None:
         # feature_dir is the directory that owns status.events.jsonl.
         # The slug→dir mapping uses sibling kitty-specs directories.
         self._feature_dir = feature_dir
-        self._mission_specs_root: Path | None = self._find_mission_specs_root()
+        self._mission_ids_by_slug = mission_ids_by_slug
+        self._mission_specs_root: Path | None = None if mission_ids_by_slug is not None else self._find_mission_specs_root()
         self._cache: dict[str, str | None] = {}
 
     def _find_mission_specs_root(self) -> Path | None:
@@ -228,6 +235,14 @@ class _SlugResolver:
             # the same bad slug is not re-validated on subsequent events.
             self._cache[mission_slug] = None
             return None
+
+        if self._mission_ids_by_slug is not None:
+            # Text-only canonical replay supplies identities from the same
+            # committed metadata blob as the event stream. Unknown legacy
+            # slugs stay unresolved; this mode never consults the live tree.
+            mapped_mission_id = self._mission_ids_by_slug.get(mission_slug)
+            self._cache[mission_slug] = mapped_mission_id
+            return mapped_mission_id
 
         mission_id: str | None = None
         if self._mission_specs_root is not None:
@@ -541,6 +556,28 @@ def append_primary_checkout_events_atomic_verified(
     append_events_atomic_verified(feature_dir, events)
 
 
+def _read_events_raw_lines(lines: Iterable[str]) -> list[dict[str, Any]]:
+    """Parse raw JSON objects from event-log lines."""
+    results: list[dict[str, Any]] = []
+    for line_number, raw_line in enumerate(lines, start=1):
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        try:
+            obj = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+        if not isinstance(obj, dict):
+            raise StoreError(f"Invalid event structure on line {line_number}: expected JSON object")
+        results.append(obj)
+    return results
+
+
+def read_events_raw_from_text(content: str) -> list[dict[str, Any]]:
+    """Parse raw JSON objects from an in-memory event-log snapshot."""
+    return _read_events_raw_lines(StringIO(content, newline=None))
+
+
 def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     """Read raw JSON dicts from the events file.
 
@@ -553,20 +590,8 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
 
-    results: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as fh:
-        for line_number, raw_line in enumerate(fh, start=1):
-            stripped = raw_line.strip()
-            if not stripped:
-                continue
-            try:
-                obj = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
-            if not isinstance(obj, dict):
-                raise StoreError(f"Invalid event structure on line {line_number}: expected JSON object")
-            results.append(obj)
-    return results
+        return _read_events_raw_lines(fh)
 
 
 # Registration point: any new non-lane lifecycle event that uses the "type"
@@ -645,7 +670,12 @@ def is_non_lane_event(obj: dict[str, Any]) -> bool:
     return "event_type" in obj
 
 
-def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventStream:
+def _partition_event_stream_from_text(
+    feature_dir: Path,
+    content: str,
+    *,
+    mission_ids_by_slug: Mapping[str, str | None] | None = None,
+) -> EventStream:
     """Deserialize JSONL text into an :class:`EventStream`.
 
     Partitions each line by its wire discriminator:
@@ -664,7 +694,7 @@ def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventS
     Blank lines are silently skipped. Raises :class:`StoreError` on invalid
     JSON **or** invalid event structure, including the 1-based line number.
     """
-    resolver = _SlugResolver(feature_dir)
+    resolver = _SlugResolver(feature_dir, mission_ids_by_slug=mission_ids_by_slug)
     transitions: list[StatusEvent] = []
     annotations: list[InnerStateChanged] = []
     for line_number, raw_line in enumerate(content.splitlines(), start=1):
@@ -725,12 +755,24 @@ def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
     return _partition_event_stream_from_text(feature_dir, content).transitions
 
 
-def read_event_stream_from_text(feature_dir: Path, content: str) -> EventStream:
+def read_event_stream_from_text(
+    feature_dir: Path,
+    content: str,
+    *,
+    mission_ids_by_slug: Mapping[str, str | None] | None = None,
+) -> EventStream:
     """Deserialize JSONL text into an :class:`EventStream` (transitions +
     annotations). Same parsing semantics as :func:`read_events_from_text`,
     but surfaces the off-axis ``annotation`` events instead of dropping them.
+
+    When *mission_ids_by_slug* is supplied, legacy identity resolution uses
+    only that mapping and never reads sibling ``meta.json`` files from disk.
     """
-    return _partition_event_stream_from_text(feature_dir, content)
+    return _partition_event_stream_from_text(
+        feature_dir,
+        content,
+        mission_ids_by_slug=mission_ids_by_slug,
+    )
 
 
 def read_events(feature_dir: Path) -> list[StatusEvent]:

@@ -83,15 +83,8 @@ class TestGuard1PollutionCheck:
         the fail-toward-flag invariant this guard preserves."""
         assert is_coord_residue_churn(_rel(basename), mission_slug=_SLUG) is False
 
-    def test_remedy_pathspec_is_currently_the_blanket_kitty_specs_restore(self, tmp_path: Path) -> None:
-        """Pin the remedy shape: the guidance restores the *whole*
-        ``kitty-specs/`` tree, not just the flagged PRIMARY-partition paths.
-
-        The blanket restore is the current, safe behaviour (it can only over-
-        restore, never leave pollution on the lane); this pin makes any future
-        narrowing to the specific flagged ``is_primary_artifact_kind`` paths a
-        visible, deliberate delta rather than a silent change.
-        """
+    def test_remedy_guidance_is_scoped_to_lane_authored_paths(self, tmp_path: Path) -> None:
+        """Keep handoff guidance from restoring coordination-owned state."""
         from specify_cli.core.constants import KITTY_SPECS_DIR
         from specify_cli.cli.commands.agent.tasks_parsing_validation import (
             _check_kitty_specs_contamination,
@@ -103,7 +96,12 @@ class TestGuard1PollutionCheck:
         feature_dir.mkdir(parents=True)
         flagged = _rel("spec.md")
 
-        def _stub_contamination_list(*, worktree_path: Path, base_branch: str) -> list[str]:
+        def _stub_contamination_list(
+            *,
+            worktree_path: Path,
+            base_branch: str,
+            **_guard_context: object,
+        ) -> list[str]:
             # Inject a single PRIMARY-partition pollution path so the guard emits
             # its remedy guidance; the git delta itself is not under test here.
             return [flagged]
@@ -119,10 +117,11 @@ class TestGuard1PollutionCheck:
 
         assert guidance is not None, "guard must emit remedy guidance when it flags a file"
         remedy = "\n".join(guidance)
-        # Blanket restore of the entire kitty-specs tree (current behaviour):
-        assert f"-- {KITTY_SPECS_DIR}/" in remedy
-        # And crucially NOT narrowed to the specific flagged path:
-        assert f"-- {flagged}" not in remedy
+        assert f"{KITTY_SPECS_DIR}/ changes are not allowed" in remedy
+        assert flagged in remedy
+        assert "remove only lane-authored planning changes" in remedy
+        assert "Do not restore the entire kitty-specs/ tree" in remedy
+        assert f"-- {KITTY_SPECS_DIR}/" not in remedy
 
 
 # ---------------------------------------------------------------------------

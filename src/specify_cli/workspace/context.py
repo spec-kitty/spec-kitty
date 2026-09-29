@@ -173,6 +173,12 @@ class WorkspaceContext:
     # SaaS / Django lanes cannot collide on a single shared test DB.
     lane_test_env: dict[str, str] | None = None
 
+    # Immutable primary planning snapshot observed when this lane workspace
+    # was first allocated. ``lanes.json`` may later be refreshed to a newer
+    # planning tip, so handoff provenance cannot recover this pin from that
+    # mutable manifest alone.
+    planning_commit_sha: str | None = None
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)

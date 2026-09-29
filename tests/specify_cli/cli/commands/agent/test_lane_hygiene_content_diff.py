@@ -527,30 +527,17 @@ def _build_coord_status_state_scenario(tmp_path: Path) -> tuple[Path, str, str]:
 
 
 class TestCoordPartitionInheritanceNotFlagged:
-    """FIX-M2-04: coord-owned status/acceptance-matrix inheritance from the
-    lane's coordination-branch parentage must not be flagged, even though it
-    can never be byte-identical to the planning tip (the file simply does not
-    exist there)."""
+    """Coord-inherited files are clean by fork provenance, not basename."""
 
     def test_status_events_and_acceptance_matrix_are_not_flagged(
         self, tmp_path: Path
     ) -> None:
-        """RED pre-fix / GREEN post-fix: the coord-inherited STATUS_STATE +
-        ACCEPTANCE_MATRIX files must not be reported as lane contamination.
+        """Coord-only paths before the lane fork are outside the candidate set."""
+        repo, coord, planning = _build_coord_status_state_scenario(tmp_path)
 
-        Pre-fix (``_filter_by_planning_tip_content`` alone): both files differ
-        from the planning tip (they are simply absent there) so BOTH are kept
-        in the flagged list — the exact reported defect (``agent tasks
-        move-task ... --to for_review`` failing with "kitty-specs/ changes are
-        not allowed on lane branches" on a fresh coord-topology project).
-
-        Post-fix: ``is_coord_residue_churn`` drops any candidate whose
-        declared ``MissionArtifactKind`` is COORD-partition before the
-        content re-check ever runs, so neither file reaches the flagged list.
-        """
-        repo, _coord, planning = _build_coord_status_state_scenario(tmp_path)
-
-        flagged = _list_wp_branch_mission_specs_changes(repo, planning)
+        flagged = _list_wp_branch_mission_specs_changes(
+            repo, coord, planning_base_branch=planning
+        )
 
         assert not any("status.events.jsonl" in p for p in flagged), (
             f"Coord-owned status.events.jsonl wrongly flagged as lane "
@@ -567,7 +554,7 @@ class TestCoordPartitionInheritanceNotFlagged:
         implementer editing spec.md directly on the lane (a PRIMARY-partition
         planning artifact) is still flagged, alongside the harmless coord
         inheritance from the same topology."""
-        repo, _coord, planning = _build_coord_status_state_scenario(tmp_path)
+        repo, coord, planning = _build_coord_status_state_scenario(tmp_path)
 
         # A genuine lane-authored edit to a PRIMARY artifact, on top of the
         # same coord-parented + FR-009-merged topology.
@@ -577,16 +564,31 @@ class TestCoordPartitionInheritanceNotFlagged:
         _git(repo, "add", ".")
         _git(repo, "commit", "-q", "-m", "lane: edit spec.md (real violation)")
 
-        flagged = _list_wp_branch_mission_specs_changes(repo, planning)
+        flagged = _list_wp_branch_mission_specs_changes(
+            repo, coord, planning_base_branch=planning
+        )
 
         assert any("spec.md" in p for p in flagged), (
             f"Genuine spec.md edit on the lane must still be flagged, got {flagged!r}"
         )
         assert not any("status.events.jsonl" in p for p in flagged), (
-            f"Coord-owned status.events.jsonl must stay excepted even "
+            f"Inherited status.events.jsonl must stay outside candidates even "
             f"alongside a real violation, got {flagged!r}"
         )
         assert not any("acceptance-matrix.json" in p for p in flagged), (
-            f"Coord-owned acceptance-matrix.json must stay excepted even "
+            f"Inherited acceptance-matrix.json must stay outside candidates even "
             f"alongside a real violation, got {flagged!r}"
         )
+
+    def test_unresolvable_coordination_base_is_not_treated_as_clean(
+        self, tmp_path: Path
+    ) -> None:
+        repo, _coord, planning = _build_coord_status_state_scenario(tmp_path)
+
+        flagged = _list_wp_branch_mission_specs_changes(
+            repo,
+            "deleted-coordination-ref",
+            planning_base_branch=planning,
+        )
+
+        assert flagged is None, "Unknown fork base must be reported as unverifiable"

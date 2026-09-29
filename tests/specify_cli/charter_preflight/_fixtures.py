@@ -223,7 +223,17 @@ def seed_graph(repo: Path) -> Path:
     """Create ``.kittify/doctrine/graph.yaml`` (a minimal valid graph)."""
     graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
     graph_path.parent.mkdir(parents=True, exist_ok=True)
-    graph_path.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
+    graph_data = "\n".join(
+        (
+            "schema_version: '1.0'",
+            "generated_at: '2026-01-01T00:00:00+00:00'",
+            "generated_by: test-fixture",
+            "nodes: []",
+            "edges: []",
+            "",
+        )
+    )
+    graph_path.write_text(graph_data, encoding="utf-8")
     return graph_path
 
 

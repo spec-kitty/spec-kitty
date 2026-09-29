@@ -100,7 +100,7 @@ _TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396) — 
     "_map_requirements_feature_dir",
 )
 
-_TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
+_TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 32 symbols
     # ``resolve_primary_branch`` removed by FR-007 (mission
     # primary-merge-vocabulary, WP04): the delegating shim was retired so the
     # canonical ``core.git_ops.resolve_primary_branch`` is the single source
@@ -125,6 +125,21 @@ _TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
     "_list_wp_branch_mission_specs_changes",
     "_list_wp_branch_specs_changes_for_guard",
     "_mark_status_json_payload",
+    # #5151: the history-aware handoff guard's provenance, candidate, and
+    # merge-resolution helpers are native shared-seam definitions and remain
+    # explicit identity re-exports on ``tasks`` like the existing guard seam.
+    "_trusted_handoff_snapshots",
+    "_commit_in_trusted_snapshots",
+    "_kitty_specs_paths_changed",
+    "_merge_commit_authored_kitty_specs_paths",
+    "_lane_commit_authored_kitty_specs_paths",
+    "_lane_authored_kitty_specs_paths",
+    "_coordination_hygiene_candidates",
+    "_coordination_candidate_violations",
+    "_planning_candidate_violations",
+    "_commit_is_post_fork_lane_ancestor",
+    "_lane_hygiene_fork_point",
+    "_lane_hygiene_candidates",
 )
 
 _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +gated runtime seam, +reconstruct-reader row)
@@ -473,7 +488,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_167_symbol_surface() -> None:
+def test_guard_covers_full_198_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -602,7 +617,9 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     golden count 184 -> 185. #4899 (WP01, review-feedback-to-implementer-
     01M3GKZ8, T004 campsite tidy-first) then added
     ``_mt_persist_rejection_cycle`` (the extracted rejection-cycle persist
-    helper) as a native move-task seam def — golden count 185 -> 186."""
+    helper) as a native move-task seam def — golden count 185 -> 186. #5151
+    adds twelve provenance/history helpers to the shared seam; those remain
+    explicit ``tasks`` identity re-exports, taking the golden count to 198."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -610,4 +627,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether this file's own hardcoded-count guard should be
     # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 186  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 198  # golden-count: cardinality-is-contract

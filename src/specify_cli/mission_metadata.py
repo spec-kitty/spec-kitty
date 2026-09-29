@@ -222,11 +222,18 @@ def mission_identity_fields(
     }
 
 
-def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
+def resolve_mission_identity(
+    feature_dir: Path,
+    *,
+    fallback_slug: str | None = None,
+) -> MissionIdentity:
     """Resolve canonical mission identity fields from a mission directory.
 
     Reads ``meta.json`` and coerces ``mission_number`` to ``int | None``
-    using the legacy coercion rule (T008):
+    using the legacy coercion rule (T008). ``fallback_slug`` overrides the
+    directory name only when metadata does not supply a safe mission slug; it
+    supports replay in a temporary directory that does not encode the source
+    path segment.
 
     - Stored as JSON null   → ``None``
     - Stored as JSON int    → ``int``
@@ -252,7 +259,10 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
     # downgrades to the trusted ``feature_dir.name``.
     raw_slug = meta.get("mission_slug") or meta.get("slug")
     raw_slug_str = str(raw_slug) if raw_slug is not None else None
-    resolved_slug = safe_mission_slug(raw_slug_str, feature_dir.name)
+    resolved_slug = safe_mission_slug(
+        raw_slug_str,
+        feature_dir.name if fallback_slug is None else fallback_slug,
+    )
     # rc3 M5 (FR-002/FR-003): canonical field only via the one shared reader —
     # the legacy `mission` fallback and the silent `software-dev` default are
     # retired. A typeless mission resolves to "" (neutral); callers degrade at
