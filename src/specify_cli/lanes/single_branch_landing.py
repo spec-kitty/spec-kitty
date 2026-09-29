@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 
@@ -79,11 +81,18 @@ def minted_mission_branch(repo: Path, mission_slug: str, target_branch: str) -> 
     legacy manifest) and never a DERIVED topology (unstamped planning-only
     missions derive single_branch): both would land legacy missions.
     """
-    from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
-    from specify_cli.migration.backfill_topology import stored_topology
+    from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.mission_metadata import load_meta_or_empty
 
     meta = load_meta_or_empty(placement_seam(repo, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
+    return minted_branch_from_meta(meta, target_branch)
+
+
+def minted_branch_from_meta(meta: Mapping[str, Any], target_branch: str) -> str | None:
+    """:func:`minted_mission_branch` over an already-loaded ``meta.json`` mapping."""
+    from mission_runtime import MissionTopology
+    from specify_cli.migration.backfill_topology import stored_topology
+
     minted = meta.get("mission_branch")
     if not (isinstance(minted, str) and minted and minted != target_branch):
         return None

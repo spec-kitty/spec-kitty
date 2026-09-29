@@ -1107,6 +1107,34 @@ class TestIntegrationBranchGuard:
         assert "spec-kitty consolidate --mission" in merged, f"Feature branch should get consolidation guidance. instructions={result.instructions}"
         assert "git branch -d kitty/mission-054-my-feature-lane-a" in merged, f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
 
+    def test_minted_single_branch_mission_says_consolidate_lands_and_removes_it(self, tmp_path: Path) -> None:
+        """A protected single_branch Mission's minted branch is landed AND deleted by consolidate (#5100).
+
+        Telling the operator to ``git branch -d`` it before consolidating is wrong: the branch
+        is unmerged then (``-d`` refuses) and consolidate removes it itself.
+        """
+        minted = "kitty/mission-054-my-feature-01ABCDEF"
+        summary = self._make_summary_on_branch(tmp_path, minted, target_branch="main")
+        meta_path = summary.feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text())
+        meta.update({"topology": "single_branch", "mission_branch": minted})
+        meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        cleanup = " ".join(result.cleanup_instructions)
+        assert f"git branch -d {minted}" not in cleanup
+        assert "spec-kitty consolidate" in cleanup and "lands" in cleanup
+        assert "feature branch" not in cleanup.lower()
+
+    def test_ordinary_branch_cleanup_hint_uses_mission_terminology(self, tmp_path: Path) -> None:
+        summary = self._make_summary_on_branch(tmp_path, "kitty/mission-054-my-feature-lane-a", target_branch="main")
+        result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
+
+        cleanup = " ".join(result.cleanup_instructions)
+        assert "Delete the Mission branch when done" in cleanup
+        assert "feature branch" not in cleanup.lower()
+
     def test_well_known_branch_without_meta_target(self, tmp_path: Path) -> None:
         """When meta.json has no target_branch, well-known names are guarded."""
         repo_root, feature_dir = _create_test_feature(tmp_path)

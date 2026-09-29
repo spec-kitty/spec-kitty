@@ -1840,8 +1840,14 @@ def _build_acceptance_instructions(
     mode: AcceptanceMode,
     branch: str,
     is_integration_branch: bool,
+    *,
+    landed_by_consolidate: bool = False,
 ) -> tuple[list[str], list[str]]:
-    """Build human-readable next-step and cleanup instruction lists."""
+    """Build human-readable next-step and cleanup instruction lists.
+
+    ``landed_by_consolidate``: *branch* is a protected single_branch Mission's minted
+    branch, which ``spec-kitty consolidate`` lands on the target and then removes.
+    """
     instructions: list[str] = []
     cleanup_instructions: list[str] = []
 
@@ -1871,10 +1877,24 @@ def _build_acceptance_instructions(
 
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`")
-    if not is_integration_branch:
-        cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
+    if landed_by_consolidate:
+        cleanup_instructions.append(
+            f"`spec-kitty consolidate` lands the Mission branch `{branch}` onto its target branch and removes it; there is nothing to delete by hand."
+        )
+    elif not is_integration_branch:
+        cleanup_instructions.append(f"Delete the Mission branch when done: `git branch -d {branch}`")
 
     return instructions, cleanup_instructions
+
+
+def _consolidate_lands_branch(summary: AcceptanceSummary, branch: str, target_branch: str | None) -> bool:
+    """True when *branch* is the minted branch of a protected single_branch Mission."""
+    if not target_branch or branch == target_branch:
+        return False
+    from specify_cli.lanes.single_branch_landing import minted_branch_from_meta
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    return minted_branch_from_meta(load_meta_or_empty(summary.feature_dir), target_branch) == branch
 
 
 def perform_acceptance(
@@ -1908,7 +1928,8 @@ def perform_acceptance(
     _target_branch = _target_branch_for_feature(summary.feature_dir)
     is_integration_branch = branch == _target_branch or (_target_branch is None and branch in _WELL_KNOWN_INTEGRATION_BRANCHES)
 
-    instructions, cleanup_instructions = _build_acceptance_instructions(summary, mode, branch, is_integration_branch)
+    landed_by_consolidate = _consolidate_lands_branch(summary, branch, _target_branch)
+    instructions, cleanup_instructions = _build_acceptance_instructions(summary, mode, branch, is_integration_branch, landed_by_consolidate=landed_by_consolidate)
 
     notes: list[str] = []
     if accept_commit:
