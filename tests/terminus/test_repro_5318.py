@@ -92,9 +92,11 @@ _REPORT_HEADER = "Rollback to the pre-consolidation snapshot:"
 def assert_report_is_truthful(output: str) -> None:
     """The appended rollback report exists and never claims that nothing was mutated (FR-009).
 
-    Scoped to the report: the gate's own guidance line
-    (``MergeOutcomeVerifier.recovery_guidance``) is #5359-owned (C-001) and keeps
-    its wording until that mission lands; the follow-up reconciles it.
+    Scoped to the report, the FR-009 surface this mission owns. The gate's own
+    guidance line (``MergeOutcomeVerifier.recovery_guidance``) was already made
+    truthful on this branch (0523585e): it describes the restore as in progress and
+    defers to this report, and is pinned separately in
+    ``tests/consolidation/test_reconciliation.py``.
     """
     assert _REPORT_HEADER in output, f"the rollback report must follow the refusal guidance. output={output}"
     report = output[output.index(_REPORT_HEADER) :]

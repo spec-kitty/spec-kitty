@@ -163,7 +163,9 @@ def test_5338_fresh_claim_refuse_leaves_no_state(tmp_path: Path) -> None:
     fold_lanes_into_mission_branch(mission, ["WP01"])
     _delete_lane_branch(mission, "WP01")
     before = _snapshot(mission)
+    worktrees_before = git_out(mission.repo, "worktree", "list", "--porcelain")
     assert before["state"] is None, "fixture precondition: no consolidation record exists yet"
+    assert before["coord_events"], "non-vacuity: the coordination status event log exists before the run"
 
     result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
     output = " ".join((result.stdout + result.stderr).split())  # rich wraps long lines
@@ -174,6 +176,9 @@ def test_5338_fresh_claim_refuse_leaves_no_state(tmp_path: Path) -> None:
     assert after["target"] == before["target"], f"#5338: target moved. output={output}"
     assert after["coord"] == before["coord"], f"#5338: coordination/mission branch moved. output={output}"
     assert after["lanes"] == before["lanes"], f"#5338: a lane branch moved. output={output}"
+    assert after["target_events"] == before["target_events"], "#5338: the target status event log changed"
+    assert after["coord_events"] == before["coord_events"], "#5338: the coordination status event log changed"
+    assert git_out(mission.repo, "worktree", "list", "--porcelain") == worktrees_before, "#5338: a worktree was added or removed"
     assert "does not exist in git" in output, f"#5338: expected the lane-branch reason in the guidance. output={output}"
 
 
