@@ -2,7 +2,7 @@
 title: How to review a work package
 description: 'How to review a work package with Spec Kitty 3.2: Use this guide to review a completed work package and update its lane.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-09-28'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -139,11 +139,16 @@ cat > /tmp/spec-kitty-review-feedback-WP01.md <<'EOF'
 **Issue 2**: <description and how to fix>
 EOF
 
-spec-kitty agent tasks move-task WP01 --to planned --force \
+spec-kitty agent tasks move-task WP01 --to planned \
   --mission <slug> \
+  --agent <your-agent-name> \
   --review-feedback-file /tmp/spec-kitty-review-feedback-WP01.md \
   --note "Changes requested: <summary>"
 ```
+
+Rejection is an ordinary move, so it needs no `--force`. Pass your own
+`--agent` identity. The implementer then resumes the rework and resubmits with
+its own `--agent`, also without `--force`.
 
 ## Step 6: Check Downstream Impact
 

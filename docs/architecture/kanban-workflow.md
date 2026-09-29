@@ -2,7 +2,7 @@
 title: Kanban Workflow Explained
 description: "How Spec Kitty tracks work-package progress: the nine lanes, the 27 allowed transitions and their guards, the append-only event log, and who moves work between them."
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-09-28'
 related:
 - docs/architecture/ai-agent-architecture.md
 - docs/architecture/execution-lanes.md
@@ -455,6 +455,33 @@ spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file feedba
 # Once ALL WPs are approved or done, validate the mission before merge
 /spec-kitty.accept
 ```
+
+### Rework After a Rejection Is Not an Override
+
+An ordinary review loop (reject → rework → resubmit → approve) needs no `--force`.
+Each actor passes its own `--agent` identity:
+
+- **Implementer:** the WP's latest implementer can resume a rejected WP and resubmit it to
+  `for_review`. This holds even while the agent slot still names the reviewer. The latest
+  implementer is the most recent actor to move the WP into `claimed` or `in_progress`,
+  excluding two kinds of move: a reviewer's rework verdict that carries review feedback,
+  and one made under a generic identity such as `user`.
+- **Reviewer:** any named agent whose tool differs from the latest implementer's can
+  review straight from `for_review`: claim it into `in_review`, approve it, or reject it
+  back to `planned` with feedback. A generic identity never counts as a reviewer.
+- **`in_review` verdicts:** only the agent holding the review claim can issue them.
+
+These moves are recorded as ordinary transitions, so the review history lists each
+cycle as rejected or approved and never as `rejected → overridden`.
+
+The ownership check compares agent *tools*, not full identities. It prevents a
+different agent from moving your WP by accident, but it does not prove that review
+was independent.
+
+An **arbiter override** is recorded only when someone deliberately overrules a
+rejection. That means forcing a rejected WP from `planned` straight to `approved` or
+`done`, with a note. The override counts after a rejection from either `for_review`
+or `in_review`.
 
 ### Users and External Orchestrators Can Override
 

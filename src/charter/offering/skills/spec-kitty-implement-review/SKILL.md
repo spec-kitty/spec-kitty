@@ -426,7 +426,7 @@ spec-kitty agent tasks move-task WP## --to approved --note "Review passed: <summ
 
 **If criteria NOT met:**
 Write structured feedback to a temp file, then:
-spec-kitty agent tasks move-task WP## --to planned --force --review-feedback-file <feedback-path>
+spec-kitty agent tasks move-task WP## --to planned --review-feedback-file <feedback-path> --agent <reviewer-agent-id>
 """,
     run_in_background=True
 )
@@ -495,9 +495,13 @@ After the reviewer completes, the orchestrator must:
 spec-kitty agent tasks move-task WP## --to approved --note "Review passed (by <agent>): <summary>"
 
 # If rejected:
-spec-kitty agent tasks move-task WP## --to planned --force \
-  --review-feedback-file /tmp/feedback-<mission>-WP##.md
+spec-kitty agent tasks move-task WP## --to planned \
+  --review-feedback-file /tmp/feedback-<mission>-WP##.md \
+  --agent <reviewer-agent-id>
 ```
+
+When relaying a verdict, act **as** the reviewer: pass the reviewer's own
+`--agent` identity, not the orchestrator's and not `--force`.
 
 ### Step 3c: Verify the Outcome
 
@@ -532,9 +536,16 @@ must re-dispatch implementation.
 
 ### What Happens on Rejection
 
-1. The reviewer runs `move-task WP## --to planned --force --review-feedback-file <path>`
+1. The reviewer runs `move-task WP## --to planned --review-feedback-file <path> --agent <reviewer-agent-id>`
+   (a rejection is an ordinary move and needs no force flag)
 2. The event log records the lane transition and review-feedback reference;
    the WP planning file remains byte-stable.
+
+The implementer resumes the rework with its own `--agent` identity. The
+resubmission (`--to for_review`) and the re-review need no `--force`, so they
+are not recorded as an override. The CLI compares the agent tool of the
+requester with the latest implementer's; it does not prove that the reviewer
+is an independent agent, so choose reviewers deliberately.
 
 ### Re-Implementation Steps
 
@@ -578,7 +589,11 @@ PROMPT_FILE=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 
 ## Step 5: Arbiter Mode (After 3 Rejections)
 
-If a WP is rejected 3 times, the orchestrator steps in as arbiter.
+If a WP is rejected 3 times, the orchestrator steps in as arbiter. Issue the
+arbiter decision while the WP is still in `planned` after the third rejection:
+an override is recorded only for a forced `planned` to `approved`/`done`, so
+after an `in_review` to `in_progress` rejection the decision is not recorded as
+an override.
 
 ### Arbiter Decision Options
 
@@ -929,9 +944,24 @@ existing record; it does NOT author. Use `retrospect create` to author.
 to the repository root checkout where spec-kitty is on PATH. For codex, use `--add-dir "$(pwd)"`.
 For others, verify the working directory.
 
-**move-task fails with "Illegal transition"**: The reviewer may need `--force`.
-Tier 1 agents typically retry with `--force` automatically. If not, the
-orchestrator should run the force-move manually.
+**move-task fails with "Illegal transition"**: The requested lane is not
+reachable from the WP's current lane. The usual cause is a WP already in a
+terminal lane (`done` or `canceled`), which has no outgoing moves without
+`--force`; check the current lane with `spec-kitty agent tasks status` first.
+A verdict issued straight from `for_review` is not the cause: a rejection
+(`for_review` to `planned`) and an approval both work without a separate
+review claim. If the message instead names a guard (for example, a rejection
+without a review-feedback reference), supply what the guard asks for. Do not
+reach for `--force` to get past either case.
+
+**move-task fails with "Agent mismatch"**: The `--agent` you passed does not
+match the WP's current owner and no review-loop role applies. Pass your own
+`--agent` identity (the reviewer for a verdict, the implementer for a rework
+or resubmission). An `in_review` verdict must come from the agent that holds
+the review claim; a second reviewer must not relay a verdict on a WP someone
+else claimed. Use `--force` only for a genuine takeover; a forced move is
+flagged `force: true` in the event log, so it stays visible in the review
+history.
 
 **Agent hangs (Tier 2 -- Cursor)**: Use timeout wrapper.
 `timeout 600 cursor agent -p --force "prompt"`. If still hanging, kill and

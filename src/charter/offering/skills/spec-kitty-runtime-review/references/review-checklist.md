@@ -23,7 +23,7 @@ Operational checklist for executing the Spec Kitty review workflow surface.
 ## 4. Issue Verdict
 
 - [ ] **If all acceptance criteria met**: `spec-kitty agent tasks move-task WP## --to approved --note "..."`
-- [ ] **If criteria not met**: wrote feedback to temp file, ran `spec-kitty agent tasks move-task WP## --to planned --force --review-feedback-file <path>`
+- [ ] **If criteria not met**: wrote feedback to temp file, ran `spec-kitty agent tasks move-task WP## --to planned --review-feedback-file <path> --agent <your reviewer id>` without forcing the move
 
 ## 5. Post-Review
 

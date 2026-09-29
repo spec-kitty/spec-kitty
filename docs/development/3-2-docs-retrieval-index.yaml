@@ -5143,6 +5143,7 @@ pages:
     - {slug: "who-moves-work", text: "Who Moves Work?", level: 2}
     - {slug: "agents-move-work-forward", text: "Agents Move Work Forward", level: 3}
     - {slug: "reviewers-make-accept-reject-decisions", text: "Reviewers Make Accept/Reject Decisions", level: 3}
+    - {slug: "rework-after-a-rejection-is-not-an-override", text: "Rework After a Rejection Is Not an Override", level: 3}
     - {slug: "users-and-external-orchestrators-can-override", text: "Users and External Orchestrators Can Override", level: 3}
     - {slug: "rules-and-constraints", text: "Rules and Constraints", level: 2}
     - {slug: "one-agent-per-wp-in-progress", text: "One Agent Per WP in Progress", level: 3}

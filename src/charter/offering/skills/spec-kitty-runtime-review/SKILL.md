@@ -117,9 +117,13 @@ spec-kitty agent tasks move-task WP## --to approved --note "Review passed: <summ
 Write structured feedback to a temp file, then move the WP back to planned:
 
 ```bash
-spec-kitty agent tasks move-task WP## --to planned --force \
-  --review-feedback-file <feedback-file-path>
+spec-kitty agent tasks move-task WP## --to planned \
+  --review-feedback-file <feedback-file-path> \
+  --agent <your reviewer id>
 ```
+
+A rejection is an ordinary move: pass your own `--agent` identity and no
+`--force`.
 
 Every blocking finding must map to a specific, verifiable remediation action.
 
