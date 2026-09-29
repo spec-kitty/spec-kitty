@@ -1161,11 +1161,14 @@ def test_research_lands_on_the_canonical_directory_across_handle_forms(
     from fabricating a 0-byte ``research.md`` when no template resolves at
     all, which this fixture's ``software-dev`` mission type otherwise never
     has (this test is about directory routing, not the fabrication policy, so
-    a real template preserves its original intent).
+    a real template preserves its original intent). Since #5254 ``research``
+    resolves through the canonical ``resolve_template`` chain, which asks for
+    the shipped template filename (``research-template.md``), so the legacy
+    tier is seeded under that name rather than the destination name.
     """
     templates_dir = repo / ".kittify" / "templates"
     templates_dir.mkdir(parents=True, exist_ok=True)
-    (templates_dir / "research.md").write_text("# Research\n\nSeeded template content.\n", encoding="utf-8")
+    (templates_dir / "research-template.md").write_text("# Research\n\nSeeded template content.\n", encoding="utf-8")
 
     result = _invoke_research(repo, handle, monkeypatch)
     assert result.exit_code == 0, result.output
