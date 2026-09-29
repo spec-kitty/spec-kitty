@@ -1711,10 +1711,12 @@ def _record_mission_number_on_target_tree(run: _MergeRunState) -> None:
 
 
 def _switch_write_checkout_after_single_branch_landing(run: _MergeRunState) -> None:
-    """WP08/IC-05: back to target_branch before teardown (non-coord only; see lanes.single_branch_landing)."""
-    from specify_cli.lanes.single_branch_landing import switch_checkout_to_target
+    """WP08/IC-05: back to target_branch before teardown (protected single_branch only; see lanes.single_branch_landing)."""
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch, switch_checkout_to_target
 
-    if not _is_coord_topology_mission(run):
+    # Gate on the STORED single_branch topology + meta.mission_branch, never on
+    # manifest ``mission_branch != target_branch`` (true for every lanes mission).
+    if not _is_coord_topology_mission(run) and lands_mission_branch(run.main_repo, run.lanes_manifest):
         switch_checkout_to_target(run.main_repo, run.lanes_manifest.mission_branch, run.lanes_manifest.target_branch)
 
 

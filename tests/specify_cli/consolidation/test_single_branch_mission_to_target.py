@@ -176,6 +176,18 @@ def test_unprotected_single_branch_control_no_landing(protected_repo: Path) -> N
     assert _current_branch(protected_repo) == "main", "the no-op control must never switch branches"
 
 
+def test_switch_back_never_runs_for_non_single_branch_mission(protected_repo: Path) -> None:
+    """Gate: a lanes mission's manifest also has ``mission_branch != target_branch``;
+    the switch-back must key on the STORED single_branch topology, never on that."""
+    meta = protected_repo / "kitty-specs" / _SLUG / "meta.json"
+    meta.write_text(meta.read_text().replace("single_branch", "lanes"), encoding="utf-8")
+    run = _build_run(protected_repo, _protected_lanes_manifest())
+
+    ex._switch_write_checkout_after_single_branch_landing(run)
+
+    assert _current_branch(protected_repo) == _MISSION_BRANCH, "a non-single_branch mission must never have its checkout switched"
+
+
 # ---------------------------------------------------------------------------
 # Authorship window for the reconciliation blob source (T037, R-9)
 # ---------------------------------------------------------------------------
