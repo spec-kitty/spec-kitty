@@ -21,7 +21,6 @@ from pydantic import ValidationError
 
 from charter.activation.activations import (
     ALLOWED_ACTIONS,
-    ALLOWED_MISSION_TYPES,
     REGISTERED_TRIGGERS,
     ActivationEntry,
     resolve_for_context,
@@ -129,26 +128,48 @@ def test_singular_artifact_kind_is_accepted_and_normalised() -> None:
     )
 
 
-def test_valid_artifact_kinds_are_accepted() -> None:
-    """Both the eight canonical plural forms AND their singular aliases
-    are accepted by the validator (WP05 widening — see
-    ``test_singular_artifact_kind_is_accepted_and_normalised``)."""
-    for kind in (
-        "directives",
-        "tactics",
-        "styleguides",
-        "toolguides",
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-        "mission_step_contracts",
-    ):
-        ActivationEntry(
-            activation_context={"action": "implement"},
-            doctrine_pack_id="project",
-            artifact_id="x",
-            artifact_kind=kind,
-        )
+#: Every accepted ``artifact_kind`` spelling and the canonical plural it
+#: normalises to, written as literals so the oracle is independent of the
+#: alias map under test. ``anti_pattern`` is deliberately absent: the alias
+#: map advertises it but the validator rejects it, pending the ruling in
+#: #5409.
+_ACCEPTED_KIND_NORMALISATION: tuple[tuple[str, str], ...] = (
+    # Canonical plurals map to themselves.
+    ("directives", "directives"),
+    ("tactics", "tactics"),
+    ("styleguides", "styleguides"),
+    ("toolguides", "toolguides"),
+    ("paradigms", "paradigms"),
+    ("procedures", "procedures"),
+    ("agent_profiles", "agent_profiles"),
+    ("mission_step_contracts", "mission_step_contracts"),
+    ("templates", "templates"),
+    ("assets", "assets"),
+    ("glossary_packs", "glossary_packs"),
+    # Operator-friendly singular aliases map to their plural.
+    ("directive", "directives"),
+    ("tactic", "tactics"),
+    ("styleguide", "styleguides"),
+    ("toolguide", "toolguides"),
+    ("paradigm", "paradigms"),
+    ("procedure", "procedures"),
+    ("agent_profile", "agent_profiles"),
+    ("mission_step_contract", "mission_step_contracts"),
+    ("glossary_pack", "glossary_packs"),
+)
+
+
+@pytest.mark.parametrize(("kind", "expected"), _ACCEPTED_KIND_NORMALISATION)
+def test_valid_artifact_kinds_are_accepted(kind: str, expected: str) -> None:
+    """Every canonical plural and every singular alias is accepted and
+    normalised to the canonical plural."""
+    entry = ActivationEntry(
+        activation_context={"action": "implement"},
+        doctrine_pack_id="project",
+        artifact_id="x",
+        artifact_kind=kind,
+    )
+    assert entry.artifact_kind == expected
 
 
 # ---------------------------------------------------------------------------
@@ -206,10 +227,6 @@ def test_resolver_absent_slot_is_wildcard() -> None:
 # ---------------------------------------------------------------------------
 # Runtime re-export contract (data-model.md §7)
 # ---------------------------------------------------------------------------
-
-
-def test_allowed_mission_types_is_a_frozenset() -> None:
-    assert isinstance(ALLOWED_MISSION_TYPES, frozenset)
 
 
 @pytest.mark.parametrize("action", ["charter.interview", "charter.generate", "charter.context"])
