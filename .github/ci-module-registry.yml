@@ -185,7 +185,23 @@ modules:
   # 40-minute per-shard timeout (~25m vs ~32m projected at shard_count=4,
   # which leaves almost no margin) -- not the manual wall-clock/test-count
   # heuristic C-002 rejects as a precedent.
-  shard_count: 5
+  #
+  # shard_count=7 (#5378 per-PR half): at 5 shards the suite outgrew the 40m
+  # cap. Per-PR runs measured on GitHub Actions put the slowest shard at
+  # >=38:03 (PR #5383, cancelled at the cap), with a whole-suite serial total
+  # of up to ~176m across 43 complete 5-shard charter runs
+  # (2026-09-28..29). All of those runs used the uniform-weight fallback,
+  # because the committed durations (6235) no longer matched collection
+  # (6641). Measured the same way, 7 shards gives a mean of ~25m per shard.
+  # Even stacking the worst total on the worst per-run max/mean imbalance
+  # seen (1.51x) gives ~38m. That is the pessimistic bound, and it still
+  # fits under module-tests.yml's re-derived 58m cap, which is sized from
+  # the 5-shard maximum. The extra shards add margin under the cap and
+  # shorten the PR critical path. Durations were recaptured in the same change
+  # (run-id landing-5378-per-pr-charter-headroom; 6641 collected, 6629
+  # passed, 12 skipped, exit 0; 1233.204s summed). Committed now equals
+  # collected, so main's shards are weighted by measured time again.
+  shard_count: 7
   # DUAL test tree (CLAUDE.md Modularity SSOT): the doctrine test tree did
   # not move when src/doctrine/ was absorbed into src/charter/offering/, so
   # both dirs cover `charter`. This pair was previously hardcoded inside
