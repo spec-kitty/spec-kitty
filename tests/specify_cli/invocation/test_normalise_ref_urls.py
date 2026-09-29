@@ -56,6 +56,19 @@ def test_windows_drive_paths_are_not_mistaken_for_a_scheme(drive_path: str, tmp_
     assert result.endswith("y")
 
 
+@pytest.mark.parametrize("ref", ["C://x", "a://x"])
+def test_single_char_scheme_with_double_slash_stays_a_path(ref: str, tmp_path: Path) -> None:
+    """A one-character "scheme" followed by ``://`` is a Windows drive letter (or
+    otherwise not a real URI scheme), so it takes the path branch and its ``//`` is
+    collapsed -- it is never recorded verbatim as a URL. This pins the load-bearing
+    2+ character requirement in ``_URL_SCHEME_RE`` against a future relax back to a
+    ``*``/1-char scheme, which would silently start mangling drive paths again (#5270).
+    """
+    result = normalise_ref(ref, tmp_path)
+    assert result != ref
+    assert "://" not in result
+
+
 def test_relative_path_still_normalised(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     assert normalise_ref("docs/../docs/out.md", tmp_path) == str(Path("docs") / "out.md")
