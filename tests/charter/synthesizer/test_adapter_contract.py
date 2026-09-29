@@ -9,14 +9,19 @@ Verifies:
 
 from __future__ import annotations
 
-import inspect
+import dataclasses
 from pathlib import Path
 
 import pytest
 
 from charter.activation.synthesizer.adapter import AdapterOutput, SynthesisAdapter
+from charter.activation.synthesizer.errors import FixtureAdapterMissingError
 from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
-from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.request import (
+    SynthesisRequest,
+    compute_inputs_hash,
+    short_hash,
+)
 from kernel.clock import now_utc
 
 
@@ -43,10 +48,53 @@ class TestProtocolConformance:
         assert hasattr(adapter, "version") and isinstance(adapter.version, str)
         assert callable(getattr(adapter, "generate", None))
 
-    def test_fixture_adapter_has_optional_batch(self) -> None:
-        """FixtureAdapter also exposes generate_batch (optional, detected via hasattr)."""
-        adapter = FixtureAdapter()
-        assert hasattr(adapter, "generate_batch"), "FixtureAdapter should expose generate_batch for batch-orchestration paths."
+
+def _variant(request: SynthesisRequest, philosophy: str) -> SynthesisRequest:
+    """``request`` with a different interview answer, hence a different hash."""
+    interview = {**request.interview_snapshot, "testing_philosophy": philosophy}
+    return dataclasses.replace(request, interview_snapshot=interview)
+
+
+def _record_fixture(fixture_root: Path, request: SynthesisRequest, title: str) -> Path:
+    """Write a fixture where FixtureAdapter looks for ``request``'s output."""
+    full_hash = compute_inputs_hash(request, "fixture", "1.0.0")
+    kind, slug = request.target.kind, request.target.slug
+    path = fixture_root / kind / slug / f"{short_hash(full_hash, 12)}.{kind}.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"id: PROJECT_001\ntitle: {title}\n", encoding="utf-8")
+    return path
+
+
+class TestBatchContract:
+    """``generate_batch`` honours the ``BatchCapableSynthesisAdapter`` contract:
+    same length as the input, element-aligned, and it raises rather than
+    return a partial sequence."""
+
+    def test_batch_is_element_aligned_with_sequential_generate(self, tmp_path: Path, sample_synthesis_request: SynthesisRequest) -> None:
+        req_a = _variant(sample_synthesis_request, "tdd")
+        req_b = _variant(sample_synthesis_request, "bdd")
+        _record_fixture(tmp_path, req_a, "Alpha")
+        _record_fixture(tmp_path, req_b, "Beta")
+        adapter = FixtureAdapter(fixture_root=tmp_path)
+
+        batch = adapter.generate_batch([req_a, req_b])
+
+        sequential = [adapter.generate(req_a), adapter.generate(req_b)]
+        assert [(o.body, o.notes) for o in batch] == [(o.body, o.notes) for o in sequential]
+        assert [o.body["title"] for o in batch] == ["Alpha", "Beta"]
+
+    def test_batch_with_a_missing_fixture_raises_instead_of_dropping_it(self, tmp_path: Path, sample_synthesis_request: SynthesisRequest) -> None:
+        req_a = _variant(sample_synthesis_request, "tdd")
+        req_missing = _variant(sample_synthesis_request, "no-fixture-recorded")
+        _record_fixture(tmp_path, req_a, "Alpha")
+        missing_hash = compute_inputs_hash(req_missing, "fixture", "1.0.0")
+        adapter = FixtureAdapter(fixture_root=tmp_path)
+
+        with pytest.raises(FixtureAdapterMissingError) as exc_info:
+            adapter.generate_batch([req_a, req_missing])
+
+        assert exc_info.value.inputs_hash == missing_hash
+        assert short_hash(missing_hash, 12) in exc_info.value.expected_path
 
 
 # ---------------------------------------------------------------------------

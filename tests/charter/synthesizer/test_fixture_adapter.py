@@ -20,9 +20,9 @@ from charter.activation.synthesizer.request import (
     SynthesisRequest,
     SynthesisTarget,
     compute_inputs_hash,
-    normalize_request_for_hash,
     short_hash,
 )
+from kernel.clock import UTC, datetime, timedelta
 
 
 # ---------------------------------------------------------------------------
@@ -222,83 +222,75 @@ class TestNormalizationInvariance:
 # ---------------------------------------------------------------------------
 
 
+#: The mapping every hermetic fixture below is recorded with.
+_RECORDED_BODY = {
+    "id": "PROJECT_001",
+    "title": "Project Decision Documentation Directive",
+    "scope": "Record every architectural decision as an ADR.",
+}
+
+#: The adapter's documented deterministic epoch (``fixture_adapter`` module).
+_FIXTURE_EPOCH = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+def _record_fixture(fixture_root: Path, request: SynthesisRequest) -> str:
+    """Write ``_RECORDED_BODY`` where FixtureAdapter looks for ``request``.
+
+    The path is derived through the public hashing API, so the test never
+    depends on a pre-recorded file whose hash can drift. Returns the full
+    inputs hash.
+    """
+    full_hash = compute_inputs_hash(request, "fixture", "1.0.0")
+    path = (
+        fixture_root
+        / "directive"
+        / "project-decision-doc-directive"
+        / f"{short_hash(full_hash, 12)}.directive.yaml"
+    )
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "".join(f"{key}: {value}\n" for key, value in _RECORDED_BODY.items()),
+        encoding="utf-8",
+    )
+    return full_hash
+
+
 class TestPresentFixture:
-    def test_present_fixture_returns_adapter_output(self, fixture_root: Path) -> None:
-        """A recorded fixture returns a valid AdapterOutput."""
-        # The conftest-created sample request matches the fixture at:
-        # directive/project-decision-doc-directive/eb35535fb02c.directive.yaml
-        adapter = FixtureAdapter(fixture_root=fixture_root)
-        req = _make_request(
-            run_id="01KPE222CD1MMCYEGB3ZCY51VR",
-            adapter_hints={"language": "python"},
-            extra_interview={
-                "testing_philosophy": "test-driven development with high coverage",
-            },
-        )
-        # Verify the fixture file exists first
-        full_hash = compute_inputs_hash(req, "fixture", "1.0.0")
-        sh = short_hash(full_hash, 12)
-        fixture_path = (
-            fixture_root
-            / "directive"
-            / "project-decision-doc-directive"
-            / f"{sh}.directive.yaml"
-        )
-        if not fixture_path.exists():
-            pytest.skip(
-                f"Fixture not found at {fixture_path}. "
-                f"Expected hash: {full_hash[:12]}. "
-                f"Create the fixture to enable this test."
-            )
+    """A recorded fixture is served back verbatim with fixture provenance.
 
-        output = adapter.generate(req)
-        assert output is not None
-        assert isinstance(output.body, dict)
-        assert output.adapter_id_override is None  # fixture adapter sets no override
-        assert output.notes is not None
-        assert "fixture:" in output.notes
+    Hermetic: each test records its own fixture in ``tmp_path`` and never
+    skips, so a hashing or path regression fails instead of skipping.
+    """
 
-    def test_present_fixture_body_is_dict(self, fixture_root: Path) -> None:
-        """Loaded fixture body is a dict (YAML mapping)."""
-        adapter = FixtureAdapter(fixture_root=fixture_root)
-        req = _make_request(
-            run_id="01KPE222CD1MMCYEGB3ZCY51VR",
-            adapter_hints={"language": "python"},
-            extra_interview={
-                "testing_philosophy": "test-driven development with high coverage",
-            },
-        )
-        full_hash = compute_inputs_hash(req, "fixture", "1.0.0")
-        sh = short_hash(full_hash, 12)
-        fixture_path = (
-            fixture_root / "directive" / "project-decision-doc-directive"
-            / f"{sh}.directive.yaml"
-        )
-        if not fixture_path.exists():
-            pytest.skip("Fixture not present; skipping body-type test.")
+    def test_present_fixture_returns_adapter_output(self, tmp_path: Path) -> None:
+        req = _make_request()
+        full_hash = _record_fixture(tmp_path, req)
 
-        output = adapter.generate(req)
-        assert isinstance(output.body, dict)
+        output = FixtureAdapter(fixture_root=tmp_path).generate(req)
 
-    def test_fixture_deterministic_generated_at(self, fixture_root: Path) -> None:
-        """Two calls with the same request produce the same generated_at (deterministic)."""
-        adapter = FixtureAdapter(fixture_root=fixture_root)
-        req = _make_request(
-            run_id="01KPE222CD1MMCYEGB3ZCY51VR",
-            adapter_hints={"language": "python"},
-            extra_interview={
-                "testing_philosophy": "test-driven development with high coverage",
-            },
-        )
-        full_hash = compute_inputs_hash(req, "fixture", "1.0.0")
-        sh = short_hash(full_hash, 12)
-        fixture_path = (
-            fixture_root / "directive" / "project-decision-doc-directive"
-            / f"{sh}.directive.yaml"
-        )
-        if not fixture_path.exists():
-            pytest.skip("Fixture not present; skipping determinism test.")
+        assert output.body == _RECORDED_BODY
+        assert output.adapter_id_override is None
+        assert output.adapter_version_override is None
+        assert output.notes == f"fixture:{full_hash[:12]}"
+
+    def test_fixture_generated_at_is_deterministic_and_hash_seeded(
+        self, tmp_path: Path
+    ) -> None:
+        req = _make_request()
+        other = _make_request(extra_interview={"testing_philosophy": "bdd"})
+        full_hash = _record_fixture(tmp_path, req)
+        other_hash = _record_fixture(tmp_path / "other", other)
+        adapter = FixtureAdapter(fixture_root=tmp_path)
 
         out_a = adapter.generate(req)
         out_b = adapter.generate(req)
+        out_other = FixtureAdapter(fixture_root=tmp_path / "other").generate(other)
+
         assert out_a.generated_at == out_b.generated_at
+        assert out_a.generated_at == _FIXTURE_EPOCH + timedelta(
+            microseconds=int(full_hash[:8], 16)
+        )
+        assert out_other.generated_at == _FIXTURE_EPOCH + timedelta(
+            microseconds=int(other_hash[:8], 16)
+        )
+        assert out_a.generated_at != out_other.generated_at
