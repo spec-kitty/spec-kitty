@@ -296,6 +296,31 @@ def test_cli_close_appends_artifact_and_commit_links_after_completed(
     ]
 
 
+def test_cli_close_records_url_artifact_verbatim(tmp_path: Path) -> None:
+    """#5270: an ``--artifact`` URL is recorded and echoed intact, not path-mangled."""
+    project = _setup_project(tmp_path)
+    inv_id = _open_invocation(project)
+    url = "https://github.com/spec-kitty/spec-kitty/pull/5266"
+
+    result = _run_complete(
+        project,
+        "--invocation-id",
+        inv_id,
+        "--outcome",
+        "done",
+        "--artifact",
+        url,
+        "--artifact",
+        "src/foo.py",
+        "--json",
+    )
+
+    assert result.exit_code == 0, result.output
+    refs = [e["ref"] for e in _read_events(project, inv_id) if e["event"] == "artifact_link"]
+    assert refs == [url, str(Path("src") / "foo.py")]
+    assert json.loads(result.stdout)["artifact_links"] == refs
+
+
 # ---------------------------------------------------------------------------
 # Opener discoverability (FR-013 / SC-005): the closer's help names
 # ``spec-kitty dispatch``, and it does so from the epilog only (C-007).

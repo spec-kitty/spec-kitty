@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
@@ -27,6 +28,10 @@ EVENTS_DIR = "kitty-ops"
 INDEX_PATH = "kitty-ops/ops-index.jsonl"
 OP_CLOSURES_FILENAME = "op-closures.jsonl"
 OP_CLOSURES_RELATIVE_PATH = Path(EVENTS_DIR) / OP_CLOSURES_FILENAME
+
+# RFC 3986 scheme followed by ``://``. Two or more characters so a Windows
+# drive letter (``C:/x``, ``C:\\x``) is never mistaken for a URL scheme (#5270).
+_URL_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+://")
 
 
 def op_closures_path(repo_root: Path) -> Path:
@@ -82,6 +87,9 @@ def closed_invocation_ids(repo_root: Path) -> set[str]:
 def normalise_ref(ref: str, repo_root: Path) -> str:
     """Repo-relative when resolved path is under repo_root; absolute fallback.
 
+    A ref carrying a URL scheme (``https://…``, ``file://…``, ``s3://…``) is a
+    link, not a filesystem path, and is returned verbatim (#5270).
+
     Note: ``Path(ref).resolve()`` follows symlinks. If the caller supplies a
     symlink that points outside the repository, the resolved target will be
     recorded as an absolute path. Operators supplying ``--artifact`` flags are
@@ -90,6 +98,8 @@ def normalise_ref(ref: str, repo_root: Path) -> str:
 
     See data-model.md §6.
     """
+    if _URL_SCHEME_RE.match(ref):
+        return ref
     try:
         path = Path(ref)
         candidate = path if path.is_absolute() else repo_root / path

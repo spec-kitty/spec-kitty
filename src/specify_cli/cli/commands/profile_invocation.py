@@ -105,7 +105,7 @@ def complete_invocation(
     artifact: list[str] = typer.Option(
         None,
         "--artifact",
-        help="Path (repo-relative or absolute) of an artifact produced by this invocation. Repeatable.",
+        help="Path (repo-relative or absolute) or URL of an artifact produced by this invocation. Repeatable.",
     ),
     commit: str | None = typer.Option(
         None,
