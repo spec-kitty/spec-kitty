@@ -166,7 +166,9 @@ class TestProjectContextGuards:
         _provision_minimal_config(tmp_path)
         ctx = ProjectContext.from_repo(tmp_path)
         pc = ctx.require_pack_context()
-        assert pc is not None
+        assert pc is ctx.pack_context
+        # Assumption check: the provisioned config was actually loaded.
+        assert pc.activated_mission_types == frozenset({"software-dev"})
 
     def test_require_pack_context_raises_when_none(self) -> None:
         ctx = ProjectContext()
@@ -221,10 +223,6 @@ class TestOperationalContext:
 
 
 class TestBuildOperationalContext:
-    def test_returns_operational_context_instance(self) -> None:
-        ctx = build_operational_context()
-        assert isinstance(ctx, OperationalContext)
-
     def test_all_fields_none(self) -> None:
         ctx = build_operational_context()
         assert ctx.active_profile is None

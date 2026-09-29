@@ -35,13 +35,6 @@ pytestmark = [pytest.mark.unit]
 class TestInterviewMappingsTable:
     """Validate the static mapping table is well-formed."""
 
-    def test_all_entries_are_interview_section_mapping(self) -> None:
-        """Every entry in INTERVIEW_MAPPINGS is an InterviewSectionMapping."""
-        for entry in INTERVIEW_MAPPINGS:
-            assert isinstance(entry, InterviewSectionMapping), (
-                f"Expected InterviewSectionMapping, got {type(entry)}"
-            )
-
     def test_all_kinds_are_valid(self) -> None:
         """Every kind in every entry is a valid artifact kind."""
         valid_kinds = {"directive", "tactic", "styleguide"}
@@ -450,10 +443,15 @@ class TestResolveFullSnapshot:
             assert len(item) == 2
 
     def test_context_is_dict(self) -> None:
-        """Every answer_context is a dict."""
-        result = resolve_sections({"testing_philosophy": "tdd"})
-        for _, ctx in result:
-            assert isinstance(ctx, dict)
+        """answer_context carries the answer, kinds, and provenance keys
+        that ``targets.py`` reads (``kinds``, ``source_section``)."""
+        contexts = dict(resolve_sections({"testing_philosophy": "tdd"}))
+        assert contexts["testing_philosophy"] == {
+            "answer": "tdd",
+            "kinds": ["tactic", "styleguide"],
+            "source_section": "testing_philosophy",
+            "answer_source": "testing_philosophy",
+        }
 
 
 class TestNormalizeInterviewSnapshot:
