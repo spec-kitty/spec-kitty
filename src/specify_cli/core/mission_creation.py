@@ -951,6 +951,12 @@ def _create_mission_core_impl(
             "\n  - user_auth (underscores)"
         )
 
+    if commit_to_target and topology is not MissionTopology.SINGLE_BRANCH:
+        raise MissionCreationError(
+            f"--commit-to-target is only valid for a single_branch mission (got topology '{topology.value}'). "
+            "Pass --topology single_branch, or drop --commit-to-target."
+        )
+
     friendly_name_was_provided = friendly_name is not None
     normalized_friendly_name = " ".join((friendly_name or "").split())
     if friendly_name_was_provided and not normalized_friendly_name:

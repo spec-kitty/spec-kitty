@@ -244,8 +244,15 @@ def _mission_bypass_branch(meta: Mapping[str, Any] | None) -> str | None:
     :func:`specify_cli.core.paths.read_commit_to_target`) or a missing
     ``target_branch`` yields ``None`` -- refuse, never bypass.
     """
-    from specify_cli.core.paths import CommitToTargetMetaError, read_commit_to_target
+    from mission_runtime import MissionTopology
 
+    from specify_cli.core.paths import CommitToTargetMetaError, read_commit_to_target
+    from specify_cli.migration.backfill_topology import stored_topology
+
+    # ``commit_to_target`` is single_branch-only: a hand-edited meta on any other
+    # (or unstored) topology must never un-protect the target.
+    if meta is None or stored_topology(meta) is not MissionTopology.SINGLE_BRANCH:
+        return None
     try:
         opted_out = read_commit_to_target(dict(meta) if meta is not None else None)
     except CommitToTargetMetaError:
@@ -274,6 +281,7 @@ def _load_mission_meta(repo_root: Path, mission_slug: str) -> dict[str, Any] | N
     """Load the mission's primary ``meta.json``; ``None`` when absent or unreadable."""
     from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
     from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
         _canonicalize_primary_read_handle,
         _compose_primary_feature_dir,
     )
@@ -284,6 +292,11 @@ def _load_mission_meta(repo_root: Path, mission_slug: str) -> dict[str, Any] | N
         return load_meta_fail_closed(feature_dir)
     except MissionMetaReadError:
         logger.warning("mission meta.json unreadable for %s; keeping the target protected (fail-closed).", mission_slug)
+        return None
+    except MissionSelectorAmbiguous as exc:
+        # An ambiguous selector must yield NO bypass, never raise out of
+        # ``preflight_commit`` for every kitty-specs-only commit (fail closed).
+        logger.warning("mission selector %s is ambiguous (%s); keeping the target protected (fail-closed).", mission_slug, exc)
         return None
 
 
