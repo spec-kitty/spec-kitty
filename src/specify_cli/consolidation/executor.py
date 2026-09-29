@@ -2485,8 +2485,9 @@ def _rollback_target_after_failed_reconciliation(run: _MergeRunState) -> None:
     transaction start, before any lane/mission→target advance) with a
     compare-and-swap, then refreshes the primary checkout so its working tree
     matches the reverted ref. The name is kept (not ``..._failed_or_refused_...``)
-    because ``tests/consolidation/test_merge_state_authority.py:500`` imports it
-    directly by this name — the helper itself never distinguished FAIL from
+    because tests import it directly by this name (e.g.
+    ``test_merge_state_authority.py::TestRollbackTargetAfterFailedReconciliation``
+    and ``test_refuse_restores_target.py``) — the helper itself never distinguished FAIL from
     REFUSE; only its caller's gating condition did. Best-effort and non-fatal:
     the command is already exiting non-zero with recovery guidance; a rollback
     hiccup is warned, never masked. No-op when the pre-mutation tip is unknown
