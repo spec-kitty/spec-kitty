@@ -1059,14 +1059,20 @@ def test_bookkeeping_only_commit_outside_windows_is_not_flagged(tmp_path: Path) 
 
 
 def test_merge_commit_outside_windows_is_not_flagged(tmp_path: Path) -> None:
+    """An "evil merge" -- a merge commit that introduces its OWN non-bookkeeping
+    content beyond a clean resolution of its two parents -- is still exempt
+    from the closed-world content check (R3/B4: merges never attribute or
+    supersede, even when the merge commit carries its own diff)."""
     repo = _init_repo(tmp_path)
     coord_base, events = _survivor_then_canceled_lane(repo)
     _git(repo, "checkout", "-qb", "side", coord_base)
     _commit_file(repo, "kitty-specs/m/notes.md", "n\n", "side note")
     _git(repo, "checkout", "-q", "lane-a")
-    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "side")
+    _git(repo, "merge", "-q", "--no-ff", "--no-commit", "side")
+    _commit_file(repo, "src/pkg/merge_only.py", "merge only\n", "evil merge: adds content of its own")
     outcome = _resolve(repo, coord_base, events, bookkeeping=lambda p: p.startswith("kitty-specs/"))
     assert isinstance(outcome, wpa.Attributed)
+    assert {c.path for c in outcome.canceled_content} == {"src/pkg/wp02.py"}
 
 
 def test_never_implemented_canceled_wp_with_resolved_sibling_is_closed_world_checked(tmp_path: Path) -> None:
@@ -1134,8 +1140,12 @@ def test_dependency_lane_fast_forwarded_before_first_claim_is_not_outside(tmp_pa
     assert {c.path for c in outcome.canceled_content} == {"src/pkg/wp02.py"}
 
 
-def test_dependency_lane_merged_after_work_began_needs_the_dependency_anchor(tmp_path: Path) -> None:
-    """The allocator's reuse path merges the dependency lane again later; its tip is an anchor."""
+def test_dependency_lane_merged_after_work_began_is_off_spine_without_an_anchor(tmp_path: Path) -> None:
+    """The allocator's reuse path merges the dependency lane again later. The
+    merge commit itself is on the first-parent spine (and skipped, R3/B4),
+    but the dependency commit it carries is on the merge's SECOND parent
+    only — off the first-parent spine entirely — so there is nothing to
+    exempt and no anchor is needed."""
     repo = _init_repo(tmp_path)
     coord_base = _git(repo, "rev-parse", "HEAD")
     _git(repo, "checkout", "-qb", "lane-a")
@@ -1148,9 +1158,9 @@ def test_dependency_lane_merged_after_work_began_needs_the_dependency_anchor(tmp
     wp02 = _commit_file(repo, "src/pkg/wp02.py", "wp02\n", "wp02 work")
     events = _two_wp_events(coord_base, wp01, wp02)
     events[3] = _event("e4", "WP02", Lane.PLANNED, Lane.CLAIMED, "t3", stamp=wp02_open)
-    # The merge is a real merge commit here (skipped), but its second parent's
-    # commit is not on the first-parent spine — nothing to exempt, no REFUSE:
-    assert isinstance(_resolve(repo, coord_base, events), wpa.Attributed)
+    outcome = _resolve(repo, coord_base, events)
+    assert isinstance(outcome, wpa.Attributed), outcome
+    assert {c.path for c in outcome.canceled_content} == {"src/pkg/wp02.py"}
 
 
 def test_dependency_tip_anchor_exempts_a_later_fast_forward(tmp_path: Path) -> None:
