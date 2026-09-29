@@ -1379,7 +1379,9 @@ def _create_mission_core_impl(
             # `planning_branch`, raises `SafeCommitHeadMismatch`, and step 8.5
             # silently treats it as an ordinary protected-target skip --
             # leaving the just-minted branch with no scaffold commit at all.
-            create_time_target = CommitTarget(ref=minted_branch)
+            # Re-derived through the SAME create-time seam as step 3 (no mission
+            # identity is readable yet), never a hand-built CommitTarget.
+            create_time_target = resolve_create_time_write_target(minted_branch)
 
     from specify_cli.mission_metadata import set_documentation_state, write_meta
 
