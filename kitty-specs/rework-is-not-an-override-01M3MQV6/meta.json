@@ -1,0 +1,35 @@
+{
+  "accept_commit": "6af19d2a35c5e56a6adad3c751083a49de9f6eef",
+  "acceptance_history": [
+    {
+      "accept_commit": "6af19d2a35c5e56a6adad3c751083a49de9f6eef",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-28T21:34:50.956915+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "ca5163fec89f79bd1a0a1b20a1baa7c14e180cc4"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-28T21:34:50.956915+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "ca5163fec89f79bd1a0a1b20a1baa7c14e180cc4",
+  "baseline_merge_commit": "d23a020ac61405623e57ccee9bee79724ec0d561",
+  "created_at": "2026-09-28T19:28:39.359278+00:00",
+  "flattened": false,
+  "friendly_name": "Rework is not an override",
+  "merged_at": "2026-09-28T21:36:51.407677+00:00",
+  "merged_commit": "19b97a49b279215c10107d123cd979c4fdfd1f32",
+  "mid8": "01M3MQV6",
+  "mission_id": "01M3MQV6NZ0XKR6VZX0PC14K0D",
+  "mission_number": 207,
+  "mission_slug": "rework-is-not-an-override-01M3MQV6",
+  "mission_type": "software-dev",
+  "purpose_context": "Today an implementer resubmitting rework after a rejection, and a reviewer approving it, both need --force because of the agent-ownership guard, and the forced resubmission is misclassified as an arbiter override (rejected → overridden). This mission makes the ordinary rework loop unforced and restricts arbiter-override recording to genuine arbiter actions (#5196; parent epic #3044).",
+  "purpose_tldr": "Ordinary reject-rework-resubmit-approve review loops need no --force and never record a fake arbiter override.",
+  "slug": "rework-is-not-an-override-01M3MQV6",
+  "status_phase": "1",
+  "target_branch": "issue-5196-rework-is-not-an-override",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T20:15:52.482359+00:00"
+}

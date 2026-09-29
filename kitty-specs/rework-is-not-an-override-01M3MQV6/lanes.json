@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "mission_slug": "rework-is-not-an-override-01M3MQV6",
+  "mission_id": "01M3MQV6NZ0XKR6VZX0PC14K0D",
+  "mission_branch": "kitty/mission-rework-is-not-an-override-01M3MQV6",
+  "target_branch": "issue-5196-rework-is-not-an-override",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/_rework_loop_harness.py",
+        "tests/specify_cli/cli/commands/agent/test_rework_guard_ratchets.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/review_roles.py",
+        "tests/specify_cli/cli/commands/agent/test_rework_unforced_loop.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_transition_core.py",
+        "tests/unit/status/test_review_roles.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/arbiter.py",
+        "tests/review/test_arbiter.py",
+        "tests/specify_cli/cli/commands/agent/test_rework_override_classification.py",
+        "tests/specify_cli/review/test_arbiter.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/guides/how-to/missions/review-work-package.md",
+        "src/charter/offering/skills/spec-kitty-implement-review/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-runtime-review/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-runtime-review/references/review-checklist.md",
+        "tests/doctrine/test_rework_guidance_unforced.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-28T20:13:36.655070+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b4ec948a05666a5bb33e8bbbb86cfc6ab72acb29"
+}

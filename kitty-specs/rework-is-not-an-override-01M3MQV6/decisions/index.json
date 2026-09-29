@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-28T19:30:07.823076Z",
+      "decision_id": "01M3MQXYAFEYE62RA5513KKNX6",
+      "final_answer": "Only a forced move from planned straight to approved or done after a rejection from either for_review or in_review; forced rework to claimed, in_progress or for_review is never an override. (Resolved from the operator brief and #5196 acceptance: only an explicit arbiter action produces rejected\u2192overridden; a genuine arbiter override is still recorded.)",
+      "input_key": "arbiter_action_definition",
+      "mission_id": "01M3MQV6NZ0XKR6VZX0PC14K0D",
+      "mission_slug": "rework-is-not-an-override-01M3MQV6",
+      "opened_by": "cli",
+      "options": [
+        "Only a forced move from planned straight to approved or done after a rejection from either for_review or in_review; forced rework to claimed, in_progress or for_review is never an override",
+        "Keep the current rule: any forced forward move out of planned after a for_review rejection",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What counts as a genuine arbiter override after a rejection, versus ordinary rework?",
+      "rationale": null,
+      "resolved_at": "2026-09-28T19:30:17.941253Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.arbiter-action-definition",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3MQV6NZ0XKR6VZX0PC14K0D",
+  "version": 1
+}

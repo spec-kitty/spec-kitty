@@ -1,0 +1,89 @@
+{
+  "mission_slug": "rework-is-not-an-override-01M3MQV6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_rework_unforced_loop.py (3 rejection routes, unforced resume; RED 119a6beb, GREEN 34e38c39); integrated lane-d run 35/35",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:33:58.425471+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_rework_unforced_loop.py (unforced resubmit, forced_after==0, no --force in argv); integrated lane-d 35/35",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:34:04.082088+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_rework_unforced_loop.py (reviewer claim/approve/reject unforced incl. single-hop approve); tests/unit/status/test_review_roles.py; live: WP04 cycle-2 approved without --force",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:34:09.432223+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_rework_override_classification.py (forced rework to for_review/claimed lights 0/5 probes; RED a294c30b, GREEN aa745307)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:34:15.214182+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_rework_override_classification.py (in_review + for_review source genuine override lights 5/5 probes) + tests/specify_cli/cli/commands/agent/test_rework_guard_ratchets.py T003/T006",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:34:21.026647+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_rework_guard_ratchets.py T004 (THIRD refused, raw log unchanged) green on base and on integrated lane-d",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:34:26.895660+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/test_rework_guidance_unforced.py (RED 4b864257, GREEN 6503f6e9) + console_warning hint assertion in test_tasks_transition_core.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:34:32.950856+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_rework_guard_ratchets.py T005 (production workflow.app implement on rejected WP, unforced, no override)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-28T21:34:39.618409+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,153 @@
+{
+  "event_count": 33,
+  "last_event_id": "01M3MZ6CYDXRDBVC8TQGTJEKKB",
+  "materialized_at": "2026-09-28T21:37:04.973169+00:00",
+  "mission_number": "207",
+  "mission_slug": "rework-is-not-an-override-01M3MQV6",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3MZ6181GPY1891V3ZZPJ8G9",
+      "last_transition_at": "2026-09-28T21:36:52.993768+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: harness + ratchets green on base",
+        "Review passed: T001-T006 delivered, tests-only (no src/), 6/6 ratchets green on base + neighbour cycle test green; ruff check/format clean. Probes mirror production (ReviewOverride 4-field raw delta, get_arbiter_overrides_for_wp, planned->* review_ref, CLI marker, 'Arbiter Override History'); T003 asserts all-False then all-True on same fixture; mutating probes 1/3/5 and the raw-delta key each turns T003 red. Hardening honoured (--agent asserted, argv log, *_a/**_k lambda, only GENESIS->PLANNED seeded, raw-line indexing, no THIRD for_review refusal ratchet). T004(c) forced reviewer claim is acceptable setup. T005 uses production workflow.app implement with the same stubs as the reference fixture."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26640,
+      "shell_pid_created_at": "1790627183.99",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3MZ6557W29CSZTJM2YNH7TB",
+      "last_transition_at": "2026-09-28T21:36:57.000001+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: contract-faithful role arms (reviewer from for_review -> {in_review,approved,planned}; implementer own-rework hops; in_review->* and generic/None never allowed); latest_implementer_actor excludes review_ref'd reviewer verdicts and generic actors; fail-closed read; refusal error byte-identical, hint warning-only. RED reproduced at 119a6beb (6/6 Agent mismatch at first reviewer hop). 720 passed/2 skipped targeted; 182 passed on 10 named arch gates; ruff/format/C901 clean; mypy only pre-existing base error at tasks_transition_core.py:258."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27135,
+      "shell_pid_created_at": "1790628977.01",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3MZ695ZNNK3WC6990Y505E6",
+      "last_transition_at": "2026-09-28T21:37:01.119897+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: predicate matches contract truth table (targets approved/done; rejection = latest ->planned from for_review|in_review with review_ref; reopen excluded); tidy-first 7b14aad1 verified behaviour-preserving against parent (57/57 table rows); RED a294c30b fails on cli_marker / no-probe-lit with exit 0; re-pins carry #5196 rationale, re-targets keep their own failure reason; 542+4+189+473+70 targeted tests green; ruff/C901/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26700,
+      "shell_pid_created_at": "1790628951.65",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3MZ6CYDXRDBVC8TQGTJEKKB",
+      "last_transition_at": "2026-09-28T21:37:04.973169+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Cycle 2: B1 fixed, N1-N3 folded",
+        "Review passed (cycle 2): B1 fixed - Illegal transition troubleshooting now names missing FSM edge / terminal done|canceled (matches check_transition), drops the false for_review-claim cause, distinguishes the review-feedback guard message; N1 in_review verdict by claim holder; N2 arbiter timing matches is_arbiter_override_history; N3 unused constant removed. 125 passed; ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25664,
+      "shell_pid_created_at": "1790631047.26",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    }
+  }
+}
