@@ -1,8 +1,8 @@
 {
   "mission_slug": "consolidation-claim-rollback-integrity-01M3PD1T",
-  "mission_number": "",
+  "mission_number": "208",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -88,10 +88,10 @@
       "criterion_id": "FR-009",
       "description": "Verify FR-009 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "rollback report never claims no-mutation (tests pass); gate recovery_guidance wording (#5359-owned) reconciled at closeout after rebase",
-      "pass_fail": "pending",
+      "evidence": "recovery_guidance now defers to the per-branch rollback report (commit 0523585e; tests/consolidation/test_reconciliation.py); rollback report never claims no-mutation (test_repro_5318.py, test_rollback_authority.py)",
+      "pass_fail": "pass",
       "verified_by": "claude-orchestrator",
-      "verified_at": "2026-09-29T17:22:59.017921+00:00",
+      "verified_at": "2026-09-29T18:10:54.483507+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
