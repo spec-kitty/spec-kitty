@@ -814,33 +814,33 @@ class TestFreshnessShortCircuitOSErrorFallthrough:
         assert assessment.complete, "an unreadable template-source tree must degrade to the render path, never raise"
 
     def test_destination_health_check_oserror_falls_through_to_render(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A genuinely unreadable destination command directory (real chmod,
-        not a mock: ``Path.iterdir()`` raises ``PermissionError`` -- an
-        ``OSError`` subclass -- immediately, unlike ``rglob``) during the
-        health check must fall through to attempting a render, never raise
-        and never silently claim freshness. The directory stays genuinely
-        unreadable for the whole call, so the render for THAT ONE agent
-        (``claude``) can legitimately fail too, same as it would in real
-        life -- what this test proves is that the short-circuit itself never
-        raises and never returns a spurious "fresh" result; it does not
-        require the overall (still genuinely broken) render to complete."""
+        """An ``OSError`` raised by the destination health check (e.g. an
+        unreadable destination command directory, where ``Path.iterdir()``
+        raises ``PermissionError``) must fall through to attempting a render,
+        never raise and never silently claim freshness.
+
+        The ``OSError`` is injected at the health-check probe seam
+        (``_all_global_agent_commands_healthy``) rather than produced with
+        ``chmod(0o000)``: permission bits do not bind uid 0, so the chmod form
+        was root-unsafe (#5126). The stamp is fresh, so the health check is
+        the only thing that can force the render."""
         import specify_cli.runtime.agent_commands as ac
 
-        home, _kittify_home, templates_dir = self._isolated_project_for_this_class(tmp_path, monkeypatch, ac)
+        _home, _kittify_home, templates_dir = self._isolated_project_for_this_class(tmp_path, monkeypatch, ac)
         TestFreshnessPrecheck._bootstrap_fresh_state(ac, templates_dir)
 
-        claude_commands = home / ".claude" / "commands"
-        claude_commands.chmod(0o000)
-        try:
-            calls = TestFreshnessPrecheck._count_renders(ac, monkeypatch)
-            assessment = ac.assess_global_agent_commands(templates_dir=templates_dir)
-        finally:
-            claude_commands.chmod(0o755)
+        probes = {"n": 0}
 
-        assert calls["n"] > 0, (
-            "an unreadable destination directory during the health check must force a render "
-            "attempt for at least the agents processed before it, never a silent fresh skip"
-        )
+        def _unreadable_destination(*_args: object, **_kwargs: object) -> bool:
+            probes["n"] += 1
+            raise PermissionError("simulated unreadable destination command directory")
+
+        monkeypatch.setattr(ac, "_all_global_agent_commands_healthy", _unreadable_destination)
+        calls = TestFreshnessPrecheck._count_renders(ac, monkeypatch)
+        assessment = ac.assess_global_agent_commands(templates_dir=templates_dir)
+
+        assert probes["n"] == 1, "the short-circuit's destination health check must have been attempted"
+        assert calls["n"] > 0, "an OSError during the health check must force a render attempt, never a silent fresh skip"
         assert assessment.owner_key == "slash_commands"
 
     @staticmethod
