@@ -503,9 +503,7 @@ def test_gec5_create_window_gate_refuses_instead_of_passing(tmp_path: Path) -> N
 
     assert any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
     assert any(CannotEvaluateReason.SURFACE_CANNOT_HOLD_FACT.value in issue for issue in activity_issues), activity_issues
-    assert any(
-        "COORDINATION_WORKTREE_UNMATERIALIZED" in issue and "surface=coord" in issue for issue in activity_issues
-    ), activity_issues
+    assert any("COORDINATION_WORKTREE_UNMATERIALIZED" in issue and "surface=coord" in issue for issue in activity_issues), activity_issues
     # It is NOT a verdict — no pass/fail verdict issue was recorded.
     assert not any("verdict is" in issue for issue in activity_issues)
 
