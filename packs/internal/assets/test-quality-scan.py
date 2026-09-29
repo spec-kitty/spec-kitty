@@ -104,7 +104,9 @@ _BROAD_RAISES = re.compile(r"pytest\.raises\((Exception|BaseException)\)")
 _PRIVATE_ATTR = re.compile(r"\b[a-z_]+\._[a-z][a-z0-9_]*\b(?!\()")
 _PRIVATE_ATTR_NOISE = ("self.", "monkeypatch", "mock", "os.", "sys.", "pytest", "tmp_path", "capsys", "re.", "json.")
 _VAGUE_NAME = re.compile(r"test_?\d*|test_(it_works|basic|smoke|misc|foo|bar|simple|ok|works)")
-_FAKE_ULID = re.compile(r"mission_id[\"']?\s*[:=]\s*[\"'][0-9A-Z]{1,20}[\"']")
+_ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+#: A folded ``"0" * n`` longer than this cannot be a 26-character ULID anyway.
+_MAX_FOLD_REPEAT = 64
 _PROVENANCE = re.compile(r"\b(WP\d{2}|FR-\d{3}|NFR-\d{3}|T\d{3}|#\d{3,5})\b|_(wp|fr|t)\d{2,3}(_|$)|_issue_?\d{3,5}")
 
 
@@ -200,12 +202,63 @@ def _text_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef, seg: str) -> list[st
         ),
         ("line-number-pin", _LINE_PIN.search(seg)),
         ("broad-raises", _BROAD_RAISES.search(seg)),
-        ("fake-short-ulid", _FAKE_ULID.search(seg)),
+        ("fake-short-ulid", _has_fake_ulid(fn)),
         ("sleep", "time.sleep(" in seg),
         ("wallclock", _WALLCLOCK.search(seg) and not _FROZEN_CLOCK.search(seg)),
         ("skip-or-xfail", re.search(r"pytest\.(skip|xfail)\(", seg) or _unguarded_skip(fn)),
     )
     return [code for code, hit in checks if hit]
+
+
+def _fold_str(node: ast.expr) -> str | None:
+    """Constant-fold a string expression built from literals, ``+`` and ``* int``.
+
+    Returns ``None`` for anything else, so an unfoldable value is never judged.
+    """
+    if isinstance(node, ast.Constant):
+        return node.value if isinstance(node.value, str) else None
+    if not isinstance(node, ast.BinOp):
+        return None
+    if isinstance(node.op, ast.Add):
+        left, right = _fold_str(node.left), _fold_str(node.right)
+        return None if left is None or right is None else left + right
+    if isinstance(node.op, ast.Mult):
+        folded = _fold_repeat(node.left, node.right)
+        return folded if folded is not None else _fold_repeat(node.right, node.left)
+    return None
+
+
+def _fold_repeat(text_node: ast.expr, count_node: ast.expr) -> str | None:
+    text = _fold_str(text_node)
+    count = count_node.value if isinstance(count_node, ast.Constant) else None
+    if text is None or not isinstance(count, int) or isinstance(count, bool) or not 0 <= count <= _MAX_FOLD_REPEAT:
+        return None
+    return text * count
+
+
+def _mission_id_values(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.expr]:
+    """Every expression the test binds to a ``mission_id`` (kwarg, dict key, assignment)."""
+    values: list[ast.expr] = []
+    for node in ast.walk(fn):
+        if isinstance(node, ast.keyword) and node.arg == "mission_id":
+            values.append(node.value)
+        elif isinstance(node, ast.Dict):
+            values.extend(v for k, v in zip(node.keys, node.values, strict=True) if isinstance(k, ast.Constant) and k.value == "mission_id")
+        elif isinstance(node, ast.Assign):
+            values.extend(node.value for target in node.targets if _names_mission_id(target))
+        elif isinstance(node, ast.AnnAssign) and node.value is not None and _names_mission_id(node.target):
+            values.append(node.value)
+    return values
+
+
+def _names_mission_id(target: ast.expr) -> bool:
+    return (isinstance(target, ast.Name) and target.id == "mission_id") or (isinstance(target, ast.Attribute) and target.attr == "mission_id")
+
+
+def _has_fake_ulid(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """True when a ``mission_id`` folds to a string that is not a 26-character ULID (R7)."""
+    folded = (_fold_str(value) for value in _mission_id_values(fn))
+    return any(text is not None and not _ULID.fullmatch(text) for text in folded)
 
 
 def _unguarded_skip(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
