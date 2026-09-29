@@ -46,12 +46,23 @@ _PLANTED: list[tuple[str, str]] = [
     ),
     ("line-number-pin", "def test_points_at_line():\n    assert error_location() == 'emit.py:42'\n"),
     ("fake-short-ulid", "def test_mission():\n    meta = {'mission_id': 'ABC123'}\n    assert load(meta).ok\n"),
+    ("fake-short-ulid", "def test_short_folded():\n    meta = {'mission_id': '01M' + '0' * 5}\n    assert load(meta).ok\n"),
     ("sleep", "def test_waits():\n    time.sleep(0.5)\n    assert done()\n"),
     ("wallclock", "def test_stamp():\n    assert stamp() <= time.time()\n"),
     ("skip-or-xfail", "@pytest.mark.xfail(reason='later')\ndef test_future():\n    assert future() == 1\n"),
     ("vague-name", "def test_basic():\n    assert total([1]) == 1\n"),
     ("provenance-tokens", 'def test_wp03_gate():\n    """T012: pins FR-004."""\n    assert gate() == 1\n'),
 ]
+
+#: Look-alikes a detector must leave alone: (flag code, test source).
+_NOT_FLAGGED: list[tuple[str, str]] = [
+    ("fake-short-ulid", "def test_real():\n    meta = {'mission_id': '01M' + '0' * 23}\n    assert load(meta).ok\n"),
+    ("fake-short-ulid", "def test_real2():\n    assert load(mission_id='01K3N7ZQ8X1V2B3C4D5E6F7G8H').ok\n"),
+]
+
+
+def _planted_name(source: str) -> str:
+    return next(line.split("(")[0].removeprefix("def ") for line in source.splitlines() if line.startswith("def "))
 
 
 @pytest.fixture(scope="module")
@@ -91,9 +102,17 @@ def test_planted_weak_test_is_flagged_and_clean_control_is_not(scan: ModuleType,
 
     flags = _flags_by_test(_run(scan, tmp_path, "--no-git"))
 
-    planted_name = next(line.split("(")[0].removeprefix("def ") for line in source.splitlines() if line.startswith("def "))
-    assert code in flags[planted_name]
+    assert code in flags[_planted_name(source)]
     assert "test_total_adds_line_items" not in flags
+
+
+@pytest.mark.parametrize(("code", "source"), _NOT_FLAGGED, ids=[_planted_name(source) for _, source in _NOT_FLAGGED])
+def test_look_alike_is_not_flagged(scan: ModuleType, tmp_path: Path, code: str, source: str) -> None:
+    _write(tmp_path, "tests/billing/test_planted.py", source)
+
+    flags = _flags_by_test(_run(scan, tmp_path, "--no-git"))
+
+    assert code not in flags.get(_planted_name(source), [])
 
 
 def test_files_are_ranked_by_score_within_their_domain(scan: ModuleType, tmp_path: Path) -> None:
