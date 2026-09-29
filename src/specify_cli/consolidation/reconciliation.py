@@ -43,9 +43,10 @@ case) is out of scope for this mission and stays named-open in the docs.
 
 from __future__ import annotations
 
+import functools
 import re
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any
@@ -64,10 +65,25 @@ from specify_cli.consolidation.git_probes import (
     merge_tree_write_tree_available,
     patch_id_of,
     patch_ids_in_range,
+    path_state_at,
     sha_reachable_from,
     three_way_merge_blob,
 )
+from specify_cli.consolidation.canceled_attestation import (
+    ATTEST_FLAG,
+    ATTEST_REASON_FLAG,
+    OVERRIDABLE_REASONS,
+    attestation_stamps,
+)
 from specify_cli.consolidation.workspace import post_fix_marker_path
+from specify_cli.consolidation.wp_attribution import (
+    Attributed,
+    AttributionOutcome,
+    CanceledPathState,
+    Unattributable,
+    UnattributableReason,
+    resolve_canceled_wp,
+)
 
 # Lanes that count as "approved" (an acceptable, merge-ready ending) for claim
 # membership. ``done`` is included so a resume that already baked ``done`` for a
@@ -94,6 +110,10 @@ TERMINUS_ENTRY_POINTS: frozenset[str] = frozenset(
 # shared by the merge/rebase reachability path and the squash blob-attribution
 # path, which must refuse identically when the window base cannot be resolved).
 _REFUSE_WINDOW_BASE_UNRESOLVED = "the excluded-content window base could not be resolved; the excluded/closed-world axes cannot be verified (fail-closed)"
+# Mixed-lane canceled-content recovery tail (contract C4 / NFR-003, #5046):
+# shared by the FAIL rendering (:func:`_describe_canceled_content`) and both
+# REFUSE reasons the axis can raise (hoisted per Sonar S1192 — used 4+ times).
+_RECOVERY_TAIL = "then re-run spec-kitty consolidate"
 # Squash-only (#5013 F1 corollary, widened by #5022): a production claim whose
 # authorship set came back empty — BOTH blobs and deletions — while it lists
 # approved WPs cannot attribute any target blob or deletion — the empty loop
@@ -164,6 +184,16 @@ class Divergence:
     (#5022 / WP1): a target path deleted in ``B..target`` that is not attributable
     to any approved lane's own first-parent authored deletion, distinct from
     ``unattributable_blobs`` (which names an Added/Modified path plus its blob).
+    ``canceled_content`` — :class:`~specify_cli.consolidation.wp_attribution.CanceledPathState`
+    entries (mixed-lane-authorship-soundness / #5046, WP05): a MIXED lane's
+    canceled-with-provenance WP left its own, unsuperseded content on the
+    target (or undid a surviving WP's approved change — SC-007). Distinct from
+    every axis above — those all reason about commits/blobs the manifest never
+    approved at all; this one reasons about ONE canceled WP's specific
+    per-path content inside a lane the manifest DOES otherwise approve, which
+    neither SHA/patch-id reachability (squash destroys them) nor blob-union
+    attribution (the survivor's own authored blobs never covered the
+    canceled WP's distinct paths) can see.
     """
 
     missing_approved: tuple[tuple[str, str], ...] = ()
@@ -171,6 +201,7 @@ class Divergence:
     unattributable_content: tuple[tuple[str, str], ...] = ()
     unattributable_blobs: tuple[tuple[str, str], ...] = ()
     unattributable_deletions: tuple[str, ...] = ()
+    canceled_content: tuple[CanceledPathState, ...] = ()
 
     def describe(self) -> str:
         """Operator-facing, one-line-per-divergence explanation."""
@@ -197,7 +228,28 @@ class Divergence:
                 "attributable to any approved WP's own authorship — un-attributable "
                 "(data loss: approved content may have been silently removed)"
             )
+        for entry in self.canceled_content:
+            parts.append(_describe_canceled_content(entry))
         return "; ".join(parts) if parts else "no divergence"
+
+
+def _describe_canceled_content(entry: CanceledPathState) -> str:
+    """Render one mixed-lane canceled-content divergence clause (contract C4).
+
+    Exactly one internal ``;`` — a situation clause naming the path (in single
+    quotes) together with its wording, then a recovery clause — matching the
+    binding rendering contract with WP02 (``tests/terminus/test_repro_5046.py``
+    extracts the verdict block, splits it on ``;``, and matches each path to
+    its own clause; the recovery clause coming AFTER never shadows the
+    situation clause a path-substring search finds first).
+    """
+    who = f"canceled {entry.wp_id}"
+    recovery = f"revert {entry.wp_id}'s change to '{entry.path}' on the lane through a surviving WP's governed work, {_RECOVERY_TAIL}"
+    if entry.canceled_state is None:
+        situation = f"file '{entry.path}' was deleted by {who} (lane {entry.lane_id}) and that deletion is on the target — approved content would be lost"
+    else:
+        situation = f"file '{entry.path}' carries {who}'s change (lane {entry.lane_id}) on the target — canceled work would ship"
+    return f"{situation}; {recovery}"
 
 
 @dataclass(frozen=True)
@@ -215,16 +267,25 @@ class VerifyResult:
     def recovery_guidance(self) -> str:
         """What the operator should do — printed on a non-PASS gate result."""
         if self.status is VerifyStatus.REFUSE:
+            # D-4b (FR-010): the mission→target advance already landed before this
+            # gate runs, so a REFUSE (a claim that could not even be evaluated, not
+            # "known good") is rolled back the same as a FAIL. This text is printed
+            # BEFORE the best-effort compare-and-swap restore runs, so it describes
+            # the restore as in progress; the executor warns separately if it could
+            # not be applied. Reasons that already end in a period are not doubled.
+            reason = (self.refusal_reason or "").rstrip(".")
             return (
-                f"Reconciliation refused (fail-closed): {self.refusal_reason}. "
-                "Nothing was torn down and no refs/worktrees were mutated. Resolve "
-                "the coordination-surface issue, then re-run the merge."
+                f"Reconciliation refused (fail-closed): {reason}. "
+                "The target branch is being restored to its pre-consolidation tip "
+                "(a warning follows if that is not possible); no teardown ran. "
+                "Resolve the issue above, then re-run the merge."
             )
         detail = self.divergence.describe() if self.divergence else "unknown divergence"
         return (
-            f"Reconciliation FAILED: {detail}. Nothing was torn down and no "
-            "refs/worktrees were mutated beyond what already landed. Inspect the "
-            "target branch and the lane tips, then re-run the merge."
+            f"Reconciliation FAILED: {detail.rstrip('.')}. The target branch is being "
+            "restored to its pre-consolidation tip (a warning follows if that is not "
+            "possible); nothing was torn down. Inspect the target branch and the lane "
+            "tips, then re-run the merge."
         )
 
     @classmethod
@@ -389,11 +450,63 @@ class ApprovedWpCommitSet:
     # integrity applies to both strategies. ``True`` (merge/rebase — the Tier-0
     # clean-merge strategy) runs the full per-SHA reachability + excluded checks.
     verify_reachability: bool = True
+    # Mixed-lane canceled-content axis (mixed-lane-authorship-soundness / #5046,
+    # WP05). Every :class:`~specify_cli.consolidation.wp_attribution.CanceledPathState`
+    # resolved for a canceled-with-provenance WP sharing an approved lane with a
+    # surviving WP (contract C2 "mixed lane") that entered implementation. NOT
+    # reused from ``excluded_shas``/``excluded_patch_ids``: those are SHA/patch-id
+    # reachability, which (a) a squash destroys entirely, and (b) even under
+    # merge/rebase only proves the canceled WP's OWN commit objects are
+    # unreachable — never that a LATER survivor commit didn't carry the exact
+    # same bytes forward unchanged (see the corrected ``_collect_excluded``
+    # docstring). This axis compares per-path CONTENT instead (blob identity),
+    # which both strategies preserve. Populated by ``build_approved_wp_set`` only
+    # (via ``wp_attribution.resolve_canceled_wp``); a hand-built claim leaves it
+    # empty, so :meth:`MergeOutcomeVerifier._canceled_content_divergence` is a
+    # no-op and every existing claim keeps pre-#5046 behaviour byte-for-byte.
+    canceled_content: frozenset[CanceledPathState] = frozenset()
+    # Operator-attested canceled WPs (FR-012, ``canceled_attestation``): read
+    # from the same event log the mixed-lane resolution reads. For these WPs the
+    # verifier lifts the "merged with an independent change" REFUSE; a FAIL on
+    # their visible canceled content still stands. Empty on a hand-built claim.
+    attested_canceled_wp_ids: frozenset[str] = frozenset()
 
     @property
     def is_vacuous_against_manifest(self) -> bool:
         """True when the derived claim is empty while the manifest lists WPs."""
         return not self.approved and bool(self.manifest_wp_ids)
+
+
+def _refuse_merged_independent_change(entry: CanceledPathState) -> str:
+    """C3's final row / D-4 (R2): the target is neither the canceled state, the
+    pre-state, nor the window-base state — the canceled change was merged with
+    an independent one and the gate cannot prove the canceled content is
+    absent. Names the lane, the WP, and the path (NFR-003 / contract C4)."""
+    return (
+        f"mixed lane {entry.lane_id}: canceled {entry.wp_id}'s change to '{entry.path}' was merged with an "
+        f"independent change; the gate cannot prove it is absent. Recovery: revert {entry.wp_id}'s change to "
+        f"'{entry.path}' on the lane through a surviving WP's governed work, {_RECOVERY_TAIL}; or, after "
+        f"verifying by hand that none of {entry.wp_id}'s canceled change remains in '{entry.path}', "
+        f"{_attest_tail(entry.wp_id)}."
+    )
+
+
+def _merge_canceled_content_into_result(result: VerifyResult, canceled_fail: list[CanceledPathState]) -> VerifyResult:
+    """Fold the canceled-content FAIL candidates into a strategy axis result (T024).
+
+    A strategy REFUSE always wins unchanged (REFUSE precedes FAIL by
+    construction throughout this module). Otherwise, with no canceled-content
+    entries this is a no-op (byte-identical for every existing claim); with
+    entries, a strategy PASS becomes a FAIL carrying only the canceled-content
+    divergence, and a strategy FAIL gets the entries merged onto its existing
+    :class:`Divergence` (never replacing its other axes).
+    """
+    if result.status is VerifyStatus.REFUSE or not canceled_fail:
+        return result
+    if result.status is VerifyStatus.PASS:
+        return VerifyResult.failed(Divergence(canceled_content=tuple(canceled_fail)))
+    existing = result.divergence or Divergence()
+    return VerifyResult.failed(replace(existing, canceled_content=existing.canceled_content + tuple(canceled_fail)))
 
 
 class MergeOutcomeVerifier:
@@ -411,27 +524,34 @@ class MergeOutcomeVerifier:
         """Return PASS / FAIL(divergence) / REFUSE for the tree at *target_ref*.
 
         Order (fail-closed first, so a claim that cannot be evaluated never
-        reaches the reachability checks). Steps 1-3 are **strategy-independent
-        claim integrity** — they run for squash too (#5001 FOLD-1: pre-fix the
-        squash early-return short-circuited to PASS before the vacuous-manifest
-        check, so an empty-claim squash passed vacuously, defeating PP-F3):
+        reaches the reachability checks). Steps 1-4 are **strategy-independent**
+        — they run for squash too (#5001 FOLD-1: pre-fix the squash early-return
+        short-circuited to PASS before the vacuous-manifest check, so an
+        empty-claim squash passed vacuously, defeating PP-F3):
 
         1. an explicit ``refusal`` on the claim → REFUSE;
         2. an unresolved/unmaterialized coord surface → REFUSE;
         3. an empty claim while the manifest lists WPs → REFUSE (PP-F3);
-        4. (squash / ``verify_reachability=False``) the squash-sound closed-world
+        4. (mixed-lane canceled-content axis, #5046 WP05) a mixed lane's
+           canceled-with-provenance WP whose content on the target can neither
+           be proven absent nor a merge of the canceled change with an
+           independent one → REFUSE; an unresolved window base while entries
+           exist → REFUSE; unsuperseded canceled-content entries are collected
+           as FAIL candidates and merged into whichever axis below runs next
+           (a REFUSE from either axis wins; a FAIL from both axes combines);
+        5. (squash / ``verify_reachability=False``) the squash-sound closed-world
            BLOB-attribution axis (#5013 WS1): a production claim with empty
            authorship or a ``None`` window base → REFUSE, a git probe error →
            REFUSE, a target A/M path whose blob is authored by no approved lane →
            FAIL(un-attributable); a hand-built (non-production) claim → PASS;
-        5. (production merge/rebase claim) an unresolvable excluded window base →
+        6. (production merge/rebase claim) an unresolvable excluded window base →
            REFUSE (#5001 FOLD-3: the excluded/closed-world axes cannot be evaluated);
-        6. any approved SHA unreachable from *target_ref* → FAIL(missing);
-        7. any excluded SHA/patch-id reachable from *target_ref* → FAIL(excluded);
-        8. (closed-world) any CONTENT commit in the merge window attributable to
+        7. any approved SHA unreachable from *target_ref* → FAIL(missing);
+        8. any excluded SHA/patch-id reachable from *target_ref* → FAIL(excluded);
+        9. (closed-world) any CONTENT commit in the merge window attributable to
            no approved WP → FAIL(un-attributable);
-        9. a git probe error while scanning the window → REFUSE (#5001 FOLD-3);
-        10. otherwise → PASS.
+        10. a git probe error while scanning the window → REFUSE (#5001 FOLD-3);
+        11. otherwise → PASS (or FAIL, if step 4 collected canceled-content entries).
         """
         refusal = self._refusal_reason(approved_wp_set)
         if refusal is not None:
@@ -444,6 +564,12 @@ class MergeOutcomeVerifier:
         if approved_wp_set.is_vacuous_against_manifest:
             return VerifyResult.refused(f"derived claim is empty while the manifest lists {len(approved_wp_set.manifest_wp_ids)} WP(s)")
 
+        # Mixed-lane canceled-content axis (#5046 WP05): strategy-independent,
+        # same as the claim-integrity checks above — it runs for squash too.
+        canceled_fail, canceled_refuse = self._canceled_content_divergence(target_ref, approved_wp_set)
+        if canceled_refuse is not None:
+            return VerifyResult.refused(canceled_refuse)
+
         # Squash (and any strategy that does not preserve content identity):
         # claim integrity held, but SHA/patch-id reachability is unsound (a squash
         # destroys lane-tip SHAs AND per-commit patch-ids). The squash-sound
@@ -453,19 +579,27 @@ class MergeOutcomeVerifier:
         # corollary), so a squash can no longer short-circuit to a vacuous pass the
         # way the pre-#5013 early-return did.
         if not approved_wp_set.verify_reachability:
-            return self._verify_squash_content(target_ref, approved_wp_set)
-
+            strategy_result = self._verify_squash_content(target_ref, approved_wp_set)
         # Reachability-path fail-closed (#5001 FOLD-3): a production claim
         # (``enforce_closed_world``) whose excluded window base could not be
         # resolved cannot evaluate the excluded/closed-world axes at all. Skipping
         # them silently collapsed to PASS (fail-OPEN); refuse instead.
-        if approved_wp_set.enforce_closed_world and approved_wp_set.excluded_window_base is None:
-            return VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
+        elif approved_wp_set.enforce_closed_world and approved_wp_set.excluded_window_base is None:
+            strategy_result = VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
+        else:
+            strategy_result = self._verify_merge_reachability(target_ref, approved_wp_set)
+        return _merge_canceled_content_into_result(strategy_result, canceled_fail)
 
+    def _verify_merge_reachability(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
+        """The Tier-0 merge/rebase axis: per-SHA reachability + excluded/closed-world.
+
+        Extracted from :meth:`verify` (Sonar complexity ceiling) — steps 7-10 of
+        its docstring, unchanged in behaviour.
+        """
         try:
-            missing = self._missing_approved(target_ref, approved_wp_set)
-            excluded = self._reachable_excluded(target_ref, approved_wp_set)
-            unattributable = self._unattributable_content(target_ref, approved_wp_set)
+            missing = self._missing_approved(target_ref, claim)
+            excluded = self._reachable_excluded(target_ref, claim)
+            unattributable = self._unattributable_content(target_ref, claim)
         except GitProbeError as exc:
             # A window probe errored mid-scan (#5001 FOLD-3): we cannot prove the
             # tree is clean, so refuse rather than pass on unevaluated content.
@@ -479,6 +613,47 @@ class MergeOutcomeVerifier:
                 )
             )
         return VerifyResult.passed()
+
+    def _canceled_content_divergence(self, target_ref: str, claim: ApprovedWpCommitSet) -> tuple[list[CanceledPathState], str | None]:
+        """Mixed-lane canceled-content axis (D-4, contract C3; #5046 WP05).
+
+        Evaluates every :class:`CanceledPathState` :attr:`ApprovedWpCommitSet.
+        canceled_content` entry the claim builder resolved. Returns
+        ``(fail_entries, refuse_reason)`` — a non-``None`` *refuse_reason* means
+        the caller must REFUSE outright (claim/window-base integrity, or one
+        entry whose target state is a merge of the canceled change with an
+        independent one — R2); *fail_entries* otherwise holds every entry whose
+        canceled content is still unsuperseded on the target (C3 rows 4-5),
+        to be merged into whichever strategy axis runs next. A no-op — ``([],
+        None)`` — when the claim carries no canceled-content entries at all
+        (every existing claim, and every non-mixed-lane production claim).
+        """
+        if not claim.canceled_content:
+            return [], None
+        window_base = claim.excluded_window_base
+        if window_base is None:
+            return [], _REFUSE_WINDOW_BASE_UNRESOLVED
+        fail_entries: list[CanceledPathState] = []
+        try:
+            for entry in sorted(claim.canceled_content, key=lambda e: (e.lane_id, e.wp_id, e.path)):
+                target_state = path_state_at(self._repo, target_ref, entry.path)
+                window_state = path_state_at(self._repo, window_base, entry.path)
+                if target_state == entry.canceled_state:
+                    # C3 rows 4-5: the target still carries the canceled state.
+                    # FAIL unless the window base ALSO already carried it AND the
+                    # pre-state was merely inherited (never produced on the lane
+                    # by a surviving commit) — R4.
+                    if window_state != entry.canceled_state or entry.pre_state_by_survivor:
+                        fail_entries.append(entry)
+                    continue
+                if target_state == entry.pre_state or target_state == window_state:
+                    continue  # C3 row 3: the canceled change did not land.
+                if entry.wp_id in claim.attested_canceled_wp_ids:
+                    continue  # FR-012: the operator attested this WP's content is superseded.
+                return fail_entries, _refuse_merged_independent_change(entry)
+        except GitProbeError as exc:
+            return [], f"a git probe failed while verifying the canceled-content window: {exc}"
+        return fail_entries, None
 
     @staticmethod
     def _refusal_reason(claim: ApprovedWpCommitSet) -> str | None:
@@ -718,77 +893,94 @@ class MergeOutcomeVerifier:
     def _is_bookkeeping_path(path: str, claim: ApprovedWpCommitSet) -> bool:
         """True when *path* is the MISSION's OWN planning/toolchain surface.
 
-        Anchored to three mission/toolchain-owned roots — never a global
-        basename match — closing a silent-data-loss defect (Epic #5001 landing
-        remediation): this method used to delegate to
-        :func:`~specify_cli.coordination.coherence.is_toolchain_generated_churn`,
-        a DIRTY-STATE-gate classifier that, at the time, matched by bare
-        basename anywhere in the repository (``PurePosixPath(path).name ==
-        "meta.json"`` matched ``src/config/meta.json`` just as readily as the
-        mission's own ``kitty-specs/<slug>/meta.json``). In the squash content
-        axis a path that classifier called bookkeeping was skipped BEFORE
-        authored-blob attribution, so a removed/canceled WP's commit touching an
-        ordinary product-source file merely NAMED like a toolchain artifact rode
-        a carrier lane onto the target and shipped at exit 0. #4933 has
-        since made ``coherence.py``'s ``meta.json`` leg depth-exact
-        (``kitty-specs/<mission>/meta.json`` at any monorepo prefix, plus the
-        legacy ``.kittify/meta.json``), but it is still not anchored to THIS
-        claim's slug — it exempts ANY mission's ``meta.json`` — and it remains a
-        dirty-state-gate predicate with its own consumers. This axis therefore
-        keeps its own, narrower classification rather than delegating to it.
-
-        A path counts as bookkeeping only when it is anchored to:
-
-        * a ``kitty-specs/<slug>/`` segment sequence where ``<slug>`` is THIS
-          claim's own :attr:`ApprovedWpCommitSet.mission_slug` — covers the
-          mission's own ``meta.json``, ``status.events.jsonl``, issue-matrix,
-          ``traces/``, ``decisions/``, retrospective, tasks, and plan artifacts,
-          wherever that segment sequence occurs in the path (the repo-root
-          ``kitty-specs/<slug>/…`` a merge commit lands directly, AND a
-          coordination-topology worktree's nested copy alike);
-        * :attr:`ApprovedWpCommitSet.planning_prefix` as an exact prefix
-          (belt-and-suspenders for a hand-built claim that sets the prefix
-          without a ``mission_slug``);
-        * a repo-ROOT ``.kittify/`` prefix — encoding-provenance,
-          mission-state-audit, and other toolchain-owned state;
-        * a repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan
-          (:data:`_KITTY_OPS_ROOT_RECORD`).
-
-        Any other path — including one that merely shares a bookkeeping
-        basename — is real content, subject to the closed-world attribution
-        check.
+        Thin delegation to the module-level :func:`_is_bookkeeping` (extracted,
+        mixed-lane-authorship-soundness / #5046 WP05, so
+        :func:`build_approved_wp_set` can hand ``wp_attribution.resolve_canceled_wp``
+        the SAME denylist via ``functools.partial`` — never a duplicate one — even
+        though the claim does not exist yet at that call site). See that
+        function's docstring for the full anchoring rules.
         """
-        normalized = path.rstrip("/")
-        mission_slug = claim.mission_slug
-        if mission_slug:
-            parts = normalized.split("/")
-            try:
-                specs_index = parts.index(KITTY_SPECS_DIR)
-            except ValueError:
-                specs_index = -1
-            # ``kitty-specs`` segment immediately followed by THIS mission's own
-            # slug, wherever it occurs in the path (not just at a literal prefix
-            # match). Mission-scoped, never a bare basename: a product path can
-            # never satisfy this unless it is literally nested under the
-            # mission's own planning directory. Anchoring on the SEGMENT SEQUENCE
-            # (not ``claim.planning_prefix`` alone) closes a real mismatch: under
-            # coordination topology ``planning_prefix`` is derived from the
-            # STATUS_STATE placement's ``feature_dir`` (the coord WORKTREE's
-            # nested copy, e.g. ``.worktrees/<slug>-<mid8>-coord/kitty-specs/
-            # <slug>``), while the commits this axis scans land the mission's
-            # bookkeeping directly at the repo-root ``kitty-specs/<slug>/`` — the
-            # two paths never share a common prefix, so relying on
-            # ``planning_prefix`` alone silently stopped recognizing the
-            # mission's own ``status.json`` / ``status.events.jsonl`` / etc. as
-            # bookkeeping once the whole-tree churn classifier was dropped.
-            if specs_index != -1 and specs_index + 1 < len(parts) and parts[specs_index + 1] == mission_slug:
-                return True
-        prefix = claim.planning_prefix
-        if prefix and (normalized == prefix or normalized.startswith(prefix + "/")):
+        return _is_bookkeeping(path, claim.mission_slug, claim.planning_prefix)
+
+
+def _is_bookkeeping(path: str, mission_slug: str | None, planning_prefix: str | None) -> bool:
+    """True when *path* is the MISSION's OWN planning/toolchain surface.
+
+    Anchored to three mission/toolchain-owned roots — never a global
+    basename match — closing a silent-data-loss defect (Epic #5001 landing
+    remediation): this used to delegate to
+    :func:`~specify_cli.coordination.coherence.is_toolchain_generated_churn`,
+    a DIRTY-STATE-gate classifier that, at the time, matched by bare
+    basename anywhere in the repository (``PurePosixPath(path).name ==
+    "meta.json"`` matched ``src/config/meta.json`` just as readily as the
+    mission's own ``kitty-specs/<slug>/meta.json``). In the squash content
+    axis a path that classifier called bookkeeping was skipped BEFORE
+    authored-blob attribution, so a removed/canceled WP's commit touching an
+    ordinary product-source file merely NAMED like a toolchain artifact rode
+    a carrier lane onto the target and shipped at exit 0. #4933 has
+    since made ``coherence.py``'s ``meta.json`` leg depth-exact
+    (``kitty-specs/<mission>/meta.json`` at any monorepo prefix, plus the
+    legacy ``.kittify/meta.json``), but it is still not anchored to THIS
+    claim's slug — it exempts ANY mission's ``meta.json`` — and it remains a
+    dirty-state-gate predicate with its own consumers. This axis therefore
+    keeps its own, narrower classification rather than delegating to it.
+
+    A path counts as bookkeeping only when it is anchored to:
+
+    * a ``kitty-specs/<slug>/`` segment sequence where ``<slug>`` is THIS
+      claim's own *mission_slug* — covers the mission's own ``meta.json``,
+      ``status.events.jsonl``, issue-matrix, ``traces/``, ``decisions/``,
+      retrospective, tasks, and plan artifacts, wherever that segment
+      sequence occurs in the path (the repo-root ``kitty-specs/<slug>/…`` a
+      merge commit lands directly, AND a coordination-topology worktree's
+      nested copy alike);
+    * *planning_prefix* as an exact prefix (belt-and-suspenders for a
+      hand-built claim that sets the prefix without a ``mission_slug``);
+    * a repo-ROOT ``.kittify/`` prefix — encoding-provenance,
+      mission-state-audit, and other toolchain-owned state;
+    * a repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan
+      (:data:`_KITTY_OPS_ROOT_RECORD`).
+
+    Any other path — including one that merely shares a bookkeeping
+    basename — is real content, subject to the closed-world attribution
+    check.
+
+    Extracted to module level (mixed-lane-authorship-soundness / #5046 WP05)
+    so :func:`build_approved_wp_set` can bind it via ``functools.partial`` and
+    hand it to ``wp_attribution.resolve_canceled_wp`` as the SAME denylist the
+    verifier itself uses — the claim (:class:`ApprovedWpCommitSet`) does not
+    exist yet at that call site, so the *claim*-taking overload
+    (:meth:`MergeOutcomeVerifier._is_bookkeeping_path`) cannot be called there.
+    """
+    normalized = path.rstrip("/")
+    if mission_slug:
+        parts = normalized.split("/")
+        try:
+            specs_index = parts.index(KITTY_SPECS_DIR)
+        except ValueError:
+            specs_index = -1
+        # ``kitty-specs`` segment immediately followed by THIS mission's own
+        # slug, wherever it occurs in the path (not just at a literal prefix
+        # match). Mission-scoped, never a bare basename: a product path can
+        # never satisfy this unless it is literally nested under the
+        # mission's own planning directory. Anchoring on the SEGMENT SEQUENCE
+        # (not *planning_prefix* alone) closes a real mismatch: under
+        # coordination topology *planning_prefix* is derived from the
+        # STATUS_STATE placement's ``feature_dir`` (the coord WORKTREE's
+        # nested copy, e.g. ``.worktrees/<slug>-<mid8>-coord/kitty-specs/
+        # <slug>``), while the commits this axis scans land the mission's
+        # bookkeeping directly at the repo-root ``kitty-specs/<slug>/`` — the
+        # two paths never share a common prefix, so relying on
+        # *planning_prefix* alone silently stopped recognizing the
+        # mission's own ``status.json`` / ``status.events.jsonl`` / etc. as
+        # bookkeeping once the whole-tree churn classifier was dropped.
+        if specs_index != -1 and specs_index + 1 < len(parts) and parts[specs_index + 1] == mission_slug:
             return True
-        if normalized == KITTIFY_DIR or normalized.startswith(KITTIFY_DIR + "/"):
-            return True
-        return bool(_KITTY_OPS_ROOT_RECORD.match(normalized))
+    if planning_prefix and (normalized == planning_prefix or normalized.startswith(planning_prefix + "/")):
+        return True
+    if normalized == KITTIFY_DIR or normalized.startswith(KITTIFY_DIR + "/"):
+        return True
+    return bool(_KITTY_OPS_ROOT_RECORD.match(normalized))
 
 
 def is_legitimate_three_way_resolution(
@@ -957,7 +1149,8 @@ def build_approved_wp_set(
         )
 
     work_packages = snapshot.work_packages or {}
-    unresolvable = _unresolvable_approved_lane_branches(repo_root, lanes_manifest, work_packages, frozenset(excluded_canceled_wp_ids))
+    excluded_ids = frozenset(excluded_canceled_wp_ids)
+    unresolvable = _unresolvable_approved_lane_branches(repo_root, lanes_manifest, work_packages, excluded_ids)
     if unresolvable:
         return _refusal_claim(
             lanes_manifest,
@@ -966,6 +1159,16 @@ def build_approved_wp_set(
             excluded_window_base,
             _missing_branch_refusal_text(unresolvable),
         )
+    # Mixed-lane canceled-content resolution (T022/T023, #5046 WP05) — after the
+    # snapshot and the branch-resolvability check, before any of the existing
+    # collectors, per plan.md D-3. Any Unattributable outcome refuses the WHOLE
+    # claim immediately (refusals take precedence over FAIL by construction).
+    canceled_content, attested_wp_ids, mixed_lane_refusal = _resolve_mixed_lane_canceled_content(
+        repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, coord_base_ref, planning_prefix, excluded_window_base
+    )
+    if mixed_lane_refusal is not None:
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, mixed_lane_refusal)
+
     approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref)
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
@@ -977,7 +1180,7 @@ def build_approved_wp_set(
         repo_root,
         lanes_manifest,
         coord_base_ref,
-        frozenset(excluded_canceled_wp_ids),
+        excluded_ids,
         authored_shas=authored_shas,
         authored_patch_ids=authored_patch_ids,
     )
@@ -996,7 +1199,164 @@ def build_approved_wp_set(
         multi_lane_paths=multi_lane_paths,
         mission_slug=lanes_manifest.mission_slug,
         planning_prefix=planning_prefix,
+        canceled_content=canceled_content,
+        attested_canceled_wp_ids=attested_wp_ids,
     )
+
+
+def _mixed_lanes(
+    lanes_manifest: LanesManifest,
+    work_packages: Mapping[str, Any],
+    excluded_canceled_wp_ids: frozenset[str],
+) -> list[ExecutionLane]:
+    """Contract C2: every lane with ≥1 approved WP AND ≥1 canceled-with-
+    provenance WP, sorted deterministically by lane id.
+
+    ``not lane_fully_canceled(...)`` mirrors the same guard
+    :func:`_unresolvable_approved_lane_branches` already applies (US1 AS-exempt
+    shape): a lane whose EVERY WP is canceled-with-provenance is not "mixed" —
+    there is no surviving WP to compare against — even when
+    :func:`_lane_is_approved` alone still counts it true (a WP can be BOTH
+    ``approved`` in the Lamport snapshot AND canceled-with-provenance per the
+    caller's *excluded_canceled_wp_ids*, the "provenance override" shape). Such
+    a lane's created branch may legitimately not even exist.
+    """
+
+    def _is_mixed(lane: ExecutionLane) -> bool:
+        has_approved = _lane_is_approved(lane, work_packages)
+        has_canceled = any(wp in excluded_canceled_wp_ids for wp in lane.wp_ids)
+        return has_approved and has_canceled and not lane_fully_canceled(lane, excluded_canceled_wp_ids)
+
+    return sorted((lane for lane in lanes_manifest.lanes if _is_mixed(lane)), key=lambda lane: lane.lane_id)
+
+
+def _attest_tail(wp_id: str) -> str:
+    """The FR-012 override step, named in every REFUSE it can lift."""
+    return f're-run spec-kitty consolidate with {ATTEST_FLAG} {wp_id} {ATTEST_REASON_FLAG} "<what you checked>"'
+
+
+def _mixed_lane_recovery(reason: UnattributableReason, wp_id: str) -> str:
+    """Recovery for one mixed-lane REFUSE reason — never one that cannot succeed (FR-012)."""
+    if reason is UnattributableReason.EVENTS_UNREADABLE:
+        return f"Recovery: repair the mission's status event log (status.events.jsonl) so it reads cleanly, {_RECOVERY_TAIL}; this refusal cannot be overridden"
+    if reason is UnattributableReason.SPINE_UNREADABLE:
+        return f"Recovery: repair the lane branch so its git history reads from the coordination base, {_RECOVERY_TAIL}; this refusal cannot be overridden"
+    if reason is UnattributableReason.COMMIT_OUTSIDE_WINDOWS:
+        return (
+            "No governed WP window will ever cover those commits, so re-running alone cannot clear this. "
+            f"Recovery: verify by hand that they carry no canceled work and that {wp_id}'s canceled content is "
+            f"absent or superseded, then {_attest_tail(wp_id)}"
+        )
+    return (
+        "This attribution evidence cannot appear later (the event log is append-only), so re-running alone "
+        f"cannot clear it. Recovery: verify by hand that {wp_id}'s canceled content is absent or superseded on "
+        f"the lane, then {_attest_tail(wp_id)}"
+    )
+
+
+def _mixed_lane_unattributable_refusal(lane_id: str, wp_id: str, outcome: Unattributable) -> str:
+    """T022's refusal text — names the mixed lane, the canceled WP, the resolver's
+    own detail (which itself names lane/WP/evidence, NFR-003), and the recovery
+    that works for THIS reason (FR-012)."""
+    return f"mixed lane {lane_id}: canceled {wp_id} cannot be attributed — {outcome.detail}. {_mixed_lane_recovery(outcome.reason, wp_id)}."
+
+
+def _resolve_mixed_lane_canceled_content(
+    repo_root: Path,
+    feature_dir: Path,
+    lanes_manifest: LanesManifest,
+    work_packages: Mapping[str, Any],
+    excluded_canceled_wp_ids: frozenset[str],
+    coord_base_ref: str,
+    planning_prefix: str | None,
+    target_base: str | None = None,
+) -> tuple[frozenset[CanceledPathState], frozenset[str], str | None]:
+    """Resolve every mixed lane's canceled-with-provenance WPs (T022/T023).
+
+    Returns ``(canceled_content, attested_wp_ids, refusal)``. Events are read
+    through :func:`specify_cli.status.read_events` exactly ONCE, and ONLY when
+    at least one mixed lane exists (decided from ``lanes.json`` + the Lamport
+    snapshot + *excluded_canceled_wp_ids* alone) — a non-mixed mission never
+    pays the read and stays byte-identical to pre-#5046 behaviour. A
+    ``StoreError`` reading them refuses with the ``events_unreadable`` reason
+    (NFR-002; never overridable — the attestation lives in that same log).
+    Every canceled WP in every mixed lane is handed to
+    :func:`~specify_cli.consolidation.wp_attribution.resolve_canceled_wp`.
+
+    FR-012: an operator attestation
+    (:func:`~specify_cli.consolidation.canceled_attestation.attestation_stamps`)
+    adds its own ``lane_head`` stamp as a closed-world anchor for its lane (lane
+    commits up to the attestation are exempt; a later straggler is still
+    refused), and an attested WP's overridable Unattributable reason falls back
+    to the pre-change whole-lane behaviour (no per-WP canceled content).
+    Visible canceled content still FAILs.
+    """
+    mixed_lanes = _mixed_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
+    if not mixed_lanes:
+        return frozenset(), frozenset(), None
+
+    from specify_cli.status import StoreError, read_events
+
+    try:
+        events = read_events(feature_dir)
+    except StoreError as exc:
+        lane = mixed_lanes[0]
+        wp_id = next(wp for wp in sorted(lane.wp_ids) if wp in excluded_canceled_wp_ids)
+        unreadable = Unattributable.for_reason(UnattributableReason.EVENTS_UNREADABLE, lane.lane_id, wp_id)
+        detailed = Unattributable(unreadable.reason, f"{unreadable.detail} ({exc})")
+        return frozenset(), frozenset(), _mixed_lane_unattributable_refusal(lane.lane_id, wp_id, detailed)
+
+    stamps = attestation_stamps(events)
+    attested = frozenset(stamps)
+    is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
+    canceled_content: set[CanceledPathState] = set()
+    for lane in mixed_lanes:
+        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        lane_canceled = sorted(wp for wp in lane.wp_ids if wp in excluded_canceled_wp_ids)
+        attestation_anchors = [stamp for wp in lane_canceled if (stamp := stamps.get(wp))]
+        for wp_id in lane_canceled:
+            outcome: AttributionOutcome = resolve_canceled_wp(
+                repo_root,
+                events=events,
+                lane_id=lane.lane_id,
+                lane_wp_ids=lane.wp_ids,
+                canceled_wp_id=wp_id,
+                lane_branch=branch,
+                coord_base_ref=coord_base_ref,
+                is_bookkeeping=is_bookkeeping,
+                closed_world_anchors=[*_closed_world_anchors(lanes_manifest, lane, target_base), *attestation_anchors],
+            )
+            if isinstance(outcome, Attributed):
+                canceled_content |= outcome.canceled_content
+            elif wp_id in attested and outcome.reason in OVERRIDABLE_REASONS:
+                continue  # FR-012: operator-attested — pre-change whole-lane behaviour for this WP.
+            else:
+                return frozenset(), frozenset(), _mixed_lane_unattributable_refusal(lane.lane_id, wp_id, outcome)
+    return frozenset(canceled_content), attested, None
+
+
+def _dependency_lane_ids(lanes_manifest: LanesManifest, lane: ExecutionLane) -> list[str]:
+    """Every lane *lane* depends on, transitively (``lanes.json`` ``depends_on_lanes``)."""
+    by_id = {candidate.lane_id: candidate for candidate in lanes_manifest.lanes}
+    seen: list[str] = []
+    pending = list(lane.depends_on_lanes)
+    while pending:
+        lane_id = pending.pop()
+        if lane_id in seen or lane_id not in by_id:
+            continue
+        seen.append(lane_id)
+        pending.extend(by_id[lane_id].depends_on_lanes)
+    return sorted(seen)
+
+
+def _closed_world_anchors(lanes_manifest: LanesManifest, lane: ExecutionLane, target_base: str | None) -> list[str]:
+    """FR-013 anchors for *lane*: dependency-lane tips (the allocator merges them in
+    without ``--no-ff``, also on its reuse path after work began) and the target's
+    pre-consolidation tip (commits already on the target ship nothing new)."""
+    anchors = [_lane_branch_for(lanes_manifest, dep) for dep in _dependency_lane_ids(lanes_manifest, lane)]
+    if target_base:
+        anchors.append(target_base)
+    return anchors
 
 
 def _missing_branch_refusal_text(unresolvable: list[tuple[str, str]]) -> str:
@@ -1163,6 +1523,21 @@ def _collect_excluded(
     WP at all) never contributes to *authored_shas*/*authored_patch_ids*
     (:func:`_collect_authored` skips it), so the subtraction is a no-op and every
     one of its tip commits stays excluded, unchanged from the pre-#5018 behavior.
+
+    **Correction (#5046 WP05):** "stays excluded" here is SHA/patch-id
+    reachability only, NOT a guarantee that the canceled WP's CONTENT can
+    never ship — the #5046 hole a prior revision of this docstring stated as
+    if it were one. A squash mints new SHAs for every commit, so this axis
+    contributes nothing under the default strategy at all; and even under
+    merge/rebase, a LATER survivor commit on the SAME mixed lane can carry
+    the canceled WP's exact bytes forward unchanged (or a surviving commit
+    can simply never touch the canceled WP's paths), in which case those
+    bytes are perfectly reachable via the survivor's own SHA and this axis
+    never sees them. Whether that content is genuinely superseded, or is
+    exactly the unsuperseded #5046 defect, is what
+    :attr:`ApprovedWpCommitSet.canceled_content` /
+    :meth:`MergeOutcomeVerifier._canceled_content_divergence` decide — the
+    CONTENT-identity axis this SHA-level exclusion cannot substitute for.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()

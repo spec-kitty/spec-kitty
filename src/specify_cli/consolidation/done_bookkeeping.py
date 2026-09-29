@@ -358,12 +358,12 @@ def _mark_wp_merged_done(
         repo_root=repo_root,
     ).lane
     coord_lane = lane
+    # Dedup guard (retry idempotence): the WP's CURRENT lane is already ``done``.
+    # Deliberately not "a ``done`` exists anywhere in its history" (#5046 landing,
+    # FR-011 recovery; Refs #4967 (partial)): a WP recorded ``done`` by a
+    # consolidation whose gate then FAILed, and afterwards reopened for governed
+    # rework, must be recorded ``done`` again once its rework is re-merged.
     if lane == _Lane.DONE:
-        return
-
-    # Dedup guard: if we already have a done transition in the log, skip everything.
-    if _has_transition_to(feature_dir, mission_slug, wp_id, "done", repo_root):
-        logger.debug("Dedup: %s already has 'done' transition, skipping", wp_id)
         return
 
     lane, _force_done = _resolve_lane_with_planned_fallback(
@@ -592,34 +592,32 @@ def _assert_merged_wps_done_on_target(
         raise typer.Exit(1)
 
 
-def _durable_done_wps_on_coordination_ref(
+def _durable_coordination_lanes(
     *,
     repo_root: Path,
     mission_slug: str,
     candidate_wps: list[str],
-) -> set[str]:
-    """WPs among *candidate_wps* reduced to ``done`` on the COMMITTED coord ref.
+) -> dict[str, str] | None:
+    """Current lane per WP among *candidate_wps* on the COMMITTED coord ref.
 
-    FR-007: resume progress is derived from the durable event log — the
-    committed coordination-branch ref — never the roll-backable worktree bytes.
-    Consumes ``read_event_log(EventLogReadContract.coordination_branch_ref(...))``
-    + ``wp_lane_actor_from_events`` (no new reducer). Returns an empty set (the
-    caller re-derives via the transactional on-disk check) when the coordination
-    ref cannot be resolved — a non-coord topology or a legacy mission.
+    Returns ``None`` when the coordination ref cannot be resolved or carries no
+    committed events (a non-coord topology or a legacy mission) — the caller then
+    falls back to the transactional on-disk check. A WP with no committed event
+    maps to ``""``. Shared by :func:`_durable_done_wps_on_coordination_ref` and
+    :func:`_reconcile_completed_wps_for_resume` so both read ONE durable authority.
     """
     from specify_cli.coordination.status_service import (
         EventLogReadContract,
         read_event_log,
         wp_lane_actor_from_events,
     )
-    from specify_cli.status import Lane
 
     try:
         coord_ref = resolve_placement_only(
             repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
         ).ref
     except Exception:  # noqa: BLE001 — unresolvable placement: fall back to on-disk check
-        return set()
+        return None
 
     # The committed events live at ``kitty-specs/<slug>/status.events.jsonl`` on
     # the coordination ref; the primary feature dir (name == slug, meta-bearing)
@@ -640,13 +638,31 @@ def _durable_done_wps_on_coordination_ref(
         )
     )
     if not events:
+        return None
+    return {wp_id: str(wp_lane_actor_from_events(events, wp_id).lane or "") for wp_id in candidate_wps}
+
+
+def _durable_done_wps_on_coordination_ref(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    candidate_wps: list[str],
+) -> set[str]:
+    """WPs among *candidate_wps* reduced to ``done`` on the COMMITTED coord ref.
+
+    FR-007: resume progress is derived from the durable event log — the
+    committed coordination-branch ref — never the roll-backable worktree bytes.
+    Consumes ``read_event_log(EventLogReadContract.coordination_branch_ref(...))``
+    + ``wp_lane_actor_from_events`` (no new reducer). Returns an empty set (the
+    caller re-derives via the transactional on-disk check) when the coordination
+    ref cannot be resolved — a non-coord topology or a legacy mission.
+    """
+    from specify_cli.status import Lane
+
+    lanes = _durable_coordination_lanes(repo_root=repo_root, mission_slug=mission_slug, candidate_wps=candidate_wps)
+    if lanes is None:
         return set()
-    done: set[str] = set()
-    for wp_id in candidate_wps:
-        lane = wp_lane_actor_from_events(events, wp_id).lane
-        if lane == Lane.DONE:
-            done.add(wp_id)
-    return done
+    return {wp_id for wp_id, lane in lanes.items() if lane == Lane.DONE}
 
 
 def _reconcile_completed_wps_for_resume(
@@ -660,28 +676,40 @@ def _reconcile_completed_wps_for_resume(
 
     FR-007: ``ConsolidationState.completed_wps`` is an advisory hint only. The authority
     for resume progress is the durable event log — the committed coordination
-    ref (:func:`_durable_done_wps_on_coordination_ref`), with the transactional
-    on-disk check as the topology-blind fallback. A retry can happen after the
-    target ref advanced but before the final status-event housekeeping commit;
-    if the operator repairs the checkout back to HEAD, state.json may still list
-    a WP as completed even though its ``done`` evidence is gone. Drop those stale
-    completions so the retry re-emits done evidence instead of skipping the WP
-    and failing validation.
+    ref (:func:`_durable_coordination_lanes`), with the transactional
+    on-disk check as the topology-blind fallback ONLY when that ref cannot be
+    read. A retry can happen after the target ref advanced but before the final
+    status-event housekeeping commit; if the operator repairs the checkout back to
+    HEAD, state.json may still list a WP as completed even though its ``done``
+    evidence is gone. Drop those stale completions so the retry re-emits done
+    evidence instead of skipping the WP and failing validation.
+
+    The durable check reads the WP's CURRENT lane, never "a ``done`` event exists
+    somewhere in its history" (#5046 landing, FR-011 recovery): a WP recorded
+    ``done`` by a consolidation whose gate then FAILed, and afterwards reopened
+    for governed rework (``done -> in_progress -> ... -> approved``), is no
+    longer done — skipping it would fail post-merge validation forever, so the
+    documented FAIL recovery ("revert through a surviving WP, re-run") could
+    never succeed.
     """
     if not merge_state.completed_wps:
         return set()
 
-    durable_done = _durable_done_wps_on_coordination_ref(
+    from specify_cli.status import Lane
+
+    durable_lanes = _durable_coordination_lanes(
         repo_root=repo_root,
         mission_slug=mission_slug,
         candidate_wps=merge_state.completed_wps,
     )
-    confirmed = [
-        wp_id
-        for wp_id in merge_state.completed_wps
-        if wp_id in durable_done
-        or _has_transition_to(feature_dir, mission_slug, wp_id, "done", repo_root)
-    ]
+    if durable_lanes is not None:
+        confirmed = [wp_id for wp_id in merge_state.completed_wps if durable_lanes.get(wp_id) == Lane.DONE]
+    else:
+        confirmed = [
+            wp_id
+            for wp_id in merge_state.completed_wps
+            if _has_transition_to(feature_dir, mission_slug, wp_id, "done", repo_root)
+        ]
     if len(confirmed) != len(merge_state.completed_wps):
         dropped = sorted(set(merge_state.completed_wps) - set(confirmed))
         logger.info(

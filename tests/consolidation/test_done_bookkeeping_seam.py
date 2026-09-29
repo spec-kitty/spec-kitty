@@ -245,7 +245,7 @@ def test_reconcile_confirms_via_durable_log_when_on_disk_absent(tmp_path: Path) 
     saved: list[ConsolidationState] = []
     with (
         patch.object(
-            db, "_durable_done_wps_on_coordination_ref", return_value={"WP01"}
+            db, "_durable_coordination_lanes", return_value={"WP01": Lane.DONE, "WP02": ""}
         ),
         patch.object(db, "_has_transition_to", return_value=False),
         patch.object(db, "save_state", side_effect=lambda s, _r: saved.append(s)),
@@ -256,6 +256,39 @@ def test_reconcile_confirms_via_durable_log_when_on_disk_absent(tmp_path: Path) 
     assert confirmed == {"WP01"}
     assert state.completed_wps == ["WP01"]
     assert saved == [state]
+
+
+def test_reconcile_drops_wp_reopened_after_done_even_with_done_in_history(tmp_path: Path) -> None:
+    # #5046 landing (FR-011 recovery): a WP recorded ``done`` by a consolidation
+    # whose gate then FAILed, and reopened for rework, is no longer done on the
+    # durable ref — its historical ``done`` event must NOT confirm it, or the
+    # re-merge skips its done record and post-merge validation fails forever.
+    from specify_cli.consolidation.state import ConsolidationState
+
+    state = ConsolidationState(mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"])
+    state.completed_wps = ["WP01"]
+    with (
+        patch.object(db, "_durable_coordination_lanes", return_value={"WP01": Lane.APPROVED}),
+        patch.object(db, "_has_transition_to", return_value=True),
+        patch.object(db, "save_state"),
+    ):
+        confirmed = db._reconcile_completed_wps_for_resume(feature_dir=tmp_path, mission_slug="m", merge_state=state, repo_root=tmp_path)
+    assert confirmed == set()
+    assert state.completed_wps == []
+
+
+def test_reconcile_falls_back_to_on_disk_check_when_durable_ref_unreadable(tmp_path: Path) -> None:
+    from specify_cli.consolidation.state import ConsolidationState
+
+    state = ConsolidationState(mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01", "WP02"])
+    state.completed_wps = ["WP01", "WP02"]
+    with (
+        patch.object(db, "_durable_coordination_lanes", return_value=None),
+        patch.object(db, "_has_transition_to", side_effect=lambda _f, _m, wp, _l, _r: wp == "WP02"),
+        patch.object(db, "save_state"),
+    ):
+        confirmed = db._reconcile_completed_wps_for_resume(feature_dir=tmp_path, mission_slug="m", merge_state=state, repo_root=tmp_path)
+    assert confirmed == {"WP02"}
 
 
 # --- _resolve_wp_path -------------------------------------------------------
@@ -449,27 +482,28 @@ def test_mark_wp_merged_done_noop_when_already_done(tmp_path: Path) -> None:
         db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
 
 
-def test_mark_wp_merged_done_dedup_skips_when_done_transition_exists(tmp_path: Path) -> None:
+def test_mark_wp_merged_done_re_records_done_for_a_wp_reopened_after_done(tmp_path: Path) -> None:
+    """#5046 landing (FR-011 recovery; Refs #4967 (partial)): the dedup keys on the
+    CURRENT lane. A WP whose history carries an earlier ``done`` (a FAILed run's
+    bookkeeping) but which was reopened and is ``approved`` again is re-recorded."""
     wp_file = tmp_path / "WP01.md"
     with (
-        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
-        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
-        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
-        # Patch the seam entry point the module actually calls now.
         patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
-        patch(
-            "specify_cli.coordination.status_transition.read_event_stream_transactional",
-            return_value=EventStream(),
-        ),
+        patch("specify_cli.coordination.status_transition.read_event_stream_transactional", return_value=_review_stream()),
         patch(
             "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
             return_value=CurrentWpState(Lane.APPROVED, "merge", None),
         ),
-        patch.object(db, "_has_transition_to", return_value=True),
+        patch.object(db, "_has_transition_to", return_value=True),  # a done exists in history
+        patch.object(db, "_resolve_lane_with_planned_fallback", return_value=(Lane.APPROVED, False)),
+        patch.object(db, "_emit_approved_replay_if_needed", return_value=(Lane.APPROVED, False)),
+        patch("specify_cli.coordination.status_transition.emit_status_transition_transactional") as emit_mock,
     ):
         db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
+    emit_mock.assert_called_once()
+    assert emit_mock.call_args.args[0].to_lane == Lane.DONE
 
 
 def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> None:

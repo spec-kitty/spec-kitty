@@ -2288,9 +2288,12 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
         # structured divergence record). body_hash refreshed (#5001 #5020;
         # #5022 terminus-reconciliation-attribution-integrity): the squash axis
         # added `unattributable_blobs`, then `unattributable_deletions` + render branch.
+        # body_hash refreshed again (mixed-lane-authorship-soundness-01M3M7Y0
+        # WP05, #5046): added the `canceled_content` mixed-lane divergence field
+        # + its `describe()` render branch.
         SymbolKey(
             "Divergence",
-            "a828263627ea91b6bca3a12e26bdccacc4011309e631bdcbcf52ec13f7d4c662",
+            "366f59f9bd521f666b818153e1279e653d2cab1f397e26f5e188b1e3ff3b6cc6",
             source_module="specify_cli.consolidation.reconciliation",
         ),
         # specify_cli.consolidation.bookkeeping_projection::ProjectionResult -- the

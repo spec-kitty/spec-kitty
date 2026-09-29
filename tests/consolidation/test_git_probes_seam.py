@@ -312,3 +312,64 @@ def test_first_parent_commits_in_range_excludes_second_parent(tmp_path: Path) ->
     _git_seam(repo, "merge", "-q", "--no-edit", "--no-ff", "side")
     first_parent = git_probes.first_parent_commits_in_range(repo, base, "main")
     assert side_sha not in first_parent
+
+
+# --- path_state_at (WP04 / #5046 — absence-aware, distinct from blob_id_at) --
+
+
+def test_path_state_at_returns_blob_for_existing_path(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    _commit_file(repo, "src/pkg/x.py", "content\n", "add x")
+    expected = _git_seam(repo, "rev-parse", "HEAD:src/pkg/x.py")
+    assert git_probes.path_state_at(repo, "HEAD", "src/pkg/x.py") == expected
+
+
+def test_path_state_at_returns_none_for_absent_path(tmp_path: Path) -> None:
+    """Absence is a legitimate ``None`` state — never a raised GitProbeError."""
+    repo = _init_committed_repo(tmp_path)
+    _commit_file(repo, "src/pkg/x.py", "content\n", "add x")
+    assert git_probes.path_state_at(repo, "HEAD", "src/pkg/never-existed.py") is None
+
+
+def test_path_state_at_returns_none_for_path_deleted_at_ref(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    _commit_file(repo, "src/pkg/x.py", "content\n", "add x")
+    (repo / "src/pkg/x.py").unlink()
+    _git_seam(repo, "add", "-A")
+    _git_seam(repo, "commit", "-qm", "delete x")
+    assert git_probes.path_state_at(repo, "HEAD", "src/pkg/x.py") is None
+
+
+def test_path_state_at_raises_on_bad_ref(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    _commit_file(repo, "src/pkg/x.py", "content\n", "add x")
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.path_state_at(repo, "no-such-ref-xyz", "src/pkg/x.py")
+
+
+# --- is_merge_commit (WP04 / #5046 — R3/B4 merge-filtering support) ---------
+
+
+def test_is_merge_commit_false_for_ordinary_and_root_commits(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    root = _git_seam(repo, "rev-parse", "HEAD")
+    ordinary = _commit_file(repo, "src/pkg/a.py", "a\n", "add a")
+    assert git_probes.is_merge_commit(repo, root) is False
+    assert git_probes.is_merge_commit(repo, ordinary) is False
+
+
+def test_is_merge_commit_true_for_merge_commit(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    _git_seam(repo, "checkout", "-qb", "side")
+    _commit_file(repo, "side.py", "side\n", "side work")
+    _git_seam(repo, "checkout", "-q", "main")
+    _commit_file(repo, "main.py", "main\n", "main work")
+    _git_seam(repo, "merge", "-q", "--no-edit", "--no-ff", "side")
+    merge_sha = _git_seam(repo, "rev-parse", "HEAD")
+    assert git_probes.is_merge_commit(repo, merge_sha) is True
+
+
+def test_is_merge_commit_raises_on_bad_sha(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.is_merge_commit(repo, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")

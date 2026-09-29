@@ -47,7 +47,14 @@ from specify_cli.consolidation.reconciliation import (
     route_terminus,
     write_post_fix_marker,
 )
+from specify_cli.consolidation.canceled_attestation import OVERRIDABLE_REASONS
 from specify_cli.consolidation.state import clear_state
+from specify_cli.consolidation.wp_attribution import (
+    Attributed,
+    CanceledPathState,
+    Unattributable,
+    UnattributableReason,
+)
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -2075,3 +2082,864 @@ def test_squash_three_way_merge_resolution_is_unattributable(tmp_path: Path) -> 
     result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
     # Desired (not yet achievable): a genuine resolution is not "removed content".
     assert result.is_pass
+
+
+# --------------------------------------------------------------------------- #
+# Mixed-lane canceled-content axis (T022-T027, mixed-lane-authorship-
+# soundness / #5046 WP05). ``_canceled_content_divergence`` is exercised
+# directly against HAND-BUILT claims (every existing test in this file
+# constructs ``ApprovedWpCommitSet`` by keyword) so each contract C3 row is a
+# small, fast, isolated git shape -- the mixed-lane WIRING through
+# ``build_approved_wp_set`` (T022/T023) is covered separately below, and the
+# full end-to-end real-CLI proof lives in ``tests/terminus/test_repro_5046*.py``.
+# --------------------------------------------------------------------------- #
+
+_CANCELED_WP = "WP02"
+_CANCELED_LANE = "lane-a"
+_CANCELED_PATH = "src/pkg/shared.py"
+
+
+def _state_commit(repo: Path, base_sha: str, branch: str, path: str, content: str | None) -> str:
+    """Commit *path* to *content* (``None`` removes it) on a fresh *branch* cut
+    from *base_sha* -- an independent snapshot, never required to share
+    ancestry with any other ref this test builds (``path_state_at`` reads each
+    ref's tree in isolation)."""
+    _git(repo, "checkout", "-q", "-B", branch, base_sha)
+    full = repo / path
+    if content is None:
+        if full.exists():
+            full.unlink()
+            _git(repo, "add", "-A")
+        _git(repo, "commit", "--allow-empty", "-qm", f"state: {path} absent")
+    else:
+        full.parent.mkdir(parents=True, exist_ok=True)
+        full.write_text(content, encoding="utf-8")
+        _git(repo, "add", str(full))
+        _git(repo, "commit", "-qm", f"state: {path}")
+    sha = _rev(repo, "HEAD")
+    _git(repo, "checkout", "-q", _TARGET)
+    return sha
+
+
+def _canceled_claim(*, canceled_content: frozenset[CanceledPathState], window_base: str | None) -> ApprovedWpCommitSet:
+    """A hand-built claim carrying only the canceled-content axis under test --
+    every other field defaults empty/off, matching this module's established
+    "construct ``ApprovedWpCommitSet`` by keyword" convention."""
+    return ApprovedWpCommitSet(
+        excluded_window_base=window_base,
+        canceled_content=canceled_content,
+    )
+
+
+def _entry(*, canceled_state: str | None, pre_state: str | None, pre_state_by_survivor: bool = False, path: str = _CANCELED_PATH) -> CanceledPathState:
+    return CanceledPathState(
+        wp_id=_CANCELED_WP,
+        lane_id=_CANCELED_LANE,
+        path=path,
+        canceled_state=canceled_state,
+        pre_state=pre_state,
+        pre_state_by_survivor=pre_state_by_survivor,
+    )
+
+
+@pytest.fixture
+def _canceled_content_repo(tmp_path: Path) -> tuple[Path, str]:
+    """A bare init repo plus its base SHA -- every C3-row test cuts its own
+    target/window-base branches from this base via :func:`_state_commit`."""
+    repo = _init_repo(tmp_path)
+    return repo, _rev(repo, _TARGET)
+
+
+def test_canceled_content_row_target_carries_canceled_window_did_not_fails(_canceled_content_repo: tuple[Path, str]) -> None:
+    """C3 row 4: T == canceled_state, W != canceled_state -> FAIL."""
+    repo, base = _canceled_content_repo
+    canceled_blob = git_probes.blob_id_at(repo, _state_commit(repo, base, "target", _CANCELED_PATH, "wp02 content\n"), _CANCELED_PATH)
+    window = _state_commit(repo, base, "window", _CANCELED_PATH, None)  # absent at the window base
+    target = _state_commit(repo, base, "target2", _CANCELED_PATH, "wp02 content\n")
+    claim = _canceled_claim(canceled_content=frozenset({_entry(canceled_state=canceled_blob, pre_state=None)}), window_base=window)
+    result = MergeOutcomeVerifier(repo).verify(target, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert result.divergence.canceled_content == (_entry(canceled_state=canceled_blob, pre_state=None),)
+    text = result.divergence.describe()
+    assert f"carries canceled {_CANCELED_WP}'s change" in text
+    assert f"'{_CANCELED_PATH}'" in text
+    assert f"(lane {_CANCELED_LANE})" in text
+    assert "re-run spec-kitty consolidate" in text
+
+
+def test_canceled_content_row_survivor_undone_fails(_canceled_content_repo: tuple[Path, str]) -> None:
+    """C3 row 5: T == canceled_state == W, pre_state_by_survivor=True -> FAIL
+    (SC-007: a surviving lane commit's approved change was undone)."""
+    repo, base = _canceled_content_repo
+    shared_sha = _state_commit(repo, base, "shared", _CANCELED_PATH, "shared value\n")
+    canceled_blob = git_probes.blob_id_at(repo, shared_sha, _CANCELED_PATH)
+    entry = _entry(canceled_state=canceled_blob, pre_state=None, pre_state_by_survivor=True)
+    claim = _canceled_claim(canceled_content=frozenset({entry}), window_base=shared_sha)
+    result = MergeOutcomeVerifier(repo).verify(shared_sha, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert entry in result.divergence.canceled_content
+
+
+def test_canceled_content_row_target_already_had_it_unchanged(_canceled_content_repo: tuple[Path, str]) -> None:
+    """C3 row 6: T == canceled_state == W, pre_state_by_survivor=False -> no
+    finding (R4: the target already carried it, inherited from the base)."""
+    repo, base = _canceled_content_repo
+    shared_sha = _state_commit(repo, base, "shared2", _CANCELED_PATH, "shared value\n")
+    canceled_blob = git_probes.blob_id_at(repo, shared_sha, _CANCELED_PATH)
+    claim = _canceled_claim(
+        canceled_content=frozenset({_entry(canceled_state=canceled_blob, pre_state=None, pre_state_by_survivor=False)}),
+        window_base=shared_sha,
+    )
+    result = MergeOutcomeVerifier(repo).verify(shared_sha, claim)
+    assert result.is_pass
+
+
+def test_canceled_content_row_target_is_pre_state_unchanged(_canceled_content_repo: tuple[Path, str]) -> None:
+    """C3 row 3 (pre-state branch): T == pre_state -> no finding (the canceled
+    change never landed on the target at all)."""
+    repo, base = _canceled_content_repo
+    pre_sha = _state_commit(repo, base, "pre", _CANCELED_PATH, "pre-existing\n")
+    pre_blob = git_probes.blob_id_at(repo, pre_sha, _CANCELED_PATH)
+    canceled_sha = _state_commit(repo, base, "canceled", _CANCELED_PATH, "wp02 content\n")
+    canceled_blob = git_probes.blob_id_at(repo, canceled_sha, _CANCELED_PATH)
+    window = _state_commit(repo, base, "window3", _CANCELED_PATH, "window value\n")
+    claim = _canceled_claim(canceled_content=frozenset({_entry(canceled_state=canceled_blob, pre_state=pre_blob)}), window_base=window)
+    result = MergeOutcomeVerifier(repo).verify(pre_sha, claim)
+    assert result.is_pass
+
+
+def test_canceled_content_row_target_is_window_base_unchanged(_canceled_content_repo: tuple[Path, str]) -> None:
+    """C3 row 3 (window-base branch): T == W (and T != pre_state) -> no finding."""
+    repo, base = _canceled_content_repo
+    window = _state_commit(repo, base, "window4", _CANCELED_PATH, "window value\n")
+    window_blob = git_probes.blob_id_at(repo, window, _CANCELED_PATH)
+    canceled_sha = _state_commit(repo, base, "canceled4", _CANCELED_PATH, "wp02 content\n")
+    canceled_blob = git_probes.blob_id_at(repo, canceled_sha, _CANCELED_PATH)
+    pre_sha = _state_commit(repo, base, "pre4", _CANCELED_PATH, "some pre state\n")
+    pre_blob = git_probes.blob_id_at(repo, pre_sha, _CANCELED_PATH)
+    assert window_blob not in {canceled_blob, pre_blob}
+    claim = _canceled_claim(canceled_content=frozenset({_entry(canceled_state=canceled_blob, pre_state=pre_blob)}), window_base=window)
+    result = MergeOutcomeVerifier(repo).verify(window, claim)
+    assert result.is_pass
+
+
+def test_canceled_content_row_merged_with_independent_change_refuses(_canceled_content_repo: tuple[Path, str]) -> None:
+    """C3 row 7: T is neither canceled_state, pre_state, nor W -> REFUSE (R2)."""
+    repo, base = _canceled_content_repo
+    canceled_sha = _state_commit(repo, base, "canceled5", _CANCELED_PATH, "wp02 content\n")
+    canceled_blob = git_probes.blob_id_at(repo, canceled_sha, _CANCELED_PATH)
+    pre_sha = _state_commit(repo, base, "pre5", _CANCELED_PATH, "pre state\n")
+    pre_blob = git_probes.blob_id_at(repo, pre_sha, _CANCELED_PATH)
+    window = _state_commit(repo, base, "window5", _CANCELED_PATH, "window value\n")
+    target = _state_commit(repo, base, "target5", _CANCELED_PATH, "totally independent value\n")
+    claim = _canceled_claim(canceled_content=frozenset({_entry(canceled_state=canceled_blob, pre_state=pre_blob)}), window_base=window)
+    result = MergeOutcomeVerifier(repo).verify(target, claim)
+    assert result.status is VerifyStatus.REFUSE
+    assert result.refusal_reason is not None
+    assert _CANCELED_LANE in result.refusal_reason
+    assert _CANCELED_WP in result.refusal_reason
+    assert f"'{_CANCELED_PATH}'" in result.refusal_reason
+    assert "merged with an independent change" in result.refusal_reason
+    assert "re-run spec-kitty consolidate" in result.refusal_reason
+
+
+def test_canceled_content_deletion_row_renders_deleted_by(_canceled_content_repo: tuple[Path, str]) -> None:
+    """Deletion shape (``canceled_state is None``): FAIL renders "deleted by
+    canceled <WP>", distinct from the add/modify "carries ... change" wording
+    (WP02's rendering contract)."""
+    repo, base = _canceled_content_repo
+    target = _state_commit(repo, base, "target6", _CANCELED_PATH, None)  # WP02 deleted it
+    window = _state_commit(repo, base, "window6", _CANCELED_PATH, "was here\n")  # window base still had it
+    claim = _canceled_claim(canceled_content=frozenset({_entry(canceled_state=None, pre_state="deadbeef" * 5)}), window_base=window)
+    result = MergeOutcomeVerifier(repo).verify(target, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    text = result.divergence.describe()
+    assert f"deleted by canceled {_CANCELED_WP}" in text
+    assert f"'{_CANCELED_PATH}'" in text
+    assert "re-run spec-kitty consolidate" in text
+
+
+def test_canceled_content_window_base_unresolved_refuses(_canceled_content_repo: tuple[Path, str]) -> None:
+    """Entries exist but ``excluded_window_base`` is ``None`` -> REFUSE
+    (T024's own fail-closed guard, distinct from the reachability path's)."""
+    repo, base = _canceled_content_repo
+    claim = _canceled_claim(canceled_content=frozenset({_entry(canceled_state="a" * 40, pre_state=None)}), window_base=None)
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.REFUSE
+    assert result.refusal_reason is not None
+    assert "window base" in result.refusal_reason
+
+
+def test_canceled_content_git_probe_error_refuses(_canceled_content_repo: tuple[Path, str]) -> None:
+    """An unresolvable target/window ref -> REFUSE, not a crash (fail-closed)."""
+    repo, base = _canceled_content_repo
+    window = _state_commit(repo, base, "window7", _CANCELED_PATH, "value\n")
+    claim = _canceled_claim(canceled_content=frozenset({_entry(canceled_state="a" * 40, pre_state=None)}), window_base=window)
+    result = MergeOutcomeVerifier(repo).verify("not-a-real-ref-at-all", claim)
+    assert result.status is VerifyStatus.REFUSE
+    assert result.refusal_reason is not None
+    assert "canceled-content" in result.refusal_reason
+
+
+def test_canceled_content_empty_claim_is_noop(_canceled_content_repo: tuple[Path, str]) -> None:
+    """No canceled-content entries at all (every existing claim) -> pure no-op,
+    even with ``excluded_window_base=None`` -- byte-identical to pre-#5046."""
+    repo, base = _canceled_content_repo
+    claim = ApprovedWpCommitSet(manifest_wp_ids=frozenset())
+    assert MergeOutcomeVerifier(repo)._canceled_content_divergence(_TARGET, claim) == ([], None)
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
+
+
+@pytest.mark.parametrize("verify_reachability", [True, False], ids=["merge_rebase", "squash"])
+def test_canceled_content_fail_merges_into_pass_strategy_result(_canceled_content_repo: tuple[Path, str], verify_reachability: bool) -> None:
+    """T024: a strategy PASS becomes FAIL carrying only the canceled-content
+    divergence, under BOTH strategies (C-003 independence)."""
+    repo, base = _canceled_content_repo
+    canceled_sha = _state_commit(repo, base, "canceled8", _CANCELED_PATH, "wp02 content\n")
+    canceled_blob = git_probes.blob_id_at(repo, canceled_sha, _CANCELED_PATH)
+    window = _state_commit(repo, base, "window8", _CANCELED_PATH, None)
+    target = _state_commit(repo, base, "target8", _CANCELED_PATH, "wp02 content\n")
+    claim = ApprovedWpCommitSet(
+        manifest_wp_ids=frozenset(),
+        excluded_window_base=window,
+        canceled_content=frozenset({_entry(canceled_state=canceled_blob, pre_state=None)}),
+        verify_reachability=verify_reachability,
+    )
+    result = MergeOutcomeVerifier(repo).verify(target, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert result.divergence.canceled_content
+    # No OTHER axis fired -- this claim carries no approved/authored/excluded
+    # commits at all, so every other divergence field stays empty.
+    assert result.divergence.missing_approved == ()
+    assert result.divergence.reachable_excluded == ()
+    assert result.divergence.unattributable_content == ()
+    assert result.divergence.unattributable_blobs == ()
+    assert result.divergence.unattributable_deletions == ()
+
+
+def test_canceled_content_fail_merges_onto_existing_divergence(_canceled_content_repo: tuple[Path, str]) -> None:
+    """T024: when the strategy axis ITSELF FAILs, the canceled-content entries
+    are combined onto the SAME ``Divergence`` (``dataclasses.replace``), never
+    replacing the strategy's own findings."""
+    repo, base = _canceled_content_repo
+    missing_sha = "b" * 40
+    canceled_sha = _state_commit(repo, base, "canceled9", _CANCELED_PATH, "wp02 content\n")
+    canceled_blob = git_probes.blob_id_at(repo, canceled_sha, _CANCELED_PATH)
+    window = _state_commit(repo, base, "window9", _CANCELED_PATH, None)
+    target = _state_commit(repo, base, "target9", _CANCELED_PATH, "wp02 content\n")
+    claim = ApprovedWpCommitSet(
+        approved={"WP01": (missing_sha,)},
+        manifest_wp_ids=frozenset({"WP01"}),
+        excluded_window_base=window,
+        canceled_content=frozenset({_entry(canceled_state=canceled_blob, pre_state=None)}),
+    )
+    result = MergeOutcomeVerifier(repo).verify(target, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert result.divergence.missing_approved == (("WP01", missing_sha),)
+    assert result.divergence.canceled_content
+
+
+def test_canceled_content_strategy_refuse_wins_over_fail_candidates() -> None:
+    """A strategy REFUSE always stays REFUSE, never downgraded by merging in
+    canceled-content FAIL candidates (REFUSE precedes FAIL throughout this
+    module) -- exercised at the ``_merge_canceled_content_into_result`` seam
+    directly, the merge point every strategy branch routes through."""
+    from specify_cli.consolidation.reconciliation import _merge_canceled_content_into_result
+
+    refused = VerifyResult.refused("claim integrity gone")
+    merged = _merge_canceled_content_into_result(refused, [_entry(canceled_state="a" * 40, pre_state=None)])
+    assert merged is refused
+
+
+# --------------------------------------------------------------------------- #
+# Mixed-lane WIRING (T022/T023) -- build_approved_wp_set + resolve_canceled_wp
+# --------------------------------------------------------------------------- #
+
+
+def _build_mixed_lane_entered_mission(
+    tmp_path: Path,
+    *,
+    stamp_attribution: bool = True,
+    entered_implementation: bool = True,
+    canceled_path: str = _CANCELED_PATH,
+    canceled_content: str = "wp02 content\n",
+) -> tuple[Path, Path, LanesManifest, str, str]:
+    """A single lane-a shared by an approved WP01 and a canceled WP02 that
+    entered implementation and made one real commit -- the minimal C2 "mixed
+    lane" shape, git-backed (real lane-tip commits, real event stamps)."""
+    repo = _init_repo(tmp_path)
+    feature_dir = repo / "kitty-specs" / _MISSION_SLUG
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": _MISSION_SLUG, "mission_id": _MISSION_ID, "mission_type": "software-dev", "target_branch": _TARGET}),
+        encoding="utf-8",
+    )
+    lane = ExecutionLane(
+        lane_id="lane-a",
+        wp_ids=("WP01", "WP02"),
+        write_scope=("src/pkg",),
+        predicted_surfaces=("code",),
+        depends_on_lanes=(),
+        parallel_group=0,
+    )
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=_MISSION_SLUG,
+        mission_id=_MISSION_ID,
+        mission_branch=f"kitty/mission-{_MISSION_SLUG}",
+        target_branch=_TARGET,
+        lanes=[lane],
+        computed_at=_now_iso(),
+        computed_from="mixed-lane-recon-test",
+    )
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    write_lanes_json(feature_dir, manifest)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "bootstrap mixed-lane mission")
+    coord_base = _rev(repo, "HEAD")
+
+    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    _git(repo, "branch", lane_branch, coord_base)
+    _git(repo, "checkout", "-q", lane_branch)
+
+    def head() -> str:
+        return _rev(repo, "HEAD")
+
+    events: list[dict[str, object]] = [
+        _event(i, "WP01", frm, to, at=f"2026-01-01T00:0{i}:00+00:00", lamport=i) for i, (frm, to) in enumerate(_APPROVE_CHAIN, start=1)
+    ]
+    for e in events:
+        if stamp_attribution:
+            e["policy_metadata"] = {"lane_head": coord_base}
+
+    if not entered_implementation:
+        events.append(_event(90, "WP02", "planned", "canceled", at="2026-01-02T00:00:00+00:00", lamport=6))
+    else:
+        e_claim = _event(90, "WP02", "planned", "claimed", at="2026-01-02T00:00:00+00:00", lamport=6)
+        if stamp_attribution:
+            e_claim["policy_metadata"] = {"lane_head": head()}
+        events.append(e_claim)
+        e_prog = _event(91, "WP02", "claimed", "in_progress", at="2026-01-02T00:01:00+00:00", lamport=7)
+        if stamp_attribution:
+            e_prog["policy_metadata"] = {"lane_head": head()}
+        events.append(e_prog)
+
+        full = repo / canceled_path
+        full.parent.mkdir(parents=True, exist_ok=True)
+        full.write_text(canceled_content, encoding="utf-8")
+        _git(repo, "add", str(full))
+        _git(repo, "commit", "-qm", "feat: WP02 canceled content")
+
+        e_cancel = _event(92, "WP02", "in_progress", "canceled", at="2026-01-02T00:02:00+00:00", lamport=8)
+        if stamp_attribution:
+            e_cancel["policy_metadata"] = {"lane_head": head()}
+        events.append(e_cancel)
+
+    _git(repo, "checkout", "-q", _TARGET)
+    (feature_dir / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
+    _git(repo, "add", str((feature_dir / "status.events.jsonl").relative_to(repo)))
+    _git(repo, "commit", "-qm", "record mixed-lane events")
+
+    return repo, feature_dir, manifest, coord_base, lane_branch
+
+
+def test_mixed_lane_wiring_unattributable_no_stamp_refuses(tmp_path: Path) -> None:
+    """T022: a mixed lane's canceled WP with real commits but no attribution
+    stamp -> the WHOLE claim REFUSEs, naming the lane, the WP, and the
+    ``no_stamp`` reason's own ``no commit attribution`` phrase (WP02 T008's
+    binding rendering contract)."""
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=False)
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+    )
+    assert claim.surface_resolved
+    assert claim.refusal is not None
+    assert "mixed lane lane-a" in claim.refusal
+    assert "WP02" in claim.refusal
+    assert "no commit attribution" in claim.refusal
+    assert "re-run spec-kitty consolidate" in claim.refusal
+
+
+def test_mixed_lane_wiring_resolved_populates_canceled_content(tmp_path: Path) -> None:
+    """T023: a resolvable mixed lane populates ``canceled_content`` from the
+    resolver's ``Attributed`` outcome, and the claim does NOT refuse."""
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+        excluded_window_base=coord_base,
+    )
+    assert claim.refusal is None
+    assert claim.surface_resolved
+    assert len(claim.canceled_content) == 1
+    entry = next(iter(claim.canceled_content))
+    assert entry.wp_id == "WP02"
+    assert entry.lane_id == "lane-a"
+    assert entry.path == _CANCELED_PATH
+
+
+def test_mixed_lane_wiring_never_entered_implementation_is_noop(tmp_path: Path) -> None:
+    """T022's own gate (delegated to ``resolve_canceled_wp``): a canceled WP
+    that never entered implementation contributes nothing, and the claim
+    still does not refuse."""
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, entered_implementation=False)
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+    )
+    assert claim.refusal is None
+    assert claim.canceled_content == frozenset()
+
+
+def test_mixed_lane_wiring_non_mixed_lane_never_reads_events(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-002: a mission with no mixed lane never pays the event-log read at
+    all -- byte-identical to pre-#5046 for every non-mixed mission."""
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("read_events must not be called when no mixed lane exists")
+
+    monkeypatch.setattr("specify_cli.status.read_events", _boom)
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
+    assert claim.refusal is None
+    assert claim.canceled_content == frozenset()
+
+
+def test_mixed_lane_wiring_events_unreadable_refuses(tmp_path: Path) -> None:
+    """NFR-002: a mixed lane whose ``status.events.jsonl`` is corrupted ->
+    REFUSE naming the ``events_unreadable`` shape, not a raised exception.
+
+    Exercised at ``_resolve_mixed_lane_canceled_content`` directly (module-
+    private, same-package access — this file's established pattern), NOT
+    through ``build_approved_wp_set``: ``materialize_snapshot`` reads the SAME
+    file through the identically-strict ``read_event_stream`` parser BEFORE
+    this function is ever reached, so a fully-corrupted file already refuses
+    one step earlier via the pre-existing "coordination surface could not be
+    materialized" path (unrelated to #5046) — the file-corruption REFUSE this
+    test proves is the WIRING inside ``_resolve_mixed_lane_canceled_content``
+    itself, which is exactly what production reaches if ``read_events`` ever
+    raises for a reason ``materialize_snapshot``'s own read tolerated.
+    """
+    from specify_cli.consolidation.reconciliation import _resolve_mixed_lane_canceled_content
+
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    (feature_dir / "status.events.jsonl").write_text("{not valid json\n", encoding="utf-8")
+
+    work_packages = {"WP01": {"lane": "approved"}, "WP02": {"lane": "canceled"}}
+    canceled_content, attested, refusal = _resolve_mixed_lane_canceled_content(
+        repo,
+        feature_dir,
+        manifest,
+        work_packages,
+        frozenset({"WP02"}),
+        coord_base,
+        None,
+    )
+    assert canceled_content == frozenset()
+    assert attested == frozenset()
+    assert refusal is not None
+    assert "mixed lane lane-a" in refusal
+    # The events_unreadable detail comes from the shared _DETAIL_TEMPLATES text.
+    assert "the mission's lifecycle event log could not be read" in refusal
+    assert "WP02" in refusal
+    assert "re-run spec-kitty consolidate" in refusal
+    assert "cannot be overridden" in refusal
+
+
+def test_mixed_lane_wiring_unattributable_precedes_missing_approved_fail(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T022: refusals take precedence over FAIL by construction -- a mixed
+    lane's Unattributable outcome refuses the claim BEFORE the usual
+    approved/authored/excluded collectors ever run, even when a resolvable
+    (non-mixed) part of the manifest would otherwise FAIL."""
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+
+    def _fake_resolve(*_args: object, **kwargs: object) -> Unattributable:
+        return Unattributable(UnattributableReason.CONTESTED_COMMIT, f"{kwargs['canceled_wp_id']} in {kwargs['lane_id']}: contested (test double)")
+
+    monkeypatch.setattr("specify_cli.consolidation.reconciliation.resolve_canceled_wp", _fake_resolve)
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+    )
+    assert claim.refusal is not None
+    assert "contested (test double)" in claim.refusal
+    assert claim.approved == {}  # the usual collectors never ran
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        UnattributableReason.OPEN_WINDOW,
+        UnattributableReason.STAMP_NOT_ANCESTOR_OF_LANE_TIP,
+        UnattributableReason.CONTESTED_COMMIT,
+        UnattributableReason.SPINE_UNREADABLE,
+    ],
+)
+def test_mixed_lane_wiring_refusal_names_lane_wp_and_recovery_for_every_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reason: UnattributableReason
+) -> None:
+    """NFR-003: every Unattributable reason's composed refusal names the lane,
+    the WP, and carries the recovery step -- the WIRING, not the reasons
+    themselves (wp_attribution's own suite pins those exhaustively)."""
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+
+    def _fake_resolve(*_args: object, **kwargs: object) -> Unattributable:
+        return Unattributable(reason, f"detail for {reason.value}")
+
+    monkeypatch.setattr("specify_cli.consolidation.reconciliation.resolve_canceled_wp", _fake_resolve)
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+    )
+    assert claim.refusal is not None
+    assert "lane-a" in claim.refusal
+    assert "WP02" in claim.refusal
+    assert f"detail for {reason.value}" in claim.refusal
+    assert "re-run spec-kitty consolidate" in claim.refusal
+
+
+def test_mixed_lane_wiring_passes_shared_bookkeeping_predicate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The claim builder hands ``resolve_canceled_wp`` the SAME bookkeeping
+    denylist the verifier itself uses (``functools.partial(_is_bookkeeping,
+    ...)``), never a duplicate -- proved by calling the ``is_bookkeeping``
+    callback the resolver received and comparing it against the module-level
+    ``_is_bookkeeping`` function directly."""
+    from specify_cli.consolidation.reconciliation import _is_bookkeeping
+
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    captured: dict[str, object] = {}
+
+    def _fake_resolve(*_args: object, **kwargs: object) -> Attributed:
+        captured["is_bookkeeping"] = kwargs["is_bookkeeping"]
+        return Attributed(commits=frozenset(), canceled_content=frozenset())
+
+    monkeypatch.setattr("specify_cli.consolidation.reconciliation.resolve_canceled_wp", _fake_resolve)
+    build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+    )
+    is_bookkeeping = captured["is_bookkeeping"]
+    for path in (".kittify/state.json", f"kitty-specs/{_MISSION_SLUG}/meta.json", "src/pkg/shared.py"):
+        assert is_bookkeeping(path) == _is_bookkeeping(path, _MISSION_SLUG, f"kitty-specs/{_MISSION_SLUG}")
+
+
+def test_mixed_lane_fully_canceled_single_wp_lane_is_not_mixed(tmp_path: Path) -> None:
+    """A lane whose ONLY WP is simultaneously ``approved`` in the Lamport
+    snapshot AND canceled-with-provenance per the caller (the "provenance
+    override" shape ``_unresolvable_approved_lane_branches`` already exempts)
+    is NOT a mixed lane -- there is no surviving WP to compare against, and
+    such a lane's branch may legitimately not even exist."""
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
+    lane_b_branch = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    _git(repo, "branch", "-qD", lane_b_branch)  # WP02's lane branch no longer exists
+
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+    )
+    assert claim.refusal is None
+    assert claim.canceled_content == frozenset()
+    assert "WP01" in claim.approved
+
+
+# --------------------------------------------------------------------------- #
+# Byte-identical pin (Objectives & Success Criteria) -- no issue-5018-class
+# regression surface: every pre-existing collector-derived field stays
+# EXACTLY what the unmodified collectors compute, for both a non-mixed and a
+# mixed-lane input.
+# --------------------------------------------------------------------------- #
+
+
+def test_claim_fields_are_byte_identical_to_unmodified_collectors_non_mixed(tmp_path: Path) -> None:
+    from specify_cli.consolidation.reconciliation import (
+        _collect_approved_shas,
+        _collect_authored,
+        _collect_excluded,
+    )
+    from specify_cli.status import materialize_snapshot
+
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
+
+    snapshot = materialize_snapshot(feature_dir)
+    work_packages = snapshot.work_packages or {}
+    expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
+    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths = _collect_authored(
+        repo, manifest, work_packages, coord_base
+    )
+    expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
+        repo, manifest, coord_base, frozenset(), authored_shas=expected_authored_shas, authored_patch_ids=expected_authored_patch_ids
+    )
+
+    assert claim.approved == expected_approved
+    assert claim.authored_shas == expected_authored_shas
+    assert claim.authored_patch_ids == expected_authored_patch_ids
+    assert claim.authored_blobs == expected_authored_blobs
+    assert claim.authored_deletions == expected_authored_deletions
+    assert claim.multi_lane_paths == expected_multi_lane_paths
+    assert claim.excluded_shas == expected_excluded_shas
+    assert claim.excluded_patch_ids == expected_excluded_patch_ids
+    assert claim.canceled_content == frozenset()  # non-mixed mission: always empty
+
+
+def test_claim_fields_are_byte_identical_to_unmodified_collectors_mixed_lane(tmp_path: Path) -> None:
+    """The SAME pin, but for a genuinely mixed-lane mission -- proves the new
+    T022/T023 wiring never perturbs the pre-existing collector fields even
+    when it DOES populate ``canceled_content``."""
+    from specify_cli.consolidation.reconciliation import (
+        _collect_approved_shas,
+        _collect_authored,
+        _collect_excluded,
+    )
+    from specify_cli.status import materialize_snapshot
+
+    repo, feature_dir, manifest, coord_base, _lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+    )
+    assert claim.canceled_content  # the axis DID populate
+
+    snapshot = materialize_snapshot(feature_dir)
+    work_packages = snapshot.work_packages or {}
+    expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
+    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths = _collect_authored(
+        repo, manifest, work_packages, coord_base
+    )
+    expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
+        repo, manifest, coord_base, frozenset({"WP02"}), authored_shas=expected_authored_shas, authored_patch_ids=expected_authored_patch_ids
+    )
+
+    assert claim.approved == expected_approved
+    assert claim.authored_shas == expected_authored_shas
+    assert claim.authored_patch_ids == expected_authored_patch_ids
+    assert claim.authored_blobs == expected_authored_blobs
+    assert claim.authored_deletions == expected_authored_deletions
+    assert claim.multi_lane_paths == expected_multi_lane_paths
+    assert claim.excluded_shas == expected_excluded_shas
+    assert claim.excluded_patch_ids == expected_excluded_patch_ids
+
+
+# --------------------------------------------------------------------------- #
+# recovery_guidance() REFUSE wording correction (D-4b / WP07: every REFUSE now
+# restores the target, so the sentence claiming "nothing was mutated" is wrong).
+# --------------------------------------------------------------------------- #
+
+
+def test_refuse_recovery_guidance_reflects_target_restoration() -> None:
+    result = VerifyResult.refused("some coordination-surface problem")
+    guidance = result.recovery_guidance()
+    assert "some coordination-surface problem" in guidance
+    assert "restored" in guidance.lower()
+    assert "no refs/worktrees were mutated" not in guidance  # the corrected (pre-#5046) claim
+
+
+def test_refuse_recovery_guidance_does_not_double_a_trailing_period() -> None:
+    result = VerifyResult.refused("mixed lane lane-a: canceled WP02 cannot be attributed, then re-run spec-kitty consolidate.")
+    guidance = result.recovery_guidance()
+    assert "consolidate.." not in guidance
+    assert "then re-run spec-kitty consolidate. The target branch is being restored" in guidance
+
+
+def test_fail_recovery_guidance_reflects_target_restoration() -> None:
+    result = VerifyResult.failed(Divergence(unattributable_deletions=("src/pkg/legacy.py",)))
+    guidance = result.recovery_guidance()
+    assert "being restored to its pre-consolidation tip" in guidance
+    assert "no refs/worktrees were mutated" not in guidance
+
+
+# --------------------------------------------------------------------------- #
+# FR-012 — operator-attested override (#5046 landing)
+# --------------------------------------------------------------------------- #
+
+
+def _append_attestation(repo: Path, feature_dir: Path, wp_id: str = "WP02", *, seq: int = 99, lamport: int = 50, lane_head: str | None = None) -> None:
+    """Append a valid attestation record (the shape ``canceled_attestation`` writes)."""
+    from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY, CANCELED_SUPERSEDED
+
+    event = _event(seq, wp_id, "canceled", "canceled", at="2026-01-03T00:00:00+00:00", lamport=lamport)
+    event.update(
+        actor="operator",
+        force=True,
+        reason="operator attests canceled content absent or superseded: checked",
+        reason_source="operator",
+        policy_metadata={ATTESTATION_KEY: CANCELED_SUPERSEDED, **({"lane_head": lane_head} if lane_head else {})},
+    )
+    events_path = feature_dir / "status.events.jsonl"
+    with events_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, sort_keys=True) + "\n")
+    _git(repo, "add", str(events_path.relative_to(repo)))
+    _git(repo, "commit", "-qm", "attest")
+
+
+def test_attested_unstamped_mixed_lane_falls_back_to_whole_lane(tmp_path: Path) -> None:
+    """An attested WP's ``no_stamp`` REFUSE is lifted: no refusal, no per-WP content."""
+    repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=False)
+    _append_attestation(repo, feature_dir)
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is None
+    assert claim.canceled_content == frozenset()
+    assert claim.attested_canceled_wp_ids == frozenset({"WP02"})
+
+
+def test_attestation_never_lifts_visible_canceled_content(tmp_path: Path) -> None:
+    """A FAIL stays a FAIL: attested, stamped, unsuperseded content is still collected."""
+    repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    _append_attestation(repo, feature_dir)
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is None
+    assert {entry.path for entry in claim.canceled_content} == {_CANCELED_PATH}
+
+
+def test_closed_world_reason_is_lifted_by_the_attestation_anchor_not_by_reason() -> None:
+    """Review MAJOR: the closed world is bounded by the attestation stamp, never lifted wholesale."""
+    assert UnattributableReason.COMMIT_OUTSIDE_WINDOWS not in OVERRIDABLE_REASONS
+
+
+@pytest.mark.parametrize("reason", sorted(OVERRIDABLE_REASONS, key=lambda r: r.value))
+def test_overridable_reason_refusal_names_the_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reason: UnattributableReason) -> None:
+    repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    monkeypatch.setattr(
+        "specify_cli.consolidation.reconciliation.resolve_canceled_wp",
+        lambda *_a, **_k: Unattributable(reason, f"detail for {reason.value}"),
+    )
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is not None
+    assert '--attest-canceled-superseded WP02 --attest-reason "<what you checked>"' in claim.refusal
+    assert "cannot clear" in claim.refusal
+    # ... and an attestation lifts it.
+    _append_attestation(repo, feature_dir)
+    lifted = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert lifted.refusal is None
+
+
+@pytest.mark.parametrize("reason", [UnattributableReason.EVENTS_UNREADABLE, UnattributableReason.SPINE_UNREADABLE])
+def test_infrastructure_refusal_is_not_overridable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reason: UnattributableReason) -> None:
+    assert reason not in OVERRIDABLE_REASONS
+    repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    _append_attestation(repo, feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.consolidation.reconciliation.resolve_canceled_wp",
+        lambda *_a, **_k: Unattributable(reason, f"detail for {reason.value}"),
+    )
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is not None
+    assert "cannot be overridden" in claim.refusal
+    assert "--attest-canceled-superseded" not in claim.refusal
+
+
+def test_attested_wp_lifts_merged_with_independent_change(_canceled_content_repo: tuple[Path, str]) -> None:
+    repo, base = _canceled_content_repo
+    canceled_sha = _state_commit(repo, base, "canceled8", _CANCELED_PATH, "wp02 content\n")
+    pre_sha = _state_commit(repo, base, "pre8", _CANCELED_PATH, "pre state\n")
+    window = _state_commit(repo, base, "window8", _CANCELED_PATH, "window value\n")
+    target = _state_commit(repo, base, "target8", _CANCELED_PATH, "totally independent value\n")
+    entry = _entry(
+        canceled_state=git_probes.blob_id_at(repo, canceled_sha, _CANCELED_PATH),
+        pre_state=git_probes.blob_id_at(repo, pre_sha, _CANCELED_PATH),
+    )
+    refused = MergeOutcomeVerifier(repo).verify(target, _canceled_claim(canceled_content=frozenset({entry}), window_base=window))
+    assert refused.status is VerifyStatus.REFUSE
+    assert refused.refusal_reason is not None and f"--attest-canceled-superseded {_CANCELED_WP}" in refused.refusal_reason
+    attested = replace(_canceled_claim(canceled_content=frozenset({entry}), window_base=window), attested_canceled_wp_ids=frozenset({_CANCELED_WP}))
+    assert MergeOutcomeVerifier(repo).verify(target, attested).is_pass
+
+
+def test_attested_wp_does_not_lift_canceled_content_fail(_canceled_content_repo: tuple[Path, str]) -> None:
+    repo, base = _canceled_content_repo
+    target = _state_commit(repo, base, "target9", _CANCELED_PATH, "wp02 content\n")
+    window = _state_commit(repo, base, "window9", _CANCELED_PATH, "window value\n")
+    entry = _entry(canceled_state=git_probes.blob_id_at(repo, target, _CANCELED_PATH), pre_state=None)
+    attested = replace(_canceled_claim(canceled_content=frozenset({entry}), window_base=window), attested_canceled_wp_ids=frozenset({_CANCELED_WP}))
+    assert MergeOutcomeVerifier(repo).verify(target, attested).status is VerifyStatus.FAIL
+
+
+def test_closed_world_anchors_are_transitive_dependency_tips_plus_target_base() -> None:
+    """Review BLOCKER: dependency-lane tips (transitively) and the target tip anchor the closed world."""
+    from specify_cli.consolidation.reconciliation import _closed_world_anchors
+
+    def lane(lane_id: str, deps: tuple[str, ...]) -> ExecutionLane:
+        return ExecutionLane(lane_id=lane_id, wp_ids=(), write_scope=(), predicted_surfaces=(), depends_on_lanes=deps, parallel_group=0)
+
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=_MISSION_SLUG,
+        mission_id=_MISSION_ID,
+        mission_branch=f"kitty/mission-{_MISSION_SLUG}",
+        target_branch=_TARGET,
+        lanes=[lane("lane-a", ()), lane("lane-b", ("lane-a", "lane-zz")), lane("lane-c", ("lane-b", "lane-a"))],
+        computed_at=_now_iso(),
+        computed_from="anchor-test",
+    )
+    anchors = _closed_world_anchors(manifest, manifest.lanes[2], "target-tip-sha")
+    assert anchors[-1] == "target-tip-sha"
+    assert len(anchors) == 3  # lane-a, lane-b; the unknown lane-zz is ignored
+    assert all("lane-" in a for a in anchors[:2])
+    assert _closed_world_anchors(manifest, manifest.lanes[0], None) == []
+
+
+def _commit_on_lane(repo: Path, lane_branch: str, path: str) -> str:
+    _git(repo, "checkout", "-q", lane_branch)
+    full = repo / path
+    full.parent.mkdir(parents=True, exist_ok=True)
+    full.write_text(f"{path}\n", encoding="utf-8")
+    _git(repo, "add", path)
+    _git(repo, "commit", "-qm", f"straggler {path}")
+    sha = _rev(repo, "HEAD")
+    _git(repo, "checkout", "-q", _TARGET)
+    return sha
+
+
+def test_attestation_exempts_only_commits_up_to_its_own_stamp(tmp_path: Path) -> None:
+    """Review MAJOR: an attestation is bounded in time — a straggler committed AFTER it still REFUSEs."""
+    repo, feature_dir, manifest, coord_base, lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    before = _commit_on_lane(repo, lane_branch, "src/pkg/before_attest.py")
+    _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane_branch))
+    after = _commit_on_lane(repo, lane_branch, "src/pkg/after_attest.py")
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is not None, "a straggler committed after the attestation must still REFUSE"
+    assert after[:10] in claim.refusal
+    assert "'src/pkg/after_attest.py'" in claim.refusal
+    assert before[:10] not in claim.refusal
+
+
+def test_attestation_exempts_stragglers_it_covers(tmp_path: Path) -> None:
+    repo, feature_dir, manifest, coord_base, lane_branch = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
+    _commit_on_lane(repo, lane_branch, "src/pkg/before_attest.py")
+    unattested = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert unattested.refusal is not None and "outside every WP's recorded work window" in unattested.refusal
+    _append_attestation(repo, feature_dir, lane_head=_rev(repo, lane_branch))
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
+    assert claim.refusal is None
+    assert {entry.path for entry in claim.canceled_content} == {_CANCELED_PATH}  # the visible FAIL still stands

@@ -2406,8 +2406,9 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
 
     terminus-merge-integrity WP06 (FR-001/FR-002; NFR-005). Runs strictly between
     ``_phase_commit_and_assert`` and cleanup. On FAIL/REFUSE it refuses (non-zero
-    exit) with recovery guidance and tears down NOTHING and mutates NOTHING; on
-    PASS it continues to cleanup. The success message is scoped to
+    exit) with recovery guidance, tears down NOTHING, and restores the target ref to
+    its pre-mutation tip with a compare-and-swap (FR-010); on PASS it continues to
+    cleanup. The success message is scoped to
     **approved-WP commit reachability** (NOT verdict integrity — #4941 out of
     scope, FR-013; #4990 closed the rejection-after-approval case).
     """
@@ -2433,19 +2434,21 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
         console.print(_reconciliation_pass_message(run.strategy))
         return
     console.print(f"\n[red]Error:[/red] {result.recovery_guidance()}")
-    # terminus-merge-integrity (S-D): a FAIL means the target tree diverged from
-    # the approved-WP claim — a removed/canceled commit rode a carrier lane onto
-    # the target, or approved work is missing. The mission→target advance already
-    # landed before this gate (it is homed post-``_phase_commit_and_assert``), so a
-    # bare refusal would leave the divergent content on the integration branch. Roll
-    # the target ref back to its PRE-mutation tip (captured at transaction start)
-    # so the epic invariant holds: after a non-zero exit, nothing excluded is
-    # reachable from the target. NO teardown runs (branches/worktrees are retained
-    # for inspection — the ordering guarantee), and the revert is a CAS restore that
-    # fails safe if the ref moved. A REFUSE (fail-closed claim integrity, not a
-    # proven tree divergence) keeps its historical behavior: it never advanced under
-    # a materialized claim, so there is nothing to revert here.
-    if result.status is VerifyStatus.FAIL:
+    # terminus-merge-integrity (S-D) / FR-010 (mixed-lane-authorship-soundness
+    # operator decision 01M3MAB8FTDKKVVTXPREK75AEP, "Rollback on REFUSE only"):
+    # the mission→target advance already landed before this gate (it is homed
+    # post-``_phase_commit_and_assert``), so EVERY non-PASS verdict leaves the
+    # target sitting on a state this gate did not just prove sound. A FAIL is a
+    # proven tree divergence — a removed/canceled commit rode a carrier lane onto
+    # the target, or approved work is missing. A REFUSE is a fail-closed claim
+    # that could not even be evaluated — the target is equally unverified, not
+    # "known good", so there is exactly as much to revert. Roll the target ref
+    # back to its PRE-mutation tip (captured at transaction start) on both so the
+    # epic invariant holds: after a non-zero exit, the target is at its
+    # pre-mutation tip. NO teardown runs (branches/worktrees are retained for
+    # inspection — the ordering guarantee), and the revert is a CAS restore that
+    # fails safe if the ref moved since (warns, never overwrites a newer tip).
+    if result.status in (VerifyStatus.FAIL, VerifyStatus.REFUSE):
         _rollback_target_after_failed_reconciliation(run)
     raise typer.Exit(1)
 
@@ -2474,14 +2477,19 @@ def _reconciliation_pass_message(strategy: MergeStrategy) -> str:
 
 
 def _rollback_target_after_failed_reconciliation(run: _MergeRunState) -> None:
-    """Revert the target ref to its pre-mutation tip after a reconciliation FAIL.
+    """Revert the target ref to its pre-mutation tip after a non-PASS reconciliation
+    verdict (FAIL or REFUSE — FR-010, "Rollback on REFUSE only").
 
     Restores ``target_branch`` to ``run.target_expected_old_sha`` (the tip read at
     transaction start, before any lane/mission→target advance) with a
     compare-and-swap, then refreshes the primary checkout so its working tree
-    matches the reverted ref. Best-effort and non-fatal: the command is already
-    exiting non-zero with recovery guidance; a rollback hiccup is warned, never
-    masked. No-op when the pre-mutation tip is unknown (nothing safe to restore).
+    matches the reverted ref. The name is kept (not ``..._failed_or_refused_...``)
+    because ``tests/consolidation/test_merge_state_authority.py:500`` imports it
+    directly by this name — the helper itself never distinguished FAIL from
+    REFUSE; only its caller's gating condition did. Best-effort and non-fatal:
+    the command is already exiting non-zero with recovery guidance; a rollback
+    hiccup is warned, never masked. No-op when the pre-mutation tip is unknown
+    (nothing safe to restore).
     """
     pre_merge_sha = run.target_expected_old_sha
     if not pre_merge_sha:
@@ -2505,7 +2513,7 @@ def _rollback_target_after_failed_reconciliation(run: _MergeRunState) -> None:
     except RefRestoreError as exc:
         console.print(
             f"[yellow]Warning:[/yellow] could not revert {target_branch!r} to its "
-            f"pre-merge tip after the reconciliation failure: {exc}. Inspect the "
+            f"pre-merge tip after the reconciliation FAIL/REFUSE: {exc}. Inspect the "
             "target branch by hand before retrying."
         )
         return
@@ -3198,6 +3206,52 @@ def _pre_mutation_safety_preflight(
         assert_worktree_clean(coord_worktree, is_residue=is_residue, treat_untracked_as_dirty=True)
 
 
+def _record_operator_attestations(
+    main_repo: Path,
+    mission_slug: str,
+    *,
+    wp_ids: tuple[str, ...],
+    reason: str | None,
+    acceptably_canceled: frozenset[str],
+) -> None:
+    """Validate and record ``--attest-canceled-superseded`` (FR-012), before any mutation.
+
+    Refuses (exit 1, nothing recorded) a WP that is not canceled with operator
+    provenance. Every explicit ``--attest-canceled-superseded`` records a FRESH
+    attestation, even for a WP already attested: each is a new operator act
+    with its own reason and a new ``lane_head`` stamp, and that stamp is what
+    bounds the closed-world exemption (a straggler landed after an earlier
+    attestation is covered only once the operator attests again). Written through the canonical transactional status seam
+    (``canceled_attestation.record_canceled_superseded_attestation``).
+    """
+    if not wp_ids:
+        return
+    from specify_cli.consolidation.canceled_attestation import (
+        AttestationError,
+        record_canceled_superseded_attestation,
+        validate_attestation_request,
+    )
+    from specify_cli.consolidation.done_bookkeeping import _resolve_merge_actor
+
+    try:
+        requested = validate_attestation_request(wp_ids, reason, acceptably_canceled=acceptably_canceled)
+    except AttestationError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    primary_feature_dir = placement_seam(main_repo, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    actor = _resolve_merge_actor(main_repo)
+    for wp_id in requested:
+        record_canceled_superseded_attestation(
+            repo_root=main_repo,
+            feature_dir=primary_feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            reason=reason or "",
+            actor=actor,
+        )
+        console.print(f"[yellow]⚠️  Operator attestation recorded for canceled {wp_id} by {actor}:[/yellow] {(reason or '').strip()}")
+
+
 def _run_lane_based_consolidation_locked(
     main_repo: Path,
     mission_slug: str,
@@ -3215,6 +3269,8 @@ def _run_lane_based_consolidation_locked(
     skip_review_artifact_check: bool = False,
     skip_note: str | None = None,
     skip_lanes: bool = False,
+    attest_canceled_superseded: tuple[str, ...] = (),
+    attest_reason: str | None = None,
 ) -> None:
     """Inner merge flow, called with the global merge lock held.
 
@@ -3242,6 +3298,15 @@ def _run_lane_based_consolidation_locked(
     excluded_canceled_wp_ids = frozenset(acceptably_canceled_wp_ids(main_repo, mission_slug))
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids]
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
+    # FR-012: record any operator attestation BEFORE the claim is captured, so
+    # the reconciliation gate reads it from the event log it already reads.
+    _record_operator_attestations(
+        main_repo,
+        mission_slug,
+        wp_ids=attest_canceled_superseded,
+        reason=attest_reason,
+        acceptably_canceled=excluded_canceled_wp_ids,
+    )
 
     # INV (ordering preserved from the pre-refactor monolith): the review-artifact
     # consistency gate runs BEFORE merge-state is loaded/created, so a rejected
@@ -3391,8 +3456,8 @@ def _run_lane_based_consolidation_locked(
         run.target_baseline_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch) or run.target_baseline_sha
     # terminus-merge-integrity WP06 (S-D): the tree-authoritative reconciliation
     # gate runs strictly BEFORE any teardown/push — on FAIL/REFUSE it refuses
-    # (non-zero) and mutates nothing (ordering guarantee: teardown executes only
-    # after verify == PASS).
+    # (non-zero), restores the target ref, and tears down nothing (ordering
+    # guarantee: teardown executes only after verify == PASS).
     _phase_reconcile_before_teardown(run)
     _phase_dossier_and_stale(run)
     _phase_push(run)
@@ -3661,6 +3726,8 @@ def _run_lane_based_consolidation(
     skip_review_artifact_check: bool = False,
     skip_note: str | None = None,
     skip_lanes: bool = False,
+    attest_canceled_superseded: tuple[str, ...] = (),
+    attest_reason: str | None = None,
 ) -> None:
     """Execute the lane-only merge flow with ConsolidationState lifecycle for recovery.
 
@@ -3873,6 +3940,8 @@ def _run_lane_based_consolidation(
             skip_review_artifact_check=skip_review_artifact_check,
             skip_note=skip_note,
             skip_lanes=skip_lanes,
+            attest_canceled_superseded=attest_canceled_superseded,
+            attest_reason=attest_reason,
         )
     finally:
         release_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo)

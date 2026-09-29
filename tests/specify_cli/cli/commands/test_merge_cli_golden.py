@@ -80,6 +80,10 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         # merge-ready mission that has no lane branch. ``--no-lanes`` is the alias.
         "--skip-lanes",
         "--no-lanes",
+        # #5046 landing (FR-012): operator-attested override for a mixed-lane
+        # REFUSE whose attribution evidence can never appear later.
+        "--attest-canceled-superseded",
+        "--attest-reason",
     }
 )
 

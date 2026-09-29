@@ -411,9 +411,7 @@ def patch_id_of(repo_root: Path, sha: str) -> str:
         check=False,
     )
     if show.returncode != 0:
-        raise GitProbeError(
-            f"git show {sha} failed (exit {show.returncode}): {(show.stderr or '').strip()}"
-        )
+        raise GitProbeError(f"git show {sha} failed (exit {show.returncode}): {(show.stderr or '').strip()}")
     pid = _subprocess.run(
         ["git", "patch-id", "--stable"],
         input=show.stdout,
@@ -569,11 +567,76 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
         check=False,
     )
     if result.returncode != 0:
-        raise GitProbeError(
-            f"git show --name-only {sha} failed (exit {result.returncode}): "
-            f"{(result.stderr or '').strip()}"
-        )
+        raise GitProbeError(f"git show --name-only {sha} failed (exit {result.returncode}): {(result.stderr or '').strip()}")
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
+    """Return the blob object id of *path* at *ref*, or ``None`` when it is ABSENT.
+
+    Mixed-lane-authorship-soundness / WP04 (#5046): :func:`blob_id_at` raises
+    :class:`GitProbeError` for BOTH an absent path and a genuine probe failure —
+    a caller that needs to tell "the canceled WP's change deleted this path" (a
+    legitimate ``None`` state) apart from "the ref could not be read" would have
+    to catch-and-guess which one it got. This probe makes the distinction
+    explicit instead: ``git ls-tree <ref> -- <path>`` succeeds (exit 0) whether
+    or not *path* exists in the tree at *ref* — an absent path prints nothing,
+    a present one prints its ``<mode> <type> <sha>\\t<path>`` entry — so exit
+    code alone tells "ref unreadable" (raise) apart from "path absent" (``None``).
+    Only a genuinely BAD ref (unresolvable, corrupt object store, …) raises;
+    never for a merely-missing path.
+
+    Used by :mod:`specify_cli.consolidation.wp_attribution` (canceled/pre-state
+    resolution, R1) where "the canceled WP deleted this path" and "the state
+    could not be read" must never be conflated — the former is legitimate
+    content the verifier may need to FAIL on, the latter must REFUSE.
+    """
+    ret, out, err = run_command(
+        ["git", "ls-tree", ref, "--", path],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git ls-tree {ref} -- {path} failed (exit {ret}): {(err or '').strip()}")
+    line = (out or "").strip()
+    if not line:
+        return None  # genuinely absent at this ref — not a probe failure
+    header, _tab, _tail = line.partition("\t")
+    fields = header.split()
+    if len(fields) < 3:
+        raise GitProbeError(f"git ls-tree {ref} -- {path} produced unparsable output: {line!r}")
+    return fields[2]
+
+
+def is_merge_commit(repo_root: Path, sha: str) -> bool:
+    """Return True when *sha* has 2 or more parents (a merge commit).
+
+    Mixed-lane-authorship-soundness / WP04 (#5046, R3/B4): a merge commit
+    (lane-sync with the coord branch, a coord auto-rebase merge, …) never
+    attributes to — or is superseded by — a WP's own authored work; the
+    window/spine walks in :mod:`wp_attribution` use this to filter merge
+    commits out before recording a "toucher" for a path. ``git rev-list
+    --parents -n1 <sha>`` prints ``<sha> [<parent> ...]`` on one line; a root
+    commit prints just ``<sha>`` (0 parents), an ordinary commit ``<sha>
+    <parent>`` (1 parent), and a merge ``<sha> <parent1> <parent2> ...``
+    (>=2 parents) — so >=3 whitespace-separated tokens on that line means
+    >=2 parents. Raises :class:`GitProbeError` on any git error (an
+    unresolvable *sha*, a corrupt object store, …); never silently reads an
+    error as "not a merge" (fail-closed, mirrors every other probe here).
+    """
+    ret, out, err = run_command(
+        ["git", "rev-list", "--parents", "-n1", sha],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git rev-list --parents -n1 {sha} failed (exit {ret}): {(err or '').strip()}")
+    tokens = (out or "").split()
+    if not tokens:
+        raise GitProbeError(f"git rev-list --parents -n1 {sha} produced no output")
+    return len(tokens) >= 3
 
 
 # ---------------------------------------------------------------------------
@@ -814,9 +877,7 @@ def driver_replay_expected_bytes(
     ours_bytes = _read_git_blob_bytes(repo_root, ours_ref, repo_rel_path)
     theirs_bytes = _read_git_blob_bytes(repo_root, theirs_ref, repo_rel_path)
     if ours_bytes is None or theirs_bytes is None:
-        raise GitProbeError(
-            f"driver replay for {repo_rel_path!r}: missing ours ({ours_ref}) or theirs ({theirs_ref}) blob"
-        )
+        raise GitProbeError(f"driver replay for {repo_rel_path!r}: missing ours ({ours_ref}) or theirs ({theirs_ref}) blob")
     base_bytes = _read_git_blob_bytes(repo_root, base_ref, repo_rel_path) or b""
 
     with tempfile.TemporaryDirectory(prefix="kitty-driver-replay-") as tmp_dir_name:
@@ -861,6 +922,8 @@ __all__ = [
     "patch_ids_in_range",
     "first_parent_commits_in_range",
     "blob_id_at",
+    "path_state_at",
+    "is_merge_commit",
     "changed_paths_in_range",
     "changed_paths_of",
     "lane_integrated_by_tree_or_ancestry",
