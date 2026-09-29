@@ -354,9 +354,13 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
 
 
 def test_mark_wp_merged_done_skips_when_already_done(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """_mark_wp_merged_done is idempotent when WP is already in done lane."""
+    """_mark_wp_merged_done is idempotent when WP is already in done lane.
+
+    Without the dedup the flow still emits nothing (no approval evidence), so
+    the silence is the oracle: a fall-through prints a spurious warning.
+    """
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
@@ -374,6 +378,7 @@ def test_mark_wp_merged_done_skips_when_already_done(
     _mark_wp_merged_done(tmp_path, mission_slug, "WP01", "main")
 
     emit_mock.assert_not_called()
+    assert "Warning" not in capsys.readouterr().out
 
 
 def test_mark_wp_merged_done_skips_when_no_approval_metadata_for_non_approved(

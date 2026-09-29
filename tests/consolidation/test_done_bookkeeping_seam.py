@@ -445,41 +445,54 @@ def test_approved_replay_returns_none_on_transition_error() -> None:
 
 
 # --- _mark_wp_merged_done: early-exit branches ------------------------------
+#
+# The WP-file lookup goes through ``placement_seam(...).read_dir(
+# MissionArtifactKind.WORK_PACKAGE_TASK)``, so these tests patch that seam entry
+# point. Each early exit is pinned by its observable effect: the done transition
+# is never emitted, and the operator sees the exit's own warning (or none).
+
+_EMIT_TRANSACTIONAL = "specify_cli.coordination.status_transition.emit_status_transition_transactional"
+_READ_STREAM_TRANSACTIONAL = "specify_cli.coordination.status_transition.read_event_stream_transactional"
+_READ_STATE_TRANSACTIONAL = "specify_cli.coordination.status_transition.read_current_wp_state_transactional"
+
+
+def _primary_seam(tmp_path: Path) -> MagicMock:
+    return MagicMock(read_dir=MagicMock(return_value=tmp_path))
 
 
 def test_mark_wp_merged_done_warns_when_wp_file_missing(tmp_path: Path) -> None:
     with (
-        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
-        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
-        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
-        # Patch the seam entry point the module actually calls now.
-        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
+        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=None),
+        patch(_READ_STREAM_TRANSACTIONAL) as read_stream_mock,
+        patch(_EMIT_TRANSACTIONAL) as emit_mock,
+        db.console.capture() as captured,
     ):
-        # No exception, just a warning + early return.
         db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
+    assert "Could not locate WP file for WP01" in captured.get()
+    read_stream_mock.assert_not_called()
+    emit_mock.assert_not_called()
 
 
 def test_mark_wp_merged_done_noop_when_already_done(tmp_path: Path) -> None:
+    """Retry idempotence: a WP already ``done`` is skipped silently.
+
+    Without the dedup the flow still emits nothing here (no approval evidence),
+    so the silence is the oracle: a fall-through prints a spurious warning.
+    """
     wp_file = tmp_path / "WP01.md"
     with (
-        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
-        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
-        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
-        # Patch the seam entry point the module actually calls now.
-        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
+        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
-        patch(
-            "specify_cli.coordination.status_transition.read_event_stream_transactional",
-            return_value=EventStream(),
-        ),
-        patch(
-            "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
-            return_value=CurrentWpState(Lane.DONE, "merge", None),
-        ),
+        patch(_READ_STREAM_TRANSACTIONAL, return_value=EventStream()),
+        patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.DONE, "merge", None)),
+        patch(_EMIT_TRANSACTIONAL) as emit_mock,
+        db.console.capture() as captured,
     ):
         db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
+    assert "Warning" not in captured.get()
+    emit_mock.assert_not_called()
 
 
 def test_mark_wp_merged_done_re_records_done_for_a_wp_reopened_after_done(tmp_path: Path) -> None:
@@ -488,18 +501,15 @@ def test_mark_wp_merged_done_re_records_done_for_a_wp_reopened_after_done(tmp_pa
     bookkeeping) but which was reopened and is ``approved`` again is re-recorded."""
     wp_file = tmp_path / "WP01.md"
     with (
-        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
+        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
-        patch("specify_cli.coordination.status_transition.read_event_stream_transactional", return_value=_review_stream()),
-        patch(
-            "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
-            return_value=CurrentWpState(Lane.APPROVED, "merge", None),
-        ),
+        patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
+        patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.APPROVED, "merge", None)),
         patch.object(db, "_has_transition_to", return_value=True),  # a done exists in history
         patch.object(db, "_resolve_lane_with_planned_fallback", return_value=(Lane.APPROVED, False)),
         patch.object(db, "_emit_approved_replay_if_needed", return_value=(Lane.APPROVED, False)),
-        patch("specify_cli.coordination.status_transition.emit_status_transition_transactional") as emit_mock,
+        patch(_EMIT_TRANSACTIONAL) as emit_mock,
     ):
         db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
     emit_mock.assert_called_once()
@@ -507,26 +517,16 @@ def test_mark_wp_merged_done_re_records_done_for_a_wp_reopened_after_done(tmp_pa
 
 
 def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> None:
-    """Final done emit raising TransitionError is caught + warned (lines 338-339)."""
+    """Final done emit raising TransitionError is caught + warned."""
     from specify_cli.status import TransitionError
 
     wp_file = tmp_path / "WP01.md"
     with (
-        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
-        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
-        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
-        # Patch the seam entry point the module actually calls now.
-        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
+        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
-        patch(
-            "specify_cli.coordination.status_transition.read_event_stream_transactional",
-            return_value=_review_stream(),
-        ),
-        patch(
-            "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
-            return_value=CurrentWpState(Lane.APPROVED, "merge", None),
-        ),
+        patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
+        patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.APPROVED, "merge", None)),
         patch.object(db, "_has_transition_to", return_value=False),
         patch.object(
             db, "_resolve_lane_with_planned_fallback", return_value=(Lane.APPROVED, False)
@@ -534,34 +534,21 @@ def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> 
         patch.object(
             db, "_emit_approved_replay_if_needed", return_value=(Lane.APPROVED, False)
         ),
-        patch(
-            "specify_cli.coordination.status_transition.emit_status_transition_transactional",
-            side_effect=TransitionError("rejected done jump"),
-        ),
+        patch(_EMIT_TRANSACTIONAL, side_effect=TransitionError("rejected done jump")),
     ):
         # The TransitionError is swallowed with a warning; no exception escapes.
         db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
 
 
 def test_mark_wp_merged_done_warns_when_lane_not_approved(tmp_path: Path) -> None:
-    """A non-approved post-replay lane skips the done move (lines 308-309)."""
+    """A non-approved post-replay lane skips the done move with a warning."""
     wp_file = tmp_path / "WP01.md"
     with (
-        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
-        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
-        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
-        # Patch the seam entry point the module actually calls now.
-        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
+        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
-        patch(
-            "specify_cli.coordination.status_transition.read_event_stream_transactional",
-            return_value=_review_stream(),
-        ),
-        patch(
-            "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
-            return_value=CurrentWpState(Lane.IN_REVIEW, "merge", None),
-        ),
+        patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
+        patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.IN_REVIEW, "merge", None)),
         patch.object(db, "_has_transition_to", return_value=False),
         patch.object(
             db, "_resolve_lane_with_planned_fallback", return_value=(Lane.IN_REVIEW, False)
@@ -569,36 +556,36 @@ def test_mark_wp_merged_done_warns_when_lane_not_approved(tmp_path: Path) -> Non
         patch.object(
             db, "_emit_approved_replay_if_needed", return_value=(Lane.IN_REVIEW, False)
         ),
+        patch(_EMIT_TRANSACTIONAL) as emit_mock,
+        db.console.capture() as captured,
     ):
         db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
+    assert "WP01 is in lane 'in_review', not approved" in captured.get()
+    emit_mock.assert_not_called()
 
 
 def test_mark_wp_merged_done_aborts_when_replay_returns_none(tmp_path: Path) -> None:
-    """A failed approved-replay (None) aborts the done emission (line 304)."""
+    """A failed approved-replay (None) aborts the done emission.
+
+    The resolved lane is APPROVED, so the not-approved guard downstream cannot
+    stop the emit: only the abort-on-None does.
+    """
     wp_file = tmp_path / "WP01.md"
     with (
-        # WP05 (read-side-placement-seam-migration) routed the WP-file lookup
-        # off `resolve_planning_read_dir` onto `placement_seam(...).read_dir(
-        # MissionArtifactKind.WORK_PACKAGE_TASK)` (done_bookkeeping.py:261).
-        # Patch the seam entry point the module actually calls now.
-        patch.object(db, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=tmp_path))),
+        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "resolve_status_surface"),
-        patch(
-            "specify_cli.coordination.status_transition.read_event_stream_transactional",
-            return_value=_review_stream(),
-        ),
-        patch(
-            "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
-            return_value=CurrentWpState(Lane.FOR_REVIEW, "merge", None),
-        ),
+        patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
+        patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.FOR_REVIEW, "merge", None)),
         patch.object(db, "_has_transition_to", return_value=False),
         patch.object(
-            db, "_resolve_lane_with_planned_fallback", return_value=(Lane.FOR_REVIEW, False)
+            db, "_resolve_lane_with_planned_fallback", return_value=(Lane.APPROVED, False)
         ),
         patch.object(db, "_emit_approved_replay_if_needed", return_value=None),
+        patch(_EMIT_TRANSACTIONAL) as emit_mock,
     ):
         db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
+    emit_mock.assert_not_called()
 
 
 # --- _assert_merged_wps_reached_done ----------------------------------------
