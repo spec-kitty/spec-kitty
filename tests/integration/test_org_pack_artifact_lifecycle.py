@@ -345,17 +345,18 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
         consumer, pack_name="very-serious-developers", local_path=pack_path
     )
 
+    # No explicit built-in root: the styleguide repository self-resolves
+    # the shipped ``packs/built-in/styleguides/`` tier, which really ships
+    # ``python-conventions`` -- the collision this test asserts requires
+    # the built-in styleguide to actually load (a stale ``src/doctrine``
+    # root loads zero styleguides, so nothing could ever collide).
+    service = DoctrineService(
+        project_root=consumer / ".kittify" / "doctrine",
+        org_roots=[pack_path],
+    )
+    # Force the styleguides repository to load — the warning fires at load time
+    # (repositories load lazily, so construction above emits nothing).
     with pytest.warns(DoctrineLayerCollisionWarning) as warning_records:
-        # No explicit built-in root: the styleguide repository self-resolves
-        # the shipped ``packs/built-in/styleguides/`` tier, which really ships
-        # ``python-conventions`` -- the collision this test asserts requires
-        # the built-in styleguide to actually load (a stale ``src/doctrine``
-        # root loads zero styleguides, so nothing could ever collide).
-        service = DoctrineService(
-            project_root=consumer / ".kittify" / "doctrine",
-            org_roots=[pack_path],
-        )
-        # Force the styleguides repository to load — the warning fires at load time.
         _ = list(service.styleguides.all())
 
     messages = [str(record.message) for record in warning_records]

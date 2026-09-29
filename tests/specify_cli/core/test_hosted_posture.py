@@ -362,7 +362,7 @@ class TestParseErrorsFailClosed:
         (repo / ".kittify" / "config.yaml").write_text("hosted: [unterminated\n", encoding="utf-8")
         _home(tmp_path, toml_text="[hosted]\ndrain = true\n")
 
-        with pytest.warns(UserWarning) as caught:
+        with pytest.warns(UserWarning, match="could not parse YAML") as caught:
             posture = drain_posture(project_root=repo)
 
         assert posture.enabled is False
@@ -373,7 +373,7 @@ class TestParseErrorsFailClosed:
         home = _home(tmp_path)
         (home / "config.toml").write_text("not [ valid toml", encoding="utf-8")
 
-        with pytest.warns(UserWarning) as caught:
+        with pytest.warns(UserWarning, match="could not parse TOML") as caught:
             posture = drain_posture(project_root=repo)
 
         assert posture.enabled is False
@@ -384,7 +384,7 @@ class TestParseErrorsFailClosed:
         repo = _repo(tmp_path, yaml_text=f"hosted:\n  drain: {raw}\n")
         _home(tmp_path, toml_text="[hosted]\ndrain = true\n")
 
-        with pytest.warns(UserWarning) as caught:
+        with pytest.warns(UserWarning, match=r"hosted\.drain is not a boolean") as caught:
             posture = drain_posture(project_root=repo)
 
         assert posture.enabled is False
@@ -395,7 +395,7 @@ class TestParseErrorsFailClosed:
         repo = _repo(tmp_path, yaml_text="hosted:\n  drain: true\n")
         _home(tmp_path, toml_text=f"[hosted]\ndrain = {raw}\n")
 
-        with pytest.warns(UserWarning) as caught:
+        with pytest.warns(UserWarning, match=r"hosted\.drain is not a boolean") as caught:
             posture = drain_posture(project_root=repo)
 
         assert posture.enabled is False
@@ -426,7 +426,7 @@ class TestLedgerPosture:
     def test_default_true_with_a_warning_when_non_boolean(self, tmp_path: Path) -> None:
         repo = _repo(tmp_path, yaml_text='ledger:\n  projection: "nope"\n')
 
-        with pytest.warns(UserWarning):
+        with pytest.warns(UserWarning, match=r"ledger\.projection is not a boolean"):
             posture = ledger_posture(project_root=repo)
 
         assert posture.enabled is True
@@ -442,7 +442,7 @@ class TestLedgerPosture:
         repo = _repo(tmp_path)
         (repo / ".kittify" / "config.yaml").write_text("ledger: [unterminated\n", encoding="utf-8")
 
-        with pytest.warns(UserWarning) as caught:
+        with pytest.warns(UserWarning, match="could not parse YAML") as caught:
             posture = ledger_posture(project_root=repo)
 
         assert posture.enabled is True

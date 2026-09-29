@@ -154,7 +154,7 @@ class TestDeprecatedScalarRoleStandaloneValid:
             "specialization": {"primary-focus": "test focus"},
         }
 
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning, match="scalar 'role:' field is deprecated"):
             profile = AgentProfile.model_validate(data)
 
         assert profile.roles == ["implementer"]

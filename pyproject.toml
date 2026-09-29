@@ -2526,6 +2526,17 @@ select = [
     "ASYNC",  # async issues (≈ Sonar S7497, S7502)
     "S",      # bandit security checks (≈ Sonar S2083)
     "TID251", # flake8-tidy-imports: banned-api (not TID252 which enforces absolute imports codebase-wide)
+    # flake8-pytest-style weak-oracle rules (#5351): a test whose `raises`/`warns` accepts the
+    # wrong failure, or whose assertion lives in an `except` that never runs, passes on a broken
+    # product. Caught here, before any test runs. Legacy hits: ruff.toml PT baseline (shrink-only).
+    "PT010",  # pytest.raises() without an exception class
+    "PT011",  # pytest.raises(<broad exception>) without match=
+    "PT012",  # pytest.raises() block with more than one statement
+    "PT015",  # assertion that always fails
+    "PT016",  # pytest.fail() without a message
+    "PT017",  # assertion on an exception inside `except` (vacuous when nothing raises)
+    "PT030",  # pytest.warns(<broad warning>) without match=
+    "PT031",  # pytest.warns() block with more than one statement
 ]
 ignore = [
     "S101",   # allow assert (used extensively in tests and guards)

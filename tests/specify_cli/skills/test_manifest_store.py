@@ -617,7 +617,7 @@ def test_forward_compat_save_drops_unknown_field(tmp_path: Path) -> None:
             "future_field": {"nested": True},
         },
     )
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="unknown top-level fields"):
         manifest = load(tmp_path)
 
     save(tmp_path, manifest)
