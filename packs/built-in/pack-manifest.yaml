@@ -655,7 +655,7 @@ constituents:
   kind: styleguide
   path: styleguides/research-citation-discipline.styleguide.yaml
   provenance_path:
-- content_hash: 217c4c5060f794ea615448ebc62f5d16246da4eb9f160b2b5e20fa97eaefa672
+- content_hash: 27b2c91b2e243341e4c169c2cb6193a32a45642f5d1e5b89bc4cbd3b0ed01f00
   id: test-desiderata-and-boundaries
   kind: styleguide
   path: styleguides/test-desiderata-and-boundaries.styleguide.yaml
@@ -1390,7 +1390,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 554aa3d90d2ac47e73b5f723c58a23a9af78e0c3c2d0c1d4642a28eee510e75d
+manifest_hash: 4e88d01b7e81cfb642dbd7b5d347473f53cb4947d5a0349621da4c97a0505cfa
 schema_version: '1'
 source_type: built-in
 source_url:

@@ -46,7 +46,7 @@ patterns:
     description: >
       For every property, know where a violation is caught first, and move the
       check as far left as the tooling allows. In a Python/pytest codebase:
-      Specific is linted (ruff PT018 composite assertions, one behaviour per
+      Specific can be linted (ruff PT018 composite assertions, one behaviour per
       test); Behavioral is partly linted (ruff PT011/PT030 broad raises or warns
       without match=, PT017 assertion inside an except, PT012/PT031 multi-statement
       raises or warns blocks) and otherwise proven by a planted-break self-test;
