@@ -28,7 +28,7 @@ import pytest
 import typer
 
 import specify_cli.status  # noqa: F401  # import-order guard (see #2711 harness)
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.config import MergeStrategy
@@ -60,7 +60,7 @@ def _branch_for(lane_id: str) -> str:
     """The lane's CREATED branch name:
     never the Mission-identity form — matches :func:`~specify_cli.merge.executor
     ._created_lane_branch`, which never takes a ``mission_id``."""
-    branch: str = lane_branch_name(MISSION_SLUG, lane_id, planning_base_branch=TARGET)
+    branch: str = code_lane_branch_name(MISSION_SLUG, lane_id)
     return branch
 
 

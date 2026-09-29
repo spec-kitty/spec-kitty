@@ -141,11 +141,11 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
 
                     manifest = read_lanes_json(feature_dir)
                     lane = manifest.lane_for_wp(wp_code) if manifest is not None else None
-                    if lane is not None:
+                    if lane is not None and manifest is not None:
                         git_files = _git_diff_files(
                             repo_root,
                             base_branch,
-                            lane_branch_name(feature_slug, lane.lane_id),
+                            lane_branch_name(feature_slug, lane.lane_id, target_branch=manifest.target_branch),
                         )
                 except Exception as exc:
                     logger.debug("lane diff inference failed for %s: %s", wp_file.name, exc)

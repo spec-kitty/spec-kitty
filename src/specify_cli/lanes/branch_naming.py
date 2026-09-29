@@ -54,6 +54,7 @@ __all__ = [
     "BranchIdentityUnresolved",
     "InvalidMissionIdentity",
     "LEGACY_FAILOVER_SUPPRESS_ENV",
+    "code_lane_branch_name",
     "coord_branch_name",
     "coord_dir_name",
     "coord_mission_dir_name",
@@ -78,6 +79,16 @@ _MISSION_PREFIX = "kitty/mission-"
 _COORD_DIR_SUFFIX = "-coord"
 # Root directory (relative to repo root) under which lane/coord worktrees live.
 _WORKTREES_DIRNAME = ".worktrees"
+
+# Canonical lane-id for all planning-artifact WPs (mirrors
+# ``specify_cli.lanes.compute.PLANNING_LANE_ID``). Duplicated here as a
+# private literal, not imported, to avoid a circular import — ``lanes.compute``
+# already imports ``lane_branch_name`` from this module.
+# WP02 review cycle 2 nit: WP03's planned ``is_planning_lane`` ->
+# ``is_repo_root_lane`` rename touches BOTH this literal and
+# ``compute.PLANNING_LANE_ID`` — update them together, they cannot drift
+# independently without breaking this module's guard checks.
+_PLANNING_LANE_ID = "lane-planning"
 
 # Env var that suppresses the one-shot legacy-failover deprecation warning,
 # mirroring the project's selector_resolution suppress-env pattern.
@@ -493,16 +504,49 @@ def resolve_transaction_mid8(
     return ""
 
 
+def code_lane_branch_name(mission_slug: str, lane_id: str) -> str:
+    """Return a CODE lane's branch name (never the planning lane).
+
+    Byte-identical to the pre-WP02 code-lane arm of :func:`lane_branch_name`.
+    Raises when handed the planning lane id: a caller that reaches for this
+    function has already asserted (by construction) that it holds a code
+    lane, so a planning-lane id here is a programming error, not a
+    resolvable request (there is no ``kitty/mission-…`` branch for the
+    repo-root lane).
+
+    Args:
+        mission_slug: Mission slug (e.g. ``"083-my-feature"`` or
+            ``"my-feature-01KNXQS9"``).
+        lane_id: A CODE lane identifier (e.g. ``"lane-a"``). Never
+            ``PLANNING_LANE_ID``.
+
+    Raises:
+        ValueError: ``lane_id`` is the canonical planning lane id.
+    """
+    if lane_id == _PLANNING_LANE_ID:
+        raise ValueError("code_lane_branch_name() does not resolve the planning lane; use lane_branch_name(..., target_branch=...) instead")
+    # Idempotency-preserving (#1949): embedded-mid8 slugs dedup their stale
+    # NNN- prefix; pure legacy NNN- slugs are preserved verbatim.
+    return f"{_MISSION_PREFIX}{_idempotent_legacy_body(mission_slug)}-{lane_id}"
+
+
 def lane_branch_name(
     mission_slug: str,
     lane_id: str,
-    planning_base_branch: str | None = None,
+    *,
+    target_branch: str,
 ) -> str:
     """Return a lane branch name.
 
-    For the canonical ``lane-planning`` lane, returns the planning base branch
-    rather than a ``kitty/mission-…`` branch name, because planning-artifact WPs
-    live in the main repository checkout on the target branch (typically ``main``).
+    For the canonical ``lane-planning`` lane, returns *target_branch* rather
+    than a ``kitty/mission-…`` branch name, because planning-artifact WPs
+    live in the main repository checkout on the target branch. Every caller
+    MUST name the target branch explicitly (WP02, FR-001/FR-002) — there is
+    no default: a silent fallback to a guessed branch name (formerly
+    ``"main"``) let the planning lane resolve to a branch that does not exist
+    on a mission whose real target branch is something else, and let the
+    ``for_review`` gate predict a ``.worktrees/…`` path that is never
+    created (#5100).
 
     Lane names are keyed on the creation input (slug + lane id) alone (WP07,
     FR-002/PD-1); the Mission identity is not an input (I-1). A mid8 token
@@ -512,26 +556,24 @@ def lane_branch_name(
         mission_slug: Mission slug (e.g. ``"083-my-feature"`` or
             ``"my-feature-01KNXQS9"``).
         lane_id: Lane identifier (e.g. ``"lane-a"`` or ``"lane-planning"``).
-        planning_base_branch: The branch that planning-artifact work targets
-            (typically the value of ``target_branch`` from ``meta.json``).
-            Defaults to ``"main"`` when ``lane_id == "lane-planning"`` and this
-            argument is omitted.  Ignored for all other lane IDs.
+        target_branch: The branch the mission merges into (the value of
+            ``target_branch`` from ``meta.json`` / the lanes manifest).
+            Required keyword — every caller must resolve and pass it, even
+            when it composes a code-lane branch (which ignores it).
 
     Examples:
-        lane_branch_name("my-feature-01KNXQS9", "lane-a")
+        lane_branch_name("my-feature-01KNXQS9", "lane-a", target_branch="main")
           -> "kitty/mission-my-feature-01KNXQS9-lane-a"
-        lane_branch_name("057-my-feature", "lane-a")  # legacy
+        lane_branch_name("057-my-feature", "lane-a", target_branch="main")  # legacy
           -> "kitty/mission-057-my-feature-lane-a"
-        lane_branch_name("083-my-feature", "lane-planning")
+        lane_branch_name("083-my-feature", "lane-planning", target_branch="main")
           -> "main"
-        lane_branch_name("083-my-feature", "lane-planning", planning_base_branch="release/3.x")
+        lane_branch_name("083-my-feature", "lane-planning", target_branch="release/3.x")
           -> "release/3.x"
     """
-    if lane_id == "lane-planning":
-        return planning_base_branch if planning_base_branch is not None else "main"
-    # Idempotency-preserving (#1949): embedded-mid8 slugs dedup their stale
-    # NNN- prefix; pure legacy NNN- slugs are preserved verbatim.
-    return f"{_MISSION_PREFIX}{_idempotent_legacy_body(mission_slug)}-{lane_id}"
+    if lane_id == _PLANNING_LANE_ID:
+        return target_branch
+    return code_lane_branch_name(mission_slug, lane_id)
 
 
 # ---------------------------------------------------------------------------

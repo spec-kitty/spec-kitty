@@ -52,7 +52,7 @@ import pytest
 
 from mission_runtime import CommitTarget
 from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
@@ -418,7 +418,7 @@ def test_3281_retry_reenters_self_heal_to_establish_post_materialize_ancestry(
     assert not (lane_b_worktree / "lane_a_output.txt").exists()
 
     # Step 2: lane-a's dependency work lands and is approved.
-    lane_a_branch = lane_branch_name(_ANCESTRY_MISSION_SLUG, "lane-a")
+    lane_a_branch = code_lane_branch_name(_ANCESTRY_MISSION_SLUG, "lane-a")
     _git(repo, "branch", lane_a_branch, "main")
     _git(repo, "checkout", "-q", lane_a_branch)
     (repo / "lane_a_output.txt").write_text("lane-a code\n", encoding="utf-8")

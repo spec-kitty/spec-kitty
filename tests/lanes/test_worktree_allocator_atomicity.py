@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path
+from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
@@ -159,7 +159,7 @@ def _setup_two_dep_conflict(repo: Path) -> tuple[Path, LanesManifest, ExecutionL
     # Dependency lane-a: a clean, non-overlapping addition.
     _commit_on_branch(
         repo,
-        lane_branch_name(MISSION_SLUG, "lane-a"),
+        code_lane_branch_name(MISSION_SLUG, "lane-a"),
         "main",
         "from_lane_a.txt",
         "lane-a content\n",
@@ -167,7 +167,7 @@ def _setup_two_dep_conflict(repo: Path) -> tuple[Path, LanesManifest, ExecutionL
     # Dependency lane-b: writes the shared file (will conflict with lane-c).
     _commit_on_branch(
         repo,
-        lane_branch_name(MISSION_SLUG, "lane-b"),
+        code_lane_branch_name(MISSION_SLUG, "lane-b"),
         "main",
         SHARED_FILE,
         "lane-b version\n",
@@ -175,7 +175,7 @@ def _setup_two_dep_conflict(repo: Path) -> tuple[Path, LanesManifest, ExecutionL
 
     # Dependent lane-c worktree: branch off main, write the shared file with a
     # DIFFERENT content so the later lane-b merge conflicts.
-    lane_c_branch = lane_branch_name(MISSION_SLUG, "lane-c")
+    lane_c_branch = code_lane_branch_name(MISSION_SLUG, "lane-c")
     lane_c_wt = repo / ".worktrees" / f"{MISSION_SLUG}-lane-c"
     lane_c_wt.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "-b", lane_c_branch, str(lane_c_wt), "main")
@@ -231,10 +231,10 @@ def test_1915_all_clean_deps_still_merge(tmp_path: Path) -> None:
     lane_c = _lane("lane-c", depends=("lane-a", "lane-b"), group=2)
     manifest = _manifest([dep_a, dep_b, lane_c])
 
-    _commit_on_branch(repo, lane_branch_name(MISSION_SLUG, "lane-a"), "main", "a.txt", "a\n")
-    _commit_on_branch(repo, lane_branch_name(MISSION_SLUG, "lane-b"), "main", "b.txt", "b\n")
+    _commit_on_branch(repo, code_lane_branch_name(MISSION_SLUG, "lane-a"), "main", "a.txt", "a\n")
+    _commit_on_branch(repo, code_lane_branch_name(MISSION_SLUG, "lane-b"), "main", "b.txt", "b\n")
 
-    lane_c_branch = lane_branch_name(MISSION_SLUG, "lane-c")
+    lane_c_branch = code_lane_branch_name(MISSION_SLUG, "lane-c")
     lane_c_wt = repo / ".worktrees" / f"{MISSION_SLUG}-lane-c"
     lane_c_wt.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "-b", lane_c_branch, str(lane_c_wt), "main")
@@ -333,6 +333,6 @@ def test_3281_fresh_path_conflict_leaves_no_registered_worktree(
 
     # The branch is intentionally KEPT (not removed) so a retry resolves via
     # the allocator's crash-recovery route rather than failing identically.
-    lane_branch = lane_branch_name(MISSION_SLUG, "lane-a")
+    lane_branch = code_lane_branch_name(MISSION_SLUG, "lane-a")
     branches = _git(repo, "branch", "--list", lane_branch).stdout
     assert lane_branch in branches, "the lane branch must survive the atomic worktree removal so a retry can re-attach via crash-recovery (#3281 decision #2)."

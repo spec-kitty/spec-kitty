@@ -943,7 +943,7 @@ def _apply_lane_merge_cleanup(
     from specify_cli.coordination.coherence import is_toolchain_generated_churn
     from specify_cli.core.git_ops import run_command
     from specify_cli.git.destructive_guard import guarded_worktree_remove
-    from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path
+    from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_path
     from specify_cli.lanes.compute import is_planning_lane
 
     if retention.remove_worktree:
@@ -979,11 +979,7 @@ def _apply_lane_merge_cleanup(
                     "git",
                     "branch",
                     "-D",
-                    lane_branch_name(
-                        mission_slug,
-                        lane.lane_id,
-                        planning_base_branch=lanes_manifest.target_branch,
-                    ),
+                    code_lane_branch_name(mission_slug, lane.lane_id),
                 ],
                 cwd=main_repo_root,
                 check_return=False,
@@ -1401,6 +1397,24 @@ def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, missi
         return assignment
     manifest, lane = assignment
 
+    from specify_cli.lanes.compute import is_planning_lane
+
+    if is_planning_lane(lane):
+        # Repo-root lane: the WP executes directly in the write checkout,
+        # never a ``.worktrees/…`` path — ``allocate_lane_worktree`` /
+        # ``predict_lane_worktree`` refuse the planning lane id (#5100,
+        # T009). Record the claim base ONCE (idempotent-by-absence) so the
+        # for_review gate has a starting point (WP02/T007).
+        from specify_cli.lanes.claim_base import record_claim_base
+
+        record_claim_base(main_repo_root, main_repo_root, mission, wp)
+        return _StartWorkspace(
+            workspace_path=str(main_repo_root),
+            lane_id=lane.lane_id,
+            lane_branch=manifest.target_branch,
+            lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
+        )
+
     from specify_cli.lanes.worktree_allocator import (
         DependencyLaneMergeConflictError,
         DirtyWorktreeError,
@@ -1475,12 +1489,23 @@ def _resolve_existing_workspace(main_repo_root: Path, mission: str, wp: str) -> 
     so the read-only mirror can never diverge from what the write authority
     would create.
     """
+    from specify_cli.lanes.compute import is_planning_lane
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
     assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
     if isinstance(assignment, _StartWorkspace):
         return assignment
     manifest, lane = assignment
+
+    if is_planning_lane(lane):
+        # Repo-root lane: mirrors _resolve_start_workspace's read side, but
+        # this function is read-only (no allocation, no claim-base write).
+        return _StartWorkspace(
+            workspace_path=str(main_repo_root),
+            lane_id=lane.lane_id,
+            lane_branch=manifest.target_branch,
+            lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
+        )
 
     worktree_path, lane_branch = predict_lane_worktree(main_repo_root, mission, lane.lane_id)
     return _StartWorkspace(

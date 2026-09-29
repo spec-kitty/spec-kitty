@@ -148,7 +148,7 @@ def _embedded_row() -> GoldenRow:
 def test_golden_table_branch_and_lane(row: GoldenRow) -> None:
     """``mission_branch`` keeps a declared identity; ``lane_branch`` takes none."""
     assert bn.mission_branch_name(row.mission_slug, mission_id=row.mission_id) == row.mission_branch
-    assert bn.lane_branch_name(row.mission_slug, row.lane_id) == row.lane_branch
+    assert bn.code_lane_branch_name(row.mission_slug, row.lane_id) == row.lane_branch
 
 
 @pytest.mark.parametrize("row", GOLDEN_ROWS, ids=lambda r: r.label)
@@ -249,7 +249,7 @@ def test_1949_compose_idempotent_with_mission_id_LOCK() -> None:
     assert bn.mission_branch_name("foo-01KV6510", mission_id=MISSION_ID) == "kitty/mission-foo-01KV6510"
     # Lane naming takes no mission_id; its own idempotent dedup composes
     # the SAME single-mid8 form unconditionally.
-    assert bn.lane_branch_name("foo-01KV6510", LANE) == "kitty/mission-foo-01KV6510-lane-a"
+    assert bn.code_lane_branch_name("foo-01KV6510", LANE) == "kitty/mission-foo-01KV6510-lane-a"
 
 
 def test_1949_compose_idempotent_mission_id_none_embedded() -> None:
@@ -268,7 +268,7 @@ def test_1949_compose_idempotent_mission_id_none_embedded() -> None:
 
     # Lane naming takes no mission_id at all: the ONE lane compose is
     # the same fixpoint the mission_id=None branch above composes.
-    assert bn.lane_branch_name("057-foo-01KV6510", LANE) == "kitty/mission-foo-01KV6510-lane-a"
+    assert bn.code_lane_branch_name("057-foo-01KV6510", LANE) == "kitty/mission-foo-01KV6510-lane-a"
 
 
 def test_1949_legacy_NNN_without_mid8_keeps_prefix() -> None:
@@ -279,7 +279,7 @@ def test_1949_legacy_NNN_without_mid8_keeps_prefix() -> None:
     ``kitty/mission-057-foo`` (NNN preserved).
     """
     assert bn.mission_branch_name("057-foo", mission_id=None) == "kitty/mission-057-foo"
-    assert bn.lane_branch_name("057-foo", LANE) == "kitty/mission-057-foo-lane-a"
+    assert bn.code_lane_branch_name("057-foo", LANE) == "kitty/mission-057-foo-lane-a"
 
 
 # ---------------------------------------------------------------------------
@@ -438,12 +438,12 @@ def test_compose_mismatched_embedded_tail_uses_mission_id() -> None:
 
 def test_lane_branch_name_bare_slug_golden() -> None:
     """Bare slug + lane id composes the created lane branch name (literal)."""
-    assert bn.lane_branch_name("057-foo", "lane-a") == "kitty/mission-057-foo-lane-a"
+    assert bn.code_lane_branch_name("057-foo", "lane-a") == "kitty/mission-057-foo-lane-a"
 
 
 def test_lane_branch_name_nnn_plus_mid8_golden_is_idempotent() -> None:
     """An NNN-plus-mid8 slug dedups its stale prefix (idempotent body, #1949)."""
-    assert bn.lane_branch_name("057-foo-01KV6510", "lane-a") == "kitty/mission-foo-01KV6510-lane-a"
+    assert bn.code_lane_branch_name("057-foo-01KV6510", "lane-a") == "kitty/mission-foo-01KV6510-lane-a"
 
 
 def test_worktree_dir_name_golden_is_verbatim() -> None:
@@ -453,4 +453,4 @@ def test_worktree_dir_name_golden_is_verbatim() -> None:
 
 def test_lane_branch_name_lane_planning_golden() -> None:
     """``lane-planning`` returns the planning base branch, not a mission-prefixed name."""
-    assert bn.lane_branch_name("057-foo", "lane-planning", planning_base_branch="release/3.x") == "release/3.x"
+    assert bn.lane_branch_name("057-foo", "lane-planning", target_branch="release/3.x") == "release/3.x"

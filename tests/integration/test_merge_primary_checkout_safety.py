@@ -40,7 +40,7 @@ from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_PRIMARY_DIRTY,
     MERGE_UNSAFE_PRIMARY_OFF_TARGET,
 )
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
@@ -141,7 +141,7 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
     mission_branch = f"kitty/mission-{slug}"
     _git(tmp_path, "branch", mission_branch, "main")
 
-    lane_branch = lane_branch_name(slug, "lane-a")
+    lane_branch = code_lane_branch_name(slug, "lane-a")
     _git(tmp_path, "branch", lane_branch, "main")
     _commit_file(
         tmp_path,

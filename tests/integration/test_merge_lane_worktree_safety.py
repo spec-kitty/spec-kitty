@@ -46,7 +46,7 @@ from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_WORKTREE_DIRTY,
     DestructiveOpRefused,
 )
-from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path
+from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
@@ -145,7 +145,7 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
     mission_branch = f"kitty/mission-{slug}"
     _git(tmp_path, "branch", mission_branch, "main")
 
-    lane_branch = lane_branch_name(slug, "lane-a")
+    lane_branch = code_lane_branch_name(slug, "lane-a")
     _git(tmp_path, "branch", lane_branch, "main")
     _commit_file(
         tmp_path,
@@ -224,7 +224,7 @@ class TestLaneWorktreeSafety:
     def test_dirty_lane_worktree_refuses_fail_closed_before_removal(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         slug = "test-lane-worktree-dirty"
         _bootstrap_mission(tmp_path, slug)
-        lane_branch = lane_branch_name(slug, "lane-a")
+        lane_branch = code_lane_branch_name(slug, "lane-a")
         wt_path = _add_lane_worktree(tmp_path, slug, lane_branch)
 
         # Uncommitted TRACKED edit + an untracked file, never on the lane branch.
@@ -253,7 +253,7 @@ class TestLaneWorktreeSafety:
         closed, not merely re-exercise the tracked-edit case above."""
         slug = "test-lane-worktree-untracked-only"
         _bootstrap_mission(tmp_path, slug)
-        lane_branch = lane_branch_name(slug, "lane-a")
+        lane_branch = code_lane_branch_name(slug, "lane-a")
         wt_path = _add_lane_worktree(tmp_path, slug, lane_branch)
 
         (wt_path / "scratch.txt").write_text("implementer's in-progress notes\n")
@@ -273,7 +273,7 @@ class TestLaneWorktreeSafety:
         """US2 AC3/NFR-002: a clean lane worktree is removed exactly as before."""
         slug = "test-lane-worktree-clean-parity"
         _bootstrap_mission(tmp_path, slug)
-        lane_branch = lane_branch_name(slug, "lane-a")
+        lane_branch = code_lane_branch_name(slug, "lane-a")
         wt_path = _add_lane_worktree(tmp_path, slug, lane_branch)
         assert wt_path.exists()
 

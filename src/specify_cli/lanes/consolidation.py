@@ -263,7 +263,7 @@ def consolidate_lane_into_mission(
     branch = lane_branch_name(
         mission_slug,
         lane_id,
-        planning_base_branch=lanes_manifest.target_branch,
+        target_branch=lanes_manifest.target_branch,
     )
     mission_branch = lanes_manifest.mission_branch
 

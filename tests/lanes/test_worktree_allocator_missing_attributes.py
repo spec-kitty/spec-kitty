@@ -42,7 +42,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     _merge_dependency_lane_tips,
@@ -259,7 +259,7 @@ class TestDependencyLaneTipsMergeWithoutCommittedAttributes:
         _assert_no_committed_gitattributes(repo)
 
         feature_dir = repo / "kitty-specs" / MISSION_SLUG
-        dep_branch = lane_branch_name(MISSION_SLUG, "lane-dep")
+        dep_branch = code_lane_branch_name(MISSION_SLUG, "lane-dep")
 
         # Dependency lane independently ADDS status.events.jsonl.
         _git(repo, "branch", dep_branch)
@@ -271,7 +271,7 @@ class TestDependencyLaneTipsMergeWithoutCommittedAttributes:
 
         # The dependent lane's own worktree independently ADDS the SAME path
         # with DIFFERENT content before the dep-tip merge runs.
-        dependent_branch = lane_branch_name(MISSION_SLUG, "lane-c")
+        dependent_branch = code_lane_branch_name(MISSION_SLUG, "lane-c")
         dependent_wt = repo / ".worktrees" / f"{MISSION_SLUG}-lane-c"
         dependent_wt.parent.mkdir(parents=True, exist_ok=True)
         _git(repo, "worktree", "add", "-b", dependent_branch, str(dependent_wt), "main")

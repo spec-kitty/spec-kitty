@@ -345,13 +345,13 @@ def test_scan_recovery_state_returns_primary_lane_membership(
     id falls back to ``'unknown'``, never the PRIMARY ``WP01``.
     """
     from specify_cli.lanes import recovery
-    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.recovery import scan_recovery_state
 
     ctx = coord_topology_mission_sentinel_meta
     _assert_divergence_triad(ctx)
 
-    lane_branch = lane_branch_name(ctx.slug, "lane-a")
+    lane_branch = code_lane_branch_name(ctx.slug, "lane-a")
     _git_branch(ctx, lane_branch)
 
     states = scan_recovery_state(ctx.repo, ctx.slug)
@@ -391,7 +391,7 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
     """
     from specify_cli import status as status_mod
     from specify_cli.lanes import recovery
-    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.recovery import scan_recovery_state
 
     ctx = coord_topology_mission_sentinel_meta
@@ -401,7 +401,7 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
     # a non-reducible string marker into evidence — a wrong-leg probe — which the
     # real reducer rejects; the STATUS leg needs a reducible log to yield a lane).
     _seed_reducible_event(ctx.coord_feature_dir, ctx.slug, to_lane="claimed")
-    lane_branch = lane_branch_name(ctx.slug, "lane-a")
+    lane_branch = code_lane_branch_name(ctx.slug, "lane-a")
     _git_branch(ctx, lane_branch)
 
     # Pass-through spy capturing every dir handed to read_events during the scan.
@@ -535,11 +535,11 @@ def test_flat_topology_recovery_is_noop(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
     """On a flat mission ``scan_recovery_state`` resolves lane→WP off the only surface."""
-    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.recovery import scan_recovery_state
 
     ctx = flat_topology_mission
-    lane_branch = lane_branch_name(ctx.slug, "lane-a")
+    lane_branch = code_lane_branch_name(ctx.slug, "lane-a")
     _git_branch(ctx, lane_branch)
 
     states = scan_recovery_state(ctx.repo, ctx.slug)

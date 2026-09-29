@@ -670,7 +670,7 @@ def test_build_claim_authorship_excludes_merged_in_second_parent(tmp_path: Path)
     another branch (second parent) is NOT counted as approved authorship, so it is
     caught as un-attributable when it reaches the target."""
     repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
-    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
     # Smuggle a removed WP's commit INTO the approved lane via a merge second parent.
     smuggled = _lane_commit(repo, coord_base, "lane-removed", "src/wp99_removed.py", "REMOVED\n")
     smuggled_pid = git_probes.patch_id_of(repo, smuggled)
@@ -790,7 +790,7 @@ def _build_mission(
 
     # one lane branch per manifest WP, each with a real approved commit.
     for lane in manifest.lanes:
-        branch = lane_branch_name(_MISSION_SLUG, lane.lane_id, planning_base_branch=_TARGET)
+        branch = lane_branch_name(_MISSION_SLUG, lane.lane_id, target_branch=_TARGET)
         for wp in lane.wp_ids:
             _lane_commit(repo, coord_base, branch, f"src/{wp.lower()}.py", f"# {wp}\n")
     return repo, feature_dir, manifest, coord_base
@@ -807,7 +807,7 @@ def test_build_claim_sources_shas_from_lane_tips(tmp_path: Path) -> None:
         branch = lane_branch_name(
             _MISSION_SLUG,
             lane_of[wp],
-            planning_base_branch=_TARGET,
+            target_branch=_TARGET,
         )
         assert set(shas) == set(git_probes.commits_in_range(repo, coord_base, branch))
 
@@ -843,7 +843,7 @@ def test_build_claim_collects_excluded_from_canceled_lane_tips(tmp_path: Path) -
         coord_base_ref=coord_base,
         excluded_canceled_wp_ids=frozenset({"WP02"}),
     )
-    branch = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    branch = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     expected = set(git_probes.commits_in_range(repo, coord_base, branch))
     assert expected
     assert expected <= claim.excluded_shas
@@ -1057,7 +1057,7 @@ def test_squash_authored_blobs_keep_final_not_superseded(tmp_path: Path) -> None
     a superseded intermediate ``v1`` is NOT admitted (so a canceled blob matching
     ``v1`` cannot be green-washed as attributable)."""
     repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
-    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
     # _build_mission already authored src/wp01.py (v1) on lane-a.
     v1_blob = git_probes.blob_id_at(repo, lane_branch, "src/wp01.py")
     _git(repo, "checkout", "-q", lane_branch)
@@ -1106,7 +1106,7 @@ def test_squash_fails_on_second_parent_smuggled_blob(tmp_path: Path) -> None:
     approved lane's first-parent spine ⇒ absent from ``authored_blobs`` ⇒ FAIL,
     naming the smuggled path."""
     repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
-    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
     smuggled = _lane_commit(repo, coord_base, "lane-removed", "src/wp99_removed.py", "REMOVED\n")
     smuggled_blob = git_probes.blob_id_at(repo, smuggled, "src/wp99_removed.py")
     _git(repo, "checkout", "-q", lane_branch)
@@ -1128,8 +1128,8 @@ def test_squash_passes_clean_no_false_fail(tmp_path: Path) -> None:
     """NFR-004 positive control: a clean squash whose every target blob is authored
     by an approved lane PASSes — the axis never false-fails a legitimate squash."""
     repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
-    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
-    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     _git(repo, "merge", "-q", "--no-edit", lane_a)
     _git(repo, "merge", "-q", "--no-edit", lane_b)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
@@ -1448,8 +1448,8 @@ def test_squash_authored_deletion_union_across_two_lanes_passes(tmp_path: Path) 
     end through :func:`build_approved_wp_set` (not a hand-built claim) — a
     deletion authored by lane-b's own first-parent spine is attributable."""
     repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
-    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
-    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     # _build_mission already committed src/wp02.py on lane-b; WP02 now removes it.
     _git(repo, "checkout", "-q", lane_b)
     _git(repo, "rm", "-q", "src/wp02.py")
@@ -1534,7 +1534,7 @@ def _build_mixed_lane_mission(tmp_path: Path) -> tuple[Path, Path, LanesManifest
     _git(repo, "commit", "-qm", "bootstrap mixed-lane mission")
     coord_base = _rev(repo, "HEAD")
 
-    branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
     _lane_commit(repo, coord_base, branch, "src/wp01.py", "# WP01 survivor\n")
     return repo, feature_dir, manifest, coord_base
 
@@ -1552,7 +1552,7 @@ def test_collect_excluded_narrows_mixed_lane_to_commit_granularity(tmp_path: Pat
         excluded_canceled_wp_ids=frozenset({"WP02"}),
         excluded_window_base=coord_base,
     )
-    branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
     survivor_sha = git_probes.commits_in_range(repo, coord_base, branch)[0]
     assert survivor_sha in claim.authored_shas
     assert survivor_sha not in claim.excluded_shas
@@ -1568,7 +1568,7 @@ def test_collect_excluded_still_catches_second_parent_smuggled_commit_in_mixed_l
     reachable (the #4977 safety net, narrowed granularity must never widen into
     reduced strictness)."""
     repo, feature_dir, manifest, coord_base = _build_mixed_lane_mission(tmp_path)
-    branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
     smuggled = _lane_commit(repo, coord_base, "lane-removed", "src/wp99_removed.py", "REMOVED\n")
     smuggled_pid = git_probes.patch_id_of(repo, smuggled)
     _git(repo, "checkout", "-q", branch)
@@ -1603,7 +1603,7 @@ def test_collect_excluded_subtracts_only_authored_shas_not_all(tmp_path: Path) -
     from specify_cli.consolidation.reconciliation import _collect_excluded
 
     repo, _feature_dir, manifest, coord_base = _build_mixed_lane_mission(tmp_path)
-    branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
     survivor_sha = git_probes.commits_in_range(repo, coord_base, branch)[0]
     survivor_pid = git_probes.patch_id_of(repo, survivor_sha)
 
@@ -1638,7 +1638,7 @@ def test_collect_excluded_fully_canceled_lane_stays_fully_excluded(tmp_path: Pat
         coord_base_ref=coord_base,
         excluded_canceled_wp_ids=frozenset({"WP02"}),
     )
-    branch = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    branch = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     all_tip_commits = set(git_probes.commits_in_range(repo, coord_base, branch))
     assert all_tip_commits
     assert all_tip_commits <= claim.excluded_shas
@@ -1728,7 +1728,7 @@ def _build_shared_file_lanes(
     _git(repo, "commit", "-qm", "bootstrap mission with shared file")
     coord_base = _rev(repo, "HEAD")
     for lane_id, _wp in lane_wp_pairs:
-        branch = lane_branch_name(_MISSION_SLUG, lane_id, planning_base_branch=_TARGET)
+        branch = lane_branch_name(_MISSION_SLUG, lane_id, target_branch=_TARGET)
         _git(repo, "branch", branch, coord_base)
     return repo, feature_dir, manifest, coord_base
 
@@ -1751,8 +1751,8 @@ def test_collect_authored_multi_lane_paths_present_for_exactly_two_lanes(tmp_pat
     (raw SHA) lane commits."""
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
-    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
-    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     a_sha = _edit_shared_line(repo, lane_a, "src/shared.py", 0, "A\n")
     b_sha = _edit_shared_line(repo, lane_b, "src/shared.py", 9, "B\n")
     _git(repo, "checkout", "-q", _TARGET)
@@ -1782,7 +1782,7 @@ def test_collect_authored_multi_lane_paths_absent_for_three_lane_path(tmp_path: 
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"), ("lane-c", "WP03"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
     for lane_id, line_idx, text in (("lane-a", 0, "A\n"), ("lane-b", 4, "B\n"), ("lane-c", 9, "C\n")):
-        branch = lane_branch_name(_MISSION_SLUG, lane_id, planning_base_branch=_TARGET)
+        branch = lane_branch_name(_MISSION_SLUG, lane_id, target_branch=_TARGET)
         _edit_shared_line(repo, branch, "src/shared.py", line_idx, text)
     _git(repo, "checkout", "-q", _TARGET)
 
@@ -1801,8 +1801,8 @@ def test_squash_passes_disjoint_hunk_two_lane_merge_resolution(tmp_path: Path) -
     GREEN after (the merge-resolution recognizer attributes it)."""
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
-    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
-    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     _edit_shared_line(repo, lane_a, "src/shared.py", 0, "line 1 EDITED BY LANE A\n")
     _edit_shared_line(repo, lane_b, "src/shared.py", 9, "line 10 EDITED BY LANE B\n")
     _git(repo, "checkout", "-q", _TARGET)
@@ -1850,8 +1850,8 @@ def test_squash_fails_closed_when_carrier_lane_tip_smuggles_second_parent_hunk_i
     attributed and the gate wrongly PASSes)."""
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
-    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
-    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     a_sha = _edit_shared_line(repo, lane_a, "src/shared.py", 0, "line 1 EDITED BY LANE A\n")
     b_edit_sha = _edit_shared_line(repo, lane_b, "src/shared.py", 9, "line 10 EDITED BY LANE B\n")
     clean_b_blob = git_probes.blob_id_at(repo, b_edit_sha, "src/shared.py")
@@ -1907,7 +1907,7 @@ def test_squash_fails_closed_when_path_touched_by_more_than_two_approved_lanes(t
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
     branches = []
     for lane_id, line_idx, text in (("lane-a", 0, "A\n"), ("lane-b", 4, "B\n"), ("lane-c", 9, "C\n")):
-        branch = lane_branch_name(_MISSION_SLUG, lane_id, planning_base_branch=_TARGET)
+        branch = lane_branch_name(_MISSION_SLUG, lane_id, target_branch=_TARGET)
         branches.append(branch)
         _edit_shared_line(repo, branch, "src/shared.py", line_idx, text)
     _git(repo, "checkout", "-q", _TARGET)
@@ -1981,8 +1981,8 @@ def test_squash_fails_closed_when_lane_commit_ref_is_unresolvable(tmp_path: Path
     result is FAILED or REFUSED, but never PASSed."""
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
-    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
-    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     _edit_shared_line(repo, lane_a, "src/shared.py", 0, "A\n")
     _edit_shared_line(repo, lane_b, "src/shared.py", 9, "B\n")
     _git(repo, "checkout", "-q", _TARGET)
@@ -2005,8 +2005,8 @@ def test_squash_fails_closed_when_merge_tree_write_tree_unavailable(tmp_path: Pa
     to PASS."""
     lane_wp_pairs = (("lane-a", "WP01"), ("lane-b", "WP02"))
     repo, feature_dir, manifest, coord_base = _build_shared_file_lanes(tmp_path, lane_wp_pairs=lane_wp_pairs)
-    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET)
-    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET)
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", target_branch=_TARGET)
     _edit_shared_line(repo, lane_a, "src/shared.py", 0, "A\n")
     _edit_shared_line(repo, lane_b, "src/shared.py", 9, "B\n")
     _git(repo, "checkout", "-q", _TARGET)

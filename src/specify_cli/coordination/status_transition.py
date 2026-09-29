@@ -541,6 +541,7 @@ def _fallback_emit_single(
             read_feature_dir=identity.feature_dir,
             event=event,
         )
+        _clear_claim_base_on_terminal(repo_root=identity.repo_root, mission_slug=mission_slug, event=event)
         return event
 
     def _coord(coord_worktree: Path) -> StatusEvent:
@@ -573,6 +574,7 @@ def _fallback_emit_single(
             read_feature_dir=coord_fd,
             event=event,
         )
+        _clear_claim_base_on_terminal(repo_root=identity.repo_root, mission_slug=mission_slug, event=event)
         return event
 
     return _emit_via_non_transactional_fallback(identity, mission_slug, primary_emit=_primary, coord_emit=_coord)
@@ -591,6 +593,18 @@ def _fallback_emit_batch(
     committed tail out with the batch's emitting checkout root (the batch is
     ONE lifecycle operation on one mission/WP, so ``requests[0].repo_root``
     is the checkout every member emits from).
+
+    WP02 review cycle 2 nit: neither arm here calls
+    ``_clear_claim_base_on_terminal`` (unlike :func:`_fallback_emit_single`'s
+    two arms and :func:`emit_status_transition_transactional`'s in-transaction
+    arm). That is intentional, not an oversight -- the ONE production caller
+    of the batch door (``work_package_lifecycle.start_implementation_status``)
+    only ever chains ``planned -> claimed -> in_progress`` or
+    ``claimed -> in_progress``, i.e. exclusively non-terminal ``to_lane``
+    members. A terminal hop (``done`` / ``canceled``) never reaches this
+    function today, so there is no terminal event here to clear the ref for.
+    If a future caller starts batching a terminal hop, add the same
+    ``_clear_claim_base_on_terminal(event=...)`` call per member here.
     """
 
     def _primary() -> list[StatusEvent]:
@@ -1430,6 +1444,30 @@ def _lane_wp_ids_all_terminal(work_packages: dict[str, dict[str, Any]], wp_ids: 
     return True
 
 
+def _clear_claim_base_on_terminal(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    event: StatusEvent | None,
+) -> None:
+    """Clear a repo-root-lane WP's claim-base ref once it reaches ``done``/
+    ``canceled`` (WP02/T007). This is the ONE terminal-transition call site
+    into :func:`specify_cli.lanes.claim_base.on_wp_terminal` -- WP07 extends
+    that same hook to also clear the lane-tip ref, so a second terminal call
+    site is never added here. No-op when *event* is ``None`` (the legacy
+    alias-collapse no-op arm) or the transition did not land on a terminal
+    lane. ``on_wp_terminal`` itself is a no-op for a WP that never had a
+    claim-base ref (a lane WP, or a WP claimed before this ref existed), so
+    this call is safe to make unconditionally for every terminal transition.
+    """
+    if event is None or not is_terminal(str(event.to_lane)):
+        return
+
+    from specify_cli.lanes.claim_base import on_wp_terminal  # noqa: PLC0415
+
+    on_wp_terminal(repo_root, mission_slug, event.wp_id)
+
+
 def _tombstone_lane_workspace_context_on_cancel(
     *,
     repo_root: Path,
@@ -1562,6 +1600,20 @@ def emit_status_transition_transactional(
             read_feature_dir=txn.feature_dir,
             event=event,
         )
+        # WP02 review cycle 2 nit: this clear runs INSIDE the transaction
+        # body, i.e. before BookkeepingTransaction's own commit lands at the
+        # `with` block's __exit__ -- the same in-body placement
+        # _tombstone_lane_workspace_context_on_cancel uses immediately above.
+        # A rollback after this point (the coord commit fails) therefore
+        # leaves the claim-base ref cleared even though the terminal event
+        # never durably landed. That window is deliberately accepted, not
+        # overlooked: record_claim_base is idempotent-by-absence (a
+        # resumed/rolled-back WP just gets a fresh claim base recorded on its
+        # next repo-root workspace resolution), and a missing ref makes the
+        # for_review gate REFUSE rather than pass vacuously (Issue-1-item-d,
+        # _evaluate_repo_root_lane_gate) -- so the failure direction of this
+        # window is fail-closed, never a false pass.
+        _clear_claim_base_on_terminal(repo_root=identity.repo_root, mission_slug=mission_slug, event=event)
         return event
 
 
@@ -1777,6 +1829,9 @@ def emit_status_transition_batch_transactional(
         # to the completed start operation.
         txn.append_events([row for prepared, event, _request in built for row in _durability_unit(prepared, event)])
 
+        # No _clear_claim_base_on_terminal call in this loop: see the
+        # rationale on _fallback_emit_batch above -- this door's one caller
+        # never batches a terminal to_lane.
         for prepared, event, request in built:
             _defer_fan_out(
                 txn,

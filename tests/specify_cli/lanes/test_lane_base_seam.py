@@ -235,10 +235,10 @@ def test_fresh_legacy_origin_only_lane_still_creates_real_mission_branch(
     ``git branch refs/remotes/origin/<lane_branch> main`` -- creating a
     spuriously-named local branch instead of the real mission branch.
     """
-    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.branch_naming import code_lane_branch_name
 
     repo = legacy_repo
-    lane_branch = lane_branch_name(LEGACY_MISSION_SLUG, LANE_A)
+    lane_branch = code_lane_branch_name(LEGACY_MISSION_SLUG, LANE_A)
 
     # Real bare origin; push the lane branch there, then drop the local ref
     # so it exists ONLY as origin/<lane_branch> (mirrors #4969's fixture shape).

@@ -34,7 +34,7 @@ from pathlib import Path
 import pytest
 from ulid import ULID
 
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.implement_support import (
     AncestryCheckResult,
     check_claim_ancestry,
@@ -210,7 +210,7 @@ def _seed_wp_lane(repo: Path, wp_id: str, lane: Lane) -> None:
 
 def _create_lane_a_branch(repo: Path) -> str:
     """Create ``lane-a``'s branch off main with a distinguishing commit."""
-    branch = lane_branch_name(_MISSION_SLUG, "lane-a")
+    branch = code_lane_branch_name(_MISSION_SLUG, "lane-a")
     _git(repo, "branch", branch, "main")
     _git(repo, "checkout", "-q", branch)
     (repo / "lane_a_output.txt").write_text("lane-a code\n", encoding="utf-8")
@@ -223,7 +223,7 @@ def _create_lane_a_branch(repo: Path) -> str:
 
 def _create_lane_b_worktree(repo: Path) -> Path:
     """Create ``lane-b``'s worktree off ``main`` -- WITHOUT lane-a's tip."""
-    branch = lane_branch_name(_MISSION_SLUG, "lane-b")
+    branch = code_lane_branch_name(_MISSION_SLUG, "lane-b")
     worktree = repo / ".worktrees" / f"{_MISSION_SLUG}-lane-b"
     worktree.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "-b", branch, str(worktree), "main")
@@ -361,7 +361,7 @@ def test_orphaned_planning_commit_produces_orphan_diagnostic(tmp_path: Path) -> 
 
     _write_meta_and_lanes_with_pin(repo, orphaned_sha)
 
-    branch = lane_branch_name(_MISSION_SLUG, "lane-a")
+    branch = code_lane_branch_name(_MISSION_SLUG, "lane-a")
     worktree = repo / ".worktrees" / f"{_MISSION_SLUG}-lane-a"
     worktree.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "-b", branch, str(worktree), "main")

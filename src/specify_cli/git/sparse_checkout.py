@@ -30,7 +30,8 @@ git configuration or sparse-checkout state; remediation lives in WP03.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.lanes.branch_naming import lane_branch_name, lane_id_for_worktree_dir, resolve_mid8
+from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_id_for_worktree_dir, resolve_mid8
+from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.mission_metadata import load_meta
 import enum
 import logging
@@ -228,8 +229,17 @@ class _ManagedLanePolicy:
         return lane_id_for_worktree_dir(path.name, self.mission_slug) is not None
 
     def expected_branch_for(self, path: Path) -> str | None:
+        """The branch a managed lane worktree dir is expected to be on.
+
+        ``None`` for a non-lane path AND for the planning (repo-root) lane:
+        that lane has no worktree of its own -- ``.worktrees/<slug>-lane-
+        planning`` is exactly the phantom path #5100 is about, and
+        ``code_lane_branch_name`` refuses it (ValueError). This preflight
+        must classify that state as UNKNOWN (the pre-existing behaviour),
+        never crash (#5100 cycle-1 review regression).
+        """
         lane_id = lane_id_for_worktree_dir(path.name, self.mission_slug)
-        return None if lane_id is None else lane_branch_name(self.mission_slug, lane_id)
+        return None if lane_id is None or lane_id == PLANNING_LANE_ID else code_lane_branch_name(self.mission_slug, lane_id)
 
 
 def _read_patterns(path: Path) -> frozenset[str] | None:

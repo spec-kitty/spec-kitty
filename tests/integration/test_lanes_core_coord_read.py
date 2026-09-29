@@ -46,7 +46,7 @@ from typing import Any, NoReturn
 
 import pytest
 
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from tests.integration.coord_topology_fixture import (
     SENTINEL_HUSK_MISSION_ID,
     SENTINEL_HUSK_MISSION_TYPE,
@@ -193,7 +193,7 @@ def test_scan_recovery_state_reads_primary_lane_membership(
     from specify_cli.lanes.recovery import scan_recovery_state
 
     ctx = coord_topology_mission_sentinel_meta
-    lane_branch = lane_branch_name(ctx.slug, "lane-a")
+    lane_branch = code_lane_branch_name(ctx.slug, "lane-a")
     _git(ctx.repo, "branch", lane_branch, "main")
 
     states = scan_recovery_state(ctx.repo, ctx.slug)
@@ -221,7 +221,7 @@ def test_recover_context_reads_primary_lane_wps(
     state = RecoveryState(
         wp_id="WPXX",
         lane_id="lane-a",
-        branch_name=lane_branch_name(ctx.slug, "lane-a"),
+        branch_name=code_lane_branch_name(ctx.slug, "lane-a"),
         branch_exists=True,
         worktree_exists=False,
         context_exists=False,

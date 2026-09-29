@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_dir_name
 from specify_cli.live_work.adapters.claude_code import ClaudeCodeHookAdapter
 from specify_cli.live_work.kinds import WorkEmissionKind
 from specify_cli.live_work.models import FileDetail, FileOperation, TestRunDetail, ToolDetail, ToolOutcome, ToolState
@@ -302,7 +302,7 @@ def mission_repo(repo: Path) -> tuple[Path, str]:
 
     Re-pinned: the fixture builds the worktree
     directory names and branches through the naming authority's own
-    composers (:func:`worktree_dir_name` / :func:`lane_branch_name`, which
+    composers (:func:`worktree_dir_name` / :func:`code_lane_branch_name`, which
     take no identity), matching what every real creation site (the
     allocator, ``workspace/context.py``, ``recovery.py``,
     ``lifecycle_sync.py``) actually produces for a bare ``mission_slug``:
@@ -322,7 +322,7 @@ def mission_repo(repo: Path) -> tuple[Path, str]:
     worktree_root.mkdir()
     for lane_id in ("lane-a", "lane-b"):
         dir_name = worktree_dir_name(slug, lane_id=lane_id)
-        branch = lane_branch_name(slug, lane_id)
+        branch = code_lane_branch_name(slug, lane_id)
         _git(repo, "worktree", "add", str(worktree_root / dir_name), "-b", branch)
     return repo, mission_id
 

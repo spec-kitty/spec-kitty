@@ -220,7 +220,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
                     lane_branch_name(
                         mission_slug,
                         lane_entry.lane_id,
-                        planning_base_branch=target_branch,
+                        target_branch=target_branch,
                     )
                     if lane_entry
                     else workspace.branch_name

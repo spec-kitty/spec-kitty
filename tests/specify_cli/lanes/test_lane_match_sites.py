@@ -148,6 +148,19 @@ class TestManagedLanePolicy:
         policy = _ManagedLanePolicy(mission_slug="057-foo", expected_patterns=frozenset())
         assert policy.expected_branch_for(Path("unrelated-dir")) is None
 
+    def test_expected_branch_for_returns_none_for_the_planning_lane(self) -> None:
+        """#5100 cycle-1 review regression: the planning lane has no worktree
+        of its own, so ``code_lane_branch_name`` refuses it (ValueError). A
+        registered, sparse-active ``.worktrees/<slug>-lane-planning`` dir --
+        exactly the phantom path #5100 is about -- must classify as UNKNOWN
+        (``None``), not crash this preflight (``scan_repo`` /
+        ``require_no_sparse_checkout`` / ``warn_if_sparse_once``, 17
+        production call sites)."""
+        policy = _ManagedLanePolicy(mission_slug="demo-01KZZTES", expected_patterns=frozenset())
+        path = Path("demo-01KZZTES-lane-planning")
+        assert policy.matches_path(path) is True
+        assert policy.expected_branch_for(path) is None
+
 
 # ---------------------------------------------------------------------------
 # status/doctor.py::check_orphan_workspaces

@@ -777,13 +777,13 @@ def _expected_discard_branches(feature_dir: Path, mission_slug: str, meta_path: 
     branches: list[str] = []
     manifest = _load_lanes_manifest(feature_dir)
     if manifest is not None:
-        from specify_cli.lanes.branch_naming import lane_branch_name
+        from specify_cli.lanes.branch_naming import code_lane_branch_name
         from specify_cli.lanes.compute import is_planning_lane
 
         for lane in manifest.lanes:
             if is_planning_lane(lane):
                 continue
-            branches.append(lane_branch_name(mission_slug, lane.lane_id))
+            branches.append(code_lane_branch_name(mission_slug, lane.lane_id))
         branches.append(manifest.mission_branch)
         return branches
     meta = load_meta(meta_path.parent, allow_missing=True, on_malformed="none")
@@ -986,13 +986,13 @@ def _load_lanes_manifest(feature_dir: Path) -> Any | None:
 
 
 def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: Any) -> None:
-    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.compute import is_planning_lane
 
     for lane in lanes_manifest.lanes:
         if is_planning_lane(lane):
             continue
-        branch_name = lane_branch_name(mission_slug, lane.lane_id)
+        branch_name = code_lane_branch_name(mission_slug, lane.lane_id)
         _force_delete_branch_if_exists(repo_root, branch_name)
 
     _force_delete_branch_if_exists(repo_root, lanes_manifest.mission_branch)

@@ -33,7 +33,7 @@ from dataclasses import replace as _dc_replace
 
 import pytest
 
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
@@ -124,7 +124,7 @@ def test_dependent_lane_base_contains_approved_dependency_tip(tmp_path):
     )
 
     # 4. lane-b's HEAD must contain lane-a's tip as an ancestor.
-    lane_a_branch = lane_branch_name(mission_slug, "lane-a")
+    lane_a_branch = code_lane_branch_name(mission_slug, "lane-a")
     is_ancestor = subprocess.run(
         ["git", "merge-base", "--is-ancestor", lane_a_branch, "HEAD"],
         cwd=str(wt_b),
@@ -191,13 +191,13 @@ def test_two_dependencies_merged_in_order(tmp_path):
     (wt_a / "wp01_module.py").write_text("A = 1\n")
     _git(wt_a, "add", ".")
     _git(wt_a, "commit", "-m", "WP01")
-    branch_a = lane_branch_name("010-feat", "lane-a")
+    branch_a = code_lane_branch_name("010-feat", "lane-a")
 
     wt_b, _ = allocate_lane_worktree(repo, "010-feat", "WP02", manifest)
     (wt_b / "wp02_module.py").write_text("B = 2\n")
     _git(wt_b, "add", ".")
     _git(wt_b, "commit", "-m", "WP02")
-    branch_b = lane_branch_name("010-feat", "lane-b")
+    branch_b = code_lane_branch_name("010-feat", "lane-b")
 
     # lane-c depends on both — both tips must be visible.
     wt_c, _ = allocate_lane_worktree(repo, "010-feat", "WP03", manifest)
@@ -261,7 +261,7 @@ def test_explicit_base_composes_with_dependency_merge(tmp_path):
         "dependency lane tip was not merged on top of the explicit base — "
         "--base must compose with depends_on_lanes, not suppress it (issue #1684)."
     )
-    lane_a_branch = lane_branch_name(mission_slug, "lane-a")
+    lane_a_branch = code_lane_branch_name(mission_slug, "lane-a")
     assert (
         subprocess.run(
             ["git", "merge-base", "--is-ancestor", lane_a_branch, "HEAD"],

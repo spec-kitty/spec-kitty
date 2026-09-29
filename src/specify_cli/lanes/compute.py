@@ -82,7 +82,7 @@ def lane_created_branch(lanes_manifest: LanesManifest, lane_id: str) -> str:
         lane_branch_name(
             lanes_manifest.mission_slug,
             lane_id,
-            planning_base_branch=lanes_manifest.target_branch,
+            target_branch=lanes_manifest.target_branch,
         )
     )
 

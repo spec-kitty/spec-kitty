@@ -270,7 +270,7 @@ def resolve_context(
     authoritative_ref = lane_branch_name(
         mission_slug,
         lane.lane_id,
-        planning_base_branch=target_branch,
+        target_branch=target_branch,
     )
 
     # Compute dependency_mode

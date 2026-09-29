@@ -14,7 +14,6 @@ from pathlib import Path
 
 from kernel.clock import now_utc_iso
 from mission_runtime import MissionArtifactKind, placement_seam
-from specify_cli.ownership.models import WorkProductKind
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name as _worktree_dir_name
@@ -133,7 +132,19 @@ def create_lane_workspace(
     Returns:
         LaneWorkspaceResult with workspace info.
     """
-    if resolved_workspace.execution_mode == WorkProductKind.PLANNING_ARTIFACT:
+    from specify_cli.lanes.compute import is_planning_lane
+
+    if is_planning_lane(resolved_workspace):
+        # Repo-root lane: the WP executes directly in the write checkout
+        # (``repo_root``), with no worktree of its own. Record the claim
+        # base ONCE (idempotent-by-absence) so the for_review gate has a
+        # starting point to diff against (WP02/T007, contracts/
+        # single-branch-execution.md "Claim base and for_review"). Keyed on
+        # the LANE, not the WP kind (T009): WP05 routes single_branch code
+        # WPs through this same arm.
+        from specify_cli.lanes.claim_base import record_claim_base
+
+        record_claim_base(repo_root, repo_root, mission_slug, wp_id)
         return LaneWorkspaceResult(
             workspace_path=resolved_workspace.worktree_path,
             branch_name=resolved_workspace.branch_name,
@@ -521,7 +532,7 @@ def _approved_dependency_lane_refs(
         all_approved = all(dependency_lanes.get(wp_id) in (Lane.APPROVED, Lane.DONE) for wp_id in dep_lane.wp_ids)
         if not all_approved:
             continue
-        branch = lane_branch_name(mission_slug, dep_id)
+        branch = lane_branch_name(mission_slug, dep_id, target_branch=lanes_manifest.target_branch)
         if not branch_exists(main_repo_root, branch):
             continue
         refs.append((dep_id, branch))

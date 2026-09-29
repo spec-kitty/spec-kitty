@@ -869,7 +869,7 @@ def _resolve_planning_lane_arm(
         resolution_kind="repo_root",
         workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
         worktree_path=repo_root,
-        branch_name=lane_branch_name(mission_slug, PLANNING_LANE_ID, planning_base_branch=target_branch),
+        branch_name=lane_branch_name(mission_slug, PLANNING_LANE_ID, target_branch=target_branch),
         lane_id=PLANNING_LANE_ID,
         lane_wp_ids=list(lane.wp_ids),
         context=None,
@@ -890,7 +890,7 @@ def _resolve_code_lane_arm(
     a code lane assigned. WP01 campsite split (behaviour-preserving) out of
     ``_resolve_workspace_for_wp_impl``.
     """
-    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.branch_naming import code_lane_branch_name
 
     # Route the COMPOSE (not just the .worktrees join) through the seam so no
     # name-guess survives the assign-then-join indirection (FR-005, WP09 ratchet).
@@ -904,7 +904,7 @@ def _resolve_code_lane_arm(
         resolution_kind="lane_workspace",
         workspace_name=workspace_name,
         worktree_path=_seam_worktree_path(repo_root, mission_slug, lane_id=lane.lane_id),
-        branch_name=lane_branch_name(mission_slug, lane.lane_id),
+        branch_name=code_lane_branch_name(mission_slug, lane.lane_id),
         lane_id=lane.lane_id,
         lane_wp_ids=list(lane.wp_ids),
         context=None,

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.consolidation import _make_merge_env, reconcile_derived_status_snapshot_conflicts
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
@@ -121,7 +121,7 @@ def _setup_divergent_lanes(tmp_path: Path, *, human_conflict: bool) -> tuple[Pat
     repo = tmp_path / "repo"
     _init_repo(repo)
     feature_dir = repo / "kitty-specs" / MISSION_SLUG
-    dep_branch = lane_branch_name(MISSION_SLUG, "lane-dep")
+    dep_branch = code_lane_branch_name(MISSION_SLUG, "lane-dep")
 
     _git(repo, "branch", dep_branch)
     _git(repo, "checkout", "-q", dep_branch)
@@ -134,7 +134,7 @@ def _setup_divergent_lanes(tmp_path: Path, *, human_conflict: bool) -> tuple[Pat
     _git(repo, "commit", "-q", "-m", "status: dep lane event + snapshot")
     _git(repo, "checkout", "-q", "main")
 
-    dependent_branch = lane_branch_name(MISSION_SLUG, "lane-c")
+    dependent_branch = code_lane_branch_name(MISSION_SLUG, "lane-c")
     dependent_wt = repo / ".worktrees" / f"{MISSION_SLUG}-lane-c"
     dependent_wt.parent.mkdir(parents=True, exist_ok=True)
     _git(repo, "worktree", "add", "-b", dependent_branch, str(dependent_wt), "main")

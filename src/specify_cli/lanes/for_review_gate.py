@@ -83,7 +83,10 @@ def _resolve_lane(main_repo_root: Path, mission_slug: str, wp_id: str) -> tuple[
     """Resolve ``(manifest, lane)`` for ``wp_id``, or ``None`` when gate-exempt.
 
     ``None`` means the gate does not apply: no ``lanes.json`` (legacy / non-lane
-    mission) or ``wp_id`` is not assigned to any lane (planning-artifact WP).
+    mission), or ``wp_id`` is not assigned to any lane at all. A
+    planning-artifact WP DOES resolve here (to the canonical
+    ``lane-planning`` lane, WP02) -- :func:`evaluate_for_review_gate` routes
+    it through a claim-base check instead of a worktree check.
 
     ``lanes.json`` is a PRIMARY-partition artifact -- read from the primary
     surface via the canonical kind-aware placement seam (mirrors the
@@ -102,6 +105,100 @@ def _resolve_lane(main_repo_root: Path, mission_slug: str, wp_id: str) -> tuple[
     return manifest, lane
 
 
+# Path prefixes (relative to the write checkout) a repo-root-lane commit may
+# touch WITHOUT satisfying the claim-base gate (contracts/
+# single-branch-execution.md "Claim base and for_review", post-tasks fold
+# B-3): a bare status/issue-matrix/bookkeeping commit is not implementation
+# work, so a claim/in_progress status transition landing on the same branch
+# must never itself satisfy the gate.
+_STATUS_ONLY_PREFIX_TEMPLATES = ("kitty-specs/{slug}/status.", "kitty-specs/{slug}/issue-matrix.")
+_KITTIFY_PREFIX = ".kittify/"
+
+
+def _status_only_excluded_prefixes(mission_slug: str) -> tuple[str, ...]:
+    return tuple(template.format(slug=mission_slug) for template in _STATUS_ONLY_PREFIX_TEMPLATES) + (_KITTIFY_PREFIX,)
+
+
+def _has_qualifying_commit_since_claim_base(
+    write_checkout: Path,
+    base_sha: str,
+    mission_slug: str,
+) -> bool:
+    """True iff ``base_sha..HEAD`` in *write_checkout* touches a path OUTSIDE
+    the status/issue-matrix/``.kittify`` exclusion set.
+
+    Uses ``git log --pretty=format: --name-only`` (an EMPTY commit-metadata
+    format) so the output is pure changed-path lines with no commit-hash
+    lines to disambiguate -- avoids the hash-vs-path ambiguity a
+    ``--format=%H --name-only`` scan would carry. Fail-closed: a
+    non-resolvable range (bad SHA, detached/corrupt checkout) returns
+    ``False`` -- the gate refuses rather than passing vacuously.
+    """
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "log", "--pretty=format:", "--name-only", f"{base_sha}..HEAD"],
+        cwd=str(write_checkout),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
+    excluded_prefixes = _status_only_excluded_prefixes(mission_slug)
+    for raw_line in result.stdout.splitlines():
+        path = raw_line.strip()
+        if not path:
+            continue
+        if not path.startswith(excluded_prefixes):
+            return True
+    return False
+
+
+def _evaluate_repo_root_lane_gate(
+    main_repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    lane_id: str,
+    lane_branch: str,
+) -> GateDecision:
+    """The claim-base variant of the gate, for a repo-root lane WP (WP02,
+    contracts/single-branch-execution.md "Claim base and for_review").
+
+    A repo-root lane has no lane branch of its own to diff -- ``lane_branch``
+    here is the mission's target branch, reported for the decision's
+    surfacing only. If the claim-base ref is missing (a WP claimed before
+    this gate existed), this falls back to the ORDINARY refusal below rather
+    than passing vacuously (#5100 scope note: never trust an absent ref as
+    "nothing to check").
+    """
+    from specify_cli.lanes.claim_base import read_claim_base
+    from specify_cli.workspace.context import resolve_workspace_for_wp
+
+    base_sha = read_claim_base(main_repo_root, mission_slug, wp_id)
+    write_checkout = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id).worktree_path
+
+    if base_sha is not None and _has_qualifying_commit_since_claim_base(write_checkout, base_sha, mission_slug):
+        return GateDecision(
+            passed=True,
+            lane_id=lane_id,
+            lane_branch=lane_branch,
+            base_ref=base_sha,
+        )
+    return GateDecision(
+        passed=False,
+        reason=(
+            f"{wp_id} cannot move to for_review: no implementation commit since claim "
+            f"in the repository root checkout beyond {base_sha or '<no recorded claim base>'}. "
+            "Commit the work first, or pass --force if there is genuinely nothing to "
+            "commit."
+        ),
+        lane_id=lane_id,
+        lane_branch=lane_branch,
+        base_ref=base_sha,
+    )
+
+
 def evaluate_for_review_gate(
     main_repo_root: Path,
     mission_slug: str,
@@ -116,6 +213,11 @@ def evaluate_for_review_gate(
     implementation commit beyond its base. No-ops (pass) when bypassed
     (``force``) or when the gate does not apply (no ``lanes.json``, or the WP is
     not in any lane). Never raises the orchestrator envelope.
+
+    A repo-root-lane WP (today: every planning-artifact WP, WP02) is decided
+    through the claim-base variant (:func:`_evaluate_repo_root_lane_gate`)
+    instead of predicting a ``.worktrees/…`` path that is never created for
+    that lane (#5100 FR-001/FR-002).
     """
     if force:
         return GateDecision(passed=True)
@@ -125,10 +227,15 @@ def evaluate_for_review_gate(
         # Legacy / non-lane arm => guard exempt: no lane branch to check commits on.
         return GateDecision(passed=True)
     manifest, lane = resolved
+    lane_id = lane.lane_id
+
+    from .compute import is_planning_lane
+
+    if is_planning_lane(lane):
+        return _evaluate_repo_root_lane_gate(main_repo_root, mission_slug, wp_id, lane_id, manifest.target_branch)
 
     from .worktree_allocator import predict_lane_worktree
 
-    lane_id = lane.lane_id
     worktree, lane_branch = predict_lane_worktree(main_repo_root, mission_slug, lane_id)
     base_ref = resolve_lane_base_ref(main_repo_root, mission_slug, manifest)
 

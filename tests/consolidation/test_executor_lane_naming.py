@@ -20,7 +20,7 @@ import pytest
 import typer
 
 from specify_cli.git.destructive_guard import DestructiveOpRefused
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.config import MergeStrategy
@@ -120,11 +120,11 @@ def _branch_exists(repo: Path, branch: str) -> bool:
 
 def test_created_lane_branch_never_the_identity_form(tmp_path: Path) -> None:
     """The created branch is keyed on the manifest slug alone (I-1): it must
-    equal ``lane_branch_name`` called WITHOUT a ``mission_id``, and must NOT
+    equal ``code_lane_branch_name`` called WITHOUT a ``mission_id``, and must NOT
     equal the identity-form branch."""
     mission = shape_mismatched_mid8(tmp_path)
     created = ex._created_lane_branch(mission.manifest, "lane-a")
-    expected = lane_branch_name(mission.manifest.mission_slug, "lane-a", planning_base_branch=mission.manifest.target_branch)
+    expected = code_lane_branch_name(mission.manifest.mission_slug, "lane-a")
     assert created == expected
     identity_form = _identity_injected_lane_branch(mission.manifest.mission_slug, "lane-a", mission.manifest.mission_id)
     assert created != identity_form

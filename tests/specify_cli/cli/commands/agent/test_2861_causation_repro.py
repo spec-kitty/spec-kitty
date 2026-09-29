@@ -79,7 +79,7 @@ def _materialize_lane_worktree(repo_root: Path, mission_dirname: str, wp_id: str
     that reality here using the SAME canonical naming the sync itself uses so
     the success path completes end-to-end.
     """
-    from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path
+    from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_path
     from specify_cli.lanes.persistence import read_lanes_json
 
     feature_dir = repo_root / "kitty-specs" / mission_dirname
@@ -89,11 +89,7 @@ def _materialize_lane_worktree(repo_root: Path, mission_dirname: str, wp_id: str
     assert lane is not None, f"{wp_id} must be lane-owned in the fixture manifest"
 
     coord_branch = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))["coordination_branch"]
-    lane_branch = lane_branch_name(
-        mission_dirname,
-        lane.lane_id,
-        planning_base_branch=manifest.target_branch,
-    )
+    lane_branch = code_lane_branch_name(mission_dirname, lane.lane_id)
     # The sync resolves the worktree DIR through the same seam (no
     # identity parameter); match it exactly so the created path is the one the
     # sync will look for.

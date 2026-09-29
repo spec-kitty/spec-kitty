@@ -28,7 +28,7 @@ from specify_cli.lanes import branch_naming
 from specify_cli.lanes.branch_naming import (
     InvalidMissionIdentity,
     _mid8,
-    lane_branch_name,
+    code_lane_branch_name,
     mission_branch_name,
     reset_legacy_failover_warning,
     resolve_branch_name,
@@ -263,7 +263,7 @@ def test_lane_and_worktree_names_are_the_created_form(
     worktree_dir: str,
 ) -> None:
     """Lane/worktree names are keyed on the creation input alone (no mission_id)."""
-    assert lane_branch_name(slug, "lane-a") == lane_branch
+    assert code_lane_branch_name(slug, "lane-a") == lane_branch
     assert worktree_dir_name(slug, lane_id="lane-a") == worktree_dir
 
 

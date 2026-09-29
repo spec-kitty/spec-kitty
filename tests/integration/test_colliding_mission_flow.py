@@ -45,7 +45,7 @@ from specify_cli.context.mission_resolver import (
     resolve_mission,
 )
 from specify_cli.lanes.branch_naming import (
-    lane_branch_name,
+    code_lane_branch_name,
     mission_branch_name,
 )
 from specify_cli.status.identity_audit import (
@@ -310,7 +310,7 @@ def test_lane_branches_are_distinct_per_mission(colliding_080_repo: Path) -> Non
 
     for ulid in (ULID_FOO, ULID_BAR, ULID_BAZ):
         resolved = resolve_mission(ulid, colliding_080_repo)
-        branch = lane_branch_name(
+        branch = code_lane_branch_name(
             mission_slug=resolved.mission_slug,
             lane_id="lane-a",
         )

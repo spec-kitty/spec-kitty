@@ -17,6 +17,7 @@ import pytest
 from specify_cli.lanes.branch_naming import (
     InvalidMissionIdentity,
     _mid8,
+    code_lane_branch_name,
     is_legacy_branch,
     lane_branch_name,
     mission_branch_name,
@@ -98,7 +99,7 @@ def test_lane_branch_name_new_format() -> None:
     # mission_id: the slug carries no embedded mid8, so it composes
     # verbatim.
     slug = "083-mission-id-canonical-identity-migration"
-    result = lane_branch_name(slug, "lane-a")
+    result = code_lane_branch_name(slug, "lane-a")
     assert result == "kitty/mission-083-mission-id-canonical-identity-migration-lane-a"
 
 
@@ -106,7 +107,7 @@ def test_lane_branch_name_does_not_double_existing_mid8_suffix() -> None:
     # Unchanged: the slug already embeds its own mid8, so the created name is
     # byte-identical whether or not an identity is supplied.
     slug = "agent-profile-projection-plugin-production-01KV3NGS"
-    result = lane_branch_name(slug, "lane-a")
+    result = code_lane_branch_name(slug, "lane-a")
     assert result == "kitty/mission-agent-profile-projection-plugin-production-01KV3NGS-lane-a"
 
 
@@ -115,13 +116,13 @@ def test_lane_branch_name_without_numeric_prefix() -> None:
     # and no embedded mid8 composes verbatim (lane naming takes no
     # mission_id).
     slug = "my-feature"
-    result = lane_branch_name(slug, "lane-b")
+    result = code_lane_branch_name(slug, "lane-b")
     assert result == "kitty/mission-my-feature-lane-b"
 
 
 def test_lane_branch_name_planning_lane_ignores_identity() -> None:
     # lane-planning returns the planning base branch, unaffected by identity.
-    result = lane_branch_name("083-foo", "lane-planning")
+    result = lane_branch_name("083-foo", "lane-planning", target_branch="main")
     assert result == "main"
 
 
@@ -129,7 +130,7 @@ def test_lane_branch_name_planning_with_explicit_base() -> None:
     result = lane_branch_name(
         "083-foo",
         "lane-planning",
-        planning_base_branch="release/3.x",
+        target_branch="release/3.x",
     )
     assert result == "release/3.x"
 
@@ -149,7 +150,7 @@ def test_lane_branch_name_is_identity_independent_by_construction() -> None:
     longer takes an identity at all.
     """
     slug = "083-foo-bar"
-    assert lane_branch_name(slug, "lane-a") == lane_branch_name(slug, "lane-a") == "kitty/mission-083-foo-bar-lane-a"
+    assert code_lane_branch_name(slug, "lane-a") == code_lane_branch_name(slug, "lane-a") == "kitty/mission-083-foo-bar-lane-a"
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +270,7 @@ def test_round_trip_construct_then_parse(slug: str, lane: str) -> None:
     """Lane naming takes no identity, so a bare slug round-trips with no
     ``mid8_token`` (that case is covered separately, below, for an
     already-embedded slug)."""
-    branch = lane_branch_name(slug, lane)
+    branch = code_lane_branch_name(slug, lane)
     result = parse_mission_slug_from_branch(branch)
     assert result is not None
     parsed_slug, parsed_mid8, parsed_lane = result
@@ -281,7 +282,7 @@ def test_round_trip_construct_then_parse(slug: str, lane: str) -> None:
 def test_round_trip_construct_then_parse_embedded_mid8() -> None:
     """A slug that already embeds a mid8 tail round-trips it (no injection)."""
     slug = "foo-01KV3NGS"
-    branch = lane_branch_name(slug, "lane-a")
+    branch = code_lane_branch_name(slug, "lane-a")
     result = parse_mission_slug_from_branch(branch)
     assert result is not None
     assert result.slug == "foo"
@@ -319,5 +320,5 @@ def test_lane_branch_name_embedded_mid8_shaped_token_preserved() -> None:
     exactly once (the double-append this test used to pin is now impossible).
     """
     slug = "my-feature-AAAA1111"
-    result = lane_branch_name(slug, "lane-a")
+    result = code_lane_branch_name(slug, "lane-a")
     assert result == "kitty/mission-my-feature-AAAA1111-lane-a"

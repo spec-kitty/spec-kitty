@@ -28,7 +28,8 @@ from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
 from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.lanes._git import branch_exists as _branch_exists
-from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
+from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_branch_name, resolve_mid8, worktree_path as _worktree_path
+from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.consolidation import (
     _ephemeral_merge_driver_activation,
     _make_merge_env,
@@ -540,8 +541,16 @@ def predict_lane_worktree(repo_root: Path, mission_slug: str, lane_id: str) -> t
     WP01 seam instead of an ad-hoc f-string (FR-005). Lane naming is keyed on
     the creation input (slug + lane id) alone (WP07, FR-002/PD-1) — the Mission
     identity is not an input to a lane name.
+
+    Raises:
+        ValueError: ``lane_id`` is the canonical planning (repo-root) lane.
+            That lane has no worktree — callers must route a repo-root lane
+            to the write checkout directly instead of predicting a path here
+            (#5100).
     """
-    branch = lane_branch_name(mission_slug, lane_id)
+    if lane_id == PLANNING_LANE_ID:
+        raise ValueError("repo-root lane has no worktree")
+    branch = code_lane_branch_name(mission_slug, lane_id)
     worktree_path = _worktree_path(repo_root, mission_slug, lane_id=lane_id)
     return worktree_path, branch
 
@@ -1306,7 +1315,7 @@ def _merge_dependency_lane_tips(
     pre_loop_ref = _current_head(worktree_path)
     with _ephemeral_merge_driver_activation(repo_root):
         for dep_lane in ordered:
-            dep_branch = lane_branch_name(mission_slug, dep_lane.lane_id)
+            dep_branch = lane_branch_name(mission_slug, dep_lane.lane_id, target_branch=lanes_manifest.target_branch)
             if not _branch_exists(repo_root, dep_branch):
                 # Merged-and-deleted (or never-started) dependency lane: fall back
                 # to the existing base. Do not crash, do not silently swallow —
