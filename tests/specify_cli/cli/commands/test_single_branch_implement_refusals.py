@@ -307,6 +307,60 @@ def test_wrong_branch_refusal_is_isolated_and_carries_error_code_and_remedy(repo
     assert "Check out 'trunk'" in str(excinfo.value)
 
 
+def test_planning_wp_of_single_branch_mission_refuses_wrong_branch(repo: Path) -> None:
+    """A planning_artifact WP of a single_branch mission resolves
+    ``branch_name=None`` (no expectation in the workspace contract), so the
+    refusal skipped the wrong-branch check and the WP could be claimed with the
+    checkout on the wrong branch -- recording the claim base on that HEAD.
+    The expected branch now comes from the single write-ref rule regardless
+    of WP kind."""
+    from specify_cli.workspace.context import resolve_workspace_for_wp
+
+    mission_slug = "impl-plan-wrong-branch"
+    _build_mission(repo, mission_slug, "01IMPLPLANWRONGBRANCH001", wp_kind="planning_artifact")
+    _git(repo, "checkout", "-q", "-b", "not-trunk-plan")
+
+    ws = resolve_workspace_for_wp(repo, mission_slug, "WP01")
+
+    assert ws.branch_name is None, "precondition: the planning arm carries no branch expectation"
+    with pytest.raises(WriteCheckoutWrongBranchError) as excinfo:
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+    assert excinfo.value.error_code == "WRITE_CHECKOUT_WRONG_BRANCH"
+    assert "'trunk'" in str(excinfo.value)
+
+
+def test_planning_wp_of_protected_single_branch_mission_expects_mission_branch(repo: Path) -> None:
+    """The planning WP's expected branch follows meta.mission_branch (the mint) too."""
+    import json
+
+    from specify_cli.workspace.context import resolve_workspace_for_wp
+
+    mission_slug = "impl-plan-protected"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLPLANPROTECTED0001", wp_kind="planning_artifact")
+    minted = "kitty/mission-impl-plan-protected-01IMPLPL"
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["mission_branch"] = minted
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    ws = resolve_workspace_for_wp(repo, mission_slug, "WP01")
+
+    with pytest.raises(WriteCheckoutWrongBranchError) as excinfo:
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)  # checkout is on trunk
+
+    assert f"'{minted}'" in str(excinfo.value)
+
+
+def test_planning_wp_of_lanes_mission_keeps_no_branch_expectation(repo: Path) -> None:
+    """Control: outside single_branch a planning WP's repo root is the ordinary
+    shared planning root -- no branch expectation (``branch_name is None``)."""
+    from specify_cli.workspace.context import resolve_workspace_for_wp
+
+    mission_slug = "impl-plan-lanes-control"
+    _build_mission(repo, mission_slug, "01IMPLPLANLANESCTRL0001", topology="lanes", wp_kind="planning_artifact")
+
+    assert resolve_workspace_for_wp(repo, mission_slug, "WP01").branch_name is None
+
+
 # ---------------------------------------------------------------------------
 # Refusal 3: occupied (US2.7: two missions sharing a checkout)
 # ---------------------------------------------------------------------------

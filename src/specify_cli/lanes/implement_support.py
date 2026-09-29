@@ -142,8 +142,18 @@ def _ensure_repo_root_checkout_available(
 
     write_checkout = resolved_workspace.worktree_path
     expected_branch = resolved_workspace.branch_name
+    if expected_branch is None:
+        # A planning_artifact WP resolves no branch expectation of its own (its
+        # repo root is the ordinary planning root in every other topology), but
+        # in a single_branch mission it shares THIS write checkout and must
+        # sit on the mission's write branch just like a code WP -- take it from
+        # the same single rule, regardless of WP kind.
+        from mission_runtime import resolve_single_branch_write_ref
+        from specify_cli.core.paths import get_feature_target_branch
+
+        expected_branch = resolve_single_branch_write_ref(repo_root, mission_slug, get_feature_target_branch(repo_root, mission_slug))
     current_branch = get_current_branch(write_checkout)
-    if expected_branch is not None and current_branch != expected_branch:
+    if current_branch != expected_branch:
         raise WriteCheckoutWrongBranchError(
             f"The write checkout at {write_checkout} is on branch "
             f"{current_branch!r}, but {mission_slug} {wp_id} expects "
