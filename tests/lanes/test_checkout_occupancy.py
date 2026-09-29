@@ -17,6 +17,9 @@ from specify_cli.lanes.checkout_occupancy import (
     dirty_paths,
     in_progress_wps_in_write_checkout,
 )
+from specify_cli.lanes.compute import PLANNING_LANE_ID
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 from tests.utils import _seed_canonical_wp_state, write_wp
 
 pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
@@ -63,6 +66,36 @@ def _write_single_branch_meta(repo: Path, mission_slug: str, mission_id: str) ->
     )
 
 
+def _write_lanes(repo: Path, mission_slug: str, lanes: dict[str, tuple[str, ...]]) -> None:
+    """Write a ``lanes.json`` mapping each lane id to its WP ids."""
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=mission_slug,
+        mission_id=None,
+        mission_branch=f"kitty/mission-{mission_slug}",
+        target_branch="main",
+        lanes=[
+            ExecutionLane(
+                lane_id=lane_id,
+                wp_ids=wp_ids,
+                write_scope=(),
+                predicted_surfaces=(),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
+            for lane_id, wp_ids in lanes.items()
+        ],
+        computed_at="2026-09-28T00:00:00+00:00",
+        computed_from="test",
+    )
+    write_lanes_json(repo / "kitty-specs" / mission_slug, manifest)
+
+
+def _write_repo_root_lane(repo: Path, mission_slug: str, *wp_ids: str) -> None:
+    """Assign *wp_ids* to the mission's repo-root (``lane-planning``) lane."""
+    _write_lanes(repo, mission_slug, {PLANNING_LANE_ID: tuple(wp_ids)})
+
+
 # ---------------------------------------------------------------------------
 # in_progress_wps_in_write_checkout
 # ---------------------------------------------------------------------------
@@ -88,6 +121,7 @@ def test_finds_in_progress_wp_of_a_single_branch_mission(tmp_path: Path) -> None
     repo = tmp_path / "repo"
     _init_repo(repo)
     _write_single_branch_meta(repo, "occ-mission-a", "01OCCMISSIONA00000000000A")
+    _write_repo_root_lane(repo, "occ-mission-a", "WP01")
     write_wp(repo, "occ-mission-a", "in_progress", "WP01")
 
     occupied = in_progress_wps_in_write_checkout(repo, repo)
@@ -99,6 +133,7 @@ def test_excludes_the_callers_own_wp(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
     _write_single_branch_meta(repo, "occ-mission-b", "01OCCMISSIONB00000000000B")
+    _write_repo_root_lane(repo, "occ-mission-b", "WP01")
     write_wp(repo, "occ-mission-b", "in_progress", "WP01")
 
     occupied = in_progress_wps_in_write_checkout(repo, repo, exclude=("occ-mission-b", "WP01"))
@@ -111,8 +146,10 @@ def test_two_missions_sharing_a_checkout_both_surface(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
     _write_single_branch_meta(repo, "occ-mission-c1", "01OCCMISSIONC100000000C1")
+    _write_repo_root_lane(repo, "occ-mission-c1", "WP01")
     write_wp(repo, "occ-mission-c1", "in_progress", "WP01")
     _write_single_branch_meta(repo, "occ-mission-c2", "01OCCMISSIONC200000000C2")
+    _write_repo_root_lane(repo, "occ-mission-c2", "WP01")
     write_wp(repo, "occ-mission-c2", "in_progress", "WP01")
 
     occupied = in_progress_wps_in_write_checkout(repo, repo)
@@ -124,6 +161,7 @@ def test_non_in_progress_lanes_are_not_reported(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
     _write_single_branch_meta(repo, "occ-mission-d", "01OCCMISSIOND00000000000D")
+    _write_repo_root_lane(repo, "occ-mission-d", "WP01", "WP02")
     write_wp(repo, "occ-mission-d", "for_review", "WP01")
     write_wp(repo, "occ-mission-d", "planned", "WP02")
 
@@ -167,11 +205,62 @@ def test_mission_with_unreadable_meta_is_skipped_not_fatal(tmp_path: Path) -> No
     (feature_dir / "meta.json").write_text("{not valid json", encoding="utf-8")
     (feature_dir / "spec.md").write_text("# corrupt mission\n", encoding="utf-8")
     _write_single_branch_meta(repo, "occ-mission-f", "01OCCMISSIONF00000000000F")
+    _write_repo_root_lane(repo, "occ-mission-f", "WP01")
     write_wp(repo, "occ-mission-f", "in_progress", "WP01")
 
     occupied = in_progress_wps_in_write_checkout(repo, repo)
 
     assert occupied == [("occ-mission-f", "WP01")]
+
+
+def test_legacy_single_branch_mission_without_lanes_json_is_not_an_occupant(tmp_path: Path) -> None:
+    """A flat legacy mission (no ``lanes.json``) is *derived* single_branch, but
+    its WPs never ran in the repo-root checkout -- an ``in_progress`` WP there
+    must not read as write-checkout occupancy (it refused every implement on
+    a repo full of historical missions)."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _write_single_branch_meta(repo, "occ-legacy", "01OCCLEGACY0000000000000L")
+    write_wp(repo, "occ-legacy", "in_progress", "WP01")
+
+    assert in_progress_wps_in_write_checkout(repo, repo) == []
+
+
+def test_completed_single_branch_mission_is_not_an_occupant(tmp_path: Path) -> None:
+    """A mission carrying the ``merged_at`` completion marker is done with the checkout."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _write_single_branch_meta(repo, "occ-merged", "01OCCMERGED000000000000M")
+    meta_path = repo / "kitty-specs" / "occ-merged" / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["merged_at"] = "2026-09-29T00:00:00+00:00"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    _write_repo_root_lane(repo, "occ-merged", "WP01")
+    write_wp(repo, "occ-merged", "in_progress", "WP01")
+
+    assert in_progress_wps_in_write_checkout(repo, repo) == []
+
+
+def test_wp_in_a_code_lane_of_a_single_branch_mission_is_not_an_occupant(tmp_path: Path) -> None:
+    """An unmigrated single_branch mission keeps its WPs in CODE lanes (own worktree)."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _write_single_branch_meta(repo, "occ-code-lane", "01OCCCODELANE00000000000C")
+    _write_lanes(repo, "occ-code-lane", {"lane-a": ("WP01",)})
+    write_wp(repo, "occ-code-lane", "in_progress", "WP01")
+
+    assert in_progress_wps_in_write_checkout(repo, repo) == []
+
+
+def test_only_the_repo_root_lane_wps_of_a_mixed_manifest_count(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _write_single_branch_meta(repo, "occ-mixed", "01OCCMIXED0000000000000X")
+    _write_lanes(repo, "occ-mixed", {PLANNING_LANE_ID: ("WP01",), "lane-a": ("WP02",)})
+    write_wp(repo, "occ-mixed", "in_progress", "WP01")
+    write_wp(repo, "occ-mixed", "in_progress", "WP02")
+
+    assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-mixed", "WP01")]
 
 
 # ---------------------------------------------------------------------------

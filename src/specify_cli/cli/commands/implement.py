@@ -1873,13 +1873,18 @@ def _refuse_repo_root_checkout_if_unavailable(
     mission_slug: str,
     wp_id: str,
     resolved_workspace: Any,
-) -> None:
-    """Run the repo-root write-checkout refusals early (no side effects)."""
+) -> bool:
+    """Run the repo-root write-checkout refusals early (no side effects).
+
+    Returns ``True`` when the occupancy scan ran, so ``implement`` threads it
+    into ``create_lane_workspace`` and the full-repo scan runs once per call.
+    """
     from specify_cli.lanes.compute import is_repo_root_lane
     from specify_cli.lanes.implement_support import _ensure_repo_root_checkout_available
 
     if is_repo_root_lane(resolved_workspace):
-        _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace)
+        return _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace)
+    return False
 
 
 def _planning_commit_branch(repo_root: Path, mission_slug: str, target_branch: str) -> str:
@@ -2142,7 +2147,7 @@ def implement(
         # #5100 A3: refusals (wrong branch / occupied / dirty) run BEFORE the VCS
         # lock is written into meta.json, so a refused implement leaves nothing
         # behind (the read-only check is repeated, idempotently, at allocation).
-        _refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
+        occupancy_verified = _refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
         # #3571: when --base is provided, validate the ref (planning-lane
@@ -2163,6 +2168,7 @@ def implement(
             declared_deps=declared_deps,
             vcs_backend_value=vcs_backend.value,
             base=effective_base,
+            occupancy_verified=occupancy_verified,
         )
         workspace_path = result.workspace_path
         branch_name = result.branch_name

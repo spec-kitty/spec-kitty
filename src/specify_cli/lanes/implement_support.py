@@ -95,7 +95,9 @@ def _ensure_repo_root_checkout_available(
     mission_slug: str,
     wp_id: str,
     resolved_workspace: ResolvedWorkspace,
-) -> None:
+    *,
+    occupancy_verified: bool = False,
+) -> bool:
     """Enforce the repo-root-lane refusal order (contract order 2-4, #5100 T018).
 
     Refusal 1 (unmigrated) is NOT checked here: it never reaches this arm.
@@ -117,13 +119,22 @@ def _ensure_repo_root_checkout_available(
       2. Wrong branch -- refuses unconditionally (no resume exemption).
       3. Occupied -- another WP (any single_branch mission) ``in_progress``
          in this checkout. ``exclude`` already drops this WP's own entry, so
-         resuming itself is structurally never "another WP".
+         resuming itself is structurally never "another WP". The scan reads
+         every candidate mission's status log, so a caller that already ran
+         it earlier in the SAME ``implement`` call passes
+         ``occupancy_verified=True`` to skip the repeat (the claim that
+         would change the answer only lands after allocation).
       4. Dirty -- skipped when THIS wp_id is itself already ``in_progress``
          (a genuine resume; the checkout is expected to carry its own
          uncommitted work).
+
+    Returns:
+        ``True`` when the occupancy scan ran (or was already verified) for
+        this call, so the caller can thread it into a later repeat check;
+        ``False`` when the mission is not single_branch and nothing was checked.
     """
     if not _is_single_branch_mission(repo_root, mission_slug):
-        return
+        return False
 
     from specify_cli.lanes.checkout_occupancy import dirty_paths, in_progress_wps_in_write_checkout
     from specify_cli.status import Lane
@@ -140,7 +151,7 @@ def _ensure_repo_root_checkout_available(
             f"{write_checkout} before retrying."
         )
 
-    occupants = in_progress_wps_in_write_checkout(repo_root, write_checkout, exclude=(mission_slug, wp_id))
+    occupants = [] if occupancy_verified else in_progress_wps_in_write_checkout(repo_root, write_checkout, exclude=(mission_slug, wp_id))
     if occupants:
         other_mission, other_wp = occupants[0]
         raise WriteCheckoutOccupiedError(
@@ -164,6 +175,7 @@ def _ensure_repo_root_checkout_available(
             raise WriteCheckoutDirtyError(
                 f"The write checkout at {write_checkout} has uncommitted changes: {listed}. Commit or stash them before claiming {mission_slug} {wp_id}."
             )
+    return True
 
 
 @dataclass
@@ -246,6 +258,7 @@ def create_lane_workspace(
     declared_deps: list[str],
     vcs_backend_value: str,
     base: str | None = None,
+    occupancy_verified: bool = False,
 ) -> LaneWorkspaceResult:
     """Create or reuse the execution workspace for the given WP.
 
@@ -263,6 +276,10 @@ def create_lane_workspace(
         vcs_backend_value: VCS backend value string (e.g., "git").
         base: Explicit ``--base`` ref, threaded into allocation and recorded
             as the honored base for fresh lane provenance.
+        occupancy_verified: The caller already ran the write-checkout
+            occupancy scan earlier in this same call (``implement``'s early
+            refusal), so the repo-root arm skips repeating that full-repo
+            scan; wrong-branch and dirty checks still repeat (cheap).
 
     Returns:
         LaneWorkspaceResult with workspace info.
@@ -276,7 +293,7 @@ def create_lane_workspace(
         # this same arm. #5100 T018: enforce the write-checkout refusal
         # order (wrong branch / occupied / dirty) BEFORE recording the claim
         # base, so a refusal never leaves a stray claim-base ref behind.
-        _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace)
+        _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace, occupancy_verified=occupancy_verified)
 
         # Record the claim base ONCE (idempotent-by-absence) so the
         # for_review gate has a starting point to diff against (WP02/T007,

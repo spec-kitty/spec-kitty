@@ -27,6 +27,27 @@ from mission_runtime import MissionArtifactKind, is_single_branch, placement_sea
 __all__ = ["dirty_paths", "in_progress_wps_in_write_checkout"]
 
 
+def _repo_root_lane_wp_ids(feature_dir: Path) -> frozenset[str]:
+    """WP ids assigned to a repo-root lane in *feature_dir*'s ``lanes.json``.
+
+    Empty when the mission has no ``lanes.json`` (a legacy flat mission whose
+    WPs never ran in the shared checkout) or no WP in a repo-root lane (an
+    unmigrated single_branch mission keeps its WPs in CODE lanes -- each with
+    its own worktree). A corrupt ``lanes.json`` also reads as empty: one bad
+    mission's manifest must not block every OTHER mission's implement.
+    """
+    from specify_cli.lanes.compute import is_repo_root_lane
+    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
+
+    try:
+        manifest = read_lanes_json(feature_dir)
+    except CorruptLanesError:
+        return frozenset()
+    if manifest is None:
+        return frozenset()
+    return frozenset(wp_id for lane in manifest.lanes if is_repo_root_lane(lane) for wp_id in lane.wp_ids)
+
+
 def in_progress_wps_in_write_checkout(
     repo_root: Path,
     write_checkout: Path,
@@ -35,16 +56,27 @@ def in_progress_wps_in_write_checkout(
 ) -> list[tuple[str, str]]:
     """Return ``(mission_slug, wp_id)`` pairs ``in_progress`` in *write_checkout*.
 
-    Scans every mission under ``kitty-specs/`` whose STORED topology
+    A WP occupies the shared repo-root checkout only when it sits in a
+    repo-root lane (:func:`specify_cli.lanes.compute.is_repo_root_lane`) of a
+    mission whose STORED topology
     (:func:`specify_cli.migration.backfill_topology.read_topology`) is
-    ``single_branch`` -- the only topology whose WPs ever execute in a shared
-    repo-root checkout rather than a per-lane worktree, so this is the whole
-    candidate set (NFR-002: bounded scan, status-tail reads only, no git
-    subprocess). A single_branch mission's write checkout has no persisted
-    alternate root (``effective_root`` is a per-invocation resolver
-    parameter, never written to disk), so every single_branch mission's
-    checkout is *repo_root* -- this is compared against *write_checkout*
-    directly rather than re-resolving each mission's workspace.
+    ``single_branch``. Missions are filtered cheapest-first so the status-log
+    read (the only expensive step) happens for real candidates only:
+
+    1. stored topology is ``single_branch`` (one ``meta.json`` read);
+    2. ``lanes.json`` exists and assigns at least one WP to a repo-root lane
+       -- a legacy flat mission with no ``lanes.json`` (topology *derived* as
+       single_branch) never ran a WP in the checkout, and neither did an
+       unmigrated single_branch mission whose WPs sit in code lanes;
+    3. the mission is not completed
+       (:func:`specify_cli.status.is_mission_completed`);
+    4. the status snapshot: a repo-root-lane WP whose lane is ``in_progress``.
+
+    A single_branch mission's write checkout has no persisted alternate root
+    (``effective_root`` is a per-invocation resolver parameter, never written
+    to disk), so every such mission's checkout is *repo_root* -- compared
+    against *write_checkout* directly rather than re-resolving each mission's
+    workspace.
 
     A mission whose ``meta.json`` cannot be read (missing/corrupt) is
     skipped: it never rendered here before this scan existed either, and one
@@ -54,10 +86,10 @@ def in_progress_wps_in_write_checkout(
     the caller's own WP, so resuming a WP it already holds ``in_progress``
     never reads as occupancy by another WP (contract's resume exemption).
     """
-    from specify_cli.context.mission_resolver import list_missions_for_selection
+    from specify_cli.context.mission_resolver import FsMissionResolver
     from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.migration.backfill_topology import read_topology
-    from specify_cli.status import Lane
+    from specify_cli.status import Lane, is_mission_completed
     from specify_cli.status import read_events as _read_events
     from specify_cli.status import reduce as _reduce_events
 
@@ -68,21 +100,26 @@ def in_progress_wps_in_write_checkout(
         return []
 
     occupied: list[tuple[str, str]] = []
-    for listing in list_missions_for_selection(repo_root):
-        mission_slug = listing.mission_slug
-        seam = placement_seam(repo_root, mission_slug)
+    # One walk of kitty-specs/ (the resolver port); the per-mission seam
+    # lookup would re-walk the tree for every mission (quadratic).
+    for mission in FsMissionResolver(repo_root).all_missions():
+        mission_slug = mission.mission_slug
+        feature_dir = mission.feature_dir
         try:
-            topology = read_topology(seam.read_dir(MissionArtifactKind.PRIMARY_METADATA))
+            topology = read_topology(feature_dir)
         except (FileNotFoundError, MissionMetaReadError, ValueError):
             continue
         if not is_single_branch(topology):
             continue
+        repo_root_wp_ids = _repo_root_lane_wp_ids(feature_dir)
+        if not repo_root_wp_ids or is_mission_completed(feature_dir):
+            continue
 
         # single_branch has no coordination partition: the status log is read
         # through the same seam, which resolves it to the primary mission dir.
-        snapshot = _reduce_events(_read_events(seam.read_dir(MissionArtifactKind.STATUS_STATE)))
+        snapshot = _reduce_events(_read_events(placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)))
         for wp_id, wp_state in snapshot.work_packages.items():
-            if exclude == (mission_slug, wp_id):
+            if wp_id not in repo_root_wp_ids or exclude == (mission_slug, wp_id):
                 continue
             if wp_state.get("lane") == Lane.IN_PROGRESS:
                 occupied.append((mission_slug, wp_id))

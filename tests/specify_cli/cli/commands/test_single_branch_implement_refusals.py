@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 import typer
@@ -346,6 +347,46 @@ def test_occupied_refusal_is_isolated_and_carries_error_code_and_remedy(repo: Pa
 
     assert excinfo.value.error_code == "WRITE_CHECKOUT_OCCUPIED"
     assert "Move WP01 out of in_progress" in str(excinfo.value)
+
+
+def test_occupancy_scan_runs_once_per_implement_call(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``implement`` refuses early and again at allocation; the full-repo
+    occupancy scan (every candidate mission's status log) must run ONCE per
+    call, not once per refusal pass."""
+    from specify_cli.lanes import checkout_occupancy
+
+    real_scan = checkout_occupancy.in_progress_wps_in_write_checkout
+    calls: list[tuple[str, str] | None] = []
+
+    def _counting_scan(*args: Any, **kwargs: Any) -> list[tuple[str, str]]:
+        calls.append(kwargs.get("exclude"))
+        return real_scan(*args, **kwargs)
+
+    monkeypatch.setattr(checkout_occupancy, "in_progress_wps_in_write_checkout", _counting_scan)
+    mission_slug = "impl-scan-once"
+    _build_mission(repo, mission_slug, "01IMPLSCANONCE0000000001")
+
+    result = _run_implement(repo, mission_slug)
+
+    assert result.exit_code == 0, result.output
+    assert calls == [(mission_slug, "WP01")]
+
+
+def test_create_lane_workspace_repeats_occupancy_scan_unless_verified(repo: Path) -> None:
+    """The threaded flag is opt-in: a direct ``_ensure_repo_root_checkout_available``
+    call still scans; ``occupancy_verified=True`` skips only the occupancy step
+    (an occupant that appeared in the meantime is NOT re-detected, but the
+    cheap wrong-branch / dirty checks still run)."""
+    other_slug = "impl-occupant-verified"
+    _build_mission(repo, other_slug, "01IMPLOCCUPVERIFIED00001")
+    _seed_canonical_wp_state(repo, other_slug, "WP01", "in_progress", actor="claude", assignee="Owner", shell_pid="1234", timestamp="2026-09-28T00:45:00Z")
+    mission_slug = "impl-claimant-verified"
+    _build_mission(repo, mission_slug, "01IMPLCLAIMVERIFIED0001")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    with pytest.raises(WriteCheckoutOccupiedError):
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+    assert _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws, occupancy_verified=True) is True
 
 
 # ---------------------------------------------------------------------------
