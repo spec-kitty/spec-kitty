@@ -153,6 +153,15 @@ def test_cli_boundary_dedupes_and_tolerates_a_lone_reason() -> None:
     assert _validated_attestation_flags(None, None) == ()
 
 
+def test_cli_boundary_treats_unresolved_typer_defaults_as_absent() -> None:
+    """A direct ``consolidate()`` call that omits the flags passes ``OptionInfo`` sentinels."""
+    import typer
+
+    from specify_cli.cli.commands.consolidate import _validated_attestation_flags
+
+    assert _validated_attestation_flags(typer.Option(None), typer.Option(None)) == ()
+
+
 def test_attestation_stamps_carry_the_lane_head_or_none() -> None:
     stamped = StatusEvent(
         event_id="01HXYZ00000000000000000009",

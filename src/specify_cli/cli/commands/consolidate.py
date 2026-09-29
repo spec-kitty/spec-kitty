@@ -971,18 +971,27 @@ def consolidate(
         skip_note=note,
         skip_lanes=skip_lanes,
         attest_canceled_superseded=attested_wps,
-        attest_reason=attest_reason,
+        attest_reason=attest_reason if attested_wps else None,
     )
 
 
-def _validated_attestation_flags(wp_ids: list[str] | None, reason: str | None) -> tuple[str, ...]:
+def _validated_attestation_flags(wp_ids: object, reason: object) -> tuple[str, ...]:
     """CLI-boundary check for FR-012's flags, BEFORE any merge work runs.
 
     ``--attest-canceled-superseded`` without a non-blank ``--attest-reason`` is
     refused (exit 2) so the attestation always records why. ``--attest-reason``
     alone is inert: warn, never fail (mirrors ``--note``).
+
+    Like :func:`_clean_mission_option`, a direct Python call of ``consolidate()``
+    that omits these parameters passes the unresolved ``typer.Option``
+    sentinel; anything that is not a list of strings / a string is treated as
+    "not supplied" rather than iterated.
     """
-    requested = tuple(dict.fromkeys(wp.strip() for wp in (wp_ids or ()) if wp.strip()))
+    if not isinstance(wp_ids, (list, tuple)):
+        wp_ids = ()
+    if not isinstance(reason, str):
+        reason = None
+    requested = tuple(dict.fromkeys(wp.strip() for wp in wp_ids if isinstance(wp, str) and wp.strip()))
     if requested and not (reason and reason.strip()):
         console.print('[red]Error:[/red] --attest-canceled-superseded requires --attest-reason "<what you checked>" so the attestation records why.')
         raise typer.Exit(2)
