@@ -3366,7 +3366,7 @@ def _record_operator_attestations(
     from specify_cli.consolidation.done_bookkeeping import _resolve_merge_actor
 
     try:
-        requested = validate_attestation_request(wp_ids, reason, acceptably_canceled=acceptably_canceled)
+        requested: tuple[str, ...] = validate_attestation_request(wp_ids, reason, acceptably_canceled=acceptably_canceled)
     except AttestationError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
