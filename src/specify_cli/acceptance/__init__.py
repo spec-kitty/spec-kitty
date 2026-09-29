@@ -896,7 +896,13 @@ def _approved_lane_source_roots(
     nothing. Missing or corrupt ``lanes.json`` yields no roots at all: the
     check then behaves exactly as it did before this change rather than
     guessing at a topology.
+
+    The planning (repo-root) lane has no worktree of its own (#5100): its work
+    lands in the write checkout, which the check already reads, so it
+    contributes no extra root and is never passed to
+    :func:`predict_lane_worktree`, which refuses it.
     """
+    from specify_cli.lanes.compute import is_planning_lane
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
@@ -913,7 +919,7 @@ def _approved_lane_source_roots(
     roots: list[Path] = []
     for lane in manifest.lanes:
         lane_wps = set(getattr(lane, "wp_ids", ()) or ())
-        if not lane_wps or not lane_wps <= accepted_wps:
+        if is_planning_lane(lane) or not lane_wps or not lane_wps <= accepted_wps:
             continue
         candidate, _lane_branch = predict_lane_worktree(repo_root, manifest.mission_slug, lane.lane_id)
         if candidate.is_dir():

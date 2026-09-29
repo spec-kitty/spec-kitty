@@ -241,6 +241,25 @@ def test_a_lane_with_an_unapproved_work_package_is_not_offered(
     assert roots == ()
 
 
+def test_an_approved_planning_lane_is_skipped_not_predicted(
+    mission_repo: tuple[Path, Path],
+) -> None:
+    """The repo-root planning lane has no worktree (#5100): it is skipped, never
+    handed to ``predict_lane_worktree`` (which refuses it), while an approved
+    code lane beside it is still offered."""
+    from specify_cli.acceptance import _approved_lane_source_roots
+
+    repo_root, feature_dir = mission_repo
+    lane_root = _lane_worktree(repo_root, with_dirs=("tests", "docs"))
+    _lanes_json(feature_dir, wp_ids=("WP01",))
+    manifest = json.loads((feature_dir / "lanes.json").read_text(encoding="utf-8"))
+    manifest["lanes"].append({"lane_id": "lane-planning", "wp_ids": ["WP02"], "depends_on": []})
+    (feature_dir / "lanes.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    roots = _approved_lane_source_roots(repo_root, feature_dir, {"approved": ["WP01", "WP02"], "done": []})
+    assert roots == (lane_root,)
+
+
 def test_a_missing_lanes_manifest_offers_nothing(
     mission_repo: tuple[Path, Path],
 ) -> None:
