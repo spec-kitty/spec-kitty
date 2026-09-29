@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#3044": {
+      "evidence_ref": "Parent epic (context only)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "review-artifact & verdict integrity",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5316": {
+      "evidence_ref": "PR that named this residual in its Deferred section",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "PR #5316 (#5196)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5340": {
+      "evidence_ref": "Follow-up: unify the implementer projections; owns the consolidation preflight false hollow-review warning",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Unify the three who-implemented projections",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5377": {
+      "evidence_ref": "Claimed by mission; issue comment 5897047538; assignee stijn-dejongh",
+      "fr": "FR-001, FR-002, FR-003, FR-004",
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-001, SC-002",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "agent action implement refuses the implementer's resume after an in_review -> in_progress rejection",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

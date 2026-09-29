@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-29T19:25:58.402266Z",
+      "decision_id": "01M3QA31R2X5FBMRTT4KEK71ZM",
+      "final_answer": "Implementer of record (latest_implementer_actor) only; fix at the shared start_implementation_status authority so all callers inherit it",
+      "input_key": "resume_scope",
+      "mission_id": "01M3QA1XPKGNMKKD03049VPXJP",
+      "mission_slug": "implement-rework-resume-01M3QA1X",
+      "opened_by": "claude",
+      "options": [
+        "Implementer of record (latest_implementer_actor) only; fix at the shared start_implementation_status authority so all callers inherit it",
+        "Only agent action implement (executor-local fix)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Who may resume an in_progress WP via implement after a reviewer's in_review\u2192in_progress rework verdict, and does the fix cover every start_implementation_status caller?",
+      "rationale": "Operator brief + #5377 Expected section: the implementer of record per latest_implementer_actor resumes without --force, an unrelated agent is still refused. Fixing the shared lifecycle authority keeps one ownership rule for agent action implement, spec-kitty implement and orchestrator-api start-implementation (single canonical authority).",
+      "resolved_at": "2026-09-29T19:26:08.935229Z",
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "resolved",
+      "step_id": "discovery",
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3QA1XPKGNMKKD03049VPXJP",
+  "version": 1
+}

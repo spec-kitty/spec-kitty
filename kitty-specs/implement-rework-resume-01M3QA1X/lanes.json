@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "implement-rework-resume-01M3QA1X",
+  "mission_id": "01M3QA1XPKGNMKKD03049VPXJP",
+  "mission_branch": "kitty/mission-implement-rework-resume-01M3QA1X",
+  "target_branch": "ccr-806fafb9-5qycab",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/api/orchestrator-api.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "src/specify_cli/status/review_roles.py",
+        "src/specify_cli/status/work_package_lifecycle.py",
+        "tests/specify_cli/cli/commands/agent/test_rework_guard_ratchets.py",
+        "tests/specify_cli/cli/commands/agent/test_rework_unforced_loop.py",
+        "tests/status/test_work_package_lifecycle.py",
+        "tests/unit/status/test_review_roles.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-29T19:36:35.724230+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a55e05d76e1db91f5704d62b5f2de82f8b6ab33b"
+}
