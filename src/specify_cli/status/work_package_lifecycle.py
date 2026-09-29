@@ -155,7 +155,10 @@ def _admits_implementer_of_record(
     """Whether ``actor`` is ``wp_id``'s implementer of record (#5377).
 
     Same projection ``move-task`` uses since #5196. Fails closed: any read or
-    projection failure returns ``False`` so the caller keeps refusing.
+    projection failure returns ``False`` so the caller keeps refusing. An admitted
+    resume writes no event, so the reduced slot still names the reviewer while the
+    returned ``claimed_by`` names the implementer; the next ``move-task`` passes
+    through the same projection.
     """
     # Lazy imports: ``review_roles`` imports this module (a top-level import would
     # cycle) and ``coordination.status_transition`` imports back into status.
@@ -165,7 +168,7 @@ def _admits_implementer_of_record(
     try:
         events = read_events_transactional(feature_dir=feature_dir, mission_slug=mission_slug, repo_root=repo_root)
         return is_latest_implementer(latest_implementer_actor(events, wp_id), actor)
-    except Exception:  # noqa: BLE001 — fail closed toward the existing claim-conflict refusal (#5377)
+    except Exception:  # fail closed toward the existing claim-conflict refusal (#5377)
         return False
 
 
