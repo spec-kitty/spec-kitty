@@ -118,6 +118,14 @@ def test_failed_create_restores_branch_and_leaves_no_orphan(tmp_path: Path, monk
 def test_failed_create_restores_owned_checkout_ref_and_index(tmp_path: Path) -> None:
     """Late failure rolls back the explicit checkout that received the commit."""
     primary, linked = _init_owned_checkout_pair(tmp_path)
+    # #5100 (WP08): the create-time mint treats the resolved primary branch as
+    # a protected target, and (with no origin and no common primary name) the
+    # resolver falls back to the checked-out branch -- which would make
+    # ``owned-work`` itself "primary", so the mint would (correctly) refuse the
+    # staged user change below before the failure this test injects. Name a
+    # real primary so the owned checkout stays an ordinary, unprotected
+    # working branch and the late-failure rollback is what is exercised.
+    subprocess.run(["git", "branch", "main"], cwd=primary, capture_output=True, check=True)
     original_tip = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=linked,
