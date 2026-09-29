@@ -285,6 +285,21 @@ def test_baseline_records_its_own_provenance() -> None:
     assert retiring["files"], "the retiring step's per-file baseline is empty."
 
 
+def test_baseline_keys_requirement_mapping_as_a_package() -> None:
+    """C8 (requirement-id-grammar-01M3NRCA pre-PR fold): ``requirement_mapping``
+    became a package (WP01, grammar.py + lint.py split out of the single
+    module) but the frozen per-file baseline still keyed the retired flat
+    module path. The baseline is a point-in-time evidence snapshot (not
+    re-derived by any test here), so this pins the rename rather than
+    re-measuring: the total file count must be unchanged (a rename, not an
+    addition), and the retired flat path must be gone."""
+    baseline = _baseline()
+    files = baseline["per_file_covered"]["retiring_step"]["files"]
+    assert "src/specify_cli/requirement_mapping/__init__.py" in files
+    assert "src/specify_cli/requirement_mapping.py" not in files
+    assert len(files) == baseline["per_file_covered"]["retiring_step"]["totals"]["files"]
+
+
 def test_marker_mismatch_exception_set_is_reproducible() -> None:
     """Re-run the derivation; the committed output must come back unchanged.
 

@@ -3612,7 +3612,7 @@
           7,
           38
         ],
-        "src/specify_cli/requirement_mapping.py": [
+        "src/specify_cli/requirement_mapping/__init__.py": [
           39,
           178
         ],
