@@ -103,7 +103,11 @@ harness. Those need a read and a planted break, as the procedure describes.
 
 ## Shallow clones
 
-Provenance comes from one `git log` pass over the scanned roots. On a shallow
+Provenance comes from one `git log` pass over the top-level directory of each
+scanned root. Renames are followed, including a move in from a sibling
+directory, so `added` names the commit that created the file, not the one that
+last renamed it; a move in from outside that top-level directory still reads as
+an add. On a shallow
 clone, the graft point stands in for the `added` date of older files. Deepen
 the clone (`git fetch --deepen=<n>` or `--unshallow`) when the
 development-assist lens matters.

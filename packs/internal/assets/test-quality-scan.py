@@ -402,23 +402,52 @@ def _changed_names(old_source: str, new_source: str) -> set[str]:
 
 
 def attach_provenance(repo: Path, files: dict[str, FileRow], roots: list[str]) -> None:
-    """Fill ``added``/``added_by``/``last_touched`` from one ``git log`` pass.
+    """Fill ``added``/``added_by``/``last_touched`` from one ``git log -M`` pass.
 
-    On a shallow clone the oldest reachable commit stands in for "added".
+    The log runs newest first, so the newest commit sets ``last_touched`` and the
+    oldest one wins ``added``. Renames are followed: a rename maps the old path
+    onto the file's current path, so older commits keep counting toward it. The
+    log covers each root's top-level directory, so a move in from a sibling
+    directory (``tests/merge`` to ``tests/consolidation``) reads as a rename, not
+    an add. On a shallow clone the oldest reachable commit stands in for "added".
     """
-    log = git(repo, "log", "--format=@@%h\t%as\t%s", "--name-only", "--no-renames", "--", *roots)
+    log = git(repo, "log", "-M", "--format=@@%h\t%as\t%s", "--name-status", "--", *_log_scope(roots))
+    alias: dict[str, str] = {}
     commit: tuple[str, str, str] | None = None
     for line in log.splitlines():
         if line.startswith("@@"):
             sha, date, subject = (line[2:].split("\t", 2) + ["", ""])[:3]
             commit = (sha, date, subject)
             continue
-        row = files.get(line.strip())
+        path = _current_path(line, alias)
+        row = files.get(path) if path else None
         if row is None or commit is None:
             continue
         if row.last_touched is None:
             row.last_touched = commit[1]
         row.added, row.added_by = commit[1], f"{commit[0]} {commit[2][:90]}"
+
+
+def _log_scope(roots: list[str]) -> list[str]:
+    """The top-level directory of each relative root, so cross-directory renames pair up."""
+    scope = {Path(root).parts[0] if Path(root).parts and not Path(root).is_absolute() else root for root in roots}
+    return sorted(scope)
+
+
+def _current_path(status_line: str, alias: dict[str, str]) -> str | None:
+    """Resolve a ``--name-status`` row to the path the file has today.
+
+    ``alias`` maps an older path to its current one; a rename row records the
+    mapping for the older commits still to come.
+    """
+    parts = status_line.split("\t")
+    if len(parts) < 2:
+        return None
+    if parts[0].startswith("R") and len(parts) == 3:
+        current = alias.get(parts[2], parts[2])
+        alias[parts[1]] = current
+        return current
+    return alias.get(parts[-1], parts[-1])
 
 
 def render_summary(files: list[FileRow], top: int) -> str:
