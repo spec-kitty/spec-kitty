@@ -118,16 +118,35 @@ Every pattern in the module is generated from one core kind alternation,
 `_KIND_ALT = "FR|NFR|SC|C"` (`grammar.py:74`), matched case-insensitively
 (`_KIND_DIGITS`, `grammar.py:87`); kinds are `FR`, `NFR`, `C`, `SC`. Declared-shape scanning
 (`spec_scan=True`) accepts only a lowercase suffix; ref-item matching
-(`spec_scan=False`) is case-tolerant on the suffix (`find_all`, `grammar.py:235-263`;
+(`spec_scan=False`) is case-tolerant on the suffix (`find_all`, `grammar.py:247-275`;
 Decision Moment `01M3NRCVW5VPE1DC9J6G5F3RBC`: accept the letter suffix, lowercase
 canonical). The
 C-001 architectural gate's floor test asserts the one detectable site IS this named
 constant (`grammar.py:66-74`).
 
+### Dotted IDs are dropped, not truncated
+
+A token immediately followed by a token-boundary `-<alphanumeric>` or `.<alphanumeric>`
+is not an ID at all: `is_compound_tail` (`grammar.py:202-222`, backed by
+`_COMPOUND_TAIL`, `grammar.py:198`) rejects the whole match. A dotted sub-requirement
+id — `FR-002.3`, `### FR-001.1 Title`, `**FR-004.1** x` — is therefore DROPPED entirely
+by both `find_all` and the declared-shape scan, not silently truncated to the
+well-formed prefix (`FR-002`/`FR-001`/`FR-004`, folded from the earlier
+truncate-to-parent behaviour): truncation would let a spec-scan/declared-id consumer
+accept a token the setup-plan lint refuses as malformed (it reads the same
+`.`-inclusive lead charset via `MALFORMED_DECLARED_LEAD`, `grammar.py:330-337`),
+disagreeing about what the document declares. A sentence-final period is not a dotted
+tail: `.` followed by whitespace or end-of-string (`see FR-001.`) leaves nothing
+alphanumeric for the check to match, so it still yields `FR-001`. Verified directly
+against this Mission's tip: `grammar.find_all("FR-002.3", spec_scan=False)`,
+`grammar.find_all("### FR-001.1 Title", spec_scan=False)` and
+`grammar.find_all("**FR-004.1** x", spec_scan=False)` each return `[]`, while
+`grammar.find_all("see FR-001.", spec_scan=False)` returns `FR-001`.
+
 ### Qualified citation
 
 `<mission-slug>#<ID>` (`_QUALIFIED_KIND_DIGITS`, `grammar.py:96`; finder in `find_all`,
-`grammar.py:235-263`): never declared, never required, never flagged by the bare-prose
+`grammar.py:247-275`): never declared, never required, never flagged by the bare-prose
 scan, never warned about at setup-plan, reported `foreign_qualified` when present in a
 work package's refs, and the qualifier itself is never resolved against anything local
 (Decision Moment `01M3NRD1N2PFH7MX82PH2D93PV`: include the qualified foreign-citation
@@ -160,10 +179,10 @@ ref**, not per WP.
   and `:1201-1243` (`_classify_wp_requirement_refs`) — a WP is "missing" only when it has NO
   accepted ref: a WP whose only refs are `foreign_qualified` is missing too (Decision
   Moment `01M3NYFZ1P6QBD2DX4DVDA323W`), cited at `:1214`.
-- `src/specify_cli/cli/commands/agent/tasks_map_requirements.py:535-561`
+- `src/specify_cli/cli/commands/agent/tasks_map_requirements.py:538-564`
   (`_mr_classify_wp_refs`) and `src/specify_cli/cli/commands/agent/tasks_mapping_core.py:214-234`
   (`_classify_new_ref_offenders`).
-- `src/runtime/next/runtime_bridge_cores.py:343-365` (`_classify_wp_refs`) — returns
+- `src/runtime/next/runtime_bridge_cores.py:343-366` (`_classify_wp_refs`) — returns
   `(accepted, rejected)`; `rejected` is populated only for `FAILING_REASONS` members, so a
   `foreign_qualified` ref is dropped from the rejected list entirely while an accepted
   sibling on the same WP survives regardless. The same missing-WP rule (Decision Moment
@@ -183,10 +202,26 @@ and in place, new refs are merged in canonical form, and duplicates are dropped 
 canonical-form dedup (`src/specify_cli/cli/commands/agent/tasks_mapping_core.py:125`
 `_dedup_key`, `:136` `_merge_refs`, `:237-273` `plan_mapping`).
 
+### `map-requirements` input tokenisation and stale-ref reporting
+
+Both `--refs` (a space/comma-separated scalar) and `--batch` (a JSON `{WP_ID: [refs]}`
+object) are tokenised through the shared `grammar.tokenize_refs` before classification —
+`_mr_build_new_mappings` (`src/specify_cli/cli/commands/agent/tasks_map_requirements.py:239-270`),
+`--batch` at `:259`, `--refs` at `:269` — so neither input path re-splits or re-cases a
+ref on its own. The pre-write gate (`_mr_gate_offenders`, `:430-475`) and the post-write
+stale gate (`_mr_stale_gate`, `:584-641`) both classify through the same grammar verdict
+table: a `foreign_qualified` ref is reported only in `stale_ref_reasons` (informational),
+never in `stale_refs`, whose `--replace to correct` hint would otherwise invite deleting a
+valid cross-mission citation, and a WP whose only stale refs are `foreign_qualified` never
+sets the gate (`:609-618`). The unknown-ID refusal (`_mr_gate_offenders`, `:459-475`) now
+carries `parsed_spec_ids` alongside `unknown_refs` (`:461,466`), the same additive
+diagnostic `finalize-tasks` carries — an operator debugging a rejected `map-requirements`
+call sees the same "what does the tool believe the spec declares" answer #2066 asked for.
+
 ### SC tracked, not gating
 
 `success_criteria_coverage` is informational: an unreferenced declared SC never fails a run
-(`src/specify_cli/cli/commands/agent/mission_finalize.py:1275-1298`,
+(`src/specify_cli/cli/commands/agent/mission_finalize.py:1275-1300`,
 `_build_success_criteria_coverage`; Decision Moment `01M3NRCRYFBC1QNN62EFGXDVBY`: SC status
 in the requirement graph is tracked, not gating). The prior "SC … dropped, not traced"
 advisory warning is retired — `find_discarded_sc_refs` no longer exists anywhere in `src/`.
@@ -195,7 +230,7 @@ advisory warning is retired — `find_discarded_sc_refs` no longer exists anywhe
 
 `finalize-tasks` reports both, additively, on the failure payload AND on the
 `--validate-only`/real-run success payload alike
-(`src/specify_cli/cli/commands/agent/mission_finalize.py:1303-1327`, `_build_requirement_diagnostics`,
+(`src/specify_cli/cli/commands/agent/mission_finalize.py:1303-1328`, `_build_requirement_diagnostics`,
 spread into success JSON at `:2122` and `:3068`).
 
 ### Setup-plan gate and orchestrator-api parity
@@ -203,11 +238,11 @@ spread into success JSON at `:2122` and `:3068`).
 `setup-plan` refuses (exit 1) a spec.md that declares a malformed requirement ID
 (Decision Moment `01M3NRCYSGDJ3VDW6KJ2DVBWZF`: block malformed declared ids, warn only on
 prose citations): `_evaluate_requirement_id_gate`
-(`src/specify_cli/cli/commands/agent/mission_setup_plan.py:509-542`) returns
-`error_code: SPEC_REQUIREMENT_IDS_INVALID` and `invalid_requirement_ids` (`:532,534`),
-via `SetupPlanLocalOutcome(payload, 1, "error")` (`:542`). Prose suspects (unqualified,
+(`src/specify_cli/cli/commands/agent/mission_setup_plan.py:526-559`) returns
+`error_code: SPEC_REQUIREMENT_IDS_INVALID` and `invalid_requirement_ids` (`:549,551`),
+via `SetupPlanLocalOutcome(payload, 1, "error")` (`:559`). Prose suspects (unqualified,
 unsuffixed FR/NFR/C tokens outside a declared position) are reported separately as
-`requirement_id_warnings`, non-blocking (`:979-1020`, `_build_setup_plan_result`). HTML
+`requirement_id_warnings`, non-blocking (`:996-1062`, `_build_setup_plan_result`). HTML
 comments are blanked, position-preserving, before either scan sees the text
 (`src/specify_cli/requirement_mapping/lint.py:190`, `grammar.blank_html_comments`).
 
@@ -227,7 +262,7 @@ unchanged. The shared `_classify_delegate_error` helper and
 
 The runtime cores take the grammar by **required** dependency injection, never a local
 fallback pattern: `RequirementGrammarLike(Protocol)`
-(`src/runtime/next/runtime_bridge_cores.py:298-316`) declares only the members the cores
+(`src/runtime/next/runtime_bridge_cores.py:298-317`) declares only the members the cores
 call, satisfied structurally by the real `specify_cli.requirement_mapping.grammar` module;
 `RequirementMappingFacts.grammar: RequirementGrammarLike` (`:327-340`) has no default. The
 supplier call site passes the real module in: `_cores.RequirementMappingFacts(...,
@@ -249,10 +284,10 @@ edit.
 - `src/specify_cli/missions/_substantive.py`, constant `_FR_TABLE_ROW` — the setup-plan
   substantive-spec gate's own functional-requirement table-row pattern, a cheap structural
   heuristic independent of the grammar's full ID space (SC, suffixes, qualifiers), by
-  design (HiC ruling). Follow-up ticket: to be filed at closeout.
+  design (HiC ruling). Follow-up ticket: [#5387](https://github.com/spec-kitty/spec-kitty/issues/5387).
 - `src/specify_cli/retrospective/generator.py`, constant `_FR_REF_RE` — the retrospective
   generator's narrower, retrospective-specific FR-only scan (3+ digit FRs, no NFR/C/SC, no
-  suffix or qualifier), predating this Mission. Follow-up ticket: to be filed at closeout.
+  suffix or qualifier), predating this Mission. Follow-up ticket: [#5388](https://github.com/spec-kitty/spec-kitty/issues/5388).
 
 `src/specify_cli/consolidation/retention.py` is **not** a divergence: WP01 migrated its
 constraint-row check onto `grammar.parse` in this Mission
@@ -260,9 +295,9 @@ constraint-row check onto `grammar.parse` in this Mission
 
 ### Known residuals
 
-Four accepted, honestly-recorded low residuals (WP01 review; see
-`traces/design-decisions.md:23-24` for the original acceptance) remain live at this
-Mission's tip:
+Six accepted, honestly-recorded low residuals (WP01 review; see
+`traces/design-decisions.md:23-24` for the original acceptance of the first four, and the
+pre-PR review fold for the last two) remain live at this Mission's tip:
 
 - **The C-001 literal gate cannot see a runtime-joined alternation.** The architectural
   gate (`tests/architectural/test_requirement_id_grammar_single_source.py`) walks only
@@ -280,16 +315,27 @@ Mission's tip:
 - **`issue #FR-003` is dropped entirely.** A `#` immediately preceding a kind-digits token
   with no valid slug before it (the qualifier attempt backs off to zero-width) is treated
   as a leaked/truncated qualifier and the whole match is discarded, not read as local
-  `FR-003` (`_has_invalid_qualifier_prefix`, `grammar.py:213`, checked against
+  `FR-003` (`_has_invalid_qualifier_prefix`, `grammar.py:225`, checked against
   `_INVALID_QUALIFIER_LEAD`, `:199`). Verified directly:
   `grammar.find_all("issue #FR-003", spec_scan=False)` returns `[]`.
 - **An ID declared only inside an HTML comment is no longer declared.** `_declared_ids`
   blanks every `<!-- ... -->` span, position-preserving, before scanning for declared
-  shapes (`src/specify_cli/requirement_mapping/__init__.py:125,145`, calling
-  `grammar.blank_html_comments`, `grammar.py:340`). This is an intended behaviour change
+  shapes (`src/specify_cli/requirement_mapping/__init__.py:125,147`, calling
+  `grammar.blank_html_comments`, `grammar.py:352`). This is an intended behaviour change
   from the pre-Mission scanner, pinned by tests; WP08's corpus scan reports affected
   specs. Listed here and under `#### Negative` below, not silently absorbed into the
   general "re-finalizing may newly fail" bullet.
+- **An unterminated `<!--` blanks the rest of the spec.** `blank_html_comments` has no
+  terminated/unterminated distinction for scanning purposes: `_HTML_COMMENT_UNTERMINATED`
+  (`grammar.py:345`) blanks from an un-closed `<!--` to end-of-text, so a spec.md with a
+  stray, never-closed `<!--` loses every declared ID and every prose token after it to
+  both the declared-ID scan and the lint, silently. By design (mirrors an HTML renderer's
+  own unterminated-comment behaviour); the corpus has zero hits for this shape.
+- **A fenced code block is not honoured.** Neither `_declared_ids` nor
+  `lint_spec_requirement_ids` special-case a markdown code fence (` ``` `): a requirement-ID
+  token inside a fenced example block is scanned exactly like prose or a declaration, the
+  same as every other span of text. By design (the grammar has no markdown-structure
+  awareness beyond HTML comments); the corpus has zero hits for this shape.
 
 ### Supersession
 
@@ -331,6 +377,20 @@ unrelated hits, none of which document this discard rule), so no other ADR needs
 - The byte-contract fixture (NFR-002) flips to the new additive JSON keys.
 - An ID declared only inside an HTML comment no longer counts as declared (see "Known
   residuals" above) — an intended, tested behaviour change from the pre-Mission scanner.
+- `requirement_refs_parsed` (both the failure and success payloads,
+  `src/specify_cli/cli/commands/agent/mission_finalize.py:1355,3033`) changed meaning: it
+  now lists every WP's authored raw tokens verbatim (case preserved, including malformed
+  and foreign ones) via the raw reader `read_all_wp_raw_requirement_refs`
+  (`src/specify_cli/requirement_mapping/__init__.py:541-559`, wired in at
+  `mission_finalize.py:1068`), not the pre-Mission normalised/accepted-only subset. A
+  consumer that read this key as "the accepted refs" must instead classify each token
+  itself (or read `rejected_requirement_refs`/`unknown_requirement_refs` alongside it).
+- `unknown_requirement_refs` now includes every ref whose rejection reason is in
+  `FAILING_REASONS` (`malformed` as well as `unknown_spec_id`), not `unknown_spec_id`
+  alone (`_classify_wp_requirement_refs`,
+  `src/specify_cli/cli/commands/agent/mission_finalize.py:1201-1243`, `:1236-1238`) — a
+  malformed ref that previously surfaced only via a separate error path now shows up in
+  this key too.
 
 #### Neutral
 

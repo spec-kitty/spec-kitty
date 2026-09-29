@@ -3261,9 +3261,11 @@ pages:
     - {slug: "grammar-home", text: "Grammar home", level: 3}
     - {slug: "requirementid-shape", text: "`RequirementId` shape", level: 3}
     - {slug: "one-core-pattern", text: "One core pattern", level: 3}
+    - {slug: "dotted-ids-are-dropped-not-truncated", text: "Dotted IDs are dropped, not truncated", level: 3}
     - {slug: "qualified-citation", text: "Qualified citation", level: 3}
     - {slug: "verdict-table-fr-019", text: "Verdict table (FR-019)", level: 3}
     - {slug: "authored-refs-are-never-rewritten", text: "Authored refs are never rewritten", level: 3}
+    - {slug: "map-requirements-input-tokenisation-and-stale-ref-reporting", text: "`map-requirements` input tokenisation and stale-ref reporting", level: 3}
     - {slug: "sc-tracked-not-gating", text: "SC tracked, not gating", level: 3}
     - {slug: "diagnostics-parsed-spec-ids-and-rejected-requirement-refs", text: "Diagnostics: `parsed_spec_ids` and `rejected_requirement_refs`", level: 3}
     - {slug: "setup-plan-gate-and-orchestrator-api-parity", text: "Setup-plan gate and orchestrator-api parity", level: 3}
