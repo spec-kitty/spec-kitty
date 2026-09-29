@@ -47,6 +47,7 @@ from __future__ import annotations
 import contextlib
 import json
 import re
+import stat
 import subprocess
 from dataclasses import replace
 from pathlib import Path
@@ -573,6 +574,9 @@ def test_doctrine_skill_repair_converges_via_real_upgrade_cli(tmp_path: Path, mo
     crlf_source = crlf_skill.skill_md.read_bytes().decode("utf-8")
     corrupted = _bogus_doubled_frontmatter(crlf_source, skill_name).encode("utf-8")
     assert not _single_frontmatter_block(corrupted)
+    # Managed skill assets install read-only (0o444). Root ignores that, so
+    # the seed must restore owner-write itself or it fails on a non-root runner.
+    skill_md.chmod(skill_md.stat().st_mode | stat.S_IWUSR)
     skill_md.write_bytes(corrupted)
 
     # Rewrite that one manifest entry's recorded hash to match the
