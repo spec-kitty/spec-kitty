@@ -4086,6 +4086,34 @@ def _pre_mutation_safety_preflight_with_recovery(
             raise typer.Exit(1) from exc_after
 
 
+def _require_lanes_json_naming_mission_branch(main_repo: Path, lanes_read_dir: Path) -> LanesManifest:
+    """``require_lanes_json``, but a missing manifest names the branch that holds the mission.
+
+    A protected single_branch mission's files exist only on its minted branch; from
+    the target (or any other checkout) the stock remedy -- ``finalize-tasks`` /
+    ``doctor mission-state --fix`` -- is wrong. When some ``kitty/*`` branch
+    carries the manifest, say so.
+    """
+    from specify_cli.lanes.persistence import MissingLanesError
+    from specify_cli.lanes.single_branch_landing import branch_holding_path
+
+    try:
+        return require_lanes_json(lanes_read_dir)
+    except MissingLanesError as exc:
+        try:
+            rel = (lanes_read_dir / "lanes.json").relative_to(main_repo).as_posix()
+        except ValueError:
+            raise exc from None
+        holder = branch_holding_path(main_repo, rel)
+        if holder is None:
+            raise
+        raise MissingLanesError(
+            f"lanes.json is not on the current checkout, but branch {holder!r} carries this mission "
+            f"(a protected single_branch mission lives on its mission branch). Run `git checkout {holder}` "
+            "and re-run `spec-kitty consolidate` from there."
+        ) from exc
+
+
 def _run_lane_based_consolidation(
     repo_root: Path,
     mission_slug: str,
@@ -4206,7 +4234,7 @@ def _run_lane_based_consolidation(
                 target_override=target_override,
             )
     else:
-        lanes_manifest = require_lanes_json(lanes_read_dir)
+        lanes_manifest = _require_lanes_json_naming_mission_branch(main_repo, lanes_read_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
     planning_artifact_only = is_planning_artifact_only(lanes_manifest) and not lands_mission_branch(main_repo, lanes_manifest)

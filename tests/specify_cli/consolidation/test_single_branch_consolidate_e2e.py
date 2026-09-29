@@ -162,3 +162,72 @@ def test_protected_meta_is_landed_positive_control(tmp_path: Path) -> None:
 
     repo, manifest = _legacy_repo(tmp_path, {"topology": "single_branch", "mission_branch": "kitty/mission-legacy-plan-only-01ABCDEF"})
     assert lands_mission_branch(repo, manifest) is True
+
+
+_MINTED = "kitty/mission-legacy-plan-only-01ABCDEF"
+_PROTECTED_META = {"topology": "single_branch", "mission_branch": _MINTED}
+
+
+def _current(repo: Path) -> str:
+    return _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+
+
+def test_expected_checkout_is_the_mission_branch_from_a_third_branch(tmp_path: Path) -> None:
+    """Off both the target and the minted branch, the remedy must name the branch the mission lives on."""
+    from specify_cli.lanes.single_branch_landing import expected_consolidate_checkout
+
+    repo, manifest = _legacy_repo(tmp_path, _PROTECTED_META)
+    _git(repo, "branch", _MINTED)
+    _git(repo, "checkout", "-q", "-b", "scratch")
+
+    assert expected_consolidate_checkout(repo, manifest, "main") == _MINTED
+
+
+def test_expected_checkout_tolerates_the_target_and_the_minted_branch(tmp_path: Path) -> None:
+    """Unchanged: on the target (a ``--resume`` after switch-back) the target is expected; on the minted branch, that one."""
+    from specify_cli.lanes.single_branch_landing import expected_consolidate_checkout
+
+    repo, manifest = _legacy_repo(tmp_path, _PROTECTED_META)
+    _git(repo, "branch", _MINTED)
+    assert expected_consolidate_checkout(repo, manifest, "main") == "main"
+    _git(repo, "checkout", "-q", _MINTED)
+    assert expected_consolidate_checkout(repo, manifest, "main") == _MINTED
+
+
+def test_expected_checkout_falls_back_to_target_when_the_mission_branch_is_gone(tmp_path: Path) -> None:
+    from specify_cli.lanes.single_branch_landing import expected_consolidate_checkout
+
+    repo, manifest = _legacy_repo(tmp_path, _PROTECTED_META)
+    _git(repo, "checkout", "-q", "-b", "scratch")
+
+    assert expected_consolidate_checkout(repo, manifest, "main") == "main"
+
+
+def test_branch_holding_mission_files_finds_the_minted_branch(tmp_path: Path) -> None:
+    """A consolidate from ``main`` cannot read ``lanes.json``; the error must say where the mission is."""
+    from specify_cli.lanes.single_branch_landing import branch_holding_path
+
+    repo, _manifest = _legacy_repo(tmp_path, _PROTECTED_META)
+    rel = "kitty-specs/legacy-plan-only-01ABCDEF/lanes.json"
+    _git(repo, "checkout", "-q", "-b", _MINTED)
+    (repo / rel).write_text("{}\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "lanes on the mission branch")
+    _git(repo, "checkout", "-q", "main")
+
+    assert branch_holding_path(repo, rel) == _MINTED
+    assert branch_holding_path(repo, "kitty-specs/other/lanes.json") is None
+
+
+def test_consolidate_from_target_names_the_mission_branch_when_lanes_json_is_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Real entry point: on ``main`` (files only on the minted branch) the error names the branch, not ``finalize-tasks``."""
+    from specify_cli.lanes.persistence import MissingLanesError
+
+    repo, slug, minted = _approved_mission(tmp_path, monkeypatch, "cons-from-main")
+    _git(repo, "checkout", "-q", "main")
+
+    with pytest.raises(MissingLanesError) as excinfo:
+        _consolidate(repo, slug)
+
+    assert minted in str(excinfo.value)
+    assert "git checkout" in str(excinfo.value)

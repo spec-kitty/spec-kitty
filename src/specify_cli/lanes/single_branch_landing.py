@@ -111,11 +111,34 @@ def expected_consolidate_checkout(repo: Path, manifest: LanesManifest, target_br
 
     A protected single_branch mission's checkout sits on its ``mission_branch``
     (that is where every commit landed); once landed and switched back (or on a
-    ``--resume``) it is on the target. Every other mission expects the target.
+    ``--resume``) it is on the target. From any THIRD branch the mission is only
+    reachable through its still-existing ``mission_branch``, so that is the
+    branch to name -- ``target_branch`` would send the operator to a checkout
+    that does not carry the mission. Every other mission expects the target.
     """
-    if lands_mission_branch(repo, manifest) and _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == manifest.mission_branch:
-        return str(manifest.mission_branch)
+    if not lands_mission_branch(repo, manifest):
+        return target_branch
+    head = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    mission_branch = str(manifest.mission_branch)
+    if head == mission_branch:
+        return mission_branch
+    if head != target_branch and _git(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{mission_branch}").returncode == 0:
+        return mission_branch
     return target_branch
+
+
+def branch_holding_path(repo: Path, rel_path: str) -> str | None:
+    """The minted ``kitty/*`` branch whose tree carries *rel_path*, else ``None``.
+
+    A protected single_branch mission's files exist only on its minted branch, so a
+    consolidate started from any other checkout cannot read them. Locating the
+    branch lets the error name it instead of sending the operator to ``finalize-tasks``.
+    """
+    listing = _git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads/kitty/")
+    for branch in sorted(listing.stdout.split()):
+        if _git(repo, "cat-file", "-e", f"{branch}:{rel_path}").returncode == 0:
+            return branch
+    return None
 
 
 def authorship_window(repo: Path, mission_slug: str, mission_branch: str, target_branch: str) -> tuple[str, str] | None:
