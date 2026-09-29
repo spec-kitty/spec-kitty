@@ -552,10 +552,17 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
     monkeypatch.setenv("SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION", "1")
 
     # 1. REAL create — single_branch, no coordination branch.
+    #
+    # ``commit_to_target=True``: on the protected ``main`` target the create-time
+    # mint (WP08, #5100) would otherwise create ``kitty/mission-<slug>-<mid8>``
+    # and land every planning commit there, so the later
+    # ``git branch <mission_branch> main`` would exit 128. Committing to the
+    # target keeps planning on ``main``, which is what this loop exercises.
     result = create_mission_core(
         repo,
         "two-wp-single-branch",
         topology=MissionTopology.SINGLE_BRANCH,
+        commit_to_target=True,
     )
     feature_dir = result.feature_dir
     slug = feature_dir.name

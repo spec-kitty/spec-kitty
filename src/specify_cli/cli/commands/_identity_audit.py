@@ -244,6 +244,28 @@ _SINGLE_BRANCH_CODE_LANES_UNMIGRATED_FINDING = "SINGLE_BRANCH_CODE_LANES_UNMIGRA
 # an operator knows a manual/manifest-level fix is needed, not a re-stamp.
 _LANES_MANIFEST_UNREADABLE_FINDING = "LANES_MANIFEST_UNREADABLE"
 
+# FR-015: every topology finding carries its operator remedy (``{slug}`` is filled per mission).
+# LANES_MANIFEST_UNREADABLE: ``finalize-tasks`` REFUSES a corrupt lanes.json (CorruptLanesError),
+# so the remedy is restore-from-git or delete + rebuild -- and the rebuild command depends on
+# whether execution has begun (finalize-tasks refuses once a WP is past ``planned``;
+# ``doctor mission-state --fix`` rebuilds only from the event log once execution has begun).
+_TOPOLOGY_REMEDIES: dict[str, str] = {
+    _SINGLE_BRANCH_CODE_LANES_UNMIGRATED_FINDING: (
+        "spec-kitty migrate backfill-topology --restamp-single-branch (or `spec-kitty upgrade`, which runs migration m_4_0_0rc5_single_branch_code_lanes_restamp)"
+    ),
+    _LANES_MANIFEST_UNREADABLE_FINDING: (
+        "restore lanes.json from git history: `git checkout <ref> -- kitty-specs/{slug}/lanes.json`; "
+        "or delete it and rebuild: `spec-kitty agent mission finalize-tasks --mission {slug}` "
+        "if no WP has started, `spec-kitty doctor mission-state --fix --mission {slug}` if execution has begun"
+    ),
+}
+
+
+def _topology_remedy(finding: object, slug: str) -> str | None:
+    """Return the remedy text for a topology finding code (filled for *slug*), or ``None``."""
+    template = _TOPOLOGY_REMEDIES.get(finding) if isinstance(finding, str) else None
+    return template.format(slug=slug) if template is not None else None
+
 
 def _topology_finding(topology: object, feature_dir: Path) -> str | None:
     """Return the doctor finding code for one mission's topology row (#5100 IC-02 / T014).
@@ -296,16 +318,18 @@ def _read_stored_topology(feature_dir: Path) -> dict[str, object | None]:
     try:
         meta = load_meta_fail_closed(feature_dir)
     except MissionMetaReadError as exc:
-        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": f"corrupt json: {exc}", "finding": None}
+        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": f"corrupt json: {exc}", "finding": None, "remedy": None}
     if meta is None:
-        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": "meta.json not found", "finding": None}
+        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": "meta.json not found", "finding": None, "remedy": None}
     topology = meta.get("topology")
+    finding = _topology_finding(topology, feature_dir)
     return {
         "slug": feature_dir.name,
         "topology": topology,
         "flattened": meta.get("flattened"),
         "error": None,
-        "finding": _topology_finding(topology, feature_dir),
+        "finding": finding,
+        "remedy": _topology_remedy(finding, feature_dir.name),
     }
 
 
@@ -340,6 +364,9 @@ def _print_topology_human(rows: list[dict[str, object | None]]) -> None:
         rendered_finding = f"[yellow]{finding}[/yellow]" if finding else ""
         table.add_row(str(row["slug"]), rendered, flattened, rendered_finding)
     console.print(table)
+    for row in rows:
+        if row.get("remedy"):
+            console.print(f"\n[bold]Remedy[/bold] for {row['slug']} ({row['finding']}): {row['remedy']}", soft_wrap=True)
 
 
 def run_topology_audit(repo_root: Path, json_output: bool, mission: str | None) -> None:

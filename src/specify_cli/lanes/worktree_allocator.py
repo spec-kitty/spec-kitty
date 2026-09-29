@@ -865,6 +865,21 @@ def _fresh_lane_parent_ref(
     return resolved
 
 
+def persist_lane_context(repo_root: Path, context: WorkspaceContext) -> Path:
+    """Persist a lane ``WorkspaceContext`` -- the single lane-record writer (FR-022, #5100).
+
+    Every lane allocation path (``implement``, the orchestrator API, and crash
+    recovery) writes its workspace record through this function; it is the ONE
+    call site of ``save_context`` under ``lanes/`` and ``orchestrator_api/``
+    (enforced by ``tests/lanes/test_lane_context_single_writer.py``). Writes
+    exactly what ``save_context`` writes and returns the same path.
+    """
+    from specify_cli.workspace.context import save_context
+
+    written: Path = save_context(repo_root, context)
+    return written
+
+
 def _backfill_context_if_missing(
     repo_root: Path,
     mission_slug: str,
@@ -885,7 +900,9 @@ def _backfill_context_if_missing(
     workspace``), which calls this function directly and, before WP07, wrote
     NO context at all -- leaving an orchestrator-allocated lane invisible to
     every context-keyed guard, most importantly this module's own destroyed-
-    lane check (#5115). A no-op when a context already exists: this never
+    lane check (#5115). The record is persisted through
+    :func:`persist_lane_context`, the single lane-record writer (FR-022). A
+    no-op when a context already exists: this never
     re-bases or refreshes an existing record, only :func:`create_lane_workspace`
     and :func:`~specify_cli.lanes.implement_support.refresh_reused_lane_context`
     do that.
@@ -893,7 +910,7 @@ def _backfill_context_if_missing(
     from kernel.clock import now_utc_iso
 
     from specify_cli.lanes.lane_env import lane_test_env
-    from specify_cli.workspace.context import WorkspaceContext, find_context_for_wp, save_context
+    from specify_cli.workspace.context import WorkspaceContext, find_context_for_wp
 
     if find_context_for_wp(repo_root, mission_slug, wp_id) is not None:
         return
@@ -918,7 +935,7 @@ def _backfill_context_if_missing(
         current_wp=wp_id,
         lane_test_env=lane_test_env(mission_slug, lane.lane_id),
     )
-    save_context(repo_root, context)
+    persist_lane_context(repo_root, context)
 
 
 def allocate_lane_worktree(
@@ -1696,7 +1713,8 @@ def _stored_topology_for_fail_closed_guard(repo_root: Path, mission_slug: str) -
     data = load_meta(meta_dir, on_malformed="none")
     if data is None:
         return None
-    return stored_topology(data)
+    stored: MissionTopology | None = stored_topology(data)
+    return stored
 
 
 def _read_coordination_branch(

@@ -25,12 +25,11 @@ from specify_cli.lanes.branch_naming import (
     mission_branch_name_required,
     parse_lane_id_from_branch,
 )
-from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+from specify_cli.lanes.worktree_allocator import persist_lane_context, predict_lane_worktree
 from specify_cli.status import Lane
 from specify_cli.workspace.context import (
     WorkspaceContext,
     list_contexts,
-    save_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -760,7 +759,7 @@ def recover_context(
         lane_wp_ids=wp_ids if wp_ids else [state.wp_id],
         current_wp=state.wp_id,
     )
-    save_context(repo_root, context)
+    persist_lane_context(repo_root, context)
     return context
 
 

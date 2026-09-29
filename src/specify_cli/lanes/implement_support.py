@@ -27,10 +27,11 @@ from specify_cli.lanes.worktree_allocator import (
     ORPHANED_PIN_RECOVERY_HINT,
     _read_coordination_branch,
     allocate_lane_worktree,
+    persist_lane_context,
     predict_lane_worktree,
 )
 from specify_cli.workspace.context import ResolvedWorkspace
-from specify_cli.workspace.context import WorkspaceContext, save_context
+from specify_cli.workspace.context import WorkspaceContext
 
 
 class WriteCheckoutWrongBranchError(StructuredError):
@@ -231,7 +232,7 @@ def refresh_reused_lane_context(
     existing_ctx.wp_id = wp_id
     existing_ctx.current_wp = wp_id
     existing_ctx.dependencies = declared_deps
-    save_context(repo_root, existing_ctx)
+    persist_lane_context(repo_root, existing_ctx)
     return True
 
 
@@ -408,7 +409,7 @@ def create_lane_workspace(
             current_wp=wp_id,
             lane_test_env=persisted_lane_test_env,
         )
-        save_context(repo_root, context)
+        persist_lane_context(repo_root, context)
 
     return LaneWorkspaceResult(
         workspace_path=workspace_path,

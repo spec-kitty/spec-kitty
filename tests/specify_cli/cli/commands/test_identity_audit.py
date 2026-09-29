@@ -393,6 +393,66 @@ def test_run_topology_audit_human(tmp_path: Path) -> None:
     ia.run_topology_audit(tmp_path, False, None)
 
 
+def _seed_topology_mission(root: Path, slug: str, *, lanes: list[dict[str, object]] | None, legacy: bool = False) -> None:
+    d = root / "kitty-specs" / slug
+    d.mkdir(parents=True)
+    (d / "meta.json").write_text(json.dumps({"topology": "single_branch"}), encoding="utf-8")
+    if legacy:
+        _write_legacy_feature_slug_lanes(d)
+    elif lanes is not None:
+        _write_lanes(d, lanes)
+
+
+_RESTAMP_REMEDY = "spec-kitty migrate backfill-topology --restamp-single-branch"
+# Probed end to end in a clone: `finalize-tasks` REFUSES a corrupt lanes.json, so the
+# honest remedy is restore-from-git, or delete + rebuild (finalize-tasks before any
+# WP starts; `doctor mission-state --fix` once execution has begun).
+_UNREADABLE_RESTORE = "git checkout <ref> -- kitty-specs/084-b/lanes.json"
+_UNREADABLE_REBUILD_PLANNED = "spec-kitty agent mission finalize-tasks"
+_UNREADABLE_REBUILD_STARTED = "spec-kitty doctor mission-state --fix --mission 084-b"
+
+
+def test_run_topology_audit_json_carries_remedy(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """FR-015: each finding row carries its remedy; a clean mission carries none."""
+    _seed_topology_mission(tmp_path, "083-a", lanes=[{"lane_id": "lane-a", "wp_ids": ["WP01"]}])
+    _seed_topology_mission(tmp_path, "084-b", lanes=None, legacy=True)
+    _seed_topology_mission(tmp_path, "085-c", lanes=[{"lane_id": "lane-planning", "wp_ids": ["WP01"]}])
+
+    ia.run_topology_audit(tmp_path, True, None)
+
+    rows = {r["slug"]: r for r in json.loads(capsys.readouterr().out)["missions"]}
+    assert rows["083-a"]["finding"] == "SINGLE_BRANCH_CODE_LANES_UNMIGRATED"
+    assert _RESTAMP_REMEDY in rows["083-a"]["remedy"]
+    assert rows["084-b"]["finding"] == "LANES_MANIFEST_UNREADABLE"
+    for needle in (_UNREADABLE_RESTORE, _UNREADABLE_REBUILD_PLANNED, _UNREADABLE_REBUILD_STARTED):
+        assert needle in rows["084-b"]["remedy"]
+    assert "delete" in rows["084-b"]["remedy"]  # finalize-tasks alone cannot repair a corrupt file
+    assert rows["085-c"]["finding"] is None
+    assert rows["085-c"].get("remedy") is None
+
+
+def test_run_topology_audit_human_prints_remedy(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _seed_topology_mission(tmp_path, "083-a", lanes=[{"lane_id": "lane-a", "wp_ids": ["WP01"]}])
+    _seed_topology_mission(tmp_path, "084-b", lanes=None, legacy=True)
+
+    ia.run_topology_audit(tmp_path, False, None)
+
+    out = " ".join(capsys.readouterr().out.split())
+    assert _RESTAMP_REMEDY in out
+    assert _UNREADABLE_RESTORE in out
+    assert _UNREADABLE_REBUILD_STARTED in out
+
+
+def test_run_topology_audit_human_clean_prints_no_remedy(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _seed_topology_mission(tmp_path, "085-c", lanes=[{"lane_id": "lane-planning", "wp_ids": ["WP01"]}])
+
+    ia.run_topology_audit(tmp_path, False, None)
+
+    out = capsys.readouterr().out
+    assert "spec-kitty migrate" not in out
+    assert "finalize-tasks" not in out
+
+
 def test_identity_audit_does_not_import_doctor() -> None:
     import ast
 
