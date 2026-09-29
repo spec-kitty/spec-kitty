@@ -23,6 +23,7 @@ which this PR keeps green unmodified.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -36,6 +37,12 @@ from specify_cli.acceptance.gates_core import (
     _evaluate_acceptance_matrix,
     _evaluate_branch_gate,
     _resolve_lanes_manifest_or_stop,
+)
+from specify_cli.acceptance.matrix import (
+    AcceptanceMatrix,
+    NegativeInvariant,
+    read_acceptance_matrix,
+    write_acceptance_matrix,
 )
 from specify_cli.acceptance.summary_core import (
     _has_blocked_check,
@@ -488,33 +495,55 @@ class TestEvaluateAcceptanceMatrix:
         assert "spec-kitty agent mission finalize-tasks --mission demo" in blocked[0].detail
         assert "spec-kitty agent mission finalize-tasks --mission demo" in activity_issues[0]
 
-    def test_negative_invariants_enforced_when_mutate_true(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        matrix = SimpleNamespace(negative_invariants=[SimpleNamespace(name="no-secrets")], overall_verdict="pass")
-        monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
-        monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
-        enforce_calls: list[Any] = []
-        write_calls: list[Any] = []
-        monkeypatch.setattr(
-            "specify_cli.acceptance.matrix.enforce_negative_invariants",
-            # ``context`` is the WP04 gate-context kwarg (deferral + provenance).
-            lambda _repo, invariants, **_kw: enforce_calls.append(invariants) or invariants,
-        )
-        # WP02 (accept-fails-closed): the gate now persists through the shared
-        # locked seam (``locked_reread_splice_and_write``) instead of the raw
-        # ``write_acceptance_matrix`` overwrite. ``matrix`` here is a bare
-        # SimpleNamespace whose rows carry none of the id/definition fields
-        # ``splice_owned_rows`` needs, so the seam itself is stubbed here
-        # (splicing mechanics are WP01's own coverage in
-        # ``test_matrix_write_seam*``) to just return the already-mutated
-        # matrix, mirroring a re-read that found no concurrent writer.
-        monkeypatch.setattr(
-            "specify_cli.acceptance.matrix.locked_reread_splice_and_write",
-            lambda **_kw: (write_calls.append(matrix) or matrix, None),
-        )
+    @pytest.mark.parametrize(
+        ("verification_command", "expected_result", "expected_verdict"),
+        [
+            (f'"{sys.executable}" -c "import sys; sys.exit(0)"', "confirmed_absent", "pass"),
+            (f'"{sys.executable}" -c "import sys; sys.exit(1)"', "still_present", "fail"),
+        ],
+    )
+    def test_negative_invariants_enforced_and_persisted_when_mutate_true(
+        self,
+        tmp_path: Path,
+        verification_command: str,
+        expected_result: str,
+        expected_verdict: str,
+    ) -> None:
+        """``mutate_matrix=True`` really runs the invariant and persists the judgement.
 
-        _evaluate_acceptance_matrix(tmp_path, tmp_path, [], [], [], mutate_matrix=True)
+        No seam is stubbed: the real matrix file is read, the real invariant
+        command runs, the result goes through the real
+        ``locked_reread_splice_and_write`` critical section, and the on-disk
+        matrix is the oracle. (Concurrent-writer survival through the same seam
+        is pinned by ``test_issue_4974_accept_concurrent_verdict.py``.)
+        """
+        feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+        feature_dir.mkdir(parents=True)
+        write_acceptance_matrix(
+            feature_dir,
+            AcceptanceMatrix(
+                mission_slug="demo-mission",
+                negative_invariants=[
+                    NegativeInvariant(
+                        invariant_id="NI-01",
+                        description="no-secrets",
+                        verification_method="custom_command",
+                        verification_command=verification_command,
+                    )
+                ],
+            ),
+        )
+        before = read_acceptance_matrix(feature_dir)
+        assert before is not None
+        assert before.negative_invariants[0].result == "pending"
 
-        assert enforce_calls and write_calls
+        matrix_dir = _evaluate_acceptance_matrix(tmp_path, feature_dir, [], [], [], mutate_matrix=True)
+
+        persisted = read_acceptance_matrix(feature_dir)
+        assert matrix_dir == feature_dir
+        assert persisted is not None
+        assert persisted.negative_invariants[0].result == expected_result
+        assert persisted.overall_verdict == expected_verdict
 
     def test_populate_criteria_from_review_evidence_called_when_mutate_true(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """FR-008 (IC-04, T3): ``_evaluate_acceptance_matrix`` threads the
