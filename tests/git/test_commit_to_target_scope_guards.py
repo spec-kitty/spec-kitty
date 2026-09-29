@@ -124,10 +124,12 @@ def test_preflight_ambiguous_selector_yields_no_bypass_instead_of_raising(tmp_pa
     from specify_cli.git import protection_policy
     from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
-    def _ambiguous(_root: Path, handle: str) -> str:
+    def _ambiguous(_root: Path, handle: str) -> tuple[dict[str, object], bool]:
         raise MissionSelectorAmbiguous(handle=handle, candidates=["a-01AAAAAA", "a-01BBBBBB"])
 
-    monkeypatch.setattr("specify_cli.missions._read_path_resolver._canonicalize_primary_read_handle", _ambiguous)
+    # The mission-meta read goes through the sanctioned primary-meta primitive,
+    # whose handle canonicalization is where an ambiguous selector surfaces.
+    monkeypatch.setattr("specify_cli.missions._read_path_resolver.read_primary_meta", _ambiguous)
     repo = _repo(tmp_path)
 
     with pytest.raises(ProtectedBranchRefused):

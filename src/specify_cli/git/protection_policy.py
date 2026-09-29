@@ -278,18 +278,19 @@ def mission_write_bypass(repo_root: Path, mission_slug: str | None, branch: str)
 
 
 def _load_mission_meta(repo_root: Path, mission_slug: str) -> dict[str, Any] | None:
-    """Load the mission's primary ``meta.json``; ``None`` when absent or unreadable."""
-    from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
-    from specify_cli.missions._read_path_resolver import (
-        MissionSelectorAmbiguous,
-        _canonicalize_primary_read_handle,
-        _compose_primary_feature_dir,
-    )
+    """Load the mission's primary ``meta.json``; ``None`` when absent or unreadable.
+
+    Routed through the sanctioned primary-meta read primitive
+    :func:`~specify_cli.missions._read_path_resolver.read_primary_meta` (the
+    same fail-closed, handle-canonicalizing reader the placement seam uses), so
+    this module never composes a ``kitty-specs/<slug>`` dir itself.
+    """
+    from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, read_primary_meta
 
     try:
-        main_root = get_main_repo_root(repo_root)
-        feature_dir = _compose_primary_feature_dir(main_root, _canonicalize_primary_read_handle(main_root, mission_slug))
-        return load_meta_fail_closed(feature_dir)
+        meta, _declares_coordination = read_primary_meta(get_main_repo_root(repo_root), mission_slug)
+        return meta or None
     except MissionMetaReadError:
         logger.warning("mission meta.json unreadable for %s; keeping the target protected (fail-closed).", mission_slug)
         return None
