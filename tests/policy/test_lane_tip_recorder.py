@@ -113,14 +113,77 @@ def test_reinstall_is_idempotent(tmp_path: Path) -> None:
 def test_honours_core_hooks_path(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
-    custom_hooks = repo / "myhooks"
+    custom_hooks = tmp_path / "outside-hooks"
     custom_hooks.mkdir()
-    _git(repo, "config", "core.hooksPath", "myhooks")
+    _git(repo, "config", "core.hooksPath", str(custom_hooks))
 
     installed = install_lane_tip_recorder(repo)
 
-    assert all(p.is_relative_to(custom_hooks) for p in installed)
+    assert installed and all(p.is_relative_to(custom_hooks) for p in installed)
     assert not (repo / ".git" / "hooks" / "post-commit").exists()
+
+
+def _status(repo: Path) -> str:
+    return _git(repo, "status", "--porcelain").stdout
+
+
+def test_dev_null_hooks_path_is_skipped_without_raising(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _git(repo, "config", "core.hooksPath", "/dev/null")
+
+    assert install_lane_tip_recorder(repo) == []
+    assert pending_hook_names(repo) == []
+
+
+def test_in_tree_hooks_path_is_never_written(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    husky = repo / ".husky"
+    husky.mkdir()
+    (husky / "pre-commit").write_text("#!/bin/sh\n", encoding="utf-8")
+    _git(repo, "add", ".husky")
+    _git(repo, "commit", "-q", "-m", "husky")
+    _git(repo, "config", "core.hooksPath", ".husky")
+
+    assert install_lane_tip_recorder(repo) == []
+    assert not (husky / "post-commit").exists()
+    assert not (husky / "post-rewrite").exists()
+    assert _status(repo) == ""
+    assert pending_hook_names(repo) == []
+
+
+def test_nonexistent_configured_hooks_path_is_not_created(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    missing = tmp_path / "no-such-hooks"
+    _git(repo, "config", "core.hooksPath", str(missing))
+
+    assert install_lane_tip_recorder(repo) == []
+    assert not missing.exists()
+    assert pending_hook_names(repo) == []
+
+
+def test_default_git_hooks_dir_still_installs(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    installed = install_lane_tip_recorder(repo)
+
+    assert sorted(p.name for p in installed) == ["post-commit", "post-rewrite"]
+    assert _status(repo) == ""
+
+
+def test_os_error_during_install_warns_and_continues(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise OSError("read-only")
+
+    monkeypatch.setattr("specify_cli.policy.lane_tip_recorder.tempfile.mkstemp", _boom)
+
+    assert install_lane_tip_recorder(repo) == []
 
 
 def test_records_on_a_lane_commit_from_a_linked_worktree(tmp_path: Path) -> None:

@@ -110,3 +110,27 @@ def test_apply_skips_a_foreign_hook_and_still_reports_success(tmp_path: Path) ->
     assert len(result.changes_made) == 1
     assert foreign_hook.read_text(encoding="utf-8") == original
     assert (repo / ".git" / "hooks" / "post-rewrite").exists()
+
+
+def test_detect_false_when_hooks_path_is_dev_null(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    subprocess.run(["git", "-C", str(repo), "config", "core.hooksPath", "/dev/null"], check=True)
+
+    migration = InstallLaneTipRecorderMigration()
+
+    assert migration.detect(repo) is False
+    assert migration.apply(repo).success is True
+
+
+def test_detect_false_when_hooks_path_is_in_tree(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    (repo / ".husky").mkdir()
+    subprocess.run(["git", "-C", str(repo), "config", "core.hooksPath", ".husky"], check=True)
+
+    migration = InstallLaneTipRecorderMigration()
+
+    assert migration.detect(repo) is False
+    assert migration.apply(repo).success is True
+    assert not (repo / ".husky" / "post-commit").exists()
