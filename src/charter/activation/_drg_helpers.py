@@ -131,8 +131,11 @@ def load_validated_graph(
         A validated :class:`DRGGraph`.
 
     Raises:
-        ValueError: If :func:`assert_valid` rejects the merged graph
-            (dangling edges, duplicate edges, or ``requires`` cycles).
+        DRGValidationError: If :func:`assert_valid` rejects the merged graph
+            (dangling edges, duplicate edges, or ``requires`` cycles). It is
+            NOT a ``ValueError``, so an ``except ValueError`` does not catch
+            it. With *project_degrade*, errors introduced only by the project
+            overlay raise the subclass :class:`DRGProjectValidationError`.
     """
     if org_roots is not None:
         roots = org_roots
