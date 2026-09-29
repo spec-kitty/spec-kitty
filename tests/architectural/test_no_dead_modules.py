@@ -355,6 +355,11 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # above (registered/verified by registry lookup in
         # tests/specify_cli/upgrade/migrations/test_single_branch_code_lanes_restamp.py).
         "specify_cli.upgrade.migrations.m_4_0_0rc5_single_branch_code_lanes_restamp",
+        # #5115: same shape -- discovered via pkgutil.iter_modules +
+        # @MigrationRegistry.register, never statically imported; verified by
+        # registry lookup in
+        # tests/specify_cli/upgrade/migrations/test_install_lane_tip_recorder.py.
+        "specify_cli.upgrade.migrations.m_4_0_0rc5_install_lane_tip_recorder",
     }
 )
 

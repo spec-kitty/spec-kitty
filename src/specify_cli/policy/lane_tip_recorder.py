@@ -74,6 +74,17 @@ _HOOK_NAMES = ("post-commit", "post-rewrite")
 _HOOK_MODE = 0o755
 
 
+def _git_out(repo_root: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
 def _resolve_hooks_dir(repo_root: Path) -> Path:
     """Resolve the effective hooks dir via ``git rev-parse --git-path hooks``.
 
@@ -84,17 +95,54 @@ def _resolve_hooks_dir(repo_root: Path) -> Path:
     joined onto ``repo_root`` (the ``cwd`` this runs with) rather than the
     process's own unrelated working directory.
     """
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-path", "hooks"],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    hooks_dir = Path(result.stdout.strip())
+    hooks_dir = Path(_git_out(repo_root, "rev-parse", "--git-path", "hooks"))
     if hooks_dir.is_absolute():
         return hooks_dir
     return repo_root / hooks_dir
+
+
+def _hooks_path_configured(repo_root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "config", "--get", "core.hooksPath"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def _working_tree_roots(repo_root: Path) -> list[Path]:
+    """The working trees whose contents a hooks dir must not live in."""
+    roots = [Path(_git_out(repo_root, "rev-parse", "--show-toplevel")).resolve()]
+    common = Path(_git_out(repo_root, "rev-parse", "--git-common-dir"))
+    if not common.is_absolute():
+        common = repo_root / common
+    roots.append(common.resolve().parent)
+    return roots
+
+
+def _installable_hooks_dir(repo_root: Path) -> tuple[Path | None, str]:
+    """Resolve the hooks dir to install into, or ``(None, reason)`` to skip.
+
+    Installs only into a real hooks directory that is NOT inside a working
+    tree: a user-owned tracked hooks dir (husky ``.husky``, ``.githooks``)
+    must never be written to (it dirties the checkout and spreads to
+    collaborators), and a configured ``core.hooksPath`` that is not an
+    existing directory (``/dev/null``, a typo) is never created.
+    """
+    hooks_dir = _resolve_hooks_dir(repo_root)
+    if _hooks_path_configured(repo_root):
+        if not hooks_dir.is_dir():
+            return None, f"core.hooksPath resolves to {hooks_dir}, which is not a directory"
+        resolved = hooks_dir.resolve()
+        common_git_dir = Path(_git_out(repo_root, "rev-parse", "--git-common-dir"))
+        if not common_git_dir.is_absolute():
+            common_git_dir = repo_root / common_git_dir
+        in_git_dir = resolved.is_relative_to(common_git_dir.resolve())
+        if not in_git_dir and any(resolved.is_relative_to(root) for root in _working_tree_roots(repo_root)):
+            return None, f"core.hooksPath resolves to {hooks_dir}, which is inside the working tree"
+    return hooks_dir, ""
 
 
 def _is_lane_tip_hook(hook_path: Path) -> bool:
@@ -148,9 +196,11 @@ def pending_hook_names(repo_root: Path) -> list[str]:
     nothing more it could ever do. Only a genuinely empty slot is pending.
     """
     try:
-        hooks_dir = _resolve_hooks_dir(repo_root)
+        hooks_dir, _reason = _installable_hooks_dir(repo_root)
     except subprocess.CalledProcessError:
         # Not (yet) a git repository -- nothing for this installer to do.
+        return []
+    if hooks_dir is None:
         return []
     return [name for name in _HOOK_NAMES if not (hooks_dir / name).exists() and not (hooks_dir / name).is_symlink()]
 
@@ -171,8 +221,19 @@ def install_lane_tip_recorder(repo_root: Path) -> list[Path]:
     Returns:
         The paths of the hook slots actually written (0, 1, or 2 entries).
     """
-    hooks_dir = _resolve_hooks_dir(repo_root)
-    hooks_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        hooks_dir, reason = _installable_hooks_dir(repo_root)
+        if hooks_dir is None:
+            console.print(f"[yellow]⚠ Skipping lane-tip recorder install: {reason}.[/yellow]")
+            return []
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        return _install_all(hooks_dir)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        console.print(f"[yellow]⚠ Skipping lane-tip recorder install: {exc}.[/yellow]")
+        return []
+
+
+def _install_all(hooks_dir: Path) -> list[Path]:
 
     installed: list[Path] = []
     for name in _HOOK_NAMES:
