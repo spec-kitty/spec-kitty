@@ -16,6 +16,9 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.cli.commands.accept import accept
 from specify_cli.cli.commands.spec_commit_cmd import spec_commit_command
+from specify_cli.lanes.persistence import read_lanes_json
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 runner = CliRunner()
@@ -189,6 +192,62 @@ def test_finalize_seeds_owned_status_only(checkouts):
     events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
     assert sum(row.get("wp_id") == "WP01" and row.get("to_lane") == "planned" for row in events) == 1
     assert (snapshot(primary), snapshot(sibling)) == before
+
+
+def test_finalize_refresh_reports_owned_checkout_commit_success(checkouts):
+    primary, owned, sibling = checkouts
+    before_other_checkouts = snapshot(primary), snapshot(sibling)
+    (owned / ".gitignore").write_text(".kittify/sync-state.json\n.kittify/derived/\n", encoding="utf-8")
+    git(owned, "add", ".gitignore")
+    git(owned, "commit", "-qm", "fixture: ignore derived checkout state")
+    setup = invoke("finalize-tasks", owned)
+    assert setup.exit_code == 0, setup.output
+
+    mission = owned / "kitty-specs" / SLUG
+    append_event(
+        mission,
+        StatusEvent(
+            event_id="01HXYZ0123456789ABCDEFGHJK",
+            mission_slug=SLUG,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+            at="2026-09-29T23:59:59Z",
+            actor="test-runner",
+            force=False,
+            execution_mode="worktree",
+        ),
+    )
+    git(owned, "add", "--", f"kitty-specs/{SLUG}/status.events.jsonl", f"kitty-specs/{SLUG}/status.json")
+    git(owned, "commit", "-qm", "status: claim WP01")
+    lanes_manifest = read_lanes_json(mission)
+    assert lanes_manifest is not None and lanes_manifest.planning_commit_sha is not None
+    previous_pin = lanes_manifest.planning_commit_sha
+
+    marker = owned / "PLANNING-AMENDMENT.txt"
+    marker.write_text("amended planning on the owned target\n", encoding="utf-8")
+    git(owned, "add", "--", marker.name)
+    git(owned, "commit", "-qm", "planning amendment")
+    planning_tip = git(owned, "rev-parse", TARGET)
+
+    result = invoke("finalize-tasks", owned, "--refresh-planning-commit")
+
+    assert result.exit_code == 0, f"a committed owned-checkout pin refresh must report success; output={result.output!r}"
+    success = json.loads(result.output)
+    lane_path = f"kitty-specs/{SLUG}/lanes.json"
+    assert success["result"] == "success"
+    assert success["files_committed"] == [lane_path]
+    assert success["commit_created"] is True
+    commit_sha = git(owned, "rev-parse", TARGET)
+    assert success["commit_hash"] == commit_sha
+    assert success["commit_hashes"] == [{"branch": TARGET, "hash": commit_sha}]
+    assert commit_sha != previous_pin
+    assert git(owned, "show", "--pretty=format:", "--name-only", "HEAD").splitlines() == [lane_path]
+    updated = read_lanes_json(mission)
+    assert updated is not None and updated.planning_commit_sha == planning_tip
+    assert git(primary, "rev-parse", "HEAD") != commit_sha
+    assert git(owned, "status", "--porcelain=v1", "--untracked-files=all") == ""
+    assert (snapshot(primary), snapshot(sibling)) == before_other_checkouts
 
 
 COMMANDS = ["check-prerequisites", "finalize-tasks", "spec-commit", "accept"]

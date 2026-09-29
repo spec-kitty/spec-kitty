@@ -13,12 +13,45 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePath, PureWindowsPath
 
+from charter.hasher import hash_content
 from kernel.errors import GuardedReadError
+from kernel.git_topology import GitTopologyError, NotAGitRepositoryError, git_common_dir, git_toplevel
+from kernel.locks import SyncMachineFileLock, machine_file_lock
 from specify_cli.lanes.models import LanesManifest
 
 LANES_FILENAME = "lanes.json"
+
+
+def lanes_json_lock(feature_dir: Path) -> SyncMachineFileLock:
+    """Return the cross-worktree lock shared by canonical lanes writers."""
+    lanes_path = resolve_lanes_dir(feature_dir).resolve()
+    try:
+        common_dir = git_common_dir(feature_dir)
+        worktree_root = git_toplevel(feature_dir)
+    except NotAGitRepositoryError:
+        lock_path = _non_git_lanes_lock_path(lanes_path)
+    except GitTopologyError as exc:
+        raise RuntimeError(f"Cannot safely lock lanes.json for {feature_dir}: {exc}") from exc
+    else:
+        try:
+            relative_path = lanes_path.relative_to(worktree_root)
+        except ValueError as exc:
+            raise RuntimeError(f"lanes.json is outside its Git worktree: {lanes_path}") from exc
+        lock_path = common_dir / "spec-kitty-lanes-locks" / relative_path.with_name(f"{relative_path.name}.lock")
+
+    return machine_file_lock(lock_path, blocking=True, timeout_s=None, reentrant=True)
+
+
+def _non_git_lanes_lock_path(lanes_path: PurePath) -> Path:
+    """Map a canonical lanes path to a stable filename below the temp root."""
+    path_key = lanes_path.as_posix()
+    if isinstance(lanes_path, PureWindowsPath):
+        path_key = path_key.casefold()
+    path_identity = json.dumps(path_key, ensure_ascii=True, separators=(",", ":"))
+    digest = hash_content(path_identity).removeprefix("sha256:")
+    return Path(tempfile.gettempdir()) / "spec-kitty-lanes-locks" / f"{digest}.lock"
 
 
 def resolve_lanes_dir(feature_dir: Path) -> Path:
@@ -64,18 +97,42 @@ def write_lanes_json(feature_dir: Path, manifest: LanesManifest) -> Path:
     lanes_path = resolve_lanes_dir(feature_dir)
     content = json.dumps(manifest.to_dict(), indent=2, sort_keys=False) + "\n"
 
-    fd, tmp_path = tempfile.mkstemp(dir=str(feature_dir), prefix=".lanes-", suffix=".tmp")
-    try:
-        os.write(fd, content.encode("utf-8"))
-        os.close(fd)
-        os.replace(tmp_path, str(lanes_path))
-    except BaseException:
-        os.close(fd) if not os.get_inheritable(fd) else None  # noqa: E501
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-        raise
+    with lanes_json_lock(feature_dir):
+        fd, tmp_path = tempfile.mkstemp(dir=str(feature_dir), prefix=".lanes-", suffix=".tmp")
+        try:
+            os.write(fd, content.encode("utf-8"))
+            os.close(fd)
+            os.replace(tmp_path, str(lanes_path))
+        except BaseException:
+            os.close(fd) if not os.get_inheritable(fd) else None  # noqa: E501
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     return lanes_path
+
+
+def write_lanes_json_if_bytes_match(feature_dir: Path, expected: bytes, replacement: bytes) -> bool:
+    """Atomically replace lanes.json only while its complete bytes still match."""
+    lanes_path = resolve_lanes_dir(feature_dir)
+    with lanes_json_lock(feature_dir):
+        if lanes_path.read_bytes() != expected:
+            return False
+
+        fd, tmp_path = tempfile.mkstemp(dir=str(feature_dir), prefix=".lanes-", suffix=".tmp")
+        try:
+            os.write(fd, replacement)
+            os.close(fd)
+            if lanes_path.read_bytes() != expected:
+                os.unlink(tmp_path)
+                return False
+            os.replace(tmp_path, str(lanes_path))
+        except BaseException:
+            os.close(fd) if not os.get_inheritable(fd) else None  # noqa: E501
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+    return True
 
 
 def read_lanes_json(feature_dir: Path) -> LanesManifest | None:

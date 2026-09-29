@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Final, Literal, Protocol, runtime_checkable
@@ -195,6 +196,8 @@ def commit_for_mission(
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
     effective_root: Path | None = None,
+    expected_parent_sha: str | None = None,
+    expected_path_bytes: Mapping[Path, bytes] | None = None,
 ) -> CommitRouterResult:
     """Commit a mission artifact to its kind-aware resolved placement.
 
@@ -226,6 +229,9 @@ def commit_for_mission(
         target_branch: Short primary branch name for the post-commit ff-advance
                      (WP09 / FR-010 / #1878). Optional; advance is skipped when
                      ``None``.
+        expected_parent_sha: Optional captured parent for a conditional ref update.
+        expected_path_bytes: Optional exact raw bytes for selected paths in that
+                     expected-parent commit; clean-filter rewrites are refused.
 
     Returns:
         :class:`CommitRouterResult` with the typed outcome.
@@ -241,6 +247,20 @@ def commit_for_mission(
     """
     groups = [(kind, files)] if effective_root is not None else _group_files_by_partition(repo_root, files, mission_slug, kind=kind)
 
+    if expected_path_bytes is not None and expected_parent_sha is None:
+        return CommitRouterResult(
+            status=_STATUS_ERROR,
+            placement_ref=target_branch or "",
+            diagnostic="expected path bytes require an expected-parent commit",
+        )
+
+    if expected_parent_sha is not None and len(groups) != 1:
+        return CommitRouterResult(
+            status=_STATUS_ERROR,
+            placement_ref=target_branch or "",
+            diagnostic="expected-parent commits require exactly one resolved partition group",
+        )
+
     if len(groups) <= 1:
         effective_kind, effective_files = groups[0] if groups else (kind, files)
         return _commit_partition_group(
@@ -252,6 +272,8 @@ def commit_for_mission(
             kind=effective_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
             target_branch=target_branch,
+            expected_parent_sha=expected_parent_sha,
+            expected_path_bytes=expected_path_bytes,
             **effective_root_kwargs(effective_root),
         )
 
@@ -286,6 +308,8 @@ def _commit_partition_group(
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
     effective_root: Path | None = None,
+    expected_parent_sha: str | None = None,
+    expected_path_bytes: Mapping[Path, bytes] | None = None,
 ) -> CommitRouterResult:
     """Commit ONE single-partition file group to its resolved placement.
 
@@ -312,11 +336,7 @@ def _commit_partition_group(
     # topology — this removes the planning→coord arm (write-surface-coherence WP02).
     topology = resolve_topology(repo_root, mission_slug)
     primary_target = placement.ref if effective_root is not None else _resolve_mission_target_branch(repo_root, mission_slug)
-    use_coord = (
-        effective_root is None
-        and routes_through_coordination(topology)
-        and placement.ref != primary_target
-    )
+    use_coord = effective_root is None and routes_through_coordination(topology) and placement.ref != primary_target
 
     # T016 / INV-4 (shared-rule consultation): the protected-primary refusal now
     # DERIVES from the single authority :func:`resolve_surface_authority` (contract
@@ -435,6 +455,8 @@ def _commit_partition_group(
             target=placement,
             message=message,
             paths=commit_paths,
+            **({"expected_parent_sha": expected_parent_sha} if expected_parent_sha is not None else {}),
+            **({"expected_path_bytes": expected_path_bytes} if expected_path_bytes is not None else {}),
             **effective_root_kwargs(effective_root),
         )
     except subprocess.CalledProcessError as exc:
@@ -485,6 +507,7 @@ def _commit_partition_group(
         placement_ref=placement.ref,
         commit_hash=commit_hash,
         commit_hashes=((placement.ref, commit_hash),) if commit_hash else (),
+        diagnostic=getattr(commit_result, "diagnostic", None),
     )
 
 
@@ -618,20 +641,8 @@ def _group_files_by_partition(
         # the pre-#2650 single-group call.
         return [(kind, files)]
 
-    primary_kind = (
-        kind
-        if caller_is_primary
-        else _representative_kind_for_bucket(
-            primary_files, mission_slug, expect_primary=True, fallback=_FALLBACK_PRIMARY_KIND
-        )
-    )
-    coord_kind = (
-        kind
-        if not caller_is_primary
-        else _representative_kind_for_bucket(
-            coord_files, mission_slug, expect_primary=False, fallback=_FALLBACK_COORD_KIND
-        )
-    )
+    primary_kind = kind if caller_is_primary else _representative_kind_for_bucket(primary_files, mission_slug, expect_primary=True, fallback=_FALLBACK_PRIMARY_KIND)
+    coord_kind = kind if not caller_is_primary else _representative_kind_for_bucket(coord_files, mission_slug, expect_primary=False, fallback=_FALLBACK_COORD_KIND)
 
     if primary_files and coord_files:
         primary_ref = resolve_placement_only(repo_root, mission_slug, kind=primary_kind).ref

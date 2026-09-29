@@ -8,9 +8,12 @@ has the branch checked out. That worktree is left with an index/working tree
 deletions, and a plain ``git commit`` from its stale index would silently
 delete the advanced commits' files from the branch (#1826).
 
-:func:`advance_branch_ref` is the single sanctioned way for the merge
-pipeline to advance a branch ref. **Invariant: no worktree may be left
-checked out behind a ref this function advanced.** An architectural ratchet
+:func:`advance_branch_ref` is the sanctioned way for the merge pipeline to
+advance a branch ref. Safe commits use the narrower
+:func:`advance_branch_ref_for_commit`, which CAS-advances only when the target
+branch is checked out exactly in the worktree whose requested index paths the
+caller reconciles. **Invariant: no sibling worktree may be left checked out
+behind a ref either function advanced.** An architectural ratchet
 (``tests/architectural/test_merge_pipeline_ratchets.py``) enforces that no
 raw ``update-ref`` subprocess invocation exists in ``src/specify_cli``
 outside this module (AC-B3).
@@ -77,6 +80,23 @@ def _cas_expected_old(expected_old_sha: str | None, observed_old_sha: str) -> st
     """
     candidate = expected_old_sha if expected_old_sha is not None else observed_old_sha
     return _ZERO_OID if candidate == _UNBORN else candidate
+
+
+def _update_branch_ref_cas(
+    repo_root: Path,
+    ref: str,
+    new_sha: str,
+    expected_old_sha: str,
+    *,
+    env: dict[str, str] | None = None,
+    message: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Perform the single canonical compare-and-swap ref write."""
+    args = ["update-ref"]
+    if message is not None:
+        args.extend(["-m", message])
+    args.extend([ref, new_sha, expected_old_sha])
+    return _run_git(repo_root, args, env=env)
 
 
 class RefAdvanceError(RuntimeError):
@@ -499,7 +519,7 @@ def advance_branch_ref(
             )
 
     expected_old = _cas_expected_old(expected_old_sha, old_sha)
-    result = _run_git(repo_root, ["update-ref", ref, new_sha, expected_old], env=env)
+    result = _update_branch_ref_cas(repo_root, ref, new_sha, expected_old, env=env)
     if result.returncode != 0:
         raise RefAdvanceError(
             f"Compare-and-swap advance of {branch!r} "
@@ -537,11 +557,59 @@ def restore_branch_ref(
     checkout's index and intentionally retain worktree files for diagnosis.
     """
     ref = f"refs/heads/{branch}"
-    result = _run_git(
-        repo_root,
-        ["update-ref", ref, restored_sha, expected_current_sha],
-    )
+    result = _update_branch_ref_cas(repo_root, ref, restored_sha, expected_current_sha)
     if result.returncode != 0:
         raise RefRestoreError(
             f"Failed to restore {branch!r} from {expected_current_sha[:12]} to {restored_sha[:12]}: {result.stderr.strip() or result.stdout.strip()}"
+        )
+
+
+def advance_branch_ref_for_commit(
+    repo_root: Path,
+    worktree_root: Path,
+    branch: str,
+    new_sha: str,
+    *,
+    expected_old_sha: str,
+    message: str,
+    env: dict[str, str] | None = None,
+) -> None:
+    """CAS-advance a safe-commit target without resyncing unrelated paths.
+
+    This narrow seam is only for ``safe_commit``'s path-scoped index
+    transaction: after this returns, that caller reconciles the requested
+    paths itself. Unlike :func:`advance_branch_ref`, it must not hard-reset a
+    worktree, because doing so would discard unrelated staged or working-tree
+    state. Before writing, it verifies that the target ref is checked out
+    exactly in ``worktree_root``; otherwise a raw ref move could leave a
+    sibling checkout stale (#1826), or leave the caller without a checkout to
+    reconcile.
+    """
+    ref = f"refs/heads/{branch}"
+    resolved_worktree = worktree_root.resolve()
+    checkouts = [entry for entry in _list_worktrees(repo_root, env) if not entry.detached and entry.branch == ref]
+    if len(checkouts) > 1:
+        raise RefAdvanceError(f"Refusing safe-commit advance of {branch!r}: it is checked out in another worktree too (more than one worktree total).")
+    if not checkouts:
+        raise RefAdvanceError(f"Refusing safe-commit advance of {branch!r}: it is not checked out in the worktree safe_commit reconciles at {resolved_worktree}.")
+    if checkouts[0].path.resolve() != resolved_worktree:
+        raise RefAdvanceError(
+            f"Refusing safe-commit advance of {branch!r}: it is checked out in other worktree "
+            f"{checkouts[0].path.resolve()}, not the worktree safe_commit reconciles at {resolved_worktree}."
+        )
+
+    updated = _update_branch_ref_cas(
+        repo_root,
+        ref,
+        new_sha,
+        expected_old_sha,
+        env=env,
+        message=message,
+    )
+    if updated.returncode != 0:
+        detail = (updated.stderr or updated.stdout).strip()
+        raise RefAdvanceError(
+            f"Compare-and-swap safe-commit advance of {branch!r} failed: expected "
+            f"{expected_old_sha[:12]}; refusing to clobber a concurrent ref update. "
+            f"git: {detail or 'git update-ref failed'}"
         )

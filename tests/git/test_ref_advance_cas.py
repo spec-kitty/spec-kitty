@@ -194,3 +194,124 @@ def test_advance_without_expected_old_falls_back_to_observed_value(
     assert update_refs == [["update-ref", "refs/heads/target", new_sha, old_sha]], (
         f"the interim default must still issue a 3-arg CAS on the observed old value, got {update_refs!r}"
     )
+
+
+def test_commit_advance_uses_parent_cas_without_hard_resync(
+    tmp_path: Path,
+    spy_run_git: Callable[[Callable[[list[str]], None] | None], list[list[str]]],
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    old_sha = _commit(repo, "a.txt", "one", "c0")
+    _git(repo, "branch", "target", old_sha)
+    new_sha = _commit(repo, "a.txt", "two", "c1")
+    _git(repo, "checkout", "--quiet", "target")
+
+    recorded = spy_run_git(None)
+
+    ref_advance.advance_branch_ref_for_commit(
+        repo,
+        repo,
+        "target",
+        new_sha,
+        expected_old_sha=old_sha,
+        message="safe commit",
+    )
+
+    assert _ref_value(repo, "target") == new_sha
+    assert _update_ref_argvs(recorded) == [["update-ref", "-m", "safe commit", "refs/heads/target", new_sha, old_sha]]
+    assert not any(args[:2] == ["reset", "--hard"] for args in recorded)
+
+
+def test_commit_advance_fails_closed_when_parent_ref_moves_before_cas(
+    tmp_path: Path,
+    spy_run_git: Callable[[Callable[[list[str]], None] | None], list[list[str]]],
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    old_sha = _commit(repo, "a.txt", "one", "c0")
+    _git(repo, "branch", "target", old_sha)
+    _git(repo, "branch", "concurrent", old_sha)
+    _git(repo, "branch", "candidate", old_sha)
+
+    _git(repo, "checkout", "--quiet", "concurrent")
+    concurrent_sha = _commit(repo, "rival.txt", "rival", "concurrent")
+    _git(repo, "checkout", "--quiet", "candidate")
+    new_sha = _commit(repo, "mine.txt", "mine", "candidate")
+    _git(repo, "checkout", "--quiet", "target")
+
+    def move_target_before_cas(args: list[str]) -> None:
+        if args and args[0] == "update-ref":
+            _git(repo, "update-ref", "refs/heads/target", concurrent_sha, old_sha)
+
+    recorded = spy_run_git(move_target_before_cas)
+
+    with pytest.raises(RefAdvanceError):
+        ref_advance.advance_branch_ref_for_commit(
+            repo,
+            repo,
+            "target",
+            new_sha,
+            expected_old_sha=old_sha,
+            message="safe commit",
+        )
+
+    assert _ref_value(repo, "target") == concurrent_sha
+    advance_writes = [args for args in _update_ref_argvs(recorded) if args[-2:] == [new_sha, old_sha]]
+    assert advance_writes == [["update-ref", "-m", "safe commit", "refs/heads/target", new_sha, old_sha]]
+
+
+def test_commit_advance_refuses_a_second_checked_out_target_worktree(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    old_sha = _commit(repo, "a.txt", "one", "c0")
+    _git(repo, "branch", "target", old_sha)
+    _git(repo, "branch", "candidate", old_sha)
+    _git(repo, "checkout", "--quiet", "candidate")
+    new_sha = _commit(repo, "candidate.txt", "candidate", "candidate")
+    _git(repo, "checkout", "--quiet", "target")
+
+    other_worktree = tmp_path / "other-worktree"
+    _git(repo, "worktree", "add", "--quiet", "--detach", str(other_worktree), old_sha)
+    _git(other_worktree, "symbolic-ref", "HEAD", "refs/heads/target")
+
+    checkouts = [line for line in _git(repo, "worktree", "list", "--porcelain").splitlines() if line == "branch refs/heads/target"]
+    assert len(checkouts) == 2, "test setup must expose two worktrees on the target branch"
+
+    with pytest.raises(RefAdvanceError, match="other worktree"):
+        ref_advance.advance_branch_ref_for_commit(
+            repo,
+            repo,
+            "target",
+            new_sha,
+            expected_old_sha=old_sha,
+            message="safe commit",
+        )
+
+    assert _ref_value(repo, "target") == old_sha
+
+
+def test_commit_advance_refuses_when_target_is_not_checked_out_in_reconciled_worktree(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    old_sha = _commit(repo, "a.txt", "one", "c0")
+    _git(repo, "branch", "target", old_sha)
+    _git(repo, "branch", "candidate", old_sha)
+    _git(repo, "checkout", "--quiet", "candidate")
+    new_sha = _commit(repo, "candidate.txt", "candidate", "candidate")
+
+    with pytest.raises(RefAdvanceError, match="not checked out"):
+        ref_advance.advance_branch_ref_for_commit(
+            repo,
+            repo,
+            "target",
+            new_sha,
+            expected_old_sha=old_sha,
+            message="safe commit",
+        )
+
+    assert _ref_value(repo, "target") == old_sha

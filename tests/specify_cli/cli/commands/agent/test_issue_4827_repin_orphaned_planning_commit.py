@@ -47,6 +47,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.coordination.surface_resolver import (
     resolve_status_surface_with_anchor,
 )
@@ -105,8 +106,8 @@ def _git(repo_root: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def _git_init_with_first_commit(repo_root: Path) -> None:
-    _git(repo_root, "init", "-q", "-b", "main")
+def _git_init_with_first_commit(repo_root: Path, branch_name: str = "planning") -> None:
+    _git(repo_root, "init", "-q", "-b", branch_name)
     _git(repo_root, "config", "user.email", "test@example.com")
     _git(repo_root, "config", "user.name", "Test")
     _git(repo_root, "add", "-A")
@@ -139,10 +140,29 @@ def _seed_execution_begun_event(repo_root: Path, mission_slug: str, wp_id: str) 
     )
 
 
-def _base_patches(tmp_path: Path, mission_slug: str, feature_dir: Path) -> dict[str, object]:
+def _base_patches(
+    tmp_path: Path,
+    mission_slug: str,
+    feature_dir: Path,
+    *,
+    target_branch: str = "planning",
+) -> dict[str, object]:
     patches = _common_patches(tmp_path, mission_slug)
     patches[f"{MODULE}._find_feature_directory"] = MagicMock(return_value=feature_dir)
-    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+    patches[f"{MODULE}._resolve_planning_branch"] = MagicMock(return_value=target_branch)
+    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+        side_effect=[
+            _make_bootstrap_result(),
+            _make_bootstrap_result(seeded=0, existing=2),
+        ]
+    )
+    patches["specify_cli.coordination.commit_router.commit_for_mission"] = MagicMock(
+        return_value=CommitRouterResult(
+            status="committed",
+            placement_ref=target_branch,
+            commit_hash="abc1234",
+        )
+    )
     return patches
 
 
@@ -151,38 +171,36 @@ def _disable_saas_sync(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
-def _rebase_main_onto_diverged_upstream(repo_root: Path) -> str:
+def _rebase_branch_onto_diverged_upstream(repo_root: Path, branch_name: str) -> str:
     """Simulate a mid-mission rebase via ``git rebase --onto`` against a
-    diverged upstream base, rewriting ``main``'s tip commit(s) with brand-new
+    diverged upstream base, rewriting the target branch's tip commit(s) with brand-new
     SHAs -- exactly what a real mid-mission rebase does to every commit it
     replays.
 
     ``_common_patches`` mocks ``commit_for_mission`` (no real git I/O for
     finalize's own bookkeeping commit — see ``test_feature_finalize_
-    bootstrap.py``), so at this point ``main`` is still exactly the single
-    real ``"initial"`` commit from :func:`_git_init_with_first_commit`; the
-    recorded ``planning_commit_sha`` captured by run 1 IS that commit. A
+    bootstrap.py``). Tests persist those fixture writes before rebasing, so the
+    recorded ``planning_commit_sha`` captured by run 1 is the initial commit. A
     plain ``git commit --amend`` cannot be used here (there is no parent to
     preserve identity against for a root commit), so this creates an
-    unrelated diverged root, replays ``main`` onto it with ``rebase
+    unrelated diverged root, replays the target branch onto it with ``rebase
     --onto``, and confirms the ORIGINAL commit becomes unreachable.
 
-    ``main``'s pre-rebase tip becomes ORPHANED: the commit object stays
+    The recorded pre-rebase tip becomes ORPHANED: the commit object stays
     present in the repository (reachable via ``ORIG_HEAD`` / reflog, not
     pruned within the test's lifetime) but is no longer an ancestor of
-    ``main``'s new (rebased) tip.
+    the target branch's new (rebased) tip.
 
-    Returns the new ``main`` tip SHA after the rebase.
+    Returns the new target tip SHA after the rebase.
     """
     _git(repo_root, "checkout", "-q", "--orphan", "_upstream_base")
     _git(repo_root, "rm", "-rf", "-q", ".")
     _git_commit_marker(repo_root, "UPSTREAM_ADVANCE.txt", "upstream advanced independently")
-    _git(repo_root, "checkout", "-q", "main")
-    # ``--root`` replays EVERY commit on ``main`` (there may be just the one
-    # real "initial" commit at this point) onto the diverged upstream base,
+    _git(repo_root, "checkout", "-q", branch_name)
+    # ``--root`` replays EVERY commit on the target branch onto the diverged upstream base,
     # giving each a brand-new SHA.
-    _git(repo_root, "rebase", "-q", "--onto", "_upstream_base", "--root", "main")
-    return _git(repo_root, "rev-parse", "--verify", "main")
+    _git(repo_root, "rebase", "-q", "--onto", "_upstream_base", "--root", branch_name)
+    return _git(repo_root, "rev-parse", "--verify", branch_name)
 
 
 def test_plain_finalize_fails_closed_on_orphaned_pin(tmp_path: Path) -> None:
@@ -193,19 +211,23 @@ def test_plain_finalize_fails_closed_on_orphaned_pin(tmp_path: Path) -> None:
     patches = _base_patches(tmp_path, mission_slug, feature_dir)
 
     # Run 1: materialize the established lanes; execution has NOT begun, so
-    # the real main tip (this run's own finalize bookkeeping commit) is
-    # captured as the recorded planning SHA.
+    # the real planning tip is captured as the recorded planning SHA.
     _run_finalize(mission_slug, patches)
+    # The finalize harness mocks commit_for_mission. Persist the files it
+    # finalized before rebasing so the real Git rebase carries that established
+    # state to the new tip instead of dropping uncommitted fixture writes.
+    _git_commit_marker(tmp_path, "FINALIZED-STATE.txt", "persist finalized planning state")
     established = read_lanes_json(feature_dir)
     assert established is not None
     orphaned_sha = established.planning_commit_sha
     assert orphaned_sha is not None, "a real git repo must yield a real captured tip"
 
     # Execution begins, then the mission/target branch is REBASED — the
-    # recorded SHA's commit object survives but main's tip moves onto a new,
+    # recorded SHA's commit object survives but the target tip moves onto a new,
     # unrelated base, orphaning it (present, not an ancestor).
     _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
-    new_tip = _rebase_main_onto_diverged_upstream(tmp_path)
+    _git_commit_marker(tmp_path, "EXECUTION-STARTED.txt", "persist execution event")
+    new_tip = _rebase_branch_onto_diverged_upstream(tmp_path, "planning")
     assert new_tip != orphaned_sha
     is_ancestor = subprocess.run(
         ["git", "merge-base", "--is-ancestor", orphaned_sha, new_tip],
@@ -251,13 +273,15 @@ def test_refresh_with_allow_orphaned_repins_to_new_tip(tmp_path: Path) -> None:
     patches = _base_patches(tmp_path, mission_slug, feature_dir)
 
     _run_finalize(mission_slug, patches)
+    _git_commit_marker(tmp_path, "FINALIZED-STATE.txt", "persist finalized planning state")
     established = read_lanes_json(feature_dir)
     assert established is not None
     orphaned_sha = established.planning_commit_sha
     assert orphaned_sha is not None
 
     _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
-    new_tip = _rebase_main_onto_diverged_upstream(tmp_path)
+    _git_commit_marker(tmp_path, "EXECUTION-STARTED.txt", "persist execution event")
+    new_tip = _rebase_branch_onto_diverged_upstream(tmp_path, "planning")
     assert new_tip != orphaned_sha
 
     # Run 2: the operator confirms the mid-mission rebase and re-pins.
@@ -278,3 +302,45 @@ def test_refresh_with_allow_orphaned_repins_to_new_tip(tmp_path: Path) -> None:
     assert planning_commit["sha"] == new_tip
     assert planning_commit["previous_sha"] == orphaned_sha
     assert planning_commit["branch_tip"] == new_tip
+
+
+def test_allow_orphaned_still_refuses_protected_target_before_mutation(tmp_path: Path) -> None:
+    mission_slug = "069-lane-feature"
+    feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+    _git_init_with_first_commit(tmp_path, branch_name="main")
+
+    patches = _base_patches(tmp_path, mission_slug, feature_dir, target_branch="main")
+    _run_finalize(mission_slug, patches)
+    _git_commit_marker(tmp_path, "FINALIZED-STATE.txt", "persist finalized planning state")
+    established = read_lanes_json(feature_dir)
+    assert established is not None and established.planning_commit_sha is not None
+    orphaned_sha = established.planning_commit_sha
+
+    _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
+    _git_commit_marker(tmp_path, "EXECUTION-STARTED.txt", "persist execution event")
+    new_tip = _rebase_branch_onto_diverged_upstream(tmp_path, "main")
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", orphaned_sha, new_tip],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+    )
+    object_present = subprocess.run(
+        ["git", "cat-file", "-e", f"{orphaned_sha}^{{commit}}"],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+    )
+    assert ancestry.returncode != 0 and object_present.returncode == 0, "the protected-target control must be a real orphan"
+
+    before_lanes = (feature_dir / "lanes.json").read_bytes()
+    emitted: list[dict[str, object]] = []
+    capture_patches = {**patches, f"{SEAM}._emit_json": emitted.append}
+    _run_finalize(mission_slug, capture_patches, refresh=True, allow_orphaned=True)
+
+    assert (feature_dir / "lanes.json").read_bytes() == before_lanes
+    assert _git(tmp_path, "rev-parse", "main") == new_tip
+    assert not any(event.get("result") == "success" for event in emitted)
+    assert any("protected branch 'main'" in str(event.get("error", "")) for event in emitted), (
+        f"--allow-orphaned must not bypass protected-branch refusal; emitted: {emitted}"
+    )

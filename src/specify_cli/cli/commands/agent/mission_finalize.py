@@ -36,6 +36,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, NoReturn, cast
@@ -1873,6 +1874,8 @@ def _emit_validate_only_report(
     tasks_md_stale: bool = False,
     json_output: bool,
     owned: OwnedMission | None = None,
+    planning_sha: PlanningCommitResolution | None = None,
+    refresh_status_findings: list[str] | None = None,
 ) -> None:
     """Phase: emit the --validate-only report (INV-6: zero mutation).
 
@@ -1920,30 +1923,52 @@ def _emit_validate_only_report(
             "collapse_report": cr_dry.to_dict() if cr_dry else None,
         }
 
+    would_modify, pin_change = _validate_only_planning_preview(
+        planning_dir,
+        state.would_modify,
+        planning_sha,
+    )
+
     if json_output:
-        _emit_json(
-            {
-                "result": "validation_passed",
-                "mission_slug": mission_slug,
-                "wp_count": len(state.work_packages),
-                "validate_only": True,
-                "would_modify": state.would_modify,
-                "would_preserve": state.preserved_wps,
-                "unchanged": state.unchanged_wps,
-                "updated_wp_count": state.updated_count,
-                "tasks_md_stale": tasks_md_stale,
-                "ownership_warnings": state.ownership_warnings,
-                "requirement_extraction_warnings": state.requirement_extraction_warnings,
-                "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
-                "validation": {"bootstrap_preview": bootstrap_stats, "lanes_preview": lanes_stats},
-                "message": "All validations passed. Run without --validate-only to commit.",
+        report: dict[str, object] = {
+            "result": "validation_passed",
+            "mission_slug": mission_slug,
+            "wp_count": len(state.work_packages),
+            "validate_only": True,
+            "would_modify": would_modify,
+            "would_preserve": state.preserved_wps,
+            "unchanged": state.unchanged_wps,
+            "updated_wp_count": state.updated_count,
+            "tasks_md_stale": tasks_md_stale,
+            "ownership_warnings": state.ownership_warnings,
+            "requirement_extraction_warnings": state.requirement_extraction_warnings,
+            "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
+            "validation": {"bootstrap_preview": bootstrap_stats, "lanes_preview": lanes_stats},
+            "message": (
+                "All validations passed. A mutating refresh would refuse on the listed status preflight findings."
+                if planning_sha is not None and refresh_status_findings
+                else (
+                    "All validations passed. This is a planning-pin preview; a mutating refresh repeats its safety preflight."
+                    if planning_sha is not None
+                    else "All validations passed. Run without --validate-only to commit."
+                )
+            ),
+        }
+        _add_planning_commit_to_validation_report(report, planning_sha)
+        if planning_sha is not None:
+            findings = refresh_status_findings or []
+            report["planning_refresh_preflight"] = {
+                "mutating_refresh_would_refuse_for_status_preflight": bool(findings),
+                "status_findings": findings,
             }
-        )
+        _emit_json(report)
         return
     console.print("[green]✓[/green] All validations passed (--validate-only mode, no commit)")
     console.print(f"  Mission: {mission_slug}")
     console.print(f"  WPs validated: {len(state.work_packages)}")
     console.print(f"  Would modify: {len(state.would_modify)} WP(s), preserve: {len(state.preserved_wps)}, unchanged: {len(state.unchanged_wps)}")
+    _report_validate_only_pin_change(pin_change, planning_sha)
+    _report_refresh_status_findings(refresh_status_findings, planning_sha)
     console.print(f"  Bootstrap: {bootstrap_result.newly_seeded} WPs would be seeded, {bootstrap_result.already_initialized} already initialized")
     if lanes_stats.get("computed"):
         console.print(f"  Lanes: {lanes_stats['count']} lane(s) would be computed")
@@ -2090,10 +2115,12 @@ class PlanningCommitResolution:
       (the historical pre-execution behavior, unchanged by #4141).
     * ``"preserved"`` — execution has begun and no ``--refresh-planning-commit``
       was supplied; the previously recorded SHA is preserved (#3311).
-    * ``"refreshed"`` — execution has begun and the operator explicitly
-      re-pointed the recorded SHA with ``--refresh-planning-commit``; the
-      branch tip was captured after the advance-only ancestor check passed
-      (the recorded SHA was an ADVANCED ancestor of the tip).
+    * ``"refreshed"`` — the operator explicitly requested
+      ``--refresh-planning-commit`` and the recorded pin is being re-pointed
+      to the target-branch tip. Before execution begins, the old pin is kept
+      as the compare-and-swap expectation; after execution begins, the tip is
+      captured only after the advance-only ancestor check passes (orphaned
+      pins require the separate ``--allow-orphaned`` path).
     * ``"repinned"`` — execution has begun and the operator supplied both
       ``--refresh-planning-commit --allow-orphaned``; the recorded SHA was a
       proven ORPHAN (present, not an ancestor — the mid-mission-rebase
@@ -2104,6 +2131,85 @@ class PlanningCommitResolution:
     action: str
     previous_sha: str | None = None
     branch_tip: str | None = None
+
+
+@dataclass(frozen=True)
+class _PrimaryPinRefreshCommit:
+    """Preflighted inputs for one primary-only planning-pin commit."""
+
+    primary_root: Path
+    effective_root: Path | None
+    lanes_path: Path
+    files: tuple[Path, ...]
+    message: str
+    new_sha: str
+    expected_parent_sha: str
+
+
+def _planning_pin_change(
+    planning_dir: Path,
+    planning_sha: PlanningCommitResolution | None,
+) -> dict[str, object] | None:
+    """Describe the lanes.json pin delta a refresh would write, if any."""
+    if planning_sha is None:
+        return None
+
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    existing = read_lanes_json(planning_dir)
+    previous = existing.planning_commit_sha if existing is not None else None
+    if previous == planning_sha.sha:
+        return None
+    return {
+        "artifact": "lanes.json",
+        "changes": {"planning_commit_sha": {"from": previous, "to": planning_sha.sha}},
+    }
+
+
+def _planning_commit_payload(
+    planning_sha: PlanningCommitResolution | None,
+    lanes_manifest: LanesManifest | None,
+) -> dict[str, object]:
+    """Build the one JSON representation of finalize's planning-pin decision."""
+    resolved_sha = planning_sha.sha if planning_sha is not None else (lanes_manifest.planning_commit_sha if lanes_manifest is not None else None)
+    return {
+        "sha": resolved_sha,
+        "action": planning_sha.action if planning_sha is not None else None,
+        "previous_sha": planning_sha.previous_sha if planning_sha is not None else None,
+        "branch_tip": planning_sha.branch_tip if planning_sha is not None else None,
+    }
+
+
+def _validate_only_planning_preview(
+    planning_dir: Path,
+    existing_changes: list[dict[str, object]],
+    planning_sha: PlanningCommitResolution | None,
+) -> tuple[list[dict[str, object]], dict[str, object] | None]:
+    """Combine bootstrap changes with the lanes pin delta for dry-run output."""
+    pin_change = _planning_pin_change(planning_dir, planning_sha)
+    would_modify = [*existing_changes]
+    if pin_change is not None:
+        would_modify.append(pin_change)
+    return would_modify, pin_change
+
+
+def _add_planning_commit_to_validation_report(
+    report: dict[str, object],
+    planning_sha: PlanningCommitResolution | None,
+) -> None:
+    """Add the canonical pin decision to validate-only JSON when requested."""
+    if planning_sha is not None:
+        report["planning_commit"] = _planning_commit_payload(planning_sha, None)
+
+
+def _report_validate_only_pin_change(
+    pin_change: dict[str, object] | None,
+    planning_sha: PlanningCommitResolution | None,
+) -> None:
+    """Show the lanes pin delta in human-mode validate-only output."""
+    if pin_change is None or planning_sha is None:
+        return
+    console.print(f"  Would refresh planning_commit_sha in lanes.json: {planning_sha.previous_sha or '<unset>'} -> {planning_sha.sha or '<unset>'}")
 
 
 def _refuse_planning_sha_refresh(error_msg: str, *, json_output: bool) -> NoReturn:
@@ -2176,6 +2282,410 @@ def _resolve_refresh_planning_commit_decision(
     return PlanningCommitResolution(sha=tip, action=action, previous_sha=recorded, branch_tip=tip)
 
 
+def _refuse_planning_pin_refresh(reason: str, *, json_output: bool) -> NoReturn:
+    """Fail closed before or during a primary-only pin refresh."""
+    message = f"Cannot refresh planning_commit_sha safely: {reason}"
+    if json_output:
+        _emit_json({"error": message, "error_code": "PLANNING_REFRESH_FAIL_CLOSED"})
+    else:
+        console.print(f"[red]Error:[/red] {message}")
+    raise typer.Exit(1)
+
+
+def _refresh_worktree_status_findings(
+    primary_root: Path,
+    primary_worktree: Path,
+    mission_slug: str,
+) -> list[str]:
+    """Inspect both partitions without materializing a coordination worktree."""
+    findings: list[str] = []
+    primary_status, status_error = _read_refresh_worktree_status(primary_worktree)
+    if status_error is not None:
+        findings.append(f"primary worktree status could not be inspected: {status_error}")
+    elif primary_status:
+        findings.append(f"primary worktree has pending changes: {primary_status}")
+
+    from mission_runtime import placement_seam, routes_through_coordination, resolve_mid8, resolve_topology
+
+    if not routes_through_coordination(resolve_topology(primary_root, mission_slug)):
+        return findings
+
+    meta_dir = placement_seam(primary_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    meta = load_meta_fail_closed(meta_dir) or {}
+    raw_mission_id = meta.get("mission_id")
+    if not isinstance(raw_mission_id, str):
+        findings.append("coordination worktree status could not be inspected without writing mission metadata")
+        return findings
+    mid8 = resolve_mid8(mission_slug, mission_id=raw_mission_id)
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    coord_worktree = CoordinationWorkspace.worktree_path(primary_root, mission_slug, mid8)
+    if not coord_worktree.exists():
+        return findings
+    coord_status, status_error = _read_refresh_worktree_status(coord_worktree)
+    if status_error is not None:
+        findings.append(f"coordination worktree status could not be inspected: {status_error}")
+    elif coord_status:
+        findings.append(f"coordination worktree has pending status/history changes: {coord_status}")
+    return findings
+
+
+def _refresh_worktree_status_error(
+    primary_root: Path,
+    primary_worktree: Path,
+    mission_slug: str,
+) -> str | None:
+    """Return the first blocker from a read-only status inspection of both partitions."""
+    findings = _refresh_worktree_status_findings(primary_root, primary_worktree, mission_slug)
+    return findings[0] if findings else None
+
+
+def _report_refresh_status_findings(
+    findings: list[str] | None,
+    planning_sha: PlanningCommitResolution | None,
+) -> None:
+    """Explain when pending partition status will block a mutating refresh."""
+    if planning_sha is None:
+        return
+    if findings:
+        console.print("[yellow]⚠[/yellow] Mutating refresh would refuse on status preflight findings:")
+        for finding in findings:
+            console.print(f"  - {finding}")
+        return
+    console.print("  Mutating refresh status preflight: no pending primary or coordination changes")
+
+
+def _read_refresh_worktree_status(worktree: Path) -> tuple[str | None, str | None]:
+    """Return porcelain status and any diagnostic from a read-only Git probe."""
+    try:
+        result = subprocess.run(
+            ["git", "--no-optional-locks", "status", "--porcelain=v1", "--untracked-files=all"],
+            cwd=worktree,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        return None, f"refresh could not inspect worktree {worktree}: {exc}"
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        return None, f"refresh could not inspect worktree {worktree}: {detail or 'git status failed'}"
+    return result.stdout.strip(), None
+
+
+def _refresh_branch_contract_error(
+    planning_dir: Path,
+    target_branch: str,
+    target_branch_override: str | None,
+) -> str | None:
+    """Refuse refresh when ordinary finalize would need a meta.json mutation."""
+    meta = load_meta_fail_closed(planning_dir) or {}
+    existing_target = meta.get("target_branch")
+    if target_branch_override and target_branch_override.strip() and existing_target != target_branch:
+        return "a target-branch override would also change primary meta.json"
+    if meta.get("pr_bound") and existing_target != target_branch:
+        return "legacy PR-bound metadata needs a primary meta.json repair"
+    return None
+
+
+def _preflight_refresh_planning_commit(
+    repo_root: Path,
+    planning_dir: Path,
+    mission_slug: str,
+    target_branch: str,
+    *,
+    target_branch_override: str | None,
+    owned: OwnedMission | None,
+    json_output: bool,
+) -> None:
+    """Read-only guard run before finalize can write files or lifecycle events."""
+    contract_error = _refresh_branch_contract_error(planning_dir, target_branch, target_branch_override)
+    if contract_error is not None:
+        _refuse_planning_pin_refresh(contract_error, json_output=json_output)
+    primary_root = owned.primary if owned else repo_root
+    primary_worktree = owned.root if owned else repo_root
+    surface_error = _refresh_worktree_status_error(primary_root, primary_worktree, mission_slug)
+    if surface_error is not None:
+        _refuse_planning_pin_refresh(surface_error, json_output=json_output)
+
+
+def _prepare_primary_pin_refresh_commit(
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    planning_sha: PlanningCommitResolution,
+    new_sha: str,
+    *,
+    json_output: bool,
+    owned: OwnedMission | None,
+) -> _PrimaryPinRefreshCommit:
+    """Resolve, preflight, and tip-check the one primary candidate commit."""
+    from mission_runtime import is_primary_artifact_kind, placement_seam
+    from specify_cli.git.commit_helpers import preflight_commit
+
+    primary_root = owned.primary if owned else repo_root
+    worktree_root = owned.root if owned else repo_root
+    effective_root = owned.root if owned else None
+    lanes_path = planning_dir / "lanes.json"
+    destination = placement_seam(
+        primary_root,
+        mission_slug,
+        **({"effective_root": effective_root} if effective_root else {}),
+    ).write_target(MissionArtifactKind.LANE_STATE)
+    if not is_primary_artifact_kind(MissionArtifactKind.LANE_STATE) or destination.ref != target_branch:
+        _refuse_planning_pin_refresh("lanes.json does not resolve to the planning target branch", json_output=json_output)
+
+    files = tuple(owned.files((lanes_path,))) if owned else (lanes_path,)
+    message = _finalize_bookkeeping_commit_message(mission_slug)
+    surface_error = _refresh_worktree_status_error(primary_root, worktree_root, mission_slug)
+    if surface_error is not None:
+        _refuse_planning_pin_refresh(surface_error, json_output=json_output)
+    try:
+        preflight_commit(
+            repo_root=primary_root,
+            worktree_root=worktree_root,
+            target=destination,
+            message=message,
+            paths=files,
+        )
+    except Exception as exc:  # noqa: BLE001 — fail before the lanes manifest write
+        _refuse_planning_pin_refresh(f"primary lanes.json commit preflight failed: {exc}", json_output=json_output)
+
+    expected_tip = planning_sha.branch_tip or planning_sha.sha
+    if expected_tip is None:
+        _refuse_planning_pin_refresh("the captured planning parent SHA is missing", json_output=json_output)
+    current_tip = capture_branch_tip(primary_root, target_branch)
+    if current_tip != expected_tip:
+        _refuse_planning_pin_refresh(
+            f"planning target {target_branch!r} moved after pin capture ({expected_tip} -> {current_tip}); retry against the new tip",
+            json_output=json_output,
+        )
+
+    return _PrimaryPinRefreshCommit(
+        primary_root=primary_root,
+        effective_root=effective_root,
+        lanes_path=lanes_path,
+        files=files,
+        message=message,
+        new_sha=new_sha,
+        expected_parent_sha=expected_tip,
+    )
+
+
+def _commit_planning_pin_refresh(
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    planning_sha: PlanningCommitResolution,
+    state: _BootstrapState,
+    dep_resolution: _DependencyResolution,
+    bootstrap_result: BootstrapResult,
+    *,
+    tasks_md_stale: bool,
+    json_output: bool,
+    owned: OwnedMission | None,
+) -> None:
+    """Commit a clean refresh as a single primary lanes.json write."""
+    if state.would_modify:
+        _refuse_planning_pin_refresh("WP frontmatter also needs finalization", json_output=json_output)
+    if tasks_md_stale:
+        _refuse_planning_pin_refresh("tasks.md would need regeneration", json_output=json_output)
+    if bootstrap_result.newly_seeded:
+        _refuse_planning_pin_refresh("canonical coordination status would need bootstrap writes", json_output=json_output)
+
+    from specify_cli.lanes.persistence import lanes_json_lock
+
+    with lanes_json_lock(planning_dir):
+        _commit_planning_pin_refresh_locked(
+            planning_dir,
+            repo_root,
+            mission_slug,
+            target_branch,
+            planning_sha,
+            state,
+            dep_resolution,
+            bootstrap_result,
+            json_output=json_output,
+            owned=owned,
+        )
+
+
+def _commit_planning_pin_refresh_locked(
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    planning_sha: PlanningCommitResolution,
+    state: _BootstrapState,
+    dep_resolution: _DependencyResolution,
+    bootstrap_result: BootstrapResult,
+    *,
+    json_output: bool,
+    owned: OwnedMission | None,
+) -> None:
+    """Validate byte identity and commit while holding the lanes writer lock."""
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.git.protection_policy import ProtectionPolicy
+    from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
+
+    lanes_path = planning_dir / "lanes.json"
+    try:
+        old_lanes_bytes = lanes_path.read_bytes()
+    except OSError as exc:
+        _refuse_planning_pin_refresh(f"lanes.json could not be read: {exc}", json_output=json_output)
+    lanes_manifest = read_lanes_json(planning_dir)
+    if lanes_manifest is None:
+        _refuse_planning_pin_refresh("lanes.json is missing or unreadable", json_output=json_output)
+    if lanes_path.read_bytes() != old_lanes_bytes:
+        _refuse_planning_pin_refresh("lanes.json changed while its manifest was being read", json_output=json_output)
+    if lanes_manifest.planning_commit_sha != planning_sha.previous_sha:
+        _refuse_planning_pin_refresh("lanes.json changed after the planning pin was captured", json_output=json_output)
+    if planning_sha.sha is None:
+        _refuse_planning_pin_refresh("the target branch tip could not be captured", json_output=json_output)
+
+    if lanes_manifest.planning_commit_sha == planning_sha.sha:
+        _report_planning_pin_refresh_success(
+            planning_dir,
+            target_branch,
+            planning_sha,
+            state,
+            dep_resolution,
+            bootstrap_result,
+            lanes_manifest,
+            _CommitOutcome(),
+            json_output=json_output,
+            unchanged=True,
+        )
+        return
+
+    plan = _prepare_primary_pin_refresh_commit(
+        planning_dir,
+        repo_root,
+        mission_slug,
+        target_branch,
+        planning_sha,
+        planning_sha.sha,
+        json_output=json_output,
+        owned=owned,
+    )
+
+    if plan.lanes_path.read_bytes() != old_lanes_bytes:
+        _refuse_planning_pin_refresh("lanes.json changed after refresh preparation; concurrent content was left untouched", json_output=json_output)
+    lanes_manifest.planning_commit_sha = plan.new_sha
+    write_lanes_json(planning_dir, lanes_manifest)
+    candidate_lanes_bytes = plan.lanes_path.read_bytes()
+    try:
+        if plan.lanes_path.read_bytes() != candidate_lanes_bytes:
+            raise RuntimeError("lanes.json changed before the conditional commit; concurrent content was left untouched")
+        result = commit_for_mission(
+            repo_root=plan.primary_root,
+            mission_slug=mission_slug,
+            files=plan.files,
+            message=plan.message,
+            policy=ProtectionPolicy.resolve(plan.primary_root),
+            kind=MissionArtifactKind.LANE_STATE,
+            target_branch=target_branch,
+            effective_root=plan.effective_root,
+            expected_parent_sha=plan.expected_parent_sha,
+            expected_path_bytes={plan.lanes_path: candidate_lanes_bytes},
+        )
+    except Exception as exc:  # noqa: BLE001 — report the real one-ref outcome
+        restore_error = _restore_planning_pin_candidate(plan.lanes_path, candidate_lanes_bytes, old_lanes_bytes)
+        detail = f"primary lanes.json commit failed: {exc}"
+        if restore_error is not None:
+            detail = f"{detail}; {restore_error}"
+        _refuse_planning_pin_refresh(detail, json_output=json_output)
+
+    commit_outcome = _CommitOutcome()
+    if result.status == "committed":
+        commit_outcome.commit_created = True
+        commit_outcome.commit_hash = result.commit_hash
+        commit_outcome.commit_hashes = [{"branch": ref, "hash": sha} for ref, sha in result.commit_hashes]
+        commit_outcome.diagnostic = result.diagnostic
+        committed_root = plan.effective_root or plan.primary_root
+        commit_outcome.files_committed = [str(path.relative_to(committed_root)) for path in plan.files]
+        if result.diagnostic is not None and not json_output:
+            console.print(f"[yellow]Warning:[/yellow] {result.diagnostic}")
+    else:
+        restore_error = _restore_planning_pin_candidate(plan.lanes_path, candidate_lanes_bytes, old_lanes_bytes)
+        if result.status == "unchanged":
+            detail = "primary lanes.json changed but the commit seam reported unchanged"
+        else:
+            detail = result.diagnostic or "primary lanes.json commit was refused"
+        if restore_error is not None:
+            detail = f"{detail}; {restore_error}"
+        _refuse_planning_pin_refresh(detail, json_output=json_output)
+
+    _report_planning_pin_refresh_success(
+        planning_dir,
+        target_branch,
+        planning_sha,
+        state,
+        dep_resolution,
+        bootstrap_result,
+        lanes_manifest,
+        commit_outcome,
+        json_output=json_output,
+        unchanged=False,
+    )
+
+
+def _report_planning_pin_refresh_success(
+    planning_dir: Path,
+    target_branch: str,
+    planning_sha: PlanningCommitResolution,
+    state: _BootstrapState,
+    dep_resolution: _DependencyResolution,
+    bootstrap_result: BootstrapResult,
+    lanes_manifest: LanesManifest,
+    commit_outcome: _CommitOutcome,
+    *,
+    json_output: bool,
+    unchanged: bool,
+) -> None:
+    """Report a pin refresh in the selected output mode."""
+    if json_output:
+        _emit_success_report(
+            planning_dir / "tasks",
+            state,
+            commit_outcome,
+            dep_resolution,
+            bootstrap_result,
+            lanes_manifest,
+            target_branch_persist=TargetBranchPersistOutcome(persisted=False),
+            planning_sha=planning_sha,
+        )
+    elif unchanged:
+        console.print(f"[green]✓[/green] planning_commit_sha already matches the {target_branch} tip ({planning_sha.sha}); no commit needed")
+    else:
+        _report_planning_sha_decision(target_branch, planning_sha, json_output=False)
+
+
+def _restore_planning_pin_candidate(
+    lanes_path: Path,
+    candidate_bytes: bytes,
+    original_bytes: bytes,
+) -> str | None:
+    """CAS-restore our lanes candidate without overwriting concurrent edits."""
+    from specify_cli.lanes.persistence import lanes_json_lock, write_lanes_json_if_bytes_match
+
+    with lanes_json_lock(lanes_path.parent):
+        try:
+            current_bytes = lanes_path.read_bytes()
+        except OSError as exc:
+            return f"could not inspect lanes.json for rollback: {exc}"
+        if current_bytes != candidate_bytes:
+            return "lanes.json changed during the failed commit and was left untouched"
+        try:
+            if not write_lanes_json_if_bytes_match(lanes_path.parent, candidate_bytes, original_bytes):
+                return "lanes.json changed during rollback and was left untouched"
+        except OSError as exc:
+            return f"could not restore the original lanes.json: {exc}"
+    return None
+
+
 def _resolve_preserve_planning_commit_decision(
     *,
     repo_root: Path,
@@ -2233,8 +2743,11 @@ def _preserve_or_capture_planning_commit_sha(
     frozen SHA instead of silently re-capturing the CURRENT branch tip, which
     would clobber the established planning provenance a lane worktree may
     already carry a merge-base against. Before execution begins, the
-    historical recompute + re-capture behavior is unchanged — every
-    pre-execution re-finalize keeps regenerating freely (C-005).
+    historical no-flag recompute + re-capture behavior is unchanged — every
+    pre-execution re-finalize keeps regenerating freely (C-005). An explicit
+    refresh instead retains the existing lanes pin as the compare-and-swap
+    expectation and captures the current branch tip, allowing the clean
+    primary-only refresh path to report and commit the old-to-new transition.
 
     Once execution has begun, the recorded SHA is classified against the
     target-branch tip with the shared WP01 authority
@@ -2256,14 +2769,25 @@ def _preserve_or_capture_planning_commit_sha(
     inconsistent state finalize should never reach, since bootstrapping the
     event log itself requires a prior successful finalize run that already
     wrote ``lanes.json``); a refresh was requested but the branch tip could
-    not be captured; a refresh was requested whose recorded SHA is orphaned
-    or foreign; or the no-flag default hit a proven orphan.
+    not be captured; an execution-begun refresh was requested whose recorded
+    SHA is orphaned or foreign; or the no-flag default hit a proven orphan.
     """
     execution_has_begun = _execution_has_begun(repo_root, mission_slug, owned=owned)
     if not execution_has_begun:
+        previous_sha: str | None = None
+        action = "captured"
+        if refresh_planning_commit:
+            from specify_cli.lanes.persistence import read_lanes_json
+
+            existing = read_lanes_json(planning_dir)
+            previous_sha = existing.planning_commit_sha if existing is not None else None
+            action = "refreshed"
+        tip = capture_branch_tip(repo_root, target_branch)
         return PlanningCommitResolution(
-            sha=capture_branch_tip(repo_root, target_branch),
-            action="captured",
+            sha=tip,
+            action=action,
+            previous_sha=previous_sha,
+            branch_tip=tip if refresh_planning_commit else None,
         )
 
     from specify_cli.lanes.persistence import is_execution_wedged, read_lanes_json
@@ -2452,6 +2976,7 @@ def _compute_and_write_lanes(
     owned: OwnedMission | None = None,
     refresh_planning_commit: bool = False,
     allow_orphaned: bool = False,
+    planning_sha: PlanningCommitResolution | None = None,
 ) -> tuple[Path | None, LanesManifest | None, PlanningCommitResolution | None]:
     """Phase: compute execution lanes + write lanes.json + risk report.
 
@@ -2485,16 +3010,17 @@ def _compute_and_write_lanes(
     # SHA instead of re-capturing the current branch tip — unless the operator
     # explicitly re-pointed it with --refresh-planning-commit (#4141). See
     # ``_preserve_or_capture_planning_commit_sha``.
-    planning_sha = _preserve_or_capture_planning_commit_sha(
-        planning_dir,
-        repo_root,
-        mission_slug,
-        target_branch,
-        json_output=json_output,
-        owned=owned,
-        refresh_planning_commit=refresh_planning_commit,
-        allow_orphaned=allow_orphaned,
-    )
+    if planning_sha is None:
+        planning_sha = _preserve_or_capture_planning_commit_sha(
+            planning_dir,
+            repo_root,
+            mission_slug,
+            target_branch,
+            json_output=json_output,
+            owned=owned,
+            refresh_planning_commit=refresh_planning_commit,
+            allow_orphaned=allow_orphaned,
+        )
     # Tolerate a ``None`` resolution: the historical test seam in
     # ``test_mission_finalize_phases.py`` monkeypatches this helper to return
     # ``None``, the pre-#4141 shape's value the manifest was assigned verbatim.
@@ -2668,6 +3194,7 @@ class _CommitOutcome:
     commit_hash: str | None = None
     commit_hashes: list[dict[str, str]] = field(default_factory=list)
     files_committed: list[str] = field(default_factory=list)
+    diagnostic: str | None = None
 
 
 def _commit_finalize_artifacts(
@@ -2832,7 +3359,6 @@ def _emit_success_report(
     # #4141: the planning_commit_sha decision. Falls back to the manifest's
     # own SHA when no resolution was threaded through (defensive only — the
     # commit pipeline always passes one).
-    planning_sha_final: str | None = planning_sha.sha if planning_sha is not None else (lanes_manifest.planning_commit_sha if lanes_manifest is not None else None)
     _emit_json(
         {
             "result": "success",
@@ -2876,12 +3402,8 @@ def _emit_success_report(
                 "previous_value": persist.previous_value,
                 "persist_error": persist.persist_error,
             },
-            "planning_commit": {
-                "sha": planning_sha_final,
-                "action": planning_sha.action if planning_sha is not None else None,
-                "previous_sha": planning_sha.previous_sha if planning_sha is not None else None,
-                "branch_tip": planning_sha.branch_tip if planning_sha is not None else None,
-            },
+            "planning_commit": _planning_commit_payload(planning_sha, lanes_manifest),
+            **({"commit_diagnostic": commit_outcome.diagnostic} if commit_outcome.diagnostic is not None else {}),
         }
     )
 
@@ -2939,6 +3461,7 @@ def _run_commit_pipeline(
     owned: OwnedMission | None = None,
     refresh_planning_commit: bool = False,
     allow_orphaned: bool = False,
+    planning_sha: PlanningCommitResolution | None = None,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
@@ -3004,6 +3527,7 @@ def _run_commit_pipeline(
         owned=owned,
         refresh_planning_commit=refresh_planning_commit,
         allow_orphaned=allow_orphaned,
+        planning_sha=planning_sha,
     )
 
     _scaffold_acceptance_matrix_if_lane_based(
@@ -3352,6 +3876,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             **({"effective_root": owned.root} if owned else {}),
         ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         planning_dir = primary_dir
+        mission_slug = planning_dir.name
 
         # Bulk edit occurrence-map gate (FR-001/002/003/004): fail-fast, before
         # the (potentially expensive) requirement-mapping/dependency-graph
@@ -3372,10 +3897,53 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             planning_branch=target_branch,
             json_output=json_output,
         )
+        planning_sha: PlanningCommitResolution | None = None
+        refresh_bootstrap_result: BootstrapResult | None = None
+        refresh_status_findings: list[str] = []
+        if refresh_planning_commit:
+            planning_sha = _preserve_or_capture_planning_commit_sha(
+                planning_dir,
+                repo_root,
+                mission_slug,
+                target_branch,
+                json_output=json_output,
+                owned=owned,
+                refresh_planning_commit=True,
+                allow_orphaned=allow_orphaned,
+            )
+            primary_root = owned.primary if owned else repo_root
+            primary_worktree = owned.root if owned else repo_root
+            if not validate_only:
+                _preflight_refresh_planning_commit(
+                    repo_root,
+                    planning_dir,
+                    mission_slug,
+                    target_branch,
+                    target_branch_override=target_branch_override,
+                    owned=owned,
+                    json_output=json_output,
+                )
+                refresh_bootstrap_result = _bootstrap_canonical_state_via_mission(
+                    planning_dir,
+                    mission_slug,
+                    dry_run=True,
+                    **({"owned": owned} if owned else {}),
+                )
+                if refresh_bootstrap_result.newly_seeded:
+                    _refuse_planning_pin_refresh(
+                        "canonical coordination status would need bootstrap writes",
+                        json_output=json_output,
+                    )
+            else:
+                refresh_status_findings = _refresh_worktree_status_findings(
+                    primary_root,
+                    primary_worktree,
+                    mission_slug,
+                )
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
         target_branch_persist = TargetBranchPersistOutcome(persisted=False)
-        if not validate_only:
+        if not validate_only and not refresh_planning_commit:
             meta_path_for_revert = primary_dir / META_JSON_FILENAME
             meta_original_text = meta_path_for_revert.read_text(encoding="utf-8") if meta_path_for_revert.exists() else None
             target_branch_persist = _persist_branch_contract_for_finalize(
@@ -3414,14 +3982,15 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
         # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
         preexisting_primary_files: set[Path] = {p for p in planning_dir.rglob("*") if p.is_file()}
 
-        _scaffold_issue_matrix_if_present(
-            planning_dir,
-            repo_root,
-            mission_slug,
-            target_branch=target_branch,
-            validate_only=validate_only,
-            json_output=json_output,
-        )
+        if not refresh_planning_commit:
+            _scaffold_issue_matrix_if_present(
+                planning_dir,
+                repo_root,
+                mission_slug,
+                target_branch=target_branch,
+                validate_only=validate_only,
+                json_output=json_output,
+            )
         _advisory_issue_matrix_lint(planning_dir, json_output=json_output)
 
         wps_manifest = _load_manifest(planning_dir, json_output=json_output)
@@ -3462,14 +4031,14 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             concern_coverage_warnings,
             requirement_extraction_warnings,
             merge_target_branch=merge_target_branch,
-            validate_only=validate_only,
+            validate_only=validate_only or refresh_planning_commit,
             json_output=json_output,
         )
-        _assert_no_write_in_validate_only(state, validate_only=validate_only)
+        _assert_no_write_in_validate_only(state, validate_only=validate_only or refresh_planning_commit)
         _surface_post_integration_acceptance_warnings(state, json_output=json_output)
 
         _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
-        _flush_frontmatter_writes(state, validate_only=validate_only)
+        _flush_frontmatter_writes(state, validate_only=validate_only or refresh_planning_commit)
 
         # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011).
         # #3221: the regeneration is a write to a tracked file, so in
@@ -3479,7 +4048,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             planning_dir,
             wps_manifest,
             mission_slug,
-            validate_only=validate_only,
+            validate_only=validate_only or refresh_planning_commit,
             json_output=json_output,
         )
 
@@ -3500,10 +4069,10 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
         )
         _raise_stale_canceled_dependencies_if_any(eligibility, json_output=json_output)
 
-        mission_slug = planning_dir.name
         meta = _read_meta_for_emission(planning_dir)
         _warn_missing_meta(planning_dir, meta, json_output=json_output)
-        _emit_tasks_started(planning_dir, mission_slug, state, validate_only=validate_only)
+        if not refresh_planning_commit:
+            _emit_tasks_started(planning_dir, mission_slug, state, validate_only=validate_only)
 
         if validate_only:
             _emit_validate_only_report(
@@ -3519,6 +4088,33 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
                 tasks_md_stale=tasks_md_stale,
                 json_output=json_output,
                 **({"owned": owned} if owned else {}),
+                planning_sha=planning_sha,
+                refresh_status_findings=refresh_status_findings,
+            )
+            return
+
+        if refresh_planning_commit:
+            if planning_sha is None:
+                _refuse_planning_pin_refresh("the planning pin decision is missing", json_output=json_output)
+            if refresh_bootstrap_result is None:
+                refresh_bootstrap_result = _bootstrap_canonical_state_via_mission(
+                    planning_dir,
+                    mission_slug,
+                    dry_run=True,
+                    **({"owned": owned} if owned else {}),
+                )
+            _commit_planning_pin_refresh(
+                planning_dir,
+                repo_root,
+                mission_slug,
+                target_branch,
+                planning_sha,
+                state,
+                dep_resolution,
+                refresh_bootstrap_result,
+                tasks_md_stale=tasks_md_stale,
+                json_output=json_output,
+                owned=owned,
             )
             return
 
@@ -3548,6 +4144,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             meta_commit_progress=meta_commit_progress,
             refresh_planning_commit=refresh_planning_commit,
             allow_orphaned=allow_orphaned,
+            planning_sha=planning_sha,
             **({"owned": owned} if owned else {}),
         )
 

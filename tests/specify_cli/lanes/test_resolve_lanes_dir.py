@@ -9,7 +9,7 @@ outside the seam in the owned files (verification-by-deletion).
 from __future__ import annotations
 
 import inspect
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
@@ -69,3 +69,19 @@ def test_no_ad_hoc_lanes_join_outside_the_seam_in_persistence() -> None:
         "Expected exactly one feature_dir/lanes join (the seam); "
         f"found {join_occurrences}"
     )
+
+
+def test_non_git_lanes_lock_for_windows_path_stays_under_temp_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A drive-qualified non-Git path becomes a safe, stable temp lock name."""
+    monkeypatch.setattr(persistence_module.tempfile, "gettempdir", lambda: str(tmp_path))
+    windows_lanes_path = PureWindowsPath(r"C:\work\mission\lanes.json")
+
+    lock_path = persistence_module._non_git_lanes_lock_path(windows_lanes_path)
+
+    assert lock_path.is_relative_to(tmp_path)
+    assert lock_path.parent == tmp_path / "spec-kitty-lanes-locks"
+    assert lock_path.name.endswith(".lock")
+    assert lock_path == persistence_module._non_git_lanes_lock_path(windows_lanes_path)

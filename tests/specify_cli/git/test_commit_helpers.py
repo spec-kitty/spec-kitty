@@ -11,6 +11,7 @@ specifically about the protected-branch refusal.
 from __future__ import annotations
 
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -620,3 +621,90 @@ def test_safe_commit_keyword_only(lane_repo: Path) -> None:
             "WP01: add alpha",
             (target,),
         )
+
+
+def test_expected_parent_commit_honors_configured_signing(lane_repo: Path) -> None:
+    signer = lane_repo / "local-test-signer"
+    signer.write_text(
+        "#!/bin/sh\n"
+        "cat >/dev/null\n"
+        "printf '%s\\n' '[GNUPG:] SIG_CREATED D 1 10 00 12345678 ABCDEF' >&2\n"
+        "printf '%s\\n' '-----BEGIN PGP SIGNATURE-----' 'local-test-signature' '-----END PGP SIGNATURE-----'\n",
+        encoding="utf-8",
+    )
+    signer.chmod(0o755)
+    _git(lane_repo, "config", "commit.gpgsign", "true")
+    _git(lane_repo, "config", "gpg.program", str(signer))
+    parent = _git(lane_repo, "rev-parse", "HEAD").stdout.strip()
+    target = lane_repo / "signed.txt"
+    target.write_text("signed content\n", encoding="utf-8")
+
+    result = safe_commit(
+        repo_root=lane_repo,
+        worktree_root=lane_repo,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="WP01: signed expected-parent commit",
+        paths=(target,),
+        expected_parent_sha=parent,
+    )
+
+    commit_object = _git(lane_repo, "cat-file", "-p", result.sha).stdout
+    assert "gpgsig -----BEGIN PGP SIGNATURE-----" in commit_object
+    assert _git(lane_repo, "rev-parse", "HEAD").stdout.strip() == result.sha
+
+
+def test_expected_parent_signing_failure_leaves_target_ref_unchanged(lane_repo: Path) -> None:
+    signer = lane_repo / "failing-local-test-signer"
+    signer.write_text("#!/bin/sh\ncat >/dev/null\nexit 1\n", encoding="utf-8")
+    signer.chmod(0o755)
+    _git(lane_repo, "config", "commit.gpgsign", "true")
+    _git(lane_repo, "config", "gpg.program", str(signer))
+    parent = _git(lane_repo, "rev-parse", "HEAD").stdout.strip()
+    target = lane_repo / "unsigned-on-failure.txt"
+    target.write_text("must not land\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="could not create expected-parent commit"):
+        safe_commit(
+            repo_root=lane_repo,
+            worktree_root=lane_repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="WP01: fail signed expected-parent commit",
+            paths=(target,),
+            expected_parent_sha=parent,
+        )
+
+    assert _git(lane_repo, "rev-parse", "HEAD").stdout.strip() == parent
+
+
+def test_expected_parent_commit_remains_success_when_temp_cleanup_raises_oserror(
+    lane_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.git import commit_helpers
+
+    parent = _git(lane_repo, "rev-parse", "HEAD").stdout.strip()
+    target = lane_repo / "cleanup-content.txt"
+    target.write_text("committed despite cleanup failure\n", encoding="utf-8")
+    original_cleanup = tempfile.TemporaryDirectory.cleanup
+
+    def cleanup_then_raise(temp_dir: tempfile.TemporaryDirectory[str]) -> None:
+        original_cleanup(temp_dir)
+        raise OSError("injected temporary-directory cleanup failure")
+
+    monkeypatch.setattr(commit_helpers.tempfile.TemporaryDirectory, "cleanup", cleanup_then_raise)
+
+    result = safe_commit(
+        repo_root=lane_repo,
+        worktree_root=lane_repo,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="WP01: expected-parent cleanup failure",
+        paths=(target,),
+        expected_parent_sha=parent,
+    )
+
+    assert result.sha == _git(lane_repo, "rev-parse", "HEAD").stdout.strip()
+    assert result.sha != parent
+    assert result.diagnostic is not None
+    assert "temporary" in result.diagnostic.lower() and "cleanup" in result.diagnostic.lower()
+    assert "injected temporary-directory cleanup failure" in result.diagnostic
+    assert target.read_bytes() == _git(lane_repo, "show", f"{result.sha}:cleanup-content.txt").stdout.encode()

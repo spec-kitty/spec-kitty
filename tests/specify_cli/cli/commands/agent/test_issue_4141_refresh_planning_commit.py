@@ -105,9 +105,9 @@ def _git(repo_root: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def _git_init_with_first_commit(repo_root: Path) -> None:
+def _git_init_with_first_commit(repo_root: Path, branch_name: str = "planning") -> None:
     """Real git repo so SHA capture + the ancestor check resolve real SHAs."""
-    _git(repo_root, "init", "-q", "-b", "main")
+    _git(repo_root, "init", "-q", "-b", branch_name)
     _git(repo_root, "config", "user.email", "test@example.com")
     _git(repo_root, "config", "user.name", "Test")
     _git(repo_root, "add", "-A")
@@ -157,7 +157,13 @@ def _amend_wp01_owned_files(feature_dir: Path) -> None:
 def _base_patches(tmp_path: Path, mission_slug: str, feature_dir: Path) -> dict[str, object]:
     patches = _common_patches(tmp_path, mission_slug)
     patches[f"{MODULE}._find_feature_directory"] = MagicMock(return_value=feature_dir)
-    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+    patches[f"{MODULE}._resolve_planning_branch"] = MagicMock(return_value="planning")
+    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+        side_effect=[
+            _make_bootstrap_result(),
+            _make_bootstrap_result(seeded=0, existing=2),
+        ]
+    )
     return patches
 
 
@@ -210,6 +216,66 @@ def test_refresh_repoints_recorded_sha_to_amended_tip(tmp_path: Path) -> None:
     assert planning_commit["previous_sha"] == recorded_tip
 
 
+def test_refresh_refuses_when_status_bootstrap_would_write_before_lanes_mutation(tmp_path: Path) -> None:
+    mission_slug = "067-lane-feature"
+    feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+    _git_init_with_first_commit(tmp_path)
+
+    patches = _base_patches(tmp_path, mission_slug, feature_dir)
+    patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+        side_effect=[
+            _make_bootstrap_result(),
+            _make_bootstrap_result(seeded=1, existing=1),
+        ]
+    )
+
+    _run_finalize(mission_slug, patches)
+    established = read_lanes_json(feature_dir)
+    assert established is not None
+    recorded_tip = established.planning_commit_sha
+    assert recorded_tip is not None
+
+    _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
+    amended_tip = _git_commit_marker(tmp_path, "AMENDMENT.txt", "planning amendment")
+    before_lanes = (feature_dir / "lanes.json").read_bytes()
+    before_tip = _git(tmp_path, "rev-parse", "HEAD")
+
+    emitted: list[dict[str, object]] = []
+    capture_patches = {**patches, f"{SEAM}._emit_json": emitted.append}
+    _run_finalize(mission_slug, capture_patches, refresh=True)
+
+    assert (feature_dir / "lanes.json").read_bytes() == before_lanes
+    assert _git(tmp_path, "rev-parse", "HEAD") == before_tip == amended_tip
+    assert any("canonical coordination status would need bootstrap writes" in str(event.get("error", "")) for event in emitted), (
+        f"the refresh refusal must explain its status preflight; emitted: {emitted}"
+    )
+
+
+def test_refresh_refuses_protected_target_before_lanes_mutation(tmp_path: Path) -> None:
+    mission_slug = "068-lane-feature"
+    feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+    _git_init_with_first_commit(tmp_path, branch_name="main")
+
+    patches = _base_patches(tmp_path, mission_slug, feature_dir)
+    patches[f"{MODULE}._resolve_planning_branch"] = MagicMock(return_value="main")
+    _run_finalize(mission_slug, patches)
+
+    _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
+    amended_tip = _git_commit_marker(tmp_path, "AMENDMENT.txt", "planning amendment")
+    before_lanes = (feature_dir / "lanes.json").read_bytes()
+    before_tip = _git(tmp_path, "rev-parse", "HEAD")
+
+    emitted: list[dict[str, object]] = []
+    capture_patches = {**patches, f"{SEAM}._emit_json": emitted.append}
+    _run_finalize(mission_slug, capture_patches, refresh=True)
+
+    assert (feature_dir / "lanes.json").read_bytes() == before_lanes
+    assert _git(tmp_path, "rev-parse", "HEAD") == before_tip == amended_tip
+    assert any("protected" in str(event.get("error", "")).lower() for event in emitted), (
+        f"the refresh refusal must identify the protected target; emitted: {emitted}"
+    )
+
+
 def test_refresh_refused_when_recorded_sha_not_ancestor(tmp_path: Path) -> None:
     mission_slug = "065-lane-feature"
     feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
@@ -225,14 +291,14 @@ def test_refresh_refused_when_recorded_sha_not_ancestor(tmp_path: Path) -> None:
     assert recorded_tip is not None
 
     # A REAL commit that diverged from the planning branch: a side branch off
-    # the recorded tip, while main itself advances separately. The side SHA
-    # exists in the repository but is NOT an ancestor of the new main tip —
+    # the recorded tip, while the planning branch advances separately. The
+    # side SHA exists in the repository but is NOT an ancestor of the new tip —
     # the exact "history rewritten / diverged, not amended" shape the refresh
     # must refuse (a fake unknown SHA would only exercise the weaker
     # "object unknown" failure of the same git check).
     _git(tmp_path, "checkout", "-q", "-b", "side-branch")
     diverged_sha = _git_commit_marker(tmp_path, "DIVERGED.txt", "side branch")
-    _git(tmp_path, "checkout", "-q", "main")
+    _git(tmp_path, "checkout", "-q", "planning")
     amended_tip = _git_commit_marker(tmp_path, "AMENDMENT.txt", "planning amendment")
     assert diverged_sha != amended_tip
 
@@ -293,3 +359,71 @@ def test_preserve_path_warns_on_drift_without_flag(tmp_path: Path) -> None:
         f"a preserved SHA against a moved branch tip must name the --refresh-planning-commit recovery command; console: {console_out!r}"
     )
     assert recorded_tip in console_out and amended_tip in console_out
+
+
+def test_refresh_reports_human_success_without_json(tmp_path: Path) -> None:
+    mission_slug = "069-human-refresh"
+    feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+    _git_init_with_first_commit(tmp_path)
+
+    patches = _base_patches(tmp_path, mission_slug, feature_dir)
+    _run_finalize(mission_slug, patches)
+    established = read_lanes_json(feature_dir)
+    assert established is not None and established.planning_commit_sha is not None
+    recorded_tip = established.planning_commit_sha
+
+    _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
+    _amend_wp01_owned_files(feature_dir)
+    amended_tip = _git_commit_marker(tmp_path, "AMENDMENT.txt", "planning amendment")
+
+    buf = io.StringIO()
+    human_console = Console(file=buf, force_terminal=False, width=200)
+    emitted: list[dict[str, object]] = []
+    human_patches = {**patches, f"{SEAM}.console": human_console, f"{SEAM}._emit_json": emitted.append}
+    _run_finalize(mission_slug, human_patches, refresh=True, json_output=False)
+
+    assert emitted == [], f"human mode must not emit a JSON success payload; emitted: {emitted!r}"
+    console_out = buf.getvalue()
+    assert "Refreshed planning_commit_sha" in console_out
+    assert recorded_tip in console_out and amended_tip in console_out
+
+
+def test_refresh_noop_reports_human_success_without_json(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent.mission_finalize import PlanningCommitResolution
+
+    mission_slug = "070-human-refresh-noop"
+    feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+    _git_init_with_first_commit(tmp_path)
+
+    patches = _base_patches(tmp_path, mission_slug, feature_dir)
+    _run_finalize(mission_slug, patches)
+    established = read_lanes_json(feature_dir)
+    assert established is not None and established.planning_commit_sha is not None
+    recorded_tip = established.planning_commit_sha
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "finalize unclaimed mission")
+
+    # The CLI's clean no-op branch is reached when the captured target tip is
+    # already the value recorded in lanes.json. Keep that condition explicit;
+    # the test is about output from the no-op, not how a target ref got there.
+    patches[f"{SEAM}._preserve_or_capture_planning_commit_sha"] = MagicMock(
+        return_value=PlanningCommitResolution(
+            sha=recorded_tip,
+            action="refreshed",
+            previous_sha=recorded_tip,
+            branch_tip=recorded_tip,
+        )
+    )
+    buf = io.StringIO()
+    human_console = Console(file=buf, force_terminal=False, width=200)
+    emitted: list[dict[str, object]] = []
+    human_patches = {**patches, f"{SEAM}.console": human_console, f"{SEAM}._emit_json": emitted.append}
+    before_tip = _git(tmp_path, "rev-parse", "planning")
+    _run_finalize(mission_slug, human_patches, refresh=True, json_output=False)
+
+    assert emitted == [], f"human mode must not emit a JSON no-op payload; emitted: {emitted!r}"
+    assert "already matches" in buf.getvalue().lower()
+    assert "no commit" in buf.getvalue().lower()
+    assert _git(tmp_path, "rev-parse", "planning") == before_tip
+    after = read_lanes_json(feature_dir)
+    assert after is not None and after.planning_commit_sha == recorded_tip
