@@ -500,6 +500,17 @@ def _merge_canceled_content_into_result(result: VerifyResult, canceled_fail: lis
     entries, a strategy PASS becomes a FAIL carrying only the canceled-content
     divergence, and a strategy FAIL gets the entries merged onto its existing
     :class:`Divergence` (never replacing its other axes).
+
+    LOAD-BEARING COUPLING (#5046; flagged by two independent review lenses at
+    landing): under the default squash strategy the #5013 blob-attribution axis
+    is NOT canceled-aware — it attributes the union of the lane's authored blobs,
+    which INCLUDES the canceled WP's, so it would treat canceled content as
+    approved. This canceled-content axis (`_canceled_content_divergence`,
+    strategy-independent, run above the squash branch in `verify`) is therefore
+    the SOLE thing that stops canceled content shipping under squash. The two
+    axes compose as a fail-closed union here; a future change that narrows,
+    short-circuits or empties the canceled-content axis MUST NOT assume the blob
+    axis backstops it. Keep the canceled axis running for every mixed lane.
     """
     if result.status is VerifyStatus.REFUSE or not canceled_fail:
         return result
