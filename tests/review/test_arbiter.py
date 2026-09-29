@@ -185,7 +185,7 @@ def test_derive_category_custom() -> None:
 
 
 def test_is_arbiter_override_after_rejection(tmp_path: Path) -> None:
-    """Rejection event + forward force → True."""
+    """Rejection event + forced rework to for_review → False (#5196: rework is not an override)."""
     feature_dir = tmp_path / "kitty-specs" / "066-test"
     feature_dir.mkdir(parents=True)
 
@@ -210,6 +210,29 @@ def test_is_arbiter_override_after_rejection(tmp_path: Path) -> None:
         target_lane="for_review",
         force=True,
     )
+    assert result is False  # re-pinned (#5196): was True
+
+
+def test_is_arbiter_override_after_rejection_forced_approve(tmp_path: Path) -> None:
+    """Rejection event + forced approve → True (#5196: decision target)."""
+    feature_dir = tmp_path / "kitty-specs" / "066-test"
+    feature_dir.mkdir(parents=True)
+    _write_event(
+        feature_dir,
+        _make_event(
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.PLANNED,
+            review_ref="feedback://066-test/WP01/20260406T120000Z-abc123.md",
+        ),
+    )
+
+    result = _is_arbiter_override(
+        feature_dir=feature_dir,
+        wp_id="WP01",
+        old_lane="planned",
+        target_lane="approved",
+        force=True,
+    )
     assert result is True
 
 
@@ -228,7 +251,7 @@ def test_is_arbiter_override_normal_claim(tmp_path: Path) -> None:
         feature_dir=feature_dir,
         wp_id="WP01",
         old_lane="planned",
-        target_lane="for_review",
+        target_lane="approved",
         force=True,
     )
     assert result is False
@@ -252,7 +275,7 @@ def test_is_arbiter_override_no_force(tmp_path: Path) -> None:
         feature_dir=feature_dir,
         wp_id="WP01",
         old_lane="planned",
-        target_lane="for_review",
+        target_lane="approved",
         force=False,  # no force!
     )
     assert result is False
@@ -390,13 +413,7 @@ def test_persist_decision_survives_conflict_marked_review_cycle_artifact(
     wp_subdir.mkdir(parents=True, exist_ok=True)
     artifact = wp_subdir / "review-cycle-1.md"
     artifact.write_text(
-        "<<<<<<< ours\n"
-        "cycle_number: 1\n"
-        "mission_slug: 066-test\n"
-        "=======\n"
-        "cycle_number: 1\n"
-        "mission_slug: 066-test-renamed\n"
-        ">>>>>>> theirs\n",
+        "<<<<<<< ours\ncycle_number: 1\nmission_slug: 066-test\n=======\ncycle_number: 1\nmission_slug: 066-test-renamed\n>>>>>>> theirs\n",
         encoding="utf-8",
     )
 
@@ -607,14 +624,14 @@ def test_is_arbiter_override_wrong_old_lane(tmp_path: Path) -> None:
         feature_dir=feature_dir,
         wp_id="WP01",
         old_lane="in_progress",  # not 'planned'
-        target_lane="for_review",
+        target_lane="approved",
         force=True,
     )
     assert result is False
 
 
 def test_is_arbiter_override_non_forward_target_lane(tmp_path: Path) -> None:
-    """target_lane not in (for_review, claimed, approved) returns False."""
+    """target_lane not in (approved, done) returns False."""
     feature_dir = tmp_path / "kitty-specs" / "066-test"
     feature_dir.mkdir(parents=True)
 
@@ -635,15 +652,14 @@ def test_is_arbiter_override_no_events_for_wp(tmp_path: Path) -> None:
     # Write an event for a *different* WP
     _write_event(
         feature_dir,
-        _make_event(wp_id="WP02", from_lane=Lane.FOR_REVIEW, to_lane=Lane.PLANNED,
-                    review_ref="feedback://066-test/WP02/20260406T120000Z-abc123.md"),
+        _make_event(wp_id="WP02", from_lane=Lane.FOR_REVIEW, to_lane=Lane.PLANNED, review_ref="feedback://066-test/WP02/20260406T120000Z-abc123.md"),
     )
 
     result = _is_arbiter_override(
         feature_dir=feature_dir,
         wp_id="WP01",
         old_lane="planned",
-        target_lane="for_review",
+        target_lane="approved",
         force=True,
     )
     assert result is False

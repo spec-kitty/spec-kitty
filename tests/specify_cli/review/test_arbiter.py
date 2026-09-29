@@ -5,6 +5,7 @@ Tests verify that:
 - Arbiter override detection logic is unchanged after migration
 - All lane comparison scenarios work correctly with typed Lane enum
 """
+
 from __future__ import annotations
 
 import json
@@ -18,6 +19,7 @@ from specify_cli.review.arbiter import (
     ArbiterDecision,
     _is_arbiter_override,
     create_arbiter_decision,
+    is_arbiter_override_history,
     parse_category_from_note,
 )
 from specify_cli.status.models import Lane, StatusEvent
@@ -63,7 +65,7 @@ def test_is_arbiter_override_returns_false_when_not_forced(tmp_path: Path) -> No
     feature_dir.mkdir(parents=True)
     _make_event(feature_dir, "WP01", Lane.FOR_REVIEW, Lane.PLANNED, review_ref="rev://ref/1")
 
-    result = _is_arbiter_override(feature_dir, "WP01", "planned", "for_review", force=False)
+    result = _is_arbiter_override(feature_dir, "WP01", "planned", "approved", force=False)
 
     assert result is False
 
@@ -74,7 +76,7 @@ def test_is_arbiter_override_returns_false_when_old_lane_not_planned(tmp_path: P
     feature_dir.mkdir(parents=True)
     _make_event(feature_dir, "WP01", Lane.FOR_REVIEW, Lane.PLANNED, review_ref="rev://ref/1")
 
-    result = _is_arbiter_override(feature_dir, "WP01", "in_progress", "for_review", force=True)
+    result = _is_arbiter_override(feature_dir, "WP01", "in_progress", "approved", force=True)
 
     assert result is False
 
@@ -95,7 +97,7 @@ def test_is_arbiter_override_returns_false_when_no_events(tmp_path: Path) -> Non
     feature_dir = tmp_path / "kitty-specs" / "080-test"
     feature_dir.mkdir(parents=True)
 
-    result = _is_arbiter_override(feature_dir, "WP01", "planned", "for_review", force=True)
+    result = _is_arbiter_override(feature_dir, "WP01", "planned", "approved", force=True)
 
     assert result is False
 
@@ -107,35 +109,35 @@ def test_is_arbiter_override_returns_false_when_latest_event_not_rejection(tmp_p
     # Latest event: planned → claimed (not a rejection)
     _make_event(feature_dir, "WP01", Lane.PLANNED, Lane.CLAIMED)
 
-    result = _is_arbiter_override(feature_dir, "WP01", "planned", "for_review", force=True)
+    result = _is_arbiter_override(feature_dir, "WP01", "planned", "approved", force=True)
 
     assert result is False
 
 
-def test_is_arbiter_override_returns_true_for_valid_rejection_override(tmp_path: Path) -> None:
-    """Latest event is for_review→planned with review_ref (rejection) → arbiter override."""
+def test_is_arbiter_override_false_for_forced_rework_to_for_review(tmp_path: Path) -> None:
+    """Forced planned→for_review after a rejection is rework, not an override (#5196)."""
     feature_dir = tmp_path / "kitty-specs" / "080-test"
     feature_dir.mkdir(parents=True)
     _make_event(feature_dir, "WP01", Lane.FOR_REVIEW, Lane.PLANNED, review_ref="rev://ref/1")
 
     result = _is_arbiter_override(feature_dir, "WP01", "planned", "for_review", force=True)
 
-    assert result is True
+    assert result is False  # re-pinned (#5196): was True; rework is not an override
 
 
-def test_is_arbiter_override_valid_for_claimed_target(tmp_path: Path) -> None:
-    """Arbiter can override back to 'claimed' as a forward target."""
+def test_is_arbiter_override_false_for_forced_rework_to_claimed(tmp_path: Path) -> None:
+    """Forced planned→claimed after a rejection is rework, not an override (#5196)."""
     feature_dir = tmp_path / "kitty-specs" / "080-test"
     feature_dir.mkdir(parents=True)
     _make_event(feature_dir, "WP01", Lane.FOR_REVIEW, Lane.PLANNED, review_ref="rev://ref/1")
 
     result = _is_arbiter_override(feature_dir, "WP01", "planned", "claimed", force=True)
 
-    assert result is True
+    assert result is False  # re-pinned (#5196): was True; rework is not an override
 
 
 def test_is_arbiter_override_valid_for_approved_target(tmp_path: Path) -> None:
-    """Arbiter can override to 'approved' as a forward target."""
+    """Arbiter can override to 'approved' (a decision target)."""
     feature_dir = tmp_path / "kitty-specs" / "080-test"
     feature_dir.mkdir(parents=True)
     _make_event(feature_dir, "WP01", Lane.FOR_REVIEW, Lane.PLANNED, review_ref="rev://ref/1")
@@ -152,7 +154,7 @@ def test_is_arbiter_override_requires_review_ref_in_latest_event(tmp_path: Path)
     # for_review → planned but NO review_ref (unusual, not a rejection)
     _make_event(feature_dir, "WP01", Lane.FOR_REVIEW, Lane.PLANNED, review_ref=None)
 
-    result = _is_arbiter_override(feature_dir, "WP01", "planned", "for_review", force=True)
+    result = _is_arbiter_override(feature_dir, "WP01", "planned", "approved", force=True)
 
     assert result is False
 
@@ -166,7 +168,7 @@ def test_is_arbiter_override_uses_latest_event_only(tmp_path: Path) -> None:
     # Then: planned → claimed (not a rejection, this is the latest)
     _make_event(feature_dir, "WP01", Lane.PLANNED, Lane.CLAIMED)
 
-    result = _is_arbiter_override(feature_dir, "WP01", "planned", "for_review", force=True)
+    result = _is_arbiter_override(feature_dir, "WP01", "planned", "approved", force=True)
 
     # Latest event is planned→claimed, not a rejection → no override
     assert result is False
@@ -189,14 +191,16 @@ def test_lane_enum_planned_comparison() -> None:
     assert Lane("planned") == Lane.PLANNED
 
 
-def test_lane_enum_all_arbiter_forward_targets() -> None:
-    """All three valid arbiter forward targets are valid Lane values."""
-    forward_targets = {Lane.FOR_REVIEW, Lane.CLAIMED, Lane.APPROVED}
-    assert Lane.FOR_REVIEW in forward_targets
-    assert Lane.CLAIMED in forward_targets
-    assert Lane.APPROVED in forward_targets
-    assert Lane.PLANNED not in forward_targets
-    assert Lane.IN_PROGRESS not in forward_targets
+def test_arbiter_decision_targets_are_approval_lanes_only() -> None:
+    """Only approval lanes are arbiter-override targets (#5196).
+
+    Replaces a self-referential literal-set check that pinned the retired
+    ``{for_review, claimed, approved}`` target set and could never fail.
+    """
+    from specify_cli.review import arbiter
+
+    expected = frozenset({Lane.APPROVED, Lane.DONE})
+    assert expected == arbiter._ARBITER_DECISION_TARGETS
 
 
 # ---------------------------------------------------------------------------
@@ -244,3 +248,92 @@ def test_arbiter_checklist_roundtrip() -> None:
     data = checklist.to_dict()
     restored = ArbiterChecklist.from_dict(data)
     assert restored == checklist
+
+
+# ---------------------------------------------------------------------------
+# Truth table (contract arbiter-override-classification): (latest-event shape, target lane) -> is override?
+# Force on, old lane planned, WP01's latest event is the given shape.
+# ---------------------------------------------------------------------------
+
+_SHAPES: dict[str, tuple[Lane, Lane, str | None]] = {
+    "for_review_rejection": (Lane.FOR_REVIEW, Lane.PLANNED, "rev://ref/1"),
+    "in_review_rejection": (Lane.IN_REVIEW, Lane.PLANNED, "rev://ref/1"),
+    "rollback_without_ref": (Lane.FOR_REVIEW, Lane.PLANNED, None),
+    "reopen_from_approved": (Lane.APPROVED, Lane.PLANNED, "rev://ref/1"),
+    "non_rejection": (Lane.PLANNED, Lane.CLAIMED, None),
+}
+
+_TARGETS = ("for_review", "claimed", "in_progress", "approved", "done")
+
+_CHARACTERIZATION: dict[str, tuple[bool, bool, bool, bool, bool]] = {
+    # Expected result per target, in _TARGETS order.
+    # Deltas vs. the base (#5196): rework targets are never overrides; the
+    # in_review source now counts; ``done`` is a decision target.
+    "for_review_rejection": (False, False, False, True, True),
+    "in_review_rejection": (False, False, False, True, True),
+    "rollback_without_ref": (False, False, False, False, False),
+    "reopen_from_approved": (False, False, False, False, False),
+    "non_rejection": (False, False, False, False, False),
+}
+
+_CHARACTERIZATION_CASES = [
+    pytest.param(shape, target, expected[i], id=f"{shape}-{target}") for shape, expected in _CHARACTERIZATION.items() for i, target in enumerate(_TARGETS)
+]
+
+
+def _seed_shape(feature_dir: Path, shape: str) -> None:
+    from_lane, to_lane, ref = _SHAPES[shape]
+    _make_event(feature_dir, "WP01", from_lane, to_lane, review_ref=ref)
+
+
+def _evaluate(feature_dir: Path, target: str, *, force: bool = True, old_lane: str = "planned") -> bool:
+    return _is_arbiter_override(feature_dir, "WP01", old_lane, target, force=force)
+
+
+@pytest.mark.parametrize(("shape", "target", "expected"), _CHARACTERIZATION_CASES)
+def test_truth_table_shape_by_target(tmp_path: Path, shape: str, target: str, expected: bool) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "080-test"
+    feature_dir.mkdir(parents=True)
+    _seed_shape(feature_dir, shape)
+
+    assert _evaluate(feature_dir, target) is expected
+
+
+@pytest.mark.parametrize("target", _TARGETS)
+@pytest.mark.parametrize(("force", "old_lane"), [(False, "planned"), (True, "in_progress"), (False, "in_progress")])
+def test_truth_table_gates_dominate(tmp_path: Path, target: str, force: bool, old_lane: str) -> None:
+    """Without force, or with an old lane other than planned, nothing is an override."""
+    feature_dir = tmp_path / "kitty-specs" / "080-test"
+    feature_dir.mkdir(parents=True)
+    _seed_shape(feature_dir, "for_review_rejection")
+
+    assert _evaluate(feature_dir, target, force=force, old_lane=old_lane) is False
+
+
+def _shape_event(shape: str, wp_id: str = "WP01") -> StatusEvent:
+    from_lane, to_lane, ref = _SHAPES[shape]
+    return StatusEvent(
+        event_id="01TESTPURE0000000000000000",
+        mission_slug="080-test",
+        wp_id=wp_id,
+        from_lane=from_lane,
+        to_lane=to_lane,
+        at="2026-04-09T12:00:00+00:00",
+        actor="test-actor",
+        force=True,
+        execution_mode="direct_repo",
+        review_ref=ref,
+    )
+
+
+@pytest.mark.parametrize(("shape", "target", "expected"), _CHARACTERIZATION_CASES)
+def test_pure_history_matches_truth_table(shape: str, target: str, expected: bool) -> None:
+    """The pure predicate answers the same table as the read_events shell."""
+    assert is_arbiter_override_history([_shape_event(shape)], "WP01", "planned", target, True) is expected
+
+
+def test_pure_history_ignores_other_wps_events() -> None:
+    events = [_shape_event("for_review_rejection"), _shape_event("non_rejection", wp_id="WP02")]
+
+    assert is_arbiter_override_history(events, "WP01", "planned", "approved", True) is True
+    assert is_arbiter_override_history(events, "WP03", "planned", "approved", True) is False

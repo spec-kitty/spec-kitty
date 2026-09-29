@@ -1,7 +1,7 @@
 """Arbiter checklist and rationale model for false-positive review rejections.
 
-When an arbiter overrides a rejection (detected as a forward --force move from
-``planned`` after a rejection event), the system presents a 5-question checklist,
+When an arbiter overrides a rejection (detected as a forced ``planned`` →
+``approved``/``done`` move after a rejection event; forced rework is not one, #5196), the system presents a 5-question checklist,
 derives a category, and records the decision as a durable, event-sourced
 ``ReviewOverride`` (FR-009/FR-010/FR-011, mission
 ``review-cycle-verdict-seam-rebuild-01KZ2W7W`` WP12, "arbiter-override-retirement")
@@ -20,7 +20,7 @@ artifact — no new pointer scheme is introduced.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -29,9 +29,12 @@ from typing import TYPE_CHECKING, Any
 from kernel.clock import now_utc_iso
 from specify_cli.review.artifacts import ReviewCycleArtifact, _review_cycle_filename
 from specify_cli.review.cycle import _review_cycle_wp_dir
+from specify_cli.status import Lane, read_events
 
 if TYPE_CHECKING:
     from rich.console import Console
+
+    from specify_cli.status.models import StatusEvent
 
 
 # ---------------------------------------------------------------------------
@@ -334,6 +337,50 @@ def prompt_arbiter_checklist(
 # ---------------------------------------------------------------------------
 
 
+_ARBITER_DECISION_TARGETS = frozenset({Lane.APPROVED, Lane.DONE})
+_REJECTION_SOURCES = frozenset({Lane.FOR_REVIEW, Lane.IN_REVIEW})
+
+
+def _is_rejection_event(event: StatusEvent) -> bool:
+    """True iff ``event`` is a review rejection (back to ``planned`` with a ``review_ref``)."""
+    return event.to_lane == Lane.PLANNED and event.from_lane in _REJECTION_SOURCES and event.review_ref is not None
+
+
+def is_arbiter_override_history(
+    events: Sequence[StatusEvent],
+    wp_id: str,
+    old_lane: str,
+    target_lane: str,
+    force: bool,
+) -> bool:
+    """Pure override predicate over an already-read event history.
+
+    An arbiter override requires ALL of these to be true:
+    1. ``--force`` flag is set.
+    2. Current lane is ``planned``.
+    3. Target lane is a decision lane: ``approved`` or ``done``. Forced rework
+       to ``claimed``/``in_progress``/``for_review`` is NOT an override (#5196).
+    4. The latest event for this WP is a rejection: a transition to ``planned``
+       from ``for_review`` or ``in_review`` with a non-``None`` ``review_ref``.
+       ``approved`` → ``planned`` (a reopen) is deliberately excluded.
+
+    Normative truth table: ``contracts/arbiter-override-classification.md``
+    (decision moment ``01M3MQXYAFEYE62RA5513KKNX6``).
+    """
+    if not force:
+        return False
+    if Lane(old_lane) != Lane.PLANNED:
+        return False
+    if Lane(target_lane) not in _ARBITER_DECISION_TARGETS:
+        return False
+
+    wp_events = [e for e in events if e.wp_id == wp_id]
+    if not wp_events:
+        return False
+
+    return _is_rejection_event(wp_events[-1])
+
+
 def _is_arbiter_override(
     feature_dir: Path,
     wp_id: str,
@@ -343,31 +390,12 @@ def _is_arbiter_override(
 ) -> bool:
     """Detect if this force move is an arbiter override of a rejection.
 
-    An arbiter override requires ALL of these to be true:
-    1. ``--force`` flag is set.
-    2. Current lane is ``planned``.
-    3. Target lane is forward (``for_review``, ``claimed``, or ``approved``).
-    4. The latest event for this WP was a ``for_review`` → ``planned`` transition
-       with a non-``None`` ``review_ref`` (i.e., a rejection).
+    Thin shell: reads the event log once and delegates to
+    :func:`is_arbiter_override_history`.
     """
     if not force:
         return False
-
-    from specify_cli.status import Lane
-    from specify_cli.status import read_events
-
-    if Lane(old_lane) != Lane.PLANNED:
-        return False
-    if Lane(target_lane) not in (Lane.FOR_REVIEW, Lane.CLAIMED, Lane.APPROVED):
-        return False
-
-    events = read_events(feature_dir)
-    wp_events = [e for e in events if e.wp_id == wp_id]
-    if not wp_events:
-        return False
-
-    latest = wp_events[-1]
-    return latest.from_lane == Lane.FOR_REVIEW and latest.to_lane == Lane.PLANNED and latest.review_ref is not None
+    return is_arbiter_override_history(read_events(feature_dir), wp_id, old_lane, target_lane, force)
 
 
 # ---------------------------------------------------------------------------
@@ -474,9 +502,7 @@ def persist_arbiter_decision(
     # (``cli/commands/agent/workflow_executor.py:1134``) needs the full
     # parsed body and is out of this WP's scope -- flagged as a same-shape
     # follow-up, not fixed here.
-    cycle_number = (
-        ReviewCycleArtifact.latest_cycle_number(wp_subdir) if wp_subdir.exists() else 0
-    )
+    cycle_number = ReviewCycleArtifact.latest_cycle_number(wp_subdir) if wp_subdir.exists() else 0
     artifact_path: Path = wp_subdir / _review_cycle_filename(cycle_number)
 
     reason = f"[{decision.category}] {decision.explanation}"
