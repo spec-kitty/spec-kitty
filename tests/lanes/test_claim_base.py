@@ -826,3 +826,36 @@ def test_planning_artifact_work_under_mission_dir_still_qualifies(tmp_path: Path
     _commit_file(repo, f"kitty-specs/{_MISSION_SLUG}/research.md", "# findings\n")
 
     assert _has_qualifying_commit_since_claim_base(repo, base, _MISSION_SLUG) is True
+
+
+def test_non_ascii_bookkeeping_path_is_not_qualifying_work(tmp_path: Path) -> None:
+    """A ``core.quotePath``-quoted bookkeeping path must still read as bookkeeping.
+
+    With git's default ``core.quotePath=true`` a non-ASCII path comes back from
+    ``git log --name-only`` as ``".kittify/caf\\303\\251.yaml"`` -- a quoted string
+    that no longer starts with ``.kittify/``, so it counted as qualifying
+    implementation work and let a bookkeeping-only window pass the gate.
+    """
+    from specify_cli.lanes.for_review_gate import _has_qualifying_commit_since_claim_base
+
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _git(repo, "config", "core.quotePath", "true")
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit_file(repo, ".kittify/café.yaml", "k: v\n")
+
+    assert _has_qualifying_commit_since_claim_base(repo, base, _MISSION_SLUG) is False
+
+
+def test_non_ascii_implementation_path_still_qualifies(tmp_path: Path) -> None:
+    """Control: real work at a non-ASCII path outside the exclusion set qualifies."""
+    from specify_cli.lanes.for_review_gate import _has_qualifying_commit_since_claim_base
+
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _git(repo, "config", "core.quotePath", "true")
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit_file(repo, ".kittify/café.yaml", "k: v\n")
+    _commit_file(repo, "src/café.py", "VALUE = 1\n")
+
+    assert _has_qualifying_commit_since_claim_base(repo, base, _MISSION_SLUG) is True
