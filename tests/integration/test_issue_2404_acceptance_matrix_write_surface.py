@@ -53,13 +53,16 @@ _MATRIX_FILENAME = "acceptance-matrix.json"
 _EXPECTED_CALL_SITE_COUNTS: dict[Path, int] = {
     # ``write_and_commit_acceptance_matrix``'s ``_stage`` thunk (coord-aware,
     # routed via the write-seam) + ``scaffold_acceptance_matrix``'s legacy
-    # bare-write fallback (only reached when ``repo_root`` is omitted, T040).
-    _MATRIX_MODULE: 2,
-    # The ``--no-commit`` / ``--diagnose`` accept-fill leg: writes to
-    # ``matrix_dir = context.surface`` (the ALREADY coord-aware gate-context
-    # surface, never a hardcoded PRIMARY dir) but deliberately never commits
-    # (see ``write_and_commit_acceptance_matrix``'s docstring) — T041.
-    _GATES_CORE_MODULE: 1,
+    # bare-write fallback (only reached when ``repo_root`` is omitted, T040)
+    # + ``locked_reread_splice_and_write``'s ``commit=False`` leg (#4887).
+    # That third site is the accept-fill leg T041 reviewed, relocated out of
+    # ``gates_core.py`` by #4974: it still writes to the caller's
+    # ``matrix_dir`` (``context.surface``, the coord-aware gate-context
+    # surface, never a hardcoded PRIMARY dir) and still never commits.
+    _MATRIX_MODULE: 3,
+    # Since #4974 the accept gate reaches the matrix only through the shared
+    # locked seam above; a direct write here would bypass the lock again.
+    _GATES_CORE_MODULE: 0,
 }
 
 
