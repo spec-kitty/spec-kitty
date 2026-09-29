@@ -1,0 +1,28 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP02
+cycle: 1
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+verdict: approved           # approved | rejected — nothing else
+gates_observed:
+  tsc: n/a                  # n/a for Python
+  tests: pass                # pass | fail | unknown
+  coverage: unknown          # percentage when you have one
+feedback:                   # REQUIRED when rejected; empty list when approved
+  - id: WP02-C1-001
+    severity: 1
+    claim: >-
+      In `_validate_research_artifacts` (tasks_parsing_validation.py), the refusal
+      header count (`len(blocking)`) and the per-line loop's source list
+      (`blocking_pairs`, derived by filtering `raw_lines`/`raw_paths` against
+      `set(blocking)`) can diverge if `blocking` ever contains a path with no
+      matching porcelain line, or a duplicate path collapsed by the `set()`.
+      This is pre-existing behavior unchanged by WP02 (the same `blocking_set`
+      filter pattern existed before this WP, just renamed from `blocking_lines`
+      to `blocking_pairs`), so it is out of this WP's scope, not a WP02 regression.
+    remediation: >-
+      Advisory only — no action required in this WP. If ever hardened, assert
+      `len(blocking) == len(blocking_pairs)` or iterate `blocking` directly
+      instead of re-deriving pairs by set membership.
+# approved with minor notes → severity 1 entries, advisory only.

@@ -1,0 +1,27 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >-
+      Verified against tasks.md's "PR shape" section and plan.md Design Decision (e): both justify
+      "small enough to review in one sitting" solely by the 5-file count, with no line-count
+      total; the WP01/WP02 subtask estimates (T001 80-150, T002 40-60, T003 150-200, T005 25-35,
+      T006 25-40, T007 60-90) sum exactly to the claimed ~380-575 line range.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: >-
+      Grep of tasks.md and both WP files for "shared infrastructure" / "in-flight" returns zero
+      hits, and "Compatibility & Reflexivity" appears only once (a parenthetical in WP01 T003 step
+      8), while spec.md explicitly states the guard is shared infrastructure affecting every
+      in-flight mission and plan.md's Compatibility bullet restates only the narrows-false-
+      positives point, not that broader framing.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      WP01's actual frontmatter requirement_refs (lines 5-14) lists C-001/FR-001-004/FR-006-009 but
+      omits NFR-001 and NFR-002, while tasks.md's WP01 prose (lines 138-140) and plan.md's IC-01
+      "Relevant requirements" (line 638) both explicitly include NFR-001 and NFR-002; WP02's
+      frontmatter correctly includes NFR-002, confirming WP01's omission is not a convention.

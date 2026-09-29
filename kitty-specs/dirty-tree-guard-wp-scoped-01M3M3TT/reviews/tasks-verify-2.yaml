@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      Recomputed low end 80+40+150+25+25+60=380 and high end 150+60+200+35+40+90=575
+      from the six cited per-subtask ranges; tasks.md now reads "approximately 380-575",
+      matching the correct sum exactly.

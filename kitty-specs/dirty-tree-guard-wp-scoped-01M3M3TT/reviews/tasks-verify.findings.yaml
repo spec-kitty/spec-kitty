@@ -1,0 +1,35 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Per-AC test strategy concrete (requirement-ref cross-check)
+    severity: 2
+    title: WP01's frontmatter requirement_refs omits NFR-001 and NFR-002 that tasks.md's own body assigns to WP01
+    evidence:
+      - artifact: "tasks.md § WP01 — WP-scoped ownership attribution mechanism (IC-01), 'Requirement refs' line"
+      - code: "kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/tasks.md:138-140"
+      - code: "kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/tasks/WP01-wp-scoped-ownership-attribution.md:5-14 (YAML frontmatter requirement_refs)"
+      - artifact: "plan.md § Implementation Concern Map, IC-01 'Relevant requirements' (also lists NFR-001, NFR-002 for IC-01)"
+    claim: >
+      tasks.md's prose for WP01 states: "**Requirement refs**: FR-001, FR-002, FR-003, FR-004,
+      FR-006, FR-007, FR-008, FR-009 (partial...), SC-001, SC-002, SC-003; C-001; NFR-001, NFR-002."
+      — explicitly including both NFR-001 and NFR-002, matching plan.md's IC-01 "Relevant
+      requirements" list, which also names both NFRs. But WP01's own materialized prompt file's YAML
+      frontmatter `requirement_refs:` list is: C-001, FR-001, FR-002, FR-003, FR-004, FR-006,
+      FR-007, FR-008, FR-009 — it omits NFR-001 and NFR-002 entirely. By contrast, WP02's frontmatter
+      correctly includes NFR-002 (matching tasks.md's WP02 "Requirement refs" line, which also lists
+      NFR-002), proving NFR items are meant to be tracked via this field and this is not a
+      by-design convention of excluding all NFRs — WP01 alone is missing them. The actual work is not
+      at functional risk (WP01's body text still discusses NFR-001 explicitly under its own "Risks"
+      section, and NFR-002 is structurally satisfied by the design), but a reviewer or any
+      requirement-traceability tooling that reads only the frontmatter would conclude NFR-001/NFR-002
+      are out of scope for WP01, which contradicts both plan.md and tasks.md's own prose.
+    remediation: >
+      Add `NFR-001` and `NFR-002` to WP01's frontmatter `requirement_refs:` list so it matches
+      tasks.md's stated Requirement refs line for WP01 and plan.md's IC-01 "Relevant requirements".
+      Re-run `spec-kitty agent tasks map-requirements` (already queued as tasks.md's Next Steps item
+      1) before `finalize-tasks`, and confirm the regenerated frontmatter includes both NFR entries
+      for WP01.

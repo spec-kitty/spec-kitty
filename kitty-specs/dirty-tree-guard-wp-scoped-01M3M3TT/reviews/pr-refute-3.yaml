@@ -1,0 +1,30 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 3
+verdicts:
+  - id: PR-FRESH2-001
+    verdict: confirmed
+    reason: >
+      Live repro against the real `_validate_research_artifacts` on a `git mv`
+      "mystery.py -> WP01-mine/meta.json" rename in a scratch repo printed
+      "(owned by WP01)" even though `classify_dirty_paths` itself resolves
+      `meta.json` as benign and blocks only on the genuinely-unattributable
+      `mystery.py` side — `_attribute_blocking_entry` (new in 55e40cb91, which
+      replaced the single-path `_attribute_blocking_path`) calls
+      `owning_wp_for_path` per-side with no `_is_benign`/blocking_set gate,
+      diverging from the classifier's own partition exactly as spec.md's Key
+      Entities section forbids.
+  - id: PR-FRESH2-002
+    verdict: refuted
+    reason: >
+      The `count("kitty-specs/") > 1` guard still fails closed (owner=None
+      routes to blocking, confirmed via classify_dirty_paths), and a real path
+      nesting a second literal "kitty-specs/" segment under a WP's own
+      tasks/WP*/ directory does not exist anywhere in this repo's current tree
+      or its full git history (checked actual fixture dirs and
+      --diff-filter=A --name-only across all commits) — only a hand-built
+      "composite" string in the diff's own defensive test exercises this
+      shape, so the finding is contrived, not a defect reachable in realistic
+      use.

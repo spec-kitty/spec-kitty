@@ -1,0 +1,161 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+sources:
+- pr-boundary.findings.yaml
+- pr-contract.findings.yaml
+- pr-tests.findings.yaml
+findings:
+- id: PR-CONTRACT-001
+  lens: ownership-comparison-input-hygiene (silent success)
+  severity: 3
+  title: owning_wp_for_path/classify_dirty_paths trust wp_id's exact case and digit-padding with no normalization
+    or test coverage of a mismatch; a mismatched wp_id silently reclassifies a WP's own residue as "another
+    WP's" (benign), defeating FR-007's fail-closed guarantee
+  evidence:
+  - artifact: spec.md FR-007 / Edge Cases 'The moving WP's own directory'
+  - code: src/specify_cli/review/dirty_classifier.py:152-155 (owning_wp_for_path regex, always returns
+      an uppercase 'WP<digits>' string parsed verbatim from the path)
+  - code: 'src/specify_cli/review/dirty_classifier.py:199-203 (classify_dirty_paths: `owner != wp_id`
+      string equality, no case-fold/pad-normalize on either side)'
+  - code: 'src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:274-277 (_attribute_blocking_path:
+      `owner == wp_id` string equality, same gap)'
+  - code: src/specify_cli/cli/commands/agent/tasks_move_task.py (task_id flows from the raw Typer positional
+      argument straight into `wp_id=st.task_id` at every call site; no normalize_wp_id()/_normalize_task_id_input()
+      call anywhere on this path, unlike the implement/review workflow.py call sites which do normalize)
+  claim: "Before this mission, wp_id was read by _is_benign only as a parameter — never actually consulted\
+    \ (the spec's own motivation text: \"`_is_benign(path, wp_id)` accepts wp_id but never reads it\"\
+    ) — so its exact surface form was irrelevant. This diff makes wp_id load-bearing for the first time:\
+    \ owning_wp_for_path extracts an uppercase \"WP<digits>\" token straight from the dirty path and classify_dirty_paths/​_attribute_blocking_path\
+    \ compare it to wp_id with plain `==`/`!=`. I verified directly (reproduced against the real functions)\
+    \ that a case- or padding-mismatched wp_id causes a WP's own non-task-file residue to be silently\
+    \ classified benign instead of blocking:\n  classify_dirty_paths([\".../WP01-foo/scratch.py\"], wp_id=\"\
+    wp01\", mission_slug=\"066-test\")\n    -> blocking=[] benign=[\".../WP01-foo/scratch.py\"]   # should\
+    \ block (own residue)\n  classify_dirty_paths([\".../WP01-foo/scratch.py\"], wp_id=\"WP1\",  mission_slug=\"\
+    066-test\")\n    -> blocking=[] benign=[\".../WP01-foo/scratch.py\"]   # should block (own residue)\n\
+    Tracing the move-task CLI, task_id is passed to `_validate_ready_for_review`/ `classify_dirty_paths`\
+    \ completely unnormalized (no case-fold, no zero-pad) — unlike the implement/review path, which calls\
+    \ `normalize_wp_id`. My best assessment is this exact vector is probably NOT reachable through today's\
+    \ move-task flow in practice: the same wp_id string is also used to resolve `old_lane` via an exact-match\
+    \ status-event lookup (`work_packages.get(wp_id)` / `event.wp_id == wp_id`), and a WP created through\
+    \ the standard `:02d}`-padded scaffold would already fail that earlier lookup (old_lane -> GENESIS,\
+    \ an invalid predecessor for for_review/ approved/done) before the dirty-tree guard ever runs — so\
+    \ a mismatched wp_id is likely rejected upstream with an unrelated error first. I could not fully\
+    \ trace every code path (e.g. `--force`, or a future caller) to rule this out with certainty, and\
+    \ neither `owning_wp_for_path` nor `classify_dirty_paths` document any precondition that wp_id must\
+    \ already be canonically cased/padded, nor is a mismatch case exercised by any of the new tests (every\
+    \ new test in tests/review/test_dirty_classifier.py and tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py\
+    \ uses an identically-formatted wp_id on both sides)."
+  remediation: Normalize both sides of the comparison defensively inside dirty_classifier.py (e.g. `.upper()`
+    the extracted token and the incoming wp_id, or route wp_id through the existing `normalize_wp_id`/`_normalize_task_id_input`
+    helper before it reaches classify_dirty_paths), and add one regression test that passes a case-mismatched
+    (and/or differently-padded) wp_id alongside its own-directory residue and asserts the path still blocks.
+    This closes the gap regardless of whether today's move-task flow happens to gate it out upstream,
+    and protects the next caller of this newly-public, cross-module `owning_wp_for_path` seam (e.g. a
+    future record-analysis dirty-tree preflight reuse).
+- id: PR-CONTRACT-002
+  lens: public API hygiene (charter C-007 spirit / package export consistency)
+  severity: 2
+  title: owning_wp_for_path is deliberately public and consumed cross-module, but is not re-exported through
+    specify_cli.review's package __all__ like its sibling classify_dirty_paths
+  evidence:
+  - code: src/specify_cli/review/__init__.py:7-18 (`__all__` lists `classify_dirty_paths` but not `owning_wp_for_path`)
+  - code: 'src/specify_cli/review/dirty_classifier.py:129,148-150 (owning_wp_for_path''s own docstring:
+      ''Deliberately public (no leading underscore) — consumed cross-module by tasks_parsing_validation.py
+      via a direct submodule import, mirroring how that module already imports classify_dirty_paths'')'
+  claim: 'Charter C-007''s mandatory `__all__` rule is scoped only to `src/charter/` and `src/kernel/`
+    ("Future expansion to other subpackages is a per-mission scope decision" — charter.md line 640), so
+    `review/` is not currently bound by it, and the symbol-level dead-code gate (tests/architectural/test_no_dead_symbols.py,
+    34/34 passed) is satisfied because it scans all public module-level names, not just `__all__` members.
+    This is therefore not a gate violation. It is, however, a real inconsistency in the package''s own
+    stated public surface: `classify_dirty_paths` is both re-exported via `specify_cli.review.__all__`
+    AND imported directly from the submodule by its one caller, while the new `owning_wp_for_path` — explicitly
+    designed and documented as a public, cross-module-consumed symbol doing the same job for a second
+    capability — is only reachable via the submodule import, not the package''s declared public surface.
+    A future maintainer scanning `specify_cli.review.__all__` to find "what does this package export"
+    would miss this function entirely.'
+  remediation: Add `owning_wp_for_path` to `src/specify_cli/review/__init__.py`'s import and `__all__`
+    list alongside `classify_dirty_paths`, for consistency with the module's own established export convention.
+- id: PR-CONTRACT-003
+  lens: silent success / header-count vs. rendered-list divergence
+  severity: 1
+  title: '"Blocking: N uncommitted file(s):" (len(blocking)) can in principle diverge from the rendered/truncated
+    blocking_pairs count — pre-existing shape, not newly introduced or newly reachable by this diff'
+  evidence:
+  - code: src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:341-349 (blocking_pairs built
+      by zip/filter against raw_lines+raw_paths; header at :342 uses len(blocking) — the list classify_dirty_paths
+      returned — not len(blocking_pairs))
+  claim: 'The task brief asked me to judge whether the noted len(blocking) vs. blocking_pairs divergence
+    risk is pre-existing and whether this diff makes it reachable. It is pre-existing: the prior code
+    had the exact same split (`blocking_lines` built the same way, header already used `len(blocking)`
+    rather than `len(blocking_lines)`). This diff only renamed `blocking_lines` -> `blocking_pairs` (now
+    (line, path) tuples, to carry per-line attribution) and left the counting logic completely unchanged.
+    I could not construct an input that makes `len(blocking)` diverge from `len(blocking_pairs)` given
+    how raw_paths/raw_lines/ blocking are built (raw_paths and raw_lines are always produced in lockstep,
+    one entry per non-dossier-snapshot porcelain line, and classify_dirty_paths appends the same path
+    string back into `blocking` for every input entry that isn''t benign, preserving multiplicity) — so
+    in the current code shape the two counts should always agree. Recording this as informational per
+    the explicit ask, not as a defect introduced by this PR.'
+  remediation: No action required for this PR. If a future change decouples raw_paths/raw_lines from blocking's
+    construction (e.g. dedup, a different git-status parse path), prefer deriving the header count from
+    `len(blocking_pairs)` directly rather than `len(blocking)` so the header and the rendered/truncated
+    list can never disagree.
+- id: PR-TESTS-001
+  lens: mission-derived (three real-world occurrences)
+  severity: 3
+  title: '#5159 item 4''s reported transition target (--to approved) is never literally invoked by any
+    new test'
+  evidence:
+  - artifact: 'spec.md FR-009 ("a failing test reproducing each of the three reported occurrences ...
+      #5159 item 4") and Overview occurrence 2 ("blocked move-task --to approved for an unrelated WP")'
+  - code: tests/specify_cli/cli/commands/agent/test_tasks.py:396-399 (test_move_task_ignores_other_wp_residue_regardless_of_shape)
+      and :444-447 (test_move_task_still_blocks_own_directory_residue_same_fixture) both invoke runner.invoke(app,
+      ["move-task", "WP01", "--to", "for_review", ...]) — neither uses --to approved
+  - code: src/specify_cli/cli/commands/agent/tasks_move_task.py:957-991 confirms _validate_ready_for_review
+      (which reaches _validate_research_artifacts / classify_dirty_paths) fires identically for Lane.FOR_REVIEW,
+      Lane.APPROVED and Lane.DONE, so the underlying guard code path is target-lane-agnostic
+  claim: '#5159 item 4, one of the three real-world occurrences this mission folds in (FR-009), was specifically
+    a block on `move-task --to approved`, not `--to for_review`. The new WP03 review-cycle-directory fixture
+    in test_move_task_ignores_other_wp_residue_regardless_of_shape reproduces the *dirty-path shape* of
+    #5159 item 4 faithfully, but the test only ever invokes `--to for_review`, never `--to approved` —
+    the actual reported transition target is not exercised by any new test. I verified by reading tasks_move_task.py:957-991
+    that _validate_ready_for_review is invoked identically for FOR_REVIEW/APPROVED/DONE (target_lane only
+    changes the retry-hint text, per the FR-015 docstring comment at tasks_parsing_validation.py:832-833),
+    so the functional risk from this gap is low — but the letter of FR-009 ("a failing test reproducing
+    each of the three reported occurrences") is not met for occurrence 2 as literally reported, and the
+    charter''s own ATDD discipline ("verify this shape empirically, do not assume") was applied to the
+    git-porcelain shape in this same fixture but not to the transition target.
+
+    '
+  remediation: 'Add a `--to approved` variant of test_move_task_ignores_other_wp_residue_regardless_of_shape
+    (or parametrize the existing test over target_lane in ("for_review", "approved")) so the occurrence
+    is reproduced through its actually-reported entry point, not just a functionally- equivalent one.
+
+    '
+- id: PR-TESTS-002
+  lens: fail-closed pinned
+  severity: 2
+  title: No new test pins an unowned dirty path OUTSIDE kitty-specs/ entirely, only a stray file inside
+    kitty-specs/
+  evidence:
+  - artifact: 'spec.md Edge Cases: "A dirty path matching no mission''s WP-directory pattern at all (a
+      stray file directly under kitty-specs/<slug>/, or a path outside kitty-specs/ entirely) is never
+      attributable and always blocks"'
+  - code: tests/review/test_dirty_classifier.py:180-188 (test_unattributable_path_still_blocks_for_every_wp_id)
+      only uses "kitty-specs/066-test/some-stray-file.txt"
+  claim: 'The spec''s own Edge Cases section names two distinct unattributable shapes: a stray file inside
+    kitty-specs/<slug>/ (covered) and a path outside kitty-specs/ entirely (not covered by any new test
+    — grep across tests/review/test_dirty_classifier.py and tests/specify_cli/cli/commands/agent/test_tasks.py
+    finds no path lacking a kitty-specs/ prefix). I confirmed by reading owning_wp_for_path''s regex (src/specify_cli/review/dirty_classifier.py:105,
+    anchored on ^kitty-specs/{mission_slug}/tasks/WP...) that a non-kitty-specs path is handled by the
+    exact same fail-closed branch, so the functional risk is effectively nil — this is a test-coverage
+    completeness gap against an explicitly-named spec Edge Case, not a behavioral defect.
+
+    '
+  remediation: 'Add one assertion path such as "src/some_file.py" (or "README.md") to test_unattributable_path_still_blocks_for_every_wp_id''s
+    path list (or a small sibling test) so the spec''s second named unattributable shape has direct test
+    evidence, not just regex inspection.
+
+    '

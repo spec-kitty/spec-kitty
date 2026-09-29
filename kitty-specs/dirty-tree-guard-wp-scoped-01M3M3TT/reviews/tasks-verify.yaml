@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: tasks.md's PR shape section now states a combined estimated diff size of ~400-575 lines reconciled against WP01/WP02's own per-subtask line estimates, alongside the 5-file count.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: WP01's Objective section now states prominently (bolded, not a subtask parenthetical) that dirty_classifier.py is shared move-task guard infrastructure for every in-flight mission, tied to test_no_previously_benign_path_becomes_blocking as the concrete proof obligation.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: WP01's YAML frontmatter requirement_refs now lists both NFR-001 and NFR-002 alongside the previously-present C-001 and FR-001/002/003/004/006/007/008/009, confirming a union rather than a destructive replace.

@@ -1,0 +1,80 @@
+# review-findings/v1 — merged, deduplicated R1 findings for the tasks phase.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: merged
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: TASKS-DECOMP-001
+    lens: Work-package sizing
+    severity: 2
+    title: "PR shape's \"one sitting\" claim is justified only by file count (5), not by the WPs' own line-count estimates (~380-575 lines)"
+    evidence:
+      - artifact: "tasks.md § PR shape: \"the 5-file blast radius is small enough to review in one sitting once both WPs land\""
+      - artifact: "tasks/WP01-wp-scoped-ownership-attribution.md Subtask T001 (\"~80-150 lines\"), T002 (\"~40-60 lines\"), T003 (\"~150-200 lines\")"
+      - artifact: "tasks/WP02-honest-per-path-refusal-attribution.md Subtask T005 (\"~25-35 lines\"), T006 (\"~25-40 lines\"), T007 (\"~60-90 lines\")"
+    claim: >
+      tasks.md's "PR shape" section (and plan.md's Design Decision (e)) justifies the
+      one-PR / "review in one sitting" claim solely by naming 5 files (spec C-003's blast
+      radius). But the WP files' own per-subtask line estimates sum to roughly 270-410
+      added/changed lines in WP01 (T001+T002+T003) and roughly 110-165 in WP02
+      (T005+T006+T007), a combined estimate of about 380-575 lines across the final PR
+      (test code dominates, but reviewers still have to read it). Neither tasks.md's PR
+      shape paragraph nor plan.md's Design Decision (e) engages with this line-count total
+      when asserting "small enough to review in one sitting" — the claim is asserted from
+      file count alone, not reconciled against the volume the WPs' own subtask estimates
+      already state.
+    remediation: >
+      In tasks.md's "PR shape" section, add one sentence stating the combined estimated
+      diff size (~400-575 lines, mostly test code) alongside the file count, so the
+      "one sitting" claim is reconciled against the WPs' own subtask-level estimates
+      rather than resting on file count alone.
+  - id: TASKS-SEQ-001
+    lens: chokepoint naming for the lane-transition guard itself
+    severity: 3
+    title: WP01/tasks.md never state, at top level, that dirty_classifier.py is shared guard infrastructure for every in-flight mission — only the #5151 file-overlap chokepoint is surfaced prominently
+    evidence:
+      - artifact: "spec.md § Compatibility & Reflexivity: \"Because move-task's guard is shared infrastructure, this is a compatibility-relevant change for every in-flight mission using it, not only the missions that reported the defect.\""
+      - artifact: "plan.md § Compatibility, Rollout, and Risks — the \"Compatibility\" bullet, which carries the general (all-missions) framing forward from spec.md"
+      - artifact: "tasks.md and tasks/WP01-wp-scoped-ownership-attribution.md: the only occurrence of \"Compatibility & Reflexivity\" anywhere in tasks.md or WP01 is a parenthetical citation inside T003 step 8; no sentence states that this WP edits shared infrastructure every currently-running mission's move-task depends on"
+    claim: >
+      tasks.md's "Known, accepted cross-mission file overlap" section and WP01's
+      pre-implement gate section both discuss only the #5151-specific hold (a WP02
+      file-collision concern). Neither artifact restates spec.md's broader Compatibility &
+      Reflexivity claim — that dirty_classifier.py backs move-task for every mission
+      currently in flight, so any regression in WP01's regex/logic change is
+      compatibility-relevant repo-wide, independent of the #5151 hold. This under-states
+      the blast radius relative to spec.md's own framing and risks an implementer/reviewer
+      treating WP01's regex change as low-stakes/local when it is not.
+    remediation: >
+      Add one explicit sentence to WP01's "Objective" or "Risks" section (and optionally to
+      tasks.md's "Known, accepted cross-mission file overlap" heading or an adjacent note)
+      stating, in substance: "dirty_classifier.py implements the dirty-tree guard every
+      currently-running mission's move-task depends on (spec.md Compatibility & Reflexivity);
+      this WP's regex/logic change is therefore compatibility-relevant for every in-flight
+      mission, not only #5151 — the test_no_previously_benign_path_becomes_blocking
+      regression test (T003 step 8) is the concrete proof obligation for that guarantee, not
+      merely one more unit test."
+  - id: TASKS-VERIFY-001
+    lens: Per-AC test strategy concrete (requirement-ref cross-check)
+    severity: 2
+    title: WP01's frontmatter requirement_refs omits NFR-001 and NFR-002 that tasks.md's own body assigns to WP01
+    evidence:
+      - artifact: "tasks.md § WP01 — WP-scoped ownership attribution mechanism (IC-01), 'Requirement refs' line"
+      - code: "kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/tasks.md:138-140"
+      - code: "kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/tasks/WP01-wp-scoped-ownership-attribution.md:5-14 (YAML frontmatter requirement_refs)"
+      - artifact: "plan.md § Implementation Concern Map, IC-01 'Relevant requirements' (also lists NFR-001, NFR-002 for IC-01)"
+    claim: >
+      tasks.md's prose for WP01 explicitly includes NFR-001 and NFR-002, matching plan.md's
+      IC-01 "Relevant requirements" list. But WP01's own materialized prompt file's YAML
+      frontmatter requirement_refs list omits NFR-001 and NFR-002 entirely. WP02's
+      frontmatter correctly includes NFR-002 (matching tasks.md's WP02 line), proving this
+      is not a by-design convention of excluding NFRs — WP01 alone is missing them. Not a
+      functional risk (WP01's body still discusses NFR-001 under Risks; NFR-002 is
+      structurally satisfied), but a reviewer or requirement-traceability tooling reading
+      only frontmatter would wrongly conclude NFR-001/NFR-002 are out of scope for WP01.
+    remediation: >
+      Add NFR-001 and NFR-002 to WP01's frontmatter requirement_refs list so it matches
+      tasks.md's stated Requirement refs line for WP01 and plan.md's IC-01 "Relevant
+      requirements". Re-run spec-kitty agent tasks map-requirements before finalize-tasks,
+      and confirm the regenerated frontmatter includes both NFR entries for WP01.

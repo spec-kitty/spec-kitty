@@ -1,0 +1,64 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: dirty-tree-guard-wp-scoped
+findings:
+  - id: SPEC-ARCH-001
+    lens: Mission-specific (refusal-message contract with #5151 WP02)
+    severity: 3
+    title: Spec is silent on refusal-message style coordination with sibling WP02's in-flight edits to the same file
+    evidence:
+      - artifact: "spec.md § Constraints C-002"
+      - artifact: "spec.md § Requirements FR-005"
+      - artifact: "spec.md § Clarifications Q1"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:263-342 (_validate_research_artifacts guidance construction)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:615-664 (_check_kitty_specs_contamination guidance construction)"
+    claim: >-
+      Verified: both functions live in the same file and each independently builds a
+      `guidance: list[str]` refusal message using the same idiom (a leading summary line,
+      a path list truncated to 5 with "... and N more", a blank line, then remediation
+      commands). Sibling mission #5151's WP02 (per its own title, "Preserve refused edits
+      with exact-path guidance") is independently reworking refusal-message wording/format
+      for `_check_kitty_specs_contamination` and neighbours in this same file. Spec.md's
+      C-002 already demonstrates the author is aware of the same-file overlap (it sequences
+      *implement* behind WP02 landing to avoid a diff conflict on the two shared test
+      files), but nowhere does spec.md address the follow-on risk that FR-005's new
+      ownership-attribution wording (e.g. "not attributable to a specific work package")
+      could land in a textually/visually inconsistent style from whatever exact-path
+      convention WP02 introduces alongside it in the same file — e.g. divergent phrasing
+      ("owned by" vs "attributed to"), divergent truncation/format conventions for naming
+      paths. The spec is silently unaware of this specific risk even though it is explicit
+      about the adjacent code-conflict risk in the same constraint.
+    remediation: >-
+      Add one sentence to spec.md (e.g. under C-002 or a new note near FR-005) either (a)
+      instructing the implement-phase agent to inspect WP02's landed diff in
+      tasks_parsing_validation.py for any new message-construction convention it
+      introduces and align FR-005's new ownership wording to it where reasonable, or (b)
+      explicitly stating that message-style harmonization across the two functions is a
+      plan-level/implementation-detail decision deferred to plan.md, not ruled on here. Pick
+      one; the current silence leaves the sequencing decision (C-002) covering only the
+      merge-conflict risk, not the readability/consistency risk it introduces.
+  - id: SPEC-ARCH-002
+    lens: Contracts
+    severity: 2
+    title: Spec never states whether spec-kitty-events / orchestrator-api / doctrine schemas / mission step contracts are affected, even though the answer is N/A
+    evidence:
+      - artifact: "spec.md (entire document — no 'Contracts' section, and no mention of spec-kitty-events, orchestrator-api, or mission step contracts)"
+      - code: "src/specify_cli/review/dirty_classifier.py (no import from orchestrator_api or spec-kitty-events)"
+      - code: "grep across src/ and tests/orchestrator_api confirms no caller of classify_dirty_paths/_is_benign outside src/specify_cli/cli/commands/agent/tasks_parsing_validation.py and src/specify_cli/review/__init__.py"
+    claim: >-
+      Verified this mission's blast radius (dirty_classifier.py, tasks_parsing_validation.py,
+      and their test files) does not touch spec-kitty-events envelopes, the orchestrator-api
+      surface, doctrine schemas, or mission step contracts — the refusal-message text is
+      plain CLI stdout, not surfaced through any versioned contract. The answer is
+      legitimately N/A, but spec.md never says so explicitly, despite the charter's
+      DIRECTIVE_048 (version-governance) emphasis on citing/addressing the current canonical
+      contract surface explicitly rather than leaving it to inference, and despite this spec
+      otherwise being thorough about explicitly scoping adjacent surfaces (see the
+      "Out of scope" bullets in Overview and C-001/C-003).
+    remediation: >-
+      Add a brief explicit statement (e.g. a "Contracts: N/A" line under Constraints or Key
+      Entities) noting that this change does not touch spec-kitty-events, orchestrator-api,
+      doctrine schemas, or mission step contracts, since the refusal-message text is
+      CLI-only output consumed by no versioned schema.

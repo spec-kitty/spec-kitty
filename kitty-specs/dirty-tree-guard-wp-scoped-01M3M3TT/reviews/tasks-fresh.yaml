@@ -1,0 +1,29 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: TASKS-FRESH-001
+    lens: Arithmetic/internal-consistency check on newly-added reconciliation text
+    severity: 1
+    title: "tasks.md's new PR-shape line-count reconciliation sums to 380-575, not the stated \"approximately 400-575\""
+    evidence:
+      - artifact: "tasks.md § PR shape: \"the combined estimated diff size is approximately 400-575 lines\""
+      - code: "kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/tasks.md:130-134"
+      - artifact: "tasks/WP01-wp-scoped-ownership-attribution.md T001 (~80-150), T002 (~40-60), T003 (~150-200); tasks/WP02-honest-per-path-refusal-attribution.md T005 (~25-35), T006 (~25-40), T007 (~60-90)"
+    claim: >
+      The new reconciliation sentence added to tasks.md's "PR shape" section during this fix
+      round sums the six per-subtask low/high estimates it cites (80+40+150+25+25+60 = 380
+      low; 150+60+200+35+40+90 = 575 high) and reports the low end as "400" rather than the
+      actual 380 — a ~5% arithmetic error in newly-authored text. (The "400-575" figure
+      appears to have been carried over verbatim from confirmed finding TASKS-DECOMP-001's
+      own remediation suggestion in reviews/tasks.confirmed.yaml, which already had the same
+      imprecise number, rather than independently recomputed by this fix round.) This does
+      not change the section's conclusion ("still small enough to review in one sitting") and
+      has no effect on WP scope, ownership, or implementation — it is a cosmetic inaccuracy in
+      a supporting rationale sentence.
+    remediation: >
+      Change "approximately 400-575 lines" to "approximately 380-575 lines" (or round both
+      ends consistently, e.g. "roughly 400-600") so the stated range matches the sum of the
+      cited per-subtask estimates.

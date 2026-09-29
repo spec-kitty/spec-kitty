@@ -1,0 +1,81 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: dirty-tree-guard-wp-scoped
+findings:
+  - id: SPEC-FRESH2-001
+    lens: divergence-mapping
+    severity: 3
+    title: Clarifications session still asserts a blocking refusal can name a different WP as owner, contradicting the round-2 narrowed FR-005
+    evidence:
+      - artifact: "spec.md § Clarifications › Session 2026-09-28, second Q&A (line 331-340)"
+      - artifact: "spec.md § FR-005 (line 201)"
+      - artifact: "spec.md § Key Entities › Ownership Attribution (line 238-243)"
+    claim: >
+      The round-2 fix narrowed FR-005, User Story 2 Acceptance Scenario 3, and the "Ownership
+      Attribution" Key Entity to state explicitly that a blocking dirty path's determined owner
+      can only ever be "the moving WP itself" (FR-007) or "not attributable" (FR-004) — never a
+      different, specific WP — because FR-001/FR-002/FR-003 already route any path owned by
+      another WP into `benign` before attribution runs. That reasoning is internally sound and
+      matches the current `classify_dirty_paths`/`_is_benign` code shape (verified in
+      src/specify_cli/review/dirty_classifier.py). However, the pre-existing (unchanged by either
+      fix round) Clarifications answer to "should an unattributable path still block?" says the
+      opposite for a related case: "a dirty path under `kitty-specs/<slug>/tasks/<WPxx>-*/` for
+      some WPxx other than the WP being moved → passes, and the refusal message (if any, for
+      other paths) names WPxx as the real owner where relevant." Read literally, this sentence
+      states that a refusal's guidance text can name a specific *other* WP (WPxx) as "the real
+      owner" — exactly the third outcome FR-005/Key Entities now say is structurally unreachable
+      for a blocking line. The two sections were never reconciled in the round-2 sweep, so the
+      spec now contradicts itself on whether "names WPxx" is a real possible guidance outcome.
+    remediation: >
+      Rewrite the Clarifications sentence to match the narrowed FR-005 framing: either drop
+      "and the refusal message (if any, for other paths) names WPxx as the real owner where
+      relevant" entirely, or replace it with language consistent with FR-005 (e.g., "the
+      informational benign-note for that path may mention WPxx; the refusal's *blocking* lines,
+      if any, are ever only attributed to the moving WP itself or 'not attributable' — see
+      FR-005"). Add a one-line cross-reference from the Clarifications entry to FR-005 so future
+      edits to one are checked against the other.
+
+  - id: SPEC-FRESH2-002
+    lens: divergence-mapping
+    severity: 3
+    title: Key Entities' deferred ownership-attribution mechanism list contradicts its own "return value shape unchanged" sentence two sentences earlier, and one listed option conflicts with C-003's named blast radius
+    evidence:
+      - artifact: "spec.md § Key Entities › Dirty Path Classification (line 228-237)"
+      - artifact: "spec.md § Constraints › C-003 (line 220)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:308 (`blocking, benign = classify_dirty_paths(...)`)"
+      - code: "src/specify_cli/review/dirty_classifier.py:15 (module docstring example, same 2-tuple unpack)"
+      - code: "tests/specify_cli/acceptance/test_accept_dirty_kitty_ops.py:255,265 (`blocking, benign = classify_dirty_paths(...)`)"
+    claim: >
+      The "Dirty Path Classification" Key Entity opens with an unchanged sentence: "This mission
+      adds one new way a path can land in `benign` ... without changing the shape of the return
+      value." The very next round-2-edited sentence then lists, as one of three equally-viable
+      plan-level mechanism options for FR-005's per-path ownership attribution, "extending what
+      `classify_dirty_paths` itself returns." Extending the return shape of `classify_dirty_paths`
+      to carry per-path ownership information is, on its face, exactly the kind of change the
+      preceding sentence says will not happen. This is a direct contradiction within the same
+      paragraph, introduced when round 2 replaced the old "new sibling helper" mechanism (which
+      did not touch the return shape) with a three-option list that now includes one that does.
+      It is also consequential, not just wording: `classify_dirty_paths` is called with a plain
+      2-tuple unpack (`blocking, benign = classify_dirty_paths(...)`) at three other call sites I
+      verified directly — `tasks_parsing_validation.py:308`, the module docstring example in
+      `dirty_classifier.py:15`, and `tests/specify_cli/acceptance/test_accept_dirty_kitty_ops.py`
+      (lines 255 and 265). That last file is NOT among the test files C-003 names as in-bounds
+      blast radius ("tests/review/test_dirty_classifier.py",
+      "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py", and
+      "tests/specify_cli/cli/commands/agent/test_tasks.py"). If plan.md picks the
+      "extend what classify_dirty_paths returns" option, it would need to change that 2-tuple
+      shape (breaking the 3 verified call sites, including one outside C-003's named surfaces) —
+      putting the deferred option in tension with both the immediately preceding sentence and the
+      High-priority C-003 constraint, without the spec ever flagging the conflict.
+    remediation: >
+      Either (a) drop "extending what `classify_dirty_paths` itself returns" from the deferred
+      mechanism list so it reads "a new sibling per-path ownership-lookup helper in
+      `dirty_classifier.py`, or reusing the existing `_is_benign` predicate" — both options that
+      keep classify_dirty_paths's return shape and the 2-tuple call sites intact — or (b) if that
+      option is meant to stay open, add an explicit caveat that choosing it requires updating all
+      `classify_dirty_paths` call sites (naming
+      `tests/specify_cli/acceptance/test_accept_dirty_kitty_ops.py` as an additional in-bounds
+      file) and reconciling it with the "without changing the shape of the return value" sentence
+      immediately above it, or with C-003's named blast radius.

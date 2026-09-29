@@ -1,0 +1,31 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 3
+results:
+  - id: PR-FRESH2-001
+    status: resolved
+    evidence: >
+      Reran the refuter's repro (real `git mv mystery.py -> tasks/WP01-mine/meta.json`
+      in a scratch git repo, no mocking) through the real `_validate_research_artifacts`
+      end-to-end: still BLOCKED, attribution now reads "not attributable to a specific
+      work package" (was "owned by WP01" pre-fix). Three additional scratch `git mv`
+      repros against the live tree confirm the fix's boundaries: (1) blocking side is
+      the moving WP's own residue (rename FROM WP02's dir INTO WP01's own dir, non-task
+      file) -> still "owned by WP01"; (2) own file renamed OUT of WP01's dir INTO
+      WP02's dir (round-2 shape) -> BLOCKS, honest "owned by WP01" attribution
+      (old side is the blocking one); (3) both sides belong to other WPs (WP02->WP03)
+      -> passes benign, no block. Compared classify_dirty_paths's blocking/benign
+      partition against a scratch copy of dirty_classifier.py loaded via
+      `git show 4fcf5741e:...` for all 4 cases: byte-identical file
+      (`diff` confirms) and identical (blocking, benign) tuples for every case —
+      blocking decisions unchanged since 4fcf5741e.
+      Honest-revert check: `git diff 8c1bebd35 acb67e14f -- src` reversed with
+      `git apply -R`, reran the 3 new tests — the two misattribution tests
+      (meta_json, flat_task_file) FAIL on the behavioral assertion (guidance reverts
+      to "owned by WP01" instead of "not attributable"), the own-directory control
+      test still passes (proves it's a targeted, not vacuous, regression pin).
+      `git apply` (forward) restored the fix; `git status --porcelain -- src tests`
+      shows no tracked changes after restore.
+new_issues: []
+suite: "124 passed (4 targeted files); 548 passed, 8 skipped (tests/review/); ruff check (incl. C901) clean on all 5 frozen files; ruff format --check . -> 2612 files already formatted"

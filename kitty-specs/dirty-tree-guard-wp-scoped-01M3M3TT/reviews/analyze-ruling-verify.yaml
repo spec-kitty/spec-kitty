@@ -1,0 +1,47 @@
+verified_at: "2026-09-28"
+verified_by: analyze-phase-verifier-subagent
+complete: true
+checked_files:
+  - path: kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/plan.md
+    clean: true
+    note: >-
+      Line 284's "WP02 must have actually merged to `main`" phrase is inside a
+      block-quoted verbatim citation of the plan's own earlier (unauthorized) text,
+      explicitly introduced as "Unauthorized tightening, corrected by operator ruling
+      (review finding PLAN-GOV-002...)" (line 278) and followed immediately (lines
+      293-299) by the corrected operative rule: "this mission's implement-start check
+      follows spec.md's C-002/Clarifications Q1 exactly: WP02 having landed OR been
+      reviewed/approved on its own branch is sufficient — merge-to-`main` is not
+      required." No live/operative passage still requires a merge to main.
+  - path: kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/tasks.md
+    clean: true
+    note: >-
+      Line 47's "merged to `main`" appears only as "An earlier draft of plan.md's
+      Design Decision (b) had chosen a bar stricter than spec.md's own minimum
+      ('merged to `main`'), but that tightening was never authorized by the operator,"
+      immediately followed by the operator's binding ruling quote and the corrected
+      "landed-or-approved" precondition (lines 58-69) and the "Next steps" list item 3
+      referencing "landed or reviewed/approved on its own branch." Clean history framing,
+      no operative merge-to-main requirement.
+  - path: kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/tasks/WP01-wp-scoped-ownership-attribution.md
+    clean: true
+    note: >-
+      Line 70's "An earlier draft of this gate stated a stricter, unauthorized 'merged
+      to `main`' bar; this was corrected per operator ruling 2026-09-28, which restored
+      spec.md's original 'landed-or-approved' bar" is explicit past/corrected framing.
+      The operative gate text (lines 66-84) states "landed OR been reviewed/approved on
+      its own branch" as the bar to verify. Risks section (404-417) contains no
+      merge-to-main language at all.
+  - path: kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/tasks/WP02-honest-per-path-refusal-attribution.md
+    clean: true
+    note: >-
+      Line 66's "An earlier draft of plan.md's Design Decision (b) stated a stricter,
+      unauthorized 'merged to `main`' bar; the operator ruled on 2026-09-28 to keep the
+      original bar" is explicit past/corrected framing, followed by the operator ruling
+      quote confirming "approved (reviewed/approved on its own branch)" as sufficient.
+      Line 385's "may be approved-but-not-yet-merged (not necessarily merged to `main`)
+      when this WP starts" in the Risks section correctly states the operative bar
+      (approved, not necessarily merged) rather than requiring a merge.
+spec_untouched: true
+tracer_entry_present: true
+surviving_issues: []

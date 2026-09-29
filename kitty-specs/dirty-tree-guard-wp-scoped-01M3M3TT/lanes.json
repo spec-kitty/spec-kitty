@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "dirty-tree-guard-wp-scoped-01M3M3TT",
+  "mission_id": "01M3M3TTBNFCZD63VXRYJP8E2C",
+  "mission_branch": "kitty/mission-dirty-tree-guard-wp-scoped-01M3M3TT",
+  "target_branch": "issue-5007-dirty-tree-guard-wp-scoped",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/dirty_classifier.py",
+        "tests/review/test_dirty_classifier.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-28T15:50:33.463195+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2df0b0793c36841a4ef47cd01da51e692642f98b"
+}

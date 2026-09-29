@@ -1,0 +1,104 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: PLAN-GOV-001
+    lens: mission-derived (C-002 sequencing enforcement gap)
+    severity: 3
+    title: C-002/WP02 sequencing gate is stated as prose with no concrete verification command
+    evidence:
+      - artifact: "plan.md § Design Approach and Decisions (b) Refusal-message style harmonization with #5151 WP02, lines 197-207"
+      - artifact: "plan.md § Compatibility, Rollout, and Risks, lines 442-445"
+      - artifact: "plan.md § Implementation Concern Map / IC-01, lines 480-481"
+    claim: >
+      Plan.md's only operationalization of spec's Constraint C-002 ("the orchestrator must
+      manually verify WP02's lane state before starting this mission's implement phase") is:
+      "the orchestrator must confirm WP02 has actually merged to `main` (not merely approved
+      on its own topic branch)... If WP02 is only approved-but-unmerged when this mission is
+      ready to implement, hold implementation and re-check, per Clarifications Q1 / C-002."
+      This names the condition to check (merged-to-main) but never names *how* to check it —
+      no CLI command (e.g. `spec-kitty agent tasks status --mission
+      lane-history-safe-handoff-5151-01M3JR6R --json`), no PR number, no branch reference, no
+      git-log/gh-pr-view invocation. A grep of the whole plan.md for
+      "spec-kitty agent tasks status", "gh pr", "lane state", or "PR #" returns zero matches.
+      Spec.md's own C-002 text has the identical gap ("the orchestrator must manually verify
+      WP02's lane state... since nothing in the tooling enforces it automatically") — the plan
+      was the opportunity to close it with an actual procedure and did not. A future
+      orchestrator session picking up this mission's implement phase (potentially with no
+      memory of this planning session) has nothing concrete to execute; it must invent its own
+      verification method, which risks an inconsistent or skipped check given the mission
+      explicitly states spec-kitty has no cross-mission dependency gate to catch the miss.
+    remediation: >
+      Add one concrete, copy-pasteable verification step to plan.md's Design Decision (b) or the
+      Validation Strategy — e.g. "before claiming implement, run `spec-kitty agent tasks status
+      --mission lane-history-safe-handoff-5151-01M3JR6R --json` and confirm WP02's lane is
+      `done`, OR check the #5151 WP02 PR's merge state via `gh pr view <PR#> --json state,mergedAt`
+      once that PR exists, OR run `git log main --oneline -- src/specify_cli/cli/commands/agent/tasks_parsing_validation.py`
+      and confirm WP02's commit is present" — naming at least one deterministic, executable
+      check rather than leaving "confirm... has actually merged" as unaided prose.
+
+  - id: PLAN-GOV-002
+    lens: mission-derived (C-002 sequencing enforcement gap) / Directive (canonical sources — spec as binding contract)
+    severity: 3
+    title: Plan silently narrows spec's C-002 "landed OR approved" alternative to "merged only"
+    evidence:
+      - artifact: "spec.md § Constraints, C-002, lines 219 (\"...has landed or been reviewed/approved on its own branch.\")"
+      - artifact: "spec.md § Clarifications, Session 2026-09-28, Q1, lines 326-333 (\"hold its implement phase until #5151's WP02 is approved\")"
+      - artifact: "plan.md § Design Approach and Decisions (b), lines 203-207"
+    claim: >
+      Spec.md's C-002 (and its Clarifications Q1 answer, which is the operator-ruled resolution
+      of exactly this question) states the implement phase may start once WP02 has "landed OR
+      been reviewed/approved on its own branch" — approval alone is explicitly sufficient per
+      the spec's binding contract. Plan.md's Design Decision (b) replaces this OR-condition with
+      an AND-stricter single condition: "the orchestrator must confirm WP02 has actually merged
+      to `main` (not merely approved on its own topic branch)... If WP02 is only
+      approved-but-unmerged when this mission is ready to implement, hold implementation and
+      re-check." This is presented as merely a "residual... implementation-sequencing note, not
+      a C-002 duplicate," but its actual effect is to redefine C-002's satisfaction condition,
+      dropping the "approved-on-its-own-branch" branch spec.md explicitly names as sufficient.
+      The plan never flags this as an intentional amendment to the spec's already-clarified
+      constraint, nor explains why the operator's Q1 ruling ("hold... until #5151's WP02 is
+      approved") is being superseded by a stricter merge-only bar.
+    remediation: >
+      Either (a) explicitly state in Design Decision (b) that this is a deliberate, stricter
+      tightening of C-002 beyond what spec.md's Clarifications Q1 requires, with the rationale
+      (residual same-file merge risk) spelled out as the reason the plan chooses not to rely on
+      the spec's "approved but unmerged" alternative, so a reviewer/future orchestrator can see
+      the deviation is intentional rather than an oversight; or (b) align plan.md's gating
+      condition back to spec's stated OR (merged OR approved-on-its-own-branch) and instead
+      document the residual merge-conflict risk as a *risk to monitor* rather than a stricter
+      gate.
+
+  - id: PLAN-GOV-003
+    lens: Directive (canonical sources / single-owning-source accuracy)
+    severity: 2
+    title: "Project Structure section misstates __init__.py: classify_dirty_paths IS re-exported"
+    evidence:
+      - artifact: "plan.md § Project Structure, lines 79-82"
+      - code: "src/specify_cli/review/__init__.py:7 (`from specify_cli.review.dirty_classifier import classify_dirty_paths`) and :14 (`classify_dirty_paths` listed in `__all__`)"
+    claim: >
+      Plan.md states: "`src/specify_cli/review/__init__.py` (confirms `owning_wp_for_path` is
+      imported the same way `tasks_parsing_validation.py` already imports
+      `classify_dirty_paths` — directly from the `dirty_classifier` submodule, **not re-exported
+      from the package `__init__`**, so `__init__.py` stays untouched and outside C-003's blast
+      radius)." Reading `src/specify_cli/review/__init__.py` directly shows this is factually
+      wrong: it already imports `classify_dirty_paths` from `dirty_classifier` and lists it in
+      `__all__` — i.e. `classify_dirty_paths` **is** re-exported from the package `__init__`
+      today. The plan's own Design Decision (a) deliberately makes `owning_wp_for_path` public
+      "matching the existing `classify_dirty_paths` precedent" — but the actual precedent
+      includes appearing in `__init__.py`'s `__all__`, which the plan's (factually incorrect)
+      premise is used to justify skipping. This does not break the mechanism (the CLI layer's
+      direct submodule import still works either way), but it is a verified-against-code error
+      that could leave `owning_wp_for_path` as an inconsistent public surface relative to its
+      own cited precedent.
+    remediation: >
+      Correct the Project Structure note to state accurately that `classify_dirty_paths` IS
+      currently re-exported via `__init__.py`'s `__all__`, then make an explicit, reasoned call
+      on `owning_wp_for_path`: either add it to `__init__.py`'s imports/`__all__` for consistency
+      with the cited precedent (a one-line addition, arguably still within C-003's blast radius
+      as a necessary consequence of the "public, matching precedent" design decision), or state
+      explicitly why the new helper should NOT follow the same re-export precedent it claims to
+      match.

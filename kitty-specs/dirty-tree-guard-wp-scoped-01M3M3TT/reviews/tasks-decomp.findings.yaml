@@ -1,0 +1,36 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: decomp
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: TASKS-DECOMP-001
+    lens: Work-package sizing
+    severity: 2
+    title: "PR shape's \"one sitting\" claim is justified only by file count (5), not by the WPs' own line-count estimates (~380-575 lines)"
+    evidence:
+      - artifact: "tasks.md § PR shape: \"the 5-file blast radius is small enough to review in one sitting once both WPs land\""
+      - artifact: "tasks/WP01-wp-scoped-ownership-attribution.md Subtask T001 (\"~80-150 lines\"), T002 (\"~40-60 lines\"), T003 (\"~150-200 lines\")"
+      - artifact: "tasks/WP02-honest-per-path-refusal-attribution.md Subtask T005 (\"~25-35 lines\"), T006 (\"~25-40 lines\"), T007 (\"~60-90 lines\")"
+    claim: >
+      tasks.md's "PR shape" section (and plan.md's Design Decision (e)) justifies the
+      one-PR / "review in one sitting" claim solely by naming 5 files (spec C-003's blast
+      radius). But the WP files' own per-subtask line estimates sum to roughly 270-410
+      added/changed lines in WP01 (T001+T002+T003) and roughly 110-165 in WP02
+      (T005+T006+T007), a combined estimate of about 380-575 lines across the final PR
+      (test code dominates, but reviewers still have to read it). Neither tasks.md's PR
+      shape paragraph nor plan.md's Design Decision (e) engages with this line-count total
+      when asserting "small enough to review in one sitting" — the claim is asserted from
+      file count alone, not reconciled against the volume the WPs' own subtask estimates
+      already state. This is the exact self-check the lens asks for ("say so explicitly if
+      it will not") and it is not done quantitatively, only qualitatively (file count).
+    remediation: >
+      In tasks.md's "PR shape" section, add one sentence stating the combined estimated
+      diff size (~400-575 lines, mostly test code) alongside the file count, so the
+      "one sitting" claim is reconciled against the WPs' own subtask-level estimates
+      rather than resting on file count alone. If the actual implementation comes in
+      near the high end of that range, the reviewer should be told to expect a
+      test-code-heavy, not logic-heavy, diff (most of the volume is in
+      test_dirty_classifier.py and test_tasks.py, not the ~65-100 lines of source-code
+      changes across the two production files).

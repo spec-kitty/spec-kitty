@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      Commit 11c9e61f0 reverts PLAN-GOV-003's __init__.py scope creep: spec.md's C-003 (verified
+      independently) names only dirty_classifier.py and tasks_parsing_validation.py plus 3 test
+      files, plan.md no longer claims __init__.py is edited or within C-003 (every one of the 6
+      __init__.py mentions now states it is factual-current-state-only or explicitly untouched),
+      the Project Structure Correction paragraph states only the classify_dirty_paths re-export
+      fact without concluding owning_wp_for_path must also be re-exported, every blast-radius
+      count (Charter Check, Design Decision (e), IC-01 Affected surfaces) now reads 2 source
+      files + 3 test files, and Design Decision (f) is confirmed genuinely untouched by this
+      round (absent from the fb6ccbe94..11c9e61f0 diff) and still accurately describes the CLI
+      layer's direct submodule import of owning_wp_for_path. The four prior-round fixes
+      PLAN-GOV-001 (concrete verification commands for C-002), PLAN-GOV-002 (explicit deliberate-
+      tightening rationale beyond spec's OR condition), PLAN-ARCH-001 (wp_task_pattern tightened
+      to [^/]+ with added AC3/FR-008 coverage), and PLAN-VERIFY-001 (tests-cli job and
+      test_move_task_planned_guard.py added to the Gate Statement/Validation Strategy) are all
+      still present and undamaged by this round's edit.

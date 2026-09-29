@@ -1,0 +1,44 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true               # flipped after the yaml self-check passed
+phase: spec
+results:                    # one entry for EVERY finding in the findings file
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >-
+      C-002 now states verbatim "spec-kitty has no cross-mission dependency gate — the CLI will
+      not block implement/move-task on another mission_id's WP status; this sequencing is a
+      self-enforced orchestrator/operator discipline, not a CLI-level gate," and Clarifications
+      Q1 restates the same disclosure ("the orchestrator must check WP02's lane state itself"),
+      matching the requested remediation substantively.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >-
+      C-002's final sentence now explicitly defers message-style harmonization between FR-005's
+      wording and WP02's exact-path guidance convention to plan.md ("a plan-level decision,
+      deferred to plan.md — not ruled on here"), satisfying remediation option (b).
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >-
+      SC-002 no longer claims pre-existing truncation coverage; it now reads "The blocking-lines
+      truncation ('... and N more') branch has no pre-existing test coverage — see FR-009, which
+      adds it as new coverage this mission contributes." Re-verified independently against the
+      live test file: all three existing _validate_research_artifacts tests (lines 656-718) mock
+      at most one blocking path and a repo-wide grep for the truncation text/"N more" returns no
+      matches anywhere in tests/, confirming the corrected claim is now accurate.
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >-
+      User Story 2 gained Acceptance Scenario 3 pinning per-line ownership annotation for a
+      mixed-ownership blocking list; FR-005 was extended with matching prose; and Key Entities'
+      "Dirty Path Classification" bullet now specifies the mechanism (a new sibling per-path
+      ownership-lookup helper in dirty_classifier.py, called once per blocking path by the
+      guidance builder) explicitly "not by changing what classify_dirty_paths itself returns,"
+      so the new scenario no longer contradicts the unchanged-return-shape constraint.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >-
+      The Edge Cases "Wholly untracked WP directories" bullet is now qualified with "and its
+      parent kitty-specs/<slug>/tasks/ directory is already tracked (the normal case once any
+      WP's task file has been committed for the mission)," matching the requested precondition
+      wording exactly.

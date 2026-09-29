@@ -1,0 +1,151 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: dirty-tree-guard-wp-scoped
+findings:
+  - id: SPEC-GOV-001
+    lens: mission-specific (C-002 sequencing-enforcement mechanism)
+    severity: 3
+    title: "C-002's cross-mission sequencing constraint does not state that spec-kitty has no tooling to enforce it"
+    evidence:
+      - artifact: "spec.md § Constraints, row C-002"
+      - artifact: "spec.md § Clarifications, Session 2026-09-28, Q1"
+      - code: "src/specify_cli/cli/commands/agent/mission_parsing.py:66 (_parse_dependencies_from_tasks_md — parses WP `dependencies` frontmatter, same-mission only)"
+      - code: "src/specify_cli/core/dependency_graph.py:34 (dependency_readiness_for_wp — the only tool-enforced dependency gate in the codebase, evaluated per-WP within one mission_id)"
+      - artifact: "glossary term \"dependency gate\" (via `.venv/bin/spec-kitty glossary show \"dependency gate\"`) never mentions cross-mission scope"
+    claim: >
+      C-002 says the implement phase "must not start until sibling mission
+      lane-history-safe-handoff-5151-01M3JR6R's WP02 ... has landed or been
+      reviewed/approved," and Clarifications Q1 describes this as "a binding
+      sequencing constraint (C-002) that gates the implement phase." Verified
+      against the codebase: spec-kitty's only tool-enforced dependency
+      mechanism is the "dependency gate" (dependency_readiness_for_wp /
+      _parse_dependencies_from_tasks_md), which reads a WP's own `dependencies`
+      frontmatter and is scoped to WPs inside a single mission_id — there is no
+      cross-mission_id equivalent. Nothing in move-task, implement, or
+      start-implementation reads another mission's WP lane state. Because the
+      glossary already defines a similarly-named, genuinely tool-enforced
+      "dependency gate" concept, an implementing agent skimming C-002's "gates
+      the implement phase" language has a real basis to assume the CLI will
+      itself refuse implement/move-task until WP02 lands — it will not.
+    remediation: >
+      Add one explicit sentence to C-002 (and/or a footnote to Clarifications
+      Q1) stating that this is a self-enforced orchestrator/operator discipline,
+      not a CLI-level gate: "spec-kitty has no cross-mission dependency gate —
+      the CLI will not block implement/move-task on another mission_id's WP
+      status. The orchestrator must manually verify WP02's lane state before
+      starting this mission's implement phase; nothing in the tooling enforces
+      this automatically."
+  - id: SPEC-ARCH-001
+    lens: Mission-specific (refusal-message contract with #5151 WP02)
+    severity: 3
+    title: Spec is silent on refusal-message style coordination with sibling WP02's in-flight edits to the same file
+    evidence:
+      - artifact: "spec.md § Constraints C-002"
+      - artifact: "spec.md § Requirements FR-005"
+      - artifact: "spec.md § Clarifications Q1"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:263-342 (_validate_research_artifacts guidance construction)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:615-664 (_check_kitty_specs_contamination guidance construction)"
+    claim: >-
+      Both functions live in the same file and each independently builds a
+      `guidance: list[str]` refusal message using the same idiom (a leading summary line,
+      a path list truncated to 5 with "... and N more", a blank line, then remediation
+      commands). Sibling mission #5151's WP02 ("Preserve refused edits with exact-path
+      guidance") is independently reworking refusal-message wording/format for
+      `_check_kitty_specs_contamination` and neighbours in this same file. Spec.md's C-002
+      already demonstrates awareness of the same-file overlap (it sequences implement behind
+      WP02 landing to avoid a diff conflict on the two shared test files), but nowhere does
+      spec.md address the follow-on risk that FR-005's new ownership-attribution wording
+      could land in a textually/visually inconsistent style from whatever exact-path
+      convention WP02 introduces alongside it.
+    remediation: >-
+      Add one sentence to spec.md (under C-002 or a new note near FR-005) either (a)
+      instructing the implement-phase agent to inspect WP02's landed diff in
+      tasks_parsing_validation.py for any new message-construction convention and align
+      FR-005's new ownership wording to it where reasonable, or (b) explicitly stating that
+      message-style harmonization across the two functions is a plan-level decision deferred
+      to plan.md, not ruled on here.
+  - id: SPEC-VERIFY-001
+    lens: baseline-honesty
+    severity: 3
+    title: SC-002 cites blocking-lines truncation coverage that does not exist in the named test file
+    evidence:
+      - artifact: "spec.md § SC-002 (Success Criteria)"
+      - code: "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py:652-718 (the three existing _validate_research_artifacts tests)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:330-331 (the '... and N more' truncation branch)"
+    claim: >
+      SC-002 states that pre-existing coverage in
+      tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py includes "the
+      blocking-lines truncation ('... and N more') coverage" and must "continue to pass
+      unmodified in substance." The full test file passes (48 passed), and all three
+      existing `_validate_research_artifacts` tests each mock at most one blocking path —
+      none exercises the `len(blocking_lines) > 5` truncation branch at
+      tasks_parsing_validation.py:330-331. A repo-wide grep for the truncation text finds no
+      match anywhere in the suite. SC-002's premise that this is *existing* coverage to be
+      preserved is factually wrong on the current checkout. The other three named tests it
+      cites DO exist and DO pass — only the truncation-coverage sub-claim is false.
+    remediation: >
+      Either (a) remove "the blocking-lines truncation ('... and N more') coverage" from
+      SC-002's list of pre-existing tests that "continue to pass unmodified," or (b) if the
+      intent was that this mission ITSELF should add that coverage, move it under FR-009's
+      red-first regression-test requirement (or a new FR) rather than listing it as an
+      already-existing ratchet target.
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 3
+    title: No Acceptance Scenario covers a blocking set with mixed ownership in one refusal
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenarios 1-2"
+      - artifact: "spec.md § FR-005"
+      - artifact: "spec.md § Key Entities › Dirty Path Classification"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:308-325 (classify_dirty_paths returns only (blocking, benign); the single guidance header at line 325 reads 'Blocking: {n} uncommitted file(s) owned by {wp_id}:' for the WHOLE blocking list)"
+    claim: >
+      FR-005 requires the refusal guidance to name each blocking path's true owner rather
+      than blanket-asserting the moving WP owns everything. Both of User Story 2's
+      Acceptance Scenarios test only a SINGLE blocking path in isolation. Neither scenario,
+      nor any FR, specifies what the guidance text should say when the SAME refusal contains
+      more than one blocking path with DIFFERENT determined ownership (e.g. one path under
+      the moving WP's own directory per FR-007, plus one unattributable path per FR-004, in
+      the same move-task call). The current code constructs exactly one header line for the
+      entire blocking list — a per-batch, not per-path, assertion. Key Entities explicitly
+      states this mission does not change classify_dirty_paths's return shape, so no
+      ownership metadata travels with each blocking path out of the classifier; the
+      mechanism by which the guidance builder learns each blocking path's individual owner
+      for a mixed batch is not specified anywhere.
+    remediation: >
+      Add an Acceptance Scenario (or extend FR-005) that pins the expected guidance shape
+      when a single refusal's blocking list spans more than one ownership outcome — e.g.
+      "each blocking line in the guidance is annotated with its own determined owner (the
+      moving WP or 'not attributable'), not one shared header for the whole list" — and
+      either explicitly amend Key Entities to allow classify_dirty_paths (or a sibling
+      helper) to surface per-path ownership, or specify the alternate mechanism the WP
+      should use to attribute each line without changing that return shape.
+  - id: SPEC-VERIFY-003
+    lens: mission-specific-untracked-dir-porcelain
+    severity: 2
+    title: Edge Cases' untracked-directory porcelain claim is stated unconditionally but is conditional on the parent tasks/ dir already being tracked
+    evidence:
+      - artifact: "spec.md § Edge Cases, 'Wholly untracked WP directories' bullet"
+      - code: "src/specify_cli/review/dirty_classifier.py:81 (wp_task_pattern requires a literal .md$ suffix, no directory-expansion step)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:280-306 (raw porcelain paths passed straight through, unexpanded)"
+    claim: >
+      Verified empirically in three throwaway git sandboxes (not this checkout, cleaned up
+      after use). (1) With NO ancestor directory tracked at all, `git status --porcelain`
+      collapses all the way to `?? kitty-specs/` — not the WP directory. (2) With
+      `kitty-specs/<slug>/` tracked but `tasks/` never committed, it collapses one level
+      short, to `?? kitty-specs/<slug>/tasks/`. (3) Only when `kitty-specs/<slug>/tasks/` is
+      ALREADY tracked does a fresh, wholly-untracked WP directory collapse exactly as the
+      spec states. This is the realistic case in practice, and `dirty_classifier.py`'s
+      current code does NOT already normalize/expand the collapsed form, so FR-003 addresses
+      a genuine, currently-unhandled case — the mission's premise holds. The only gap is that
+      the Edge Cases prose states the directory-collapse mechanism unconditionally without
+      the "parent already tracked" precondition, which is technically inaccurate in the
+      fully-virgin-mission bootstrap case, though harmless there since the fallback is still
+      fail-closed.
+    remediation: >
+      Optional wording tightening only (no correctness risk — the fail-closed fallback
+      already covers the degenerate case): qualify the Edge Cases bullet with "...when the
+      WP's parent tasks/ directory is already tracked (the normal case once any WP's task
+      file has been committed for the mission)" so the claim is not read as an unconditional
+      git behavior.

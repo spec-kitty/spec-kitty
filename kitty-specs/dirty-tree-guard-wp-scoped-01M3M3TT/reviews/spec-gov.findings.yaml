@@ -1,0 +1,53 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: gov
+mission: dirty-tree-guard-wp-scoped
+findings:
+  - id: SPEC-GOV-001
+    lens: mission-specific (C-002 sequencing-enforcement mechanism)
+    severity: 3
+    title: "C-002's cross-mission sequencing constraint does not state that spec-kitty has no tooling to enforce it"
+    evidence:
+      - artifact: "spec.md § Constraints, row C-002"
+      - artifact: "spec.md § Clarifications, Session 2026-09-28, Q1"
+      - code: "src/specify_cli/cli/commands/agent/mission_parsing.py:66 (_parse_dependencies_from_tasks_md — parses WP `dependencies` frontmatter, same-mission only)"
+      - code: "src/specify_cli/core/dependency_graph.py (dependency_readiness_for_wp — the only tool-enforced dependency gate in the codebase, evaluated per-WP within one mission_id)"
+      - artifact: "glossary term \"dependency gate\": \"The pre-implementation enforcement point that refuses to start a work package until it meets dependency readiness... Enforced consistently at every claim path\" (spec_kitty_core, active, confidence 1.00, via `.venv/bin/spec-kitty glossary show \"dependency gate\"`)"
+    claim: >
+      C-002 says the implement phase "must not start until sibling mission
+      lane-history-safe-handoff-5151-01M3JR6R's WP02 ... has landed or been
+      reviewed/approved," and Clarifications Q1 describes this as "a binding
+      sequencing constraint (C-002) that gates the implement phase." Verified
+      against the codebase: spec-kitty's only tool-enforced dependency
+      mechanism is the "dependency gate" (dependency_readiness_for_wp /
+      _parse_dependencies_from_tasks_md), which reads a WP's own `dependencies`
+      frontmatter and is scoped to WPs inside a single mission_id — there is no
+      cross-mission_id equivalent, and this mission (dirty-tree-guard-wp-scoped)
+      and the sibling (lane-history-safe-handoff-5151) are unrelated mission_ids
+      with no dependency link the CLI understands. Nothing in move-task,
+      implement, or start-implementation reads another mission's WP lane state.
+      Because the repo's glossary already defines a similarly-named, genuinely
+      tool-enforced "dependency gate" concept, an implementing agent skimming
+      C-002's "gates the implement phase" language has a real basis to assume
+      the CLI will itself refuse `implement`/`move-task` until WP02 lands — it
+      will not. Nothing stops an agent from starting implement early; the only
+      thing preventing a collision is the orchestrator/operator manually
+      checking WP02's status first. The Category column marks C-002 "Process"
+      rather than "Technical," which is a weak, informal signal (the spec
+      template does not define "Process" as meaning "not tool-enforced" — it is
+      freeform author text), and is easy to miss given C-001's "Technical"
+      category sits one row above it in the same table making the same kind of
+      "cannot use X" claim about the codebase.
+    remediation: >
+      Add one explicit sentence to C-002 (and/or a footnote to Clarifications
+      Q1) stating that this is a self-enforced orchestrator/operator discipline,
+      not a CLI-level gate: e.g. "spec-kitty has no cross-mission dependency
+      gate — the CLI will not block `implement`/`move-task` on another
+      mission_id's WP status. The orchestrator must manually verify WP02's lane
+      state (e.g. via `spec-kitty status --mission lane-history-safe-handoff-5151-01M3JR6R`)
+      before starting this mission's implement phase; nothing in the tooling
+      enforces this automatically." This keeps the constraint but removes the
+      risk that an implementing agent conflates it with the real, tool-enforced
+      same-mission dependency gate.

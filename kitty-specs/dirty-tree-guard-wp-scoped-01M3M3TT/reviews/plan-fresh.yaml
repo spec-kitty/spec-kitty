@@ -1,0 +1,72 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: PLAN-FRESH-001
+    lens: fresh-sweep
+    severity: 5
+    title: >-
+      PLAN-GOV-003's "correction" adds src/specify_cli/review/__init__.py to this mission's
+      blast radius, which spec.md's frozen C-003 constraint does not name — and the addition
+      is not even consumed by anything this mission's own design describes
+    evidence:
+      - artifact: "spec.md § Constraints, C-003 (line 220)"
+      - artifact: "plan.md § Project Structure, 'Correction (review finding PLAN-GOV-003)' (lines 89-98)"
+      - artifact: "plan.md § Charter Check, 'Smallest-viable-diff / locality (spec C-003)' (lines 46-50)"
+      - artifact: "plan.md § Design Decision (e) PR shape (lines 358-361)"
+      - artifact: "plan.md § Design Decision (f) Seam placement (lines 365-372, UNCHANGED by the fix round)"
+      - artifact: "plan.md § Implementation Concern Map, IC-01 Affected surfaces (lines 631-636)"
+      - code: "src/specify_cli/review/__init__.py:1-15"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:289 (existing classify_dirty_paths import, direct from the submodule)"
+    claim: >-
+      spec.md's C-003 is an explicit, closed list: "This mission touches only
+      src/specify_cli/review/dirty_classifier.py (_is_benign,
+      _is_review_handoff_survivor_path, classify_dirty_paths),
+      src/specify_cli/cli/commands/agent/tasks_parsing_validation.py (...), and their test
+      files (...)." src/specify_cli/review/__init__.py appears nowhere in that list. The
+      PLAN-GOV-003 fix round nonetheless adds a 1-line import + a 1-line __all__ entry to
+      __init__.py, and now claims (plan.md line 360, Design Decision (e)) this is part of
+      "spec C-003's named surfaces" — which is factually false; C-003 names only
+      dirty_classifier.py and tasks_parsing_validation.py. The plan itself elsewhere (line 189)
+      still correctly asserts the tightened wp_task_pattern edit stays inside "the file C-003
+      already names" — the __init__.py edit gets no equivalent honest acknowledgment that it is
+      OUTSIDE C-003's named list; instead each mention (Charter Check line 46, Project Structure
+      lines 89-98, Design Decision (e) line 360, IC-01 line 634) asserts or implies compliance
+      without ever flagging a spec/plan conflict for resolution, even though the task brief for
+      this exact review explicitly calls this pattern out as a real conflict requiring
+      escalation, not silent expansion. spec.md is frozen and binding per this codebase's own
+      governance model (CLAUDE.md: "if the charter and this file disagree, the charter wins —
+      flag the drift instead of picking silently"; the same discipline applies to a mission's
+      spec vs. its own plan). Worse, the addition is not even functionally motivated within
+      this mission's own design: Design Decision (f) — left completely unmodified by the fix
+      round (absent from the git diff between 709ede3a0 and fb6ccbe94) — states explicitly that
+      the CLI layer "imports owning_wp_for_path directly from specify_cli.review.dirty_classifier
+      (mirroring its existing classify_dirty_paths import at line 289)" i.e. tasks_parsing_validation.py
+      consumes the new helper via a direct submodule import, never through the package
+      __init__.py. Verified independently: grepping the whole src/ and tests/ trees for any
+      import of classify_dirty_paths via the package root (`from specify_cli.review import
+      classify_dirty_paths` or `from specify_cli.review import ...`) finds zero occurrences —
+      tasks_parsing_validation.py:289 imports it directly from .dirty_classifier, exactly as
+      Design Decision (f) describes. So the __init__.py re-export the fix round adds is (a) a
+      file outside C-003's closed list, (b) misdescribed as already being inside that list, and
+      (c) not read by any code path this mission's own plan ever describes writing or calling —
+      it is pure "matching precedent" styling for an inert, currently-unconsumed
+      classify_dirty_paths re-export. This is scope creep dressed as a necessary correction: the
+      honest minimal fix for PLAN-GOV-003 (the false "not re-exported" prose claim) was to
+      correct the sentence, not to expand the mission's touched-file set to match it.
+    remediation: >-
+      Revert the __init__.py addition from this mission's scope: keep owning_wp_for_path
+      un-exported from the package root (imported only directly from
+      specify_cli.review.dirty_classifier, per Design Decision (f), which already describes the
+      real consumption path and needs no change). Rewrite the Project Structure "Correction"
+      paragraph to state only the factual correction (classify_dirty_paths IS already
+      re-exported from __init__.py today, contradicting the earlier plan draft's "not
+      re-exported" claim) without concluding that owning_wp_for_path must therefore also be
+      re-exported. Revert the "3 source files" language back to 2 source files + 3 test files in
+      Charter Check, Design Decision (e), and IC-01's Affected surfaces, restoring C-003
+      compliance. If the operator/orchestrator genuinely wants owning_wp_for_path re-exported
+      from the package root for future-consumer convenience, that requires an explicit spec.md
+      C-003 amendment (a Clarifications entry or a constraint edit) before the plan can claim it
+      — not a plan-level unilateral expansion.

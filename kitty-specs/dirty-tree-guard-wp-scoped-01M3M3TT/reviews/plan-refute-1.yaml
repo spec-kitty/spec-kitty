@@ -1,0 +1,49 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >-
+      Grep of plan.md for "spec-kitty agent tasks status", "gh pr", "lane state", "PR #" returns
+      zero matches, and Design Decision (b)'s text (lines 203-207) is unaided prose ("confirm WP02
+      has actually merged to main... hold implementation and re-check") with no executable command,
+      PR number, or branch reference named anywhere in the plan.
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >-
+      spec.md C-002 (line 219) and Clarifications Q1 (lines 326-333) both state the implement phase
+      may proceed once WP02 has "landed OR been reviewed/approved," but plan.md Design Decision (b)
+      (lines 203-207) requires WP02 "actually merged to main," an AND-stricter bar, without flagging
+      it as a deliberate deviation from Q1's ruling — plan.md's own Compatibility section (line 443)
+      even restates the spec's "landing or approval" language, showing the plan is internally
+      inconsistent about which bar applies.
+  - id: PLAN-GOV-003
+    verdict: confirmed
+    reason: >-
+      src/specify_cli/review/__init__.py:7 imports classify_dirty_paths from dirty_classifier and
+      lists it in __all__ at line 14, directly contradicting plan.md's Project Structure claim
+      (lines 79-82) that classify_dirty_paths is "not re-exported from the package __init__."
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Empirically verified with python3: re.compile(r"kitty-specs/[^/]+/tasks/WP\d+-.+\.md$").search()
+      returns a match for both "kitty-specs/slug/tasks/WP01-foo/scratch.md" (spec.md's literal AC3
+      path) and "kitty-specs/other-slug/tasks/WP01-foo/x.md" (a different mission's slug), confirming
+      the pre-existing, plan-unmodified wp_task_pattern already crosses directory and mission
+      boundaries; since plan.md's own Design Decision (a)/(c) route any _is_benign match to benign
+      before owning_wp_for_path is ever consulted, the plan as written would let the moving WP's own
+      AC3 residue (and cross-mission FR-008 residue) pass as benign, contradicting spec.md's AC3 and
+      FR-008, and the plan's IC-01 risk note and validation strategy do not identify or test this gap.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Confirmed directly in .github/workflows/ci-router.yml: the cli: paths-filter is
+      'src/specify_cli/cli/**' (line 132, matching this mission's edited tasks_parsing_validation.py),
+      tests-cli runs "pytest tests/cli -q" gated on that filter (lines 608-620), router-gate's needs
+      list includes tests-cli (line 730), and tests/cli/test_move_task_planned_guard.py imports
+      _do_move_task/_MoveTaskArgs whose module (tasks_move_task.py, lines 89-91) imports from the
+      edited tasks_parsing_validation.py; grep of plan.md's Gate Statement for "tests-cli"/"tests/cli"
+      returns zero matches, confirming the omission.

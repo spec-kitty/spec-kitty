@@ -1,0 +1,57 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: PR-TESTS-001
+    lens: mission-derived (three real-world occurrences)
+    severity: 3
+    title: "#5159 item 4's reported transition target (--to approved) is never literally invoked by any new test"
+    evidence:
+      - artifact: "spec.md FR-009 (\"a failing test reproducing each of the three reported occurrences ... #5159 item 4\") and Overview occurrence 2 (\"blocked move-task --to approved for an unrelated WP\")"
+      - code: "tests/specify_cli/cli/commands/agent/test_tasks.py:396-399 (test_move_task_ignores_other_wp_residue_regardless_of_shape) and :444-447 (test_move_task_still_blocks_own_directory_residue_same_fixture) both invoke runner.invoke(app, [\"move-task\", \"WP01\", \"--to\", \"for_review\", ...]) — neither uses --to approved"
+      - code: "src/specify_cli/cli/commands/agent/tasks_move_task.py:957-991 confirms _validate_ready_for_review (which reaches _validate_research_artifacts / classify_dirty_paths) fires identically for Lane.FOR_REVIEW, Lane.APPROVED and Lane.DONE, so the underlying guard code path is target-lane-agnostic"
+    claim: >
+      #5159 item 4, one of the three real-world occurrences this mission folds in (FR-009), was
+      specifically a block on `move-task --to approved`, not `--to for_review`. The new WP03
+      review-cycle-directory fixture in test_move_task_ignores_other_wp_residue_regardless_of_shape
+      reproduces the *dirty-path shape* of #5159 item 4 faithfully, but the test only ever invokes
+      `--to for_review`, never `--to approved` — the actual reported transition target is not
+      exercised by any new test. I verified by reading tasks_move_task.py:957-991 that
+      _validate_ready_for_review is invoked identically for FOR_REVIEW/APPROVED/DONE (target_lane
+      only changes the retry-hint text, per the FR-015 docstring comment at
+      tasks_parsing_validation.py:832-833), so the functional risk from this gap is low — but the
+      letter of FR-009 ("a failing test reproducing each of the three reported occurrences") is not
+      met for occurrence 2 as literally reported, and the charter's own ATDD discipline ("verify
+      this shape empirically, do not assume") was applied to the git-porcelain shape in this same
+      fixture but not to the transition target.
+    remediation: >
+      Add a `--to approved` variant of test_move_task_ignores_other_wp_residue_regardless_of_shape
+      (or parametrize the existing test over target_lane in ("for_review", "approved")) so the
+      occurrence is reproduced through its actually-reported entry point, not just a functionally-
+      equivalent one.
+
+  - id: PR-TESTS-002
+    lens: fail-closed pinned
+    severity: 2
+    title: "No new test pins an unowned dirty path OUTSIDE kitty-specs/ entirely, only a stray file inside kitty-specs/"
+    evidence:
+      - artifact: "spec.md Edge Cases: \"A dirty path matching no mission's WP-directory pattern at all (a stray file directly under kitty-specs/<slug>/, or a path outside kitty-specs/ entirely) is never attributable and always blocks\""
+      - code: "tests/review/test_dirty_classifier.py:180-188 (test_unattributable_path_still_blocks_for_every_wp_id) only uses \"kitty-specs/066-test/some-stray-file.txt\""
+    claim: >
+      The spec's own Edge Cases section names two distinct unattributable shapes: a stray file
+      inside kitty-specs/<slug>/ (covered) and a path outside kitty-specs/ entirely (not covered by
+      any new test — grep across tests/review/test_dirty_classifier.py and
+      tests/specify_cli/cli/commands/agent/test_tasks.py finds no path lacking a kitty-specs/
+      prefix). I confirmed by reading owning_wp_for_path's regex
+      (src/specify_cli/review/dirty_classifier.py:105, anchored on
+      ^kitty-specs/{mission_slug}/tasks/WP...) that a non-kitty-specs path is handled by the exact
+      same fail-closed branch, so the functional risk is effectively nil — this is a test-coverage
+      completeness gap against an explicitly-named spec Edge Case, not a behavioral defect.
+    remediation: >
+      Add one assertion path such as "src/some_file.py" (or "README.md") to
+      test_unattributable_path_still_blocks_for_every_wp_id's path list (or a small sibling test)
+      so the spec's second named unattributable shape has direct test evidence, not just regex
+      inspection.

@@ -1,0 +1,29 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 1
+results:
+  - id: PR-TESTS-001
+    status: resolved
+    evidence: >
+      New test test_move_task_to_approved_ignores_other_wp_uncommitted_review_cycle_dir
+      (commit 6301a73bf) drives the real CLI `move-task WP01 --to approved` against a real-git
+      fixture with WP03's uncommitted review-cycle directory, mocking only _check_unchecked_subtasks
+      (never _validate_ready_for_review or classify_dirty_paths), reaches approved legitimately and
+      asserts the emitted lane sequence. Honest full revert of both dirty_classifier.py and
+      tasks_parsing_validation.py together (git apply -R of their combined diff vs af847be71) makes
+      only this new test fail on a behavioural assertion, "Blocking 1 uncommitted file(s) owned by
+      WP01" citing WP03-other/review-cycle/, i.e. assert result.exit_code == 0 fails because the
+      move is wrongly refused over the other WP's path, not an import/attribute error. Re-applying
+      the diff restored a clean git status --porcelain with no tracked-file changes.
+  - id: PR-CONTRACT-002
+    status: resolved
+    evidence: Nothing was changed for this finding — src/specify_cli/review/__init__.py is absent
+      from `git diff af847be71...HEAD --stat` (59 files touched, __init__.py not among them).
+      spec.md C-003 freezes the blast radius to dirty_classifier.py, tasks_parsing_validation.py and
+      three named test files, and plan.md's Design Decision explicitly notes __init__.py is not
+      touched because PLAN-FRESH-001 already reverted that same edit as scope creep. The
+      accepted-not-fixed disposition (severity 2, deferred to a follow-up owning review/ package
+      exports) is factually accurate and nothing regressed.
+new_issues: []
+suite: "115 passed (tests/review/test_dirty_classifier.py, tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py, tests/specify_cli/cli/commands/agent/test_tasks.py, tests/specify_cli/acceptance/test_accept_dirty_kitty_ops.py)"

@@ -1,0 +1,65 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      Verified directly: dependency_readiness_for_wp (dependency_graph.py:34) and its callers
+      (e.g. workflow_executor.py:652) resolve wp_lanes/dependencies from a single mission's
+      tasks.md via a per-mission_slug snapshot, mission_parsing.py:66's
+      _parse_dependencies_from_tasks_md parses only same-mission WP frontmatter, and the
+      glossary "dependency gate" entry (confirmed verbatim via `spec-kitty glossary show`)
+      never mentions cross-mission scope — so there is genuinely no tool-enforced mechanism
+      for C-002's cross-mission constraint, and spec.md's C-002/Q1 wording matches the quotes
+      exactly (Category "Process", one row below C-001's "Technical").
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Verified _validate_research_artifacts (tasks_parsing_validation.py:263) and
+      _check_kitty_specs_contamination (line 615) independently build near-identical
+      guidance lists (summary line, path list truncated to 5 with "... and N more", blank
+      line, remediation commands) in the same file, and a grep of spec.md for
+      style/wording/consistency terms returns nothing — the spec is silent on this specific
+      follow-on coordination risk even though C-002 already flags the adjacent diff-conflict
+      risk in the same file.
+  - id: SPEC-ARCH-002
+    verdict: refuted
+    reason: >-
+      The evidence does not support the "should have said N/A" claim: charter DIRECTIVE_048
+      (read at .kittify/charter/charter.md:257) is about citing the current canonical version
+      of a versioned artifact, not about declaring every unaffected contract surface N/A, and
+      the "Contracts" section the finding expects belongs to the plan-phase template
+      ("Phase 1: Design & Contracts" in mission-steps/software-dev/plan/prompt.md), not the
+      specify-phase template, so spec.md's silence here is not a deviation from either the
+      cited directive or the applicable template.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Ran `.venv/bin/python -m pytest tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py -q`
+      (48 passed) and read all three _validate_research_artifacts tests (lines 656-718): each
+      mocks classify_dirty_paths with at most one blocking path, so none exercises the
+      `len(blocking_lines) > 5` truncation branch (tasks_parsing_validation.py:330-331), and a
+      repo-wide grep for the "... and N more" truncation text finds no match anywhere in
+      test_tasks_parsing_validation.py — SC-002's claim of existing truncation coverage is
+      false on this checkout.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Verified classify_dirty_paths (dirty_classifier.py:118-160) still returns a plain
+      (blocking, benign) tuple of path-string lists with no per-path ownership metadata, and
+      _validate_research_artifacts (tasks_parsing_validation.py:322-325) builds exactly one
+      "Blocking: {n} uncommitted file(s) owned by {wp_id}:" header for the entire blocking
+      list — and spec.md's User Story 2 Acceptance Scenarios 1-2 each test only a single
+      blocking path, so the mixed-ownership-in-one-refusal case is genuinely unspecified.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      Verified _is_review_handoff_survivor_path's wp_task_pattern (dirty_classifier.py:81)
+      is `re.compile(r"kitty-specs/[^/]+/tasks/WP\d+-.+\.md$")`, requiring a literal `.md$`
+      suffix with no directory-expansion step, and _validate_research_artifacts
+      (tasks_parsing_validation.py:280-306) passes raw porcelain paths straight through — the
+      described git directory-collapse mechanism is well-documented, plausible git behavior
+      per the task instructions, and the code-side claims are directly confirmed.

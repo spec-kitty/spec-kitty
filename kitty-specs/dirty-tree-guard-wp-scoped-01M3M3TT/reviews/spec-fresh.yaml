@@ -1,0 +1,98 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: dirty-tree-guard-wp-scoped
+findings:
+  - id: SPEC-FRESH-001
+    lens: fresh-eyes
+    severity: 3
+    title: "FR-005's new per-blocking-line attribution names an outcome (\"another specific WP\") that FR-001/002/003 make structurally unreachable"
+    evidence:
+      - artifact: "spec.md § FR-005 (fix-round addition) and § User Story 2, Acceptance Scenario 3"
+      - artifact: "spec.md § Key Entities, \"Ownership Attribution\" (pre-existing, unchanged by this fix round)"
+      - code: "src/specify_cli/review/dirty_classifier.py:_is_benign / classify_dirty_paths (blocking, benign) partition"
+    claim: >
+      The fix round's new FR-005 sentence and Acceptance Scenario 3 say each blocking line
+      must be annotated with "its own determined owner (the moving WP, another specific WP,
+      or 'not attributable')" — a three-way outcome space. But FR-001/FR-002/FR-003 (this
+      same mission) route any path attributable to a *different* WP's task directory into the
+      BENIGN bucket, not blocking, regardless of extension or untracked-directory form. By
+      construction, a path that survives into the BLOCKING list can therefore only be (a)
+      under the moving WP's own directory (FR-007, not exempted) or (b) unattributable to any
+      WP (FR-004) — never "owned by a different specific WP other than the mover." The worked
+      example in Acceptance Scenario 3 itself only exercises the two reachable cases (own-WP
+      residue + unattributable); it never demonstrates the third outcome it asserts is
+      possible, because it cannot occur post-fix. This risks the implementing WP either
+      building dead/untestable branch logic for an impossible case, or — worse — building a
+      second, independent ownership-determination path (see SPEC-FRESH-002) that could
+      disagree with `_is_benign`'s own directory match, silently reintroducing the very
+      false-positive/false-attribution bug this mission fixes.
+    remediation: >
+      Either (a) narrow FR-005's per-blocking-line attribution to the two outcomes that are
+      actually reachable given FR-001-004/007 ("the moving WP" or "not attributable"), or (b)
+      if "another specific WP" is meant to guard a genuine corner case (e.g. a future
+      relaxation, or disagreement between two independently-computed ownership checks),
+      say so explicitly and require the guidance builder to reuse the exact same ownership
+      predicate `_is_benign` already uses, so the blocking/benign partition and the
+      per-path attribution can never diverge.
+
+  - id: SPEC-FRESH-002
+    lens: fresh-eyes
+    severity: 2
+    title: "Key Entities' new text pins an implementation shape (a new helper function) that C-003's blast radius doesn't name and that the same fix round elsewhere defers to plan.md"
+    evidence:
+      - artifact: "spec.md § Key Entities, \"Dirty Path Classification\" (fix-round addition)"
+      - artifact: "spec.md § Constraints, C-003 (\"the mission touches only ... dirty_classifier.py (_is_benign, _is_review_handoff_survivor_path, classify_dirty_paths) ...\")"
+      - artifact: "spec.md § Constraints, C-002 and § Clarifications Q1 (fix-round addition: \"message-style harmonization ... is a plan-level decision, deferred to plan.md — not ruled on here\")"
+    claim: >
+      The fix round added a sentence to Key Entities stating that per-path ownership for a
+      mixed-ownership blocking list is "learned by the guidance builder ... calling a new
+      sibling per-path ownership-lookup helper in dirty_classifier.py ... once per blocking
+      path — not by changing what classify_dirty_paths itself returns." This names a specific
+      new function and its call cardinality — an implementation (HOW) decision, not an entity
+      description (WHAT) — inside the spec artifact. It is inconsistent on two counts: (1)
+      C-003's blast-radius parenthetical enumerates exactly three existing functions in
+      dirty_classifier.py as in-scope; a "new sibling helper" is a fourth, unnamed function,
+      in tension with C-003's own "smallest-viable-diff and locality-of-change" citation; (2)
+      the very same fix round, in C-002/Clarifications Q1, explicitly pulls a comparable
+      implementation-shape decision (message-style harmonization) OUT of spec.md and defers it
+      to plan.md — but does the opposite here, pinning the shape directly in spec.md's Key
+      Entities. The document is self-inconsistent about which phase owns this class of
+      decision.
+    remediation: >
+      Move the "new sibling helper, called once per blocking path" implementation detail out
+      of Key Entities and into a plan-level note (or state in Key Entities that the exact
+      mechanism — new helper vs. extending `classify_dirty_paths`'s return shape vs. reusing
+      `_is_benign` — is a plan-level decision, mirroring the C-002/Q1 precedent), and if the
+      helper is genuinely intended, add it to C-003's named blast-radius surfaces so the
+      constraint and the entity description agree.
+
+  - id: SPEC-FRESH-003
+    lens: fresh-eyes
+    severity: 2
+    title: "User Story 1's wholly-untracked-directory scenario doesn't carry the new \"parent must already be tracked\" caveat added to Edge Cases"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 2 and Independent Test"
+      - artifact: "spec.md § Edge Cases, \"Wholly untracked WP directories\" (fix-round addition)"
+      - code: "verified directly: in a fresh git repo with kitty-specs/ entirely untracked, `git status --porcelain` after adding kitty-specs/demo/tasks/WP01-foo/review-cycle-1.md reports only `?? kitty-specs/` (collapsed to the mission root, not to the WP directory); after committing a sibling kitty-specs/demo/tasks/WP02-bar.md first, the same untracked WP01-foo directory reports as `?? kitty-specs/demo/tasks/WP01-foo/` as FR-003 expects"
+    claim: >
+      The fix round narrowed the "wholly untracked WP directories" mechanism in Edge Cases to
+      apply only when "its parent kitty-specs/<slug>/tasks/ directory is already tracked (the
+      normal case once any WP's task file has been committed for the mission)" — otherwise
+      git's porcelain output collapses further up the tree (verified above: to `?? kitty-specs/`
+      in the fully-untracked case), which the fix round correctly notes falls to the FR-004
+      fail-closed fallback instead. However, User Story 1's Acceptance Scenario 2 and
+      Independent Test (unchanged by this fix round) still describe the fixture as simply "a
+      dirty path that is a wholly untracked directory kitty-specs/<slug>/tasks/WP02-foo/" with
+      no mention of needing an already-tracked ancestor. A test author implementing FR-003
+      strictly from Scenario 2's literal wording, without cross-referencing the Edge Cases
+      prose, could build a fixture where kitty-specs/ itself is untracked and get the
+      degenerate `?? kitty-specs/` collapse instead of exercising FR-003's directory-only-form
+      recognition at all — producing a test that passes for the wrong reason (fail-closed
+      fallback) or fails unexpectedly.
+    remediation: >
+      Add the same "parent tasks/ directory already tracked" caveat inline to User Story 1's
+      Acceptance Scenario 2 and Independent Test (or an explicit cross-reference to the Edge
+      Cases note), so a test author builds a fixture that actually exercises FR-003's
+      directory-only-form recognition rather than the FR-004 bootstrap fallback.

@@ -1,0 +1,55 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates / Baseline accuracy
+    severity: 3
+    title: >-
+      Gate Statement omits the ci-router.yml `cli` path-filter match and the
+      `tests-cli` routed-test-group job this mission's own diff triggers, and
+      conflates "routed test groups" with per-module shards
+    evidence:
+      - artifact: "plan.md § Gate Statement (\"Routed test groups\" bullet, lines ~289-290)"
+      - code: ".github/workflows/ci-router.yml:130-131 — the `cli:` dorny/paths-filter entry is `- 'src/specify_cli/cli/**'`, a glob that also matches `src/specify_cli/cli/commands/agent/**` (this mission's own C-003 blast-radius file `tasks_parsing_validation.py` lives there)."
+      - code: ".github/workflows/ci-router.yml:609-620 — job `tests-cli` (`if: needs.changes.outputs.cli == 'true'`) runs `uv run --frozen pytest tests/cli -q`, a full ~67-file suite, on any diff that trips the `cli` filter."
+      - code: ".github/workflows/ci-router.yml:704-730 — `router-gate` (the terminal required check) lists `tests-cli` in its own `needs:`, so a `tests-cli` failure or cancellation blocks the router gate exactly like `tests-status`/`tests-docs`/`tests-corpus`/`tests-e2e` do."
+      - code: "tests/cli/test_move_task_planned_guard.py — imports `_do_move_task`/`_MoveTaskArgs` from `specify_cli.cli.commands.agent.tasks`; `src/specify_cli/cli/commands/agent/tasks_move_task.py:90` imports directly from `tasks_parsing_validation.py` (the file this mission edits), so this test exercises the same `move-task` code path IC-02 changes."
+      - command: "grep -n \"^\\s*cli:\" -A1 .github/workflows/ci-router.yml → 'src/specify_cli/cli/**'; grep -rl \"move-task\\|move_task\" tests/cli/ → tests/cli/test_move_task_planned_guard.py, tests/cli/test_tasks_finalize_lanes_minting.py"
+    claim: >-
+      Plan.md's Gate Statement (which the plan explicitly frames as authoritative and
+      instructs a later `verify` pass not to second-guess) states only that the `review`
+      and `execution_context` module shards run for this diff, under a bullet labelled
+      "Routed test groups." This both mislabels the concept — SKILL.md's authoritative
+      gate table (the one plan.md itself cites) treats "routed test groups"
+      (`tests-status`/`tests-cli`/`tests-docs`/`tests-corpus`/`tests-e2e`, owned by
+      ci-router.yml) as a category distinct from "per-module test shards"
+      (`.github/ci-module-registry.yml` rows, owned by ci-modules.yml) — and omits an
+      actually-triggered routed test group. `src/specify_cli/cli/commands/agent/tasks_parsing_validation.py`
+      (named explicitly in plan.md's own Project Structure and C-003 blast radius) matches
+      the `cli:` paths-filter (`src/specify_cli/cli/**`), independently of the
+      `execution_context` match already disclosed. This fires ci-router.yml's `tests-cli`
+      job — a full `pytest tests/cli -q` run that IS one of `router-gate`'s required
+      dependencies — with zero mention anywhere in the Gate Statement. It is also a real
+      blast-radius gap, not just a labelling nit: `tests/cli/test_move_task_planned_guard.py`
+      exercises `_do_move_task`, which imports from the very file this mission's IC-02
+      edits (`tasks_move_task.py:90` imports `tasks_parsing_validation`), yet neither this
+      test file nor the `tests/cli` directory appears anywhere in the plan's "Targeted
+      implementation test surface" or Validation Strategy — violating AGENTS.md's own
+      blast-radius rule ("for every source module your diff touches, run its own test
+      file(s)... when the mirror is not obvious, find the tests that exercise the module:
+      `grep -rl \"<module_name>\" tests/`").
+    remediation: >-
+      In plan.md's Gate Statement, split the single "Routed test groups" bullet into two
+      accurate statements: (1) note that the `cli:` filter (`src/specify_cli/cli/**`) also
+      matches `tasks_parsing_validation.py` and independently fires ci-router.yml's
+      `tests-cli` job (`pytest tests/cli -q`), which is a `router-gate` dependency; (2) keep
+      the existing `review`/`execution_context` per-module-shard citations under their own,
+      correctly-labelled "per-module test shards" heading. In the Validation Strategy's
+      "Targeted implementation test surface," add `tests/cli/test_move_task_planned_guard.py`
+      (found via `grep -rl "move-task\|move_task" tests/cli/`) to the locally-run targeted
+      test list, since it exercises `_do_move_task`, which imports from the edited
+      `tasks_parsing_validation.py` module — this satisfies the charter's own blast-radius
+      rule without requiring a full `tests/cli/` run (consistent with NO_FULL_HEAVY_SUITES_IN_MISSION).

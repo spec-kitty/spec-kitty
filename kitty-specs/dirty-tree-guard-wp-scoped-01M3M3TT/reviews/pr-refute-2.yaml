@@ -1,0 +1,29 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 2
+verdicts:
+  - id: PR-FRESH-001
+    verdict: confirmed
+    reason: >
+      A real staged git rename inside kitty-specs/ produces "R  old -> new"
+      porcelain (verified in a scratch repo), tasks_parsing_validation.py's
+      unchanged line[3:]/no-split parsing hands the composite string straight
+      into _validate_research_artifacts -> classify_dirty_paths, and running
+      that real end-to-end entry point on WP01's own file renamed into its
+      own directory (WP02-foo/old.py -> WP01-own/new.py) returns a false
+      pass (guidance=None) instead of blocking, violating FR-007; a
+      base-vs-diff differential on the same inputs shows Bug A
+      (wp_task_pattern's missing ^ anchor letting .search() match a
+      composite string's tail) already fail-opens identically on
+      af847be71's version (pre-existing, unchanged by this diff's
+      .+ -> [^/]+ tightening), while Bug B is only reachable because this
+      diff adds owning_wp_for_path itself -- on af847be71 the same
+      old->new WP01-residue input correctly stayed blocking (no
+      owning_wp_for_path existed to misattribute it), so the diff turns a
+      previously-safe path into a fail-open one.
+    reachable_via_entry_point: true
+    subbug_a_preexisting: true
+    subbug_b_introduced_by_diff: true
+    recommended_severity: 4

@@ -1,0 +1,115 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: dirty-tree-guard-wp-scoped
+findings:
+  - id: SPEC-VERIFY-001
+    lens: baseline-honesty
+    severity: 3
+    title: SC-002 cites blocking-lines truncation coverage that does not exist in the named test file
+    evidence:
+      - artifact: "spec.md § SC-002 (Success Criteria)"
+      - code: "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py:652-718 (the three existing _validate_research_artifacts tests)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:330-331 (the '... and N more' truncation branch)"
+    claim: >
+      SC-002 states that pre-existing coverage in
+      tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py includes
+      "the blocking-lines truncation ('... and N more') coverage" and must "continue to
+      pass unmodified in substance." I ran the full test file
+      (`.venv/bin/python -m pytest tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py -q`
+      → 48 passed) and inspected every test that exercises `_validate_research_artifacts`
+      (lines 656-718: `test_validate_research_artifacts_clean_returns_none`,
+      `test_validate_research_artifacts_blocks_research_commit_format`,
+      `test_validate_research_artifacts_benign_only_passes_with_note`). None constructs
+      more than one blocking path, so none exercises the `len(blocking_lines) > 5`
+      truncation branch at tasks_parsing_validation.py:330-331. A repo-wide grep
+      (`grep -rn "and {len(blocking\|\.\.\. and" tests/`) confirms no test anywhere in the
+      suite covers this branch. SC-002's premise that this is *existing* coverage to be
+      preserved is factually wrong on the current checkout — the other three named tests
+      it cites (`test_other_wp_task_files_are_benign`, `test_wp_task_file_other_double_digit_is_benign`,
+      `test_own_task_file_is_benign`) DO exist and DO pass (verified: `tests/review/test_dirty_classifier.py`
+      → 12 passed), so this is not a wholesale baseline-honesty failure, but the one
+      specific sub-claim about truncation coverage is unverifiable because the artifact
+      it points to is absent.
+    remediation: >
+      Either (a) remove "the blocking-lines truncation ('... and N more') coverage" from
+      SC-002's list of pre-existing tests that "continue to pass unmodified," or (b) if the
+      intent was that this mission ITSELF should add that coverage, move it under FR-009's
+      red-first regression-test requirement (or a new FR) rather than listing it as an
+      already-existing ratchet target. As written, a WP implementer searching for this
+      test to verify non-regression will not find it.
+
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 3
+    title: No Acceptance Scenario covers a blocking set with mixed ownership in one refusal
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenarios 1-2"
+      - artifact: "spec.md § FR-005"
+      - artifact: "spec.md § Key Entities › Dirty Path Classification"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:308-325 (classify_dirty_paths returns only (blocking, benign); the single guidance header at line 325 reads 'Blocking: {n} uncommitted file(s) owned by {wp_id}:' for the WHOLE blocking list)"
+    claim: >
+      FR-005 requires the refusal guidance to name each blocking path's true owner (the
+      moving WP, or "not attributable") rather than blanket-asserting the moving WP owns
+      everything. Both of User Story 2's Acceptance Scenarios test only a SINGLE blocking
+      path in isolation (AC1: one unattributable path; AC2: one path under the moving WP's
+      own directory). Neither scenario, nor any FR, specifies what the guidance text should
+      say when the SAME refusal contains more than one blocking path with DIFFERENT
+      determined ownership (e.g. one path under the moving WP's own directory per FR-007,
+      plus one unattributable path per FR-004, in the same `move-task` call). The current
+      code constructs exactly one header line for the entire blocking list
+      ("owned by {wp_id}", tasks_parsing_validation.py:325) — a per-batch, not per-path,
+      assertion. Key Entities explicitly states this mission does not change
+      `classify_dirty_paths`'s return shape (still a `(blocking, benign)` pair of plain
+      path lists), so no ownership metadata travels with each blocking path out of the
+      classifier; the mechanism by which the guidance builder learns each blocking path's
+      individual owner for a mixed batch is not specified anywhere. A reviewer cannot
+      construct a concrete pass/fail test for the mixed-ownership case from the spec text
+      alone — only from guessing.
+    remediation: >
+      Add an Acceptance Scenario (or extend FR-005) that pins the expected guidance shape
+      when a single refusal's blocking list spans more than one ownership outcome — e.g.
+      "each blocking line in the guidance is annotated with its own determined owner (the
+      moving WP or 'not attributable'), not one shared header for the whole list" — and
+      either explicitly amend Key Entities to allow classify_dirty_paths (or a sibling
+      helper) to surface per-path ownership, or specify the alternate mechanism the WP
+      should use to attribute each line without changing that return shape.
+
+  - id: SPEC-VERIFY-003
+    lens: mission-specific-untracked-dir-porcelain
+    severity: 2
+    title: Edge Cases' untracked-directory porcelain claim is stated unconditionally but is conditional on the parent tasks/ dir already being tracked
+    evidence:
+      - artifact: "spec.md § Edge Cases, 'Wholly untracked WP directories' bullet"
+      - code: "empirical: git sandbox at /tmp/.../dirty-tree-verify{1,2,3} (see below)"
+    claim: >
+      I verified the Edge Cases claim empirically in three throwaway git sandboxes (none
+      inside this checkout, all cleaned up). (1) With NO ancestor directory tracked at all,
+      `git status --porcelain` collapses all the way to `?? kitty-specs/` — not the WP
+      directory. (2) With `kitty-specs/<slug>/` tracked but `tasks/` never committed,
+      it collapses one level short, to `?? kitty-specs/<slug>/tasks/` — still not the WP
+      directory. (3) Only when `kitty-specs/<slug>/tasks/` is ALREADY tracked (e.g. another
+      WP's `WP02-bar.md` already committed there) does a fresh, wholly-untracked
+      `kitty-specs/<slug>/tasks/WP01-foo/` collapse exactly as the spec states:
+      `?? kitty-specs/<slug>/tasks/WP01-foo/`. This is the realistic case in practice
+      (tasks-packages materializes multiple WPs' `.md` files under `tasks/` together, so
+      `tasks/` is essentially always already tracked by the time any WP's `move-task`
+      runs), and I separately confirmed `dirty_classifier.py`'s current code does NOT
+      already normalize/expand this collapsed form: `_is_review_handoff_survivor_path`'s
+      `wp_task_pattern` (dirty_classifier.py:81) requires a literal `\.md$` suffix and
+      would not match a bare trailing-slash directory path, and `_validate_research_artifacts`
+      (tasks_parsing_validation.py:280-306) passes the raw porcelain path straight through
+      with no directory-expansion step. So FR-003 is confirmed to address a genuine,
+      currently-unhandled case — the mission's premise holds. The only gap is that the
+      Edge Cases prose states the directory-collapse mechanism unconditionally ("because
+      nothing inside it is tracked yet") without the "parent already tracked" precondition,
+      which is technically inaccurate in the fully-virgin-mission bootstrap case (session 1
+      above) though harmless there since the fallback is still fail-closed (FR-004 blocks
+      an unattributable `tasks/` or `kitty-specs/` path).
+    remediation: >
+      Optional wording tightening only (no correctness risk — the fail-closed fallback
+      already covers the degenerate case): qualify the Edge Cases bullet with "...when the
+      WP's parent tasks/ directory is already tracked (the normal case once any WP's task
+      file has been committed for the mission)" so the claim is not read as an
+      unconditional git behavior.

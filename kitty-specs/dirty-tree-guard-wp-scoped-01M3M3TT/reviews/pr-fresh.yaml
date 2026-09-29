@@ -1,0 +1,98 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: PR-FRESH-001
+    lens: fresh-sweep (fail-open on git-rename porcelain lines)
+    severity: 4
+    title: A "R  old -> new" git-rename porcelain line is passed through as one
+      composite path string, and can make a WP's own genuine dirty residue
+      resolve benign regardless of wp_id -- defeating FR-007's fail-closed
+      guarantee
+    evidence:
+      - artifact: "spec.md FR-007 / Edge Cases 'The moving WP's own directory' / Clarifications Q2 ('Never a silent pass for an undetermined path')"
+      - code: "src/specify_cli/review/dirty_classifier.py:92 (_is_review_handoff_survivor_path's wp_task_pattern: `re.compile(r\"kitty-specs/[^/]+/tasks/WP\\d+-[^/]+\\.md$\")`, used via `.search()` with no `^` anchor -- this exact line was edited by this diff to tighten `.+` to `[^/]+`, but the missing start-anchor was left in place)"
+      - code: "src/specify_cli/review/dirty_classifier.py:153 (owning_wp_for_path's `(?:\\.md|/.*)$` alternation is unbounded -- `.*` absorbs anything, including an embedded ` -> new-path` tail, once the OLD path's prefix matches)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:314 (`file_part = line[3:]`, pre-existing/unchanged: for a `git status --porcelain` rename line `R  old -> new`, this yields the single composite string `\"old -> new\"`, which is then handed to classify_dirty_paths unmodified)"
+    claim: >
+      I verified this directly against the real functions (both bugs share one
+      root cause: neither regex is anchored/bounded against an embedded
+      " -> " rename descriptor, and the porcelain-line parser that produces
+      `raw_paths`/`dirty_paths` -- unchanged by this diff -- never splits a
+      rename line before classification).
+
+
+      Bug A (more severe -- short-circuits before owning_wp_for_path is even
+      reached): any dirty line whose trailing component happens to look like a
+      flat `tasks/WPxx-*.md` file is classified benign via `_is_benign`'s
+      `wp_task_pattern.search()`, for EVERY wp_id, even when the line's "old"
+      side is garbage:
+
+        classify_dirty_paths(
+            ["not-even-a-real-path -> kitty-specs/066-test/tasks/WP05-x.md"],
+            wp_id="WP01", mission_slug="066-test",
+        )
+        -> blocking=[] benign=["not-even-a-real-path -> kitty-specs/066-test/tasks/WP05-x.md"]
+
+      A concrete, reachable instance of this: WP01's OWN non-task-file residue
+      (which FR-007 says must keep blocking) is silently waved through the
+      instant it happens to be involved in a rename whose *new* side lands on
+      a flat WPxx-*.md path for ANY WP number, including an unrelated one:
+
+        classify_dirty_paths(
+            ["kitty-specs/066-test/tasks/WP01-own/scratch.py -> kitty-specs/066-test/tasks/WP99-unrelated.md"],
+            wp_id="WP01", mission_slug="066-test",
+        )
+        -> blocking=[] benign=[...]   # should block -- this is WP01's own uncommitted residue
+
+
+      Bug B (in the new owning_wp_for_path itself): for a rename whose old
+      path matches a DIFFERENT WP's directory and whose new path lands inside
+      the MOVING WP's own directory, ownership resolves from the old path's
+      prefix only (the regex's `/.*$` absorbs the arrow and the new path), so
+      newly-renamed-in content that now lives under the moving WP's own
+      directory is classified benign instead of blocking:
+
+        classify_dirty_paths(
+            ["kitty-specs/066-test/tasks/WP02-foo/old.py -> kitty-specs/066-test/tasks/WP01-own/new.py"],
+            wp_id="WP01", mission_slug="066-test",
+        )
+        -> blocking=[] benign=[...]   # should block -- new.py is WP01's own residue
+
+
+      I confirmed with a real git repo that `git status --porcelain` genuinely
+      emits this composite `"old -> new"` shape for a staged rename (`git mv`
+      then `git status --porcelain` -> `R  <old> -> <new>`), and that the
+      unchanged parsing loop in `_validate_research_artifacts`
+      (`tasks_parsing_validation.py:314`, `file_part = line[3:]`) passes that
+      whole string through as a single dirty path with no split on `" -> "`.
+      This is not purely hypothetical: git's rename detection is
+      similarity-based, not `git mv`-only, and this mission's own review-cycle
+      / task-file scaffolding produces near-identical boilerplate across WP
+      directories -- exactly the shape most likely to trigger a false-positive
+      rename pairing across two different WPs' directories. No test in this
+      diff's three touched test files exercises any rename-form
+      (`" -> "`/`R  `) porcelain line; every new fixture uses only add/modify
+      shapes.
+    remediation: >
+      Reject or normalize rename-form porcelain lines before they reach
+      classify_dirty_paths, at the parsing boundary in
+      `_validate_research_artifacts` (tasks_parsing_validation.py:296-323):
+      split a status-2/3-prefixed rename line on `" -> "` and classify only
+      the *new* path (matching git's own convention that the new path is the
+      file's current location), or explicitly treat any raw line containing
+      `" -> "` as an always-blocking, unattributable path pending real
+      two-sided handling. Independently, harden the regexes themselves so a
+      composite string can never satisfy them end-to-end: anchor
+      `wp_task_pattern` with `^` (or use `fullmatch`/`re.match`) so `.search()`
+      cannot pick up a trailing embedded path, and bound
+      `owning_wp_for_path`'s `(?:\.md|/.*)$` alternation so it cannot swallow
+      a second `kitty-specs/.../` occurrence or an arrow separator (e.g.
+      reject any candidate containing `" -> "` before applying the regex, or
+      require the whole string to contain no further `/tasks/` or `kitty-specs/`
+      occurrence after the first match). Add a regression test in
+      tests/review/test_dirty_classifier.py that feeds a real
+      `"old -> new"` rename string reproducing each of Bug A and Bug B and
+      asserts the result stays blocking.

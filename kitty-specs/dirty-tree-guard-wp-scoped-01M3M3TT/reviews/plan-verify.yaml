@@ -1,0 +1,20 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: Design Decision (b) now gives three concrete, copy-pasteable verification commands (spec-kitty agent tasks status --json, gh pr view --json state,mergedAt, git log main --oneline -- <file>) in place of the prior unaided prose.
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: Design Decision (b) explicitly labels the merged-to-main bar a deliberate, rationale-backed tightening beyond spec.md's C-002/Q1 landed-OR-approved minimum, and the Compatibility section (lines 592-600) now states the same stricter condition and rationale consistently rather than contradicting it.
+  - id: PLAN-GOV-003
+    status: resolved
+    reason: Project Structure's "Correction" note now accurately states classify_dirty_paths IS re-exported via __init__.py's __all__ (verified against src/specify_cli/review/__init__.py, which lists it at line 16), and the plan makes an explicit reasoned call to add owning_wp_for_path to the same imports/__all__ for consistency.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: Plan.md now correctly describes wp_task_pattern's actual over-matching behavior, chooses a genuine design-level fix (tightening the regex from .+ to [^/]+), and independent Python execution confirms the new regex no longer matches spec.md's literal AC3 path or the FR-008 cross-mission nested path while still matching all four pinned flat-.md fixtures from test_other_wp_task_files_are_benign and test_wp_task_file_other_double_digit_is_benign; the Validation Strategy adds explicit tests for both gaps and the mermaid diagram/FR-mapping/Design Decision (c) text were updated to match.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: The Gate Statement now has a separate "Routed test groups" bullet correctly naming the cli filter match and the tests-cli job as a router-gate dependency (verified against .github/workflows/ci-router.yml lines 131-132, 609-625, and the router-gate needs list), and the Validation Strategy's targeted test surface now includes tests/cli/test_move_task_planned_guard.py.

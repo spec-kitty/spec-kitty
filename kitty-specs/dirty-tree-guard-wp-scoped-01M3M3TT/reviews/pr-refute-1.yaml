@@ -1,0 +1,21 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: pr
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: PR-CONTRACT-001
+    verdict: refuted
+    reason: Verified locate_work_package's own case-sensitive regex (src/specify_cli/task_utils/support.py:602) rejects any case/padding-mismatched wp_id with a TaskCliError before st.old_lane is even read in _mt_resolve_targets, so the exploited vector can never reach the dirty-tree guard through move-task; the remaining concern is speculative about a hypothetical future caller, not a proven defect of this diff's actual behavior.
+  - id: PR-CONTRACT-002
+    verdict: confirmed
+    reason: Verified in src/specify_cli/review/__init__.py that __all__ lists classify_dirty_paths but not the new, deliberately-public, cross-module-consumed owning_wp_for_path, a genuine and easily-fixed inconsistency introduced by this diff.
+  - id: PR-CONTRACT-003
+    verdict: refuted
+    reason: The finding's own evidence and claim state this header/rendered-count split is pre-existing and unchanged by this diff (only a variable rename) with no constructible divergence, so it is not a defect of this diff per the verification rubric.
+  - id: PR-TESTS-001
+    verdict: confirmed
+    reason: Verified tasks_move_task.py:973 invokes _validate_ready_for_review identically for FOR_REVIEW/APPROVED/DONE, but spec.md FR-009 requires a failing/passing test reproducing each of the three reported occurrences and #5159 item 4 was specifically reported against `--to approved`; grep confirms no new test invokes `--to approved`, so the letter of FR-009 is unmet for that occurrence even though functional risk is low.
+  - id: PR-TESTS-002
+    verdict: refuted
+    reason: Empirically ran the pre-existing (unmodified by this diff) test_source_files_are_blocking fixture's paths through the new classify_dirty_paths/owning_wp_for_path code and confirmed non-kitty-specs paths (e.g. pyproject.toml) still resolve owner=None and stay blocking, so the spec's named edge case is already covered by existing test execution against the new code, not an actual gap.

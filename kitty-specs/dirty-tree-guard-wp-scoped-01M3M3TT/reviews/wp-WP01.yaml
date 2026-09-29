@@ -1,0 +1,14 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true               # flip to true ONLY at the very end, after the yaml self-check passes
+wp: WP01
+cycle: 1
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+verdict: approved           # approved | rejected — nothing else
+gates_observed:             # what the reviewer saw evidence of, not what was claimed
+  tsc: unknown              # n/a for Python
+  tests: pass
+  coverage: unknown
+feedback:                   # REQUIRED when rejected; empty list when approved
+  []
+# approved with minor notes → severity 1 entries, advisory only.

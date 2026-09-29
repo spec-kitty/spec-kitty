@@ -1,0 +1,244 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: PLAN-GOV-001
+    lens: mission-derived (C-002 sequencing enforcement gap)
+    severity: 3
+    title: C-002/WP02 sequencing gate is stated as prose with no concrete verification command
+    evidence:
+      - artifact: "plan.md § Design Approach and Decisions (b) Refusal-message style harmonization with #5151 WP02, lines 197-207"
+      - artifact: "plan.md § Compatibility, Rollout, and Risks, lines 442-445"
+      - artifact: "plan.md § Implementation Concern Map / IC-01, lines 480-481"
+    claim: >
+      Plan.md's only operationalization of spec's Constraint C-002 ("the orchestrator must
+      manually verify WP02's lane state before starting this mission's implement phase") is:
+      "the orchestrator must confirm WP02 has actually merged to `main` (not merely approved
+      on its own topic branch)... If WP02 is only approved-but-unmerged when this mission is
+      ready to implement, hold implementation and re-check, per Clarifications Q1 / C-002."
+      This names the condition to check (merged-to-main) but never names *how* to check it —
+      no CLI command (e.g. `spec-kitty agent tasks status --mission
+      lane-history-safe-handoff-5151-01M3JR6R --json`), no PR number, no branch reference, no
+      git-log/gh-pr-view invocation. A grep of the whole plan.md for
+      "spec-kitty agent tasks status", "gh pr", "lane state", or "PR #" returns zero matches.
+      Spec.md's own C-002 text has the identical gap ("the orchestrator must manually verify
+      WP02's lane state... since nothing in the tooling enforces it automatically") — the plan
+      was the opportunity to close it with an actual procedure and did not. A future
+      orchestrator session picking up this mission's implement phase (potentially with no
+      memory of this planning session) has nothing concrete to execute; it must invent its own
+      verification method, which risks an inconsistent or skipped check given the mission
+      explicitly states spec-kitty has no cross-mission dependency gate to catch the miss.
+    remediation: >
+      Add one concrete, copy-pasteable verification step to plan.md's Design Decision (b) or the
+      Validation Strategy — e.g. "before claiming implement, run `spec-kitty agent tasks status
+      --mission lane-history-safe-handoff-5151-01M3JR6R --json` and confirm WP02's lane is
+      `done`, OR check the #5151 WP02 PR's merge state via `gh pr view <PR#> --json state,mergedAt`
+      once that PR exists, OR run `git log main --oneline -- src/specify_cli/cli/commands/agent/tasks_parsing_validation.py`
+      and confirm WP02's commit is present" — naming at least one deterministic, executable
+      check rather than leaving "confirm... has actually merged" as unaided prose.
+
+  - id: PLAN-GOV-002
+    lens: mission-derived (C-002 sequencing enforcement gap) / Directive (canonical sources — spec as binding contract)
+    severity: 3
+    title: Plan silently narrows spec's C-002 "landed OR approved" alternative to "merged only"
+    evidence:
+      - artifact: "spec.md § Constraints, C-002, lines 219 (\"...has landed or been reviewed/approved on its own branch.\")"
+      - artifact: "spec.md § Clarifications, Session 2026-09-28, Q1, lines 326-333 (\"hold its implement phase until #5151's WP02 is approved\")"
+      - artifact: "plan.md § Design Approach and Decisions (b), lines 203-207"
+    claim: >
+      Spec.md's C-002 (and its Clarifications Q1 answer, which is the operator-ruled resolution
+      of exactly this question) states the implement phase may start once WP02 has "landed OR
+      been reviewed/approved on its own branch" — approval alone is explicitly sufficient per
+      the spec's binding contract. Plan.md's Design Decision (b) replaces this OR-condition with
+      an AND-stricter single condition: "the orchestrator must confirm WP02 has actually merged
+      to `main` (not merely approved on its own topic branch)... If WP02 is only
+      approved-but-unmerged when this mission is ready to implement, hold implementation and
+      re-check." This is presented as merely a "residual... implementation-sequencing note, not
+      a C-002 duplicate," but its actual effect is to redefine C-002's satisfaction condition,
+      dropping the "approved-on-its-own-branch" branch spec.md explicitly names as sufficient.
+      The plan never flags this as an intentional amendment to the spec's already-clarified
+      constraint, nor explains why the operator's Q1 ruling ("hold... until #5151's WP02 is
+      approved") is being superseded by a stricter merge-only bar.
+    remediation: >
+      Either (a) explicitly state in Design Decision (b) that this is a deliberate, stricter
+      tightening of C-002 beyond what spec.md's Clarifications Q1 requires, with the rationale
+      (residual same-file merge risk) spelled out as the reason the plan chooses not to rely on
+      the spec's "approved but unmerged" alternative, so a reviewer/future orchestrator can see
+      the deviation is intentional rather than an oversight; or (b) align plan.md's gating
+      condition back to spec's stated OR (merged OR approved-on-its-own-branch) and instead
+      document the residual merge-conflict risk as a *risk to monitor* rather than a stricter
+      gate.
+
+  - id: PLAN-GOV-003
+    lens: Directive (canonical sources / single-owning-source accuracy)
+    severity: 2
+    title: "Project Structure section misstates __init__.py: classify_dirty_paths IS re-exported"
+    evidence:
+      - artifact: "plan.md § Project Structure, lines 79-82"
+      - code: "src/specify_cli/review/__init__.py:7 (`from specify_cli.review.dirty_classifier import classify_dirty_paths`) and :14 (`classify_dirty_paths` listed in `__all__`)"
+    claim: >
+      Plan.md states: "`src/specify_cli/review/__init__.py` (confirms `owning_wp_for_path` is
+      imported the same way `tasks_parsing_validation.py` already imports
+      `classify_dirty_paths` — directly from the `dirty_classifier` submodule, **not re-exported
+      from the package `__init__`**, so `__init__.py` stays untouched and outside C-003's blast
+      radius)." Reading `src/specify_cli/review/__init__.py` directly shows this is factually
+      wrong: it already imports `classify_dirty_paths` from `dirty_classifier` and lists it in
+      `__all__` — i.e. `classify_dirty_paths` **is** re-exported from the package `__init__`
+      today. The plan's own Design Decision (a) deliberately makes `owning_wp_for_path` public
+      "matching the existing `classify_dirty_paths` precedent" — but the actual precedent
+      includes appearing in `__init__.py`'s `__all__`, which the plan's (factually incorrect)
+      premise is used to justify skipping. This does not break the mechanism (the CLI layer's
+      direct submodule import still works either way), but it is a verified-against-code error
+      that could leave `owning_wp_for_path` as an inconsistent public surface relative to its
+      own cited precedent.
+    remediation: >
+      Correct the Project Structure note to state accurately that `classify_dirty_paths` IS
+      currently re-exported via `__init__.py`'s `__all__`, then make an explicit, reasoned call
+      on `owning_wp_for_path`: either add it to `__init__.py`'s imports/`__all__` for consistency
+      with the cited precedent (a one-line addition, arguably still within C-003's blast radius
+      as a necessary consequence of the "public, matching precedent" design decision), or state
+      explicitly why the new helper should NOT follow the same re-export precedent it claims to
+      match.
+
+  - id: PLAN-ARCH-001
+    lens: Ownership regex correctness / no over-match
+    severity: 4
+    title: >-
+      Pre-existing wp_task_pattern already matches nested .md paths across
+      directory AND mission boundaries, silently defeating spec.md's own AC3
+      (own-WP residue must still block) and undermining FR-008's mission
+      scoping — before owning_wp_for_path is ever consulted
+    evidence:
+      - artifact: "plan.md § Design Approach and Decisions, (a) Per-path ownership attribution mechanism"
+      - artifact: "plan.md § Design Approach and Decisions, (c) The two existing wp_id-blind pinned tests"
+      - artifact: "plan.md § Data and Control Flow (mermaid), node C/D"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 3"
+      - artifact: "spec.md § Requirements, FR-007"
+      - artifact: "spec.md § Requirements, FR-008"
+      - code: "src/specify_cli/review/dirty_classifier.py:81 (_is_review_handoff_survivor_path's wp_task_pattern = re.compile(r\"kitty-specs/[^/]+/tasks/WP\\d+-.+\\.md$\"))"
+      - code: "src/specify_cli/review/dirty_classifier.py:93-115 (_is_benign calls _is_review_handoff_survivor_path)"
+      - code: "src/specify_cli/review/dirty_classifier.py:144-150 (classify_dirty_paths's existing loop: _is_benign is checked first)"
+    claim: >-
+      Plan.md's Design Decision (a) describes the pre-existing
+      `_is_review_handoff_survivor_path` regex as generalizing only "the flat
+      .md-only convention", and its flow diagram (node C→D) labels the branch
+      `_is_benign` handles as "any-WP flat .md task file" — implying only
+      flat `tasks/WPxx-*.md` paths short-circuit before `owning_wp_for_path`
+      is consulted. This is factually wrong about the CURRENT, UNMODIFIED
+      regex. `wp_task_pattern = re.compile(r"kitty-specs/[^/]+/tasks/WP\d+-.+\.md$")`
+      uses `[^/]+` for the mission-slug segment and `.+` for everything after
+      `WP<n>-`; Python's `.` matches `/` by default, so this pattern already
+      matches ANY nested `.md` file under ANY WP directory, in ANY mission,
+      regardless of `wp_id`. Verified directly by executing the actual regex
+      from dirty_classifier.py:81 against
+      `kitty-specs/<slug>/tasks/WP01-foo/scratch.md` (spec.md's own literal
+      AC3 example path, where WP01 is the WP being moved) — it returns a
+      match, so `_is_benign` already returns `True` for this path today, and
+      will continue to under plan.md's design since Design Decision (c)
+      states `_is_benign`/`_is_review_handoff_survivor_path` are left
+      unmodified. In `classify_dirty_paths`'s proposed loop (plan.md's code
+      block under (a)), the `if _is_benign(path, wp_id): benign.append(path); continue`
+      branch fires FIRST and unconditionally for this path — `owning_wp_for_path`
+      is never reached, `owner == wp_id` (FR-007's blocking branch) is never
+      evaluated, and the path lands in `benign`. This means `move-task WP01`
+      would NOT block on its own uncommitted `scratch.md` residue,
+      contradicting spec.md's explicit AC3 ("the transition still blocks on
+      that path") and FR-007 ("Own-directory residue is not exempted")
+      outright.
+      A second, related consequence: the same pattern's `[^/]+` mission-slug
+      segment is NOT scoped to the caller's `mission_slug` — it matches any
+      mission's slug literally. So a nested `.md` file under a DIFFERENT
+      mission's `kitty-specs/<other-slug>/tasks/WP01-foo/x.md` (FR-008's
+      named edge case, "Ownership check is scoped to the current mission")
+      is ALSO already routed to `benign` by the unmodified `_is_benign`
+      check, independent of whether the new `owning_wp_for_path` helper is
+      itself correctly `mission_slug`-anchored (it is, but that correctness
+      is moot here because `_is_benign` short-circuits first for any
+      matching `.md` path). Verified directly: the identical
+      dirty_classifier.py:81 regex matches
+      `kitty-specs/other-slug/tasks/WP01-foo/x.md` even when the caller's
+      `mission_slug` is `"slug"`.
+      Plan.md's own IC-01 test-coverage plan for FR-007 specifically
+      describes testing "own-directory NON-task-file residue" (plan.md §
+      Implementation Concern Map, IC-01 "Relevant requirements" /
+      Validation Strategy step 2) — i.e. deliberately avoiding the `.md`
+      extension for that FR row — so the plan's own validation strategy will
+      not catch this gap; an implementer following plan.md as written would
+      ship spec.md's AC3 broken and undetected by the plan's stated tests.
+    remediation: >-
+      Before implementation, resolve this at the design level in plan.md,
+      not as an implementation afterthought: either (a) tighten
+      `_is_review_handoff_survivor_path`'s `wp_task_pattern` itself (e.g. to
+      `WP\d+-[^/]+\.md$`, disallowing `.` from crossing `/`, and/or anchoring
+      the mission-slug capture to the caller's `mission_slug` the same way
+      the new `owning_wp_for_path` does) so it no longer matches nested or
+      cross-mission `.md` residue — which requires plan.md to retract Design
+      Decision (c)'s "no re-pinning, left alone unmodified" stance for this
+      function and add it to the edited-surfaces list (still within C-003's
+      named file, `dirty_classifier.py`, so blast radius is unaffected); or
+      (b) reorder `classify_dirty_paths` so that for any path matching the
+      `tasks/WP<n>-*/` directory shape, `owning_wp_for_path` is consulted
+      BEFORE (or instead of) the nested-`.md`-crossing branch of
+      `_is_benign`, so `owner == wp_id` can still route to `blocking` even
+      when the legacy survivor pattern would otherwise claim it. Either way,
+      plan.md's Validation Strategy must add an explicit test asserting
+      spec.md's literal AC3 path
+      (`kitty-specs/<slug>/tasks/WP01-foo/scratch.md`, moving WP is WP01)
+      resolves to `blocking`, and a companion test for the FR-008
+      cross-mission nested-`.md` case
+      (`kitty-specs/<other-slug>/tasks/WP01-foo/x.md` while `mission_slug`
+      is the current mission) also resolves to `blocking` (or a non-`benign`
+      outcome) rather than relying only on the "non-task-file" FR-007 test
+      currently planned.
+
+  - id: PLAN-VERIFY-001
+    lens: Gates / Baseline accuracy
+    severity: 3
+    title: >-
+      Gate Statement omits the ci-router.yml `cli` path-filter match and the
+      `tests-cli` routed-test-group job this mission's own diff triggers, and
+      conflates "routed test groups" with per-module shards
+    evidence:
+      - artifact: "plan.md § Gate Statement (\"Routed test groups\" bullet, lines ~289-290)"
+      - code: ".github/workflows/ci-router.yml:130-131 — the `cli:` dorny/paths-filter entry is `- 'src/specify_cli/cli/**'`, a glob that also matches `src/specify_cli/cli/commands/agent/**` (this mission's own C-003 blast-radius file `tasks_parsing_validation.py` lives there)."
+      - code: ".github/workflows/ci-router.yml:609-620 — job `tests-cli` (`if: needs.changes.outputs.cli == 'true'`) runs `uv run --frozen pytest tests/cli -q`, a full ~67-file suite, on any diff that trips the `cli` filter."
+      - code: ".github/workflows/ci-router.yml:704-730 — `router-gate` (the terminal required check) lists `tests-cli` in its own `needs:`, so a `tests-cli` failure or cancellation blocks the router gate exactly like `tests-status`/`tests-docs`/`tests-corpus`/`tests-e2e` do."
+      - code: "tests/cli/test_move_task_planned_guard.py — imports `_do_move_task`/`_MoveTaskArgs` from `specify_cli.cli.commands.agent.tasks`; `src/specify_cli/cli/commands/agent/tasks_move_task.py:90` imports directly from `tasks_parsing_validation.py` (the file this mission edits), so this test exercises the same `move-task` code path IC-02 changes."
+      - command: "grep -n \"^\\s*cli:\" -A1 .github/workflows/ci-router.yml → 'src/specify_cli/cli/**'; grep -rl \"move-task\\|move_task\" tests/cli/ → tests/cli/test_move_task_planned_guard.py, tests/cli/test_tasks_finalize_lanes_minting.py"
+    claim: >-
+      Plan.md's Gate Statement (which the plan explicitly frames as authoritative and
+      instructs a later `verify` pass not to second-guess) states only that the `review`
+      and `execution_context` module shards run for this diff, under a bullet labelled
+      "Routed test groups." This both mislabels the concept — SKILL.md's authoritative
+      gate table (the one plan.md itself cites) treats "routed test groups"
+      (`tests-status`/`tests-cli`/`tests-docs`/`tests-corpus`/`tests-e2e`, owned by
+      ci-router.yml) as a category distinct from "per-module test shards"
+      (`.github/ci-module-registry.yml` rows, owned by ci-modules.yml) — and omits an
+      actually-triggered routed test group. `src/specify_cli/cli/commands/agent/tasks_parsing_validation.py`
+      (named explicitly in plan.md's own Project Structure and C-003 blast radius) matches
+      the `cli:` paths-filter (`src/specify_cli/cli/**`), independently of the
+      `execution_context` match already disclosed. This fires ci-router.yml's `tests-cli`
+      job — a full `pytest tests/cli -q` run that IS one of `router-gate`'s required
+      dependencies — with zero mention anywhere in the Gate Statement. It is also a real
+      blast-radius gap, not just a labelling nit: `tests/cli/test_move_task_planned_guard.py`
+      exercises `_do_move_task`, which imports from the very file this mission's IC-02
+      edits (`tasks_move_task.py:90` imports `tasks_parsing_validation`), yet neither this
+      test file nor the `tests/cli` directory appears anywhere in the plan's "Targeted
+      implementation test surface" or Validation Strategy — violating AGENTS.md's own
+      blast-radius rule ("for every source module your diff touches, run its own test
+      file(s)... when the mirror is not obvious, find the tests that exercise the module:
+      `grep -rl \"<module_name>\" tests/`").
+    remediation: >-
+      In plan.md's Gate Statement, split the single "Routed test groups" bullet into two
+      accurate statements: (1) note that the `cli:` filter (`src/specify_cli/cli/**`) also
+      matches `tasks_parsing_validation.py` and independently fires ci-router.yml's
+      `tests-cli` job (`pytest tests/cli -q`), which is a `router-gate` dependency; (2) keep
+      the existing `review`/`execution_context` per-module-shard citations under their own,
+      correctly-labelled "per-module test shards" heading. In the Validation Strategy's
+      "Targeted implementation test surface," add `tests/cli/test_move_task_planned_guard.py`
+      (found via `grep -rl "move-task\|move_task" tests/cli/`) to the locally-run targeted
+      test list, since it exercises `_do_move_task`, which imports from the edited
+      `tasks_parsing_validation.py` module — this satisfies the charter's own blast-radius
+      rule without requiring a full `tests/cli/` run (consistent with NO_FULL_HEAVY_SUITES_IN_MISSION).

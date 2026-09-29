@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#16": {
+      "evidence_ref": "Not a GitHub issue: analysis-report.md prose 'decision #16' (tracer-design-decisions entry number); scanner false positive, ledger SK-269",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5007": {
+      "evidence_ref": "WP01 8e1907e63 (ownership scoping) + WP02 (refusal attribution); see spec.md scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#5151": {
+      "evidence_ref": "WP01 8e1907e63 (ownership scoping) + WP02 (refusal attribution); see spec.md scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#5159": {
+      "evidence_ref": "WP01 8e1907e63 (ownership scoping) + WP02 (refusal attribution); see spec.md scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

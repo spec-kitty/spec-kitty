@@ -1,0 +1,72 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 2
+results:
+  - id: PR-FRESH-001
+    status: resolved
+    evidence: >
+      Reran both refuter repros (pr-refute-2.yaml) through the REAL
+      _validate_research_artifacts end-to-end entry point, in a scratch git
+      repo with real `git mv` staged renames (not mocked porcelain strings):
+      (1) Bug A instance -- WP01's own file `tasks/WP01-own/scratch.py`
+      renamed onto a flat `tasks/WP99-target.md` -- now BLOCKS, attributed
+      "owned by WP01" (was fail-open pre-fix). (2) Bug B instance -- WP02's
+      `tasks/WP02-foo/old.py` renamed into `tasks/WP01-own/new.py` -- now
+      BLOCKS, attributed "owned by WP01" (was fail-open pre-fix).
+      Additional variants run against the real function: a rename of WP02's
+      file to a path outside kitty-specs/ stays benign for WP01 and
+      correctly blocks for WP02 (git's pathspec-scoped status reports it as
+      a plain delete, not a rename, so no composite string reaches the
+      classifier -- expected, not a regression); a rename where BOTH sides
+      are other WPs' directories (WP02-foo -> WP03-bar) stays benign for
+      WP01 (no false block); an "RM" status (staged rename + further
+      unstaged edit) blocks correctly, attributed to WP01; a filename that
+      itself contains the literal " -> " separator, quoted by git in
+      porcelain output, mis-splits the entry (pre-existing "old -> new"
+      split logic and line[3:] parsing do not unquote paths) but the
+      mis-split fragments never match the ownership regex so the entry
+      stays blocking (fail-closed) both for own-residue and for an
+      unrelated cross-WP rename between two OTHER WPs -- verified this
+      exact quoted-filename false-block is IDENTICAL pre-fix (confirmed by
+      reverting the fix's src diff and rerunning the same case: also
+      blocked before 55e40cb91), so it is a pre-existing parsing limitation
+      unrelated to and not introduced by this diff, and it fails safe, not
+      open. No git-emitted "C  old -> new" copy line was reproducible with
+      the guard's actual invocation (`git status --porcelain <feature_dir>`,
+      no copy-detection flags) -- git status does not detect copies without
+      explicit config/flags this guard does not pass, so that shape is not
+      reachable through the real entry point.
+
+      Honest revert: `git diff 3a685e87e 55e40cb91 -- src` reverse-applied
+      cleanly (`git apply -R`), all 6 new tests
+      (test_wp_task_pattern_rejects_composite_rename_tail_bug_a,
+      test_classify_dirty_paths_rename_composite_bug_a_stays_blocking,
+      test_owning_wp_for_path_rejects_composite_rename_bug_b,
+      test_classify_dirty_paths_rename_composite_bug_b_stays_blocking,
+      test_owning_wp_for_path_rejects_second_kitty_specs_occurrence,
+      test_move_task_refuses_real_git_rename_into_own_directory) failed on
+      behavioral assertions (not collection/import errors), confirming they
+      are honest RED tests tied to the fix; `git apply` restored the fix
+      and `git status --porcelain` showed no tracked changes afterward.
+
+      Regression: `.venv/bin/python -m pytest
+      tests/review/test_dirty_classifier.py
+      tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py
+      tests/specify_cli/cli/commands/agent/test_tasks.py
+      tests/specify_cli/acceptance/test_accept_dirty_kitty_ops.py -q` ->
+      121 passed. ruff check on the 5 touched files (2 src, 3 test) -> all
+      checks passed. Repo-wide `ruff format --check .` -> 2612 files
+      already formatted (clean).
+
+      Scope: `git diff 4fcf5741e~3..4fcf5741e --stat` touches exactly the 5
+      frozen files (tasks_parsing_validation.py, dirty_classifier.py,
+      test_dirty_classifier.py, test_tasks.py) plus tracer-approach.md --
+      no sixth file. `_check_kitty_specs_contamination` (line 652 of
+      tasks_parsing_validation.py) does not appear in the diff and is
+      unchanged. `classify_dirty_paths` still returns the `tuple[list[str],
+      list[str]]` (blocking, benign) 2-tuple. spec.md FR-005 wording
+      (per-line attribution: "owned by {wp}" or "not attributable") is
+      preserved verbatim.
+new_issues: []
+suite: "121 passed (test_dirty_classifier.py + test_tasks_parsing_validation.py + test_tasks.py + test_accept_dirty_kitty_ops.py); ruff check clean on 5 touched files; ruff format --check . clean (2612 files)"

@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "4cecd32b8f91102342f926c6121d838a7c7d6b71",
+  "created_at": "2026-09-28T13:38:53.958947+00:00",
+  "flattened": false,
+  "friendly_name": "Execution friction: per-WP approval gated by mission-wide issue-matrix; review-cycle artifacts block the next WP transition",
+  "merged_at": "2026-09-28T17:55:29.453541+00:00",
+  "merged_commit": "4cd31695c627f1d1213aef2e805b571d5896ca52",
+  "mid8": "01M3M3TT",
+  "mission_id": "01M3M3TTBNFCZD63VXRYJP8E2C",
+  "mission_number": null,
+  "mission_slug": "dirty-tree-guard-wp-scoped-01M3M3TT",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Execution friction: per-WP approval gated by mission-wide issue-matrix; review-cycle artifacts block the next WP transition on issue-5007-dirty-tree-guard-wp-scoped so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Execution friction: per-WP approval gated by mission-wide issue-matrix; review-cycle artifacts block the next WP transition",
+  "slug": "dirty-tree-guard-wp-scoped-01M3M3TT",
+  "status_phase": "1",
+  "target_branch": "issue-5007-dirty-tree-guard-wp-scoped",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T16:44:02.548747+00:00"
+}

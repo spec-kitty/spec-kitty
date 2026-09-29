@@ -1,0 +1,34 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      FR-005, User Story 2 Acceptance Scenario 3, Key Entities "Ownership Attribution", and
+      User Story 2's overview all now describe only the two reachable outcomes (the moving
+      WP's own residue via FR-007, or "not attributable" via FR-004), each with an inline
+      parenthetical explaining why "a different specific WP" cannot occur; independent
+      re-verification against FR-001/FR-002/FR-003's text (any path under another WP's task
+      directory, any extension, directory-only form, routes to benign) confirms the third
+      outcome is genuinely structurally unreachable, matching the current `_is_benign` /
+      `classify_dirty_paths` directory-convention pattern this mission generalizes.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >
+      Key Entities' "Dirty Path Classification" bullet no longer asserts the "new sibling
+      helper" as decided fact; it now lists it as one of three named options (new helper,
+      extending classify_dirty_paths's return, or reusing _is_benign) with the mechanism
+      choice explicitly deferred to plan.md, mirroring the C-002/Clarifications-Q1 precedent
+      and removing the prior tension with C-003's named blast radius, while Acceptance
+      Scenario 3's wording (each blocking line annotated with its own determined owner) is
+      unchanged and remains independently testable regardless of which mechanism plan.md
+      picks.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >
+      Both User Story 1's Acceptance Scenario 2 and its Independent Test now carry the
+      "kitty-specs/<slug>/tasks/ parent directory already tracked" caveat inline, with an
+      explicit cross-reference to the Edge Cases note and, in Scenario 2, an added clarification
+      that a fully-untracked kitty-specs/ fixture exercises the FR-004 fallback instead — a test
+      author can no longer build the degenerate fixture from Scenario 2's wording alone.

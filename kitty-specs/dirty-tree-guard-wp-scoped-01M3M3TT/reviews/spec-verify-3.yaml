@@ -1,0 +1,31 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      Clarifications Session 2026-09-28 Q2 (spec.md lines 337-345) now says a same-mission
+      other-WP path "passes as benign" and that any mention of WPxx is confined to a
+      non-blocking "informational note", explicitly stating "A blocking line's owner is thus
+      always either the moving WP itself or 'not attributable' - never a different, specific
+      WP - see FR-005"; the underlying logic was re-verified against classify_dirty_paths /
+      _is_benign in src/specify_cli/review/dirty_classifier.py and the FR-001/002/003-into-FR-005
+      routing holds because all three route on the same WP-task-directory path convention, and a
+      full-document grep for "WPxx" found no other instance of a blocking refusal naming a
+      different specific WP as owner.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >-
+      Key Entities "Dirty Path Classification" (spec.md lines 228-240) now lists only two
+      deferred mechanism options - "a new sibling per-path ownership-lookup helper in
+      dirty_classifier.py, or reusing the existing _is_benign predicate" - dropping "extending
+      what classify_dirty_paths returns", and adds an explicit "without changing
+      classify_dirty_paths's return shape" clause plus all three named call sites, making the
+      paragraph internally consistent with its opening "without changing the shape of the return
+      value" sentence; independently confirmed the plain 2-tuple unpack
+      (blocking, benign = classify_dirty_paths(...)) is still the call shape at
+      tasks_parsing_validation.py:307, the dirty_classifier.py module docstring example, and
+      tests/specify_cli/acceptance/test_accept_dirty_kitty_ops.py:255/265, and a full-document
+      grep for "classify_dirty_paths" found no other instance of the "extend the return shape"
+      contradiction pattern.

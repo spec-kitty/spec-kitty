@@ -1,0 +1,63 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: PLAN-FRESH2-001
+    lens: fresh-sweep-round-2
+    severity: 2
+    title: "\"Rejected alternative\" cites three wp_id-blind test_dirty_classifier.py tests, but Design Decision (c) only names and decides on two"
+    evidence:
+      - artifact: "plan.md § Design Approach and Decisions, (a) Per-path ownership attribution mechanism, \"Rejected alternative\" paragraph (line 247)"
+      - artifact: "plan.md § (c) The two existing wp_id-blind pinned tests (heading, line 310; decision text, lines 312-313)"
+      - code: "tests/review/test_dirty_classifier.py:53 test_other_wp_task_files_are_benign, :68 test_own_task_file_is_benign, :170 test_wp_task_file_other_double_digit_is_benign — all three call _classify() on a flat WPxx-*.md path and assert benign regardless of wp_id, i.e. all three are wp_id-blind at the mechanism level (verified by reading the file directly)."
+    claim: >
+      Design Decision (a)'s "Rejected alternative" paragraph says reusing `_is_benign` was rejected
+      partly because it is called "by three `test_dirty_classifier.py` tests that intentionally
+      assert wp_id-blind behavior (see (c) below)". But (c)'s heading is literally "The two existing
+      wp_id-blind pinned tests" and its Decision/Reasoning text names and rules on exactly two:
+      `test_other_wp_task_files_are_benign` and `test_wp_task_file_other_double_digit_is_benign`.
+      The third wp_id-blind test that actually exists, `test_own_task_file_is_benign` (own-WP flat
+      task file, also routed through the unchanged `_is_benign`/`wp_task_pattern` path regardless of
+      wp_id), is never named in (c) at all — it only appears elsewhere in the plan (the Mutation
+      controls section and spec.md's Edge Cases) as an aside confirming it is unaffected, with no
+      formal "stays unmodified, no re-pinning" ruling of its own. This is a real miscount/omission,
+      not merely stylistic: a reader following the "(see (c) below)" pointer to find the third test's
+      treatment will not find it there. It predates both review rounds (this text is untouched by the
+      709ede3a0→11c9e61f0 diff) and neither fix round caught it while overhauling the adjacent (c)
+      reasoning for PLAN-ARCH-001.
+    remediation: >
+      Either retitle/expand (c) to "The three existing wp_id-blind pinned tests" and add
+      `test_own_task_file_is_benign` to its Decision/Reasoning (noting it is unaffected by the
+      wp_task_pattern tightening because a flat own-directory path is unchanged by the `.+` → `[^/]+`
+      edit, same argument already used for the other two), or correct "Rejected alternative" to say
+      "two" and drop the "(see (c) below)" implication that a third test is covered there.
+
+  - id: PLAN-FRESH2-002
+    lens: fresh-sweep-round-2
+    severity: 2
+    title: "IC-01's \"Relevant requirements\" list still tags FR-006 \"(preserved, untouched)\", contradicting Design Decision (a)'s own PLAN-ARCH-001 companion fix which edits the code backing FR-006"
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map, IC-01, \"Relevant requirements\" bullet (line 625): \"FR-001, FR-002, FR-003, FR-004, FR-006 (preserved, untouched), FR-007, FR-008; ...\""
+      - artifact: "plan.md § Implementation Concern Map, IC-01, \"Affected surfaces\" bullet two lines below (lines 627-629): \"edited `classify_dirty_paths`, edited `_is_review_handoff_survivor_path`'s `wp_task_pattern` literal — tightened per Design Decision (a)/PLAN-ARCH-001 remediation\""
+      - artifact: "plan.md § (c) The two existing wp_id-blind pinned tests, \"Reasoning (revised...)\" (lines 317-319): \"`_is_review_handoff_survivor_path`'s `wp_task_pattern` is **not** left unmodified by this mission — Design Decision (a)'s companion fix above tightens it ... which is a real, in-scope edit to this function.\""
+    claim: >
+      FR-006 ("existing wp_id-blind `.md` task-file benign behavior is preserved") is the
+      requirement whose implementing code is exactly `_is_review_handoff_survivor_path`'s
+      `wp_task_pattern` — the same literal the PLAN-ARCH-001 companion fix tightens
+      (`.+` → `[^/]+`) in this same mission. The plan itself, in (c)'s revised reasoning, explicitly
+      retracts the premise that this function is "unmodified" — that retraction is the whole point
+      of the PLAN-ARCH-001 fix round. Yet the IC-01 "Relevant requirements" line was never updated
+      and still parenthetically labels FR-006 "(preserved, untouched)" — a direct textual
+      contradiction of "not left unmodified" two sections earlier in the same document, and of the
+      "Affected surfaces" bullet immediately below it in the same IC-01 block, which correctly lists
+      the `wp_task_pattern` literal as an edited surface. This is the same class of half-reverted,
+      self-contradicting artifact the mission brief calls out (an "untouched" claim orphaned by a
+      later in-scope edit), just in a different location than the `__init__.py` scope-creep the
+      first fresh sweep found. Low practical risk since the correct information is restated two
+      lines below, but it is a genuine, unresolved contradiction within one document.
+    remediation: >
+      Change "FR-006 (preserved, untouched)" to something like "FR-006 (behavior preserved; backing
+      code edited — see Design Decision (a)/PLAN-ARCH-001)" so the annotation matches the Affected
+      Surfaces bullet immediately below it and the retracted premise in Design Decision (c).

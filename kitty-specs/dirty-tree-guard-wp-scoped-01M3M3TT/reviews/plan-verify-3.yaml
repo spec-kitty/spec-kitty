@@ -1,0 +1,30 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >-
+      Design Decision (c) (plan.md lines 310-342) is now retitled "The three existing
+      wp_id-blind pinned tests," its Decision line (312-313) formally names all three
+      (test_other_wp_task_files_are_benign, test_wp_task_file_other_double_digit_is_benign,
+      test_own_task_file_is_benign) as staying unmodified, and its Reasoning distinguishes the
+      cross-WP pair (traces to FR-006) from the own-WP test_own_task_file_is_benign (traces to
+      spec.md's Edge Cases) while explaining why all three remain wp_id-blind at the mechanism
+      level; the "(see (c) below)" pointer in the Rejected alternative paragraph (line 248) now
+      lands on a section that genuinely covers all three tests it references. Confirmed
+      test_own_task_file_is_benign is a real, accurately-characterized test by reading
+      tests/review/test_dirty_classifier.py:68-74 directly (flat WP01 task file, checked with
+      wp_id="WP01", asserted benign) — matches the plan's description exactly.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >-
+      IC-01's "Relevant requirements" line (plan.md lines 635-637) now reads "FR-006 (observable
+      behavior preserved ... backing wp_task_pattern literal is edited, tightening its
+      over-match scope, not left untouched — see Design Decision (a)/(c) and PLAN-ARCH-001)",
+      which matches both the "Affected surfaces" bullet two lines below (edited wp_task_pattern
+      literal) and Design Decision (c)'s "not left unmodified" text (line 327) — the prior
+      blanket "(preserved, untouched)" contradiction is gone, and a whole-document sweep found
+      no other stale "FR-006 ... untouched" instance; the remaining test_own_task_file_is_benign
+      references (lines 587, 337-338) correctly scope "unaffected"/"unchanged" to observable
+      behavior, not to the code being unmodified, consistent with (c)'s revised text.

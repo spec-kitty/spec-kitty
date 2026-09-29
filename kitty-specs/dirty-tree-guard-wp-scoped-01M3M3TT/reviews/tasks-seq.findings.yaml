@@ -1,0 +1,37 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: TASKS-SEQ-001
+    lens: chokepoint naming for the lane-transition guard itself
+    severity: 3
+    title: WP01/tasks.md never state, at top level, that dirty_classifier.py is shared guard infrastructure for every in-flight mission — only the #5151 file-overlap chokepoint is surfaced prominently
+    evidence:
+      - artifact: "spec.md § Compatibility & Reflexivity (lines 271-290): \"Because move-task's guard is shared infrastructure, this is a compatibility-relevant change for every in-flight mission using it, not only the missions that reported the defect.\""
+      - artifact: "plan.md § Compatibility, Rollout, and Risks (lines 593-597), the \"Compatibility\" bullet, which carries the general (all-missions) framing forward from spec.md"
+      - artifact: "tasks.md and tasks/WP01-wp-scoped-ownership-attribution.md: the only occurrence of \"Compatibility & Reflexivity\" anywhere in tasks.md or WP01 is a parenthetical citation inside T003 step 8 (\"test_no_previously_benign_path_becomes_blocking (Compatibility & Reflexivity, plan.md Design Decision (d))\"); no sentence in either file states that this WP edits shared infrastructure every currently-running mission's `move-task` depends on"
+    claim: >
+      Lens 4 requires tasks.md/WP01 to call out, explicitly, that this mission's WP01 change to
+      `src/specify_cli/review/dirty_classifier.py` is a chokepoint affecting in-flight missions
+      generally, not only the #5151 file-overlap chokepoint that WP02 is gated on. tasks.md's
+      "Known, accepted cross-mission file overlap" section and WP01's "Mission-level pre-implement
+      gate" section both discuss only the #5151-specific hold (a WP02 file-collision concern).
+      Neither artifact restates spec.md's broader Compatibility & Reflexivity claim — that
+      `dirty_classifier.py` backs `move-task` for every mission currently in flight, so any regression
+      in WP01's regex/logic change is compatibility-relevant repo-wide, independent of the #5151
+      hold. The only trace of this broader concern in tasks.md/WP01 is a citation tag on one test
+      subtask (T003 step 8), not an explicit risk statement a WP01 implementer or reviewer would
+      read as "handle this with extra care because it is shared infrastructure." This under-states
+      the blast radius relative to spec.md's own framing and risks an implementer/reviewer treating
+      WP01's regex change as low-stakes/local when it is not.
+    remediation: >
+      Add one explicit sentence to WP01's "Objective" or "Risks" section (and optionally to tasks.md's
+      "Known, accepted cross-mission file overlap" heading or a new adjacent note) stating, in
+      substance: "dirty_classifier.py implements the dirty-tree guard every currently-running
+      mission's `move-task` depends on (spec.md Compatibility & Reflexivity); this WP's regex/logic
+      change is therefore compatibility-relevant for every in-flight mission, not only #5151 — the
+      `test_no_previously_benign_path_becomes_blocking` regression test (T003 step 8) is the concrete
+      proof obligation for that guarantee, not merely one more unit test." This makes the existing
+      citation load-bearing instead of incidental, without changing any code or test scope.

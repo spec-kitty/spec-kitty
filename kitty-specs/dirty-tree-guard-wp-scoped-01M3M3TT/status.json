@@ -1,0 +1,83 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M3MJGP9ZE3DWPWH7XCJ8MWMK",
+  "materialized_at": "2026-09-28T17:55:30.751899+00:00",
+  "mission_number": "",
+  "mission_slug": "dirty-tree-guard-wp-scoped-01M3M3TT",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3MJGNCWGMQ50107GXJ3PXEA",
+      "last_transition_at": "2026-09-28T17:55:29.820665+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T004 done; GREEN; gates pass",
+        "Review passed (reviewer-renata, cycle 1): no findings; revert-check RED confirmed; 111 targeted passed. Verdict: kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/reviews/wp-WP01.yaml"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 86592,
+      "shell_pid_created_at": "1790613835.49",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3MJGP9ZE3DWPWH7XCJ8MWMK",
+      "last_transition_at": "2026-09-28T17:55:30.751899+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed (reviewer-renata, cycle 1): one sev-1 advisory (pre-existing count/list divergence); revert-check RED confirmed; 114 targeted passed. Verdict: kitty-specs/dirty-tree-guard-wp-scoped-01M3M3TT/reviews/wp-WP02.yaml"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 430132,
+      "shell_pid_created_at": "1790616248.87",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}

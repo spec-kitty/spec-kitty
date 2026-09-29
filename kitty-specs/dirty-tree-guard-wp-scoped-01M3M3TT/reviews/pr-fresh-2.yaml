@@ -1,0 +1,79 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-2
+mission: dirty-tree-guard-wp-scoped-01M3M3TT
+findings:
+  - id: PR-FRESH2-001
+    lens: attribution-honesty divergence (round-2 fix, rename-entry attribution)
+    severity: 3
+    title: "_attribute_blocking_entry re-derives ownership from owning_wp_for_path alone, skipping _is_benign, so a rename entry that blocks because of a genuinely unattributable path can be mislabeled \"owned by {wp_id}\" when its OTHER (benign-exempted) side happens to match the moving WP's own directory pattern"
+    evidence:
+      - artifact: "spec.md FR-005 (\"the guidance text to name the path's actual determined owner ... instead of unconditionally asserting the WP being moved owns it regardless of which case applies\")"
+      - artifact: "spec.md Key Entities – Dirty Path Classification (\"Per-path ownership for a mixed-ownership blocking list (FR-005 ...) must be resolved for each blocking path without diverging from classify_dirty_paths's own blocking/benign partition\")"
+      - code: "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:263-283 (_attribute_blocking_entry loops `paths` and calls `owning_wp_for_path` directly — it never consults `_is_benign`, unlike `classify_dirty_paths` at dirty_classifier.py:214-221, which checks `_is_benign` FIRST and only falls through to `owning_wp_for_path` when `_is_benign` is False)"
+      - code: "src/specify_cli/review/dirty_classifier.py:129-132 (_is_benign) and :95-131 (is_self_bookkeeping_churn matches ANY basename == \"meta.json\" via `PurePosixPath(normalized).name`, regardless of directory nesting)"
+    claim: >
+      Verified end-to-end through the real `_validate_research_artifacts` entry point (mocking
+      only `subprocess.run`, per the file's own existing test style) with a synthetic rename
+      porcelain line "R  kitty-specs/demo/scratch/mystery.py -> kitty-specs/demo/tasks/WP01-mine/meta.json":
+      `mystery.py` (old side) is genuinely unattributable (`owning_wp_for_path` returns None,
+      not under any WP directory) and is the actual reason the entry blocks; `meta.json` (new
+      side) is excluded as benign self-bookkeeping churn by `_is_benign`
+      (`is_self_bookkeeping_churn` matches any file literally named `meta.json` by basename,
+      independent of directory), so `classify_dirty_paths` never even reaches
+      `owning_wp_for_path` for that side. Despite this, the rendered guidance line reads
+      "... (owned by WP01)" — because `_attribute_blocking_entry` calls
+      `owning_wp_for_path` on BOTH paths independently, and `owning_wp_for_path` alone (with no
+      `_is_benign` pre-check) resolves the `meta.json` path's directory prefix to WP01, since it
+      is nested under `tasks/WP01-mine/`. A second, more realistic repro: pairing the same
+      unattributable `mystery.py` with WP01's own flat task file
+      (`kitty-specs/demo/tasks/WP01-mine.md`, the routinely-committed artifact
+      `_is_benign`'s `wp_task_pattern` always treats as benign for ANY wp_id) produces the
+      identical false "(owned by WP01)" label. In both cases the block is correct (Clarifications
+      Q2's fail-closed guarantee holds — the entry does block), but the honesty guarantee
+      FR-005 exists specifically to provide is violated: the message tells the agent it owns a
+      file it does not, and never mentions the actual unattributable path is why the transition is
+      refused. Confirmed the divergence is exactly what spec.md's Key Entities section calls out
+      as a requirement NOT to introduce ("without diverging from classify_dirty_paths's own
+      blocking/benign partition").
+    remediation: >
+      Ground `_attribute_blocking_entry`'s per-path check in the SAME blocking decision
+      `classify_dirty_paths` already made, rather than recomputing ownership from scratch: pass
+      the `blocking_set` (or the flat `blocking` list) into the attribution helper and only call
+      `owning_wp_for_path` on the subset of `paths` that are themselves members of `blocking_set`
+      (i.e. paths `_is_benign` did NOT already exempt). Add a regression test with a rename entry
+      whose blocking side is unattributable and whose benign-exempted side (a `meta.json` or the
+      moving WP's own flat task file) happens to sit inside the moving WP's own directory, and
+      assert the guidance says "not attributable to a specific work package", not
+      "owned by {wp_id}".
+
+  - id: PR-FRESH2-002
+    lens: attribution honesty (fails-safe but mislabeled), owning_wp_for_path composite guard
+    severity: 2
+    title: "owning_wp_for_path's new `normalised.count(\"kitty-specs/\") > 1` defensive guard (added for PR-FRESH-001 Bug B hardening) also rejects a legitimate single (non-composite) path that happens to nest a literal \"kitty-specs/\" segment under the moving WP's own directory, mislabeling the WP's own residue as \"not attributable\" instead of \"owned by {wp_id}\""
+    evidence:
+      - code: "src/specify_cli/review/dirty_classifier.py:168-170 (`if \" -> \" in normalised or normalised.count(\"kitty-specs/\") > 1: return None`)"
+      - artifact: "spec.md FR-005 / FR-007 (own-directory residue must be named as owned by the moving WP, not reported as unattributable)"
+    claim: >
+      Verified directly against `owning_wp_for_path` and `classify_dirty_paths`: the single
+      (non-rename) path
+      "kitty-specs/066-test/tasks/WP01-foo/fixtures/kitty-specs/sample.md" (a WP's own test
+      fixture that happens to nest a directory literally named "kitty-specs", e.g. while this WP
+      dogfoods paths under `kitty-specs/`) contains the substring "kitty-specs/" twice, so the new
+      `count(...) > 1` guard returns None (unattributable) even though the path is unambiguously
+      WP01's own residue by the directory-naming convention. `classify_dirty_paths` still blocks
+      it (owner=None falls to the fail-closed branch), so there is no safety regression — only
+      the attribution text is wrong (would say "not attributable" for what is actually WP01's own
+      file). Lower severity than PR-FRESH2-001 because it requires an unusual nested-"kitty-specs"
+      path shape and fails safe in the same direction (still blocks), but it is the identical
+      class of defect: a defensive regex guard added for the rename-composite case reaching further
+      than the composite case it was meant to catch.
+    remediation: >
+      Narrow the guard to what it is actually meant to reject: a genuine rename-composite string
+      (already caught by `" -> " in normalised`) or a second *mission-scoped* `kitty-specs/{mission_slug}/`
+      occurrence specifically (not any incidental "kitty-specs/" substring anywhere in the path,
+      which can legitimately appear inside a WP's own nested fixture/test-data directory). Add a
+      regression test pinning a WP's own path with a legitimately nested "kitty-specs/" segment and
+      assert it still resolves to that WP's id, not None.
