@@ -16,6 +16,7 @@ from charter.activation.evidence.orchestrator import (
     EvidenceResult,
     load_url_list_from_config,
 )
+from charter.resolution import resolve_canonical_repo_root
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: python -m specify_cli subprocess
@@ -160,6 +161,7 @@ def test_bundle_is_empty_when_all_skipped(tmp_path: Path) -> None:
 @pytest.mark.integration
 def test_dry_run_evidence_on_spec_kitty_repo(
     _synthesis_manifest_guard: Path,
+    tmp_path: Path,
 ) -> None:
     """charter synthesize --adapter fixture --dry-run-evidence exits 0 and detects a language.
 
@@ -183,10 +185,21 @@ def test_dry_run_evidence_on_spec_kitty_repo(
     ``lang=<value>`` token via Rich's automatic repr-highlighter — reproducible, not
     hypothetical) — ``NO_COLOR`` must win over an inherited ``FORCE_COLOR``. The stdout
     match is additionally ANSI-stripped as a second, independent layer of insensitivity.
+
+    Auth isolation: the child gets a fresh, empty home (``HOME``, the XDG dirs and
+    ``SPEC_KITTY_HOME``), so no stored session exists and the outcome never depends on
+    the developer's login state. The readiness auth banner is advisory only (it never
+    changes the exit code), so the test does not skip on it.
     """
     import os
 
-    repo_root = Path(__file__).parent.parent.parent.parent  # root of spec-kitty repo in worktree
+    repo_root = Path(__file__).resolve().parents[3]  # the spec-kitty checkout under test
+    # Topology precondition: ``charter synthesize`` fails closed from a linked git
+    # worktree by design (#4785, ``resolve_charter_write_root``), so this real-repo run
+    # needs the canonical checkout, like the #3908 repository-level assertion.
+    if resolve_canonical_repo_root(repo_root) != repo_root:
+        pytest.skip("charter synthesize refuses linked git worktrees by design (#4785)")
+
     src_path = str(repo_root / "src")
     env = os.environ.copy()
     existing_pythonpath = env.get("PYTHONPATH", "")
@@ -194,6 +207,12 @@ def test_dry_run_evidence_on_spec_kitty_repo(
     # Test-local env for the CHILD process only — never mutates the real os.environ.
     env["FORCE_COLOR"] = "3"  # pin the worst case: harnesses that force color on.
     env["NO_COLOR"] = "1"  # NO_COLOR must win; Rich's Console honors it at construction.
+    isolated_home = tmp_path / "home"
+    isolated_home.mkdir()
+    env["HOME"] = str(isolated_home)
+    env["SPEC_KITTY_HOME"] = str(isolated_home / ".spec-kitty")
+    for xdg in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"):
+        env[xdg] = str(isolated_home / xdg.lower())
 
     manifest_path = _synthesis_manifest_guard
     manifest_before = manifest_path.read_bytes() if manifest_path.exists() else None
@@ -214,18 +233,6 @@ def test_dry_run_evidence_on_spec_kitty_repo(
         cwd=str(repo_root),
         env=env,
     )
-
-    # Auth-env guard: `charter synthesize` performs a connected-teamspace auth check.
-    # In a logged-out environment (e.g. CI without credentials) the child emits a
-    # `logged_out_on_connected_teamspace` banner and exits non-zero before doing real
-    # work — that is an environment condition, not a product regression, so skip rather
-    # than red the suite. Detection mirrors the canonical banner check used elsewhere
-    # (e.g. tests/specify_cli/invocation/cli/test_profiles.py).
-    if "logged_out_on_connected_teamspace" in result.stderr:
-        pytest.skip(
-            "charter synthesize requires connected-teamspace auth; skipping in a "
-            "logged-out environment (e.g. CI without credentials)."
-        )
 
     # Structural guard (#2672 mode b): the real repo manifest must never be mutated by
     # this --dry-run-evidence invocation. Checked eagerly here (in addition to the
