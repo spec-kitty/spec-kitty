@@ -600,7 +600,7 @@ def close_cmd(
     # ``--json`` output stays parseable machine output, not mixed human text.
     with json_output_guard(json_output):
         if discard:
-            _discard_mission(
+            minted_branch = _discard_mission(
                 repo_root=repo_root,
                 feature_dir=feature_dir,
                 mission_slug=mission_slug,
@@ -611,7 +611,7 @@ def close_cmd(
             # Fail closed (#2120): a destructive discard must not report success
             # while leaving worktrees/branches behind. Verify BEFORE flattening so the
             # legacy-branch check can still read coordination_branch from meta.json.
-            _verify_discard_complete(repo_root, mission_slug, mid8_value, feature_dir, meta_path)
+            _verify_discard_complete(repo_root, mission_slug, mid8_value, feature_dir, meta_path, (minted_branch,) if minted_branch else ())
             # Flatten: drop the now-dangling coordination_branch marker so subsequent
             # commands for this mission don't trip CoordinationBranchDeleted (#2120).
             _flatten_discarded_mission(feature_dir)
@@ -689,9 +689,20 @@ def _discard_mission(
     mid8_value: str,
     meta_path: Path,
     force: bool,
-) -> None:
+) -> str | None:
+    """Discard a mission's branches/worktrees; return the minted mission branch, if any.
+
+    The returned branch (protected single_branch only) lets the caller verify it is
+    gone even though the mission's own files left the checkout with it.
+    """
+    _require_mission_on_checkout(repo_root, mission_slug, meta_path)
     _confirm_discard(mission_slug, force=force)
     lanes_manifest = _load_lanes_manifest_for_discard(feature_dir, mission_slug)
+    target = _discard_target_branch(meta_path, lanes_manifest)
+    minted = _minted_branch_for_discard(repo_root, mission_slug, target)
+    if minted is not None:
+        _discard_minted_single_branch(repo_root, mission_slug, minted, target, lanes_manifest)
+        return minted
     # Remove ALL worktrees BEFORE deleting their branches (#2120): a branch that
     # is checked out in a worktree cannot be `git branch -D`'d, so the prior
     # branch-first order silently leaked the coordination/lane branches.
@@ -701,8 +712,78 @@ def _discard_mission(
     if lanes_manifest is not None:
         _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
-        return
+        return None
     _delete_legacy_coordination_branch(repo_root, meta_path)
+    return None
+
+
+def _current_branch(repo_root: Path) -> str:
+    import subprocess as _subprocess
+
+    result = _subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() or "HEAD"
+
+
+def _require_mission_on_checkout(repo_root: Path, mission_slug: str, meta_path: Path) -> None:
+    """Fail closed when the checkout does not carry the mission's ``meta.json``.
+
+    A protected single_branch mission's files live only on its minted mission
+    branch. From any other checkout the mission directory holds at most residue,
+    there is nothing to identify (or verify) a discard against, and a "discarded"
+    line would be false: the branch and its work would survive.
+    """
+    if meta_path.is_file():
+        return
+    console.print(
+        f"[red]Error:[/red] cannot discard {mission_slug}: {meta_path} is not present on the current checkout "
+        f"(branch {_current_branch(repo_root)!r}). A protected single_branch mission lives on its own minted "
+        "mission branch (`git branch --list 'kitty/*'`); check that branch out and retry."
+    )
+    raise typer.Exit(1)
+
+
+def _discard_target_branch(meta_path: Path, lanes_manifest: Any | None) -> str:
+    """The mission's target branch (manifest first, else ``meta.json``); ``""`` when unknown."""
+    if lanes_manifest is not None:
+        return str(lanes_manifest.target_branch or "")
+    meta = load_meta(meta_path.parent, allow_missing=True, on_malformed="none")
+    return str(meta.get("target_branch") or "") if isinstance(meta, dict) else ""
+
+
+def _minted_branch_for_discard(repo_root: Path, mission_slug: str, target: str) -> str | None:
+    """The minted ``mission_branch`` when this is a protected single_branch mission."""
+    from specify_cli.lanes.single_branch_landing import minted_mission_branch
+
+    return minted_mission_branch(repo_root, mission_slug, target) if target else None
+
+
+def _discard_minted_single_branch(repo_root: Path, mission_slug: str, minted: str, target: str, lanes_manifest: Any | None) -> None:
+    """Discard a protected single_branch mission: leave the minted branch, then delete it.
+
+    The write checkout sits ON the minted branch, and ``git branch -D`` refuses a
+    checked-out branch, so the checkout returns to the target first (refusing on a
+    dirty tree before anything destructive runs). The mission's files exist only on
+    the branch being deleted, so nothing — retrospective included — is persisted to
+    it, and there is no coordination worktree to tear down.
+    """
+    from specify_cli.lanes.single_branch_landing import leave_mission_branch_for_discard
+
+    try:
+        leave_mission_branch_for_discard(repo_root, minted, target)
+    except RuntimeError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    if lanes_manifest is not None:
+        _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
+        _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
+    if _force_delete_branch_if_exists(repo_root, minted):
+        console.print(f"  Deleted mission branch {minted}")
 
 
 def _load_lanes_manifest_for_discard(feature_dir: Path, mission_slug: str) -> Any | None:
@@ -801,8 +882,13 @@ def _verify_discard_complete(
     mid8_value: str,
     feature_dir: Path,
     meta_path: Path,
+    extra_branches: tuple[str, ...] = (),
 ) -> None:
     """Fail closed if a discard left worktrees or branches behind (#2120).
+
+    ``extra_branches`` are branches the caller knows must be gone even though the
+    mission files that would name them left the checkout (the minted branch of a
+    protected single_branch mission).
 
     The bug this guards against is a *silent* no-op that still printed success.
     After teardown, any surviving coordination worktree, EXACT lane worktree, or
@@ -833,7 +919,7 @@ def _verify_discard_complete(
             if (worktrees_root / name).is_dir() or name in registered:
                 leaks.append(f".worktrees/{name}")
 
-    for branch in _expected_discard_branches(feature_dir, mission_slug, meta_path):
+    for branch in dict.fromkeys([*_expected_discard_branches(feature_dir, mission_slug, meta_path), *extra_branches]):
         if _branch_exists(repo_root, branch):
             leaks.append(f"branch {branch}")
 
@@ -1004,16 +1090,22 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
     from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.compute import is_planning_lane
 
+    deleted_lanes = 0
     for lane in lanes_manifest.lanes:
         if is_planning_lane(lane):
             continue
         branch_name = code_lane_branch_name(mission_slug, lane.lane_id)
-        _force_delete_branch_if_exists(repo_root, branch_name)
+        deleted_lanes += _force_delete_branch_if_exists(repo_root, branch_name)
 
     deletable = _deletable_mission_branch(lanes_manifest)
-    if deletable is not None:
-        _force_delete_branch_if_exists(repo_root, deletable)
-    console.print(f"  Deleted {len(lanes_manifest.lanes)} lane branch(es) + mission/coordination branch")
+    deleted_mission = deletable is not None and _force_delete_branch_if_exists(repo_root, deletable)
+    # Report only what was actually removed: a single_branch mission has no lane
+    # branch and (unprotected) no mission branch of its own to delete.
+    deleted = [f"{deleted_lanes} lane branch(es)"] if deleted_lanes else []
+    if deleted_mission:
+        deleted.append("mission/coordination branch")
+    if deleted:
+        console.print(f"  Deleted {' + '.join(deleted)}")
 
 
 def _delete_legacy_coordination_branch(repo_root: Path, meta_path: Path) -> None:
@@ -1063,8 +1155,8 @@ def _teardown_coordination_worktree(
         console.print(f"[green]✓[/green] Coordination worktree torn down for {coord_mission_dir_name(mission_slug, mid8=mid8_value)}")
 
 
-def _force_delete_branch_if_exists(repo_root: Path, branch_name: str) -> None:
-    """Delete a branch with ``git branch -D`` if it exists. No-op otherwise."""
+def _force_delete_branch_if_exists(repo_root: Path, branch_name: str) -> bool:
+    """Delete a branch with ``git branch -D`` if it exists; ``True`` only when it was removed."""
     import subprocess as _subprocess
 
     rev_parse = _subprocess.run(
@@ -1075,14 +1167,15 @@ def _force_delete_branch_if_exists(repo_root: Path, branch_name: str) -> None:
         check=False,
     )
     if rev_parse.returncode != 0:
-        return
-    _subprocess.run(
+        return False
+    deleted = _subprocess.run(
         ["git", "branch", "-D", "--", branch_name],
         cwd=repo_root,
         capture_output=True,
         text=True,
         check=False,
     )
+    return deleted.returncode == 0
 
 
 def _expected_lane_worktree_dir_names(mission_slug: str, lanes_manifest: Any) -> set[str]:

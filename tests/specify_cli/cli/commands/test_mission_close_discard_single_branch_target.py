@@ -105,3 +105,26 @@ def test_protected_mint_branch_is_still_deleted_on_discard(tmp_path: Path) -> No
 
     assert not _exists(repo, _MINTED)
     assert _exists(repo, "main")
+
+
+def test_discard_reports_only_branches_it_actually_deleted(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """An unprotected single_branch discard deletes nothing and must not claim it did (#5100)."""
+    repo, feature_dir = _repo(tmp_path, "feat/x", mint=False)
+    manifest = _manifest("feat/x", "feat/x")
+    write_lanes_json(feature_dir, manifest)
+
+    mission_type._delete_lane_branches(repo, _SLUG, manifest)
+
+    assert "Deleted" not in capsys.readouterr().out
+
+
+def test_discard_reports_the_mission_branch_it_deleted(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo, feature_dir = _repo(tmp_path, "main", mint=True)
+    manifest = _manifest(_MINTED, "main")
+    write_lanes_json(feature_dir, manifest)
+
+    mission_type._delete_lane_branches(repo, _SLUG, manifest)
+
+    out = capsys.readouterr().out
+    assert "Deleted mission/coordination branch" in out
+    assert "lane branch(es)" not in out, "the planning lane owns no branch"

@@ -26,17 +26,40 @@ def switch_checkout_to_target(repo: Path, mission_branch: str, target_branch: st
     the mission branch (git refuses to delete a checked-out branch) and before
     the post-merge refresh (which requires the checkout on the target).
     """
-    if mission_branch == target_branch:
-        return
-    if _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == target_branch:
-        return
-    result = _git(repo, "checkout", target_branch)
-    if result.returncode != 0:
+    error = _checkout_target(repo, mission_branch, target_branch)
+    if error is not None:
         raise RuntimeError(
             f"Landed {mission_branch!r} onto {target_branch!r}, but could not switch the write "
-            f"checkout back to {target_branch!r}: {result.stderr.strip()}. Resolve the checkout "
+            f"checkout back to {target_branch!r}: {error}. Resolve the checkout "
             "(it may be dirty), then re-run 'spec-kitty consolidate --resume'."
         )
+
+
+def leave_mission_branch_for_discard(repo: Path, mission_branch: str, target_branch: str) -> None:
+    """Move the write checkout off *mission_branch* before a discard deletes it.
+
+    ``git branch -D`` refuses a checked-out branch, so ``mission close --discard`` of
+    a protected single_branch mission must first return the checkout to the target.
+    A checkout that git refuses to switch (typically a dirty tree) raises before
+    anything destructive has run.
+    """
+    error = _checkout_target(repo, mission_branch, target_branch)
+    if error is not None:
+        raise RuntimeError(
+            f"cannot discard: the write checkout is on {mission_branch!r} and could not be switched to "
+            f"{target_branch!r} so the branch can be deleted: {error}. Commit or stash the changes you "
+            f"want to keep, or check out {target_branch!r} yourself, then retry."
+        )
+
+
+def _checkout_target(repo: Path, mission_branch: str, target_branch: str) -> str | None:
+    """Check out *target_branch*; ``None`` on success/no-op, else git's stderr."""
+    if mission_branch == target_branch:
+        return None
+    if _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == target_branch:
+        return None
+    result = _git(repo, "checkout", target_branch)
+    return None if result.returncode == 0 else result.stderr.strip()
 
 
 def worktree_lanes(manifest: LanesManifest) -> list[ExecutionLane]:
@@ -46,8 +69,11 @@ def worktree_lanes(manifest: LanesManifest) -> list[ExecutionLane]:
     return [lane for lane in manifest.lanes if not is_repo_root_lane(lane)]
 
 
-def _is_protected_single_branch(repo: Path, mission_slug: str, target_branch: str) -> bool:
-    """STORED topology is single_branch AND ``meta.json`` carries the create-time ``mission_branch``.
+def minted_mission_branch(repo: Path, mission_slug: str, target_branch: str) -> str | None:
+    """The create-time ``mission_branch`` of a protected single_branch mission, else ``None``.
+
+    Non-``None`` only when the STORED topology is single_branch AND ``meta.json``
+    carries a ``mission_branch`` distinct from the target.
 
     Never the manifest's ``mission_branch != target_branch`` (true for every
     legacy manifest) and never a DERIVED topology (unstamped planning-only
@@ -60,8 +86,13 @@ def _is_protected_single_branch(repo: Path, mission_slug: str, target_branch: st
     meta = load_meta_or_empty(placement_seam(repo, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
     minted = meta.get("mission_branch")
     if not (isinstance(minted, str) and minted and minted != target_branch):
-        return False
-    return bool(stored_topology(meta) == MissionTopology.SINGLE_BRANCH)
+        return None
+    return minted if stored_topology(meta) == MissionTopology.SINGLE_BRANCH else None
+
+
+def _is_protected_single_branch(repo: Path, mission_slug: str, target_branch: str) -> bool:
+    """True when :func:`minted_mission_branch` names a branch (STORED topology, never derived)."""
+    return minted_mission_branch(repo, mission_slug, target_branch) is not None
 
 
 def lands_mission_branch(repo: Path, manifest: LanesManifest) -> bool:
