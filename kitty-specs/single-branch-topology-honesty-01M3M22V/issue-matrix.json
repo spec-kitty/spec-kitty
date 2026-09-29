@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2602": {
+      "evidence_ref": "acceptance-matrix.json (FR verdicts); mission squash on issue-5100-single-branch-topology",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP06"
+    },
+    "#4828": {
+      "evidence_ref": "acceptance-matrix.json (FR verdicts); mission squash on issue-5100-single-branch-topology",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#4889": {
+      "evidence_ref": "Context only: coord destroyed-lane P0 closed by PR #5035; the non-coord follow-up is #5115 (in-mission, WP07)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5009": {
+      "evidence_ref": "PR #5009 (not an issue): only its resolver arm is absorbed in WP04/T017 with Co-authored-by credit; sequencing comment posted on the PR",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5100": {
+      "evidence_ref": "acceptance-matrix.json (FR verdicts); mission squash on issue-5100-single-branch-topology",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#5115": {
+      "evidence_ref": "acceptance-matrix.json (FR verdicts); mission squash on issue-5100-single-branch-topology",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP07"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,36 @@
+{
+  "accept_commit": "931aa35e9fb682f688a4da9eef27ad074bf1b96c",
+  "acceptance_history": [
+    {
+      "accept_commit": "931aa35e9fb682f688a4da9eef27ad074bf1b96c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-29T13:45:54.655071+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "fa1231f082281ae66b53dcfc571a250479335ee6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-29T13:45:54.655071+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "fa1231f082281ae66b53dcfc571a250479335ee6",
+  "baseline_merge_commit": "a5ac676ddaafa43b4262412d76b4f5eb3d28edd4",
+  "created_at": "2026-09-28T13:08:21.472930+00:00",
+  "flattened": false,
+  "friendly_name": "Single-branch topology honesty and destroyed-lane tip guard",
+  "merged_at": "2026-09-29T12:41:14.059174+00:00",
+  "merged_commit": "c6b607bd9995351402c6c08ee09e22c8941f7c3c",
+  "mid8": "01M3M22V",
+  "mission_id": "01M3M22V47C789YXYYP11YE6AP",
+  "mission_number": null,
+  "mission_slug": "single-branch-topology-honesty-01M3M22V",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Missions declared single_branch today still get lane worktrees and undeclared branches, splitting code from status. This mission makes single_branch execute in the mission's write checkout, changes the default for feature branches to lanes, migrates existing missions, and records each lane's work tip so a destroyed lane with unmerged commits is refused instead of silently re-cut.",
+  "purpose_tldr": "Make single_branch missions really run without lanes, and stop destroyed lanes from silently losing committed work.",
+  "slug": "single-branch-topology-honesty-01M3M22V",
+  "status_phase": "1",
+  "target_branch": "issue-5100-single-branch-topology",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T13:49:53.194777+00:00"
+}

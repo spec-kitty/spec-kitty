@@ -1,0 +1,331 @@
+{
+  "event_count": 139,
+  "last_event_id": "01M3PJZDNM7RTC44B113NGADSZ",
+  "materialized_at": "2026-09-29T12:42:02.292884+00:00",
+  "mission_number": "",
+  "mission_slug": "single-branch-topology-honesty-01M3M22V",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJY0X9C10MR4A8JH6JRAKW",
+      "last_transition_at": "2026-09-29T12:41:16.457470+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001/T002 extract pure guard-verdict + resolver-arm helpers (behaviour-preserving); T003 adds focused unit tests. All targeted tests pass; ruff/ruff-format/mypy --strict clean.",
+        "Approved (reviewer-renata): behaviour-identical guard + resolver split; 95/95 targeted + 74/74 arch gates; ruff/format/mypy strict/C901 clean; nits: stale TYPE_CHECKING comment, rationale not in Activity Log"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24544,
+      "shell_pid_created_at": "1790604732.04",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJY6HB7JSVFVSHH2SK9AJV",
+      "last_transition_at": "2026-09-29T12:41:22.219354+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Naming API split (lane_branch_name requires target_branch; code_lane_branch_name added), claim-base ref, for_review gate + workspace routing for the planning lane. All targeted tests green (red-first #5100 test 3/3, claim_base 9/9, architectural gate 2/2, full lanes/orchestrator/consolidation blast radius, dead-symbols gate 34/34).",
+        "cycle 2: production-wiring tests for record_claim_base (implement + orchestrator), on_wp_terminal on all 3 emit-path call sites (done+canceled, transactional + primary-fallback arms), for_review gate missing-ref refusal, predict/allocate planning-lane refusal — all mutation-checked; sparse_checkout planning-lane fix retained from prior sub-cycle; 3 nits addressed with rationale comments (batch-emit no-terminal-hop, clear-before-commit ordering, WP03 literal-drift note)",
+        "cycle 3: fixed flaky test_record_reads_head_from_write_checkout_not_repo_root (real linked worktree, not two independent repos) — 5 reruns + -n4 + injected-1.1s-sleep evidence; added coord-fallback (~577) done+canceled coverage and primary-fallback canceled coverage, both mutation-checked",
+        "Cycle 3 approved (reviewer-renata). Flake fixed: claim_base 21/21 x5 serial (-p no:randomly), 21/21 -n4, sleep(1.1)-injected worktree test passes. Mutations caught: coord-fallback clear (:577) removed -> 2 fail; earlier cycle M1-M6 all caught. Targeted list 238 passed (cycle 2), ruff/format clean. Pre-existing reds (10) identical on base, tracked #5044 (handle_equivalence_matrix untracked). Follow-up: coord-fallback arm of _fallback_emit_single reachable only from inconsistent meta (coord topology without coordination_branch) - candidate dead-code review."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18173,
+      "shell_pid_created_at": "1790617364.7",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJYCGN4E803A3PCJW9YAXH",
+      "last_transition_at": "2026-09-29T12:41:28.342053+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review. T010 red-first committed alone (1f8b8dcc), then green after T011-T014 code landed (2134eccd, b251b437, 01a0d49e). Predicates is_repo_root_lane/has_code_lanes/_has_code_wps (private, WP04 wires it) in lanes/compute.py; _has_lanes delegates. assert_topology_matches_manifest is module-private (_assert_topology_matches_manifest) in mission_runtime/context.py per binding fold -- zero src callers this WP, WP05 promotes+wires it alongside allocate_lane_worktree/compute_and_write_lanes call sites. TopologyManifestMismatch is public+exported, real caller in mission_state.py's new except clause. topology param threaded through compute_and_write_lanes from all 3 callers (tasks_finalize, mission_finalize, mission_state), read via read_topology (pure/C-003-safe). Re-stamp migration m_4_0_0rc5_single_branch_code_lanes_restamp + spec-kitty migrate backfill-topology --restamp-single-branch [--dry-run]. Doctor finding SINGLE_BRANCH_CODE_LANES_UNMIGRATED wired into _identity_audit.py with a negative control. T015 dry-run against this repo's kitty-specs/: 63 restamped (516 total scanned, 0 errors); first 5 slugs: accept-fail-closed-missing-lanes-01M3CC1V, accept-fails-closed-01M3HS4V, accept-path-remediation-honesty-01M0TWZP, analysis-report-transaction-01M38YDX, analyze-prompt-context-load-01M3F4BV. No kitty-specs/ changes committed (data commit deferred to wrap-up per WP prompt). Out-of-map edits (one-line rationale each, all pre-flagged in the WP prompt): lanes/compute.py (predicates, WP05 owns file), mission_finalize.py (topology argument thread-through), tests/architectural/test_no_dead_modules.py + test_mission_runtime_surface.py (required by the new migration module / TopologyManifestMismatch export passing their own gates), tests/lanes/test_refinalize_mission_branch.py + tests/status/test_compute_and_persist_core.py + tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py (production callers of compute_and_write_lanes needed the new required topology kwarg / a meta.json fixture), tests/unit/migration/test_mission_state_lanes_rebuild.py + tests/migration/test_backfill_topology_cli.py + tests/specify_cli/cli/commands/test_identity_audit.py (extended with T012/T013/T014 coverage). Mutation-checked every new call site (delete/confirm-red/restore/confirm-green): 3 topology= kwargs, the TopologyManifestMismatch except clause, the CLI --restamp-single-branch branch, the doctor _topology_finding call, and the _has_lanes delegation. All architectural gates green: test_layer_rules.py (81), test_mission_runtime_surface.py, test_no_dead_symbols.py (36), test_no_dead_modules.py, test_migration_chain_integrity.py. mypy --strict on migration/+context.py+lanes/: 3 pre-existing errors, confirmed identical on a throwaway worktree at HEAD before this WP's changes.",
+        "cycle 2: fixed the SC-003 blocker (064's feature_slug-keyed lanes.json now reports honestly -- restamp gets a distinct 'lanes.json unreadable: ...' skip reason instead of 'no code lanes'; doctor gets a new LANES_MANIFEST_UNREADABLE finding, never None). No feature_slug alias added to the canonical reader (C-003/Terminology Canon). Confirmed no canonical repair rewrites a legacy feature_slug-keyed lanes.json (grepped feature_slug across migration/ and upgrade/migrations/ -- every hit is meta.json's alias handling, none touches lanes.json); 064 will surface as LANES_MANIFEST_UNREADABLE at wrap-up until an operator hand-fixes its lanes.json key or a new migration is filed. Nit 2 (renamed the misleadingly-named control test), nit 3 (topology_from_meta tolerant seam for all 3 compute_and_write_lanes callers, so a malformed/missing meta.json never raises on an otherwise-tolerant path), and nit 4 (--restamp-single-branch now honours --mission) all fixed. Nit 5 (formatting-only churn in 2 meta files) noted, no code change needed -- inherent to the canonical sorted-key writer. Mutation-checked every new branch. T015 dry-run re-run: restamped=63 unchanged, plus 064 now a distinct honest skip entry. Commits 59aa7df5, 3ca95083.",
+        "Cycle 2 approved (reviewer-renata). All review-feedback-1 items resolved: unreadable lanes.json -> honest 'lanes.json unreadable' skip + doctor LANES_MANIFEST_UNREADABLE (064 verified live); no feature_slug alias; topology_from_meta = same stored-or-derive logic over already-loaded meta (no C-003 violation); --mission honoured; control test renamed. Mutations caught (3/3): doctor finding->None (1 fail), restamp reason->'no code lanes' (1 fail), --mission ignored (2 fail). Targeted 189 passed; test_no_dead_symbols 34 passed; test_layer_rules 74 passed; ruff/format clean; mypy only pre-existing/known. Dry-run: 63 restamp + 064 flagged unreadable; 064 manifest repair is an orchestrator wrap-up decision for SC-003."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23997,
+      "shell_pid_created_at": "1790623285.18",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJYJ7JX5XM7M0268J4M8A6",
+      "last_transition_at": "2026-09-29T12:41:34.194239+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T016-T020b done: repo-root-lane resolver arm ahead of persisted WorkspaceContext (M8, effective_root, PR #5009-adapted); status_execution_mode threaded through every emit path; checkout_occupancy.py wrong-branch/occupied/dirty refusals with resume exemption; has_code_wps replacing is_planning_artifact_only in the acceptance branch gate and birth-cutover gate; unprotected single_branch consolidate/merge no-ops (mission-to-target no-op, no lane merge, no branch deletion -- caught and fixed a genuine bug where _delete_mission_branch would have deleted the target branch itself); unmigrated single_branch+code-lanes review refusal via newly-public assert_topology_matches_manifest; WP03 read_topology nit folded. 6 commits (red-first tests, then 5 impl commits). All touched-file + owning-subsystem blast radius green; pre-existing reds (charter/synthesize worktree-checkout-refusal, verdict-provenance #4941, birth-cutover subtask-seed, dogfood-corpus, and the 4 already-known consolidate/acceptance predict_lane_worktree cases) confirmed via base A/B, none introduced.",
+        "Cycle 2: addressed review-feedback-1.md in full. Blocking fixes: (1) write-checkout refusals now scoped to single_branch topology only (lanes/coord planning_artifact WPs no longer refuse on dirty/non-target-checkout); (2) has_code_wps/_wp_kinds_for_manifest no longer default an untyped legacy WP (no execution_mode, no body signal) to code_change -- only mode_source==frontmatter counts, fixing the planning-only-bookkeeping birth-cutover regression. Test gaps closed: 3 unit-isolated refusal tests asserting exact error_code + remedy (wrong-branch/occupied/dirty), lanes-topology dirty-checkout control, dependency-readiness-before-occupancy test, no-merge-commit test, tasks_status_view repo-root-code stale-detection test, --skip-lanes synthesized-manifest control, _run_has_code_wps no-execution_mode unit test. Nit 5: 2 non-discriminating tests got a discriminating planning_artifact_only=False sibling, 3 labeled characterization. Nit 6 verified (transition() cannot raise for legacy/no-lanes, tolerant fallback already shared with move-task). Nit 7 left as-is per review's own harmless-today framing. All new/changed checks mutation-verified (disable/red/restore/green). 2 commits: test(WP04) cycle-2 coverage, fix(WP04) the two regressions. ruff/mypy/complexity clean on touched files (no new issues vs base). Named-file test run only, no directory sweeps.",
+        "cycle 3: fixed the sole cycle-2 over-correction (review-feedback-2.md). New lanes/compute.py::mission_has_code(manifest, wp_kinds) = has_code_lanes(manifest) or has_code_wps(manifest, wp_kinds) -- the lane-shape floor catches every legacy lanes/coord mission regardless of per-WP frontmatter, while has_code_wps stays the sole signal for the single_branch repo-root case (verified: finalize-tasks writes execution_mode for every WP regardless of topology, so that case is always mode_source==frontmatter). Both executor._run_has_code_wps and gates_core's two call sites now delegate to the one shared function; executor.py hunk stays confined to the one function. Fixed 9 test fixtures (test_acceptance_cores.py, test_trio_pure_cores.py) that monkeypatched the now-bypassed has_code_wps directly against a bare SimpleNamespace with no .lanes -- repointed to mission_has_code so the real has_code_lanes floor can't crash on them. Added: 5 direct mission_has_code unit tests (incl. mutation-check contrasting floored vs un-floored answers), the reviewer's lanes+body-inferred-code-WP fixture reproduced against _run_has_code_wps, and a finalize-tasks unit test verifying the single_branch mode_source==frontmatter assumption. test_run_has_code_wps_false_for_a_legacy_wp_with_no_execution_mode and test_planning_only_bookkeeping_reaches_target_branch both stay green. Named-file test runs only.",
+        "Cycle 3 approved (reviewer-renata). mission_has_code = has_code_lanes floor OR has_code_wps, shared by gates_core + executor. Body-inferred legacy lanes fixture: has-code True at both call sites. Planning-only regression test + no-execution_mode planning unit test green. Lane-floor mutation caught (4 fail). Repointed monkeypatches target the direct callee, both branches still exercised. executor hunk: import + return only. Targeted files: 280 passed. Earlier cycles: 7 mutations caught; gates layer_rules 74 / dead_symbols 34 / mission_runtime_surface 7."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20260928",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25943,
+      "shell_pid_created_at": "1790637839.4",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJYX9P3FJSAC0XKV48XK6H",
+      "last_transition_at": "2026-09-29T12:41:45.526694+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Activated compute_lanes(topology=single_branch): one repo-root lane-planning holding every WP (T022); fail-closed guards in compute_and_write_lanes + allocate_lane_worktree; mission_branch threaded through finalize (T023). #5100 red-first test (tests/integration/test_issue_5100_single_branch_topology.py) committed alone first, verified RED on base_commit b1d397061491858776902e2ea97355cb3d50457d for the right reason (lane count / lane-a worktree assertions), now green 6/6 unprotected + 2 xfail(WP08). NFR-002: implement WP01 measured 1.33s. Blast radius (test_issue_2684, test_explicit_checkout_commands, test_owned_checkout_mark_status, all allocate_lane_worktree/compute_lanes/compute_and_write_lanes callers, named architectural gates) green. e2e smoke/golden-path deferred to end-of-mission per operator rule.",
+        "cycle 2: fixed all 3 blocking findings. Issue 1: T5/T6 passed for the wrong reason (WP02's dependency on WP01 masked occupancy/dirty behind dependency-readiness) -- T5 now uses an independent-WP02 fixture and asserts the WriteCheckoutOccupiedError message; T6 restructured into two isolated single-mission halves asserting the WriteCheckoutDirtyError message. M6/M7 mutations confirmed red, reverted clean. Issue 2: golden-compare was tautological (both sides post-WP05) -- now pinned against a literal manifest captured from base cfb75bc4; lane_id mutation confirmed red, reverted clean. Issue 3: extracted single canonical backfill_topology.stored_topology() reader; both topology_from_meta and the allocator guard delegate to it now, plus 3 new unit tests.",
+        "Cycle 2 approved (reviewer-renata). M6 (occupancy off) -> T5 red; M7 (dirty off) -> T6 red; independent-WP02 fixture used only by T5 (default dependent fixture unchanged for T1/T2/T4). Golden literal == cfb75bc4 compute_lanes output on same input (verified), no volatile fields. stored_topology is the single stored-only reader; topology_from_meta + allocator guard delegate. WP05 files: 76 passed, 2 xfailed (strict WP08); test_no_dead_symbols 34 passed; ruff clean. Cycle 1: 5 core mutations caught."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6929,
+      "shell_pid_created_at": "1790647933.02",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJYQVPCYCCDY3AZY3MF6P0",
+      "last_transition_at": "2026-09-29T12:41:39.958664+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "LANES is now the create-time default; single_branch is explicit-only (--topology single_branch or --owned-checkout). Matrix test + pinned-test updates green, red-first + mutation evidence recorded. ruff/mypy clean.",
+        "cycle 2: re-pinned specify's non-primary-branch default test to lanes (issue 1), mirrored --topology help text on specify/lifecycle.py (issue 2, out-of-map), corrected the owned_checkout docstring's false premise and added+mutation-checked a real owned-checkout CLI pin showing coord->single_branch not lanes->single_branch (nit 3). All 204 named blast-radius tests green; ruff/format/mypy clean.",
+        "Cycle 2 approved (reviewer-renata). Feedback-1 resolved: specify test re-pinned to lanes; lifecycle.py --topology help mirrors mission_create; owned-checkout docstring corrected + real CliRunner owned pin added. Diffs minimal (no unrelated reformat). 16-file blast radius: 204 passed, 0 failed. Owned short-circuit mutation caught by 2 tests (CLI pin + matrix row). ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25536,
+      "shell_pid_created_at": "1790641184.41",
+      "subtasks": {
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJZ2PEH652EJJVHR29CZWM",
+      "last_transition_at": "2026-09-29T12:41:51.054086+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Lane work tip (lane_tip.py) + separate recorder hook installer (post-commit/post-rewrite) + tip-based destroyed-lane guard for non-coord topologies. Red-first #5115 test confirmed red on base, green on fix. No #4889 re-pins needed (base-unreachable-first order preserved; verified via full re-run). Full details in the handoff report.",
+        "cycle 2: closed both blocking gaps -- M5 guard-level AbsorptionUnsupported refusal test (test_absorption_unsupported_refuses_at_the_guard) and 3 foreign-hook record-point tests (M2 move-task for_review auto-commit, M3 auto-rebase commit, M4 self-heal re-entry) in new tests/lanes/test_issue_5115_record_points.py. All 4 mutations verified red then restored. Nit (backfill test assertion) fixed. Full details in the handoff report.",
+        "cycle 3: closed cycle-2's two blockers -- CRASH_RECOVERY record_tip (M6) and the two for_review record points, agent status emit + orchestrator transition (M7/M8, T032). All three mutation-checked; 80 passed (was 77 baseline).",
+        "cycle 4: closed cycle-3's M9 gap -- record_tip_for_wp's planning-lane skip and except-swallow now have dedicated unit tests (missing/corrupt lanes.json, WP in no lane, missing branch, planning-lane no-op) plus a white-box spy immune to the swallow for M9-a, plus two real-path tests (status emit + orchestrator transition) proving a forced planning-WP for_review transition lands with zero tip refs. Both M9-a and M9-b mutation-checked red then restored. 88 passed (was 80).",
+        "Cycle 4 approved (reviewer-renata). e0ed60f7 tests-only (src diff empty). M9-a and M9-b each caught. 7 named files: 88 passed. Gates: no_dead_symbols 34, layer_rules 74."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2464,
+      "shell_pid_created_at": "1790661857.42",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 4,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJZ86E416XGSWYBKZ4HAH0",
+      "last_transition_at": "2026-09-29T12:41:56.686627+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Protected-target mission branch: mint at create, write-target arm, consolidate landing via lanes/single_branch_landing.py; xfails flipped",
+        "cycle 2: W1 real status path, W2 authoritative_ref, recovery/doctor, consolidate e2e (+3 executor fixes)",
+        "cycle 3: land gate = stored topology single_branch + meta mission_branch; legacy control test; data-loss file back to 5 known #5044 failures",
+        "Cycle 3 approved (reviewer-renata). Landing gate now stored_topology(meta)==SINGLE_BRANCH + minted meta.mission_branch != target (canonical stored_topology + existing load_meta_or_empty; no new parser). data_loss file serial: 5 failed (the #5044 base set) / 8 passed; all 3 legacy classes green. Reverting to old discriminator -> 5 legacy data_loss tests + e2e positive control red. W1 -> 5 red, switch-back -> 3 red on HEAD. WP08 list 71 passed; no_dead_symbols 34; layer_rules 74.",
+        "Reopened: commit_to_target inert after create (FR-008), found in WP09 review",
+        "cycle 4: commit_to_target honoured as mission-scoped hatch. Red 68d22c51 (finalize-tasks PROTECTED_BRANCH_REFUSED assertion; unit AttributeError on missing seam), green 7435a64a; mutation (removed is_protected hatch-fold) -> test_commit_to_target_overrides red with PROTECTED_BRANCH_REFUSED, fold restored. Out-of-map hunks: coordination/{policy,types,transaction,commit_router}.py, git/commit_helpers.py, cli/commands/{implement.py,agent/tasks_shared.py,tasks_move_task.py,tasks_map_requirements.py,mission_finalize.py} (thread mission slug into the refusal sites), tests: tests/git/test_protection_policy_mission_scope.py (new), test_issue_5100 integration, test_tasks_map_requirements_seam.py (arg pin).",
+        "cycle 5: scope guards pinned (_single_mission_slug, router fold), Activity Log added",
+        "Cycle 5 approved (reviewer-renata). Scope-guard tests added (ee69277a): _single_mission_slug parametrised + real-repo preflight ctt-only/mixed/two-missions/unflagged + router via real commit_for_mission with unscoped ProtectionPolicy.resolve. Mutations: _single_mission_slug return None->continue -> 2 red; router _mission_scoped revert -> 1 red. Scope-guard file + 23-file named set: 264 passed, 0 failed (-m 'not timing', empty GIT_CONFIG_GLOBAL). Activity Log (cycles 4-5 + out-of-map rationale) present. Consolidate of ctt mission verified manually in cycle 4 (not pinned; nit)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 30084,
+      "shell_pid_created_at": "1790682000.13",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3PJZDNM7RTC44B113NGADSZ",
+      "last_transition_at": "2026-09-29T12:42:02.292884+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs/glossary/changelog/CLI-reference done (c6913d20); gates green except pre-existing unrelated test_terminology_guards red",
+        "Fix cycle 1: doctor topology, precise commit-to-target, glossary nits",
+        "Cycle 2 approved (reviewer-renata). Blockers fixed: doctor topology (run_topology_audit) in AGENTS.md+CHANGELOG; --commit-to-target wording matches ProtectionPolicy.resolve_for_mission/mission_write_bypass + commit_helpers._single_mission_slug (058d016f ancestor via merge 095c76af). Nits done (tip==base, direct_repo for planning WPs, hook-installed qualifier; record points exist in allocator/auto_rebase/implement_support/status/move-task/orchestrator). Freshness: errors=0; warnings are only 6 pre-existing HELP-DRIFT + LINK-HEALTH-FAILED external probes that vary run-to-run (16/11/41 at c6913d20/095c76af/27af22e6), none on WP09-touched files. Gates: 993 passed, 1 failed = pre-existing #5187. PR note: owned_files lists CLAUDE.md (symlink) not AGENTS.md -> ACTIVE_WP_SCOPE_VIOLATION is an ownership-map gap."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP09:20260929",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 10729,
+      "shell_pid_created_at": "1790682850.75",
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done"
+      }
+    }
+  }
+}

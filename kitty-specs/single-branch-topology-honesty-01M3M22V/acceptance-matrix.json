@@ -1,0 +1,268 @@
+{
+  "mission_slug": "single-branch-topology-honesty-01M3M22V",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-i HEAD 27af22e6: tests/lanes/test_issue_5100_planning_lane_ref.py::test_planning_lane_for_review_gate_lifecycle; tests/lanes/test_claim_base.py (26 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:17:06.158501+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_5100_planning_lane_ref.py::test_dependent_lane_merges_target_branch_not_main, ::test_lane_branch_name_requires_target_branch_keyword; tests/architectural/test_planning_lane_branch_requires_target.py (5 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:17:14.415557+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_issue_5100_single_branch_topology.py::test_finalize_writes_single_repo_root_lane; tests/lanes/test_compute_lanes_single_branch.py (10 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:17:21.688757+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/workspace/test_single_branch_resolution.py (6 passed, incl. lanes control + effective_root); tests/integration/test_issue_5100_single_branch_topology.py::test_implement_runs_in_repo_root_without_lane_artifacts",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:17:30.143738+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_execution_mode_stamp_paths.py (8 passed: implement/review/move-task/orchestrator x single_branch+lanes control); tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py::test_fresh_claim_succeeds_with_no_worktree_and_direct_repo_stamp",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:17:38.638405+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_issue_5100_single_branch_topology.py::test_implement_runs_in_repo_root_without_lane_artifacts, ::test_lanes_control_creates_lane_worktree (8 passed file)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:17:46.369968+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_issue_5100_single_branch_topology.py::test_protected_target_mints_mission_branch; tests/core/test_mission_create_protected_single_branch.py (15 passed: mint/checkout/meta, existing-branch refusal, status commit on mission_branch, wrong-branch refusal); tests/git/test_protection_policy_protected_target.py (6 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:17:55.076113+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_issue_5100_single_branch_topology.py::test_commit_to_target_overrides (create+finalize+implement+for_review on protected main, hatch unset); tests/git/test_protection_policy_mission_scope.py (12 passed); tests/git/test_commit_to_target_scope_guards.py (12 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:18:04.196998+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_issue_5100_single_branch_topology.py::test_dirty_checkout_refused_but_resume_allowed; tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py (11 passed); tests/lanes/test_checkout_occupancy.py (12 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:18:11.971784+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_issue_5100_single_branch_topology.py::test_second_implement_refused_names_in_progress_wp; tests/lanes/test_checkout_occupancy.py::test_two_missions_sharing_a_checkout_both_surface (12 passed file)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:18:19.923996+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_issue_5100_single_branch_topology.py::test_for_review_without_force (committed -> passes, no-commit control refused); tests/lanes/test_claim_base.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:18:27.038479+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/consolidation/test_single_branch_consolidate_e2e.py (7 passed: real _run_lane_based_consolidation lands, switches back, deletes/retains, legacy controls); tests/specify_cli/consolidation/test_single_branch_mission_to_target.py (6 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:18:34.371137+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mission_create_default_topology_matrix.py (8 passed); test_coord_topology_no_strand.py (2 passed); tests/specify_cli/test_specify_topology_flag.py::test_specify_omitted_topology_on_non_primary_branch_derives_lanes; tests/agent/test_agent_feature.py::test_owned_checkout_with_no_topology_flag_still_defaults_to_single_branch (WP06 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:18:42.302538+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/migrations/test_single_branch_code_lanes_restamp.py (6 passed: registered, restamp-only + idempotent, never commits, unreadable lanes honest); tests/migration/test_backfill_topology_cli.py (10 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:18:49.998345+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Closeout folds 7e3a9410 (red: 2 failed at that commit) + 06d0f5ac: doctor topology findings carry a per-mission remedy. SINGLE_BRANCH_CODE_LANES_UNMIGRATED -> migrate backfill-topology --restamp-single-branch (flag exists). LANES_MANIFEST_UNREADABLE -> restore from git, or delete and rebuild via finalize-tasks (not begun) / doctor mission-state --fix (begun). Clone-probed the begun branch: finalize-tasks refuses and points at --fix; doctor mission-state --fix rebuilds lanes.json as [lane-planning] and the finding clears. tests/specify_cli/cli/commands/test_identity_audit.py passes.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:42:29.126274+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_single_branch_code_lanes_fail_closed.py (3 passed: finalize write + allocate_lane_worktree, no .worktrees); tests/mission_runtime/test_assert_topology_matches_manifest.py (10 passed); tests/specify_cli/cli/commands/test_single_branch_review_path.py::test_unmigrated_single_branch_review_raises",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:19:04.941987+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_code_lane_predicates.py (17 passed); tests/specify_cli/migration/test_backfill_topology.py (29 passed); restamp test_planning_only_unstamped_mission_derives_single_branch_and_is_never_selected",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:19:13.073635+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_lane_tip_recorder.py (14 passed, not timing: --no-verify, amend, rebase, cherry-pick, linked worktree); tests/lanes/test_issue_5115_record_points.py (8 passed: spec-kitty advances record with a foreign hook); tests/lanes/test_lane_tip.py (19 passed). Storage in refs/spec-kitty/lane-tip/* (survives branch/worktree/record deletion) is the documented research.md R-6 deviation.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:19:21.339104+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_5115_destroyed_lane_non_coord.py::test_destroyed_lane_refuses_and_names_tip, ::test_context_deleted_still_refuses, ::test_absorption_unsupported_refuses_at_the_guard (8 passed file)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:19:29.450502+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_5115_destroyed_lane_non_coord.py::test_squash_merged_lane_reopens, ::test_ancestor_merged_lane_reopens, ::test_tip_equals_base_reopens; tests/lanes/test_lane_tip.py is_absorbed cases",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:19:37.119407+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "Verify FR-021 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_5115_destroyed_lane_non_coord.py::test_live_branch_backfills_tip, ::test_unknown_tip_fails_closed; tests/lanes/test_issue_5115_record_points.py::test_crash_recovery_records_tip_despite_foreign_hook",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:19:44.980832+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "Verify FR-022 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Closeout fold 917ceca7: persist_lane_context (lanes/worktree_allocator.py) is the only caller of workspace.context.save_context across all of src/ (grep); implement_support refresh/create, recovery.recover_context and allocator backfill route through it; it delegates to save_context so writes are byte-identical (parity test). tests/lanes/test_lane_context_single_writer.py 2 passed; red at 763a2589; direct-call mutation in implement_support caught. Hardening nit: aliased-import and out-of-scope (cli/commands) mutations survive the AST scan.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T13:05:31.776440+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "Verify FR-023 is satisfied",
+      "proof_type": "review",
+      "evidence": "WP09 cycle-2 review (approved): AGENTS.md(CLAUDE.md), docs/architecture/execution-lanes.md, docs/context/topology.md verified against code; docs gates test_description_length_gate/test_docs_seo/test_docs_structural_lint + test_no_legacy_terminology 993 passed (1 pre-existing #5187); check_docs_freshness --ci errors=0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:19:59.334641+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-024",
+      "description": "Verify FR-024 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_lane_tip_recorder.py::test_skips_a_foreign_hook_and_leaves_its_bytes_unchanged, ::test_honours_core_hooks_path, ::test_pending_hook_names_excludes_a_foreign_slot; tests/specify_cli/upgrade/migrations/test_install_lane_tip_recorder.py (6 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-29T12:20:07.544612+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "Topology is never derived from git ref shape at runtime: the stored/derived topology readers (backfill_topology, mission_runtime.context) never probe git refs; derivation uses only meta.json + lanes.json code lanes (FR-016/FR-017, C-003).",
+      "verification_method": "grep_absence",
+      "verification_command": "for-each-ref|symbolic-ref|show-ref|rev-parse",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/migration/backfill_topology.py src/mission_runtime/context.py"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "commit_to_target is never read from an environment variable: the FR-008 bypass is decided only from meta.json via ProtectionPolicy (no new env var, no SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS requirement).",
+      "verification_method": "grep_absence",
+      "verification_command": "(environ|getenv)[^#]*(COMMIT_TO_TARGET|commit_to_target)",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src"
+    }
+  ]
+}

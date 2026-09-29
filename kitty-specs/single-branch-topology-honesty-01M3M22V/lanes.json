@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "mission_slug": "single-branch-topology-honesty-01M3M22V",
+  "mission_id": "01M3M22V47C789YXYYP11YE6AP",
+  "mission_branch": "kitty/mission-single-branch-topology-honesty-01M3M22V",
+  "target_branch": "issue-5100-single-branch-topology",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/workspace/context.py",
+        "tests/lanes/test_destroyed_lane_guard_helpers.py",
+        "tests/specify_cli/workspace/test_resolver_arms.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/branch_naming.py",
+        "src/specify_cli/lanes/claim_base.py",
+        "src/specify_cli/lanes/for_review_gate.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/lanes/recovery.py",
+        "tests/architectural/test_planning_lane_branch_requires_target.py",
+        "tests/lanes/test_claim_base.py",
+        "tests/lanes/test_issue_5100_planning_lane_ref.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/mission_runtime/context.py",
+        "src/specify_cli/cli/commands/_identity_audit.py",
+        "src/specify_cli/cli/commands/agent/tasks_finalize.py",
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "src/specify_cli/lanes/compute_and_persist.py",
+        "src/specify_cli/migration/backfill_topology.py",
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc5_single_branch_code_lanes_restamp.py",
+        "tests/lanes/test_code_lane_predicates.py",
+        "tests/mission_runtime/test_assert_topology_matches_manifest.py",
+        "tests/specify_cli/upgrade/migrations/test_single_branch_code_lanes_restamp.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/gates_core.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_status_view.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/lanes/auto_rebase.py",
+        "src/specify_cli/lanes/checkout_occupancy.py",
+        "src/specify_cli/lanes/lifecycle_sync.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "tests/lanes/test_checkout_occupancy.py",
+        "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py",
+        "tests/specify_cli/cli/commands/test_single_branch_review_path.py",
+        "tests/specify_cli/consolidation/test_single_branch_bookkeeping_only.py",
+        "tests/specify_cli/status/test_execution_mode_stamp_paths.py",
+        "tests/specify_cli/workspace/test_single_branch_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_create.py",
+        "tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_default_topology_matrix.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_phases.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/lanes/compute.py",
+        "tests/integration/test_issue_5100_single_branch_topology.py",
+        "tests/lanes/test_compute_lanes_single_branch.py",
+        "tests/lanes/test_single_branch_code_lanes_fail_closed.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/lane_tip.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/policy/lane_tip_recorder.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc5_install_lane_tip_recorder.py",
+        "tests/lanes/test_issue_5115_destroyed_lane_non_coord.py",
+        "tests/lanes/test_lane_tip.py",
+        "tests/policy/test_lane_tip_recorder.py",
+        "tests/specify_cli/upgrade/migrations/test_install_lane_tip_recorder.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 6
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/core/owned_mission.py",
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/git/protection_policy.py",
+        "tests/core/test_mission_create_protected_single_branch.py",
+        "tests/git/test_protection_policy_protected_target.py",
+        "tests/specify_cli/consolidation/test_single_branch_mission_to_target.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-g"
+      ],
+      "parallel_group": 7
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/architecture/execution-lanes.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/orchestration.md",
+        "docs/context/topology.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-h"
+      ],
+      "parallel_group": 8
+    }
+  ],
+  "computed_at": "2026-09-28T13:47:11.071955+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8f082a4b3315e7a86a53beb1ad7a9ba5c6e1bea3"
+}

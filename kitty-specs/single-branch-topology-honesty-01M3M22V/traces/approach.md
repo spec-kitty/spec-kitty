@@ -1,0 +1,23 @@
+# Approach — single-branch-topology-honesty-01M3M22V
+
+- 2026-09-28 — Brief-intake specify: the operator decision record on #5100 (comment 5870360497, option E) is the confirmed Intent Summary; no discovery interview.
+- 2026-09-28 — Order: the independent lane-planning guard fix first (WP01), then topology reader + migration, create default, repo-root manifest, #5115 tip, resolver/implement arm, consolidate, docs.
+- 2026-09-28 — Red-first via the real CLI for #5100 and #5115; migration test for re-stamp + fail-closed.
+- 2026-09-28 — Post-spec squad returned 2 BLOCKER / ~10 MAJOR; all folded into spec rev 2 (24 FRs). Protected-target arm grew (create-time branch, write-target seam, consolidate mission→target phase); kept in scope because the brief's acceptance test requires it, sequenced last.
+- 2026-09-28 — Operator closeout instruction, to run after consolidation (per docs/development `how-to/pr-landing.md`):
+  - Compress history per "Clean history": fold bookkeeping, scaffolding and status commits into the related work, and keep each code change as its own commit. No single squash.
+  - Rebase onto current origin/main.
+  - Add a CHANGELOG `[Unreleased]` entry and update docs.
+  - Run the pre-PR adversarial squad.
+  - Open a non-draft PR:
+    - Body uses the PROGRAM.md §5 five sections: Issue / Change / Tests run (with `Self-review:`) / Blast radius (`Discovery:` + `Files:`) / Deferred. BLUF and consumer focus lead `## Change`.
+    - Title in the form `[#5100] …`.
+    - Autoclose with one keyword per issue: `closes #5100`, `closes #5115`, `closes #4828`, `closes #2602`.
+  - Label `ready-for-squad`. Never merge.
+- 2026-09-28 — WP02 review cycle 1 rejected: the production claim-base wiring was untested (red test used raw update-ref), and the naming split made sparse_checkout.py:232 crash on a planning-lane dir. Lesson for later WPs: every new call site needs a test through its production entry point, plus a delete-the-call mutation check. Filed #5303 for a pre-existing research-handle red; #5044 covers the merge reds.
+- 2026-09-28 — WP02 review cycle 2 rejected on a flaky new test: it read HEAD from an independent second repo, so it only passed when both seed commits landed in the same second. Reviewer lesson: run new git-fixture tests under `-n 4` and with an injected clock skew. Implementer lesson: model a "write checkout" as a linked worktree, never as a sibling repo.
+- 2026-09-28 — WP03 review cycle 1 rejected on a vacuous-pass risk. A legacy `feature_slug`-keyed lanes.json (mission 064) was misreported as having "no code lanes" by both the re-stamp and the doctor, so SC-003's "doctor reports 0" would have passed while the rule was still violated. The fix is to surface unreadable manifests as their own outcome and finding, with no reader alias. Counting from an independent source (raw JSON) is what caught it.
+- 2026-09-28 — OPERATOR RULE (binding): during WP implementation and review, never run heavy or full suites (the tests/architectural/ directory, e2e, integration-wide, performance/stress/timing, `make test-fast`). Run only the WP's targeted files plus individually named gate files the diff implicates. Full runs are left to the end of the mission and to CI. Every later implementer and reviewer dispatch carries this rule.
+- 2026-09-28 — WP04 implementer ran whole-directory sweeps (~5.5k tests), breaking the targeted-only brief and the operator no-heavy-suites rule. Also its red-first evidence was ImportError-based, which is invalid per the charter. Every later brief will hard-list the allowed test files, and reviewers will verify assertion-level red.
+- 2026-09-28 — WP09 inputs from WP06: regenerate the `--help` snapshots in docs/api/cli-commands.md (~5668-5682) and docs/api/agent-subcommands.md (~876-899) with the canonical generator (do not hand-edit). Also fix the stale 'defaults to SINGLE_BRANCH' prose in tests/integration/test_coord_unprotected_lifecycle_loop.py (comments only; the assertions still pass).
+- 2026-09-29 — OPERATOR RULE (binding): no full e2e at mission close; it takes hours on non-optimized environments, so CI runs it. The timing-marked p95 hook test is left to CI as well. Close-out runs only the targeted files, the named gate files and `make test-fast`. The PR's Tests run section states that e2e and timing are deferred to CI.
