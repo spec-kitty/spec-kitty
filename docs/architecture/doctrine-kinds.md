@@ -2,7 +2,7 @@
 title: Doctrine artifact kinds
 description: What each doctrine artifact kind is for, with a real built-in example of each — sourced directly from the charter kind-vocabulary code.
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-29'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 related:
@@ -10,6 +10,7 @@ related:
 - docs/context/charter.md
 - docs/architecture/org-doctrine-layer.md
 - docs/guides/how-to/governance/setup-governance.md
+- docs/adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md
 ---
 # Doctrine artifact kinds
 
@@ -116,6 +117,17 @@ AgentProfileSchema:
 The three unexpanded nested value objects (`collaboration`,
 `specialization-context`, `self-review-protocol`) are shown as typed references rather than inlined —
 a deliberate diagram-author choice, like drawing a foreign key instead of copying the whole table.
+
+**Reserved language tokens in `applies_to_languages`.** The `applies_to_languages` field scopes an
+artifact to project languages. Three tokens are reserved and never name a real language:
+
+- `any` and `all` are rejected when you author an artifact (`spec-kitty charter validate`). If one
+  reaches runtime anyway, the artifact is treated as unscoped and loads for every project.
+- `unknown` is rejected at authoring time as well. At runtime it is ignored on both sides of the
+  match, so an artifact scoped only to `unknown` never loads. Spec Kitty itself writes `unknown`
+  into a project's active languages when the project declares a language that no installed doctrine
+  recognises (see the
+  [catalog-languages ADR](../adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md)).
 
 > **A note on `template`, `asset`, and `anti_pattern` (the three non-activatable kinds).** If you
 > read `src/charter/offering/artifact_kinds.py` directly, you will see three members of the `ArtifactKind`

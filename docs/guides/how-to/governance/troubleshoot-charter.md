@@ -2,12 +2,13 @@
 title: Troubleshooting Charter Failures
 description: Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures.
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-29'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 type: how-to
 related:
 - docs/context/charter-overview.md
 - docs/guides/how-to/governance/setup-governance.md
+- docs/guides/how-to/governance/extend-charter-for-unsupported-language.md
 ---
 # Troubleshooting Charter Failures
 
@@ -239,6 +240,29 @@ uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --propos
 
 ---
 
+## 6. Context says `Languages: python` (or `unknown`) for a non-Python project
+
+**Symptom**: `spec-kitty charter context` prints `Languages: python` for a project that is not
+written in Python, or prints `Languages: unknown` together with an advisory.
+
+**Cause**: when the languages/frameworks answer (`languages_frameworks`) is a real declaration, the
+languages are derived from that answer alone (built-in detector plus doctrine-scoped words), and
+`unknown` means it named nothing recognised. Only when that answer is absent, the shipped default or
+a placeholder are the other answers scanned for a built-in language or well-known tool word (for
+example `pytest`, `mypy`, `ruff`, `npm` or `cargo`), such as a testing answer. The advisory appears
+whenever no installed doctrine is scoped to the resolved languages, so a recognised language without
+shipped guidance (for example `Languages: rust`) shows it too. A language token after `word-`, as in
+`React-TypeScript`, does not count.
+
+**Fix**: in `.kittify/charter/interview/answers.yaml`, state your languages in `languages_frameworks`
+(if it is a placeholder, stray language or tool words in other answers decide instead), then
+regenerate. `spec-kitty charter generate --force` reads the interview by default and re-derives the
+languages; it replaces any hand edit of `catalog.languages` (as does `charter activate --resynthesize`). For the
+advisory, follow
+[Extend your charter for an unsupported language](extend-charter-for-unsupported-language.md).
+
+---
+
 ## Diagnostic Quick Reference
 
 | Question | Command |
@@ -255,6 +279,7 @@ uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --propos
 
 - [How to Set Up Project Governance](setup-governance.md) — the complete interview-to-generation flow
 - [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md)
+- [Extend your charter for an unsupported language](extend-charter-for-unsupported-language.md)
 - [How to Use the Retrospective Learning Loop](use-retrospective-learning.md)
 - [Retrospective Schema Reference](../../../api/retrospective-schema.md)
 - [How Charter Works](../../../context/charter-overview.md)

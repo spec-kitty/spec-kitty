@@ -134,6 +134,8 @@
           href: how-to/governance/manage-glossary.md
         - name: "Troubleshooting Charter Failures"
           href: how-to/governance/troubleshoot-charter.md
+        - name: "Extend your charter for an unsupported language"
+          href: how-to/governance/extend-charter-for-unsupported-language.md
         - name: "How to Use Retrospective Learning"
           href: how-to/governance/use-retrospective-learning.md
     - name: Parallel & Multi-Agent Work
