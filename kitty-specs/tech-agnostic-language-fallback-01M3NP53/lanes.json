@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "mission_slug": "tech-agnostic-language-fallback-01M3NP53",
+  "mission_id": "01M3NP53XX8Q1YC2HXRZCJYTXA",
+  "mission_branch": "kitty/mission-tech-agnostic-language-fallback-01M3NP53",
+  "target_branch": "issue-5283-tech-agnostic-language-fallback",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/review/ERROR_CODES.md",
+        "src/specify_cli/cli/commands/review/__init__.py",
+        "src/specify_cli/cli/commands/review/_dead_code.py",
+        "src/specify_cli/cli/commands/review/_diagnostics.py",
+        "src/specify_cli/cli/commands/review/_report.py",
+        "tests/specify_cli/cli/commands/review/baselines/issue_2987_red_first.md",
+        "tests/specify_cli/cli/commands/review/test_dead_code_baseline.py",
+        "tests/specify_cli/cli/commands/review/test_dead_code_baseline_git.py",
+        "tests/specify_cli/cli/commands/review/test_dead_code_not_applicable.py",
+        "tests/specify_cli/cli/commands/review/test_diagnostic_codes_documented.py",
+        "tests/specify_cli/cli/commands/test_review.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/_catalog_miss.py",
+        "src/charter/activation/language_advisory.py",
+        "src/charter/offering/shared/scoping.py",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "tests/charter/test_context_catalog_miss.py",
+        "tests/charter/test_language_advisory.py",
+        "tests/doctrine/shared/test_scoping_any_all.py",
+        "tests/doctrine/test_doctrine_validate_lang_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "packs/built-in/pack-manifest.yaml",
+        "packs/built-in/tactics/architecture/dependency-hygiene.tactic.yaml",
+        "packs/built-in/tactics/code-patterns/chain-of-responsibility-rule-pipeline.tactic.yaml",
+        "packs/built-in/tactics/secure-regex-catastrophic-backtracking.tactic.yaml",
+        "src/charter/activation/neutrality/language_scoped_allowlist.yaml",
+        "tests/architectural/_builtin_pack_provenance_baseline.yaml",
+        "tests/doctrine/test_generic_artifact_language_bias.py",
+        "tests/doctrine/test_language_independent_tactics_unscoped.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/activation/language_scope.py",
+        "src/charter/activation/language_vocabulary.py",
+        "src/charter/activation/synthesizer/interview_mapping.py",
+        "tests/charter/synthesizer/test_interview_mapping.py",
+        "tests/charter/test_active_languages_idempotency.py",
+        "tests/charter/test_language_scope.py",
+        "tests/charter/test_language_vocabulary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/activation/charter_yaml_io.py",
+        "src/charter/activation/compiler.py",
+        "src/charter/activation/doctrine_service_builder.py",
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "tests/charter/test_compiler.py",
+        "tests/charter/test_regenerate_rederives_languages.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/activation/compact.py",
+        "src/charter/activation/context_renderers/bootstrap_text.py",
+        "tests/charter/context_renderers/test_token_budget_sonar.py",
+        "tests/charter/test_context_bootstrap_markers.py",
+        "tests/charter/test_context_selection_render.py",
+        "tests/charter/test_context_token_budget.py",
+        "tests/charter/test_context_unknown_language.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md",
+        "docs/adr/3.x/index.md",
+        "docs/architecture/doctrine-kinds.md",
+        "docs/guides/how-to/governance/extend-charter-for-unsupported-language.md",
+        "docs/guides/how-to/governance/index.md",
+        "docs/guides/how-to/governance/troubleshoot-charter.md",
+        "docs/guides/toc.yml"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-09-29T05:08:57.882545+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "planning_commit_sha": "394df568da3acc0d724ce99cb4dd9d94b333fa0d"
+}

@@ -1,0 +1,6 @@
+# Quickstart — verifying the tech-agnostic fallback (red-first walkthrough)
+
+1. **Review (Zig/Go only)**: git repo + `.kittify/config.yaml` + `kitty-specs/<slug>/meta.json` (`baseline_merge_commit` = pre-change sha) + one WP `done` in `status.events.jsonl` + committed `src/main.zig` and `cmd/x.go` → `spec-kitty review --mission <slug> --mode post-merge` → expect not-applicable `.go, .zig`, gate skip, `pass_with_notes`, rc 0. (Template: `test_real_post_merge_cli_uses_git_as_only_path_executable`.)
+2. **Charter (Zig)**: `spec-kitty init`, write `answers.yaml` with `languages_frameworks: "Zig 0.16.0 is the primary implementation language."` → `spec-kitty charter generate --from-interview --json` → `catalog.languages: [unknown]`; `spec-kitty charter context --action specify --mission-type software-dev --json` (twice for compact) → `Languages: unknown`, one advisory, no `python-*` ids.
+3. **Stale regenerate**: seed `catalog.languages: [python]`, keep the Zig answer, `charter generate --from-interview --force` → `[unknown]`; with a Rust answer → `[rust]`; with the default answer → absent; `--no-from-interview` → unchanged.
+4. **Recognised unchanged**: Python/Rust answers resolve as before; default interview → absent.

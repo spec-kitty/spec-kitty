@@ -1,0 +1,10 @@
+# Approach — tech-agnostic-language-fallback-01M3NP53
+
+- 2026-09-29 — Pre-planning squad (code-truth / foldables / campsite) reproduced both Zig reports on main f13a799c through the real CLI. Key surprise: an unrecognised language resolves to `None`, which means "admit every language-scoped artifact", so a Zig project gets Python guides even with no `python` stored anywhere. The fix is honest neutrality (reserved `unknown` value), not adding languages.
+- 2026-09-29 — Planned sequence: tidy-first characterization tests (campsite, behaviour-preserving) → red-first CLI acceptance tests → functional changes per surface (review gate; language scope + compile precedence; context rendering) → docs.
+- 2026-09-29 — Implement/review loop: 7 WPs (6 code lanes + planning lane), each red-first and independently reviewed (opus, reviewer-renata); WP06 docs took 3 review cycles because the two-source language model (frozen built-in detector across all answers vs doctrine vocabulary for the languages/frameworks answer only) was repeatedly mis-described. Reviewer MINORs queued for the pre-PR squad / closeout folds:
+- WP03 minors — vocab cold 270–540 ms (tier-2 only, cached); overlay path hardcoded .kittify/doctrine vs resolve_project_root; ast.literal_eval RecursionError on nested list answer; 'we go with Zig' → go only while go-scoped doctrine exists (moot after WP07).
+- WP05 minors — add rendered-text assertion that `--action implement` renders implementer-ivan (not python-pedro) for Zig; bootstrap _append_language_advisory does not catch OSError/CharterEncodingError like compact; record out-of-map edits (action_doctrine_bundle.py, tests/charter/test_compact.py) in traces.
+- WP01 remediation text should link the new how-to "Extend your charter for an unsupported language" (fold at closeout).
+- product residual (#4613 remainder, out of scope): tool words like pytest in ANY interview answer still map a Zig project to python; docs now state it honestly. Candidate follow-up issue at closeout.
+- WP06 minor — how-to 'How Spec Kitty decides' placeholder item numbered 4. after the Consequences paragraph (renders as a separate list).
