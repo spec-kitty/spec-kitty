@@ -22,6 +22,7 @@ from kernel.git_topology import (
     NotAGitRepositoryError,
     clear_caches,
     git_common_dir,
+    git_configured_worktree,
     git_toplevel,
 )
 
@@ -121,6 +122,43 @@ def test_toplevel_empty_output_is_unavailable(tmp_path: Path) -> None:
 def test_toplevel_missing_binary_is_unavailable(tmp_path: Path) -> None:
     with patch(_RUN, side_effect=FileNotFoundError("git")), pytest.raises(GitTopologyUnavailableError):
         git_toplevel(tmp_path / "repo")
+
+
+# --- git_configured_worktree ------------------------------------------------
+
+
+def test_configured_worktree_relative_value_resolved_against_common_dir(tmp_path: Path) -> None:
+    # A submodule's absorbed git dir records ``core.worktree = ../../../submod``.
+    common = tmp_path / "super" / ".git" / "modules" / "submod"
+    common.mkdir(parents=True)
+    with patch(_RUN, return_value=_fake(stdout="../../../submod\n")):
+        assert git_configured_worktree(common) == (tmp_path / "super" / "submod").resolve()
+
+
+def test_configured_worktree_unset_key_is_none(tmp_path: Path) -> None:
+    # ``git config --get`` exits 1 with no output when the key is unset.
+    with patch(_RUN, return_value=_fake(returncode=1)):
+        assert git_configured_worktree(tmp_path) is None
+
+
+def test_configured_worktree_config_failure_is_unavailable(tmp_path: Path) -> None:
+    bad_config = _fake(returncode=3, stderr="fatal: bad config line 1")
+    with patch(_RUN, return_value=bad_config), pytest.raises(GitTopologyUnavailableError, match="bad config line"):
+        git_configured_worktree(tmp_path)
+
+
+def test_configured_worktree_missing_binary_is_unavailable(tmp_path: Path) -> None:
+    with patch(_RUN, side_effect=FileNotFoundError("git")), pytest.raises(GitTopologyUnavailableError, match="git binary not found"):
+        git_configured_worktree(tmp_path)
+
+
+def test_clear_caches_resets_configured_worktree_probe(tmp_path: Path) -> None:
+    with patch(_RUN, return_value=_fake(returncode=1)) as m:
+        git_configured_worktree(tmp_path)
+        git_configured_worktree(tmp_path)
+        clear_caches()
+        git_configured_worktree(tmp_path)
+    assert m.call_count == 2
 
 
 # --- caching + error hierarchy ---------------------------------------------

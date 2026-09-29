@@ -41,9 +41,11 @@ probe failure alike can catch the base class.
 Caching
 -------
 
-Both probes are ``functools.lru_cache``-amortized (``maxsize=256``, mirroring
+Every probe is ``functools.lru_cache``-amortized (``maxsize=256``, mirroring
 the charter resolver's historical cache) so the charter hot path (~20 callers)
-pays at most one subprocess per distinct checkout. Exceptions are never cached
+pays at most one subprocess per distinct checkout and probe. The
+``core.worktree`` probe (:func:`git_configured_worktree`) is only consulted for
+common dirs that do not sit at ``<working tree>/.git`` (submodules). Exceptions are never cached
 (``lru_cache`` re-runs after a raise), so a not-a-repo path that later becomes a
 repo resolves correctly on the next call.
 """
@@ -174,8 +176,46 @@ def git_toplevel(path: Path) -> Path:
     return (cwd / raw).resolve()
 
 
+@lru_cache(maxsize=256)
+def git_configured_worktree(common_dir: Path) -> Path | None:
+    """Return the ``core.worktree`` configured in ``common_dir``, or ``None``.
+
+    ``common_dir`` is a git common directory, as :func:`git_common_dir`
+    returns it. Git records ``core.worktree`` when the git dir does not sit at
+    ``<working tree>/.git``: most importantly for a submodule, whose git dir is
+    absorbed into ``<super>/.git/modules/<name>``. A relative value is
+    resolved against ``common_dir`` (git's own rule), then canonicalized.
+
+    Raises:
+        GitTopologyUnavailableError: git could not be invoked, or
+            ``git config`` failed for a reason other than "key not set"
+            (for example an unparsable config file).
+    """
+    resolved = common_dir.resolve()
+    try:
+        result = subprocess.run(
+            ["git", "--git-dir", str(resolved), "config", "--get", "core.worktree"],
+            cwd=str(resolved),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise GitTopologyUnavailableError(resolved, "git binary not found on PATH") from exc
+    raw = result.stdout.strip()
+    # ``git config --get`` exits 1 (with no output) when the key is unset.
+    if result.returncode == 1 and not raw:
+        return None
+    if result.returncode != 0 or not raw:
+        detail = (result.stderr or "").strip() or f"exit {result.returncode}"
+        raise GitTopologyUnavailableError(resolved, detail)
+    return (resolved / raw).resolve()
+
+
 def clear_caches() -> None:
-    """Reset both probe caches.
+    """Reset every probe cache.
 
     Exposed for tests (and the charter resolver's public ``cache_clear``
     surface) that mutate the on-disk git layout mid-run and need the next probe
@@ -183,6 +223,7 @@ def clear_caches() -> None:
     """
     git_common_dir.cache_clear()
     git_toplevel.cache_clear()
+    git_configured_worktree.cache_clear()
 
 
 __all__ = [
@@ -191,5 +232,6 @@ __all__ = [
     "NotAGitRepositoryError",
     "clear_caches",
     "git_common_dir",
+    "git_configured_worktree",
     "git_toplevel",
 ]

@@ -124,18 +124,22 @@ def test_non_repo_raises_not_inside_repo(tmp_path_factory: pytest.TempPathFactor
 
 def test_missing_git_binary_raises_git_common_dir_unavailable(fresh_repo: Path) -> None:
     resolve_canonical_repo_root.cache_clear()
-    with patch("kernel.git_topology.subprocess.run", side_effect=FileNotFoundError("git")):
-        with pytest.raises(GitCommonDirUnavailableError) as excinfo:
-            resolve_canonical_repo_root(fresh_repo)
+    with (
+        patch("kernel.git_topology.subprocess.run", side_effect=FileNotFoundError("git")),
+        pytest.raises(GitCommonDirUnavailableError) as excinfo,
+    ):
+        resolve_canonical_repo_root(fresh_repo)
     assert "binary not found" in str(excinfo.value)
 
 
 def test_corrupt_repo_raises_git_common_dir_unavailable(fresh_repo: Path) -> None:
     resolve_canonical_repo_root.cache_clear()
     fake_result = MagicMock(returncode=128, stderr="fatal: bad object HEAD\n", stdout="")
-    with patch("kernel.git_topology.subprocess.run", return_value=fake_result):
-        with pytest.raises(GitCommonDirUnavailableError) as excinfo:
-            resolve_canonical_repo_root(fresh_repo)
+    with (
+        patch("kernel.git_topology.subprocess.run", return_value=fake_result),
+        pytest.raises(GitCommonDirUnavailableError) as excinfo,
+    ):
+        resolve_canonical_repo_root(fresh_repo)
     assert "bad object" in str(excinfo.value)
 
 
@@ -183,43 +187,33 @@ def test_detached_head_returns_main_root(repo_with_worktree: tuple[Path, Path]) 
     assert result == main_root.resolve()
 
 
-@pytest.mark.skipif(
-    platform.system() == "Windows",
-    reason="submodule edge cases differ on Windows; documented in resolver contract",
-)
-def test_submodule_resolves_to_submodule_working_tree(
-    tmp_path_factory: pytest.TempPathFactory,
-) -> None:
-    """When called from inside a submodule, the resolver returns the
-    submodule's own working tree (via ``.git/modules/<name>``-derived
-    common-dir). This is the documented behavior — a known edge case that
-    callers should be aware of.
+def _git(*args: str) -> None:
+    """Run one git command with a deterministic identity, raising on failure."""
+    subprocess.run(
+        ["git", "-c", "user.email=t@e.com", "-c", "user.name=T", *args],
+        check=True,
+        capture_output=True,
+    )
+
+
+_SUBMODULE_SKIP_REASON = "submodule edge cases differ on Windows; documented in resolver contract"
+
+
+@pytest.fixture
+def repo_with_submodule(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
+    """A superproject with one real submodule at ``<super>/submod``.
+
+    Returns ``(superproject, submodule_working_tree)``. The submodule's git dir
+    is absorbed into ``<super>/.git/modules/submod`` (its ``.git`` is a FILE),
+    which is the layout ``git submodule add`` produces.
     """
     superproject = tmp_path_factory.mktemp("super")
     subproject = tmp_path_factory.mktemp("sub_src")
-    # Build an inner repo that we add as a submodule.
     for repo in (superproject, subproject):
-        subprocess.run(["git", "init", "--quiet", str(repo)], check=True, capture_output=True)
-        for key, val in (("user.email", "t@e.com"), ("user.name", "T")):
-            subprocess.run(
-                ["git", "-C", str(repo), "config", key, val], check=True, capture_output=True
-            )
-    (subproject / "README.md").write_text("sub seed\n")
-    subprocess.run(
-        ["git", "-C", str(subproject), "add", "README.md"], check=True, capture_output=True
-    )
-    subprocess.run(
-        ["git", "-C", str(subproject), "commit", "-m", "seed", "--quiet"],
-        check=True, capture_output=True,
-    )
-    (superproject / "README.md").write_text("super seed\n")
-    subprocess.run(
-        ["git", "-C", str(superproject), "add", "README.md"], check=True, capture_output=True
-    )
-    subprocess.run(
-        ["git", "-C", str(superproject), "commit", "-m", "seed", "--quiet"],
-        check=True, capture_output=True,
-    )
+        _git("init", "--quiet", str(repo))
+        (repo / "README.md").write_text("seed\n")
+        _git("-C", str(repo), "add", "README.md")
+        _git("-C", str(repo), "commit", "-m", "seed", "--quiet")
     add_result = subprocess.run(
         [
             "git", "-C", str(superproject), "-c", "protocol.file.allow=always",
@@ -230,9 +224,75 @@ def test_submodule_resolves_to_submodule_working_tree(
     if add_result.returncode != 0:
         pytest.skip(f"git submodule add unsupported in this environment: {add_result.stderr}")
     submod_dir = superproject / "submod"
+    assert (submod_dir / ".git").is_file(), "fixture must build an absorbed-gitdir submodule"
     resolve_canonical_repo_root.cache_clear()
-    # The resolver returns the submodule's working tree (parent of
-    # .git/modules/submod). The exact path depends on git layout but it
-    # should be deterministic and not raise.
-    result = resolve_canonical_repo_root(submod_dir)
-    assert result.is_absolute()
+    return superproject, submod_dir
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason=_SUBMODULE_SKIP_REASON)
+def test_submodule_resolves_to_submodule_working_tree(
+    repo_with_submodule: tuple[Path, Path],
+) -> None:
+    """Inside a submodule, the canonical root is the submodule's own working
+    tree: never the superproject (#2011) and never its ``.git/modules`` dir.
+    """
+    _superproject, submod_dir = repo_with_submodule
+    expected = submod_dir.resolve()
+
+    assert resolve_canonical_repo_root(submod_dir) == expected
+    (submod_dir / "deep" / "nest").mkdir(parents=True)
+    assert resolve_canonical_repo_root(submod_dir / "deep" / "nest") == expected
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason=_SUBMODULE_SKIP_REASON)
+def test_linked_worktree_of_submodule_resolves_to_submodule_main_working_tree(
+    repo_with_submodule: tuple[Path, Path],
+) -> None:
+    """A linked worktree of a submodule resolves to the submodule's MAIN
+    working tree, mirroring the plain linked-worktree row.
+    """
+    superproject, submod_dir = repo_with_submodule
+    linked = superproject.parent / (superproject.name + "-submod-wt")
+    _git("-C", str(submod_dir), "worktree", "add", "--quiet", "-b", "wt-branch", str(linked))
+    resolve_canonical_repo_root.cache_clear()
+
+    assert resolve_canonical_repo_root(linked) == submod_dir.resolve()
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason=_SUBMODULE_SKIP_REASON)
+def test_submodule_worktree_probe_failure_raises_git_common_dir_unavailable(
+    repo_with_submodule: tuple[Path, Path],
+) -> None:
+    """A failing ``core.worktree`` probe keeps the typed error surface: no
+    silent fallback to the ``.git/modules`` parent (C-001).
+    """
+    _superproject, submod_dir = repo_with_submodule
+    real_run = subprocess.run
+
+    def _fail_config(cmd: list[str], **kwargs: object) -> object:
+        if "config" in cmd:
+            return MagicMock(returncode=3, stdout="", stderr="fatal: bad config line 7\n")
+        return real_run(cmd, **kwargs)
+
+    with (
+        patch("kernel.git_topology.subprocess.run", side_effect=_fail_config),
+        pytest.raises(GitCommonDirUnavailableError, match="bad config line 7"),
+    ):
+        resolve_canonical_repo_root(submod_dir)
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason=_SUBMODULE_SKIP_REASON)
+def test_submodule_warm_call_uses_cache_no_git_invocation(
+    repo_with_submodule: tuple[Path, Path],
+) -> None:
+    """Resolving a submodule costs git probes only on the cold call; a warm
+    call runs no git at all.
+    """
+    _superproject, submod_dir = repo_with_submodule
+    cold = resolve_canonical_repo_root(submod_dir)
+    real_run = subprocess.run
+    spy = MagicMock(side_effect=lambda *a, **kw: real_run(*a, **kw))
+    with patch("kernel.git_topology.subprocess.run", spy):
+        warm = resolve_canonical_repo_root(submod_dir)
+    assert warm == cold
+    assert spy.call_count == 0, f"Expected 0 git invocations when warm, got {spy.call_count}"

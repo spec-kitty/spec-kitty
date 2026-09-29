@@ -37,7 +37,11 @@ from kernel.git_topology import (
     NotAGitRepositoryError,
     clear_caches as _clear_topology_caches,
     git_common_dir,
+    git_configured_worktree,
 )
+
+# The directory name git gives a git dir that sits inside its working tree.
+_DOT_GIT = ".git"
 
 
 class NotInsideRepositoryError(RuntimeError):
@@ -78,14 +82,28 @@ def resolve_canonical_repo_root(path: Path) -> Path:
     See ``contracts/canonical-root-resolver.contract.md`` for the full
     behavioral matrix and error surface. The function performs at most one
     ``git rev-parse --git-common-dir`` invocation per cold call and zero on
-    warm (LRU-cached) calls.
+    warm (LRU-cached) calls. A common dir that is not named ``.git`` (a
+    submodule's absorbed ``<super>/.git/modules/<name>``) costs one extra cold
+    ``git config --get core.worktree`` probe, also cached.
 
     The probe itself is delegated to the unified
     :func:`kernel.git_topology.git_common_dir` primitive (mission
     write-path-integrity-01KZZD69 WP01, #3373); this facade preserves the
-    repo-**root** return shape (the parent of the common dir), the cache, and
-    the historical error surface by mapping the primitive's typed errors onto
+    repo-**root** return shape, the cache, and the historical error surface by
+    mapping the primitive's typed errors onto
     :class:`NotInsideRepositoryError` / :class:`GitCommonDirUnavailableError`.
+
+    The root is the main working tree that owns the common dir:
+
+    * a common dir named ``.git`` sits inside its working tree, so the root is
+      its parent (plain checkouts and their linked worktrees);
+    * otherwise the root is the common dir's configured ``core.worktree``. For
+      a submodule that is the submodule's own working tree (``<super>/submod``,
+      what ``git rev-parse --show-toplevel`` prints there), never the
+      superproject (#2011) and never ``<super>/.git/modules``. A linked
+      worktree of a submodule resolves to the submodule's main working tree;
+    * with no ``core.worktree`` configured (e.g. ``--separate-git-dir``), the
+      parent of the common dir is kept as before.
 
     Args:
         path: Any path (file or directory). May be absolute or relative. File
@@ -103,12 +121,14 @@ def resolve_canonical_repo_root(path: Path) -> Path:
     abs_path = path.resolve()
     try:
         common_dir = git_common_dir(abs_path)
+        if common_dir.name == _DOT_GIT:
+            return common_dir.parent
+        configured = git_configured_worktree(common_dir)
     except NotAGitRepositoryError as exc:
         raise NotInsideRepositoryError(exc.path) from exc
     except GitTopologyUnavailableError as exc:
         raise GitCommonDirUnavailableError(exc.path, exc.detail) from exc
-    # Canonical root is the parent of the common dir (repo-root return shape).
-    return common_dir.parent
+    return configured if configured is not None else common_dir.parent
 
 
 # Expose ``cache_clear`` on the public surface so tests that mutate the
