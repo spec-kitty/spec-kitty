@@ -42,6 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.mission_metadata import load_meta
+from specify_cli.status.lane_head import LANE_HEAD_KEY
 from specify_cli.status.reducer import materialize_snapshot, wp_snapshot_state
 from specify_cli.status.store import StoreError, read_event_stream
 
@@ -61,6 +62,33 @@ RUNTIME_SLOTS: tuple[str, ...] = (
     "model",
     "provider",
 )
+
+
+def _policy_metadata_carries_runtime_evidence(policy_metadata: Mapping[str, Any] | None) -> bool:
+    """True iff *policy_metadata* has any key other than the WP03 ``lane_head`` stamp.
+
+    Conservative fix (orchestrator decision, review-feedback-1 Issue 5):
+    :func:`~specify_cli.status.lane_head.probe_lane_head`'s best-effort stamp
+    (FR-001, mission ``mixed-lane-authorship-soundness-01M3M7Y0``) is the ONLY
+    key this predicate excludes. Every other ``policy_metadata`` shape this
+    codebase writes keeps counting exactly as it always has — a real
+    ``planned -> claimed`` claim (``shell_pid`` / ``shell_pid_created_at`` /
+    ``agent``, :func:`~specify_cli.status.emit.build_claim_policy_metadata`),
+    an approval/done hop's ``shell_pid`` (``tasks_move_task
+    ._mt_approval_policy_metadata``), a ``pre_review_gate``-only dict, an
+    approval's ``tool``/``profile``/``model``-only dict, and a
+    ``migration_original_actor``-only dict. A dict that is ``lane_head``-ONLY
+    (or empty, or ``None``) is the sole shape that stops counting.
+
+    The FR-012 operator attestation's ``attestation`` key
+    (``consolidation/canceled_attestation.py``) deliberately COUNTS: it is
+    operator-authored runtime state recorded in the event log, like any key
+    other than ``lane_head`` (see ``docs/architecture/status-model.md``,
+    "Operator-attested override").
+    """
+    if not policy_metadata:
+        return False
+    return any(key != LANE_HEAD_KEY for key in policy_metadata)
 
 
 def _read_meta(mission_dir: Path) -> dict[str, Any]:
@@ -132,10 +160,22 @@ def mission_carries_event_log_runtime(mission_dir: Path) -> bool:
     * an :class:`~specify_cli.status.InnerStateChanged` annotation — by
       construction an annotation is only ever appended with a non-empty
       runtime delta, so its mere presence IS runtime evidence; or
-    * a lane transition whose ``policy_metadata`` is non-empty — the only
-      transitions that carry ``policy_metadata`` are real ``planned ->
-      claimed`` claims (live-emitted or backfill-seeded — both shapes are
-      byte-identical on the wire).
+    * a lane transition whose ``policy_metadata`` carries any key other than
+      the WP03 ``lane_head`` stamp (:func:`_policy_metadata_carries_runtime_
+      evidence`) — this is deliberately conservative (orchestrator decision,
+      review-feedback-1 Issue 5): every pre-WP03 ``policy_metadata`` shape
+      keeps counting exactly as before (a ``planned -> claimed`` claim's
+      ``shell_pid``/``shell_pid_created_at``/``agent``
+      (:func:`~specify_cli.status.emit.build_claim_policy_metadata`); an
+      approval/done hop's ``shell_pid`` (``tasks_move_task
+      ._mt_approval_policy_metadata`` — NOT only ``planned -> claimed``
+      claims carry these keys); a ``pre_review_gate``-only dict; an
+      approval's ``tool``/``profile``/``model``-only dict;
+      ``migration_original_actor``-only). Only a ``lane_head``-ONLY (or
+      empty) dict, added by :func:`~specify_cli.status.lane_head.
+      probe_lane_head`'s best-effort stamp (FR-001, mission
+      ``mixed-lane-authorship-soundness-01M3M7Y0``) independent of claim
+      state, stops counting.
 
     Deliberately narrower than "any transition at all": every WP receives a
     ``genesis -> planned`` / self-transition ``planned -> planned`` canonical
@@ -153,7 +193,7 @@ def mission_carries_event_log_runtime(mission_dir: Path) -> bool:
         return False
     if stream.annotations:
         return True
-    return any(bool(event.policy_metadata) for event in stream.transitions)
+    return any(_policy_metadata_carries_runtime_evidence(event.policy_metadata) for event in stream.transitions)
 
 
 def eligible_runtime_missions(

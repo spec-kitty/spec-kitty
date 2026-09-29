@@ -39,11 +39,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from kernel.clock import now_utc_iso
 
 from . import emit as _emit
+from .lane_head import LANE_HEAD_KEY
 from .models import (
     DoneEvidence,
     GuardContext,
@@ -58,6 +59,7 @@ from .wp_state import annotate
 
 if TYPE_CHECKING:
     from specify_cli.core.dependency_graph import DependencyReadiness
+    from .lane_head import LaneHeadProbe
 
 #: Injected I/O seams (contract §1). ``Callable[..., ...]`` mirrors the shape
 #: of today's helpers; tests pass fakes with the same call signature.
@@ -174,6 +176,46 @@ def _infer_review_gates(
     return subtasks_complete, implementation_evidence_present
 
 
+def _stamped_policy_metadata(
+    *,
+    request: TransitionRequest,
+    mission_slug: str,
+    lane_head_probe: LaneHeadProbe | None,
+    repo_root: Path | None,
+) -> dict[str, Any] | None:
+    """Return *request*'s ``policy_metadata`` with a best-effort lane-head stamp (FR-001).
+
+    ``lane_head_probe is None`` means no stamp: P-1 (purity) forbids this
+    module from ever defaulting to a real probe, so the composition shells
+    are the only source of one. When a probe IS supplied, the repo root it
+    is called with prefers ``request.repo_root``; the *repo_root* keyword is
+    only a fallback for a request that omits it (the shells resolve and pass
+    both, but ``request.repo_root`` wins so a caller that pre-populated the
+    request is honored). Any missing repo root, or a probe result of
+    ``None`` (no lane, no branch, any git/read error -- the probe itself
+    never raises), leaves ``policy_metadata`` byte-identical to what the
+    request already carried.
+    """
+    # Annotated local (mirrors `emit._repo_root_for_lane_head`): under this
+    # repo's project-wide `specify_cli.*` mypy `follow_imports = "skip"`
+    # (pyproject.toml `[tool.mypy]`), a narrow-file `mypy --strict` check on
+    # this module alone sees `TransitionRequest.policy_metadata` as `Any`
+    # (its concrete `dict[str, Any] | None` annotation lives in the skipped
+    # `status.models`), so returning it verbatim trips `no-any-return`. The
+    # annotation on this local re-asserts the field's real, already-declared
+    # type without a `cast`.
+    request_policy_metadata: dict[str, Any] | None = request.policy_metadata
+    if lane_head_probe is None or request.wp_id is None:
+        return request_policy_metadata
+    effective_repo_root = request.repo_root if request.repo_root is not None else repo_root
+    if effective_repo_root is None:
+        return request_policy_metadata
+    sha = lane_head_probe(repo_root=effective_repo_root, mission_slug=mission_slug, wp_id=request.wp_id)
+    if not sha:
+        return request_policy_metadata
+    return {**(request_policy_metadata or {}), LANE_HEAD_KEY: sha}
+
+
 def prepare_transition(
     *,
     request: TransitionRequest,
@@ -187,6 +229,8 @@ def prepare_transition(
     infer_subtasks_complete: SubtasksCompleteInferrer | None = None,
     infer_implementation_evidence: ImplementationEvidenceInferrer | None = None,
     default_workspace_context: bool = True,
+    lane_head_probe: LaneHeadProbe | None = None,
+    repo_root: Path | None = None,
 ) -> PreparedTransition:
     """Validate *request* against *from_lane* and build its event (pure).
 
@@ -232,6 +276,16 @@ def prepare_transition(
             it to fail-closed, expressed here so the pipeline stays the
             single validation authority instead of re-inlining the rule in
             the shell.
+        lane_head_probe: Injected lane-branch-head resolver (FR-001). ``None``
+            (the default) means no stamp -- P-1 forbids this module from
+            defaulting to a real probe itself; the shells inject
+            ``status.lane_head.probe_lane_head`` at all four call sites. When
+            supplied, its result (or lack of one) only ever appends
+            ``policy_metadata["lane_head"]``; it never changes any other
+            field or refuses the transition.
+        repo_root: The canonical repository root the shell resolved for the
+            lane-head probe (fallback when ``request.repo_root`` is
+            ``None``). Unused when ``lane_head_probe`` is ``None``.
 
     Returns:
         A :class:`PreparedTransition`. ``event is None`` is the alias-collapse
@@ -310,6 +364,17 @@ def prepare_transition(
     # within a millisecond, so no sort order between the two is claimed. The
     # reducer folds annotations in a post-transition partition pass, so their
     # relative ULID order is not load-bearing.
+    #
+    # FR-001 (mixed-lane-authorship-soundness-01M3M7Y0/WP03): best-effort
+    # lane-head stamp, appended to policy_metadata just before the event is
+    # built. Byte-identical to today when lane_head_probe is None or the
+    # probe finds nothing to stamp.
+    stamped_policy_metadata = _stamped_policy_metadata(
+        request=request,
+        mission_slug=mission_slug,
+        lane_head_probe=lane_head_probe,
+        repo_root=repo_root,
+    )
     event = _emit.build_status_event(
         mission_slug=mission_slug,
         wp_id=request.wp_id,
@@ -328,7 +393,7 @@ def prepare_transition(
         review_ref=request.review_ref,
         evidence=done_evidence,
         review_result=request.review_result,
-        policy_metadata=request.policy_metadata,
+        policy_metadata=stamped_policy_metadata,
     )
     return PreparedTransition(
         event=event,

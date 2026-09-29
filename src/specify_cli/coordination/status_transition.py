@@ -1525,6 +1525,8 @@ def emit_status_transition_transactional(
         snapshot = _emit._reduce_write_surface(txn.feature_dir)
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, request.wp_id, snapshot=snapshot))
         readiness = _emit._resolve_dependency_readiness(identity.feature_dir, request.wp_id, snapshot)
+        from specify_cli.status.lane_head import probe_lane_head  # noqa: PLC0415
+
         prepared = prepare_transition(
             request=request,
             feature_dir=txn.feature_dir,
@@ -1532,6 +1534,8 @@ def emit_status_transition_transactional(
             mission_id=identity.mission_id,
             from_lane=from_lane,
             readiness=readiness,
+            lane_head_probe=probe_lane_head,
+            repo_root=_repo_root_for_feature(txn.feature_dir, request.repo_root),
         )
         if prepared.event is None:
             return _collapse_alias_in_transaction(
@@ -1818,6 +1822,8 @@ def _prepare_batch_in_transaction(
     ``design-notes/WP06-convergence.md``). Any refusal raises before the
     caller appends anything.
     """
+    from specify_cli.status.lane_head import probe_lane_head  # noqa: PLC0415
+
     first = requests[0]
     first_feature_dir = canonicalize_feature_dir(first_feature_dir_raw)
     built: list[tuple[PreparedTransition, StatusEvent, TransitionRequest]] = []
@@ -1841,6 +1847,8 @@ def _prepare_batch_in_transaction(
             from_lane=from_lane,
             readiness=readiness,
             at=(started_at + timedelta(microseconds=len(built))).isoformat(),
+            lane_head_probe=probe_lane_head,
+            repo_root=_repo_root_for_feature(feature_dir, request.repo_root),
         )
         from_lane = prepared.resolved_lane
         if prepared.event is not None:

@@ -703,6 +703,27 @@ def _flat_subtasks_dir_resolver(
     return resolved
 
 
+def _repo_root_for_lane_head(feature_dir: Path, repo_root: Path | None) -> Path | None:
+    """Resolve the canonical repo root the lane-head probe should run against (FR-001).
+
+    Prefers an explicit *repo_root* (the request's own, when the caller
+    supplied one); otherwise resolves it from *feature_dir* the same way
+    ``_declared_dependencies`` already does at :func:`resolve_canonical_root`
+    (line ~349) -- function-local import so this stays off the status
+    package's cold-import path. ``None`` on ``WorkspaceRootNotFound`` (the
+    probe itself treats a missing repo root as "no stamp", never a raise).
+    """
+    if repo_root is not None:
+        return repo_root
+    from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root  # noqa: PLC0415
+
+    try:
+        canonical: Path = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return None
+    return canonical
+
+
 def _has_legacy_overrides(legacy: dict[str, Any]) -> bool:
     """True when any legacy positional/keyword transition argument was supplied."""
     if any(value is not None for key, value in legacy.items() if key not in ("force", "execution_mode")):
@@ -941,6 +962,8 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         readiness = _resolve_dependency_readiness(canonical_feature_dir, request.wp_id, snapshot)
 
         # Step 4: the status-owned pipeline (validate + build; pure).
+        from .lane_head import probe_lane_head  # noqa: PLC0415
+
         prepared = prepare_transition(
             request=request,
             feature_dir=canonical_feature_dir,
@@ -949,6 +972,8 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             from_lane=from_lane,
             readiness=readiness,
             resolve_subtasks_dir=_flat_subtasks_dir_resolver,
+            lane_head_probe=probe_lane_head,
+            repo_root=_repo_root_for_lane_head(canonical_feature_dir, request.repo_root),
         )
         if prepared.event is None:
             return _collapse_alias_in_place(
@@ -1045,6 +1070,8 @@ def _prepare_batch(
     (D-2); operator decision 2026-09-07 reinstated it (mission-review
     DRIFT-3). The rule lives in the pipeline as a policy knob, not here.
     """
+    from .lane_head import probe_lane_head  # noqa: PLC0415
+
     built: list[tuple[StatusEvent, PreparedTransition, TransitionRequest]] = []
     batch_started_at = now_utc()
     for request in requests:
@@ -1058,6 +1085,8 @@ def _prepare_batch(
             at=(batch_started_at + timedelta(microseconds=len(built))).isoformat(),
             resolve_subtasks_dir=_flat_subtasks_dir_resolver,
             default_workspace_context=False,
+            lane_head_probe=probe_lane_head,
+            repo_root=_repo_root_for_lane_head(feature_dir, request.repo_root),
         )
         if prepared.event is None:
             continue
