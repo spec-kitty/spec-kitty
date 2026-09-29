@@ -74,11 +74,6 @@ paths:
     owner: "charter team"
     reason: "Maven review-checks toolguide; Maven/Java tool names (pytest reference is cross-check example) are the subject matter."
     added_in: "3.2.4"
-  - path: "packs/built-in/tactics/secure-regex-catastrophic-backtracking.tactic.yaml"
-    scope: python
-    owner: "charter team"
-    reason: "Secure regex remediation tactic intentionally discusses Python test tooling and timing guards."
-    added_in: "3.3.3"
   - path: "packs/built-in/styleguides/testing-principles.styleguide.yaml"
     scope: python
     owner: "charter team"

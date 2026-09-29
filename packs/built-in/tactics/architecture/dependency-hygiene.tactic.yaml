@@ -1,7 +1,6 @@
 schema_version: "1.0"
 id: dependency-hygiene
 name: Dependency Hygiene
-applies_to_languages: [java, python, javascript, typescript]
 purpose: >
   Keep a project's dependency tree free of known vulnerabilities and non-compliant
   licenses. Apply at project creation, when adding any dependency, and as part of
@@ -15,24 +14,26 @@ purpose: >
 steps:
   - title: Pin all direct dependency versions explicitly
     description: >
-      Every direct dependency must have an explicit version declared in a central
-      properties or constraints block. Never rely on inherited or transitive version
+      Every direct dependency must have an explicit version declared in the
+      ecosystem's manifest or a central properties/constraints block. Never rely on inherited or transitive version
       resolution for direct dependencies; implicit resolution hides future breakage.
     examples:
       - |
-        # Maven: declare all versions in <properties> first
+        # Java example: declare all versions in <properties> first
         <properties>
             <spring-boot.version>3.4.5</spring-boot.version>
             <commons-lang3.version>3.17.0</commons-lang3.version>
         </properties>
       - |
-        # Python (uv): commit a lockfile
+        # Python/uv example: commit a lockfile
         uv lock && git add uv.lock
 
-  - title: Import BOMs before declaring overrides (Java/Maven)
+  - title: Import BOMs before declaring overrides (Java example)
     description: >
-      Import BOM dependencies at the top of dependencyManagement, before any version
-      overrides. This ensures your explicit pins take precedence over BOM-managed
+      Where the ecosystem has bills of materials (BOMs) or shared constraint sets,
+      import them before declaring overrides (Java example: import BOM
+      dependencies at the top of dependencyManagement).
+      Doing so ensures your explicit pins take precedence over BOM-managed
       transitive versions. Document the reason for each version override.
 
   - title: Audit and exclude vulnerable transitives
@@ -42,7 +43,7 @@ steps:
       For each exclusion, add a comment explaining the CVE or vulnerability motivation.
     examples:
       - |
-        <!-- commons-beanutils deserialization vulnerability — excluded from opencsv -->
+        <!-- Java example: commons-beanutils deserialization vulnerability — excluded from opencsv -->
         <exclusion>
             <groupId>commons-beanutils</groupId>
             <artifactId>commons-beanutils</artifactId>
@@ -51,15 +52,15 @@ steps:
   - title: Restrict dependency resolution to approved registries
     description: >
       Explicitly configure the build tool to resolve only from approved registries
-      (e.g., Maven Central, PyPI). Unintended resolution from unapproved registries
+      (e.g., the ecosystem's official public registry or an organization mirror). Unintended resolution from unapproved registries
       is a supply-chain risk.
     examples:
       - |
-        # Maven: restrict to Maven Central
+        # Java example: restrict to the approved registry
         <repositories>
             <repository>
                 <id>central</id>
-                <url>https://repo.maven.apache.org/maven2</url>
+                <url>https://registry.example.org/releases</url>
                 <snapshots><enabled>false</enabled></snapshots>
             </repository>
         </repositories>
@@ -78,8 +79,8 @@ steps:
       Prioritize upgrades for components with known CVEs. Read the component's
       changelog before upgrading to detect API incompatibilities.
     examples:
-      - "mvn versions:dependency-updates-report"
-      - "uv run pip-audit --format=markdown"
+      - "Java example: mvn versions:dependency-updates-report"
+      - "Python/uv example: uv run pip-audit --format=markdown"
 
   - title: Regenerate the SBOM after any dependency change
     description: >
@@ -87,8 +88,8 @@ steps:
       Bill of Materials and commit it. SBOM drift causes silent gaps in vulnerability
       tracking.
     examples:
-      - "mvn -Pcompliance cyclonedx:makeAggregateBom"
-      - "uv run cyclonedx-py environment --output-format JSON --output-file bom.json"
+      - "Java example: mvn -Pcompliance cyclonedx:makeAggregateBom"
+      - "Python/uv example: uv run cyclonedx-py environment --output-format JSON --output-file bom.json"
 
 failure_modes:
   - "Relying on transitive version resolution — when direct dependency versions are not pinned, a transitive upgrade can silently pull in a vulnerable or breaking version."

@@ -224,8 +224,6 @@ tactics/reasons-canvas-fill.tactic.yaml:
   repo_paths: 1
 tactics/reviewer-implementer-role-separation.tactic.yaml:
   provenance: 3
-tactics/secure-regex-catastrophic-backtracking.tactic.yaml:
-  repo_paths: 1
 tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml:
   provenance: 1
 tactics/testing/test-scaffolding-as-design-smell.tactic.yaml:

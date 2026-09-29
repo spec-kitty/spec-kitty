@@ -20,7 +20,7 @@ purpose: >
   This is an accepted way of dealing with stacks of related but independent
   rules — validators, classifiers, canonicalizers, scorers, audit detectors.
   The shape typically recurs in audit detectors, lint check registries,
-  migration canonicalizers and candidate scorers. New code that
+  state canonicalizers and candidate scorers. New code that
   composes 4+ independent decisions over the same input should reach for this
   pattern by default.
 
@@ -100,7 +100,7 @@ steps:
         3. Defaults after normalization.
         4. Validation last, so it runs against the fully-canonicalized state.
     examples:
-      - "_canonicalize_status_row order: reject-non-status-event → apply-aliases → strip-legacy → stamp-identity → mint-event-id → default-at → default-from-lane → require-to-lane → require-wp-id → normalize-lanes."
+      - "A row canonicalizer: reject-malformed-row → apply-aliases → strip-legacy-keys → stamp-identity → default-missing-fields → require-mandatory-fields → normalize-values."
 
   - title: Test each rule in isolation, then the composition end-to-end
     description: >
@@ -115,21 +115,16 @@ steps:
       refactoring existing code per `tdd-red-green-refactor` — capture today's
       behavior, then extract.
     examples:
-      - "tests/migration/test_canonical_rules.py: one `parametrize` per rule, asserting input→output."
-      - "tests/migration/test_canonical_pipeline.py: realistic legacy rows from `.kittify/migrations/mission-state/` fixtures, asserts the full canonicalized output and actions log."
+      - "A per-rule test file: one parametrized table per rule, asserting input→output."
+      - "A pipeline test file: realistic legacy rows from fixtures, asserting the full canonicalized output and actions log."
 
 failure_modes:
-  - "Universal RuleEngine god-class. Resist building one Protocol that covers validators, transformers, and scorers — the three shapes have different return types and different composition semantics. Use the right per-shape typed Protocol where two consumers already exist; do not pre-build a framework for one caller."
+  - "Universal RuleEngine god-class. Resist building one interface that covers validators, transformers, and scorers — the three shapes have different return types and different composition semantics. Use the right per-shape typed interface where two consumers already exist; do not pre-build a framework for one caller."
   - "Hidden coupling between rules. Two rules that read each other's intermediate state via the input dict instead of the StepResult break the pure-function contract and reintroduce the original tangle. If rule B needs something rule A produced, that something must live on the threaded state."
   - "Order-of-declaration bugs in validator pipelines. Authors assume rules run in declaration order even when the runner uses a set or yields concurrently. Always use an ordered sequence (tuple, list) and assert order in tests if order matters."
-  - "Refactor without characterization tests. Migration / sync / charter code runs on real user data. Lifting a function onto the rule pipeline without capturing today's behavior in fixture tests first risks silent regressions."
+  - "Refactor without characterization tests. Code that runs on real user data (migrations, importers, synchronizers). Lifting a function onto the rule pipeline without capturing today's behavior in fixture tests first risks silent regressions."
   - "Forcing the pattern. CLI multiplexers, renderers/formatters, and orchestrators are not rule pipelines — extract sub-methods instead. The pattern's marker is `3+ independent decisions over a common input`, not `function is long`."
 
-applies_to_languages:
-  - python
-  - java
-  - typescript
-  - javascript
 
 notes: >
   Three established flavors are in use today; each has the same per-rule
@@ -139,7 +134,7 @@ notes: >
 
   ── Validator (accumulating) ──
   Per-rule contract: `(input, ctx) -> list[Finding]`. Findings are
-  dataclasses carrying a code, severity, artifact path, and detail. Runner
+  records carrying a code, severity, artifact path, and detail. Runner
   accumulates with `findings.extend(rule(...))`; order is usually free; no
   short-circuit on first failure (the goal is to surface every issue).
   Typical homes: audit detectors, classifiers, lint check registries.
@@ -152,9 +147,10 @@ notes: >
   Order matters; runner short-circuits on `error`. Actions log is part of
   the contract — callers consume it to render migration manifests, audit
   trails, or diffs. A typical example is canonicalizing persisted state
-  rows during a migration, lifted onto a reusable `CanonicalRule` protocol.
-  State type should be generic via TypeVar so the same Protocol covers
-  status rows, frontmatter dicts, and future migration shapes.
+  rows during a migration, lifted onto a reusable rule interface.
+  Make the state type generic (a type parameter where the language has
+  them; for example a Python `TypeVar` on a `Protocol`, or a Java/TypeScript
+  generic interface) so the same interface covers several row shapes.
 
   ── Scorer (weighted) ──
   Per-rule contract: `(candidate, ctx) -> float` in `[0.0, 1.0]`. Runner

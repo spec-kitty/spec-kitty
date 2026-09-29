@@ -1,10 +1,11 @@
 # Classification: secure coding practices
 # Topic: regular-expression input handling — prevention of catastrophic
 # backtracking (ReDoS). Generic guidance applicable to every language whose
-# default regex engine performs backtracking (Python, JavaScript, Java, .NET,
-# Ruby, Perl, PHP, C/C++ std::regex). Engines based on automata (RE2, Go's
-# regexp, Rust's regex crate) are not vulnerable but the safe-design rules
-# below still produce clearer and faster patterns.
+# default regex engine performs backtracking (for example Python `re`,
+# JavaScript, Java, .NET, Ruby, Perl, PHP/PCRE, C++ std::regex). Linear-time
+# engines (RE2, Go `regexp`, Rust `regex`) are not vulnerable but the
+# safe-design rules below still produce clearer and faster patterns. Snippets
+# are labelled examples; the rules apply in every language.
 schema_version: "1.0"
 id: secure-regex-catastrophic-backtracking
 name: Secure Regex — Avoid Catastrophic Backtracking
@@ -19,8 +20,8 @@ purpose: >
 
   Pattern is vulnerable only when the problematic sub-pattern is followed by
   something that can fail. End-of-input counts as "something that can fail" for
-  any full-match (e.g. ``re.fullmatch``). Partial-match APIs (``re.search``,
-  ``re.split``, ``re.findall``) widen the attack surface because the engine
+  any full-match API. Partial-match APIs (search, split and find-all style
+  calls) widen the attack surface because the engine
   retries from the next index on every failure.
 
 steps:
@@ -41,7 +42,7 @@ steps:
         3. Partial-match APIs with a regex not anchored at the start. Even a
            possessive unbounded repetition followed by a failing pattern can
            cause quadratic runtime because the engine restarts at every index.
-           Example: ``re.split(r"\s*,", s)`` is quadratic on inputs that are
+           Example: splitting on ``\s*,`` is quadratic on inputs that are
            mostly whitespace without commas.
 
       Counter-examples that are safe:
@@ -51,9 +52,9 @@ steps:
         - ``(ba+)+`` — the inner group must consume exactly one leading ``b``
           per outer repetition; there is only one way to partition the input.
     examples:
-      - "src/specify_cli/release/changelog.py was flagged by Sonar `python:S6353` for catastrophic-backtracking risk — characteristic of shape #1 above."
-      - "`re.fullmatch(r'(a+)+$', some_input)` — exponential on adversarial input like 'aaaa…X'."
-      - "`re.split(r'\\s*,\\s*', s)` — quadratic on strings of spaces with no comma."
+      - "A static-analysis ReDoS finding on a changelog-parsing pattern is characteristic of shape #1 above."
+      - "Python example: `re.fullmatch(r'(a+)+$', some_input)` — exponential on adversarial input like 'aaaa…X'."
+      - "Python example: `re.split(r'\\s*,\\s*', s)` — quadratic on strings of spaces with no comma."
 
   - title: Rewrite vulnerable patterns to linear shapes
     description: >
@@ -66,8 +67,8 @@ steps:
            way to match a given fragment. Pattern shape ``(ba+)+`` is safe;
            ``(a+)+`` is not.
         3. **Use possessive quantifiers or atomic groups** (``a++``, ``a*+``,
-           ``(?>a*)``) on engines that support them. Available in Python 3.11+
-           and in PCRE-family engines. Possessive quantifiers do not give back
+           ``(?>a*)``) on engines that support them. Available in PCRE-family
+           engines, Java, and recent Python (3.11+). Possessive quantifiers do not give back
            matches, which eliminates the backtracking source.
         4. **Use negated character classes** instead of ``.`` to forbid the
            separator the outer pattern relies on. ``.*_.*`` is quadratic;
@@ -75,31 +76,32 @@ steps:
            the ``_`` that the engine needs as a pivot.
     examples:
       - "`(.*)_(.*)` → `([^_]*)_(.*)`"
-      - "`(a+)+` → `(?>a+)+` or `(a+){1,N}` with a documented N"
-      - "`re.split(r'\\s*,\\s*', s)` → `re.split(',', s)` then `.strip()` each piece"
+      - "`(a+)+` → `(?>a+)+` (atomic group) or `(a+){1,N}` with a documented N"
+      - "Python example: `re.split(r'\\s*,\\s*', s)` → `s.split(',')` then strip each piece"
 
   - title: When a linear rewrite is not possible, change the approach
     description: >
       Some matching problems are inherently non-linear with backtracking
       engines. Escape hatches in priority order:
 
-        1. **Drop the regex.** Use string operations (``str.split``,
-           ``str.partition``, manual scanning) or a real parser. Often clearer
+        1. **Drop the regex.** Use the language's plain string
+           operations (split, partition, manual scanning) or a real parser. Often clearer
            and faster anyway.
-        2. **Switch to a non-backtracking engine.** Python: the ``re2``
-           package (Google RE2 bindings) accepts most syntax and guarantees
-           linear time. RE2 trades some features (e.g. backreferences) for
-           the linear-time guarantee.
+        2. **Switch to a non-backtracking engine.** Use a linear-time
+           engine such as RE2 (bindings exist for most languages; Go's
+           ``regexp`` and Rust's ``regex`` crate are linear by design). These
+           accept most syntax and guarantee linear time. They trade some features (e.g. backreferences)
+           for the linear-time guarantee.
         3. **Multi-pass.** Apply a permissive regex first, then validate or
            trim the matched substrings with code. Replaces one expensive
            regex with two cheap ones.
         4. **Cap input length.** If the regex must stay and the caller can
            reject input above N bytes, document and enforce N. Combine with
-           a timeout where feasible (e.g. signal-based timeout, sandboxed
-           subprocess) but treat the cap as the primary defence.
+           a timeout where feasible (e.g. a per-match timeout API where the engine offers one,
+           or a sandboxed worker process) but treat the cap as the primary defence.
     examples:
-      - "Email validation: use the standard library `email.utils.parseaddr` instead of a hand-rolled regex."
-      - "Markdown link extractor that needs backreferences: use `pyahocorasick` or `regex` package with timeout."
+      - "Email validation: use the platform's standard address parser instead of a hand-rolled regex."
+      - "An extractor that needs backreferences: use a purpose-built parser or an engine that offers a match timeout."
       - "Replace a complex tokenizer regex with a small explicit state machine when input is untrusted."
 
   - title: Add a regression test that proves linear runtime
@@ -110,29 +112,20 @@ steps:
            shape (typically a long run of the ambiguous character followed by
            a single mismatching character).
         2. Asserts the regex completes within a tight wall-clock budget
-           (e.g. 100 ms for 100 000 chars). Use ``pytest`` timing or
-           ``pytest-timeout``. The test acts as a watchdog against future
+           (e.g. 100 ms for 100 000 chars) using your test
+           framework's timing or timeout facility. The test acts as a watchdog against future
            rewrites that re-introduce a backtracking shape.
         3. Optionally asserts on the matched output to catch behavior drift.
     examples:
-      - "tests/regressions/test_changelog_regex_redos.py: input = 'a' * 100_000 + '!'; expect completion < 100 ms."
-      - "Use `pytest.mark.benchmark` only if the suite already runs benchmarks; otherwise a plain `time.perf_counter` assertion is enough."
+      - "Python example: input = 'a' * 100_000 + '!'; assert the match completes in under 100 ms."
+      - "Use the benchmark tooling only if the suite already runs benchmarks; otherwise a plain elapsed-time assertion is enough."
 
 failure_modes:
-  - "Treating a Sonar `python:S5852` / `python:S6353` finding as cosmetic. A vulnerable pattern is a denial-of-service primitive on every endpoint that runs it on untrusted input — ship the fix or document the input-length cap, do not silence the rule."
-  - "Adding a `timeout` as the primary defence. The Python `re` engine has no per-call timeout; you have to wrap with `signal` or a subprocess. Treat timeouts as a backstop, never as the fix."
-  - "Switching to `re2` without checking syntax compatibility. RE2 rejects backreferences and look-around assertions. Run the existing test suite under the new engine before swapping."
+  - "Treating a static-analysis ReDoS finding as cosmetic. A vulnerable pattern is a denial-of-service primitive on every endpoint that runs it on untrusted input — ship the fix or document the input-length cap, do not silence the rule."
+  - "Adding a `timeout` as the primary defence. Many backtracking engines (for example Python `re`) have no per-call timeout, so it must be bolted on with signals or a worker process. Treat timeouts as a backstop, never as the fix."
+  - "Switching to a linear-time engine such as RE2 without checking syntax compatibility. Linear-time engines reject backreferences and look-around assertions. Run the existing test suite under the new engine before swapping."
   - "Bounded quantifier with a large N (e.g. `{0,10000}`). Bounds bigger than necessary defeat the purpose; pick the smallest plausible legitimate upper bound."
 
-applies_to_languages:
-  - python
-  - javascript
-  - typescript
-  - java
-  - csharp
-  - ruby
-  - go
-  - rust
 
 references:
   - name: Secure Design Checklist
