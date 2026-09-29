@@ -443,47 +443,18 @@ def _seed_wp_approved(feature_dir: Path, slug: str, wp_id: str) -> None:
 
 
 @contextmanager
-def _claim_allocation_patched(repo: Path, feature_dir: Path) -> Iterator[MagicMock]:
-    """Run REAL ``implement()`` through its REAL guards, patching only the
-    post-guard worktree allocation + status emit (canonical repo-harness pattern).
-
-    The single returned mock's ``call_count`` is the signal: a claim the
-    dirty-tree guard BLOCKS aborts in the validate stage and never reaches
-    allocation; a claim that PASSES reaches it. ``charter`` preflight is bypassed
-    (no charter is staged in this fixture)."""
+def _preflight_bypassed() -> Iterator[None]:
+    """Run REAL ``implement()`` through its REAL guards and REAL workspace
+    allocation; bypass only the charter preflight (no charter is staged in this
+    fixture). Nothing past the guards is mocked (#5100: a test must not mock
+    allocation past the fail-closed topology guards)."""
     from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
-    def _workspace(wp_id: str, lane_id: str) -> MagicMock:
-        return MagicMock(
-            workspace_path=repo / ".worktrees" / f"{feature_dir.name}-{lane_id}",
-            branch_name=f"kitty/mission-{feature_dir.name}-{lane_id}",
-            lane_id=lane_id,
-            mission_branch=f"kitty/mission-{feature_dir.name}",
-            is_reuse=False,
-        )
-
-    create_mock = MagicMock(
-        side_effect=lambda *a, **k: _workspace(
-            k.get("wp_id", a[0] if a else "WP"), "lane-a"
-        )
-    )
-    with ExitStack() as stack:
-        stack.enter_context(
-            patch(
-                "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-                return_value=CharterPreflightResult(passed=True, checks=[]),
-            )
-        )
-        stack.enter_context(
-            patch("specify_cli.cli.commands.implement.create_lane_workspace", create_mock)
-        )
-        stack.enter_context(
-            patch(
-                "specify_cli.cli.commands.implement.start_implementation_status",
-                MagicMock(return_value=MagicMock(status_changed=False)),
-            )
-        )
-        yield create_mock
+    with patch(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        return_value=CharterPreflightResult(passed=True, checks=[]),
+    ):
+        yield
 
 
 @contextmanager
@@ -530,11 +501,54 @@ def _real_merge_external_mocks(repo: Path) -> Iterator[None]:
         yield
 
 
+def _finalize_single_branch_lanes(repo: Path, feature_dir: Path, meta: dict[str, object]) -> None:
+    """Compute + persist ``lanes.json`` through the REAL finalize core for a single_branch mission."""
+    from mission_runtime import MissionTopology
+    from specify_cli.lanes.compute_and_persist import compute_and_write_lanes
+    from specify_cli.ownership.models import OwnershipManifest, WorkProductKind
+    from specify_cli.status import WPMetadata
+
+    scopes = {"WP01": "src/a/**", "WP02": "src/b/**"}
+    _, manifest = compute_and_write_lanes(
+        feature_dir,
+        repo,
+        feature_dir.name,
+        {
+            wp: OwnershipManifest(
+                execution_mode=WorkProductKind.CODE_CHANGE, owned_files=(glob,), authoritative_surface=glob.rstrip("*")
+            )
+            for wp, glob in scopes.items()
+        },
+        {wp: [] for wp in scopes},
+        {wp: WPMetadata(work_package_id=wp, title=wp, execution_mode="code_change") for wp in scopes},
+        {},
+        "main",
+        planning_commit_sha=None,
+        mission_id=str(meta["mission_id"]),
+        topology=MissionTopology.SINGLE_BRANCH,
+    )
+    # T-1: exactly ONE repo-root planning lane, holding both WPs (no code lanes).
+    assert [(lane.lane_id, tuple(lane.wp_ids)) for lane in manifest.lanes] == [("lane-planning", ("WP01", "WP02"))]
+
+
+def _claimed_wps(feature_dir: Path) -> dict[str, str]:
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
+
+    snapshot = reduce(read_events(feature_dir))
+    return {wp: str(state["lane"]) for wp, state in snapshot.work_packages.items()}
+
+
 def test_single_branch_mission_survives_implement_and_merge_end_to_end(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """T009 (FR-005): a create-time ``single_branch`` mission completes the
-    implement + merge loop and the four observable facts hold."""
+    implement + merge loop and the four observable facts hold.
+
+    Built the SUPPORTED way (#5100): ``commit_to_target`` (planning stays on
+    ``main``), a finalize-computed ``lanes.json`` with ONE repo-root
+    ``lane-planning`` lane, REAL workspace allocation, and WP content committed on
+    the write checkout (``main``). No lane branches, no allocation mock."""
     import typer
 
     from mission_runtime import MissionTopology
@@ -544,20 +558,13 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
     from specify_cli.consolidation.config import MergeStrategy
     from specify_cli.migration.backfill_topology import read_topology
     from specify_cli.status.models import Lane
-    from specify_cli.status.reducer import reduce
-    from specify_cli.status.store import read_events
 
     repo = _init_project(tmp_path)
     monkeypatch.chdir(repo)
     monkeypatch.setenv("SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION", "1")
 
-    # 1. REAL create — single_branch, no coordination branch.
-    #
-    # ``commit_to_target=True``: on the protected ``main`` target the create-time
-    # mint (WP08, #5100) would otherwise create ``kitty/mission-<slug>-<mid8>``
-    # and land every planning commit there, so the later
-    # ``git branch <mission_branch> main`` would exit 128. Committing to the
-    # target keeps planning on ``main``, which is what this loop exercises.
+    # 1. REAL create — single_branch, no coordination branch. ``commit_to_target``
+    #    keeps planning on ``main`` (no create-time mission-branch mint, WP08).
     result = create_mission_core(
         repo,
         "two-wp-single-branch",
@@ -570,10 +577,8 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
     assert result.coordination_branch is None
     _no_coord_branch(feature_dir, "after create_mission_core")
 
-    # 2. Planning artifacts: lanes.json (2 dependency-free code lanes), WP files,
-    #    planned status seeds. Commit so the tree is clean before the claims.
-    mission_branch = f"kitty/mission-{slug}"
-    _write_lanes(feature_dir, slug, mission_branch)
+    # 2. Planning artifacts: finalize-computed lanes.json, WP files, planned seeds.
+    _finalize_single_branch_lanes(repo, feature_dir, result.meta)
     _write_wp_file(feature_dir, "WP01", "src/a/**")
     _write_wp_file(feature_dir, "WP02", "src/b/**")
     _seed_planned(feature_dir, slug, "WP01")
@@ -583,34 +588,53 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
 
     # 3. REAL back-to-back auto_commit=False claims (exercises WP02's vcs-lock fix).
     #
-    # Post-cutover a real claim leaves only meta.json's one-time vcs-lock
-    # self-write (``_ensure_vcs_in_meta``); runtime claim state is event-sourced
-    # and the WP file is byte-stable. That directly produces the lock-only
-    # residue this regression needs to place in front of the second claim.
+    # A real claim leaves only meta.json's one-time vcs-lock self-write
+    # (``_ensure_vcs_in_meta``); claim state is event-sourced and the WP file is
+    # byte-stable. That is the lock-only residue the second claim must tolerate.
     meta_rel = (feature_dir / "meta.json").relative_to(repo).as_posix()
-    with _claim_allocation_patched(repo, feature_dir) as create_mock:
+    with _preflight_bypassed():
         implement("WP01", mission=slug, auto_commit=False, recover=False)
-        # The real claim must have written the vcs-lock self-write to meta.json.
         assert _read_meta(feature_dir).get("vcs") == "git", (
             "the real claim path must have written the vcs-lock self-write to meta.json"
         )
+        # Park WP01: a single_branch mission has ONE shared write checkout that
+        # serves one in_progress WP at a time (WriteCheckoutOccupiedError). The
+        # direct ``emit_status_transition`` library call below does not commit (the
+        # real claim commits its own status batch), so commit the park's
+        # status.events.jsonl/status.json here; the sole residue facing the second
+        # claim is then the first claim's vcs-lock meta.json self-write.
+        from specify_cli.status.emit import emit_status_transition
+        from specify_cli.status.models import TransitionRequest
+
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=slug,
+                wp_id="WP01",
+                to_lane="blocked",
+                actor="seed",
+                reason="park WP01: shared write checkout serves one WP at a time",
+            )
+        )
+        status_rels = [(feature_dir / n).relative_to(repo).as_posix() for n in ("status.events.jsonl", "status.json")]
+        _git(repo, "add", *status_rels)
+        _git(repo, "commit", "-m", f"chore({slug}): commit WP01 claim + park status")
+        # ``.kittify/derived/`` is the untracked derived-cache dir, not planning state.
         dirty_paths = sorted(
-            line[3:] for line in _git(repo, "status", "--porcelain").stdout.splitlines() if line.strip()
+            line[3:]
+            for line in _git(repo, "status", "--porcelain").stdout.splitlines()
+            if line.strip() and not line[3:].startswith(".kittify/derived")
         )
         assert dirty_paths == [meta_rel], (
             f"precondition: the only residue facing the second claim must be the "
             f"lock-dirty meta.json, got {dirty_paths!r}"
         )
-        # ...and that residue is a lock-FIELD-ONLY diff — the exact case WP02
-        # governs (asserted via the production decision helper).
         from kernel.vcs_lock import is_vcs_lock_only_change
 
         committed_meta = json.loads(_git(repo, "show", f"HEAD:{meta_rel}").stdout)
         assert is_vcs_lock_only_change(committed_meta, _read_meta(feature_dir)), (
-            "the sole residue must be a vcs-lock-only meta.json diff (WP02 scope)"
+            "the meta.json residue must be a vcs-lock-only diff (WP02 scope)"
         )
-        # The SECOND claim's REAL dirty-tree guard must drop the lock-only meta and
-        # pass. Without WP02's fix it Exit(1)s here (count stays 1).
         try:
             implement("WP02", mission=slug, auto_commit=False, recover=False)
         except typer.Exit as exc:  # pragma: no cover - only on a real regression
@@ -619,30 +643,27 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
                 f"it was blocked by the first claim's uncommitted vcs-lock self-write "
                 f"(#2222 / WP02 regression)."
             ) from exc
-    assert create_mock.call_count == 2, (
-        "both back-to-back auto_commit=False claims must reach workspace allocation; "
-        "a count < 2 means the second claim was blocked by the first claim's "
-        "uncommitted vcs-lock self-write (WP02 #2222 regression)."
+    # Signal: BOTH claims reached the event log (not an allocation-mock call count).
+    claimed = _claimed_wps(feature_dir)
+    assert claimed["WP01"] != "planned" and claimed["WP02"] != "planned", (
+        f"both back-to-back claims must land in the event log, got {claimed!r} "
+        f"(WP02 #2222 regression: the second claim was blocked by the first's vcs-lock self-write)"
     )
     _no_coord_branch(feature_dir, "after two implement claims")
+    assert not (repo / ".worktrees").exists(), "a single_branch mission has no lane worktrees"
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", f"chore({slug}): commit vcs-lock residue")
 
-    # 4. Build real lane branches with code content; drive WPs to approved; merge.
-    _git(repo, "branch", mission_branch, "main")
-    for lane_id, wp_id, relpath, body in (
-        ("lane-a", "WP01", "src/a/foo.py", "def foo():\n    return 'WP01-single-branch'\n"),
-        ("lane-b", "WP02", "src/b/bar.py", "def bar():\n    return 'WP02-single-branch'\n"),
+    # 4. WP content is committed on the write checkout (main); drive WPs to approved; merge.
+    for relpath, body in (
+        ("src/a/foo.py", "def foo():\n    return 'WP01-single-branch'\n"),
+        ("src/b/bar.py", "def bar():\n    return 'WP02-single-branch'\n"),
     ):
-        lane_branch = f"{mission_branch}-{lane_id}"
-        _git(repo, "branch", lane_branch, "main")
-        _git(repo, "checkout", lane_branch)
         target = repo / relpath
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(body, encoding="utf-8")
         _git(repo, "add", relpath)
-        _git(repo, "commit", "-m", f"feat({slug}): {wp_id} adds {relpath}")
-    _git(repo, "checkout", "main")
+        _git(repo, "commit", "-m", f"feat({slug}): adds {relpath}")
 
     for wp_id in ("WP01", "WP02"):
         _seed_wp_approved(feature_dir, slug, wp_id)
@@ -661,20 +682,18 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
         )
 
     # ---- Four observable post-merge facts -------------------------------------
-    # (a) the WP file CONTENT is present on the merge-target branch.
+    # (a) the WP file CONTENT is on the merge-target branch (main).
     for relpath, needle in (
         ("src/a/foo.py", "WP01-single-branch"),
         ("src/b/bar.py", "WP02-single-branch"),
     ):
         blob = _git(repo, "show", f"main:{relpath}").stdout
-        assert needle in blob, (
-            f"FR-005 regression (a): {relpath} content did not reach main after merge"
-        )
+        assert needle in blob, f"FR-005 regression (a): {relpath} content is not on main after merge"
 
     # (b) the status event log reaches done via the lane reader/reducer.
-    snapshot = reduce(read_events(feature_dir))
+    final = _claimed_wps(feature_dir)
     for wp_id in ("WP01", "WP02"):
-        assert snapshot.work_packages[wp_id]["lane"] == Lane.DONE.value, (
+        assert final[wp_id] == Lane.DONE.value, (
             f"FR-005 regression (b): {wp_id} did not reach done in the persisted event log"
         )
 
@@ -685,3 +704,44 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
 
     # (d) no coordination_branch key was EVER written.
     _no_coord_branch(feature_dir, "after merge")
+
+
+def test_single_branch_hand_written_code_lanes_fail_closed_at_implement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Negative twin (#5100): the OLD hand-written shape -- a single_branch
+    mission whose ``lanes.json`` carries code lanes -- is refused by the real
+    ``implement`` with ``SINGLE_BRANCH_CODE_LANES_UNMIGRATED``, before any
+    worktree exists. Nothing past the guards is mocked."""
+    import typer
+
+    from mission_runtime import MissionTopology, TopologyManifestMismatch
+    from specify_cli.cli.commands.implement import implement
+    from specify_cli.core.mission_creation import create_mission_core
+
+    repo = _init_project(tmp_path)
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION", "1")
+    result = create_mission_core(
+        repo, "hand-written-code-lanes", topology=MissionTopology.SINGLE_BRANCH, commit_to_target=True
+    )
+    feature_dir = result.feature_dir
+    slug = feature_dir.name
+    _write_lanes(feature_dir, slug, f"kitty/mission-{slug}")
+    _write_wp_file(feature_dir, "WP01", "src/a/**")
+    _write_wp_file(feature_dir, "WP02", "src/b/**")
+    _seed_planned(feature_dir, slug, "WP01")
+    _seed_planned(feature_dir, slug, "WP02")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", f"chore({slug}): hand-written code-lane single_branch mission")
+
+    # ``implement`` renders the allocation failure and re-raises ``typer.Exit(1)``
+    # ``from`` the structured error, so the code lives on ``__cause__``.
+    with _preflight_bypassed(), pytest.raises(typer.Exit) as excinfo:
+        implement("WP01", mission=slug, auto_commit=False, recover=False)
+
+    assert excinfo.value.exit_code == 1
+    cause = excinfo.value.__cause__
+    assert isinstance(cause, TopologyManifestMismatch)
+    assert cause.error_code == "SINGLE_BRANCH_CODE_LANES_UNMIGRATED"
+    assert not (repo / ".worktrees").exists()
