@@ -476,6 +476,13 @@ def _real_merge_external_mocks(repo: Path) -> Iterator[None]:
             "specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target",
             "specify_cli.consolidation.executor._assert_merged_wps_done_on_target",
             "specify_cli.consolidation.executor._refresh_primary_checkout_after_merge",
+            # #4900: an unprotected single_branch mission closes out on the
+            # PLANNING-ONLY path, whose (unmocked) planning-only assignment
+            # writes a real mission_number to meta.json; commit_merge_bookkeeping
+            # is mocked above, so the number never lands on the target and the
+            # read-back would fail. Neutralize only the verify/announce step
+            # (same as main's 4f74543d planning-only fixtures).
+            "specify_cli.consolidation.executor._verify_and_announce_mission_number",
         ):
             stack.enter_context(patch(target))
         stack.enter_context(
