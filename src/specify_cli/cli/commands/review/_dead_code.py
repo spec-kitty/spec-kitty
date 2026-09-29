@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Literal
 
 from rich.console import Console
 
@@ -18,6 +19,16 @@ from ._diagnostics import MissionReviewDiagnostic
 
 _IDENTIFIER_CHARCLASS = r"\w"
 _UNDETERMINABLE_REMEDIATION = "Verify the baseline commit and Git repository, then rerun `spec-kitty review`."
+# Tech-agnostic on purpose (#2330 / #5283): never advise a non-Python mission to
+# create Python files or adopt Python tooling; point at the local charter instead.
+_NOT_APPLICABLE_REMEDIATION = (
+    "The dead-code scan only analyzes Python sources. For other languages, add "
+    "tech-specific review guidance and your own analyzer or test command to your local charter "
+    "(see 'Extend your charter for an unsupported language')."
+)
+_NO_EXTENSION_LABEL = "(no extension)"
+_PYTHON_SUFFIX = ".py"
+_TEST_DIRECTORY_NAMES = frozenset({"test", "tests"})
 _EXCLUDED_CORPUS_PARTS = frozenset(
     {
         ".git",
@@ -32,13 +43,74 @@ _EXCLUDED_CORPUS_PARTS = frozenset(
 )
 
 
+DiscoveryOutcome = Literal["scan", "undeterminable", "not_applicable"]
+
+#: What ``scan_dead_code`` did: ran to completion, found nothing it supports
+#: (``not_applicable``), or could not run at all (missing baseline, legacy
+#: mission, incomplete evidence, undeterminable discovery).
+DeadCodeOutcome = Literal["scanned", "not_applicable", "unscanned"]
+
+
 @dataclass(frozen=True)
 class _Discovery:
-    """Result of baseline-to-HEAD symbol discovery."""
+    """Result of baseline-to-HEAD symbol discovery.
+
+    ``outcome`` discriminates a normal scan from an undeterminable discovery
+    (``error`` is set) and from a change set the Python-only scan does not
+    apply to. ``unsupported_extensions`` / ``excluded_test_paths`` describe the
+    changed files the scan cannot analyze (sorted, de-duplicated; ``.py`` is
+    never listed).
+    """
 
     changed_paths: tuple[str, ...]
     symbols: tuple[tuple[str, str], ...]
     error: str | None = None
+    outcome: DiscoveryOutcome = "scan"
+    unsupported_extensions: tuple[str, ...] = ()
+    excluded_test_paths: int = 0
+
+
+def _is_python_path(path: str) -> bool:
+    """Return True for a ``.py`` path, matching the suffix case-insensitively."""
+    return PurePosixPath(path).suffix.lower() == _PYTHON_SUFFIX
+
+
+def _is_test_only_path(path: str) -> bool:
+    """Return True when *path* is a test path by segment or file name, never by substring.
+
+    A directory segment named ``test``/``tests``, or a file named ``test_*.py``,
+    ``*_test.py`` or ``conftest.py`` (case-insensitive), marks a test path;
+    ``latest.py``, ``contest.py`` and ``attestation.py`` do not.
+    """
+    pure = PurePosixPath(path.casefold())
+    if any(part in _TEST_DIRECTORY_NAMES for part in pure.parts[:-1]):
+        return True
+    if pure.name == "conftest.py":
+        return True
+    return pure.suffix == _PYTHON_SUFFIX and (pure.stem.startswith("test_") or pure.stem.endswith("_test"))
+
+
+def _summarize_unsupported(
+    changed_paths: tuple[str, ...],
+    supported_paths: tuple[str, ...],
+) -> tuple[tuple[str, ...], int]:
+    """Summarize changed files the scan cannot analyze.
+
+    Returns ``(sorted unique extensions, count of test-only Python paths)``.
+    Python files excluded by the test-path filter are counted, never listed as
+    an unsupported extension.
+    """
+    supported = frozenset(supported_paths)
+    extensions: set[str] = set()
+    excluded_test_paths = 0
+    for path in changed_paths:
+        if path in supported:
+            continue
+        if _is_python_path(path):
+            excluded_test_paths += 1
+        else:
+            extensions.add(PurePosixPath(path).suffix.lower() or _NO_EXTENSION_LABEL)
+    return tuple(sorted(extensions)), excluded_test_paths
 
 
 def _run_git_diff(
@@ -49,7 +121,7 @@ def _run_git_diff(
     """Run a deterministic Git diff, returning ``None`` when Git is unavailable."""
     try:
         return subprocess.run(
-            ["git", "diff", *diff_args, f"{baseline_merge_commit}..HEAD", "--"],
+            ["git", "-c", "core.quotePath=false", "diff", *diff_args, f"{baseline_merge_commit}..HEAD", "--"],
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -87,30 +159,35 @@ def _discover_changed_symbols(
     """Discover changed paths and added Python symbols without a source-root assumption."""
     name_result = _run_git_diff(repo_root, baseline_merge_commit, "--name-only")
     if name_result is None:
-        return _Discovery((), (), "git executable is unavailable")
+        return _Discovery((), (), "git executable is unavailable", "undeterminable")
     if name_result.returncode != 0:
-        return _Discovery((), (), "git diff failed")
+        return _Discovery((), (), "git diff failed", "undeterminable")
 
     changed_paths = tuple(path for path in name_result.stdout.splitlines() if path)
     if not changed_paths:
-        return _Discovery((), (), "git diff reported no changed files")
-    changed_python_paths = tuple(path for path in changed_paths if path.endswith(".py"))
-    supported_paths = tuple(path for path in changed_python_paths if path.startswith("src/") or "test" not in path)
+        return _Discovery((), (), "git diff reported no changed files", "undeterminable")
+    changed_python_paths = tuple(path for path in changed_paths if _is_python_path(path))
+    supported_paths = tuple(path for path in changed_python_paths if path.startswith("src/") or not _is_test_only_path(path))
+    unsupported_extensions, excluded_test_paths = _summarize_unsupported(changed_paths, supported_paths)
     if not supported_paths:
         return _Discovery(
             changed_paths,
             (),
-            "changed source set contains no supported Python files",
+            outcome="not_applicable",
+            unsupported_extensions=unsupported_extensions,
+            excluded_test_paths=excluded_test_paths,
         )
 
     diff_result = _run_git_diff(repo_root, baseline_merge_commit, "--unified=0")
     if diff_result is None:
-        return _Discovery(changed_paths, (), "git executable is unavailable")
+        return _Discovery(changed_paths, (), "git executable is unavailable", "undeterminable")
     if diff_result.returncode != 0:
-        return _Discovery(changed_paths, (), "git diff failed")
+        return _Discovery(changed_paths, (), "git diff failed", "undeterminable")
     return _Discovery(
         supported_paths,
         _extract_added_symbols(diff_result.stdout, frozenset(supported_paths)),
+        unsupported_extensions=unsupported_extensions,
+        excluded_test_paths=excluded_test_paths,
     )
 
 
@@ -119,7 +196,7 @@ def _load_python_corpus(
     changed_paths: tuple[str, ...],
 ) -> tuple[tuple[tuple[str, str], ...], str | None]:
     """Load the complete Python corpus, including untracked files, deterministically."""
-    changed_python_paths = tuple(path for path in changed_paths if path.endswith(".py"))
+    changed_python_paths = tuple(path for path in changed_paths if _is_python_path(path))
     search_root = repo_root / "src" if changed_python_paths and all(path.startswith("src/") for path in changed_python_paths) else repo_root
     try:
         paths = sorted(
@@ -150,7 +227,7 @@ def _unreferenced_symbols(
     """Return symbols with no caller, preserving the legacy path filters."""
     dead_symbols: list[dict[str, str]] = []
     for symbol, defined_in in symbols:
-        callers = [path for path, source in corpus if symbol in source and path != defined_in and "test" not in path]
+        callers = [path for path, source in corpus if symbol in source and path != defined_in and not _is_test_only_path(path)]
         if not callers:
             dead_symbols.append({"symbol": symbol, "file": defined_in})
     return dead_symbols
@@ -172,6 +249,35 @@ def _append_undeterminable(
             "diagnostic_code": str(diagnostic_code),
             "reason": reason,
             "remediation": _UNDETERMINABLE_REMEDIATION,
+        }
+    )
+
+
+def _append_not_applicable(
+    *,
+    discovery: _Discovery,
+    console: Console,
+    findings: list[dict[str, str]],
+) -> None:
+    """Record that the Python-only scan does not apply to this change set."""
+    diagnostic_code = MissionReviewDiagnostic.DEAD_CODE_NOT_APPLICABLE
+    extensions = ", ".join(discovery.unsupported_extensions)
+    reason = (
+        "no changed file is one the dead-code scan supports "
+        f"(unsupported extensions: {extensions or '(none)'}; "
+        f"test-only Python paths excluded: {discovery.excluded_test_paths})"
+    )
+    console.print(f"  [yellow]⚠[/yellow]  Dead-code scan: not applicable ({diagnostic_code})")
+    console.print(f"       reason: {reason}")
+    console.print(f"       remediation: {_NOT_APPLICABLE_REMEDIATION}")
+    findings.append(
+        {
+            "type": "dead_code_not_applicable",
+            "diagnostic_code": str(diagnostic_code),
+            "unsupported_extensions": extensions,
+            "excluded_test_paths": str(discovery.excluded_test_paths),
+            "reason": reason,
+            "remediation": _NOT_APPLICABLE_REMEDIATION,
         }
     )
 
@@ -308,8 +414,12 @@ def scan_dead_code(
     mission_slug: str | None = None,
     acceptance_mode: str | None = None,
     pr_merge_evidence: str | None = None,
-) -> None:
+) -> DeadCodeOutcome:
     """Scan added public Python symbols and emit an earned review verdict.
+
+    Returns ``"not_applicable"`` when the change set holds nothing the
+    Python-only scan supports (the caller records the gate as ``skip``),
+    ``"unscanned"`` when the scan could not run, else ``"scanned"``.
 
     ``acceptance_mode`` (from ``meta.json``) only changes the *reason* and
     *remediation* attached to a ``dead_code_baseline_missing`` finding — never
@@ -334,7 +444,7 @@ def scan_dead_code(
             mission_slug=mission_slug,
             acceptance_mode=acceptance_mode,
         )
-        return
+        return "unscanned"
 
     evidence_value = (pr_merge_evidence or "").strip()
     if evidence_value and evidence_value not in _COMPLETE_ANCHOR_EVIDENCE:
@@ -343,16 +453,22 @@ def scan_dead_code(
             findings=findings,
             pr_merge_evidence=evidence_value,
         )
-        return
+        return "unscanned"
 
     discovery = _discover_changed_symbols(repo_root, baseline_merge_commit)
+    if discovery.outcome == "not_applicable":
+        _append_not_applicable(discovery=discovery, console=console, findings=findings)
+        return "not_applicable"
     if discovery.error is not None:
         _append_undeterminable(
             reason=discovery.error,
             console=console,
             findings=findings,
         )
-        return
+        return "unscanned"
+    if discovery.unsupported_extensions:
+        extensions = ", ".join(discovery.unsupported_extensions)
+        console.print(f"  [yellow]⚠[/yellow]  Dead-code scan: not applicable to some changed files ({extensions})")
 
     corpus, corpus_error = _load_python_corpus(
         repo_root,
@@ -364,7 +480,7 @@ def scan_dead_code(
             console=console,
             findings=findings,
         )
-        return
+        return "unscanned"
 
     dead_symbols = _unreferenced_symbols(discovery.symbols, corpus)
     for dead_symbol in dead_symbols:
@@ -374,5 +490,6 @@ def scan_dead_code(
         console.print(f"  [red]✗[/red]  Dead-code scan: {len(dead_symbols)} unreferenced public symbol(s)")
         for dead_symbol in dead_symbols:
             console.print(f"       {dead_symbol['file']}  {dead_symbol['symbol']}")
-        return
+        return "scanned"
     console.print("  [green]✓[/green]  Dead-code scan: 0 unreferenced public symbols")
+    return "scanned"

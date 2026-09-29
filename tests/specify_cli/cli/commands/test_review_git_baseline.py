@@ -429,7 +429,12 @@ def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(tmp_path: Pat
         # accept the probe shape and report success.
         if len(cmd) == 3 and cmd[1:] == ["-c", "import pytest"]:
             return SimpleNamespace(stdout="", stderr="", returncode=0)
-        if cmd[:2] == ["git", "diff"]:
+        # Strip leading ``-c key=value`` config pairs (e.g. ``core.quotePath=false``)
+        # so the match is robust to git-global options the production call adds.
+        git_args = list(cmd[1:]) if cmd and cmd[0] == "git" else []
+        while len(git_args) >= 2 and git_args[0] == "-c":
+            git_args = git_args[2:]
+        if git_args[:1] == ["diff"]:
             if "--name-only" in cmd:
                 return SimpleNamespace(stdout="src/pkg/example.py\n", returncode=0)
             return SimpleNamespace(

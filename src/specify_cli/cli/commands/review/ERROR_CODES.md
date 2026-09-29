@@ -223,7 +223,7 @@ MISSION_REVIEW_MISSION_EXCEPTION_INVALID: mission-exception.md is present but mi
 
 **Code**: `MISSION_REVIEW_TEST_EXTRA_MISSING`
 
-**When it fires**: `pytest` is not importable from the active Python interpreter. This prevents the dead-code scan and BLE001 audit from running.
+**When it fires**: `pytest` is not importable from the active Python interpreter. This is a warning (`"severity": "warning"` on the JSON line): the review gates run no tests, so the review continues and still writes its report. Only local CI-parity runs of Spec Kitty itself need pytest.
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 
@@ -236,7 +236,7 @@ MISSION_REVIEW_MISSION_EXCEPTION_INVALID: mission-exception.md is present but mi
 **Body example**:
 
 ```text
-MISSION_REVIEW_TEST_EXTRA_MISSING: pytest is not importable from the active Python interpreter. Run `<remediation command>` to install pytest into that interpreter, then retry.
+MISSION_REVIEW_TEST_EXTRA_MISSING: pytest is not importable from the active Python interpreter. This is a Spec Kitty installation note: the review runs no tests, so it continues. Only local CI-parity runs of Spec Kitty itself need it; run `<remediation command>` to install it.
 ```
 
 ---
@@ -289,8 +289,9 @@ LEGACY_MISSION_DEAD_CODE_SKIP: dead-code scan skipped on a pre-083 mission. Run 
 **Code**: `MISSION_REVIEW_DEAD_CODE_UNDETERMINABLE`
 
 **When it fires**: the dead-code gate cannot establish a supported, complete Python source
-denominator. This includes a failed or unavailable Git diff, a change set with no supported Python
-files, an empty Python corpus, and source traversal or decoding failures.
+denominator. This includes a failed or unavailable Git diff, an empty change set, an empty Python
+corpus, and source traversal or decoding failures. A change set that only holds files the gate does
+not analyze is not undeterminable; see `DEAD_CODE_NOT_APPLICABLE`.
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an
 opaque identifier.
@@ -305,6 +306,28 @@ opaque identifier.
 
 ```text
 MISSION_REVIEW_DEAD_CODE_UNDETERMINABLE: dead-code analysis could not establish a complete supported source set.
+```
+
+---
+
+## DEAD_CODE_NOT_APPLICABLE
+
+**Code**: `MISSION_REVIEW_DEAD_CODE_NOT_APPLICABLE`
+
+**When it fires**: the baseline-to-HEAD change set is non-empty but holds nothing the Python-only dead-code scan supports (for example only Zig, Go or documentation files, or only test-only Python paths). The gate is recorded as `skip`, never a clean "0 unreferenced" result. When a change set mixes supported and unsupported files, the supported subset is still scanned and the unsupported remainder is noted on the console only.
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier. The finding type is `dead_code_not_applicable` and carries `unsupported_extensions` (sorted, de-duplicated; `(no extension)` for bare files; `.py` is never listed) and `excluded_test_paths` (how many test-only Python paths were left out).
+
+**Severity**: non-failing. The finding does not add a hard failure; the verdict is `pass_with_notes` and the exit code is 0.
+
+**Remediation**:
+1. The dead-code scan only analyzes Python sources. For other languages, add tech-specific review guidance and your own analyzer or test command to your local charter (see 'Extend your charter for an unsupported language').
+2. Do not treat this note as a clean scan; no dead-code analysis ran for the unsupported files.
+
+**Body example**:
+
+```text
+MISSION_REVIEW_DEAD_CODE_NOT_APPLICABLE: no changed file is one the dead-code scan supports (unsupported extensions: .go, .zig; test-only Python paths excluded: 0)
 ```
 
 ---

@@ -63,6 +63,14 @@ def _format_finding_line(finding: dict[str, str]) -> str | None:
             f"pr_merge_evidence=`{finding.get('pr_merge_evidence', 'unknown')}`; "
             f"remediation=`{finding.get('remediation', 'unknown')}`"
         )
+    if finding_type == "dead_code_not_applicable":
+        return (
+            f"- **dead_code_not_applicable** "
+            f"`{finding.get('diagnostic_code', 'unknown')}`: "
+            f"unsupported_extensions=`{finding.get('unsupported_extensions') or '(none)'}`; "
+            f"excluded_test_paths=`{finding.get('excluded_test_paths', '0')}`; "
+            f"remediation=`{finding.get('remediation', 'unknown')}`"
+        )
     if finding_type == "ble001_suppression":
         return (
             f"- **ble001_suppression** `{finding['file']}:{finding['line']}`: "

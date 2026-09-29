@@ -37,6 +37,8 @@ from rich.console import Console
 
 from specify_cli.cli.commands.review._dead_code import (
     _COMPLETE_ANCHOR_EVIDENCE,
+    _unreferenced_symbols,
+    DeadCodeOutcome,
     scan_dead_code,
 )
 from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
@@ -340,3 +342,182 @@ def test_complete_anchor_evidence_is_bound_to_the_writer_constants() -> None:
         ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
         ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
     } == _COMPLETE_ANCHOR_EVIDENCE
+
+
+# ---------------------------------------------------------------------------
+# #5283: not-applicable outcome (tech-agnostic language fallback)
+# ---------------------------------------------------------------------------
+
+_NEUTRALITY_ALLOWED_PHRASES = ("only analyzes Python sources", "test-only Python paths")
+_NEUTRALITY_BANNED_TOKENS = (".py", "src/", "pytest", "python")
+
+
+def _console_and_findings() -> tuple[Console, list[dict[str, str]]]:
+    return Console(force_terminal=False, no_color=True, record=True, width=200), []
+
+
+def _not_applicable_text(unsupported_extensions: tuple[str, ...] = (".go", ".zig")) -> tuple[str, dict[str, str]]:
+    from specify_cli.cli.commands.review._dead_code import _append_not_applicable, _Discovery
+
+    console, findings = _console_and_findings()
+    _append_not_applicable(
+        discovery=_Discovery(
+            ("a.go",),
+            (),
+            outcome="not_applicable",
+            unsupported_extensions=unsupported_extensions,
+            excluded_test_paths=2,
+        ),
+        console=console,
+        findings=findings,
+    )
+    return console.export_text(), findings[0]
+
+
+def test_summarize_unsupported_sorts_dedups_and_never_lists_python() -> None:
+    """Extensions are sorted and unique; `.py` is counted as test-only, never listed."""
+    from specify_cli.cli.commands.review._dead_code import _summarize_unsupported
+
+    changed = ("b/main.zig", "a/x.zig", "cmd/main.go", "tests/test_a.py", "tests/test_b.py", "Makefile", "docs/A.MD")
+    extensions, excluded = _summarize_unsupported(changed, ())
+
+    assert extensions == ("(no extension)", ".go", ".md", ".zig")
+    assert excluded == 2
+    assert ".py" not in extensions
+
+
+def test_summarize_unsupported_skips_supported_paths() -> None:
+    """Supported Python paths are neither listed nor counted as excluded."""
+    from specify_cli.cli.commands.review._dead_code import _summarize_unsupported
+
+    extensions, excluded = _summarize_unsupported(("src/a.py", "lib/b.zig"), ("src/a.py",))
+
+    assert extensions == (".zig",)
+    assert excluded == 0
+
+
+def test_append_not_applicable_records_one_non_failing_finding() -> None:
+    """The finding carries the stable code, sorted extensions and the excluded-test count."""
+    text, finding = _not_applicable_text()
+
+    assert finding["type"] == "dead_code_not_applicable"
+    assert finding["diagnostic_code"] == "MISSION_REVIEW_DEAD_CODE_NOT_APPLICABLE"
+    assert finding["unsupported_extensions"] == ".go, .zig"
+    assert finding["excluded_test_paths"] == "2"
+    assert "not applicable (MISSION_REVIEW_DEAD_CODE_NOT_APPLICABLE)" in text
+
+
+def test_append_not_applicable_names_none_when_only_test_python_changed() -> None:
+    """No unsupported extension (tests-only change) reads `(none)`, not an empty list."""
+    text, finding = _not_applicable_text(())
+
+    assert finding["unsupported_extensions"] == ""
+    assert "unsupported extensions: (none)" in " ".join(text.split())
+
+
+def test_not_applicable_is_not_a_hard_failure_type() -> None:
+    """The note never flips the verdict to fail."""
+    from specify_cli.cli.commands.review._report import _HARD_FAILURE_FINDING_TYPES
+
+    assert "dead_code_not_applicable" not in _HARD_FAILURE_FINDING_TYPES
+
+
+def test_report_formatter_renders_not_applicable_line() -> None:
+    """Without a formatter the finding line would silently vanish from the report."""
+    from specify_cli.cli.commands.review._report import _format_finding_line
+
+    _, finding = _not_applicable_text()
+    line = _format_finding_line(finding)
+
+    assert line is not None
+    assert "MISSION_REVIEW_DEAD_CODE_NOT_APPLICABLE" in line
+    assert "unsupported_extensions=`.go, .zig`" in line
+    assert "excluded_test_paths=`2`" in line
+    empty_line = _format_finding_line({**finding, "unsupported_extensions": ""})
+    assert empty_line is not None
+    assert "unsupported_extensions=`(none)`" in empty_line
+
+
+def test_not_applicable_text_is_tech_agnostic() -> None:
+    """Remediation + console block never suggest Python files/layout/tools (#2330 policy).
+
+    Only the two fixed phrases naming what the scan analyzes are allowed to
+    mention Python; the text must direct the operator to the local charter.
+    """
+    from specify_cli.cli.commands.review._dead_code import _NOT_APPLICABLE_REMEDIATION
+
+    text, finding = _not_applicable_text()
+
+    assert "only analyzes Python sources" in _NOT_APPLICABLE_REMEDIATION
+    assert "test-only Python paths" in text
+    for candidate in (_NOT_APPLICABLE_REMEDIATION, text, finding["reason"], finding["remediation"]):
+        scrubbed = candidate
+        for phrase in _NEUTRALITY_ALLOWED_PHRASES:
+            scrubbed = scrubbed.replace(phrase, "")
+        lowered = scrubbed.lower()
+        for banned in _NEUTRALITY_BANNED_TOKENS:
+            assert banned not in lowered, f"{banned!r} leaked into: {candidate!r}"
+    assert "local charter" in _NOT_APPLICABLE_REMEDIATION
+    assert "Extend your charter for an unsupported language" in _NOT_APPLICABLE_REMEDIATION
+    assert "Extend your charter for an unsupported language" in finding["remediation"]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "appended", "expected"),
+    [
+        ("not_applicable", 1, "skip"),
+        ("scanned", 0, "pass"),
+        ("scanned", 2, "fail"),
+        ("unscanned", 0, "pass"),
+        ("unscanned", 1, "fail"),
+    ],
+)
+def test_dead_code_gate_result_mapping(outcome: DeadCodeOutcome, appended: int, expected: str) -> None:
+    """Gate recording is decided from the scan outcome, not the finding list alone."""
+    from specify_cli.cli.commands.review import _dead_code_gate_result
+
+    assert _dead_code_gate_result(outcome, appended_findings=appended) == expected
+
+
+def test_legacy_skip_returns_unscanned_and_records_pass(tmp_path: Path) -> None:
+    """LEGACY_MISSION_DEAD_CODE_SKIP keeps recording `pass` (no finding, outcome unscanned)."""
+    from specify_cli.cli.commands.review import _dead_code_gate_result
+
+    console, findings = _console_and_findings()
+    outcome = scan_dead_code(None, tmp_path, console, findings, mission_id=None)
+
+    assert outcome == "unscanned"
+    assert _dead_code_gate_result(outcome, appended_findings=len(findings)) == "pass"
+
+
+def test_mixed_change_set_prints_remainder_note_without_a_finding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A supported Python subset is scanned; the unsupported remainder is a console-only note."""
+    from specify_cli.cli.commands.review import _dead_code
+    from specify_cli.cli.commands.review._dead_code import _Discovery
+
+    monkeypatch.setattr(
+        _dead_code,
+        "_discover_changed_symbols",
+        lambda *_: _Discovery(("src/a.py",), (), unsupported_extensions=(".zig",)),
+    )
+    monkeypatch.setattr(_dead_code, "_load_python_corpus", lambda *_: ((("src/a.py", "X = 1\n"),), None))
+    console, findings = _console_and_findings()
+
+    outcome = scan_dead_code("deadbeef", tmp_path, console, findings)
+
+    assert outcome == "scanned"
+    assert findings == []
+    assert "not applicable to some changed files (.zig)" in console.export_text()
+
+
+def test_unreferenced_symbols_caller_path_test_rule() -> None:
+    """A caller in ``pkg/latest.py`` counts; a caller under ``tests/`` does not."""
+    symbols = (("Alpha", "pkg/a.py"), ("Beta", "pkg/b.py"))
+    corpus = (
+        ("pkg/a.py", "def Alpha(): ...\n"),
+        ("pkg/b.py", "def Beta(): ...\n"),
+        ("pkg/latest.py", "Alpha()\n"),
+        ("tests/test_x.py", "Beta()\n"),
+    )
+    dead = _unreferenced_symbols(symbols, corpus)
+    assert dead == [{"symbol": "Beta", "file": "pkg/b.py"}]

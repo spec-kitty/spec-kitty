@@ -331,9 +331,8 @@ def test_review_emits_json_diagnostic_when_pytest_missing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Missing test extra should fail before selector resolution and print JSON."""
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
+    """Missing test extra warns (with JSON severity) and the review proceeds (#5283)."""
+    repo_root, feature_dir = _setup_fixture(tmp_path, {"WP01": "done"})
 
     monkeypatch.chdir(repo_root)
     monkeypatch.setattr(
@@ -351,13 +350,22 @@ def test_review_emits_json_diagnostic_when_pytest_missing(
         _raise_missing,
     )
 
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
     app = _build_cli_app()
     runner = CliRunner()
     result = runner.invoke(app, ["--mission", _MISSION_SLUG])
 
-    assert result.exit_code == 1, result.output
     assert '"diagnostic_code": "MISSION_REVIEW_TEST_EXTRA_MISSING"' in result.output
+    assert '"severity": "warning"' in result.output
     assert "uv sync --extra test" in result.output
+    # The review proceeded past the pre-check: gates ran and the report was written.
+    assert "Reviewing mission:" in result.output
+    assert (feature_dir / "mission-review-report.md").exists()
 
 
 def test_review_emits_uv_tool_remediation_when_pytest_missing_in_uv_tool(
@@ -365,8 +373,7 @@ def test_review_emits_uv_tool_remediation_when_pytest_missing_in_uv_tool(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """uv tool installs must repair the tool interpreter using --extra test."""
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
+    repo_root, feature_dir = _setup_fixture(tmp_path, {"WP01": "done"})
 
     monkeypatch.chdir(repo_root)
     monkeypatch.setattr(
@@ -390,12 +397,19 @@ def test_review_emits_uv_tool_remediation_when_pytest_missing_in_uv_tool(
         lambda: _make_uv_runtime(),
     )
 
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
     app = _build_cli_app()
     runner = CliRunner()
     result = runner.invoke(app, ["--mission", _MISSION_SLUG])
 
-    assert result.exit_code == 1, result.output
     assert '"diagnostic_code": "MISSION_REVIEW_TEST_EXTRA_MISSING"' in result.output
+    assert '"severity": "warning"' in result.output
+    assert "Reviewing mission:" in result.output
     assert "uv tool install --force --with pytest spec-kitty-cli" in result.output
     assert '"remediation": "uv tool install --force --with pytest spec-kitty-cli"' in result.output
 

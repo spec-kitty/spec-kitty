@@ -92,7 +92,13 @@ def test_non_git_repository_is_undeterminable(
     assert "0 unreferenced public symbols" not in output
 
 
-def test_unsupported_non_python_change_is_undeterminable(tmp_path: Path) -> None:
+def test_unsupported_non_python_change_is_not_applicable(tmp_path: Path) -> None:
+    """A docs-only change is not applicable (#5283), never a false clean zero.
+
+    Re-pinned from ``..._is_undeterminable``: #2987 FR-015/016 still forbids a
+    false "0 unreferenced" clean zero, which this keeps; the verdict weight
+    changes from a hard undeterminable failure to a non-failing note.
+    """
     repo_root, baseline = _git_repo(tmp_path)
     docs_dir = repo_root / "docs"
     docs_dir.mkdir()
@@ -102,11 +108,11 @@ def test_unsupported_non_python_change_is_undeterminable(tmp_path: Path) -> None
 
     findings, output = scan(repo_root, baseline)
 
-    assert findings[0]["type"] == "dead_code_undeterminable"
-    assert (
-        findings[0]["reason"]
-        == "changed source set contains no supported Python files"
-    )
+    assert [f["type"] for f in findings] == ["dead_code_not_applicable"]
+    assert findings[0]["diagnostic_code"] == "MISSION_REVIEW_DEAD_CODE_NOT_APPLICABLE"
+    assert findings[0]["unsupported_extensions"] == ".md"
+    assert findings[0]["excluded_test_paths"] == "0"
+    assert "not applicable" in output
     assert "0 unreferenced public symbols" not in output
 
 

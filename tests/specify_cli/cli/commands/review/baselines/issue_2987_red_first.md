@@ -37,7 +37,7 @@ The first focused run completed with `5 failed, 5 passed`. The failures were:
 
 - `test_non_git_repository_is_undeterminable`
 - `test_missing_git_at_subprocess_boundary_is_undeterminable`
-- `test_unsupported_non_python_change_is_undeterminable`
+- `test_unsupported_non_python_change_is_undeterminable` (renamed 2026-09-29 to `test_unsupported_non_python_change_is_not_applicable`; see note below)
 - `test_unreadable_python_corpus_is_undeterminable`
 - `test_real_post_merge_cli_uses_git_as_only_path_executable`
 
@@ -84,3 +84,12 @@ The final cycle-2 verification completed with:
 - `12 passed` with 95% statement coverage for `_dead_code.py`;
 - zero findings from Ruff and mypy; and
 - a clean `git diff --check`.
+
+## Re-pin note (2026-09-29, mission tech-agnostic-language-fallback, #5283)
+
+`test_unsupported_non_python_change_is_undeterminable` was renamed to
+`test_unsupported_non_python_change_is_not_applicable`. A change set containing no file the
+Python-only dead-code scan supports is now a non-failing `dead_code_not_applicable` note (gate
+`skip`, verdict `pass_with_notes`) instead of a hard `DEAD_CODE_UNDETERMINABLE` failure. The
+FR-015/FR-016 invariant is kept: that outcome never reports a false "0 unreferenced" clean zero.
+Git-unavailable, git-diff-failure, unreadable-source and empty-corpus paths remain undeterminable.

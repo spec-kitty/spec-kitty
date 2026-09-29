@@ -49,7 +49,7 @@ from ._ble001_audit import (  # noqa: F401
     audit_auth_storage_ble001_line,
     collect_auth_storage_ble001_findings,
 )
-from ._dead_code import scan_dead_code  # noqa: F401
+from ._dead_code import DeadCodeOutcome, scan_dead_code  # noqa: F401
 from ._diagnostics import MissionReviewDiagnostic  # noqa: F401
 from ._issue_matrix import validate_issue_matrix  # noqa: F401
 from ._lane_gate import check_wp_lanes  # noqa: F401
@@ -57,21 +57,31 @@ from ._mode import MissionReviewMode, ModeMismatchError, resolve_mode  # noqa: F
 from ._report import GateRecord, write_review_report  # noqa: F401
 
 
-def _fail_missing_test_extra(console: object) -> None:
+def _warn_missing_test_extra(console: object) -> None:
+    """Warn that pytest is missing from the CLI interpreter; the review continues.
+
+    The review gates run no Python tests, so a missing pytest never blocks the
+    review. The JSON line on stdout stays for machine consumers and now carries
+    ``"severity": "warning"``.
+    """
     import sys
 
     diagnostic_code = MissionReviewDiagnostic.TEST_EXTRA_MISSING
     remediation = _missing_test_extra_remediation()
     diagnostic = {
         "diagnostic_code": str(diagnostic_code),
-        "message": (f"pytest is not importable from the active Python interpreter. Run `{remediation}` to install pytest into that interpreter, then retry."),
+        "severity": "warning",
+        "message": (
+            "pytest is not importable from the active Python interpreter. This is a Spec Kitty "
+            "installation note: the review runs no tests, so it continues. Only local CI-parity "
+            f"runs of Spec Kitty itself need it; run `{remediation}` to install it."
+        ),
         "remediation": remediation,
     }
     console.print(  # type: ignore[attr-defined]
-        f"[red]Error:[/red] {diagnostic_code}: {diagnostic['message']}"
+        f"[yellow]Warning:[/yellow] {diagnostic_code}: {diagnostic['message']}"
     )
     sys.stdout.write(json.dumps(diagnostic) + "\n")
-    raise typer.Exit(1)
 
 
 def _missing_test_extra_remediation() -> str:
@@ -183,7 +193,7 @@ def _record_gate(
     *,
     gate_id: Literal["gate_1", "gate_2", "gate_3", "gate_4"],
     name: str,
-    result: Literal["pass", "fail"],
+    result: Literal["pass", "fail", "skip"],
 ) -> None:
     gates_recorded.append(
         GateRecord(
@@ -209,6 +219,13 @@ def _run_lane_gate(
     _record_gate(gates_recorded, gate_id="gate_1", name="wp_lane_check", result=result)
 
 
+def _dead_code_gate_result(outcome: DeadCodeOutcome, *, appended_findings: int) -> Literal["pass", "fail", "skip"]:
+    """Map the scan outcome to the gate record: not applicable is ``skip``, never ``fail``."""
+    if outcome == "not_applicable":
+        return "skip"
+    return "fail" if appended_findings else "pass"
+
+
 def _run_dead_code_gate(
     *,
     baseline_merge_commit: str | None,
@@ -222,7 +239,7 @@ def _run_dead_code_gate(
     gates_recorded: list[GateRecord],
 ) -> None:
     findings_before = len(findings)
-    scan_dead_code(
+    outcome = scan_dead_code(
         baseline_merge_commit,
         repo_root,
         console,
@@ -232,8 +249,12 @@ def _run_dead_code_gate(
         acceptance_mode=acceptance_mode,
         pr_merge_evidence=pr_merge_evidence,
     )
-    result: Literal["pass", "fail"] = "fail" if len(findings) > findings_before else "pass"
-    _record_gate(gates_recorded, gate_id="gate_2", name="dead_code_scan", result=result)
+    _record_gate(
+        gates_recorded,
+        gate_id="gate_2",
+        name="dead_code_scan",
+        result=_dead_code_gate_result(outcome, appended_findings=len(findings) - findings_before),
+    )
 
 
 def _run_ble001_gate(
@@ -394,7 +415,7 @@ def review_mission(
     try:
         assert_pytest_available(repo_root)
     except TestExtraMissing:
-        _fail_missing_test_extra(console)
+        _warn_missing_test_extra(console)
     _check_env_skew(console, repo_root)
 
     handle = _require_mission_handle(mission, console)
