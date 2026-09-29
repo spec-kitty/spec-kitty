@@ -1667,17 +1667,6 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
 #   ``tests/acceptance/test_gate_execution_context.py``'s isolated-method cases. A
 #   type alias consumed purely as a signature annotation is never a ``from ... import``
 #   site by construction.
-# * ``acceptance/execution_context.py::CannotEvaluateReason`` -- its
-#   ``SURFACE_CANNOT_HOLD_FACT`` member is produced by ``surface_cannot_hold`` (wired
-#   into the acceptance-matrix gate via ``gates_core._matrix_surface_cannot_hold``) and
-#   its ``BELOW_MINIMUM_PHASE`` member by ``not_applicable_below`` (still genuinely
-#   unwired -- no gate in this mission's scope declares a phase floor yet). Both
-#   producing methods return the enum member as an attribute of the ``CannotEvaluate``
-#   they build; ``gates_core.py`` reads ``cannot.reason.value`` structurally off that
-#   instance (mirrored by the C5 path, which reads ``exc.error_code`` off the raised
-#   ``GateSurfaceRefMismatch`` the same way) rather than importing the enum type by
-#   name, so the type itself has no cross-module import site even though its members
-#   are live.
 # * ``acceptance/post_consolidation.py`` (``verify_deferred_invariants`` /
 #   ``PostConsolidationResult`` / ``PostConsolidationViolation`` /
 #   ``InvariantViolation``) is WP06/T031's Op, dispatched ad hoc via
@@ -1701,10 +1690,6 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
 #   ``test_auto_exempt_disjoint_from_hand_allowlist``).
 _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozenset(
     {
-        # specify_cli.acceptance.execution_context::CannotEvaluateReason
-        SymbolKey(
-            "CannotEvaluateReason", "169f6e0b84cc22cc54ed339999b26191c66ce24fb4b8c4f4d9e87ba82852c55d", source_module="specify_cli.acceptance.execution_context"
-        ),
         # specify_cli.acceptance.execution_context::SurfaceHeadResolver
         SymbolKey(
             "SurfaceHeadResolver", "1b5124eac062ce4ebeec680cbd3d867d602747896eab7ae166162f65427653a2", source_module="specify_cli.acceptance.execution_context"

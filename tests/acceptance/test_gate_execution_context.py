@@ -357,21 +357,28 @@ def test_build_context_flat_stamps_primary(
     assert ctx.surface == flat_topology_mission.primary_feature_dir
 
 
-def test_build_context_unmaterialized_stamps_primary_without_raising(tmp_path: Path) -> None:
-    """C3 UNMATERIALIZED: the create-window resolves primary + stamps PRIMARY.
+def test_build_context_unmaterialized_coord_worktree_raises(tmp_path: Path) -> None:
+    """C3 UNMATERIALIZED: the create window raises, it does NOT read primary.
 
-    A DECLARED answer for that state, not a degradation — it does NOT raise.
+    #4959 (coord-read-fail-closed): a declared coord branch that exists in git but
+    has no worktree yet is refused with ``CoordinationWorktreeUnmaterialized``
+    rather than substituting an empty PRIMARY surface. The branch is not lost
+    (unlike DELETED), so the payload names the coord candidate to materialize.
+    The acceptance gate turns this raise into cannot-evaluate (#5399, see
+    :func:`test_gec5_create_window_gate_refuses_instead_of_passing`).
     """
-    repo, slug, primary_feature_dir = _build_create_window_coord(tmp_path, coord_branch_exists=True)
-    ctx = build_gate_execution_context(
-        repo,
-        slug,
-        MissionArtifactKind.ACCEPTANCE_MATRIX,
-        phase=LifecyclePhase.ACCEPT,
-        ref="main",
-    )
-    assert ctx.surface_kind is TopologySurface.PRIMARY
-    assert ctx.surface == primary_feature_dir
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+
+    repo, slug, _primary = _build_create_window_coord(tmp_path, coord_branch_exists=True)
+    with pytest.raises(CoordinationWorktreeUnmaterialized) as excinfo:
+        build_gate_execution_context(
+            repo,
+            slug,
+            MissionArtifactKind.ACCEPTANCE_MATRIX,
+            phase=LifecyclePhase.ACCEPT,
+            ref="main",
+        )
+    assert excinfo.value.error_code == "COORDINATION_WORKTREE_UNMATERIALIZED"
 
 
 def test_build_context_deleted_coord_branch_raises(tmp_path: Path) -> None:
@@ -472,10 +479,12 @@ def test_c1_gate_judges_handed_surface_not_ambient(
 def test_gec5_create_window_gate_refuses_instead_of_passing(tmp_path: Path) -> None:
     """GEC-5 end to end: the create window records cannot-evaluate, not a pass.
 
-    On the UNMATERIALIZED coord create window the surface resolves PRIMARY. A PASS
-    matrix is seeded on that primary surface — WITHOUT GEC-5 the gate would read it
-    and pass by default (#2885). GEC-5 refuses: a distinguishable cannot-evaluate
-    naming its reason + surface, and NO silent pass.
+    On the UNMATERIALIZED coord create window the context build raises
+    ``CoordinationWorktreeUnmaterialized`` (#4959). A PASS matrix is seeded on the
+    primary surface — a gate that fell back to it would pass by default (#2885),
+    and a gate that let the raise escape would crash instead of refusing (#5399).
+    The gate refuses: a distinguishable cannot-evaluate naming its reason, the
+    unmaterialized COORD surface and the error code, and NO silent pass.
     """
     repo, slug, primary_feature_dir = _build_create_window_coord(tmp_path, coord_branch_exists=True)
     _seed_matrix(primary_feature_dir, verdict="pass", marker="PRIMARY-EMPTY-STAND-IN")
@@ -494,6 +503,9 @@ def test_gec5_create_window_gate_refuses_instead_of_passing(tmp_path: Path) -> N
 
     assert any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
     assert any(CannotEvaluateReason.SURFACE_CANNOT_HOLD_FACT.value in issue for issue in activity_issues), activity_issues
+    assert any(
+        "COORDINATION_WORKTREE_UNMATERIALIZED" in issue and "surface=coord" in issue for issue in activity_issues
+    ), activity_issues
     # It is NOT a verdict — no pass/fail verdict issue was recorded.
     assert not any("verdict is" in issue for issue in activity_issues)
 

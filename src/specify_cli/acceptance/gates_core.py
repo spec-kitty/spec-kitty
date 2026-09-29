@@ -351,8 +351,9 @@ def _acceptance_gate_context(
     T017): it resolves the surface through the WP02 total resolver
     (:func:`mission_runtime.resolve_artifact_surface`) so the four ``CoordState``
     answers are total by construction — ``DELETED`` raises ``CoordinationBranchDeleted``
-    (C3 fail-loud), ``EMPTY`` / ``UNMATERIALIZED`` stamp ``PRIMARY`` (the create
-    window), ``MATERIALIZED`` stamps ``COORD``. The gate is then handed the surface
+    (C3 fail-loud), ``UNMATERIALIZED`` raises ``CoordinationWorktreeUnmaterialized``
+    (#4959; :func:`_evaluate_acceptance_matrix` turns it into cannot-evaluate, #5399),
+    ``EMPTY`` stamps ``PRIMARY`` (the create window), ``MATERIALIZED`` stamps ``COORD``. The gate is then handed the surface
     (never an ambient ``repo_root`` / cwd), and every verdict/refusal it emits names
     the returned ``surface_kind`` + ``ref`` (C6). ``ref`` prefers the caller-observed
     currently-checked-out ``branch`` (GEC-2 / C5's reference point — see
@@ -366,17 +367,12 @@ def _acceptance_gate_context(
     """
     from mission_runtime import MissionArtifactKind
 
-    from specify_cli import acceptance as _acceptance_pkg
     from specify_cli.acceptance.execution_context import (
         LifecyclePhase,
         build_gate_execution_context,
     )
 
-    # ``_target_branch_for_feature`` is resolved off the live ``specify_cli.acceptance``
-    # namespace at call time (not a top-level import) so the WP01 characterization
-    # monkeypatch of ``read_target_branch_from_meta`` stays visible — see the module
-    # docstring's cross-module note.
-    ref = branch or _acceptance_pkg._target_branch_for_feature(feature_dir) or "HEAD"
+    ref = _acceptance_gate_ref(feature_dir, branch)
     scope: dict[str, Any] = effective_root_kwargs(effective_root)
     return build_gate_execution_context(
         repo_root,
@@ -385,6 +381,45 @@ def _acceptance_gate_context(
         phase=LifecyclePhase.ACCEPT,
         ref=ref,
         **scope,
+    )
+
+
+def _acceptance_gate_ref(feature_dir: Path, branch: str | None) -> str:
+    """The reference point the acceptance-matrix gate context is built against.
+
+    The caller-observed ``branch`` first, then the mission target branch, then
+    ``HEAD`` — shared by :func:`_acceptance_gate_context` and the #5399
+    unmaterialized-coord refusal so both name the same ``ref`` (C6).
+    ``_target_branch_for_feature`` is resolved off the live
+    ``specify_cli.acceptance`` namespace at call time (not a top-level import) so
+    the WP01 characterization monkeypatch of ``read_target_branch_from_meta``
+    stays visible.
+    """
+    from specify_cli import acceptance as _acceptance_pkg
+
+    return branch or _acceptance_pkg._target_branch_for_feature(feature_dir) or "HEAD"
+
+
+def _unmaterialized_coord_cannot_evaluate(exc: Exception, ref: str) -> CannotEvaluate:
+    """#5399: the cannot-evaluate outcome for an unmaterialized coordination worktree.
+
+    #4959 made the placement seam raise ``CoordinationWorktreeUnmaterialized`` when
+    the mission's coordination branch exists but its worktree was never checked
+    out. The acceptance matrix is homed on that COORD surface, so the gate has no
+    authoritative surface to judge: it refuses (fail closed, GEC-5 / C2) naming the
+    unmaterialized COORD home and carrying the exception's remediation text, never
+    a pass and never a raw traceback.
+    """
+    from specify_cli.acceptance.execution_context import (
+        CannotEvaluate,
+        CannotEvaluateReason,
+    )
+
+    return CannotEvaluate(
+        reason=CannotEvaluateReason.SURFACE_CANNOT_HOLD_FACT,
+        detail=f"coordination worktree is not materialized ({getattr(exc, 'error_code', type(exc).__name__)}): {exc}",
+        surface_kind=TopologySurface.COORD,
+        ref=ref,
     )
 
 
@@ -471,8 +506,9 @@ def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
     mission's stored topology routes through coordination AND that surface is
     materialised (``MATERIALIZED``); otherwise it resolves the primary mission dir
     AFFIRMATIVELY (AH-2) — so flat / ``SINGLE_BRANCH`` / ``LANES`` and the ``EMPTY``
-    / ``UNMATERIALIZED`` create window read exactly where they do today
-    (regression-preserving). A ``DELETED`` coordination branch raises
+    create window read exactly where they do today (regression-preserving); an
+    ``UNMATERIALIZED`` coord worktree raises ``CoordinationWorktreeUnmaterialized``
+    (#4959). A ``DELETED`` coordination branch raises
     :class:`CoordinationBranchDeleted` (C3 "fail loud"): a deleted coord branch
     carries unmerged acceptance state, so accept must refuse, not silently pass on a
     stale surface.
@@ -491,7 +527,7 @@ def _matrix_surface_cannot_hold(
 
     A stamp is not permission: when the acceptance matrix's declared home is
     ``COORD`` (a coordination-routing mission) but the resolved surface came back
-    stamped ``PRIMARY`` — the ``EMPTY`` / ``UNMATERIALIZED`` create-window
+    stamped ``PRIMARY`` — the ``EMPTY`` create-window
     substitution — the coordination surface is not materialised, so the primary
     surface cannot hold the coord-homed matrix. Returns the distinguishable
     cannot-evaluate outcome (naming its surface + ref) rather than reading an empty
@@ -702,9 +738,16 @@ def _evaluate_acceptance_matrix(
     missing matrix file, or a lock-acquisition timeout).
     """
     from specify_cli.acceptance.matrix import read_acceptance_matrix
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 
     scope = effective_root_kwargs(effective_root)
-    context = _acceptance_gate_context(repo_root, feature_dir, branch=branch, **scope)
+    try:
+        context = _acceptance_gate_context(repo_root, feature_dir, branch=branch, **scope)
+    except CoordinationWorktreeUnmaterialized as exc:
+        # #5399: keep #4959's raise at the context build; the gate refuses cleanly.
+        unmaterialized = _unmaterialized_coord_cannot_evaluate(exc, _acceptance_gate_ref(feature_dir, branch))
+        _record_matrix_cannot_evaluate(unmaterialized, activity_issues, skipped_checks, blocked_checks)
+        return None
     ref_mismatch = _assert_ref_agreement(context)
     if ref_mismatch is not None:
         _record_ref_mismatch_cannot_evaluate(ref_mismatch, activity_issues, skipped_checks, blocked_checks)
