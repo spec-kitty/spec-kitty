@@ -32,9 +32,7 @@ def _exists(repo: Path, branch: str) -> bool:
 
 
 def _manifest(mission_branch: str, target_branch: str) -> LanesManifest:
-    lane = ExecutionLane(
-        lane_id="lane-planning", wp_ids=("WP01",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0
-    )
+    lane = ExecutionLane(lane_id="lane-planning", wp_ids=("WP01",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0)
     return LanesManifest(
         version=1,
         mission_slug=_SLUG,

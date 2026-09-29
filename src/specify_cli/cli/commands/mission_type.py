@@ -784,7 +784,9 @@ def _expected_discard_branches(feature_dir: Path, mission_slug: str, meta_path: 
             if is_planning_lane(lane):
                 continue
             branches.append(code_lane_branch_name(mission_slug, lane.lane_id))
-        branches.append(manifest.mission_branch)
+        deletable = _deletable_mission_branch(manifest)
+        if deletable is not None:
+            branches.append(deletable)
         return branches
     meta = load_meta(meta_path.parent, allow_missing=True, on_malformed="none")
     coord_branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
@@ -985,6 +987,19 @@ def _load_lanes_manifest(feature_dir: Path) -> Any | None:
         return None
 
 
+def _deletable_mission_branch(manifest: Any) -> str | None:
+    """The manifest's mission branch iff it is a real minted branch.
+
+    A single_branch mission's ``mission_branch`` falls back to ``target_branch``
+    (the user's own branch); that branch is never ours to delete or expect gone
+    (mirrors ``consolidation.executor._delete_mission_branch``).
+    """
+    mission_branch = manifest.mission_branch
+    if not mission_branch or mission_branch == manifest.target_branch:
+        return None
+    return str(mission_branch)
+
+
 def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: Any) -> None:
     from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.compute import is_planning_lane
@@ -995,7 +1010,9 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
         branch_name = code_lane_branch_name(mission_slug, lane.lane_id)
         _force_delete_branch_if_exists(repo_root, branch_name)
 
-    _force_delete_branch_if_exists(repo_root, lanes_manifest.mission_branch)
+    deletable = _deletable_mission_branch(lanes_manifest)
+    if deletable is not None:
+        _force_delete_branch_if_exists(repo_root, deletable)
     console.print(f"  Deleted {len(lanes_manifest.lanes)} lane branch(es) + mission/coordination branch")
 
 
