@@ -37,6 +37,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 
 from kernel.clock import now_utc_iso
 
@@ -218,7 +219,7 @@ def test_wp_declared_but_absent_from_snapshot_refuses_merge_not_vacuous_pass(
     with (
         _external_mocks(),
         patch("specify_cli.cli.console.console.print") as mock_print,
-        pytest.raises(BaseException) as excinfo,  # noqa: PT011 — asserted below
+        pytest.raises(typer.Exit) as excinfo,
     ):
         _run_lane_based_consolidation(
             repo_root=repo,
@@ -230,12 +231,10 @@ def test_wp_declared_but_absent_from_snapshot_refuses_merge_not_vacuous_pass(
             assume_yes=True,
         )
 
-    exit_code = getattr(excinfo.value, "exit_code", None)
-    assert exit_code not in (0, None), f"merge must exit non-zero, got {excinfo.value!r}"
+    assert excinfo.value.exit_code == 1
 
     printed = " ".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
-    assert WP_ID in printed, f"refusal must name the WP absent from the snapshot: {printed!r}"
-    assert "merge-ready" in printed.lower() or "review approval" in printed.lower()
+    assert f"missing review approval: {WP_ID}" in printed, f"refusal must name the WP absent from the snapshot: {printed!r}"
 
     assert _branch_tip(repo, lane_branch) == pre_lane_tip, "no lane consolidation may occur"
     assert _branch_tip(repo, COORD_BRANCH) == pre_coord_tip, "no bake/done write may occur"
