@@ -310,12 +310,8 @@ def test_no_lane_branch_cleanup_line_when_none_were_deleted(protected_repo: Path
 def test_dry_run_reports_no_branch_deletion_for_target_equal_mission_branch() -> None:
     from specify_cli.consolidation.forecast import _effective_delete_branch
 
-    unprotected = SimpleNamespace(
-        target_branch="feat/sb", mission_branch="feat/sb", lanes=[SimpleNamespace(lane_id="lane-planning", wp_ids=["WP01"])]
-    )
-    protected = SimpleNamespace(
-        target_branch="main", mission_branch=_MISSION_BRANCH, lanes=[SimpleNamespace(lane_id="lane-planning", wp_ids=["WP01"])]
-    )
+    unprotected = SimpleNamespace(target_branch="feat/sb", mission_branch="feat/sb", lanes=[SimpleNamespace(lane_id="lane-planning", wp_ids=["WP01"])])
+    protected = SimpleNamespace(target_branch="main", mission_branch=_MISSION_BRANCH, lanes=[SimpleNamespace(lane_id="lane-planning", wp_ids=["WP01"])])
 
     assert _effective_delete_branch(True, unprotected) is False
     assert _effective_delete_branch(True, protected) is True

@@ -32,6 +32,7 @@ from specify_cli.lanes.persistence import (
     require_lanes_json,
 )
 from specify_cli.lanes.consolidation import preview_mission_target_integration
+from specify_cli.lanes.models import LanesManifest
 from specify_cli.consolidation._constants import (
     TARGET_BRANCH_CONTENT_CONFLICT,
     TARGET_BRANCH_CONTENT_CONFLICT_HEADER,
@@ -49,6 +50,21 @@ from specify_cli.post_merge.review_artifact_consistency import (
     review_artifact_finding_diagnostic,
     run_review_artifact_consistency_preflight,
 )
+
+
+def _effective_delete_branch(delete_branch: bool, lanes_manifest: LanesManifest) -> bool:
+    """Whether the merge would really delete a branch (#5100 B6).
+
+    An unprotected single_branch mission's ``mission_branch`` is its own
+    ``target_branch`` and it has no code lanes, so the executor deletes nothing;
+    report that instead of the raw retention flag.
+    """
+    from specify_cli.lanes.compute import is_planning_lane
+
+    if not delete_branch:
+        return False
+    only_planning = all(is_planning_lane(lane) for lane in lanes_manifest.lanes)
+    return not (only_planning and lanes_manifest.mission_branch == lanes_manifest.target_branch)
 
 
 def _emit_dry_run_error(*, error_msg: str, json_output: bool, error_code: str | None = None) -> None:
@@ -356,7 +372,7 @@ def run_dry_run_forecast(
         "mission_slug": resolved_feature,
         "target_branch": resolved_target_branch,
         "strategy": resolved_strategy.value,
-        "delete_branch": retention_decision.delete_branch,
+        "delete_branch": _effective_delete_branch(retention_decision.delete_branch, lanes_manifest),
         "remove_worktree": retention_decision.remove_worktree,
         "push": push,
         "mission_branch": lanes_manifest.mission_branch,

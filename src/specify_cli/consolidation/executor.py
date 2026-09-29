@@ -610,6 +610,22 @@ def _assert_mission_terminal_ready(run: _MergeRunState) -> None:
     raise typer.Exit(1)
 
 
+def _planning_only_notice(run: _MergeRunState) -> str | None:
+    """The banner for a run that skips branch-merge steps (#5100 B6), else ``None``.
+
+    A single_branch mission has ONE repo-root lane so ``planning_artifact_only``
+    reads True even for a code mission; calling it planning-artifact-only was
+    false. Say what is actually true for that topology instead.
+    """
+    if not run.planning_artifact_only:
+        return None
+    from mission_runtime import is_single_branch
+
+    if is_single_branch(_stored_topology_for(run.target_feature_dir)):
+        return "  [dim]single_branch mission: work is committed on the write checkout; no lane branches to merge or delete.[/dim]"
+    return "  [dim]Planning-artifact-only mission: target branch already contains deliverables; branch merge steps will be skipped.[/dim]"
+
+
 def _phase_gates_and_state(run: _MergeRunState) -> None:
     """Unconditional merge-ready precondition, banner, merge gates, and
     bootstrap/hollow-review history guards.
@@ -635,8 +651,9 @@ def _phase_gates_and_state(run: _MergeRunState) -> None:
     console.print(f"[bold]Lane-based merge for {run.mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
     console.print(f"  Lanes: {', '.join(ln.lane_id for ln in lanes_manifest.lanes)}")
-    if run.planning_artifact_only:
-        console.print("  [dim]Planning-artifact-only mission: target branch already contains deliverables; branch merge steps will be skipped.[/dim]")
+    notice = _planning_only_notice(run)
+    if notice is not None:
+        console.print(notice)
 
     policy = load_policy_config(run.main_repo)
     gate_eval = evaluate_merge_gates(
@@ -3179,6 +3196,11 @@ def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
             console.print("  Cleaned up mission/coordination branch + worktree")
         return
 
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch
+
+    # Read BEFORE the clear below: ``lands_mission_branch`` keys on the recorded
+    # ``meta.mission_branch``, which ``_clear_landed_single_branch_mission_branch`` drops.
+    landed_single_branch = lands_mission_branch(run.main_repo, run.lanes_manifest)
     if run.delete_branch:
         _delete_mission_branch(run)
         _clear_landed_single_branch_mission_branch(run)
@@ -3190,9 +3212,7 @@ def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
     # A landed protected single_branch mission has NO coordination worktree; its
     # checkpoint ref is the (now deleted) mission branch, so the projection
     # teardown gate would false-abort. Nothing to tear down.
-    from specify_cli.lanes.single_branch_landing import lands_mission_branch
-
-    if run.remove_worktree and not lands_mission_branch(run.main_repo, run.lanes_manifest):
+    if run.remove_worktree and not landed_single_branch:
         _teardown_coord_worktree(run)
 
 
@@ -3268,6 +3288,7 @@ def _delete_lane_branches(run: _MergeRunState) -> None:
     from specify_cli.lanes.lane_tip import clear_tip
 
     lanes_manifest = run.lanes_manifest
+    deleted = 0
     for lane in lanes_manifest.lanes:
         if is_planning_lane(lane):
             continue
@@ -3286,13 +3307,15 @@ def _delete_lane_branches(run: _MergeRunState) -> None:
                 cwd=run.main_repo,
                 check_return=False,
             )
+            deleted += 1
         else:
             logger.debug("Branch %s does not exist, skipping deletion", branch_name)
         # #5115/WP07 (sibling-owned, one line): the lane-tip ref outlives the
         # branch it was keyed on -- clear it here too, or a future recut of
         # the SAME branch name would inherit a stale tip.
         clear_tip(run.main_repo, branch_name)
-    console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es)")
+    if deleted:
+        console.print(f"  Cleaned up {deleted} lane branch(es)")
 
 
 def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
