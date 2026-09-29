@@ -10,6 +10,7 @@ instead of function-locally re-entering ``charter.activation.context``.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from charter.activation._catalog_miss import (
     CatalogMissDiagnosis,
@@ -31,6 +32,8 @@ _LOGGER = logging.getLogger(__name__)
 def _diagnose_catalog_miss(
     missing_id: str,
     repository: object | None,
+    *,
+    repo_root: Path | None = None,
 ) -> CatalogMissDiagnosis:
     """Return the best-fit :class:`CatalogMissDiagnosis` for *missing_id*.
 
@@ -44,8 +47,9 @@ def _diagnose_catalog_miss(
 
     Active-language context is read directly from the repository's own
     ``_active_languages`` attribute (the value already stored at
-    construction time), avoiding the need to thread ``repo_root`` through
-    every renderer.
+    construction time. *repo_root*, when the caller has it, is used
+    verbatim for the scope-filtered classification; otherwise the root is
+    inferred from the repository's project layer as a fallback.
     """
     scope_filtered: frozenset[str] | set[str] = getattr(
         repository, "scope_filtered_ids", frozenset()
@@ -54,8 +58,20 @@ def _diagnose_catalog_miss(
         active_languages: list[str] | None = getattr(
             repository, "_active_languages", None
         )
-        return classify_scope_filtered_miss(missing_id, active_languages)
+        return classify_scope_filtered_miss(missing_id, active_languages, repo_root if repo_root is not None else _repository_repo_root(repository))
     return classify_catalog_miss(missing_id, _available_catalog_ids(repository))
+
+
+def _repository_repo_root(repository: object | None) -> Path | None:
+    """Best-effort project root of *repository*: the nearest ancestor of its project layer holding ``.kittify``.
+
+    ``None`` (built-in vocabulary only) when the repository has no project
+    layer or it does not live inside a Spec Kitty project.
+    """
+    project_dir = getattr(repository, "_project_dir", None)
+    if not isinstance(project_dir, Path):
+        return None
+    return next((parent for parent in (project_dir, *project_dir.parents) if (parent / ".kittify").is_dir()), None)
 
 
 def _available_catalog_ids(repository: object | None) -> list[str]:

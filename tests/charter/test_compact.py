@@ -125,3 +125,33 @@ def test_render_compact_view_omits_missing_doctrine_layer_root(
     compact = render_compact_view(tmp_path, section_anchors=())
 
     assert "Doctrine layer root:" not in compact.text
+
+
+def test_render_compact_view_omits_languages_when_inference_cannot_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Characterization: an unreadable charter/interview drops the footnote, not the render."""
+    from charter.activation import compact as compact_module
+    from charter.activation._diagnostics import CharterEncodingDiagnostic
+    from charter.activation._io import CharterEncodingError
+
+    ambiguous = CharterEncodingError(CharterEncodingDiagnostic.AMBIGUOUS, "ambiguous encoding")
+    for error in (OSError("unreadable"), ambiguous):
+
+        def _raise(_repo_root: Path, *, _error: Exception = error) -> list[str]:
+            raise _error
+
+        monkeypatch.setattr(compact_module, "infer_repo_languages", _raise)
+        compact = render_compact_view(tmp_path, directive_ids=["DIRECTIVE_001"])
+
+        assert "DIRECTIVE_001" in compact.text
+        assert "Languages:" not in compact.text
+
+
+def test_render_compact_view_lists_compiled_languages(tmp_path: Path) -> None:
+    """Characterization: a compiled ``catalog.languages`` renders the sorted footnote."""
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.yaml").write_text("catalog:\n  languages: [python, go]\n", encoding="utf-8")
+
+    compact = render_compact_view(tmp_path)
+
+    assert "  - Languages: go, python" in compact.text

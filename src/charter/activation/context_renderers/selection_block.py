@@ -128,6 +128,7 @@ def _render_selected_artifacts(
     when_clause: str,
     body_formatter: Callable[[object], list[str]],
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
     normalize_id: Callable[[str], str] | None = None,
 ) -> list[str]:
     """Shared implementation for the 8 ``_render_selected_<kind>`` helpers.
@@ -173,7 +174,7 @@ def _render_selected_artifacts(
             # FR-013: _diagnose_catalog_miss checks scope_filtered_ids
             # first so a scope-filtered artifact surfaces SCOPE_FILTERED
             # rather than MISSING_ARTIFACT.
-            diagnosis = _diagnose_catalog_miss(artifact_id, repository)
+            diagnosis = _diagnose_catalog_miss(artifact_id, repository, repo_root=repo_root)
             lines.extend(
                 format_catalog_miss_stanza(
                     selector_kind=selector_kind,
@@ -216,6 +217,7 @@ def _render_selected_paradigms(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Render globally-selected paradigms into prompt lines."""
     repo = getattr(service, "paradigms", None)
@@ -227,6 +229,7 @@ def _render_selected_paradigms(
         when_clause="are about to choose a reasoning frame",
         body_formatter=_format_inline_paradigm_body,
         org_source_map=org_source_map,
+        repo_root=repo_root,
     )
 
 
@@ -235,6 +238,7 @@ def _render_selected_directives(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Render globally-selected directives into prompt lines."""
     repo = getattr(service, "directives", None)
@@ -246,6 +250,7 @@ def _render_selected_directives(
         when_clause=_ACTION_DOCTRINE_LINK_WHEN,
         body_formatter=_format_inline_directive_body,
         org_source_map=org_source_map,
+        repo_root=repo_root,
         normalize_id=normalize_directive_id,
     )
 
@@ -255,6 +260,7 @@ def _render_selected_tactics(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Render globally-selected tactics into prompt lines."""
     repo = getattr(service, "tactics", None)
@@ -266,6 +272,7 @@ def _render_selected_tactics(
         when_clause=_ACTION_DOCTRINE_LINK_WHEN,
         body_formatter=_format_inline_tactic_body,
         org_source_map=org_source_map,
+        repo_root=repo_root,
     )
 
 
@@ -274,6 +281,7 @@ def _render_selected_styleguides(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Render globally-selected styleguides into prompt lines (T017).
 
@@ -290,6 +298,7 @@ def _render_selected_styleguides(
         when_clause="are about to write a code comment or styled output",
         body_formatter=_format_inline_styleguide_body,
         org_source_map=org_source_map,
+        repo_root=repo_root,
     )
 
 
@@ -298,6 +307,7 @@ def _render_selected_toolguides(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Render globally-selected toolguides into prompt lines (T018)."""
     repo = getattr(service, "toolguides", None)
@@ -309,6 +319,7 @@ def _render_selected_toolguides(
         when_clause="are about to invoke a project tool",
         body_formatter=_format_inline_toolguide_body,
         org_source_map=org_source_map,
+        repo_root=repo_root,
     )
 
 
@@ -317,6 +328,7 @@ def _render_selected_procedures(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Render globally-selected procedures into prompt lines (T018)."""
     repo = getattr(service, "procedures", None)
@@ -328,6 +340,7 @@ def _render_selected_procedures(
         when_clause="are about to follow a multi-step workflow",
         body_formatter=_format_inline_procedure_body,
         org_source_map=org_source_map,
+        repo_root=repo_root,
     )
 
 
@@ -336,6 +349,7 @@ def _render_selected_agent_profiles(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Render globally-selected agent profiles into prompt lines (T018)."""
     repo = getattr(service, "agent_profiles", None)
@@ -347,6 +361,7 @@ def _render_selected_agent_profiles(
         when_clause=_ACTION_DOCTRINE_LINK_WHEN,
         body_formatter=_format_inline_agent_profile_body,
         org_source_map=org_source_map,
+        repo_root=repo_root,
     )
 
 
@@ -355,6 +370,7 @@ def _render_selected_mission_step_contracts(
     service: object,
     *,
     org_source_map: dict[str, str] | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Render globally-selected mission step contracts (T018)."""
     repo = getattr(service, "mission_step_contracts", None)
@@ -366,6 +382,7 @@ def _render_selected_mission_step_contracts(
         when_clause="are about to step a mission action",
         body_formatter=_format_inline_step_contract_body,
         org_source_map=org_source_map,
+        repo_root=repo_root,
     )
 
 
@@ -504,21 +521,23 @@ def _render_selection_block(
 
     blocks: list[str] = []
     sections = (
-        _render_selected_paradigms(doctrine_selection.selected_paradigms, service, org_source_map=paradigm_org),
-        _render_selected_directives(doctrine_selection.selected_directives, service, org_source_map=directive_org),
-        _render_selected_tactics(doctrine_selection.selected_tactics, service, org_source_map=tactic_org),
-        _render_selected_styleguides(doctrine_selection.selected_styleguides, service, org_source_map=styleguide_org),
-        _render_selected_toolguides(doctrine_selection.selected_toolguides, service, org_source_map=toolguide_org),
-        _render_selected_procedures(doctrine_selection.selected_procedures, service, org_source_map=procedure_org),
+        _render_selected_paradigms(doctrine_selection.selected_paradigms, service, org_source_map=paradigm_org, repo_root=repo_root),
+        _render_selected_directives(doctrine_selection.selected_directives, service, org_source_map=directive_org, repo_root=repo_root),
+        _render_selected_tactics(doctrine_selection.selected_tactics, service, org_source_map=tactic_org, repo_root=repo_root),
+        _render_selected_styleguides(doctrine_selection.selected_styleguides, service, org_source_map=styleguide_org, repo_root=repo_root),
+        _render_selected_toolguides(doctrine_selection.selected_toolguides, service, org_source_map=toolguide_org, repo_root=repo_root),
+        _render_selected_procedures(doctrine_selection.selected_procedures, service, org_source_map=procedure_org, repo_root=repo_root),
         _render_selected_agent_profiles(
             doctrine_selection.selected_agent_profiles,
             service,
             org_source_map=agent_profile_org,
+            repo_root=repo_root,
         ),
         _render_selected_mission_step_contracts(
             doctrine_selection.selected_mission_step_contracts,
             service,
             org_source_map=step_contract_org,
+            repo_root=repo_root,
         ),
     )
     for section_lines in sections:

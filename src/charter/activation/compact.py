@@ -20,8 +20,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._io import CharterEncodingError
 from charter.bundle import CHARTER_MD
-from charter.activation.language_scope import infer_repo_languages
+from charter.activation.language_advisory import CHARTER_EXTENSION_ADVISORY
+from charter.activation.language_scope import infer_repo_languages, lacks_specialist_guidance
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
 
 
@@ -273,21 +275,43 @@ def _render_text(
 
     # Reference repo languages / project root only as a footnote so the
     # compact view stays one-screen even on big charters.
-    try:
-        languages = infer_repo_languages(repo_root)
-        if languages:
-            lines.append(f"  - Languages: {', '.join(sorted(languages))}")
-    except Exception:  # pragma: no cover - defensive
-        pass
+    _append_language_lines(lines, repo_root)
 
-    try:
-        project_root = resolve_project_root(repo_root)
-        if project_root is not None and project_root != repo_root:
-            lines.append(f"  - Doctrine layer root: {project_root}")
-    except Exception:  # pragma: no cover - defensive
-        pass
+    project_root = resolve_project_root(repo_root)
+    if project_root is not None and project_root != repo_root:
+        lines.append(f"  - Doctrine layer root: {project_root}")
 
     return "\n".join(lines)
+
+
+def _append_language_lines(lines: list[str], repo_root: Path) -> None:
+    """Append the languages footnote, plus the charter-extension advisory once when no specialist guidance exists.
+
+    The footnote shows the stored value; the advisory is the language
+    authority's call (:func:`lacks_specialist_guidance`, operator decision D2),
+    never a comparison against the literal ``unknown`` token.
+    """
+    languages = _resolve_languages(repo_root)
+    if not languages:
+        return
+    lines.append(f"  - Languages: {', '.join(sorted(languages))}")
+    if lacks_specialist_guidance(languages, repo_root):
+        lines.append(f"  - Advisory: {CHARTER_EXTENSION_ADVISORY}")
+
+
+def _resolve_languages(repo_root: Path) -> list[str] | None:
+    """Return the inferred project languages, or ``None`` when they cannot be read.
+
+    The languages footnote is advisory, so an unreadable charter/interview
+    (I/O failure or an encoding-consistency error) degrades to "no footnote"
+    rather than failing the whole compact render.
+    """
+    languages: list[str] | None
+    try:
+        languages = infer_repo_languages(repo_root)
+    except (OSError, CharterEncodingError):
+        languages = None
+    return languages
 
 
 def _resolve_governance_summary(

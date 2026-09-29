@@ -37,6 +37,8 @@ from charter.activation.context_renderers.selection_block import (
 )
 from charter.activation.context_renderers.token_budget import _enforce_token_budget
 from charter.activation.governance_references import render_governance_references
+from charter.activation.language_advisory import CHARTER_EXTENSION_ADVISORY
+from charter.activation.language_scope import infer_repo_languages, lacks_specialist_guidance
 from charter.offering.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
 
 if TYPE_CHECKING:
@@ -251,6 +253,18 @@ def _append_reference_docs_lines(
         lines.append(f"  - {ref_id}: {title} ({resolved_path})")
 
 
+def _append_language_advisory(lines: list[str], repo_root: Path | None) -> None:
+    """Append the single charter-extension advisory for a project without specialist guidance.
+
+    The language authority decides (:func:`lacks_specialist_guidance`, operator
+    decision D2); no repo root means no language signal and therefore no advisory.
+    """
+    if repo_root is None or not lacks_specialist_guidance(infer_repo_languages(repo_root), repo_root):
+        return
+    lines.append("")
+    lines.append(f"  - Advisory: {CHARTER_EXTENSION_ADVISORY}")
+
+
 def _render_bootstrap_text(
     *,
     charter_path: Path,
@@ -331,6 +345,9 @@ def _render_bootstrap_text(
 
     selected_references = _select_reference_pointers(references, action, built_in_root())
     _append_reference_docs_lines(lines, selected_references)
+    # FR-010 — appended BEFORE budgeting: the budget only swaps named candidate
+    # blocks (never a tail line), so the advisory always survives it.
+    _append_language_advisory(lines, repo_root)
     text = "\n".join(lines)
 
     # WP05 (NFR-001) — token budget enforcement.  When the bootstrap

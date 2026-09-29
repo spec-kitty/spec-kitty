@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     import charter.offering.service as _doctrine_service_module
 
 from charter.activation.catalog import load_doctrine_catalog
+from charter.activation.language_scope import infer_repo_languages
 from charter.activation.org_pack_discovery import _read_org_required_selections
 from charter.activation.profile_resolution import _normalize_directive_id
 from charter.offering.drg.models import NodeKind
@@ -156,6 +157,32 @@ class _ActionDoctrineBundle:
     # reconciler, carried verbatim from
     # ``ResolvedContext.unarbitrated_tensions``.
     unarbitrated_tensions: tuple[tuple[str, str], ...] = ()
+
+
+#: Bundle slots whose artifacts can carry ``applies_to_languages`` (directives cannot).
+_LANGUAGE_SCOPED_SLOTS = ("tactics", "styleguides", "toolguides", "procedures")
+
+
+def _drop_scope_filtered_ids(
+    ids_by_slot: Mapping[str, tuple[str, ...]],
+    service: _doctrine_service_module.DoctrineService,
+    repo_root: Path,
+) -> Mapping[str, tuple[str, ...]]:
+    """For any project with a language signal, drop ids the service scope-filtered out (FR-009, #5357).
+
+    The DRG action walk is language-blind, so it still names language-scoped
+    artifacts (e.g. ``python-conventions``) that the language-gated repositories
+    refuse to resolve; left in, they surface as bare ids. This applies to every
+    declared language set (unknown or recognised). Only a project with no
+    language signal (``None``) admits everything and is left untouched.
+    """
+    if not ids_by_slot or infer_repo_languages(repo_root) is None:
+        return ids_by_slot
+    filtered = dict(ids_by_slot)
+    for slot in _LANGUAGE_SCOPED_SLOTS:
+        scope_filtered: frozenset[str] = getattr(getattr(service, slot, None), "scope_filtered_ids", frozenset())
+        filtered[slot] = tuple(artifact_id for artifact_id in ids_by_slot.get(slot, ()) if artifact_id not in scope_filtered)
+    return filtered
 
 
 def _resolve_action_bundle(
@@ -406,6 +433,8 @@ def _load_action_doctrine_bundle(
                 action,
                 exc,
             )
+
+    ids_by_slot = _drop_scope_filtered_ids(ids_by_slot, service, repo_root)
 
     return _ActionDoctrineBundle(
         mission=resolved_type or "",
