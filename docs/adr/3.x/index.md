@@ -2,7 +2,7 @@
 title: '3.x Architectural Decision Records'
 description: 'Index and era history for every Spec Kitty 3.x architectural decision record, with the dated naming convention, the status vocabulary, and how to register a new entry.'
 doc_status: active
-updated: '2026-09-27'
+updated: '2026-09-29'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -207,3 +207,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-09-26 | [Lane Naming Is Keyed on Creation Input, Never on Mission Identity](2026-09-26-2-lane-naming-keyed-on-creation-input.md) |
 | 2026-09-26 | [hosted interaction is opt-in, twice, with no packaged endpoint](2026-09-26-3-hosted-interaction-opt-in.md) |
 | 2026-09-27 | [pack skills — share and co-maintain agent commands through charter packs](2026-09-27-1-pack-skills-share-commands-through-charter-packs.md) |
+| 2026-09-29 | [a mixed lane refuses commits outside every WP work window, with an operator-attested override](2026-09-29-1-closed-world-refuse-on-mixed-lanes.md) |

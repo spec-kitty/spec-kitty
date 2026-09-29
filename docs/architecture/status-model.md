@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-06-27'
+updated: '2026-09-29'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -354,6 +354,106 @@ Events are stored in `kitty-specs/<feature>/status.events.jsonl` as one JSON obj
 ```
 
 Keys are always sorted (`sort_keys=True`) for deterministic, merge-friendly output.
+
+## Commit attribution stamp (`policy_metadata.lane_head`)
+
+Every persisted lifecycle transition of a WP mapped to a non-planning
+execution lane whose branch exists is stamped, best-effort, with
+`policy_metadata["lane_head"]` -- that lane branch's `git rev-parse` HEAD sha
+at the moment the transition is written. Both status shells inject the same
+probe (`specify_cli.status.lane_head.probe_lane_head`): the flat/primary
+shell (`status.emit.emit_status_transition`) and the coordination
+transactional shell (`coordination.status_transition.
+emit_status_transition_transactional`). The stamp is a local, free-form
+sidecar on `StatusEvent.policy_metadata` -- it does not change the
+`spec_kitty_events` schema.
+
+**Best-effort, never blocking.** The probe never raises and never refuses a
+transition: no `lanes.json`, an unassigned WP, a planning lane, or a missing
+lane branch all resolve to "no stamp" (`policy_metadata` stays absent or
+unset for that key), and the transition still persists. A mission created
+before this stamp existed, or a transition made outside the governed
+workflow, therefore carries no stamp on some or all of its events -- this is
+expected, not corruption.
+
+**Read only by the consolidation reconciliation gate, and only for mixed
+lanes.** A *mixed lane* is an execution lane with at least one approved WP
+and at least one WP canceled with operator provenance. For every such lane,
+the gate resolves each WP's implementation/review windows from its own
+`lane_head` stamps (the SHA an *opening* transition -- `claimed`/
+`in_progress` -- and a *closing* transition -- `for_review`/cancel --
+carried), bounding exactly which lane commits belong to which WP's work
+sessions. Events synthesized by a migration (actor `migration:...`, e.g. the
+birth-cutover backfill seeds) never open, close or extend a window. Lanes that
+are not mixed never read this stamp -- the ordinary consolidation path is
+unchanged for them.
+
+**Verdict rules (summary).** For a mixed lane, the gate compares each canceled
+WP's own unsuperseded content against the target, and checks that every lane
+commit belongs to some WP's window:
+
+| Verdict | When | Effect and recovery |
+|---|---|---|
+| PASS | No mixed lane, or every canceled WP's content was superseded by a later, non-canceled commit on the same lane (a rework, a revert, or content the target already carried), and every lane content commit lies in some WP's window | Consolidation proceeds |
+| FAIL | A canceled WP's content (an addition, a modification, or a deletion) is still present on the target, unsuperseded | Target restored (compare-and-swap); names the lane, WP and every offending path. Recovery: revert the change on the lane through a surviving WP's governed work, re-run. **Not overridable.** |
+| REFUSE (attribution evidence) | The canceled WP's commits cannot be bounded: no stamp, a window that never closed, a stamp that is not an ancestor of the lane tip, or a commit contested between two WPs' windows | Target restored. The evidence cannot appear later (the log is append-only), so the message names the override: verify by hand that the canceled content is absent or superseded, then re-run with `--attest-canceled-superseded <WP> --attest-reason "<what you checked>"` |
+| REFUSE (closed world) | Every window resolved, yet a non-merge, non-bookkeeping lane commit lies in no WP's window and after the lane's own base (a straggler after the cancel, a commit by a WP that never entered implementation). Commits reachable from the lane head at its first claim, a dependency-lane tip, or the target's pre-consolidation tip are not outside | Target restored; names the lane, up to three short commit shas and a path. Recovery: verify by hand that those commits carry no canceled work, then attest as above; re-attesting after a later straggler records a fresh attestation whose stamp covers it |
+| REFUSE (merged with an independent change) | The target is neither the canceled state, its pre-state, nor the window base's state | Target restored. Recovery: supersede through a surviving WP and re-run, or attest after verifying by hand |
+| REFUSE (infrastructure) | The status event log or the lane's git history cannot be read | Target restored. Repair the log or history and re-run. **Not overridable.** |
+
+REFUSE takes precedence over FAIL: an attribution failure is always reported
+as missing evidence, never silently downgraded to (or masked by) a content
+verdict.
+
+**Operator-attested override (FR-012).** `spec-kitty consolidate
+--attest-canceled-superseded <WP> --attest-reason "<text>"` (the WP id is
+repeatable; the reason is required) records, through the canonical status
+write seam, a forced `canceled -> canceled` transition of that canceled WP
+carrying the actor, the reason, the timestamp, `reason_source: operator` and
+`policy_metadata.attestation: canceled_superseded`. No event-schema change is
+involved and the event log stays the only authority. For an attested WP the
+gate lifts the attribution-evidence and "merged with an independent change"
+REFUSEs. For the closed world the attestation is bounded in time: its own
+`lane_head` stamp exempts the lane commits made up to it, and a straggler
+committed afterwards still REFUSEs until the operator checks it and attests
+again. Every explicit `--attest-canceled-superseded` records a fresh
+attestation (a new operator act with its own reason and stamp); the latest one
+per WP is the one the gate reads. A FAIL and an
+infrastructure REFUSE still stand. A later governed transition of the WP voids
+the attestation. The attestation applies only to a WP canceled with operator
+provenance; any other WP id is refused before anything is recorded. `--dry-run`
+records nothing and says so. The attestation's `policy_metadata` key also counts
+as event-log runtime evidence for the birth cutover
+(`status/cutover_eligibility.py`), like any key other than `lane_head`. See ADR
+[2026-09-29-1](../adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md).
+
+**Known, accepted residuals.** Attribution works per commit window and per
+path, not per hunk or per author, and the closed world trusts its anchors, so
+five shapes remain documented limitations. Two of them over-block (the gate FAILs when it ideally would not,
+or names the wrong WP), which is the safe direction:
+
+- content that a separate approved lane independently authored under the
+  identical path and bytes can still FAIL;
+- an out-of-workflow commit by a sibling WP that never entered
+  implementation, landing inside a canceled WP's open window, is attributed
+  to the canceled WP -- the gate still FAILs, but the finding names the wrong
+  WP.
+
+Three of them can let canceled or unowned content reach the target under a PASS:
+
+- a survivor's rework that only partially overwrites a canceled WP's change
+  marks the whole path superseded, so the kept hunks ship;
+- an out-of-workflow commit made on the lane before the first governed claim
+  is exempt via the first-claim anchor;
+- a fully-canceled dependency lane (not mixed, so never checked) whose content
+  fast-forwards into a dependent mixed lane is exempt via the dependency-tip
+  anchor (the content shipped before FR-013 too).
+
+Each is pinned by a strict expected-failure test that asserts the ideal
+outcome, and is tracked as follow-up work under the parent epic. Two former
+residuals are closed by the closed-world check and are pinned as REFUSE: an
+out-of-workflow commit on the lane after a cancel, and a commit by a WP that
+never entered implementation.
 
 ## File Layout (per feature)
 
