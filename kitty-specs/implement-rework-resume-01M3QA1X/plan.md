@@ -29,7 +29,7 @@ Supply-chain check (DIRECTIVE_051): no dependency decision in this mission — n
 
 ## Charter Check
 
-- **Single canonical authority** — PASS: one predicate (`is_latest_implementer`) in `status/review_roles.py` serves both the lifecycle arm and `move-task`; no fourth implementer projection (C-001, #5340 stays the unification follow-up).
+- **Single canonical authority** — PASS: one predicate (`is_latest_implementer`) in `status/review_roles.py` owns the "requester is the implementer of record" rule for both the lifecycle arm and `move-task`'s `_implementer_arm`; `_ownership_role_allowance` keeps its requester-free None/generic guard because `_reviewer_arm` needs it too; no fourth implementer projection (C-001, #5340 stays the unification follow-up).
 - **Architectural alignment** — PASS: the lifecycle imports `review_roles` function-locally (as it already does for `coordination.status_transition`), because `review_roles` imports `_actor_key`/`GENERIC_IMPLEMENTATION_ACTORS` from the lifecycle module at import time.
 - **ATDD / red-first** — PASS: the real-CLI regression through `agent action implement` is RED on the planning base (exit 1, `WorkPackageClaimConflict`) and committed before the fix.
 - **Tiered rigour** — status ownership is core domain: unit tests on every new branch (admit, third tool, generic, empty log, read failure) plus the real-CLI loop.
@@ -57,7 +57,7 @@ src/specify_cli/status/
 ├── review_roles.py              # + is_latest_implementer(latest, actor) predicate
 └── work_package_lifecycle.py    # IN_PROGRESS arm admits the implementer of record
 src/specify_cli/cli/commands/agent/
-└── tasks_transition_core.py     # _ownership_role_allowance / _implementer_arm reuse the predicate
+└── tasks_transition_core.py     # _implementer_arm reuses the predicate (the None/generic guard in _ownership_role_allowance stays: it also gates _reviewer_arm)
 
 tests/specify_cli/cli/commands/agent/
 ├── test_rework_unforced_loop.py     # real-CLI resume + fail-closed
@@ -79,6 +79,6 @@ No charter violations.
 
 - **Purpose**: let the implementer of record resume an `in_progress` WP after a rework verdict, fail closed on read failure, keep third tools refused.
 - **Relevant requirements**: FR-001, FR-002, FR-003, FR-004, NFR-001, NFR-002, C-001, C-002, C-003
-- **Affected surfaces**: `src/specify_cli/status/work_package_lifecycle.py` (IN_PROGRESS arm + extracted helper), `src/specify_cli/status/review_roles.py` (shared predicate), `src/specify_cli/cli/commands/agent/tasks_transition_core.py` (reuse predicate, behaviour-preserving)
+- **Affected surfaces**: `src/specify_cli/status/work_package_lifecycle.py` (IN_PROGRESS arm + extracted helper), `src/specify_cli/status/review_roles.py` (shared predicate), `src/specify_cli/cli/commands/agent/tasks_transition_core.py` (`_implementer_arm` reuses the predicate, behaviour-preserving)
 - **Sequencing/depends-on**: none
 - **Risks**: import cycle (mitigated by a function-local import); append-order vs Lamport disagreement between the projection and the reducer slot under merged-log reordering (accepted residual, #4941).
