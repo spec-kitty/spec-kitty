@@ -41,7 +41,7 @@ def _repo(tmp_path: Path) -> Path:
 def _mission(repo: Path, slug: str, **meta: object) -> None:
     mission_dir = repo / "kitty-specs" / slug
     mission_dir.mkdir(parents=True)
-    body = {"mission_slug": slug, "target_branch": "main", **meta}
+    body = {"mission_slug": slug, "target_branch": "main", "topology": "single_branch", **meta}
     (mission_dir / "meta.json").write_text(json.dumps(body), encoding="utf-8")
 
 
@@ -111,3 +111,16 @@ def test_mission_write_bypass_helper_matches_policy_fold(tmp_path: Path) -> None
     assert mission_write_bypass(repo, "bad-flag", "main") is False
     assert mission_write_bypass(repo, None, "main") is False
     assert mission_write_bypass(repo, "no-such-mission", "main") is False
+
+
+@pytest.mark.parametrize("topology", ["lanes", "coord", "lanes_with_coord", "not-a-topology", None])
+def test_flag_on_non_single_branch_topology_never_bypasses(tmp_path: Path, topology: object) -> None:
+    """A4: ``commit_to_target`` is single_branch-only; a hand-edited meta on any
+    other (or unstored) topology must not un-protect the target."""
+    from specify_cli.git.protection_policy import mission_write_bypass
+
+    repo = _repo(tmp_path)
+    _mission(repo, "hand-edited", commit_to_target=True, topology=topology)
+
+    assert ProtectionPolicy.resolve_for_mission(repo, "hand-edited").is_protected("main") is True
+    assert mission_write_bypass(repo, "hand-edited", "main") is False

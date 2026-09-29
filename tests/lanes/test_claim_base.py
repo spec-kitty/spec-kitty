@@ -789,3 +789,40 @@ def test_on_wp_terminal_preserves_lane_tip_when_a_sibling_wp_is_still_in_flight(
     on_wp_terminal(repo, mission_slug, "WP01")
 
     assert read_tip(repo, branch) == sha
+
+
+# --- (f) bookkeeping under the mission dir is never qualifying work (A2) ---
+
+
+def _commit_file(repo: Path, rel: str, body: str) -> None:
+    target = repo / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(body, encoding="utf-8")
+    _git(repo, "add", rel)
+    _git(repo, "commit", "-q", "-m", f"touch {rel}")
+
+
+def test_meta_json_lock_commit_is_not_qualifying_work(tmp_path: Path) -> None:
+    """The first claim commits ``meta.json`` (VCS lock) AFTER the claim base is
+    recorded; that bookkeeping commit must not satisfy the for_review gate."""
+    from specify_cli.lanes.for_review_gate import _has_qualifying_commit_since_claim_base
+
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit_file(repo, f"kitty-specs/{_MISSION_SLUG}/meta.json", "{}\n")
+
+    assert _has_qualifying_commit_since_claim_base(repo, base, _MISSION_SLUG) is False
+
+
+def test_planning_artifact_work_under_mission_dir_still_qualifies(tmp_path: Path) -> None:
+    """Control: a planning_artifact WP's real work IS under ``kitty-specs/<slug>/``."""
+    from specify_cli.lanes.for_review_gate import _has_qualifying_commit_since_claim_base
+
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit_file(repo, f"kitty-specs/{_MISSION_SLUG}/meta.json", "{}\n")
+    _commit_file(repo, f"kitty-specs/{_MISSION_SLUG}/research.md", "# findings\n")
+
+    assert _has_qualifying_commit_since_claim_base(repo, base, _MISSION_SLUG) is True

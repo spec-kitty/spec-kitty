@@ -456,3 +456,33 @@ class TestBannerConstantsHoisted:
         # this function -- the campsite fold replaced every one of them.
         assert '"[bold yellow]"' not in source
         assert '"[/bold yellow]"' not in source
+
+
+class TestRepoRootBannerWording:
+    """A5: a single_branch repo-root code WP (lane_id set, branch set, repo_root
+    resolution) must get repo-root wording, never the self-contradicting lane
+    worktree banner."""
+
+    @staticmethod
+    def _render(**overrides: object) -> str:
+        from types import SimpleNamespace
+
+        from specify_cli.cli.commands import implement as impl
+
+        result = SimpleNamespace(lane_id="lane-planning", resolution_kind="repo_root", branch_name="issue-5100-work", lane_test_env={})
+        for key, value in overrides.items():
+            setattr(result, key, value)
+        with impl.console.capture() as capture:
+            impl._print_workspace_ready_banner(result, Path("."))
+        return capture.get()
+
+    def test_repo_root_code_wp_uses_repo_root_wording(self) -> None:
+        text = self._render()
+        assert "Lane worktree ready" not in text
+        assert "lane worktree" not in text.lower()
+        assert "critical error" not in text.lower()
+        assert "repository root checkout on branch issue-5100-work" in text
+
+    def test_real_lane_worktree_keeps_lane_banner(self) -> None:
+        text = self._render(lane_id="lane-a", resolution_kind="lane_workspace")
+        assert "Lane worktree ready" in text

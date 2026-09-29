@@ -1426,6 +1426,73 @@ def test_validate_worktree_state_repo_root_short_circuits(tmp_path: Path) -> Non
     assert result == (True, [])
 
 
+@dataclass
+class _FakeBranchWorkspace(_FakeWorkspace):
+    branch_name: str | None = None
+
+
+def _repo_root_state(tmp_path: Path, workspace: _FakeWorkspace) -> tuple[bool, list[str]] | None:
+    return _validate_worktree_state(
+        repo_root=tmp_path,
+        main_repo_root=tmp_path,
+        feature_dir=tmp_path,
+        mission_slug="demo",
+        wp_id="WP01",
+        target_lane="for_review",
+        resolve_workspace_for_wp=lambda *_a: workspace,
+        get_feature_target_branch=lambda *_a: "main",
+        review_currency_check_branch=lambda **_k: "main",
+        behind_commits_touch_only_planning_artifacts=lambda *_a: False,
+        filter_runtime_state_paths=lambda s: s,
+        list_wp_branch_specs_changes_for_guard=lambda **_k: [],
+    )
+
+
+def test_validate_worktree_state_single_branch_repo_root_wp_runs_claim_base_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A1b: a repo-root WP that owns a real branch (single_branch code WP) is
+    NOT waved through: the shared claim-base for_review gate decides."""
+    from specify_cli.lanes import for_review_gate
+
+    decision = for_review_gate.GateDecision(passed=False, reason="WP01 cannot move to for_review: no implementation commit since claim")
+    monkeypatch.setattr(for_review_gate, "evaluate_for_review_gate", lambda *_a, **_k: decision)
+    ws = _FakeBranchWorkspace(resolution_kind="repo_root", worktree_path=tmp_path, branch_name="main")
+
+    result = _repo_root_state(tmp_path, ws)
+
+    assert result is not None
+    ok, guidance = result
+    assert ok is False
+    assert any("no implementation commit" in line for line in guidance)
+
+
+def test_validate_worktree_state_single_branch_repo_root_wp_passes_when_gate_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.lanes import for_review_gate
+
+    monkeypatch.setattr(for_review_gate, "evaluate_for_review_gate", lambda *_a, **_k: for_review_gate.GateDecision(passed=True))
+    ws = _FakeBranchWorkspace(resolution_kind="repo_root", worktree_path=tmp_path, branch_name="main")
+
+    assert _repo_root_state(tmp_path, ws) == (True, [])
+
+
+def test_validate_worktree_state_branchless_repo_root_wp_keeps_short_circuit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A planning_artifact WP (no branch) keeps its existing behaviour; the gate is not consulted."""
+    from specify_cli.lanes import for_review_gate
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise AssertionError("gate must not run for a branchless planning WP")
+
+    monkeypatch.setattr(for_review_gate, "evaluate_for_review_gate", _boom)
+    ws = _FakeBranchWorkspace(resolution_kind="repo_root", worktree_path=tmp_path, branch_name=None)
+
+    assert _repo_root_state(tmp_path, ws) == (True, [])
+
+
 def test_validate_worktree_state_missing_worktree_falls_through(tmp_path: Path) -> None:
     missing = tmp_path / "nope"
     ws = _FakeWorkspace(resolution_kind="lane_workspace", worktree_path=missing)

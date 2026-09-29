@@ -52,7 +52,7 @@ def _repo(tmp_path: Path) -> Path:
     for slug, flag in ((CTT, True), (OTHER_CTT, True), (OTHER, None)):
         mission_dir = repo / "kitty-specs" / slug
         mission_dir.mkdir(parents=True)
-        meta: dict[str, object] = {"mission_slug": slug, "target_branch": "main"}
+        meta: dict[str, object] = {"mission_slug": slug, "target_branch": "main", "topology": "single_branch"}
         if flag is not None:
             meta["commit_to_target"] = flag
         (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
@@ -115,6 +115,24 @@ def test_preflight_unflagged_mission_is_refused(tmp_path: Path) -> None:
 
     with pytest.raises(ProtectedBranchRefused):
         _preflight(repo, f"kitty-specs/{OTHER}/spec.md")
+
+
+def test_preflight_ambiguous_selector_yields_no_bypass_instead_of_raising(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A6: an ambiguous/unresolvable selector must fail closed (no bypass, so
+    the protected-branch refusal fires) rather than raising
+    ``MissionSelectorAmbiguous`` out of ``preflight_commit``."""
+    from specify_cli.git import protection_policy
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+    def _ambiguous(_root: Path, handle: str) -> str:
+        raise MissionSelectorAmbiguous(handle=handle, candidates=["a-01AAAAAA", "a-01BBBBBB"])
+
+    monkeypatch.setattr("specify_cli.missions._read_path_resolver._canonicalize_primary_read_handle", _ambiguous)
+    repo = _repo(tmp_path)
+
+    with pytest.raises(ProtectedBranchRefused):
+        _preflight(repo, f"kitty-specs/{CTT}/spec.md")
+    assert protection_policy.mission_write_bypass(repo, CTT, "main") is False
 
 
 @pytest.fixture

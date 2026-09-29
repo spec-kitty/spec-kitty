@@ -166,3 +166,67 @@ def test_mt_2549_status_never_committed_on_lane_branch(
         "#2549 regression: a coord-partition status file was committed onto the "
         f"lane branch {_LANE_BRANCH!r}: {committed!r}"
     )
+
+
+def test_repo_root_wp_never_auto_commits_arbitrary_dirty_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A1a (#5100): for a repo-root WP with no owned checkout, ``move-task
+    --to for_review`` must NOT stage every dirty path of the repository-root
+    checkout (stray ``.env.local``, unrelated files) as "WP deliverables"."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.cli.commands.agent.tasks_move_task import (
+        _MoveTaskState,
+        _mt_commit_lane_deliverables,
+    )
+    from specify_cli.workspace.context import ResolvedWorkspace
+
+    repo, lane_wt = _make_lane_worktree(tmp_path)
+    # A single_branch repo has no lane worktree; drop the fixture's so its untracked
+    # ``.worktrees/`` dir cannot make safe_commit refuse for an unrelated reason.
+    _git(repo, "worktree", "remove", "--force", str(lane_wt))
+    _git(repo, "checkout", "-q", "-b", "work")  # an UNPROTECTED branch, so protection cannot mask the sweep
+    (repo / ".env.local").write_text("SECRET=1\n", encoding="utf-8")
+    (repo / _DELIVERABLE_REL).write_text("print('repo root work')\n", encoding="utf-8")
+    head_before = _git(repo, "rev-parse", "HEAD")
+    branch = _git(repo, "branch", "--show-current")
+
+    resolved = ResolvedWorkspace(
+        mission_slug=_MISSION_SLUG,
+        wp_id="WP01",
+        execution_mode="direct_repo",
+        mode_source="test",
+        resolution_kind="repo_root",
+        workspace_name="repo-root",
+        worktree_path=repo,
+        branch_name=branch,
+        lane_id="lane-planning",
+        lane_wp_ids=["WP01"],
+    )
+    monkeypatch.setattr(_tasks, "resolve_workspace_for_wp", lambda *a, **k: resolved)
+    st = _MoveTaskState(
+        task_id="WP01",
+        to="for_review",
+        mission=_MISSION_SLUG,
+        agent=None,
+        assignee=None,
+        shell_pid=None,
+        note=None,
+        review_feedback_file=None,
+        approval_ref=None,
+        reviewer=None,
+        self_review_fallback=False,
+        intended_reviewer=None,
+        reviewer_failure_reason=None,
+        done_override_reason=None,
+        force=True,
+        tracker_ref=None,
+        skip_review_artifact_check=False,
+        auto_commit=True,
+        json_output=False,
+    )
+    st.main_repo_root = repo
+    st.mission_slug = _MISSION_SLUG
+
+    _mt_commit_lane_deliverables(st)
+
+    assert _git(repo, "rev-parse", "HEAD") == head_before, "no auto-commit may land for a repo-root WP"
+    assert ".env.local" not in _git(repo, "ls-files")

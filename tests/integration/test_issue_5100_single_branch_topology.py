@@ -270,15 +270,17 @@ def test_for_review_without_force(single_branch_mission: tuple[Path, str, Path])
     _assert_setup_ok("finalize-tasks", _finalize(mission_slug))
     _assert_setup_ok("implement WP01", _implement("WP01", mission_slug))
 
-    # Control: no commit since claim -> refused.
+    # Control: subtasks ARE done, so the unchecked-subtask gate cannot be what
+    # refuses; only the COMMIT gate (no implementation commit since claim) can.
+    mark_done = runner.invoke(root_app, ["agent", "tasks", "mark-status", "T001", "--status", "done", "--mission", mission_slug, "--json"])
+    _assert_setup_ok("mark-status T001 done", mark_done)
     refused = _move_to_for_review("WP01", mission_slug)
     assert refused.exit_code != 0, refused.output
+    assert "no implementation commit" in refused.output, refused.output
 
     (repo / "src" / "wp01.py").write_text("VALUE = 100\n", encoding="utf-8")
     _git(repo, "add", "src/wp01.py")
     _git(repo, "commit", "-m", "feat(WP01): deliverable")
-    mark_done = runner.invoke(root_app, ["agent", "tasks", "mark-status", "T001", "--status", "done", "--mission", mission_slug, "--json"])
-    _assert_setup_ok("mark-status T001 done", mark_done)
 
     moved = _move_to_for_review("WP01", mission_slug)
     assert moved.exit_code == 0, moved.output
@@ -286,6 +288,51 @@ def test_for_review_without_force(single_branch_mission: tuple[Path, str, Path])
     events = _read_events(feature_dir)
     for_review = [e for e in events if e.get("wp_id") == "WP01" and e.get("to_lane") == "for_review"]
     assert for_review and for_review[-1].get("execution_mode") == "direct_repo"
+
+
+def test_first_claim_meta_lock_commit_is_not_qualifying_work(single_branch_mission: tuple[Path, str, Path]) -> None:
+    """A2: the first claim's ``meta.json`` VCS-lock commit lands AFTER the
+    claim base is recorded, but is bookkeeping, not implementation work: both
+    ``move-task`` and ``status emit`` must refuse a no-work WP."""
+    _repo, mission_slug, feature_dir = single_branch_mission
+    _assert_setup_ok("finalize-tasks", _finalize(mission_slug))
+    _assert_setup_ok("implement WP01", _implement("WP01", mission_slug))
+    _assert_setup_ok(
+        "mark-status T001 done",
+        runner.invoke(root_app, ["agent", "tasks", "mark-status", "T001", "--status", "done", "--mission", mission_slug, "--json"]),
+    )
+
+    emitted = runner.invoke(root_app, ["agent", "status", "emit", "WP01", "--to", "for_review", "--actor", "claude", "--mission", mission_slug, "--json"])
+    assert emitted.exit_code != 0, emitted.output
+    assert "no implementation commit" in emitted.output, emitted.output
+
+    moved = _move_to_for_review("WP01", mission_slug)
+    assert moved.exit_code != 0, moved.output
+    assert "no implementation commit" in moved.output, moved.output
+    assert not [e for e in _read_events(feature_dir) if e.get("wp_id") == "WP01" and e.get("to_lane") == "for_review"]
+
+
+def test_for_review_never_auto_commits_stray_repo_root_files(single_branch_mission: tuple[Path, str, Path]) -> None:
+    """A1a: ``move-task --to for_review`` must not sweep every dirty path of
+    the repository-root checkout into a "deliverables" commit -- neither a
+    stray file, nor as a way for a no-work WP to pass the gate."""
+    repo, mission_slug, feature_dir = single_branch_mission
+    _assert_setup_ok("finalize-tasks", _finalize(mission_slug))
+    _assert_setup_ok("implement WP01", _implement("WP01", mission_slug))
+    _assert_setup_ok(
+        "mark-status T001 done",
+        runner.invoke(root_app, ["agent", "tasks", "mark-status", "T001", "--status", "done", "--mission", mission_slug, "--json"]),
+    )
+    (repo / ".env.local").write_text("SECRET=1\n", encoding="utf-8")
+    (repo / "src" / "wp01.py").write_text("VALUE = 100\n", encoding="utf-8")
+    head_before = _git(repo, "rev-parse", "HEAD")
+
+    moved = _move_to_for_review("WP01", mission_slug)
+
+    assert moved.exit_code != 0, moved.output
+    assert _git(repo, "rev-parse", "HEAD") == head_before, "no auto-commit may land on the target branch"
+    assert ".env.local" not in _git(repo, "ls-files"), "a stray file must never be committed"
+    assert not [e for e in _read_events(feature_dir) if e.get("wp_id") == "WP01" and e.get("to_lane") == "for_review"]
 
 
 def test_second_implement_refused_names_in_progress_wp(single_branch_mission_independent_wps: tuple[Path, str, Path]) -> None:
@@ -336,6 +383,9 @@ def test_dirty_checkout_refused_but_resume_allowed(tmp_path: Path, monkeypatch: 
     first_claim = _implement("WP01", mission_a)
     assert first_claim.exit_code != 0, "a genuinely new claim must be refused while the checkout is dirty"
     assert "scratch_outside_spec_kitty.txt" in first_claim.output, first_claim.output
+    # A3: a refused implement is side-effect free -- it must not leave the
+    # VCS lock (meta.json) or any other tracked change behind.
+    assert _git(repo_a, "status", "--porcelain") == "?? scratch_outside_spec_kitty.txt", "a refused implement must write nothing"
 
     # --- Half B: resuming an already-in_progress WP tolerates the same dirt. ---
     repo_b = _seed_repo(tmp_path, name="repo-dirty-resume")

@@ -136,6 +136,18 @@ def test_commit_to_target_flag_skips_mint(tmp_path: Path) -> None:
     assert mission_refs == ""
 
 
+@pytest.mark.parametrize("topology", [MissionTopology.LANES, MissionTopology.COORD])
+def test_commit_to_target_rejected_unless_single_branch(tmp_path: Path, topology: MissionTopology) -> None:
+    """A4: ``--commit-to-target`` is single_branch-only; create refuses it for
+    any other topology and persists nothing."""
+    repo = _seed_repo(tmp_path, name=f"ctt-{topology.value}")
+
+    with pytest.raises(MissionCreationError, match="single_branch"):
+        make_mission(repo, "ctt-wrong-topology", topology=topology, target_branch="main", commit_to_target=True)
+
+    assert not (repo / "kitty-specs" / "ctt-wrong-topology").exists()
+
+
 def test_existing_mission_branch_name_refuses_create(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A pre-existing branch matching the deterministic mint name refuses
     create with MISSION_BRANCH_EXISTS, naming the branch. A fixed ULID
