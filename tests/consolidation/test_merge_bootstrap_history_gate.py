@@ -129,9 +129,28 @@ def test_gate_blocks_lifecycle_events_plus_bootstrap_only_status(tmp_path: Path)
 
 
 def test_gate_skips_when_no_wp_ids(tmp_path: Path) -> None:
+    """A mission with no WPs has nothing that must have advanced past planned.
+
+    The log is the bootstrap-only one the gate refuses for a mission WITH work
+    packages, so only the empty-``wp_ids`` early return keeps this a no-op
+    (an absent log would short-circuit on the log-exists guard instead).
+    """
     feature_dir = tmp_path / "kitty-specs" / "empty-mission"
     feature_dir.mkdir(parents=True)
-    # Should be a no-op even though no log exists.
+    _write_jsonl(
+        feature_dir / "status.events.jsonl",
+        [
+            {
+                "event_id": "01H1",
+                "wp_id": "WP01",
+                "from_lane": None,
+                "to_lane": "planned",
+                "force": True,
+                "actor": "finalize-tasks",
+                "mission_slug": "empty-mission",
+            },
+        ],
+    )
     _enforce_canonical_status_history(
         feature_dir=feature_dir,
         mission_slug="empty-mission",
