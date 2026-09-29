@@ -18,7 +18,205 @@
     "no_longer_flagged": {},
     "verdict": "PASS"
   },
-  "base_sha": "ddf114f06c54e5454bad5c3172e7049a95f7f862",
+  "base_sha": "f8ef65cfb3cfe30cba5d1680ede076d1251707c2",
+  "coverage_verdict": {
+    "changed": {
+      "kitty-specs/028-cli-event-emission-sync": {
+        "base_unmapped": [
+          "FR-001",
+          "FR-002",
+          "FR-003",
+          "FR-004",
+          "FR-005",
+          "FR-006",
+          "FR-007",
+          "FR-008",
+          "FR-009",
+          "FR-010",
+          "FR-011",
+          "FR-012",
+          "FR-013",
+          "FR-014",
+          "FR-015",
+          "FR-016",
+          "FR-017",
+          "FR-018",
+          "FR-019",
+          "FR-020",
+          "FR-021",
+          "FR-022",
+          "FR-023",
+          "FR-024",
+          "FR-025",
+          "FR-026",
+          "FR-027",
+          "FR-028",
+          "FR-029",
+          "FR-030",
+          "FR-031",
+          "FR-032",
+          "FR-033",
+          "FR-034",
+          "FR-035",
+          "FR-036",
+          "FR-037",
+          "FR-038"
+        ],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-001",
+          "FR-002",
+          "FR-003",
+          "FR-004",
+          "FR-005",
+          "FR-006",
+          "FR-007",
+          "FR-008",
+          "FR-009",
+          "FR-010",
+          "FR-011",
+          "FR-012",
+          "FR-013",
+          "FR-014",
+          "FR-015",
+          "FR-016",
+          "FR-017",
+          "FR-018",
+          "FR-019",
+          "FR-020",
+          "FR-021",
+          "FR-022",
+          "FR-023",
+          "FR-024",
+          "FR-025",
+          "FR-026",
+          "FR-027",
+          "FR-028",
+          "FR-028a",
+          "FR-028b",
+          "FR-028c",
+          "FR-028d",
+          "FR-029",
+          "FR-030",
+          "FR-031",
+          "FR-032",
+          "FR-033",
+          "FR-034",
+          "FR-035",
+          "FR-036",
+          "FR-037",
+          "FR-038"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-028a",
+          "FR-028b",
+          "FR-028c",
+          "FR-028d"
+        ]
+      },
+      "kitty-specs/060-canonical-status-model-cleanup": {
+        "base_unmapped": [],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-009a"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-009a"
+        ]
+      },
+      "kitty-specs/065-tasks-and-lane-stabilization": {
+        "base_unmapped": [],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-002a",
+          "FR-010a",
+          "FR-010b"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-002a",
+          "FR-010a",
+          "FR-010b"
+        ]
+      },
+      "kitty-specs/078-planning-artifact-and-query-consistency": {
+        "base_unmapped": [],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-002a",
+          "FR-008a",
+          "FR-014a"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-002a",
+          "FR-008a",
+          "FR-014a"
+        ]
+      },
+      "kitty-specs/content-address-ratchet-allowlists-01KX8M4D": {
+        "base_unmapped": [],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-007b"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-007b"
+        ]
+      },
+      "kitty-specs/doctrine-built-in-seam-consolidation-01KYW3TX": {
+        "base_unmapped": [],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-001b"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-001b"
+        ]
+      },
+      "kitty-specs/mission-type-doctrine-authority-01KXH6GE": {
+        "base_unmapped": [],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-003a"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-003a"
+        ]
+      },
+      "kitty-specs/operator-config-ergonomics-01M04YK8": {
+        "base_unmapped": [],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-004a"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-004a"
+        ]
+      },
+      "kitty-specs/up-org-doctrine-consumers-01M05YAB": {
+        "base_unmapped": [],
+        "classification": "newly_unmapped",
+        "head_unmapped": [
+          "FR-006a"
+        ],
+        "newly_mapped_ids": [],
+        "newly_unmapped_ids": [
+          "FR-006a"
+        ]
+      }
+    },
+    "mixed_count": 0,
+    "newly_mapped_count": 0,
+    "newly_unmapped_count": 9,
+    "unchanged_count": 500
+  },
   "declared_growth": {
     "growth": {
       "kitty-specs/002-lightweight-pypi-release/spec.md": [
@@ -2995,6 +3193,16 @@
         "SC-004",
         "SC-005"
       ],
+      "kitty-specs/squad-doctrine-single-owner-01M3KBP7/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003",
+        "SC-004",
+        "SC-005",
+        "SC-006",
+        "SC-007",
+        "SC-008"
+      ],
       "kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md": [
         "SC-001",
         "SC-002",
@@ -3202,6 +3410,11 @@
         "SC-004",
         "SC-005",
         "SC-006"
+      ],
+      "kitty-specs/test-suite-quality-p0-01M3NYXQ/spec.md": [
+        "SC-001",
+        "SC-002",
+        "SC-003"
       ],
       "kitty-specs/tidy-charter-cutover-surface-01M18R5B/spec.md": [
         "SC-001",
@@ -3499,9 +3712,9 @@
     },
     "shrink": {}
   },
-  "file_list_count": 3542,
-  "file_list_hash": "1ebfbd651a0f6712270d41699282c187c0c7bbbe34eb121866b6d053ff40b813",
-  "head_sha": "fdf383f34a746104d15afe44cf97d9d9d7310749",
+  "file_list_count": 3558,
+  "file_list_hash": "db4a1fcfb03852b74bbaf9c12c155f96b511c361a80711ce6463afbe0de45931",
+  "head_sha": "e7b8cd9b49b2801f49140b2fbc5e5ce1a15906dc",
   "isolation": {
     "base": {
       "ok": true,
@@ -3956,8 +4169,8 @@
     "refused_count": 4
   },
   "python_version": "3.11.15",
-  "spec_count": 520,
-  "wp_count": 3022,
+  "spec_count": 522,
+  "wp_count": 3036,
   "wp_ref_transitions": {
     "changed": [
       {
@@ -4332,9 +4545,9 @@
     "matrix": {
       "dropped -> accepted": 12,
       "dropped -> rejected:malformed": 5,
-      "kept/known -> accepted": 10808,
+      "kept/known -> accepted": 10851,
       "kept/unknown -> rejected:unknown_spec_id": 29
     },
-    "total_tokens_compared": 10854
+    "total_tokens_compared": 10897
   }
 }

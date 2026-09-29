@@ -4,7 +4,7 @@
 
 - base SHA: `ddf114f06c54e5454bad5c3172e7049a95f7f862`
 - head SHA: `fdf383f34a746104d15afe44cf97d9d9d7310749`
-- command: `.venv/bin/python research/latency_bench.py --base-src <base-worktree>/src --head-src <head-tree>/src --base-sha <sha> --head-sha <sha> --out-dir <scratch>`
+- command: `.venv/bin/python kitty-specs/requirement-id-grammar-01M3NRCA/research/latency_bench.py --base-src <base-worktree>/src --head-src <head-tree>/src --base-sha <sha> --head-sha <sha> --out-dir <scratch>`
 - rounds: 20 (ABBA-interleaved: round order alternates which side runs first)
 - machine: Linux-6.8.0-136-generic-x86_64-with-glibc2.39
 - CPU: AMD Ryzen 9 7950X3D 16-Core Processor (32 logical CPUs)

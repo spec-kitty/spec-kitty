@@ -7,33 +7,54 @@ mission's branch head ("head") over the SAME file list -- every
 every difference as an **intended fix** or a **regression**. Full machine
 data is in the committed `research/corpus-scan.json`.
 
+**Pre-PR squad correction (review cycle 3, MEDIUM finding).** Section (d)
+below only tracks the transition of individual raw WP-frontmatter *ref
+tokens*. It never asked whether a functional requirement that only became
+*declared* through (c)'s newly-recognised letter-suffixed shape actually
+has any WP mapped to it -- so the previous revision of this report claimed
+"only mission `058` newly fails re-finalize", which undercounted the real
+set. A new **section (e)** closes that gap by running each side's own
+`compute_coverage` (the exact function `finalize-tasks`'
+`unmapped_functional_requirements` key is built from) over the corpus; see
+(e) and the corrected "Missions whose NEXT re-finalize newly fails" list
+below.
+
 ## Method
 
-- **Merge-base SHA**: `ddf114f06c54e5454bad5c3172e7049a95f7f862`
-  (`fix(doc-analysis): pin reporting/ in DEVELOPMENT_CONCERN_SUBDIRS`,
-  2026-09-29), computed with `git merge-base HEAD upstream/main` at scan
-  time. **Deviation from the planning-time base recorded in the spec
-  (`aedb30cddd`)**: the branch was rebased onto a newer `upstream/main` tip
-  after planning; the scan uses the real, re-verified merge-base rather than
-  the stale planning-time SHA, per the orchestrator's instruction.
-- **Head SHA**: `fdf383f34a746104d15afe44cf97d9d9d7310749` (the repo-root
-  checkout HEAD at review cycle 2, after the cycle-1 evidence commit
-  `09ea84976f`; `git rev-parse HEAD` in the repo root). No file under `src/`
-  changed between cycle 1 and cycle 2 -- re-running the scan at this SHA
-  reproduces `corpus-scan.json` byte-identically apart from this field
-  (reviewer-renata independently confirmed the same for `09ea84976f`).
-- **Head-source preflight** (all three checks passed before any measurement):
+- **Merge-base SHA**: `f8ef65cfb3cfe30cba5d1680ede076d1251707c2`
+  (`test(landing): use a non-/tmp file:// URL in the verbatim fixture
+  (#5270)`), computed with `git merge-base HEAD upstream/main` at scan time
+  (this mission's own doctrine reminder,
+  `docs/context/orchestration.md#target-ref--commit-target`, applies: this
+  is the mission's Target Ref, not a `main`-branch instruction).
+  **Deviation from the SHA recorded in the previous revision of this report
+  (`ddf114f06c54e5454bad5c3172e7049a95f7f862`)**: `upstream/main` advanced
+  again between review cycles; the scan uses the real, re-verified
+  merge-base rather than the stale prior SHA, per the same instruction that
+  produced that earlier correction.
+- **Head SHA**: `e7b8cd9b49b2801f49140b2fbc5e5ce1a15906dc` (`docs(mission):
+  align the payload contract and ownership records with the pre-PR folds`
+  -- the repo-root checkout HEAD at scan time, `git rev-parse HEAD` in the
+  repo root). No file under `src/` changed between the two runs in this
+  cycle (see the determinism check below), so the phase-(a)-(d) results
+  are directly comparable to the prior revision modulo corpus growth
+  (explained per-section below); only (e) is new.
+- **Head-source preflight** (checked before any measurement):
   1. `src/specify_cli/requirement_mapping/grammar.py` exists and exposes
      `classify` and `canonical`.
   2. `src/specify_cli/requirement_mapping/lint.py` exposes
      `lint_spec_requirement_ids`.
-  3. Every lane tip recorded for WP01-WP07 (`lane-a` through `lane-g`) is an
-     ancestor of the head SHA, confirmed with
-     `git merge-base --is-ancestor <tip> <head>` for all seven branches.
+  3. `src/specify_cli/requirement_mapping/__init__.py` exposes
+     `compute_coverage` (the (e) API), `parse_requirement_ids_from_spec_md`
+     and `read_all_wp_raw_requirement_refs`; the base module
+     `src/specify_cli/requirement_mapping.py` exposes the same three names
+     (with base's own `compute_coverage` implementation, `ref.upper()`
+     matching rather than `grammar.canonical()`) -- confirmed by the
+     worker's own `isolation` block below, not asserted separately.
 - **Commands** (from the repo root; `<tmp>/rig-base` denotes the throwaway
   merge-base worktree, created once with `git worktree add --detach
-  <tmp>/rig-base ddf114f06c54e5454bad5c3172e7049a95f7f862` before both
-  scans and shared by every re-run in this cycle):
+  <tmp>/rig-base f8ef65cfb3cfe30cba5d1680ede076d1251707c2` under `/tmp`
+  before both scans and shared by every re-run in this cycle):
   ```bash
   .venv/bin/python kitty-specs/requirement-id-grammar-01M3NRCA/research/corpus_scan.py \
     --corpus-root "$(pwd)" \
@@ -43,30 +64,28 @@ data is in the committed `research/corpus-scan.json`.
   ```
   The driver process itself never imports `specify_cli` (only the worker
   subprocesses do, each with its own `PYTHONPATH`), so no `PYTHONPATH`
-  prefix is needed on this command; an earlier revision of this report
-  carried one out of habit, which was unnecessary and has been dropped.
-  Run twice at the same SHAs; `diff` of the two `corpus-scan.json` outputs
-  was empty (byte-identical) -- the determinism check.
-- **File counts**: 3,542 files (520 `spec.md`, 3,022 `tasks/WP*.md`), hash
-  `1ebfbd651a0f6712270d41699282c187c0c7bbbe34eb121866b6d053ff40b813`
+  prefix is needed on this command.
+  Run twice at the same SHAs (`HEAD` was re-checked with `git rev-parse
+  HEAD` before each run and was identical both times); `diff` of the two
+  `corpus-scan.json` outputs was empty (byte-identical) -- the determinism
+  check.
+- **File counts**: 3,558 files (522 `spec.md`, 3,036 `tasks/WP*.md`), hash
+  `db4a1fcfb03852b74bbaf9c12c155f96b511c361a80711ce6463afbe0de45931`
   (`sha256` of the sorted, repo-relative POSIX path list). Both workers read
   file CONTENT from the head tree only; the file-list hash proves both sides
-  received the identical list.
+  received the identical list. The corpus grew by 2 specs / 14 WP files
+  since the prior revision's snapshot (520/3,022) -- new missions landing on
+  `upstream/main` between review cycles, not a scan artefact; every
+  per-section count below is explained against that growth.
 - **Python**: 3.11.15 (the repo `.venv`; each worker subprocess ran under
   the same interpreter with `PYTHONPATH` pointed at its own side's `src`).
 - **Import isolation**: both workers asserted `specify_cli.__file__` (and
   `runtime`/`charter`/`kernel`, when importable) resolved under the
   expected side's `src`, and the driver additionally asserts `--base-src !=
-  --head-src` (added in cycle 2) so isolation is checked, not merely
-  assumed by construction. `corpus-scan.json`'s `isolation` block records
-  the per-side resolution as a boolean (never the raw `/tmp` path, so the
-  JSON output stays byte-identical across runs at the same SHAs) -- both
-  sides: `ok: true`.
-- **WP-token pairing** (cycle 2): `_wp_transition_entries` now asserts
-  `base_token == head_token` at every paired index instead of silently
-  discarding the head token -- reviewer-renata verified by hand that all
-  10,854 pairs already agreed; the assertion makes that self-proving on
-  every future run rather than trusted-by-inspection.
+  --head-src`. `corpus-scan.json`'s `isolation` block records the per-side
+  resolution as a boolean (never the raw `/tmp` path, so the JSON output
+  stays byte-identical across runs at the same SHAs) -- both sides: `ok:
+  true`.
 - **Worktree removal proof**: `git worktree remove --force <tmp>/rig-base`
   followed by `git worktree prune`; the subsequent `git worktree list`
   no longer lists it.
@@ -77,8 +96,9 @@ data is in the committed `research/corpus-scan.json`.
 |---|---|---|
 | flagged specs | 1 | 1 |
 
-Both sides flag exactly `kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md`
-with ids `C-1`, `C-3`. **Verdict: PASS** (`head_count (1) <= base_count (1)`).
+**Unchanged from the prior revision.** Both sides flag exactly
+`kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md` with ids
+`C-1`, `C-3`. **Verdict: PASS** (`head_count (1) <= base_count (1)`).
 
 **SC-005 positive control**: the egress spec is still flagged at the head
 with the same `C-1`/`C-3` ids -- it was **not** silently dropped. C-009
@@ -89,12 +109,14 @@ before the mission.
 
 ## (b) Newly refused specs (planning hand-off lint, FR-013)
 
-**Count: 4 specs, matching the expected 4.** Every refused token is a
-kind-prefixed token in a declared position (table row, heading, bullet, or
-bold lead) that the grammar cannot parse -- **all four are classified
-INTENDED FIX**, none are false refusals of a legitimate id, an HTML-comment
-token, a non-first table cell, or a prose compound outside a declared
-position:
+**Count: 4 specs, matching the expected 4 -- unchanged from the prior
+revision** (same 4 missions, same 84 refused tokens total: 4 + 71 + 1 + 8;
+the corpus's 2 new specs contribute nothing new here). Every refused token
+is a kind-prefixed token in a declared position (table row, heading,
+bullet, or bold lead) that the grammar cannot parse -- **all four are
+classified INTENDED FIX**, none are false refusals of a legitimate id, an
+HTML-comment token, a non-first table cell, or a prose compound outside a
+declared position:
 
 1. **`coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V`** (4
    tokens: `C-009-mirror`, `C-EXCL-2167`, `C-EXCL-FALLBACK`, `C-SEQ`) --
@@ -117,17 +139,15 @@ position:
    -- exactly the malformed-kind-prefixed-token shape FR-013 exists to
    catch.
 
-No count deviation to explain -- the live result matches the fixture's
-expected 4 specs exactly (84 refused tokens total: 4 + 71 + 1 + 8).
-
 ## (c) Declared-set growth
 
-**419 of 520 specs grew; 0 specs shrank.**
+**421 of 522 specs grew; 0 specs shrank** (prior revision: 419 of 520; the
+delta tracks the corpus's +2 specs, not a behaviour change).
 
-All 2,637 added ids across those 419 specs match `(FR|NFR|C|SC)-\d+[a-z]?`
--- i.e. every addition is either a bare `SC-###` id (2,603 of 2,637) or a
-lowercase-letter-suffixed `FR-###a`/`NFR-###a`/`C-###a` id (28 of 2,637),
-plus 6 letter-suffixed `SC-###a` ids. **All 2,637 are classified INTENDED**
+All 2,648 added ids across those 421 specs match `(FR|NFR|C|SC)-\d+[a-z]?`
+-- i.e. every addition is either a bare `SC-###` id (2,614 of 2,648) or a
+lowercase-letter-suffixed `FR-###a`/`NFR-###a`/`C-###a` id (28 of 2,648),
+plus 6 letter-suffixed `SC-###a` ids. **All 2,648 are classified INTENDED**
 (FR-003: SC is a new recognised kind; the lowercase suffix is a new
 recognised declared shape). Zero placeholders (`FR-00N`), zero qualified
 citations, and zero description-cell leaks were found in the added set.
@@ -150,27 +170,25 @@ for ids in growth.values():
 print(counts)
 "
 ```
-This printed `{'matched': 2637, 'other': 0}` against the committed
-`corpus-scan.json` (2,603 bare `SC-###`, 6 letter-suffixed `SC-###a`, 28
-letter-suffixed `FR`/`NFR`/`C`). Full per-spec list: `corpus-scan.json`
-`declared_growth.growth`.
+This printed `{'matched': 2648, 'other': 0}` against the committed
+`corpus-scan.json` (2,614 bare `SC-###`, 6 letter-suffixed `SC-###a`, 28
+letter-suffixed `FR`/`NFR`/`C` -- among the latter 28, the four new
+`FR-028a`..`FR-028d` tokens in `028-cli-event-emission-sync`, which is also
+the one mission (e) below finds with no prior-revision precedent). Full
+per-spec list: `corpus-scan.json` `declared_growth.growth`.
 
-**Shrink**: 0 specs. The one expected shrink class -- an id declared only
-inside an HTML comment, now correctly blanked by `blank_html_comments`
-before scanning (WP01) -- did not fire against the live corpus: no spec in
-today's `kitty-specs/` happens to declare an id exclusively inside an HTML
-comment. This is a clean, unsurprising negative result, not evidence of a
-detector gap (the mechanism is exercised directly by WP01's own unit
-tests); noted here because the spec's Test Strategy calls out this shrink
-class specifically.
+**Shrink**: 0 specs, same as the prior revision. The one expected shrink
+class -- an id declared only inside an HTML comment, now correctly blanked
+by `blank_html_comments` before scanning (WP01) -- still does not fire
+against the live corpus.
 
 ## (d) WP ref transitions
 
-**10,854 raw WP-frontmatter tokens compared** (positionally paired per WP,
-same tokenisation on both sides). Matrix (excluding the unchanged
-`kept/known -> accepted` baseline, 10,808 tokens where a ref valid under the
-old known-ref gate is still valid, just relabelled under the new
-`accepted` vocabulary):
+**10,897 raw WP-frontmatter tokens compared** (prior revision: 10,854; the
++43 tracks the corpus's +14 WP files). Matrix (excluding the unchanged
+`kept/known -> accepted` baseline, 10,851 tokens -- prior revision: 10,808
+-- where a ref valid under the old known-ref gate is still valid, just
+relabelled under the new `accepted` vocabulary):
 
 | Transition | Count | Classification |
 |---|---|---|
@@ -179,6 +197,12 @@ old known-ref gate is still valid, just relabelled under the new
 | `kept/unknown -> rejected:unknown_spec_id` | 29 | **Intended**, and **fail -> fail for all 29** (see below) |
 | `kept/known -> rejected:*` | 0 | (none found -- this would be a probable regression) |
 
+**Unchanged from the prior revision in every respect except the baseline
+`kept/known -> accepted` count** (which only grows with corpus size): same
+46 non-baseline transitions, same missions, same tokens -- re-verified
+directly against `corpus-scan.json`'s `wp_ref_transitions.changed` for this
+revision's SHAs.
+
 **`dropped -> accepted` (12, all intended)** -- letter-suffixed and SC refs
 the old regex never recognised at all, now correctly kept and mapped:
 `065-wp-metadata-state-type-hardening` WP05 (`FR-012a`..`FR-012d`),
@@ -186,17 +210,14 @@ the old regex never recognised at all, now correctly kept and mapped:
 `charter-epic-golden-path-nfr-budget-01M35H35` WP02/WP03/WP06/WP08
 (`SC-001`..`SC-005`), `common-docs-consolidation-01KW3Q6M` WP04 (`SC-006`).
 
-**Correction (review cycle 1): the base `finalize-tasks` gate already
-blocked on both failure shapes below.** `_validate_requirement_mapping`
-(`mission_finalize.py@ddf114f06c:1257-1295`) calls `raise typer.Exit(1)`
+**The base `finalize-tasks` gate already blocked on both failure shapes
+below.** `_validate_requirement_mapping` calls `raise typer.Exit(1)`
 whenever `unknown_requirement_refs` is non-empty (built by
-`_classify_wp_requirement_refs`, `:1161-1182`, which buckets a WP with NO
-refs after normalization into `missing_requirement_refs_wps` -- also
-gate-failing), and `_read_spec_requirement_ids` (`:863-885`) calls
-`raise typer.Exit(1)` when `spec.md` does not exist. Both are gate-wide,
-mission-level failures at base -- not merely recorded-but-non-blocking.
-The corrected classification below replaces an earlier draft that
-mis-stated this as "recorded as unknown but never blocked on it."
+`_classify_wp_requirement_refs`, which buckets a WP with NO refs after
+normalization into `missing_requirement_refs_wps` -- also gate-failing),
+and `_read_spec_requirement_ids` calls `raise typer.Exit(1)` when
+`spec.md` does not exist. Both are gate-wide, mission-level failures at
+base -- not merely recorded-but-non-blocking.
 
 **`dropped -> rejected:malformed` (5, all intended)** -- all five tokens are
 non-ID garbage that leaked into `requirement_refs` frontmatter in mission
@@ -212,7 +233,9 @@ different base outcomes:
   `missing_requirement_refs_wps` or `unknown_requirement_refs` on their
   account) -- **WP10 passes at base**. At head, `grammar.classify` rejects
   both as `malformed`, which DOES fail `_validate_requirement_mapping`.
-  **WP10 is the one genuinely new failure in this entire scan.**
+  **WP10 is the one genuinely new WP-ref-transition failure in this WP
+  frontmatter class specifically** (see the corrected mission-level list
+  below, which also folds in (e)'s coverage-gate failures).
 
 The new grammar correctly and loudly rejects `ADR`/`2026-03-27-1` as
 malformed where the old regex silently dropped them; that tightening is
@@ -222,54 +245,121 @@ WP10 specifically -- both things are true at once.
 **`kept/unknown -> rejected:unknown_spec_id` (29, all intended, all
 fail -> fail)** -- 27 of the 29 are in mission
 `charter-doctrine-mission-type-configuration-01KSWJVX` (WP01-WP15,
-`FR-001`..`FR-019`); this mission's own `spec.md` does not exist on disk
-(confirmed: `kitty-specs/charter-doctrine-mission-type-configuration-
-01KSWJVX/` has a `tasks/` directory but no `spec.md`), so `_read_spec_
-requirement_ids` already raises `typer.Exit(1)` at base -- the whole
-mission was **already failing before any of these 27 refs were even
+`FR-001`..`FR-019`); this mission's own `spec.md` does not exist on disk, so
+`_read_spec_requirement_ids` already raises `typer.Exit(1)` at base -- the
+whole mission was **already failing before any of these 27 refs were even
 classified**. The remaining 2 are
 `excise-doctrine-curation-and-inline-references-01KP54J6` WP03 (`NFR-002`)
 and `spdd-reasons-activation-split-brain-01M1K6VN` WP01 (`C-004`) --
 genuinely undeclared refs in specs that DO exist; at base these land in
 `unknown_requirement_refs`, which already fails `_validate_requirement_
-mapping` for that mission too. **All 29 are fail -> fail: the base gate was
-already red for every one of these missions; the head gate is also red,
-for the same (and now more precisely diagnosed) reason.** The
-"not a regression" conclusion is unchanged -- only the reasoning was wrong.
+mapping` for that mission too. **All 29 are fail -> fail.**
 Full item list: `corpus-scan.json` `wp_ref_transitions.changed`.
-
-**Missions whose NEXT re-finalize newly fails (corrected list): only
-`058-mission-template-repository-refactor`, via WP10.** The other three
-missions named in this section
-(`charter-doctrine-mission-type-configuration-01KSWJVX`,
-`excise-doctrine-curation-and-inline-references-01KP54J6`,
-`spdd-reasons-activation-split-brain-01M1K6VN`) were already failing
-`finalize-tasks` at the merge-base and remain failing at head -- not new
-failures, and `058`'s own WP08 was likewise already failing at base
-(only its WP10 is new).
 
 No `kept/known -> rejected:*` transitions occurred anywhere in the corpus --
 the class the review guidance calls a probable regression is empty.
+
+## (e) Coverage verdict, base vs. head (`compute_coverage`)
+
+**New section, added for the pre-PR squad's MEDIUM finding.** (c) only
+diffs the *declared* functional-ID set per spec; it never checks whether a
+newly-declared functional ID actually has a WP mapped to it. This section
+runs each side's OWN `compute_coverage` (imported from that side's
+`specify_cli.requirement_mapping` -- base's naive `ref.upper()` match, head's
+`grammar.canonical()` match; no regex of this script's own, C-008) over
+that side's own raw `requirement_refs` mapping (`read_all_wp_raw_
+requirement_refs`) and that side's own declared-functional-ID set
+(`parse_requirement_ids_from_spec_md(...)['functional']`) -- the exact same
+inputs `finalize-tasks`' `unmapped_functional_requirements` key is built
+from.
+
+**Per mission: 500 unchanged, 9 newly unmapped, 0 newly mapped, 0 mixed.**
+
+| Mission | Newly-unmapped FR IDs |
+|---|---|
+| `028-cli-event-emission-sync` | `FR-028a`, `FR-028b`, `FR-028c`, `FR-028d` |
+| `060-canonical-status-model-cleanup` | `FR-009a` |
+| `065-tasks-and-lane-stabilization` | `FR-002a`, `FR-010a`, `FR-010b` |
+| `078-planning-artifact-and-query-consistency` | `FR-002a`, `FR-008a`, `FR-014a` |
+| `content-address-ratchet-allowlists-01KX8M4D` | `FR-007b` |
+| `doctrine-built-in-seam-consolidation-01KYW3TX` | `FR-001b` |
+| `mission-type-doctrine-authority-01KXH6GE` | `FR-003a` |
+| `operator-config-ergonomics-01M04YK8` | `FR-004a` |
+| `up-org-doctrine-consumers-01M05YAB` | `FR-006a` |
+
+**All 9 are classified INTENDED FIX**, in the exact sense the mission's own
+`spec.md` Assumptions section names: "Existing missions that re-finalize
+will, for the first time, see their declared letter-suffixed functional
+requirements counted and their malformed or undeclared refs fail. Newly
+failing coverage there is the intended fix, not a regression." In every
+one of these 9 cases the functional ID was **already sitting, unreferenced,
+in the spec** before this mission -- at base, the old declared-ID parser
+simply never recognised the letter-suffixed shape (`FR-###a`/`FR-###b`) as
+a declared functional requirement at all, so `compute_coverage`'s
+`functional_ids` input never included it and it could never appear in
+`unmapped_functional`. At head, FR-003's newly-recognised declared shape
+makes it visible for the first time, and because no WP in any of these 9
+missions references it (under either the old regex or the new grammar),
+`compute_coverage` correctly reports it as unmapped: a real, pre-existing
+coverage gap the mission's own tightening now surfaces rather than one the
+mission introduced. `028-cli-event-emission-sync` is the one mission in
+this set with no prior-revision precedent -- it entered the corpus (or, more
+precisely, its `FR-028a`..`FR-028d` declarations entered the *declared-ID
+growth set*, (c) above) after the prior revision of this report was
+written; it is the same class as the other 8, just newly in view because
+the corpus grew (see the Method section's file-count delta).
+
+**8 of these 9 exactly reproduce the pre-PR squad's independently-verified
+list; the 9th (`028-cli-event-emission-sync`) is additional, not
+contradictory** -- it was not yet part of the corpus (or not yet declared)
+when the squad ran its manual check. The squad's own CLI-confirmed positive
+control -- `finalize-tasks --validate-only` on `operator-config-ergonomics-
+01M04YK8` exits 1 with `unmapped_functional_requirements: ["FR-004a"]` --
+is reproduced exactly here and is now an executable floor
+(`_assert_floors`) in `corpus_scan.py`, so a future revision of this script
+cannot silently regress this check back to a false-clean result.
+
+No `newly_mapped` or `mixed` missions were found: the tightening only ever
+adds visibility to a pre-existing gap, never removes coverage anywhere in
+the corpus.
 
 ## Interpretation and escalations
 
 Every measured difference between the merge-base and the head is an
 **intended fix**. (b) newly refuses 4 pre-existing malformed-shape specs at
 the planning hand-off (a new, non-finalize-gated lint -- these are not
-finalize failures). (d) touches four already-existing missions whose
-`requirement_refs` frontmatter or spec.md state was already imperfect
-(missing spec.md, non-ID garbage tokens, or genuinely undeclared refs);
-three of those four (`charter-doctrine-mission-type-configuration-01KSWJVX`,
-`excise-doctrine-curation-and-inline-references-01KP54J6`,
-`spdd-reasons-activation-split-brain-01M1K6VN`) were **already failing**
-`finalize-tasks` at the merge-base and remain failing at head -- not new
-failures. Only **one** mission, `058-mission-template-repository-refactor`,
-newly fails at head, and only via its WP10 (WP08 was already failing at
-base). The bare-prose detector's floor and SC-005 positive control both
-hold. The declared-ID growth is 100% attributable to newly-recognised
-declared shapes (SC kind, lowercase suffix), with zero suspect additions
-(verified by the post-hoc check in the (c) section above, not by a script
-assertion). No `kept/known -> rejected:*` transitions -- the
-probable-regression bucket -- occurred.
+finalize failures). (d)'s `kept/unknown -> rejected:unknown_spec_id`
+transitions touch WP-frontmatter tokens in three already-imperfect
+missions (missing spec.md, or genuinely undeclared refs):
+`charter-doctrine-mission-type-configuration-01KSWJVX`,
+`excise-doctrine-curation-and-inline-references-01KP54J6`, and
+`spdd-reasons-activation-split-brain-01M1K6VN` -- all three were **already
+failing** `finalize-tasks` at the merge-base and remain failing at head --
+not new failures.
+
+**Missions whose NEXT re-finalize newly fails (corrected, per the pre-PR
+squad's MEDIUM finding): `058-mission-template-repository-refactor` (via
+its WP10's malformed refs, (d) above) plus the 9 missions listed in (e)
+above (via their newly-visible `unmapped_functional_requirements`) -- 10
+missions in total.** `058`'s own WP08 was likewise already failing at base
+(non-ID garbage tokens left it with zero accepted refs even under the old
+regex); only its WP10 is a new failure reason for that mission. Every one
+of the 10 is an **intended fix**: a declared requirement that was
+previously invisible (058: garbage tokens the old regex silently dropped
+instead of rejecting; the (e) 9: letter-suffixed FRs the old declared-ID
+parser never recognised) now correctly fails a gate it should always have
+failed, per the spec's own Assumptions section. No mission that passed
+`finalize-tasks` at base for a *content* reason (as opposed to a
+pre-existing `spec.md`-missing or garbage-token defect) newly fails at
+head.
+
+The bare-prose detector's floor and SC-005 positive control both hold. The
+declared-ID growth is 100% attributable to newly-recognised declared shapes
+(SC kind, lowercase suffix), with zero suspect additions (verified by the
+post-hoc check in the (c) section above, not by a script assertion). No
+`kept/known -> rejected:*` transitions -- the probable-regression bucket --
+occurred. (e)'s `compute_coverage` floor (the CLI-confirmed
+`operator-config-ergonomics-01M04YK8` / `FR-004a` positive control) holds,
+and no `newly_mapped`/`mixed` mission was found.
 
 **No regressions found. Nothing to escalate.**

@@ -22,8 +22,9 @@ Two modes:
 Every classification goes through the tree under test's own API
 (``find_bare_prose_requirement_ids``, ``lint_spec_requirement_ids``,
 ``parse_requirement_ids_from_spec_md``, ``read_all_wp_raw_requirement_refs``,
-``grammar.classify``, and -- base side only -- ``normalize_requirement_refs_value``)
-so the evidence measures the product, not this script.
+``grammar.classify``, ``compute_coverage``, and -- base side only --
+``normalize_requirement_refs_value``) so the evidence measures the product,
+not this script.
 """
 
 from __future__ import annotations
@@ -266,6 +267,69 @@ def _compare_wp_transitions(base: dict[str, Any], head: dict[str, Any]) -> dict[
     return {"matrix": matrix, "changed": changed, "total_tokens_compared": len(entries)}
 
 
+def _mission_coverage_classification(base_unmapped: set[str], head_unmapped: set[str]) -> tuple[str, list[str], list[str]]:
+    """One mission's (e) classification from its base/head unmapped-FR sets.
+
+    Returns ``(classification, newly_unmapped_ids, newly_mapped_ids)``.
+    ``newly_unmapped_ids`` = ``head_unmapped - base_unmapped`` (a functional
+    ID the finalize-tasks coverage gate did not flag at base but does at
+    head -- the class this section exists to surface, per the pre-PR squad
+    finding: (c) only diffs the *declared*-ID set, never checks whether a
+    newly-declared functional ID actually has a WP mapped to it).
+    ``newly_mapped_ids`` = ``base_unmapped - head_unmapped`` (the reverse:
+    an ID the gate used to flag that head now covers).
+    """
+    newly_unmapped = sorted(head_unmapped - base_unmapped)
+    newly_mapped = sorted(base_unmapped - head_unmapped)
+    if not newly_unmapped and not newly_mapped:
+        return "unchanged", newly_unmapped, newly_mapped
+    if newly_unmapped and newly_mapped:
+        return "mixed", newly_unmapped, newly_mapped
+    if newly_unmapped:
+        return "newly_unmapped", newly_unmapped, newly_mapped
+    return "newly_mapped", newly_unmapped, newly_mapped
+
+
+def _compare_coverage_verdict(base: dict[str, Any], head: dict[str, Any]) -> dict[str, Any]:
+    """(e): the finalize-tasks coverage verdict per mission, base vs. head.
+
+    (c) only diffs the *declared*-functional-ID set per spec; it never asks
+    whether a newly-declared functional ID actually has a WP ref mapped to
+    it. This section closes that gap by running each side's OWN
+    ``compute_coverage`` (imported from that side's
+    ``specify_cli.requirement_mapping``; never re-implemented here, C-008)
+    over that side's own raw WP ``requirement_refs`` mapping and that side's
+    own declared-functional-ID set -- both already computed once per mission
+    by the worker's ``_scan_mission_wp_refs`` and carried in ``wp_refs``, so
+    this driver-side comparison is pure set arithmetic over the two sides'
+    ``unmapped_functional`` lists.
+    """
+    base_wps: dict[str, Any] = base["wp_refs"]
+    head_wps: dict[str, Any] = head["wp_refs"]
+    changed: dict[str, Any] = {}
+    counts = {"unchanged": 0, "newly_unmapped": 0, "newly_mapped": 0, "mixed": 0}
+    for mission_dir in sorted(set(base_wps) | set(head_wps)):
+        base_unmapped = set(base_wps.get(mission_dir, {}).get("coverage", {}).get("unmapped_functional", []))
+        head_unmapped = set(head_wps.get(mission_dir, {}).get("coverage", {}).get("unmapped_functional", []))
+        classification, newly_unmapped_ids, newly_mapped_ids = _mission_coverage_classification(base_unmapped, head_unmapped)
+        counts[classification] += 1
+        if classification != "unchanged":
+            changed[mission_dir] = {
+                "classification": classification,
+                "base_unmapped": sorted(base_unmapped),
+                "head_unmapped": sorted(head_unmapped),
+                "newly_unmapped_ids": newly_unmapped_ids,
+                "newly_mapped_ids": newly_mapped_ids,
+            }
+    return {
+        "unchanged_count": counts["unchanged"],
+        "newly_unmapped_count": counts["newly_unmapped"],
+        "newly_mapped_count": counts["newly_mapped"],
+        "mixed_count": counts["mixed"],
+        "changed": changed,
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Driver: assembly + output
 # --------------------------------------------------------------------------- #
@@ -299,6 +363,7 @@ def _build_report(
         "lint_refusals": _compare_lint_refusals(head),
         "declared_growth": _compare_declared_growth(base, head),
         "wp_ref_transitions": _compare_wp_transitions(base, head),
+        "coverage_verdict": _compare_coverage_verdict(base, head),
     }
 
 
@@ -307,6 +372,7 @@ def _summary_markdown(report: dict[str, Any]) -> str:
     lint = report["lint_refusals"]
     growth = report["declared_growth"]
     trans = report["wp_ref_transitions"]
+    coverage = report["coverage_verdict"]
     lines = [
         "# corpus-scan summary",
         "",
@@ -329,12 +395,25 @@ def _summary_markdown(report: dict[str, Any]) -> str:
         f"- changed: {len(trans['changed'])}",
         f"- matrix: {json.dumps(trans['matrix'], sort_keys=True)}",
         "",
+        "## (e) coverage verdict (compute_coverage, base vs. head)",
+        f"- unchanged={coverage['unchanged_count']} newly_unmapped={coverage['newly_unmapped_count']} "
+        f"newly_mapped={coverage['newly_mapped_count']} mixed={coverage['mixed_count']}",
+        f"- changed missions: {sorted(coverage['changed'])}",
+        "",
     ]
     return "\n".join(lines)
 
 
 _EGRESS_SPEC_PATH = "kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md"
 _EGRESS_EXPECTED_IDS = {"C-1", "C-3"}
+
+#: Pre-PR squad finding (MEDIUM): a `finalize-tasks --validate-only` run
+#: against this mission was independently confirmed to exit 1 with
+#: `unmapped_functional_requirements: ["FR-004a"]` at head. (e) must
+#: reproduce that exact result through `compute_coverage`, never a
+#: locally-defined check.
+_COVERAGE_POSITIVE_CONTROL_MISSION = "kitty-specs/operator-config-ergonomics-01M04YK8"
+_COVERAGE_POSITIVE_CONTROL_ID = "FR-004a"
 
 
 def _assert_floors(report: dict[str, Any]) -> None:
@@ -358,6 +437,14 @@ def _assert_floors(report: dict[str, Any]) -> None:
     dropped_to_accepted = matrix.get("dropped -> accepted", 0)
     if dropped_to_accepted < 1:
         raise RuntimeError("(d) floor failed: zero 'dropped -> accepted' transitions -- the head classification did not run")
+
+    coverage = report["coverage_verdict"]
+    operator_config = coverage["changed"].get(_COVERAGE_POSITIVE_CONTROL_MISSION)
+    if operator_config is None or _COVERAGE_POSITIVE_CONTROL_ID not in operator_config["newly_unmapped_ids"]:
+        raise RuntimeError(
+            f"(e) floor failed: {_COVERAGE_POSITIVE_CONTROL_MISSION} does not newly-unmap "
+            f"{_COVERAGE_POSITIVE_CONTROL_ID} (CLI-confirmed positive control) -- got {operator_config}"
+        )
 
 
 def _run_driver(args: argparse.Namespace) -> int:
@@ -519,14 +606,21 @@ def _classify_wp_token_head(token: str, declared: set[str]) -> dict[str, Any]:
 
 
 def _scan_mission_wp_refs(mission_dir: str, corpus_root: Path, side: str) -> dict[str, Any]:
-    from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md, read_all_wp_raw_requirement_refs
+    from specify_cli.requirement_mapping import (
+        compute_coverage,
+        parse_requirement_ids_from_spec_md,
+        read_all_wp_raw_requirement_refs,
+    )
 
     tasks_dir = corpus_root / mission_dir / "tasks"
     spec_path = corpus_root / mission_dir / "spec.md"
     spec_missing = not spec_path.is_file()
     declared: set[str] = set()
+    functional_ids: set[str] = set()
     if not spec_missing:
-        declared = set(parse_requirement_ids_from_spec_md(spec_path.read_text(encoding="utf-8"))["all"])
+        parsed_spec_ids = parse_requirement_ids_from_spec_md(spec_path.read_text(encoding="utf-8"))
+        declared = set(parsed_spec_ids["all"])
+        functional_ids = set(parsed_spec_ids["functional"])
 
     raw_refs = read_all_wp_raw_requirement_refs(tasks_dir)
     classifier = _classify_wp_token_base if side == "base" else _classify_wp_token_head
@@ -534,7 +628,21 @@ def _scan_mission_wp_refs(mission_dir: str, corpus_root: Path, side: str) -> dic
     for wp_id, tokens in raw_refs.items():
         wps[wp_id] = [classifier(token, declared) for token in tokens]
 
-    return {"spec_missing": spec_missing, "declared": sorted(declared), "wps": wps}
+    # (e): this side's own `compute_coverage` over this side's own raw
+    # `requirement_refs` mapping and this side's own declared-functional-ID
+    # set -- the same inputs `map-requirements`/`finalize-tasks` feed it,
+    # just read from the corpus rather than a live run.
+    coverage = compute_coverage(raw_refs, functional_ids)
+
+    return {
+        "spec_missing": spec_missing,
+        "declared": sorted(declared),
+        "wps": wps,
+        "coverage": {
+            "functional_ids": sorted(functional_ids),
+            "unmapped_functional": coverage["unmapped_functional"],
+        },
+    }
 
 
 def _group_wp_paths_by_mission(wp_paths: list[str]) -> dict[str, list[str]]:
