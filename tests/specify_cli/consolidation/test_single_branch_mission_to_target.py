@@ -52,7 +52,10 @@ def protected_repo(tmp_path: Path) -> Path:
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Spec Kitty Test")
     (repo / "README.md").write_text("seed\n", encoding="utf-8")
-    _git(repo, "add", "README.md")
+    # A real project ignores spec-kitty's runtime state (m_2_0_9_state_gitignore);
+    # consolidation phases persist their state record there (#5318 / #5332).
+    (repo / ".gitignore").write_text(".kittify/runtime/\n", encoding="utf-8")
+    _git(repo, "add", "README.md", ".gitignore")
     _git(repo, "commit", "-q", "-m", "seed")
 
     _git(repo, "checkout", "-q", "-b", _MISSION_BRANCH)
