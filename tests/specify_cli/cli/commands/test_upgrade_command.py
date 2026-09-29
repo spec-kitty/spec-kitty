@@ -24,6 +24,7 @@ from __future__ import annotations
 import contextlib
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -867,38 +868,42 @@ def test_cli_no_project_json_valid(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_project_mode_no_cli_nag_in_output(tmp_path: Path) -> None:
-    """--project with outdated CLI: no CLI nag in planner output path.
+def test_project_mode_no_cli_nag_in_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--project with an outdated CLI never prints the CLI update nag.
 
-    The project-upgrade flow doesn't invoke the planner rendering at all;
-    nag text appears only when --cli is used.
+    The fake latest-version provider makes the CLI outdated (999.0.0). The
+    positive control proves the nag text really reaches stdout via ``--cli``
+    with the same provider, so the absence under ``--project`` is meaningful.
     """
+    from specify_cli.compat.cache import NagCache
+
     _make_compatible_project(tmp_path, schema_version=3)
+    monkeypatch.delenv("CI", raising=False)
+    # Isolate the nag throttle cache: earlier tests in this file write the default
+    # user cache, which would silently suppress the nag the positive control needs.
+    monkeypatch.setattr("specify_cli.compat.cache.NagCache.default", lambda: NagCache(tmp_path / "nag-cache.json"))
+    monkeypatch.setattr(
+        "specify_cli.compat.planner._default_latest_provider",
+        lambda *, network_suppressed, profile: FakeLatestVersionProvider("999.0.0"),
+    )
 
-    # Verify that the planner itself with --project flag doesn't produce
-    # a CLI nag in rendered_human (it uses the upgrade hint, not the nag message)
-    from specify_cli.compat.planner import plan as compat_plan
+    # Positive control: the nag is genuinely rendered in --cli mode.
+    control = _invoke_upgrade(["--cli"], cwd=tmp_path)
+    assert control.exit_code == 0, control.output
+    assert "999.0.0" in control.output
+    assert "is available" in control.output
 
-    with contextlib.chdir(tmp_path):
-        inv = _Invocation(
-            command_path=("upgrade",),
-            raw_args=("--project",),
-            is_help=False,
-            is_version=False,
-            flag_no_nag=False,
-            env_ci=False,
-            stdout_is_tty=True,
-        )
-        result_plan = compat_plan(
-            inv,
-            latest_version_provider=FakeLatestVersionProvider("999.0.0"),
-        )
-        # With compatible project + outdated CLI → ALLOW_WITH_NAG
-        # rendered_human has nag text; but in --project CLI mode, that is suppressed
-        # (the project-upgrade flow doesn't call the planner at all unless --json)
-        # Just validate the payload is contract-valid
-        payload = result_plan.rendered_json
-        _validate_json_contract(payload)
+    # The dry-run plan needs mission command templates to succeed; give the fixture
+    # a minimal missions tree so the project flow completes (exit 0) rather than
+    # aborting on a fixture gap.
+    (tmp_path / ".kittify" / "missions" / "software-dev" / "command-templates").mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    result = _invoke_upgrade(["--project", "--dry-run"], cwd=tmp_path)
+    assert result.exit_code == 0, result.output
+    assert result.output.strip(), "project flow rendered nothing; absence check would be vacuous"
+    assert "999.0.0" not in result.output
+    assert "is available" not in result.output
+    assert "pip install --upgrade" not in result.output
 
 
 # ---------------------------------------------------------------------------
