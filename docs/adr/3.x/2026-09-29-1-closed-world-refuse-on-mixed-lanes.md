@@ -1,6 +1,6 @@
 ---
 title: 'ADR: a mixed lane refuses commits outside every WP work window, with an operator-attested override'
-description: 'Consolidation REFUSEs a mixed lane that carries a content commit no governed WP window owns (closed world), and ships an operator-attested override as the only escape hatch for attribution refusals that can never clear.'
+description: 'Consolidation REFUSEs a mixed lane carrying a content commit no WP window owns (closed world), with an operator-attested override as the escape hatch.'
 status: Accepted
 date: '2026-09-29'
 ---
