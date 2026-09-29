@@ -1390,6 +1390,19 @@ def _lane_assignment_or_legacy(main_repo_root: Path, mission: str, wp: str) -> t
     return manifest, lane
 
 
+def _ensure_repo_root_checkout_or_fail(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> None:
+    """Run ``implement``'s WRITE_CHECKOUT_* refusals for a repo-root lane (#5100 B5)."""
+    from specify_cli.core.errors import StructuredError
+    from specify_cli.lanes.implement_support import _ensure_repo_root_checkout_available
+    from specify_cli.workspace.context import resolve_workspace_for_wp
+
+    try:
+        resolved = resolve_workspace_for_wp(main_repo_root, mission, wp)
+        _ensure_repo_root_checkout_available(main_repo_root, mission, wp, resolved)
+    except StructuredError as exc:
+        _fail(cmd, exc.error_code, str(exc), {**_mission_identity_payload(mission_dir), "wp_id": wp, **exc.to_dict()})
+
+
 def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> _StartWorkspace:
     """Resolve (allocating if needed) the workspace for ``wp``.
 
@@ -1424,11 +1437,15 @@ def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, missi
         # for_review gate has a starting point (WP02/T007).
         from specify_cli.lanes.claim_base import record_claim_base
 
+        # #5100 B5: the single_branch write-checkout refusals (wrong branch /
+        # occupied / dirty) run on this path too, so sequential execution cannot
+        # be bypassed by driving the orchestrator API instead of ``implement``.
+        _ensure_repo_root_checkout_or_fail(cmd, main_repo_root, mission, mission_dir, wp)
         record_claim_base(main_repo_root, main_repo_root, mission, wp)
         return _StartWorkspace(
             workspace_path=str(main_repo_root),
             lane_id=lane.lane_id,
-            lane_branch=manifest.target_branch,
+            lane_branch=manifest.mission_branch or manifest.target_branch,
             lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
         )
 
@@ -1520,7 +1537,7 @@ def _resolve_existing_workspace(main_repo_root: Path, mission: str, wp: str) -> 
         return _StartWorkspace(
             workspace_path=str(main_repo_root),
             lane_id=lane.lane_id,
-            lane_branch=manifest.target_branch,
+            lane_branch=manifest.mission_branch or manifest.target_branch,
             lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
         )
 

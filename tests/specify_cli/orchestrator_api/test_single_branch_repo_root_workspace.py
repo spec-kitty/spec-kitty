@@ -99,5 +99,3 @@ def test_wrong_branch_single_branch_checkout_is_refused_on_orchestrator_path(rep
         oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     assert "WRITE_CHECKOUT_WRONG_BRANCH" in capsys.readouterr().out
-
-
