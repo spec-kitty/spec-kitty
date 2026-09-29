@@ -967,6 +967,59 @@ class TestStartImplementation:
         data = json.loads(result.output)
         assert data["error_code"] == "WP_ALREADY_CLAIMED"
 
+    @pytest.mark.parametrize(("actor", "admitted"), [("claude", True), ("gemini", False)])
+    def test_in_progress_after_rework_verdict_admits_only_the_implementer(self, tmp_path, actor, admitted):
+        """#5377: after a reviewer's ``in_review -> in_progress`` verdict the slot holds the
+        reviewer; the implementer of record resumes (no-op), a third tool is refused."""
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+
+        from specify_cli.status.emit import emit_status_transition
+        from specify_cli.status.models import ReviewResult
+
+        rework_ref = "review-cycle://099-test-mission/WP01/review-cycle-1.md"
+        for to_lane in ("claimed", "in_progress", "for_review"):
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=mission_dir,
+                    mission_slug=mission_slug,
+                    wp_id="WP01",
+                    to_lane=to_lane,
+                    actor="claude",
+                    force=to_lane == "for_review",
+                    reason="fixture",
+                )
+            )
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_review", actor="codex"))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission_slug,
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="codex",
+                review_ref=rework_ref,
+                review_result=ReviewResult(reviewer="codex", verdict="changes_requested", reference=rework_ref),
+            )
+        )
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                ["start-implementation", "--mission", mission_slug, "--wp", "WP01", "--actor", actor, "--policy", _valid_policy_json()],
+            )
+
+        data = json.loads(result.output)
+        if admitted:
+            assert result.exit_code == 0, result.output
+            assert data["data"]["no_op"] is True
+        else:
+            assert result.exit_code == 1, result.output
+            assert data["error_code"] == "WP_ALREADY_CLAIMED"
+
 
 # ── start-review ──────────────────────────────────────────────────
 
