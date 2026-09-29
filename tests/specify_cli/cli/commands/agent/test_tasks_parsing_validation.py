@@ -844,6 +844,12 @@ def test_validate_research_artifacts_truncation_branch_carries_attribution(tmp_p
             "specify_cli.review.dirty_classifier.classify_dirty_paths",
             return_value=(paths, []),
         ),
+        # The recipe's --to-branch resolves via get_current_branch; without
+        # this patch the blanket subprocess.run mock feeds it the git-status
+        # porcelain, leaking every path (including the truncated 6th) into the
+        # recipe line and breaking the truncation assertion below. Match the
+        # sibling recipe tests in this file.
+        patch("specify_cli.core.git_ops.get_current_branch", return_value="main"),
     ):
         guidance = _validate_research_artifacts(
             main_repo_root=tmp_path,
