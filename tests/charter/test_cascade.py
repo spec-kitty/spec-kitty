@@ -823,7 +823,7 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(fresh
 #: WILL move as doctrine grows -- that is expected; a diff here is a prompt to
 #: re-verify the new total, not a regression by itself.
 _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
-    "documentation": 130,
+    "documentation": 131,
     "research": 120,
     "software-dev": 165,
     "plan": 139,
@@ -893,11 +893,13 @@ _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
 #:
 #: #5351: ``styleguide:test-desiderata-and-boundaries`` now suggests
 #: ``procedure:development-assist-test-cleanup`` (and DIRECTIVE_041, already
-#: reached everywhere). ``plan`` and ``research`` reach the styleguide but not
-#: the procedure by any other path, so each gains +1 on top of the single-owner
-#: baseline above (plan 138 -> 139, research 119 -> 120).
-#: ``software-dev`` already reached the procedure through the wrap-up sequence;
-#: ``documentation`` does not reach the styleguide. Advisory reachability only.
+#: reached everywhere). ``plan``, ``research`` and ``documentation`` reach the
+#: styleguide but not the procedure by any other path, so each gains +1 on top
+#: of the single-owner baseline above (plan 138 -> 139, research 119 -> 120,
+#: documentation 130 -> 131 -- the single-owner change first gave documentation
+#: a path to the styleguide via the adversarial-squad-deployment closure).
+#: ``software-dev`` already reached the procedure through the wrap-up sequence.
+#: Advisory reachability only.
 
 
 @pytest.mark.parametrize("mission_type_id", ("documentation", "plan", "research", "software-dev"))
