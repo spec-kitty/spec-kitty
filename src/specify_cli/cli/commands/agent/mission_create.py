@@ -670,6 +670,42 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
     return payload
 
 
+def _minted_mission_branch(result: MissionCreationResult) -> str | None:
+    """The protected-target mission branch the create left checked out, if one was minted."""
+    minted = result.meta.get("mission_branch")
+    return minted if isinstance(minted, str) and minted else None
+
+
+def _print_branch_line(result: MissionCreationResult, mission_branch: str | None) -> None:
+    """Human ``Branch:`` line -- the minted mission branch when create switched onto one."""
+    if mission_branch:
+        console.print(f"[bold cyan]Branch:[/bold cyan] {mission_branch} (mission branch; merges into {result.target_branch})")
+    else:
+        console.print(f"[bold cyan]Branch:[/bold cyan] {result.target_branch} (target for this mission)")
+
+
+def _print_meta_outcome(result: MissionCreationResult, mission_branch: str | None) -> None:
+    """Report where ``meta.json`` landed (or that it did not), naming the real branch."""
+    landed_branch = mission_branch or result.target_branch
+    meta_committed = (result.feature_dir / "meta.json") not in result.uncommitted_files
+    if mission_branch:
+        suffix = "; meta committed there" if meta_committed else ""
+        console.print(f"   Switched checkout to {mission_branch} (was {result.current_branch}){suffix}")
+    if meta_committed:
+        tail = "spec.md scaffold left untracked" if mission_branch else f"Meta committed to {result.target_branch}; spec.md scaffold left untracked"
+        console.print(f"   {tail}")
+        return
+    console.print(
+        f"   [yellow]Meta not committed:[/yellow] the scaffold commit to "
+        f"{landed_branch} was refused (protected or unavailable target "
+        f"branch); kitty-specs/{result.mission_slug}/ is left on disk, untracked"
+    )
+    console.print(
+        "   Planning artifacts must land on a feature branch, or land via the mission lane worktree "
+        "— switch to a feature branch first, or re-run 'agent mission create --start-branch <feature-branch>'."
+    )
+
+
 def _emit_create_result_phase(
     result: MissionCreationResult,
     *,
@@ -677,8 +713,9 @@ def _emit_create_result_phase(
     json_output: bool,
 ) -> None:
     """Emit the create result in JSON or human form (output stays in the CLI layer)."""
+    mission_branch = _minted_mission_branch(result)
     if not json_output:
-        console.print(f"[bold cyan]Branch:[/bold cyan] {result.target_branch} (target for this mission)")
+        _print_branch_line(result, mission_branch)
         if resolved_mission_type == MISSION_TYPE_DOCUMENTATION:
             console.print("[cyan]→ Documentation state initialized in meta.json[/cyan]")
 
@@ -687,7 +724,11 @@ def _emit_create_result_phase(
             _inject_branch_contract(
                 _build_create_payload(result),
                 target_branch=result.target_branch,
-                current_branch=result.current_branch,
+                # A minted mission branch is the real checkout after create
+                # (``result.current_branch`` is the pre-mint branch), so the
+                # contract describes it, not the protected merge target.
+                current_branch=mission_branch or result.current_branch,
+                expected_checkout_branch=mission_branch,
             )
         )
         # FR-008: signal atexit handlers that this invocation succeeded so
@@ -709,18 +750,7 @@ def _emit_create_result_phase(
         # target branch), meta.json sits in ``result.uncommitted_files`` — the
         # same evidence the ``--json`` envelope discloses via
         # ``uncommitted_artifacts`` — and claiming a commit would be false.
-        if (result.feature_dir / "meta.json") in result.uncommitted_files:
-            console.print(
-                f"   [yellow]Meta not committed:[/yellow] the scaffold commit to "
-                f"{result.target_branch} was refused (protected or unavailable target "
-                f"branch); kitty-specs/{result.mission_slug}/ is left on disk, untracked"
-            )
-            console.print(
-                "   Planning artifacts must land on a feature branch, or land via the mission lane worktree "
-                "— switch to a feature branch first, or re-run 'agent mission create --start-branch <feature-branch>'."
-            )
-        else:
-            console.print(f"   Meta committed to {result.target_branch}; spec.md scaffold left untracked")
+        _print_meta_outcome(result, mission_branch)
         console.print("   [yellow]Scaffold only:[/yellow] run [cyan]/spec-kitty.specify <intent>[/cyan] in your agent, or edit and commit spec.md before planning.")
 
 

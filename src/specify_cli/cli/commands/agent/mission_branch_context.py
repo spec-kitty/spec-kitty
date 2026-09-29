@@ -40,8 +40,10 @@ import typer
 
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.paths import (
+    MissionMetaReadError,
     get_main_repo_root,
     get_status_read_root,
+    load_meta_fail_closed,
     read_target_branch_from_meta,
 )
 from specify_cli.missions._resolve_planning_branch import (
@@ -77,6 +79,25 @@ def _resolve_feature_target_branch(feature_dir: Path, repo_root: Path) -> str:
     return get_current_branch(repo_root) or "main"
 
 
+def read_minted_mission_branch(feature_dir: Path) -> str | None:
+    """The protected-target ``mission_branch`` recorded in ``meta.json``, else ``None``.
+
+    #5100 FR-007: a protected single_branch mission's planning and write
+    checkout is the minted ``meta.mission_branch``; ``meta.target_branch``
+    stays the protected merge target. Callers that ask "is HEAD on the branch
+    this mission expects?" must prefer this over the merge target, or every
+    such mission reports a spurious mismatch. An unreadable ``meta.json`` or an
+    absent/blank field yields ``None`` (the caller keeps its merge-target
+    operand), never an error.
+    """
+    try:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
+        return None
+    minted = (meta or {}).get("mission_branch")
+    return minted if isinstance(minted, str) and minted else None
+
+
 def _inject_branch_contract(
     payload: dict[str, object],
     *,
@@ -84,6 +105,7 @@ def _inject_branch_contract(
     current_branch: str | None = None,
     primary_branch: str | None = None,
     match_target_branch: str | None = None,
+    expected_checkout_branch: str | None = None,
 ) -> dict[str, object]:
     """Attach deterministic branch/runtime aliases for templates and agents.
 
@@ -103,6 +125,14 @@ def _inject_branch_contract(
     checkout's HEAD, so a lane on a divergent branch reports honest disagreement
     without disturbing the deliberate primary-anchored target resolution. Callers
     that omit it (e.g. ``branch-context``) keep the legacy match byte-for-byte.
+
+    ``expected_checkout_branch`` names the branch the operator's checkout is
+    *supposed* to be on when that differs from the merge ``target_branch`` --
+    the protected-target mission branch minted at create time (#5100 FR-007),
+    which is checked out while ``target_branch`` stays the protected merge
+    target. It feeds ``branch_context.expected_checkout_branch`` and, unless
+    ``match_target_branch`` overrides it, the ``branch_matches_target`` verdict,
+    so the contract never describes the protected target as the checkout.
     """
     enriched = dict(payload)
     raw_runtime_vars = enriched.get("runtime_vars", {})
@@ -111,7 +141,8 @@ def _inject_branch_contract(
     resolved_current_branch = str(current_branch or target_branch).strip() or target_branch
     planning_base_branch = target_branch
     merge_target_branch = target_branch
-    match_reference = match_target_branch if match_target_branch is not None else target_branch
+    expected_checkout = expected_checkout_branch or target_branch
+    match_reference = match_target_branch if match_target_branch is not None else expected_checkout
     branch_matches_target = resolved_current_branch == match_reference
     branch_strategy_summary = (
         f"Current branch at workflow start: {resolved_current_branch}. "
@@ -133,7 +164,7 @@ def _inject_branch_contract(
         "base_branch": target_branch,
         "planning_base_branch": planning_base_branch,
         "merge_target_branch": merge_target_branch,
-        "expected_checkout_branch": target_branch,
+        "expected_checkout_branch": expected_checkout,
         "matches_target": branch_matches_target,
         "branch_strategy_summary": branch_strategy_summary,
     }

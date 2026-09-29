@@ -453,3 +453,55 @@ def test_protected_mint_applies_only_to_a_protected_single_branch_mint(
     monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda *_a, **_k: "main")
 
     assert _protected_mint_applies(repo, topology=topology, commit_to_target=commit_to_target, target_branch=target) is expected
+
+
+# ---------------------------------------------------------------------------
+# Item UX-1: create output reports the branch the mint actually left checked out
+# ---------------------------------------------------------------------------
+
+
+def _create_minted_via_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str, *, from_branch: str, json_output: bool) -> tuple[Path, str]:
+    """Drive the real ``agent mission create`` from *from_branch* onto a protected target."""
+    repo = _seed_repo(tmp_path, name=name)
+    provision_test_charter(repo)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "charter")
+    if from_branch != "main":
+        _git(repo, "checkout", "-b", from_branch)
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    args = ["agent", "mission", "create", f"{name}-m", "--topology", "single_branch", "--target-branch", "main"]
+    args += ["--friendly-name", "Minted", "--purpose-tldr", "tldr", "--purpose-context", "context"]
+    if json_output:
+        args.append("--json")
+    result = runner.invoke(root_app, args, catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    return repo, result.output
+
+
+@pytest.mark.parametrize("from_branch", ["main", "feature-x"])
+def test_create_json_reports_the_minted_checkout_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, from_branch: str) -> None:
+    """The minted mission branch is the real checkout: JSON must say so, not describe ``main``."""
+    import json
+
+    repo, output = _create_minted_via_cli(tmp_path, monkeypatch, f"json-{from_branch}", from_branch=from_branch, json_output=True)
+    payload = json.loads(output[output.index("{") : output.rindex("}") + 1])
+    minted = str(payload["mission_branch"])
+    assert _git(repo, "branch", "--show-current") == minted
+    assert payload["current_branch"] == minted
+    assert payload["target_branch"] == "main"
+    context = payload["branch_context"]
+    assert context["current_branch"] == minted
+    assert context["expected_checkout_branch"] == minted
+    assert context["matches_target"] is True
+    assert payload["branch_matches_target"] is True
+
+
+def test_create_human_output_announces_the_checkout_switch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Human output names the switch (and the previous branch) and where meta landed."""
+    repo, output = _create_minted_via_cli(tmp_path, monkeypatch, "human-switch", from_branch="feature-x", json_output=False)
+    minted = _git(repo, "branch", "--show-current")
+    flat = " ".join(output.split())
+    assert f"Switched checkout to {minted} (was feature-x); meta committed there" in flat
+    assert "Meta committed to main" not in flat
+    assert "Branch: main (target for this mission)" not in flat

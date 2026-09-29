@@ -72,7 +72,7 @@ def _git(cwd: Path, *args: str) -> None:
     )
 
 
-def _seed_primary(primary: Path, *, primary_branch: str, meta_target: str) -> Path:
+def _seed_primary(primary: Path, *, primary_branch: str, meta_target: str, mission_branch: str | None = None) -> Path:
     """Init a primary repo checked out on ``primary_branch`` with an uncommitted spec.
 
     ``meta.json`` records the canonical ``target_branch`` (``meta_target``). The
@@ -96,6 +96,8 @@ def _seed_primary(primary: Path, *, primary_branch: str, meta_target: str) -> Pa
         "mission_slug": SLUG_WITH_MID8,
         "target_branch": meta_target,
     }
+    if mission_branch is not None:
+        meta["mission_branch"] = mission_branch
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     (feature_dir / "spec.md").write_text(SUBSTANTIVE_SPEC, encoding="utf-8")
     return feature_dir
@@ -248,3 +250,36 @@ def test_coord_husk_meta_unreadable_degrades_to_silent_match(tmp_path: Path) -> 
     # Both operands are the invoking HEAD ⇒ the honest match is a silent True.
     assert invoking_branch == "kitty/mission-x-lane-a"
     assert match_target == invoking_branch
+
+
+# --------------------------------------------------------------------------- #
+# Protected single_branch mission (#5100 FR-007): the minted mission branch is
+# the expected checkout, the protected ``meta.target_branch`` is only the merge
+# target. Matching HEAD against the merge target reported a spurious mismatch.
+# --------------------------------------------------------------------------- #
+MINTED = "kitty/mission-setup-plan-branch-match-01KVW9B0"
+
+
+def test_minted_mission_branch_checkout_reports_a_coherent_match(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """On the minted branch the contract is self-consistent: it matches, nothing contradicts."""
+    primary = tmp_path / "primary"
+    _seed_primary(primary, primary_branch=MINTED, meta_target="main", mission_branch=MINTED)
+    feature_dir = primary / "kitty-specs" / SLUG_WITH_MID8
+
+    payload = _run_setup_plan_from(primary, primary, feature_dir, monkeypatch)
+
+    assert payload["current_branch"] == MINTED
+    assert payload["branch_matches_target"] is True, payload
+    assert payload["branch_context"]["matches_target"] is True
+    assert payload["branch_context"]["expected_checkout_branch"] == MINTED
+
+
+def test_minted_mission_branch_mission_off_its_branch_reports_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The positive control: HEAD on the protected target, not the mission branch, is a real mismatch."""
+    primary = tmp_path / "primary"
+    _seed_primary(primary, primary_branch="main", meta_target="main", mission_branch=MINTED)
+    feature_dir = primary / "kitty-specs" / SLUG_WITH_MID8
+
+    payload = _run_setup_plan_from(primary, primary, feature_dir, monkeypatch)
+
+    assert payload["branch_matches_target"] is False, payload

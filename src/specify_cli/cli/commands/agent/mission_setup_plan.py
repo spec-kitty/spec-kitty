@@ -57,6 +57,7 @@ from specify_cli.runtime.resolver import TemplateConfigurationError
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
+    read_minted_mission_branch,
 )
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
@@ -382,7 +383,7 @@ def _resolve_branch_match_operands(
         match_target = load_mission_target_branch(plan_read_dir)
     except PlanningBranchResolutionFailed:
         match_target = invoking_branch
-    return invoking_branch, match_target
+    return invoking_branch, read_minted_mission_branch(plan_read_dir) or match_target
 
 
 def _enforce_spec_gate(
