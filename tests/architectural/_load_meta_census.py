@@ -163,6 +163,11 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     # wrong here.
     ("src/specify_cli/cli/commands/mission_type.py", "_commit_flattened_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_delete_legacy_coordination_branch"): (1, "silent-by-contract"),
+    # #5100 landing (2026-09-30): the discard target branch is read only to detect a
+    # protected single_branch mission's minted branch. A missing/malformed meta means
+    # "no minted branch", so discard falls back to its legacy path, like the sibling
+    # discard reads above; a fail-closed read would block discarding a broken mission.
+    ("src/specify_cli/cli/commands/mission_type.py", "_discard_target_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_expected_discard_branches"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_read_mission_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/tracker.py", "_resolve_active_feature_slug"): (1, "silent-by-contract"),
