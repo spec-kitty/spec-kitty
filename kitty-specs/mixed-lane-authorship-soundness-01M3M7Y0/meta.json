@@ -24,6 +24,7 @@
   "purpose_context": "The terminus reconciliation gate treats a lane as approved if any WP in it is approved and attributes the whole lane spine, so a canceled sibling's commits pass under both squash and merge (#5046). This mission adds per-WP commit provenance so canceled content is detected precisely, REFUSEs when provenance is missing, and builds the squash-capable mixed-lane fixture (#5047).",
   "purpose_tldr": "A canceled WP sharing a lane with an approved WP can no longer ship its content through consolidation unnoticed.",
   "slug": "mixed-lane-authorship-soundness-01M3M7Y0",
+  "status_phase": "1",
   "target_branch": "issue-5046-mixed-lane-authorship",
   "topology": "lanes",
   "vcs": "git",
