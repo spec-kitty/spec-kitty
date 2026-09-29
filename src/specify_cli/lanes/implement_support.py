@@ -394,10 +394,16 @@ class AncestryCheckResult:
     dependency lane's tip -- is a git ancestor of the workspace HEAD.
     ``missing_refs`` names what is not yet an ancestor, for the caller's
     refusal message; empty when ``ok`` is True.
+
+    ``code_lanes_deferred_to`` is the target branch when the #5296 waiver
+    applied (a planning-lane claim on the target-branch root checkout): the
+    caller that owns console output tells the operator that code lanes reach
+    that branch through ``spec-kitty consolidate``. ``None`` otherwise.
     """
 
     ok: bool
     missing_refs: tuple[str, ...] = ()
+    code_lanes_deferred_to: str | None = None
 
 
 def _workspace_head(workspace_path: Path) -> str | None:
@@ -441,6 +447,29 @@ def _dependency_lane_status(mission_dir: Path) -> dict[str, str]:
     return {wp_id: str(state.get("lane", Lane.PLANNED)) for wp_id, state in snapshot.work_packages.items()}
 
 
+def _root_checkout_is_target(main_repo_root: Path, lanes_manifest: LanesManifest) -> bool:
+    """``True`` iff the repository root checkout's HEAD is the mission target branch.
+
+    Detached HEAD or an unresolvable HEAD is ``False`` (the waiver never fires).
+    """
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "-q", "HEAD"],
+        cwd=str(main_repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False
+    return bool(result.stdout.strip() == lanes_manifest.target_branch)
+
+
+def _planning_claim_waives_code_lanes(main_repo_root: Path, lane: ExecutionLane, lanes_manifest: LanesManifest) -> bool:
+    """``True`` for the #5296 waiver scope: planning lane AND root checkout on the target."""
+    from specify_cli.lanes.compute import is_planning_lane
+
+    return is_planning_lane(lane) and _root_checkout_is_target(main_repo_root, lanes_manifest)
+
+
 def _approved_dependency_lane_refs(
     main_repo_root: Path,
     mission_slug: str,
@@ -463,8 +492,23 @@ def _approved_dependency_lane_refs(
     A dependency lane whose branch does not resolve (merged-and-deleted
     post-mission, mirroring ``_merge_dependency_lane_tips``'s own skip) is
     likewise omitted -- there is nothing left to assert ancestry against.
+
+    #5296 waiver (the ONLY place it lives): a claim of the canonical planning
+    lane (:func:`is_planning_lane`) whose repository root checkout HEAD is the
+    mission's target branch requires NO code-lane ancestry -- this returns
+    ``[]``. The planning lane's workspace IS that root checkout, so merging
+    code dependency lanes into it would land code on the target (or die with
+    ``ProtectedBranchCommitError`` on a protected target) outside
+    ``spec-kitty consolidate``'s attribution window; code lanes reach the
+    target only through consolidation. Every dependency lane of the planning
+    lane other than itself is a code lane, so nothing narrower is needed. A
+    planning lane with the root on any OTHER branch, and every code lane,
+    are unchanged.
     """
     from specify_cli.status import Lane
+
+    if _planning_claim_waives_code_lanes(main_repo_root, lane, lanes_manifest):
+        return []
 
     dependency_lanes = _dependency_lane_status(mission_dir)
     by_id = {dep_lane.lane_id: dep_lane for dep_lane in lanes_manifest.lanes}
@@ -559,7 +603,8 @@ def check_claim_ancestry(
         if not _is_git_ancestor(workspace_path, branch, head):
             missing.append(f"approved dependency lane {dep_id} ({branch})")
 
-    return AncestryCheckResult(ok=not missing, missing_refs=tuple(missing))
+    deferred = manifest.target_branch if _planning_claim_waives_code_lanes(main_repo_root, lane, manifest) else None
+    return AncestryCheckResult(ok=not missing, missing_refs=tuple(missing), code_lanes_deferred_to=deferred)
 
 
 def resolve_claim_ancestry_gate(

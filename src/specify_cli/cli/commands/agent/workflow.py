@@ -1494,6 +1494,12 @@ def implement(
                 f"established after self-heal for: {', '.join(ancestry.missing_refs)}"
             )
             raise typer.Exit(1)
+        if ancestry.code_lanes_deferred_to is not None:
+            print(
+                "Planning work package: code dependency lanes are not merged into the repository root "
+                f"checkout on the target branch; they reach {ancestry.code_lanes_deferred_to} "
+                "through `spec-kitty consolidate` (#5296)."
+            )
 
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"

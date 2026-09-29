@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -181,4 +182,48 @@ def test_recorded_planning_commit_heals_without_pulling_unapproved_code(tmp_path
     assert resolve_claim_ancestry_gate(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo).ok
     _git(repo, "merge-base", "--is-ancestor", recorded, "HEAD")
     assert (repo / "plan.md").read_text() == "recorded plan\n"
+    assert not (repo / "lane_a_output.txt").exists()
+
+
+def _is_ancestor(repo: Path, ref: str, head: str) -> bool:
+    return subprocess.run(["git", "merge-base", "--is-ancestor", ref, head], cwd=repo, capture_output=True).returncode == 0
+
+
+def _planning_repo_on_target(tmp_path: Path) -> tuple[Path, str]:
+    """Same mission, but the repository root checkout sits ON the target branch (``main``)."""
+    repo, tip = _planning_repo(tmp_path)
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "merge", "-q", "--ff-only", "feat/planning")
+    return repo, tip
+
+
+def test_planning_claim_on_target_checkout_waives_code_lane_ancestry(tmp_path: Path) -> None:
+    """#5296: root on the target -> no code-lane merge, ancestry ok, root untouched."""
+    repo, tip = _planning_repo_on_target(tmp_path)
+    head = _git(repo, "rev-parse", "HEAD")
+
+    assert check_claim_ancestry(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo).ok
+    healed = resolve_claim_ancestry_gate(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo)
+
+    assert healed.ok, healed.missing_refs
+    assert healed.code_lanes_deferred_to == "main"
+    assert _git(repo, "rev-parse", "HEAD") == head
+    assert _git(repo, "rev-list", "--merges", f"{head}~1..{head}") == ""
+    assert not (repo / "lane_a_output.txt").exists()
+    # lane-a's tip was NOT merged into the target
+    assert _is_ancestor(repo, tip, head) is False
+
+
+def test_planning_claim_on_protected_target_checkout_does_not_raise(tmp_path: Path) -> None:
+    """#5296: on a protected target the claim no longer dies with ProtectedBranchCommitError."""
+    repo, _tip = _planning_repo_on_target(tmp_path)
+    (repo / ".kittify" / "config.yaml").write_text("protection:\n  protected_branches: [main]\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "protect target")
+    head = _git(repo, "rev-parse", "HEAD")
+
+    healed = resolve_claim_ancestry_gate(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo)
+
+    assert healed.ok, healed.missing_refs
+    assert _git(repo, "rev-parse", "HEAD") == head
     assert not (repo / "lane_a_output.txt").exists()
