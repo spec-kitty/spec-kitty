@@ -5,7 +5,7 @@ Two families of coverage, per the WP's own red-first + crux-resolution
 demands (see ``tracers/design-decisions.md`` for the full IC-08 analysis):
 
 * **T042 / T047 — the real end-to-end anchor.** A coord-topology mission
-  (and its flat/single-branch degenerate twin) created via the REAL
+  (and its no-coordination ``lanes`` twin) created via the REAL
   ``create_mission_core`` entry point, a WP claimed and one subtask completed
   through the REAL event-sourced status-emit pipeline (never a ``tasks.md``
   checkbox edit / frontmatter ``shell_pid``/``agent`` write — the WP04/WP05
@@ -359,8 +359,12 @@ def _run_real_merge(repo: Path, slug: str) -> None:
 
 @pytest.mark.parametrize(
     "topology",
-    [MissionTopology.COORD, MissionTopology.SINGLE_BRANCH],
-    ids=["coord", "flat"],
+    # #5100: the no-coordination twin is ``lanes``. A ``single_branch`` mission
+    # with a hand-written code lane (``lane-a``) is the shape #5100 forbids
+    # (it fails closed with SINGLE_BRANCH_CODE_LANES_UNMIGRATED), and on a
+    # protected ``main`` its mission branch is now minted at create time.
+    [MissionTopology.COORD, MissionTopology.LANES],
+    ids=["coord", "lanes"],
 )
 def test_birth_cutover_reconciles_at_merge_no_manual_backfill(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: MissionTopology
@@ -387,7 +391,7 @@ def test_birth_cutover_reconciles_at_merge_no_manual_backfill(
     # verify_backfill/the reduced snapshot are checked against the resolved
     # STATUS surface (the COORD leg under coordination topology -- where the
     # birth-cutover's seed+verify legs actually ran; collapses to
-    # ``feature_dir`` under flat topology, T047's degenerate case).
+    # ``feature_dir`` under ``lanes`` topology, T047's degenerate case).
     status_dir = _status_dir(repo, slug)
     verify = verify_backfill(status_dir)
     assert verify.ok, f"verify_backfill parity must hold post-cutover: {verify.mismatches}"
@@ -399,8 +403,12 @@ def test_birth_cutover_reconciles_at_merge_no_manual_backfill(
 
 @pytest.mark.parametrize(
     "topology",
-    [MissionTopology.COORD, MissionTopology.SINGLE_BRANCH],
-    ids=["coord", "flat"],
+    # #5100: the no-coordination twin is ``lanes``. A ``single_branch`` mission
+    # with a hand-written code lane (``lane-a``) is the shape #5100 forbids
+    # (it fails closed with SINGLE_BRANCH_CODE_LANES_UNMIGRATED), and on a
+    # protected ``main`` its mission branch is now minted at create time.
+    [MissionTopology.COORD, MissionTopology.LANES],
+    ids=["coord", "lanes"],
 )
 def test_birth_cutover_status_phase_is_primary_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: MissionTopology
