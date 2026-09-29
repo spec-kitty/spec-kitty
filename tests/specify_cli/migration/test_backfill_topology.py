@@ -482,3 +482,26 @@ def test_unstamped_runtime_topology_never_returns_single_branch(derived: Mission
     from mission_runtime import unstamped_runtime_topology
 
     assert unstamped_runtime_topology(derived) is expected
+
+
+def test_backfill_runtime_reading_stamps_lanes_for_a_derived_single_branch(tmp_path: Path) -> None:
+    """``runtime_reading=True`` (implicit repair paths such as ``doctor coordination
+    --fix``) persists the RUNTIME reading: the coord-less, lane-less cell the
+    explicit writer stamps as ``single_branch`` is written as ``lanes`` (#5100)."""
+    specs = tmp_path / "kitty-specs"
+    meta_path = _write_meta(specs / "mission-flattened", {"coordination_branch": None})
+
+    results = backfill_topology_repo(tmp_path, mission_slug="mission-flattened", runtime_reading=True)
+
+    assert [r.topology for r in results] == ["lanes"]
+    assert json.loads(meta_path.read_text(encoding="utf-8"))["topology"] == "lanes"
+
+
+def test_backfill_runtime_reading_keeps_coord_cells(tmp_path: Path) -> None:
+    """A coord-routing cell reads the same at runtime, so ``runtime_reading`` keeps it."""
+    feature_dir = tmp_path / "mission-coord"
+    _write_meta(feature_dir, {"coordination_branch": "kitty/x"})
+
+    result = backfill_mission_topology(feature_dir, runtime_reading=True)
+
+    assert result.topology == "coord"

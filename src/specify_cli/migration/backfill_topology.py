@@ -201,7 +201,7 @@ class TopologyBackfillResult:
     reason: str | None = None
 
 
-def backfill_mission_topology(feature_dir: Path, *, dry_run: bool = False) -> TopologyBackfillResult:
+def backfill_mission_topology(feature_dir: Path, *, dry_run: bool = False, runtime_reading: bool = False) -> TopologyBackfillResult:
     """Idempotently persist ``topology`` into ``<feature_dir>/meta.json``.
 
     A mission whose ``meta.json`` already carries a valid ``topology`` is a no-op
@@ -213,6 +213,12 @@ def backfill_mission_topology(feature_dir: Path, *, dry_run: bool = False) -> To
     Args:
         feature_dir: Absolute path to a single mission directory.
         dry_run: When ``True``, report the would-write without touching disk.
+        runtime_reading: When ``True``, persist the RUNTIME reading of the derived
+            cell (:func:`~mission_runtime.context.unstamped_runtime_topology`: a
+            derived ``single_branch`` is written as ``lanes``). For implicit repair
+            paths such as ``doctor coordination --fix``, which must never opt a
+            mission into ``single_branch``; the explicit ``migrate
+            backfill-topology`` writer keeps the derived cell.
 
     Returns:
         A :class:`TopologyBackfillResult` describing what happened.
@@ -253,6 +259,8 @@ def backfill_mission_topology(feature_dir: Path, *, dry_run: bool = False) -> To
         )
 
     topology = _derive_topology(meta, feature_dir)
+    if runtime_reading:
+        topology = unstamped_runtime_topology(topology)
 
     # T007 (#2250 / FR-002): a declared ``coordination_branch`` that was never
     # created in git must NOT be backfilled as healthy coord. The probe lives at
@@ -326,6 +334,7 @@ def backfill_topology_repo(
     *,
     dry_run: bool = False,
     mission_slug: str | None = None,
+    runtime_reading: bool = False,
 ) -> list[TopologyBackfillResult]:
     """Walk ``kitty-specs/`` and idempotently backfill every mission's topology.
 
@@ -333,12 +342,13 @@ def backfill_topology_repo(
         repo_root: Absolute path to the repository root.
         dry_run: When ``True``, compute results without writing any files.
         mission_slug: When provided, scope the walk to a single mission directory.
+        runtime_reading: Forwarded to :func:`backfill_mission_topology`.
 
     Returns:
         List of :class:`TopologyBackfillResult`, one per mission directory visited.
     """
     candidates = _kitty_specs_mission_dirs(repo_root, mission_slug=mission_slug)
-    return [backfill_mission_topology(feature_dir, dry_run=dry_run) for feature_dir in candidates]
+    return [backfill_mission_topology(feature_dir, dry_run=dry_run, runtime_reading=runtime_reading) for feature_dir in candidates]
 
 
 # ---------------------------------------------------------------------------

@@ -965,8 +965,9 @@ def _fix_never_created_branches(
     Targets only ``COORDINATION_WORKTREE_NEVER_CREATED`` findings that carry
     a ``meta_path`` in their ``extra`` dict (populated by
     :func:`_collect_coordination_findings`). After removal, call
-    :func:`_stamp_flattened_runtime_topology` so topology is re-stamped with
-    its RUNTIME reading (never a derived ``single_branch``) from the now-absent key.
+    :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo` with
+    ``runtime_reading=True`` so topology is re-stamped with its RUNTIME reading
+    (never a derived ``single_branch``) from the now-absent key.
 
     When *repo_root* is given (the real ``--fix`` dispatch path always passes
     it, via :func:`_apply_never_created_fix`), each finding's coordination
@@ -1338,31 +1339,6 @@ def _fix_stranded_reverts(
     return healed, warnings
 
 
-def _stamp_flattened_runtime_topology(mission_dir: Path) -> None:
-    """Persist the RUNTIME topology reading for a just-flattened mission (#5100).
-
-    ``flatten_coordination_metadata`` pops the stale ``topology``. Re-deriving it
-    with the explicit ``migrate backfill-topology`` writer would land a mission
-    that has no code lanes yet in the coord-less, lane-less ``single_branch``
-    cell -- and ``single_branch`` is honoured at runtime only when it was
-    requested and STORED (repo-root execution, ``WRITE_CHECKOUT_*`` refusals, no
-    protected mint). An unattended ``--fix`` must not opt a mission into that
-    runtime, so this stamps :func:`~specify_cli.migration.backfill_topology.topology_from_meta`
-    (the stored-or-derive reading with ``unstamped_runtime_topology`` applied:
-    a derived ``single_branch`` reads as ``lanes``) -- exactly what the same
-    unstamped mission already behaved as. The explicit ``backfill-topology``
-    writer is unchanged.
-    """
-    from specify_cli.migration.backfill_topology import TOPOLOGY_KEY, topology_from_meta
-    from specify_cli.mission_metadata import load_meta_or_empty, write_meta
-
-    meta = load_meta_or_empty(mission_dir)
-    if not meta:
-        return
-    meta[TOPOLOGY_KEY] = topology_from_meta(meta, mission_dir).value
-    write_meta(mission_dir, meta, validate=False)
-
-
 def _apply_never_created_fix(findings: list[DoctorFinding], repo_root: Path) -> None:
     """Flatten missions with a stale ``coordination_branch`` key, then re-backfill topology.
 
@@ -1378,8 +1354,13 @@ def _apply_never_created_fix(findings: list[DoctorFinding], repo_root: Path) -> 
             f"[green]Flattened:[/green] removed coordination_branch from {slug}/meta.json"
         )
     if fixed_slugs:
+        from specify_cli.migration.backfill_topology import backfill_topology_repo
+
+        # runtime_reading (#5100): an unattended --fix must never opt a
+        # flattened mission into single_branch; a derived single_branch cell is
+        # stamped as lanes, which is how the unstamped mission already ran.
         for slug in fixed_slugs:
-            _stamp_flattened_runtime_topology(repo_root / "kitty-specs" / slug)
+            backfill_topology_repo(repo_root, mission_slug=slug, runtime_reading=True)
         console.print(
             "[green]Topology backfilled.[/green] "
             "Run `spec-kitty doctor coordination` to verify."
@@ -1932,8 +1913,8 @@ def run_coordination_health(
     materializer (idempotent; refuses with a ``warning`` finding, never a crash,
     when the branch is remote-only). It also removes stale ``coordination_branch``
     keys from ``meta.json`` for any ``COORDINATION_WORKTREE_NEVER_CREATED``
-    findings, re-stamps the runtime reading of the topology
-    (:func:`_stamp_flattened_runtime_topology`; never a derived ``single_branch``), then attempts the WP06
+    findings, re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
+    with ``runtime_reading=True`` (never a derived ``single_branch``), then attempts the WP06
     Gap-1 coord-vs-target fast-forward (:func:`_apply_coord_staleness_fixes`)
     for every coordinated mission. A per-mission unsafe precondition -- a
     diverged coord branch, a dirty coord worktree, a coord worktree that does
