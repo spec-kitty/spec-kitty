@@ -54,6 +54,10 @@ _MIN_DISTINCTIVE_LEN = 16
 # never contains "git commit").
 _ALLOWED_GIT_COMMIT_HITS: dict[tuple[str, str], str] = {
     (
+        "git/commit_helpers.py",
+        "git commit-tree failed",
+    ): "Fallback detail of a RuntimeError reporting an already-attempted `git commit-tree` that failed -- not a recipe to run.",
+    (
         "cli/commands/agent/workflow_cores.py",
         "Ignore git commits and status changes from other agents",
     ): "Banner prose telling the agent to ignore OTHER agents' commits -- not a recipe to run.",
