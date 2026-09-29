@@ -376,28 +376,54 @@ def _resolve_default_topology_phase(
     repo_root: Path | None,
     current_branch: str | None,
     pr_bound: bool,
+    owned_checkout: Path | None = None,
 ) -> MissionTopology:
-    """Derive the create-time topology default from branch/pr-bound context (#2581, #2533).
+    """Derive the create-time topology default from branch/pr-bound context (#2581, #2533, #2602).
 
-    An explicit ``--topology`` always wins. Otherwise the default keys on
-    *topology honesty* (INV-2): a coordination topology is minted only when
-    coordination routing is actually reachable, never as pure overhead.
+    ``single_branch`` is explicit-only (binding decision on #5100, comment
+    5870360497): it is produced ONLY by an explicit ``--topology
+    single_branch`` or by ``--owned-checkout`` — never as an implicit
+    default. Every other implicit arm below resolves to either ``coord`` or
+    ``lanes``, so default users on the ordinary create path keep worktree
+    isolation (US4/FR-013).
 
+    - An explicit ``--topology`` always wins.
+    - ``--owned-checkout`` is itself an explicit request for an isolated,
+      operator-managed write surface (ADR 2026-09-03-1: owned mode supports
+      ``single_branch`` only), so it also wins outright — before any
+      branch/pr-bound context is consulted. This is a genuine BEHAVIOUR
+      CHANGE, not a preservation of prior implicit routing: an owned
+      checkout with no configured ``origin`` has no protection/reachability
+      signal of its own, so ``resolve_primary_branch`` falls back to
+      reading the checkout's OWN current branch — making
+      ``current_branch == primary_branch`` true for that checkout
+      regardless of which branch it is on. Pre-WP06 that fallback quirk
+      routed a real owned-checkout create with no ``--topology`` to the
+      *primary-branch* ``coord`` arm, never to the non-primary arm's
+      (then-implicit) ``single_branch`` (#5100 review cycle 1, nit 3).
+    - Otherwise the default keys on *topology honesty* (INV-2): a
+      coordination topology is minted only when coordination routing is
+      actually reachable, never as pure overhead.
     - ``--pr-bound`` missions consult :func:`coord_topology_reachable` — coord
       is reachable iff ``primary_protected or current_is_primary``. A pr-bound
       mission on an **unprotected** primary target (e.g. created with
-      ``--start-branch <feature-branch>``) therefore defaults to
-      ``single_branch``, eliminating the stranded coord branch behind the #2533
-      split-brain. Protection is keyed on the **primary TARGET branch**
-      (``ProtectionPolicy`` + ``resolve_primary_branch``), NOT the current
-      checkout (the tripwire in ``test_mission_create.py`` proves this).
+      ``--start-branch <feature-branch>``) therefore defaults to ``lanes``,
+      eliminating the stranded coord branch behind the #2533 split-brain
+      without falling back to the no-longer-implicit ``single_branch``.
+      Protection is keyed on the **primary TARGET branch** (``ProtectionPolicy``
+      + ``resolve_primary_branch``), NOT the current checkout (the tripwire in
+      ``test_mission_create.py`` proves this).
     - A non-pr-bound mission created on the repository's primary branch keeps the
       historical ``coord`` default; one created on a non-primary feature/fork
-      branch defaults to ``single_branch`` — minting a coordination branch there
-      just to have the operator manually flatten it is the friction #2581 closes.
+      branch defaults to ``lanes`` — minting a coordination branch there just
+      to have the operator manually flatten it is the friction #2581 closed,
+      and #2602 keeps that friction closed via worktree isolation rather than
+      an implicit ``single_branch``.
     """
     if explicit_topology is not None:
         return explicit_topology
+    if owned_checkout is not None:
+        return MissionTopology.SINGLE_BRANCH
     # Fail-safe: without a resolvable repo/checkout we cannot key on target
     # protection, so keep the historical ``coord`` default. Hoisted ahead of the
     # pr-bound arm because that arm now needs a resolvable ``repo_root`` to read
@@ -414,10 +440,10 @@ def _resolve_default_topology_phase(
 
         primary_protected = ProtectionPolicy.resolve(repo_root).is_protected(primary_branch)
         current_is_primary = current_branch == primary_branch
-        return MissionTopology.COORD if coord_topology_reachable(pr_bound, primary_protected, current_is_primary) else MissionTopology.SINGLE_BRANCH
+        return MissionTopology.COORD if coord_topology_reachable(pr_bound, primary_protected, current_is_primary) else MissionTopology.LANES
     if current_branch == primary_branch:
         return MissionTopology.COORD
-    return MissionTopology.SINGLE_BRANCH
+    return MissionTopology.LANES
 
 
 def _print_worktree_navigation_hint(mission_slug: str, error_msg: str) -> None:
@@ -715,10 +741,11 @@ def create_mission(
                 "Create-time mission shape: single_branch | lanes | coord | "
                 "lanes_with_coord. Coordination-bearing shapes (coord, "
                 "lanes_with_coord) mint a coordination branch; branch-flat "
-                "shapes (single_branch, lanes) do not. Default: context-derived "
-                "(#2581) — coord on the primary branch, with --pr-bound, or "
-                "when explicitly requested; single_branch on a non-primary "
-                "feature/fork branch without --pr-bound."
+                "shapes (single_branch, lanes) do not. Default: "
+                "context-derived (#2581, #2602) — coord on the primary "
+                "branch or with --pr-bound when coordination is reachable; "
+                "lanes otherwise. single_branch only when requested "
+                "explicitly (or via --owned-checkout)."
             ),
         ),
     ] = None,
@@ -831,6 +858,7 @@ def create_mission(
             repo_root=command_checkout,
             current_branch=current_branch,
             pr_bound=pr_bound,
+            owned_checkout=owned_checkout,
         )
 
         # Import the tracker package here (NOT at module scope) so ``tracker/__init__.py``

@@ -12,7 +12,12 @@ research D-002) came from ``--pr-bound`` unconditionally minting a ``coord``
 topology — stranding a ``kitty/mission-<slug>-<mid8>`` coordination branch even
 when coordination routing was never reachable (unprotected primary target). WP02
 keys the create-time default on :func:`coord_topology_reachable`, so a pr-bound
-mission created off an unprotected primary now defaults to ``single_branch``.
+mission created off an unprotected primary defaults away from ``coord``. WP06
+(#2602, binding decision #5100 comment 5870360497) re-keyed that unreachable
+arm from ``single_branch`` to ``lanes`` — ``single_branch`` is now
+explicit-only (``--topology single_branch`` or ``--owned-checkout``) — so the
+mission still lands on the branch-flat side (no coordination branch), just as
+``lanes`` rather than ``single_branch``.
 
 These tests assert the mint **decision** by construction (topology + no
 ``coordination_branch`` in meta + no ``kitty/*`` branch on disk), not merely the
@@ -128,14 +133,19 @@ def _kitty_branches(repo: Path) -> list[str]:
     return [line.strip().lstrip("* ").strip() for line in out.splitlines() if line.strip()]
 
 
-def test_pr_bound_unprotected_primary_mints_single_branch_no_coord(tmp_path: Path) -> None:
-    """pr-bound + unprotected primary → SINGLE_BRANCH, no coord branch minted (#2533)."""
+def test_pr_bound_unprotected_primary_mints_lanes_no_coord(tmp_path: Path) -> None:
+    """pr-bound + unprotected primary → LANES, no coord branch minted (#2533, re-keyed WP06/#2602).
+
+    Was ``SINGLE_BRANCH`` before the #5100 binding decision (comment
+    5870360497): ``single_branch`` is now explicit-only, so the unreachable
+    arm defaults to ``lanes`` instead.
+    """
     _init_repo_unprotected(tmp_path)
 
     payload = _create_pr_bound(tmp_path, "no-strand-single")
 
     # The mint DECISION: coordination routing is unreachable, so no coord topology.
-    assert payload["topology"] == "single_branch", payload
+    assert payload["topology"] == "lanes", payload
     assert payload.get("coordination_branch") is None, payload
     assert payload.get("coordination_branch_created") is False, payload
     # No stranded/mislabelled coordination branch exists on disk.
@@ -150,7 +160,7 @@ def test_two_concurrent_pr_bound_missions_strand_no_coord_branch(tmp_path: Path)
     second = _create_pr_bound(tmp_path, "no-strand-concurrent-b")
 
     for payload in (first, second):
-        assert payload["topology"] == "single_branch", payload
+        assert payload["topology"] == "lanes", payload
         assert payload.get("coordination_branch") is None, payload
         assert payload.get("coordination_branch_created") is False, payload
 

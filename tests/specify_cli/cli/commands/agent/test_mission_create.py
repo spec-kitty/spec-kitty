@@ -363,22 +363,28 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
 
 
 # ---------------------------------------------------------------------------
-# Issue #2581 — context-derived topology default
+# Issue #2581 / WP06 #2602 (FR-013) — context-derived topology default
 #
 # Coordination-bearing topology (coord) mints a coordination branch that a
 # non-primary-branch mission (created without --pr-bound) has to be manually
-# flattened out of afterwards. The default must instead be derived from
-# context: single_branch on a non-primary feature/fork branch with no
-# --pr-bound; coord everywhere else (primary branch, --pr-bound, or an
-# explicit --topology choice).
+# flattened out of afterwards. The default is derived from context: lanes on
+# a non-primary feature/fork branch with no --pr-bound; coord everywhere else
+# (primary branch, --pr-bound with coordination reachable, or an explicit
+# --topology choice). Binding decision #5100 (comment 5870360497): the
+# original #2581 fix made this arm default to single_branch, but
+# single_branch must be an explicit-only choice — default users keep
+# worktree isolation, so this arm was re-keyed to lanes (WP06, #2602).
 # ---------------------------------------------------------------------------
 
 
-def test_create_on_non_primary_branch_without_pr_bound_defaults_to_single_branch(
+def test_create_on_non_primary_branch_without_pr_bound_defaults_to_lanes(
     tmp_path: Path,
 ) -> None:
-    """RED before #2581: a feature-branch create with no ``--topology``/``--pr-bound``
-    must default to ``single_branch`` and mint NO coordination branch.
+    """WP06/#2602: a feature-branch create with no ``--topology``/``--pr-bound``
+    defaults to ``lanes`` (not the pre-#5100 ``single_branch``) and mints NO
+    coordination branch. ``single_branch`` is now explicit-only — via
+    ``--topology single_branch`` or ``--owned-checkout`` — per the binding
+    decision on #5100 (comment 5870360497).
 
     The on-disk repo stays on ``main`` (``resolve_primary_branch`` falls back to
     the real current branch when no ``origin`` is configured); the CLI's view of
@@ -411,9 +417,13 @@ def test_create_on_non_primary_branch_without_pr_bound_defaults_to_single_branch
 
     assert result.exit_code == 0, result.output
     payload = _json_payload_from_output(result.output)
-    assert payload["topology"] == "single_branch", payload
+    assert payload["topology"] == "lanes", payload
     assert payload.get("coordination_branch") is None, payload
     assert payload.get("coordination_branch_created") is False, payload
+    # T026 CLI-level check: confirm the STORED meta.json (not merely the
+    # --json echo) records the lanes default.
+    meta = json.loads(Path(str(payload["meta_file"])).read_text(encoding="utf-8"))
+    assert meta["topology"] == "lanes", meta
 
 
 def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
@@ -459,11 +469,12 @@ def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path:
     checkout, so ``coord_topology_reachable(pr_bound=True, primary_protected=True,
     current_is_primary=False)`` is ``True`` → ``coord``.
 
-    If this test FLIPS to ``single_branch`` you keyed on the current checkout
+    If this test FLIPS to ``lanes`` you keyed on the current checkout
     (unprotected) instead of the primary target (protected) — that is the bug this
     tripwire guards against; fix the keying, do not relax the assertion. The
-    complementary "unprotected target → single_branch" case is proven by
-    ``tests/regression/test_coord_topology_no_strand.py``.
+    complementary "unprotected target → lanes" case (WP06/#2602 re-keying;
+    ``single_branch`` is explicit-only per #5100 comment 5870360497) is proven
+    by ``tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py``.
     """
     _init_repo(tmp_path)
 

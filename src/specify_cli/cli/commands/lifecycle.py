@@ -172,12 +172,18 @@ def specify(
         None,
         "--topology",
         help=(
+            # Out-of-map edit (WP06 review cycle 1, issue 2): `specify` shares
+            # `_resolve_default_topology_phase` with `agent mission create`
+            # (via `agent_feature.create_mission`), so its help text must
+            # mirror `mission_create.py`'s --topology help verbatim.
             "Create-time mission shape: single_branch | lanes | coord | "
             "lanes_with_coord. Coordination-bearing shapes (coord, "
             "lanes_with_coord) mint a coordination branch; branch-flat shapes "
-            "(single_branch, lanes) do not. Default: context-derived (#2581) — "
-            "coord on the primary branch or with --pr-bound, single_branch on a "
-            "non-primary feature branch."
+            "(single_branch, lanes) do not. Default: "
+            "context-derived (#2581, #2602) — coord on the primary "
+            "branch or with --pr-bound when coordination is reachable; "
+            "lanes otherwise. single_branch only when requested "
+            "explicitly (or via --owned-checkout)."
         ),
     ),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),

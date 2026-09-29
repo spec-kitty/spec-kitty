@@ -253,15 +253,20 @@ def _add_origin_on_main(repo: Path, tmp_path: Path) -> None:
     _git(repo, "remote", "set-head", "origin", "main")
 
 
-def test_specify_omitted_topology_on_non_primary_branch_derives_single_branch(
+def test_specify_omitted_topology_on_non_primary_branch_derives_lanes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """#2581: omitting ``--topology`` on a NON-primary feature branch now derives
-    ``single_branch`` (no coordination branch minted) through the shared
-    context-derivation — closing the gotcha at the ``/spec-kitty.specify`` entry
-    point, not just ``agent mission create``. On the primary branch (T010) the
-    default stays ``coord``; here, with ``origin/HEAD -> main`` and HEAD on a
-    feature branch, the derivation sees a genuine primary/non-primary mismatch."""
+    """#2581/WP06 #2602: omitting ``--topology`` on a NON-primary feature branch
+    derives ``lanes`` (no coordination branch minted) through the shared
+    ``_resolve_default_topology_phase`` — closing the gotcha at the
+    ``/spec-kitty.specify`` entry point, not just ``agent mission create``.
+    Re-pinned from ``single_branch`` (WP06 review cycle 1, issue 1): the
+    binding decision on #5100 (comment 5870360497) makes ``single_branch``
+    explicit-only (``--topology single_branch`` or ``--owned-checkout``) —
+    default users keep worktree isolation instead. On the primary branch
+    (T010) the default stays ``coord``; here, with ``origin/HEAD -> main``
+    and HEAD on a feature branch, the derivation sees a genuine
+    primary/non-primary mismatch."""
     repo = _init_project(tmp_path)
     _add_origin_on_main(repo, tmp_path)
     _git(repo, "checkout", "-qb", "feat/non-primary-change")
@@ -271,7 +276,7 @@ def test_specify_omitted_topology_on_non_primary_branch_derives_single_branch(
     assert result.exit_code == 0, f"exit {result.exit_code}:\n{result.output}"
     feature_dir = _only_feature_dir(repo)
     meta = _read_meta(feature_dir)
-    assert meta["topology"] == "single_branch", meta
+    assert meta["topology"] == "lanes", meta
     assert "coordination_branch" not in meta, (
         f"a non-primary-branch specify without --pr-bound must NOT mint a "
         f"coordination branch (got {meta.get('coordination_branch')!r})"

@@ -658,6 +658,65 @@ class TestCreateFeatureCommand:
         assert safe_commit.call_args.kwargs["worktree_root"] == linked.resolve()
         assert safe_commit.call_args.kwargs["target"].ref == "owned-mission"
 
+    def test_owned_checkout_with_no_topology_flag_still_defaults_to_single_branch(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """WP06 review cycle 1, nit 3 (#5100, ADR 2026-09-03-1): a real
+        ``--owned-checkout`` create with NO ``--topology`` still resolves to
+        ``single_branch`` -- but this is a genuine behaviour CHANGE, not the
+        preservation the WP06 commit message originally (incorrectly)
+        described. ``linked`` here has no ``origin`` remote, so
+        ``resolve_primary_branch`` falls back to reading the checkout's OWN
+        current branch (``owned-mission``); pre-WP06 that fallback made
+        ``current_branch == primary_branch`` for ANY checkout, so this exact
+        fixture minted ``coord``, never the non-primary arm's
+        ``single_branch``. WP06's explicit ``owned_checkout is not None``
+        short-circuit is what makes this ``single_branch`` on HEAD -- so it
+        is pinned at the CLI level, end to end, not only at the unit level.
+        Out-of-map edit (WP06 owns ``mission_create.py`` + the
+        ``agent/test_mission_create*`` files, not this module) -- added here
+        because it clones the sibling real-owned-checkout fixture
+        (``_init_owned_checkout_pair``) one test above, which only this file
+        defines.
+        """
+        primary, linked = _init_owned_checkout_pair(tmp_path)
+
+        with (
+            patch(
+                "specify_cli.cli.commands.agent.mission.locate_project_root",
+                return_value=primary,
+            ),
+            patch(
+                "specify_cli.core.mission_creation.Path.cwd",
+                return_value=linked,
+            ),
+            patch("specify_cli.core.mission_creation.safe_commit"),
+            patch(
+                "specify_cli.core.mission_creation.ULID",
+                return_value=ULID.from_str(TEST_MISSION_ID),
+            ),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "create",
+                    "owned-feature-default-topology",
+                    "--owned-checkout",
+                    str(linked),
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.stdout)
+        assert payload["topology"] == "single_branch", payload
+        mission_slug = f"owned-feature-default-topology-{TEST_MISSION_MID8}"
+        meta = json.loads(
+            (linked / "kitty-specs" / mission_slug / "meta.json").read_text(encoding="utf-8")
+        )
+        assert meta["topology"] == "single_branch", meta
+
     def test_owned_checkout_foreign_refusal_is_structured_json(
         self,
         tmp_path: Path,
