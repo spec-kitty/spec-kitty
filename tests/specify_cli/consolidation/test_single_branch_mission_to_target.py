@@ -258,3 +258,65 @@ def test_retained_mission_branch_keeps_meta_mission_branch(protected_repo: Path)
 
     assert _branch_exists(protected_repo, _MISSION_BRANCH)
     assert load_meta_or_empty(protected_repo / "kitty-specs" / _SLUG)["mission_branch"] == _MISSION_BRANCH
+
+
+# ---------------------------------------------------------------------------
+# Truthful consolidate messaging for single_branch (#5100 B6)
+# ---------------------------------------------------------------------------
+
+
+def _unprotected_run(repo: Path) -> ex._MergeRunState:
+    manifest = SimpleNamespace(
+        mission_slug=_SLUG,
+        target_branch="main",
+        mission_branch="main",
+        lanes=[SimpleNamespace(lane_id="lane-planning", wp_ids=["WP01"])],
+    )
+    run = _build_run(repo, manifest)
+    run.planning_artifact_only = True
+    return run
+
+
+def test_single_branch_code_mission_is_not_called_planning_artifact_only(protected_repo: Path) -> None:
+    run = _unprotected_run(protected_repo)
+
+    notice = ex._planning_only_notice(run)
+
+    assert notice is not None
+    assert "Planning-artifact-only" not in notice
+    assert "single_branch" in notice
+
+
+def test_genuine_planning_artifact_only_notice_is_unchanged(protected_repo: Path) -> None:
+    run = _unprotected_run(protected_repo)
+    meta = protected_repo / "kitty-specs" / _SLUG / "meta.json"
+    meta.write_text(meta.read_text().replace("single_branch", "lanes"), encoding="utf-8")
+
+    notice = ex._planning_only_notice(run)
+
+    assert notice is not None
+    assert "Planning-artifact-only mission" in notice
+
+
+def test_no_lane_branch_cleanup_line_when_none_were_deleted(protected_repo: Path) -> None:
+    run = _unprotected_run(protected_repo)
+
+    with ex.console.capture() as captured:
+        ex._delete_lane_branches(run)
+
+    assert "Cleaned up" not in captured.get()
+
+
+def test_dry_run_reports_no_branch_deletion_for_target_equal_mission_branch() -> None:
+    from specify_cli.consolidation.forecast import _effective_delete_branch
+
+    unprotected = SimpleNamespace(
+        target_branch="feat/sb", mission_branch="feat/sb", lanes=[SimpleNamespace(lane_id="lane-planning", wp_ids=["WP01"])]
+    )
+    protected = SimpleNamespace(
+        target_branch="main", mission_branch=_MISSION_BRANCH, lanes=[SimpleNamespace(lane_id="lane-planning", wp_ids=["WP01"])]
+    )
+
+    assert _effective_delete_branch(True, unprotected) is False
+    assert _effective_delete_branch(True, protected) is True
+    assert _effective_delete_branch(False, protected) is False
