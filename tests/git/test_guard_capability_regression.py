@@ -128,15 +128,19 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
         # still assert STANDARD (refused on a protected destination).
         ("coordination/commit_router.py", "safe_commit", 1),
         # (c) finalize-tasks canonical seeding (both finalize surfaces) — the
-        # #2056 decomposition relocated these two seeding call sites out of the
+        # #2056 decomposition relocated these seeding call sites out of the
         # ``mission`` god module into the ``mission_finalize`` seam. The raw
         # ``bootstrap_canonical_state`` calls now live inside the
         # ``_bootstrap_canonical_state_via_mission`` patch-seam wrapper (which
-        # forwards ``capability`` as a variable, not a surface literal); the
-        # operator-asserted capability literal is on the TWO wrapper call sites
-        # — one defaulting to STANDARD, one passing ``GuardCapability.STANDARD``
-        # explicitly — exactly mirroring the upstream pre-decomposition shape.
-        ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission", 2),
+        # forwards ``capability`` as a variable, not a surface literal); every
+        # wrapper call site resolves to STANDARD (refused on a protected
+        # destination). Re-pinned 2 -> 4 (2026-09-30, landing #5405 / #5403):
+        # ``fix(finalize): make planning refresh atomic and fail closed``
+        # (505c6aeeb5) added two ``refresh_bootstrap_result`` call sites that
+        # both default to STANDARD; the count pin was never joined, so this test
+        # was red on main. The per-site protected-refusal assertion below already
+        # covers all four (each is STANDARD); only the count needed updating.
+        ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission", 4),
         # Wave 2 degod (#2305) relocated the finalize-tasks family out of the
         # tasks.py shim; its canonical-seeding call site now lives in
         # tasks_finalize.py (routed ``_tasks.bootstrap_canonical_state(...)`` —
