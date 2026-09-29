@@ -1602,8 +1602,8 @@ _Project health diagnostics_
 │                         prerelease-opt-in).                                  │
 │ env-file                Report ``.kitty.env`` operator env-file health       │
 │                         (presence/tier/ignore).                              │
-│ provenance              Flag committed absolute built-in-pack source_path    │
-│                         leaks (C-PRV-5).                                     │
+│ provenance              Flag committed absolute built-in-pack leaks and      │
+│                         ambiguous template sources (C-PRV-5).                │
 │ command-files           Check all agent command files for correctness.       │
 │ skills                  Check command-skill manifest drift for Codex, Vibe,  │
 │                         Pi, and Letta.                                       │
@@ -2083,12 +2083,13 @@ _Project health diagnostics_
 ```
  Usage: spec-kitty doctor provenance [OPTIONS]
 
- Flag committed absolute built-in-pack source_path leaks (C-PRV-5).
+ Flag committed absolute built-in-pack leaks and ambiguous template sources
+ (C-PRV-5).
 
  Scans .kittify/charter/charter.yaml's catalog and
- .kittify/agent_profiles_manifest.json for a source_path that should
- be a ${SPEC_KITTY_PACKS_ROOT}/built-in/... token but is not, and
- prints a heal hint for each. Read-only -- never mutates state.
+ .kittify/agent_profiles_manifest.json for source_path values that
+ should be portable pack tokens. Read-only -- never mutates state;
+ ambiguous former-checkout paths are reported without a heal hint.
 
  Examples:
      spec-kitty doctor provenance
@@ -3627,13 +3628,24 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 
      spec-kitty migrate backfill-topology
 
+     spec-kitty migrate backfill-topology --restamp-single-branch --dry-run
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                   Emit per-mission result list as structured JSON     │
-│ --dry-run                Report what would change without writing any files. │
-│                          The JSON shape is identical to a live run.          │
-│ --mission          SLUG  Scope to a single mission slug (e.g. 083-foo-bar).  │
-│                          Omit to process all.                                │
-│ --help     -h            Show this message and exit.                         │
+│ --json                                 Emit per-mission result list as       │
+│                                        structured JSON                       │
+│ --dry-run                              Report what would change without      │
+│                                        writing any files. The JSON shape is  │
+│                                        identical to a live run.              │
+│ --mission                        SLUG  Scope to a single mission slug (e.g.  │
+│                                        083-foo-bar). Omit to process all.    │
+│ --restamp-single-branch                Re-stamp every single_branch mission  │
+│                                        whose lanes.json has a code lane to   │
+│                                        topology: lanes (Invariant T-1        │
+│                                        repair, #5100). Mutually exclusive    │
+│                                        with the ordinary backfill this       │
+│                                        command otherwise runs; combine with  │
+│                                        --dry-run to preview.                 │
+│ --help                   -h            Show this message and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5690,12 +5702,15 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 │                                                   branch-flat shapes         │
 │                                                   (single_branch, lanes) do  │
 │                                                   not. Default:              │
-│                                                   context-derived (#2581) —  │
-│                                                   coord on the primary       │
-│                                                   branch or with --pr-bound, │
-│                                                   single_branch on a         │
-│                                                   non-primary feature        │
-│                                                   branch.                    │
+│                                                   context-derived (#2581,    │
+│                                                   #2602) — coord on the      │
+│                                                   primary branch or with     │
+│                                                   --pr-bound when            │
+│                                                   coordination is reachable; │
+│                                                   lanes otherwise.           │
+│                                                   single_branch only when    │
+│                                                   requested explicitly (or   │
+│                                                   via --owned-checkout).     │
 │ --json                                            Emit JSON result           │
 │ --help          -h                                Show this message and      │
 │                                                   exit.                      │

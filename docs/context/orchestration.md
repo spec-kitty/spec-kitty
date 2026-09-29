@@ -2,16 +2,19 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-09-27'
+updated: '2026-09-29'
 related:
 - docs/context/charter.md
 - docs/context/identity.md
 - docs/context/system-events.md
 - docs/context/technology-foundations.md
+- docs/context/topology.md
 ---
 ## Context: Orchestration
 
 Terms describing lifecycle and runtime orchestration semantics.
+
+Mission topology terms (the four topologies, write checkout, repo-root lane, code lane, protected target, mission branch, lane work tip, absorbed lane) are defined in [Context: Topology](./topology.md).
 
 ### Repository
 

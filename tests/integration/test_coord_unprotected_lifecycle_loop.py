@@ -20,12 +20,13 @@ Why the premise is already closed (evidence, all present on this HEAD):
    authored 2026-09-03, before this mission's base ``acf360e23b``).**
    ``_resolve_default_topology_phase`` (``cli/commands/agent/mission_create.py:417``)
    now consumes :func:`coord_topology_reachable`: a ``--pr-bound`` mission on an
-   **unprotected** primary target defaults to ``SINGLE_BRANCH``, never coord —
+   **unprotected** primary target defaults to ``LANES``, never coord (#2602 made
+   ``lanes`` the default; ``single_branch`` is explicit-only) —
    "eliminating the stranded coord branch behind the #2533 split-brain." The
    specimen ``coord-commit-surface-authority-01M1M553`` shape (coord + unprotected
    via ``--pr-bound --start-branch``) is therefore structurally uncreatable, and
-   THIS mission's own ``meta.json`` records ``topology: single_branch`` for exactly
-   that reason. Guarded by ``tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py``.
+   THIS mission's own ``meta.json`` recorded ``topology: single_branch`` for exactly
+   that reason (the then-implicit default, since replaced by ``lanes``). Guarded by ``tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py``.
 
 2. **Guard 1 detection already fixed (FIX-M2-04, ``8a95e2d36e``, #2274/#2980).**
    ``_list_wp_branch_mission_specs_changes`` (``tasks_shared.py``) excludes
@@ -89,7 +90,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # A real ``--start-branch`` / ``--pr-bound`` mission targets a NON-protected
 # feature branch (``main`` is protected by default). This is the exact axis
-# #2533's topology-honesty turns into ``SINGLE_BRANCH``.
+# #2533's topology-honesty turns into ``LANES`` (#2602).
 _MISSION_HUMAN = "coord-unprot-lifecycle"
 _MISSION_ID = "01M28ZZHLIFECYCLE00000000P"
 _MID8 = _MISSION_ID[:8]
@@ -129,7 +130,7 @@ def _write_meta(feature_dir: Path, *, coordination_branch: str) -> None:
                 "target_branch": _TARGET_BRANCH,
                 "created_at": "2026-09-14T00:00:00+00:00",
                 "friendly_name": "coord+unprotected lifecycle repro",
-                # HAND-FORCED coord topology: #2533 would mint SINGLE_BRANCH for
+                # HAND-FORCED coord topology: #2533 would mint LANES for
                 # this pr-bound + unprotected shape, so the only way to even
                 # stand up the specimen is to write topology=coord directly (as
                 # the coord_topology_fixture does). That the fixture must FORCE
@@ -222,7 +223,7 @@ def _stand_up_coord_unprotected_mission(tmp_path: Path) -> Path:
 def test_pr_bound_unprotected_primary_does_not_route_to_coordination() -> None:
     """#2533 topology honesty: a ``--pr-bound`` mission on an unprotected primary
     (and not currently on the primary branch) is NOT coord-reachable — it defaults
-    to ``SINGLE_BRANCH``, so all lifecycle surfaces route to primary and no
+    to ``LANES``, so all lifecycle surfaces route to the PRIMARY partition and no
     four-guard surface contradiction can arise. This is the root reason the
     specimen deadlock is uncreatable on HEAD.
     """

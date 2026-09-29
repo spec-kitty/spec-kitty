@@ -71,8 +71,9 @@ mtime: the target wins a path iff the target diverged from
 evolved, the lane is stale). When both sides advanced the same path, the tiebreak
 is the last-commit committer-date, with the target winning on a strictly-later
 date **or a tie** (the conservative "do not clobber the target" default). This is
-topology-safe by construction: on `single_branch`/`LANES` (lane ≠ base,
-target = base) the lane correctly wins with no special case.
+topology-safe by construction: on `LANES` (lane ≠ base,
+target = base) the lane correctly wins with no special case; a `single_branch`
+mission has no lane branch, so there is no lane side to compare.
 
 **Note for epic #2907 (classifier-driven conflict taxonomy).** D-A1 drives squash
 conflict resolution off `mission_runtime.kind_for_mission_file` — the #2709

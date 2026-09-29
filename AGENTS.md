@@ -363,11 +363,34 @@ Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releas
   everything to primary. Planning commands may be invoked from the repo root — no worktree is
   required to run `/spec-kitty.specify` / `/spec-kitty.plan` / `/spec-kitty.tasks`.
 - `spec-kitty implement WP##` creates/reuses the execution workspace via
-  `resolve_workspace_for_wp` (`src/specify_cli/workspace/context.py`),
-  resolving `.worktrees/<feature>-lane-<id>` from `lanes.json`. There is no
-  `-WP##` fallback: flat / `SINGLE_BRANCH` / `LANES` missions all still
-  require `lanes.json`; a missing manifest fails closed with
-  `MissingLanesError` (`src/specify_cli/lanes/persistence.py`).
+  `resolve_workspace_for_wp` (`src/specify_cli/workspace/context.py`).
+  `lanes` / `lanes_with_coord` / flat missions resolve
+  `.worktrees/<slug>-lane-<id>` from `lanes.json`; a missing manifest fails
+  closed with `MissingLanesError` (`src/specify_cli/lanes/persistence.py`).
+  There is no `-WP##` fallback.
+- **`single_branch` has no lanes** ([topology glossary](docs/context/topology.md)). Its
+  `lanes.json` is a one-lane repo-root manifest (`lane-planning`). Its WPs run
+  sequentially in the *write checkout* (the repository root checkout, or a
+  validated owned checkout), stamped `execution_mode: direct_repo`. There is no lane
+  worktree and no dependency merge. `implement` refuses with
+  `WRITE_CHECKOUT_WRONG_BRANCH`, `WRITE_CHECKOUT_OCCUPIED` (another WP is
+  `in_progress` in the same write checkout) or `WRITE_CHECKOUT_DIRTY` (a resume is
+  exempt), all in `src/specify_cli/lanes/implement_support.py`.
+- **Create-time topology.** On a non-primary branch the create default is `lanes`.
+  `single_branch` comes only from `--topology single_branch` or `--owned-checkout`.
+  When a `single_branch` mission targets a *protected target* (the primary branch or a
+  configured protected branch), `agent mission create` mints and checks out
+  `kitty/mission-<slug>-<mid8>` in the write checkout and records it in `meta.json`;
+  `--commit-to-target` opts out: it is persisted in `meta.json` and `ProtectionPolicy` (`resolve_for_mission` / `mission_write_bypass`) then lets that mission's own writes reach its own `target_branch` (no env var; other missions, non-mission commits and mixed code+mission-dir `safe_commit` commits stay refused; a non-boolean value refuses). `consolidate` lands the mission branch onto the target.
+- **Unmigrated `single_branch` missions with code lanes fail closed** with
+  `SINGLE_BRANCH_CODE_LANES_UNMIGRATED` (`src/mission_runtime/context.py`). Remedy: the
+  re-stamp migration, or `spec-kitty migrate backfill-topology --restamp-single-branch`.
+  `spec-kitty doctor topology` reports it, plus `LANES_MANIFEST_UNREADABLE`.
+- **Lane work tips.** When the recorder hook is installed (migration `m_4_0_0rc5_install_lane_tip_recorder`), a POSIX `post-commit` / `post-rewrite` hook, plus spec-kitty's own
+  record points (lane allocation in `implement`, `for_review` transitions, crash recovery, auto-rebase), write `refs/spec-kitty/lane-tip/<branch>` (`src/specify_cli/lanes/lane_tip.py`).
+  A destroyed lane with unabsorbed work is refused with `DESTROYED_LANE`
+  (`src/specify_cli/lanes/worktree_allocator.py`), naming the SHA and the restore
+  command `git branch <b> refs/spec-kitty/lane-tip/<b>`.
 
 **Planning artifacts** (land on the primary partition):
 - `/spec-kitty.specify` → `kitty-specs/<mission>/`

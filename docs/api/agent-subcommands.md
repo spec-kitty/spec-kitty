@@ -849,33 +849,33 @@ _Mission lifecycle commands for AI agents_
 │ *    mission_slug      TEXT  Mission slug (e.g., 'user-auth') [required]     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type                          TEXT               Mission type      │
+│ --mission-type                            TEXT             Mission type      │
 │                                                            (e.g.,            │
 │                                                            'documentation',  │
 │                                                            'software-dev')   │
 │ --json                                                     Output JSON       │
 │                                                            format            │
-│ --target-branch                         TEXT               Target branch     │
+│ --target-branch                           TEXT             Target branch     │
 │                                                            (defaults to      │
 │                                                            current branch)   │
-│ --friendly-name                         TEXT               Human-friendly    │
+│ --friendly-name                           TEXT             Human-friendly    │
 │                                                            mission title     │
-│ --purpose-tldr                          TEXT               One-line          │
+│ --purpose-tldr                            TEXT             One-line          │
 │                                                            stakeholder TLDR  │
 │                                                            for the mission   │
-│ --purpose-context                       TEXT               Short             │
+│ --purpose-conte…                          TEXT             Short             │
 │                                                            stakeholder-faci… │
 │                                                            paragraph for the │
 │                                                            mission           │
-│ --pr-bound             --no-pr-bound                       Mark mission as   │
+│ --pr-bound            --no-pr-bound                        Mark mission as   │
 │                                                            PR-bound (gate    │
 │                                                            fires on          │
 │                                                            merge_target_bra… │
 │                                                            [default:         │
 │                                                            no-pr-bound]      │
-│ --topology                              [single_branch|la  Create-time       │
-│                                         nes|coord|lanes_w  mission shape:    │
-│                                         ith_coord]         single_branch |   │
+│ --topology                                [single_branch|  Create-time       │
+│                                           lanes|coord|lan  mission shape:    │
+│                                           es_with_coord]   single_branch |   │
 │                                                            lanes | coord |   │
 │                                                            lanes_with_coord. │
 │                                                            Coordination-bea… │
@@ -890,28 +890,30 @@ _Mission lifecycle commands for AI agents_
 │                                                            lanes) do not.    │
 │                                                            Default:          │
 │                                                            context-derived   │
-│                                                            (#2581) — coord   │
-│                                                            on the primary    │
-│                                                            branch, with      │
-│                                                            --pr-bound, or    │
-│                                                            when explicitly   │
-│                                                            requested;        │
-│                                                            single_branch on  │
-│                                                            a non-primary     │
-│                                                            feature/fork      │
-│                                                            branch without    │
-│                                                            --pr-bound.       │
-│ --branch-strategy                       TEXT               Branch-strategy   │
+│                                                            (#2581, #2602) —  │
+│                                                            coord on the      │
+│                                                            primary branch or │
+│                                                            with --pr-bound   │
+│                                                            when coordination │
+│                                                            is reachable;     │
+│                                                            lanes otherwise.  │
+│                                                            single_branch     │
+│                                                            only when         │
+│                                                            requested         │
+│                                                            explicitly (or    │
+│                                                            via               │
+│                                                            --owned-checkout… │
+│ --branch-strate…                          TEXT             Branch-strategy   │
 │                                                            gate control      │
 │                                                            (e.g.,            │
 │                                                            'already-confirm… │
 │                                                            to bypass the     │
 │                                                            prompt)           │
-│ --start-branch                          TEXT               Create or switch  │
+│ --start-branch                            TEXT             Create or switch  │
 │                                                            to this branch    │
 │                                                            before mission    │
 │                                                            files are written │
-│ --force-recreate…                                          Delete and        │
+│ --force-recreat…                                           Delete and        │
 │                                                            recreate the      │
 │                                                            per-mission       │
 │                                                            coordination      │
@@ -922,7 +924,7 @@ _Mission lifecycle commands for AI agents_
 │                                                            Operator escape   │
 │                                                            hatch; never used │
 │                                                            by automation.    │
-│ --owned-checkout                        PATH               Explicitly        │
+│ --owned-checkout                          PATH             Explicitly        │
 │                                                            declare a         │
 │                                                            checkout root     │
 │                                                            owned by this     │
@@ -934,17 +936,35 @@ _Mission lifecycle commands for AI agents_
 │                                                            of the resolved   │
 │                                                            primary           │
 │                                                            repository.       │
-│ --retain-branches                                          Opt this          │
+│ --retain-branch…                                           Opt this          │
 │                                                            mission's         │
 │                                                            branches out of   │
 │                                                            post-merge        │
 │                                                            cleanup deletion. │
-│ --retain-worktre…                                          Opt this          │
+│ --retain-worktr…                                           Opt this          │
 │                                                            mission's         │
 │                                                            worktrees out of  │
 │                                                            post-merge        │
 │                                                            cleanup deletion. │
-│ --allow-duplicat…                                          Escape hatch for  │
+│ --commit-to-tar…      --no-commit-to-…                     single_branch     │
+│                                                            only: skip the    │
+│                                                            protected-target  │
+│                                                            mission-branch    │
+│                                                            mint (#5100       │
+│                                                            FR-008) and       │
+│                                                            commit directly   │
+│                                                            onto              │
+│                                                            --target-branch,  │
+│                                                            even when it is   │
+│                                                            protected.        │
+│                                                            Persisted;        │
+│                                                            honoured through  │
+│                                                            ProtectionPolicy  │
+│                                                            for every later   │
+│                                                            write.            │
+│                                                            [default:         │
+│                                                            no-commit-to-tar… │
+│ --allow-duplica…                                           Escape hatch for  │
 │                                                            the idempotency   │
 │                                                            guard (#4033):    │
 │                                                            create a second   │
@@ -959,7 +979,7 @@ _Mission lifecycle commands for AI agents_
 │                                                            never committed)  │
 │                                                            never need this   │
 │                                                            flag.             │
-│ --help             -h                                      Show this message │
+│ --help            -h                                       Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

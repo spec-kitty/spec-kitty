@@ -62,8 +62,9 @@ the legacy-topology warning:
 - **A coordination-less topology chosen at creation.** A mission created on a
   current version with the `single_branch` or `lanes` topology also has no
   `coordination_branch` — those shapes never mint one. Write-path routing
-  still treats them identically to a legacy mission (both write through the
-  operator's lane worktree, the key is absent either way), but the warning
+  still treats them identically to a legacy mission (the key is absent either
+  way; `lanes` writes through the operator's lane worktree, while `single_branch`
+  writes in its write checkout and has no lane worktree), but the warning
   classifier is topology-aware: it reads the mission's **stored** topology
   and no longer warns when that topology is a coordination-less shape chosen
   on purpose.

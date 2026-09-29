@@ -7172,6 +7172,21 @@ pages:
     - {slug: "orchestrator-smoke-availability-fixtures-happy-path-review-cycles-parallel", text: "Orchestrator Smoke / Availability / Fixtures / Happy Path / Review Cycles / Parallel", level: 3}
     - {slug: "core-agent-extended-agent", text: "Core Agent / Extended Agent", level: 3}
     - {slug: "exploratory", text: "Exploratory", level: 3}
+  - path: "docs/context/topology.md"
+    title: "Context: Topology"
+    divio_type: "none"
+    abstract: "Glossary context for mission topology: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, and absorbed lane."
+    anchors:
+    - {slug: "context-topology", text: "Context: Topology", level: 2}
+    - {slug: "topology", text: "Topology", level: 3}
+    - {slug: "write-checkout", text: "Write checkout", level: 3}
+    - {slug: "repo-root-lane", text: "Repo-root lane", level: 3}
+    - {slug: "code-lane", text: "Code lane", level: 3}
+    - {slug: "protected-target", text: "Protected target", level: 3}
+    - {slug: "mission-branch", text: "Mission branch", level: 3}
+    - {slug: "lane-work-tip", text: "Lane work tip", level: 3}
+    - {slug: "absorbed-lane", text: "Absorbed lane", level: 3}
+    - {slug: "execution-mode-stamp", text: "Execution-mode stamp", level: 3}
   - path: "docs/contracts/handoff-packet-v1.md"
     title: "Handoff Packet v1"
     divio_type: "none"
