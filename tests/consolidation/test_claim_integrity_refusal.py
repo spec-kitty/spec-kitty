@@ -94,3 +94,34 @@ def test_predicate_and_gate_agree_on_a_healthy_claim(tmp_path: Path) -> None:
     claim = ApprovedWpCommitSet(surface_resolved=True)
     assert claim_integrity_refusal(claim) is None
     assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).status is not VerifyStatus.REFUSE
+
+
+# ------------------------------------------------ claim-time refusal text (slice-10 F4)
+
+
+def _claim_refusal_output(monkeypatch: pytest.MonkeyPatch, attested: tuple[str, ...]) -> str:
+    from unittest.mock import MagicMock
+
+    import typer
+
+    from specify_cli.consolidation import executor
+
+    console = MagicMock()
+    monkeypatch.setattr(executor, "console", console)
+    with pytest.raises(typer.Exit) as exited:
+        executor._exit_on_claim_integrity_refusal("approved lane branch is gone.", attested=attested)
+    assert exited.value.exit_code == 1
+    return " ".join(str(call.args[0]) for call in console.print.call_args_list)
+
+
+def test_claim_refusal_without_attestations_says_nothing_changed(monkeypatch: pytest.MonkeyPatch) -> None:
+    printed = _claim_refusal_output(monkeypatch, ())
+    assert "No branch, worktree or status record was changed by this run." in printed
+    assert "attestation" not in printed
+
+
+def test_claim_refusal_after_recorded_attestations_names_them(monkeypatch: pytest.MonkeyPatch) -> None:
+    """F4: ``--attest-canceled-superseded`` writes status events BEFORE the claim; the text must not deny it."""
+    printed = _claim_refusal_output(monkeypatch, ("WP03", "WP04"))
+    assert "No branch, worktree or status record was changed" not in printed
+    assert "No branch or worktree was changed by this run; only the operator attestation(s) for WP03, WP04 were recorded." in printed

@@ -357,6 +357,10 @@ class _MergeRunState:
     # fully-canceled lane (whose branch may not exist) is skipped without a
     # second coord read. ``all_wp_ids`` already has these filtered out.
     excluded_canceled_wp_ids: frozenset[str] = frozenset()
+    # Slice-10 F4: WP ids whose ``--attest-canceled-superseded`` attestation THIS
+    # run recorded (status events written before the claim), for truthful
+    # claim-time refusal text.
+    recorded_attestations: tuple[str, ...] = ()
     target_baseline_sha: str = "HEAD~1"
     # #4764 FOLD-F1 (primary-tree bake defeats the pre-target rollback guard):
     # the TRUE pre-merge target-branch tip. ``target_baseline_sha`` above is
@@ -2368,7 +2372,7 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # its lane branches may legitimately be gone already.
     refusal = claim_integrity_refusal(run.approved_wp_set)
     if refusal is not None and not _resume_reconciliation_already_passed(run):
-        _exit_on_claim_integrity_refusal(refusal)
+        _exit_on_claim_integrity_refusal(refusal, attested=run.recorded_attestations)
 
     # #5318 / #5332: snapshot every branch this attempt may move, strictly before
     # the first mutating phase, and fix this attempt's restore targets.
@@ -2390,18 +2394,27 @@ def _capture_snapshot_and_begin_attempt(run: _MergeRunState) -> None:
     rollback.begin_attempt(run.main_repo, run.state)
 
 
-def _exit_on_claim_integrity_refusal(refusal: str) -> NoReturn:
+def _claim_refusal_change_sentence(attested: tuple[str, ...]) -> str:
+    """What this run changed before a claim-time refusal: nothing, or only the operator attestations (F4)."""
+    if not attested:
+        return "No branch, worktree or status record was changed by this run."
+    return f"No branch or worktree was changed by this run; only the operator attestation(s) for {', '.join(attested)} were recorded."
+
+
+def _exit_on_claim_integrity_refusal(refusal: str, *, attested: tuple[str, ...] = ()) -> NoReturn:
     """Abort before any mutation because the approved-WP claim failed integrity (#5338).
 
     Runs strictly pre-mutation (inside ``_clear_fresh_record_on_pre_mutation_exit``),
-    so "no branch, worktree or status record was changed by this run" is true.
+    so no branch or worktree was changed by this run. ``--attest-canceled-superseded``
+    writes its status events BEFORE the claim (FR-012); when this run recorded any
+    (``attested``), the text says so instead of claiming no status record changed.
     The verdict leads with the same ``Reconciliation refused (fail-closed)``
     header the teardown gate prints (#5359), so operators and tooling see one
     REFUSE vocabulary whether the claim refuses early or the gate refuses late.
     """
     console.print(
         f"\n[red]Error:[/red] Reconciliation refused (fail-closed) at claim time, before any change: {refusal.rstrip('.')}. "
-        "No branch, worktree or status record was changed by this run. Fix the cause, then re-run; "
+        f"{_claim_refusal_change_sentence(attested)} Fix the cause, then re-run; "
         f"if an earlier attempt left partial state, run `{_CONSOLIDATE_ABORT_COMMAND}` first."
     )
     raise typer.Exit(1)
@@ -3330,8 +3343,10 @@ def _record_operator_attestations(
     wp_ids: tuple[str, ...],
     reason: str | None,
     acceptably_canceled: frozenset[str],
-) -> None:
+) -> tuple[str, ...]:
     """Validate and record ``--attest-canceled-superseded`` (FR-012), before any mutation.
+
+    Returns the WP ids whose attestation was recorded (``()`` when none was requested).
 
     Refuses (exit 1, nothing recorded) a WP that is not canceled with operator
     provenance. Every explicit ``--attest-canceled-superseded`` records a FRESH
@@ -3342,7 +3357,7 @@ def _record_operator_attestations(
     (``canceled_attestation.record_canceled_superseded_attestation``).
     """
     if not wp_ids:
-        return
+        return ()
     from specify_cli.consolidation.canceled_attestation import (
         AttestationError,
         record_canceled_superseded_attestation,
@@ -3367,6 +3382,7 @@ def _record_operator_attestations(
             actor=actor,
         )
         console.print(f"[yellow]⚠️  Operator attestation recorded for canceled {wp_id} by {actor}:[/yellow] {(reason or '').strip()}")
+    return requested
 
 
 def _run_lane_based_consolidation_locked(
@@ -3417,7 +3433,7 @@ def _run_lane_based_consolidation_locked(
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
     # FR-012: record any operator attestation BEFORE the claim is captured, so
     # the reconciliation gate reads it from the event log it already reads.
-    _record_operator_attestations(
+    recorded_attestations = _record_operator_attestations(
         main_repo,
         mission_slug,
         wp_ids=attest_canceled_superseded,
@@ -3480,6 +3496,7 @@ def _run_lane_based_consolidation_locked(
         state=state,
         is_resume=is_resume,
         skip_lanes=skip_lanes,
+        recorded_attestations=recorded_attestations,
     )
 
     # FR-006: at resume startup, heal any coord strand a prior attempt left
