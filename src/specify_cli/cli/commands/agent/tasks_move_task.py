@@ -902,6 +902,19 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     # to auto-commit, same as an isolated lane worktree.
     if workspace.branch_name is None:
         return
+    if st.owned is None and workspace.resolution_kind == "repo_root":
+        # single_branch repo-root WP: the write checkout is the operator's whole
+        # repository-root checkout, so ``git status`` there holds unrelated and
+        # stray files (``.env.local`` ...). Sweeping them into a "deliverables"
+        # commit could land them on a protected target -- and would let a
+        # no-work WP pass the gate. The WP author commits their own work; the
+        # claim-base for_review gate then refuses when there is none.
+        if not st.json_output:
+            _tasks.console.print(
+                f"[yellow]Note:[/yellow] {st.task_id} runs in the repository root checkout; "
+                "commit your WP work yourself before moving to for_review (no auto-commit)."
+            )
+        return
     worktree_path = workspace.worktree_path
     if not worktree_path.exists():
         return

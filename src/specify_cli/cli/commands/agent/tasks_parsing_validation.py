@@ -746,6 +746,34 @@ def _check_kitty_specs_contamination(
     return guidance
 
 
+def _validate_repo_root_workspace(
+    *,
+    workspace: ResolvedWorkspace,
+    workspace_override: ResolvedWorkspace | None,
+    main_repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    target_lane: str,
+) -> tuple[bool, list[str]]:
+    """Readiness verdict for a WP that runs in the repository-root checkout.
+
+    A branchless planning_artifact WP (and an owned checkout, which has its own
+    implementation guard) keeps the historic short-circuit. A repo-root WP that
+    owns a real branch (single_branch code WP) has no worktree to inspect, so
+    the shared claim-base ``for_review`` gate (:mod:`specify_cli.lanes.for_review_gate`,
+    the same one ``agent status emit`` and the orchestrator use) decides.
+    """
+    if workspace_override is not None or str(getattr(target_lane, "value", target_lane)) != "for_review" or getattr(workspace, "branch_name", None) is None:
+        return True, []
+
+    from specify_cli.lanes.for_review_gate import evaluate_for_review_gate
+
+    decision = evaluate_for_review_gate(main_repo_root, mission_slug, wp_id)
+    if decision.passed:
+        return True, []
+    return False, [decision.reason]
+
+
 def _validate_worktree_state(
     *,
     repo_root: Path,
@@ -786,7 +814,14 @@ def _validate_worktree_state(
             workspace = None
 
     if workspace is not None and workspace.resolution_kind == "repo_root":
-        return True, []
+        return _validate_repo_root_workspace(
+            workspace=workspace,
+            workspace_override=workspace_override,
+            main_repo_root=main_repo_root,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            target_lane=target_lane,
+        )
 
     worktree_path = _resolve_worktree_path(
         main_repo_root=main_repo_root,
