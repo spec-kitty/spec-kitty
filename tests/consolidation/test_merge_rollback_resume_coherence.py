@@ -49,6 +49,7 @@ from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 
 from kernel.clock import now_utc_iso
 
@@ -202,7 +203,7 @@ def test_direct_on_target_refuse_originates_from_precondition_not_missing_lanes(
     _bootstrap_direct_on_target_mission(repo)
     pre_target_tip = _branch_tip(repo, "main")
 
-    with _dot_external_mocks(), patch("specify_cli.cli.console.console.print") as mock_print, pytest.raises(BaseException) as excinfo:  # noqa: PT011
+    with _dot_external_mocks(), patch("specify_cli.cli.console.console.print") as mock_print, pytest.raises(typer.Exit) as excinfo:
         _run_lane_based_consolidation(
             repo_root=repo,
             mission_slug=DOT_MISSION_SLUG,
@@ -214,14 +215,11 @@ def test_direct_on_target_refuse_originates_from_precondition_not_missing_lanes(
             skip_lanes=True,
         )
 
-    assert not isinstance(excinfo.value, MissingLanesError), (
-        "the refusal must NOT be a MissingLanesError — --skip-lanes must reach the real merge-ready precondition, not trip the manifest requirement first"
-    )
-    exit_code = getattr(excinfo.value, "exit_code", None)
-    assert exit_code not in (0, None), f"must exit non-zero, got {excinfo.value!r}"
+    assert excinfo.value.exit_code == 1
 
     printed = " ".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
-    assert DOT_WP_ID in printed, f"refusal must name the missing WP: {printed!r}"
+    assert "Mission is not merge-ready" in printed, f"refusal must originate from the precondition's own message: {printed!r}"
+    assert f"missing review approval: {DOT_WP_ID}" in printed, f"refusal must name the missing WP: {printed!r}"
     assert "MissingLanesError" not in printed
     assert "lanes.json" not in printed.lower()
 
