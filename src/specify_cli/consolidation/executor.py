@@ -3126,6 +3126,40 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     _flatten_coordination_metadata_after_branch_delete(run)
 
 
+def _clear_landed_single_branch_mission_branch(run: _MergeRunState) -> None:
+    """#5100 B4: drop ``meta.mission_branch`` once the landed branch is deleted.
+
+    A protected single_branch mission records its minted ``mission_branch`` in
+    ``meta.json``. After landing + deletion it names a dead branch: post-merge
+    writes (retrospective, status) would route to it and ``mission reopen``
+    refuses. Clearing it (mirroring the coord flatten) makes later writes
+    resolve to ``target_branch``. No-op unless the branch was landed and is gone.
+    """
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch
+    from specify_cli.mission_metadata import load_meta_or_empty, write_meta
+
+    if not lands_mission_branch(run.main_repo, run.lanes_manifest) or _mission_branch_exists(run):
+        return
+    feature_dir = run.target_feature_dir
+    meta = load_meta_or_empty(feature_dir)
+    if "mission_branch" not in meta:
+        return
+    del meta["mission_branch"]
+    write_meta(feature_dir, meta, validate=False)
+    meta_path = feature_dir / "meta.json"
+    try:
+        commit_merge_bookkeeping(
+            repo_root=run.main_repo,
+            worktree_root=run.main_repo,
+            mission_slug=run.mission_slug,
+            branch=run.lanes_manifest.target_branch,
+            message=f"chore({run.mission_slug}): clear landed mission_branch (#5100)",
+            paths=(meta_path,),
+        )
+    except Exception as exc:  # fail-open: never abort a completed merge for a bookkeeping commit
+        logger.warning("mission_branch clear commit failed for %s (%s); meta.json is cleared on disk but may be uncommitted", run.mission_slug, exc)
+
+
 def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
     """Topology-aware mission/coordination cleanup (#3131 T008).
 
@@ -3147,6 +3181,7 @@ def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
 
     if run.delete_branch:
         _delete_mission_branch(run)
+        _clear_landed_single_branch_mission_branch(run)
         # issue #3086: the coordination branch is now gone from git; flatten the
         # mission's meta.json in the SAME gate so we can never delete the branch
         # yet strand the paired ``coordination_branch`` marker. A no-op here
