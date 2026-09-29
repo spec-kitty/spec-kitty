@@ -293,6 +293,18 @@ def _topology_finding(topology: object, feature_dir: Path) -> str | None:
         return _LANES_MANIFEST_UNREADABLE_FINDING
     if manifest is None or not has_code_lanes(manifest):
         return None
+    # Operator decision (PR #5398 handoff addendum): a TERMINAL (archived)
+    # mission is never run again, so reporting SINGLE_BRANCH_CODE_LANES_UNMIGRATED
+    # on it is pointless churn on a frozen dossier. Suppress it, keyed on the same
+    # canonical completion predicate the re-stamp migration uses
+    # (:func:`specify_cli.status.lifecycle.is_mission_completed` — a ``merged_at``
+    # marker OR every WP terminal) so the finding and the migration's selection
+    # never drift apart. Checked last, only for an otherwise-flagged mission, so
+    # its event-log read is not paid for every mission the audit walks.
+    from specify_cli.status import is_mission_completed
+
+    if is_mission_completed(feature_dir):
+        return None
     return _SINGLE_BRANCH_CODE_LANES_UNMIGRATED_FINDING
 
 

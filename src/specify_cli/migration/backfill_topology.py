@@ -443,6 +443,23 @@ def restamp_single_branch_with_code_lanes(repo_root: Path, *, dry_run: bool = Fa
             results.append(RestampResult(feature_dir, slug, "skip", reason="no code lanes"))
             continue
 
+        # Operator decision (PR #5398 handoff addendum): skip TERMINAL (archived)
+        # missions. A completed mission is never run again, so its stale
+        # single_branch stamp never reaches the fail-closed writer guard --
+        # re-stamping it would only churn a frozen kitty-specs/ dossier (the
+        # always-on archive-freeze gate forbids rewriting archived dossiers).
+        # Keyed on the canonical completion predicate is_mission_completed (the
+        # single authority: a merged_at marker OR every WP terminal), so this
+        # selection and the doctor's SINGLE_BRANCH_CODE_LANES_UNMIGRATED finding
+        # stay in lockstep. Checked last -- only for a mission that would
+        # otherwise be re-stamped -- so the event-log read it may perform is
+        # never paid for the whole kitty-specs/ walk.
+        from specify_cli.status import is_mission_completed
+
+        if is_mission_completed(feature_dir):
+            results.append(RestampResult(feature_dir, slug, "skip", reason="terminal (archived) mission — nothing runs it"))
+            continue
+
         if not dry_run:
             meta = load_meta_fail_closed(feature_dir) or {}
             meta[TOPOLOGY_KEY] = MissionTopology.LANES.value
