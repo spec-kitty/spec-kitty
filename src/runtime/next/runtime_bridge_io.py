@@ -75,7 +75,6 @@ every other compat-tracked intra-seam call in this module.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
@@ -108,8 +107,10 @@ from runtime.next._internal_runtime.schema import (
     MissionTemplate,
     load_mission_template_file,
 )
+from runtime.next import run_index
+from runtime.next.run_index import FEATURE_RUNS_FILENAME
+from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.core.paths import load_meta_fail_closed
@@ -127,7 +128,9 @@ if TYPE_CHECKING:
 KITTIFY_DIR = ".kittify"
 MISSION_RUNTIME_YAML = "mission-runtime.yaml"
 MISSION_YAML = "mission.yaml"
-_FEATURE_RUNS_FILE = "feature-runs.json"
+# Single-homed in ``run_index`` (the RunIndex port owns the literal); aliased
+# here so this module's diagnostics/paths keep their existing names.
+_FEATURE_RUNS_FILE = FEATURE_RUNS_FILENAME
 STATE_FILE = "state.json"
 
 # WP06 (FR-010/FR-011, IC-06): named diagnostics for Walk B's previously
@@ -209,8 +212,11 @@ class RunStateMissing(MissionRuntimeError):
 
 
 def _feature_runs_path(repo_root: Path) -> Path:
-    """Untracked helper (no test binds this name) — repo_root -> index path."""
-    return repo_root / KITTIFY_DIR / "runtime" / _FEATURE_RUNS_FILE
+    """Untracked helper (no test binds this name) — repo_root -> index path.
+
+    Delegates to the RunIndex port so the path is constructed in exactly one place.
+    """
+    return run_index.feature_runs_path(repo_root)
 
 
 # WP05 / FR-016 / C-003: the index is keyed by the canonical ULID ``mission_id``
@@ -327,9 +333,16 @@ def _adopt_verified_unbound_run(index: dict[str, _FeatureRunEntry], *, mission_s
     return False
 
 
-def _require_run_state(entry: _FeatureRunEntry, *, mission_slug: str, mission_id: str | None) -> Path:
-    """Return the entry's run directory, or raise :class:`RunStateMissing` when its cursor is gone."""
-    run_dir = Path(entry["run_dir"])
+def _require_run_state(entry: _FeatureRunEntry, *, mission_slug: str, mission_id: str | None, repo_root: Path) -> Path:
+    """Return the entry's ABSOLUTE run directory, resolving the stored token against
+    the INVOKING ``repo_root`` (containment-checked), or raise
+    :class:`RunStateMissing` when its cursor is gone.
+
+    A run_dir that resolves outside ``repo_root`` raises
+    :class:`RunDirOutsideRepoError` (the #5390 copy/move containment refusal) via
+    :func:`run_index.resolve_run_dir` — a nonportable reference is never followed.
+    """
+    run_dir = run_index.resolve_run_dir(entry["run_dir"], repo_root)
     if not (run_dir / STATE_FILE).exists():
         raise RunStateMissing(
             mission_id=mission_id,
@@ -347,25 +360,24 @@ def load_feature_runs(path: Path) -> dict[str, _FeatureRunEntry]:
     signature; ``runtime_bridge._load_feature_runs`` (repo_root-keyed,
     compat-tracked) is a thin residual delegate over this + :func:`_feature_runs_path`.
     See :class:`_FeatureRunEntry` for why ``mission_id`` alone is ``str | None``.
+
+    Thin delegate over the RunIndex port's sole file reader (the port owns the
+    only open site); kept under this name so existing monkeypatch seams (which
+    target ``runtime_bridge_io.load_feature_runs``) still work.
     """
-    if not path.exists():
-        return {}
-    try:
-        loaded: dict[str, _FeatureRunEntry] = json.loads(path.read_text(encoding="utf-8"))
-        return loaded
-    except (json.JSONDecodeError, OSError):
-        return {}
+    loaded: dict[str, _FeatureRunEntry] = run_index.read_index_file(path)
+    return loaded
 
 
 def save_feature_runs(path: Path, index: dict[str, _FeatureRunEntry]) -> None:
     """Textbook narrow port: durably persist the feature->run index JSON file.
 
-    Untracked (no test patches ``_save_feature_runs`` on ``runtime_bridge`` —
-    its sole pre-WP05 caller, ``get_or_start_run``, moved into this same
-    module), so no residual compat shim is needed for this name at all.
+    Thin delegate over the RunIndex port's raw writer. NOTE: this raw path does
+    NOT tokenize ``run_dir``; index writes on the ``get_or_start_run`` path go
+    through :func:`run_index.save_index` (which tokenizes + locks). Retained for
+    any external caller and for test symmetry.
     """
-    content = json.dumps(index, indent=2, sort_keys=True)
-    atomic_write(path, content, mkdir=True)
+    run_index.write_index_file(path, index)
 
 
 def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
@@ -736,12 +748,12 @@ def _existing_run_ref(
     entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
     if entry is None:
         return None
-    _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id)
+    run_dir = _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id, repo_root=repo_root)
 
     stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
     return _rb._build_run_ref(
         run_id=entry["run_id"],
-        run_dir=entry["run_dir"],
+        run_dir=str(run_dir),
         mission_type=stored_mission_type,
     )
 
@@ -782,52 +794,40 @@ def _start_ephemeral_query_run(
     return run_ref, run_store
 
 
-def get_or_start_run(
-    mission_slug: str,
-    repo_root: Path,
-    mission_type: str,
+def _run_ref_for_entry(
+    entry: _FeatureRunEntry,
     *,
-    emitter: Any | None = None,
-    owned: OwnedCheckout | None = None,
+    mission_slug: str,
+    mission_id: str | None,
+    mission_type: str,
+    repo_root: Path,
 ) -> MissionRunRef:
-    """Load existing run or start a new one.
+    """Build a :class:`MissionRunRef` from a live index entry.
 
-    Run mapping stored in .kittify/runtime/feature-runs.json, keyed by the
-    canonical ``mission_id`` (``legacy-<slug>`` for a mission without one):
-    { "01HULID...": { "run_id": "abc", "run_dir": "...", "mission_slug": "042-test-mission" } }
-
-    This is the index's single writer: a pre-WP05 slug-keyed index is rekeyed
-    in place on the first touch (Q9, ``01M1V8J842E7CJR6MGZ0MW3DQF``). A live
-    entry whose ``state.json`` is gone raises :class:`RunStateMissing` -- it is
-    never silently replaced by a fresh run (FR-016).
-    """
+    The cursor is verified and the stored ``run_dir`` token is resolved to an
+    ABSOLUTE, containment-checked path against ``repo_root`` (adversarial review
+    C1: consumers always see an absolute ``run_ref.run_dir``)."""
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    resolved_mission_id = _run_mission_id(mission_slug, repo_root, owned)
-    index, rekeyed = _load_run_index(repo_root)
-    if owned is not None:
-        rekeyed = _adopt_verified_unbound_run(index, mission_slug=mission_slug, mission_id=resolved_mission_id) or rekeyed
-    index_key = run_index_key(mission_slug, resolved_mission_id)
+    run_dir = _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id, repo_root=repo_root)
+    stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
+    return _rb._build_run_ref(run_id=entry["run_id"], run_dir=str(run_dir), mission_type=stored_mission_type)
 
-    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
-    if entry is not None:
-        _require_run_state(entry, mission_slug=mission_slug, mission_id=resolved_mission_id)
-        if rekeyed:
-            save_feature_runs(_feature_runs_path(repo_root), index)
-        stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
-        return _rb._build_run_ref(
-            run_id=entry["run_id"],
-            run_dir=entry["run_dir"],
-            mission_type=stored_mission_type,
-        )
 
-    # Start a new run
-    run_store = repo_root / KITTIFY_DIR / "runtime" / "runs"
+def _start_new_run(
+    mission_slug: str,
+    mission_type: str,
+    repo_root: Path,
+    emitter: Any | None,
+) -> MissionRunRef:
+    """Start a fresh run in the repo-local run store (no index write here)."""
+    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+
+    run_store = run_index.runs_root(repo_root)
     template_key = _rb._runtime_template_key(mission_type, repo_root)
     template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
     context = _rb._build_discovery_context(repo_root)
-
-    run_ref = start_mission_run(
+    return start_mission_run(
         template_key=template_key,
         inputs={"mission_slug": mission_slug},
         policy_snapshot=MissionPolicySnapshot(),
@@ -838,17 +838,74 @@ def get_or_start_run(
         template_path_override=template_path_override,
     )
 
-    # Persist to index under the canonical key (slug is display-only)
-    resolved_mission_type = _rb._mission_key_for_run_ref(run_ref, mission_type)
-    index[index_key] = {
-        "run_id": run_ref.run_id,
-        "run_dir": run_ref.run_dir,
-        "mission_type": resolved_mission_type,
-        "mission_key": resolved_mission_type,
-        "mission_id": resolved_mission_id,
-        "mission_slug": mission_slug,
-    }
-    save_feature_runs(_feature_runs_path(repo_root), index)
+
+def get_or_start_run(
+    mission_slug: str,
+    repo_root: Path,
+    mission_type: str,
+    *,
+    emitter: Any | None = None,
+    owned: OwnedCheckout | None = None,
+) -> MissionRunRef:
+    """Load existing run or start a new one, through the locked RunIndex port.
+
+    Run mapping stored in .kittify/runtime/feature-runs.json, keyed by the
+    canonical ``mission_id`` (``legacy-<slug>`` for a mission without one):
+    { "01HULID...": { "run_id": "abc", "run_dir": "<repo-relative token>", ... } }
+
+    The index's single writer. ``run_dir`` is persisted as a repo-relative token
+    resolved against the INVOKING ``repo_root`` at read time (#5390: a copied or
+    moved project uses its OWN runtime, never the original's). Every read-modify-
+    write is serialized under the index lock, re-reading and merging inside the
+    lock so concurrent starts of distinct missions never lose each other's
+    registration (#5389); a pre-WP05 slug-keyed index is rekeyed in place on the
+    first touch (Q9). A live entry whose ``state.json`` is gone raises
+    :class:`RunStateMissing`; a ``run_dir`` outside the invoking repo raises
+    :class:`RunDirOutsideRepoError` — neither is silently replaced by a fresh run.
+    """
+    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+
+    resolved_mission_id = _run_mission_id(mission_slug, repo_root, owned)
+    index_key = run_index_key(mission_slug, resolved_mission_id)
+
+    # Phase 1 — reuse an existing run under the lock (fresh, merge-safe view).
+    with run_index.index_lock(repo_root):
+        index, rekeyed = _load_run_index(repo_root)
+        if owned is not None:
+            rekeyed = _adopt_verified_unbound_run(index, mission_slug=mission_slug, mission_id=resolved_mission_id) or rekeyed
+        entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
+        if entry is not None:
+            run_ref = _run_ref_for_entry(entry, mission_slug=mission_slug, mission_id=resolved_mission_id, mission_type=mission_type, repo_root=repo_root)
+            if rekeyed:
+                run_index.save_index(repo_root, index)
+            return run_ref
+
+    # Phase 2 — start a new run OUTSIDE the lock (unique run_id; slow template /
+    # bootstrap I/O must not hold the lock — adversarial review C3 / NFR-002).
+    run_ref = _start_new_run(mission_slug, mission_type, repo_root, emitter)
+
+    # Phase 3 — commit under the lock, re-reading fresh and re-checking the mission
+    # still absent. A same-mission racer that won reuses its entry; our just-started
+    # run is the orphan and is removed (adversarial review C3).
+    with run_index.index_lock(repo_root):
+        index, _rekeyed = _load_run_index(repo_root)
+        if owned is not None:
+            _adopt_verified_unbound_run(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
+        existing = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
+        if existing is not None:
+            winner = _run_ref_for_entry(existing, mission_slug=mission_slug, mission_id=resolved_mission_id, mission_type=mission_type, repo_root=repo_root)
+            shutil.rmtree(run_ref.run_dir, ignore_errors=True)
+            return winner
+        resolved_mission_type = _rb._mission_key_for_run_ref(run_ref, mission_type)
+        index[index_key] = {
+            "run_id": run_ref.run_id,
+            "run_dir": run_ref.run_dir,
+            "mission_type": resolved_mission_type,
+            "mission_key": resolved_mission_type,
+            "mission_id": resolved_mission_id,
+            "mission_slug": mission_slug,
+        }
+        run_index.save_index(repo_root, index)
 
     return run_ref
 
@@ -877,7 +934,9 @@ def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | N
     run_dir_raw = entry.get("run_dir")
     if not run_dir_raw:
         return None
-    return Path(run_dir_raw)
+    # Resolve the stored token against the INVOKING repo root (containment-checked);
+    # a run_dir outside the repo raises RunDirOutsideRepoError rather than being followed.
+    return run_index.resolve_run_dir(run_dir_raw, repo_root)
 
 
 def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> frozenset[str]:
