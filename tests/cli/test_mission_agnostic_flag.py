@@ -39,15 +39,18 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _resolve(argv: list[str]) -> click.Command:
-    """Walk the Click group tree along ``argv``'s command names to the leaf command."""
+    """Walk the Click group tree along ``argv``'s command names to the leaf command.
+
+    Fails loudly when a name does not resolve, so a renamed command surfaces as an
+    unresolved path instead of a misleading ``NoSuchOption`` on the deepest group.
+    """
     from specify_cli import app
 
     node: click.Command = get_command(app)
     rest = list(argv)
     while rest:
         sub = getattr(node, "commands", None)
-        if not sub or rest[0] not in sub:
-            break
+        assert sub and rest[0] in sub, f"unresolved command path {rest!r} while resolving {argv!r}: the command was renamed or removed"
         node = sub[rest.pop(0)]
     return node
 

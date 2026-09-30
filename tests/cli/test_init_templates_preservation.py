@@ -272,18 +272,16 @@ def test_local_full_copy_source_absent_preserves_pre_existing_operator_templates
     assert result.exit_code == 0, f"init failed: {result.output}\n{diagnostics}"
 
     preserved = project / _OPERATOR_REL
-    backup_dirs = [p for p in (project / ".kittify").glob(".backup-*") if p.is_dir()]
-    survived_in_place = preserved.is_file() and preserved.read_text(encoding="utf-8") == _OPERATOR_BYTES
-    survived_in_backup = any(_find_backed_up(b, "templates", "spec-template.md") is not None for b in backup_dirs)
-    assert survived_in_place or survived_in_backup, (
-        "init destroyed the pre-existing operator .kittify/templates/ tree when the LOCAL templates "
-        "SOURCE was absent -- templates_dir_created_this_run was set unconditionally instead of "
-        "reflecting whether copy_specify_base_from_local actually created it (#4931 re-arm)"
-    )
     # The copy step never touched templates/, so nothing was backed up --
     # the tree must survive IN PLACE via the removal guard's "not
     # package-owned" diagnostic, not via manager.py's backup-then-proceed.
-    assert survived_in_place, "expected the untouched operator templates/ to survive IN PLACE (removal guard), not merely in a backup"
+    survived_in_place = preserved.is_file() and preserved.read_text(encoding="utf-8") == _OPERATOR_BYTES
+    assert survived_in_place, (
+        "init destroyed the pre-existing operator .kittify/templates/ tree when the LOCAL templates "
+        "SOURCE was absent -- templates_dir_created_this_run was set unconditionally instead of "
+        "reflecting whether copy_specify_base_from_local actually created it (#4931 re-arm); "
+        "it must survive IN PLACE (removal guard), not merely in a backup"
+    )
     assert "not package-owned" in diagnostics, f"expected a 'not package-owned' preserved diagnostic (#4931); got:\n{diagnostics}"
 
 
