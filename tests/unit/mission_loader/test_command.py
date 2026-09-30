@@ -236,6 +236,89 @@ def test_happy_path_with_no_meta_json_returns_null_mission_id(
     assert meta["mission_key"] == "erp-integration"
 
 
+def test_existing_mission_with_same_type_reattaches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Re-running the same key against its own mission stays a success."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _write_mission(repo_root, ".kittify/missions", "erp-integration", _VALID_BODY)
+    feature_dir = repo_root / "kitty-specs" / "erp-q3-rollout-01KQABC"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_type": "erp-integration", "mission_key": "erp-integration"}),
+        encoding="utf-8",
+    )
+    fake_run_dir = tmp_path / "runs" / "same"
+    fake_run_dir.mkdir(parents=True)
+
+    from runtime.next import runtime_bridge
+
+    monkeypatch.setattr(
+        runtime_bridge,
+        "get_or_start_run",
+        lambda **_: _FakeRunRef(run_id="same", run_dir=str(fake_run_dir)),
+    )
+
+    result = run_custom_mission(
+        "erp-integration",
+        "erp-q3-rollout-01KQABC",
+        repo_root,
+        discovery_context=_isolated_context(repo_root),
+    )
+    assert result.exit_code == 0
+    assert result.envelope["result"] == "success"
+
+
+def test_existing_mission_with_other_type_is_refused_without_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#4965: a handle resolving onto a mission of another type must not retype it.
+
+    Before the fix the command overwrote ``meta.json`` ``mission_type`` with the
+    custom key and reported success, so ``next`` then drove the wrong workflow.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _write_mission(repo_root, ".kittify/missions", "erp-integration", _VALID_BODY)
+    feature_dir = repo_root / "kitty-specs" / "001-payments-01KQABCD"
+    feature_dir.mkdir(parents=True)
+    meta_path = feature_dir / "meta.json"
+    original_meta = json.dumps(
+        {"mission_id": "01KQABCDEFGHJKMNPQRSTVWXYZ", "mission_type": "software-dev"}
+    )
+    meta_path.write_text(original_meta, encoding="utf-8")
+
+    from runtime.next import runtime_bridge
+
+    def _must_not_start(**_: object) -> _FakeRunRef:
+        raise AssertionError("no run may start for a mission of another type")
+
+    monkeypatch.setattr(runtime_bridge, "get_or_start_run", _must_not_start)
+
+    result = run_custom_mission(
+        "erp-integration",
+        "001-payments-01KQABCD",
+        repo_root,
+        discovery_context=_isolated_context(repo_root),
+    )
+
+    assert result.exit_code == 2
+    env = result.envelope
+    assert env["result"] == "error"
+    assert env["error_code"] == "MISSION_TYPE_CONFLICT"
+    assert "software-dev" in env["message"]
+    assert "erp-integration" in env["message"]
+    assert env["details"] == {
+        "mission_key": "erp-integration",
+        "mission_slug": "001-payments-01KQABCD",
+        "existing_mission_type": "software-dev",
+        "feature_dir": str(feature_dir),
+    }
+    assert meta_path.read_text(encoding="utf-8") == original_meta
+    assert not get_runtime_contract_registry()._contracts  # type: ignore[attr-defined]
+
+
 # ---------------------------------------------------------------------------
 # Validation errors (exit code 2)
 # ---------------------------------------------------------------------------

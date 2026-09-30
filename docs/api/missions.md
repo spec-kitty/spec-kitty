@@ -490,6 +490,12 @@ Errors (exit code 2):
 | `MISSION_STEP_AMBIGUOUS_BINDING` | Validator: a step declares both `agent_profile` AND `contract_ref`. | `file`, `mission_key`, `step_id` |
 | `MISSION_CONTRACT_REF_UNRESOLVED` | A step's `contract_ref` does not resolve in the on-disk `MissionStepContractRepository`. | `file`, `mission_key`, `step_id`, `contract_ref` |
 
+`spec-kitty mission run` adds one CLI-layer refusal outside the loader's enumeration (exit code 2):
+
+| Code | When | Required `details` keys |
+| --- | --- | --- |
+| `MISSION_TYPE_CONFLICT` | `--mission` resolved to an existing mission whose recorded `mission_type` differs from `<key>`. Nothing is written and no run starts; pass a new `--mission` slug to create a separate mission of that type. | `mission_key`, `mission_slug`, `existing_mission_type`, `feature_dir` |
+
 Warnings (exit code unaffected; included in envelope):
 
 | Code | When | Required `details` keys |

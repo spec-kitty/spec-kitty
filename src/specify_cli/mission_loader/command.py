@@ -30,6 +30,7 @@ process is in the picture.
 
 from __future__ import annotations
 
+from charter.activation.mission_type_key import read_mission_type
 from mission_runtime import MissionArtifactKind, placement_seam
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -53,6 +54,11 @@ from runtime.next._internal_runtime.schema import MissionTemplate
 # ``runtime_bridge.get_or_start_run`` raises. Not part of the validator's
 # closed enum (see contracts/validation-errors.md).
 _RUN_START_FAILED_CODE = "RUN_START_FAILED"
+
+# Operator-fixable refusal (#4965): the ``--mission`` handle resolved onto an
+# existing mission whose recorded ``mission_type`` differs from the requested
+# custom key. Emitted before any registry, runtime or ``meta.json`` write.
+_MISSION_TYPE_CONFLICT_CODE = "MISSION_TYPE_CONFLICT"
 
 
 @dataclass(frozen=True)
@@ -125,6 +131,25 @@ def run_custom_mission(
             },
         )
 
+    # read-side-placement-seam-migration WP07: names PRIMARY_METADATA through
+    # the seam authority instead of the kind-blind
+    # ``candidate_feature_dir_for_mission`` — this feeds
+    # ``_ensure_feature_metadata``, a ``meta.json``-adjacent read.
+    # PRIMARY_METADATA is PRIMARY-partition, so resolution is behavior-
+    # identical to the prior resolver; no fail-loud arm is reachable here.
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+    conflict = _mission_type_conflict(feature_dir, mission_key, mission_slug)
+    if conflict is not None:
+        return RunCustomMissionResult(
+            exit_code=2,
+            envelope={
+                **conflict,
+                "warnings": [_warning_dict(w) for w in report.warnings],
+            },
+        )
+
     # Register synthesized contracts in the process-singleton shadow. We
     # intentionally do not enter the ``registered_runtime_contracts``
     # context manager because v1 holds the shadow for the rest of the
@@ -154,15 +179,6 @@ def run_custom_mission(
             },
         )
 
-    # read-side-placement-seam-migration WP07: names PRIMARY_METADATA through
-    # the seam authority instead of the kind-blind
-    # ``candidate_feature_dir_for_mission`` — this feeds
-    # ``_ensure_feature_metadata``, a ``meta.json``-adjacent read.
-    # PRIMARY_METADATA is PRIMARY-partition, so resolution is behavior-
-    # identical to the prior resolver; no fail-loud arm is reachable here.
-    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
     _ensure_feature_metadata(feature_dir, mission_key)
 
     return RunCustomMissionResult(
@@ -298,6 +314,37 @@ def _warning_dict(warning: LoaderWarning) -> dict[str, Any]:
         "code": str(warning.code),
         "message": warning.message,
         "details": dict(warning.details),
+    }
+
+
+def _mission_type_conflict(
+    feature_dir: Path, mission_key: str, mission_slug: str
+) -> dict[str, Any] | None:
+    """Return a refusal envelope when ``feature_dir`` holds a mission of another type.
+
+    #4965: ``--mission`` handles (mid8, numeric prefix, reused slug) fold onto
+    an existing mission directory. ``mission run`` may start a fresh mission or
+    re-attach to one already recorded with ``mission_key``, and may type a
+    typeless mission; it must never rewrite a recorded ``mission_type`` to a
+    different key, which would silently switch the workflow ``next`` drives.
+    """
+    existing = read_mission_type(load_meta_or_empty(feature_dir))
+    if existing is None or existing == mission_key:
+        return None
+    return {
+        "result": "error",
+        "error_code": _MISSION_TYPE_CONFLICT_CODE,
+        "message": (
+            f"Mission {mission_slug!r} already has mission type {existing!r}; "
+            f"refusing to start a {mission_key!r} run on it. Pass a new "
+            f"--mission slug to create a separate {mission_key!r} mission."
+        ),
+        "details": {
+            "mission_key": mission_key,
+            "mission_slug": mission_slug,
+            "existing_mission_type": existing,
+            "feature_dir": str(feature_dir),
+        },
     }
 
 
