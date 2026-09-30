@@ -2,7 +2,7 @@
 title: 'Context: Execution'
 description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-28'
 related:
 - docs/context/governance.md
 - docs/context/identity.md
@@ -262,7 +262,21 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Applicable to** | `3.x` |
 | **Symbols unchanged this slice** | This entry canonicalizes the prose term only. The underlying code symbols (`primary_feature_dir_*` and the rest of the Sense-C checkout cluster) are **not** renamed in this mission; the code rename is Track 2 (#2730). |
 | **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](./orchestration.md#primary-partition). The concept is the repository's default integration branch — use [primary branch](./orchestration.md#primary-branch). The concept is the ref planning artifacts commit to — use [Target Ref / Commit Target](./orchestration.md#target-ref--commit-target). Avoid the retired aliases "primary surface" and "primary checkout". |
-| **Related terms** | [Build](./orchestration.md#build), [MissionExecutionContext](#missionexecutioncontext), [Lane](./orchestration.md#lane), [primary branch](./orchestration.md#primary-branch) |
+| **Related terms** | [Build](./orchestration.md#build), [MissionExecutionContext](#missionexecutioncontext), [Lane](./orchestration.md#lane), [primary branch](./orchestration.md#primary-branch), [owned checkout](#owned-checkout) |
+
+---
+
+### owned checkout
+
+| | |
+|---|---|
+| **Definition** | A linked git checkout of the repository that the canonical owned-mission validator has accepted, for one command invocation, as owning a given Mission. The operator names it with `--owned-checkout <path>`, or a flagless command adopts it after validation. Every lifecycle read and write of that Mission resolves inside it. The validator records the proof as the *validated ownership fact* (`mission_runtime.OwnedCheckout`: owned checkout, repository root checkout, stored topology, target branch). |
+| **Context** | Execution |
+| **Status** | candidate |
+| **Applicable to** | `3.x` |
+| **Use when** | Describing where an owned Mission's artifacts, status log and commits live; describing `--owned-checkout` behaviour or its refusals (`OWNED_*` codes). |
+| **Do NOT use when** | The concept is the repository-root working copy — use [repository root checkout](#repository-root-checkout); the repository root checkout is never an owned checkout, and passing it is refused with `OWNED_CHECKOUT_IS_REPOSITORY_ROOT`. It is a per-work-package execution checkout — use lane worktree, [Lane](./orchestration.md#lane). It is the coordination worktree of a coordination topology. It is any linked worktree the validator has not accepted — say "linked checkout". It is the ref being committed to — use [Target Ref / Commit Target](./orchestration.md#target-ref--commit-target). Never write "primary" for either checkout. |
+| **Related terms** | [repository root checkout](#repository-root-checkout), [MissionExecutionContext](#missionexecutioncontext), [Lane](./orchestration.md#lane), [target branch](./orchestration.md#target-branch) |
 
 ---
 

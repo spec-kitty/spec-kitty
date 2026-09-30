@@ -138,14 +138,37 @@ already refused. One shared `owned_mission` preflight keeps a single authority.
 Rejected. Silent degradation is the original cross-write defect. Every invalid
 condition is a structured refusal instead.
 
+## Amendments
+
+### 2026-09-28 — Validated ownership fact and per-command topology
+
+Mission `owned-checkout-lifecycle-authority-01M3M2ZB` (issues #3449, #4252, #4867, #5026, #5277).
+
+- **The preflight now produces a validated ownership fact.** `resolve_owned_mission` returns `mission_runtime.OwnedCheckout`, a frozen value object carrying `repository_root`, `owned_root`, `mission_dir`, `mission_slug`, `topology` and `target_branch`. It can be minted only inside `specify_cli.core.owned_mission`, through a private `_mint`; direct construction raises `TypeError`. `OwnedMission` and `effective_root_kwargs` are deleted with no alias left at mission end. The type lives in `mission_runtime`, not `core/owned_mission.py`, because the `runtime` and `mission_runtime` layers must consume it without a new outbound edge into the CLI application layer (C-003; enforced by `tests/architectural/test_layer_rules.py`).
+- **Validated once per command.** A command validates ownership at most once, at its entry point, through `cli/commands/_owned_checkout.py` (`resolve_owned_or_adopt`), and hands the resulting fact to every downstream read. Readers never re-validate. Sites that previously re-derived ownership — for example `coordination/status_transition.py` and `cli/commands/accept.py` — now consume the fact instead (FR-003, NFR-002).
+- **Supersedes the `effective_root` threading consequence** ("The explicit `effective_root` override is threaded through many call sites …", Consequences, Negative and accepted trade-offs). All bare owned-root parameters (census in this mission's plan, Scale/Scope) become `owned: OwnedCheckout | None`. An architectural gate with an **empty allowlist** forbids the identifier `effective_root` in `src/` outside the org-pack module rule (the unrelated `OrgPackConfig.effective_root` under `src/charter/**`, `src/specify_cli/doctrine/**`, `_doctrine_collect.py` and `analysis_inputs.py`), and separately forbids any bare owned-root path parameter under any name (`owned_root`, `owned_checkout`, `checkout_root` or `effective_root` typed as a path). This is a deliberate no-ratchet conversion, not a leeway ledger (operator decision `01M3M65D…`).
+- **Per-command topology** (supersedes "Single-branch only, by construction" for `next`; the lifecycle commands of this ADR keep that restriction). The validated fact records the mission's stored topology, and each command declares its own allowed set. `next` accepts `NEXT_OWNED_TOPOLOGIES = {single_branch, lanes, lanes_with_coord, coord}` (decision `01M3M4GM…`), preserving the coordination-topology support it already had rather than newly narrowing it. The lifecycle commands of this ADR (`agent tasks status`, `setup-plan`, `context resolve`, `finalize-tasks`, `move-task`, `mark-status`, `spec-commit`, `accept`) keep `LIFECYCLE_OWNED_TOPOLOGIES = {single_branch}` and still refuse other topologies with `OWNED_TOPOLOGY_UNSUPPORTED`. The placement-layer duplicate refusal `_require_owned_single_branch` is deleted, because topology is now decided once, at minting, not re-derived at each consumer.
+- **Owned status reads under `.worktrees/`.** The canonical coordination surface resolver decides whether a path is refused as a coordination worktree, from the validated fact plus the registered-worktree facts — never from path shape. There is no parallel status-source label; status-source classification stays with that one resolver (FR-013, FR-014, C-002).
+- **Stale repository-root copies.** When the repository root checkout holds a copy of the owned mission, owned reads resolve from the owned checkout, never from the repository root checkout's copy, and report `stale_repository_root_copy` in JSON output and on stderr (FR-007, decision `01M3M2ZX…`).
+- **Newly covered commands; typed refusal for `agent action`.** `agent tasks status`, `agent mission setup-plan` and `agent context resolve` gain `--owned-checkout`. `agent action implement` and `agent action review` accept the flag only to refuse it with `OWNED_ACTION_UNSUPPORTED`, and the refusal names `next --owned-checkout` and `agent tasks move-task --owned-checkout` as the supported path (decision `01M3M4GZ…`; follow-up #5100).
+- **One claim-commit review base.** Every WP review prompt, owned or not, finds its base through one claim-commit helper: the last `claimed` event id recorded in the status log, then the unique commit that introduced it. It fails closed with `OWNED_REVIEW_BASE_UNAVAILABLE` when neither can be resolved. The three duplicate commit-subject matchers this ADR's design otherwise left in place are deleted (FR-010, FR-025, decision `01M3M70Y…`).
+- **New error codes.** `OWNED_CHECKOUT_IS_REPOSITORY_ROOT`, `OWNED_CHECKOUT_IS_MISSION_WORKTREE`, `OWNED_ACTION_UNSUPPORTED`, `OWNED_REVIEW_BASE_UNAVAILABLE`, `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE`.
+
 ## References
 
 - Foundational decision (extended, not superseded): [ADR 2026-08-12-1]
 - Caller/workspace mismatch follow-up: [#3128]
 - Scoped shadow-workspace design: [#3129]
 - Windows fixture repair (related, still open): [#3822]
+- Owned-checkout lifecycle authority mission: [`kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/spec.md`](../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/spec.md), [`plan.md`](../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/plan.md)
+- [#3449], [#4252], [#4867], [#5026], [#5277]
 
 [ADR 2026-08-12-1]: ./2026-08-12-1-checkout-ownership-for-mission-create-and-next.md
 [#3128]: https://github.com/Priivacy-ai/spec-kitty/issues/3128
 [#3129]: https://github.com/Priivacy-ai/spec-kitty/issues/3129
 [#3822]: https://github.com/Priivacy-ai/spec-kitty/issues/3822
+[#3449]: https://github.com/spec-kitty/spec-kitty/issues/3449
+[#4252]: https://github.com/spec-kitty/spec-kitty/issues/4252
+[#4867]: https://github.com/spec-kitty/spec-kitty/issues/4867
+[#5026]: https://github.com/spec-kitty/spec-kitty/issues/5026
+[#5277]: https://github.com/spec-kitty/spec-kitty/issues/5277

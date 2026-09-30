@@ -161,6 +161,20 @@ Deferred to #3129. A capability-scoped handle is the stronger structural end
 state, but it is a broader execution-model decision. Explicit validated
 ownership is the independently useful, fail-closed prerequisite.
 
+## Amendments
+
+### 2026-09-28 — Validator-routed `next` and validated flagless adoption
+
+Mission `owned-checkout-lifecycle-authority-01M3M2ZB`; extended by [ADR 2026-09-03-1] (Amendments).
+
+- **The claim primitive has one caller.** `resolve_ownership_claim` remains the primitive this ADR introduced. Its only caller is now the canonical validator in `specify_cli.core.owned_mission` (gate G1). `next` and `mission create` previously called the primitive directly (`next_cmd.py`, `core/mission_creation.py`); `next` now goes through `resolve_owned_mission(..., allowed_topologies=NEXT_OWNED_TOPOLOGIES)` and create through `resolve_owned_create_root`. Consequence: `next --owned-checkout` now also enforces the branch-equals-target and protected-destination checks that every other owned command applies (FR-002; spec observation O9).
+- **The repository root checkout is refused as an owned checkout.** The primitive still classifies the repository root checkout as `OWNED` (its self-ownership semantics are unchanged, and pinned by tests). The minter refuses it with `OWNED_CHECKOUT_IS_REPOSITORY_ROOT` (FR-020, research R-14).
+- **Validated flagless adoption** (qualifies "It is not inferred from CWD, environment variables, path naming, or the nearest `.kittify` directory", A narrow CLI affordance). The explicit flag is still never inferred. Separately, a flagless owned-capable command run from **inside a linked checkout** adopts that checkout **only** if the canonical validator accepts it (decision `01M3M4GT…`, FR-021). Five cases keep today's repository-root behaviour instead of adopting: the repository root checkout itself, a lane worktree (identified by `lanes.json` membership), a coordination worktree (`classify_worktree_topology`), a checkout of another repository, and any checkout the validator rejects for any other reason. The same-selector-different-mission-id conflict this ADR did not anticipate is refused as a mission-context conflict, the same refusal a repository-root run already uses. The retirement: `missions/operation_context.py`, which adopted the CWD as owned without going through the canonical validator, is deleted (research R-09).
+- **Create-time governance reads follow the owned checkout; charter authoring stays at the repository root.** Charter activation, mission-type context and the spec template are read from the owned checkout for an owned `agent mission create` (FR-016, C-004). Charter **authoring** stays repository-root-only (#4785, FR-017), unchanged by this mission. Invoking charter commands from an owned checkout is out of scope here and belongs to #4250.
+- **Coordination-workspace probe failure is typed.** Owned `next` against a coordination topology is still supported. A failing coordination-workspace probe (the #4867 zero-byte `commondir` case) now yields a `blocked` decision with `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` instead of an uncaught git fatal. The bounded transient-lock retry described in "Isolation and contention boundaries" is unchanged (FR-012).
+- **Supersedes the "explicit-root propagation" trade-off** (Consequences, Negative and accepted trade-offs: "Explicit-root propagation adds parameters across the `next` decision and runtime-bridge layers"). That per-call-site threading is replaced by one immutable `OwnedCheckout` fact carried on `DecideNextContext` and the prompt builder.
+- **Verification.** The per-PR proof for coordination-topology owned `next` is an in-process CLI twin — `tests/integration/test_owned_lifecycle_acceptance_next.py` (FR-022) — run on every PR. The nightly-only real-worktree e2e proof, `tests/e2e/test_worktree_owned_root_concurrency.py`, is unchanged and still runs only in the nightly job; this mission adds no per-PR real-worktree coverage beyond the in-process twin.
+
 ## References
 
 - Core issue: [#3328]
@@ -170,9 +184,11 @@ ownership is the independently useful, fail-closed prerequisite.
 - CI selection follow-up: [#3343]
 - Related decision: [Execution Lanes Own Worktrees and Mission Branches]
 - Related decision: [`ExecutionContext` Owner and `CommitTarget` Atomicity]
+- Owned-checkout lifecycle authority mission: [`kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/spec.md`](../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/spec.md), [`plan.md`](../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/plan.md)
 
 [data model]: ../../../kitty-specs/worktree-owned-root-3328-01KZRG01/data-model.md
 [checkout-ownership CLI contract]: ../../../kitty-specs/worktree-owned-root-3328-01KZRG01/contracts/checkout-ownership-cli-contract.md
+[ADR 2026-09-03-1]: ./2026-09-03-1-explicit-owned-checkout-single-branch-lifecycle.md
 [#1907]: https://github.com/Priivacy-ai/spec-kitty/issues/1907
 [#3128]: https://github.com/Priivacy-ai/spec-kitty/issues/3128
 [#3129]: https://github.com/Priivacy-ai/spec-kitty/issues/3129
