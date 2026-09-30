@@ -135,7 +135,7 @@ def test_shared_package_drift_preserves_candidate_trust_and_skip_policy() -> Non
     triggers = workflow[True]
     assert set(triggers) == {"pull_request", "push", "schedule", "workflow_dispatch"}
     for event in ("pull_request", "push"):
-        assert triggers[event]["branches"] == ["main", "develop", "2.x"]
+        assert triggers[event]["branches"] == ["main"]
         assert set(triggers[event]["paths"]) == {
             "pyproject.toml",
             "uv.lock",
