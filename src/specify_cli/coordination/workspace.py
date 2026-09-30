@@ -36,6 +36,8 @@ import subprocess
 import threading
 from pathlib import Path
 
+from mission_runtime import OwnedRefusalCode
+
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.core.errors import StructuredError
 from specify_cli.git.destructive_guard import guarded_worktree_remove
@@ -132,6 +134,37 @@ class CoordinationWorkspaceIdentityUnresolved(StructuredError):
         )
 
 
+class CoordinationWorkspaceUnavailable(subprocess.CalledProcessError):
+    """#4867 (owned-checkout-lifecycle-authority WP11 T062): the shared git
+    worktree-registry probe (``git worktree list --porcelain`` / ``git
+    worktree add``) failed with a non-zero exit.
+
+    Subclasses :class:`subprocess.CalledProcessError` (never a plain
+    ``Exception``) so :func:`_is_transient_git_worktree_contention` keeps
+    recognising transient lock contention via ``returncode``/``stderr`` —
+    the retry-then-raise behaviour in
+    :func:`runtime_bridge._resolve_owned_coordination_workspace` is
+    unaffected. Only a DURABLE failure ever reaches a caller as this type.
+
+    Carries the stable ``error_code``
+    :data:`mission_runtime.OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE`
+    so an owned caller (``runtime_bridge._dn_bootstrap``) maps it to a typed
+    ``blocked`` decision instead of letting it surface as an opaque
+    ``fatal: ... commondir: Success`` traceback (FR-012 / O8).
+    """
+
+    error_code: str = OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value
+
+    def __init__(
+        self,
+        returncode: int,
+        cmd: list[str],
+        output: str | None = None,
+        stderr: str | None = None,
+    ) -> None:
+        super().__init__(returncode, cmd, output=output, stderr=stderr)
+
+
 def _require_mid8(mission_slug: str, mid8: str) -> None:
     """Fail loudly before composing with an empty ``mid8`` (#2091, M-1)."""
     if not mid8:
@@ -159,11 +192,25 @@ def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
 
 
 def _has_stale_worktree_registration(repo_root: Path, path: Path) -> bool:
-    """Return whether git records ``path`` as prunable/missing."""
-    output = subprocess.check_output(
-        ["git", "-C", str(repo_root), _GIT_WORKTREE, "list", "--porcelain"],
-        text=True,
-    )
+    """Return whether git records ``path`` as prunable/missing.
+
+    #4867 (T062): the probe runs with ``capture_output=True, check=False`` so
+    a non-zero exit (e.g. a zero-byte or corrupted ``commondir`` pointer in a
+    sibling registered worktree) raises the typed
+    :class:`CoordinationWorkspaceUnavailable` instead of letting stderr print
+    to the terminal and a bare :class:`subprocess.CalledProcessError` escape
+    as an opaque ``fatal: ... commondir: Success``.
+    """
+    argv = ["git", "-C", str(repo_root), _GIT_WORKTREE, "list", "--porcelain"]
+    result = subprocess.run(argv, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise CoordinationWorkspaceUnavailable(
+            result.returncode,
+            argv,
+            output=result.stdout,
+            stderr=result.stderr,
+        )
+    output = result.stdout
     expected = path.resolve(strict=False)
     current_path: Path | None = None
     current_prunable = False
@@ -290,12 +337,15 @@ class CoordinationWorkspace:
             path.parent.mkdir(parents=True, exist_ok=True)
             if _has_stale_worktree_registration(repo_root, path):
                 _remove_worktree_registration(repo_root, path)
-            subprocess.run(
-                ["git", "-C", str(repo_root), _GIT_WORKTREE, "add", str(path), branch],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
+            add_argv = ["git", "-C", str(repo_root), _GIT_WORKTREE, "add", str(path), branch]
+            add_result = subprocess.run(add_argv, capture_output=True, text=True, check=False)
+            if add_result.returncode != 0:
+                raise CoordinationWorkspaceUnavailable(
+                    add_result.returncode,
+                    add_argv,
+                    output=add_result.stdout,
+                    stderr=add_result.stderr,
+                )
             return path
 
     @classmethod

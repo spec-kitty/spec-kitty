@@ -20,7 +20,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from mission_runtime import CommitTarget
+from mission_runtime import CommitTarget, OwnedCheckout
 from specify_cli.coordination.types import (
     Allowed,
     DESTINATION_REF_NOT_FOUND,
@@ -144,6 +144,7 @@ class WorkflowMutationPolicy:
         change_set: GitChangeSet,
         *,
         coord_available: bool | None = None,
+        owned: OwnedCheckout | None = None,
     ) -> PolicyVerdict:
         """Inspect ``change_set.destination_ref``.
 
@@ -169,6 +170,10 @@ class WorkflowMutationPolicy:
         topology predicate. It only selects the protected-branch remedy: ``False``
         yields the no-coordination escape hatch, while ``True`` and ``None``
         preserve the existing coordination-transaction remedy.
+
+        ``owned`` is the validated owned-checkout fact of an owned write. The
+        mission-scoped ``commit_to_target`` fold then reads the fact's own
+        ``meta.json`` instead of re-deriving the repository root's copy.
         """
         ref = change_set.destination_ref
         repo_root = change_set.repo_root
@@ -264,7 +269,12 @@ class WorkflowMutationPolicy:
         # cannot disagree; ``evaluate`` itself stays environment-free.
         # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
         # all config+hatch reads happen once here; is_protected() is I/O-free.
-        is_protected = ProtectionPolicy.resolve_for_mission(repo_root, change_set.mission_slug).is_protected(ref)
+        scoped = (
+            ProtectionPolicy.resolve_for_owned(owned, change_set.mission_slug)
+            if owned is not None
+            else ProtectionPolicy.resolve(repo_root).for_mission(repo_root, change_set.mission_slug)
+        )
+        is_protected = scoped.is_protected(ref)
         # The guard decision reads only ``target.ref`` (commit_guard.evaluate is
         # ref-only, C-GUARD-3a); the topology ``.kind`` was vestigial carrier here
         # and is dropped (WP04 drain) — the VO field defaults transitionally until

@@ -45,7 +45,7 @@ from specify_cli.coordination.types import (
     Refused,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from mission_runtime import CommitTarget
+from mission_runtime import CommitTarget, OwnedCheckout
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
@@ -192,7 +192,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # ``mypy --strict`` is satisfied because we do not annotate them
         # as ``Final`` and we never re-bind them after construction.
         self.repo_root = repo_root
-        self._primary_root: Path | None = None
+        self._owned: OwnedCheckout | None = None
         self.mission_id = mission_id
         self.mission_slug = mission_slug
         self.mid8 = mid8
@@ -246,7 +246,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         timeout: float = 30.0,
         capability: GuardCapability = GuardCapability.STANDARD,
         commit_to_primary_target: bool = False,
-        effective_root: Path | None = None,
+        owned: OwnedCheckout | None = None,
     ) -> BookkeepingTransaction:
         """Construct, lock, and run the pre-flight policy gate.
 
@@ -288,9 +288,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # lock context manager is held open across the lifetime of the
         # transaction object; on any setup failure below, release it before
         # propagating the domain error.
-        lock_cm = feature_status_lock(
-            effective_root or repo_root, _mission_specs_dir_name(mission_slug, mid8), timeout=timeout,
-        )
+        lock_root = owned.owned_root if owned is not None else repo_root
+        lock_cm = feature_status_lock(lock_root, _mission_specs_dir_name(mission_slug, mid8), timeout=timeout)
         try:
             lock_cm.__enter__()
         except FeatureStatusLockTimeoutError as exc:
@@ -298,7 +297,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
         try:
             return cls._acquire_locked(
-                repo_root=effective_root or repo_root,
+                repo_root=lock_root,
                 mission_id=mission_id,
                 mission_slug=mission_slug,
                 mid8=mid8,
@@ -308,7 +307,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 lock_cm=lock_cm,
                 capability=capability,
                 commit_to_primary_target=commit_to_primary_target,
-                primary_root=repo_root if effective_root is not None else None,
+                owned=owned,
             )
         except Exception:
             lock_cm.__exit__(None, None, None)
@@ -328,7 +327,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         lock_cm: AbstractContextManager[Path],
         capability: GuardCapability = GuardCapability.STANDARD,
         commit_to_primary_target: bool = False,
-        primary_root: Path | None = None,
+        owned: OwnedCheckout | None = None,
     ) -> BookkeepingTransaction:
         safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
         safe_mid8 = _validate_safe_segment("mid8", mid8)
@@ -427,6 +426,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             caller_verdict = WorkflowMutationPolicy.assert_allowed(
                 caller_change_set,
                 coord_available=True,
+                owned=owned,
             )
             if isinstance(caller_verdict, Refused):
                 explicit_coord_branch = _coordination_branch_from_meta(
@@ -496,7 +496,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # already held only to serialize first-time coord worktree setup.
         change_set = GitChangeSet(
             destination_ref=effective_destination_ref,
-            repo_root=primary_root or repo_root,
+            repo_root=owned.repository_root if owned is not None else repo_root,
             worktree_root=worktree_root,
             paths=(events_path, snapshot_path),
             message=f"<pending: {operation}>",
@@ -515,6 +515,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         verdict = WorkflowMutationPolicy.assert_allowed(
             change_set,
             coord_available=coord_available,
+            owned=owned,
         )
         if isinstance(verdict, Refused):
             raise BookkeepingPolicyRefused(verdict)
@@ -546,7 +547,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             lock_cm=lock_cm,
         )
         txn._capability = capability
-        txn._primary_root = primary_root
+        txn._owned = owned
         txn._legacy_mode = legacy_mode
         return txn
 
@@ -643,10 +644,18 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self.feature_dir.mkdir(parents=True, exist_ok=True)
 
         # Append + verify readback (matches existing emit pipeline).
-        if self._legacy_mode and ".worktrees" not in self.feature_dir.parts:
-            write_contract = EventLogWriteContract.primary_checkout_append(
-                self.feature_dir
-            )
+        # C-SEAM-1: the raw ".worktrees" in parts idiom is retired in favour of
+        # the blessed shape primitive (WP06 T030), imported lazily to avoid a
+        # module-level cycle back through mission_runtime (mirrors
+        # status_service._is_coordination_worktree_path's prior lazy import).
+        from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
+            is_under_worktrees_segment,
+        )
+
+        if self._owned is not None:
+            write_contract = EventLogWriteContract.primary_checkout_append(self.feature_dir, owned=self._owned)
+        elif self._legacy_mode and not is_under_worktrees_segment(self.feature_dir):
+            write_contract = EventLogWriteContract.primary_checkout_append(self.feature_dir)
         else:
             write_contract = EventLogWriteContract.coordination_transaction_append(
                 self.feature_dir
@@ -829,13 +838,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
         try:
             result = safe_commit(
-                repo_root=self._primary_root or self.repo_root,
+                repo_root=self._owned.repository_root if self._owned is not None else self.repo_root,
                 worktree_root=self.worktree_root,
                 target=CommitTarget(ref=self.destination_ref),
                 message=message,
                 paths=tuple(self._staged_paths),
                 capability=self._capability,
-                effective_root=self.worktree_root if self._primary_root is not None else None,
+                owned=self._owned,
             )
         except SafeCommitRecoveryFailed as exc:
             if exc.commit_sha is None:

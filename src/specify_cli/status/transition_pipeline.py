@@ -58,6 +58,7 @@ from .transitions import resolve_lane_alias, validate_transition
 from .wp_state import annotate
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from specify_cli.core.dependency_graph import DependencyReadiness
     from .lane_head import LaneHeadProbe
 
@@ -88,21 +89,18 @@ def _default_resolve_subtasks_dir(
     repo_root: Path | None,
     mission_slug: str,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Path:
     """Today's resolver: the canonical ``resolve_subtasks_gate_dir`` seam.
 
     Imported lazily exactly as the shells did before the promotion -- the
     ``missions`` package must not be pulled in at ``status`` import time.
+    Receives ``owned=`` from the pipeline (FR-003) when a request holds a
+    fact, and hands that fact straight to the converted seam.
     """
     from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 
-    resolved: Path = resolve_subtasks_gate_dir(
-        feature_dir,
-        repo_root,
-        mission_slug,
-        effective_root=effective_root,
-    )
+    resolved: Path = resolve_subtasks_gate_dir(feature_dir, repo_root, mission_slug, owned=owned)
     return resolved
 
 
@@ -162,7 +160,7 @@ def _infer_review_gates(
             feature_dir,
             request.repo_root,
             mission_slug,
-            effective_root=request.effective_root,
+            owned=request.owned,
         )
         infer_subtasks = infer_subtasks_complete or _emit._infer_subtasks_complete
         subtasks_complete = infer_subtasks(
@@ -194,7 +192,9 @@ def _stamped_policy_metadata(
     request is honored). Any missing repo root, or a probe result of
     ``None`` (no lane, no branch, any git/read error -- the probe itself
     never raises), leaves ``policy_metadata`` byte-identical to what the
-    request already carried.
+    request already carried. ``request.owned`` is forwarded so an owned
+    transition's probe reads the lane map from the fact, never from the
+    repository root.
     """
     # Annotated local (mirrors `emit._repo_root_for_lane_head`): under this
     # repo's project-wide `specify_cli.*` mypy `follow_imports = "skip"`
@@ -210,7 +210,7 @@ def _stamped_policy_metadata(
     effective_repo_root = request.repo_root if request.repo_root is not None else repo_root
     if effective_repo_root is None:
         return request_policy_metadata
-    sha = lane_head_probe(repo_root=effective_repo_root, mission_slug=mission_slug, wp_id=request.wp_id)
+    sha = lane_head_probe(repo_root=effective_repo_root, mission_slug=mission_slug, wp_id=request.wp_id, owned=request.owned)
     if not sha:
         return request_policy_metadata
     return {**(request_policy_metadata or {}), LANE_HEAD_KEY: sha}

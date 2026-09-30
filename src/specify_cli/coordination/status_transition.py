@@ -83,7 +83,7 @@ from specify_cli.workspace import canonicalize_feature_dir, delete_context
 
 if TYPE_CHECKING:
     from specify_cli.core.dependency_graph import DependencyReadiness
-    from specify_cli.core.owned_mission import OwnedMission
+    from mission_runtime import OwnedCheckout
 
 _logger = logging.getLogger(__name__)
 
@@ -98,7 +98,13 @@ class _TransactionIdentity:
     meta_exists: bool
     coordination_branch: str | None
     transaction_meta_exists: bool
-    primary_root: Path | None = None
+    # WP06 T030 (out-of-map hunk (a), declared under WP06's T030 subtask):
+    # threaded so the transaction target's read contract can carry the
+    # validated fact (hunk (c) below). WP07 (T033) deleted the sibling
+    # ``primary_root`` field -- this is the ONE owned carrier;
+    # ``identity.owned.repository_root`` replaces every former
+    # ``identity.primary_root`` read.
+    owned: OwnedCheckout | None = None
 
 
 def _repo_root_for_feature(feature_dir: Path, repo_root: Path | None) -> Path:
@@ -907,29 +913,28 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     # #1737 / F-007: anchor the transaction identity on the CWD-invariant
     # canonical primary feature dir resolved through the facade, instead of
     # trusting the (CWD-dependent, existence-gated) canonicalize redirect alone.
-    primary_root = None
-    if request.effective_root is not None:
+    primary_root: Path | None = None
+    # WP07/FR-003: the collapsed validated ownership fact. When present, this
+    # function performs ZERO re-validation -- neither resolve_owned_mission
+    # nor resolve_ownership_claim runs, and _repo_root_for_feature is never
+    # called for the owned checkout's root.
+    fact: OwnedCheckout | None = request.owned
+    if fact is not None:
         from mission_runtime import ActionContextError  # noqa: PLC0415
-        from specify_cli.core.owned_mission import resolve_owned_mission  # noqa: PLC0415
 
-        owned = request.owned_mission
-        if owned is not None:
-            # #3866: the caller threaded the validated value object — reuse it
-            # instead of re-deriving ownership (claim resolve + mission resolve
-            # + git branch probes) per event. A cheap identity guard fails
-            # closed on a threaded object that does not describe this request;
-            # it is never silently re-resolved, which would hide the caller bug
-            # and re-pay the derivation this field exists to skip.
-            if owned.root != request.effective_root or owned.slug != mission_slug:
-                raise ActionContextError(
-                    "OWNED_MISSION_PATH_REFUSED",
-                    "Threaded owned mission does not match the request's checkout or mission.",
-                )
-            primary_root = owned.primary
-        else:
-            primary_root = _repo_root_for_feature(raw_feature_dir, request.repo_root)
-            owned = resolve_owned_mission(primary_root, request.effective_root, mission_slug)
-        feature_dir, repo_root = owned.directory, owned.root
+        # #3866 / FR-003: the caller already validated ownership -- reuse the
+        # fact instead of re-deriving it (claim resolve + mission resolve +
+        # git branch probes) per event. A cheap identity guard fails closed on
+        # a fact that does not describe this request; it is never silently
+        # re-resolved, which would hide the caller bug and re-pay the
+        # derivation this field exists to skip.
+        if mission_slug != fact.mission_slug:
+            raise ActionContextError(
+                "OWNED_MISSION_PATH_REFUSED",
+                "Threaded owned checkout does not match the request's mission.",
+            )
+        primary_root = fact.repository_root
+        feature_dir, repo_root = fact.mission_dir, fact.owned_root
     else:
         canonical_feature_dir = canonicalize_feature_dir(raw_feature_dir)
         interim_repo_root = _repo_root_for_feature(canonical_feature_dir, request.repo_root)
@@ -977,7 +982,7 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         coordination_branch=coord_branch,
     )
     transaction_dir_name = _transaction_dir_name(mission_slug, effective_mid8)
-    if request.effective_root is not None:
+    if fact is not None:
         from mission_runtime import MissionArtifactKind, resolve_placement_only
 
         assert primary_root is not None
@@ -985,7 +990,7 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
             primary_root,
             mission_slug,
             kind=MissionArtifactKind.STATUS_STATE,
-            effective_root=request.effective_root,
+            owned=fact,
         ).ref
     else:
         destination_ref = _resolve_write_target(repo_root, mission_slug, coord_branch)
@@ -998,7 +1003,7 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         meta_exists=meta_exists,
         coordination_branch=coord_branch,
         transaction_meta_exists=(feature_dir.parent / transaction_dir_name / "meta.json").exists(),
-        primary_root=primary_root,
+        owned=fact,
     )
 
 
@@ -1008,13 +1013,13 @@ def _resolve_transaction_entry(request: TransitionRequest, mission_slug: str) ->
     ONE place decides whether a request may take the ``BookkeepingTransaction``
     path (FR-007 / decision Q5 parity, data-model §5 S-2): the batch door used
     to skip the owned-mission refusal the single door applied, so an
-    ``effective_root`` request could silently degrade to the non-transactional
+    owned request could silently degrade to the non-transactional
     fallback. An owned mission (#1737) requires the transaction; refusing it
     here makes the divergence structurally impossible.
     """
     identity = _identity_for_request(request)
     topology_available = _transaction_topology_available(identity, mission_slug)
-    if request.effective_root is not None and not topology_available:
+    if identity.owned is not None and not topology_available:
         from mission_runtime import ActionContextError  # noqa: PLC0415
 
         raise ActionContextError("OWNED_TRANSACTION_UNAVAILABLE", "Owned mission requires transactional status metadata.")
@@ -1031,23 +1036,23 @@ def _acquire_status_transaction(
     """The ONE ``BookkeepingTransaction.acquire`` shape for every door (contract §2 step 1).
 
     * ``repo_root`` anchors the lock/worktree on the PRIMARY root for an owned
-      mission (``identity.primary_root``) and on the mission's own root
-      otherwise; ``effective_root`` is the owned checkout in the former case
-      and omitted (``None``) in the latter.
+      mission (``identity.owned.repository_root``) and on the mission's own
+      root otherwise; ``owned`` is the validated fact in the former case and
+      omitted (``None``) in the latter.
     * WP04/FR-004: ``acquire`` requires ``str`` for its lock/path management.
       For a legacy mission (``identity.mission_id is None``) the explicit
       ``f"legacy-{slug}"`` string is the transaction-lock identifier ONLY --
       it is never written into any ``mission_id`` event field.
     """
     return BookkeepingTransaction.acquire(
-        repo_root=identity.primary_root or identity.repo_root,
+        repo_root=identity.owned.repository_root if identity.owned is not None else identity.repo_root,
         mission_id=identity.mission_id or f"legacy-{mission_slug}",
         mission_slug=mission_slug,
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation,
         capability=capability,
-        effective_root=identity.repo_root if identity.primary_root is not None else None,
+        owned=identity.owned,
     )
 
 
@@ -1310,6 +1315,24 @@ def _read_contract_from_transaction_target(
     mission_slug: str,
 ) -> EventLogReadContract:
     """Resolve the read-only contract for the transaction write target."""
+    # WP06 T030 (out-of-map hunk (c)): an owned identity never falls into the
+    # _is_under_worktree shape arm below -- this is the site that produced
+    # O6 (status/bootstrap.py:151 -> read_events_transactional -> a
+    # primary_checkout contract on a .worktrees path).
+    #
+    # Review-cycle-1 fix (out-of-map hunk (d)): the shortcut is further gated
+    # on the fact's topology NOT routing through coordination. P's own local
+    # partition never carries the coordination log for a LANES_WITH_COORD /
+    # COORD mission, so taking this shortcut there would silently misroute
+    # the read. An owned identity is single_branch by construction today
+    # (core.owned_mission.LIFECYCLE_OWNED_TOPOLOGIES) -- this gate is inert
+    # until a later WP threads a NEXT_OWNED_TOPOLOGIES fact through the
+    # transition pipeline and lifts that placement refusal (forward note,
+    # reviewer-renata, review cycle 1).
+    from mission_runtime import routes_through_coordination  # noqa: PLC0415
+
+    if identity.owned is not None and not routes_through_coordination(identity.owned.topology):
+        return EventLogReadContract.primary_checkout(identity.feature_dir, owned=identity.owned)
     if not _transaction_topology_available(identity, mission_slug):
         # #1900 / FR-001: the worktree-context read is the blessed seam shape
         # predicate (_is_under_worktree → is_under_worktrees_segment), not a raw
@@ -1361,7 +1384,7 @@ def read_events_transactional(
     feature_dir: Path,
     mission_slug: str,
     repo_root: Path | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[StatusEvent]:
     """Read status events from the same target transactional writes use."""
     identity = _identity_for_request(
@@ -1372,7 +1395,7 @@ def read_events_transactional(
             to_lane=Lane.PLANNED,
             actor="status-read",
             repo_root=repo_root,
-            effective_root=effective_root,
+            owned=owned,
         )
     )
     return _read_events_from_transaction_target(identity, mission_slug)
@@ -1562,7 +1585,7 @@ def emit_status_transition_transactional(
         # come from the WP file on the primary planning surface.
         snapshot = _emit._reduce_write_surface(txn.feature_dir)
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, request.wp_id, snapshot=snapshot))
-        readiness = _emit._resolve_dependency_readiness(identity.feature_dir, request.wp_id, snapshot)
+        readiness = _emit._resolve_dependency_readiness(identity.feature_dir, request.wp_id, snapshot, owned=identity.owned)
         from specify_cli.status.lane_head import probe_lane_head  # noqa: PLC0415
 
         prepared = prepare_transition(
@@ -1649,8 +1672,7 @@ def emit_inner_state_changed_transactional(
     repo_root: Path | None = None,
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
-    effective_root: Path | None = None,
-    owned_mission: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> InnerStateChanged:
     """Persist AND commit one off-axis ``InnerStateChanged`` annotation (FR-007).
 
@@ -1700,14 +1722,15 @@ def emit_inner_state_changed_transactional(
         wp_id=wp_id,
         actor=actor,
         repo_root=repo_root,
-        effective_root=effective_root,
-        # #3866: thread the caller's validated value object so the identity
-        # derivation below does not re-run ``resolve_owned_mission``.
-        owned_mission=owned_mission,
+        # #3866: thread the caller's validated fact so the identity
+        # derivation below does not re-run the ownership claim.
+        owned=owned,
     )
+    # All three owned checks below key on ``identity.owned``, which
+    # ``_identity_for_request`` sets from the threaded fact.
     identity = _identity_for_request(request)
 
-    if effective_root is not None and not identity.transaction_meta_exists:
+    if identity.owned is not None and not identity.transaction_meta_exists:
         from mission_runtime import ActionContextError
 
         raise ActionContextError("OWNED_TRANSACTION_UNAVAILABLE", "Owned annotation requires transactional status metadata.")
@@ -1723,7 +1746,7 @@ def emit_inner_state_changed_transactional(
             repo_root=repo_root,
         )
 
-    if effective_root is None and identity.coordination_branch is None and not _lanes_annotation_transaction_available(identity, mission_slug):
+    if identity.owned is None and identity.coordination_branch is None and not _lanes_annotation_transaction_available(identity, mission_slug):
         return _uncommitted_emit()
 
     annotation = _annotate(
@@ -1734,8 +1757,7 @@ def emit_inner_state_changed_transactional(
         event_id=_emit._generate_ulid(),
     )
     # The acquire shape is the shared one (``_acquire_status_transaction``):
-    # ``identity.primary_root`` is set exactly when ``effective_root`` was
-    # supplied, so the owned checkout threads through identically here.
+    # ``identity.owned`` threads the owned checkout through identically here.
     try:
         with _acquire_status_transaction(
             identity,
@@ -1751,7 +1773,7 @@ def emit_inner_state_changed_transactional(
             if hosted_posture.ledger_posture(txn.repo_root).enabled:
                 txn.defer_outbound(_deferred_execution_projection_refresh(txn.feature_dir, txn.repo_root))
     except BookkeepingWorktreeMissing:
-        if effective_root is not None:
+        if identity.owned is not None:
             raise
         # #3460: the coord worktree could not be materialized (e.g. a declared
         # ``coordination_branch`` that was deleted or never created). This
@@ -1770,7 +1792,7 @@ def emit_status_transition_batch_transactional(
 ) -> list[StatusEvent]:
     """The batch transactional door: steps 2-5 per request under ONE acquisition (FR-018).
 
-    Applies the owned-mission refusal and the ``effective_root`` acquisition
+    Applies the owned-mission refusal and the owned-checkout acquisition
     exactly as the single door (FR-007 / Q5 parity) through the shared
     :func:`_resolve_transaction_entry` / :func:`_acquire_status_transaction`
     preamble. Failure policy (C-007, all-or-nothing): a member targeting
@@ -1812,7 +1834,7 @@ def emit_status_transition_batch_transactional(
         # (FR-013) with the declared deps from the primary WP file.
         snapshot = _emit._reduce_write_surface(txn.feature_dir)
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, first.wp_id, snapshot=snapshot))
-        readiness = _emit._resolve_dependency_readiness(identity.feature_dir, first.wp_id, snapshot)
+        readiness = _emit._resolve_dependency_readiness(identity.feature_dir, first.wp_id, snapshot, owned=identity.owned)
         built = _prepare_batch_in_transaction(
             requests,
             first_feature_dir_raw=first_feature_dir_raw,

@@ -51,14 +51,17 @@ from __future__ import annotations
 
 import enum
 import logging
+import ntpath
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+import kernel.paths as kernel_paths
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
     MissionTopology,
+    OwnedCheckout,
     classify_topology,
     resolve_write_target_or_degrade,
     routes_through_coordination,
@@ -88,6 +91,7 @@ __all__ = [
     "is_registered_coord_worktree",
     "is_under_worktrees_segment",
     "materialize_coord_surface_for_write",
+    "primary_read_targets_coord_worktree",
     "read_worktree_registry",
     "resolve_declared_mid8",
     "resolve_for_write",
@@ -491,6 +495,61 @@ def is_under_worktrees_segment(path: Path) -> bool:
     authority.
     """
     return _WORKTREES_SEGMENT in path.parts
+
+
+def _resolves_within(path: Path, ancestor: Path) -> bool:
+    """True when *path* resolves to *ancestor* itself or nested beneath it.
+
+    A local re-implementation of ``mission_runtime.owned_checkout._is_within``
+    rather than an import of it: that name is a private submodule symbol, and
+    gates MR-1/MR-2 (``tests/architectural/test_mission_runtime_surface.py``)
+    forbid reaching past the ``mission_runtime`` package root for anything but
+    :class:`OwnedCheckout` / ``OwnedRefusalCode``. Both paths are resolved
+    with ``strict=False`` so a not-yet-created path (a first write creates
+    ``feature_dir``) still compares correctly, and a symlinked alias of the
+    owned root collapses to the same identity. Windows case-folding mirrors
+    WP01's rule exactly (``ntpath.normcase`` via the patchable
+    ``kernel_paths.is_windows()`` seam) -- never ``str.casefold()`` or the
+    bare ``os.path.normcase`` (see ``mission_runtime.owned_checkout._is_within``
+    docstring for why not).
+    """
+    resolved_path = path.resolve(strict=False)
+    resolved_ancestor = ancestor.resolve(strict=False)
+    if kernel_paths.is_windows():
+        norm_path = ntpath.normcase(str(resolved_path))
+        norm_ancestor = ntpath.normcase(str(resolved_ancestor))
+        if norm_path == norm_ancestor:
+            return True
+        return any(ntpath.normcase(str(parent)) == norm_ancestor for parent in resolved_path.parents)
+    return resolved_path == resolved_ancestor or resolved_ancestor in resolved_path.parents
+
+
+def primary_read_targets_coord_worktree(path: Path, *, owned: OwnedCheckout | None) -> bool:
+    """Does a repository-root-labelled contract *path* target a coordination worktree?
+
+    The ONE place the status contract layer (``status_service.py``) asks this
+    question (WP06, FR-013/FR-014). The *validated ownership fact*, when
+    supplied, is consulted BEFORE path shape: a path inside ``owned.owned_root``
+    is never coordination, no matter its ``.worktrees``-shaped ancestry --
+    the exemption is sound only because ``owned`` was minted by the canonical
+    validator (:func:`specify_cli.core.owned_mission.resolve_owned_mission`),
+    which already proved registration, branch and topology for that specific
+    checkout. The exemption covers ONLY the fact's own subtree: a sibling
+    worktree under the same repository root (a registered coordination
+    worktree, or an unrelated lane) still classifies by shape.
+
+    When no fact covers *path* (``owned is None``, or *path* lies outside
+    ``owned.owned_root``), classification falls through to
+    :func:`is_under_worktrees_segment` -- today's shape-only answer,
+    byte-identical for every non-owned caller.
+
+    NFR-002: zero git subprocess calls in every branch. The fact already
+    proves registration and branch; consulting the worktree registry here
+    would re-derive what the fact already established.
+    """
+    if owned is not None and _resolves_within(path, owned.owned_root):
+        return False
+    return is_under_worktrees_segment(path)
 
 
 def _enclosing_worktree_root(path: Path) -> Path | None:

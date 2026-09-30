@@ -34,6 +34,7 @@ from typing import Final, Literal, Protocol, runtime_checkable
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
+    OwnedCheckout,
     is_primary_artifact_kind,
     kind_for_mission_file,
     resolve_placement_only,
@@ -42,7 +43,6 @@ from mission_runtime import (
 )
 from specify_cli.coordination.coherence import is_coord_residue_churn
 from specify_cli.coordination.surface_authority import Refuse, resolve_surface_authority
-from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.git import safe_commit
 
 
@@ -94,12 +94,27 @@ class _ProtectionPolicyProtocol(Protocol):
 logger = logging.getLogger(__name__)
 
 
-def _mission_scoped(policy: _ProtectionPolicyProtocol, repo_root: Path, mission_slug: str) -> _ProtectionPolicyProtocol:
+def _mission_scoped(
+    policy: _ProtectionPolicyProtocol,
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> _ProtectionPolicyProtocol:
     """Fold the mission's ``commit_to_target`` into *policy* for this mission's own write (#5100 FR-008).
 
     Only a real ``ProtectionPolicy`` carries the mission-scoped hatch; a duck-typed
-    stand-in is returned untouched (no bypass -- fail-closed).
+    stand-in is returned untouched (no bypass -- fail-closed). On the owned arm
+    the ONE owned authority, ``ProtectionPolicy.resolve_for_owned``, folds the
+    mission from the fact (owned-checkout-lifecycle-authority) instead of
+    re-deriving the repository root from the slug.
     """
+    if owned is not None:
+        if getattr(policy, "scoped_to_mission", None) is None:
+            return policy
+        from specify_cli.git.protection_policy import ProtectionPolicy
+
+        return ProtectionPolicy.resolve_for_owned(owned, mission_slug)
     for_mission = getattr(policy, "for_mission", None)
     if for_mission is None:
         return policy
@@ -208,7 +223,7 @@ def commit_for_mission(
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
     expected_parent_sha: str | None = None,
     expected_path_bytes: Mapping[Path, bytes] | None = None,
 ) -> CommitRouterResult:
@@ -258,7 +273,7 @@ def commit_for_mission(
     single-partition batch (the common case) still resolves placement exactly
     once and issues exactly one commit (INV: no fast-path regression).
     """
-    groups = [(kind, files)] if effective_root is not None else _group_files_by_partition(repo_root, files, mission_slug, kind=kind)
+    groups = [(kind, files)] if owned is not None else _group_files_by_partition(repo_root, files, mission_slug, kind=kind)
 
     if expected_path_bytes is not None and expected_parent_sha is None:
         return CommitRouterResult(
@@ -285,9 +300,9 @@ def commit_for_mission(
             kind=effective_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
             target_branch=target_branch,
+            owned=owned,
             expected_parent_sha=expected_parent_sha,
             expected_path_bytes=expected_path_bytes,
-            **effective_root_kwargs(effective_root),
         )
 
     # Split-and-commit (contract (a), pinned by T004): a mixed-partition batch
@@ -310,32 +325,26 @@ def commit_for_mission(
     return _merge_group_results(results, groups, kind)
 
 
-def _commit_partition_group(
+def _resolve_group_placement(
     repo_root: Path,
     mission_slug: str,
-    files: tuple[Path, ...],
-    message: str,
     policy: _ProtectionPolicyProtocol,
     *,
     kind: MissionArtifactKind,
-    primary_paths_created_this_invocation: frozenset[Path] | None = None,
-    target_branch: str | None = None,
-    effective_root: Path | None = None,
-    expected_parent_sha: str | None = None,
-    expected_path_bytes: Mapping[Path, bytes] | None = None,
-) -> CommitRouterResult:
-    """Commit ONE single-partition file group to its resolved placement.
+    owned: OwnedCheckout | None,
+) -> tuple[CommitTarget, bool, CommitRouterResult | None]:
+    """Resolve one group's placement + coord-routing decision (T035 campsite extraction).
 
-    This is the pre-WP01 body of ``commit_for_mission`` verbatim, extracted so
-    the public entry point can invoke it once per partition group (T002/T004).
-    Every file in ``files`` MUST already belong to the SAME partition as
-    ``kind`` — :func:`_group_files_by_partition` guarantees this; this helper
-    does not re-validate it (single responsibility: resolve + commit one group).
+    Behaviour-preserving extraction of ``_commit_partition_group``'s former
+    placement/``use_coord`` decision (complexity 15 -> <=11, plan Complexity
+    note). Returns ``(placement, use_coord, refusal)``; a non-``None``
+    ``refusal`` means the caller must return it immediately without
+    committing (the protected-primary ``Refuse`` verdict, unchanged).
     """
-    if effective_root is None:
-        placement = resolve_placement_only(repo_root, mission_slug, kind=kind)
+    if owned is not None:
+        placement = resolve_placement_only(repo_root, mission_slug, kind=kind, owned=owned)
     else:
-        placement = resolve_placement_only(repo_root, mission_slug, kind=kind, effective_root=effective_root)
+        placement = resolve_placement_only(repo_root, mission_slug, kind=kind)
 
     # FR-003 / C-005 / NFR-004: derive coord-vs-primary routing from the ONE
     # kind-aware ``placement`` (the single authority), not a second predicate.
@@ -347,9 +356,18 @@ def _commit_partition_group(
     # branch — i.e. only coordination kinds materialise the coord worktree (C-001).
     # A primary kind therefore NEVER routes to coordination even under coord
     # topology — this removes the planning→coord arm (write-surface-coherence WP02).
-    topology = resolve_topology(repo_root, mission_slug)
-    primary_target = placement.ref if effective_root is not None else _resolve_mission_target_branch(repo_root, mission_slug)
-    use_coord = effective_root is None and routes_through_coordination(topology) and placement.ref != primary_target
+    #
+    # owned (review cycle 1 issue 3b): when a fact is present, its stored
+    # ``topology`` is used DIRECTLY instead of calling ``resolve_topology``,
+    # which walks ``get_main_repo_root(repo_root)`` back to R -- an
+    # R-touching read "the fact is the single representation" forbids on the
+    # owned path. ``owned.topology`` is the same WP02 stored topology value
+    # ``resolve_topology`` would derive for this mission (minted once by
+    # ``specify_cli.core.owned_mission`` at the same read that would
+    # otherwise re-derive it here), so this is behaviour-preserving.
+    topology = owned.topology if owned is not None else resolve_topology(repo_root, mission_slug)
+    primary_target = placement.ref if owned is not None else _resolve_mission_target_branch(repo_root, mission_slug)
+    use_coord = owned is None and routes_through_coordination(topology) and placement.ref != primary_target
 
     # T016 / INV-4 (shared-rule consultation): the protected-primary refusal now
     # DERIVES from the single authority :func:`resolve_surface_authority` (contract
@@ -369,7 +387,7 @@ def _commit_partition_group(
         verdict = resolve_surface_authority(
             topology,
             primary_target,
-            primary_protected=_mission_scoped(policy, repo_root, mission_slug).is_protected(placement.ref),
+            primary_protected=_mission_scoped(policy, repo_root, mission_slug, owned=owned).is_protected(placement.ref),
             current_branch="",
             artifact_kind=kind,
             coord_ref=placement.ref,
@@ -393,18 +411,92 @@ def _commit_partition_group(
                     f"finalize-tasks --mission {mission_slug} --target-branch "
                     f"<feature-branch>'."
                 )
-            return CommitRouterResult(
-                status=_STATUS_NO_OP_WRONG_SURFACE,
-                placement_ref=placement.ref,
-                diagnostic=(
-                    f"Refusing to commit planning artifacts to the protected branch "
-                    f"'{placement.ref}'. This mission's target_branch is protected. "
-                    f"{remedy} "
-                    f"Planning artifacts must land on a feature branch. To commit on "
-                    f"the current protected branch anyway, set "
-                    f"{_ENV_HATCH}=1."
+            return (
+                placement,
+                use_coord,
+                CommitRouterResult(
+                    status=_STATUS_NO_OP_WRONG_SURFACE,
+                    placement_ref=placement.ref,
+                    diagnostic=(
+                        f"Refusing to commit planning artifacts to the protected branch "
+                        f"'{placement.ref}'. This mission's target_branch is protected. "
+                        f"{remedy} "
+                        f"Planning artifacts must land on a feature branch. To commit on "
+                        f"the current protected branch anyway, set "
+                        f"{_ENV_HATCH}=1."
+                    ),
                 ),
             )
+
+    return placement, use_coord, None
+
+
+def _classify_no_commit_paths(
+    repo_root: Path,
+    files: tuple[Path, ...],
+    *,
+    use_coord: bool,
+    placement: CommitTarget,
+) -> CommitRouterResult:
+    """Classify an empty ``commit_paths`` result (T035 campsite extraction).
+
+    Behaviour-preserving extraction of ``_commit_partition_group``'s former
+    empty-commit-paths / wrong-surface classification.
+    """
+    # #2739 B16 / #2694: distinguish a genuine no-op (artifact present +
+    # already committed) from a WRONG-SURFACE no-op. When the mission routes
+    # through coordination and coord staging skipped every artifact (e.g. a
+    # STATUS-partition file that ``_stage_artifacts_in_coord_worktree`` never
+    # copies), but the SOURCE artifact is still present-and-uncommitted in the
+    # primary checkout, the commit landed nowhere — the write would falsely
+    # report a benign no-op against the coord branch while the primary tree
+    # stays dirty. Mirror the ``_any_path_absent`` wrong-surface detection and
+    # refuse instead (T008 surfaces the actionable error).
+    if use_coord and _paths_uncommitted_in_primary(repo_root, files):
+        return CommitRouterResult(
+            status=_STATUS_NO_OP_WRONG_SURFACE,
+            placement_ref=placement.ref,
+            diagnostic=(
+                f"Artifact(s) written to the primary checkout routed to the "
+                f"coordination placement ({placement.ref}) where nothing was "
+                f"staged; the commit would no-op against the wrong surface and "
+                f"the artifact remains uncommitted in the primary tree. Commit "
+                f"it to its own (primary) surface instead."
+            ),
+        )
+    # All artifacts already committed (or none present) — genuine no-op.
+    return CommitRouterResult(
+        status=_STATUS_UNCHANGED,
+        placement_ref=placement.ref,
+        reason=_REASON_ALREADY_COMMITTED,
+    )
+
+
+def _commit_partition_group(
+    repo_root: Path,
+    mission_slug: str,
+    files: tuple[Path, ...],
+    message: str,
+    policy: _ProtectionPolicyProtocol,
+    *,
+    kind: MissionArtifactKind,
+    primary_paths_created_this_invocation: frozenset[Path] | None = None,
+    target_branch: str | None = None,
+    owned: OwnedCheckout | None = None,
+    expected_parent_sha: str | None = None,
+    expected_path_bytes: Mapping[Path, bytes] | None = None,
+) -> CommitRouterResult:
+    """Commit ONE single-partition file group to its resolved placement.
+
+    This is the pre-WP01 body of ``commit_for_mission`` verbatim, extracted so
+    the public entry point can invoke it once per partition group (T002/T004).
+    Every file in ``files`` MUST already belong to the SAME partition as
+    ``kind`` — :func:`_group_files_by_partition` guarantees this; this helper
+    does not re-validate it (single responsibility: resolve + commit one group).
+    """
+    placement, use_coord, refusal = _resolve_group_placement(repo_root, mission_slug, policy, kind=kind, owned=owned)
+    if refusal is not None:
+        return refusal
 
     if use_coord:
         worktree_root, commit_paths = _materialise_coord_worktree(
@@ -417,36 +509,10 @@ def _commit_partition_group(
         )
     else:
         # Flattened or unprotected primary: commit directly.
-        worktree_root, commit_paths = effective_root or repo_root, files
+        worktree_root, commit_paths = owned.owned_root if owned is not None else repo_root, files
 
     if not commit_paths:
-        # #2739 B16 / #2694: distinguish a genuine no-op (artifact present +
-        # already committed) from a WRONG-SURFACE no-op. When the mission routes
-        # through coordination and coord staging skipped every artifact (e.g. a
-        # STATUS-partition file that ``_stage_artifacts_in_coord_worktree`` never
-        # copies), but the SOURCE artifact is still present-and-uncommitted in the
-        # primary checkout, the commit landed nowhere — the write would falsely
-        # report a benign no-op against the coord branch while the primary tree
-        # stays dirty. Mirror the ``_any_path_absent`` wrong-surface detection and
-        # refuse instead (T008 surfaces the actionable error).
-        if use_coord and _paths_uncommitted_in_primary(repo_root, files):
-            return CommitRouterResult(
-                status=_STATUS_NO_OP_WRONG_SURFACE,
-                placement_ref=placement.ref,
-                diagnostic=(
-                    f"Artifact(s) written to the primary checkout routed to the "
-                    f"coordination placement ({placement.ref}) where nothing was "
-                    f"staged; the commit would no-op against the wrong surface and "
-                    f"the artifact remains uncommitted in the primary tree. Commit "
-                    f"it to its own (primary) surface instead."
-                ),
-            )
-        # All artifacts already committed (or none present) — genuine no-op.
-        return CommitRouterResult(
-            status=_STATUS_UNCHANGED,
-            placement_ref=placement.ref,
-            reason=_REASON_ALREADY_COMMITTED,
-        )
+        return _classify_no_commit_paths(repo_root, files, use_coord=use_coord, placement=placement)
 
     # FR-006 / D-5: detect no-op against the wrong surface.
     if _any_path_absent(commit_paths):
@@ -468,9 +534,9 @@ def _commit_partition_group(
             target=placement,
             message=message,
             paths=commit_paths,
+            owned=owned,
             **({"expected_parent_sha": expected_parent_sha} if expected_parent_sha is not None else {}),
             **({"expected_path_bytes": expected_path_bytes} if expected_path_bytes is not None else {}),
-            **effective_root_kwargs(effective_root),
         )
     except subprocess.CalledProcessError as exc:
         stderr = getattr(exc, "stderr", "") or ""

@@ -72,8 +72,15 @@ class _Fakes:
         self._subtasks_complete = subtasks_complete
         self._evidence_present = evidence_present
 
-    def resolve_subtasks_dir(self, feature_dir: Path, repo_root: Path | None, mission_slug: str, *, effective_root: Path | None = None) -> Path:
-        self.resolver_calls.append({"feature_dir": feature_dir, "repo_root": repo_root, "mission_slug": mission_slug, "effective_root": effective_root})
+    def resolve_subtasks_dir(self, feature_dir: Path, repo_root: Path | None, mission_slug: str, *, owned: Any = None) -> Path:
+        self.resolver_calls.append(
+            {
+                "feature_dir": feature_dir,
+                "repo_root": repo_root,
+                "mission_slug": mission_slug,
+                "owned": owned,
+            }
+        )
         return feature_dir
 
     def infer_subtasks_complete(self, subtasks_dir: Path, wp_id: str, *, status_dir: Path | None = None) -> bool:
@@ -169,11 +176,53 @@ class TestReviewGateInference:
         with pytest.raises(TransitionError):
             _prepare(feature_dir, _request(to_lane="for_review"), Lane.IN_PROGRESS, **fakes.kwargs())
 
-    def test_effective_root_is_threaded_to_the_resolver(self, feature_dir: Path, tmp_path: Path) -> None:
+    def test_owned_fact_is_threaded_to_the_resolver(self, feature_dir: Path, tmp_path: Path) -> None:
+        """T034: the resolver receives the collapsed fact, not a bare root."""
+        from mission_runtime import OwnedCheckout
+        from mission_runtime.context import MissionTopology
+
         fakes = _Fakes()
-        owned = tmp_path / "owned"
-        _prepare(feature_dir, _request(to_lane="for_review", effective_root=owned), Lane.IN_PROGRESS, **fakes.kwargs())
-        assert fakes.resolver_calls[0]["effective_root"] == owned
+        owned_root = tmp_path / "owned"
+        mission_dir = owned_root / "kitty-specs" / _SLUG
+        mission_dir.mkdir(parents=True)
+        fact = OwnedCheckout._mint(
+            repository_root=tmp_path / "primary",
+            owned_root=owned_root,
+            mission_dir=mission_dir,
+            mission_slug=_SLUG,
+            topology=MissionTopology.SINGLE_BRANCH,
+            write_branch="main",
+        )
+        _prepare(feature_dir, _request(to_lane="for_review", owned=fact), Lane.IN_PROGRESS, **fakes.kwargs())
+        assert fakes.resolver_calls[0]["owned"] is fact
+
+    def test_batch_of_owned_requests_each_thread_their_own_fact(self, feature_dir: Path, tmp_path: Path) -> None:
+        """review cycle 1 MEDIUM-6 regression guard (re-pointed by WP18 from the
+        retired bare-root shape): a MULTI-request batch where each member carries
+        its own fact must thread EACH request's own fact to the resolver.
+        """
+        from mission_runtime.context import MissionTopology
+        from tests._owned_fixtures import mint_test_fact
+
+        fakes = _Fakes()
+        facts = []
+        for name in ("owned-a", "owned-b"):
+            owned_root = tmp_path / name
+            mission_dir = owned_root / "kitty-specs" / _SLUG
+            mission_dir.mkdir(parents=True)
+            facts.append(
+                mint_test_fact(
+                    repository_root=tmp_path / "primary",
+                    owned_root=owned_root,
+                    mission_dir=mission_dir,
+                    mission_slug=_SLUG,
+                    write_branch="main",
+                    topology=MissionTopology.SINGLE_BRANCH,
+                )
+            )
+        for fact in facts:
+            _prepare(feature_dir, _request(to_lane="for_review", owned=fact), Lane.IN_PROGRESS, **fakes.kwargs())
+        assert [call["owned"] for call in fakes.resolver_calls] == facts
 
 
 class TestEventConstruction:
@@ -474,8 +523,8 @@ class TestLaneHeadStamping:
     def test_probe_called_once_with_expected_args_and_stamps_the_event(self, feature_dir: Path) -> None:
         calls: list[dict[str, Any]] = []
 
-        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
-            calls.append({"repo_root": repo_root, "mission_slug": mission_slug, "wp_id": wp_id})
+        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> str | None:
+            calls.append({"repo_root": repo_root, "mission_slug": mission_slug, "wp_id": wp_id, "owned": owned})
             return "deadbeef" * 5
 
         repo_root = feature_dir.parent.parent
@@ -487,7 +536,7 @@ class TestLaneHeadStamping:
         )
         assert prepared.event is not None
         assert prepared.event.policy_metadata == {"agent": "claude", "lane_head": "deadbeef" * 5}
-        assert calls == [{"repo_root": repo_root, "mission_slug": _SLUG, "wp_id": "WP01"}]
+        assert calls == [{"repo_root": repo_root, "mission_slug": _SLUG, "wp_id": "WP01", "owned": None}]
 
     def test_probe_returning_none_leaves_policy_metadata_untouched(self, feature_dir: Path) -> None:
         prepared = _prepare(
@@ -519,7 +568,7 @@ class TestLaneHeadStamping:
     def test_request_repo_root_is_preferred_over_the_repo_root_kwarg(self, feature_dir: Path) -> None:
         calls: list[Path] = []
 
-        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
+        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> str | None:
             calls.append(repo_root)
             return None
 
@@ -537,7 +586,7 @@ class TestLaneHeadStamping:
     def test_repo_root_kwarg_is_the_fallback_when_request_repo_root_is_none(self, feature_dir: Path) -> None:
         calls: list[Path | None] = []
 
-        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
+        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> str | None:
             calls.append(repo_root)
             return None
 
@@ -554,7 +603,7 @@ class TestLaneHeadStamping:
     def test_probe_not_called_when_no_repo_root_is_available(self, feature_dir: Path) -> None:
         calls: list[Path] = []
 
-        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
+        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> str | None:
             calls.append(repo_root)
             return "deadbeef" * 5
 

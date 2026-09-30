@@ -16,6 +16,16 @@ surfaces:
 
 The key rule is visibility at the call site: callers choose a read source or a
 write target by name. There is no global event-log path redirect.
+
+A repository-root-labelled (``PRIMARY_CHECKOUT`` / ``PRIMARY_CHECKOUT_APPEND``)
+contract may additionally carry the validated ``owned`` ownership fact
+(WP06, FR-013/FR-014). Classification of whether such a contract's path
+targets a coordination worktree is delegated entirely to
+:func:`specify_cli.coordination.surface_resolver.primary_read_targets_coord_worktree`,
+which consults the fact before path shape. There is deliberately no new
+``StatusReadSource`` / ``EventLogWriteTarget`` member for an owned read (C-002):
+an owned repository-root-labelled contract IS a ``primary_checkout`` contract,
+just one that carries proof its path is safe.
 """
 
 from __future__ import annotations
@@ -28,6 +38,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
+
     from specify_cli.status import (
         CurrentWpState,
         EventStream,
@@ -56,21 +68,26 @@ class StatusContractError(TypeError):
     """Raised when a read-only contract is used for mutation or vice versa."""
 
 
-def _is_coordination_worktree_path(path: Path) -> bool:
-    """Return True for contract paths rooted under the in-repo worktrees dir.
-
-    This is a contract-label *consistency* guard (does the caller's labelled
-    contract — primary vs coordination — match the path's worktree shape), not
-    a topology-routing decision. The shape *proposal* is delegated to the
-    blessed seam primitive :func:`is_under_worktrees_segment` so the
-    ``".worktrees" in parts`` idiom lives only inside the topology authority
-    module (C-SEAM-1). Routing/canonical-surface decisions go through
-    :func:`is_registered_coord_worktree`, which additionally consults the git
-    registry (name proposes, registry disposes).
+def _validate_read_labels(contract: EventLogReadContract) -> None:
+    """Fold the duplicated ``PRIMARY_CHECKOUT`` / ``COORDINATION_WORKTREE``
+    read-guard blocks that :func:`read_event_log` and :func:`read_event_stream_log`
+    used to repeat (WP06 campsite; behaviour-preserving). Classification is
+    delegated entirely to
+    :func:`specify_cli.coordination.surface_resolver.primary_read_targets_coord_worktree`,
+    which consults ``contract.owned`` (the validated fact, when present)
+    before path shape. A ``COORDINATION_WORKTREE`` contract has no ``owned``
+    field, so it always classifies by shape alone -- unchanged (FR-014).
     """
-    from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
+    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415 -- cold path
+        primary_read_targets_coord_worktree,
+    )
 
-    return is_under_worktrees_segment(path)
+    owned = contract.owned if contract.source == StatusReadSource.PRIMARY_CHECKOUT else None
+    targets_coord = primary_read_targets_coord_worktree(contract.feature_dir, owned=owned)
+    if contract.source == StatusReadSource.PRIMARY_CHECKOUT and targets_coord:
+        raise StatusContractError("primary_checkout reads must not target coordination worktree paths")
+    if contract.source == StatusReadSource.COORDINATION_WORKTREE and not targets_coord:
+        raise StatusContractError("coordination_worktree reads require a coordination worktree path")
 
 
 @dataclass(frozen=True)
@@ -81,6 +98,13 @@ class EventLogReadContract:
     branch-ref read it names the mission directory inside the ref path, while
     ``parser_feature_dir`` points at the primary checkout for legacy
     slug-to-mission-id resolution.
+
+    ``owned`` is the validated :class:`~mission_runtime.OwnedCheckout` fact
+    for a ``PRIMARY_CHECKOUT`` contract whose path lives under an owned
+    checkout (WP06). It is the LAST field so positional construction stays
+    compatible, and it is ``None`` for every non-owned caller and for every
+    other source (a coordination-labelled contract never carries a fact —
+    see :func:`_validate_read_labels`).
     """
 
     source: StatusReadSource
@@ -88,10 +112,11 @@ class EventLogReadContract:
     repo_root: Path | None = None
     destination_ref: str | None = None
     parser_feature_dir: Path | None = None
+    owned: OwnedCheckout | None = None
 
     @classmethod
-    def primary_checkout(cls, feature_dir: Path) -> EventLogReadContract:
-        return cls(source=StatusReadSource.PRIMARY_CHECKOUT, feature_dir=feature_dir)
+    def primary_checkout(cls, feature_dir: Path, *, owned: OwnedCheckout | None = None) -> EventLogReadContract:
+        return cls(source=StatusReadSource.PRIMARY_CHECKOUT, feature_dir=feature_dir, owned=owned)
 
     @classmethod
     def coordination_worktree(cls, feature_dir: Path) -> EventLogReadContract:
@@ -117,16 +142,24 @@ class EventLogReadContract:
 
 @dataclass(frozen=True)
 class EventLogWriteContract:
-    """Mutating event-log contract."""
+    """Mutating event-log contract.
+
+    ``owned`` mirrors :attr:`EventLogReadContract.owned` (WP06): the validated
+    fact for a ``PRIMARY_CHECKOUT_APPEND`` contract whose path lives under an
+    owned checkout. Last field, default ``None``, for the same positional-
+    compatibility reason.
+    """
 
     target: EventLogWriteTarget
     feature_dir: Path
+    owned: OwnedCheckout | None = None
 
     @classmethod
-    def primary_checkout_append(cls, feature_dir: Path) -> EventLogWriteContract:
+    def primary_checkout_append(cls, feature_dir: Path, *, owned: OwnedCheckout | None = None) -> EventLogWriteContract:
         return cls(
             target=EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND,
             feature_dir=feature_dir,
+            owned=owned,
         )
 
     @classmethod
@@ -155,20 +188,7 @@ def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
         StatusReadSource.PRIMARY_CHECKOUT,
         StatusReadSource.COORDINATION_WORKTREE,
     }:
-        if (
-            contract.source == StatusReadSource.PRIMARY_CHECKOUT
-            and _is_coordination_worktree_path(contract.feature_dir)
-        ):
-            raise StatusContractError(
-                "primary_checkout reads must not target coordination worktree paths"
-            )
-        if (
-            contract.source == StatusReadSource.COORDINATION_WORKTREE
-            and not _is_coordination_worktree_path(contract.feature_dir)
-        ):
-            raise StatusContractError(
-                "coordination_worktree reads require a coordination worktree path"
-            )
+        _validate_read_labels(contract)
         return read_events(contract.feature_dir)
 
     if contract.source == StatusReadSource.COORDINATION_BRANCH_REF:
@@ -217,20 +237,7 @@ def read_event_stream_log(contract: EventLogReadContract) -> EventStream:
         StatusReadSource.PRIMARY_CHECKOUT,
         StatusReadSource.COORDINATION_WORKTREE,
     }:
-        if (
-            contract.source == StatusReadSource.PRIMARY_CHECKOUT
-            and _is_coordination_worktree_path(contract.feature_dir)
-        ):
-            raise StatusContractError(
-                "primary_checkout reads must not target coordination worktree paths"
-            )
-        if (
-            contract.source == StatusReadSource.COORDINATION_WORKTREE
-            and not _is_coordination_worktree_path(contract.feature_dir)
-        ):
-            raise StatusContractError(
-                "coordination_worktree reads require a coordination worktree path"
-            )
+        _validate_read_labels(contract)
         return read_event_stream(contract.feature_dir)
 
     if contract.source == StatusReadSource.COORDINATION_BRANCH_REF:
@@ -335,20 +342,20 @@ def append_event_stream_log(
 
 
 def _validate_write_contract(contract: EventLogWriteContract) -> None:
-    if (
-        contract.target == EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND
-        and _is_coordination_worktree_path(contract.feature_dir)
-    ):
-        raise StatusContractError(
-            "primary_checkout_append must not target coordination worktree paths"
-        )
-    if (
-        contract.target == EventLogWriteTarget.COORDINATION_TRANSACTION_APPEND
-        and not _is_coordination_worktree_path(contract.feature_dir)
-    ):
-        raise StatusContractError(
-            "coordination_transaction_append requires a coordination worktree path"
-        )
+    """Mirrors :func:`_validate_read_labels` for the write contracts (WP06).
+
+    ``LEGACY_LANE_APPEND`` stays unguarded, exactly as today.
+    """
+    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415 -- cold path
+        primary_read_targets_coord_worktree,
+    )
+
+    owned = contract.owned if contract.target == EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND else None
+    targets_coord = primary_read_targets_coord_worktree(contract.feature_dir, owned=owned)
+    if contract.target == EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND and targets_coord:
+        raise StatusContractError("primary_checkout_append must not target coordination worktree paths")
+    if contract.target == EventLogWriteTarget.COORDINATION_TRANSACTION_APPEND and not targets_coord:
+        raise StatusContractError("coordination_transaction_append requires a coordination worktree path")
 
 
 def merge_append_preserving_coordination_event_log_bytes(

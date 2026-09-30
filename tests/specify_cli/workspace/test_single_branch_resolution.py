@@ -121,7 +121,7 @@ def _lanes_code_manifest() -> LanesManifest:
     )
 
 
-def test_repo_root_lane_with_no_effective_root_resolves_to_repository_root(tmp_path: Path) -> None:
+def test_repo_root_lane_without_owned_fact_resolves_to_repository_root(tmp_path: Path) -> None:
     feature_dir = _seed_mission(tmp_path, topology="single_branch")
     _write_code_wp(feature_dir, "WP01", owned_files=["src/a.py"])
     write_lanes_json(feature_dir, _repo_root_manifest())
@@ -185,17 +185,36 @@ def test_lanes_topology_code_wp_in_planning_lane_keeps_target_branch(tmp_path: P
     assert resolved.branch_name == "main"
 
 
-def test_repo_root_lane_with_effective_root_resolves_to_that_path(tmp_path: Path) -> None:
-    feature_dir = _seed_mission(tmp_path, topology="single_branch")
+def test_repo_root_lane_with_owned_fact_resolves_to_the_owned_checkout(tmp_path: Path) -> None:
+    """#5100's alternate write checkout, expressed as the validated fact.
+
+    The retired bare ``effective_root=`` keyword is the owned-checkout fact now
+    (owned-checkout-lifecycle-authority): an owned single_branch mission
+    resolves to the owned checkout itself, a checkout-root kind whose status
+    stamp is ``direct_repo`` (R-10) and whose branch is the fact's write branch.
+    """
+    from mission_runtime import MissionTopology, OwnedCheckout
+
+    repository_root = tmp_path / "repo"
+    owned_root = tmp_path / "owned-checkout"
+    feature_dir = _seed_mission(owned_root, topology="single_branch")
+    repository_root.mkdir()
     _write_code_wp(feature_dir, "WP01", owned_files=["src/a.py"])
     write_lanes_json(feature_dir, _repo_root_manifest())
-    effective_root = tmp_path / "owned-checkout"
-    effective_root.mkdir()
+    fact = OwnedCheckout._mint(
+        repository_root=repository_root,
+        owned_root=owned_root,
+        mission_dir=feature_dir,
+        mission_slug=_MISSION_SLUG,
+        topology=MissionTopology.SINGLE_BRANCH,
+        write_branch="main",
+    )
 
-    resolved = resolve_workspace_for_wp(tmp_path, _MISSION_SLUG, "WP01", effective_root=effective_root)
+    resolved = resolve_workspace_for_wp(repository_root, _MISSION_SLUG, "WP01", owned=fact)
 
-    assert resolved.resolution_kind == "repo_root"
-    assert resolved.worktree_path == effective_root
+    assert resolved.runs_in_checkout_root
+    assert resolved.worktree_path == owned_root
+    assert resolved.branch_name == "main"
     assert resolved.status_execution_mode == "direct_repo"
 
 
@@ -232,15 +251,12 @@ def test_stale_workspace_context_does_not_shadow_repo_root_lane(tmp_path: Path) 
     assert resolved.status_execution_mode == "direct_repo"
 
 
-def test_effective_root_raises_for_non_single_branch_mission(tmp_path: Path) -> None:
-    feature_dir = _seed_mission(tmp_path, topology="lanes")
-    _write_code_wp(feature_dir, "WP01", owned_files=["src/a.py"])
-    write_lanes_json(feature_dir, _lanes_code_manifest())
-    effective_root = tmp_path / "owned-checkout"
-    effective_root.mkdir()
-
-    with pytest.raises(ValueError, match="single_branch"):
-        resolve_workspace_for_wp(tmp_path, _MISSION_SLUG, "WP01", effective_root=effective_root)
+# ``test_effective_root_raises_for_non_single_branch_mission`` retired with the
+# bare ``effective_root=`` keyword: an owned root for a mission outside the
+# caller's allowed topologies is now refused once, at the minter
+# (``owned_mission._require_allowed_topology`` -> OWNED_TOPOLOGY_UNSUPPORTED,
+# pinned by ``tests/core/test_owned_mission_minter.py``), so no unvalidated
+# root ever reaches ``resolve_workspace_for_wp``.
 
 
 def test_lanes_topology_code_lane_still_resolves_to_worktrees(tmp_path: Path) -> None:

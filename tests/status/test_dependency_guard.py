@@ -816,10 +816,10 @@ class TestCoordSurfaceResolution:
             surfaces["reduced"] = feature_dir
             return real_reduce(feature_dir)
 
-        def tracking_readiness(planning_dir: Path, wp_id: str, snapshot: Any) -> Any:
+        def tracking_readiness(planning_dir: Path, wp_id: str, snapshot: Any, *, owned: Any = None) -> Any:
             observed.append("readiness")
             surfaces["planning"] = planning_dir
-            return real_readiness(planning_dir, wp_id, snapshot)
+            return real_readiness(planning_dir, wp_id, snapshot, owned=owned)
 
         def counting_read(*args: Any, **kwargs: Any) -> Any:
             observed.append("read_events")

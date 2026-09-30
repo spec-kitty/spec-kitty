@@ -25,7 +25,7 @@ from specify_cli.status.reducer import materialize
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 
 if TYPE_CHECKING:
-    from specify_cli.core.owned_mission import OwnedMission
+    from mission_runtime import OwnedCheckout
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +96,7 @@ def bootstrap_canonical_state(
     dry_run: bool = False,
     capability: GuardCapability = GuardCapability.STANDARD,
     repo_root: Path | None = None,
-    effective_root: Path | None = None,
-    owned_mission: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> BootstrapResult:
     """Ensure every WP in a feature has canonical status state.
 
@@ -148,10 +147,14 @@ def bootstrap_canonical_state(
 
     # Read existing events from the same branch/worktree targeted by the
     # transactional writer, so coordination-branch missions do not reseed.
+    # With a fact present, this is ZERO re-validation (FR-003): the read
+    # threads ``owned=`` straight through instead of re-deriving ownership
+    # per read.
     existing_events = read_events_transactional(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
-        **({"repo_root": repo_root, "effective_root": effective_root} if effective_root is not None else {}),
+        repo_root=repo_root,
+        owned=owned,
     )
     initialized_wp_ids: set[str] = {e.wp_id for e in existing_events}
 
@@ -177,11 +180,10 @@ def bootstrap_canonical_state(
                 actor="finalize-tasks",
                 reason="canonical bootstrap",
                 repo_root=repo_root,
-                effective_root=effective_root,
-                # #3866: thread the caller's validated value object so the
-                # per-WP identity derivation does not re-run
-                # ``resolve_owned_mission`` for every seeded WP.
-                owned_mission=owned_mission,
+                # #3866 / FR-003: thread the fact so the per-WP identity
+                # derivation does not re-run the ownership claim for every
+                # seeded WP.
+                owned=owned,
             ),
             capability=capability,
         )

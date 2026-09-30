@@ -33,7 +33,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Final, Protocol
+from typing import TYPE_CHECKING, Final, Protocol
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +55,10 @@ class LaneHeadProbe(Protocol):
     constructs one itself.
     """
 
-    def __call__(self, *, repo_root: Path, mission_slug: str, wp_id: str) -> str | None: ...
+    def __call__(self, *, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None: ...
 
 
-def probe_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
+def probe_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
     """Return *wp_id*'s lane branch HEAD sha, or ``None`` when unavailable.
 
     ``None`` covers every non-exceptional "no stamp" case (no ``lanes.json``,
@@ -69,12 +72,17 @@ def probe_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str) -> str | 
             does not carry the lane branches).
         mission_slug: The mission whose ``lanes.json`` to resolve.
         wp_id: The work package to resolve a lane branch head for.
+        owned: The validated owned-checkout fact of an owned transition
+            (``TransitionRequest.owned``). When present the lane map is read
+            from the fact's own ``mission_dir`` -- never re-derived from the
+            repository root, whose copy of the mission may be stale
+            (owned-checkout-lifecycle-authority single authority).
     """
     try:
         # Broad catch is intentional (C-1): this probe is best-effort and
         # must never raise into a status transition -- any lanes.json,
         # placement-seam, or git-invocation failure degrades to "no stamp".
-        return _resolve_lane_head(repo_root=repo_root, mission_slug=mission_slug, wp_id=wp_id)
+        return _resolve_lane_head(repo_root=repo_root, mission_slug=mission_slug, wp_id=wp_id, owned=owned)
     except Exception:
         logger.debug(
             "probe_lane_head: could not resolve lane head for %s/%s under %s",
@@ -112,7 +120,7 @@ def _warn_no_stamp(mission_slug: str, wp_id: str, lane_id: str, why: str) -> Non
     logger.warning(_NO_STAMP_WARNING, mission_slug, wp_id, lane_id, why)
 
 
-def _resolve_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
+def _resolve_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
     """Unguarded lanes.json resolution; exceptions are the caller's (:func:`probe_lane_head`) to catch.
 
     Once the WP's execution lane is known, a git error or a missing branch is
@@ -123,7 +131,7 @@ def _resolve_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str) -> str
     from specify_cli.lanes.compute import is_planning_lane, lane_created_branch
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 
-    planning_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    planning_dir = owned.mission_dir if owned is not None else placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     try:
         manifest = read_lanes_json(planning_dir)
     except CorruptLanesError:

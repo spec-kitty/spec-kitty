@@ -108,12 +108,12 @@ from mission_runtime import (
     ActionContextError,
     CommitTarget,
     MissionArtifactKind,
+    OwnedCheckout,
     assert_coord_write_materialized,
     placement_seam,
 )
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
 # The exact caught set mission_runtime.write_target_degrade.resolve_write_target_or_degrade
@@ -241,7 +241,7 @@ def _probe_write_target(
     mission_slug: str,
     kind: MissionArtifactKind,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> CommitTarget | Exception:
     """Probe routability via the seam; return the resolved target, or the
     caught exception on an unroutable target.
@@ -257,13 +257,13 @@ def _probe_write_target(
     resolved value (rather than discarding it, pre-WP04) lets
     :func:`write_artifact` recognise the E2 CONSOLIDATED destination without
     a THIRD resolution call.
+
+    Private; ``owned`` is the fact carrier.
     """
     try:
-        return placement_seam(
-            repo_root,
-            mission_slug,
-            **effective_root_kwargs(effective_root),
-        ).write_target(kind)
+        if owned is not None:
+            return placement_seam(repo_root, mission_slug, owned=owned).write_target(kind)
+        return placement_seam(repo_root, mission_slug).write_target(kind)
     except _UNROUTABLE_EXCEPTIONS as exc:
         return exc
 
@@ -469,7 +469,7 @@ def write_artifact(
     stage: Callable[[], tuple[Path, ...]] | None = None,
     target_branch: str | None = None,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> WriteSeamResult:
     """Write mission artifact ``kind`` through the ONE write seam.
 
@@ -515,29 +515,28 @@ def write_artifact(
     if files is not None and stage is not None:
         raise WriteSeamUsageError(_MATERIALIZATION_USAGE_ERROR_BOTH)
 
-    probed = _probe_write_target(
-        repo_root,
-        mission_slug,
-        kind,
-        **effective_root_kwargs(effective_root),
-    )
+    # WP07/FR-003: an owned single-branch write never routes through
+    # coordination -- ``owned is None`` gates the two coordination-only
+    # branches below.
+    probed = _probe_write_target(repo_root, mission_slug, kind, owned=owned)
     if isinstance(probed, Exception):
         return _refused_result(mission_slug=mission_slug, kind=kind, entry_id=entry_id, cause=probed)
 
     # S-C fail-closed WRITE gate (FR-006 / #4970): refuse a coord-routing write onto
     # an unresolved/unmaterialized coordination surface BEFORE staging, so a refused
-    # write leaves no residue. Owned single-branch (``effective_root``) writes never
-    # route through coordination, so the gate is skipped for them (it would have no
-    # coordination_branch to gate on either). E2 CONSOLIDATED targets resolve to the
-    # Primary Branch (not the coordination branch) and are a no-op inside the gate.
-    if effective_root is None:
+    # write leaves no residue. Owned single-branch (``owned``)
+    # writes never route through coordination, so the gate is skipped for them (it
+    # would have no coordination_branch to gate on either). E2 CONSOLIDATED targets
+    # resolve to the Primary Branch (not the coordination branch) and are a no-op
+    # inside the gate.
+    if owned is None:
         refusal = _coord_surface_write_refusal(repo_root, mission_slug, kind, probed, entry_id=entry_id)
         if refusal is not None:
             return refusal
 
     materialized_files = _materialize_files(files, stage)
 
-    if effective_root is None and is_post_consolidation_write_target(repo_root, mission_slug, kind, probed):
+    if owned is None and is_post_consolidation_write_target(repo_root, mission_slug, kind, probed):
         return _commit_post_consolidation_write(
             repo_root=repo_root,
             resolved=probed,
@@ -555,7 +554,7 @@ def write_artifact(
         kind=kind,
         primary_paths_created_this_invocation=primary_paths_created_this_invocation,
         target_branch=target_branch,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     )
     return WriteSeamResult(
         status=result.status,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
@@ -30,8 +29,10 @@ from specify_cli.coordination.status_service import (
 )
 from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.core.owned_mission import OwnedMission
+from tests._owned_fixtures import mint_test_fact
 from specify_cli.core.paths import MissionMetaReadError
+from mission_runtime import OwnedCheckout
+from mission_runtime.context import MissionTopology
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -741,9 +742,7 @@ def test_transactional_batch_rejects_request_without_any_feature_dir(repo: Path)
         repo_root=repo,
     )
 
-    with pytest.raises(
-        TypeError, match="requires feature_dir/mission_dir, mission_slug, and wp_id"
-    ):
+    with pytest.raises(TypeError, match="requires feature_dir/mission_dir, mission_slug, and wp_id"):
         emit_status_transition_batch_transactional([request])
 
 
@@ -984,14 +983,22 @@ def test_meta_less_mission_read_does_not_raise_identity_unresolved(
 # ---------------------------------------------------------------------------
 # FR-007 / SC-003 (WP06 T032 -> T039): batch/single owned-mission parity.
 # The two transactional doors share ONE identity/acquire preamble, so the
-# owned-mission refusal and the ``effective_root`` acquisition can no longer
+# owned-mission refusal and the owned-checkout acquisition can no longer
 # diverge field by field (decision Q5: parity; data-model §5 S-2).
 # ---------------------------------------------------------------------------
 
 
-def _owned_identity(repo: Path, *, primary_root: Path) -> Any:
+def _owned_identity(repo: Path, *, primary_root: Path, transaction_meta_exists: bool = True) -> Any:
     from specify_cli.coordination.status_transition import _TransactionIdentity
 
+    fact = OwnedCheckout._mint(
+        repository_root=primary_root,
+        owned_root=repo,
+        mission_dir=repo / "kitty-specs" / MISSION_SLUG,
+        mission_slug=MISSION_SLUG,
+        topology=MissionTopology.SINGLE_BRANCH,
+        write_branch=COORD_BRANCH,
+    )
     return _TransactionIdentity(
         repo_root=repo,
         feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
@@ -1000,14 +1007,14 @@ def _owned_identity(repo: Path, *, primary_root: Path) -> Any:
         destination_ref=COORD_BRANCH,
         meta_exists=True,
         coordination_branch=COORD_BRANCH,
-        transaction_meta_exists=True,
-        primary_root=primary_root,
+        transaction_meta_exists=transaction_meta_exists,
+        owned=fact,
     )
 
 
-def _owned_request(repo: Path, *, effective_root: Path) -> TransitionRequest:
+def _owned_request(repo: Path, *, owned: OwnedCheckout) -> TransitionRequest:
     request = _request(repo)
-    request.effective_root = effective_root
+    request.owned = owned
     return request
 
 
@@ -1015,12 +1022,10 @@ class _AcquireHalted(Exception):
     """Sentinel: the acquire shape was recorded; nothing beyond it runs."""
 
 
-def test_batch_door_refuses_owned_mission_without_transaction_like_single(
-    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_batch_door_refuses_owned_mission_without_transaction_like_single(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Both doors raise the same ``OWNED_TRANSACTION_UNAVAILABLE`` refusal.
 
-    An owned-mission (``effective_root``) request must never degrade to the
+    An owned-mission (``owned``) request must never degrade to the
     non-transactional fallback: the single door has refused it since #1737;
     the batch door used to fall back silently (the SC-003 divergence).
     """
@@ -1028,9 +1033,10 @@ def test_batch_door_refuses_owned_mission_without_transaction_like_single(
     from specify_cli.coordination import status_transition as st
 
     owned_checkout = tmp_path / "owned"
-    monkeypatch.setattr(st, "_identity_for_request", lambda _r: _owned_identity(repo, primary_root=repo))
+    identity = _owned_identity(owned_checkout, primary_root=repo)
+    monkeypatch.setattr(st, "_identity_for_request", lambda _r: identity)
     monkeypatch.setattr(st, "_transaction_topology_available", lambda *_a, **_k: False)
-    request = _owned_request(repo, effective_root=owned_checkout)
+    request = _owned_request(repo, owned=identity.owned)
 
     with pytest.raises(ActionContextError) as single:
         emit_status_transition_transactional(request)
@@ -1042,15 +1048,14 @@ def test_batch_door_refuses_owned_mission_without_transaction_like_single(
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
 
 
-def test_batch_door_acquires_transaction_with_the_single_door_shape(
-    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_batch_door_acquires_transaction_with_the_single_door_shape(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``BookkeepingTransaction.acquire`` receives identical identity fields.
 
-    For an owned mission the lock/worktree anchor is ``identity.primary_root``
-    and ``effective_root`` is the owned checkout (``identity.repo_root``); for
-    an ordinary mission both doors pass ``identity.repo_root`` and no
-    ``effective_root``. The recorded kwargs must agree door-for-door.
+    For an owned mission the lock/worktree anchor is the fact's
+    ``repository_root`` and ``owned`` carries the fact itself; for an
+    ordinary mission both doors pass ``identity.repo_root`` and no ``owned``.
+    The recorded kwargs must agree door-for-door (T033: rewritten from the
+    legacy bare-root kwarg parity assertion to the fact carrier).
     """
     from specify_cli.coordination import status_transition as st
     from specify_cli.coordination.transaction import BookkeepingTransaction
@@ -1058,6 +1063,7 @@ def test_batch_door_acquires_transaction_with_the_single_door_shape(
     owned_checkout = tmp_path / "owned"
     owned_checkout.mkdir()
     identity = _owned_identity(owned_checkout, primary_root=repo)
+    fact = identity.owned
     monkeypatch.setattr(st, "_identity_for_request", lambda _r: identity)
     monkeypatch.setattr(st, "_transaction_topology_available", lambda *_a, **_k: True)
     recorded: list[dict[str, Any]] = []
@@ -1067,7 +1073,7 @@ def test_batch_door_acquires_transaction_with_the_single_door_shape(
         raise _AcquireHalted
 
     monkeypatch.setattr(BookkeepingTransaction, "acquire", _record_acquire)
-    request = _owned_request(repo, effective_root=owned_checkout)
+    request = _owned_request(repo, owned=fact)
 
     with pytest.raises(_AcquireHalted):
         emit_status_transition_transactional(request)
@@ -1075,9 +1081,9 @@ def test_batch_door_acquires_transaction_with_the_single_door_shape(
         emit_status_transition_batch_transactional([request])
 
     single, batch = recorded
-    assert single["repo_root"] == repo, "the transaction anchors on the primary root"
-    assert single["effective_root"] == owned_checkout
-    for field in ("repo_root", "effective_root", "mission_id", "mission_slug", "mid8", "destination_ref", "capability"):
+    assert single["owned"] is fact
+    assert single["repo_root"] == fact.repository_root, "the transaction anchors on the primary root"
+    for field in ("repo_root", "owned", "mission_id", "mission_slug", "mid8", "destination_ref", "capability"):
         assert batch[field] == single[field], field
 
 
@@ -1156,9 +1162,7 @@ def _claim_with_policy(feature_dir: Path, repo_root: Path) -> TransitionRequest:
     )
 
 
-def test_three_doors_build_the_same_event_and_validate_once_each(
-    repo: Path, tmp_path: Path, mock_saas_sink: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_three_doors_build_the_same_event_and_validate_once_each(repo: Path, tmp_path: Path, mock_saas_sink: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.coordination import status_transition as st
     from specify_cli.status import emit as status_emit
     from specify_cli.status import transition_pipeline
@@ -1183,9 +1187,7 @@ def test_three_doors_build_the_same_event_and_validate_once_each(
     # (the worktree holding the branch must go before the ref can move).
     _git(repo, "worktree", "remove", "-f", str(CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MID8)))
     _git(repo, "branch", "-f", COORD_BRANCH, f"{COORD_BRANCH}~1")
-    (batch,) = emit_status_transition_batch_transactional(
-        [_claim_with_policy(coord_feature_dir, repo)], ensure_sync_daemon=False
-    )
+    (batch,) = emit_status_transition_batch_transactional([_claim_with_policy(coord_feature_dir, repo)], ensure_sync_daemon=False)
     assert len(calls) == 3
 
     assert _event_identity(plain) == _event_identity(single) == _event_identity(batch)
@@ -1195,27 +1197,27 @@ def test_three_doors_build_the_same_event_and_validate_once_each(
 
 
 # ---------------------------------------------------------------------------
-# #3866 — threaded ``owned_mission`` on TransitionRequest: the identity
+# #3866 — threaded ``owned`` fact on TransitionRequest: the identity
 # derivation reuses the caller's validated value object instead of re-running
 # ``resolve_owned_mission`` (ownership claim + mission resolve + git branch
 # probes) per event/phase. Fail-closed mismatch guard; no silent re-resolve.
 # ---------------------------------------------------------------------------
 
 
-def _threaded_owned(repo: Path, tmp_path: Path) -> OwnedMission:
-    return OwnedMission(
-        primary=repo,
-        root=tmp_path / "owned",
-        directory=repo / "kitty-specs" / MISSION_DIRNAME,
-        slug=MISSION_SLUG,
-        target="main",
-    )
+def _threaded_owned(repo: Path, tmp_path: Path, *, root: Path | None = None, dirname: str = MISSION_SLUG) -> OwnedCheckout:
+    # Owned root must be a distinct checkout from the repository root, and the
+    # mission dir must live under root/kitty-specs/<dirname> with dirname ==
+    # the checkout's mission_slug field (OwnedCheckout.__post_init__
+    # invariant). Default dirname is the bare MISSION_SLUG (not
+    # MISSION_DIRNAME's mid8-suffixed form): _identity_for_request's own
+    # mismatch guard compares owned.slug against request.mission_slug, which
+    # ``_request()`` sets to the bare slug too.
+    owned_root = root if root is not None else tmp_path / "owned"
+    return mint_test_fact(repository_root=repo, owned_root=owned_root, mission_dir=owned_root / "kitty-specs" / dirname, mission_slug=dirname, write_branch="main")
 
 
-def test_identity_reuses_threaded_owned_mission_without_rederivation(
-    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A threaded ``owned_mission`` short-circuits the per-event re-resolve.
+def test_identity_reuses_threaded_owned_mission_without_rederivation(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A threaded ``owned`` fact short-circuits the per-event re-resolve.
 
     Neither ``resolve_owned_mission`` nor the ``_repo_root_for_feature`` git
     probe may run when the request already carries the validated value object
@@ -1226,7 +1228,7 @@ def test_identity_reuses_threaded_owned_mission_without_rederivation(
     from specify_cli.coordination import status_transition as st
 
     def _must_not_run(*_a: object, **_k: object) -> object:
-        raise AssertionError("threaded owned_mission must not re-derive ownership")
+        raise AssertionError("a threaded owned fact must not re-derive ownership")
 
     monkeypatch.setattr("specify_cli.core.owned_mission.resolve_owned_mission", _must_not_run)
     monkeypatch.setattr(st, "_repo_root_for_feature", _must_not_run)
@@ -1237,20 +1239,17 @@ def test_identity_reuses_threaded_owned_mission_without_rederivation(
 
     owned = _threaded_owned(repo, tmp_path)
     request = _request(repo)
-    request.effective_root = owned.root
-    request.owned_mission = owned
+    request.owned = owned
     identity = st._identity_for_request(request)
 
-    assert identity.feature_dir == owned.directory
-    assert identity.repo_root == owned.root
-    assert identity.primary_root == owned.primary
+    assert identity.feature_dir == owned.mission_dir
+    assert identity.repo_root == owned.owned_root
+    assert identity.owned is owned
+    assert identity.owned.repository_root == owned.repository_root
     assert identity.destination_ref == "refs/heads/placement"
 
 
-@pytest.mark.parametrize("mismatch", ["checkout", "mission"])
-def test_identity_fails_closed_on_threaded_owned_mission_mismatch(
-    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mismatch: str
-) -> None:
+def test_identity_fails_closed_on_threaded_owned_mission_mismatch(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A threaded object that does not describe the request is refused.
 
     The mismatch is never silently re-resolved — falling back would both hide
@@ -1260,50 +1259,210 @@ def test_identity_fails_closed_on_threaded_owned_mission_mismatch(
     from specify_cli.coordination import status_transition as st
 
     def _must_not_run(*_a: object, **_k: object) -> object:
-        raise AssertionError("a mismatched owned_mission must not silently re-resolve")
+        raise AssertionError("a mismatched owned fact must not silently re-resolve")
 
     monkeypatch.setattr("specify_cli.core.owned_mission.resolve_owned_mission", _must_not_run)
 
-    owned = _threaded_owned(repo, tmp_path)
-    owned = replace(owned, root=tmp_path / "elsewhere") if mismatch == "checkout" else replace(owned, slug="some-other-mission")
+    # Built as a fresh, independently-valid OwnedCheckout rather than
+    # dataclasses.replace(...): OwnedCheckout.__post_init__ now enforces
+    # owned_root != repository_root and mission_dir under
+    # owned_root/kitty-specs/<mission_slug>, so an in-place field swap that
+    # breaks either invariant raises ValueError before the mismatch-detection
+    # code under test ever runs. The fact instead varies exactly the one
+    # dimension the mismatch guard checks (mission identity) while staying
+    # invariant-valid. (WP18 retired the "checkout root" variant together with
+    # the bare ``effective_root`` it was compared against.)
+    owned = _threaded_owned(repo, tmp_path, dirname="some-other-mission")
     request = _request(repo)
-    request.effective_root = tmp_path / "owned"
-    request.owned_mission = owned
+    request.owned = owned
 
     with pytest.raises(ActionContextError) as refused:
         st._identity_for_request(request)
     assert refused.value.code == "OWNED_MISSION_PATH_REFUSED"
 
 
-def test_inner_state_door_threads_owned_mission_into_identity(
-    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_inner_state_door_threads_owned_mission_into_identity(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``emit_inner_state_changed_transactional`` carries the kwarg onto the request.
 
-    The identity seam must see the caller's value object, not just the bare
-    ``effective_root`` (#3866).
+    The identity seam must see the caller's value object (#3866).
     """
     from specify_cli.coordination import status_transition as st
+    from specify_cli.coordination.transaction import BookkeepingTransaction
 
     recorded: list[TransitionRequest] = []
 
+    owned = _threaded_owned(repo, tmp_path)
+
     def _record_identity(request: TransitionRequest) -> object:
         recorded.append(request)
-        return _owned_identity(repo, primary_root=repo)
+        return _owned_identity(repo, primary_root=tmp_path / "primary-placeholder")
 
     monkeypatch.setattr(st, "_identity_for_request", _record_identity)
 
-    owned = _threaded_owned(repo, tmp_path)
-    emit_inner_state_changed_transactional(
-        repo / "kitty-specs" / MISSION_DIRNAME,
-        "WP01",
-        WPInnerStateDelta(note="threaded"),
-        actor="issue-3866-test",
-        mission_slug=MISSION_SLUG,
-        repo_root=repo,
-        effective_root=owned.root,
-        owned_mission=owned,
+    def _halt(**_kwargs: Any) -> None:
+        raise _AcquireHalted
+
+    monkeypatch.setattr(BookkeepingTransaction, "acquire", _halt)
+
+    with pytest.raises(_AcquireHalted):
+        emit_inner_state_changed_transactional(
+            repo / "kitty-specs" / MISSION_DIRNAME,
+            "WP01",
+            WPInnerStateDelta(note="threaded"),
+            actor="issue-3866-test",
+            mission_slug=MISSION_SLUG,
+            repo_root=repo,
+            owned=owned,
+        )
+
+    assert recorded[0].owned is owned
+
+
+# ---------------------------------------------------------------------------
+# review cycle 1 MEDIUM-4: emit_inner_state_changed_transactional's three
+# owned checks (OWNED_TRANSACTION_UNAVAILABLE refusal, the uncommitted-emit
+# short-circuit, and the BookkeepingWorktreeMissing re-raise) all key on
+# identity.owned, so an owned= caller gets the fail-closed behaviour on every
+# one of them (WP18 retired the legacy bare-root shape they were once compared to).
+# ---------------------------------------------------------------------------
+
+
+def test_inner_state_owned_only_refuses_without_transaction_metadata(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An ``owned=`` call still refuses
+    OWNED_TRANSACTION_UNAVAILABLE when the identity lacks transaction
+    metadata -- MEDIUM-4(a): the base build's ``fact = request.owned_fact()``
+    ran BEFORE ``_identity_for_request``, so an owned=-only caller's fact was
+    still visible there (this particular regression needed a legacy-only
+    caller to surface, see the companion test below); this test pins the
+    owned=-only shape directly."""
+    from mission_runtime import ActionContextError
+
+    owned_checkout = tmp_path / "owned"
+    owned_checkout.mkdir()
+    identity = _owned_identity(owned_checkout, primary_root=repo, transaction_meta_exists=False)
+    monkeypatch.setattr(
+        "specify_cli.coordination.status_transition._identity_for_request",
+        lambda _r: identity,
     )
 
-    assert recorded[0].owned_mission is owned
-    assert recorded[0].effective_root == owned.root
+    with pytest.raises(ActionContextError) as refused:
+        emit_inner_state_changed_transactional(
+            repo / "kitty-specs" / MISSION_DIRNAME,
+            "WP01",
+            WPInnerStateDelta(note="owned-only-refusal"),
+            actor="cycle1-medium4-test",
+            mission_slug=MISSION_SLUG,
+            owned=identity.owned,
+        )
+    assert refused.value.code == "OWNED_TRANSACTION_UNAVAILABLE"
+
+
+def test_inner_state_owned_only_reraises_worktree_missing_never_degrades(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MEDIUM-4(b) fail-open regression guard: an ``owned=``-only caller whose
+    transaction acquire raises ``BookkeepingWorktreeMissing`` must RE-RAISE,
+    never silently degrade to the uncommitted primary write.
+
+    Before the fix, the re-raise gate at the ``except BookkeepingWorktreeMissing``
+    handler keyed on a bare-root keyword, so an owned= caller
+    fell through to ``_uncommitted_emit()`` --
+    a fail-OPEN degrade of an authoritative owned write, silently landing the
+    annotation on the wrong (non-owned) surface.
+    """
+    from specify_cli.coordination import status_transition as st
+    from specify_cli.coordination.transaction import BookkeepingTransaction, BookkeepingWorktreeMissing
+
+    owned_checkout = tmp_path / "owned"
+    owned_checkout.mkdir()
+    identity = _owned_identity(owned_checkout, primary_root=repo, transaction_meta_exists=True)
+    monkeypatch.setattr(st, "_identity_for_request", lambda _r: identity)
+
+    def _raise_missing(**_kwargs: Any) -> None:
+        raise BookkeepingWorktreeMissing("scratch: coordination worktree unavailable")
+
+    monkeypatch.setattr(BookkeepingTransaction, "acquire", _raise_missing)
+
+    def _must_not_run(*_a: object, **_k: object) -> object:
+        raise AssertionError("an owned=-only caller must never degrade to the uncommitted primary write")
+
+    monkeypatch.setattr(st._emit, "emit_inner_state_changed", _must_not_run)
+
+    with pytest.raises(BookkeepingWorktreeMissing):
+        emit_inner_state_changed_transactional(
+            repo / "kitty-specs" / MISSION_DIRNAME,
+            "WP01",
+            WPInnerStateDelta(note="owned-only-fail-open-guard"),
+            actor="cycle1-medium4-test",
+            mission_slug=MISSION_SLUG,
+            owned=identity.owned,
+        )
+
+
+# ---------------------------------------------------------------------------
+# review cycle 1 MEDIUM-6: the batch door must not lose per-request
+# owned-fact threading for requests[1:] (only requests[0] ever passed
+# through _identity_for_request's mutation, before the fix removed the
+# mutation and moved the bridging into transition_pipeline._infer_review_gates
+# instead, keyed on EACH request's own fields).
+# ---------------------------------------------------------------------------
+
+
+def test_batch_door_threads_the_second_requests_own_owned_fact(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MEDIUM-6 regression guard, at the real batch door.
+
+    Only ``requests[0]`` ever passed through the (now-removed)
+    ``_identity_for_request`` mutation, so this test specifically exercises
+    ``requests[1]``'s review-gate handoff (the second member, NOT the one
+    the old mutation ever touched) to prove its OWN ``owned`` fact
+    reaches the subtasks-gate resolver via ``_prepare_batch_in_transaction``
+    -> ``prepare_transition`` -> ``_infer_review_gates``, the full real path
+    (not just the ``prepare_transition`` call boundary, which never
+    reproduced this bug -- the loss happened one layer deeper, inside
+    ``_infer_review_gates``).
+    """
+    import contextlib
+
+    from specify_cli.core.dependency_graph import DependencyReadiness
+    from specify_cli.core.subtask_rows import SubtaskRosterResolutionError
+    from specify_cli.coordination.status_transition import _prepare_batch_in_transaction
+    from specify_cli.status import transition_pipeline
+    from specify_cli.status.emit import TransitionError
+
+    resolver_calls: list[dict[str, Any]] = []
+    real_resolver = transition_pipeline._default_resolve_subtasks_dir
+
+    def _spy_resolver(*args: Any, **kwargs: Any) -> Path:
+        resolver_calls.append(kwargs)
+        return real_resolver(*args, **kwargs)
+
+    monkeypatch.setattr(transition_pipeline, "_default_resolve_subtasks_dir", _spy_resolver)
+
+    feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
+    fact_a = _threaded_owned(repo, tmp_path, root=tmp_path / "owned-a")
+    fact_b = _threaded_owned(repo, tmp_path, root=tmp_path / "owned-b")
+    request_a = _request(repo)
+    request_a.owned = fact_a
+    request_a.to_lane = "in_progress"  # claimed -> in_progress, no gate
+    request_b = _request(repo)
+    request_b.owned = fact_b
+    request_b.to_lane = "for_review"  # in_progress -> for_review: triggers the gate
+    requests = [request_a, request_b]
+    readiness = DependencyReadiness(wp_id="WP01", dependencies=(), unsatisfied=())
+
+    # The resolver runs (and is recorded) BEFORE any completeness refusal is
+    # evaluated; whether the handoff itself is ultimately accepted or refused
+    # (there is no real tasks/ dir in this fixture, so the completeness
+    # inference itself errors downstream of the resolver call) is irrelevant
+    # to this test -- only the resolver's own kwargs matter.
+    with contextlib.suppress(TransitionError, SubtaskRosterResolutionError):
+        _prepare_batch_in_transaction(
+            requests,
+            first_feature_dir_raw=feature_dir,
+            feature_dir=feature_dir,
+            mission_slug=MISSION_SLUG,
+            mission_id=MISSION_ID,
+            from_lane=Lane.CLAIMED,
+            readiness=readiness,
+        )
+
+    assert resolver_calls, "the second request's for_review handoff must invoke the subtasks-gate resolver"
+    assert resolver_calls[0]["owned"] is fact_b

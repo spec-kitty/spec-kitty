@@ -23,7 +23,7 @@ from specify_cli.retrospective.schema import Mode
 if TYPE_CHECKING:
     # Runtime import would pull ``core.owned_mission`` into every status
     # consumer at load time; the field is only ever annotated here (#3866).
-    from specify_cli.core.owned_mission import OwnedMission
+    from mission_runtime import OwnedCheckout
 
 
 class Lane(StrEnum):
@@ -132,18 +132,12 @@ def decode_actor(value: Any) -> ActorField:
         expected = set(_STRUCTURED_ACTOR_FIELDS)
         actual = set(value)
         if actual != expected:
-            raise ValueError(
-                "structured actor must contain exactly "
-                f"{sorted(expected)!r}; got {sorted(actual)!r}"
-            )
+            raise ValueError(f"structured actor must contain exactly {sorted(expected)!r}; got {sorted(actual)!r}")
         decoded: dict[str, str | None] = {}
         for field_name in _STRUCTURED_ACTOR_FIELDS:
             field_value = value[field_name]
             if field_value is not None and not isinstance(field_value, str):
-                raise ValueError(
-                    "structured actor fields must be strings or null; "
-                    f"{field_name!r} was {type(field_value).__name__}"
-                )
+                raise ValueError(f"structured actor fields must be strings or null; {field_name!r} was {type(field_value).__name__}")
             decoded[field_name] = field_value
         return decoded
     return str(value)
@@ -424,11 +418,7 @@ class StatusEvent:
             reason_source=data.get("reason_source"),
             review_ref=data.get("review_ref"),
             evidence=DoneEvidence.from_dict(evidence_data) if evidence_data else None,
-            review_result=(
-                ReviewResult.from_dict(review_result_data)
-                if review_result_data
-                else None
-            ),
+            review_result=(ReviewResult.from_dict(review_result_data) if review_result_data else None),
             policy_metadata=data.get("policy_metadata"),
             mission_id=data.get("mission_id"),  # None for legacy events
         )
@@ -616,11 +606,7 @@ class WPInnerStateDelta:
         """
         if self.release_runtime_claim:
             return False
-        return all(
-            getattr(self, f.name) is None
-            for f in fields(self)
-            if f.name != "release_runtime_claim"
-        )
+        return all(getattr(self, f.name) is None for f in fields(self) if f.name != "release_runtime_claim")
 
     def to_dict(self) -> dict[str, Any]:
         """Emit only present fields so the reducer's "absent leaves slot
@@ -668,11 +654,7 @@ class WPInnerStateDelta:
             subtasks=subtasks,
             note=data.get("note"),
             tracker_refs=list(tracker_refs_raw) if tracker_refs_raw is not None else None,
-            tracker_refs_replace=(
-                list(tracker_refs_replace_raw)
-                if tracker_refs_replace_raw is not None
-                else None
-            ),
+            tracker_refs_replace=(list(tracker_refs_replace_raw) if tracker_refs_replace_raw is not None else None),
             review=review,
             release_runtime_claim=bool(data.get("release_runtime_claim", False)),
             **scalars,
@@ -896,16 +878,13 @@ class TransitionRequest:
     # this transition. Emitters persist it in the same atomic/transactional
     # unit as the lane event, so a resolved binding can never lag its claim.
     annotation_delta: WPInnerStateDelta | None = None
-    effective_root: Path | None = None
-    # #3866: the validated owned-mission value object, threaded by callers
-    # that already resolved one so the transactional identity derivation
-    # reuses it instead of re-running ``resolve_owned_mission`` (ownership
-    # claim + mission resolve + git branch probes) per event. ``None`` — the
-    # default — keeps the re-resolve path for every caller that only holds an
-    # ``effective_root``. Must describe the same checkout/mission as
-    # ``effective_root``/``mission_slug``; a mismatch fails closed at the
-    # identity seam.
-    owned_mission: OwnedMission | None = None
+    # The validated ownership fact (owned-checkout-lifecycle-authority WP07,
+    # FR-003), threaded by callers that already minted one so the
+    # transactional identity derivation reuses it instead of re-running the
+    # ownership claim (#3866). ``None`` -- the default -- is a non-owned
+    # request. Must describe the same mission as ``mission_slug``; a mismatch
+    # fails closed at the identity seam.
+    owned: OwnedCheckout | None = None
 
 
 @dataclass

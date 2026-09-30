@@ -542,6 +542,7 @@ def persist_lifecycle_event_local(
     project_slug: str | None = None,
     dedup_keys: Mapping[str, Any] | None = None,
     mission_slug: str | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Persist a lifecycle event locally without invoking hosted adapters.
 
@@ -560,6 +561,19 @@ def persist_lifecycle_event_local(
     writes (``.kittify/canonical-events.jsonl``), which lock on the sibling
     :func:`specify_cli.status.locking.project_event_log_lock` instead. The
     external return-value/never-raises contract is unchanged either way.
+
+    ``repo_root`` (owned-checkout-lifecycle-authority WP09, review cycle 1
+    issue 3, out-of-map declared edit): an optional caller-supplied lock
+    root that skips :func:`_repo_root_for_lifecycle_log`'s
+    ``resolve_canonical_root``/``get_main_repo_root`` walk when given. The
+    lock itself resolves via the git COMMON dir either way
+    (``feature_status_lock``/``project_event_log_lock``), which an owned
+    checkout shares with its repository root by construction, so this is
+    behaviour-preserving for every existing caller (default ``None`` keeps
+    the resolve-from-``log_path`` path unchanged) -- it only lets an owned
+    caller supply ``owned.repository_root`` directly instead of an owned
+    checkout's write ever calling ``get_main_repo_root`` (the "the fact is
+    the single internal representation" rule).
     """
     if event_type not in LIFECYCLE_EVENT_TYPES:
         logger.debug("Refusing to append unknown lifecycle event type %r", event_type)
@@ -581,9 +595,9 @@ def persist_lifecycle_event_local(
         project_uuid=project_uuid,
         project_slug=project_slug,
     )
-    repo_root = _repo_root_for_lifecycle_log(log_path)
+    resolved_repo_root = repo_root if repo_root is not None else _repo_root_for_lifecycle_log(log_path)
     try:
-        with _lifecycle_write_lock(repo_root, log_path.parent.name if mission_slug is not None else None):
+        with _lifecycle_write_lock(resolved_repo_root, log_path.parent.name if mission_slug is not None else None):
             _atomic_append(log_path, json.dumps(envelope, sort_keys=True))
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)
@@ -602,12 +616,17 @@ def append_lifecycle_event(
     project_slug: str | None = None,
     dedup_keys: Mapping[str, Any] | None = None,
     mission_slug: str | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Persist locally, then offer the same envelope to hosted fan-out.
 
     This preserves the historical composed behavior for existing callers.
     Local persistence remains authoritative: a skipped or failed local write
     returns ``None`` and does not invoke a hosted adapter.
+
+    ``repo_root``: see :func:`persist_lifecycle_event_local` -- passed
+    straight through (owned-checkout-lifecycle-authority WP13, out-of-map
+    declared edit).
     """
     envelope = persist_lifecycle_event_local(
         log_path,
@@ -619,6 +638,7 @@ def append_lifecycle_event(
         project_slug=project_slug,
         dedup_keys=dedup_keys,
         mission_slug=mission_slug,
+        repo_root=repo_root,
     )
     if envelope is not None:
         fanout_lifecycle_event_hosted(envelope, log_path=log_path)
@@ -725,8 +745,13 @@ def emit_mission_created_local(
     created_at: str | None = None,
     actor: str | None = None,
     fanout: bool = True,
+    repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Record a local ``MissionCreated`` event for *feature_dir*.
+
+    ``repo_root``: see :func:`persist_lifecycle_event_local` -- passed
+    straight through (owned-checkout-lifecycle-authority WP13, out-of-map
+    declared edit).
 
     Idempotent on ``mission_slug``. The mission's
     ``status.events.jsonl`` is created on first call. Set ``fanout=False``
@@ -776,6 +801,7 @@ def emit_mission_created_local(
         project_slug=project_slug,
         dedup_keys={"mission_slug": mission_slug},
         mission_slug=mission_slug,
+        repo_root=repo_root,
     )
 
 
@@ -792,8 +818,12 @@ def emit_artifact_phase_local(
     project_uuid: str | None = None,
     project_slug: str | None = None,
     at: str | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Persist a Specify/Plan/Tasks phase locally without hosted fan-out.
+
+    ``repo_root``: see :func:`persist_lifecycle_event_local` -- passed
+    straight through (owned-checkout-lifecycle-authority WP09).
 
     Started and completed events dedupe on
     ``(event_type, mission_slug, artifact_path)`` when an artifact path is
@@ -867,6 +897,7 @@ def emit_artifact_phase_local(
         project_slug=project_slug,
         dedup_keys=dedup,
         mission_slug=mission_slug,
+        repo_root=repo_root,
     )
 
 
@@ -883,6 +914,7 @@ def emit_artifact_phase(
     project_uuid: str | None = None,
     project_slug: str | None = None,
     at: str | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Persist and fan out a Specify/Plan/Tasks lifecycle event.
 
@@ -890,6 +922,9 @@ def emit_artifact_phase(
     behavior. Callers with their own hosted authority decision should use
     :func:`emit_artifact_phase_local` and later submit the returned envelope
     to :func:`fanout_lifecycle_event_hosted` with the mission log path.
+
+    ``repo_root``: see :func:`persist_lifecycle_event_local` -- passed
+    straight through (owned-checkout-lifecycle-authority WP09).
     """
     envelope = emit_artifact_phase_local(
         feature_dir,
@@ -903,6 +938,7 @@ def emit_artifact_phase(
         project_uuid=project_uuid,
         project_slug=project_slug,
         at=at,
+        repo_root=repo_root,
     )
     if envelope is not None:
         fanout_lifecycle_event_hosted(
@@ -925,8 +961,13 @@ def emit_wp_created_local(
     created_at: str | None = None,
     project_uuid: str | None = None,
     project_slug: str | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Record a local ``WPCreated`` event keyed by ``(mission_slug, wp_id)``.
+
+    ``repo_root``: see :func:`persist_lifecycle_event_local` -- passed
+    straight through (owned-checkout-lifecycle-authority WP13, out-of-map
+    declared edit).
 
     Payload is constructed via the canonical
     :class:`spec_kitty_events.project_lifecycle.WPCreatedPayload` so
@@ -958,6 +999,7 @@ def emit_wp_created_local(
         project_slug=project_slug,
         dedup_keys={"mission_slug": mission_slug, "wp_id": wp_id},
         mission_slug=mission_slug,
+        repo_root=repo_root,
     )
 
 

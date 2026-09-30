@@ -15,11 +15,14 @@ modify the index, working tree, or .git directory.
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 from pathlib import Path
 
 import pytest
 
+from mission_runtime import OwnedCheckout
+from mission_runtime.context import MissionTopology
 from specify_cli.coordination.policy import WorkflowMutationPolicy
 from specify_cli.coordination.types import Allowed, GitChangeSet, Refused
 
@@ -48,7 +51,9 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _change(
-    repo: Path, ref: str, operation: str = "test",
+    repo: Path,
+    ref: str,
+    operation: str = "test",
 ) -> GitChangeSet:
     return GitChangeSet(
         destination_ref=ref,
@@ -116,7 +121,9 @@ def test_refused_not_local_remote_tracking(repo: Path, tmp_path: Path) -> None:
     rem_dir = repo / ".git" / "refs" / "remotes" / "origin"
     rem_dir.mkdir(parents=True, exist_ok=True)
     head_sha = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=repo, text=True,
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        text=True,
     ).strip()
     (rem_dir / "only-remote").write_text(head_sha + "\n")
 
@@ -129,6 +136,7 @@ def test_refused_not_local_remote_tracking(repo: Path, tmp_path: Path) -> None:
 
 def test_assert_allowed_is_side_effect_free(repo: Path) -> None:
     """Calling assert_allowed many times leaves repo state unchanged."""
+
     def state_hash() -> str:
         # Hash the index file + working-tree mtime tree summary.
         index_path = repo / ".git" / "index"
@@ -152,3 +160,77 @@ def test_assert_allowed_is_side_effect_free(repo: Path) -> None:
         WorkflowMutationPolicy.assert_allowed(_change(repo, ref))
     after = state_hash()
     assert before == after
+
+
+# ---------------------------------------------------------------------------
+# Owned arm: the mission-scoped ``commit_to_target`` fold reads the fact's
+# own ``meta.json`` (P), never a copy under the repository root (R).
+# ---------------------------------------------------------------------------
+
+_OWNED_SLUG = "owned-policy-01M1A900"
+
+
+def _protect_feature(repo: Path) -> None:
+    (repo / ".kittify").mkdir(exist_ok=True)
+    (repo / ".kittify" / "config.yaml").write_text("protection:\n  protected_branches: [feature]\n", encoding="utf-8")
+
+
+def _write_meta(mission_dir: Path, *, commit_to_target: bool | None) -> None:
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    meta: dict[str, object] = {
+        "mission_id": "01M1A900000000000000000001",
+        "mission_slug": _OWNED_SLUG,
+        "slug": _OWNED_SLUG,
+        "topology": "single_branch",
+        "target_branch": "feature",
+    }
+    if commit_to_target is not None:
+        meta["commit_to_target"] = commit_to_target
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+
+def _owned_fact(repo: Path, tmp_path: Path, *, p_commit_to_target: bool | None) -> OwnedCheckout:
+    owned_root = tmp_path / "owned"
+    mission_dir = owned_root / "kitty-specs" / _OWNED_SLUG
+    _write_meta(mission_dir, commit_to_target=p_commit_to_target)
+    return OwnedCheckout._mint(
+        repository_root=repo,
+        owned_root=owned_root,
+        mission_dir=mission_dir,
+        mission_slug=_OWNED_SLUG,
+        topology=MissionTopology.SINGLE_BRANCH,
+        write_branch="feature",
+    )
+
+
+def _mission_change(repo: Path) -> GitChangeSet:
+    return GitChangeSet(
+        destination_ref="feature",
+        repo_root=repo,
+        worktree_root=repo,
+        paths=(),
+        message="m",
+        operation="test",
+        mission_slug=_OWNED_SLUG,
+    )
+
+
+def test_owned_commit_to_target_is_read_from_the_fact_not_the_repository_root(repo: Path, tmp_path: Path) -> None:
+    """P opted out (``commit_to_target: true``), R holds no copy: the owned write is allowed."""
+    _protect_feature(repo)
+    fact = _owned_fact(repo, tmp_path, p_commit_to_target=True)
+
+    assert isinstance(WorkflowMutationPolicy.assert_allowed(_mission_change(repo)), Refused)
+    assert isinstance(WorkflowMutationPolicy.assert_allowed(_mission_change(repo), owned=fact), Allowed)
+
+
+def test_owned_arm_ignores_a_stale_repository_root_opt_out(repo: Path, tmp_path: Path) -> None:
+    """R's stale copy opted out but P did not: the owned write stays refused (fail-closed on P)."""
+    _protect_feature(repo)
+    _write_meta(repo / "kitty-specs" / _OWNED_SLUG, commit_to_target=True)
+    fact = _owned_fact(repo, tmp_path, p_commit_to_target=None)
+
+    assert isinstance(WorkflowMutationPolicy.assert_allowed(_mission_change(repo)), Allowed)
+    verdict = WorkflowMutationPolicy.assert_allowed(_mission_change(repo), owned=fact)
+    assert isinstance(verdict, Refused)
+    assert verdict.error_code == "PROTECTED_BRANCH_REFUSED"

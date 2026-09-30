@@ -85,6 +85,7 @@ from .locking import feature_status_lock
 from .transition_pipeline import PreparedTransition, prepare_transition
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from specify_cli.core.dependency_graph import DependencyReadiness
 
 logger = logging.getLogger(__name__)
@@ -316,7 +317,7 @@ def _derive_from_lane(feature_dir: Path, wp_id: str, *, snapshot: StatusSnapshot
     return cast(str, Lane.GENESIS)
 
 
-def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str, ...]:
+def _declared_dependencies(planning_feature_dir: Path, wp_id: str, *, owned: OwnedCheckout | None = None) -> tuple[str, ...]:
     """The ``dependencies`` a WP prompt file declares on the PRIMARY planning surface.
 
     WP files are authored on the primary checkout (``cli/commands/implement.py::
@@ -363,7 +364,14 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str) -> tuple[str,
     # canonicalizer's `meta.json`-exists short-circuit returns the handle
     # unchanged), so dropping the "already anchored" fast path costs nothing
     # beyond a redundant resolve.
-    if planning_feature_dir.parent.name == KITTY_SPECS_DIR:
+    if owned is not None:
+        # owned-checkout-lifecycle-authority WP13 (review cycle 3 MEDIUM-2, declared
+        # out-of-map edit): the fact is the single internal representation of the
+        # owned mission. Its ``mission_dir`` IS the primary planning home; re-anchoring
+        # through ``resolve_canonical_root`` would send the read to the repository
+        # root and take WP ``dependencies`` from R's (absent or stale) copy.
+        planning_feature_dir = owned.mission_dir
+    elif planning_feature_dir.parent.name == KITTY_SPECS_DIR:
         try:
             primary_root = resolve_canonical_root(planning_feature_dir)
         except WorkspaceRootNotFound:
@@ -406,7 +414,13 @@ def _coerce_declared_dependencies(raw: object, *, wp_id: str, wp_file: Path) -> 
     raise TransitionError(f"Cannot resolve the declared dependencies of {wp_id}: {wp_file} declares a malformed `dependencies` value ({raw!r})")
 
 
-def _resolve_dependency_readiness(planning_feature_dir: Path, wp_id: str, snapshot: StatusSnapshot) -> DependencyReadiness:
+def _resolve_dependency_readiness(
+    planning_feature_dir: Path,
+    wp_id: str,
+    snapshot: StatusSnapshot,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> DependencyReadiness:
     """The shells' dependency verdict (FR-013): declared deps x reduced write surface.
 
     Called INSIDE the lock/transaction with the snapshot the shell already
@@ -422,9 +436,13 @@ def _resolve_dependency_readiness(planning_feature_dir: Path, wp_id: str, snapsh
     refuses only ``planned -> claimed`` / ``claimed -> in_progress``, ``force``
     + actor + reason still overrides, and ``-> blocked``, ``-> canceled`` and
     the review edges are never affected by a corrupt planning artifact.
+
+    ``owned``: the validated owned-checkout fact, when the caller holds one --
+    declared dependencies are then read from ``owned.mission_dir`` (P), never
+    re-anchored to the repository root. ``None`` keeps the legacy behaviour.
     """
     try:
-        declared = _declared_dependencies(planning_feature_dir, wp_id)
+        declared = _declared_dependencies(planning_feature_dir, wp_id, owned=owned)
     except TransitionError as exc:
         logger.warning("Dependency readiness of %s is unresolvable; refusing the guarded entry edges: %s", wp_id, exc)
         return unresolvable_readiness(wp_id, str(exc))
@@ -687,15 +705,24 @@ def _flat_subtasks_dir_resolver(
     repo_root: Path | None,
     mission_slug: str,
     *,
-    effective_root: Path | None = None,  # noqa: ARG001 -- deliberately dropped; see D-1 in design-notes/WP02-pipeline.md
+    # review cycle 2 HIGH-1: typed ``object`` rather than ``OwnedCheckout`` --
+    # the value is dropped by design (D-1) and never read, so importing
+    # ``mission_runtime`` here just to spell its concrete type is unnecessary
+    # coupling. Importing it (even under TYPE_CHECKING) triggered a
+    # mypy --strict --explicit-package-bases no-redef on the ``_store``/
+    # ``_reducer`` aliases a few lines above once the reviewer's full
+    # 54-file caller-set invocation exposed the cycle the WP-file-only
+    # invocation missed.
+    owned: object | None = None,  # noqa: ARG001 -- deliberately dropped; see D-1 in design-notes/WP02-pipeline.md
 ) -> Path:
     """The flat shell's subtask-gate resolver: today's observable behaviour.
 
-    Before the pipeline promotion the flat/primary shells never passed
-    ``request.effective_root`` to ``resolve_subtasks_gate_dir`` while the
-    transactional ``_prepare_event`` did. The pipeline threads it; this
-    adapter preserves the flat shell's behaviour verbatim (D-1 in
-    ``design-notes/WP02-pipeline.md``) until WP06 adjudicates the parity.
+    Before the pipeline promotion the flat/primary shells never passed an
+    owned-checkout argument to ``resolve_subtasks_gate_dir`` while the
+    transactional ``_prepare_event`` did. The pipeline threads the ``owned``
+    fact; this adapter preserves the flat shell's behaviour verbatim (D-1 in
+    ``design-notes/WP02-pipeline.md``) until WP06 adjudicates the parity --
+    the flat shell still never threads it to the subtasks-gate resolver.
     """
     from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 

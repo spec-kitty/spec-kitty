@@ -27,6 +27,8 @@ from pathlib import Path
 import pytest
 
 import specify_cli.status.emit as emit_module
+from mission_runtime import OwnedCheckout
+from mission_runtime.context import MissionTopology
 import specify_cli.status.transition_pipeline as transition_pipeline_module
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
 from specify_cli.lanes.branch_naming import lane_branch_name
@@ -508,3 +510,75 @@ def test_transactional_shell_stamps_lane_head(coord_repo: Path) -> None:
     assert persisted[0].policy_metadata[LANE_HEAD_KEY] == sha
     assert persisted[0].policy_metadata["agent"] == "claude"
     assert persisted[0].policy_metadata["shell_pid"] == 9911
+
+
+# ---------------------------------------------------------------------------
+# Group 4: the owned arm reads the fact's own lanes.json, never R's
+# ---------------------------------------------------------------------------
+
+
+def _mint_owned_fact(repo: Path, owned_mission_dir: Path, slug: str) -> OwnedCheckout:
+    """Mint a fact whose mission dir is *owned_mission_dir* (``tests/`` helper, contract §1)."""
+    return OwnedCheckout._mint(
+        repository_root=repo,
+        owned_root=owned_mission_dir.parent.parent,
+        mission_dir=owned_mission_dir,
+        mission_slug=slug,
+        topology=MissionTopology.SINGLE_BRANCH,
+        write_branch="main",
+    )
+
+
+def test_probe_lane_head_owned_reads_the_facts_lanes_json_not_the_repository_roots(flat_mission: FlatTopologyContext, tmp_path: Path) -> None:
+    """An owned transition stamps from P's lane map, never a stale R copy (merge of origin/main into the owned mission).
+
+    R's copy has NO ``lanes.json``; the owned checkout's mission dir maps WP01
+    to ``lane-a`` whose branch exists. The plain probe (R) finds no lane; the
+    owned probe must find it through the fact alone.
+    """
+    sha = _create_lane_branch(flat_mission.repo, flat_mission.slug)
+    (flat_mission.primary_feature_dir / "lanes.json").unlink()
+    owned_mission_dir = tmp_path / "owned" / "kitty-specs" / flat_mission.slug
+    owned_mission_dir.mkdir(parents=True)
+    _write_lanes_json(owned_mission_dir, slug=flat_mission.slug, mission_id=flat_mission.mission_id)
+    fact = _mint_owned_fact(flat_mission.repo, owned_mission_dir, flat_mission.slug)
+
+    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01") is None
+    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01", owned=fact) == sha
+
+
+def test_probe_lane_head_owned_ignores_a_stale_repository_root_lane_map(flat_mission: FlatTopologyContext, tmp_path: Path) -> None:
+    """R's stale copy maps WP01 to a code lane; P's own map has no lanes.json -> no stamp on the owned arm."""
+    _create_lane_branch(flat_mission.repo, flat_mission.slug)
+    owned_mission_dir = tmp_path / "owned" / "kitty-specs" / flat_mission.slug
+    owned_mission_dir.mkdir(parents=True)
+    fact = _mint_owned_fact(flat_mission.repo, owned_mission_dir, flat_mission.slug)
+
+    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01", owned=fact) is None
+
+
+def test_stamped_policy_metadata_forwards_the_requests_owned_fact(flat_mission: FlatTopologyContext, tmp_path: Path) -> None:
+    """``prepare_transition``'s stamp step hands ``request.owned`` to the injected probe."""
+    owned_mission_dir = tmp_path / "owned" / "kitty-specs" / flat_mission.slug
+    owned_mission_dir.mkdir(parents=True)
+    fact = _mint_owned_fact(flat_mission.repo, owned_mission_dir, flat_mission.slug)
+    seen: list[object] = []
+
+    def _probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
+        seen.append(owned)
+        return "abc123"
+
+    request = TransitionRequest(
+        feature_dir=flat_mission.primary_feature_dir,
+        mission_slug=flat_mission.slug,
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="tester",
+        owned=fact,
+    )
+    stamped = transition_pipeline_module._stamped_policy_metadata(
+        request=request, mission_slug=flat_mission.slug, lane_head_probe=_probe, repo_root=flat_mission.repo
+    )
+
+    assert seen == [fact]
+    assert stamped == {LANE_HEAD_KEY: "abc123"}
