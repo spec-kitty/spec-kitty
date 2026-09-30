@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 import typer
-from mission_runtime import CommitTarget, MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, placement_seam
 
 # checkout_ownership and owned_mission are only reachable once ownership is
 # validated (``--owned-checkout`` or flagless adoption); they stay deferred
@@ -391,11 +391,17 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     paths = mission_files + ((lifecycle,) if lifecycle.is_file() else ())
     if not paths:
         return
+    # Seam-derived, not a checkout re-derivation: PRIMARY_METADATA is a
+    # primary-partition kind, so the owned arm of write_target() resolves
+    # deterministically to CommitTarget(ref=owned.write_branch) -- the SAME
+    # value the fact already carries -- via the one placement authority
+    # rather than constructing CommitTarget(ref=...) by hand here.
+    target = placement_seam(owned.repository_root, owned.mission_slug, owned=owned).write_target(MissionArtifactKind.PRIMARY_METADATA)
     try:
         safe_commit(
             repo_root=owned.owned_root,
             worktree_root=owned.owned_root,
-            target=CommitTarget(ref=owned.write_branch),
+            target=target,
             message=f"chore(next): persist {owned.mission_slug} advancement [skip ci]",
             paths=paths,
             capability=GuardCapability.STANDARD,

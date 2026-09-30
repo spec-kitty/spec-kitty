@@ -184,7 +184,26 @@ _RUNTIME_NEXT_IDENTITY_READ_FLOOR = 2
 # site). DIRECTIVE_041 disposition: STALE — the pin tolerated a residual this
 # mission now closes; VALID → the resulting red is a real, correct signal that
 # a routing WP must act on, not a defect in this gate.
-_IDENTITY_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset()
+#
+# owned-checkout-lifecycle-authority-01M3M2ZB (#3449):
+# ``runtime_bridge_io.py::_run_mission_id`` --
+# ``resolve_mission_identity(owned.mission_dir)`` flags on the syntactic
+# ``ast.Attribute`` shape (``owned.mission_dir`` is not the sanctioned
+# ``target_feature_dir`` attribute this scanner already special-cases). It is
+# NOT the coord-husk read this gate exists to catch: ``owned.mission_dir`` is
+# the VALIDATED owned-checkout mission surface minted once by
+# ``resolve_owned_mission`` (the ``OwnedCheckout`` fact) -- it carries a real
+# ``meta.json`` on the owned checkout ``P``, never the STATUS-only ``-coord``
+# husk (no ``meta.json`` since #2106) the PRIMARY-fold routing
+# (``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``)
+# guards against. Routing it through that fold would mean re-deriving P's
+# mission dir from a raw handle instead of using the fact's own
+# already-validated, single-authority directory -- the opposite of this
+# mission's boundary contract (IC-01: OwnedCheckout fields are the validated
+# single authority, not a re-derivation site). Pinned here rather than routed.
+_IDENTITY_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset(
+    {"src/runtime/next/runtime_bridge_io.py::_run_mission_id"}
+)
 # LANES census — empty: every in-scope lanes.json read is routed/clean.
 _LANES_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset()
 
