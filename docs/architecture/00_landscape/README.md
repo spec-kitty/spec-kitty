@@ -169,8 +169,8 @@ and by Agent Tool Connectors (execution-time governance context). The Skills
 Installer (`specify_cli/skills/`) deploys canonical skill packs from
 `src/charter/offering/skills/` into agent directories during `spec-kitty init`.
 The doctrine code now lives under `src/charter/offering/` (the former top-level
-`src/doctrine/` package was absorbed there in the convergence; the `src/doctrine.py`
-deprecation shim was removed, #805) — it depends on nothing except Kernel.
+`src/doctrine/` package was absorbed there in the convergence; the top-level `doctrine`
+deprecation shim module was removed, #805) — it depends on nothing except Kernel.
 
 ### Charter
 
@@ -314,7 +314,7 @@ pair; on any conflict, the enforced pair wins. The former self-declared authorit
 it drifted from reality.
 
 **Client-repo inversion.** `charter.offering` holds the doctrine code (the former top-level
-`src/doctrine/`; the `src/doctrine.py` deprecation shim was removed, #805). `src/specify_cli/zeitgeist_client/`
+`src/doctrine/`; the top-level `doctrine` deprecation shim module was removed, #805). `src/specify_cli/zeitgeist_client/`
 and `src/specify_cli/saas_client/` are **clients** of the upstream authoritative repos
 `spec-kitty/zeitgeist` and `spec-kitty/saas` — consumer code integrated here, not in-repo
 successor subsystems (the API is authored/published upstream). See ADR
