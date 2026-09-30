@@ -64,7 +64,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from specify_cli.status import (
     CanonicalStatusNotFoundError,
@@ -74,6 +74,9 @@ from specify_cli.status import (
     reduce,
 )
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
 
 #: The mission-terminal-verdict outcomes (FR-009): ``mission_number`` present
 #: and every WP an acceptable ending -> ``"terminal"``; ``mission_number``
@@ -150,7 +153,25 @@ def wp_ending(feature_dir: Path, wp_id: str) -> WpEnding:
     return _fold_wp_state(snapshot.work_packages.get(wp_id))
 
 
-def _committed_surface(repo_root: Path, mission_slug: str) -> Path | None:
+def primary_surface_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None = None) -> Path:
+    """The PRIMARY feature dir the committed-authority reads anchor on.
+
+    Owned call: the PRIMARY-partition leg of the VALIDATED fact's own seam
+    (``mission_context_for(..., owned=owned)`` -> P), never R -- the identity
+    seam folds a worktree root to the main checkout, where a stale copy of the
+    mission must not be consulted (FR-007). Non-owned: the identity-seam
+    resolver, unchanged."""
+    if owned is not None:
+        # The PRIMARY-partition dir IS the fact's mission dir: read it straight off
+        # the fact. (Building the whole context here would also resolve the
+        # coordination surface and refuse a fresh, not-yet-materialised mission.)
+        return owned.mission_dir
+    from runtime.next.runtime_bridge_identity import _primary_runtime_feature_dir
+
+    return _primary_runtime_feature_dir(repo_root, mission_slug)
+
+
+def _committed_surface(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None = None) -> Path | None:
     """Resolve the committed PRIMARY surface through ONE resolver (#3829 items 1+4).
 
     Returns the identity-seam PRIMARY feature dir
@@ -178,11 +199,14 @@ def _committed_surface(repo_root: Path, mission_slug: str) -> Path | None:
     from specify_cli.core.paths import UnsafePathSegmentError, load_meta_fail_closed
     from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
-    from runtime.next.runtime_bridge_identity import _primary_runtime_feature_dir
+    from mission_runtime import ActionContextError
 
     try:
-        feature_dir = _primary_runtime_feature_dir(repo_root, mission_slug)
-    except (UnsafePathSegmentError, MissionSelectorAmbiguous):
+        feature_dir = primary_surface_dir(repo_root, mission_slug, owned)
+    except (UnsafePathSegmentError, MissionSelectorAmbiguous, ActionContextError):
+        # ActionContextError: an owned seam refusal (e.g. an unmaterialized
+        # coordination surface) is the caller's own typed classification to make
+        # (``_dn_bootstrap`` maps it to a blocked decision); this pre-check declines.
         return None
     meta = load_meta_fail_closed(feature_dir) or {}
     if meta.get("mission_number") is None:
@@ -190,7 +214,7 @@ def _committed_surface(repo_root: Path, mission_slug: str) -> Path | None:
     return feature_dir
 
 
-def mission_terminal_verdict(repo_root: Path, mission_slug: str) -> TerminalVerdict:
+def mission_terminal_verdict(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None = None) -> TerminalVerdict:
     """Return the mission's committed-authority terminal verdict (IC-02).
 
     Anchors BOTH reads — the ``mission_number`` gate and the committed status
@@ -207,7 +231,7 @@ def mission_terminal_verdict(repo_root: Path, mission_slug: str) -> TerminalVerd
     a git ref (see the module docstring's wording note) -- both reads below
     are plain filesystem reads of that checkout as it stands right now.
     """
-    feature_dir = _committed_surface(repo_root, mission_slug)
+    feature_dir = _committed_surface(repo_root, mission_slug, owned)
     if feature_dir is None:
         return "none"
 
@@ -223,7 +247,7 @@ def mission_terminal_verdict(repo_root: Path, mission_slug: str) -> TerminalVerd
     return "terminal" if all(ending.acceptable for ending in endings) else "blocked_conflict"
 
 
-def committed_status_dir(repo_root: Path, mission_slug: str) -> Path | None:
+def committed_status_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None = None) -> Path | None:
     """Return the committed PRIMARY status dir when authoritative, or ``None`` (#3829 item 3).
 
     The board's ONE-reduction anchor: the same identity-seam PRIMARY dir and
@@ -237,7 +261,7 @@ def committed_status_dir(repo_root: Path, mission_slug: str) -> Path | None:
     mission's row internally consistent: never a committed lane beside
     stale coordination companions.
     """
-    feature_dir = _committed_surface(repo_root, mission_slug)
+    feature_dir = _committed_surface(repo_root, mission_slug, owned)
     if feature_dir is None:
         return None
     if not has_event_log(feature_dir):

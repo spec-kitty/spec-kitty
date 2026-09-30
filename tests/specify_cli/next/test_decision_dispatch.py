@@ -75,7 +75,7 @@ class TestComposedActionMarkerFile:
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action=action,
                 feature_dir=tmp_path,
                 mission_slug="test-mission",
@@ -100,7 +100,7 @@ class TestComposedActionMarkerFile:
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_DOCUMENTATION_ACTIONS),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action=action,
                 feature_dir=tmp_path,
                 mission_slug="test-mission",
@@ -124,7 +124,7 @@ class TestComposedActionMarkerFile:
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_RESEARCH_ACTIONS),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action=action,
                 feature_dir=tmp_path,
                 mission_slug="test-mission",
@@ -196,7 +196,7 @@ class TestWpIdGuard:
         ):
             # With wp_id set, the code should NOT take the composed path.
             # It will try to call build_prompt and either fail gracefully or succeed.
-            path, _error = _build_prompt_or_error(
+            path, _error, _error_code = _build_prompt_or_error(
                 action="implement",
                 feature_dir=tmp_path,
                 mission_slug="test-mission",
@@ -239,7 +239,7 @@ class TestMarkerFileContents:
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action="specify",
                 feature_dir=tmp_path,
                 mission_slug="test-mission",

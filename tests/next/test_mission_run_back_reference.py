@@ -262,6 +262,7 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
     from runtime.next.runtime_bridge import _advance_run_state_after_composition
+    from runtime.next.runtime_bridge_engine import plan_composition_advance
 
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -320,6 +321,7 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
             progress={},
             origin={},
             sync_emitter=_NullSyncEmitter(),  # type: ignore[arg-type]
+            plan=plan_composition_advance(run_ref, "test-agent"),
         )
 
     persisted = _read_snapshot(run_dir)
@@ -351,6 +353,7 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
     from runtime.next.runtime_bridge import _advance_run_state_after_composition
+    from runtime.next.runtime_bridge_engine import plan_composition_advance
 
     run_dir = tmp_path / "run2"
     run_dir.mkdir()
@@ -410,6 +413,7 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
             progress={},
             origin={},
             sync_emitter=_NullSyncEmitter(),  # type: ignore[arg-type]
+            plan=plan_composition_advance(run_ref, "test-agent"),
         )
 
     persisted = _read_snapshot(run_dir)

@@ -258,7 +258,282 @@ def start_mission_run(
     )
 
 
-def next_step(  # noqa: C901
+class AdvancePlan(BaseModel):
+    """What one ``next_step`` will do, computed WITHOUT writing or emitting
+    anything (owned-checkout-lifecycle-authority WP11, review cycle 1
+    findings 3/4).
+
+    ``snapshot`` is the run state the ``decision`` was planned from -- the
+    result applied, any audit-significance LOW auto-proceed folded in, and the
+    significance / RACI records added to ``decisions`` -- but not yet holding
+    the issuance (``issued_step_id`` / ``pending_decisions``), which
+    :func:`_commit_advance` adds. ``significance`` is the event the commit
+    emits when an audit gate was evaluated.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    source: MissionRunSnapshot
+    snapshot: MissionRunSnapshot
+    decision: NextDecision
+    result: ResultType
+    completed_step_id: str | None
+    significance: SignificanceEvaluatedPayload | None = None
+
+
+def apply_result(snapshot: MissionRunSnapshot, result: ResultType) -> tuple[MissionRunSnapshot, str | None]:
+    """The engine's one "complete the issued step" prelude (pure).
+
+    Returns ``(snapshot, completed_step_id)``: the issued step moves to
+    ``completed_steps`` on ``success``, or a ``blocked_reason`` is recorded on
+    ``failed`` / ``blocked``; either way the issued marker is cleared.
+    ``completed_step_id`` is ``None`` (and the snapshot unchanged) when no
+    step was issued.
+    """
+    completed_step_id = snapshot.issued_step_id
+    if not completed_step_id:
+        return snapshot, None
+    completed_steps = list(snapshot.completed_steps)
+    blocked_reason = snapshot.blocked_reason
+    if result == "success":
+        if completed_step_id not in completed_steps:
+            completed_steps.append(completed_step_id)
+    elif result == "failed":
+        blocked_reason = f"Previous step '{completed_step_id}' failed; manual intervention required."
+    elif result == "blocked":
+        blocked_reason = f"Previous step '{completed_step_id}' reported blocked state."
+    applied = snapshot.model_copy(
+        update={"issued_step_id": None, "completed_steps": completed_steps, "blocked_reason": blocked_reason},
+    )
+    return applied, completed_step_id
+
+
+def existing_template_path(snapshot: MissionRunSnapshot) -> Path | None:
+    """The on-disk template path for drift detection, when it still exists."""
+    if not snapshot.template_path:
+        return None
+    candidate = Path(snapshot.template_path)
+    return candidate if candidate.exists() else None
+
+
+def _evaluate_audit_significance(
+    decision: NextDecision,
+    snapshot: MissionRunSnapshot,
+    template: MissionTemplate,
+    policy: MissionPolicySnapshot,
+    agent_id: str,
+    actor_context: dict[str, Any],
+    live_template_path: Path | None,
+) -> tuple[NextDecision, MissionRunSnapshot, SignificanceEvaluatedPayload | None]:
+    """WP05 significance evaluation for an ``audit:`` decision (pure).
+
+    LOW auto-proceeds (the gate completes and the planner re-plans to the
+    next step), MEDIUM offers the soft gate, HIGH keeps the approve/reject
+    decision. Returns the possibly-replaced decision, the snapshot it now
+    stands on and the ``SignificanceEvaluated`` payload for the commit."""
+    assert decision.decision_id is not None
+    sig_step_id = decision.decision_id[len("audit:") :]
+    sig_step = _find_step_by_id(template, sig_step_id)
+    if not isinstance(sig_step, AuditStep) or sig_step.significance is None:
+        return decision, snapshot, None
+
+    score = evaluate_significance(
+        dimension_scores=sig_step.significance.dimensions,
+        hard_trigger_classes=sig_step.significance.hard_triggers,
+        band_cutoffs=parse_band_cutoffs_from_policy(policy),
+    )
+    decisions = dict(snapshot.decisions)
+    decisions[f"significance:{decision.decision_id}"] = score.model_dump(mode="json")
+
+    # Resolve RACI for the audit step (needed for timeout escalation)
+    raci_inputs = {**snapshot.inputs, "agent_id": agent_id}
+    try:
+        resolved_raci = resolve_raci(sig_step, raci_inputs, policy)
+        decisions[f"raci:{sig_step_id}"] = resolved_raci.model_dump(mode="json")
+    except MissionRuntimeError:
+        decisions[f"raci:{sig_step_id}"] = infer_raci(sig_step, policy).model_dump(mode="json")
+
+    payload = SignificanceEvaluatedPayload(
+        run_id=snapshot.run_id,
+        decision_id=decision.decision_id,
+        step_id=sig_step_id,
+        significance_score=score.model_dump(mode="json"),
+        hard_trigger_classes=tuple(ht.class_id for ht in score.hard_trigger_classes),
+        effective_band=score.effective_band.name,
+        actor=RACIRoleBinding(actor_type="service", actor_id="runtime"),
+    )
+    snapshot = snapshot.model_copy(update={"decisions": decisions})
+
+    if score.effective_band.name == "low":
+        # LOW band: auto-proceed -- no human gate; re-plan for the actual next decision.
+        completed = list(snapshot.completed_steps)
+        if sig_step_id not in completed:
+            completed.append(sig_step_id)
+        snapshot = snapshot.model_copy(update={"issued_step_id": None, "completed_steps": completed})
+        decision = plan_next(
+            snapshot,
+            template,
+            policy,
+            actor_context={**actor_context, "agent_id": agent_id},
+            live_template_path=live_template_path,
+        )
+    elif score.effective_band.name == "medium":
+        # MEDIUM band: soft gate with different options
+        decision = NextDecision(
+            kind="decision_required",
+            run_id=snapshot.run_id,
+            mission_key=snapshot.mission_key,
+            step_id=decision.step_id,
+            step_title=decision.step_title,
+            decision_id=decision.decision_id,
+            question=decision.question,
+            options=["decide_solo", "open_stand_up", "defer"],
+        )
+    # HIGH band: keep existing decision (approve/reject) -- no change needed
+    return decision, snapshot, payload
+
+
+def _record_step_raci(
+    snapshot: MissionRunSnapshot,
+    template: MissionTemplate,
+    step_id: str,
+    policy: MissionPolicySnapshot,
+    agent_id: str,
+) -> MissionRunSnapshot:
+    """WP06: resolve (best-effort, else infer) the RACI binding for the issued step (pure)."""
+    step_obj = _find_step_by_id(template, step_id)
+    if step_obj is None:
+        return snapshot
+    decisions = dict(snapshot.decisions)
+    raci_inputs = {**snapshot.inputs, "agent_id": agent_id}
+    try:
+        decisions[f"raci:{step_id}"] = resolve_raci(step_obj, raci_inputs, policy).model_dump(mode="json")
+    except MissionRuntimeError:
+        # Inputs insufficient for full resolution -- record the inferred binding.
+        decisions[f"raci:{step_id}"] = infer_raci(step_obj, policy).model_dump(mode="json")
+    return snapshot.model_copy(update={"decisions": decisions})
+
+
+def plan_advance(
+    run_ref: MissionRunRef,
+    agent_id: str,
+    result: ResultType = "success",
+    policy_snapshot: MissionPolicySnapshot | None = None,
+    actor_context: dict[str, Any] | None = None,
+) -> AdvancePlan:
+    """Compute what ``next_step`` will issue -- WITHOUT persisting or emitting.
+
+    The engine's single planning authority: applies ``result`` to the issued
+    step (:func:`apply_result`), plans the next step from the frozen template
+    (passing the live template path for drift detection), folds in the audit
+    significance evaluation including its LOW re-plan, and records the RACI
+    binding of an issued step. :func:`next_step` commits exactly this plan, so
+    a caller that inspects it first (the bridge resolves a WP-iteration
+    step's workspace before the advance is persisted) can never see a
+    different step than the one that is then issued.
+    """
+    run_dir = Path(run_ref.run_dir)
+    snapshot = _read_snapshot(run_dir)
+    source = snapshot
+    # Use caller-provided policy, else fall back to persisted policy from run start.
+    policy = policy_snapshot or snapshot.policy_snapshot
+    # Plan from the frozen template, not the live file.
+    template = _load_frozen_template(run_dir)
+    live_template_path = existing_template_path(snapshot)
+    context = {**(actor_context or {}), "agent_id": agent_id}
+
+    snapshot, completed_step_id = apply_result(snapshot, result)
+    decision = plan_next(snapshot, template, policy, actor_context=context, live_template_path=live_template_path)
+
+    significance: SignificanceEvaluatedPayload | None = None
+    if decision.kind == "decision_required" and decision.decision_id and decision.decision_id.startswith("audit:"):
+        decision, snapshot, significance = _evaluate_audit_significance(
+            decision, snapshot, template, policy, agent_id, actor_context or {}, live_template_path
+        )
+    if decision.kind == "step" and decision.step_id:
+        snapshot = _record_step_raci(snapshot, template, decision.step_id, policy, agent_id)
+
+    return AdvancePlan(
+        source=source,
+        snapshot=snapshot,
+        decision=decision,
+        result=result,
+        completed_step_id=completed_step_id,
+        significance=significance,
+    )
+
+
+def _actor(agent_id: str) -> RuntimeActorIdentity:
+    return RuntimeActorIdentity(actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None)
+
+
+def _commit_advance(run_ref: MissionRunRef, plan: AdvancePlan, agent_id: str, emitter: RuntimeEventEmitter) -> None:
+    """Persist + emit a plan: the events in their historical order, then the snapshot."""
+    run_dir = Path(run_ref.run_dir)
+    snapshot = plan.snapshot
+    decision = plan.decision
+    actor = _actor(agent_id)
+
+    if plan.completed_step_id is not None:
+        completed_payload = NextStepAutoCompletedPayload(
+            run_id=snapshot.run_id,
+            step_id=plan.completed_step_id,
+            agent_id=agent_id,
+            result=plan.result,
+            actor=actor,
+        )
+        _append_event(run_dir, NEXT_STEP_AUTO_COMPLETED, completed_payload.model_dump(mode="json"))
+        emitter.emit_next_step_auto_completed(completed_payload)
+
+    if plan.significance is not None:
+        _append_event(run_dir, "SignificanceEvaluated", plan.significance.model_dump(mode="json"))
+        emitter.emit_significance_evaluated(plan.significance)
+
+    issued_step_id: str | None = None
+    pending_decisions = dict(snapshot.pending_decisions)
+    if decision.kind == "step" and decision.step_id:
+        issued_step_id = decision.step_id
+        issued_payload = NextStepIssuedPayload(run_id=snapshot.run_id, step_id=decision.step_id, agent_id=agent_id, actor=actor)
+        _append_event(run_dir, NEXT_STEP_ISSUED, issued_payload.model_dump(mode="json"))
+        emitter.emit_next_step_issued(issued_payload)
+    elif decision.kind == "decision_required" and decision.decision_id:
+        # Persist input-keyed decisions in pending_decisions so they're answerable.
+        # Only emit event + persist on first occurrence to avoid duplicates on re-poll.
+        if decision.decision_id not in pending_decisions:
+            request = DecisionRequest(
+                decision_id=decision.decision_id,
+                step_id=decision.step_id or "",
+                question=decision.question or "",
+                options=decision.options or [],
+                requested_by=actor,
+                requested_at=now_utc(),
+            )
+            pending_decisions[decision.decision_id] = request.model_dump(mode="json")
+            requested_payload = DecisionInputRequestedPayload(
+                run_id=snapshot.run_id,
+                decision_id=decision.decision_id,
+                step_id=decision.step_id or "",
+                question=decision.question or "",
+                options=tuple(decision.options or []),
+                input_key=decision.input_key,
+                actor=actor,
+            )
+            _append_event(run_dir, DECISION_INPUT_REQUESTED, requested_payload.model_dump(mode="json"))
+            emitter.emit_decision_input_requested(requested_payload)
+    elif decision.kind == "terminal" and plan.completed_step_id is not None:
+        # Only emit on the transition into terminal (last step just completed),
+        # not on re-polls of an already-terminal run.
+        completed_run_payload = MissionRunCompletedPayload(run_id=snapshot.run_id, mission_type=snapshot.mission_key, actor=actor)
+        _append_event(run_dir, MISSION_RUN_COMPLETED, completed_run_payload.model_dump(mode="json"))
+        emitter.emit_mission_run_completed(completed_run_payload)
+
+    _write_snapshot(
+        run_dir,
+        snapshot.model_copy(update={"issued_step_id": issued_step_id, "pending_decisions": pending_decisions}),
+    )
+
+
+def next_step(
     run_ref: MissionRunRef,
     agent_id: str,
     result: ResultType = "success",
@@ -269,257 +544,34 @@ def next_step(  # noqa: C901
 ) -> NextDecision:
     """Advance current issued step and compute the next deterministic decision.
 
-    Plans from the frozen template, not the live file.
-    Passes live template path for drift detection.
-    Uses persisted policy_snapshot from run state; caller override takes precedence.
+    Plans from the frozen template, not the live file. Passes live template
+    path for drift detection. Uses persisted policy_snapshot from run state;
+    caller override takes precedence. Plan (:func:`plan_advance`) then commit
+    (:func:`_commit_advance`) -- the two halves share one plan.
     """
-    emitter = emitter or NullEmitter()
-    actor_context = actor_context or {}
+    plan = plan_advance(run_ref, agent_id, result, policy_snapshot=policy_snapshot, actor_context=actor_context)
+    _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter())
+    return plan.decision
 
-    run_dir = Path(run_ref.run_dir)
-    snapshot = _read_snapshot(run_dir)
 
-    # Use caller-provided policy, else fall back to persisted policy from run start.
-    effective_policy = policy_snapshot or snapshot.policy_snapshot
+class StaleAdvancePlan(MissionRuntimeError):
+    """The run's persisted state changed after the plan was computed."""
 
-    # Load from frozen template for determinism.
-    template = _load_frozen_template(run_dir)
 
-    # Resolve live template path for drift detection.
-    live_template_path: Path | None = None
-    if snapshot.template_path:
-        candidate = Path(snapshot.template_path)
-        if candidate.exists():
-            live_template_path = candidate
+def commit_advance(run_ref: MissionRunRef, plan: AdvancePlan, agent_id: str, emitter: RuntimeEventEmitter | None = None) -> NextDecision:
+    """Commit a plan a caller already computed with :func:`plan_advance`.
 
-    # Track whether this call actually transitions state (completes a step).
-    # Used to gate one-shot events like MissionRunCompleted.
-    did_complete_step = snapshot.issued_step_id is not None
-
-    if snapshot.issued_step_id:
-        completed_steps = list(snapshot.completed_steps)
-        blocked_reason = snapshot.blocked_reason
-        completed_step_id = snapshot.issued_step_id
-
-        if result == "success":
-            if snapshot.issued_step_id not in completed_steps:
-                completed_steps.append(snapshot.issued_step_id)
-        elif result == "failed":
-            blocked_reason = f"Previous step '{snapshot.issued_step_id}' failed; manual intervention required."
-        elif result == "blocked":
-            blocked_reason = f"Previous step '{snapshot.issued_step_id}' reported blocked state."
-
-        snapshot = MissionRunSnapshot(
-            run_id=snapshot.run_id,
-            mission_key=snapshot.mission_key,
-            template_path=snapshot.template_path,
-            template_hash=snapshot.template_hash,
-            policy_snapshot=snapshot.policy_snapshot,
-            issued_step_id=None,
-            completed_steps=completed_steps,
-            inputs=snapshot.inputs,
-            decisions=snapshot.decisions,
-            pending_decisions=snapshot.pending_decisions,
-            blocked_reason=blocked_reason,
-            mission_id=snapshot.mission_id,
-            mission_slug=snapshot.mission_slug,
-        )
-        ac_actor = RuntimeActorIdentity(
-            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
-        )
-        ac_payload = NextStepAutoCompletedPayload(
-            run_id=snapshot.run_id, step_id=completed_step_id,
-            agent_id=agent_id, result=result, actor=ac_actor,
-        )
-        _append_event(run_dir, NEXT_STEP_AUTO_COMPLETED, ac_payload.model_dump(mode="json"))
-        emitter.emit_next_step_auto_completed(ac_payload)
-
-    decision = plan_next(
-        snapshot,
-        template,
-        effective_policy,
-        actor_context={**actor_context, "agent_id": agent_id},
-        live_template_path=live_template_path,
-    )
-
-    issued_step_id = snapshot.issued_step_id
-    pending_decisions = dict(snapshot.pending_decisions)
-    inputs = dict(snapshot.inputs)
-    decisions = dict(snapshot.decisions)
-
-    # ====================================================================
-    # WP05: Significance evaluation for audit decisions
-    # ====================================================================
-    if (
-        decision.kind == "decision_required"
-        and decision.decision_id
-        and decision.decision_id.startswith("audit:")
-    ):
-        _sig_step_id = decision.decision_id[len("audit:"):]
-        _sig_step = _find_step_by_id(template, _sig_step_id)
-        if isinstance(_sig_step, AuditStep) and _sig_step.significance is not None:
-            _sig_score = evaluate_significance(
-                dimension_scores=_sig_step.significance.dimensions,
-                hard_trigger_classes=_sig_step.significance.hard_triggers,
-                band_cutoffs=parse_band_cutoffs_from_policy(effective_policy),
-            )
-            decisions[f"significance:{decision.decision_id}"] = _sig_score.model_dump(mode="json")
-
-            # Resolve RACI for the audit step (needed for timeout escalation)
-            _raci_inputs = {**inputs, "agent_id": agent_id}
-            try:
-                _resolved_raci = resolve_raci(_sig_step, _raci_inputs, effective_policy)
-                decisions[f"raci:{_sig_step_id}"] = _resolved_raci.model_dump(mode="json")
-            except MissionRuntimeError:
-                _inferred = infer_raci(_sig_step, effective_policy)
-                decisions[f"raci:{_sig_step_id}"] = _inferred.model_dump(mode="json")
-
-            # Emit significance evaluated event
-            _sig_payload = SignificanceEvaluatedPayload(
-                run_id=snapshot.run_id,
-                decision_id=decision.decision_id,
-                step_id=_sig_step_id,
-                significance_score=_sig_score.model_dump(mode="json"),
-                hard_trigger_classes=tuple(
-                    ht.class_id for ht in _sig_score.hard_trigger_classes
-                ),
-                effective_band=_sig_score.effective_band.name,
-                actor=RACIRoleBinding(actor_type="service", actor_id="runtime"),
-            )
-            _append_event(
-                run_dir, "SignificanceEvaluated", _sig_payload.model_dump(mode="json")
-            )
-            emitter.emit_significance_evaluated(_sig_payload)
-
-            # Adjust decision based on effective band
-            if _sig_score.effective_band.name == "low":
-                # LOW band: auto-proceed — no human gate
-                _completed = list(snapshot.completed_steps)
-                if _sig_step_id not in _completed:
-                    _completed.append(_sig_step_id)
-                snapshot = MissionRunSnapshot(
-                    run_id=snapshot.run_id,
-                    mission_key=snapshot.mission_key,
-                    template_path=snapshot.template_path,
-                    template_hash=snapshot.template_hash,
-                    policy_snapshot=snapshot.policy_snapshot,
-                    issued_step_id=None,
-                    completed_steps=_completed,
-                    inputs=inputs,
-                    decisions=decisions,
-                    pending_decisions=pending_decisions,
-                    blocked_reason=snapshot.blocked_reason,
-                    mission_id=snapshot.mission_id,
-                    mission_slug=snapshot.mission_slug,
-                )
-                # Re-plan with updated state to get the actual next decision
-                decision = plan_next(
-                    snapshot,
-                    template,
-                    effective_policy,
-                    actor_context={**actor_context, "agent_id": agent_id},
-                    live_template_path=live_template_path,
-                )
-                issued_step_id = snapshot.issued_step_id
-            elif _sig_score.effective_band.name == "medium":
-                # MEDIUM band: soft gate with different options
-                decision = NextDecision(
-                    kind="decision_required",
-                    run_id=snapshot.run_id,
-                    mission_key=snapshot.mission_key,
-                    step_id=decision.step_id,
-                    step_title=decision.step_title,
-                    decision_id=decision.decision_id,
-                    question=decision.question,
-                    options=["decide_solo", "open_stand_up", "defer"],
-                )
-            # HIGH band: keep existing decision (approve/reject) — no change needed
-
-    if decision.kind == "step" and decision.step_id:
-        issued_step_id = decision.step_id
-        si_actor = RuntimeActorIdentity(
-            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
-        )
-        si_payload = NextStepIssuedPayload(
-            run_id=snapshot.run_id, step_id=decision.step_id,
-            agent_id=agent_id, actor=si_actor,
-        )
-        _append_event(run_dir, NEXT_STEP_ISSUED, si_payload.model_dump(mode="json"))
-        emitter.emit_next_step_issued(si_payload)
-
-        # WP06: Resolve and persist RACI binding for the issued step.
-        # Uses best-effort resolution: if inputs are insufficient for full
-        # actor resolution, falls back to inferred binding without concrete
-        # actor IDs. Fail-closed enforcement happens in provide_decision_answer().
-        step_obj = _find_step_by_id(template, decision.step_id)
-        if step_obj is not None:
-            raci_inputs = {**inputs, "agent_id": agent_id}
-            try:
-                resolved_raci = resolve_raci(step_obj, raci_inputs, effective_policy)
-                decisions[f"raci:{decision.step_id}"] = resolved_raci.model_dump(mode="json")
-            except MissionRuntimeError:
-                # Inputs insufficient for full resolution — record inferred binding.
-                inferred = infer_raci(step_obj, effective_policy)
-                decisions[f"raci:{decision.step_id}"] = inferred.model_dump(mode="json")
-
-    elif decision.kind == "decision_required" and decision.decision_id:
-        # Persist input-keyed decisions in pending_decisions so they're answerable.
-        # Only emit event + persist on first occurrence to avoid duplicates on re-poll.
-        if decision.decision_id not in pending_decisions:
-            dr_actor = RuntimeActorIdentity(
-                actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
-            )
-            req = DecisionRequest(
-                decision_id=decision.decision_id,
-                step_id=decision.step_id or "",
-                question=decision.question or "",
-                options=decision.options or [],
-                requested_by=dr_actor,
-                requested_at=now_utc(),
-            )
-            pending_decisions[decision.decision_id] = req.model_dump(mode="json")
-
-            dr_payload = DecisionInputRequestedPayload(
-                run_id=snapshot.run_id,
-                decision_id=decision.decision_id,
-                step_id=decision.step_id or "",
-                question=decision.question or "",
-                options=tuple(decision.options or []),
-                input_key=decision.input_key,
-                actor=dr_actor,
-            )
-            _append_event(run_dir, DECISION_INPUT_REQUESTED, dr_payload.model_dump(mode="json"))
-            emitter.emit_decision_input_requested(dr_payload)
-    elif decision.kind == "terminal" and did_complete_step:
-        # Only emit on the transition into terminal (last step just completed),
-        # not on re-polls of an already-terminal run.
-        mc_actor = RuntimeActorIdentity(
-            actor_id=agent_id, actor_type="llm", provider=None, model=None, tool=None
-        )
-        mc_payload = MissionRunCompletedPayload(
-            run_id=snapshot.run_id, mission_type=snapshot.mission_key, actor=mc_actor,
-        )
-        _append_event(run_dir, MISSION_RUN_COMPLETED, mc_payload.model_dump(mode="json"))
-        emitter.emit_mission_run_completed(mc_payload)
-
-    snapshot = MissionRunSnapshot(
-        run_id=snapshot.run_id,
-        mission_key=snapshot.mission_key,
-        template_path=snapshot.template_path,
-        template_hash=snapshot.template_hash,
-        policy_snapshot=snapshot.policy_snapshot,
-        issued_step_id=issued_step_id,
-        completed_steps=snapshot.completed_steps,
-        inputs=inputs,
-        decisions=decisions,
-        pending_decisions=pending_decisions,
-        blocked_reason=snapshot.blocked_reason,
-        mission_id=snapshot.mission_id,
-        mission_slug=snapshot.mission_slug,
-    )
-    _write_snapshot(run_dir, snapshot)
-
-    return decision
+    The caller planned first (the bridge resolves a WP-iteration step's
+    workspace before anything is persisted) and commits THAT plan -- the
+    engine does not plan a second time. The plan is refused with
+    :class:`StaleAdvancePlan`, writing nothing, when the run's persisted state
+    is no longer the state it was planned from: committing it would overwrite
+    newer progress.
+    """
+    if _read_snapshot(Path(run_ref.run_dir)) != plan.source:
+        raise StaleAdvancePlan(f"Run '{plan.source.run_id}' changed after the advance was planned; plan again.")
+    _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter())
+    return plan.decision
 
 
 def provide_decision_answer(  # noqa: C901

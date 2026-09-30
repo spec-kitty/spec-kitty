@@ -85,6 +85,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from mission_runtime import OwnedCheckout
+
 from runtime.next import runtime_bridge_cores as _cores
 from runtime.next import runtime_bridge_engine as _engine_adapter
 from runtime.next import runtime_bridge_io as _io_seam
@@ -131,9 +133,7 @@ KITTIFY_DIR = ".kittify"
 # Legacy run snapshots and project-local templates may still contain the old
 # tasks substep IDs. Normalize them into the single public ``tasks`` action so
 # existing in-flight missions can advance through the composition path.
-_LEGACY_TASKS_STEP_IDS: frozenset[str] = frozenset(
-    {"tasks_outline", "tasks_packages", "tasks_finalize"}
-)
+_LEGACY_TASKS_STEP_IDS: frozenset[str] = frozenset({"tasks_outline", "tasks_packages", "tasks_finalize"})
 
 
 def _normalize_action_for_composition(step_id: str) -> str:
@@ -185,9 +185,7 @@ def _should_dispatch_via_composition(
                 resolve_mission_type_context,
             )
 
-            action_sequence = resolve_mission_type_context(
-                repo_root, mission_type=mission
-            ).action_sequence
+            action_sequence = resolve_mission_type_context(repo_root, mission_type=mission).action_sequence
             if _rb._normalize_action_for_composition(step_id) in action_sequence:
                 return True
         except Exception:
@@ -285,10 +283,7 @@ def _resolve_runtime_contract_for_step(
         contract_ref = step.contract_ref.strip() if step.contract_ref else None
         if contract_ref:
             repository = MissionStepContractRepository(
-                project_dir=repo_root
-                / KITTIFY_DIR
-                / "doctrine"
-                / "mission_step_contracts",
+                project_dir=repo_root / KITTIFY_DIR / "doctrine" / "mission_step_contracts",
                 org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
             )
             return lookup_contract(contract_ref, repository)
@@ -358,8 +353,7 @@ def _composition_dispatch_inputs(
         # at ERROR (that would fire on every dispatch for a custom type).
         # Debug-only so it is still diagnosable on demand.
         logger.debug(
-            "mission type %r is not charter-activated; profile_hint "
-            "resolves via the frozen-template path",
+            "mission type %r is not charter-activated; profile_hint resolves via the frozen-template path",
             mission,
         )
     except Exception:
@@ -370,8 +364,7 @@ def _composition_dispatch_inputs(
         # fallback path; a mission-type-context failure here is not fatal to
         # dispatch.
         logger.exception(
-            "resolve_mission_type_context failed for mission=%r action=%r; "
-            "profile_hint resolution continues via the frozen-template path",
+            "resolve_mission_type_context failed for mission=%r action=%r; profile_hint resolution continues via the frozen-template path",
             mission,
             action,
         )
@@ -381,11 +374,7 @@ def _composition_dispatch_inputs(
         _ACTION_PROFILE_DEFAULTS,
     )
 
-    profile_hint = (
-        None
-        if (mission, action) in _ACTION_PROFILE_DEFAULTS
-        else _rb._resolve_step_agent_profile(run_dir, step_id)
-    )
+    profile_hint = None if (mission, action) in _ACTION_PROFILE_DEFAULTS else _rb._resolve_step_agent_profile(run_dir, step_id)
     return (
         profile_hint,
         _rb._resolve_runtime_contract_for_step(
@@ -456,11 +445,7 @@ def _publication_approved(feature_dir: Path) -> bool:
                 entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if (
-                isinstance(entry, dict)
-                and entry.get("type") == "gate_passed"
-                and entry.get("name") == "publication_approved"
-            ):
+            if isinstance(entry, dict) and entry.get("type") == "gate_passed" and entry.get("name") == "publication_approved":
                 return True
     except OSError:
         return False
@@ -489,6 +474,7 @@ def _check_composed_action_guard(
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
     repo_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str]:
     """Evaluate the post-composition guard for a composed action.
 
@@ -546,6 +532,7 @@ def _check_composed_action_guard(
         step_id=action,
         legacy_step_id=legacy_step_id,
         repo_root=repo_root,
+        owned=owned,
     )
     if mission == "software-dev" and action in ("implement", "review"):
         # _should_advance_wp_step stays defined in the residual (untouched by
@@ -564,16 +551,13 @@ def _check_composed_action_guard(
         # future reorder of decide_next_via_runtime's phase tuple that lets this be
         # reached with WPs still pending would need a repo_root=/mission_slug=
         # forward of its own, mirroring _dn_dependency_gate's call.
-        snapshot = dataclasses.replace(
-            snapshot, wp_advance_ready=_rb._should_advance_wp_step(action, feature_dir)
-        )
+        snapshot = dataclasses.replace(snapshot, wp_advance_ready=_rb._should_advance_wp_step(action, feature_dir))
     try:
         return _cores.evaluate_guards_strict(snapshot)
     # #3412 (FR-009/FR-010): NEVER widen this to also catch MalformedManifestError -- that would re-launder a malformed manifest into a tolerant empty result.
     except _cores.UnregisteredMissionFamilyError:
         logger.warning(
-            "Unregistered mission_family %r reached the composed guard path; "
-            "returning a neutral (empty) guard result.",
+            "Unregistered mission_family %r reached the composed guard path; returning a neutral (empty) guard result.",
             mission,
         )
         return []
@@ -591,6 +575,7 @@ def _dispatch_via_composition(
     feature_dir: Path,
     legacy_step_id: str | None = None,
     contract: Any | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str] | None:
     """Run a composed action via ``StepContractExecutor``; then guard.
 
@@ -647,13 +632,9 @@ def _dispatch_via_composition(
     # fallback for built-in software-dev dispatch.
     from specify_cli.mission_loader.registry import get_runtime_contract_registry
 
-    selected_contract = get_runtime_contract_registry().lookup(
-        f"custom:{mission}:{action}"
-    ) or contract
+    selected_contract = get_runtime_contract_registry().lookup(f"custom:{mission}:{action}") or contract
     try:
-        result = StepContractExecutor(repo_root=repo_root).execute(
-            context, contract=selected_contract
-        )
+        result = StepContractExecutor(repo_root=repo_root).execute(context, contract=selected_contract)
     except StepContractExecutionError as exc:
         # Structured CLI failure surface (FR-009) — caller turns this into a
         # Decision; no Python traceback escapes.
@@ -666,13 +647,8 @@ def _dispatch_via_composition(
         # that raises ``ValueError`` from a malformed YAML, or a transient
         # ``OSError`` reading a contract file). The exception detail is logged
         # for operator triage; the structured surface preserves the FR-009 UX.
-        logger.exception(
-            "unexpected exception in composition for %s/%s", mission, action
-        )
-        return [
-            f"composition crashed for {mission}/{action}: "
-            f"{type(exc).__name__}: {exc}"
-        ]
+        logger.exception("unexpected exception in composition for %s/%s", mission, action)
+        return [f"composition crashed for {mission}/{action}: {type(exc).__name__}: {exc}"]
 
     # FR-008: forward the invocation_id chain produced by the executor to the
     # bridge log so downstream event/trail writers and operators can correlate
@@ -712,9 +688,7 @@ def _dispatch_via_composition(
 
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    failures = _rb._check_composed_action_guard(
-        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root
-    )
+    failures = _rb._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root, owned=owned)
     if failures:
         return failures
     return None

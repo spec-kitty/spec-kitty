@@ -50,10 +50,14 @@ would be circular) so the WP02 compat guard's per-symbol sentinel patches on
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+
+import yaml
 
 from kernel.clock import now_utc
+from mission_runtime import OwnedCheckout
 from runtime.next._internal_runtime import engine as _engine
 from runtime.next._internal_runtime import planner as _planner
 from runtime.next._internal_runtime.events import (
@@ -63,7 +67,7 @@ from runtime.next._internal_runtime.events import (
     NEXT_STEP_ISSUED,
     seed_runtime_emitter,
 )
-from runtime.next._internal_runtime.schema import DecisionRequest, MissionPolicySnapshot, MissionRunSnapshot, MissionTemplate
+from runtime.next._internal_runtime.schema import DecisionRequest, MissionPolicySnapshot, MissionRunSnapshot, MissionRuntimeError, MissionTemplate
 from runtime.next import runtime_bridge_retrospective as _retrospective
 from runtime.next.decision import DecisionKind
 from spec_kitty_events.mission_next import (
@@ -76,6 +80,7 @@ from spec_kitty_events.mission_next import (
 
 if TYPE_CHECKING:
     from runtime.next._internal_runtime import MissionRunRef, NextDecision
+    from runtime.next._internal_runtime.engine import AdvancePlan, ResultType
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
     from runtime.next.decision import Decision
     from runtime.next._internal_runtime.events import RuntimeEventEmitter
@@ -122,6 +127,35 @@ def plan_next(
     )
 
 
+#: Reading/planning failures of a read-only advance preview: an unreadable run
+#: or template (``OSError`` / ``ValueError``, which covers pydantic validation
+#: and JSON errors), a runtime error, or malformed template YAML. The real
+#: advance that follows reads the same files and reports them with its own
+#: existing semantics, so a caller that catches these only skips its
+#: pre-resolution -- it never changes behaviour.
+StaleAdvancePlan = _engine.StaleAdvancePlan
+PLAN_UNAVAILABLE_ERRORS = (OSError, ValueError, MissionRuntimeError, yaml.YAMLError)
+
+
+def plan_advance(run_ref: MissionRunRef, agent_id: str, result: str = "success") -> AdvancePlan:
+    """Wrap ``_internal_runtime.engine.plan_advance`` (live attribute lookup) --
+    the engine's single, pure "apply the result and plan the next step"
+    authority (WP11 review cycle 1, findings 3/4)."""
+    return _engine.plan_advance(run_ref, agent_id, cast("ResultType", result))
+
+
+def commit_advance(run_ref: MissionRunRef, plan: AdvancePlan, agent_id: str, emitter: RuntimeEventEmitter | None = None) -> NextDecision:
+    """Wrap ``_internal_runtime.engine.commit_advance`` (live attribute lookup):
+    commit a plan the caller already computed (no second planning). Raises
+    :class:`StaleAdvancePlan` -- writing nothing -- when the run moved on."""
+    return _engine.commit_advance(run_ref, plan, agent_id, emitter)
+
+
+def apply_result(snapshot: MissionRunSnapshot, result: ResultType) -> tuple[MissionRunSnapshot, str | None]:
+    """Wrap ``_internal_runtime.engine.apply_result`` (live attribute lookup)."""
+    return _engine.apply_result(snapshot, result)
+
+
 def resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
     """Wrap ``_internal_runtime.planner._resolve_workflow_for_mission`` (live
     attribute lookup; FR-013 concentration)."""
@@ -133,28 +167,14 @@ def resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
 # ---------------------------------------------------------------------------
 
 
-def _mark_step_completed(
+def _emit_step_completed(
     run_dir: Path,
     snapshot: MissionRunSnapshot,
+    completed_step_id: str,
     agent: str,
     sync_emitter: RuntimeEventEmitter,
-) -> tuple[MissionRunSnapshot, bool]:
-    """Mark the issued step completed (success path only); emit + persist.
-
-    Returns ``(snapshot, did_complete_step)`` — ``did_complete_step`` tells the
-    terminal branch whether a step genuinely just completed (avoids a duplicate
-    ``MissionRunCompleted`` emit on re-poll).
-    """
-    did_complete_step = snapshot.issued_step_id is not None
-    if snapshot.issued_step_id is None:
-        return snapshot, did_complete_step
-
-    completed_steps = list(snapshot.completed_steps)
-    completed_step_id = snapshot.issued_step_id
-    if completed_step_id not in completed_steps:
-        completed_steps.append(completed_step_id)
-    snapshot = snapshot.model_copy(update={"issued_step_id": None, "completed_steps": completed_steps})
-
+) -> None:
+    """Persist + emit the ``NextStepAutoCompleted`` event of a success."""
     actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm", provider=None, model=None, tool=None)
     payload = NextStepAutoCompletedPayload(
         run_id=snapshot.run_id,
@@ -165,15 +185,31 @@ def _mark_step_completed(
     )
     _append_event(run_dir, NEXT_STEP_AUTO_COMPLETED, payload.model_dump(mode="json"))
     sync_emitter.emit_next_step_auto_completed(payload)
-    return snapshot, did_complete_step
+
+
+def _mark_step_completed(
+    run_dir: Path,
+    snapshot: MissionRunSnapshot,
+    agent: str,
+    sync_emitter: RuntimeEventEmitter,
+) -> tuple[MissionRunSnapshot, bool]:
+    """Mark the issued step completed (success path only); emit + persist.
+
+    Returns ``(snapshot, did_complete_step)`` -- ``did_complete_step`` tells the
+    terminal branch whether a step genuinely just completed (avoids a duplicate
+    ``MissionRunCompleted`` emit on re-poll). The state change itself is the
+    engine's :func:`apply_result`.
+    """
+    applied, completed_step_id = apply_result(snapshot, "success")
+    if completed_step_id is None:
+        return snapshot, False
+    _emit_step_completed(run_dir, applied, completed_step_id, agent, sync_emitter)
+    return applied, True
 
 
 def _live_template_path(snapshot: MissionRunSnapshot) -> Path | None:
     """Resolve the on-disk template path for drift detection, if it still exists."""
-    if not snapshot.template_path:
-        return None
-    candidate = Path(snapshot.template_path)
-    return candidate if candidate.exists() else None
+    return _engine.existing_template_path(snapshot)
 
 
 def _emit_step_issued(
@@ -236,6 +272,7 @@ def _emit_terminal(
     repo_root: Path,
     feature_dir: Path,
     sync_emitter: RuntimeEventEmitter,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Run the retrospective gate (if configured) and emit ``MissionRunCompleted``.
 
@@ -243,10 +280,14 @@ def _emit_terminal(
     five symbols are not engine-privates and stay owned by ``runtime_bridge.py``
     (see module docstring); the local import keeps the WP02 compat guard's
     sentinel patches on ``runtime_bridge.<name>`` observed unchanged.
+
+    owned-checkout-lifecycle-authority WP11 (FR-009): retrospective policy is
+    a P-local governance read for an owned mission.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred to avoid the circular top-level import (runtime_bridge imports this adapter)
 
-    policy, _source_map, policy_error = _rb._resolve_retrospective_policy_for_runtime(repo_root)
+    config_root = owned.owned_root if owned is not None else repo_root
+    policy, _source_map, policy_error = _rb._resolve_retrospective_policy_for_runtime(config_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))
     # WP18 (#2561): _retrospective_blocks_completion is reached directly from
     # its owning seam now that the runtime_bridge façade re-export was retired
@@ -261,7 +302,7 @@ def _emit_terminal(
             mission_id=mission_id,
             mission_slug=mission_slug,
             feature_dir=feature_dir,
-            repo_root=repo_root,
+            repo_root=config_root,
             block_on_failure=True,
         )
 
@@ -275,7 +316,7 @@ def _emit_terminal(
             mission_id=mission_id,
             mission_slug=mission_slug,
             feature_dir=feature_dir,
-            repo_root=repo_root,
+            repo_root=config_root,
             block_on_failure=False,
         )
 
@@ -291,6 +332,7 @@ def _apply_decision_effects(
     feature_dir: Path,
     did_complete_step: bool,
     sync_emitter: RuntimeEventEmitter,
+    owned: OwnedCheckout | None = None,
 ) -> MissionRunSnapshot:
     """Dispatch the 3 ``next_step``-mirroring branches, then fold the result
     (``issued_step_id`` / ``pending_decisions``) back into the snapshot."""
@@ -305,7 +347,7 @@ def _apply_decision_effects(
             run_dir, snapshot, decision, decision.decision_id, agent, pending_decisions, sync_emitter
         )
     elif decision.kind == DecisionKind.terminal and did_complete_step:
-        _emit_terminal(run_dir, snapshot, agent, mission_slug, repo_root, feature_dir, sync_emitter)
+        _emit_terminal(run_dir, snapshot, agent, mission_slug, repo_root, feature_dir, sync_emitter, owned=owned)
 
     return snapshot.model_copy(update={"issued_step_id": issued_step_id, "pending_decisions": pending_decisions})
 
@@ -313,6 +355,36 @@ def _apply_decision_effects(
 def _seed_emitter(sync_emitter: RuntimeEventEmitter, snapshot: Any) -> None:
     """Seed optional producer state through the canonical nonfatal seam."""
     seed_runtime_emitter(sync_emitter, snapshot)
+
+
+@dataclass(frozen=True)
+class CompositionAdvancePlan:
+    """What :func:`advance_run_state_after_composition` will commit, computed
+    with no writes: the snapshot after the success result was applied, the
+    step id that result completed (``None`` when nothing was issued) and the
+    planner's next decision."""
+
+    snapshot: MissionRunSnapshot
+    decision: NextDecision
+    completed_step_id: str | None
+
+
+def plan_composition_advance(run_ref: MissionRunRef, agent: str) -> CompositionAdvancePlan:
+    """Plan (never persist) the run-state advance after a successful composed
+    action: the engine's :func:`apply_result` prelude, then the planner on the
+    frozen template. Pure, so the bridge can resolve a planned WP-iteration
+    step's workspace BEFORE :func:`advance_run_state_after_composition`
+    persists anything (FR-008)."""
+    run_dir = Path(run_ref.run_dir)
+    applied, completed_step_id = apply_result(_read_snapshot(run_dir), "success")
+    decision = plan_next(
+        applied,
+        _load_frozen_template(run_dir),
+        applied.policy_snapshot,
+        actor_context={"agent_id": agent},
+        live_template_path=_live_template_path(applied),
+    )
+    return CompositionAdvancePlan(snapshot=applied, decision=decision, completed_step_id=completed_step_id)
 
 
 def advance_run_state_after_composition(
@@ -327,54 +399,67 @@ def advance_run_state_after_composition(
     progress: dict[str, int | float] | None,
     origin: dict[str, Any],
     sync_emitter: RuntimeEventEmitter,
+    plan: CompositionAdvancePlan,
+    owned: OwnedCheckout | None = None,
+    wp_resolution: tuple[str | None, str | None, str | None, str | None, str] | None = None,
 ) -> Decision:
     """Advance run state after a successful composed action and return a Decision.
 
     Adapter-owned reimplementation of the success branch of
     ``spec_kitty_runtime.engine.next_step`` (single-dispatch invariant, FR-001 /
-    FR-002 / phase6-composition-stabilization-01KQ2JAS) — reuses the same
-    engine primitives ``runtime_next_step`` uses internally (``_read_snapshot``,
-    ``_append_event``, ``_load_frozen_template``, ``plan_next``,
-    ``_write_snapshot``) plus the same ``RuntimeEventEmitter``, without
-    re-entering the legacy DAG dispatch. Returns the same ``Decision`` shape
-    ``runtime_next_step(...)`` would have produced for the same advance
+    FR-002 / phase6-composition-stabilization-01KQ2JAS) -- reuses the same
+    engine primitives ``runtime_next_step`` uses internally (``apply_result``,
+    ``_read_snapshot``, ``_append_event``, ``_load_frozen_template``,
+    ``plan_next``, ``_write_snapshot``) plus the same ``RuntimeEventEmitter``,
+    without re-entering the legacy DAG dispatch. Returns the same ``Decision``
+    shape ``runtime_next_step(...)`` would have produced for the same advance
     (FR-005); only the dispatch path differs.
+
+    Plan first, commit second (FR-008): the caller's ``plan`` (pure) is what
+    gets committed, and when it is a WP-iteration step the caller's
+    ``wp_resolution`` -- its board action and workspace, the bridge's ONE
+    :func:`runtime_bridge._resolve_planned_wp_workspace` -- was resolved BEFORE
+    this call, so a resolution failure propagated typed with nothing
+    persisted. This function never plans or resolves on its own (a fallback
+    here would resolve AFTER the first write -- the wedge): a WP-iteration
+    plan handed over without its resolution is refused up front with
+    ``ValueError``, nothing persisted.
 
     ``runtime_bridge._advance_run_state_after_composition`` is a thin residual
     compat delegate that forwards here (contracts/compat-surface.md).
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred to avoid the circular top-level import
 
+    step_id = plan.decision.step_id
+    if wp_resolution is None and plan.decision.kind == "step" and step_id and _rb._is_wp_iteration_step(step_id):
+        raise ValueError(
+            f"advance_run_state_after_composition: the WP-iteration step {step_id!r} "
+            "needs the caller's wp_resolution (resolved before the advance is persisted)"
+        )
     run_dir = Path(run_ref.run_dir)
-    snapshot = _read_snapshot(run_dir)
-    _seed_emitter(sync_emitter, snapshot)
+    _seed_emitter(sync_emitter, _read_snapshot(run_dir))
 
-    snapshot, did_complete_step = _mark_step_completed(run_dir, snapshot, agent, sync_emitter)
-
-    template = _load_frozen_template(run_dir)
-    decision = plan_next(
-        snapshot,
-        template,
-        snapshot.policy_snapshot,
-        actor_context={"agent_id": agent},
-        live_template_path=_live_template_path(snapshot),
-    )
+    snapshot = plan.snapshot
+    did_complete_step = plan.completed_step_id is not None
+    if plan.completed_step_id is not None:
+        _emit_step_completed(run_dir, snapshot, plan.completed_step_id, agent, sync_emitter)
 
     snapshot = _apply_decision_effects(
         run_dir=run_dir,
         snapshot=snapshot,
-        decision=decision,
+        decision=plan.decision,
         agent=agent,
         mission_slug=mission_slug,
         repo_root=repo_root,
         feature_dir=feature_dir,
         did_complete_step=did_complete_step,
         sync_emitter=sync_emitter,
+        owned=owned,
     )
     _write_snapshot(run_dir, snapshot)
 
     return _rb._map_runtime_decision(
-        decision,
+        plan.decision,
         agent,
         mission_slug,
         mission_type,
@@ -383,4 +468,6 @@ def advance_run_state_after_composition(
         timestamp,
         progress,
         origin,
+        owned=owned,
+        wp_resolution=wp_resolution,
     )

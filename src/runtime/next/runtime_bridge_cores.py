@@ -926,6 +926,11 @@ class DecisionEnvelope:
     question: str | None = None
     options: list[str] | None = None
     preview_step: str | None = None
+    # owned-checkout-lifecycle-authority WP11 (#4867, FR-012): the typed
+    # OwnedRefusalCode a blocked owned-checkout decision carries. ``None``
+    # for every non-owned envelope, so ``Decision.to_dict()`` stays
+    # byte-identical for them.
+    error_code: str | None = None
 
 
 def _non_step_decision(envelope: DecisionEnvelope, guard_failures: list[str]) -> Decision:
@@ -958,6 +963,7 @@ def _non_step_decision(envelope: DecisionEnvelope, guard_failures: list[str]) ->
         options=envelope.options,
         is_query=envelope.kind == DecisionKind.query,
         preview_step=envelope.preview_step,
+        error_code=envelope.error_code,
     )
 
 
@@ -1009,6 +1015,7 @@ def _blocked_from_step_envelope(envelope: DecisionEnvelope, guard_failures: list
         origin=envelope.origin,
         run_id=envelope.run_id,
         step_id=envelope.step_id,
+        error_code=envelope.error_code,
     )
 
 

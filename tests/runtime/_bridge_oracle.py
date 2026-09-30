@@ -124,7 +124,7 @@ def _normalize_path_value(value: str | None, repo_root: Path) -> str | None:
             return _ROOT_TOKEN
         prefix = candidate_root.rstrip("/") + "/"
         if text.startswith(prefix):
-            return f"{_ROOT_TOKEN}/{text[len(prefix):]}"
+            return f"{_ROOT_TOKEN}/{text[len(prefix) :]}"
     return text
 
 
@@ -211,14 +211,8 @@ def assert_parity(before: Decision, after: Decision, repo_root: Path) -> None:
     canon_before = canonical(before, repo_root)
     canon_after = canonical(after, repo_root)
     if canon_before != canon_after:
-        diff_keys = sorted(
-            k
-            for k in (set(canon_before) | set(canon_after))
-            if canon_before.get(k) != canon_after.get(k)
-        )
-        details = "\n".join(
-            f"  {k}: before={canon_before.get(k)!r} after={canon_after.get(k)!r}" for k in diff_keys
-        )
+        diff_keys = sorted(k for k in (set(canon_before) | set(canon_after)) if canon_before.get(k) != canon_after.get(k))
+        details = "\n".join(f"  {k}: before={canon_before.get(k)!r} after={canon_after.get(k)!r}" for k in diff_keys)
         raise AssertionError(f"parity break — canonical Decision diverged on fields: {diff_keys}\n{details}")
 
 
@@ -278,15 +272,9 @@ class GuardCall:
     failures: list[str]
 
 
-_CLI_GUARD_KNOWN_STEPS: frozenset[str] = frozenset(
-    {"specify", "plan", "tasks_outline", "tasks_packages", "tasks_finalize", "implement", "review"}
-)
-_RESEARCH_GUARD_KNOWN_ACTIONS: frozenset[str] = frozenset(
-    {"scoping", "methodology", "gathering", "synthesis", "output"}
-)
-_DOCUMENTATION_GUARD_KNOWN_ACTIONS: frozenset[str] = frozenset(
-    {"discover", "audit", "design", "generate", "validate", "publish", "accept"}
-)
+_CLI_GUARD_KNOWN_STEPS: frozenset[str] = frozenset({"specify", "plan", "tasks_outline", "tasks_packages", "tasks_finalize", "implement", "review"})
+_RESEARCH_GUARD_KNOWN_ACTIONS: frozenset[str] = frozenset({"scoping", "methodology", "gathering", "synthesis", "output"})
+_DOCUMENTATION_GUARD_KNOWN_ACTIONS: frozenset[str] = frozenset({"discover", "audit", "design", "generate", "validate", "publish", "accept"})
 _SOFTWARE_DEV_GUARD_KNOWN_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
 
 
@@ -345,6 +333,7 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
         *,
         mission_family: str | None = None,
         repo_root: Path | None = None,
+        owned: Any | None = None,
     ) -> list[str]:
         result: list[str] = list(
             real_cli(
@@ -352,6 +341,7 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
                 feature_dir,
                 mission_family=mission_family,
                 repo_root=repo_root,
+                owned=owned,
             )
         )
         calls.append(GuardCall("cli", step_id, None, None, list(result)))
@@ -364,6 +354,7 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
         mission: str = "software-dev",
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
+        owned: Any | None = None,
     ) -> list[str]:
         result: list[str] = list(
             real_composed(
@@ -372,6 +363,7 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
                 mission=mission,
                 legacy_step_id=legacy_step_id,
                 repo_root=repo_root,
+                owned=owned,
             )
         )
         calls.append(GuardCall("composed", action, mission, legacy_step_id, list(result)))
@@ -478,8 +470,8 @@ def capture_side_effects(
 
     real_wrap = bridge_module._wrap_with_decision_git_log
 
-    def _wrap_spy(emitter: Any, mission_slug: str, repo_root: Path) -> Any:
-        wrapped = real_wrap(emitter, mission_slug, repo_root)
+    def _wrap_spy(emitter: Any, mission_slug: str, repo_root: Path, **kwargs: Any) -> Any:
+        wrapped = real_wrap(emitter, mission_slug, repo_root, **kwargs)
         return _RecordingProxy(wrapped, active_sink_holder["coord"])
 
     monkeypatch.setattr(bridge_module, "_wrap_with_decision_git_log", _wrap_spy)
@@ -601,10 +593,35 @@ def canonical_side_effects(capture: SideEffectCapture, repo_root: Path) -> dict[
 #: WP01 T004). 19 blocked / 4 step / 4 query / 1 terminal / 1 decision_required.
 KNOWN_DECISION_SITES: frozenset[int] = frozenset(
     {
-        2545, 2592, 2639, 2715, 2733, 2754, 2846, 2893, 2936, 2965, 3015,  # decide_next_via_runtime (11)
-        3095, 3121, 3147, 3184,  # query_current_state's 4 builders
-        3468, 3496, 3515, 3536,  # _build_wp_iteration_decision (4)
-        3582, 3597, 3629, 3659, 3684, 3701, 3718, 3760, 3778, 3798,  # _map_runtime_decision (10)
+        2545,
+        2592,
+        2639,
+        2715,
+        2733,
+        2754,
+        2846,
+        2893,
+        2936,
+        2965,
+        3015,  # decide_next_via_runtime (11)
+        3095,
+        3121,
+        3147,
+        3184,  # query_current_state's 4 builders
+        3468,
+        3496,
+        3515,
+        3536,  # _build_wp_iteration_decision (4)
+        3582,
+        3597,
+        3629,
+        3659,
+        3684,
+        3701,
+        3718,
+        3760,
+        3778,
+        3798,  # _map_runtime_decision (10)
     }
 )
 

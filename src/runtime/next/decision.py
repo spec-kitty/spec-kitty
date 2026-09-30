@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.activation.pack_context import CharterPackConfigError
+from mission_runtime import ActionContextError, OwnedCheckout
 from runtime.next._tmp_namespace import prompt_tmp_dir
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.status import wp_state_for
@@ -121,6 +122,12 @@ class Decision:
     preview_step: str | None = None
     mission_number: str | None = None
     mission_type: str | None = None
+    # owned-checkout-lifecycle-authority WP11 (#4867, FR-012): the typed
+    # OwnedRefusalCode a blocked owned-checkout decision carries, so a
+    # caller routes on ``error_code`` rather than parsing ``reason`` text.
+    # ``None`` for every decision that carries no typed refusal — including
+    # every non-owned payload, which stays byte-identical (see ``to_dict``).
+    error_code: str | None = None
 
     def __post_init__(self) -> None:
         """Enforce the ``kind="step"`` prompt-file contract at construction time.
@@ -145,7 +152,7 @@ class Decision:
                 raise InvalidStepDecision(f"kind='step' prompt_file must resolve on disk: {prompt!r} does not")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "kind": self.kind,
             "agent": self.agent,
             **mission_identity_fields(
@@ -178,6 +185,11 @@ class Decision:
             "is_query": self.is_query,
             "preview_step": self.preview_step,
         }
+        # #4867 (FR-012): additive-only — emitted only when a typed owned
+        # refusal is present, so every non-owned payload stays byte-identical.
+        if self.error_code is not None:
+            payload["error_code"] = self.error_code
+        return payload
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +328,7 @@ def decide_next(
     result: str,
     repo_root: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Decision:
     """Decide the next action for an agent in the mission loop.
 
@@ -334,14 +346,17 @@ def decide_next(
     """
     from runtime.next.runtime_bridge import decide_next_via_runtime
 
-    if effective_root is None:
-        decision = decide_next_via_runtime(agent, mission_slug, result, repo_root)
-    else:
-        decision = decide_next_via_runtime(agent, mission_slug, result, repo_root, effective_root=effective_root)
-    return _with_guard_failure_paths(decision, repo_root)
+    decision = decide_next_via_runtime(
+        agent,
+        mission_slug,
+        result,
+        repo_root,
+        owned=owned,
+    )
+    return _with_guard_failure_paths(decision, repo_root, owned=owned)
 
 
-def _with_guard_failure_paths(decision: Decision, repo_root: Path) -> Decision:
+def _with_guard_failure_paths(decision: Decision, repo_root: Path, *, owned: OwnedCheckout | None = None) -> Decision:
     """Attach the path each failing guard read, keyed by the real artifact
     tag (#3883, #4390).
 
@@ -365,6 +380,11 @@ def _with_guard_failure_paths(decision: Decision, repo_root: Path) -> Decision:
     genuine artifact-presence failure; the render (``next_cmd.py``) iterates
     the resulting tags directly, never ``decision.guard_failures``.
 
+    Root discipline (owned-checkout-lifecycle-authority WP11): for an owned
+    mission the paths are resolved from the mission's own home on P through
+    the same owned placement seam the guards read, never from the repository
+    root checkout R.
+
     Reporting must never change the outcome: any failure to resolve leaves the
     decision exactly as the runtime produced it.
     """
@@ -374,12 +394,20 @@ def _with_guard_failure_paths(decision: Decision, repo_root: Path) -> Decision:
         from runtime.next.runtime_bridge import _resolve_runtime_feature_dir, get_mission_type
         from runtime.next.runtime_bridge_io import guard_failure_artifact_paths
 
-        feature_dir = _resolve_runtime_feature_dir(repo_root, decision.mission_slug)
+        if owned is None:
+            feature_dir = _resolve_runtime_feature_dir(repo_root, decision.mission_slug)
+        else:
+            from mission_runtime import MissionArtifactKind, mission_context_for
+
+            context = mission_context_for(repo_root, decision.mission_slug, owned=owned)
+            status_dir = context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+            feature_dir = status_dir if status_dir.is_dir() else context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
         decision.guard_failure_paths = guard_failure_artifact_paths(
             feature_dir,
             mission_family=decision.mission or get_mission_type(feature_dir),
             repo_root=repo_root,
             guard_failures=decision.guard_failures,
+            owned=owned,
         )
     except Exception as exc:  # noqa: BLE001 — diagnostics must never break a decision
         _logger.debug("guard-failure paths unavailable for %s: %s", decision.mission_slug, exc)
@@ -391,91 +419,103 @@ def _with_guard_failure_paths(decision: Decision, repo_root: Path) -> Decision:
 # ---------------------------------------------------------------------------
 
 
-def _state_to_action(
-    state: str,
+# Known aliases (maps mission-specific state names to standard templates).
+# Module-level (T066 campsite extraction) so both `_state_to_action` and
+# `_template_state_action` share the one definition (Sonar S1192).
+_STATE_ALIASES: dict[str, str] = {
+    "discovery": "research",
+    "scoping": "specify",
+    "methodology": "plan",
+    "tasks_outline": "tasks-outline",
+    "tasks_packages": "tasks-packages",
+    "tasks_finalize": "tasks-finalize",
+    "gathering": "implement",
+    "synthesis": "review",
+    "output": "accept",
+    "goals": "specify",
+    "structure": "plan",
+    "draft": "plan",
+}
+
+
+def _implement_state_action(
     mission_slug: str,
     feature_dir: Path,
     repo_root: Path,
-    mission_name: str,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[str | None, str | None, str | None]:
-    """Map a mission state to a ``(action, wp_id, workspace_path)`` triple.
+    """Campsite extraction (T066) of ``_state_to_action``'s ``"implement"``
+    branch: the dependency-aware planned-WP authority (#4860), falling back
+    to a claimable review WP. Behaviour-preserving."""
+    from runtime.next.discovery import preview_claimable_wp
 
-    Returns ``(None, None, None)`` if the state cannot be mapped to a
-    command template.
+    wp_id = preview_claimable_wp(feature_dir).wp_id
+    if wp_id is None:
+        wp_id = _find_first_wp_by_lane(feature_dir, "doing")
+    if wp_id is None:
+        wp_id = _find_first_wp_by_lane(feature_dir, "in_progress")
+
+    if wp_id is None:
+        # No implementable WPs — check for reviewable ones.
+        # Only for_review WPs are available for pickup; in_review WPs
+        # are already claimed by another reviewer and must NOT be
+        # reassigned (FR-012a).
+        review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
+        if review_wp:
+            workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, review_wp, owned=owned).worktree_path)
+            return "review", review_wp, workspace_path
+        # in_review WPs exist but are not actionable by this agent —
+        # review is already in progress, nothing to pick up.
+        return None, None, None
+
+    workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id, owned=owned).worktree_path)
+    return "implement", wp_id, workspace_path
+
+
+def _review_state_action(
+    mission_slug: str,
+    feature_dir: Path,
+    repo_root: Path,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> tuple[str | None, str | None, str | None] | None:
+    """Campsite extraction (T066) of ``_state_to_action``'s ``"review"``
+    branch. Returns ``None`` to signal fall-through to generic template
+    resolution (no claimable ``for_review`` WP). Behaviour-preserving."""
+    wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
+    if wp_id is not None:
+        workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id, owned=owned).worktree_path)
+        return "review", wp_id, workspace_path
+    # Explicitly skip in_review WPs — they are claimed by another
+    # reviewer (FR-012a). Fall through to generic template resolution.
+    return None
+
+
+def _template_state_action(
+    state: str,
+    repo_root: Path,
+    mission_name: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> tuple[str | None, str | None, str | None]:
+    """Campsite extraction (T066) of ``_state_to_action``'s generic
+    template + alias resolution. Behaviour-preserving.
+
+    A command template is a P-local governance read (owned-checkout-
+    lifecycle-authority WP11 / #5009 e6923bc97): ``resolve_command`` reads
+    ``owned.owned_root`` when this call runs under an owned checkout.
     """
-    # "implement" state: use the same dependency-aware planned-WP authority
-    # as query mode and ``agent action implement`` (#4860). Filename/lane order
-    # alone cannot make a dependency-blocked package actionable.
-    if state == "implement":
-        from runtime.next.discovery import preview_claimable_wp
-
-        wp_id = preview_claimable_wp(feature_dir).wp_id
-        if wp_id is None:
-            wp_id = _find_first_wp_by_lane(feature_dir, "doing")
-        if wp_id is None:
-            wp_id = _find_first_wp_by_lane(feature_dir, "in_progress")
-
-        if wp_id is None:
-            # No implementable WPs — check for reviewable ones.
-            # Only for_review WPs are available for pickup; in_review WPs
-            # are already claimed by another reviewer and must NOT be
-            # reassigned (FR-012a).
-            review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
-            if review_wp:
-                workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, review_wp).worktree_path)
-                return "review", review_wp, workspace_path
-            # in_review WPs exist but are not actionable by this agent —
-            # review is already in progress, nothing to pick up.
-            in_review_wp = _find_first_wp_by_lane(feature_dir, "in_review")
-            if in_review_wp:
-                return None, None, None
-            return None, None, None
-
-        workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
-        return "implement", wp_id, workspace_path
-
-    # "review" state: WP-level if for_review WP exists, else template-level.
-    # in_review WPs are already being reviewed by another agent and must
-    # NOT be reassigned — only for_review WPs are available for pickup.
-    if state == "review":
-        wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
-        if wp_id is not None:
-            workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
-            return "review", wp_id, workspace_path
-        # Explicitly skip in_review WPs — they are claimed by another
-        # reviewer (FR-012a).  Fall through to generic template resolution.
-        # Note: _find_first_wp_by_lane(feature_dir, "in_review") is
-        # intentionally not called here because we don't act on it.
-
-    # "done" state -- terminal, no action
-    if state == "done":
-        return "accept", None, None
-
-    # Generic: try state name as command template, then known aliases
     from specify_cli.runtime.resolver import resolve_command
 
+    template_root = owned.owned_root if owned is not None else repo_root
     try:
-        resolve_command(f"{state}.md", repo_root, mission=mission_name)
+        resolve_command(f"{state}.md", template_root, mission=mission_name)
         return state, None, None
     except FileNotFoundError:
         pass
 
-    # Known aliases (maps mission-specific state names to standard templates)
-    _ALIASES: dict[str, str] = {
-        "discovery": "research",
-        "scoping": "specify",
-        "methodology": "plan",
-        "tasks_outline": "tasks-outline",
-        "tasks_packages": "tasks-packages",
-        "tasks_finalize": "tasks-finalize",
-        "gathering": "implement",
-        "synthesis": "review",
-        "output": "accept",
-        "goals": "specify",
-        "structure": "plan",
-        "draft": "plan",
-    }
-    alias = _ALIASES.get(state)
+    alias = _STATE_ALIASES.get(state)
     if alias:
         # Registered consumer skills (CLI-driven shims or prompt-driven
         # commands) are known to the shim registry and do not require a
@@ -485,12 +525,50 @@ def _state_to_action(
         if is_cli_driven(alias) or is_prompt_driven(alias):
             return alias, None, None
         try:
-            resolve_command(f"{alias}.md", repo_root, mission=mission_name)
+            resolve_command(f"{alias}.md", template_root, mission=mission_name)
             return alias, None, None
         except FileNotFoundError:
             pass
 
     return None, None, None
+
+
+def _state_to_action(
+    state: str,
+    mission_slug: str,
+    feature_dir: Path,
+    repo_root: Path,
+    mission_name: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> tuple[str | None, str | None, str | None]:
+    """Map a mission state to a ``(action, wp_id, workspace_path)`` triple.
+
+    Returns ``(None, None, None)`` if the state cannot be mapped to a
+    command template. A 4-way dispatch over ``_implement_state_action``,
+    ``_review_state_action``, the ``"done"`` terminal, and
+    ``_template_state_action`` (T066 campsite extraction).
+    """
+    # "implement" state: use the same dependency-aware planned-WP authority
+    # as query mode and ``agent action implement`` (#4860). Filename/lane order
+    # alone cannot make a dependency-blocked package actionable.
+    if state == "implement":
+        return _implement_state_action(mission_slug, feature_dir, repo_root, owned=owned)
+
+    # "review" state: WP-level if for_review WP exists, else template-level.
+    # in_review WPs are already being reviewed by another agent and must
+    # NOT be reassigned — only for_review WPs are available for pickup.
+    if state == "review":
+        review_action = _review_state_action(mission_slug, feature_dir, repo_root, owned=owned)
+        if review_action is not None:
+            return review_action
+        # Fall through to generic template resolution below.
+
+    # "done" state -- terminal, no action
+    if state == "done":
+        return "accept", None, None
+
+    return _template_state_action(state, repo_root, mission_name, owned=owned)
 
 
 def _build_prompt_safe(
@@ -501,6 +579,8 @@ def _build_prompt_safe(
     agent: str,
     repo_root: Path,
     mission_type: str,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> str | None:
     """Build prompt, returning None on failure instead of raising.
 
@@ -509,7 +589,7 @@ def _build_prompt_safe(
         exception text so callers can emit a structured ``blocked`` decision
         with a populated ``reason`` (WP06 / FR-006 / FR-013).
     """
-    path, _err = _build_prompt_or_error(
+    path, _err, _error_code = _build_prompt_or_error(
         action=action,
         feature_dir=feature_dir,
         mission_slug=mission_slug,
@@ -517,6 +597,7 @@ def _build_prompt_safe(
         agent=agent,
         repo_root=repo_root,
         mission_type=mission_type,
+        owned=owned,
     )
     return path
 
@@ -529,12 +610,22 @@ def _build_prompt_or_error(
     agent: str,
     repo_root: Path,
     mission_type: str,
-) -> tuple[str | None, str | None]:
-    """Build prompt, returning ``(path, None)`` on success or ``(None, error)``.
+    *,
+    owned: OwnedCheckout | None = None,
+) -> tuple[str | None, str | None, str | None]:
+    """Build prompt, returning ``(path, None, None)`` on success or
+    ``(None, error, error_code)`` on failure.
 
     The ``error`` message is suitable for embedding in a ``blocked`` decision's
     ``reason`` so callers can avoid emitting a ``kind=step`` decision with a
     null/missing ``prompt_file`` (WP06 / FR-006 / FR-013).
+
+    ``error_code`` carries a typed :class:`~mission_runtime.OwnedRefusalCode`
+    value (as a string) when the failure originated from a typed
+    :class:`~mission_runtime.ActionContextError` raised by ``build_prompt``'s
+    owned-aware resolution path (T067 item 4); it is ``None`` for every other
+    failure so ``next``'s JSON contract gets a structured ``error_code``
+    without ever having to parse the ``reason`` text.
 
     The path is also verified to exist on disk; if ``build_prompt`` returned a
     path that does not resolve, ``error`` is populated and ``path`` is ``None``.
@@ -542,10 +633,14 @@ def _build_prompt_or_error(
     For composed actions (documentation ``discover``, ``audit``, … and their
     equivalents in research / software-dev missions), no file-based prompt
     template exists — dispatch happens through the composition layer.  Rather
-    than returning ``(None, error)`` and causing ``_map_runtime_decision`` to
-    emit a ``blocked`` decision, this function writes a minimal marker file so
-    the ``kind=step`` invariant is satisfied (FR-007 / T019).
+    than returning ``(None, error, None)`` and causing ``_map_runtime_decision``
+    to emit a ``blocked`` decision, this function writes a minimal marker file
+    so the ``kind=step`` invariant is satisfied (FR-007 / T019).
     """
+    # Root discipline: a composed-action probe and the prompt-tmp-dir home are
+    # P-local governance reads for an owned mission.
+    config_root = owned.owned_root if owned is not None else repo_root
+
     # Fast path: composed actions do not use file-based templates.  Write a
     # lightweight marker file and return its path so callers can emit a
     # ``kind=step`` Decision without hitting the ``if prompt_file is None``
@@ -556,7 +651,7 @@ def _build_prompt_or_error(
             resolve_mission_type_context,
         )
 
-        action_sequence = resolve_mission_type_context(repo_root, mission_type=mission_type).action_sequence
+        action_sequence = resolve_mission_type_context(config_root, mission_type=mission_type).action_sequence
         _is_composed_action = wp_id is None and action in action_sequence
     except Exception:
         pass
@@ -565,15 +660,18 @@ def _build_prompt_or_error(
         marker_fd, marker_path = tempfile.mkstemp(
             prefix=f"spec-kitty-composed-{action}-",
             suffix=".md",
-            dir=prompt_tmp_dir(repo_root),
+            dir=prompt_tmp_dir(config_root),
         )
         os.write(marker_fd, composed_prompt.encode("utf-8"))
         os.close(marker_fd)
-        return marker_path, None
+        return marker_path, None, None
 
     try:
         from runtime.next.prompt_builder import build_prompt
 
+        # The fact rides down to the prompt builder (WP12): an owned prompt reads
+        # the WP file, workspace, governance and its own temp file from the
+        # owned checkout, never from ``repo_root``.
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             _, prompt_path = build_prompt(
                 action=action,
@@ -583,14 +681,15 @@ def _build_prompt_or_error(
                 agent=agent,
                 repo_root=repo_root,
                 mission_type=mission_type,
+                owned=owned,
             )
         path_str = str(prompt_path)
         try:
             if not Path(path_str).exists():
-                return None, (f"prompt template did not materialize on disk for action '{action}' (path={path_str})")
+                return None, (f"prompt template did not materialize on disk for action '{action}' (path={path_str})"), None
         except OSError as exc:
-            return None, (f"prompt template path is not stat-able for action '{action}': {exc}")
-        return path_str, None
+            return None, (f"prompt template path is not stat-able for action '{action}': {exc}"), None
+        return path_str, None, None
     except FileNotFoundError as exc:
         # No file-based template for this non-WP step (e.g. workflow-inserted
         # steps like ``design-review``, or global-runtime steps like
@@ -607,8 +706,8 @@ def _build_prompt_or_error(
             )
             os.write(marker_fd, composed_prompt.encode("utf-8"))
             os.close(marker_fd)
-            return marker_path, None
-        return None, (f"prompt resolution failed for action '{action}': FileNotFoundError: {exc}")
+            return marker_path, None, None
+        return None, (f"prompt resolution failed for action '{action}': FileNotFoundError: {exc}"), None
     except CharterPackConfigError as exc:
         # A corrupt/unreadable ``.kittify/config.yaml`` (bad encoding or
         # malformed YAML) is an operator-facing configuration fault, not an
@@ -616,6 +715,13 @@ def _build_prompt_or_error(
         # offending file and the decode/parse cause) so the blocked decision
         # renders without a Python traceback or a raw exception class name.
         # ``str(exc)`` would yield only the machine code, so use ``exc.body``.
-        return None, exc.body
+        return None, exc.body, None
+    except ActionContextError as exc:
+        # T067 item 4: build_prompt's owned-aware resolution path (WP12)
+        # raises the typed ActionContextError contract. Carry its code on
+        # error_code so ``next``'s JSON contract gets a structured refusal
+        # without the caller having to parse ``reason`` text (T062's
+        # Decision.error_code contract).
+        return None, str(exc), exc.code
     except Exception as exc:
-        return None, (f"prompt resolution failed for action '{action}': {type(exc).__name__}: {exc}")
+        return None, (f"prompt resolution failed for action '{action}': {type(exc).__name__}: {exc}"), None

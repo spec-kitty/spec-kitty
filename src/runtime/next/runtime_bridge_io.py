@@ -91,6 +91,7 @@ from mission_runtime import (
     ActionContextError,
     CommitTarget,
     MissionArtifactKind,
+    OwnedCheckout,
     PlacementSeam,
     kind_for_mission_file,
     placement_seam,
@@ -257,6 +258,14 @@ def _load_run_index(repo_root: Path) -> tuple[dict[str, _FeatureRunEntry], bool]
     return _canonicalize_run_index(_rb._load_feature_runs(repo_root))
 
 
+def _is_unbound_run_of(candidate: _FeatureRunEntry, mission_slug: str) -> bool:
+    """The ONE predicate for "this slug's unbound legacy run": no ``mission_id``
+    AND an explicit ``mission_slug`` equal to the slug. An entry that does not
+    name its slug is never presumed to be this mission's (it could be a foreign
+    pre-identity, slug-keyed entry). Shared by the migration guard and adoption."""
+    return not candidate.get("mission_id") and candidate.get("mission_slug") == mission_slug
+
+
 def _entry_for_mission(index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None) -> _FeatureRunEntry | None:
     """Resolve identity without treating an unbound legacy run as absent.
 
@@ -267,7 +276,7 @@ def _entry_for_mission(index: dict[str, _FeatureRunEntry], *, mission_slug: str,
     entry = index.get(run_index_key(mission_slug, mission_id))
     if entry is None and mission_id:
         for candidate in index.values():
-            if not candidate.get("mission_id") and candidate.get("mission_slug") == mission_slug:
+            if _is_unbound_run_of(candidate, mission_slug):
                 raise RunIdentityMigrationRequired(
                     f"Legacy run {candidate['run_id']!r} for mission {mission_slug!r} has no mission_id, "
                     f"but mission metadata now identifies {mission_id!r}. Verify ownership before resuming: "
@@ -276,6 +285,46 @@ def _entry_for_mission(index: dict[str, _FeatureRunEntry], *, mission_slug: str,
                     "mission, preserve it under that mission's verified identity. No new run was started."
                 )
     return entry
+
+
+def _run_mission_id(mission_slug: str, repo_root: Path, owned: OwnedCheckout | None) -> str | None:
+    """The canonical ``mission_id`` a run is keyed by.
+
+    For an owned call it is read from the VALIDATED fact's own mission dir on
+    P: the identity seam folds a worktree root to the main checkout, so
+    ``_resolve_mission_ulid(slug, P)`` would read R -- where a stale copy of
+    the mission (possibly a different mission's, FR-007) must never be
+    consulted. Non-owned callers keep the identity SSOT unchanged."""
+    if owned is not None:
+        from specify_cli.mission_metadata import resolve_mission_identity  # noqa: PLC0415
+
+        owned_mission_id: str | None = resolve_mission_identity(owned.mission_dir).mission_id
+        return owned_mission_id
+    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+
+    return _rb._resolve_mission_ulid(mission_slug, repo_root)
+
+
+def _adopt_verified_unbound_run(index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None) -> bool:
+    """Re-key the slug's unbound (legacy, ``mission_id``-less) run under the
+    fact-verified ``mission_id``; ``True`` when the index changed.
+
+    :class:`RunIdentityMigrationRequired` asks for a human to verify ownership
+    before an unbound run is resumed. A validated ``OwnedCheckout`` IS that
+    verification -- it proves the slug <-> ``mission_id`` <-> P binding, and
+    the run store it lives in is P's own -- so an owned call adopts the run
+    instead of wedging on it. Never invoked without a fact."""
+    if not mission_id:
+        return False
+    key = run_index_key(mission_slug, mission_id)
+    if key in index:
+        return False
+    for legacy_key, entry in list(index.items()):
+        if _is_unbound_run_of(entry, mission_slug):
+            del index[legacy_key]
+            index[key] = {**entry, "mission_id": mission_id, "mission_slug": mission_slug}
+            return True
+    return False
 
 
 def _require_run_state(entry: _FeatureRunEntry, *, mission_slug: str, mission_id: str | None) -> Path:
@@ -668,6 +717,8 @@ def _existing_run_ref(
     mission_slug: str,
     repo_root: Path,
     mission_type: str,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> MissionRunRef | None:
     """Return an existing run without creating a new one.
 
@@ -678,8 +729,10 @@ def _existing_run_ref(
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    mission_id = _run_mission_id(mission_slug, repo_root, owned)
     index, _rekeyed = _load_run_index(repo_root)
+    if owned is not None:
+        _adopt_verified_unbound_run(index, mission_slug=mission_slug, mission_id=mission_id)  # in memory only: query mode never persists
     entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
     if entry is None:
         return None
@@ -735,6 +788,7 @@ def get_or_start_run(
     mission_type: str,
     *,
     emitter: Any | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> MissionRunRef:
     """Load existing run or start a new one.
 
@@ -749,8 +803,10 @@ def get_or_start_run(
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    resolved_mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    resolved_mission_id = _run_mission_id(mission_slug, repo_root, owned)
     index, rekeyed = _load_run_index(repo_root)
+    if owned is not None:
+        rekeyed = _adopt_verified_unbound_run(index, mission_slug=mission_slug, mission_id=resolved_mission_id) or rekeyed
     index_key = run_index_key(mission_slug, resolved_mission_id)
 
     entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
@@ -1134,7 +1190,12 @@ class ArtifactPresenceSnapshot:
 _PRESENCE_SEAM_DEGRADES = (ActionContextError, StatusReadPathNotFound, MissionSelectorAmbiguous)
 
 
-def _artifact_presence_seam(feature_dir: Path, repo_root: Path | None) -> PlacementSeam | None:
+def _artifact_presence_seam(
+    feature_dir: Path,
+    repo_root: Path | None,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> PlacementSeam | None:
     """Return the placement seam whose STATUS home is ``feature_dir``, else ``None``.
 
     Bootstrap supplies the resolved STATUS home, so the ordinary
@@ -1145,6 +1206,13 @@ def _artifact_presence_seam(feature_dir: Path, repo_root: Path | None) -> Placem
     every artifact then resolves to the supplied directory (the pre-#3910
     behaviour) instead of a guessed placement — see
     :data:`_PRESENCE_SEAM_DEGRADES` for why a seam failure lands here too.
+
+    owned-checkout-lifecycle-authority WP11 (R-16): the owned arm now builds
+    ``placement_seam(repo_root, feature_dir.name, owned=owned)`` from the
+    CALLER's already-validated fact, instead of the retired guess (a second
+    ``placement_seam`` call that silently assumed the supplied ``repo_root``
+    argument itself WAS the owned checkout — wrong whenever a caller
+    genuinely passes the repository root).
     """
     if repo_root is None:
         return None
@@ -1152,9 +1220,10 @@ def _artifact_presence_seam(feature_dir: Path, repo_root: Path | None) -> Placem
         seam = placement_seam(repo_root, feature_dir.name)
         if seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
             return seam
-        owned = placement_seam(repo_root, feature_dir.name, effective_root=repo_root)
-        if owned.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
-            return owned
+        if owned is not None:
+            owned_seam = placement_seam(repo_root, feature_dir.name, owned=owned)
+            if owned_seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
+                return owned_seam
     except _PRESENCE_SEAM_DEGRADES as exc:
         _logger.debug("artifact presence: seam degraded for %s, keeping supplied directory: %s", feature_dir, exc)
         return None
@@ -1198,6 +1267,7 @@ def artifact_search_paths(
     mission_family: str,
     repo_root: Path | None = None,
     names: Iterable[str] | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> dict[str, str]:
     """Where a guard looked for each expected artifact (#3883).
 
@@ -1213,8 +1283,11 @@ def artifact_search_paths(
     can paste into ``ls``), absolute otherwise. ``names`` narrows the result to
     the artifacts a caller cares about — normally the ones that failed.
     """
-    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root))
-    wanted = set(names) if names is not None else set(_presence_filenames_for(mission_family, repo_root=repo_root))
+    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root, owned=owned))
+    # Root discipline: the mission family's presence vocabulary is a P-local
+    # governance read for an owned mission.
+    config_root = owned.owned_root if owned is not None and repo_root is not None else repo_root
+    wanted = set(names) if names is not None else set(_presence_filenames_for(mission_family, repo_root=config_root))
     resolved: dict[str, str] = {}
     for tag in sorted(wanted):
         candidate = homes.read_dir(tag) / tag
@@ -1234,6 +1307,7 @@ def guard_failure_artifact_paths(
     mission_family: str,
     repo_root: Path | None = None,
     guard_failures: Iterable[str],
+    owned: OwnedCheckout | None = None,
 ) -> dict[str, str]:
     """Map each *genuinely missing-artifact* guard failure to the real path
     a presence check would read, keyed by the real artifact tag (#3883, #4390).
@@ -1278,7 +1352,10 @@ def guard_failure_artifact_paths(
     # the not-yet-wired plan family (``_evaluate_plan_guards`` names ``spec.md``,
     # which is not in ``_presence_filenames_for("plan")``) — keep the two families
     # in step if plan-family guards are ever dispatched live.
-    known_tags = _presence_filenames_for(mission_family, repo_root=repo_root)
+    known_tags = _presence_filenames_for(
+        mission_family,
+        repo_root=owned.owned_root if owned is not None and repo_root is not None else repo_root,
+    )
     tags: set[str] = set()
     for failure in guard_failures:
         candidate = failure[len(missing_artifact_prefix) :] if failure.startswith(missing_artifact_prefix) else failure
@@ -1286,7 +1363,7 @@ def guard_failure_artifact_paths(
             tags.add(candidate)
     if not tags:
         return {}
-    return artifact_search_paths(feature_dir, mission_family=mission_family, repo_root=repo_root, names=tags)
+    return artifact_search_paths(feature_dir, mission_family=mission_family, repo_root=repo_root, names=tags, owned=owned)
 
 
 def gather_artifact_presence(
@@ -1296,6 +1373,7 @@ def gather_artifact_presence(
     step_id: str,
     legacy_step_id: str | None = None,
     repo_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
@@ -1336,7 +1414,7 @@ def gather_artifact_presence(
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
-    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root))
+    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root, owned=owned))
     present: set[str] = set()
     for tag in _presence_filenames_for(mission_family, repo_root=repo_root):
         if (homes.read_dir(tag) / tag).is_file():

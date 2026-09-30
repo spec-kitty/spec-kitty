@@ -120,6 +120,17 @@ def _sentinel_decision(reason: str) -> Decision:
     )
 
 
+def _stub_composition_plan(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The composition advance now plans (pure) before it commits; these unit
+    tests run on a synthetic run dir, so the plan is stubbed to a terminal
+    (non-WP) decision -- nothing to resolve before persisting."""
+    monkeypatch.setattr(
+        _engine_adapter,
+        "plan_composition_advance",
+        lambda run_ref, agent: SimpleNamespace(decision=NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission")),
+    )
+
+
 def _raising(*_args: Any, **_kwargs: Any) -> Any:
     raise AssertionError("this collaborator must not be called on this branch")
 
@@ -159,7 +170,7 @@ def _cyclomatic_complexity(func: ast.AST) -> int:
 
 def test_decide_next_via_runtime_returns_bootstrap_early_decision_without_running_other_phases(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     early = _sentinel_decision("bootstrap-early")
-    monkeypatch.setattr(rb, "_dn_bootstrap", lambda agent, slug, result, repo_root: (None, early))
+    monkeypatch.setattr(rb, "_dn_bootstrap", lambda agent, slug, result, repo_root, **_kw: (None, early))
     monkeypatch.setattr(rb, "_dn_dependency_gate", _raising)
     monkeypatch.setattr(rb, "_dn_composition_dispatch", _raising)
     monkeypatch.setattr(rb, "_dn_decision_materialize", _raising)
@@ -171,7 +182,7 @@ def test_decide_next_via_runtime_returns_bootstrap_early_decision_without_runnin
 
 def test_decide_next_via_runtime_short_circuits_at_first_non_none_phase(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path)
-    monkeypatch.setattr(rb, "_dn_bootstrap", lambda agent, slug, result, repo_root: (ctx, None))
+    monkeypatch.setattr(rb, "_dn_bootstrap", lambda agent, slug, result, repo_root, **_kw: (ctx, None))
 
     call_order: list[str] = []
 
@@ -197,7 +208,7 @@ def test_decide_next_via_runtime_short_circuits_at_first_non_none_phase(tmp_path
 
 def test_decide_next_via_runtime_runs_decision_materialize_when_earlier_phases_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path)
-    monkeypatch.setattr(rb, "_dn_bootstrap", lambda agent, slug, result, repo_root: (ctx, None))
+    monkeypatch.setattr(rb, "_dn_bootstrap", lambda agent, slug, result, repo_root, **_kw: (ctx, None))
     monkeypatch.setattr(rb, "_dn_dependency_gate", lambda c: None)
     monkeypatch.setattr(rb, "_dn_composition_dispatch", lambda c: None)
 
@@ -307,9 +318,7 @@ def test_bootstrap_proceeds_for_unmerged_mission(tmp_path: Path, monkeypatch: py
         json.dumps({"mission_slug": slug, "mission_type": "software-dev"}),
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        status_pkg, "is_mission_completed", lambda *_a, **_k: True
-    )
+    monkeypatch.setattr(status_pkg, "is_mission_completed", lambda *_a, **_k: True)
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, mission_slug: primary_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda feature_dir: "software-dev")
 
@@ -357,7 +366,7 @@ def test_bootstrap_builds_full_context_on_happy_path(tmp_path: Path, monkeypatch
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: fake_emitter)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: wrapped_sentinel)
-    monkeypatch.setattr(rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter: run_ref)
+    monkeypatch.setattr(rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter, owned=None: run_ref)
     monkeypatch.setattr(_engine_adapter, "_read_snapshot", lambda rd: SimpleNamespace(issued_step_id="implement"))
     monkeypatch.setattr(_io_seam, "_build_operational_context_for_decision", lambda **_kw: OperationalContext())
 
@@ -401,8 +410,10 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
                 if seed_mode == "lookup_raises":
                     raise RuntimeError("seed lookup failed")
                 if seed_mode == "raises":
+
                     def fail(snapshot: Any) -> None:
                         raise RuntimeError("seed failed")
+
                     return fail
             raise AttributeError(name)
 
@@ -424,8 +435,10 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
         return OperationalContext()
 
     monkeypatch.setattr(_io_seam, "_build_operational_context_for_decision", context)
+
     def no_template(*args: Any) -> Any:
         raise FileNotFoundError()
+
     monkeypatch.setattr("specify_cli.runtime.resolver.resolve_mission", no_template)
     ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
     assert decision is None
@@ -434,8 +447,10 @@ def test_bootstrap_preserves_phase_and_guards_when_optional_seed_unavailable(
     assert context_calls[0]["step_id"] == "implement"
     assert context_calls[0]["mission_state"] == "implement"
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda _: True)
+
     def unavailable_status(*args: Any, **kwargs: Any) -> bool:
         raise CanonicalStatusNotFoundError("guard still active")
+
     monkeypatch.setattr(rb, "_should_advance_wp_step", unavailable_status)
     guarded = rb._dn_dependency_gate(ctx)
     assert guarded is not None
@@ -460,7 +475,7 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(tmp
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
     monkeypatch.setattr(rb, "runtime_emitter_for_mission", lambda **_: _FakeSyncEmitter())
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: emitter)
-    monkeypatch.setattr(rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter: run_ref)
+    monkeypatch.setattr(rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter, owned=None: run_ref)
 
     def _raise_snapshot(*_a: Any, **_kw: Any) -> Any:
         raise RuntimeError("state.json unreadable")
@@ -567,13 +582,13 @@ def test_dependency_gate_returns_step_decision_for_non_wp_guard_failure(tmp_path
     ctx = _make_ctx(tmp_path, current_step_id="specify")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["spec incomplete"])
-    monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission: ("specify", None, None))
+    monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission, **_kw: ("specify", None, None))
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("hello")
     monkeypatch.setattr(
         rb,
         "_build_prompt_or_error",
-        lambda action, fd, slug, wp_id, agent, root, mission: (str(prompt_path), None),
+        lambda action, fd, slug, wp_id, agent, root, mission, **_kw: (str(prompt_path), None, None),
     )
 
     decision = rb._dn_dependency_gate(ctx)
@@ -590,13 +605,13 @@ def test_dependency_gate_uses_ctx_mission_type_when_feature_dir_has_no_meta(tmp_
     ctx = dataclasses.replace(_make_ctx(tmp_path, current_step_id="specify"), feature_dir=feature_dir)
     assert rb.get_mission_type(ctx.feature_dir) == ""
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
-    monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission: ("specify", None, None))
+    monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission, **_kw: ("specify", None, None))
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("hello", encoding="utf-8")
     monkeypatch.setattr(
         rb,
         "_build_prompt_or_error",
-        lambda action, fd, slug, wp_id, agent, root, mission: (str(prompt_path), None),
+        lambda action, fd, slug, wp_id, agent, root, mission, **_kw: (str(prompt_path), None, None),
     )
 
     decision = rb._dn_dependency_gate(ctx)
@@ -610,7 +625,7 @@ def test_dependency_gate_falls_back_to_blocked_when_no_action_mapped(tmp_path: P
     ctx = _make_ctx(tmp_path, current_step_id="mystery_step")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
     monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["blocked"])
-    monkeypatch.setattr(rb, "_state_to_action", lambda *a: (None, None, None))
+    monkeypatch.setattr(rb, "_state_to_action", lambda *a, **kw: (None, None, None))
     monkeypatch.setattr(rb, "_build_prompt_or_error", _raising)
 
     decision = rb._dn_dependency_gate(ctx)
@@ -628,10 +643,10 @@ def test_dependency_gate_falls_back_to_blocked_when_no_action_mapped(tmp_path: P
 
 def test_composition_blocked_decision_builds_reason_and_prompt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="tasks_outline")
-    monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission: ("tasks_outline", "WP01", "/work/x"))
+    monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission, **_kw: ("tasks_outline", "WP01", "/work/x"))
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("hello")
-    monkeypatch.setattr(rb, "_build_prompt_safe", lambda action, fd, slug, wp_id, agent, root, mission: str(prompt_path))
+    monkeypatch.setattr(rb, "_build_prompt_safe", lambda action, fd, slug, wp_id, agent, root, mission, **_kw: str(prompt_path))
 
     decision = rb._dn_composition_blocked_decision(ctx, "tasks_outline", ["guard failed"])
 
@@ -646,7 +661,7 @@ def test_composition_blocked_decision_builds_reason_and_prompt(tmp_path: Path, m
 
 def test_composition_blocked_decision_skips_prompt_build_when_action_unmapped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ctx = _make_ctx(tmp_path)
-    monkeypatch.setattr(rb, "_state_to_action", lambda *a: (None, None, None))
+    monkeypatch.setattr(rb, "_state_to_action", lambda *a, **kw: (None, None, None))
     monkeypatch.setattr(rb, "_build_prompt_safe", _raising)
 
     decision = rb._dn_composition_blocked_decision(ctx, "implement", ["guard failed"])
@@ -683,7 +698,7 @@ def test_composition_dispatch_returns_blocked_decision_on_guard_failure(tmp_path
     monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: "tasks-outline")
     monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
     monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: ["composition guard failed"])
-    monkeypatch.setattr(rb, "_state_to_action", lambda *a: (None, None, None))
+    monkeypatch.setattr(rb, "_state_to_action", lambda *a, **kw: (None, None, None))
     monkeypatch.setattr(_engine_adapter, "advance_run_state_after_composition", _raising)
 
     decision = rb._dn_composition_dispatch(ctx)
@@ -700,6 +715,7 @@ def test_composition_dispatch_advances_run_state_on_success(tmp_path: Path, monk
     monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: "tasks-outline")
     monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
     monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: [])
+    _stub_composition_plan(monkeypatch)
 
     sentinel = _sentinel_decision("advanced")
     captured_kwargs: dict[str, Any] = {}
@@ -724,6 +740,7 @@ def test_composition_dispatch_returns_blocked_decision_when_advance_raises(tmp_p
     monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: "tasks-outline")
     monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
     monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: [])
+    _stub_composition_plan(monkeypatch)
 
     def _raise_advance(**_kw: Any) -> Decision:
         raise RuntimeError("advance boom")
@@ -875,7 +892,7 @@ def test_decision_materialize_flushes_buffer_and_materializes_after_gate_passes(
     sentinel = _sentinel_decision("terminal-sentinel")
     calls: list[tuple[Any, ...]] = []
 
-    def _fake_map(*args: Any) -> Decision:
+    def _fake_map(*args: Any, **kwargs: Any) -> Decision:
         calls.append(args)
         return sentinel
 
@@ -918,7 +935,7 @@ def test_decision_materialize_fires_non_blocking_retrospective_after_terminal(tm
     monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", _fake_capture)
 
     sentinel = _sentinel_decision("fire-and-forget")
-    monkeypatch.setattr(rb, "_map_runtime_decision", lambda *a: sentinel)
+    monkeypatch.setattr(rb, "_map_runtime_decision", lambda *a, **kw: sentinel)
 
     result = rb._dn_decision_materialize(ctx)
 
@@ -945,7 +962,7 @@ def test_decision_materialize_skips_retrospective_for_non_terminal_decision(tmp_
     monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", _raising)
 
     sentinel = _sentinel_decision("non-terminal")
-    monkeypatch.setattr(rb, "_map_runtime_decision", lambda *a: sentinel)
+    monkeypatch.setattr(rb, "_map_runtime_decision", lambda *a, **kw: sentinel)
 
     result = rb._dn_decision_materialize(ctx)
 

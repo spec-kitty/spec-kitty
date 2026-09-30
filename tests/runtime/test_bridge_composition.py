@@ -107,10 +107,7 @@ def test_untracked_helpers_have_no_runtime_bridge_reexport() -> None:
 
     for name in ("_composition_dispatch_inputs", "_has_generated_docs"):
         assert callable(getattr(composition, name)), f"{name!r} missing from the seam"
-        assert not hasattr(rb, name), (
-            f"{name!r} unexpectedly still exported on runtime_bridge -- the WP18 "
-            "façade-re-export retirement regressed"
-        )
+        assert not hasattr(rb, name), f"{name!r} unexpectedly still exported on runtime_bridge -- the WP18 façade-re-export retirement regressed"
 
 
 @pytest.mark.architectural
@@ -140,8 +137,7 @@ def test_should_dispatch_via_composition_imports_no_gates_code() -> None:
             offenders.append(f"line {node.lineno}: reference to attribute resolve_gates")
     assert not offenders, (
         "runtime_bridge_composition.py imports gates (#2535) code -- FR-008/C-005 "
-        "requires this seam stay clean for gates WP14 to route through later:\n"
-        + "\n".join(offenders)
+        "requires this seam stay clean for gates WP14 to route through later:\n" + "\n".join(offenders)
     )
 
 
@@ -200,10 +196,7 @@ def test_should_dispatch_via_composition_both_branches(tmp_path: Path) -> None:
         mission_key="custom-mission",
         steps=[{"id": "step1", "title": "Step One", "agent_profile": "implementer-ivan"}],
     )
-    assert (
-        composition._should_dispatch_via_composition("custom-mission", "step1", run_dir=dispatch_run_dir)
-        is True
-    )
+    assert composition._should_dispatch_via_composition("custom-mission", "step1", run_dir=dispatch_run_dir) is True
 
     no_dispatch_run_dir = tmp_path / "no-dispatch-run"
     _write_frozen_template(
@@ -211,10 +204,7 @@ def test_should_dispatch_via_composition_both_branches(tmp_path: Path) -> None:
         mission_key="custom-mission",
         steps=[{"id": "step1", "title": "Step One"}],  # no agent_profile / contract_ref
     )
-    assert (
-        composition._should_dispatch_via_composition("custom-mission", "step1", run_dir=no_dispatch_run_dir)
-        is False
-    )
+    assert composition._should_dispatch_via_composition("custom-mission", "step1", run_dir=no_dispatch_run_dir) is False
 
 
 def test_should_dispatch_via_composition_both_branches_via_charter_lookup(tmp_path: Path) -> None:
@@ -222,19 +212,11 @@ def test_should_dispatch_via_composition_both_branches_via_charter_lookup(tmp_pa
     lookup path (repo_root supplied) against this repo's actual doctrine
     data -- the built-in software-dev action sequence always dispatches;
     an unrelated custom mission with no run_dir cannot widen."""
-    assert (
-        composition._should_dispatch_via_composition("software-dev", "specify", repo_root=_REPO_ROOT)
-        is True
-    )
-    assert (
-        composition._should_dispatch_via_composition("totally-unknown-mission", "step1", repo_root=_REPO_ROOT)
-        is False
-    )
+    assert composition._should_dispatch_via_composition("software-dev", "specify", repo_root=_REPO_ROOT) is True
+    assert composition._should_dispatch_via_composition("totally-unknown-mission", "step1", repo_root=_REPO_ROOT) is False
 
 
-def test_should_dispatch_via_composition_uses_live_lookup_for_normalize(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_should_dispatch_via_composition_uses_live_lookup_for_normalize(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Live-lookup regression: the charter branch must resolve
     ``_normalize_action_for_composition`` via ``runtime_bridge`` -- a bare
     intra-module call would silently bypass a patch on
@@ -243,9 +225,7 @@ def test_should_dispatch_via_composition_uses_live_lookup_for_normalize(
 
     monkeypatch.setattr(
         "charter.activation.mission_type_profiles.resolve_mission_type_context",
-        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
-            action_sequence=["patched-action"]
-        ),
+        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(action_sequence=["patched-action"]),
     )
     calls: list[str] = []
 
@@ -255,9 +235,7 @@ def test_should_dispatch_via_composition_uses_live_lookup_for_normalize(
 
     monkeypatch.setattr(rb, "_normalize_action_for_composition", _fake_normalize)
 
-    result = composition._should_dispatch_via_composition(
-        "software-dev", "unrelated-step", repo_root=tmp_path
-    )
+    result = composition._should_dispatch_via_composition("software-dev", "unrelated-step", repo_root=tmp_path)
 
     assert calls == ["unrelated-step"]
     assert result is True  # only true because the patched normalize fired
@@ -324,9 +302,7 @@ def test_resolve_step_agent_profile_returns_only_the_profile(tmp_path: Path) -> 
     assert composition._resolve_step_agent_profile(run_dir, "step1") == "implementer-ivan"
 
 
-def test_resolve_step_binding_uses_live_lookup_for_normalize(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_resolve_step_binding_uses_live_lookup_for_normalize(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Live-lookup regression: patching ``runtime_bridge._normalize_action_for_composition``
     must still be observed from inside ``_resolve_step_binding`` even though
     both symbols now live in the same seam module."""
@@ -360,28 +336,16 @@ def test_resolve_step_binding_uses_live_lookup_for_normalize(
 
 def test_resolve_runtime_contract_for_step_returns_none_when_no_frozen_template(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"  # never created
-    assert (
-        composition._resolve_runtime_contract_for_step(
-            repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
-        )
-        is None
-    )
+    assert composition._resolve_runtime_contract_for_step(repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1") is None
 
 
 def test_resolve_runtime_contract_for_step_returns_none_when_step_has_no_binding(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     _write_frozen_template(run_dir, mission_key="custom-mission", steps=[{"id": "step1", "title": "Step One"}])
-    assert (
-        composition._resolve_runtime_contract_for_step(
-            repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
-        )
-        is None
-    )
+    assert composition._resolve_runtime_contract_for_step(repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1") is None
 
 
-def test_resolve_runtime_contract_for_step_looks_up_by_contract_ref(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_resolve_runtime_contract_for_step_looks_up_by_contract_ref(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     _write_frozen_template(
         run_dir,
@@ -402,16 +366,12 @@ def test_resolve_runtime_contract_for_step_looks_up_by_contract_ref(
 
     monkeypatch.setattr("specify_cli.mission_loader.registry.lookup_contract", _fake_lookup)
 
-    result = composition._resolve_runtime_contract_for_step(
-        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
-    )
+    result = composition._resolve_runtime_contract_for_step(repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1")
     assert result is sentinel_contract
     assert seen_refs == ["ref-123"]
 
 
-def test_resolve_runtime_contract_for_step_synthesizes_for_agent_profile(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_resolve_runtime_contract_for_step_synthesizes_for_agent_profile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     _write_frozen_template(
         run_dir,
@@ -431,15 +391,11 @@ def test_resolve_runtime_contract_for_step_synthesizes_for_agent_profile(
         lambda template: [other, matching],
     )
 
-    result = composition._resolve_runtime_contract_for_step(
-        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
-    )
+    result = composition._resolve_runtime_contract_for_step(repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1")
     assert result is matching
 
 
-def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Live-lookup regression: patching
     ``runtime_bridge._normalize_action_for_composition`` must still be
     observed from inside ``_resolve_runtime_contract_for_step``."""
@@ -468,9 +424,7 @@ def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(
         lambda ref, repo: sentinel,
     )
 
-    result = composition._resolve_runtime_contract_for_step(
-        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="weird-id"
-    )
+    result = composition._resolve_runtime_contract_for_step(repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="weird-id")
 
     assert calls == ["weird-id"]
     assert result is sentinel
@@ -514,9 +468,7 @@ def test_resolve_runtime_contract_for_step_resolves_org_tier_contract_ref(
         steps=[{"id": "step1", "title": "Step One", "contract_ref": ORG_FIXTURE_CONTRACT_ID}],
     )
 
-    result = composition._resolve_runtime_contract_for_step(
-        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
-    )
+    result = composition._resolve_runtime_contract_for_step(repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1")
 
     assert result is not None
     assert result.id == ORG_FIXTURE_CONTRACT_ID
@@ -540,9 +492,7 @@ def test_resolve_runtime_contract_for_step_returns_none_when_org_pack_absent(
         steps=[{"id": "step1", "title": "Step One", "contract_ref": ORG_FIXTURE_CONTRACT_ID}],
     )
 
-    result = composition._resolve_runtime_contract_for_step(
-        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
-    )
+    result = composition._resolve_runtime_contract_for_step(repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1")
 
     assert result is None
 
@@ -603,9 +553,7 @@ def test_resolve_contract_refs_and_resolve_runtime_contract_for_step_resolve_ide
         mission_key="custom-mission",
         steps=[{"id": "step1", "title": "Step One", "contract_ref": ORG_FIXTURE_CONTRACT_ID}],
     )
-    runtime_result = composition._resolve_runtime_contract_for_step(
-        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
-    )
+    runtime_result = composition._resolve_runtime_contract_for_step(repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1")
 
     assert load_error is None, "mission-load validation must resolve the org-tier contract_ref"
     assert runtime_result is not None, "runtime dispatch must resolve the SAME org-tier contract_ref"
@@ -617,9 +565,7 @@ def test_resolve_contract_refs_and_resolve_runtime_contract_for_step_resolve_ide
 # ---------------------------------------------------------------------------
 
 
-def test_composition_dispatch_inputs_resolves_profile_even_when_action_in_charter_sequence(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_composition_dispatch_inputs_resolves_profile_even_when_action_in_charter_sequence(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """FR-001/FR-003 regression (#3830): the canonical ``PromptStep.agent_profile``
     resolution path (``_resolve_step_agent_profile``, the FR-008-mandated path
     per ``mission_step_contracts/executor.py:68-71``) must run even when
@@ -632,9 +578,7 @@ def test_composition_dispatch_inputs_resolves_profile_even_when_action_in_charte
     raise ``profile_hint is required`` for any custom mission type."""
     monkeypatch.setattr(
         "charter.activation.mission_type_profiles.resolve_mission_type_context",
-        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
-            action_sequence=["step1"]
-        ),
+        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(action_sequence=["step1"]),
     )
     run_dir = tmp_path / "run"
     _write_frozen_template(
@@ -643,16 +587,12 @@ def test_composition_dispatch_inputs_resolves_profile_even_when_action_in_charte
         steps=[{"id": "step1", "title": "Step One", "agent_profile": "reviewer-renata"}],
     )
 
-    profile, _contract = composition._composition_dispatch_inputs(
-        repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1"
-    )
+    profile, _contract = composition._composition_dispatch_inputs(repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1")
 
     assert profile == "reviewer-renata"
 
 
-def test_composition_dispatch_inputs_resolves_frozen_binding_when_no_action_default_exists(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_composition_dispatch_inputs_resolves_frozen_binding_when_no_action_default_exists(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """#397 regression: a custom mission type (e.g. an org-pack ``qa`` mission)
     can resolve a charter action sequence that includes an action with NO
     entry in ``StepContractExecutor._ACTION_PROFILE_DEFAULTS`` (that table is
@@ -663,9 +603,7 @@ def test_composition_dispatch_inputs_resolves_frozen_binding_when_no_action_defa
     default exists"."""
     monkeypatch.setattr(
         "charter.activation.mission_type_profiles.resolve_mission_type_context",
-        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
-            action_sequence=["discovery", "test_strategy"]
-        ),
+        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(action_sequence=["discovery", "test_strategy"]),
     )
     run_dir = tmp_path / "run"
     _write_frozen_template(
@@ -674,9 +612,7 @@ def test_composition_dispatch_inputs_resolves_frozen_binding_when_no_action_defa
         steps=[{"id": "discovery", "title": "Discovery", "agent_profile": "researcher-robbie"}],
     )
 
-    profile, contract = composition._composition_dispatch_inputs(
-        repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="discovery", action="discovery"
-    )
+    profile, contract = composition._composition_dispatch_inputs(repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="discovery", action="discovery")
 
     assert profile == "researcher-robbie"
     assert contract is not None
@@ -691,9 +627,7 @@ def test_composition_dispatch_inputs_resolves_frozen_binding_when_no_action_defa
         ("documentation", "discover", "discover"),
     ],
 )
-def test_composition_dispatch_inputs_builtin_types_unaffected(
-    mission: str, step_id: str, action: str, tmp_path: Path
-) -> None:
+def test_composition_dispatch_inputs_builtin_types_unaffected(mission: str, step_id: str, action: str, tmp_path: Path) -> None:
     """Blast Radius (plan.md): software-dev/research/documentation resolve
     ``profile_hint`` via ``_ACTION_PROFILE_DEFAULTS`` exactly as before --
     unaffected by the FR-001/FR-003 fix. None of their canonical steps set
@@ -713,9 +647,7 @@ def test_composition_dispatch_inputs_builtin_types_unaffected(
     assert profile is None
 
 
-def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Live-lookup regression: even when ``resolve_mission_type_context``
     genuinely raises, ``_composition_dispatch_inputs`` must still resolve
     ``_resolve_step_agent_profile`` / ``_resolve_runtime_contract_for_step``
@@ -723,16 +655,12 @@ def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(
     would silently bypass a monkeypatch on ``runtime_bridge.<name>``."""
     from runtime.next import runtime_bridge as rb
 
-    def _raise_unknown(
-        repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None
-    ) -> SimpleNamespace:
+    def _raise_unknown(repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None) -> SimpleNamespace:
         from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
         raise UnknownMissionTypeError(mission_type)
 
-    monkeypatch.setattr(
-        "charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_unknown
-    )
+    monkeypatch.setattr("charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_unknown)
 
     calls: list[str] = []
 
@@ -747,9 +675,7 @@ def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(
     monkeypatch.setattr(rb, "_resolve_step_agent_profile", _fake_resolve_profile)
     monkeypatch.setattr(rb, "_resolve_runtime_contract_for_step", _fake_resolve_contract)
 
-    profile, contract = composition._composition_dispatch_inputs(
-        repo_root=tmp_path, run_dir=tmp_path, mission="custom-mission", step_id="step1", action="step1"
-    )
+    profile, contract = composition._composition_dispatch_inputs(repo_root=tmp_path, run_dir=tmp_path, mission="custom-mission", step_id="step1", action="step1")
     assert profile == "patched-profile"
     assert contract == "patched-contract"
     assert calls == ["profile", "contract"]
@@ -786,19 +712,13 @@ def test_composition_dispatch_inputs_logs_genuine_resolve_mission_type_context_f
     # Case 1 (expected/happy path): resolve_mission_type_context raises
     # UnknownMissionTypeError for a non-charter-activated custom type --
     # must log at DEBUG only, never WARNING/ERROR.
-    def _raise_unknown(
-        repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None
-    ) -> SimpleNamespace:
+    def _raise_unknown(repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None) -> SimpleNamespace:
         raise UnknownMissionTypeError(mission_type)
 
-    monkeypatch.setattr(
-        "charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_unknown
-    )
+    monkeypatch.setattr("charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_unknown)
 
     with caplog.at_level(logging.DEBUG, logger="runtime.next.runtime_bridge"):
-        profile, _contract = composition._composition_dispatch_inputs(
-            repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1"
-        )
+        profile, _contract = composition._composition_dispatch_inputs(repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1")
 
     # Resolution still proceeds via the frozen-template fallback path.
     assert profile == "reviewer-renata"
@@ -812,19 +732,13 @@ def test_composition_dispatch_inputs_logs_genuine_resolve_mission_type_context_f
     # Case 2 (genuine failure): a non-UnknownMissionTypeError exception (e.g.
     # a malformed org pack) must still produce exactly one ERROR record via
     # logger.exception.
-    def _raise_malformed(
-        repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None
-    ) -> SimpleNamespace:
+    def _raise_malformed(repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None) -> SimpleNamespace:
         raise ValueError("malformed org pack")
 
-    monkeypatch.setattr(
-        "charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_malformed
-    )
+    monkeypatch.setattr("charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_malformed)
 
     with caplog.at_level(logging.DEBUG, logger="runtime.next.runtime_bridge"):
-        profile, _contract = composition._composition_dispatch_inputs(
-            repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1"
-        )
+        profile, _contract = composition._composition_dispatch_inputs(repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1")
 
     assert profile == "reviewer-renata"
     error_records = [r for r in caplog.records if r.levelno >= logging.ERROR]
@@ -838,15 +752,11 @@ def test_composition_dispatch_inputs_logs_genuine_resolve_mission_type_context_f
     # Case 3 (NFR-001): ordinary successful resolution logs nothing.
     monkeypatch.setattr(
         "charter.activation.mission_type_profiles.resolve_mission_type_context",
-        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
-            action_sequence=["step1"]
-        ),
+        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(action_sequence=["step1"]),
     )
 
     with caplog.at_level(logging.DEBUG, logger="runtime.next.runtime_bridge"):
-        profile, _contract = composition._composition_dispatch_inputs(
-            repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1"
-        )
+        profile, _contract = composition._composition_dispatch_inputs(repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="step1", action="step1")
 
     assert profile == "reviewer-renata"
     assert not caplog.records
@@ -860,9 +770,7 @@ def test_composition_dispatch_inputs_logs_genuine_resolve_mission_type_context_f
 def test_count_source_documented_events_counts_matching_entries(tmp_path: Path) -> None:
     events = [{"type": "source_documented", "name": f"src-{i}"} for i in range(3)]
     events.append({"type": "other_event"})
-    (tmp_path / "mission-events.jsonl").write_text(
-        "\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8"
-    )
+    (tmp_path / "mission-events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8")
     assert composition._count_source_documented_events(tmp_path) == 3
 
 
@@ -872,9 +780,7 @@ def test_count_source_documented_events_missing_log_returns_zero(tmp_path: Path)
 
 def test_publication_approved_true_when_gate_event_present(tmp_path: Path) -> None:
     events = [{"type": "gate_passed", "name": "publication_approved"}]
-    (tmp_path / "mission-events.jsonl").write_text(
-        "\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8"
-    )
+    (tmp_path / "mission-events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8")
     assert composition._publication_approved(tmp_path) is True
 
 
@@ -898,9 +804,7 @@ def test_has_generated_docs_false_when_docs_dir_absent(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_check_composed_action_guard_delegates_to_cores_and_io(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_check_composed_action_guard_delegates_to_cores_and_io(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
     def _fake_gather(
@@ -910,6 +814,7 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(
         step_id: str,
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
+        owned: object | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -926,9 +831,7 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(
     assert failures == ["boom"]
 
 
-def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Live-lookup regression: ``_should_advance_wp_step`` stays defined in
     the residual (untouched by this WP) -- ``_check_composed_action_guard``
     must reach it via a live lookup through ``runtime_bridge``."""
@@ -944,6 +847,7 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
         step_id: str,
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
+        owned: object | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -989,6 +893,7 @@ def test_check_composed_action_guard_warns_for_unregistered_mission_family(
         step_id: str,
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
+        owned: object | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -1001,20 +906,13 @@ def test_check_composed_action_guard_warns_for_unregistered_mission_family(
     monkeypatch.setattr(io_seam, "gather_artifact_presence", _fake_gather)
 
     with caplog.at_level(logging.WARNING):
-        failures = composition._check_composed_action_guard(
-            "review", tmp_path, mission="totally-unregistered-family"
-        )
+        failures = composition._check_composed_action_guard("review", tmp_path, mission="totally-unregistered-family")
 
     assert failures == []
-    assert any(
-        record.levelno >= logging.WARNING and "totally-unregistered-family" in record.getMessage()
-        for record in caplog.records
-    )
+    assert any(record.levelno >= logging.WARNING and "totally-unregistered-family" in record.getMessage() for record in caplog.records)
 
 
-def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp_actions(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp_actions(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
     captured: dict[str, Any] = {}
@@ -1026,6 +924,7 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
         step_id: str,
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
+        owned: object | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -1052,9 +951,7 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
 # ---------------------------------------------------------------------------
 
 
-def test_dispatch_via_composition_success_returns_none_when_guard_passes(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_dispatch_via_composition_success_returns_none_when_guard_passes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from unittest.mock import MagicMock
 
     from runtime.next import runtime_bridge as rb
@@ -1078,9 +975,7 @@ def test_dispatch_via_composition_success_returns_none_when_guard_passes(
     assert failures is None
 
 
-def test_dispatch_via_composition_returns_guard_failures(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_dispatch_via_composition_returns_guard_failures(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from unittest.mock import MagicMock
 
     from runtime.next import runtime_bridge as rb
@@ -1104,17 +999,13 @@ def test_dispatch_via_composition_returns_guard_failures(
     assert failures == ["missing artifact"]
 
 
-def test_dispatch_via_composition_surfaces_structured_executor_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_dispatch_via_composition_surfaces_structured_executor_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from specify_cli.mission_step_contracts.executor import StepContractExecutionError
 
     def _raise(self: Any, context: Any, contract: Any = None) -> Any:
         raise StepContractExecutionError("synthesized contract missing")
 
-    monkeypatch.setattr(
-        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute", _raise
-    )
+    monkeypatch.setattr("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute", _raise)
 
     failures = composition._dispatch_via_composition(
         repo_root=tmp_path,
@@ -1130,15 +1021,11 @@ def test_dispatch_via_composition_surfaces_structured_executor_error(
     assert "composition failed for software-dev/specify" in failures[0]
 
 
-def test_dispatch_via_composition_surfaces_unexpected_exception_as_structured_failure(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_dispatch_via_composition_surfaces_unexpected_exception_as_structured_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     def _raise(self: Any, context: Any, contract: Any = None) -> Any:
         raise ValueError("malformed contract yaml")
 
-    monkeypatch.setattr(
-        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute", _raise
-    )
+    monkeypatch.setattr("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute", _raise)
 
     failures = composition._dispatch_via_composition(
         repo_root=tmp_path,
@@ -1186,9 +1073,7 @@ def test_dispatch_via_composition_plan_mission_keeps_distinct_step_contract_erro
     assert "profile_hint is required" not in failures[0]
 
 
-def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_guard(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_guard(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Live-lookup regression: ``_dispatch_via_composition`` must resolve
     ``_check_composed_action_guard`` via a live lookup through
     ``runtime_bridge`` -- both symbols now live in this same seam module, the
@@ -1208,6 +1093,7 @@ def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_gua
         mission: str = "software-dev",
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
+        owned: object | None = None,
     ) -> list[str]:
         calls.append(action)
         repo_roots_seen.append(repo_root)
@@ -1328,9 +1214,7 @@ def test_dispatch_via_composition_warns_on_unresolved_delegation_candidates(
 # ---------------------------------------------------------------------------
 
 
-def test_advance_run_state_after_composition_delegate_still_forwards_to_engine_adapter(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_advance_run_state_after_composition_delegate_still_forwards_to_engine_adapter(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from runtime.next import runtime_bridge as rb
 
     captured: dict[str, Any] = {}
@@ -1356,6 +1240,7 @@ def test_advance_run_state_after_composition_delegate_still_forwards_to_engine_a
         progress=None,
         origin={},
         sync_emitter=object(),
+        plan=object(),
     )
 
     assert result is sentinel_decision

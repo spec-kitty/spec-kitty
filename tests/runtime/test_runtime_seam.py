@@ -472,7 +472,7 @@ class TestConsumerTransitivity:
             "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
-            path, err = _build_prompt_or_error(
+            path, err, _code = _build_prompt_or_error(
                 action="specify",
                 feature_dir=tmp_path / "kitty-specs" / "some-mission",
                 mission_slug="some-mission",

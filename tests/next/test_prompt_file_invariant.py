@@ -50,7 +50,7 @@ class TestBuildPromptOrError:
             "runtime.next.prompt_builder.build_prompt",
             return_value=(None, prompt_path),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action="implement",
                 feature_dir=tmp_path,
                 mission_slug="042-test",
@@ -77,7 +77,7 @@ class TestBuildPromptOrError:
             "runtime.next.prompt_builder.build_prompt",
             side_effect=FileNotFoundError("no template for 'discovery'"),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action="discovery",
                 feature_dir=tmp_path,
                 mission_slug="042-test",
@@ -98,7 +98,7 @@ class TestBuildPromptOrError:
             "runtime.next.prompt_builder.build_prompt",
             side_effect=FileNotFoundError("no template for 'implement'"),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action="implement",
                 feature_dir=tmp_path,
                 mission_slug="042-test",
@@ -119,7 +119,7 @@ class TestBuildPromptOrError:
             "runtime.next.prompt_builder.build_prompt",
             return_value=(None, ghost),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action="implement",
                 feature_dir=tmp_path,
                 mission_slug="042-test",
@@ -158,7 +158,7 @@ class TestBuildPromptOrError:
                 side_effect=PermissionError("EACCES"),
             ),
         ):
-            path, error = _build_prompt_or_error(
+            path, error, _error_code = _build_prompt_or_error(
                 action="implement",
                 feature_dir=tmp_path,
                 mission_slug="042-test",
@@ -172,6 +172,35 @@ class TestBuildPromptOrError:
         assert error is not None
         assert "not stat-able" in error
         assert "implement" in error
+
+    def test_action_context_error_carries_typed_error_code(self, tmp_path: Path) -> None:
+        """T067 item 4: a typed ``ActionContextError`` from ``build_prompt``'s
+        owned-aware resolution path (WP12) is not collapsed into an untyped
+        ``reason`` string — its ``code`` is surfaced separately so ``next``'s
+        JSON contract carries a structured ``error_code`` without parsing
+        ``reason`` text (T062's ``Decision.error_code`` contract)."""
+        from mission_runtime import ActionContextError, OwnedRefusalCode
+
+        with patch(
+            "runtime.next.prompt_builder.build_prompt",
+            side_effect=ActionContextError(
+                OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE.value,
+                "review base is not resolvable for this owned checkout",
+            ),
+        ):
+            path, error, error_code = _build_prompt_or_error(
+                action="implement",
+                feature_dir=tmp_path,
+                mission_slug="042-test",
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+
+        assert path is None
+        assert error == "review base is not resolvable for this owned checkout"
+        assert error_code == OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE.value
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +262,7 @@ def test_issued_step_always_has_resolvable_prompt(tmp_path: Path, step_id: str) 
         ),
         patch(
             "runtime.next.runtime_bridge._build_prompt_or_error",
-            return_value=(str(prompt_path), None),
+            return_value=(str(prompt_path), None, None),
         ),
     ):
         decision: Decision = _map_runtime_decision(
@@ -275,7 +304,7 @@ def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: 
         ),
         patch(
             "runtime.next.runtime_bridge._build_prompt_or_error",
-            return_value=(None, error_msg),
+            return_value=(None, error_msg, None),
         ),
     ):
         decision: Decision = _map_runtime_decision(
@@ -317,7 +346,7 @@ def test_wp_iteration_step_invariant_holds(tmp_path: Path, step_id: str) -> None
         ),
         patch(
             "runtime.next.runtime_bridge._build_prompt_or_error",
-            return_value=(str(prompt_path), None),
+            return_value=(str(prompt_path), None, None),
         ),
     ):
         decision = _map_runtime_decision(
@@ -353,7 +382,7 @@ def test_wp_iteration_step_blocked_when_prompt_unresolvable(tmp_path: Path, step
         ),
         patch(
             "runtime.next.runtime_bridge._build_prompt_or_error",
-            return_value=(None, f"prompt resolution failed for action '{step_id}'"),
+            return_value=(None, f"prompt resolution failed for action '{step_id}'", None),
         ),
     ):
         decision = _map_runtime_decision(
@@ -385,7 +414,7 @@ def test_third_state_does_not_exist(tmp_path: Path) -> None:
     from runtime.next.runtime_bridge import _map_runtime_decision
 
     for prompt_outcome in [
-        (None, "prompt resolution failed for action 'discovery': FileNotFoundError: x"),
+        (None, "prompt resolution failed for action 'discovery': FileNotFoundError: x", None),
     ]:
         with (
             patch(

@@ -160,7 +160,7 @@ def test_unavailable_primary_task_blocks_with_actionable_reason(
     elif task_problem == "malformed":
         task_file.write_text(_MALFORMED_WP_TASK, encoding="utf-8")
 
-    prompt_file, prompt_error = _build_prompt_or_error(
+    prompt_file, prompt_error, _prompt_error_code = _build_prompt_or_error(
         action="implement",
         feature_dir=coordination_dir,
         mission_slug=mission_slug,

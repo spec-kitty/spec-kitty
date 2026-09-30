@@ -255,6 +255,11 @@ def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch
     monkeypatch.setattr(rb, "_normalize_action_for_composition", lambda step_id: step_id)
     monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", lambda **kwargs: (None, None))
     monkeypatch.setattr(rb, "_dispatch_via_composition", lambda **kwargs: [])
+    monkeypatch.setattr(
+        rb._engine_adapter,
+        "plan_composition_advance",
+        lambda run_ref, agent: SimpleNamespace(decision=SimpleNamespace(kind="terminal", step_id=None)),
+    )
 
     expected = Decision(
         kind=DecisionKind.decision_required,
@@ -394,7 +399,7 @@ def test_real_composition_advances_and_logs_despite_optional_seed_failure(
     monkeypatch.setattr(
         rb,
         "_map_runtime_decision",
-        lambda decision, *args: Decision(
+        lambda decision, *args, **kwargs: Decision(
             kind=decision.kind,
             agent="tester",
             mission_slug=SLUG,

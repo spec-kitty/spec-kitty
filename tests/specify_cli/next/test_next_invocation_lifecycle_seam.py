@@ -331,7 +331,7 @@ class TestNextAnswerLifecycleSeamEffects:
 # WP's own real acceptance evidence) but only walks the "happy" branch of
 # each function once; these narrower, direct calls into the public seam
 # functions themselves (bypassing the CLI) hit the remaining best-effort
-# fail-closed branches -- the effective_root fork, the placement-seam
+# fail-closed branches -- the owned fork, the placement-seam
 # exception guard, a corrupt/legacy meta.json, a non-"success" result, and a
 # write failure -- without the overhead of a full CLI+git fixture per case.
 # Fixture shape (a bare ``repo_root/kitty-specs/<slug>/meta.json``, no git
@@ -358,7 +358,7 @@ class _FakeArtifact:
 
 class _FakeMissionContext:
     """Stands in for ``mission_runtime.MissionContext`` on the
-    ``effective_root is not None`` fork -- only ``.artifact(kind).read_dir``
+    owned fork -- only ``.artifact(kind).read_dir``
     is used by the seam functions."""
 
     def __init__(self, read_dir: Path) -> None:
@@ -368,11 +368,21 @@ class _FakeMissionContext:
         return _FakeArtifact(self._read_dir)
 
 
-class TestSeamFunctionsEffectiveRootFork:
-    """``effective_root is not None`` routes through ``mission_context_for``
-    instead of ``placement_seam`` -- all three functions share this fork."""
+def _owned_stand_in(store_root: Path, mission_dir: Path | None = None) -> Any:
+    """A stand-in fact whose owned root is the record store under test.
 
-    def test_pair_previous_lifecycle_record_uses_effective_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    These tests exercise the seam functions, not the validator, so a
+    ``SimpleNamespace`` carrying just the two fields the seam reads is enough.
+    """
+    return SimpleNamespace(owned_root=store_root, mission_dir=mission_dir)
+
+
+class TestSeamFunctionsOwnedFork:
+    """WP11: the three functions read the fact's own mission dir on the
+    owned fork (WP18 re-pointed these from the retired ``effective_root=``
+    keyword to ``owned=``)."""
+
+    def test_pair_previous_lifecycle_record_uses_the_owned_fact(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug = "042-effective-root-mission"
         mission_id = "01HSEAMEFFECTIVEROOTULID01"
         feature_dir = _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
@@ -386,7 +396,7 @@ class TestSeamFunctionsEffectiveRootFork:
         )
 
         monkeypatch.setattr(
-            "mission_runtime.mission_context_for",
+            "runtime.next.next_invocation_lifecycle.mission_context_for",
             lambda *_a, **_k: _FakeMissionContext(feature_dir),
         )
 
@@ -395,20 +405,20 @@ class TestSeamFunctionsEffectiveRootFork:
             mission_slug,
             "success",
             tmp_path,
-            effective_root=tmp_path / "owned-checkout",
+            owned=_owned_stand_in(tmp_path, feature_dir),
         )
 
         from specify_cli.invocation.lifecycle import read_lifecycle_records
 
         records = read_lifecycle_records(tmp_path)
-        assert any(r.phase == "completed" for r in records), f"expected the effective_root fork to still pair the outstanding started record; records={records!r}"
+        assert any(r.phase == "completed" for r in records), f"expected the owned fork to still pair the outstanding started record; records={records!r}"
 
-    def test_write_issuance_lifecycle_record_uses_effective_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_write_issuance_lifecycle_record_uses_the_owned_fact(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug = "042-effective-root-mission-2"
         mission_id = "01HSEAMEFFECTIVEROOTULID02"
         feature_dir = _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id=mission_id)
         monkeypatch.setattr(
-            "mission_runtime.mission_context_for",
+            "runtime.next.next_invocation_lifecycle.mission_context_for",
             lambda *_a, **_k: _FakeMissionContext(feature_dir),
         )
         decision = SimpleNamespace(action="step_one", mission_state="step_one", kind="step", wp_id=None)
@@ -418,19 +428,19 @@ class TestSeamFunctionsEffectiveRootFork:
             mission_slug,
             tmp_path,
             decision,
-            effective_root=tmp_path / "owned-checkout",
+            owned=_owned_stand_in(tmp_path, feature_dir),
         )
 
         from specify_cli.invocation.lifecycle import read_lifecycle_records
 
         records = read_lifecycle_records(tmp_path)
-        assert any(r.phase == "started" for r in records), f"expected a started record via the effective_root fork; records={records!r}"
+        assert any(r.phase == "started" for r in records), f"expected a started record via the owned fork; records={records!r}"
 
-    def test_emit_mission_next_invoked_uses_effective_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_emit_mission_next_invoked_uses_the_owned_fact(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug = "042-effective-root-mission-3"
         feature_dir = _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id="01HSEAMEFFECTIVEROOTULID03")
         monkeypatch.setattr(
-            "mission_runtime.mission_context_for",
+            "runtime.next.next_invocation_lifecycle.mission_context_for",
             lambda *_a, **_k: _FakeMissionContext(feature_dir),
         )
         decision = SimpleNamespace(
@@ -447,19 +457,47 @@ class TestSeamFunctionsEffectiveRootFork:
             mission_slug,
             tmp_path,
             decision,
-            effective_root=tmp_path / "owned-checkout",
+            owned=_owned_stand_in(tmp_path, feature_dir),
         )
 
         events = _read_events(feature_dir)
-        assert any(e.get("type") == "MissionNextInvoked" for e in events), f"expected the effective_root fork to still emit the event; events={events!r}"
+        assert any(e.get("type") == "MissionNextInvoked" for e in events), f"expected the owned fork to still emit the event; events={events!r}"
+
+
+class TestOwnedArm:
+    """WP11 T063/T060 (review cycle 1 finding 9): on the owned arm the
+    lifecycle store is P's (WP18 retired the legacy ``effective_root=`` mint
+    arm and its test)."""
+
+    def test_owned_arm_writes_and_pairs_records_in_the_owned_root_store(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo_root = tmp_path / "R"
+        owned_root = tmp_path / "P"
+        repo_root.mkdir()
+        owned_root.mkdir()
+        mission_slug = "042-owned-arm-mission"
+        feature_dir = _setup_mission_dir(owned_root, mission_slug=mission_slug, mission_id="01HSEAMOWNEDARMULID0001")
+        monkeypatch.setattr(
+            "runtime.next.next_invocation_lifecycle.mission_context_for",
+            lambda *_a, **_k: _FakeMissionContext(feature_dir),
+        )
+        owned: Any = SimpleNamespace(owned_root=owned_root, mission_dir=feature_dir)
+        decision = SimpleNamespace(action="step_one", mission_state="step_one", kind="step", wp_id=None)
+
+        write_issuance_lifecycle_record("wp11-agent", mission_slug, repo_root, decision, owned=owned)
+        assert [r.phase for r in read_lifecycle_records(owned_root)] == ["started"]
+        assert read_lifecycle_records(repo_root) == []
+
+        pair_previous_lifecycle_record("wp11-agent", mission_slug, "success", repo_root, owned=owned)
+        assert sorted(r.phase for r in read_lifecycle_records(owned_root)) == ["completed", "started"]
+        assert read_lifecycle_records(repo_root) == []
 
 
 class TestSeamFunctionsFailClosedBranches:
     """Every best-effort ``except``/early-return branch, exercised directly."""
 
-    def test_pair_previous_lifecycle_record_swallows_placement_seam_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_pair_previous_lifecycle_record_swallows_mission_context_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "runtime.next.next_invocation_lifecycle.placement_seam",
+            "runtime.next.next_invocation_lifecycle.mission_context_for",
             lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
         )
         # Must not raise -- best-effort, fail-closed.
@@ -509,9 +547,9 @@ class TestSeamFunctionsFailClosedBranches:
         assert paired[0].phase == "failed"
         assert paired[0].reason == "blocked"
 
-    def test_write_issuance_lifecycle_record_swallows_placement_seam_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_write_issuance_lifecycle_record_swallows_mission_context_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "runtime.next.next_invocation_lifecycle.placement_seam",
+            "runtime.next.next_invocation_lifecycle.mission_context_for",
             lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
         )
         decision = SimpleNamespace(action="step_one", mission_state="step_one", kind="step", wp_id=None)
@@ -568,7 +606,7 @@ class TestSeamFunctionsFailClosedBranches:
 
     def test_emit_mission_next_invoked_degrades_feature_dir_to_none_on_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "runtime.next.next_invocation_lifecycle.placement_seam",
+            "runtime.next.next_invocation_lifecycle.mission_context_for",
             lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
         )
         decision = SimpleNamespace(kind="query", action=None, wp_id=None, mission_state=None, mission="no-such-mission")

@@ -81,7 +81,7 @@ class TestWPIterationDecisionBlockedBranch:
             ),
             patch(
                 "runtime.next.runtime_bridge._build_prompt_or_error",
-                return_value=(None, "prompt resolution failed for action 'implement'"),
+                return_value=(None, "prompt resolution failed for action 'implement'", None),
             ),
         ):
             decision = _build_wp_iteration_decision(
@@ -211,7 +211,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             patch.object(
                 rb,
                 "_build_prompt_or_error",
-                return_value=(None, "prompt resolution failed for action 'specify'"),
+                return_value=(None, "prompt resolution failed for action 'specify'", None),
             ),
             patch(
                 "runtime.next._internal_runtime.engine._read_snapshot",
@@ -266,7 +266,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             patch.object(
                 rb,
                 "_build_prompt_or_error",
-                return_value=(str(prompt_path), None),
+                return_value=(str(prompt_path), None, None),
             ),
             patch(
                 "runtime.next._internal_runtime.engine._read_snapshot",
@@ -317,7 +317,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             patch.object(
                 rb,
                 "_build_prompt_or_error",
-                return_value=(str(prompt_path), None),
+                return_value=(str(prompt_path), None, None),
             ),
             patch("pathlib.Path.is_file", return_value=False),
             patch(
@@ -406,7 +406,7 @@ class TestResolvedPromptRaceFallbacks:
             ),
             patch(
                 "runtime.next.runtime_bridge._build_prompt_or_error",
-                return_value=(str(prompt_path), None),
+                return_value=(str(prompt_path), None, None),
             ),
             patch("pathlib.Path.is_file", return_value=False),
         ):
@@ -446,7 +446,7 @@ class TestResolvedPromptRaceFallbacks:
             ),
             patch(
                 "runtime.next.runtime_bridge._build_prompt_or_error",
-                return_value=(str(prompt_path), None),
+                return_value=(str(prompt_path), None, None),
             ),
             patch("pathlib.Path.is_file", return_value=False),
         ):
@@ -485,7 +485,7 @@ class TestResolvedPromptRaceFallbacks:
             ),
             patch(
                 "runtime.next.runtime_bridge._build_prompt_or_error",
-                return_value=(str(prompt_path), None),
+                return_value=(str(prompt_path), None, None),
             ),
             patch("pathlib.Path.is_file", return_value=False),
         ):

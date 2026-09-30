@@ -91,31 +91,19 @@ def _offending_imports(path: Path) -> list[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module is not None:
             if node.module.endswith(("_internal_runtime.engine", "_internal_runtime.planner")):
-                offenders.extend(
-                    f"{path.name}: from {node.module} import {alias.name}"
-                    for alias in node.names
-                    if alias.name in _ENGINE_PLANNER_PRIVATE_NAMES
-                )
+                offenders.extend(f"{path.name}: from {node.module} import {alias.name}" for alias in node.names if alias.name in _ENGINE_PLANNER_PRIVATE_NAMES)
             elif node.module.endswith("_internal_runtime"):
                 # Importing the ``engine``/``planner`` submodule object — or the
                 # ``_internal_runtime`` package itself — grants the same ambient
                 # access the 5-name check catches for the direct form (e.g.
                 # ``from ..._internal_runtime import engine`` then
                 # ``engine._read_snapshot(...)``). Flag the indirection.
-                offenders.extend(
-                    f"{path.name}: from {node.module} import {alias.name}"
-                    for alias in node.names
-                    if alias.name in ("engine", "planner")
-                )
+                offenders.extend(f"{path.name}: from {node.module} import {alias.name}" for alias in node.names if alias.name in ("engine", "planner"))
             elif node.module.endswith("runtime.next"):
                 # ``from runtime.next import _internal_runtime`` then
                 # ``_internal_runtime.engine._read_snapshot(...)`` — the package
                 # import is the reach-through vector.
-                offenders.extend(
-                    f"{path.name}: from {node.module} import {alias.name}"
-                    for alias in node.names
-                    if alias.name == "_internal_runtime"
-                )
+                offenders.extend(f"{path.name}: from {node.module} import {alias.name}" for alias in node.names if alias.name == "_internal_runtime")
         elif isinstance(node, ast.Import):
             # Dotted module imports: ``import runtime.next._internal_runtime.engine``
             # (bound under its full dotted path) or ``import
@@ -124,13 +112,9 @@ def _offending_imports(path: Path) -> list[str]:
             offenders.extend(
                 f"{path.name}: import {alias.name}"
                 for alias in node.names
-                if alias.name.endswith(
-                    ("_internal_runtime.engine", "_internal_runtime.planner", "_internal_runtime")
-                )
+                if alias.name.endswith(("_internal_runtime.engine", "_internal_runtime.planner", "_internal_runtime"))
             )
     return offenders
-
-
 
 
 # ``_resolve_workflow_for_mission`` is re-exposed under a public name
@@ -161,17 +145,8 @@ _ADAPTER_WRAPPER_NAME = {"_resolve_workflow_for_mission": "resolve_workflow_for_
 # as part of this same fix, so the guard below closes the class by
 # construction: a future direct import in either file fails this test.
 _CLI_ADJACENT_MODULES = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "specify_cli"
-    / "cli"
-    / "commands"
-    / "next_cmd.py",
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "specify_cli"
-    / "orchestrator_api"
-    / "commands.py",
+    Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "cli" / "commands" / "next_cmd.py",
+    Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "orchestrator_api" / "commands.py",
 )
 
 
@@ -203,12 +178,7 @@ def test_adapter_defines_all_six_engine_planner_wrappers() -> None:
     adapter silently dropping a wrapper)."""
     for name in _ENGINE_PLANNER_PRIVATE_NAMES:
         wrapper_name = _ADAPTER_WRAPPER_NAME.get(name, name)
-        assert hasattr(engine_adapter, wrapper_name), (
-            f"runtime_bridge_engine no longer defines a wrapper for {name!r} "
-            f"(expected attribute {wrapper_name!r})"
-        )
-
-
+        assert hasattr(engine_adapter, wrapper_name), f"runtime_bridge_engine no longer defines a wrapper for {name!r} (expected attribute {wrapper_name!r})"
 
 
 # ---------------------------------------------------------------------------
@@ -286,9 +256,7 @@ def test_live_template_path_none_when_blank() -> None:
 
 @pytest.mark.unit
 def test_live_template_path_none_when_missing_on_disk(tmp_path: Path) -> None:
-    snapshot = MissionRunSnapshot(
-        run_id="r", mission_key="m", template_path=str(tmp_path / "does-not-exist.yaml"), template_hash="h"
-    )
+    snapshot = MissionRunSnapshot(run_id="r", mission_key="m", template_path=str(tmp_path / "does-not-exist.yaml"), template_hash="h")
     assert engine_adapter._live_template_path(snapshot) is None
 
 
@@ -357,10 +325,10 @@ def _stub_map_runtime_decision(monkeypatch: pytest.MonkeyPatch) -> _MapDecisionR
 
     recorder = _MapDecisionRecorder(calls=[], sentinel=object())
 
-    def _fake(decision: Any, agent: Any, mission_slug: Any, mission_type: Any, repo_root: Any, feature_dir: Any, timestamp: Any, progress: Any, origin: Any) -> Any:
-        recorder.calls.append(
-            (decision, agent, mission_slug, mission_type, repo_root, feature_dir, timestamp, progress, origin)
-        )
+    def _fake(
+        decision: Any, agent: Any, mission_slug: Any, mission_type: Any, repo_root: Any, feature_dir: Any, timestamp: Any, progress: Any, origin: Any, **_kw: Any
+    ) -> Any:
+        recorder.calls.append((decision, agent, mission_slug, mission_type, repo_root, feature_dir, timestamp, progress, origin))
         return recorder.sentinel
 
     monkeypatch.setattr(rb, "_map_runtime_decision", _fake)
@@ -378,24 +346,16 @@ def _stub_engine_and_planner(
     (written_snapshots, appended_events) recorder lists."""
     written: list[Any] = []
     appended: list[tuple[Any, ...]] = []
-    monkeypatch.setattr(
-        "runtime.next.runtime_bridge_engine._engine._read_snapshot", lambda run_dir: read_snapshot_returns
-    )
+    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._read_snapshot", lambda run_dir: read_snapshot_returns)
     monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._load_frozen_template", lambda run_dir: object())
-    monkeypatch.setattr(
-        "runtime.next.runtime_bridge_engine._engine._write_snapshot", lambda run_dir, snap: written.append(snap)
-    )
-    monkeypatch.setattr(
-        "runtime.next.runtime_bridge_engine._engine._append_event", lambda *a: appended.append(a)
-    )
+    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._write_snapshot", lambda run_dir, snap: written.append(snap))
+    monkeypatch.setattr("runtime.next.runtime_bridge_engine._engine._append_event", lambda *a: appended.append(a))
     monkeypatch.setattr("runtime.next.runtime_bridge_engine._planner.plan_next", lambda *a, **k: plan_next_returns)
     return written, appended
 
 
 @pytest.mark.unit
-def test_advance_run_state_step_decision_no_prior_step(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder
-) -> None:
+def test_advance_run_state_step_decision_no_prior_step(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder) -> None:
     """No step was in flight (``issued_step_id`` is None) — nothing to
     auto-complete; the ``step`` decision stamps the new ``issued_step_id`` and
     emits ``NextStepIssued`` only."""
@@ -419,6 +379,8 @@ def test_advance_run_state_step_decision_no_prior_step(
         progress=None,
         origin={},
         sync_emitter=sync_emitter,
+        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
+        wp_resolution=("implement", "WP01", "/ws", "lane-a", "wp"),  # the bridge resolved this before the advance
     )
 
     assert result is _stub_map_runtime_decision.sentinel
@@ -438,9 +400,7 @@ def test_advance_run_state_marks_prior_step_complete_then_decision_required(
     then the ``decision_required`` branch persists + emits DecisionInputRequested."""
     run_dir = tmp_path / "run-2"
     run_dir.mkdir()
-    snapshot_in = MissionRunSnapshot(
-        run_id="run-2", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="implement"
-    )
+    snapshot_in = MissionRunSnapshot(run_id="run-2", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="implement")
     decision = NextDecision(
         kind="decision_required",
         run_id="run-2",
@@ -466,6 +426,7 @@ def test_advance_run_state_marks_prior_step_complete_then_decision_required(
         progress=None,
         origin={},
         sync_emitter=sync_emitter,
+        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
     )
 
     assert len(sync_emitter.auto_completed) == 1
@@ -490,9 +451,7 @@ def test_advance_run_state_decision_required_dedups_on_repoll(
         template_hash="h",
         pending_decisions={"audit:review": {"already": "there"}},
     )
-    decision = NextDecision(
-        kind="decision_required", run_id="run-3", mission_key="software-dev", decision_id="audit:review", step_id="review"
-    )
+    decision = NextDecision(kind="decision_required", run_id="run-3", mission_key="software-dev", decision_id="audit:review", step_id="review")
     written, appended = _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
 
     sync_emitter = _FakeSyncEmitter()
@@ -509,6 +468,7 @@ def test_advance_run_state_decision_required_dedups_on_repoll(
         progress=None,
         origin={},
         sync_emitter=sync_emitter,
+        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
     )
 
     assert sync_emitter.decision_requested == []
@@ -570,6 +530,7 @@ def test_advance_run_state_terminal_runs_retrospective_gate(
         progress=None,
         origin={},
         sync_emitter=sync_emitter,
+        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
     )
 
     assert len(sync_emitter.run_completed) == 1
@@ -588,9 +549,7 @@ def test_advance_run_state_terminal_skipped_when_no_step_completed(
 
     run_dir = tmp_path / "run-5"
     run_dir.mkdir()
-    snapshot_in = MissionRunSnapshot(
-        run_id="run-5", mission_key="software-dev", template_path="", template_hash="h", issued_step_id=None
-    )
+    snapshot_in = MissionRunSnapshot(run_id="run-5", mission_key="software-dev", template_path="", template_hash="h", issued_step_id=None)
     decision = NextDecision(kind="terminal", run_id="run-5", mission_key="software-dev")
     _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
 
@@ -614,6 +573,46 @@ def test_advance_run_state_terminal_skipped_when_no_step_completed(
         progress=None,
         origin={},
         sync_emitter=sync_emitter,
+        plan=engine_adapter.plan_composition_advance(run_ref, "agent-1"),
     )
 
     assert sync_emitter.run_completed == []
+
+
+@pytest.mark.unit
+def test_adapter_never_resolves_a_wp_workspace_itself_and_refuses_before_writing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, _stub_map_runtime_decision: _MapDecisionRecorder
+) -> None:
+    """Review cycle 2 note 4: resolution belongs to the bridge, BEFORE the
+    advance. The adapter must not resolve (and so write-then-resolve) on its
+    own: a WP-iteration plan handed over without the bridge's resolution is
+    refused with nothing persisted."""
+    from runtime.next import runtime_bridge as rb
+
+    run_dir = tmp_path / "run-wp"
+    run_dir.mkdir()
+    snapshot_in = MissionRunSnapshot(run_id="run-wp", mission_key="software-dev", template_path="", template_hash="h", issued_step_id="tasks")
+    decision = NextDecision(kind="step", run_id="run-wp", mission_key="software-dev", step_id="implement")
+    written, appended = _stub_engine_and_planner(monkeypatch, read_snapshot_returns=snapshot_in, plan_next_returns=decision)
+    resolved: list[str] = []
+    monkeypatch.setattr(rb, "_resolve_planned_wp_workspace", lambda *a, **k: resolved.append("resolved"))
+    run_ref = MissionRunRef(run_id="run-wp", run_dir=str(run_dir), mission_key="software-dev")
+    plan = engine_adapter.plan_composition_advance(run_ref, "agent-1")
+
+    with pytest.raises(ValueError, match="wp_resolution"):
+        engine_adapter.advance_run_state_after_composition(
+            run_ref=run_ref,
+            agent="agent-1",
+            mission_slug="mission-1",
+            mission_type="software-dev",
+            repo_root=tmp_path,
+            feature_dir=tmp_path,
+            timestamp="2026-01-01T00:00:00Z",
+            progress=None,
+            origin={},
+            sync_emitter=_FakeSyncEmitter(),
+            plan=plan,
+        )
+
+    assert resolved == [], "the adapter must not resolve the workspace itself"
+    assert written == [] and appended == [], "nothing may be persisted"

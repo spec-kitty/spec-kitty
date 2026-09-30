@@ -13,13 +13,14 @@ default per NEW-2 resolution).
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
     from specify_cli.status.wp_metadata import WPMetadata
+    from specify_cli.workspace.context import ResolvedWorkspace
 
 from pydantic import ValidationError
 from charter.activation.context import build_charter_context
@@ -31,6 +32,7 @@ from charter.activation.mission_type_profiles import (
     resolve_mission_type_context,
 )
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
+from mission_runtime import ActionContextError, ClaimCommitUnresolved, OwnedRefusalCode, claim_commit_for_wp
 from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
@@ -66,23 +68,33 @@ def build_prompt(
     agent: str,
     repo_root: Path,
     mission_type: str,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[str, Path]:
     """Build a prompt for the given action.
 
     Returns ``(prompt_text, prompt_file_path)``.
 
     For planning actions (specify, plan, tasks, research, accept) the prompt is
-    the command template with a feature context header prepended.
+    the command template with a mission context header prepended.
 
     For implement/review actions the prompt includes workspace paths, isolation
     rules, WP content, and completion instructions.
-    """
-    if action in ("implement", "review") and wp_id:
-        prompt_text = _build_wp_prompt(action, feature_dir, mission_slug, wp_id, agent, repo_root, mission_type)
-    else:
-        prompt_text = _build_template_prompt(action, feature_dir, mission_slug, agent, repo_root, mission_type)
 
-    prompt_file = _write_to_temp(action, wp_id, prompt_text, agent=agent, mission_slug=mission_slug, repo_root=repo_root)
+    ``owned`` (owned-checkout-lifecycle-authority WP12, FR-008/FR-009/FR-010):
+    when set, the WP file, workspace, governance, mission-type context and the
+    prompt's own temp file all come from the owned checkout the fact validated,
+    never from the repository root checkout ``repo_root`` names; a review whose
+    base cannot be proven raises ``ActionContextError`` carrying
+    ``OWNED_REVIEW_BASE_UNAVAILABLE``.
+    """
+    governance_root = owned.owned_root if owned is not None else repo_root
+    if action in ("implement", "review") and wp_id:
+        prompt_text = _build_wp_prompt(action, feature_dir, mission_slug, wp_id, agent, repo_root, mission_type, owned=owned)
+    else:
+        prompt_text = _build_template_prompt(action, feature_dir, mission_slug, agent, governance_root, mission_type)
+
+    prompt_file = _write_to_temp(action, wp_id, prompt_text, agent=agent, mission_slug=mission_slug, repo_root=governance_root)
     return prompt_text, prompt_file
 
 
@@ -157,15 +169,14 @@ def _build_wp_prompt(
     agent: str,
     repo_root: Path,
     mission_type: str,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> str:
     """Build prompt for implement or review actions with WP context."""
-    from mission_runtime import MissionArtifactKind, mission_context_for
+    governance_root = owned.owned_root if owned is not None else repo_root
+    wp_file, wp_meta, wp_content = read_wp_task(_task_board_dir(repo_root, mission_slug, owned) / "tasks", wp_id, mission_slug)
 
-    mission_context = mission_context_for(repo_root, mission_slug)
-    task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
-    wp_file, wp_meta, wp_content = read_wp_task(task_board_dir / "tasks", wp_id, mission_slug)
-
-    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
+    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id, owned=owned)
     workspace_path = workspace.worktree_path
     subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
     # WP06 (FR-004) — forward the WP frontmatter ``agent_profile`` to the
@@ -174,102 +185,24 @@ def _build_wp_prompt(
     agent_profile_id = wp_meta.agent_profile
 
     lines: list[str] = []
-    lines.append("=" * 80)
-    lines.append(f"{action.upper()}: {wp_id}")
-    lines.append("=" * 80)
-    lines.append("")
-    lines.append(f"Agent: {agent}")
-    lines.append(f"Mission: {mission_slug}")
-    lines.append(f"Mission Type: {mission_type}")
-    lines.append(f"Workspace: {workspace_path}")
-    if workspace.lane_id:
-        shared = ", ".join(workspace.lane_wp_ids or [wp_id])
-        lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
-    else:
-        lines.append("Workspace contract: repository root planning workspace")
-    lines.append("")
-    lines.extend(_mission_type_governance_lines(repo_root, feature_dir))
-    lines.append(_governance_context(repo_root, action=action, feature_dir=feature_dir, profile=agent_profile_id))
+    lines.extend(_workspace_header_lines(action, wp_id, agent, mission_slug, mission_type, workspace, owned))
+    lines.extend(_mission_type_governance_lines(governance_root, feature_dir))
+    lines.append(_governance_context(governance_root, action=action, feature_dir=feature_dir, profile=agent_profile_id))
     lines.append("Authority references: project glossary `docs/context/`; architecture ADRs `docs/adr/`.")
     lines.append("")
-
-    # WP isolation rules
-    lines.append("=" * 78)
-    lines.append("  CRITICAL: WORK PACKAGE ISOLATION RULES")
-    lines.append("=" * 78)
-    lines.append(f"  YOU ARE {'IMPLEMENTING' if action == 'implement' else 'REVIEWING'}: {wp_id}")
-    lines.append("")
-    lines.append("  DO:")
-    lines.append(f"    - Only modify status of {wp_id}")
-    lines.append("    - Ignore git commits and status changes from other agents")
-    lines.append("")
-    lines.append("  DO NOT:")
-    lines.append(f"    - Change status of any WP other than {wp_id}")
-    lines.append("    - React to or investigate other WPs' status changes")
-    lines.append("=" * 78)
-    lines.append("")
+    lines.extend(_isolation_rule_lines(wp_id, action))
 
     # Working directory
     lines.append("WORKING DIRECTORY:")
     lines.append(f"  cd {workspace_path}")
-    if not workspace.lane_id:
+    if owned is not None:
+        lines.append("  # Work for this WP happens in the owned checkout")
+    elif not workspace.lane_id:
         lines.append("  # Planning-artifact work for this WP happens in the repository root")
     lines.append("")
 
     if action == "review":
-        review_paths = ""
-        if not workspace.lane_id:
-            if wp_meta.owned_files:
-                review_pathspecs = list(wp_meta.owned_files)
-                mission_root = f"kitty-specs/{mission_slug}/"
-                if any(path.startswith(mission_root) for path in review_pathspecs):
-                    review_pathspecs.extend(
-                        [
-                            f":(exclude){mission_root}tasks/**",
-                            f":(exclude){mission_root}tasks.md",
-                            f":(exclude){mission_root}status.events.jsonl",
-                            f":(exclude){mission_root}status.json",
-                        ]
-                    )
-                review_paths = " -- " + " ".join(review_pathspecs)
-            claim = subprocess.run(
-                [
-                    "git",
-                    "log",
-                    "--format=%H%x00%s",
-                    "--",
-                    str(wp_file),
-                ],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-            )
-            review_base = None
-            for raw in claim.stdout.splitlines():
-                commit_hash, _, subject = raw.partition("\x00")
-                if not commit_hash:
-                    continue
-                if f"Move {wp_id} to in_progress" in subject or f"{wp_id} claimed for implementation" in subject or f"Start {wp_id} implementation" in subject:
-                    review_base = commit_hash.strip()
-                    break
-        lines.append("REVIEW COMMANDS:")
-        if workspace.lane_id:
-            review_base = (
-                workspace.context.base_branch if workspace.context and workspace.context.base_branch else get_feature_target_branch(repo_root, mission_slug)
-            )
-            lines.append(f"  git log {review_base}..HEAD --oneline")
-            lines.append(f"  git diff {review_base}..HEAD --stat")
-        elif review_base is None:
-            lines.append("  unavailable: no deterministic implementation claim commit found for this WP")
-        else:
-            lines.append(f"  git log {review_base}..HEAD --oneline{review_paths}")
-            lines.append(f"  git diff {review_base}..HEAD --stat{review_paths}")
-        lines.append("")
-        lines.append(render_wp_review_antipattern_checklist())
-        lines.append("")
+        lines.extend(_review_command_lines(repo_root, feature_dir, mission_slug, wp_id, wp_meta, workspace, owned))
 
     # WP content
     lines.append("=" * 78)
@@ -283,21 +216,183 @@ def _build_wp_prompt(
     lines.append("=" * 78)
     lines.append("")
 
-    # Completion instructions
-    lines.append("WHEN DONE:")
+    lines.extend(_completion_lines(action, wp_id, mission_slug, subtask_ids, owned))
+    return "\n".join(lines)
+
+
+def _workspace_header_lines(
+    action: str,
+    wp_id: str,
+    agent: str,
+    mission_slug: str,
+    mission_type: str,
+    workspace: ResolvedWorkspace,
+    owned: OwnedCheckout | None,
+) -> list[str]:
+    """The banner plus the agent / mission / workspace identification block."""
+    lines = [
+        "=" * 80,
+        f"{action.upper()}: {wp_id}",
+        "=" * 80,
+        "",
+        f"Agent: {agent}",
+        f"Mission: {mission_slug}",
+        f"Mission Type: {mission_type}",
+        f"Workspace: {workspace.worktree_path}",
+    ]
+    if workspace.lane_id:
+        shared = ", ".join(workspace.lane_wp_ids or [wp_id])
+        lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
+    elif owned is not None:
+        lines.append("Workspace contract: owned checkout")
+    else:
+        lines.append("Workspace contract: repository root planning workspace")
+    lines.append("")
+    return lines
+
+
+def _isolation_rule_lines(wp_id: str, action: str) -> list[str]:
+    """The WORK PACKAGE ISOLATION RULES box."""
+    return [
+        "=" * 78,
+        "  CRITICAL: WORK PACKAGE ISOLATION RULES",
+        "=" * 78,
+        f"  YOU ARE {'IMPLEMENTING' if action == 'implement' else 'REVIEWING'}: {wp_id}",
+        "",
+        "  DO:",
+        f"    - Only modify status of {wp_id}",
+        "    - Ignore git commits and status changes from other agents",
+        "",
+        "  DO NOT:",
+        f"    - Change status of any WP other than {wp_id}",
+        "    - React to or investigate other WPs' status changes",
+        "=" * 78,
+        "",
+    ]
+
+
+def _review_pathspecs(mission_slug: str, wp_meta: WPMetadata) -> list[str]:
+    """The WP's ``owned_files`` as git pathspecs (mission-dir bookkeeping excluded)."""
+    pathspecs = list(wp_meta.owned_files)
+    mission_root = f"kitty-specs/{mission_slug}/"
+    if any(path.startswith(mission_root) for path in pathspecs):
+        pathspecs.extend(
+            [
+                f":(exclude){mission_root}tasks/**",
+                f":(exclude){mission_root}tasks.md",
+                f":(exclude){mission_root}status.events.jsonl",
+                f":(exclude){mission_root}status.json",
+            ]
+        )
+    return pathspecs
+
+
+def _review_base_unavailable(wp_id: str, why: str) -> ActionContextError:
+    """The typed refusal for an owned review whose base cannot be proven (US3-AS5)."""
+    return ActionContextError(
+        OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE.value,
+        f"cannot build a scoped review diff for {wp_id} in the owned checkout: {why}",
+    )
+
+
+def _claim_commit_or_none(status_dir: Path, wp_id: str) -> str | None:
+    """The WP's claim commit, or ``None`` when it cannot be proven (fail closed)."""
+    try:
+        return claim_commit_for_wp(status_dir, wp_id)
+    except ClaimCommitUnresolved:
+        return None
+
+
+def _lane_review_base(repo_root: Path, mission_slug: str, workspace: ResolvedWorkspace, owned: OwnedCheckout | None) -> str:
+    """Base ref of a lane workspace review: the lane's own base, else the mission's target branch.
+
+    An owned mission takes the target from the validated fact, never from the
+    repository root checkout's ``meta.json``.
+    """
+    lane_base: str | None = workspace.context.base_branch if workspace.context else None
+    if lane_base:
+        return lane_base
+    if owned is not None:
+        return owned.write_branch
+    return get_feature_target_branch(repo_root, mission_slug)
+
+
+def _review_command_lines(
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    wp_meta: WPMetadata,
+    workspace: ResolvedWorkspace,
+    owned: OwnedCheckout | None,
+) -> list[str]:
+    """REVIEW COMMANDS block plus the anti-pattern checklist (review action only).
+
+    Three cases: a lane workspace diffs against its lane base; an owned checkout
+    and the repository root checkout both diff against the WP's claim commit
+    (:func:`mission_runtime.claim_commit_for_wp`, FR-025). The owned case scopes
+    the diff to the WP's ``owned_files`` and refuses (typed error) rather than
+    ever emitting an unscoped whole-checkout diff (FR-010).
+    """
+    lines = ["REVIEW COMMANDS:"]
+    if workspace.lane_id:
+        base = _lane_review_base(repo_root, mission_slug, workspace, owned)
+        lines.append(f"  git log {base}..HEAD --oneline")
+        lines.append(f"  git diff {base}..HEAD --stat")
+    else:
+        pathspecs = _review_pathspecs(mission_slug, wp_meta)
+        if owned is not None and not pathspecs:
+            raise _review_base_unavailable(wp_id, "the work package declares no owned_files")
+        claim = _claim_commit_or_none(owned.mission_dir if owned is not None else feature_dir, wp_id)
+        if claim is None and owned is not None:
+            raise _review_base_unavailable(wp_id, "no single claim commit was found on HEAD")
+        review_paths = " -- " + " ".join(pathspecs) if pathspecs else ""
+        if claim is None:
+            lines.append("  unavailable: no deterministic implementation claim commit found for this WP")
+        else:
+            lines.append(f"  git log {claim}..HEAD --oneline{review_paths}")
+            lines.append(f"  git diff {claim}..HEAD --stat{review_paths}")
+    lines.append("")
+    lines.append(render_wp_review_antipattern_checklist())
+    lines.append("")
+    return lines
+
+
+def _completion_lines(action: str, wp_id: str, mission_slug: str, subtask_ids: list[str], owned: OwnedCheckout | None = None) -> list[str]:
+    """The WHEN DONE completion-command block.
+
+    An owned mission's completion commands carry ``--owned-checkout <P>``: that
+    is the supported owned lifecycle path, and a bare command would resolve the
+    repository root checkout instead.
+    """
+    suffix = f" --owned-checkout {owned.owned_root}" if owned is not None else ""
+    lines = ["WHEN DONE:"]
     if action == "implement":
         if subtask_ids:
             subtask_cmd = " ".join(subtask_ids)
-            lines.append(f"  spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+            lines.append(f"  spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}{suffix}")
         else:
             lines.append("  No subtask completion command is needed; this work package declares no subtasks.")
-        lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
+        lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}{suffix} --note "Ready for review"')
     else:
-        lines.append(f'  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --mission {mission_slug} --note "Review passed"')
+        lines.append(f'  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --mission {mission_slug}{suffix} --note "Review passed"')
         lines.append("           approved means review-passed; merge will later record done")
-        lines.append(f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file> --mission {mission_slug}")
+        lines.append(f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file> --mission {mission_slug}{suffix}")
+    return lines
 
-    return "\n".join(lines)
+
+def _task_board_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path:
+    """Where the WP task files live: the fact's mission directory when owned.
+
+    The WP task board is a PRIMARY-partition artifact, which for an owned
+    mission is the owned checkout itself, so the owned arm reads the fact
+    directly and consults no resolver.
+    """
+    if owned is not None:
+        return owned.mission_dir
+    from mission_runtime import MissionArtifactKind, mission_context_for
+
+    return mission_context_for(repo_root, mission_slug).artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
 
 
 def _mission_context_header(mission_slug: str, feature_dir: Path, agent: str) -> str:

@@ -65,7 +65,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for
 
 from specify_cli.core.paths import MissionMetaReadError
 
@@ -124,13 +124,20 @@ def resolve_pending_decision_id(run_dir: Path, decision_id: str | None) -> str:
     raise AmbiguousPendingDecisionError(sorted(pending.keys()))
 
 
+def _store_root(repo_root_path: Path, owned: OwnedCheckout | None) -> Path:
+    """Root discipline: the lifecycle record store lives at the owned
+    checkout P for an owned mission (where it lives today), else at the
+    caller's root."""
+    return owned.owned_root if owned is not None else repo_root_path
+
+
 def pair_previous_lifecycle_record(
     agent: str,
     mission_slug: str,
     result: str,
     repo_root: object,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Write the paired ``completed`` / ``failed`` record for the prior issuance.
 
@@ -164,20 +171,10 @@ def pair_previous_lifecycle_record(
     # WP08 (T036): dropped the caller-side canonicalizer fold — redundant with
     # the seam's own internal fold for a PRIMARY-partition kind.
     try:
-        if effective_root is None:
-            feature_dir = placement_seam(repo_root_path, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-        else:
-            from mission_runtime import mission_context_for
-
-            feature_dir = (
-                mission_context_for(
-                    repo_root_path,
-                    mission_slug,
-                    effective_root=effective_root,
-                )
-                .artifact(MissionArtifactKind.PRIMARY_METADATA)
-                .read_dir
-            )
+        # PRIMARY dir only: the fact's own mission dir (no coordination surface consulted).
+        feature_dir = (
+            owned.mission_dir if owned is not None else mission_context_for(repo_root_path, mission_slug).artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+        )
     except Exception:
         return
 
@@ -198,7 +195,7 @@ def pair_previous_lifecycle_record(
     if mission_id is None:
         return
 
-    records = read_lifecycle_records(repo_root_path)
+    records = read_lifecycle_records(_store_root(repo_root_path, owned))
     started = find_latest_unpaired_started(
         records,
         agent=agent,
@@ -215,7 +212,7 @@ def pair_previous_lifecycle_record(
         reason = result  # "failed" or "blocked" — preserves caller intent
 
     write_paired_completion(
-        repo_root_path,
+        _store_root(repo_root_path, owned),
         started=started,
         phase=phase,
         reason=reason,
@@ -228,7 +225,7 @@ def write_issuance_lifecycle_record(
     repo_root: object,
     decision: object,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Write a ``started`` lifecycle record for the action just issued.
 
@@ -262,20 +259,10 @@ def write_issuance_lifecycle_record(
     # WP08 (T036): dropped the caller-side canonicalizer fold — redundant with
     # the seam's own internal fold for a PRIMARY-partition kind.
     try:
-        if effective_root is None:
-            feature_dir = placement_seam(repo_root_path, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-        else:
-            from mission_runtime import mission_context_for
-
-            feature_dir = (
-                mission_context_for(
-                    repo_root_path,
-                    mission_slug,
-                    effective_root=effective_root,
-                )
-                .artifact(MissionArtifactKind.PRIMARY_METADATA)
-                .read_dir
-            )
+        # PRIMARY dir only: the fact's own mission dir (no coordination surface consulted).
+        feature_dir = (
+            owned.mission_dir if owned is not None else mission_context_for(repo_root_path, mission_slug).artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+        )
     except Exception:
         return
 
@@ -302,7 +289,7 @@ def write_issuance_lifecycle_record(
 
     try:
         write_started(
-            repo_root_path,
+            _store_root(repo_root_path, owned),
             canonical_action_id=canonical_id,
             agent=agent,
             mission_id=mission_id,
@@ -320,7 +307,7 @@ def emit_mission_next_invoked(
     repo_root: object,
     decision: object,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Append a ``MissionNextInvoked`` event to the mission event log.
 
@@ -338,20 +325,9 @@ def emit_mission_next_invoked(
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
     try:
-        if effective_root is None:
-            feature_dir = placement_seam(repo_root_path, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
-        else:
-            from mission_runtime import mission_context_for
-
-            feature_dir = (
-                mission_context_for(
-                    repo_root_path,
-                    mission_slug,
-                    effective_root=effective_root,
-                )
-                .artifact(MissionArtifactKind.STATUS_STATE)
-                .read_dir
-            )
+        feature_dir = (
+            mission_context_for(repo_root_path, mission_slug, owned=owned, tolerate_unmaterialized_coord=True).artifact(MissionArtifactKind.STATUS_STATE).read_dir
+        )
     except Exception:
         feature_dir = None
     # ``decision`` is typed ``object`` (this WP's pinned target signature) so

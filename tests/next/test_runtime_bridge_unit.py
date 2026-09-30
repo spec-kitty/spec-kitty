@@ -13,6 +13,7 @@ import subprocess
 import time
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -609,7 +610,7 @@ class TestAnswerDecisionViaRuntime:
                 emitter_calls.append(("seed", snapshot))
 
         monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
-        monkeypatch.setattr(runtime_bridge, "get_or_start_run", lambda mission_slug, repo_root, mission_type: fake_run_ref)
+        monkeypatch.setattr(runtime_bridge, "get_or_start_run", lambda mission_slug, repo_root, mission_type, owned=None: fake_run_ref)
         monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: FakeEmitter())
 
         provided: list[tuple[object, str, str, object, object]] = []
@@ -1959,17 +1960,18 @@ class TestIsTransientGitWorktreeContention:
 
 
 class TestMissionRoutesThroughCoordinationOwnedCheckout:
-    """``_mission_routes_through_coordination``'s ``effective_root`` fork:
-    reads the stored topology off ``mission_context_for(effective_root=...)``
-    instead of the primary-folding ``placement_seam``."""
+    """``_mission_routes_through_coordination``'s ``owned`` fork: reads the
+    stored topology off the fact's own mission dir (never the primary-folding
+    ``placement_seam``, never the coordination surface)."""
 
-    def test_owned_checkout_reads_topology_via_mission_context_for(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_owned_checkout_reads_topology_off_the_fact_without_consulting_mission_context_for(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         import mission_runtime
-        from mission_runtime import MissionArtifactKind
+        from tests._owned_fixtures import mint_test_fact
         from runtime.next.runtime_bridge import _mission_routes_through_coordination
 
-        feature_dir = tmp_path / "owned-feature"
-        feature_dir.mkdir()
+        owned_root = tmp_path / "owned-checkout"
+        feature_dir = owned_root / "kitty-specs" / "owned-mission"
+        feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text(
             json.dumps(
                 {
@@ -1981,39 +1983,28 @@ class TestMissionRoutesThroughCoordinationOwnedCheckout:
             encoding="utf-8",
         )
 
-        class _FakeArtifact:
-            read_dir = feature_dir
+        def _must_not_be_consulted(*_a: object, **_k: object) -> None:
+            raise AssertionError("mission_context_for must not be consulted: the PRIMARY dir is the fact's mission_dir")
 
-        class _FakeMissionContext:
-            def artifact(self, kind: object) -> _FakeArtifact:
-                assert kind is MissionArtifactKind.PRIMARY_METADATA
-                return _FakeArtifact()
+        monkeypatch.setattr(mission_runtime, "mission_context_for", _must_not_be_consulted)
 
-        calls: list[tuple[Path, str, Path | None]] = []
-
-        def _fake_mission_context_for(repo_root, mission_slug, *, effective_root=None):
-            calls.append((repo_root, mission_slug, effective_root))
-            return _FakeMissionContext()
-
-        monkeypatch.setattr(mission_runtime, "mission_context_for", _fake_mission_context_for)
-
-        owned_root = tmp_path / "owned-checkout"
         decoy_repo_root = tmp_path / "decoy-primary-never-read"
+        owned = mint_test_fact(
+            repository_root=decoy_repo_root, owned_root=owned_root, mission_dir=feature_dir, mission_slug="owned-mission", write_branch="codex/owned"
+        )
 
-        result = _mission_routes_through_coordination("owned-mission", decoy_repo_root, effective_root=owned_root)
+        result = _mission_routes_through_coordination("owned-mission", decoy_repo_root, owned=owned)
 
         assert result is True
-        assert calls == [(decoy_repo_root, "owned-mission", owned_root)]
 
 
 class TestWrapWithDecisionGitLogOwnedCheckout:
     """Owned-checkout fork of ``_wrap_with_decision_git_log`` (#3328): the
     coordination-branch/mission-id read forks through
-    ``mission_context_for(effective_root=...)`` instead of the
-    primary-folding helpers, and the coord ``worktree_root`` selection forks
-    between the already-materialized ``.exists()`` fast path and the
-    retry-guarded ``_resolve_owned_coordination_workspace`` composition
-    path."""
+    ``mission_context_for(owned=...)`` instead of the primary-folding
+    helpers, and the coord ``worktree_root`` selection forks between the
+    already-materialized ``.exists()`` fast path and the retry-guarded
+    ``_resolve_owned_coordination_workspace`` composition path."""
 
     @staticmethod
     def _install_owned_mission_context(
@@ -2071,7 +2062,16 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
 
         emitter = SimpleNamespace()
         owned_root = tmp_path / "owned-checkout"
-        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, effective_root=owned_root)
+        from tests._owned_fixtures import mint_test_fact
+
+        owned = mint_test_fact(
+            repository_root=tmp_path,
+            owned_root=owned_root,
+            mission_dir=owned_root / "kitty-specs" / mission_slug,
+            mission_slug=mission_slug,
+            write_branch="codex/owned",
+        )
+        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, owned=owned)
 
         assert wrapped._worktree_root == worktree_root_candidate
 
@@ -2105,7 +2105,16 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
 
         emitter = SimpleNamespace()
         owned_root = tmp_path / "owned-checkout"
-        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, effective_root=owned_root)
+        from tests._owned_fixtures import mint_test_fact
+
+        owned = mint_test_fact(
+            repository_root=tmp_path,
+            owned_root=owned_root,
+            mission_dir=owned_root / "kitty-specs" / mission_slug,
+            mission_slug=mission_slug,
+            write_branch="codex/owned",
+        )
+        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, owned=owned)
 
         assert wrapped._worktree_root == resolved_via_retry_helper
 
@@ -2150,7 +2159,7 @@ class TestDecideNextViaRuntimeOwnedCheckout:
     """End-to-end owned-checkout thread through ``decide_next_via_runtime`` ->
     ``_dn_bootstrap`` -> ``_wrap_with_decision_git_log`` for a real
     (coord-less) scaffolded mission. Complements the narrower unit tests
-    above by proving the ``effective_root`` fork composes across the whole
+    above by proving the ``owned`` fork composes across the whole
     bootstrap phase without mocking ``mission_context_for``."""
 
     @pytest.fixture(autouse=True)
@@ -2162,17 +2171,166 @@ class TestDecideNextViaRuntimeOwnedCheckout:
 
     def test_owned_checkout_resolves_and_advances_the_mission(self, tmp_path: Path) -> None:
         from runtime.next.runtime_bridge import decide_next_via_runtime
+        from tests._owned_fixtures import mint_test_fact
 
         owned_root = _scaffold_project(tmp_path, mission_slug="042-owned-feature")
         decoy_repo_root = tmp_path / "decoy-primary-never-read"
+        owned = mint_test_fact(
+            repository_root=decoy_repo_root,
+            owned_root=owned_root,
+            mission_dir=owned_root / "kitty-specs" / "042-owned-feature",
+            mission_slug="042-owned-feature",
+            write_branch="codex/owned",
+        )
 
         decision = decide_next_via_runtime(
             "claude",
             "042-owned-feature",
             "success",
             decoy_repo_root,
-            effective_root=owned_root,
+            owned=owned,
         )
 
         assert decision.mission_slug == "042-owned-feature"
         assert decision.kind in ("step", "terminal", "blocked", "decision_required")
+
+
+# ---------------------------------------------------------------------------
+# owned-checkout-lifecycle-authority WP11 T061 step 3 -- resolve BEFORE persist
+# ---------------------------------------------------------------------------
+
+
+class TestResolveWpWorkspaceBeforePersistingTheAdvance:
+    """FR-008 / O5 / R-06: ``_dn_decision_materialize`` must resolve the WP
+    workspace of a WP-iteration step BEFORE ``runtime_next_step`` persists the
+    advance. Resolving afterwards left the run stuck at the issued step
+    whenever resolution then raised -- the "wedge".
+
+    Driven through the REAL engine and planner (review cycle 1 finding 4): a
+    run seeded at ``implement`` by the real engine, WP01 in ``for_review``, so
+    a ``success`` advance plans ``review WP01``. The oracle is the run
+    directory itself -- ``state.json`` / ``run.events.jsonl`` -- and the
+    ordering of the two calls, both wrapped call-through (never stubbed).
+    """
+
+    @staticmethod
+    def _at_implement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        from runtime.next import runtime_bridge as rb
+        from tests.runtime._next_mission_scaffold import advance_to_step, scaffold_software_dev
+
+        repo = tmp_path / "repo"
+        slug = "042-resolve-before-persist"
+        scaffold_software_dev(repo, slug, with_spec=True, with_plan=True, with_tasks_md=True, wps={"WP01": "for_review"})
+        advance_to_step(repo, slug, "software-dev", "implement")
+        ctx, early = rb._dn_bootstrap("claude", slug, "success", repo)
+        assert early is None and ctx is not None
+        calls: list[str] = []
+        real_resolve = rb._wp_iteration_action_and_state
+        real_next_step = rb.runtime_next_step
+        real_commit = rb._engine_adapter.commit_advance
+
+        def _resolve(*args: Any, **kwargs: Any) -> Any:
+            calls.append(f"resolve:{args[0]}")
+            return real_resolve(*args, **kwargs)
+
+        def _next_step(*args: Any, **kwargs: Any) -> Any:
+            calls.append("persist")
+            return real_next_step(*args, **kwargs)
+
+        def _commit(*args: Any, **kwargs: Any) -> Any:
+            calls.append("persist")
+            return real_commit(*args, **kwargs)
+
+        monkeypatch.setattr(rb, "_wp_iteration_action_and_state", _resolve)
+        monkeypatch.setattr(rb, "runtime_next_step", _next_step)
+        monkeypatch.setattr(rb._engine_adapter, "commit_advance", _commit)
+        return rb, ctx, calls
+
+    @staticmethod
+    def _run_bytes(ctx: Any) -> dict[str, bytes]:
+        return {name: (ctx.run_dir / name).read_bytes() for name in ("state.json", "run.events.jsonl")}
+
+    def test_workspace_is_resolved_once_and_strictly_before_the_advance_is_persisted(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        rb, ctx, calls = self._at_implement(tmp_path, monkeypatch)
+
+        decision = rb._dn_decision_materialize(ctx)
+
+        assert calls == ["resolve:review", "persist"], "resolve exactly once, strictly before persist"
+        assert decision.kind == DecisionKind.step
+        assert (decision.action, decision.wp_id) == ("review", "WP01")
+
+    def test_resolution_failure_persists_nothing_and_propagates_typed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from mission_runtime import ActionContextError, OwnedRefusalCode
+
+        rb, ctx, calls = self._at_implement(tmp_path, monkeypatch)
+        before = self._run_bytes(ctx)
+        refusal = ActionContextError(OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE.value, "cannot resolve the workspace")
+
+        def _fails(*_a: Any, **_k: Any) -> Any:
+            calls.append("resolve:failed")
+            raise refusal
+
+        monkeypatch.setattr(rb, "_wp_iteration_action_and_state", _fails)
+
+        with pytest.raises(ActionContextError) as excinfo:
+            rb._dn_decision_materialize(ctx)
+
+        assert excinfo.value is refusal
+        assert calls == ["resolve:failed"], "the advance must never be persisted when resolution fails"
+        assert self._run_bytes(ctx) == before, "state.json / run.events.jsonl must be byte-identical"
+
+    def test_pre_resolution_is_not_reused_for_a_different_issued_step(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The reuse is keyed on the step the resolution was computed for: if
+        the run moved past the plan (stale) and the engine then issues a
+        different step, the mapper resolves afresh."""
+        from runtime.next._internal_runtime.schema import NextDecision
+
+        rb, ctx, calls = self._at_implement(tmp_path, monkeypatch)
+        real_persist = rb.runtime_next_step
+
+        def _stale(*_a: Any, **_k: Any) -> Any:
+            raise rb._engine_adapter.StaleAdvancePlan("the run moved on")
+
+        def _issues_another_step(*args: Any, **kwargs: Any) -> Any:
+            issued = real_persist(*args, **kwargs)
+            assert issued.step_id == "review"
+            return NextDecision(kind="step", run_id=issued.run_id, mission_key=issued.mission_key, step_id="implement")
+
+        monkeypatch.setattr(rb._engine_adapter, "commit_advance", _stale)
+        monkeypatch.setattr(rb, "runtime_next_step", _issues_another_step)
+
+        rb._dn_decision_materialize(ctx)
+
+        assert calls.count("resolve:review") == 1
+        assert calls.count("resolve:implement") == 1, "a different issued step must be resolved afresh, not served the review resolution"
+
+
+class TestLegacyAdvancePlansExactlyOnce:
+    """Review cycle 2 note 3: the legacy path previews the advance (to resolve
+    the workspace first) and then COMMITS that same plan, instead of letting
+    ``next_step`` plan a second time."""
+
+    def test_the_engine_plans_once_per_advance(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from runtime.next import runtime_bridge as rb
+        from runtime.next._internal_runtime import engine
+        from tests.runtime._next_mission_scaffold import advance_to_step, scaffold_software_dev
+
+        repo = tmp_path / "repo"
+        slug = "042-plans-once"
+        scaffold_software_dev(repo, slug, with_spec=True, with_plan=True, with_tasks_md=True, wps={"WP01": "for_review"})
+        advance_to_step(repo, slug, "software-dev", "implement")
+        ctx, early = rb._dn_bootstrap("claude", slug, "success", repo)
+        assert early is None and ctx is not None
+        real_plan = engine.plan_advance
+        planned: list[str] = []
+
+        def _counting(*args: Any, **kwargs: Any) -> Any:
+            planned.append("plan")
+            return real_plan(*args, **kwargs)
+
+        monkeypatch.setattr(engine, "plan_advance", _counting)
+
+        decision = rb._dn_decision_materialize(ctx)
+
+        assert (decision.kind, decision.action, decision.wp_id) == (DecisionKind.step, "review", "WP01")
+        assert planned == ["plan"], "the preview plan must be the plan that is committed"

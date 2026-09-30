@@ -122,7 +122,7 @@ class TestDecisionComposedMarkersNamespaced:
             "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=["specify", "plan"]),
         ):
-            path_str, error = _build_prompt_or_error(
+            path_str, error, _error_code = _build_prompt_or_error(
                 action="specify",
                 feature_dir=tmp_path,
                 mission_slug="042-feat",
@@ -147,7 +147,7 @@ class TestDecisionComposedMarkersNamespaced:
             "runtime.next.prompt_builder.build_prompt",
             side_effect=FileNotFoundError("no template for 'discovery'"),
         ):
-            path_str, error = _build_prompt_or_error(
+            path_str, error, _error_code = _build_prompt_or_error(
                 action="discovery",
                 feature_dir=tmp_path,
                 mission_slug="042-feat",

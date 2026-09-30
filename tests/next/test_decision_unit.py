@@ -34,6 +34,8 @@ from runtime.next.decision import (
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a WP into a specific lane in the event log."""
     event = StatusEvent(
@@ -335,21 +337,31 @@ class TestDecideNext:
 
 
 # ---------------------------------------------------------------------------
-# decide_next -- owned-checkout (effective_root) threading (#3328)
+# decide_next -- owned-checkout (owned=) threading (#3328)
 # ---------------------------------------------------------------------------
 
 
 class TestDecideNextOwnedCheckout:
-    """``decide_next``'s ``effective_root`` fork threads the kwarg into
-    ``runtime_bridge.decide_next_via_runtime`` instead of calling the plain
-    3-positional-arg form. A monkeypatched stand-in isolates this one
-    dispatch decision from the (separately unit-tested, tests/next/
-    test_runtime_bridge_unit.py) owned-checkout resolution itself."""
+    """``decide_next``'s ``owned`` fork (owned-checkout-lifecycle-authority
+    WP11): the validated fact is threaded unchanged into
+    ``runtime_bridge.decide_next_via_runtime`` -- never a bare root (WP18
+    retired the legacy ``effective_root`` keyword). Monkeypatched stand-ins
+    isolate this one dispatch decision from the (separately unit-tested,
+    tests/next/test_runtime_bridge_unit.py) owned-checkout resolution itself."""
 
-    def test_effective_root_threads_to_runtime_bridge(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_owned_fact_threads_to_runtime_bridge(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         import runtime.next.runtime_bridge as runtime_bridge_module
+        from tests._owned_fixtures import mint_test_fact
+
+        owned_root = tmp_path / "owned-checkout"
+        decoy_repo_root = tmp_path / "decoy-primary-never-read"
+        fake_fact = mint_test_fact(
+            repository_root=decoy_repo_root,
+            owned_root=owned_root,
+            mission_dir=owned_root / "kitty-specs" / "owned-mission",
+            mission_slug="owned-mission",
+            write_branch="codex/owned",
+        )
 
         captured: dict[str, object] = {}
 
@@ -359,10 +371,10 @@ class TestDecideNextOwnedCheckout:
             result: str,
             repo_root: Path,
             *,
-            effective_root: Path | None = None,
+            owned: object | None = None,
         ) -> Decision:
             captured["args"] = (agent, mission_slug, result, repo_root)
-            captured["effective_root"] = effective_root
+            captured["owned"] = owned
             return Decision(
                 kind=DecisionKind.terminal,
                 agent=agent,
@@ -372,27 +384,17 @@ class TestDecideNextOwnedCheckout:
                 timestamp="2026-01-01T00:00:00+00:00",
             )
 
-        monkeypatch.setattr(
-            runtime_bridge_module, "decide_next_via_runtime", _fake_decide_next_via_runtime
-        )
+        monkeypatch.setattr(runtime_bridge_module, "decide_next_via_runtime", _fake_decide_next_via_runtime)
 
-        owned_root = tmp_path / "owned-checkout"
-        decoy_repo_root = tmp_path / "decoy-primary-never-read"
-
-        decision = decide_next(
-            "claude", "owned-mission", "success", decoy_repo_root, effective_root=owned_root
-        )
+        decision = decide_next("claude", "owned-mission", "success", decoy_repo_root, owned=fake_fact)
 
         assert decision.kind == DecisionKind.terminal
         assert captured["args"] == ("claude", "owned-mission", "success", decoy_repo_root)
-        assert captured["effective_root"] == owned_root
+        assert captured["owned"] is fake_fact
 
-    def test_without_effective_root_uses_the_plain_three_positional_form(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Anti-vacuity: omitting ``effective_root`` must NOT thread the kwarg
-        at all -- proving the two call shapes genuinely diverge rather than
-        ``effective_root=None`` being passed unconditionally either way."""
+    def test_without_owned_threads_owned_none(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Anti-vacuity: omitting ``owned`` reaches ``decide_next_via_runtime``
+        with ``owned=None`` -- proving the two call shapes genuinely diverge."""
         import runtime.next.runtime_bridge as runtime_bridge_module
 
         captured: dict[str, object] = {}
@@ -409,13 +411,11 @@ class TestDecideNextOwnedCheckout:
                 timestamp="2026-01-01T00:00:00+00:00",
             )
 
-        monkeypatch.setattr(
-            runtime_bridge_module, "decide_next_via_runtime", _fake_decide_next_via_runtime
-        )
+        monkeypatch.setattr(runtime_bridge_module, "decide_next_via_runtime", _fake_decide_next_via_runtime)
 
         decide_next("claude", "plain-mission", "success", tmp_path)
 
-        assert captured["kwargs"] == {}
+        assert captured["kwargs"] == {"owned": None}
 
 
 # ---------------------------------------------------------------------------
@@ -682,10 +682,7 @@ class TestDecisionKindSerialisation:
         for member in DecisionKind:
             enum_output = json.dumps({"kind": member})
             str_output = json.dumps({"kind": member.value})
-            assert enum_output == str_output, (
-                f"DecisionKind.{member.name} serialises to {enum_output!r}, "
-                f"expected {str_output!r}"
-            )
+            assert enum_output == str_output, f"DecisionKind.{member.name} serialises to {enum_output!r}, expected {str_output!r}"
 
     def test_to_dict_kind_field_is_bare_string(self, tmp_path: Path) -> None:
         """Decision.to_dict() emits kind as a bare string, not an enum repr."""
@@ -720,3 +717,19 @@ class TestDecisionKindSerialisation:
         )
 
         assert decision.kind == "step"
+
+
+def test_build_prompt_call_forwards_the_owned_fact() -> None:
+    """WP12 converted the bridging call: ``build_prompt`` receives the fact, and no
+    WP12 conversion marker survives anywhere in the module."""
+    import re
+    from pathlib import Path
+
+    import runtime.next.decision as decision_module
+
+    source = Path(str(decision_module.__file__)).read_text(encoding="utf-8")
+    call = re.search(r"=\s*build_prompt\((?P<args>.*?)\n\s*\)", source, re.DOTALL)
+    assert call is not None
+    assert "owned=owned" in call.group("args")
+    assert "repo_root=repo_root" in call.group("args")
+    assert "WP12 converts" not in source

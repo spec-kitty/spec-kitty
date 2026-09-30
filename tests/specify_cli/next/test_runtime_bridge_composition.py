@@ -1204,6 +1204,7 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge_engine import plan_composition_advance
     from runtime.next.runtime_bridge import (
         _advance_run_state_after_composition,
         get_or_start_run,
@@ -1249,6 +1250,7 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
             progress={},
             origin={},
             sync_emitter=_Emitter(),  # type: ignore[arg-type]
+            plan=plan_composition_advance(run_ref, "test-agent"),
         )
 
     assert decision.kind == DecisionKind.terminal
@@ -1264,6 +1266,7 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge_engine import plan_composition_advance
     from runtime.next.runtime_bridge import (
         _advance_run_state_after_composition,
         get_or_start_run,
@@ -1318,6 +1321,7 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
             progress={},
             origin={},
             sync_emitter=_Emitter(),  # type: ignore[arg-type]
+            plan=plan_composition_advance(run_ref, "test-agent"),
         )
 
     assert decision.kind == DecisionKind.terminal
@@ -1332,6 +1336,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge_engine import plan_composition_advance
     from runtime.next.runtime_bridge import (
         _advance_run_state_after_composition,
         get_or_start_run,
@@ -1380,6 +1385,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
             progress={},
             origin={},
             sync_emitter=_Emitter(),  # type: ignore[arg-type]
+            plan=plan_composition_advance(run_ref, "test-agent"),
         )
 
 
@@ -1435,6 +1441,11 @@ def test_decision_shape_unchanged_for_composed_action(
         "preview_step",
         "mission_number",
         "mission_type",
+        # owned-checkout-lifecycle-authority WP11 (T062/#4867): a typed
+        # OwnedRefusalCode carried beside ``reason`` on a blocked decision so
+        # ``next --json`` gets a structured error_code without parsing
+        # reason text. Additive and defaulted (None) on every other kind.
+        "error_code",
     }
     actual_fields = set(vars(decision).keys())
     assert actual_fields == expected_fields, (
@@ -1471,7 +1482,7 @@ def test_non_composed_action_uses_legacy_runtime_next_step(
         patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute,
         patch("runtime.next.runtime_bridge_engine.advance_run_state_after_composition") as mock_advance,
         patch(
-            "runtime.next.runtime_bridge.runtime_next_step",
+            "runtime.next.runtime_bridge_engine.commit_advance",
             return_value=sentinel_runtime_decision,
         ) as mock_legacy,
     ):

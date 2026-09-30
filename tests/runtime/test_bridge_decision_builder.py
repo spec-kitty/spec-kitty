@@ -28,6 +28,7 @@ import inspect
 
 import pytest
 
+from mission_runtime import OwnedRefusalCode
 from runtime.next import runtime_bridge as rb
 from runtime.next import runtime_bridge_cores as cores
 from runtime.next.decision import Decision, DecisionKind
@@ -248,6 +249,34 @@ def test_step_branch_falls_back_to_blocked_when_prompt_file_is_none() -> None:
     assert decision.wp_id == "WP03"
 
 
+def test_step_branch_blocked_fallback_carries_the_typed_error_code() -> None:
+    """A typed refusal from prompt building (owned-checkout-lifecycle-authority WP12,
+    ``OWNED_REVIEW_BASE_UNAVAILABLE``) must survive the step -> blocked fallback:
+    ``next``'s JSON routes on ``error_code``, never on parsing ``reason``."""
+    envelope = _minimal_envelope(
+        kind=DecisionKind.step,
+        action="review",
+        wp_id="WP01",
+        prompt_file=None,
+        reason="cannot build a scoped review diff",
+        error_code=OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE,
+    )
+
+    decision = cores.step_or_blocked(envelope, [], prompt_exists=_RaisingPromptExists())
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.error_code == OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE
+
+
+def test_step_branch_blocked_fallback_without_a_typed_code_stays_codeless() -> None:
+    envelope = _minimal_envelope(kind=DecisionKind.step, prompt_file=None, reason="no prompt")
+
+    decision = cores.step_or_blocked(envelope, [], prompt_exists=_RaisingPromptExists())
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.error_code is None
+
+
 def test_step_branch_falls_back_to_blocked_when_prompt_exists_returns_false() -> None:
     """The resolved-but-does-not-exist branch always uses the literal
     ``"prompt_file_not_resolvable"`` — verified against all 4 pre-extraction
@@ -456,11 +485,17 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
 
     #5255 adds the 28th site: query mode materializes a read-only blocked
     decision when status references a missing or inconsistent primary task,
-    rather than returning file-derived progress that omits that WP."""
+    rather than returning file-derived progress that omits that WP.
+
+    owned-checkout-lifecycle-authority WP11 (#4867, FR-012) adds the 29th:
+    ``_dn_bootstrap``'s ``except CoordinationWorkspaceUnavailable`` arm
+    materializes a typed ``blocked`` decision (``error_code ==
+    OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE``) instead of
+    letting the coordination-workspace probe failure escape uncaught."""
     source = inspect.getsource(rb)
     tree = ast.parse(source)
     materialize_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"]
-    assert len(materialize_calls) == 28
+    assert len(materialize_calls) == 29
 
 
 def test_cores_module_is_the_sole_home_of_raw_decision_construction() -> None:

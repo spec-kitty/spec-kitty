@@ -15,6 +15,7 @@ from runtime.next.runtime_bridge_io import gather_artifact_presence
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
+from tests._owned_fixtures import mint_test_fact
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -165,7 +166,14 @@ def test_owned_checkout_artifact_guards(tmp_path: Path, artifact: str, step: str
     (home / artifact).write_text("# Owned planning contract\n", encoding="utf-8")
     _git(home, "add", artifact)
     _git(home, "commit", "-qm", "Record isolated planning input")
-    seam = placement_seam(owned, MISSION_SLUG, effective_root=owned)
+    fact = mint_test_fact(
+        repository_root=repo,
+        owned_root=owned,
+        mission_dir=owned_mission,
+        mission_slug=MISSION_SLUG,
+        write_branch="codex/owned",
+    )
+    seam = placement_seam(repo, MISSION_SLUG, owned=fact)
     assert seam.read_dir(MissionArtifactKind.SPEC) == owned_mission
     expected = [] if authoritative else [f"Required artifact missing: {artifact}"]
 

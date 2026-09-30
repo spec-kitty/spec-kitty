@@ -194,7 +194,7 @@ from runtime.next.decision import (
     _state_to_action,
 )
 from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission, seed_runtime_emitter
-from mission_runtime import routes_through_coordination
+from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode, routes_through_coordination
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,7 @@ def _mission_routes_through_coordination(
     mission_slug: str,
     repo_root: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> bool:
     """Return True when the mission's STORED topology routes through coordination.
 
@@ -272,17 +272,8 @@ def _mission_routes_through_coordination(
     # layer short-circuits to the primary anchor for EVERY topology and coord
     # state, before any coord probe (read-side-seam-primary-primitive-closure-
     # 01KYKMMT WP07, T032 — FR-004/FR-015).
-    if effective_root is None:
-        feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    else:
-        from mission_runtime import mission_context_for
-
-        mission_context = mission_context_for(
-            repo_root,
-            mission_slug,
-            effective_root=effective_root,
-        )
-        feature_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+    # Owned: the fact's own mission dir (PRIMARY dir only; no coordination surface consulted).
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA) if owned is None else owned.mission_dir
     try:
         topology = read_topology(feature_dir)
     except (FileNotFoundError, ValueError, OSError, MissionMetaReadError):
@@ -295,7 +286,7 @@ def _wrap_with_decision_git_log(
     mission_slug: str,
     repo_root: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Any:
     """Wrap ``emitter`` with DecisionGitLog for durable decision recording.
 
@@ -303,19 +294,25 @@ def _wrap_with_decision_git_log(
     the original emitter is returned unchanged so mission execution is not
     blocked.
     """
-    if effective_root is None:
+    is_owned_call = owned is not None
+    if not is_owned_call:
         coord_routing_topology = _mission_routes_through_coordination(mission_slug, repo_root)
     else:
         coord_routing_topology = _mission_routes_through_coordination(
             mission_slug,
             repo_root,
-            effective_root=effective_root,
+            owned=owned,
         )
+    # Root discipline (T060.4 / NFR-001): a coord-less owned mission's decision
+    # events are appended and committed under the OWNED checkout P -- never the
+    # repository root checkout R. A coord-routing owned mission keeps its
+    # coordination worktree under R/.worktrees (correct by construction).
+    anchor_root = owned.owned_root if owned is not None and not coord_routing_topology else repo_root
     try:
-        from specify_cli.coordination.workspace import CoordinationWorkspace
+        from specify_cli.coordination.workspace import CoordinationWorkspace, CoordinationWorkspaceUnavailable
         from specify_cli.events.decision_log import DecisionGitLog
 
-        if effective_root is None:
+        if not is_owned_call:
             coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
             mission_id = _resolve_mission_ulid(mission_slug, repo_root)  # str | None
         else:
@@ -325,7 +322,8 @@ def _wrap_with_decision_git_log(
             mission_context = mission_context_for(
                 repo_root,
                 mission_slug,
-                effective_root=effective_root,
+                owned=owned,
+                tolerate_unmaterialized_coord=True,  # FR-022: a declared-but-not-yet-created coordination worktree is read/materialised, not refused
             )
             coordination_branch = mission_context.artifact(MissionArtifactKind.STATUS_STATE).commit_target.ref
             primary_metadata_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
@@ -344,7 +342,7 @@ def _wrap_with_decision_git_log(
             mission_slug=mission_slug,
             mission_id=mission_id,
             coordination_branch=coordination_branch,
-            repo_root=repo_root,
+            repo_root=anchor_root,
         )
 
         # The decision-target topology SHAPE is READ from the WP02 stored topology
@@ -360,7 +358,7 @@ def _wrap_with_decision_git_log(
             # transient on-disk materialization check, never ``.kind``.
             if worktree_root_candidate.exists():
                 worktree_root = worktree_root_candidate
-            elif effective_root is None:
+            elif not is_owned_call:
                 worktree_root = CoordinationWorkspace.resolve(repo_root, mission_slug, _mid8)
             else:
                 worktree_root = _resolve_owned_coordination_workspace(
@@ -376,7 +374,7 @@ def _wrap_with_decision_git_log(
             worktree_root = worktree_root_candidate
 
         return DecisionGitLog(
-            repo_root=repo_root,
+            repo_root=anchor_root,
             worktree_root=worktree_root,
             destination_ref=coordination_branch,
             mission_slug=mission_slug,
@@ -384,7 +382,25 @@ def _wrap_with_decision_git_log(
             mission_id=mission_id,
             target=decision_target,
         )
+    except CoordinationWorkspaceUnavailable:
+        # #4867 (T062): for an owned caller, let the typed refusal propagate
+        # UNWRAPPED — never folded into ``DecisionGitLogUnavailable`` (which
+        # carries no ``error_code`` an owned caller could route on).
+        # ``_dn_bootstrap`` catches this and maps it to a ``blocked`` Decision
+        # (``OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE``).
+        if owned is not None:
+            raise
+        raise DecisionGitLogUnavailable(
+            "DecisionGitLog construction failed for declared coordination "
+            f"topology mission {mission_slug!r}; refusing to continue "
+            "without durable decision evidence."
+        ) from None
     except Exception as exc:
+        if owned is not None and _is_owned_coordination_unavailable(exc):
+            # WP04's typed ``ActionContextError(OWNED_COORDINATION_WORKSPACE_
+            # UNAVAILABLE)`` (an unmaterialized surface read) propagates for
+            # ``_dn_bootstrap`` to map to the same typed ``blocked`` Decision.
+            raise
         if coord_routing_topology:
             raise DecisionGitLogUnavailable(
                 "DecisionGitLog construction failed for declared coordination "
@@ -756,6 +772,7 @@ def _should_advance_wp_step(
     *,
     repo_root: Path | None = None,
     mission_slug: str | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
@@ -799,7 +816,7 @@ def _should_advance_wp_step(
         # caller that anchors (``repo_root=``) must name the mission explicitly.
         if mission_slug is None:
             raise ValueError("_should_advance_wp_step: mission_slug is required when repo_root is supplied (anchoring); feature_dir.name is not a mission handle.")
-        anchor_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        anchor_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
 
     tasks_dir = anchor_dir / "tasks"
     # A file-based WP count cannot distinguish an empty pre-finalize board
@@ -890,6 +907,7 @@ def _check_cli_guards(
     *,
     mission_family: str | None = None,
     repo_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_cores.evaluate_guards` over a
@@ -917,6 +935,7 @@ def _check_cli_guards(
         mission_family=mission_family,
         step_id=step_id,
         repo_root=repo_root,
+        owned=owned,
     )
     if step_id in ("implement", "review"):
         # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
@@ -1269,6 +1288,7 @@ def _check_composed_action_guard(
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
     repo_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_composition._check_composed_action_guard`
@@ -1278,7 +1298,7 @@ def _check_composed_action_guard(
     ``repo_root`` (#3704 WP03, FR-003) is forwarded unchanged; defaults to
     ``None`` (built-in tree only, matching every existing caller of this
     compat surface that does not yet pass a real ``repo_root``)."""
-    return _composition._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root)
+    return _composition._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root, owned=owned)
 
 
 def _dispatch_via_composition(
@@ -1293,6 +1313,7 @@ def _dispatch_via_composition(
     feature_dir: Path,
     legacy_step_id: str | None = None,
     contract: Any | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str] | None:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_composition._dispatch_via_composition`
@@ -1309,6 +1330,7 @@ def _dispatch_via_composition(
         feature_dir=feature_dir,
         legacy_step_id=legacy_step_id,
         contract=contract,
+        owned=owned,
     )
 
 
@@ -1338,6 +1360,9 @@ def _advance_run_state_after_composition(
     progress: dict[str, int | float] | None,
     origin: dict[str, Any],
     sync_emitter: RuntimeEventEmitter,
+    plan: Any,
+    owned: OwnedCheckout | None = None,
+    wp_resolution: _WpIterationResolution | None = None,
 ) -> Decision:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_engine.advance_run_state_after_composition`. See the
@@ -1354,6 +1379,9 @@ def _advance_run_state_after_composition(
         progress=progress,
         origin=origin,
         sync_emitter=sync_emitter,
+        owned=owned,
+        plan=plan,
+        wp_resolution=wp_resolution,
     )
 
 
@@ -1389,10 +1417,12 @@ def _existing_run_ref(
     mission_slug: str,
     repo_root: Path,
     mission_type: str,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> MissionRunRef | None:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_io._existing_run_ref`."""
-    return _io_seam._existing_run_ref(mission_slug, repo_root, mission_type)
+    return _io_seam._existing_run_ref(mission_slug, repo_root, mission_type, owned=owned)
 
 
 def _start_ephemeral_query_run(
@@ -1411,13 +1441,14 @@ def get_or_start_run(
     mission_type: str,
     *,
     emitter: Any | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> MissionRunRef:
     """Thin compat delegate — forwards to :func:`runtime_bridge_io.get_or_start_run`.
 
     Run mapping stored in .kittify/runtime/feature-runs.json:
     { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
     """
-    return _io_seam.get_or_start_run(mission_slug, repo_root, mission_type, emitter=emitter)
+    return _io_seam.get_or_start_run(mission_slug, repo_root, mission_type, emitter=emitter, owned=owned)
 
 
 # ---------------------------------------------------------------------------
@@ -1601,6 +1632,37 @@ class DecideNextContext:
     run_ref: MissionRunRef
     run_dir: Path
     current_step_id: str | None
+    # owned-checkout-lifecycle-authority WP11 (FR-009): the validated
+    # ownership fact, when this call runs under an owned checkout. ``None``
+    # for every non-owned mission — the historical, byte-identical path.
+    owned: OwnedCheckout | None = None
+
+
+def _is_owned_coordination_unavailable(exc: BaseException) -> bool:
+    """True for the two typed FR-012 / O8 failures: the registry probe's
+    :class:`CoordinationWorkspaceUnavailable` and WP04's
+    ``ActionContextError`` carrying the same registry code."""
+    code = getattr(exc, "error_code", None) or getattr(exc, "code", None)
+    return code == OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value
+
+
+def _owned_coordination_unavailable_decision(agent: str, mission_slug: str, mission_type: str, now: str, exc: BaseException) -> Decision:
+    """The typed ``blocked`` Decision of an unavailable owned coordination workspace."""
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state="unknown",
+            timestamp=now,
+            reason=(
+                f"Coordination worktree registry is unavailable for mission {mission_slug!r} ({exc}). "
+                "Try 'git worktree prune' or 'spec-kitty doctor coordination --fix'."
+            ),
+            error_code=OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value,
+        )
+    )
 
 
 def _dn_bootstrap(
@@ -1609,7 +1671,7 @@ def _dn_bootstrap(
     result: str,
     repo_root: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[DecideNextContext | None, Decision | None]:
     """Phase 1/4 of ``decide_next_via_runtime`` (FR-010) — resolve
     feature/mission/run and build the shared :class:`DecideNextContext`.
@@ -1622,17 +1684,25 @@ def _dn_bootstrap(
     start) and the caller must return it immediately without running the
     remaining phases.
     """
-    if effective_root is None:
+    is_owned_call = owned is not None
+
+    if not is_owned_call:
         feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
         primary_metadata_dir: Path | None = _primary_runtime_feature_dir(repo_root, mission_slug)
     else:
         from mission_runtime import MissionArtifactKind, mission_context_for
 
-        mission_context = mission_context_for(
-            repo_root,
-            mission_slug,
-            effective_root=effective_root,
-        )
+        try:
+            mission_context = mission_context_for(
+                repo_root,
+                mission_slug,
+                owned=owned,
+                tolerate_unmaterialized_coord=True,  # FR-022: a declared-but-not-yet-created coordination worktree is read/materialised, not refused
+            )
+        except ActionContextError as exc:
+            if not _is_owned_coordination_unavailable(exc):
+                raise
+            return None, _owned_coordination_unavailable_decision(agent, mission_slug, "unknown", now_utc_iso(), exc)
         status_dir = mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
         primary_metadata_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
         feature_dir = status_dir if status_dir.is_dir() else primary_metadata_dir
@@ -1684,24 +1754,46 @@ def _dn_bootstrap(
         mission_slug=mission_slug,
         mission_type=mission_type,
     )
+    # Root discipline (contracts/owned-checkout-carrier.md §7): callees that
+    # are not yet owned-aware receive ``owned.owned_root`` in the root
+    # argument they already have — the run store, the lifecycle store,
+    # composition policy and git cwd all stay at P for an owned mission,
+    # preserving today's owned behaviour.
+    config_root = owned.owned_root if owned is not None else repo_root
+
     # Wrap with DecisionGitLog so decision events are durably committed to
     # the coordination branch (spec-kitty #1546, FR-001–FR-005).
-    if effective_root is None:
-        emitter_for_engine: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)
-    else:
-        emitter_for_engine = _wrap_with_decision_git_log(
-            sync_emitter,
-            mission_slug,
-            repo_root,
-            effective_root=effective_root,
-        )
+    from specify_cli.coordination.workspace import CoordinationWorkspaceUnavailable
+
+    try:
+        if not is_owned_call:
+            emitter_for_engine: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)
+        else:
+            emitter_for_engine = _wrap_with_decision_git_log(
+                sync_emitter,
+                mission_slug,
+                repo_root,
+                owned=owned,
+            )
+    except (CoordinationWorkspaceUnavailable, ActionContextError) as exc:
+        # #4867 / FR-012 / O8: an owned caller gets a typed ``blocked``
+        # decision instead of an opaque ``fatal: ... commondir: Success``
+        # escaping as a Python traceback. The transient-lock retry already
+        # ran inside ``_resolve_owned_coordination_workspace`` — reaching
+        # here means the failure is durable. WP04's
+        # ``ActionContextError(OWNED_COORDINATION_WORKSPACE_UNAVAILABLE)`` (an
+        # unmaterialized surface read) maps identically; any other
+        # ``ActionContextError`` is not ours to translate.
+        if not _is_owned_coordination_unavailable(exc):
+            raise
+        return None, _owned_coordination_unavailable_decision(agent, mission_slug, mission_type, now, exc)
 
     # Resolve origin info
     origin: dict[str, Any] = {}
     try:
         from specify_cli.runtime.resolver import resolve_mission as resolve_mission_path
 
-        mission_result = resolve_mission_path(mission_type, repo_root)
+        mission_result = resolve_mission_path(mission_type, config_root)
         origin = {
             "mission_tier": getattr(mission_result.tier, "value", str(mission_result.tier)),
             "mission_path": str(mission_result.path.parent),
@@ -1714,12 +1806,7 @@ def _dn_bootstrap(
     # Get or start runtime run (before result handling so failed/blocked
     # decisions include canonical run_id, step_id, and mission_state)
     try:
-        run_ref = get_or_start_run(
-            mission_slug,
-            repo_root,
-            mission_type,
-            emitter=emitter_for_engine,
-        )
+        run_ref = get_or_start_run(mission_slug, config_root, mission_type, emitter=emitter_for_engine, owned=owned)
     except Exception as exc:
         return None, _materialize_decision(
             _cores.DecisionEnvelope(
@@ -1754,7 +1841,7 @@ def _dn_bootstrap(
         agent=agent,
         run_ref=run_ref,
         feature_dir=feature_dir,
-        repo_root=repo_root,
+        repo_root=config_root,
         step_id=current_step_id,
         mission_state=current_step_id,
     )
@@ -1782,6 +1869,7 @@ def _dn_bootstrap(
             run_ref=run_ref,
             run_dir=run_dir,
             current_step_id=current_step_id,
+            owned=owned,
         ),
         None,
     )
@@ -1799,6 +1887,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     mission_type = ctx.mission_type
     feature_dir = ctx.feature_dir
     repo_root = ctx.repo_root
+    owned = ctx.owned
     now = ctx.now
     progress = ctx.progress
     origin = ctx.origin
@@ -1808,7 +1897,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if ctx.result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
         try:
-            should_advance = _should_advance_wp_step(current_step_id, feature_dir, repo_root=repo_root, mission_slug=mission_slug)
+            should_advance = _should_advance_wp_step(current_step_id, feature_dir, repo_root=repo_root, mission_slug=mission_slug, owned=owned)
         except CanonicalStatusNotFoundError as exc:
             return _materialize_decision(
                 _cores.DecisionEnvelope(
@@ -1856,6 +1945,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 progress,
                 origin,
                 run_ref,
+                owned=owned,
             )
         # All WPs done for this step — check guards before advancing.
         #
@@ -1879,6 +1969,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 feature_dir,
                 mission_family=mission_type,
                 repo_root=repo_root,
+                owned=owned,
             )
         except _cores.UnregisteredMissionFamilyError:
             logger.warning(
@@ -1899,6 +1990,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 origin,
                 run_ref,
                 guard_failures=guard_failures,
+                owned=owned,
             )
 
     # Check guards for non-WP steps before advancing.
@@ -1923,6 +2015,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             feature_dir,
             mission_family=mission_type,
             repo_root=repo_root,
+            owned=owned,
         )
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
@@ -1931,11 +2024,13 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 feature_dir,
                 repo_root,
                 mission_type,
+                owned=owned,
             )
             prompt_file: str | None = None
             prompt_error: str | None = None
+            prompt_error_code: str | None = None
             if action:
-                prompt_file, prompt_error = _build_prompt_or_error(
+                prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
                     action,
                     feature_dir,
                     mission_slug,
@@ -1943,6 +2038,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                     agent,
                     repo_root,
                     mission_type,
+                    owned=owned,
                 )
             else:
                 prompt_error = f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
@@ -1970,6 +2066,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                     origin=origin,
                     run_id=run_ref.run_id,
                     step_id=current_step_id,
+                    error_code=prompt_error_code,
                 ),
                 guard_failures,
             )
@@ -1996,6 +2093,7 @@ def _dn_composition_blocked_decision(
         ctx.feature_dir,
         ctx.repo_root,
         ctx.mission_type,
+        owned=ctx.owned,
     )
     prompt_file = (
         _build_prompt_safe(
@@ -2006,6 +2104,7 @@ def _dn_composition_blocked_decision(
             ctx.agent,
             ctx.repo_root,
             ctx.mission_type,
+            owned=ctx.owned,
         )
         if action
         else None
@@ -2032,6 +2131,56 @@ def _dn_composition_blocked_decision(
     )
 
 
+def _advance_failed_decision(ctx: DecideNextContext, composed_action: str, exc: Exception) -> Decision:
+    """EDGE-003 contract: any advancement-helper failure must surface as a
+    structured ``blocked`` Decision, not as a Python traceback, and MUST NOT
+    silently fall through to the legacy DAG dispatch handler."""
+    logger.exception(
+        "advancement helper failed after composition for %s/%s",
+        ctx.mission_type,
+        composed_action,
+    )
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.blocked,
+            agent=ctx.agent,
+            mission_slug=ctx.mission_slug,
+            mission=ctx.mission_type,
+            mission_state=ctx.current_step_id,
+            timestamp=ctx.now,
+            reason=(f"Run-state advancement after composition failed for {ctx.mission_type}/{composed_action}: {type(exc).__name__}: {exc}"),
+            progress=ctx.progress,
+            origin=ctx.origin,
+            run_id=ctx.run_ref.run_id,
+            step_id=ctx.current_step_id,
+        )
+    )
+
+
+def _dn_plan_composition_advance(ctx: DecideNextContext, composed_action: str) -> tuple[Any, _WpIterationResolution | None] | Decision:
+    """Plan (pure) the run-state advance after a successful composed action and
+    resolve a planned WP step's workspace BEFORE anything is persisted (FR-008).
+
+    Returns ``(plan, wp_resolution)`` for :func:`_dn_composition_dispatch` to
+    commit, or the EDGE-003 ``blocked`` Decision when the plan itself cannot be
+    computed. The resolution runs OUTSIDE any ``except``: a typed failure
+    propagates unwrapped, and because nothing has been written the run stays
+    untouched."""
+    try:
+        plan = _engine_adapter.plan_composition_advance(ctx.run_ref, ctx.agent)
+    except Exception as exc:  # noqa: BLE001 — EDGE-003: a planning failure is a structured blocked Decision
+        return _advance_failed_decision(ctx, composed_action, exc)
+    wp_resolution = _resolve_planned_wp_workspace(
+        plan.decision,
+        mission_slug=ctx.mission_slug,
+        mission_type=ctx.mission_type,
+        feature_dir=ctx.feature_dir,
+        repo_root=ctx.repo_root,
+        owned=ctx.owned,
+    )
+    return plan, wp_resolution
+
+
 def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
     """Phase 3/4 of ``decide_next_via_runtime`` (FR-010) — composition
     dispatch (mission `software-dev-composition-rewrite-01KQ26CY`).
@@ -2049,15 +2198,12 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
     runtime planner next.
     """
     agent = ctx.agent
-    mission_slug = ctx.mission_slug
     mission_type = ctx.mission_type
     feature_dir = ctx.feature_dir
-    repo_root = ctx.repo_root
-    now = ctx.now
-    progress = ctx.progress
-    origin = ctx.origin
-    run_ref = ctx.run_ref
     current_step_id = ctx.current_step_id
+    # Root discipline (FR-009): composition policy and task-board resolution
+    # are P-local governance reads for an owned mission.
+    config_root = ctx.owned.owned_root if ctx.owned is not None else ctx.repo_root
 
     if (
         ctx.result == "success"
@@ -2066,7 +2212,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
             mission_type,
             current_step_id,
             run_dir=ctx.run_dir,
-            repo_root=repo_root,
+            repo_root=config_root,
         )
     ):
         composed_action = _normalize_action_for_composition(current_step_id)
@@ -2077,14 +2223,14 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
         # ``_resolve_profile_hint`` falls back to ``_ACTION_PROFILE_DEFAULTS``
         # — preserving byte-identical built-in dispatch behavior (FR-010).
         resolved_profile, runtime_contract = _composition._composition_dispatch_inputs(
-            repo_root=repo_root,
+            repo_root=config_root,
             run_dir=ctx.run_dir,
             mission=mission_type,
             step_id=current_step_id,
             action=composed_action,
         )
         composition_failures = _dispatch_via_composition(
-            repo_root=repo_root,
+            repo_root=config_root,
             mission=mission_type,
             action=composed_action,
             actor=agent,
@@ -2099,55 +2245,42 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
             # live tasks_outline → tasks_packages → tasks_finalize flow.
             legacy_step_id=current_step_id,
             contract=runtime_contract,
+            owned=ctx.owned,
         )
         if composition_failures:
             return _dn_composition_blocked_decision(ctx, current_step_id, composition_failures)
         # Composition succeeded; advance run state via the
         # composition-specific advancement helper and short-circuit the
-        # legacy ``runtime_next_step`` fall-through (FR-001/FR-002). The
-        # helper emits the same lane / state events the legacy path emits,
-        # through the decision-log-wrapped engine emitter so a
-        # ``DecisionInputRequested`` it raises is durably recorded
-        # (ADR 2026-09-06-2 (c)); any error from it surfaces through the
-        # existing ``Decision`` ``blocked`` shape (EDGE-003) — the legacy
-        # DAG dispatch handler is **not** entered as a fallback.
+        # legacy ``runtime_next_step`` fall-through (FR-001/FR-002). Plan and
+        # resolve first (FR-008), then commit. The helper emits the same
+        # lane / state events the legacy path emits, through the
+        # decision-log-wrapped engine emitter so a ``DecisionInputRequested``
+        # it raises is durably recorded (ADR 2026-09-06-2 (c)); any error from
+        # it surfaces through the existing ``Decision`` ``blocked`` shape
+        # (EDGE-003) — the legacy DAG dispatch handler is **not** entered as a
+        # fallback.
+        planned = _dn_plan_composition_advance(ctx, composed_action)
+        if isinstance(planned, Decision):
+            return planned
+        plan, wp_resolution = planned
         try:
             return _advance_run_state_after_composition(
-                run_ref=run_ref,
+                run_ref=ctx.run_ref,
                 agent=agent,
-                mission_slug=mission_slug,
+                mission_slug=ctx.mission_slug,
                 mission_type=mission_type,
-                repo_root=repo_root,
+                repo_root=ctx.repo_root,
                 feature_dir=feature_dir,
-                timestamp=now,
-                progress=progress,
-                origin=origin,
+                timestamp=ctx.now,
+                progress=ctx.progress,
+                origin=ctx.origin,
                 sync_emitter=ctx.emitter_for_engine,
+                owned=ctx.owned,
+                plan=plan,
+                wp_resolution=wp_resolution,
             )
-        except Exception as exc:  # noqa: BLE001 — EDGE-003 contract: any
-            # advancement-helper failure must surface as a structured
-            # Decision, not as a Python traceback, and MUST NOT silently
-            # fall through to the legacy DAG dispatch handler.
-            logger.exception(
-                "advancement helper failed after composition for %s/%s",
-                mission_type,
-                composed_action,
-            )
-            return _materialize_decision(
-                _cores.DecisionEnvelope(
-                    kind=DecisionKind.blocked,
-                    agent=agent,
-                    mission_slug=mission_slug,
-                    mission=mission_type,
-                    mission_state=current_step_id,
-                    timestamp=now,
-                    reason=(f"Run-state advancement after composition failed for {mission_type}/{composed_action}: {type(exc).__name__}: {exc}"),
-                    progress=progress,
-                    origin=origin,
-                    run_id=run_ref.run_id,
-                    step_id=current_step_id,
-                )
-            )
+        except Exception as exc:  # noqa: BLE001 — EDGE-003: any advancement-helper failure surfaces as a blocked Decision
+            return _advance_failed_decision(ctx, composed_action, exc)
 
     return None
 
@@ -2221,6 +2354,7 @@ def _dn_terminal_retrospective_gate(
     local to this phase, not a re-extraction of WP04's retrospective seam.
     """
     mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
+    config_root = ctx.owned.owned_root if ctx.owned is not None else ctx.repo_root
     try:
         if policy_error is not None:
             raise policy_error
@@ -2228,7 +2362,7 @@ def _dn_terminal_retrospective_gate(
             mission_id=mission_id,
             mission_slug=ctx.mission_slug,
             feature_dir=ctx.feature_dir,
-            repo_root=ctx.repo_root,
+            repo_root=config_root,
             block_on_failure=True,
         )
     except Exception as exc:
@@ -2254,6 +2388,75 @@ def _dn_terminal_retrospective_gate(
     return None
 
 
+# (action, wp_id, workspace_path, blocked_reason, mission_state) -- the tuple
+# :func:`_wp_iteration_action_and_state` returns.
+_WpIterationResolution = tuple[str | None, str | None, str | None, str | None, str]
+
+
+def _resolve_planned_wp_workspace(
+    decision: NextDecision,
+    *,
+    mission_slug: str,
+    mission_type: str,
+    feature_dir: Path,
+    repo_root: Path,
+    owned: OwnedCheckout | None,
+) -> _WpIterationResolution | None:
+    """THE single place a planned WP-iteration step's board action + workspace
+    is resolved BEFORE the advance is persisted (FR-008 / R-06), shared by the
+    legacy ``runtime_next_step`` path (:func:`_dn_decision_materialize`) and
+    the composition path (``advance_run_state_after_composition``).
+
+    ``None`` unless ``decision`` is a WP-iteration step. A resolution failure
+    PROPAGATES -- typed, carrying its ``error_code`` -- before anything is
+    written, so the run stays at the issued step instead of being advanced
+    into a step whose workspace cannot be resolved (the wedge). It is
+    deliberately never wrapped into a ``blocked`` Decision (FR-008)."""
+    if decision.kind != "step" or not decision.step_id or not _is_wp_iteration_step(decision.step_id):
+        return None
+    return _wp_iteration_action_and_state(
+        decision.step_id,
+        mission_slug,
+        mission_type,
+        feature_dir,
+        repo_root,
+        owned=owned,
+    )
+
+
+def _dn_preresolve_wp_workspace(ctx: DecideNextContext) -> tuple[Any, _WpIterationResolution | None]:
+    """Plan the advance (the engine's own pure :func:`plan_advance`) and resolve
+    the step it will issue BEFORE anything is persisted. Returns ``(plan,
+    resolution)``; ``(None, None)`` when no plan can be previewed. The plan is
+    then COMMITTED by :func:`_dn_advance_engine` -- the engine plans once."""
+    try:
+        plan = _engine_adapter.plan_advance(ctx.run_ref, ctx.agent, ctx.result)
+    except _engine_adapter.PLAN_UNAVAILABLE_ERRORS:
+        logger.debug("advance preview unavailable for %s; advancing without pre-resolution", ctx.mission_slug, exc_info=True)
+        return None, None
+    resolution = _resolve_planned_wp_workspace(
+        plan.decision,
+        mission_slug=ctx.mission_slug,
+        mission_type=ctx.mission_type,
+        feature_dir=ctx.feature_dir,
+        repo_root=ctx.repo_root,
+        owned=ctx.owned,
+    )
+    return plan, resolution
+
+
+def _dn_advance_engine(ctx: DecideNextContext, plan: Any, engine_emitter: Any) -> NextDecision:
+    """Persist the advance: commit the previewed ``plan`` when there is one
+    (no second planning), else -- or when the run moved past the plan
+    (:class:`StaleAdvancePlan`) -- the engine's own ``next_step``."""
+    if plan is not None:
+        try:
+            return _engine_adapter.commit_advance(ctx.run_ref, plan, ctx.agent, engine_emitter)
+        except _engine_adapter.StaleAdvancePlan:
+            logger.debug("advance plan for %s is stale; re-planning through next_step", ctx.mission_slug, exc_info=True)
+    return runtime_next_step(ctx.run_ref, agent_id=ctx.agent, result=ctx.result, emitter=engine_emitter)
+
+
 def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     """Phase 4/4 of ``decide_next_via_runtime`` (FR-010) — advance via the
     runtime planner and materialize the terminal/step/query ``Decision``
@@ -2264,9 +2467,17 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     post-completion policy is best-effort and must not buffer or roll back
     MissionRunCompleted; it runs after terminal events have flushed.
     """
-    policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(ctx.repo_root)
+    # Root discipline (FR-009): retrospective policy is a P-local governance
+    # read for an owned mission.
+    config_root = ctx.owned.owned_root if ctx.owned is not None else ctx.repo_root
+    policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(config_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))
     block_on_retrospective = _retrospective_seam._retrospective_blocks_completion(policy)
+
+    # T061 step 3: resolve a WP-iteration step's workspace BEFORE anything is
+    # persisted; a failure propagates here with the run directory untouched.
+    preview_plan, preresolved = _dn_preresolve_wp_workspace(ctx)
+    preview_step_id = preview_plan.decision.step_id if preview_plan is not None else None
 
     pre_state_bytes: bytes | None = None
     pre_events_size: int | None = None
@@ -2300,12 +2511,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
 
     # Advance via runtime
     try:
-        runtime_decision = runtime_next_step(
-            ctx.run_ref,
-            agent_id=ctx.agent,
-            result=ctx.result,
-            emitter=engine_emitter,
-        )
+        runtime_decision = _dn_advance_engine(ctx, preview_plan, engine_emitter)
     except Exception as exc:
         # Engine raised: discard any buffered events; nothing left to flush.
         if buffer is not None:
@@ -2342,7 +2548,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
             mission_id=mission_id,
             mission_slug=ctx.mission_slug,
             feature_dir=ctx.feature_dir,
-            repo_root=ctx.repo_root,
+            repo_root=config_root,
             block_on_failure=False,
         )
 
@@ -2356,6 +2562,10 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
         ctx.now,
         ctx.progress,
         ctx.origin,
+        owned=ctx.owned,
+        # Reuse the pre-persist resolution only for the very step it was
+        # computed for; any other outcome resolves normally in the mapper.
+        wp_resolution=preresolved if runtime_decision.step_id == preview_step_id else None,
     )
 
 
@@ -2370,6 +2580,7 @@ def _merged_mission_short_circuit(
     agent: str | None,
     now: str,
     terminal_kind: str,
+    owned: OwnedCheckout | None = None,
 ) -> Decision | None:
     """Committed-authority pre-check (#2947, D8/D9/D13/F5) shared by BOTH
     ``next`` entry points, called BEFORE either selects a workspace or starts
@@ -2411,13 +2622,13 @@ def _merged_mission_short_circuit(
     read-path code); declining restores the pre-#3825 error shapes
     byte-for-byte.
     """
-    from runtime.next.committed_authority import mission_terminal_verdict
+    from runtime.next.committed_authority import mission_terminal_verdict, primary_surface_dir
 
-    verdict = mission_terminal_verdict(repo_root, mission_slug)
+    verdict = mission_terminal_verdict(repo_root, mission_slug, owned)
     if verdict == "none":
         return None
 
-    mission_type = get_mission_type(_primary_runtime_feature_dir(repo_root, mission_slug))
+    mission_type = get_mission_type(primary_surface_dir(repo_root, mission_slug, owned))
     if verdict == "terminal":
         return _materialize_decision(
             _cores.DecisionEnvelope(
@@ -2465,7 +2676,7 @@ def decide_next_via_runtime(
     result: str,
     repo_root: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Decision:
     """Main entry point replacing old decide_next().
 
@@ -2496,20 +2707,18 @@ def decide_next_via_runtime(
         agent=agent,
         now=now_utc_iso(),
         terminal_kind=DecisionKind.terminal,
+        owned=owned,
     )
     if merged_short_circuit is not None:
         return merged_short_circuit
 
-    if effective_root is None:
-        ctx, early_decision = _dn_bootstrap(agent, mission_slug, result, repo_root)
-    else:
-        ctx, early_decision = _dn_bootstrap(
-            agent,
-            mission_slug,
-            result,
-            repo_root,
-            effective_root=effective_root,
-        )
+    ctx, early_decision = _dn_bootstrap(
+        agent,
+        mission_slug,
+        result,
+        repo_root,
+        owned=owned,
+    )
     if early_decision is not None:
         return early_decision
     assert ctx is not None  # _dn_bootstrap always pairs a ctx with None (or vice versa)
@@ -2534,7 +2743,7 @@ def _build_finalized_override_query_decision(
     emitted_run_id: str | None,
     repo_root: Path,
     finalized_override: str,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Decision:
     override_wp_id: str | None = None
     if finalized_override == "done":
@@ -2556,7 +2765,8 @@ def _build_finalized_override_query_decision(
             mission_context = mission_context_for(
                 repo_root,
                 mission_slug,
-                effective_root=effective_root,
+                owned=owned,
+                tolerate_unmaterialized_coord=True,  # FR-022: a declared-but-not-yet-created coordination worktree is read/materialised, not refused
             )
             preview = preview_claimable_wp(
                 mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir,
@@ -2678,7 +2888,7 @@ def query_current_state(
     mission_slug: str,
     repo_root: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Decision:
     """Return current mission state without advancing the DAG.
 
@@ -2707,35 +2917,15 @@ def query_current_state(
         agent=agent,
         now=now,
         terminal_kind=DecisionKind.query,
+        owned=owned,
     )
     if merged_short_circuit is not None:
         return merged_short_circuit
 
-    from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
+    mission_context = _query_resolve_mission_context(repo_root, mission_slug, owned=owned)
+    mission_slug = mission_context.mission_slug
 
-    try:
-        mission_context = mission_context_for(
-            repo_root,
-            mission_slug,
-            effective_root=effective_root,
-        )
-        mission_slug = mission_context.mission_slug
-    except ActionContextError as exc:
-        # FR-001 / C-IC02: pass a typed *read-path* error through VERBATIM. The
-        # resolver already produced the precise code (e.g.
-        # COORDINATION_BRANCH_DELETED / STATUS_READ_PATH_NOT_FOUND) plus the real
-        # read-path remediation; collapsing it into a generic MISSION_NOT_FOUND
-        # ("run mission list") points the operator the wrong way (the mission is
-        # not missing — its read path is broken; the disease #15). The command
-        # layer surfaces ``exc.code`` + checked paths from the typed error.
-        # (Earlier this raised ``MissionNotFoundError`` for ALL ActionContextError
-        # and mis-attributed the collapse to FR-004 / WP03; that attribution was
-        # stale — the next-family collapse is owned by THIS WP.)
-        if _is_read_path_error(exc):
-            raise
-        # A genuinely-missing mission (e.g. FEATURE_CONTEXT_UNRESOLVED — no mission
-        # directory at all) is legitimately MISSION_NOT_FOUND (FR-004 / WP03).
-        raise MissionNotFoundError(mission_slug) from exc
+    from mission_runtime import MissionArtifactKind
 
     task_board = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK)
     status_state = mission_context.artifact(MissionArtifactKind.STATUS_STATE)
@@ -2769,7 +2959,10 @@ def query_current_state(
 
     progress = _compute_wp_progress(task_board.read_dir, status_dir=status_state.read_dir)
 
-    run_ref = _existing_run_ref(mission_slug, repo_root, mission_type)
+    # Root discipline: the run store (and the template/policy reads that start
+    # an ephemeral preview run) live at P for an owned mission.
+    config_root = owned.owned_root if owned is not None else repo_root
+    run_ref = _existing_run_ref(mission_slug, config_root, mission_type, owned=owned)
     ephemeral_run_store: Path | None = None
 
     # Read current step WITHOUT calling next_step(). When no step has been
@@ -2777,30 +2970,12 @@ def query_current_state(
     # The try/finally below guarantees the ephemeral run store is cleaned up
     # on every return path (success, raise, or early exit).
     try:
-        try:
-            if run_ref is None:
-                run_ref, ephemeral_run_store = _start_ephemeral_query_run(
-                    mission_slug,
-                    mission_type,
-                    repo_root,
-                )
-                snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
-                template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
-                template = load_mission_template_file(template_path)
-            else:
-                snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
-                template_path = Path(snapshot.template_path)
-                template = load_mission_template_file(template_path)
-            runtime_decision = _engine_adapter.plan_next(
-                snapshot,
-                template,
-                snapshot.policy_snapshot,
-                live_template_path=template_path,
-            )
-        except QueryModeValidationError:
-            raise
-        except Exception as exc:
-            raise QueryModeValidationError(f"Could not read query state for mission '{mission_slug}': {exc}") from exc
+        run_ref, ephemeral_run_store, snapshot, runtime_decision = _query_read_runtime_plan(
+            run_ref,
+            mission_slug,
+            mission_type,
+            config_root,
+        )
 
         # Query mode never persists the ephemeral run it bootstraps for a
         # not-yet-started mission. Returning that run's id in the JSON would
@@ -2812,41 +2987,137 @@ def query_current_state(
         if ephemeral_run_store is None:
             emitted_run_id = getattr(run_ref, "run_id", None)
 
-        finalized_override = _finalized_task_board_override_step(
-            task_board.read_dir,
-            progress,
-            status_dir=status_state.read_dir,
+        return _query_dispatch_decision(
+            task_board=task_board,
+            status_state=status_state,
+            progress=progress,
+            snapshot=snapshot,
+            runtime_decision=runtime_decision,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission_type=mission_type,
+            now=now,
+            repo_root=repo_root,
+            owned=owned,
+            emitted_run_id=emitted_run_id,
         )
-        if finalized_override is not None:
-            return _build_finalized_override_query_decision(
-                agent=agent,
-                mission_slug=mission_slug,
-                mission_type=mission_type,
-                now=now,
-                progress=progress,
-                emitted_run_id=emitted_run_id,
-                repo_root=repo_root,
-                finalized_override=finalized_override,
-                effective_root=effective_root,
+    finally:
+        if ephemeral_run_store is not None:
+            shutil.rmtree(ephemeral_run_store, ignore_errors=True)
+
+
+def _query_resolve_mission_context(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> Any:
+    """Campsite extraction (T058) of ``query_current_state``'s mission-context
+    resolution: the try/except ``ActionContextError`` -> read-path
+    pass-through / ``MissionNotFoundError`` mapping. Behaviour-preserving —
+    no change to the exception shapes this raises."""
+    from mission_runtime import ActionContextError, mission_context_for
+
+    try:
+        return mission_context_for(
+            repo_root,
+            mission_slug,
+            owned=owned,
+            tolerate_unmaterialized_coord=True,  # FR-022: a fresh coordination mission is queryable before its worktree exists
+        )
+    except ActionContextError as exc:
+        # FR-001 / C-IC02: pass a typed *read-path* error through VERBATIM. The
+        # resolver already produced the precise code (e.g.
+        # COORDINATION_BRANCH_DELETED / STATUS_READ_PATH_NOT_FOUND) plus the real
+        # read-path remediation; collapsing it into a generic MISSION_NOT_FOUND
+        # ("run mission list") points the operator the wrong way (the mission is
+        # not missing — its read path is broken; the disease #15). The command
+        # layer surfaces ``exc.code`` + checked paths from the typed error.
+        if _is_read_path_error(exc):
+            raise
+        # A genuinely-missing mission (e.g. FEATURE_CONTEXT_UNRESOLVED — no mission
+        # directory at all) is legitimately MISSION_NOT_FOUND (FR-004 / WP03).
+        raise MissionNotFoundError(mission_slug) from exc
+
+
+def _query_read_runtime_plan(
+    run_ref: Any,
+    mission_slug: str,
+    mission_type: str,
+    repo_root: Path,
+) -> tuple[Any, Path | None, Any, Any]:
+    """Campsite extraction (T058) of ``query_current_state``'s nested
+    ephemeral-run-and-planner try/except. Returns
+    ``(run_ref, ephemeral_run_store, snapshot, runtime_decision)``.
+    Behaviour-preserving."""
+    ephemeral_run_store: Path | None = None
+    try:
+        if run_ref is None:
+            run_ref, ephemeral_run_store = _start_ephemeral_query_run(
+                mission_slug,
+                mission_type,
+                repo_root,
             )
+            snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
+            template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
+            template = load_mission_template_file(template_path)
+        else:
+            snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
+            template_path = Path(snapshot.template_path)
+            template = load_mission_template_file(template_path)
+        runtime_decision = _engine_adapter.plan_next(
+            snapshot,
+            template,
+            snapshot.policy_snapshot,
+            live_template_path=template_path,
+        )
+    except QueryModeValidationError:
+        raise
+    except Exception as exc:
+        raise QueryModeValidationError(f"Could not read query state for mission '{mission_slug}': {exc}") from exc
+    return run_ref, ephemeral_run_store, snapshot, runtime_decision
 
-        if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
-            if runtime_decision.kind in {DecisionKind.step, DecisionKind.decision_required} and runtime_decision.step_id:
-                return _build_initial_query_decision(
-                    runtime_decision=runtime_decision,
-                    agent=agent,
-                    mission_slug=mission_slug,
-                    mission_type=mission_type,
-                    now=now,
-                    progress=progress,
-                    emitted_run_id=emitted_run_id,
-                )
-            raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
 
-        if runtime_decision.kind == DecisionKind.decision_required:
-            return _build_decision_required_query(
+def _query_dispatch_decision(
+    *,
+    task_board: Any,
+    status_state: Any,
+    progress: dict | None,
+    snapshot: Any,
+    runtime_decision: Any,
+    agent: str | None,
+    mission_slug: str,
+    mission_type: str,
+    now: str,
+    repo_root: Path,
+    owned: OwnedCheckout | None,
+    emitted_run_id: str | None,
+) -> Decision:
+    """Campsite extraction (T058) of ``query_current_state``'s
+    finalized-override / initial / decision-required / runtime branch
+    ladder. Behaviour-preserving."""
+    finalized_override = _finalized_task_board_override_step(
+        task_board.read_dir,
+        progress,
+        status_dir=status_state.read_dir,
+    )
+    if finalized_override is not None:
+        return _build_finalized_override_query_decision(
+            agent=agent,
+            mission_slug=mission_slug,
+            mission_type=mission_type,
+            now=now,
+            progress=progress,
+            emitted_run_id=emitted_run_id,
+            repo_root=repo_root,
+            finalized_override=finalized_override,
+            owned=owned,
+        )
+
+    if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
+        if runtime_decision.kind in {DecisionKind.step, DecisionKind.decision_required} and runtime_decision.step_id:
+            return _build_initial_query_decision(
                 runtime_decision=runtime_decision,
-                snapshot=snapshot,
                 agent=agent,
                 mission_slug=mission_slug,
                 mission_type=mission_type,
@@ -2854,8 +3125,10 @@ def query_current_state(
                 progress=progress,
                 emitted_run_id=emitted_run_id,
             )
+        raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
 
-        return _build_runtime_query_decision(
+    if runtime_decision.kind == DecisionKind.decision_required:
+        return _build_decision_required_query(
             runtime_decision=runtime_decision,
             snapshot=snapshot,
             agent=agent,
@@ -2865,9 +3138,17 @@ def query_current_state(
             progress=progress,
             emitted_run_id=emitted_run_id,
         )
-    finally:
-        if ephemeral_run_store is not None:
-            shutil.rmtree(ephemeral_run_store, ignore_errors=True)
+
+    return _build_runtime_query_decision(
+        runtime_decision=runtime_decision,
+        snapshot=snapshot,
+        agent=agent,
+        mission_slug=mission_slug,
+        mission_type=mission_type,
+        now=now,
+        progress=progress,
+        emitted_run_id=emitted_run_id,
+    )
 
 
 def answer_decision_via_runtime(
@@ -2878,6 +3159,7 @@ def answer_decision_via_runtime(
     repo_root: Path,
     *,
     actor_type: str = "human",
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Answer a pending decision.
 
@@ -2895,6 +3177,7 @@ def answer_decision_via_runtime(
             repo_root,
             action="tasks",
             feature=mission_slug,
+            owned=owned,
         )
         feature_dir = Path(_ctx.feature_dir)
     except ActionContextError as exc:
@@ -2921,7 +3204,8 @@ def answer_decision_via_runtime(
         )
         raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
-    run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
+    config_root = owned.owned_root if owned is not None else repo_root
+    run_ref = get_or_start_run(mission_slug, config_root, mission_type, owned=owned)
     # E3 (#3929): same bridge-entry registration as the decide path.
     from specify_cli.status import ensure_runtime_moment_producer  # noqa: PLC0415
 
@@ -2943,7 +3227,7 @@ def answer_decision_via_runtime(
         seed_runtime_emitter(sync_emitter, snapshot)
     # Wrap with DecisionGitLog so the answered decision is committed to the
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
-    answer_emitter: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)
+    answer_emitter: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root, owned=owned)
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
     runtime_provide_decision_answer(
         run_ref,
@@ -3049,6 +3333,8 @@ def _resolve_wp_board_implement_action(
     repo_root: Path,
     task_board_dir: Path,
     status_dir: Path,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> _WpBoardAction:
     """CT-3 / FR-003: implement-branch WP resolution, mirroring query mode's
     ``_build_finalized_override_query_decision`` exactly (the same
@@ -3066,7 +3352,7 @@ def _resolve_wp_board_implement_action(
             "implement",
             f"{reason}. Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
         )
-    workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, preview.wp_id).worktree_path)
+    workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, preview.wp_id, owned=owned).worktree_path)
     return _wp_dispatch_action("implement", "implement", preview.wp_id, workspace_path)
 
 
@@ -3075,6 +3361,8 @@ def _resolve_wp_board_review_action(
     repo_root: Path,
     task_board_dir: Path,
     status_dir: Path,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> _WpBoardAction:
     """CT-2 / FR-001: review-branch WP resolution via the canonical
     ``_find_first_wp_by_lane`` for_review reader (C-003 — no fifth lane
@@ -3089,11 +3377,11 @@ def _resolve_wp_board_review_action(
             "review",
             f"Board reported a reviewable work package but none was found on re-read. Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
         )
-    workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
+    workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id, owned=owned).worktree_path)
     return _wp_dispatch_action("review", "review", wp_id, workspace_path)
 
 
-def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path) -> _WpBoardAction:
+def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: OwnedCheckout | None = None) -> _WpBoardAction:
     """The single board-authority-backed WP-iteration action selector
     (NFR-002 / CT-7) both ``_build_wp_iteration_decision`` and
     ``_map_wp_step_decision`` consult instead of the bare ``_state_to_action``
@@ -3131,8 +3419,8 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path) -> _WpBoardA
     )
 
     try:
-        placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
-        mission_context = mission_context_for(repo_root, mission_slug)
+        placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
+        mission_context = mission_context_for(repo_root, mission_slug, owned=owned)
     except CoordinationWorktreeUnmaterialized as exc:
         # #5113 / FR-014: the branch is present, only the worktree is not yet
         # materialized — the truthful recovery is to materialize it, never to
@@ -3178,9 +3466,9 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path) -> _WpBoardA
             f"No actionable work package ({sentinel.replace('_', ' ')}). Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
         )
     if board_step == "implement":
-        return _resolve_wp_board_implement_action(mission_slug, repo_root, task_board_dir, status_dir)
+        return _resolve_wp_board_implement_action(mission_slug, repo_root, task_board_dir, status_dir, owned=owned)
     if board_step == "review":
-        return _resolve_wp_board_review_action(mission_slug, repo_root, task_board_dir, status_dir)
+        return _resolve_wp_board_review_action(mission_slug, repo_root, task_board_dir, status_dir, owned=owned)
     return _WP_BOARD_DECLINE  # forward-compat: an unrecognized board step declines rather than guesses
 
 
@@ -3190,6 +3478,8 @@ def _wp_iteration_action_and_state(
     mission_type: str,
     feature_dir: Path,
     repo_root: Path,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[str | None, str | None, str | None, str | None, str]:
     """Resolve ``(action, wp_id, workspace_path, blocked_reason,
     mission_state)`` for a WP-iteration step through the single board
@@ -3207,12 +3497,12 @@ def _wp_iteration_action_and_state(
     matching query mode's ``_build_finalized_override_query_decision``
     (data-model.md's "post-fix required: mission_state = board step").
     """
-    board = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo_root)
+    board = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo_root, owned=owned)
     if board.blocked_reason is not None:
         return None, None, None, board.blocked_reason, step_id
     if board.action is not None:
         return board.action, board.wp_id, board.workspace_path, None, board.board_step or step_id
-    action, wp_id, workspace_path = _state_to_action(step_id, mission_slug, feature_dir, repo_root, mission_type)
+    action, wp_id, workspace_path = _state_to_action(step_id, mission_slug, feature_dir, repo_root, mission_type, owned=owned)
     return action, wp_id, workspace_path, None, step_id
 
 
@@ -3228,6 +3518,7 @@ def _build_wp_iteration_decision(
     origin: dict,
     run_ref: MissionRunRef,
     guard_failures: list[str] | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Decision:
     """Build a Decision for WP iteration within a step — routed through the
     single board-authority selector (NFR-002 / CT-7); see
@@ -3238,6 +3529,7 @@ def _build_wp_iteration_decision(
         mission_type,
         feature_dir,
         repo_root,
+        owned=owned,
     )
 
     if blocked_reason is not None:
@@ -3276,7 +3568,7 @@ def _build_wp_iteration_decision(
             guard_failures or [],
         )
 
-    prompt_file, prompt_error = _build_prompt_or_error(
+    prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
         action,
         feature_dir,
         mission_slug,
@@ -3284,6 +3576,7 @@ def _build_wp_iteration_decision(
         agent,
         repo_root,
         mission_type,
+        owned=owned,
     )
     # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never issues
     # kind=step with an unresolvable prompt_file; see the analogous note in
@@ -3307,6 +3600,7 @@ def _build_wp_iteration_decision(
             origin=origin,
             run_id=run_ref.run_id,
             step_id=step_id,
+            error_code=prompt_error_code,
         ),
         guard_failures or [],
     )
@@ -3354,19 +3648,30 @@ def _map_wp_step_decision(
     progress: dict | None,
     origin: dict,
     run_id: str | None,
+    owned: OwnedCheckout | None = None,
+    wp_resolution: _WpIterationResolution | None = None,
 ) -> Decision:
     """WP-iteration branch of the ``kind="step"`` mapping (#2531 WP07/T026),
     now routed through the single board-authority selector (NFR-002 / CT-7)
     — see :func:`_wp_iteration_action_and_state`. Reached from the
     DAG-advance path (``_map_runtime_decision`` / ``_dn_decision_
     materialize``) whenever the engine just issued a fresh WP-iteration
-    step (#4975: the coord implement-dispatch face)."""
-    action, wp_id, workspace_path, blocked_reason, mission_state = _wp_iteration_action_and_state(
-        step_id,
-        mission_slug,
-        mission_type,
-        feature_dir,
-        repo_root,
+    step (#4975: the coord implement-dispatch face).
+
+    ``wp_resolution`` is the resolution ``_dn_decision_materialize`` already
+    computed BEFORE persisting the advance (T061 step 3); when given, the
+    workspace is not resolved a second time."""
+    action, wp_id, workspace_path, blocked_reason, mission_state = (
+        wp_resolution
+        if wp_resolution is not None
+        else _wp_iteration_action_and_state(
+            step_id,
+            mission_slug,
+            mission_type,
+            feature_dir,
+            repo_root,
+            owned=owned,
+        )
     )
     if blocked_reason is not None:
         return _materialize_decision(
@@ -3400,7 +3705,7 @@ def _map_wp_step_decision(
                 step_id=step_id,
             )
         )
-    prompt_file, prompt_error = _build_prompt_or_error(
+    prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
         action,
         feature_dir,
         mission_slug,
@@ -3408,6 +3713,7 @@ def _map_wp_step_decision(
         agent,
         repo_root,
         mission_type,
+        owned=owned,
     )
     return _materialize_decision(
         _cores.DecisionEnvelope(
@@ -3426,6 +3732,7 @@ def _map_wp_step_decision(
             origin=origin,
             run_id=run_id,
             step_id=step_id,
+            error_code=prompt_error_code,
         )
     )
 
@@ -3442,6 +3749,7 @@ def _map_non_wp_step_decision(
     progress: dict | None,
     origin: dict,
     run_id: str | None,
+    owned: OwnedCheckout | None = None,
 ) -> Decision:
     """Non-WP branch of the ``kind="step"`` mapping (#2531 WP07/T026).
 
@@ -3454,11 +3762,13 @@ def _map_non_wp_step_decision(
         feature_dir,
         repo_root,
         mission_type,
+        owned=owned,
     )
     prompt_file: str | None = None
     prompt_error: str | None = None
+    prompt_error_code: str | None = None
     if action or step_id:
-        prompt_file, prompt_error = _build_prompt_or_error(
+        prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
             action or step_id or "unknown",
             feature_dir,
             mission_slug,
@@ -3466,6 +3776,7 @@ def _map_non_wp_step_decision(
             agent,
             repo_root,
             mission_type,
+            owned=owned,
         )
     else:
         prompt_error = "no action and no step_id; cannot resolve prompt"
@@ -3486,6 +3797,7 @@ def _map_non_wp_step_decision(
             origin=origin,
             run_id=run_id,
             step_id=step_id,
+            error_code=prompt_error_code,
         )
     )
 
@@ -3500,6 +3812,9 @@ def _map_runtime_decision(
     timestamp: str,
     progress: dict | None,
     origin: dict,
+    *,
+    owned: OwnedCheckout | None = None,
+    wp_resolution: _WpIterationResolution | None = None,
 ) -> Decision:
     """Convert runtime NextDecision to CLI Decision dataclass.
 
@@ -3593,6 +3908,8 @@ def _map_runtime_decision(
             progress=progress,
             origin=origin,
             run_id=run_id,
+            owned=owned,
+            wp_resolution=wp_resolution,
         )
 
     return _map_non_wp_step_decision(
@@ -3606,6 +3923,7 @@ def _map_runtime_decision(
         progress=progress,
         origin=origin,
         run_id=run_id,
+        owned=owned,
     )
 
 
